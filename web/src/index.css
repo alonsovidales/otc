@@ -6,6 +6,7 @@
   --ink: #242424;
   --topbar-h: 64px;
   --sidebar-w: 256px;
+  --rail-w: 80px;
   --ink-2: #1a1a1a;
   --ink-3: #2e2e2e;
   --ember: #ff6b4a;
@@ -37,9 +38,9 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* The top bar: the menu button, the logo, and the page's own action. Fixed,
-   with the left menu (Sidebar.css) under it and the page scrolling beside
-   it as before. */
+/* The top bar: the menu button, the logo, the search (TopSearch.css) and
+   the page's own action. Fixed, with the left menu (Sidebar.css) under it
+   and the page scrolling the window beside it. */
 .topbar {
   position: fixed;
   top: 0;
@@ -69,6 +70,12 @@
 }
 .tb-menu:hover { background: var(--panel); }
 .tb-menu:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+.tb-brand { flex: none; display: flex; align-items: center; }
+/* Signed in on a wide window the search starts where the page does, past
+   the whole menu, as in Google Photos. */
+@media (min-width: 1024px) {
+  .tb-brand.signed-in { width: calc(var(--sidebar-w) - 52px); }
+}
 .tb-logo { height: 38px; width: auto; display: block; margin-left: 4px; }
 .tb-fill { flex: 1; }
 .tb-action {
@@ -87,17 +94,23 @@
 .tb-action:hover { background: rgba(255, 107, 74, .12); }
 .tb-action span { font-size: 18px; line-height: 1; }
 
-/* The page beside the menu: room for the bar above and, while the menu is
-   shown on a wide window, for the menu. */
+/* The page beside the menu: room for the bar above and for the menu, whole
+   or as a rail. --content-left is that room, for a page's own fixed bars. */
 .app-body {
+  --content-left: 0px;
   padding-top: var(--topbar-h);
+  padding-left: var(--content-left);
   transition: padding-left .2s ease;
 }
-.app-body.with-menu { padding-left: var(--sidebar-w); }
+.app-body.menu-full { --content-left: var(--sidebar-w); }
+.app-body.menu-rail { --content-left: var(--rail-w); }
 @media (prefers-reduced-motion: reduce) { .app-body { transition: none; } }
-@media (max-width: 560px) {
+/* A phone: the search needs the room more than the logo does. */
+@media (max-width: 599px) {
+  .tb-brand.signed-in { display: none; }
   .tb-logo { height: 30px; }
   .tb-action { padding: 0 12px; }
+  .tb-action-label { display: none; }
 }
 
 a {

@@ -13,6 +13,10 @@ import ProfileCard from "./components/ProfileCard";
 import FriendshipsManager from "./components/FriendshipsManager";
 import type { TabKey } from "./components/nav";
 import Sidebar from "./components/Sidebar";
+import TopSearch from "./components/TopSearch";
+import PeopleView from "./components/PeopleView";
+import GroupsView from "./components/GroupsView";
+import { showAll } from "./components/photoFilter";
 import { MenuIcon } from "./components/NavIcons";
 import NotificationsPage, { useNotificationCount } from "./components/NotificationsPage";
 import type { ReqEnvelope, RespEnvelope } from "./proto/messages";
@@ -55,26 +59,29 @@ function App() {
   // than this component needing to know anything about the picker itself.
   const [openComposer, setOpenComposer] = useState<(() => void) | null>(null);
 
-  // Issue #115: whether the Images tab is showing its groups list. Held
-  // here because the button that toggles it sits in the shared header,
-  // not inside the gallery.
-  const [groupsOpen, setGroupsOpen] = useState(false);
-  // The left menu: shown or hidden with the top bar's button and
-  // remembered; on a narrow window it lies over the page, closed until
-  // asked for.
-  const narrow = useMediaQuery("(max-width: 900px)");
+  // The left menu. A wide window shows it whole or as a rail of icons,
+  // switched with the top bar's button and remembered. A medium one (a
+  // tablet, an unfolded phone) always shows the rail, and the button lays
+  // the whole menu over the page; a phone shows only that.
+  const wide = useMediaQuery("(min-width: 1024px)");
+  const narrow = useMediaQuery("(max-width: 599px)");
   const [menuPref, setMenuPref] = useState<boolean>(() => {
     try { return localStorage.getItem("otc_menu_open") !== "0"; } catch { return true; }
   });
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const menuOpen = narrow ? drawerOpen : menuPref;
-  const toggleMenu = () => {
-    if (narrow) { setDrawerOpen((v) => !v); return; }
-    setMenuPref((v) => {
-      try { localStorage.setItem("otc_menu_open", v ? "0" : "1"); } catch { /* private mode */ }
-      return !v;
-    });
+  const menuLayout: "full" | "rail" | "none" = wide ? (menuPref ? "full" : "rail") : narrow ? "none" : "rail";
+  const setMenuExpanded = (expanded: boolean) => {
+    try { localStorage.setItem("otc_menu_open", expanded ? "1" : "0"); } catch { /* private mode */ }
+    setMenuPref(expanded);
   };
+  const toggleMenu = () => {
+    if (!wide) { setDrawerOpen((v) => !v); return; }
+    setMenuExpanded(!menuPref);
+  };
+  const menuShown = wide ? menuPref : drawerOpen;
+  // A drawer left open while the window grew wide would otherwise come
+  // back on the next narrowing.
+  useEffect(() => { if (wide) setDrawerOpen(false); }, [wide]);
 
   // Issue #105: whether a session restore is actually in flight right now.
   // The authenticated-only views below used to show "Signing in…" purely
@@ -120,9 +127,11 @@ function App() {
   }, [authenticated]);
 
   // Issue #53: keep localStorage's "last tab" in sync with whatever's
-  // actually showing, so the *next* reload restores it.
+  // actually showing, so the *next* reload restores it. Another section
+  // starts at its top, not wherever the last one was scrolled to.
   useEffect(() => {
     saveLastTab(tab);
+    window.scrollTo(0, 0);
   }, [tab]);
 
   // Issue #105: the tabs that have nothing to show without a session. The
@@ -137,7 +146,7 @@ function App() {
   // whether that was found out on reload or mid-session. The public
   // profile is what an unregistered visitor gets, and it is what an
   // expired session should get too.
-  const cAuthOnlyTabs: TabKey[] = ["AdminPannel", "PhotoGallery", "Settings", "Notifications", "Friends", "Social"];
+  const cAuthOnlyTabs: TabKey[] = ["AdminPannel", "PhotoGallery", "People", "Groups", "Settings", "Notifications", "Friends", "Social"];
   const cLandingTab: TabKey = "Profile";
 
   // Sends the viewer somewhere usable when a session couldn't be restored,
@@ -351,16 +360,24 @@ function App() {
     <>
       <header className="topbar">
         {authenticated && (
-          <button className="tb-menu" onClick={toggleMenu} aria-label={menuOpen ? "Hide menu" : "Show menu"} aria-expanded={menuOpen}>
+          <button className="tb-menu" onClick={toggleMenu} aria-label={menuShown ? "Hide menu" : "Show menu"} aria-expanded={menuShown}>
             <MenuIcon size={24} />
           </button>
         )}
-        {!mobile && <img src={logo} className="tb-logo" alt="Off The Cloud" />}
-        <div className="tb-fill" />
+        {!mobile && (
+          <div className={`tb-brand${authenticated ? " signed-in" : ""}`}>
+            <img src={logo} className="tb-logo" alt="Off The Cloud" />
+          </div>
+        )}
+        {/* Search the photos from any section, like Google Photos: picking
+            a tag or a person shows Images. */}
+        {authenticated
+          ? <TopSearch onShowPhotos={() => setTab("PhotoGallery")} onShowPeople={() => setTab("People")} />
+          : <div className="tb-fill" />}
         {/* The page's own action: a new post, on the feed. */}
         {authenticated && tab === "Social" && openComposer && (
           <button className="tb-action" onClick={() => openComposer()}>
-            <span aria-hidden="true">+</span> New post
+            <span aria-hidden="true">+</span><span className="tb-action-label"> New post</span>
           </button>
         )}
         {!authenticated &&
@@ -372,16 +389,20 @@ function App() {
       {authenticated && (
         <Sidebar
           tab={tab}
-          groupsOpen={groupsOpen}
           notificationCount={notificationCount}
-          overlay={narrow}
-          open={menuOpen}
-          onSelect={(next) => { if (next === "PhotoGallery") setGroupsOpen(false); setTab(next); }}
-          onGroups={() => { setGroupsOpen(true); setTab("PhotoGallery"); }}
-          onClose={() => setDrawerOpen(false)}
+          layout={menuLayout}
+          drawerOpen={drawerOpen}
+          onSelect={(next) => {
+            // Images in the menu is the whole library, as Photos is in
+            // Google Photos: whatever was searched for is left.
+            if (next === "PhotoGallery") showAll();
+            setTab(next);
+          }}
+          onCloseDrawer={() => setDrawerOpen(false)}
+          onExpand={() => (wide ? setMenuExpanded(true) : setDrawerOpen(true))}
         />
       )}
-      <div className={`app-body${authenticated && menuOpen && !narrow ? " with-menu" : ""}`}>
+      <div className={`app-body${authenticated ? ` menu-${menuLayout}` : ""}`}>
       {authenticated && <UpdateBanner onOpenSettings={() => setTab("Settings")} />}
       <main>
         {/* Issue #84: "Profile" is only ever the anonymous-visitor landing
@@ -412,7 +433,9 @@ function App() {
             request before the auto-auth from #46 had resolved, surfacing
             as a bare "not authenticated" error instead of just waiting. */}
         {tab === "AdminPannel" && (authenticated ? <FilesExplorer initialPath="/" /> : signedOutPlaceholder)}
-        {tab === "PhotoGallery" && (authenticated ? <PhotoGallery groupsOpen={groupsOpen} setGroupsOpen={setGroupsOpen} /> : signedOutPlaceholder)}
+        {tab === "PhotoGallery" && (authenticated ? <PhotoGallery onShowGroups={() => setTab("Groups")} /> : signedOutPlaceholder)}
+        {tab === "People" && (authenticated ? <PeopleView onOpenPhotos={() => setTab("PhotoGallery")} /> : signedOutPlaceholder)}
+        {tab === "Groups" && (authenticated ? <GroupsView onOpenPhotos={() => setTab("PhotoGallery")} /> : signedOutPlaceholder)}
         {tab === "Settings" && (authenticated ? <SettingsForm /> : signedOutPlaceholder)}
         {tab === "Notifications" && (authenticated ? (
           <NotificationsPage

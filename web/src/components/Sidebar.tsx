@@ -9,17 +9,20 @@ import "./Sidebar.css";
 
 type Props = {
   tab: TabKey;
-  groupsOpen: boolean;
   notificationCount: number;
-  // A narrow window: the menu lies over the page and closes after a pick.
-  overlay: boolean;
-  open: boolean;
+  // Beside the page: the whole menu ("full"), its icons only ("rail"), or
+  // nothing ("none", a phone).
+  layout: "full" | "rail" | "none";
+  // The whole menu over the page, with a backdrop: a narrow window's menu
+  // button. Closes after a pick.
+  drawerOpen: boolean;
   onSelect: (tab: TabKey) => void;
-  onGroups: () => void;
-  onClose: () => void;
+  onCloseDrawer: () => void;
+  // The rail's storage meter: show the whole menu, where the details are.
+  onExpand: () => void;
 };
 
-type Item = { key: TabKey | "Groups"; label: string; icon: React.ReactNode };
+type Item = { key: TabKey; label: string; icon: React.ReactNode };
 
 // Grouped like a photo library: what is stored, then the people, then the
 // device. Names as in the iOS and Android apps.
@@ -37,13 +40,15 @@ const DEVICE: Item[] = [
   { key: "Settings", label: "Settings", icon: <SettingsIcon /> },
 ];
 
-export default function Sidebar({ tab, groupsOpen, notificationCount, overlay, open, onSelect, onGroups, onClose }: Props) {
-  const isActive = (key: Item["key"]) =>
-    key === "Groups" ? tab === "PhotoGallery" && groupsOpen : key === tab && !(key === "PhotoGallery" && groupsOpen);
+export default function Sidebar({ tab, notificationCount, layout, drawerOpen, onSelect, onCloseDrawer }: Props) {
+  // STUB wiring until the rail lands.
+  const overlay = drawerOpen;
+  const open = drawerOpen || layout !== "none";
+  const onClose = onCloseDrawer;
+  const isActive = (key: Item["key"]) => key === tab;
 
   const pick = (key: Item["key"]) => {
-    if (key === "Groups") onGroups();
-    else onSelect(key);
+    onSelect(key);
     if (overlay) onClose();
   };
 

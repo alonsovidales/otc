@@ -3,10 +3,9 @@
   margin: 0 0;
 }
 
-main {
-  height: 100%;
-  overflow-y: auto;
-}
+/* The window scrolls, not main: an overflow here made main the container
+   sticky elements measure from, which pushed the photos' search bar down
+   by --topbar-h over the first row of photos (release 103). */
 
 /* Issue #104 follow-up: the shared-link download is a page of its own with
    nothing else on it, so centre the indicator rather than leaving it in
