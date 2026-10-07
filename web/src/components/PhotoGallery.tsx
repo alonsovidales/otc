@@ -1190,8 +1190,8 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
           </button>
           <span className="pg-selbar-count" aria-live="polite">{cNumber.format(sel.length)} selected</span>
           <div className="pg-selbar-actions">
-            <BarButton compact={compact} label="Social post" icon={<PostIcon size={22} />} onClick={() => openDialog({ kind: "post" })} />
-            <BarButton compact={compact} label="Add to collection" icon={<AddToCollectionIcon size={22} />} onClick={() => openDialog({ kind: "collect" })} />
+            <BarButton compact={compact} label="Social Post" icon={<PostIcon size={22} />} onClick={() => openDialog({ kind: "post" })} />
+            <BarButton compact={compact} label="Add to Collection" icon={<AddToCollectionIcon size={22} />} onClick={() => openDialog({ kind: "collect" })} />
             <div className="pg-share-anchor">
               <BarButton
                 ref={shareBtnRef}
@@ -1847,7 +1847,7 @@ function PostDialog({ files, thumbFor, onMove, onRemove, onCancel, onPosted }: {
 
   return (
     <Modal labelledBy={titleId} busy={busy} wide onClose={onCancel}>
-      <h2 id={titleId} ref={titleRef} className="pg-dlg-title">New social post</h2>
+      <h2 id={titleId} ref={titleRef} className="pg-dlg-title">New Social Post</h2>
       {files.length ? (
         <ol className="pg-strip" ref={stripRef} aria-label="Photos in the post, in order">
           {files.map((f, i) => {
