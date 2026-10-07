@@ -272,7 +272,10 @@ final class NewPostPickerVM: ObservableObject {
         for i in localLoadedCount..<end {
             let asset = fetchResult.object(at: i)
             let id = "local#\(asset.localIdentifier)"
-            if let thumb = await PhoneThumb.request(asset) { GridThumbCache.store(thumb, id: id) }
+            // No thumbnail fetched here: each tile loads its own when it
+            // shows (loadPhoneTile). Fetching a page's 60 one after another
+            // first - from iCloud for photos not kept on the phone - held
+            // the whole page back for ages.
             newItems.append(Item(id: id, path: "", asset: asset, isVideo: asset.mediaType == .video))
         }
         guard mine == searchGeneration else { return }
@@ -799,6 +802,19 @@ struct NewPostPickerView: View {
 
 /// The phone source's tile thumbnails, from PhotoKit.
 enum PhoneThumb {
+    // Sized for a @3x device showing this grid's ~140pt-wide tiles
+    // (140 * 3 = 420) with some headroom - 240 was visibly soft.
+    private static let localSize = CGSize(width: 450, height: 450)
+    // From iCloud: a little smaller, which iCloud serves from a smaller
+    // copy, so it arrives sooner.
+    private static let cloudSize = CGSize(width: 320, height: 320)
+
+    /// Whatever this phone has at once - often a small, soft preview. Shown
+    /// while request() gets the sharp one.
+    static func quick(_ asset: PHAsset) async -> UIImage? {
+        await fetch(asset, size: localSize, mode: .fastFormat, resize: .fast, network: false)
+    }
+
     /// The copy on this phone first. Only when there is none at tile size
     /// - with "Optimize iPhone Storage" an older photo keeps just a tiny
     /// preview here, and a high-quality request that may not use the
@@ -806,43 +822,75 @@ enum PhoneThumb {
     /// tiles empty - a tile-sized copy from iCloud: a few tens of KB,
     /// never the full original issue #58 kept off the network.
     static func request(_ asset: PHAsset) async -> UIImage? {
-        if let local = await fetch(asset, network: false) { return local }
-        return await fetch(asset, network: true)
+        if let local = await fetch(asset, size: localSize, mode: .highQualityFormat, resize: .exact, network: false) {
+            return local
+        }
+        if Task.isCancelled { return nil }
+        return await fetch(asset, size: cloudSize, mode: .highQualityFormat, resize: .fast, network: true)
     }
 
-    private static func fetch(_ asset: PHAsset, network: Bool) async -> UIImage? {
-        let imgOpts = PHImageRequestOptions()
-        // .fastFormat was the actual cause of "the thumbnails suck" -
-        // it's documented to return whatever the *fastest* available
-        // cached representation is (a small system icon), capped well
-        // below whatever targetSize asks for, no matter how large that is
-        // - bumping targetSize alone (previous attempt) couldn't fix
-        // that. .highQualityFormat asks for the best available quality
-        // for targetSize instead, while still only calling the result
-        // handler once (unlike .opportunistic, which calls it twice and
-        // would violate withCheckedContinuation's single-resume
-        // contract below).
-        imgOpts.deliveryMode = .highQualityFormat
+    /// One PhotoKit request, cancelled with the task: a tile scrolled away
+    /// no longer holds the network for the ones on screen. .fastFormat and
+    /// .highQualityFormat answer once; a cancelled request may answer nil
+    /// or not at all, so the continuation is resumed exactly once either
+    /// way (PendingThumb).
+    private static func fetch(_ asset: PHAsset, size: CGSize, mode: PHImageRequestOptionsDeliveryMode,
+                              resize: PHImageRequestOptionsResizeMode, network: Bool) async -> UIImage? {
+        let opts = PHImageRequestOptions()
+        // .fastFormat alone was "the thumbnails suck": the fastest cached
+        // representation, capped well below targetSize. It is only the
+        // first look now; .highQualityFormat is the best quality for
+        // targetSize, still in a single call (unlike .opportunistic).
+        opts.deliveryMode = mode
         // A targetSize-sized image either way: from what is cached here,
         // or (network) the matching size from iCloud - never the original.
-        imgOpts.isNetworkAccessAllowed = network
-        imgOpts.isSynchronous = false
-        imgOpts.resizeMode = .exact
-
-        // Sized for a @3x device showing this grid's ~140pt-wide tiles
-        // (140 * 3 = 420) with some headroom — 240 was visibly soft.
-        let targetSize = CGSize(width: 450, height: 450)
-
-        return await withCheckedContinuation { cont in
-            PHImageManager.default().requestImage(
-                for: asset,
-                targetSize: targetSize,
-                contentMode: .aspectFill,
-                options: imgOpts
-            ) { image, _ in
-                cont.resume(returning: image)
+        opts.isNetworkAccessAllowed = network
+        opts.isSynchronous = false
+        opts.resizeMode = resize
+        let pending = PendingThumb()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { cont in
+                pending.begin(cont)
+                let id = PHImageManager.default().requestImage(for: asset, targetSize: size, contentMode: .aspectFill, options: opts) { image, _ in
+                    pending.finish(image)
+                }
+                pending.started(id)
             }
+        } onCancel: {
+            pending.cancel()
         }
+    }
+}
+
+/// A PhotoKit request's continuation, resumed exactly once - by the result
+/// or by cancelling, whichever comes first.
+private final class PendingThumb: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cont: CheckedContinuation<UIImage?, Never>?
+    private var requestID: PHImageRequestID?
+    private var cancelled = false
+
+    func begin(_ c: CheckedContinuation<UIImage?, Never>) {
+        lock.lock(); cont = c; lock.unlock()
+    }
+    func started(_ id: PHImageRequestID) {
+        lock.lock()
+        requestID = id
+        let cancelNow = cancelled
+        lock.unlock()
+        if cancelNow { PHImageManager.default().cancelImageRequest(id) }
+    }
+    func finish(_ image: UIImage?) {
+        lock.lock(); let c = cont; cont = nil; lock.unlock()
+        c?.resume(returning: image)
+    }
+    func cancel() {
+        lock.lock()
+        cancelled = true
+        let id = requestID
+        lock.unlock()
+        if let id { PHImageManager.default().cancelImageRequest(id) }
+        finish(nil)
     }
 }
 
@@ -854,13 +902,17 @@ private func tileImage(_ item: NewPostPickerVM.Item, maxPt: CGFloat) -> UIImage?
 }
 
 /// A phone item's tile, held by the tile while it is on screen: from the
-/// cache, or asked of PhotoKit again once the cache let it go.
-private func phoneTileImage(_ item: NewPostPickerVM.Item) async -> UIImage? {
-    guard let asset = item.asset else { return nil }
-    if let cached = GridThumbCache.stored(item.id) { return cached }
-    guard let img = await PhoneThumb.request(asset) else { return nil }
+/// cache, or asked of PhotoKit again once the cache let it go - the
+/// phone's quick preview at once, then the sharp copy (which may come
+/// from iCloud).
+@MainActor
+private func loadPhoneTile(_ item: NewPostPickerVM.Item, show: (UIImage) -> Void) async {
+    guard let asset = item.asset else { return }
+    if let cached = GridThumbCache.stored(item.id) { show(cached); return }
+    if let quick = await PhoneThumb.quick(asset), !Task.isCancelled { show(quick) }
+    guard !Task.isCancelled, let img = await PhoneThumb.request(asset), !Task.isCancelled else { return }
     GridThumbCache.store(img, id: item.id)
-    return img
+    show(img)
 }
 
 private struct PickTile: View {
@@ -885,7 +937,7 @@ private struct PickTile: View {
                     Color.gray.opacity(0.2)
                 }
             }
-            .task(id: item.id) { phoneThumb = await phoneTileImage(item) }
+            .task(id: item.id) { await loadPhoneTile(item) { phoneThumb = $0 } }
             .frame(maxWidth: Self.side, maxHeight: Self.side)
             .aspectRatio(1, contentMode: .fill)
             .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -986,7 +1038,7 @@ private struct SelectedThumb: View {
                         Color.gray.opacity(0.2)
                     }
                 }
-                .task(id: item.id) { phoneThumb = await phoneTileImage(item) }
+                .task(id: item.id) { await loadPhoneTile(item) { phoneThumb = $0 } }
                 .frame(width: 60, height: 60)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 // Issue #111: the whole thumbnail opens the trimmer, not
