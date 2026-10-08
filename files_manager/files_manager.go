@@ -1627,8 +1627,10 @@ const (
 )
 
 // processMedia is processMediaContent limited to stages. It reports false
-// when the file could not be decoded at all (already alerted), so the
-// fast lane doesn't queue an analysis bound to fail the same way. Its two
+// when the file could not be decoded at all (alerted, or only logged for
+// a format the device makes no preview of and for content kept out of
+// Images - processing_alerts.go), so the fast lane doesn't queue an
+// analysis bound to fail the same way. Its two
 // callers (processMediaContent, processStoredStages) take the analysis
 // out of stages first for content kept out of Images (guardAnalysis,
 // issue #192), before anything is read or decoded.
@@ -1674,11 +1676,12 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			if exif != nil {
 				orientation = exif.Orientation
 			}
-			content, err = mg.heicToJpeg(content, 90, orientation)
+			converted, err := mg.heicToJpeg(content, 90, orientation)
 			if err != nil {
-				mg.alert("could not be converted from HEIC", file.Path, err)
+				mg.stillFailed("could not be converted from HEIC", file, content, err)
 				return false
 			}
+			content = converted
 		}
 
 		startClass := time.Now()
@@ -1687,7 +1690,7 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 		// what is too large to decode doesn't.
 		img, err := decodeStill(content, file.Path)
 		if err != nil {
-			mg.alert("could not be processed", file.Path, err)
+			mg.stillFailed("could not be processed", file, content, err)
 			return false
 		}
 
@@ -1729,7 +1732,7 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			// post with that photo in it then failed to ever find.
 			var buf bytes.Buffer
 			if err := jpeg.Encode(&buf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
-				mg.alert("has no thumbnail (it could not be encoded)", file.Path, err)
+				mg.processingAlert("has no thumbnail (it could not be encoded)", file, err)
 			} else {
 				log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
 				if err := blobstore.WriteBytes(fmt.Sprintf("%s_thumbnail", targetPath), session, buf.Bytes()); err != nil {
@@ -1785,7 +1788,7 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 		if content == nil {
 			src, done, srcErr := mg.videoSource(session, file)
 			if srcErr != nil {
-				mg.alert("could not be processed", file.Path, srcErr)
+				mg.processingAlert("could not be processed", file, srcErr)
 				return false
 			}
 			frames, err = extractVideoFramesFrom(src, frameCount)
@@ -1800,7 +1803,7 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			}
 		}
 		if err != nil {
-			mg.alert("could not be processed", file.Path, err)
+			mg.processingAlert("could not be processed", file, err)
 			return false
 		}
 		if exif == nil {
@@ -1845,7 +1848,7 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			thumbImg := thumbnailSource(frames[0], maxWidth)
 			var buf bytes.Buffer
 			if err := jpeg.Encode(&buf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
-				mg.alert("has no thumbnail (it could not be encoded)", file.Path, err)
+				mg.processingAlert("has no thumbnail (it could not be encoded)", file, err)
 			} else {
 				log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
 				if err := blobstore.WriteBytes(fmt.Sprintf("%s_thumbnail", targetPath), session, buf.Bytes()); err != nil {

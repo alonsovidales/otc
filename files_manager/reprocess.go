@@ -186,7 +186,7 @@ func (mg *Manager) runReprocess(ctx context.Context, ses *session.Session, lastH
 				return
 			}
 
-			mg.safely("reprocessing", file.Path, func() { mg.reprocessOneFile(ses, file, storagePath) })
+			mg.safelyOn("reprocessing", file, func() { mg.reprocessOneFile(ses, file, storagePath) })
 			processed++
 			lastHash = file.Hash
 			// Persisted after every single file, deliberately - the whole
@@ -211,6 +211,9 @@ func (mg *Manager) runReprocess(ctx context.Context, ses *session.Session, lastH
 // rather than aborting the whole run - same "don't let one bad thing take
 // down the rest" reasoning as DetectFaces' own per-face handling.
 func (mg *Manager) reprocessOneFile(ses *session.Session, file *pb.File, storagePath string) {
+	if !isMedia(file) {
+		return // nothing here decodes it: not read
+	}
 	targetPath := fmt.Sprintf("%s/%s", storagePath, file.Hash)
 	if strings.HasPrefix(file.Mime, "video/") && mg.videoSourceFn != nil {
 		mg.processMediaContent(ses, file, targetPath, nil) // streamed, not loaded

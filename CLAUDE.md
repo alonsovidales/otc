@@ -289,7 +289,15 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   `notifications` as type `Error` through `dao.AddErrorNotification` - grouped, so an error
   within five minutes of an open Error row joins it (`details` gains a line, `occurrences`
   goes up, the row is unread again) rather than adding a row; `files_manager.alert` is the
-  one call site helper. The clients show one line per row and the full list on hover (web)
+  one call site helper. Not alerted, only logged (`files_manager/processing_alerts.go`): an image/*
+  file in a format the device makes no preview of that fails to decode (a `.cur`, a `.djvu`: no
+  thumbnail, no analysis; "previewed" is `previewedMimes` - the Go decoders, HEIC/HEIF, and JPEG
+  2000/Photoshop through ffmpeg - by a `.HEIC` name, the row's MIME or the sniffed content, so a
+  damaged JPEG or HEIC is still alerted, even one stored as application/octet-stream), and any
+  processing failure (decode, HEIC conversion, video frames, thumbnail encode, a recovered panic:
+  `processingAlert`, `safelyOn`) of content kept out of Images (#192's rule, `keptOutOfImages`),
+  logged by hash at Info and by path at Debug only (#156); disk read/write failures are alerted
+  wherever the file is. The clients show one line per row and the full list on hover (web)
   or tap (iOS/Android). Never push-notify these - the one exception is `raidwatch`'s disk failure below. `AddErrorNotification` is serialised in-process,
   and a group's `details` stop growing at 60000 bytes (later errors still count). The device DSN
   has `interpolateParams=true` (the provisioning DSNs in `dao/provisioning.go` don't).
@@ -335,7 +343,8 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   Issue #192's folders kept out of Images (`out_of_images_folders`, the same path rules;
   `files_manager/out_of_images.go`): content is kept out when a row of it (`files` or
   `file_versions`) is under a flagged folder and none is outside them all. It still gets its
-  thumbnail (Files shows it) but never tags (place tags included) or faces: `guardAnalysis` takes
+  thumbnail (Files shows it; a processing failure making it is logged, not alerted - a disk
+  read/write failure still is, #64) but never tags (place tags included) or faces: `guardAnalysis` takes
   the analysis out at processMedia's two entry points, before anything is read, and records the
   hash in `skipped_analysis`. Flagging (`SetOutOfImages`, synchronous) deletes the tags and faces of
   what only that folder holds (`DelFacesByHashes`: unnamed people left with no face go, named ones
@@ -440,7 +449,12 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   retried at the next start. `checkImageSize` also bounds a HEIC
   grid by its decoded first tile (`checkHeifGrid`). Decode stills through `decodeStill`
   (upload processing and the shared-gallery preview): ffmpeg only for what Go can't read, never
-  for anything `checkImageSize` refuses (issue #188) - ffmpeg would decode it anyway, unbounded.
+  for anything `checkImageSize` refuses (issue #188) - ffmpeg would decode it anyway, unbounded -
+  nor for content no ffmpeg reads (`neverPreviewedMimes`: DjVu, CAD drawings, GIMP files), which
+  `isMedia` also leaves out, so it is never read, queued (`enqueueMedia`, `enqueueAnalysis` and
+  `ResumePendingAnalysis` drop it; dao's `cMediaRows` doesn't exclude it, so #192 may record it as
+  skipped) or given a thumbnail; other image/* types
+  (`.ico`, `.svg`, AVIF...) are left to whatever the device's ffmpeg build decodes.
 - `raidwatch` — a disk of the mirror (md0) that stops working: an Alert of its own
   (`dao.AddStorageNotification`, an ungrouped Error row) and a push naming the USB port it is in ("the
   disk in the top blue USB port"), once per failure (`<storage>/.raid-alerted`), and another once the

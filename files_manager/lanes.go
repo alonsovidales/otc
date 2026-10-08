@@ -133,8 +133,12 @@ func (mg *Manager) mediaLanes() *mediaLanes {
 	return mg.lanes
 }
 
-// isMedia is whether processing has anything to do with file.
+// isMedia is whether processing has anything to do with file - not an
+// image/* type no decoder reads (a DjVu document: neverPreviewedMimes).
 func isMedia(file *pb.File) bool {
+	if neverPreviewed(file.Mime) {
+		return false
+	}
 	return strings.HasPrefix(file.Mime, "image") || strings.HasPrefix(file.Mime, "video/") || strings.HasSuffix(file.Path, ".HEIC")
 }
 
@@ -172,7 +176,7 @@ func (mg *Manager) processStoredStages(ses *session.Session, file *pb.File, targ
 
 func (mg *Manager) thumbnailJob(j mediaJob) bool {
 	ok := false
-	mg.safely("processing", j.file.Path, func() {
+	mg.safelyOn("processing", j.file, func() {
 		ok = mg.processStoredStages(j.ses, j.file, j.target, stageThumbnail)
 	})
 	if !ok {
@@ -192,7 +196,7 @@ func (mg *Manager) analysisJob(j mediaJob) {
 		mg.donePendingAnalysis(j.file.Hash)
 		return
 	}
-	mg.safely("analysing", j.file.Path, func() {
+	mg.safelyOn("analysing", j.file, func() {
 		mg.processStoredStages(j.ses, j.file, j.target, stageAnalysis)
 	})
 	// Done even when it failed: a file that crashes the analysis must not
@@ -263,6 +267,13 @@ func (mg *Manager) ResumePendingAnalysis(ses *session.Session) {
 		file, err := mg.dao.GetFileByHash(hash)
 		if err != nil {
 			// Its file is gone.
+			mg.donePendingAnalysis(hash)
+			continue
+		}
+		if !isMedia(file) {
+			// Nothing decodes it (a DjVu scan: neverPreviewedMimes) - a
+			// row an older build queued, or skipped content shown again
+			// (cMediaRows has no such exclusion): not read.
 			mg.donePendingAnalysis(hash)
 			continue
 		}

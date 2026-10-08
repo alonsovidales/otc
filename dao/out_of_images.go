@@ -138,7 +138,11 @@ func (dao *Dao) DelOutOfImagesUnder(folder string) error {
 }
 
 // cMediaRows is isMedia's rule (files_manager/lanes.go) in SQL: what
-// processing tags and searches for faces.
+// processing tags and searches for faces - without isMedia's exclusion of
+// the image/* types nothing decodes (neverPreviewedMimes: DjVu, CAD, GIMP
+// files), so it is a little wider. Harmless: such content is only recorded
+// as skipped, and every way back to the lanes (enqueueAnalysis,
+// ResumePendingAnalysis) drops what isn't isMedia.
 const cMediaRows = "(`mime` like 'image%' or `mime` like 'video/%' or `path` like '%.HEIC' collate utf8mb4_bin)"
 
 // MediaHashesUnder is the content of every photo and video under folder,

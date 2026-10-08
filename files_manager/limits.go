@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/alonsovidales/otc/log"
+	pb "github.com/alonsovidales/otc/proto/generated"
 )
 
 // Issue #165: what one file may cost the device.
@@ -71,13 +72,18 @@ var stillFFmpeg = decodeWithFFmpeg
 // a damaged marker. Never for anything checkImageSize refuses (issue
 // #188): ffmpeg would decode it anyway, out of process and unbounded (its
 // own HEIC grid reading included), taking the memory the limit keeps -
-// too large, and also a HEIF grid that doesn't match its header. When
-// ffmpeg fails too, the decoder's own error is returned; path is only for
-// the log.
+// too large, and also a HEIF grid that doesn't match its header. Nor for
+// content no ffmpeg reads (a DjVu document: neverPreviewedMimes), which
+// would only be copied to a temporary file to be refused. When ffmpeg
+// fails too, or isn't tried, the decoder's own error is returned; path is
+// only for the log.
 func decodeStill(content []byte, path string) (image.Image, error) {
 	img, err := decodeImage(content)
 	if err == nil || errors.Is(err, errImageTooLarge) || checkImageSize(content) != nil {
 		return img, err
+	}
+	if sniffedNeverPreviewed(content) {
+		return nil, err
 	}
 	fallback, ffErr := stillFFmpeg(content)
 	if ffErr != nil {
@@ -98,6 +104,13 @@ func command(timeout time.Duration, name string, args ...string) (*exec.Cmd, con
 // bug on a malformed file, say) is logged and raised to the owner instead
 // of taking the whole service down - and, on restart, doing it again.
 func (mg *Manager) safely(what, path string, fn func()) {
+	mg.safelyOn(what, &pb.File{Path: path}, fn)
+}
+
+// safelyOn is safely for work on one file's content: a panic on content
+// kept out of Images (issue #192) is logged, not alerted - the owner
+// asked the device not to process it.
+func (mg *Manager) safelyOn(what string, file *pb.File, fn func()) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Error("recovered from a panic while", what, "a file:", r, string(debug.Stack()))
@@ -107,7 +120,7 @@ func (mg *Manager) safely(what, path string, fn func()) {
 					log.Error("could not raise the alert either:", r2)
 				}
 			}()
-			mg.alert("could not be processed (it crashed the processing)", path, fmt.Errorf("%v", r))
+			mg.processingAlert("could not be processed (it crashed the processing)", file, fmt.Errorf("%v", r))
 		}
 	}()
 	fn()

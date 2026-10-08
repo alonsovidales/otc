@@ -86,7 +86,7 @@ func (mg *Manager) BackfillMissingThumbnails(ses *session.Session) {
 				return
 			}
 
-			if pending[file.Hash] {
+			if pending[file.Hash] || !isMedia(file) {
 				continue
 			}
 			thumb := fmt.Sprintf("%s/%s_thumbnail", storagePath, file.Hash)
@@ -110,7 +110,7 @@ func (mg *Manager) BackfillMissingThumbnails(ses *session.Session) {
 			// used to be retried at every start - a crash loop - because
 			// the marker was only written after processing returned.
 			_ = os.WriteFile(marker, []byte(cDecoders), 0o600) // perms: rw-------
-			mg.safely("making a thumbnail for", file.Path, func() { mg.reprocessOneFile(ses, file, storagePath) })
+			mg.safelyOn("making a thumbnail for", file, func() { mg.reprocessOneFile(ses, file, storagePath) })
 			repaired++
 			if _, statErr := os.Stat(thumb); statErr == nil {
 				_ = os.Remove(marker)
