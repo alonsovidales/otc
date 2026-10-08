@@ -853,30 +853,21 @@ struct AddFolderChooser: View {
 }
 
 /// The storage line: its health, how full the device is, and -
-/// with the pointer over it - the device's CPU and memory in a pop-up.
-/// otc-sync's tray shows the same (a text bar, and a submenu).
+/// with the pointer over it - the device's storage in GB, CPU and memory
+/// in a pop-up. otc-sync's tray shows the same (a text bar, and a submenu).
 private struct StorageStatusView: View {
     let health: RaidHealth
     let status: Msg_Status?
     @State private var showLoad = false
 
-    /// Used and total, in the status's units (1.024 MB): the storage
-    /// path's disk, or the OS disk on a device without one.
-    private var storage: (used: Double, size: Double)? {
-        guard let s = status else { return nil }
-        if s.raidSize > 0 { return (Double(s.raidUsage), Double(s.raidSize)) }
-        if s.diskSize > 0 { return (Double(s.diskUsage), Double(s.diskSize)) }
-        return nil
-    }
-
     var body: some View {
         HStack(spacing: 0) {
             Text(health.summary)
                 .foregroundStyle(health == .ok ? Color.secondary : Color.red)
-            if let s = storage {
-                let frac = min(max(s.used / s.size, 0), 1)
+            if let s = status?.storageUse {
+                let frac = s.fraction
                 Text(" · \(Int((frac * 100).rounded()))% used")
-                    .foregroundStyle(frac > 0.9 ? Color.red : frac > 0.75 ? Color.orange : Color.secondary)
+                    .foregroundStyle(fullnessColor(frac) ?? Color.secondary)
                     .monospacedDigit()
             }
         }
@@ -915,17 +906,60 @@ private struct UpdateAlertView: View {
     }
 }
 
+private extension Msg_Status {
+    /// Used and total, in the status's units (1.024 MB): the storage
+    /// path's disk, or the OS disk on a device without one; nil until the
+    /// device reports a size.
+    var storageUse: (used: Int32, size: Int32, fraction: Double)? {
+        let (used, size) = raidSize > 0 ? (raidUsage, raidSize) : (diskUsage, diskSize)
+        guard size > 0 else { return nil }
+        return (used, size, min(max(Double(used) / Double(size), 0), 1))
+    }
+}
+
+/// How full storage is, in colour: orange past 75%, red past 90%, nil
+/// (the usual colour) below. The storage line and the pop-up's bar.
+private func fullnessColor(_ fraction: Double) -> Color? {
+    fraction > 0.9 ? .red : fraction > 0.75 ? .orange : nil
+}
+
+/// An amount in the status's units (1.024 MB), as otc-sync's `sizeText`
+/// writes it: one decimal under 100 GB ("8.5"), whole GB from 100 GB
+/// ("474"), TB with one decimal from 1000 GB ("3.6").
+private func sizeText(_ units: Int32) -> (number: String, unit: String) {
+    let gb = Double(units) * 1.024 / 1000
+    if gb < 99.95 { return (String(format: "%.1f", gb), "GB") }
+    if gb < 999.5 { return (String(format: "%.0f", gb), "GB") }
+    return (String(format: "%.1f", gb / 1000), "TB")
+}
+
+/// "39.6 of 474 GB", "1.2 of 3.6 TB", or "39.6 GB of 3.6 TB" when the two
+/// need different units - otc-sync's `usedOfTotal`.
+private func usedOfTotal(_ used: Int32, _ size: Int32) -> String {
+    let u = sizeText(used), s = sizeText(size)
+    return u.unit == s.unit
+        ? "\(u.number) of \(s.number) \(s.unit)"
+        : "\(u.number) \(u.unit) of \(s.number) \(s.unit)"
+}
+
+/// The pop-up: storage first, as it details the line it opens from,
+/// then the device's load.
 private struct DeviceLoadView: View {
     let status: Msg_Status
-
-    private func gb(_ v: Int32) -> String {
-        String(format: "%.1f", Double(v) * 1.024 / 1000)
-    }
 
     var body: some View {
         let cpu = Double(status.cpuUsagePrc) / 100
         let mem = status.memSize > 0 ? Double(status.memUsage) / Double(status.memSize) : 0
         Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
+            if let s = status.storageUse {
+                GridRow {
+                    Text("Storage").font(.caption)
+                    ProgressView(value: s.fraction).frame(width: 90)
+                        .tint(fullnessColor(s.fraction))
+                    Text(usedOfTotal(s.used, s.size))
+                        .font(.caption).monospacedDigit()
+                }
+            }
             GridRow {
                 Text("CPU").font(.caption)
                 ProgressView(value: min(max(cpu, 0), 1)).frame(width: 90)
@@ -935,7 +969,7 @@ private struct DeviceLoadView: View {
             GridRow {
                 Text("Memory").font(.caption)
                 ProgressView(value: min(max(mem, 0), 1)).frame(width: 90)
-                Text("\(gb(status.memUsage)) of \(gb(status.memSize)) GB")
+                Text(usedOfTotal(status.memUsage, status.memSize))
                     .font(.caption).monospacedDigit()
             }
         }

@@ -62,8 +62,9 @@ type ui struct {
 	mu        sync.Mutex
 	status    *systray.MenuItem
 	raid      *systray.MenuItem
-	cpu       *systray.MenuItem // the storage line's submenu: the device's
-	mem       *systray.MenuItem // load, shown when the pointer rests on it
+	store     *systray.MenuItem // the storage line's submenu: its storage in
+	cpu       *systray.MenuItem // GB and the device's load, shown when the
+	mem       *systray.MenuItem // pointer rests on it
 	update    *systray.MenuItem // issue #183: a major or critical device update
 	web       *systray.MenuItem // issue #193: the device's web app, in the browser
 	appUpdate *systray.MenuItem // a newer otc-sync (selfupdate)
@@ -218,9 +219,13 @@ func (u *ui) build(folders []config.FolderStatus) {
 	u.status = systray.AddMenuItem("Not connected", "")
 	u.status.Disable()
 	// Enabled, unlike the other status lines, or its submenu - the
-	// device's CPU and memory - would never open; clicking it does nothing.
+	// device's storage in GB, CPU and memory - would never open; clicking
+	// it does nothing. Storage first, as it details the line itself.
 	u.raid = systray.AddMenuItem("", "")
 	u.raid.Hide()
+	u.store = u.raid.AddSubMenuItem("", "")
+	u.store.Disable()
+	u.store.Hide()
 	u.cpu = u.raid.AddSubMenuItem("", "")
 	u.cpu.Disable()
 	u.mem = u.raid.AddSubMenuItem("", "")
@@ -357,9 +362,15 @@ func (u *ui) apply() {
 	}
 	if st.Raid != "" && st.Raid != string(engine.RaidUnknown) {
 		u.setTitle(u.raid, storageTitle(st))
-		u.setTitle(u.cpu, fmt.Sprintf("CPU: %.0f%%", st.CPUPercent))
+		if t := storageUseTitle(st); t != "" {
+			u.setTitle(u.store, t)
+			u.setShown(u.store, true)
+		} else {
+			u.setShown(u.store, false)
+		}
+		u.setTitle(u.cpu, cpuTitle(st))
 		u.setTitle(u.mem, memoryTitle(st))
-		u.setTip(u.raid, fmt.Sprintf("CPU: %.0f%% · %s", st.CPUPercent, memoryTitle(st)))
+		u.setTip(u.raid, loadTip(st))
 		u.setShown(u.raid, true)
 	} else {
 		u.setShown(u.raid, false)
@@ -729,11 +740,57 @@ func updateTitle(a *config.UpdateAlert) (title, tooltip string) {
 	return "", ""
 }
 
-// memoryTitle: "Memory: 2.1 of 8.2 GB". The status counts in units of
-// 1.024 MB.
+// storageUseTitle: "Storage: 39.6 of 474 GB" - the storage line's first
+// submenu item; "" until the device reports a size.
+func storageUseTitle(st config.State) string {
+	if st.StorageSize <= 0 {
+		return ""
+	}
+	return "Storage: " + usedOfTotal(st.StorageUsed, st.StorageSize)
+}
+
+// cpuTitle: "CPU: 12%".
+func cpuTitle(st config.State) string {
+	return fmt.Sprintf("CPU: %.0f%%", st.CPUPercent)
+}
+
+// memoryTitle: "Memory: 2.1 of 8.2 GB".
 func memoryTitle(st config.State) string {
-	gb := func(v int64) float64 { return float64(v) * 1.024 / 1000 }
-	return fmt.Sprintf("Memory: %.1f of %.1f GB", gb(st.MemUsed), gb(st.MemSize))
+	return "Memory: " + usedOfTotal(st.MemUsed, st.MemSize)
+}
+
+// loadTip is the storage line's tooltip: its submenu on one line.
+func loadTip(st config.State) string {
+	tip := cpuTitle(st) + " · " + memoryTitle(st)
+	if t := storageUseTitle(st); t != "" {
+		tip = t + " · " + tip
+	}
+	return tip
+}
+
+// sizeText writes an amount in the status's units (1.024 MB): one decimal
+// under 100 GB ("8.5"), whole GB from 100 GB ("474"), TB with one decimal
+// from 1000 GB ("3.6"). The macOS pop-up's sizeText is the same.
+func sizeText(units int64) (number, unit string) {
+	gb := float64(units) * 1.024 / 1000
+	switch {
+	case gb < 99.95:
+		return fmt.Sprintf("%.1f", gb), "GB"
+	case gb < 999.5:
+		return fmt.Sprintf("%.0f", gb), "GB"
+	}
+	return fmt.Sprintf("%.1f", gb/1000), "TB"
+}
+
+// usedOfTotal: "39.6 of 474 GB", "1.2 of 3.6 TB", or "39.6 GB of 3.6 TB"
+// when the two need different units.
+func usedOfTotal(used, size int64) string {
+	u, uu := sizeText(used)
+	s, su := sizeText(size)
+	if uu == su {
+		return u + " of " + s + " " + su
+	}
+	return u + " " + uu + " of " + s + " " + su
 }
 
 // Version is this build's version, set by main (for the self-update).
