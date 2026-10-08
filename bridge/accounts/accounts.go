@@ -60,6 +60,10 @@ const (
 	// MaxDomains is the terms' limit per account; more is by arrangement
 	// (ContactEmail).
 	MaxDomains = 5
+	// ExtraDomainEUR is the yearly price of each domain beyond MaxDomains,
+	// arranged by writing to ContactEmail (the landing page, the account
+	// page and README.md state it).
+	ExtraDomainEUR = 2
 	// FreeYears is how long a new account uses the bridge for free.
 	FreeYears = 2
 	// ContactEmail is where to ask for more domains.
@@ -94,7 +98,7 @@ var Terms = map[string]any{
 	"free_years":         FreeYears,
 	"price_per_year_eur": 9.99,
 	"max_domains":        MaxDomains,
-	"extra_domain_eur":   5,
+	"extra_domain_eur":   ExtraDomainEUR,
 	"inactive_months":    6,
 	"contact":            ContactEmail,
 }

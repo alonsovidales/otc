@@ -153,9 +153,9 @@ With this you can access all your data and social network from any browser just 
 There are four ways to set up a device, from least to most work: flash the pre-built image (a
 Raspberry Pi 5 with at least 8 GB of RAM - no keyboard, monitor or Linux knowledge needed, RAID1
 included), run the one-line install script against a machine you already have login access to
-(Ubuntu, Debian, Raspberry Pi OS or another Debian-based 64-bit distro - no flashing, no RAID/status
-LEDs), run `Makefile.pi` against a plain Raspberry Pi OS install (if you want to build from source),
-or follow the manual steps yourself.
+(Ubuntu, Debian, Raspberry Pi OS or another Debian-based 64-bit distro - no flashing, RAID1 and the
+status LEDs included, no WiFi setup), run `Makefile.pi` against a plain Raspberry Pi OS install (if
+you want to build from source), or follow the manual steps yourself.
 
 **Option 0: One-line install script (any Debian/Ubuntu machine)**
 -------------------------------------------------
@@ -174,11 +174,23 @@ dev machine, just run directly on the device itself with no cross-compiling or s
 needed. It's safe to re-run any time (e.g. to pick up new code) - device identity (UUID, DB
 password, bridge secret) is only ever generated once, on the first run.
 
-This path doesn't set up a RAID1 array, the WiFi-AP first-boot flow, or the RAID status LEDs - it
-assumes a single disk and a machine you already have network/login access to. For a RAID1 array
-across two disks, run `Makefile.pi`'s `raid`/`raid-watch` targets afterwards (see Option 2), or use
-the pre-built image below instead, which handles all of that from a first boot with nothing
-pre-configured.
+Storage is a RAID1 mirror of two disks by default, `OTC_DISK1`/`OTC_DISK2` (`/dev/sda` and
+`/dev/sdb` unless you set them). An existing array on them is reassembled, never wiped - which is
+how a machine re-installed with its old disks gets everything back. Two new disks are only erased
+and mirrored when you confirm it with `OTC_RAID_CONFIRM_WIPE=yes`; without that, or with no disks
+to mirror, the script stops at the storage step, before touching any disk, and says what to do. `OTC_SKIP_RAID=1`
+installs on a single disk instead (the storage is then a plain directory on the system disk). The
+script also installs the RAID status-LED watcher (`raid-watch.service`): on a Raspberry Pi it
+drives the two LEDs wired as in step 4 of Option 3, and elsewhere it runs without lights. For
+example, for two blank disks:
+
+```
+$ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/verified-install.sh | sudo OTC_RAID_CONFIRM_WIPE=yes bash -s -- <subdomain>
+```
+
+What this path doesn't set up is the WiFi-AP first-boot flow: it assumes a machine you already
+have network/login access to. For a Raspberry Pi from scratch, the pre-built image below handles
+everything from a first boot with nothing pre-configured.
 
 **Option 1: Flash the pre-built image (easiest - Raspberry Pi 5, 8 GB+ of RAM)**
 --------------------------------------------------
@@ -688,7 +700,7 @@ and email.
 
 The terms, shown at sign-up: free for the first two years, then 9.99 € + VAT a year (an email goes out
 before the two years are up; nothing is charged today, there is no payment system yet); up to
-five domains per account, extra ones 5 € a year each by writing to info@off-the.cloud; an account
+five domains per account, extra ones 2 € a year each by writing to info@off-the.cloud; an account
 unused for six months is removed and its domains released.
 
 **The account page**, `https://off-the.cloud/account`: sign in (password, Google or Apple where

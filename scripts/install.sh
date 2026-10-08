@@ -149,10 +149,11 @@ MODEL_ONNX=$MODEL_DIR/ram_plus_swin_large_14m.int8.onnx
 MODEL_TAGS=$MODEL_DIR/tag_list_4585.txt
 MODEL_THRESHOLDS=$MODEL_DIR/tag_list_4585_thresholds.txt
 MODEL_HF_REPO=https://huggingface.co/anakhiu/ram-plus-onnx-int8/resolve/main
-# Issue #52: face recognition ("People" search), humans only - on by
-# default (settings.face_recognition_enabled), but both models are small
-# enough (~230KB + ~10MB) to just always fetch here rather than making that
-# a second, deferred download the first time someone enables the feature.
+# Issue #52: face recognition ("People" search), humans only - off by
+# default (settings.face_recognition_enabled, issue #178: the owner turns it
+# on in the setup or in Settings), but both models are small enough (~230KB
+# + ~10MB) to just always fetch here rather than making that a second,
+# deferred download the first time someone enables the feature.
 # Official OpenCV Zoo models (MIT/Apache-2.0), designed as a matched pair -
 # see face_recognition/face_recognition.go's package doc comment.
 FACE_DETECTOR_ONNX=$MODEL_DIR/face_detection_yunet_2023mar.onnx

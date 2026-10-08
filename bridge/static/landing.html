@@ -16,6 +16,7 @@
       --mist-dim:#b9c9c4;
       --line:rgba(234,242,239,.12);
       --panel:rgba(234,242,239,.04);
+      --leaf:#5fd39a;
       --max:1360px;
     }
     *{box-sizing:border-box}
@@ -207,6 +208,38 @@
     details summary::after{content:'+';font-size:22px;color:var(--gold);flex:none}
     details[open] summary::after{content:'−'}
     details p{margin:0 0 16px;color:var(--mist-dim);font-size:16px;line-height:1.6}
+    details ul,details ol{margin:0 0 16px;padding-left:22px;color:var(--mist-dim);font-size:16px;line-height:1.6}
+    details li+li{margin-top:6px}
+    details strong{color:var(--mist)}
+    /* The status-light wiring diagram (FAQ). Colours come from the tokens
+       above, so the drawing follows the page's theme. */
+    .wiring{margin:0 0 16px;padding:12px 8px;background:var(--ink-2);border:1px solid var(--line);border-radius:12px}
+    .wiring svg{display:block;width:100%;max-width:440px;height:auto;margin:0 auto}
+    .wiring figcaption{margin-top:6px;font-size:14.5px;color:var(--mist-dim);text-align:center}
+    .wiring text{font-family:'Manrope',system-ui,sans-serif}
+    .wiring .hdr{fill:var(--panel);stroke:var(--mist-dim);stroke-opacity:.4}
+    .wiring .more{fill:none;stroke:var(--mist-dim);stroke-opacity:.4;stroke-dasharray:4 4}
+    .wiring .pin{fill:none;stroke:var(--mist-dim);stroke-opacity:.55;stroke-width:1.5}
+    .wiring .pin-n{fill:var(--mist-dim);font-size:10px;font-weight:700;text-anchor:middle}
+    .wiring .pin.r{fill:var(--ember);stroke:none}
+    .wiring .pin.g{fill:var(--leaf);stroke:none}
+    .wiring .pin.k{fill:var(--mist-dim);stroke:none;stroke-opacity:1}
+    .wiring .pin-n.on{fill:var(--ink)}
+    .wiring .w{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+    .wiring .wr{stroke:var(--ember)}
+    .wiring .wg{stroke:var(--leaf)}
+    .wiring .wk{stroke:var(--mist-dim)}
+    .wiring .res{fill:var(--ink);stroke:var(--mist);stroke-width:1.5}
+    .wiring .led-r{fill:var(--ember)}
+    .wiring .led-g{fill:var(--leaf)}
+    .wiring .tri{fill:var(--ink)}
+    .wiring .lbl{fill:var(--mist);font-size:12px}
+    .wiring .lbl.dim{fill:var(--mist-dim)}
+    .wiring .lbl.end{text-anchor:end}
+    .wiring .lbl.mid{text-anchor:middle}
+    .wiring .ttl{fill:var(--mist);font-size:12.5px;font-weight:700}
+    .wiring .pm{fill:var(--mist);font-size:12px;font-weight:700;text-anchor:middle}
+    @media (max-width:480px){ details{padding:4px 14px} .wiring{margin:0 -10px 16px;padding:10px 2px} }
 
     /* Contact */
     .contact-wrap{display:grid;gap:28px;grid-template-columns:1fr 1fr}
@@ -229,7 +262,7 @@
 
     footer{border-top:1px solid var(--line);padding:32px 0;color:var(--mist-dim);font-size:15px}
     .footer-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
-    .footer-links{display:flex;gap:18px}
+    .footer-links{display:flex;flex-wrap:wrap;gap:8px 18px}
     .footer-links a{color:var(--mist-dim);text-decoration:none;font-weight:600}
     .footer-links a:hover{color:var(--mist)}
   </style>
@@ -296,9 +329,9 @@
 curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/verified-install.sh \
   | sudo bash -s -- &lt;subdomain&gt;</pre>
           </div>
-          <p>It installs everything and builds the software from source, then starts the service at <code>http://&lt;device-ip&gt;:8080/</code>. Safe to re-run to update. RAID-1 storage and the WiFi setup are not part of this path — see the image for a from-scratch Raspberry Pi.</p>
+          <p>It installs everything and builds the software from source, then starts the service at <code>http://&lt;device-ip&gt;:8080/</code>. Safe to re-run to update. Your files go on two disks mirrored as RAID-1: it reuses a mirror it finds and only erases two new disks to build one when you confirm it, and it installs the status lights too. A single disk works as well (see the <a href="https://github.com/alonsovidales/otc#readme">README</a>). The WiFi setup isn't part of this path — see the image for a from-scratch Raspberry Pi.</p>
         </div>
-        <a class="hero-install-alt" href="#contact">Want to reach it from outside your home network? Ask about Bridge access →</a>
+        <a class="hero-install-alt" href="/account?signup=1">Want to reach it from outside your home network? Create an account for the bridge →</a>
       </div>
     </div>
 
@@ -316,15 +349,15 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           </div>
           <div class="step">
             <div class="num">2</div>
-            <div><strong>Pick a subdomain</strong><p>This just names the device for later, e.g. <code>pit</code> for <code>pit.off-the.cloud</code> — it only does something once you have Bridge access: that's the address your apps and friends would then use to reach the device from outside your home network, instead of the local <code>:8080</code> address.</p></div>
+            <div><strong>Pick a subdomain</strong><p>This names the device, e.g. <code>pit</code> for <code>pit.off-the.cloud</code> — the address your apps and friends use to reach it from outside your home network, instead of the local <code>:8080</code> address. Register the name on your <a href="/account">account page</a> first, so it belongs to your bridge account (the image's setup does this for you).</p></div>
           </div>
           <div class="step">
             <div class="num">3</div>
-            <div><strong>Pair an app</strong><p>Open the web, iOS, Android, macOS or Windows client, point it at your subdomain, and start backing up.</p></div>
+            <div><strong>Pair an app</strong><p>Open the web, iOS, Android, macOS, Windows or Linux client, point it at your subdomain, and start backing up.</p></div>
           </div>
         </div>
         <div class="note">
-          <strong>Want RAID-1 out of the box?</strong> Use the <a href="#install">Raspberry Pi 5 image</a>:
+          <strong>Starting from scratch on a Raspberry Pi 5?</strong> Use the <a href="#install">Raspberry Pi 5 image</a>:
           it wipes and mirrors two USB disks during setup, and if a Pi ever dies you flash a new card, attach the
           same disks and the wizard offers to recover everything. The status LEDs and every configuration option
           are in the <a href="https://github.com/alonsovidales/otc#readme">README</a>.
@@ -357,9 +390,8 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           <div class="dl-card" data-os="mac">
             <span class="mine-tag">Your system</span>
             <h3>macOS</h3>
-            <p>A menu bar app with the same folders and sync rules. It's coming to the Mac App Store, which will keep it up to date for you.</p>
-            <!-- When the app is live: href="https://apps.apple.com/app/id<ID>", class "btn ember", "Get it on the Mac App Store". -->
-            <span class="btn secondary" aria-disabled="true">Coming soon to the App Store</span>
+            <p>A menu bar app with the same folders and sync rules, on the Mac App Store, which keeps it up to date for you.</p>
+            <a class="btn ember" href="https://apps.apple.com/app/id6814658734">Get it on the Mac App Store</a>
           </div>
         </div>
         <div class="note">
@@ -401,12 +433,12 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           <div class="value-card">
             <span class="ico">💾</span>
             <h3>The device</h3>
-            <p>A Raspberry Pi 5 with two SD cards in RAID-1, storing your originals unprocessed and uncompressed — encrypted at rest, key never stored on the device itself.</p>
+            <p>A Raspberry Pi 5 with a card for the system and two storage cards mirrored in RAID-1, storing your originals unprocessed and uncompressed — encrypted at rest, with a key that only your password unlocks.</p>
           </div>
           <div class="value-card">
             <span class="ico">🖥️</span>
             <h3>Desktop client</h3>
-            <p>macOS and Windows apps that keep chosen folders on your computer in two-way sync with the device, automatically.</p>
+            <p>macOS, Windows and Linux apps that keep chosen folders on your computer in two-way sync with the device, automatically.</p>
           </div>
           <div class="value-card">
             <span class="ico">📱</span>
@@ -431,7 +463,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           <div class="value-card">
             <span class="ico">👨‍👩‍👧</span>
             <h3>One device, the whole family</h3>
-            <p>Give everyone at home their own account on the same device — their own photo backup, library and password, each encrypted with its own key. You manage the accounts; you can't look inside them.</p>
+            <p>Give everyone at home their own account on the same device — their own photo backup, library and password, each encrypted with its own key. You manage the accounts, but you can't open the photos and files in them.</p>
           </div>
           <div class="value-card">
             <span class="ico">🔗</span>
@@ -468,7 +500,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           <h3>macOS / Windows client</h3>
           <div class="shot-row">
             <div class="shot wide">
-              <img src="/img/macos-sync.png" alt="macOS sync client showing folders kept in sync with the device" loading="lazy">
+              <img src="/img/macos-sync.jpg" alt="The Mac menu bar app: connected, storage healthy, two folders synced and one uploading" loading="lazy">
             </div>
           </div>
         </div>
@@ -505,23 +537,170 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
         <div class="faq">
           <details open>
             <summary>Do I need to buy special hardware?</summary>
-            <p>A Raspberry Pi 5 (8GB) with two micro-SD cards for RAID-1 storage, in USB card readers plugged into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a card ever fails), a power supply, and an active cooler — all off-the-shelf, roughly €250 all in for 1TB of protected storage. See the README for the exact recommended parts list.</p>
+            <p>A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two more for storage, mirrored so that each holds a full copy of your files. The two storage cards go in USB card readers plugged into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a card ever fails). Add a power supply and an active cooler: all off-the-shelf, roughly €250 all in for 1TB of protected storage. See the README for the exact recommended parts list.</p>
+          </details>
+          <details>
+            <summary>Is there a pre-built image I can just flash?</summary>
+            <p>Yes — for a Raspberry Pi 5 with at least 8 GB of RAM: see the <a href="#install">Raspberry Pi 5 image</a> tab at the top. Flash it, power the Pi on and set it up from your phone: tap "Set up a new device" in the iOS or Android app, which finds the Pi over Bluetooth and walks you through the rest. For any other Debian/Ubuntu machine, use the install script.</p>
+          </details>
+          <details>
+            <summary>Can I use something other than a Raspberry Pi, like an Orange Pi or an old PC?</summary>
+            <p>Yes. The <a href="#install">install script</a> works on any 64-bit machine, Intel/AMD or ARM, running Ubuntu, Debian or another Debian-based Linux: an old PC or laptop, a mini PC, or a board such as an Orange Pi with a Debian or Ubuntu image. It builds the software on the machine itself, so you get the same app: photo backup, folder sync, photo tagging, face recognition, friends, sharing and updates from Settings. Give it 8 GB of memory, like the Raspberry Pi 5 it was designed for.</p>
+            <p>A few things only the Raspberry Pi 5 has:</p>
+            <ul>
+              <li><strong>The ready-made image and setup from your phone over Bluetooth.</strong> Elsewhere you run one command in a terminal, and the first password typed into the device becomes its password, so open it and choose one straight away.</li>
+              <li><strong>Knowing which disk to replace.</strong> On a Pi the alert names the USB port the failed disk is in; elsewhere it says "one of the two storage disks" and gives the disk's system name and serial number.</li>
+              <li><strong>The status lights</strong>, which are wired to the Pi's own pins (see below).</li>
+            </ul>
+            <p>The script can mirror two disks on other machines too, but only when you ask it to, because it erases both. If it finds no disks to mirror, it stops and tells you how to install on a single disk. To give the machine an off-the.cloud address, add the name on your <a href="/account">account page</a> first and copy the identity it shows into the machine before running the script.</p>
+          </details>
+          <details>
+            <summary>How do I wire the status lights?</summary>
+            <p>The lights are optional: one per storage disk, green when it's fine and red when it needs you. Each light is a red LED and a green LED side by side (or one two-colour LED with three legs), and each colour connects to one pin of the Raspberry Pi through a 330 Ω resistor. Wire them with the Pi switched off. The device lights them by itself; there's nothing to set up.</p>
+            <figure class="wiring">
+              <svg viewBox="0 0 320 436" role="img" aria-labelledby="ledw-title ledw-desc">
+                <title id="ledw-title">Wiring the two status lights to the Raspberry Pi 5</title>
+                <desc id="ledw-desc">Pins 1 to 16 of the Raspberry Pi 5's 40-pin header, with pin 1 (3.3 volts, square) at the top and pins 17 to 40 continuing towards the USB ports. Light 1: pin 11 (GPIO17) through a 330 ohm resistor to the long leg of the red LED, and pin 13 (GPIO27) through a 330 ohm resistor to the long leg of the green LED; both short legs go to pin 9 (ground). Light 2: pin 15 (GPIO22) through a 330 ohm resistor to the red LED, and pin 16 (GPIO23) through a 330 ohm resistor to the green LED; both short legs go to pin 14 (ground). The same connections are listed below the drawing.</desc>
+                <text class="ttl" x="180" y="22" text-anchor="middle">Raspberry Pi 5 pin header</text>
+                <rect class="hdr" x="150" y="34" width="60" height="228" rx="6"/>
+                <rect class="more" x="150" y="268" width="60" height="20" rx="6"/>
+                <text class="lbl dim mid" x="180" y="308">Pins 17–40 continue</text>
+                <text class="lbl dim mid" x="180" y="323">towards the USB ports</text>
+                <!-- Header pins: odd numbers on the left, pin 1 square. -->
+                <rect class="pin" x="156" y="40" width="20" height="20" rx="2"/><text class="pin-n" x="166" y="53.5">1</text>
+                <circle class="pin" cx="194" cy="50" r="10"/><text class="pin-n" x="194" y="53.5">2</text>
+                <circle class="pin" cx="166" cy="78" r="10"/><text class="pin-n" x="166" y="81.5">3</text>
+                <circle class="pin" cx="194" cy="78" r="10"/><text class="pin-n" x="194" y="81.5">4</text>
+                <circle class="pin" cx="166" cy="106" r="10"/><text class="pin-n" x="166" y="109.5">5</text>
+                <circle class="pin" cx="194" cy="106" r="10"/><text class="pin-n" x="194" y="109.5">6</text>
+                <circle class="pin" cx="166" cy="134" r="10"/><text class="pin-n" x="166" y="137.5">7</text>
+                <circle class="pin" cx="194" cy="134" r="10"/><text class="pin-n" x="194" y="137.5">8</text>
+                <circle class="pin k" cx="166" cy="162" r="10"/><text class="pin-n on" x="166" y="165.5">9</text>
+                <circle class="pin" cx="194" cy="162" r="10"/><text class="pin-n" x="194" y="165.5">10</text>
+                <circle class="pin r" cx="166" cy="190" r="10"/><text class="pin-n on" x="166" y="193.5">11</text>
+                <circle class="pin" cx="194" cy="190" r="10"/><text class="pin-n" x="194" y="193.5">12</text>
+                <circle class="pin g" cx="166" cy="218" r="10"/><text class="pin-n on" x="166" y="221.5">13</text>
+                <circle class="pin k" cx="194" cy="218" r="10"/><text class="pin-n on" x="194" y="221.5">14</text>
+                <circle class="pin r" cx="166" cy="246" r="10"/><text class="pin-n on" x="166" y="249.5">15</text>
+                <circle class="pin g" cx="194" cy="246" r="10"/><text class="pin-n on" x="194" y="249.5">16</text>
+                <!-- Pin names. -->
+                <text class="lbl dim end" x="146" y="54">3V3 · pin 1</text>
+                <text class="lbl dim" x="214" y="54">5V</text>
+                <text class="lbl end" x="146" y="157">GND</text>
+                <text class="lbl end" x="146" y="185">GPIO17</text>
+                <text class="lbl end" x="146" y="213">GPIO27</text>
+                <text class="lbl end" x="146" y="241">GPIO22</text>
+                <text class="lbl" x="214" y="213">GND</text>
+                <text class="lbl" x="214" y="241">GPIO23</text>
+                <!-- Light 1: pins 9, 11 and 13. -->
+                <text class="ttl" x="14" y="140">Light 1</text>
+                <path class="w wk" d="M156 162 H14 V218"/>
+                <path class="w wr" d="M156 190 H98 M72 190 H54"/>
+                <rect class="res" x="72" y="185" width="26" height="10" rx="2"/>
+                <circle class="led-r" cx="46" cy="190" r="8"/>
+                <polygon class="tri" points="41,190 50,185.5 50,194.5"/><rect class="tri" x="39.4" y="185.5" width="1.8" height="9"/>
+                <path class="w wk" d="M38 190 H14"/>
+                <path class="w wg" d="M156 218 H98 M72 218 H54"/>
+                <rect class="res" x="72" y="213" width="26" height="10" rx="2"/>
+                <circle class="led-g" cx="46" cy="218" r="8"/>
+                <polygon class="tri" points="41,218 50,213.5 50,222.5"/><rect class="tri" x="39.4" y="213.5" width="1.8" height="9"/>
+                <path class="w wk" d="M38 218 H14"/>
+                <circle class="pin k" cx="14" cy="190" r="3"/>
+                <text class="pm" x="63" y="184">+</text><text class="pm" x="26" y="184">−</text>
+                <text class="pm" x="63" y="212">+</text><text class="pm" x="26" y="212">−</text>
+                <!-- Light 2: pins 14, 15 and 16. -->
+                <text class="ttl" x="180" y="358" text-anchor="middle">Light 2</text>
+                <path class="w wr" d="M156 246 H96 V300 M96 328 V346"/>
+                <rect class="res" x="91" y="300" width="10" height="28" rx="2"/>
+                <circle class="led-r" cx="96" cy="354" r="8"/>
+                <polygon class="tri" points="96,359 91.5,350 100.5,350"/><rect class="tri" x="91.5" y="359.4" width="9" height="1.8"/>
+                <path class="w wg" d="M204 246 H262 V300 M262 328 V346"/>
+                <rect class="res" x="257" y="300" width="10" height="28" rx="2"/>
+                <circle class="led-g" cx="262" cy="354" r="8"/>
+                <polygon class="tri" points="262,359 257.5,350 266.5,350"/><rect class="tri" x="257.5" y="359.4" width="9" height="1.8"/>
+                <path class="w wk" d="M96 362 V392 H300 V218 H204 M262 362 V392"/>
+                <circle class="pin k" cx="262" cy="392" r="3"/>
+                <text class="pm" x="110" y="343">+</text><text class="pm" x="110" y="373">−</text>
+                <text class="pm" x="276" y="343">+</text><text class="pm" x="276" y="373">−</text>
+                <!-- Legend. -->
+                <text class="lbl dim mid" x="160" y="414">Each small box is a 330 Ω resistor</text>
+                <text class="lbl dim mid" x="160" y="430">+ long leg of the LED · − short leg</text>
+              </svg>
+              <figcaption>Pin 1 is the square one, at the end of the header farthest from the USB ports.</figcaption>
+            </figure>
+            <p>The same connections, in words:</p>
+            <ul>
+              <li><strong>Light 1, red:</strong> pin 11 (GPIO17), through a 330 Ω resistor, to the long leg of the red LED.</li>
+              <li><strong>Light 1, green:</strong> pin 13 (GPIO27), through a 330 Ω resistor, to the long leg of the green LED.</li>
+              <li><strong>Light 1, both short legs:</strong> pin 9 (GND).</li>
+              <li><strong>Light 2, red:</strong> pin 15 (GPIO22), through a 330 Ω resistor, to the long leg of the red LED.</li>
+              <li><strong>Light 2, green:</strong> pin 16 (GPIO23), through a 330 Ω resistor, to the long leg of the green LED.</li>
+              <li><strong>Light 2, both short legs:</strong> pin 14 (GND).</li>
+            </ul>
+            <p>With a two-colour LED, the shared leg (usually the middle one) goes to GND; it must be the kind with a shared negative leg, called common cathode. What the lights say:</p>
+            <ul>
+              <li><strong>Both green:</strong> both disks are working and hold the same files.</li>
+              <li><strong>One red, one green:</strong> the disk on red has stopped working or was taken out. Your files are safe on the other one: replace the red one soon.</li>
+              <li><strong>One flashing red, one green:</strong> a new disk is being filled with a copy of your files. Don't take out the green one until both are green again.</li>
+              <li><strong>Both red:</strong> no mirror is running: the device was set up without two disks, or neither disk is working.</li>
+              <li><strong>Both off:</strong> the device is off, or still starting.</li>
+            </ul>
+            <p>Each light follows one of the two disks of the mirror, not a USB port, so check the alert in the app to know which disk to pull.</p>
+          </details>
+          <details>
+            <summary>Can my family and friends use the same device, or do I need more Raspberry Pis?</summary>
+            <p>One device is enough. As its owner, you add an account for each person in Settings › Users (in the web app, the iPhone app or the Android app), and they choose their own password the first time they sign in. Each account has its own photo backup and library, and its photos and files are encrypted with that person's password, so you can't open them from your account. Everyone shares the same device and its two mirrored disks; the Users screen shows how much space each account takes, and you can pause an account, or remove it together with its files, at any time.</p>
+            <p>There's no fixed limit on the number of accounts, but each one runs its own copy of the device's software and takes memory, so the more there are, the slower the device gets. We recommend no more than five on one device.</p>
+            <p>To use their account away from home, a family member needs an off-the.cloud address of their own, just as a device does. You give them one when you add their account in the web app: in Settings › Users, leave <strong>Request bridge access</strong> ticked, and they get <code>&lt;user name&gt;.off-the.cloud</code> (if that address is taken, choose another user name). Decide when you add the account, because there's no switch to give an existing account an address later. The iPhone and Android apps don't offer this yet: accounts added there work on your home network only.</p>
+            <p>The device registers these addresses by itself, outside your bridge account, so they don't count toward its five addresses and don't appear on your account page. With one, a family member reaches their account from anywhere, and you can become friends in the private feed and share photos there.</p>
           </details>
           <details>
             <summary>How do I get more storage?</summary>
             <p>Swap the two cards for bigger ones, one at a time, while the device keeps running. Take out one card and put in a bigger one, at least as large as the one you took out: the device copies everything onto it by itself (anything already on the new card is erased). You get an alert that a disk stopped working, which is expected here, and another, "Both storage disks are working again", when the copy is done; that can take a few hours for a large card. Only then do the same with the other card. Once both cards are bigger, the device grows its storage to the size of the smaller one by itself, within about ten minutes, without stopping. Your files stay available the whole time, but while a copy runs they are on one card only, so never take out the second card before the first copy has finished.</p>
           </details>
           <details>
-            <summary>What is "the Bridge", and do I need it?</summary>
-            <p>Your device isn't directly reachable from the internet by default. The Bridge is an optional relay service that lets your own apps and friends reach your device from outside your home network — without it, OTC still works fully at home, you'd just need your own port-forwarding/static IP setup to reach it remotely. Use the contact form below to request Bridge access.</p>
+            <summary>How do I back up my device?</summary>
+            <p>The two mirrored disks already keep two copies of everything, but both are in the same box: they protect you from one disk failing, not from theft, fire, both disks failing or a file deleted by mistake. For a copy you keep somewhere else, you can rotate one of the disks:</p>
+            <ol>
+              <li>While the device is running and nothing is uploading, take out one of the two disks. The device carries on with the other one, and you get an alert that a disk stopped working, which is expected here.</li>
+              <li>Put a spare disk in its place, at least as large as the one you took out. The device erases it and copies everything onto it by itself. When it's done you get another alert, "Both storage disks are working again"; that can take a few hours.</li>
+              <li>Keep the disk you took out somewhere safe, away from the device. To bring your copy up to date later, do the same again: the disk that comes out is your new copy, and the one going in is erased and refilled.</li>
+            </ol>
+            <p>Until a copy has finished, your files are on one disk only, so never take out the other disk before then. While a disk is missing, the device takes any disk you plug in that is big enough as the replacement and erases it, so don't plug in other drives meanwhile.</p>
+            <p>The disk you keep is a full copy of the device as it was when you took it out: your files, its database, its settings and its address. A computer can't read it directly. To bring it back, set up a Raspberry Pi with the image, attach that disk and choose "Recover this device" in the setup: everything comes back as it was, and once you add a second disk the device fills it again. You need the device password as it was when the disk came out, because the files on it are encrypted with it. Use it only in place of the original device, never at the same time, since both would answer to the same address. The files on it are encrypted, but their names, tags and your posts aren't, so keep it as safe as you would the device itself.</p>
+            <p>Your phones and computers also keep their own copies: the apps copy your photos and folders to the device, they don't move them. To keep a copy of something on the device on a computer, select it in Files in the web app and choose Download ZIP, or add one of the device's folders to the Mac, Windows or Linux app. That is a sync, not a backup, so a file deleted on one side is deleted on the other.</p>
           </details>
           <details>
-            <summary>Can my family share one device?</summary>
-            <p>Yes. The device's owner adds an account for each family member or friend in Settings › Users (in the web app, the iPhone app or the Android app). Each person gets their own photo backup, library and password, and if you like their own off-the.cloud address. Their files are encrypted with their own password, so nobody else on the device, the owner included, can see them. Everyone shares the same hardware and mirrored disks; the Users screen shows how much space each account takes, and an account can be paused or removed at any time. Family members can also become friends in the private feed and share photos with each other there.</p>
+            <summary>I forgot my password. Can I get my files back?</summary>
+            <p>We're sorry: no. Your device password is the only thing that unlocks the key your files are encrypted with. The device doesn't keep it, neither do we, and there is no reset and no back door: without it, nobody can open the photos, videos and files stored under it, not you, not anyone else on the device and not us. That is what keeps them safe if the device is ever stolen.</p>
+            <p>What you can do:</p>
+            <ul>
+              <li><strong>Is one of your apps still signed in?</strong> Then it can still open everything, because it keeps the password. Don't sign out of it, and use it to copy what you need before going further.</li>
+              <li><strong>Look for your originals.</strong> The apps copy photos and folders to the device without removing them, so most of what's on it may still be on your phones and computers.</li>
+              <li><strong>Start again.</strong> Flash a new card and set the device up again, choosing "Start fresh instead" (this erases both disks), pick a new password and let your apps back everything up again.</li>
+              <li><strong>A family member forgot theirs?</strong> The owner can't reset it either. The only way is to remove their account, which deletes its files, and create it again.</li>
+            </ul>
+            <p>Your off-the.cloud account password is a different one: if you forget that, the account page emails you a link to reset it, and your device and files aren't affected. To avoid all this, keep your device password in a password manager or written down somewhere safe. You can change it in Settings at any time, as long as you know the current one, and your files stay as they are.</p>
           </details>
           <details>
             <summary>Can I protect a folder from being deleted by mistake?</summary>
             <p>Yes: make it upload only, with the lock next to the folder in Files (in the web app, the iPhone app or the Android app). From then on nothing in that folder can be deleted, whether from a phone, a computer or the web, and when a file is uploaded again under the same name the device keeps the older version too, so an edit never overwrites your original. The Mac and Windows/Linux sync apps do this by themselves for a folder you choose to back up. You can clear it again from the same lock; the versions kept so far stay.</p>
+          </details>
+          <details>
+            <summary>What is "the Bridge", and do I need it?</summary>
+            <p>Your device sits behind your home router, so the internet can't reach it on its own. The bridge is our relay at off-the.cloud: it gives your device an address like <code>casa.off-the.cloud</code> and passes connections from your apps and your friends' devices to it. You need it to reach your device away from home, for friends and posts, for share links that work from anywhere and for notifications on your phone. You don't need it at home: files, photo backup from your phones and computers, the gallery, tags and people all work over your own network.</p>
+            <p>To use it, <a href="/account?signup=1">create an account</a>; the device's setup asks for one, and you can also skip it and join later from Settings. Without the bridge, you can still reach your device from outside your home with Tailscale Funnel or a bridge of your own (see the next question).</p>
+          </details>
+          <details>
+            <summary>Can I use Off The Cloud for free?</summary>
+            <p>Yes. All of Off The Cloud is free, open-source software under the GNU AGPL licence: the device, the apps and the bridge. Used at home it costs nothing beyond your hardware.</p>
+            <p>The bridge is the only paid part, and it's optional. Your account is free for its first two years; after that it costs €9.99 + VAT a year with up to five off-the.cloud addresses included, and we email you before the free period ends. Each address beyond those five costs €2 a year: your account page registers up to five, so for more, write to us at <a href="mailto:info@off-the.cloud">info@off-the.cloud</a> or with the <a href="#contact">form below</a>. If you stop paying, your addresses are released and your device keeps working at home.</p>
+            <p>To reach your device from outside your home without the bridge:</p>
+            <ul>
+              <li><strong>Tailscale Funnel</strong>, built in (Settings › Tailscale Funnel), publishes your device at an address of your own on <code>ts.net</code>. You need a Tailscale account, Tailscale limits how much can pass through, and friends, posts and family accounts don't work there: it suits a device used as your own private storage.</li>
+              <li><strong>A bridge of your own:</strong> the bridge is open source too, so you can run it on your own server and domain. Friends then need to use the same bridge.</li>
+              <li><strong>Your own VPN</strong> into your home network: the apps then reach the device as if you were at home.</li>
+            </ul>
           </details>
           <details>
             <summary>Is it as fast as a cloud service?</summary>
@@ -529,7 +708,27 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           </details>
           <details>
             <summary>Is my data actually private?</summary>
-            <p>Your files are encrypted at rest, and the encryption key is never stored on the device. Photos and videos you post, and the posts your friends share with you, are the exception: they're kept unencrypted so your friends' devices can fetch them at any time. File names and tags are also kept readable so search works. Nothing is sold, used to train AI models, or shown to anyone you haven't explicitly approved as a friend. AI photo tagging also runs locally on the device — your photos never leave it to be tagged.</p>
+            <p>Your files are encrypted at rest with a key that only your password unlocks, and the password itself is never stored on the device. Photos and videos you post, and the posts your friends share with you, are the exception: they're kept unencrypted so your friends' devices can fetch them at any time. File names and tags are also kept readable so search works. Nothing is sold, used to train AI models, or shown to anyone you haven't chosen to share it with. The next two questions explain what the bridge and other services see, and where your photos are analysed.</p>
+          </details>
+          <details>
+            <summary>Is any of my information sent to third parties?</summary>
+            <p>Your photos, videos and files stay on your device. Nothing is sold, used for advertising or used to train AI, and none of the apps contain analytics, advertising or crash reporting. A few services are involved, and this is what each one gets:</p>
+            <ul>
+              <li><strong>The bridge</strong> (run by us, on OVH servers in France), if you use it: your account (email, name, surname and country), your devices' names (such as casa.off-the.cloud), when an app last reached each device, hourly traffic totals (never the content) and, for 90 days, the internet address of failed attempts to connect as your device. Connections to it are encrypted, but the bridge decrypts and re-encrypts them as they pass through, so they are not end-to-end encrypted; nothing that passes through is stored. A device without the bridge only contacts it during setup.</li>
+              <li><strong>Apple and Google</strong> deliver notifications to iPhones and Android phones. A notification only says who did what ("Anna liked your post") or that something happened to your device (a disk stopped working, it went offline), never what a post or comment says, and never a photo. The Android app uses Google's Firebase for this and nothing else. Notifications in a browser go through your browser maker's push service, encrypted.</li>
+              <li><strong>Proton</strong> sends our emails (confirming your email, password resets, the warning before an unused account is removed) and delivers the device logs you choose to send us.</li>
+              <li><strong>Apple or Google sign-in</strong>, if you use it, tells us your email and name.</li>
+              <li><strong>GitHub</strong> serves the device's software and its updates; while installing or updating, the device also downloads building blocks from the Go language's mirror, run by Google, packages from its operating system's and Tailscale's repositories and, the first time, its AI models from Hugging Face and GitHub. Like any download, these see your home's internet address.</li>
+              <li><strong>Maps:</strong> when you open a photo's details, its map comes from OpenStreetMap (web app and Android) or Apple Maps (iPhone), which see the place being shown.</li>
+              <li><strong>Tailscale</strong>, only if you turn on Tailscale Funnel (its software is installed, but stays off until then).</li>
+            </ul>
+            <p>There's no payment provider yet. The details are in our <a href="/privacy">privacy notice</a>.</p>
+          </details>
+          <details>
+            <summary>Where are photo tagging and face recognition done?</summary>
+            <p>On your device. The tagging model and the face models are downloaded once, when the software is installed, and run on the device's own processor; with several family accounts, the main one runs them for everyone. No photo is sent anywhere to be tagged or recognised, and place names come from a list of cities stored on the device, so your photos' locations aren't sent anywhere either.</p>
+            <p>Face recognition is off unless you turn it on, in the setup or in Settings, because faces are sensitive personal data. It looks at the photos added while it's on, and the face data it keeps is encrypted with your password like your files; the names you give people aren't. Tagging is on from the start and can be turned off in Settings.</p>
+            <p>Your photos leave the device only when you choose: when you post them for your friends, send a share link, or open them from your apps away from home, through the bridge.</p>
           </details>
           <details>
             <summary>Is it really open source?</summary>
@@ -539,10 +738,6 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             <summary>What if I don't want the social network part?</summary>
             <p>It's entirely optional. Use OTC purely as a NAS for backup and file sync if that's all you want — the social feed only shows content from friends you've explicitly accepted.</p>
           </details>
-          <details>
-            <summary>Is there a pre-built image I can just flash?</summary>
-            <p>Yes — for a Raspberry Pi 5 with at least 8 GB of RAM: see the <a href="#install">Raspberry Pi 5 image</a> tab at the top. Flash it, power the Pi on and set it up from your phone: tap "Set up a new device" in the iOS or Android app, which finds the Pi over Bluetooth and walks you through the rest. For any other Debian/Ubuntu machine, use the install script.</p>
-          </details>
         </div>
       </div>
     </section>
@@ -551,8 +746,8 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
       <div class="container">
         <div class="section-head">
           <span class="eyebrow">Get in touch</span>
-          <h2>Questions, or need Bridge access?</h2>
-          <p>Send a message — whether it's a general question, help getting your device running, or a request for Bridge access.</p>
+          <h2>Questions, or need a hand?</h2>
+          <p>Send a message — whether it's a general question, help getting your device running, or more addresses for your bridge account.</p>
         </div>
         <div class="contact-wrap">
           <form id="contact-form">
@@ -568,9 +763,9 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
               <label for="c-reason">What's this about</label>
               <select id="c-reason" name="reason" required>
                 <option value="" disabled selected>Select one</option>
-                <option value="bridge-access">Requesting Bridge access</option>
-                <option value="help">Help getting my device running</option>
                 <option value="general">General question</option>
+                <option value="help">Help getting my device running</option>
+                <option value="more-addresses">More addresses for my bridge account</option>
                 <option value="press">Press / partnership</option>
               </select>
             </div>
@@ -588,13 +783,13 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           <div class="contact-side">
             <div class="value-card">
               <span class="ico">🧑‍💻</span>
-              <h3>Prototype status</h3>
-              <p>Device, bridge, macOS and iOS apps are working today. Android and Windows clients are in development.</p>
+              <h3>Where it stands</h3>
+              <p>The device, the bridge and the web app work today, and so do the apps: iPhone and Android, the Mac app, and otc-sync for Windows and Linux.</p>
             </div>
             <div class="value-card">
               <span class="ico">🌉</span>
               <h3>Bridge access</h3>
-              <p>Running your own device but want to reach it (and friends) from outside your home network? Ask here and we'll set up a subdomain.</p>
+              <p>Want to reach your device, and your friends, from outside your home network? Create an account on the <a href="/account?signup=1">account page</a> or in your device's setup, and choose your address yourself. Need more than five addresses? Write to us with this form.</p>
             </div>
             <div class="value-card">
               <span class="ico">🛠️</span>

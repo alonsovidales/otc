@@ -42,10 +42,10 @@
   </header>
   <main>
     <h1>Privacy</h1>
-    <p class="lead">What the Off The Cloud bridge keeps about you, why, and for how long. Last updated 3 October 2026.</p>
+    <p class="lead">What the Off The Cloud bridge keeps about you, why, and for how long. Last updated 8 October 2026.</p>
 
     <div class="key">
-      <p><b>Your photos, videos and files are on your own device, not here.</b> Off The Cloud is a device in your home. This page is about the bridge at <b>off-the.cloud</b>: the service that gives your device a name, lets you reach it from outside your home, and connects it with your friends' devices. You only need it, and an account, for that. A device used at home (at <code>http://otc.local:8080</code>) or through Tailscale Funnel never talks to us.</p>
+      <p><b>Your photos, videos and files are on your own device, not here.</b> Off The Cloud is a device in your home. This page is about the bridge at <b>off-the.cloud</b>: the service that gives your device a name, lets you reach it from outside your home, and connects it with your friends' devices. You only need it, and an account, for that. Once it is set up, a device used only at home (at <code>http://otc.local:8080</code>) or through Tailscale Funnel never talks to us; while it is being set up, it does (see the setup check-in below).</p>
       <p><b>The bridge relays your connection; it does not store what passes through it.</b> Read <a href="#relay">how the relay works</a>: it is not end-to-end encrypted.</p>
     </div>
 
@@ -61,16 +61,16 @@
         <tr><td><b>Your devices' names</b> (e.g. <i>casa</i>.off-the.cloud), each device's identity and secret, whether it is switched off, and when an app last reached it</td><td>To route connections to the right device and keep anyone else from using its name</td><td>Contract</td><td>Until the name is released or the account deleted. A released name stays reserved for 30 days, so no one can pose as your device to your friends.</td></tr>
         <tr><td><b>Traffic counts</b> per device and hour: number of requests and bytes, never their content</td><td>To run the service and find abuse</td><td>Legitimate interest (Art. 6(1)(f))</td><td>90 days</td></tr>
         <tr><td><b>Security log</b>: rejected attempts to connect as a device, with the address they came from</td><td>To detect someone trying to take over a device's name</td><td>Legitimate interest</td><td>90 days</td></tr>
-        <tr><td><b>Notification addresses</b>: the Apple and Google push tokens and browser push subscriptions your device registers, and the text of each notification while it is sent</td><td>To tell your phone that a friend posted or that your device went offline</td><td>Contract</td><td>Until your device removes them or its name is released. Notification text is not stored.</td></tr>
+        <tr><td><b>Notification addresses</b>: the Apple and Google push tokens and browser push subscriptions your device registers, and the text of each notification while it is sent</td><td>To pass your device's notifications on to your phones (a friend request or an accepted one, a friend's new post, a like or a comment on yours, a storage disk that stopped working or works again) and to tell your phones and browsers when your device goes offline. A notification names who did what, never what a post or comment says.</td><td>Contract</td><td>Until your device removes them or its name is released. Notification text is not stored.</td></tr>
         <tr><td><b>Setup codes and sign-in links</b>: short-lived codes linking a new device or app to your account</td><td>Setting up a device</td><td>Contract</td><td>15 minutes, or until used</td></tr>
         <tr><td><b>Email links</b>: to confirm your email (needed before registering a device) and to reset your password - only a fingerprint of each link is kept</td><td>Proving the email is yours; recovering your account</td><td>Contract</td><td>48 hours (confirmation) or 1 hour (reset), or until used</td></tr>
-        <tr><td><b>Setup beacon</b>: a device's address on your home network while it is being set up</td><td>So the setup page can find the device again if your phone loses it</td><td>Contract</td><td>10 minutes</td></tr>
+        <tr><td><b>Setup check-in</b>: while a device is being set up from our image, it tells us every few seconds its address on your home network (such as 192.168.1.20), under a random code that only your setup page knows. It does this even if you then continue without an account.</td><td>So the setup page can find the device again if your phone loses it</td><td>Contract, or legitimate interest if you set up without an account</td><td>10 minutes</td></tr>
         <tr><td><b>Device logs you send us</b>: only when you press "Send to us" in Settings &gt; Logs - the last part of your device's logs (which can include file and folder names, search words, Wi-Fi network names and addresses), your note and your account's email, emailed to us</td><td>To help you with a problem you asked about</td><td>Your consent (Art. 6(1)(a)), given each time you send them</td><td>Until the problem is solved, at most 12 months</td></tr>
         <tr><td><b>Contact messages</b>: name, email and message</td><td>To answer you</td><td>Legitimate interest</td><td>Until the matter is closed, at most 12 months</td></tr>
         <tr><td><b>Server logs</b>: technical errors with IP addresses; no emails or file names</td><td>To keep the service working and secure</td><td>Legitimate interest</td><td>30 days</td></tr>
       </tbody>
     </table></div>
-    <p>No advertising, no analytics or tracking, no cookies other than the one that keeps you signed in to your account page (it expires after 30 days), and we never sell data.</p>
+    <p>No advertising, no analytics or tracking, and we never sell data. The only cookies are the one that keeps you signed in to your account page (it expires after 30 days) and, while you sign in with Google or Apple, two that tie that sign-in to your browser (they expire after 15 minutes).</p>
 
     <h2 id="relay">How the relay works</h2>
     <p>Devices sit behind home routers, so the apps and browsers connect to the bridge and the bridge passes the connection to your device. The connection to the bridge is encrypted (HTTPS/TLS), and so is the device's own connection to it, but <b>the bridge itself decrypts and re-encrypts the traffic</b>: it is not end-to-end encrypted. While a request passes through, its content is in the bridge's memory. It is not stored or logged, and only the traffic counts above are kept.</p>
@@ -80,9 +80,10 @@
     <h2>Who else is involved</h2>
     <ul>
       <li><b>OVH</b> (France) hosts the bridge's servers and its domain name, in the EU.</li>
-      <li><b>Apple</b> and <b>Google</b>: if you sign in with them, they confirm who you are and give us your email and name. Push notifications to iPhones go through Apple, and to Android phones through Google (Firebase Cloud Messaging). Both are in the US and certified under the EU-US Data Privacy Framework.</li>
-      <li><b>Proton</b> (Switzerland, which the EU recognises as protecting data adequately) sends our emails - the link to confirm your email and password-reset links - and receives what you write to info@off-the.cloud.</li>
-      <li><b>GitHub</b> (US, Data Privacy Framework): devices download their software updates from GitHub directly, which sees your device's internet address.</li>
+      <li><b>Apple</b> and <b>Google</b>: if you sign in with them, they confirm who you are and give us your email and name. Push notifications to iPhones go through Apple, and to Android phones through Google's Firebase Cloud Messaging: the Android app registers with Firebase, which gives it an installation ID and a notification token and receives basic technical details such as the app's version. Both are in the US and certified under the EU-US Data Privacy Framework.</li>
+      <li><b>Browser push services</b>: if you turn on notifications in a browser, they go through its maker's push service (for example Google for Chrome, Mozilla for Firefox, Apple for Safari, Microsoft for Edge), encrypted so that only your browser can read them. Your device sends most of them itself; the bridge sends the one saying your device went offline.</li>
+      <li><b>Proton</b> (Switzerland, which the EU recognises as protecting data adequately) sends our emails - the link to confirm your email, password-reset links and the warning before an unused account is removed - and receives what you write to info@off-the.cloud and the device logs you send us.</li>
+      <li><b>Downloads while installing and updating</b>: devices fetch their software and its updates from <b>GitHub</b> (US, Data Privacy Framework) directly, and also building blocks from the Go language's download site and module mirror (<code>proxy.golang.org</code>, run by Google), packages from their operating system's and Tailscale's repositories and, the first time, the photo-tagging model from <b>Hugging Face</b>. Like any download, these see your device's internet address.</li>
     </ul>
     <p>No one else receives your data, unless the law requires it.</p>
 
@@ -91,7 +92,7 @@
     <p>You can complain to a data protection authority. In the Netherlands it is the <a href="https://autoriteitpersoonsgegevens.nl">Autoriteit Persoonsgegevens</a>; you can also go to the one where you live.</p>
 
     <h2>The apps</h2>
-    <p>The Off The Cloud apps talk to your device, through the bridge when you are away. The iPhone and Android apps send your photos and videos to your device and keep your device password in the phone's secure storage. The map in a photo's details comes from OpenStreetMap on Android and Apple Maps on iPhone, which receive the map area being shown. The apps contain no analytics or advertising.</p>
+    <p>The Off The Cloud apps talk to your device, through the bridge when you are away. The iPhone and Android apps send your photos and videos to your device and keep your device password in the phone's secure storage. The map in a photo's details comes from OpenStreetMap in the web app and on Android, and from Apple Maps on iPhone, which receive the map area being shown. The apps contain no analytics or advertising.</p>
 
     <h2>Age</h2>
     <p>Accounts are for people aged 16 and over.</p>

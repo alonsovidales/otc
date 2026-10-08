@@ -114,18 +114,30 @@ current Play Console wording before submitting.
   Sign in with Apple or Google): stored by the bridge for the account. Purpose: account
   management. Not shared.
 - **Device or other IDs**: the Firebase Cloud Messaging token, kept by the bridge so the user's
-  device can notify the phone. Purpose: app functionality (notifications). Firebase processes it
-  for delivery.
+  device can notify the phone, and the Firebase installation ID the Firebase SDK creates for it
+  (firebase-messaging depends on firebase-installations; it also sends Firebase the app's version
+  and SDK details). Purpose: app functionality (notifications). Firebase processes them for
+  delivery as our service provider, so they are not "shared".
+- **App info and performance > Diagnostics**: Settings > Logs > "Send to us" sends the device's
+  recent logs (they can hold file and folder names, search words, Wi-Fi names and addresses) and
+  the note typed with them; the bridge adds the account's email and mails it all to
+  info@off-the.cloud (Proton). Only when the user presses the button, so **optional**. Purpose:
+  app functionality (support for a problem the user reports). Not shared (Proton is our service
+  provider), not processed ephemerally: kept until the problem is solved, at most 12 months, as
+  `/privacy` and the App Store answers ("Other Diagnostic Data") say.
 - **Approximate or precise location**: photos keep their own location metadata (read with
   `ACCESS_MEDIA_LOCATION`) and it goes to the user's own device with the photo, for the map and
   place search. The app itself does not ask for the phone's location; the `ACCESS_FINE_LOCATION`
   permission is limited to Android 11 and older, where Bluetooth scanning needs it.
-- **None**: no analytics, no advertising, no crash reporting SDK, and no data sold.
+- **None**: no analytics, no advertising, no crash reporting SDK, and no data sold. (Diagnostics
+  above are only the logs the user chooses to send.)
 
 ## App content declarations
 
 - **Ads**: none.
-- **Target audience**: 18+ (it is a personal storage and social app for device owners).
+- **Target audience**: 16 and over - the age groups 16-17 and 18+. The terms of use and the
+  privacy notice let anyone 16 or older hold an account, and this answer matches them. It is a
+  personal storage and social app for device owners, not designed for children.
 - **Content rating**: questionnaire. It has user-generated content shared with friends: the
   friend-to-friend feed, with blocking and removal of friends.
 - **Account deletion**: Play requires it for an app that creates accounts (the in-app setup

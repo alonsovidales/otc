@@ -830,7 +830,7 @@ func (api *API) domainLimitReached(accountID string) (int, string) {
 		return http.StatusInternalServerError, "could not check your account right now"
 	}
 	if n >= accounts.MaxDomains {
-		return http.StatusForbidden, fmt.Sprintf("an account can register up to %d domains - for more, write to %s", accounts.MaxDomains, accounts.ContactEmail)
+		return http.StatusForbidden, fmt.Sprintf("an account can register up to %d domains - for more (%d euros a year each), write to %s", accounts.MaxDomains, accounts.ExtraDomainEUR, accounts.ContactEmail)
 	}
 
 	return 0, ""
