@@ -266,9 +266,11 @@ final class GridThumbLoader {
             return out
         }.value
         guard gen == generation else { return decided.map(\.keep) }
+        #if DEBUG
         let inline = decided.filter { $0.plan == .inline }.count
         let cached = decided.filter { $0.plan == .cached || $0.plan == .cachedThenAsk }.count
         print("[GridThumbs] page of \(files.count): \(inline) with content, \(cached) from the cache, \(files.count - inline - cached) to ask")
+        #endif
         for (i, d) in decided.enumerated() {
             let f = files[i]
             let w = Want(id: ids[i], path: f.path, hash: f.hash)
@@ -419,7 +421,9 @@ final class GridThumbLoader {
         var g = Msg_GetThumbnails()
         g.paths = batch.map(\.path)
         g.smallThumbnails = true
+        #if DEBUG
         print("[GridThumbs] GetThumbnails for \(batch.count)")
+        #endif
         let resp = try? await request(.reqGetThumbnails(g))
         guard gen == generation else { return }
         sending = false
