@@ -74,7 +74,7 @@ import kotlinx.coroutines.withContext
  * circle crop, which the caller opens exactly as for a phone pick.
  */
 
-// thumbKey: path#hash#size, the thumbnail's bytes in ThumbStore (null: none).
+// thumbKey: the tile's small thumbnail in ThumbStore (ThumbStore.tileKey; null: none).
 private data class PickItem(val path: String, val thumbKey: String?)
 
 @Composable
@@ -103,7 +103,8 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
         loading = true
         try {
             val resp = OTCConnection.request { e ->
-                val sp = SearchPhotos.newBuilder().setGroupId(groupId).setIncludeVideos(false).setToken(t).setHave(items.size)
+                // A grid: its tiles' small thumbnails (release 111).
+                val sp = SearchPhotos.newBuilder().setGroupId(groupId).setIncludeVideos(false).setToken(t).setHave(items.size).setSmallThumbnails(true)
                 // A new search (opening, another chip) gets a small first
                 // page; scrolling on, the device's own size.
                 if (t.isEmpty()) sp.limit = FIRST_PHOTO_PAGE_LIMIT
@@ -112,11 +113,11 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
             if (mine != generation) return
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) { error = pageError; failures += 1; return }
             val lof = resp.respListOfFiles
-            ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.byteSize}" to f.content.toByteArray() })
+            ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> ThumbStore.tileKey(f.path, f.hash, f.byteSize) to f.content.toByteArray() })
             if (mine != generation) return
             val seen = items.map { it.path }.toSet()
             items = items + lof.filesList.filter { it.path !in seen }
-                .map { f -> PickItem(f.path, if (f.hasContent()) "${f.path}#${f.hash}#${f.byteSize}" else null) }
+                .map { f -> PickItem(f.path, if (f.hasContent()) ThumbStore.tileKey(f.path, f.hash, f.byteSize) else null) }
             token = lof.token.ifEmpty { null }
             failures = 0
             if (error == pageError) error = null
@@ -166,7 +167,7 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
     LaunchedEffect(Unit) {
         launch {
             try {
-                val resp = OTCConnection.request { it.setReqListImageGroups(ListImageGroups.getDefaultInstance()) }
+                val resp = OTCConnection.request { it.setReqListImageGroups(ListImageGroups.newBuilder().setSmallThumbnails(true)) }
                 if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_IMAGE_GROUPS) groups = resp.respImageGroups.groupsList
             } catch (_: Exception) {}
         }

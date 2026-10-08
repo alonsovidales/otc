@@ -223,7 +223,8 @@ class NewPostPickerViewModel : ViewModel() {
             val chips = _state.value.chips
             val requestToken = overrideToken ?: token ?: ""
             val resp = OTCConnection.request {
-                val sp = SearchPhotos.newBuilder().addAllTags(chips).setToken(requestToken).setIncludeVideos(true)
+                // A grid: its tiles' small thumbnails (release 111).
+                val sp = SearchPhotos.newBuilder().addAllTags(chips).setToken(requestToken).setIncludeVideos(true).setSmallThumbnails(true)
                 // A new search (Synced, a tag added or removed) gets a small
                 // first page; scrolling on, the device's own size.
                 if (requestToken.isEmpty()) sp.limit = FIRST_PHOTO_PAGE_LIMIT
@@ -232,9 +233,9 @@ class NewPostPickerViewModel : ViewModel() {
             if (mine != searchGeneration) return
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) return
             val lof = resp.respListOfFiles
-            ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.byteSize}" to f.content.toByteArray() })
+            ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> ThumbStore.tileKey(f.path, f.hash, f.byteSize) to f.content.toByteArray() })
             if (mine != searchGeneration) return
-            val newItems = lof.filesList.map { f -> "${f.path}#${f.hash}#${f.byteSize}".let { id -> Item(id, f.path, thumbKey = if (f.hasContent()) id else null, isVideo = f.mime.startsWith("video/")) } }
+            val newItems = lof.filesList.map { f -> Item("${f.path}#${f.hash}#${f.byteSize}", f.path, thumbKey = if (f.hasContent()) ThumbStore.tileKey(f.path, f.hash, f.byteSize) else null, isVideo = f.mime.startsWith("video/")) }
             _state.update { st -> val existing = st.items.map { it.id }.toSet(); st.copy(items = st.items + newItems.filter { it.id !in existing }) }
             token = lof.token.ifEmpty { null }
             _state.update { it.copy(endReached = token == null) }

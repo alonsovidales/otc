@@ -101,6 +101,12 @@ import androidx.media3.ui.PlayerView
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.net.OTCConnection
+import cloud.offthe.otc.ui.common.loadProblemText
+import cloud.offthe.otc.ui.common.MORE_POSTS_PROBLEM
+import cloud.offthe.otc.ui.common.TRY_AGAIN
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import cloud.offthe.otc.proto.File as PbFile
 import cloud.offthe.otc.proto.GetPublicationMedia
 import cloud.offthe.otc.proto.Profile
@@ -267,10 +273,22 @@ private fun Feed(
                 // Issue #22: a real loading state while the first fetch is in
                 // flight, distinct from "genuinely no posts" - both under the
                 // same masthead as the feed itself.
-                st.posts.isEmpty() && st.loading -> Column(Modifier.fillMaxSize()) {
+                // Until the first answer comes (asked again every 4 s, at
+                // once on a Wake), not only while a request is out: between
+                // two tries it used to read "No social posts". After a
+                // failure, why it isn't here yet.
+                st.posts.isEmpty() && (st.loading || !st.hasLoadedOnce) -> Column(Modifier.fillMaxSize()) {
                     LogoHeader(wide)
-                    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
+                    Column(Modifier.fillMaxSize().padding(horizontal = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
                         CircularProgressIndicator(); Spacer(Modifier.height(8.dp)); Text("Loading…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        st.problem?.let { p ->
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                loadProblemText(p, "The posts"), style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+                                modifier = Modifier.widthIn(max = 360.dp).semantics { liveRegion = LiveRegionMode.Polite },
+                            )
+                        }
                     }
                 }
                 st.posts.isEmpty() -> Column(Modifier.fillMaxSize()) {
@@ -306,6 +324,16 @@ private fun Feed(
                             HorizontalDivider()
                         }
                         if (st.loadingMore) item { Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+                        // The next page failed: it is asked for again on a Wake, or now.
+                        else if (st.moreFailed) item {
+                            Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    MORE_POSTS_PROBLEM, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                                )
+                                TextButton(onClick = { vm.retryMore() }) { Text(TRY_AGAIN) }
+                            }
+                        }
                     }
                 }
             }
@@ -600,6 +628,12 @@ private fun VideoContent(post: SocialPublication, file: PbFile, playing: Boolean
                     })
                 }
                 player = p
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // No answer (offline, the device away): the poster stays and
+                // a tap, or scrolling back to it, tries again. Uncaught, this
+                // took the whole app down while scrolling the feed offline.
             } finally { loading = false }
         }
     }

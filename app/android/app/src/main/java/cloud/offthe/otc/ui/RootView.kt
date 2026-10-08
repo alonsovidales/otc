@@ -19,6 +19,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.net.OTCConnection
+import cloud.offthe.otc.net.Wake
 import cloud.offthe.otc.sync.PhotoSync
 import cloud.offthe.otc.sync.SyncScheduler
 import cloud.offthe.otc.ui.compose.mediaPermissions
@@ -55,7 +56,13 @@ fun RootView() {
                 // Issue #190: the route first - back home, the sync goes over
                 // the home network rather than holding the bridge route for
                 // as long as it runs.
-                Lifecycle.Event.ON_RESUME -> { PhotoSync.runForegroundAsync(after = OTCConnection.reconsiderRoute()); NotificationsModel.startPolling() }
+                // Back in the foreground: what failed while away is asked
+                // for again now (Wake), not at the end of its wait.
+                Lifecycle.Event.ON_RESUME -> {
+                    PhotoSync.runForegroundAsync(after = OTCConnection.reconsiderRoute())
+                    NotificationsModel.startPolling()
+                    Wake.fire()
+                }
                 Lifecycle.Event.ON_STOP -> { SyncScheduler.scheduleNext(); NotificationsModel.stopPolling() }
                 else -> {}
             }

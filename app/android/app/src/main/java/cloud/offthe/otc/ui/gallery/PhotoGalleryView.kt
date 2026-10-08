@@ -104,7 +104,9 @@ import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.common.decodeBitmap
 import cloud.offthe.otc.ui.common.rememberOffMain
 import cloud.offthe.otc.ui.common.rememberTileThumb
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.abs
@@ -139,6 +141,29 @@ import androidx.compose.ui.unit.Dp
 import cloud.offthe.otc.proto.ImageGroup
 import cloud.offthe.otc.proto.Person
 import kotlin.math.roundToInt
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material3.Button
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.text.style.TextAlign
+import cloud.offthe.otc.ui.common.LoadProblem
+import cloud.offthe.otc.ui.common.MORE_PHOTOS_PROBLEM
+import cloud.offthe.otc.ui.common.PHOTOS_LOADING
+import cloud.offthe.otc.ui.common.PHOTOS_PROBLEM_TITLE
+import cloud.offthe.otc.ui.common.PHOTOS_SLOW
+import cloud.offthe.otc.ui.common.TRY_AGAIN
+import cloud.offthe.otc.ui.common.TRYING
+import cloud.offthe.otc.ui.common.VIDEO_UNPLAYABLE
+import cloud.offthe.otc.ui.common.photosProblemText
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 
 // Port of PhotoGalleryView (PhotoGallery.swift): the search (TopSearch.kt:
 // tags, people and files, as the web's top bar), the People button and page
@@ -280,9 +305,12 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                 layoutGallery(runs, dated, geo, monthCounts, more = !st.endReached)
             }
             // Grey tiles: the scrubber's month under its title, or the first
-            // page on its way (a grey title too, in date order).
+            // page on its way (a grey title too, in date order) - from the
+            // moment a search starts, so never a blank page. A first page
+            // that failed says so in their place (GalleryBody.PROBLEM).
             val ph = st.placeholderCount
-            val skeleton = ph == null && st.items.isEmpty() && st.loading
+            val body = st.body
+            val skeleton = body == GalleryBody.SKELETON
             val greyLayout = remember(ph, st.placeholderMonth, skeleton, dated, geo) {
                 when {
                     ph != null -> layoutGallery(if (ph > 0) listOf(MonthRun(st.placeholderMonth, 0, ph)) else emptyList(), true, geo)
@@ -387,7 +415,10 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                         else -> metrics.gap
                     }
                     if (!grey) LaunchedEffect(row.end) { vm.loadMoreIfNeeded(row.end - 1) }
-                    GalleryRowView(row, geo, metrics, Modifier.padding(start = metrics.pad, end = metrics.pad, top = top), titleSkeleton = skeleton && ph == null) { k, cell ->
+                    // Grey tiles say nothing to TalkBack but, once, that
+                    // photos are on their way (the web's aria-busy "Loading photos").
+                    val rowSemantics = if (!grey) Modifier else Modifier.clearAndSetSemantics { if (i == 0) contentDescription = PHOTOS_LOADING }
+                    GalleryRowView(row, geo, metrics, Modifier.padding(start = metrics.pad, end = metrics.pad, top = top).then(rowSemantics), titleSkeleton = skeleton && ph == null) { k, cell ->
                         if (grey) Box(cell.aspectRatio(1f).clip(TILE_SHAPE).background(tileColor))
                         else {
                             val item = st.items[k]
@@ -398,15 +429,30 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                         }
                     }
                 }
-                // The end of the grid: where the next page shows it is coming.
-                // A fixed height, so the spinner coming and going moves nothing.
-                // Not without rows: the list would hold on to it as the first
-                // item when they come, and open at its end.
+                // Nothing to show: why - the first page failed (and is being
+                // asked for again), or there is nothing (the web's states).
+                if (body == GalleryBody.PROBLEM || body == GalleryBody.EMPTY) item(key = "state:$body", contentType = "state") {
+                    if (body == GalleryBody.PROBLEM) PhotosProblem(st.pageProblem ?: LoadProblem.FAILED, st.retrying) { vm.retryPage() }
+                    else PhotosEmpty(emptyKind(st), st.activeGroup?.name, onLeaveGroup = { vm.leaveGroup() }, onClearSearch = { vm.clearSearch() })
+                }
+                // The end of the grid: where the next page shows it is coming,
+                // or that it failed, with its Try again (it is asked again
+                // meanwhile). A fixed height, so the spinner coming and going
+                // moves nothing. Not without rows: the list would hold on to
+                // it as the first item when they come, and open at its end.
                 if (rows.isNotEmpty()) item(key = "foot", contentType = "foot") {
                     Box(Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(top = 8.dp, bottom = 24.dp), contentAlignment = Alignment.Center) {
-                        if (ph == null && st.loading && st.items.isNotEmpty()) CircularProgressIndicator()
+                        if (ph == null && st.items.isNotEmpty()) {
+                            if (st.loading) CircularProgressIndicator()
+                            else if (st.pageProblem != null) MorePhotosProblem { vm.retryPage() }
+                        }
                     }
                 }
+            }
+            // The first page is slow to come (a slow link, a busy device):
+            // over the grey tiles, that it is still on its way.
+            if (st.slowFirstPage && (body == GalleryBody.SKELETON || (body == GalleryBody.GREY && st.scrubFrac == null))) {
+                StillWaiting(Modifier.align(Alignment.BottomCenter).padding(bottom = if (st.selected.isNotEmpty()) 104.dp else 24.dp))
             }
             if (st.showScrubber) {
                 PhotoDateScrubber(vm, st, Modifier.align(Alignment.CenterEnd).fillMaxHeight(), onEngage = { scope.launch { listState.scrollToItem(headerCount) } })
@@ -556,6 +602,94 @@ private fun PhotoTile(
         if (isSelected) {
             Box(Modifier.fillMaxSize().border(3.dp, MaterialTheme.colorScheme.primary, TILE_SHAPE))
             Icon(Icons.Default.CheckCircle, null, Modifier.align(Alignment.TopStart).padding(6.dp), tint = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+// ---- when there are no photos to show -------------------------------------------
+
+/**
+ * The first page failed ([problem]: why) and is asked for again meanwhile:
+ * "Couldn't load your photos", why in plain words, and Try again - "Trying…"
+ * while a retry is on its way. In the grid's place, under any header.
+ */
+@Composable
+private fun PhotosProblem(problem: LoadProblem, retrying: Boolean, onRetry: () -> Unit) {
+    GridMessage(
+        icon = if (problem == LoadProblem.OFFLINE) Icons.Outlined.WifiOff else Icons.Outlined.CloudOff,
+        title = PHOTOS_PROBLEM_TITLE, text = photosProblemText(problem), announce = true,
+    ) {
+        Button(onClick = onRetry, enabled = !retrying) {
+            if (retrying) {
+                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = LocalContentColor.current)
+                Spacer(Modifier.width(8.dp))
+                Text(TRYING)
+            } else Text(TRY_AGAIN)
+        }
+    }
+}
+
+/** Nothing to show (the web's empty states): an empty collection, a search with no match, or no photos at all. */
+@Composable
+private fun PhotosEmpty(kind: EmptyKind, groupName: String?, onLeaveGroup: () -> Unit, onClearSearch: () -> Unit) {
+    when (kind) {
+        EmptyKind.COLLECTION -> GridMessage(NavIcons.Collections, "This collection is empty", "Select photos in Images, then choose Add to collection.") {
+            OutlinedButton(onClick = onLeaveGroup) { Text("Go to Images") }
+        }
+        EmptyKind.NO_MATCH -> GridMessage(
+            Icons.Outlined.Search, "No photos match",
+            if (groupName != null) "Nothing in \u201c$groupName\u201d matches this search." else "Try other words, or fewer of them.",
+        ) {
+            OutlinedButton(onClick = onClearSearch) { Text("Clear search") }
+        }
+        EmptyKind.NO_PHOTOS -> GridMessage(NavIcons.Images, "No photos yet", "Photos from the phone and computer apps appear here.")
+    }
+}
+
+// [announce]: said to TalkBack when it appears or its reason changes (a
+// polite live region), as the web's role="status".
+@Composable
+private fun GridMessage(icon: ImageVector, title: String, text: String, announce: Boolean = false, action: (@Composable () -> Unit)? = null) {
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 56.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(icon, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(16.dp))
+        Text(title, Modifier.semantics { heading() }, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.widthIn(max = 420.dp).then(if (announce) Modifier.semantics { liveRegion = LiveRegionMode.Polite } else Modifier),
+        )
+        if (action != null) {
+            Spacer(Modifier.height(20.dp))
+            action()
+        }
+    }
+}
+
+/** A later page failed (the web's foot): it is asked for again meanwhile, or now with Try again. */
+@Composable
+private fun MorePhotosProblem(onRetry: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            MORE_PHOTOS_PROBLEM, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        )
+        TextButton(onClick = onRetry) { Text(TRY_AGAIN) }
+    }
+}
+
+/** The first page is slow to come: a pill over the grey tiles. */
+@Composable
+private fun StillWaiting(modifier: Modifier) {
+    Surface(modifier.semantics { liveRegion = LiveRegionMode.Polite }, shape = CircleShape, tonalElevation = 6.dp, shadowElevation = 3.dp) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
+            Spacer(Modifier.width(10.dp))
+            Text(PHOTOS_SLOW, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -950,16 +1084,36 @@ private fun ViewerPage(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
     val context = LocalContext.current
     val item = st.items.getOrNull(page) ?: return
     val video = if (isCurrent) st.videoUrl else null
+    val path = item.path
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         if (video != null) {
             val player = remember(video) { MediaStream.player(context, video).apply { setMediaItem(MediaItem.fromUri(video)); prepare(); playWhenReady = true } }
-            DisposableEffect(video) { onDispose { player.release() } }
+            DisposableEffect(video) {
+                // What the player can't play (a codec this phone lacks, a
+                // stream that broke) goes back to its poster, saying so,
+                // rather than a black box.
+                val listener = object : Player.Listener {
+                    override fun onPlayerError(error: PlaybackException) = vm.videoFailed(path)
+                }
+                player.addListener(listener)
+                onDispose { player.removeListener(listener); player.release() }
+            }
             AndroidView(factory = { PlayerView(it).apply { this.player = player; useController = true } }, modifier = Modifier.fillMaxSize())
             return@Box
         }
-        val hiRes = st.hiResImages[item.path]
-        val image = hiRes ?: item.preview ?: rememberThumb(item.thumbKey)
-        if (image == null) { CircularProgressIndicator(color = Color.White); return@Box }
+        val hiRes = st.hiResImages[path]
+        // Where the thumbnail stays (the full size failed or can't be
+        // decoded, a video that can't be fetched or played): the big one,
+        // asked for then. Until the full size comes, the grid's small tile.
+        val bigBytes = st.bigThumbs[path]
+        val big = rememberOffMain(bigBytes, { null }) { bigBytes?.let { b -> withContext(Dispatchers.Default) { decodeBitmap(b) } } }
+        val image = hiRes ?: big ?: item.preview ?: rememberThumb(item.thumbKey)
+        val unplayable = isCurrent && path in st.unplayable
+        if (image == null) {
+            if (unplayable) VideoUnplayable(Modifier.align(Alignment.BottomCenter)) { vm.retryVideo() }
+            else CircularProgressIndicator(color = Color.White)
+            return@Box
+        }
         // Still the thumbnail: the full-size image hasn't arrived (or
         // failed). Photos only - a video page's poster is never "low res".
         val lowRes = hiRes == null && !item.mime.startsWith("video/")
@@ -994,9 +1148,22 @@ private fun ViewerPage(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
             // the fitted (letterboxed) rectangle, not the page's.
             val fit = minOf(maxWidth / image.width.toFloat(), maxHeight / image.height.toFloat())
             Box(Modifier.align(Alignment.Center).size(fit * image.width.toFloat(), fit * image.height.toFloat())) {
-                LowResPill(loading = item.path in st.hiResLoading, modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp))
+                LowResPill(loading = path in st.hiResLoading, modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp))
             }
         }
+        if (unplayable) VideoUnplayable(Modifier.align(Alignment.BottomCenter)) { vm.retryVideo() }
+    }
+}
+
+/** Over a video's poster: the player couldn't play it, and Try again. */
+@Composable
+private fun VideoUnplayable(modifier: Modifier, onRetry: () -> Unit) {
+    Row(
+        modifier.padding(16.dp).background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(50)).padding(start = 16.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(VIDEO_UNPLAYABLE, color = Color.White, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        TextButton(onClick = onRetry) { Text(TRY_AGAIN, color = Color.White) }
     }
 }
 

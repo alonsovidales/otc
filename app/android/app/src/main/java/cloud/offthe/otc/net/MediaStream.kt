@@ -27,7 +27,7 @@ object MediaStream {
     }
 
     private suspend fun url(build: (ReqEnvelope.Builder) -> Unit): String? = try {
-        val resp = OTCConnection.request(build)
+        val resp = OTCConnection.request(build = build)
         if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_MEDIA_URL && resp.respMediaUrl.url.isNotEmpty())
             absolute(resp.respMediaUrl.url) else null
     } catch (e: Exception) {

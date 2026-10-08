@@ -5,7 +5,6 @@ import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.RespEnvelope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
@@ -17,9 +16,8 @@ import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import java.io.IOException
+import java.net.SocketTimeoutException
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 // Port of WSClient.swift: one WebSocket, requests correlated with
 // responses by envelope id. OkHttp delivers listener callbacks on its own
@@ -43,10 +41,51 @@ class WSClient(private val client: OkHttpClient = defaultClient) {
     // them on its own threads) can't fail the new one's requests or close it.
     private var gen = 0
 
+    // Under sendLock: the bytes this socket's requests handed to OkHttp, in
+    // the order it queued them - what tells when one has left the phone.
+    private val sendLock = Any()
+    private var sentBytes = 0L
+
+    /**
+     * No answer within the time the request was given: the socket may be
+     * fine (a dead one fails what it has in flight within a ping or two,
+     * 30 s each). Its answer, should it still come, is dropped: the request
+     * is no longer waited on, and its id is never used again on this socket.
+     * [answerTimedOut]: false when the time ran out before the request was
+     * sent - still connecting (OTCConnection) - which says nothing about
+     * how fast the device answers (Patience).
+     */
+    class RequestTimeout(
+        message: String = "The device did not answer in time",
+        val answerTimedOut: Boolean = true,
+    ) : IOException(message)
+
+    /** The WebSocket upgrade wasn't answered within [CONNECT_TIMEOUT_MS]. */
+    class ConnectTimeout : SocketTimeoutException("The device didn't answer the connection in time")
+
+    /** A request's answer, and how long it was waited for once the request had left the phone. */
+    class Answer(val resp: RespEnvelope, val waitedMs: Long)
+
     companion object {
         // As the macOS client and otc-sync: long enough for ApplyUpdate and a
         // 4 MiB chunk on a slow link, but a request can no longer hang forever.
-        private const val requestTimeoutMs = 30 * 60_000L
+        // What a screen shows asks with a shorter one (OTCConnection.PAGE_TIMEOUT_MS).
+        const val DEFAULT_TIMEOUT_MS = 30 * 60_000L
+
+        /**
+         * How long a connect may take, upgrade included. OkHttp bounds the
+         * TCP and TLS handshakes (10 s each) but not the wait for the
+         * upgrade's answer - the socket's readTimeout is 0, for a socket
+         * that lives for hours - so a stalled one (a bridge node that took
+         * the connection and never answered) left everything waiting on it
+         * for good: grey tiles and "Still waiting for your device…" with
+         * nothing failing, so nothing asked again.
+         */
+        const val CONNECT_TIMEOUT_MS = 20_000L
+
+        // How often a request still queued behind others (a photo sync's
+        // chunks) checks whether it has left; its answer ends the wait at once.
+        private const val QUEUE_POLL_MS = 50L
 
         /** Every socket's, to the configured endpoint; one pool and dispatcher for all. */
         val defaultClient: OkHttpClient = OkHttpClient.Builder()
@@ -61,7 +100,8 @@ class WSClient(private val client: OkHttpClient = defaultClient) {
     /** Fired once, when the socket breaks. The owner reconnects; this class never retries. */
     @Volatile var onDisconnect: (() -> Unit)? = null
 
-    suspend fun connect(url: String) {
+    /** Opens the socket: within [timeoutMs], else [ConnectTimeout] - a failed connect like any other (onDisconnect fires). */
+    suspend fun connect(url: String, timeoutMs: Long = CONNECT_TIMEOUT_MS) {
         if (connected) return
         val opened = CompletableDeferred<Unit>()
         val req = Request.Builder().url(url).build()
@@ -106,13 +146,20 @@ class WSClient(private val client: OkHttpClient = defaultClient) {
         })
         val replaced = synchronized(waiters) { (gen != myGen).also { if (!it) socket = ws } }
         if (replaced) ws.cancel()
-        try {
-            opened.await()
+        val done = try {
+            withTimeoutOrNull(timeoutMs) { opened.await() }
         } catch (e: CancellationException) {
             // A dropped attempt (invalidate(), or a race another address
             // won) must not open behind its caller's back.
             close()
             throw e
+        }
+        if (done == null) {
+            // Failed like a connect that was refused: the socket goes, and
+            // its owner hears of it (OTCConnection's backoff retry).
+            val err = ConnectTimeout()
+            failAndClose(err, myGen)
+            throw err
         }
     }
 
@@ -146,7 +193,20 @@ class WSClient(private val client: OkHttpClient = defaultClient) {
         s to p
     }
 
-    suspend fun request(build: (ReqEnvelope.Builder) -> Unit): RespEnvelope {
+    /** Sends a request and waits [timeoutMs] for its answer, else throws [RequestTimeout]. */
+    suspend fun request(timeoutMs: Long = DEFAULT_TIMEOUT_MS, build: (ReqEnvelope.Builder) -> Unit): RespEnvelope =
+        exchange(timeoutMs, build).resp
+
+    /**
+     * [request], with how long the answer took. The clock starts once the
+     * request has left the phone (OkHttp has written it to the socket): on
+     * the one socket it may queue behind a photo sync's chunks (up to three
+     * of 4 MiB), and the device can't answer what it hasn't got - timed from
+     * the send, a page could "take too long" and be asked again before it
+     * ever left. A socket that stops moving fails what it holds (OkHttp's
+     * write timeout, its pings), so the queue's wait is never endless.
+     */
+    suspend fun exchange(timeoutMs: Long = DEFAULT_TIMEOUT_MS, build: (ReqEnvelope.Builder) -> Unit): Answer {
         if (!connected) throw IOException("Not connected")
         val id = lock.withLock { nextId++ }
         val b = ReqEnvelope.newBuilder()
@@ -155,20 +215,37 @@ class WSClient(private val client: OkHttpClient = defaultClient) {
         // #77): a call site that replaces the whole envelope would send
         // id 0 and collide with every other in-flight request.
         b.id = id
-        val bytes = b.build().toByteArray()
-        return withTimeoutOrNull(requestTimeoutMs) {
-            suspendCancellableCoroutine { cont ->
-                val s = synchronized(waiters) {
-                    waiters[id] = { r -> r.fold({ cont.resume(it) }, { cont.resumeWithException(it) }) }
-                    socket
-                }
-                val ok = s?.send(bytes.toByteString()) ?: false
-                if (!ok) {
-                    val cb = synchronized(waiters) { waiters.remove(id) }
-                    cb?.invoke(Result.failure(IOException("send failed")))
-                }
-                cont.invokeOnCancellation { synchronized(waiters) { waiters.remove(id) } }
+        val bytes = b.build().toByteArray().toByteString()
+        val answer = CompletableDeferred<RespEnvelope>()
+        val s = synchronized(waiters) {
+            waiters[id] = { r -> r.fold({ answer.complete(it) }, { answer.completeExceptionally(it) }) }
+            socket
+        }
+        try {
+            // Where this request ends in the socket's queue: it has left
+            // once that many bytes have been written.
+            val end = if (s == null) -1L else synchronized(sendLock) {
+                if (s.send(bytes)) { sentBytes += bytes.size; sentBytes } else -1L
             }
-        } ?: throw IOException("The device did not answer in time")
+            if (end < 0) {
+                val cb = synchronized(waiters) { waiters.remove(id) }
+                cb?.invoke(Result.failure(IOException("send failed")))
+            }
+            // Usually written within a few ms: looked at often at first,
+            // then every QUEUE_POLL_MS behind a long queue.
+            var poll = 2L
+            while (!answer.isCompleted && synchronized(sendLock) { sentBytes - s!!.queueSize() } < end) {
+                // Its answer (or the socket's failure) ends this at once.
+                withTimeoutOrNull(poll) { answer.await() }
+                poll = minOf(poll * 2, QUEUE_POLL_MS)
+            }
+            val started = System.nanoTime()
+            // Timed out, the waiter goes (finally): a late answer finds no
+            // one in onMessage and is dropped.
+            val resp = withTimeoutOrNull(timeoutMs) { answer.await() } ?: throw RequestTimeout()
+            return Answer(resp, (System.nanoTime() - started) / 1_000_000)
+        } finally {
+            synchronized(waiters) { waiters.remove(id) }
+        }
     }
 }

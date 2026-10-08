@@ -200,7 +200,7 @@ typealias PeopleRequest = suspend ((ReqEnvelope.Builder) -> Unit) -> RespEnvelop
  * a deletion under way finishes (and says how it went) even when the page
  * is left or the screen turns. [send] is the device (a stand-in in tests).
  */
-class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(it) }) : ViewModel() {
+class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(build = it) }) : ViewModel() {
     sealed interface Confirm {
         data object Merge : Confirm
         /** From a face's menu (one) or from the selection bar. */

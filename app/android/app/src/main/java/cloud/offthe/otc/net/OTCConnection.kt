@@ -119,23 +119,99 @@ object OTCConnection {
 
     class RequestError(message: String) : IOException(message)
 
-    suspend fun request(build: (ReqEnvelope.Builder) -> Unit): RespEnvelope = withContext(Dispatchers.IO) {
+    /**
+     * How long what a screen shows waits for its answer before the request
+     * fails and the screen asks again (its own retry, 1 s doubling to 10 s),
+     * instead of hanging until the socket drops - through [ask], which gives
+     * a kind that timed out more time (Patience). PAGE: a page of photos,
+     * posts or covers, a folder's listing - a first page of Images from Pit
+     * measured 6-70 s over the bridge, so 2 minutes, above the bridge's own
+     * 90 s forward timeout (cForwardTimeout): through the bridge its "device
+     * unreachable" always comes first, and this only ends a request nothing
+     * will answer (at home, straight to the device, nothing else would).
+     * LIST: the small lists (tags, date buckets), which still queue behind a
+     * page on the device's upload. The clock starts once the request has
+     * left the phone (WSClient.exchange), and connecting gets the same time
+     * on its own. Everything else keeps the socket's 30 minutes (uploads,
+     * downloads in pieces, ApplyUpdate).
+     */
+    const val PAGE_TIMEOUT_MS = 120_000L
+    const val LIST_TIMEOUT_MS = 60_000L
+
+    /**
+     * GetPubKey and Auth while signing in: above the bridge's 90 s, so its
+     * own "device unreachable" comes first, and far above an Argon2id
+     * derivation on a busy device. They used to have the socket's 30
+     * minutes, and every request waits on a sign-in in progress.
+     */
+    private const val SIGN_IN_TIMEOUT_MS = 120_000L
+
+    private val patience = Patience()
+
+    /** Why connecting failed when the phone has no network at all (the connection card's line). */
+    const val OFFLINE_MESSAGE = "This phone is offline. Connect to Wi-Fi or mobile data."
+
+    /** A request with the socket's own time (or [timeoutMs]): connecting, sending, waiting. */
+    suspend fun request(
+        timeoutMs: Long = WSClient.DEFAULT_TIMEOUT_MS,
+        build: (ReqEnvelope.Builder) -> Unit,
+    ): RespEnvelope = exchange(timeoutMs, build).resp
+
+    /**
+     * What a screen shows, of [kind] ("page", "feed", "listing", "tags"...):
+     * [baseMs] for its answer (PAGE_TIMEOUT_MS, LIST_TIMEOUT_MS), twice as
+     * long after each timeout in a row up to 5 minutes, and back down once
+     * answers come in time again - per kind and route (Patience). Throws
+     * WSClient.RequestTimeout when the time ran out, connecting included.
+     */
+    suspend fun ask(kind: String, baseMs: Long, build: (ReqEnvelope.Builder) -> Unit): RespEnvelope =
+        patience.run("$kind/${_route.value ?: Route.BRIDGE}", baseMs) { exchange(it, build) }
+
+    private suspend fun exchange(
+        timeoutMs: Long,
+        build: (ReqEnvelope.Builder) -> Unit,
+    ): WSClient.Answer = withContext(Dispatchers.IO) {
         var used: WSClient? = null
         try {
-            ensureConnected()
-            ws.also { used = it }.request(build)
+            connectWithin(timeoutMs)
+            ws.also { used = it }.exchange(timeoutMs, build)
         } catch (e: CancellationException) {
             // The caller went away (a closed screen, a cancelled search): the
             // connection is fine, and signing in again would cost the device
             // an Argon2id derivation for nothing.
             throw e
+        } catch (e: WSClient.RequestTimeout) {
+            // No answer in time on a socket that is still up (a dead one
+            // fails what it has in flight within a ping or two), or still
+            // connecting when the time ran out: the caller asks again.
+            // Signing in again first would only add an Argon2id derivation
+            // to a device that is already slow, and asking again here would
+            // double the wait before the screen can say so.
+            throw e
         } catch (e: Exception) {
             // Not when a route switch retired the socket under it: the one
             // in use is fine, and the retry goes there.
             if (used == null || used === ws) _authenticated.value = false
-            ensureConnected()
-            ws.request(build)
+            connectWithin(timeoutMs)
+            ws.exchange(timeoutMs, build)
         }
+    }
+
+    /**
+     * [ensureConnected] within a request's own time: a connect stuck
+     * somewhere (each attempt is bounded - WSClient.CONNECT_TIMEOUT_MS,
+     * SIGN_IN_TIMEOUT_MS - but a request may come in behind one) no longer
+     * leaves a screen waiting with nothing failed; the attempt itself goes
+     * on for whoever asks next. A sign-in's own timeout is the connection
+     * failing, not this request's answer.
+     */
+    private suspend fun connectWithin(timeoutMs: Long) {
+        val done = try {
+            if (timeoutMs >= WSClient.DEFAULT_TIMEOUT_MS) ensureConnected() else withTimeoutOrNull(timeoutMs) { ensureConnected() }
+        } catch (e: WSClient.RequestTimeout) {
+            throw IOException(e.message, e)
+        }
+        if (done == null) throw WSClient.RequestTimeout("Still connecting to the device", answerTimedOut = false)
     }
 
     /**
@@ -365,7 +441,7 @@ object OTCConnection {
 
     /** GetPubKey, then Auth with the password sealed to that key. null once signed in; throws when the socket fails. */
     private suspend fun signIn(c: WSClient, password: String, deviceId: String): Refusal? {
-        val pubKeyResp = c.request { it.setReqGetPubKey(GetPubKey.getDefaultInstance()) }
+        val pubKeyResp = c.request(SIGN_IN_TIMEOUT_MS) { it.setReqGetPubKey(GetPubKey.getDefaultInstance()) }
         if (pubKeyResp.payloadCase != RespEnvelope.PayloadCase.RESP_PUB_KEY) {
             val ack = if (pubKeyResp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) pubKeyResp.respAck else null
             return Refusal(ack?.errorMsg?.ifEmpty { null } ?: "Unable to fetch the connection's public key", ack, auth = false)
@@ -376,7 +452,7 @@ object OTCConnection {
             .setKey(ByteString.copyFrom(encrypted))
             .setCreate(false)
             .build()
-        val resp = c.request { it.setReqAuth(auth) }
+        val resp = c.request(SIGN_IN_TIMEOUT_MS) { it.setReqAuth(auth) }
         if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && resp.respAck.ok) return null
         val ack = if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) resp.respAck else null
         return Refusal(ack?.errorMsg ?: "Authentication failed", ack, auth = true)
@@ -432,6 +508,8 @@ object OTCConnection {
         // device set up (or reinstalled) while the app was running would
         // otherwise never learn this phone's token.
         cloud.offthe.otc.push.FCMPush.registerKnown(cloud.offthe.otc.OTCApp.instance)
+        // Back after a drop: what failed meanwhile is asked for again now.
+        Wake.fire()
     }
 
     /** Makes [c] the socket requests go through; only its own drop reconnects. */
@@ -599,6 +677,8 @@ object OTCConnection {
 
     /** Plain words for the errors the network stack hands back. */
     private fun describe(e: Throwable): String = when {
+        // No network at all: not the address's fault, whatever failed.
+        !NetworkWatch.online() -> OFFLINE_MESSAGE
         e is UnknownHostException -> "That address can't be found. Check the device name or address."
         e is ConnectException || e is SocketTimeoutException -> "The device isn't answering. It may be off, or the address may be wrong."
         e is SSLException -> "Couldn't make a secure connection to that address."

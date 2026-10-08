@@ -60,7 +60,15 @@ import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.data.ImagesChanged
 import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.ChunkedUpload
+import cloud.offthe.otc.net.NetworkWatch
 import cloud.offthe.otc.net.OTCConnection
+import cloud.offthe.otc.net.retryWaitMs
+import cloud.offthe.otc.net.sleepOrWake
+import cloud.offthe.otc.ui.common.DEVICE_UNREACHABLE
+import cloud.offthe.otc.ui.common.LoadProblem
+import cloud.offthe.otc.ui.common.backOnline
+import cloud.offthe.otc.ui.common.loadProblem
+import cloud.offthe.otc.ui.common.loadProblemText
 import cloud.offthe.otc.net.byteSize
 import cloud.offthe.otc.proto.DelFile
 import cloud.offthe.otc.proto.File as PbFile
@@ -429,16 +437,50 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     // the listing that asked, not one that replaced it meanwhile.
     private val listings = java.util.concurrent.atomic.AtomicInteger()
 
+    // A listing that failed on the way (no answer in time, a dropped
+    // connection, the bridge's "device unreachable") is asked again, 1 s
+    // doubling to 10 s and at once on a Wake, while its folder is still the
+    // one shown and nothing newer was asked for (listingAsks). The device's
+    // own refusal (a folder that isn't there) is not.
+    private val listingAsks = java.util.concurrent.atomic.AtomicInteger()
+    @Volatile private var listingFailures = 0
+    // Why the listing of failedPath failed: said while it is asked again
+    // (not cleared at each try, which flickered and was announced anew).
+    @Volatile private var listingProblem: LoadProblem? = null
+    @Volatile private var failedPath: String? = null
+
+    private fun listingFailed(p: String, problem: LoadProblem) {
+        listingProblem = problem
+        failedPath = p
+        _state.update { it.copy(error = loadProblemText(problem, "The files")) }
+        val ask = listingAsks.get()
+        val wait = retryWaitMs(++listingFailures)
+        viewModelScope.launch {
+            sleepOrWake(wait)
+            if (listingAsks.get() == ask && path == p) load()
+        }
+    }
+
     suspend fun load() {
         // The folder asked for: a listing that comes back after another
         // folder was opened (the search opening one as Files appears) is
         // not that folder's, and is dropped.
         val p = path
-        _state.update { it.copy(loading = true, error = null) }
+        listingAsks.incrementAndGet()
+        val still = listingErrorWhileAsking(listingProblem, failedPath, p, NetworkWatch.online())
+        _state.update { it.copy(loading = true, error = still) }
+        var resp: RespEnvelope? = null
         try {
-            val resp = OTCConnection.request { it.setReqListFiles(ListFiles.newBuilder().setPath(p)) }
+            // A folder of thousands of names is a page of its own, with
+            // more time after a timeout (OTCConnection.ask).
+            resp = OTCConnection.ask("listing", OTCConnection.PAGE_TIMEOUT_MS) { it.setReqListFiles(ListFiles.newBuilder().setPath(p)) }
             if (path != p) return
-            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) {
+            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && resp.respAck.code == DEVICE_UNREACHABLE) {
+                listingFailed(p, problemOf(resp, null))
+            } else if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) {
+                listingFailures = 0
+                listingProblem = null
+                _state.update { it.copy(error = null) }
                 val lof = resp.respListOfFiles
                 val rows = listingRows(lof, p)
                 val folderOut = lof.outOfImagesSupported && lof.folderOutOfImages
@@ -453,16 +495,23 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
                 if (folderOut) viewModelScope.launch { askCover(p, listing) }
             } else if (resp.error) {
                 if (mediaToOpen?.first == p) mediaToOpen = null
+                listingProblem = null
                 _state.update { it.copy(error = resp.errorMessage.ifEmpty { "Failed to list path" }) }
             } else {
+                listingProblem = null
                 _state.update { it.copy(error = "Unexpected response") }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            if (path == p) _state.update { it.copy(error = e.message ?: "Error") }
+            if (path == p) listingFailed(p, problemOf(resp, e))
         } finally {
             if (path == p) _state.update { it.copy(loading = false) }
         }
     }
+
+    private fun problemOf(resp: RespEnvelope?, error: Throwable?) =
+        loadProblem(resp, error, NetworkWatch.online(), OTCConnection.statusCode.value)
 
     /**
      * Issue #192: the folder whose "Show in Images" the device takes for
@@ -530,7 +579,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         val want = files.filter { isMediaFile(it) && thumbCache.get(it.path + "\u0000" + it.hash) == null }
         for (batch in want.chunked(THUMB_BATCH)) {
             try {
-                val resp = OTCConnection.request { it.setReqGetThumbnails(GetThumbnails.newBuilder().addAllPaths(batch.map { f -> f.path })) }
+                val resp = OTCConnection.request { it.setReqGetThumbnails(GetThumbnails.newBuilder().addAllPaths(batch.map { f -> f.path }).setSmallThumbnails(true)) }
                 if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) continue
                 val byPath = resp.respListOfFiles.filesList.associateBy { it.path }
                 withContext(Dispatchers.Default) {
@@ -607,7 +656,11 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
             if (batch.isEmpty()) return
             val folder = batch[0].third
             try {
-                val resp = OTCConnection.request { it.setReqGetThumbnails(GetThumbnails.newBuilder().addAllPaths(batch.map { b -> b.second })) }
+                // The tiles' small thumbnails (release 111; an older device
+                // sends big ones). The viewer shows them only until the full
+                // size arrives, and asks for the big one itself where it
+                // would stay (PhotoGalleryViewModel.thumbnailStays).
+                val resp = OTCConnection.request { it.setReqGetThumbnails(GetThumbnails.newBuilder().addAllPaths(batch.map { b -> b.second }).setSmallThumbnails(true)) }
                 if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) {
                     val byPath = resp.respListOfFiles.filesList.associateBy { it.path }
                     for ((key, full, _) in batch) {
@@ -1020,7 +1073,13 @@ fun FilesExplorerView(initialPath: String) {
                             Icon(if (st.grid) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView, if (st.grid) "Show as list" else "Show as grid")
                         }
                     }
-                    st.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp)) }
+                    // Said to TalkBack when it appears or changes.
+                    st.error?.let {
+                        Text(
+                            it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 12.dp).semantics { liveRegion = LiveRegionMode.Polite },
+                        )
+                    }
                     // Issue #192: in a folder kept out of Images (or inside one),
                     // what that means for its photos and videos - its files carry no
                     // mark of their own - and the way back. Only over the folder it
@@ -1499,3 +1558,12 @@ private fun queryDisplayName(context: Context, uri: Uri): String? =
         val idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
         if (idx >= 0 && c.moveToFirst()) c.getString(idx) else null
     }
+
+/**
+ * What Files says while the folder [p] is listed: for the folder whose
+ * listing failed ([failedPath], [problem]), why - it stays up while it is
+ * asked again rather than flickering away at each try - and the neutral
+ * line once the phone is back [online]; nothing for another folder.
+ */
+internal fun listingErrorWhileAsking(problem: LoadProblem?, failedPath: String?, p: String, online: Boolean): String? =
+    problem?.takeIf { failedPath == p }?.backOnline(online)?.let { loadProblemText(it, "The files") }

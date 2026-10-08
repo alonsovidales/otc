@@ -38,7 +38,20 @@ object NetworkWatch {
                     last = network
                     // Settled first: a handover reports several in a row.
                     pending?.cancel()
-                    pending = scope.launch { delay(1_500); OTCConnection.reconsiderRoute() }
+                    pending = scope.launch {
+                        delay(1_500)
+                        // Back online (or on another network): what failed
+                        // meanwhile is asked for again now (Wake).
+                        Wake.fire()
+                        OTCConnection.reconsiderRoute()
+                    }
+                }
+
+                // Gone with nothing in its place (airplane mode, Wi-Fi off
+                // with no mobile data): the same network coming back is
+                // news too, and wakes what failed meanwhile.
+                override fun onLost(network: Network) {
+                    if (network == last) last = null
                 }
             })
         } catch (e: Exception) {
@@ -80,4 +93,18 @@ object NetworkWatch {
     }
 
     fun tryDefault(cellular: Boolean, vpn: Boolean) = !cellular || vpn
+
+    /**
+     * Whether the phone is on a network that leads anywhere at all: false
+     * with none (airplane mode, Wi-Fi and mobile data off), which is what a
+     * screen then says rather than blaming the device. True when that can't
+     * be told.
+     */
+    fun online(): Boolean = try {
+        val cm = OTCApp.instance.getSystemService(ConnectivityManager::class.java)
+        if (cm == null) true
+        else cm.activeNetwork?.let { cm.getNetworkCapabilities(it)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) } == true
+    } catch (e: Exception) {
+        true
+    }
 }
