@@ -7,7 +7,9 @@
 //  Native port of the web app's Files tab (web/src/components/FilesExplorer.tsx):
 //  path navigation, upload (via the document picker — the native analogue of
 //  the web's drag-and-drop), multi-select delete/share/download-zip, and the
-//  Images section's own viewer for photos and videos.
+//  Images section's own viewer for photos and videos. In the narrow layout
+//  a search field of its own heads it, for files and folders only
+//  (FilesSearch.swift).
 
 import SwiftUI
 import UniformTypeIdentifiers
@@ -746,6 +748,19 @@ struct FilesExplorerView: View {
     // of results (TopSearch.swift's FilesNav).
     @ObservedObject private var nav = FilesNav.shared
     @State private var handledRequest: UUID?
+    // Files' own search, files and folders only (FilesSearch.swift): at
+    // the top in the narrow layout; a wide window's top bar searches Files
+    // already. Its words are its own, kept while the window is wide - or
+    // the window's, handed in, for its words to cross to the top bar and
+    // back as the window turns (FilesSearchHandOff).
+    @Environment(\.wideLayout) private var wide
+    @StateObject private var fileSearch: TopSearchModel
+    @FocusState private var searchFocused: Bool
+    /// The field's foot, where its panel starts, and whether the keyboard
+    /// shows: the panel may rise over the field (SearchPanelPlace).
+    @State private var searchBottom: CGFloat = 0
+    @State private var keyboardUp = false
+    private static let bodySpace = "filesBody"
     // Selection is managed here rather than with List(selection:) +
     // EditButton(): that pairing needs the row's tap to be the List's own
     // selection-toggle handling, and this view also needs a tap to open
@@ -756,183 +771,216 @@ struct FilesExplorerView: View {
     // and tapping the rest of the row opens, so nothing has to be
     // switched on before something can be picked.
 
-    init(initialPath: String) {
+    /// `search`: Files' own search, held by the window (MainView) so that
+    /// its words can go to the top bar as the window turns wide and come
+    /// back (FilesSearchHandOff). Without it Files keeps its own.
+    init(initialPath: String, search: TopSearchModel? = nil) {
         _vm = StateObject(wrappedValue: FilesExplorerViewModel(initialPath: initialPath))
         _pathField = State(initialValue: initialPath)
+        _fileSearch = StateObject(wrappedValue: search ?? TopSearchModel(scope: .files))
     }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // The search's "Search documents": its results over the
-                // folder, which stays as it was underneath.
-                if let results = vm.results {
-                    resultsView(results)
-                } else {
-                    HStack {
-                        TextField("/path/", text: $pathField, onCommit: { vm.navigate(to: pathField) })
-                            .textFieldStyle(.roundedBorder)
-                            .autocapitalization(.none)
-                        if vm.loading { ProgressView() }
-                        // Shows the mode a tap switches to, like Files/Photos.
-                        Button {
-                            viewMode = viewMode == "grid" ? "list" : "grid"
-                        } label: {
-                            Image(systemName: viewMode == "grid" ? "list.bullet" : "square.grid.2x2")
-                                .frame(width: 28, height: 28)
-                                .contentShape(Rectangle())
-                        }
-                        .accessibilityLabel(viewMode == "grid" ? "Show as list" : "Show as grid")
-                    }
-                    .padding([.horizontal, .top])
-                    // Clear of an iPad window's controls (AppMenu.swift).
-                    .modifier(AvoidsWindowControls())
-
-                    if let error = vm.error {
-                        Text(error).font(.caption).foregroundColor(.red).padding(.horizontal)
-                    }
-
-                    if vm.outOfImagesBanner {
-                        outOfImagesBanner
-                    }
-
-                    if viewMode == "grid" {
-                        grid
+                // Files' own search (FilesSearch.swift), over the folder
+                // and over a search's results alike: a row of its own above
+                // the path, which keeps its place and its controls.
+                if searchShown {
+                    FilesSearchField(search: fileSearch, focused: $searchFocused, actions: searchActions)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        // Clear of an iPad window's controls (AppMenu.swift).
+                        .modifier(AvoidsWindowControls())
+                        .onGeometryChange(for: CGFloat.self) { proxy in
+                            proxy.frame(in: .named(Self.bodySpace)).maxY
+                        } action: { searchBottom = $0 }
+                }
+                // Under the search's suggestions, the folder or the results
+                // are out of VoiceOver's reach too, as out of sight; the field
+                // and its Cancel stay.
+                Group {
+                    // The search's "Search documents": its results over the
+                    // folder, which stays as it was underneath.
+                    if let results = vm.results {
+                        resultsView(results)
                     } else {
-                        List {
-                            ForEach(vm.rows) { row in
-                                HStack {
-                                    // The row's own checkbox, always there - see the
-                                    // note on selection at the top of this view.
-                                    // Issue #116: directories are selectable too -
-                                    // the device expands one to every file under it
-                                    // for share/download/delete (see
-                                    // files_manager.resolvePaths). Only ".." has
-                                    // none, being navigation rather than a thing;
-                                    // it keeps the width so names stay aligned.
-                                    if row.path != ".." {
-                                        Button {
-                                            if vm.selected.contains(row.path) { vm.selected.remove(row.path) }
-                                            else { vm.selected.insert(row.path) }
-                                        } label: {
-                                            Image(systemName: vm.selected.contains(row.path) ? "checkmark.circle.fill" : "circle")
-                                                .foregroundColor(vm.selected.contains(row.path) ? .accentColor : .secondary)
-                                                .frame(width: 28, height: 28)
-                                                .contentShape(Rectangle())
-                                        }
-                                        // .plain: inside a List a default Button
-                                        // claims the whole row's tap, and the row
-                                        // tap below has to stay "open".
-                                        .buttonStyle(.plain)
-                                        .accessibilityLabel(vm.selected.contains(row.path) ? "Deselect" : "Select")
-                                    } else {
-                                        Color.clear.frame(width: 28, height: 28)
-                                    }
-                                    // Issue #71: a spinner in place of the row's own
-                                    // icon while its GetFile round trip is in
-                                    // flight - the only feedback a tap used to get
-                                    // was however long that took, which just
-                                    // looked stuck.
-                                    if vm.openingPath == row.path || (row.isDir && vm.isOutOfImagesBusy(vm.fullPath(for: row))) {
-                                        ProgressView().frame(width: 20)
-                                    } else {
-                                        Image(systemName: row.isDir ? "folder.fill" : (isImgFile(row.raw) ? "photo" : "doc"))
-                                            .foregroundColor(row.isDir ? .accentColor : .secondary)
-                                            .frame(width: 20)
-                                    }
-                                    VStack(alignment: .leading) {
-                                        Text(row.name).lineLimit(1)
-                                        if !row.isDir {
-                                            Text(formatByteCount(row.size)).font(.caption2).foregroundColor(.secondary)
-                                        }
-                                    }
-                                    Spacer()
-                                    // Issue #132: the versions badge opens the
-                                    // sheet; the lock on a folder toggles upload
-                                    // only, on a file it just says it is inside one.
-                                    if !row.isDir && row.versions > 0 {
-                                        Button {
-                                            Task { await vm.openVersions(row) }
-                                        } label: {
-                                            Label("\(row.versions)", systemImage: "clock.arrow.circlepath")
-                                                .font(.caption)
-                                                .padding(.horizontal, 8).padding(.vertical, 3)
-                                                .background(Color.secondary.opacity(0.15), in: Capsule())
-                                        }
-                                        .buttonStyle(.plain)
-                                        .accessibilityLabel("\(row.versions) older version\(row.versions == 1 ? "" : "s")")
-                                    }
-                                    // Issue #192: a folder kept out of Images says
-                                    // so; a tap says what that means. Changed from
-                                    // the long-press menu. Before the lock, so
-                                    // the locks stay in one column.
-                                    if row.path != ".." && row.isDir && row.outOfImages && vm.outOfImagesSupported {
-                                        Button {
-                                            outOfImagesInfo = vm.outOfImagesAsk(row)
-                                        } label: {
-                                            Image(systemName: "eye.slash.fill")
-                                                .foregroundColor(.accentColor)
-                                                .frame(width: 28, height: 28)
-                                                .contentShape(Rectangle())
-                                        }
-                                        .buttonStyle(.plain)
-                                        .accessibilityLabel(OutOfImagesText.state)
-                                    }
-                                    if row.path != ".." && row.isDir {
-                                        Button {
-                                            lockPrompt = row
-                                        } label: {
-                                            Image(systemName: row.uploadOnly ? "lock.fill" : "lock.open")
-                                                .foregroundColor(row.uploadOnly ? .accentColor : .secondary)
-                                                .frame(width: 28, height: 28)
-                                                .contentShape(Rectangle())
-                                        }
-                                        .buttonStyle(.plain)
-                                        .accessibilityLabel(row.uploadOnly ? "Clear upload only" : "Make upload only")
-                                    } else if row.uploadOnly {
-                                        Button {
-                                            lockInfo = UploadOnlyText.fileInfo
-                                        } label: {
-                                            Image(systemName: "lock.fill").foregroundColor(.secondary).frame(width: 28, height: 28)
-                                                .contentShape(Rectangle())
-                                        }
-                                        .buttonStyle(.plain)
-                                        .accessibilityLabel("In an upload-only folder")
-                                    }
-                                }
-                                .contentShape(Rectangle())
-                                .onTapGesture { tap(row) }
-                                // Long-press: see rowMenu.
-                                .contextMenu { rowMenu(row) }
+                        HStack {
+                            TextField("/path/", text: $pathField, onCommit: { vm.navigate(to: pathField) })
+                                .textFieldStyle(.roundedBorder)
+                                .autocapitalization(.none)
+                            if vm.loading { ProgressView() }
+                            // Shows the mode a tap switches to, like Files/Photos.
+                            Button {
+                                viewMode = viewMode == "grid" ? "list" : "grid"
+                            } label: {
+                                Image(systemName: viewMode == "grid" ? "list.bullet" : "square.grid.2x2")
+                                    .frame(width: 28, height: 28)
+                                    .contentShape(Rectangle())
                             }
+                            .accessibilityLabel(viewMode == "grid" ? "Show as list" : "Show as grid")
                         }
-                        .listStyle(.plain)
-                        // Issue #51: pull down to re-list this directory - files
-                        // arrive from other clients (the Mac app, another phone)
-                        // while this screen sits open, and nothing else re-reads it.
-                        .refreshable { await vm.load() }
-                    }
+                        .padding(.horizontal)
+                        // Closer under the search field than under the bar.
+                        .padding(.top, searchShown ? 8 : nil)
+                        // Clear of an iPad window's controls (AppMenu.swift).
+                        .modifier(AvoidsWindowControls())
 
-                    // Always shown here, unlike Images: Upload acts on the
-                    // folder being browsed, not on a selection, so it needs
-                    // somewhere to live when nothing is selected - and this is
-                    // where the rest of the actions are. Share/Download/Delete
-                    // grey out until something is ticked.
-                    SelectionActionBar(
-                        count: vm.selected.count,
-                        busy: vm.preparing,
-                        onShare: { Task { await vm.shareSelected() } },
-                        onDownload: { Task { await vm.downloadSelected() } },
-                        onDelete: {
-                            if vm.selectionUploadOnly {
-                                vm.showToast("The selection is in an upload-only folder and cannot be deleted")
-                            } else {
-                                vm.confirmDeleteSelected = true
+                        if let error = vm.error {
+                            Text(error).font(.caption).foregroundColor(.red).padding(.horizontal)
+                        }
+
+                        if vm.outOfImagesBanner {
+                            outOfImagesBanner
+                        }
+
+                        if viewMode == "grid" {
+                            grid
+                        } else {
+                            List {
+                                ForEach(vm.rows) { row in
+                                    HStack {
+                                        // The row's own checkbox, always there - see the
+                                        // note on selection at the top of this view.
+                                        // Issue #116: directories are selectable too -
+                                        // the device expands one to every file under it
+                                        // for share/download/delete (see
+                                        // files_manager.resolvePaths). Only ".." has
+                                        // none, being navigation rather than a thing;
+                                        // it keeps the width so names stay aligned.
+                                        if row.path != ".." {
+                                            Button {
+                                                if vm.selected.contains(row.path) { vm.selected.remove(row.path) }
+                                                else { vm.selected.insert(row.path) }
+                                            } label: {
+                                                Image(systemName: vm.selected.contains(row.path) ? "checkmark.circle.fill" : "circle")
+                                                    .foregroundColor(vm.selected.contains(row.path) ? .accentColor : .secondary)
+                                                    .frame(width: 28, height: 28)
+                                                    .contentShape(Rectangle())
+                                            }
+                                            // .plain: inside a List a default Button
+                                            // claims the whole row's tap, and the row
+                                            // tap below has to stay "open".
+                                            .buttonStyle(.plain)
+                                            .accessibilityLabel(vm.selected.contains(row.path) ? "Deselect" : "Select")
+                                        } else {
+                                            Color.clear.frame(width: 28, height: 28)
+                                        }
+                                        // Issue #71: a spinner in place of the row's own
+                                        // icon while its GetFile round trip is in
+                                        // flight - the only feedback a tap used to get
+                                        // was however long that took, which just
+                                        // looked stuck.
+                                        if vm.openingPath == row.path || (row.isDir && vm.isOutOfImagesBusy(vm.fullPath(for: row))) {
+                                            ProgressView().frame(width: 20)
+                                        } else {
+                                            Image(systemName: row.isDir ? "folder.fill" : (isImgFile(row.raw) ? "photo" : "doc"))
+                                                .foregroundColor(row.isDir ? .accentColor : .secondary)
+                                                .frame(width: 20)
+                                        }
+                                        VStack(alignment: .leading) {
+                                            Text(row.name).lineLimit(1)
+                                            if !row.isDir {
+                                                Text(formatByteCount(row.size)).font(.caption2).foregroundColor(.secondary)
+                                            }
+                                        }
+                                        Spacer()
+                                        // Issue #132: the versions badge opens the
+                                        // sheet; the lock on a folder toggles upload
+                                        // only, on a file it just says it is inside one.
+                                        if !row.isDir && row.versions > 0 {
+                                            Button {
+                                                Task { await vm.openVersions(row) }
+                                            } label: {
+                                                Label("\(row.versions)", systemImage: "clock.arrow.circlepath")
+                                                    .font(.caption)
+                                                    .padding(.horizontal, 8).padding(.vertical, 3)
+                                                    .background(Color.secondary.opacity(0.15), in: Capsule())
+                                            }
+                                            .buttonStyle(.plain)
+                                            .accessibilityLabel("\(row.versions) older version\(row.versions == 1 ? "" : "s")")
+                                        }
+                                        // Issue #192: a folder kept out of Images says
+                                        // so; a tap says what that means. Changed from
+                                        // the long-press menu. Before the lock, so
+                                        // the locks stay in one column.
+                                        if row.path != ".." && row.isDir && row.outOfImages && vm.outOfImagesSupported {
+                                            Button {
+                                                outOfImagesInfo = vm.outOfImagesAsk(row)
+                                            } label: {
+                                                Image(systemName: "eye.slash.fill")
+                                                    .foregroundColor(.accentColor)
+                                                    .frame(width: 28, height: 28)
+                                                    .contentShape(Rectangle())
+                                            }
+                                            .buttonStyle(.plain)
+                                            .accessibilityLabel(OutOfImagesText.state)
+                                        }
+                                        if row.path != ".." && row.isDir {
+                                            Button {
+                                                lockPrompt = row
+                                            } label: {
+                                                Image(systemName: row.uploadOnly ? "lock.fill" : "lock.open")
+                                                    .foregroundColor(row.uploadOnly ? .accentColor : .secondary)
+                                                    .frame(width: 28, height: 28)
+                                                    .contentShape(Rectangle())
+                                            }
+                                            .buttonStyle(.plain)
+                                            .accessibilityLabel(row.uploadOnly ? "Clear upload only" : "Make upload only")
+                                        } else if row.uploadOnly {
+                                            Button {
+                                                lockInfo = UploadOnlyText.fileInfo
+                                            } label: {
+                                                Image(systemName: "lock.fill").foregroundColor(.secondary).frame(width: 28, height: 28)
+                                                    .contentShape(Rectangle())
+                                            }
+                                            .buttonStyle(.plain)
+                                            .accessibilityLabel("In an upload-only folder")
+                                        }
+                                    }
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { tap(row) }
+                                    // Long-press: see rowMenu.
+                                    .contextMenu { rowMenu(row) }
+                                }
                             }
-                        },
-                        onUpload: { showImporter = true }
-                    )
-                    .padding(.vertical, 8)
+                            .listStyle(.plain)
+                            // Issue #51: pull down to re-list this directory - files
+                            // arrive from other clients (the Mac app, another phone)
+                            // while this screen sits open, and nothing else re-reads it.
+                            .refreshable { await vm.load() }
+                        }
+
+                        // Always shown here, unlike Images: Upload acts on the
+                        // folder being browsed, not on a selection, so it needs
+                        // somewhere to live when nothing is selected - and this is
+                        // where the rest of the actions are. Share/Download/Delete
+                        // grey out until something is ticked.
+                        SelectionActionBar(
+                            count: vm.selected.count,
+                            busy: vm.preparing,
+                            onShare: { Task { await vm.shareSelected() } },
+                            onDownload: { Task { await vm.downloadSelected() } },
+                            onDelete: {
+                                if vm.selectionUploadOnly {
+                                    vm.showToast("The selection is in an upload-only folder and cannot be deleted")
+                                } else {
+                                    vm.confirmDeleteSelected = true
+                                }
+                            },
+                            onUpload: { showImporter = true }
+                        )
+                        .padding(.vertical, 8)
+                    }
+                }
+                .accessibilityHidden(searchPanelShown)
+            }
+            .coordinateSpace(.named(Self.bodySpace))
+            // The search's suggestions, over the folder (or the results)
+            // while something is typed, as Images' over its photos.
+            .overlay {
+                if searchPanelShown {
+                    FilesSearchPanel(search: fileSearch, actions: searchActions, under: searchBottom + 8, keyboardUp: keyboardUp)
                 }
             }
             // No nav title (issue #19): the tab bar already labels this
@@ -957,8 +1005,24 @@ struct FilesExplorerView: View {
         // the publisher starts with what it holds. Taken on the next turn,
         // not while the view is being updated.
         .onReceive(nav.$pending.compactMap { $0 }.receive(on: RunLoop.main)) { handle($0) }
-        // Files picked in the wide layout's menu: the folder, not results.
-        .onChange(of: nav.leftSearch) { _, _ in vm.closeResults() }
+        // Files picked in the tab bar or the wide layout's menu: the
+        // folder, not results, nor the suggestions of a search left open.
+        .onChange(of: nav.leftSearch) { _, _ in
+            vm.closeResults()
+            if fileSearch.open { fileSearch.open = false }
+        }
+        // Files' own search (FilesSearch.swift).
+        .keyboardShown($keyboardUp)
+        .onChange(of: searchFocused) { _, focused in
+            if focused { fileSearch.open = true }
+        }
+        .onChange(of: fileSearch.query) { _, _ in
+            if searchFocused && !fileSearch.typed.isEmpty { fileSearch.open = true }
+        }
+        // Turned to the wide layout the field goes, and its panel and the
+        // keyboard with it; turned back it is there, its panel closed, with
+        // its words (or the top bar's: FilesSearchHandOff).
+        .onChange(of: wide) { _, _ in searchActions.layoutChanged() }
         .sharedGalleryShareFlow(source: $gallerySource)
         .onChange(of: vm.path) { _, newValue in pathField = newValue }
         .fileImporter(isPresented: $showImporter, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
@@ -1101,16 +1165,46 @@ struct FilesExplorerView: View {
 
     // MARK: The search (TopSearch.swift)
 
-    /// What the search sent Files to do: show a folder, open a file in it
-    /// as a tap there would (a photo or video once the folder is listed, to
-    /// page through its photos and videos; a document at once), or list
-    /// every file and folder a text finds.
+    /// What the search - Images' field or the top bar - sent Files to do:
+    /// show a folder, open a file in it as a tap there would (a photo or
+    /// video once the folder is listed, to page through its photos and
+    /// videos; a document at once), or list every file and folder a text
+    /// finds (go).
     private func handle(_ request: FilesNav.Request) {
         nav.take(request)
         // Once each, however often the publisher hands it over.
         guard handledRequest != request.id else { return }
         handledRequest = request.id
-        switch request.kind {
+        // Sent by the other search: Files' own suggestions make way.
+        if fileSearch.open { fileSearch.open = false }
+        go(request.kind)
+    }
+
+    // MARK: Files' own search (FilesSearch.swift)
+
+    /// The field shows: the narrow layout, on a device that can search
+    /// its files.
+    private var searchShown: Bool { FilesSearchActions.shown(wide: wide, noFileSearch: nav.noFileSearch) }
+
+    /// Something is typed and the panel is up, over what is under the field.
+    private var searchPanelShown: Bool {
+        FilesSearchActions.covers(wide: wide, noFileSearch: nav.noFileSearch, open: fileSearch.open, typed: fileSearch.typed)
+    }
+
+    private var searchActions: FilesSearchActions {
+        FilesSearchActions(
+            search: fileSearch,
+            noFileSearch: nav.noFileSearch,
+            focus: { searchFocused = $0 },
+            go: go
+        )
+    }
+
+    /// Shows what a search picked, from either search: a folder, a file in
+    /// its folder as a tap there would open it, or every file and folder
+    /// the words find, listed over the folder.
+    private func go(_ kind: FilesNav.Request.Kind) {
+        switch kind {
         case .search(let text):
             guard !text.isEmpty else { return }
             Task { await vm.startSearch(text) }
@@ -1210,6 +1304,9 @@ struct FilesExplorerView: View {
                 .refreshable { await vm.startSearch(r.text) }
             }
         }
+        // The whole width, from the leading edge, while it searches too:
+        // with nothing as wide as the screen yet it used to sit centred.
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func resultRow(_ f: Msg_File, q: FoldedText) -> some View {

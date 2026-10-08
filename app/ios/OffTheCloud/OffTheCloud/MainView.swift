@@ -38,6 +38,10 @@ struct MainView: View {
     // Collections pages show the same library.
     @StateObject private var gallery: PhotoGalleryVM
     @StateObject private var search = TopSearchModel()
+    /// Files' own search (FilesSearch.swift), the window's so that its
+    /// words go to the top bar as the phone turns on Files, and come back.
+    @StateObject private var fileSearch = TopSearchModel(scope: .files)
+    @State private var filesHandOff = FilesSearchHandOff()
     @ObservedObject private var faces = FaceRecognition.shared
     /// The window's size, safe areas included.
     @State private var windowSize: CGSize
@@ -75,6 +79,7 @@ struct MainView: View {
     var body: some View {
         layout
             .environment(\.wideLayout, wide)
+            .environment(\.windowWidth, windowSize.width)
             .onGeometryChange(for: CGSize.self) { proxy in
                 CGSize(
                     width: proxy.size.width + proxy.safeAreaInsets.leading + proxy.safeAreaInsets.trailing,
@@ -235,7 +240,7 @@ struct MainView: View {
             // unused rather than renumbering everything after it -
             // same convention as a removed proto field).
             LazyTab(tag: 3, selection: $selectedTab) {
-                FilesExplorerView(initialPath: "/")
+                FilesExplorerView(initialPath: "/", search: fileSearch)
             }
             .toolbar(wide ? .hidden : .automatic, for: .tabBar)
             .tabItem { Label("Files", systemImage: "folder") }
@@ -448,8 +453,10 @@ struct MainView: View {
     /// becomes that page, and back.
     private func layoutChanged(wide isWide: Bool) {
         drawerOpen = false
-        // The field it belonged to is gone; what was typed stays.
+        // The field it belonged to is gone; what was typed stays - on
+        // Files, in the field now on screen (FilesSearchHandOff).
         search.open = false
+        filesHandOff.layoutChanged(wide: isWide, onFiles: currentSection == .files, top: search, files: fileSearch)
         if isWide {
             if friendsSheet {
                 friendsSheet = false

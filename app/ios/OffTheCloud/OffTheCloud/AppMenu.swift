@@ -153,6 +153,17 @@ extension EnvironmentValues {
         get { self[WideLayoutKey.self] }
         set { self[WideLayoutKey.self] = newValue }
     }
+
+    /// The window's width, safe areas included: what the web's media
+    /// queries read (Images' tile sizes, PhotoGridMetrics). 0 until known.
+    var windowWidth: CGFloat {
+        get { self[WindowWidthKey.self] }
+        set { self[WindowWidthKey.self] = newValue }
+    }
+}
+
+private struct WindowWidthKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
 }
 
 /// A page's name for VoiceOver alone, where the wide layout's menu names

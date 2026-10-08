@@ -21,6 +21,11 @@
 //  Files, and a file opens there as a tap on it in its folder would. The
 //  Search key never opens a file or folder by itself.
 //
+//  The same model and panel serve Files' own field (FilesSearch.swift,
+//  the narrow layout only) with the .files scope: no things, people or
+//  chips - only the row to search the documents, then the files and
+//  folders whose path matches.
+//
 
 import SwiftUI
 
@@ -266,6 +271,22 @@ enum SearchOption: Identifiable {
         case .file(let f, _, _, _, _, _): return "f:\(f.path)"
         }
     }
+
+    /// What Files does with the row when picked: a folder opens, a file
+    /// opens in its folder as a tap there would, the documents row lists
+    /// every file and folder found. nil for a tag or a person.
+    var inFiles: FilesNav.Request.Kind? {
+        switch self {
+        case .tag, .person:
+            return nil
+        case .docs(let text):
+            return .search(text)
+        case .file(let f, let kind, _, _, _, _):
+            return kind == .folder
+                ? .folder(FilePaths.asFolder(f.path), file: nil)
+                : .folder(FilePaths.parentFolder(f.path), file: f)
+        }
+    }
 }
 
 /// What the panel shows for the text typed.
@@ -301,6 +322,15 @@ struct SearchSuggestions {
         if moved.isEmpty { return nil }
         return ordered.contains { $0.id == moved } ? moved : best
     }
+
+    /// What the Search key takes for `typed`: the highlighted row, or else
+    /// the documents searched for the words as typed - nil on a device
+    /// that can't search its files (no documents row then), where the
+    /// words stay to be changed. As TopSearchActions.submit chooses.
+    func searchKey(_ moved: String?, typed: String) -> SearchOption? {
+        if let id = active(moved), let o = ordered.first(where: { $0.id == id }) { return o }
+        return docs == nil ? nil : .docs(typed)
+    }
 }
 
 @MainActor
@@ -310,6 +340,24 @@ final class TopSearchModel: ObservableObject {
     static let matchFiles = 8
     /// The files are asked for once the typing pauses this long.
     static let filesDelay: Duration = .milliseconds(150)
+
+    /// What the search offers.
+    enum Scope {
+        /// Things, people, files and folders: Images' field and the top bar.
+        case everything
+        /// Files and folders alone: Files' own field (FilesSearch.swift).
+        case files
+    }
+    let scope: Scope
+
+    init(scope: Scope = .everything) {
+        self.scope = scope
+    }
+
+    /// Sends the file searches. Tests answer them in the device's place.
+    var request: @MainActor (Msg_ReqEnvelope.OneOf_Payload) async throws -> Msg_RespEnvelope = { payload in
+        try await OTCConnection.shared.request { $0.payload = payload }
+    }
 
     @Published var query = "" {
         didSet { if query != oldValue { queryChanged() } }
@@ -375,11 +423,12 @@ final class TopSearchModel: ObservableObject {
     private func askForFiles(_ typed: String) {
         seq += 1
         let mine = seq
+        let send = request
         Task { [weak self] in
             var req = Msg_SearchFiles()
             req.query = typed
             req.limit = Int32(Self.matchFiles)
-            let resp = try? await OTCConnection.shared.request { $0.payload = .reqSearchFiles(req) }
+            let resp = try? await send(.reqSearchFiles(req))
             guard let self else { return }
             if let resp, resp.error, resp.errorCode == "unknown_payload" { FilesNav.shared.deviceCantSearchFiles() }
             guard mine == self.seq else { return }
@@ -422,11 +471,20 @@ final class TopSearchModel: ObservableObject {
         }
     }
 
+    /// Files' own field: the files and folders, and the row to search the
+    /// documents (first, and what the Search key takes).
+    func fileSuggestions(noFileSearch: Bool) -> SearchSuggestions {
+        suggestions(tags: [], inSearch: [], people: [], faces: false, noFileSearch: noFileSearch)
+    }
+
     func suggestions(tags: [String], inSearch: [String], people: [Msg_Person], faces: Bool, noFileSearch: Bool) -> SearchSuggestions {
         let typed = self.typed
         let q = FoldedText(typed)
         var out = SearchSuggestions()
         guard !q.isEmpty else { return out }
+        // Files alone: no things or people, whatever is handed in.
+        let tags = scope == .files ? [] : tags
+        let faces = scope == .files ? false : faces
 
         if tags != tagSource {
             tagSource = tags

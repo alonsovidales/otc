@@ -42,6 +42,13 @@ final class PhotoGalleryVM: ObservableObject {
         // The Files grid's cached thumbnail, when the viewer is opened from
         // there (it holds decoded images, not the bytes thumbData carries).
         var thumbImage: UIImage? = nil
+        // The month the photo was taken in ("2024-03", the viewer's time
+        // zone), worked out once when it arrives: the grid's month titles
+        // (PhotoMonths.swift). nil without a date.
+        var month: String? = nil
+        // When it was taken: what VoiceOver reads on its tile ("Photo,
+        // 5 October 2026", as the web's tiles). nil without a date.
+        var created: Date? = nil
     }
 
     // Shared, already-authenticated connection (see OTCConnection.swift)
@@ -110,19 +117,71 @@ final class PhotoGalleryVM: ObservableObject {
     // it outright rather than showing ticks against an order it doesn't
     // reflect. A person filter alone is fine, that keeps created-desc.
     struct DateBucket: Identifiable { let month: String; let count: Int; let start: Int; let end: Int; var id: String { month } }
-    @Published var dateBuckets: [DateBucket] = []
+    // The month counts also size the grid's last month (its room for the
+    // photos still on their way) and, in an open collection, give the
+    // months it spans. They are kept with the filter they count (people
+    // and the open collection - tags never change them), and shown only
+    // for that: after a filter change the previous list is still here
+    // until the new one comes, and it isn't this filter's (the web's
+    // bucketsFresh).
+    @Published private(set) var dateBuckets: [DateBucket] = []
+    private var bucketsKey: String?
+    private var bucketGeneration = 0
+    /// What the date buckets count for the current filter; nil out of date
+    /// order (a tag search), which has none.
+    private var bucketKeyNow: String? {
+        chips.isEmpty ? "\(selectedPeople.joined(separator: ","))|\(activeGroup?.id ?? "")" : nil
+    }
+    /// The date buckets are the current filter's (the web's bucketsFresh).
+    var bucketsFresh: Bool { bucketsKey != nil && bucketsKey == bucketKeyNow }
+    /// The current filter's buckets, newest first; empty until they come.
+    var freshBuckets: [DateBucket] { bucketsFresh ? dateBuckets : [] }
+
+    /// What a person filter shows over its photos (the web's PersonHeader,
+    /// shown for people alone - no tags, no open collection): the people
+    /// picked, in order, as far as the list of people has them, and how
+    /// many photos they are in once the date buckets are theirs. nil when
+    /// nobody is picked; `loaded` false while the list of people is on
+    /// its way.
+    struct PersonFilter: Equatable {
+        var loaded: Bool
+        var people: [Msg_Person]
+        var total: Int?
+
+        /// The header for `selected` people with `tags` and the open
+        /// collection `group`, from the list of people (`loaded` once it
+        /// came) and the photos' count (nil until it is this filter's).
+        static func of(selected: [String], tags: [String], group: String?, loaded: Bool,
+                       people: [Msg_Person], total: Int?) -> PersonFilter? {
+            guard !selected.isEmpty, tags.isEmpty, group == nil else { return nil }
+            guard loaded else { return PersonFilter(loaded: false, people: [], total: nil) }
+            let picked = selected.compactMap { id in people.first { $0.id == id } }
+            guard !picked.isEmpty else { return nil }
+            return PersonFilter(loaded: true, people: picked, total: total)
+        }
+    }
+    var personFilter: PersonFilter? {
+        .of(selected: selectedPeople, tags: chips, group: activeGroup?.id, loaded: peopleLoaded,
+            people: allPeople, total: bucketsFresh ? totalPhotos : nil)
+    }
     // scrubFrac is the live drag position (0=newest/top, 1=oldest/bottom),
     // nil whenever the user isn't actively dragging. placeholderCount
-    // outlives the drag itself: it stays set (showing black squares in
-    // place of the real grid) from the moment a drag starts until the
-    // jump-to-date fetch it triggers actually resolves, so releasing the
-    // thumb doesn't flash an empty grid while the real thumbnails are
-    // still in flight.
+    // outlives the drag itself: it stays set (grey tiles under the month's
+    // title in place of the real grid) from the moment a drag starts until
+    // the jump-to-date fetch it triggers actually resolves, so releasing
+    // the thumb doesn't flash an empty grid while the real thumbnails are
+    // still in flight - and the photos land where the grey tiles were.
     @Published var scrubFrac: Double? = nil
     @Published var placeholderCount: Int? = nil
+    @Published var placeholderMonth: String? = nil
 
-    var totalPhotos: Int { dateBuckets.last?.end ?? 0 }
-    var showScrubber: Bool { chips.isEmpty && !dateBuckets.isEmpty }
+    /// A month that hasn't loaded shows this many grey tiles at most while
+    /// the scrubber is on it: enough to read as "a lot", not thousands of
+    /// views (the web's cMaxPlaceholders).
+    static let maxPlaceholders = 300
+
+    var totalPhotos: Int { freshBuckets.last?.end ?? 0 }
+    var showScrubber: Bool { !freshBuckets.isEmpty }
 
     // Ticks: one per year, positioned by cumulative photo count rather
     // than calendar-uniform spacing, so a drag fraction actually
@@ -133,7 +192,7 @@ final class PhotoGalleryVM: ObservableObject {
         guard totalPhotos > 0 else { return [] }
         var ticks: [(String, Double)] = []
         var lastYear = ""
-        for b in dateBuckets {
+        for b in freshBuckets {
             let year = String(b.month.prefix(4))
             if year != lastYear {
                 ticks.append((year, Double(b.start) / Double(totalPhotos)))
@@ -144,13 +203,102 @@ final class PhotoGalleryVM: ObservableObject {
     }
 
     var scrubTarget: DateBucket? {
-        guard let frac = scrubFrac, totalPhotos > 0 else { return nil }
-        let idx = Int(frac * Double(totalPhotos))
-        return dateBuckets.first(where: { idx >= $0.start && idx < $0.end }) ?? dateBuckets.last
+        guard let frac = scrubFrac else { return nil }
+        let buckets = freshBuckets
+        return PhotoMonths.bucketIndex(atFraction: frac, counts: buckets.map(\.count)).map { buckets[$0] }
     }
 
-    @Published var items: [Item] = []
+    /// The scrubber is dragged to `fraction` of its track: grey tiles under
+    /// that month's title stand in for the grid. No request here - the
+    /// count comes from the buckets already loaded, so dragging across
+    /// years costs nothing but renders.
+    func previewScrub(_ fraction: Double) {
+        scrubFrac = min(1, max(0, fraction))
+        guard let target = scrubTarget else { return }
+        if placeholderMonth != target.month { placeholderMonth = target.month }
+        let count = min(target.count, Self.maxPlaceholders)
+        if placeholderCount != count { placeholderCount = count }
+    }
+
+    /// The scrubber is let go: the photos jump to its month, landing under
+    /// that month's title where the grey tiles were.
+    func endScrub() {
+        // A touch that never scrubbed: a jump on its way keeps its tiles.
+        guard scrubFrac != nil else { return }
+        let target = scrubTarget // before scrubFrac goes
+        scrubFrac = nil
+        guard let target else {
+            placeholderCount = nil
+            placeholderMonth = nil
+            return
+        }
+        placeholderMonth = target.month
+        placeholderCount = min(target.count, Self.maxPlaceholders)
+        jumpToDate(target.month)
+    }
+
+    @Published var items: [Item] = [] {
+        didSet { itemsVersion &+= 1 }
+    }
+    /// Bumped by every change to `items`: the grid's layout is worked out
+    /// again only then (gridLayout).
+    private var itemsVersion = 0
+    private struct LayoutKey: Equatable {
+        var items: Int
+        var metrics: PhotoGridMetrics
+        var dated: Bool
+        var lastRoom: Int?
+        var placeholder: PhotoGridLayout.Placeholder
+        var placeholderCount: Int
+    }
+    private var layoutCache: (key: LayoutKey, layout: PhotoGridLayout)?
+
+    /// The grid at this width, as rows (PhotoMonths.swift): the scrubber's
+    /// grey tiles under their month's title, the first page's skeleton, or
+    /// the photos under their months - none in a tag search, which is
+    /// ordered by how well photos match. Kept until the photos, the width
+    /// or what decides the layout changes, so drawing a frame never groups
+    /// anything.
+    func gridLayout(_ metrics: PhotoGridMetrics) -> PhotoGridLayout {
+        let dated = chips.isEmpty
+        var placeholder = PhotoGridLayout.Placeholder.none
+        var count = 0
+        if let n = placeholderCount, let month = placeholderMonth {
+            placeholder = .month(month)
+            count = n
+        } else if items.isEmpty && (loading || firstPagePending) && !fixedList {
+            placeholder = .skeleton(titled: dated)
+            count = PhotoGridLayout.skeletonTiles
+        }
+        // The last month's room: what its bucket says it will hold, while
+        // more pages are on their way.
+        var lastRoom: Int?
+        // (The last month's: a photo without a date stays with the one
+        // before it.)
+        if dated, placeholder == .none, !endReached, let month = items.last(where: { $0.month != nil })?.month {
+            lastRoom = freshBuckets.first { $0.month == month }?.count
+        }
+        let key = LayoutKey(items: itemsVersion, metrics: metrics, dated: dated, lastRoom: lastRoom,
+                            placeholder: placeholder, placeholderCount: count)
+        if let c = layoutCache, c.key == key { return c.layout }
+        let layout = placeholder == .none
+            ? PhotoGridLayout.build(months: items.map(\.month), ids: items.map(\.id), dated: dated,
+                                    lastRoom: lastRoom, metrics: metrics)
+            : PhotoGridLayout.placeholder(placeholder, count: count, metrics: metrics)
+        layoutCache = (key, layout)
+        return layout
+    }
+
     @Published var loading = false
+    /// A search has started and its first page isn't here yet (nor did it
+    /// fail): grey tiles rather than an empty page, from the very first
+    /// paint (the web's firstLoad).
+    @Published private(set) var firstPagePending = false
+    /// Bumped by every search that replaces the grid (a filter change):
+    /// the grid goes back to its top, as the web scrolls the window up -
+    /// its grey tiles would otherwise show wherever the last search was
+    /// scrolled to, under no title.
+    @Published private(set) var searchStarts = 0
     @Published var endReached = false
     private var token: String? = nil
     // Bumped every time a fresh search starts (resetAndLoadFirstPage) -
@@ -285,6 +433,7 @@ final class PhotoGalleryVM: ObservableObject {
         guard !fixedList else { return }
         libraryAsked = true
         photosAsked = true
+        firstPagePending = true
         Task {
             await loadTags()
             if FaceRecognition.shared.isOn { await loadPeople() }
@@ -400,7 +549,11 @@ final class PhotoGalleryVM: ObservableObject {
 
     // MARK: Date scrubber (issue #77)
     private func loadDateBuckets() async {
-        guard chips.isEmpty else { dateBuckets = []; return }
+        // A newer load (another filter, or the same after a delete) wins,
+        // whichever answer lands last.
+        bucketGeneration += 1
+        let gen = bucketGeneration
+        guard let key = bucketKeyNow else { return }
         let people = selectedPeople // snapshot - see fetchPage's own doc comment on why
         let group = activeGroup?.id ?? ""
         guard let resp = try? await ws.request({ e in
@@ -412,15 +565,23 @@ final class PhotoGalleryVM: ObservableObject {
             req.payload = .reqPhotoDateBuckets(b)
             e = req
         }) else { return }
-        if case .respPhotoDateBuckets(let r) = resp.payload {
-            var cum = 0
-            dateBuckets = r.buckets.map { pb in
-                let start = cum
-                cum += Int(pb.count)
-                return DateBucket(month: pb.month, count: Int(pb.count), start: start, end: cum)
-            }
+        guard gen == bucketGeneration, case .respPhotoDateBuckets(let r) = resp.payload else { return }
+        setDateBuckets(r.buckets.map { ($0.month, Int($0.count)) }, key: key)
+    }
+
+    /// The month counts (newest first) for the filter `key` names.
+    func setDateBuckets(_ list: [(month: String, count: Int)], key: String?) {
+        var cum = 0
+        bucketsKey = key
+        dateBuckets = list.map { b in
+            let start = cum
+            cum += b.count
+            return DateBucket(month: b.month, count: b.count, start: start, end: cum)
         }
     }
+
+    /// The bucket key of the filter as it is now, for setDateBuckets.
+    var currentBucketKey: String? { bucketKeyNow }
 
     // Mirrors web's jumpToDate in PhotoGallery.tsx: a reset exactly like
     // resetAndLoadFirstPage does for a fresh filter, plus a `before`
@@ -433,16 +594,9 @@ final class PhotoGalleryVM: ObservableObject {
     }
 
     private func performJump(_ month: String) async {
-        let parts = month.split(separator: "-").compactMap { Int($0) }
-        guard parts.count == 2 else { return }
-        var comps = DateComponents()
-        comps.year = parts[0]
-        comps.month = parts[1]
-        comps.day = 1
-        let cal = Calendar.current
-        guard let firstOfMonth = cal.date(from: comps),
-              let firstOfNextMonth = cal.date(byAdding: .month, value: 1, to: firstOfMonth) else { return }
-        let before = firstOfNextMonth.addingTimeInterval(-1) // last instant of `month`
+        // The bucket's month is Gregorian, whatever calendar the phone is
+        // set to: so is its last instant (PhotoMonths.calendar).
+        guard let before = PhotoMonths.lastInstant(of: month) else { return }
 
         searchGeneration += 1
         let myGeneration = searchGeneration
@@ -456,8 +610,13 @@ final class PhotoGalleryVM: ObservableObject {
         // placeholderCount is left showing until this resolves (or is
         // superseded) - cleared here rather than by the caller so a jump
         // that gets superseded by a *newer* jump/filter change doesn't
-        // clear placeholders that newer request is still relying on.
-        if myGeneration == searchGeneration { placeholderCount = nil }
+        // clear placeholders that newer request is still relying on. A
+        // scrub begun meanwhile keeps its own grey tiles: its jump clears
+        // them.
+        if myGeneration == searchGeneration && scrubFrac == nil {
+            placeholderCount = nil
+            placeholderMonth = nil
+        }
     }
 
     // MARK: People (issue #52 follow-up)
@@ -721,6 +880,7 @@ final class PhotoGalleryVM: ObservableObject {
         // selection before this one's own request even goes out - see
         // searchGeneration's doc comment.
         searchGeneration += 1
+        searchStarts += 1
         loading = false
         // An ask from the previous selection's tiles: its index means
         // nothing against the new items, and would pull a page nobody
@@ -736,19 +896,25 @@ final class PhotoGalleryVM: ObservableObject {
         // thumb positioned against numbers that no longer apply.
         scrubFrac = nil
         placeholderCount = nil
+        placeholderMonth = nil
+        firstPagePending = true
+        let myGeneration = searchGeneration
         async let buckets: Void = loadDateBuckets()
         await fetchPage(overrideToken: "")
+        if myGeneration == searchGeneration { firstPagePending = false }
         await buckets
         mergeLocalIfAny()
     }
 
-    func loadMoreIfNeeded(current item: Item?) async {
-        guard !fixedList, let item else { return }
+    /// The tile of the photo at `idx` (whose id is `id`) came on screen.
+    func loadMoreIfNeeded(index idx: Int, id: String) async {
+        guard !fixedList else { return }
         guard !endReached else { return }
         // Near the end is the only thing worth acting on - checked before
         // the in-flight case below so a tile appearing at the top of the
-        // grid can't queue up a page nobody needs yet.
-        guard let idx = items.firstIndex(of: item), idx >= items.count - 12 else { return }
+        // grid can't queue up a page nobody needs yet. A tile of a grid
+        // that has been replaced since (a new search) asks nothing.
+        guard idx >= items.count - 12, items.indices.contains(idx), items[idx].id == id else { return }
         // A tile that appears while a fetch is already running used to
         // just return. Nothing then asked again: the only thing that can
         // trigger the next page is a tile appearing for the first time
@@ -898,6 +1064,8 @@ final class PhotoGalleryVM: ObservableObject {
             guard case .respListOfFiles(let lof) = resp.payload else { return false }
 
             var newItems: [Item] = []
+            // Gregorian, in the viewer's time zone: the device's buckets'.
+            let calendar = PhotoMonths.calendar()
             for f in lof.files {
                 let id = "\(f.path)#\(f.hash)#\(f.fileSize)"
                 newItems.append(Item(
@@ -907,12 +1075,14 @@ final class PhotoGalleryVM: ObservableObject {
                     size: Int(f.fileSize),
                     thumbData: f.hasContent ? f.content : nil,
                     localURL: nil,
-                    isLocalOnly: false
+                    isLocalOnly: false,
+                    month: f.hasCreated ? PhotoMonths.key(for: f.created.date, calendar: calendar) : nil,
+                    created: f.hasCreated ? f.created.date : nil
                 ))
             }
             // Decoded off the main thread, at tile size, before the tiles
             // first draw (see GridThumbCache).
-            await GridThumbCache.prewarm(newItems.map { ($0.id, $0.thumbData) }, maxPt: PhotoTile.side)
+            await GridThumbCache.prewarm(newItems.map { ($0.id, $0.thumbData) }, maxPt: PhotoTile.decodeSide)
             guard myGeneration == searchGeneration, !Task.isCancelled else { return false }
             let existing = Set(items.map(\.id))
             let filtered = newItems.filter { !existing.contains($0.id) }
@@ -1179,6 +1349,7 @@ final class PhotoGalleryVM: ObservableObject {
             items.remove(at: idx)
             selected.remove(item.path)
             onDeleted?(item.path)
+            if !fixedList { Task { await loadDateBuckets() } }
             if items.isEmpty {
                 closeModal()
             } else {
@@ -1415,6 +1586,8 @@ final class PhotoGalleryVM: ObservableObject {
             if !deletedPaths.isEmpty {
                 items.removeAll { deletedPaths.contains($0.path) }
                 selected.subtract(deletedPaths)
+                // The months' counts: the scrubber and the last month's room.
+                await loadDateBuckets()
             }
         }
     }
@@ -1501,13 +1674,14 @@ struct PhotoGalleryView: View {
     @State private var gallerySource: Msg_SharedGallerySource?
     @State private var groupsSheetGallerySource: Msg_SharedGallerySource?
     // Issue #123: as many columns as fit, so the grid uses the whole width
-    // on an iPad (six on an 11-inch, more in landscape) instead of the
-    // fixed three that only ever made sense on a phone - and still
-    // exactly three on a phone, where 120pt tiles fit three abreast.
-    // (Issue #77 once backed away from .adaptive because of an overflow,
-    // but that came from reserving layout space for the date scrubber,
-    // which has since become an overlay on the grid's edge instead.)
-    private let cols = [GridItem(.adaptive(minimum: 120, maximum: 200), spacing: 1)]
+    // on an iPad instead of the fixed three that only ever made sense on a
+    // phone - and still exactly three on a phone. The sizes are the web's
+    // (PhotoGridMetrics), read from the window's width as its CSS reads
+    // the viewport's, and the grid's own.
+    @Environment(\.windowWidth) private var windowWidth
+    @State private var gridWidth: CGFloat = 0
+    /// The first photo of the row at the top of the grid (see widthChanged).
+    @State private var scrollMemo = GridScrollMemo()
 
     init(vm: PhotoGalleryVM, search: TopSearchModel) {
         self.vm = vm
@@ -1523,58 +1697,66 @@ struct PhotoGalleryView: View {
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
             }
 
-            // Grid - while the date scrubber has a target bucket (dragging,
-            // or the jump it triggered still in flight), placeholder
-            // squares stand in for the real grid rather than showing
-            // whatever was scrolled to before the jump started. Capped at
-            // 300 - a month with thousands of photos doesn't need that
-            // many real views just to convey "this is a lot of squares".
-            // Wrapped in ScrollViewReader (issue #77) purely to reset
-            // scroll position to the top once a jump starts - the page
-            // doesn't otherwise know to, since `items` being reset
-            // doesn't itself move an already-scrolled ScrollView.
+            // Grid - in date order the photos stand under month titles, and
+            // months short of a row sit side by side (PhotoMonths.swift, the
+            // web's PhotoGallery.tsx). While the date scrubber has a target
+            // bucket (dragging, or the jump it triggered still in flight),
+            // grey tiles under that month's title stand in for the real
+            // grid rather than showing whatever was scrolled to before the
+            // jump started, and the photos land where they were. Capped at
+            // 300 - a month with thousands of photos doesn't need that many
+            // real views just to convey "this is a lot of squares".
+            // Wrapped in ScrollViewReader (issue #77) to reset the scroll
+            // position to the top once a jump starts - the page doesn't
+            // otherwise know to, since `items` being reset doesn't itself
+            // move an already-scrolled ScrollView - and to keep the photo
+            // at the top there when the width changes.
             ScrollViewReader { proxy in
-                // The scroll-to-top anchor used to be the LazyVGrid's own
-                // first child - which made it a real grid cell (row 1,
-                // column 1), not just an invisible marker, pushing every
-                // photo over by one slot and rendering as a black square
-                // where the first real thumbnail should be. It's now a
-                // plain (zero-height) sibling of the grid inside the same
-                // ScrollView instead - a VStack wrapping the *ScrollView*
-                // itself (tried briefly) made the grid's very first load
-                // render blank until a scroll gesture forced SwiftUI to
-                // lay it out, so the ScrollView itself stays exactly as
-                // it was, with the anchor moved one level in instead.
+                let layout = vm.gridLayout(metrics)
+                // The scroll-to-top anchor is a plain (zero-height) sibling
+                // of the grid inside the ScrollView: as the grid's own first
+                // child it was a cell, pushing every photo over by one. A
+                // VStack wrapping the *ScrollView* itself (tried briefly)
+                // made the grid's very first load render blank until a
+                // scroll gesture forced SwiftUI to lay it out.
                 ScrollView {
                     VStack(spacing: 0) {
+                        // A new search comes back to the page's top (the
+                        // web's scrollTo(0, 0)); the scrubber to the
+                        // grid's, past the person's header (its
+                        // gridRef.scrollIntoView).
+                        Color.clear.frame(height: 0).id("photoPageTop")
+                        if let person = vm.personFilter {
+                            PersonHeader(filter: person, phone: layout.metrics.phone, face: vm.face(for:))
+                        }
                         Color.clear.frame(height: 0).id("photoGridTop")
-                        LazyVGrid(columns: cols, spacing: 1) {
-                            if let placeholderCount = vm.placeholderCount {
-                                ForEach(0..<min(placeholderCount, 300), id: \.self) { _ in
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color.black)
-                                        .aspectRatio(1, contentMode: .fit)
-                                }
-                            } else {
-                                ForEach(vm.items) { it in
-                                    PhotoTile(
-                                        item: it,
-                                        isSelected: vm.selected.contains(it.path),
-                                        hasSelection: !vm.selected.isEmpty,
-                                        onTap: { openPath(it.path) },
-                                        onLongPress: { vm.toggleSelect(it.path) }
-                                    )
-                                    .task { await vm.loadMoreIfNeeded(current: it) }
-                                }
+                        // One row per line of the grid, lazily: a big
+                        // month's title spans the row over its own rows of
+                        // tiles; months sharing a line are one row.
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(layout.rows) { row in
+                                gridRow(row, layout: layout)
+                                    .padding(.top, row.top)
                             }
                         }
-                        // Outside the grid: an adaptive grid has no fixed
-                        // column count for gridCellColumns to span.
-                        if vm.placeholderCount == nil && vm.loading {
+                        .scrollTargetLayout()
+                        if layout.placeholder == .none && vm.loading && !vm.items.isEmpty {
                             ProgressView().frame(height: 60)
                         }
                     }
-                    .padding(10)
+                    .padding(.horizontal, layout.metrics.pad)
+                    .padding(.bottom, 8)
+                }
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { w in
+                    widthChanged(to: w, proxy: proxy)
+                }
+                .onChange(of: vm.searchStarts) { _, _ in
+                    proxy.scrollTo("photoPageTop", anchor: .top)
+                }
+                // The row at the top, as the grid scrolls - kept aside, not
+                // in state: nothing needs drawing again for it.
+                .onScrollTargetVisibilityChange(idType: String.self, threshold: 0.5) { ids in
+                    scrollMemo.visible(ids)
                 }
                 .overlay(alignment: .trailing) {
                     // Issue #77: Google-Photos-style date scrubber -
@@ -1765,6 +1947,85 @@ struct PhotoGalleryView: View {
         }
     }
 
+    // MARK: The grid
+
+    /// The grid's sizes at its width (the window's until it is measured).
+    private var metrics: PhotoGridMetrics {
+        let window = windowWidth > 0 ? windowWidth : (wide ? WideLayout.minWidth : 390)
+        return PhotoGridMetrics(width: gridWidth > 0 ? gridWidth : window, windowWidth: window)
+    }
+
+    /// The grid's width changed (the phone turned, the menu opened or
+    /// closed, a window resized): every row moves when the tiles change
+    /// size, so the photo that was at the top is brought back there - its
+    /// row, or its month's title when it starts the month.
+    private func widthChanged(to width: CGFloat, proxy: ScrollViewProxy) {
+        let before = metrics
+        gridWidth = width
+        let after = metrics
+        guard before.cols != after.cols || abs(before.tile - after.tile) > 0.5,
+              let item = scrollMemo.topItem, item > 0 else { return }
+        scrollMemo.restoring = true
+        // Once the rows at the new width are there.
+        DispatchQueue.main.async {
+            let layout = vm.gridLayout(metrics)
+            if layout.placeholder == .none, let r = layout.rowIndex(forItem: item) {
+                proxy.scrollTo(layout.rows[r].id, anchor: .top)
+            }
+            DispatchQueue.main.async { scrollMemo.restoring = false }
+        }
+    }
+
+    @ViewBuilder
+    private func gridRow(_ row: PhotoGridLayout.Row, layout: PhotoGridLayout) -> some View {
+        let m = layout.metrics
+        switch row.kind {
+        case .title(let month):
+            MonthTitle(month: month, skeleton: layout.placeholder != .none && month == nil, metrics: m)
+        case .tiles(let range):
+            HStack(spacing: m.gap) {
+                ForEach(range, id: \.self) { i in tile(i, layout: layout) }
+            }
+        case .line(let pieces):
+            // Months short of a row, side by side: titles on one line,
+            // their tiles level under them.
+            HStack(alignment: .top, spacing: m.secGap) {
+                ForEach(pieces, id: \.tiles.lowerBound) { p in
+                    VStack(alignment: .leading, spacing: m.gap) {
+                        MonthTitle(month: p.month, skeleton: layout.placeholder != .none && p.month == nil, metrics: m)
+                        HStack(spacing: m.gap) {
+                            ForEach(p.tiles, id: \.self) { i in tile(i, layout: layout) }
+                        }
+                    }
+                    .frame(width: m.sectionWidth(p.room), alignment: .leading)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func tile(_ i: Int, layout: PhotoGridLayout) -> some View {
+        let side = layout.metrics.tile
+        if layout.placeholder == .none, vm.items.indices.contains(i) {
+            let it = vm.items[i]
+            PhotoTile(
+                item: it,
+                side: side,
+                isSelected: vm.selected.contains(it.path),
+                hasSelection: !vm.selected.isEmpty,
+                onTap: { openPath(it.path) },
+                onLongPress: { vm.toggleSelect(it.path) }
+            )
+            .task { await vm.loadMoreIfNeeded(index: i, id: it.id) }
+        } else {
+            // The first page on its way, or the scrubber's month.
+            RoundedRectangle(cornerRadius: PhotoTile.corner)
+                .fill(Color(.secondarySystemFill))
+                .frame(width: side, height: side)
+                .accessibilityHidden(true)
+        }
+    }
+
     // MARK: The header
 
     private var header: some View {
@@ -1824,6 +2085,15 @@ struct PhotoGalleryView: View {
         .padding(.horizontal, 8)
     }
 
+    /// "12 items · Mar – Oct 2024", as the web's collection header: the
+    /// months from the date buckets once they are this collection's, and
+    /// only the years below 900 wide, as there.
+    private func collectionLine(_ g: Msg_ImageGroup) -> String {
+        let items = PhotoMonths.count(Int(g.fileCount), "item")
+        let span = PhotoMonths.span(vm.freshBuckets.map(\.month), years: (windowWidth > 0 ? windowWidth : 390) < 900)
+        return span.isEmpty ? items : "\(items) · \(span)"
+    }
+
     private func collectionChip(_ g: Msg_ImageGroup) -> some View {
         HStack(spacing: 6) {
             NavIconView(.collections, size: 16)
@@ -1832,7 +2102,10 @@ struct PhotoGalleryView: View {
                 vm.showRenameGroup = true
             }
             .buttonStyle(.plain)
-            Text("· \(g.fileCount)").foregroundStyle(.secondary).font(.caption)
+            .lineLimit(1)
+            // The name keeps the room; its line gives way first.
+            .layoutPriority(1)
+            Text("· \(collectionLine(g))").foregroundStyle(.secondary).font(.caption).lineLimit(1)
             // Issue #180: the group as a gallery behind a link.
             Button {
                 gallerySource = .group(g.id)
@@ -1995,8 +2268,139 @@ struct PhotoGalleryView: View {
 
 // MARK: - UI pieces (iOS)
 
+/// A month's title over its photos: one line, not sticky, as the web's
+/// .pg-month. A month one tile wide shows "Sep 2026" where "September
+/// 2026" doesn't fit. Photos without a date at the top of the list get an
+/// empty line, so the tiles of months beside them stay level; the first
+/// page's skeleton a grey bar.
+private struct MonthTitle: View {
+    let month: String?
+    let skeleton: Bool
+    let metrics: PhotoGridMetrics
+
+    var body: some View {
+        Group {
+            if skeleton {
+                Capsule()
+                    .fill(Color(.secondarySystemFill))
+                    .frame(width: 140, height: 14)
+                    .padding(.vertical, 3)
+                    .accessibilityHidden(true)
+            } else if let month {
+                ViewThatFits(in: .horizontal) {
+                    Text(PhotoMonths.title(month))
+                    Text(PhotoMonths.short(month))
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(PhotoMonths.title(month))
+                .accessibilityAddTraits(.isHeader)
+            } else {
+                Text(" ").accessibilityHidden(true)
+            }
+        }
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(.primary)
+        .lineLimit(1)
+        .padding(.top, PhotoGridMetrics.titleTop)
+        .padding(.bottom, metrics.titleBottom)
+        .padding(.horizontal, metrics.titleInset)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// One person's photos (or several people's together), over the grid: up
+/// to three faces, the names and how many photos they are in - the web's
+/// PersonHeader. It scrolls with the photos. Until the list of people is
+/// here, blanks of the same height; until the count is, an empty line, so
+/// nothing moves when they come.
+private struct PersonHeader: View {
+    let filter: PhotoGalleryVM.PersonFilter
+    /// A phone's sizes (a window under 600 wide), as the web's.
+    let phone: Bool
+    let face: (Msg_Person) -> UIImage?
+
+    private var faceSide: CGFloat { phone ? 48 : 56 }
+
+    var body: some View {
+        HStack(spacing: phone ? 12 : 16) {
+            if filter.loaded {
+                HStack(spacing: -16) {
+                    ForEach(filter.people.prefix(3), id: \.id) { p in
+                        faceView(face(p))
+                    }
+                }
+                .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(PhotoMonths.peopleTitle(filter.people.map(Self.name)))
+                        .font(phone ? .title2.weight(.semibold) : .title.weight(.semibold))
+                        .lineLimit(2)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(filter.total.map { PhotoMonths.count($0, "item") } ?? " ")
+                        .font(.subheadline)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .accessibilityHidden(filter.total == nil)
+                }
+            } else {
+                faceView(nil)
+                VStack(alignment: .leading, spacing: 0) {
+                    Capsule().fill(Color(.secondarySystemFill))
+                        .frame(width: 160, height: 22)
+                        .padding(.vertical, 7)
+                    Capsule().fill(Color(.secondarySystemFill))
+                        .frame(width: 72, height: 12)
+                        .padding(.top, 6).padding(.bottom, 4)
+                }
+                .accessibilityHidden(true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, phone ? 8 : 16)
+        .padding(.bottom, 4)
+    }
+
+    /// A person as the web's personLabel names them.
+    private static func name(_ p: Msg_Person) -> String {
+        let n = p.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return n.isEmpty ? "Unnamed" : n
+    }
+
+    private func faceView(_ img: UIImage?) -> some View {
+        Group {
+            if let img {
+                Image(uiImage: img).resizable().scaledToFill()
+            } else {
+                Color(.tertiarySystemFill)
+                    .overlay(NavIconView(.face, size: 28).foregroundStyle(.secondary))
+            }
+        }
+        .frame(width: faceSide, height: faceSide)
+        .clipShape(Circle())
+        // Ringed in the page's colour, so faces over each other stay apart.
+        .overlay(Circle().strokeBorder(Color(.systemBackground), lineWidth: 2))
+    }
+}
+
+/// The first photo of the row at the top of the grid, as it scrolls: where
+/// the grid goes back to when its width changes. A plain object, so that
+/// scrolling changes no state and draws nothing again.
+final class GridScrollMemo {
+    private(set) var topItem: Int?
+    /// While the grid is being brought back: the rows seen meanwhile are
+    /// the new width's at the old offset, not where the user was.
+    var restoring = false
+
+    func visible(_ ids: [String]) {
+        guard !restoring else { return }
+        topItem = ids.compactMap(PhotoGridLayout.firstItem(ofRowID:)).min()
+    }
+}
+
 private struct PhotoTile: View {
     let item: PhotoGalleryVM.Item
+    /// The tile's width and height (PhotoGridMetrics.tile).
+    let side: CGFloat
     let isSelected: Bool
     // Whether *any* tile in the grid is currently selected — while true,
     // tapping a tile toggles its selection instead of opening the preview,
@@ -2005,37 +2409,49 @@ private struct PhotoTile: View {
     let onTap: () -> Void
     let onLongPress: () -> Void
 
-    static let side: CGFloat = 120
+    /// The size thumbnails are decoded for (PhotoGridMetrics.decodeSide).
+    static let decodeSide = PhotoGridMetrics.decodeSide
+    /// Nearly square corners, as the web's tiles (2px): with 2 pt between
+    /// tiles, rounder ones read as separate cards rather than one wall.
+    static let corner: CGFloat = 2
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            ZStack(alignment: .bottomTrailing) {
-                thumb
-                    .frame(maxWidth: Self.side, maxHeight: Self.side)
-                    .background(Color.secondary.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(selectionOverlay)
-                if item.isLocalOnly {
-                    Label("", systemImage: "iphone")
-                        .padding(4)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Circle())
-                        .padding(6)
-                }
-            }
-            .contentShape(Rectangle())
-            // Issue: long-pressing a tile used to ALSO open the preview —
-            // it was a Button (tap) plus a *simultaneous* long-press
-            // gesture, and "simultaneous" means both fire together on
-            // release, by design. Plain SwiftUI tap/long-press gestures
-            // (no Button) disambiguate properly instead of both firing.
-            .onTapGesture {
-                if hasSelection { onLongPress() } else { onTap() }
-            }
-            .onLongPressGesture(minimumDuration: 0.25) {
-                onLongPress()
+        ZStack(alignment: .bottomTrailing) {
+            thumb
+                .background(Color.secondary.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: Self.corner))
+                .overlay(selectionOverlay)
+            if item.isLocalOnly {
+                Label("", systemImage: "iphone")
+                    .padding(4)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
+                    .padding(6)
             }
         }
+        .frame(width: side, height: side)
+        .contentShape(Rectangle())
+        // Issue: long-pressing a tile used to ALSO open the preview —
+        // it was a Button (tap) plus a *simultaneous* long-press
+        // gesture, and "simultaneous" means both fire together on
+        // release, by design. Plain SwiftUI tap/long-press gestures
+        // (no Button) disambiguate properly instead of both firing.
+        .onTapGesture {
+            if hasSelection { onLongPress() } else { onTap() }
+        }
+        .onLongPressGesture(minimumDuration: 0.25) {
+            onLongPress()
+        }
+        // VoiceOver: one element per tile, its own square - not the
+        // photo's uncropped frame reaching over the month's title - read
+        // as the web's tiles are ("Photo, 5 October 2026").
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(PhotoMonths.tileLabel(video: item.mime.hasPrefix("video/"), date: item.created))
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction {
+            if hasSelection { onLongPress() } else { onTap() }
+        }
+        .accessibilityAction(named: isSelected ? "Deselect" : "Select") { onLongPress() }
     }
 
     private var thumb: some View {
@@ -2043,12 +2459,16 @@ private struct PhotoTile: View {
             // Decoded once at tile size and cached, not on every pass of
             // this body. A local file is read from disk, as before.
             if let img = GridThumbCache.image(id: item.id, data: item.thumbData,
-                                              localURL: item.localURL, maxPt: Self.side) {
+                                              localURL: item.localURL, maxPt: Self.decodeSide) {
                 Image(uiImage: img).resizable().scaledToFill()
             } else {
                 Color.gray.opacity(0.2)
             }
         }
+        // Cropped to the tile itself: scaledToFill's own frame is the
+        // whole photo (127 x 283 pt for a portrait one in a 127 pt tile),
+        // and the video mark below would sit at its corner, out of sight.
+        .frame(width: side, height: side)
         .clipped()
         // Issue #106: a video's thumbData is a JPEG poster exactly like a
         // photo's, so without this there is nothing to tell them apart.
@@ -2066,7 +2486,7 @@ private struct PhotoTile: View {
     private var selectionOverlay: some View {
         Group {
             if isSelected {
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: Self.corner)
                     .stroke(Color.accentColor, lineWidth: 3)
                     .overlay(alignment: .topLeading) {
                         Image(systemName: "checkmark.circle.fill")
@@ -2440,6 +2860,10 @@ private struct PhotoDateScrubber: View {
                 if let target = vm.scrubTarget, let frac = vm.scrubFrac {
                     Text(Self.label(for: target.month))
                         .font(.caption.bold())
+                        // One line ("Jan 2024"), reaching out of the
+                        // column to the left rather than wrapping in it.
+                        .lineLimit(1)
+                        .fixedSize()
                         .padding(.horizontal, 8).padding(.vertical, 4)
                         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
                         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -2490,27 +2914,17 @@ private struct PhotoDateScrubber: View {
                             // moving out of the way.
                             scrollProxy.scrollTo("photoGridTop", anchor: .top)
                         }
-                        let frac = min(1, max(0, value.location.y / geo.size.height))
-                        vm.scrubFrac = frac
                         // No network call here at all - the placeholder
                         // count comes straight out of the already-fetched
                         // bucket counts, which is the whole point:
                         // dragging fast across years costs nothing but
                         // re-renders.
-                        if vm.totalPhotos > 0 {
-                            let idx = Int(frac * Double(vm.totalPhotos))
-                            let bucket = vm.dateBuckets.first(where: { idx >= $0.start && idx < $0.end }) ?? vm.dateBuckets.last
-                            if let bucket { vm.placeholderCount = bucket.count }
-                        }
+                        vm.previewScrub(Double(value.location.y / geo.size.height))
                     }
                     .onEnded { _ in
-                        let target = vm.scrubTarget // capture before clearing scrubFrac below
-                        vm.scrubFrac = nil
-                        if let target {
-                            vm.jumpToDate(target.month)
-                        } else {
-                            vm.placeholderCount = nil
-                        }
+                        // Jumps to the month, which lands under its title
+                        // where the grey tiles were.
+                        vm.endScrub()
                     }
                     )
             }

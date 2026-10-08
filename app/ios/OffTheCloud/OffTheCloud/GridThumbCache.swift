@@ -21,7 +21,10 @@ enum GridThumbCache {
     private static let images: NSCache<NSString, UIImage> = {
         let cache = NSCache<NSString, UIImage>()
         cache.countLimit = 400
-        cache.totalCostLimit = 48 << 20
+        // Images' tiles are decoded for 144 pt (PhotoTile.decodeSide), not
+        // 120: half as much again per tile, and so half as much again room,
+        // so as many stay decoded when scrolling back.
+        cache.totalCostLimit = 72 << 20
         return cache
     }()
 
