@@ -234,9 +234,20 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   only when `size64` is unset - PhotoSync's size shortcut), the Mac's `FileMsg.fileSize`
   (`WSClient.swift`) and otc-sync's `engine.fileSize`. Never read `.size` of a File directly.
 - Photo search pages (2026-10-06): `SearchPhotos.limit` (field 8) is the most photos a page may
-  hold. Every grid (web, iOS, Android: Images, the composer, the profile photo picker) sends 12 on
-  the request that starts a search (no token) so the first page paints fast over a slow upload,
-  and no limit when continuing with a token. The device answers min(limit, its default `[tagger]
+  hold. The web's grids send 12 on the request that starts a search (no token) so the first page
+  paints fast over a slow upload, and no limit when continuing with a token. The iPhone and Android
+  apps keep a persistent LRU cache of grid thumbnails (release 113; iOS `ThumbDiskCache.swift` +
+  `GridThumbLoader.swift`, Android `ui/common/ThumbDiskCache.kt` + `GridThumbs.kt`): keyed by content
+  hash with a kind (small/big/unknown - small replaces either, big replaces unknown), scoped per
+  device endpoint, 1 GB by default (Settings > Thumbnail cache: 250 MB-5 GB, usage, Clear), wiped at
+  Log Out. They ask pages with `omit_thumbnails` - 12 on a first page until this device has shown
+  it omits them, then 60, and 120 when continuing - and fetch only the tiles they lack with
+  `GetThumbnails` (only tiles on screen or within reach of the scroll, batches of 24, on-screen
+  first, Patience kind "tiles"); an old device ignores omit and its inline thumbnails go into the
+  cache. A cached big/unknown one is re-asked once when a row says a small one exists, and one that
+  comes back big again isn't re-asked for 7 days; a deleted photo's entry is discarded. iOS reads
+  and writes nothing while protected data is unavailable (locked phone, files are
+  completeUntilFirstUserAuthentication). The device answers min(limit, its default `[tagger]
   max-images-search`, 30), never more (a page without thumbnails may be larger, below). Older
   devices ignore it. Grids that start a new search bump a search generation, so a page from the
   old search lands nowhere. A grid's tiles can come as small thumbnails (`small_thumbnails`,

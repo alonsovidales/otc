@@ -385,6 +385,10 @@ struct SettingsView: View {
                     }
                 }
 
+                // This phone's own, as the sync options: how much room the
+                // grids' thumbnails may take here (ThumbDiskCache).
+                ThumbCacheSection()
+
                 Section(
                     header: Text("Image Tagging"),
                     footer: Text("Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.")
@@ -635,13 +639,111 @@ enum AppLogOut {
             MediaStream.reset()
             SyncScheduler.cancel()
             AssetSyncCache.shared.clear()
+            // The device's thumbnails: none kept, none stored until the
+            // next sign-in (secrets.logOut empties Caches too).
+            ThumbDiskCache.shared.forget()
+            GridThumbCache.removeAll()
             secrets.logOut()
+            // Its size went with the defaults: back to 1 GB.
+            ThumbDiskCache.shared.limitBytes = ThumbCacheLimit.stored()
             if keepDevice {
                 SecretsStore.saveLastDevice(endpoint: last.0, password: last.1)
             } else {
                 SecretsStore.clearLastDevice()
             }
         }
+    }
+}
+
+/// Settings' "Thumbnail Cache": the most the grids' thumbnails may take on
+/// this phone (ThumbCacheLimit.choices, 1 GB unless chosen), what they take
+/// now, and a button that deletes them. Android's ThumbCacheSettings.
+@MainActor
+final class ThumbCacheSettings: ObservableObject {
+    @Published private(set) var limit: Int64
+    /// What the thumbnails take: nil until the cache has counted them (or
+    /// while no device is signed in to).
+    @Published private(set) var used: Int64?
+    @Published private(set) var clearing = false
+    private let cache: ThumbDiskCache
+    private let defaults: UserDefaults
+    /// Lets the decoded tiles go too (tests keep theirs).
+    private let clearDecoded: () -> Void
+
+    init(cache: ThumbDiskCache = .shared, defaults: UserDefaults = .standard,
+         clearDecoded: @escaping () -> Void = {
+             GridThumbCache.removeAll()
+             NotificationCenter.default.post(name: .otcThumbnailCacheCleared, object: nil)
+         }) {
+        self.cache = cache
+        self.defaults = defaults
+        self.clearDecoded = clearDecoded
+        limit = ThumbCacheLimit.stored(defaults)
+    }
+
+    /// "Using 120 MB of 1 GB"; nil until counted.
+    var usageText: String? {
+        used.map { ThumbCacheLimit.usage($0, of: limit) }
+    }
+
+    func refresh() async {
+        used = await cache.usage()
+    }
+
+    /// Another size: kept, and the least recently used thumbnails over it
+    /// deleted at once.
+    func choose(_ bytes: Int64) async {
+        guard ThumbCacheLimit.choices.contains(bytes), bytes != limit else { return }
+        limit = bytes
+        ThumbCacheLimit.save(bytes, defaults)
+        cache.limitBytes = bytes
+        await refresh()
+    }
+
+    /// "Clear thumbnail cache": every thumbnail on the phone goes, decoded
+    /// ones too (GridThumbCache, Files' grid, the viewer's big ones:
+    /// otcThumbnailCacheCleared); the grids ask the device for them again.
+    func clearAll() async {
+        clearing = true
+        defer { clearing = false }
+        cache.clear()
+        clearDecoded()
+        await refresh()
+    }
+}
+
+/// With the other settings of this phone (the sync options).
+struct ThumbCacheSection: View {
+    @StateObject private var model = ThumbCacheSettings()
+
+    var body: some View {
+        Section(
+            header: Text("Thumbnail Cache"),
+            footer: Text("Thumbnails are kept on this phone so Images opens without downloading them again.")
+        ) {
+            Picker("Maximum size", selection: Binding(
+                get: { model.limit },
+                set: { v in Task { await model.choose(v) } }
+            )) {
+                ForEach(ThumbCacheLimit.choices, id: \.self) { bytes in
+                    Text(ThumbCacheLimit.text(bytes)).tag(bytes)
+                }
+            }
+            if let text = model.usageText {
+                Text(text).foregroundStyle(.secondary)
+            } else {
+                HStack {
+                    Text("Using … of \(ThumbCacheLimit.text(model.limit))").foregroundStyle(.secondary)
+                    Spacer()
+                    ProgressView()
+                }
+            }
+            Button("Clear thumbnail cache", role: .destructive) {
+                Task { await model.clearAll() }
+            }
+            .disabled(model.clearing || model.used == 0)
+        }
+        .task { await model.refresh() }
     }
 }
 

@@ -186,12 +186,21 @@ final class FilesExplorerViewModel: ObservableObject {
         return cache
     }()
     private var noThumb: Set<String> = []
+    /// The thumbnails kept on this phone between launches, by content hash
+    /// (the listing gives each file's): a small one is used as it is, a big
+    /// or unknown one shown and asked for again once a launch, and every
+    /// answer kept there. Tests use their own.
+    var thumbDisk: ThumbDiskCache = .shared
     // Paths the grid wants (cells that appeared), drained 24 at a time by
     // one task at a time; inFlight keeps a cell scrolling back into view
     // from queuing its path twice.
     private var thumbQueue: [(key: String, path: String, folder: String)] = []
     private var thumbInFlight: Set<String> = []
     private var thumbPumping = false
+    /// Cells looked up in the thumbnail cache on this phone first, in the
+    /// order they appeared (readDiskQueue), by one task at a time.
+    private var diskQueue: [(want: (key: String, path: String, folder: String), hash: String)] = []
+    private var diskReading = false
 
     /// A listing that failed on the way (no answer in time, a dropped
     /// connection, the bridge's "device unreachable") is asked again, 1 s
@@ -201,6 +210,7 @@ final class FilesExplorerViewModel: ObservableObject {
     let listRetry = PageRetry()
     private var listingAsks = 0
     private var wakeWatch: AnyCancellable?
+    private var clearWatch: AnyCancellable?
     /// Why the listing of failedPath failed: said while it is asked again
     /// (not cleared at each try, which flickered and was announced anew).
     private var listingProblem: LoadProblem?
@@ -216,6 +226,20 @@ final class FilesExplorerViewModel: ObservableObject {
             .dropFirst()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.listRetry.wake() }
+        clearWatch = NotificationCenter.default.publisher(for: .otcThumbnailCacheCleared)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.thumbnailCacheCleared() }
+    }
+
+    /// Settings cleared the thumbnail cache: the grid's and the results'
+    /// thumbnails in memory go too, and are asked for again as cells show.
+    func thumbnailCacheCleared() {
+        objectWillChange.send()
+        thumbs.removeAll()
+        thumbCache.removeAllObjects()
+        thumbBytes.removeAllObjects()
+        noThumb.removeAll()
+        resultThumbs = [:]
     }
 
     /// Sends one of the explorer's requests (the listing, the folder
@@ -369,12 +393,31 @@ final class FilesExplorerViewModel: ObservableObject {
         resultThumbs = [:]
     }
 
-    /// The results' photos and videos, 24 to a request as the grid asks.
+    /// The results' photos and videos: from the thumbnail cache on this
+    /// phone (by the hashes the results carry), the rest asked for 24 to a
+    /// request as the grid asks, and kept there.
     private func loadResultThumbs(_ files: [Msg_File], seq: Int) async {
-        var media = files.filter { !isDirFile($0) && isMediaFile($0) }.map(\.path)
-        while !media.isEmpty, seq == searchSeq {
-            let batch = Array(media.prefix(24))
-            media.removeFirst(batch.count)
+        let media = files.filter { !isDirFile($0) && isMediaFile($0) }
+        let disk = thumbDisk
+        let cached: [(path: String, hash: String, kind: ThumbDiskCache.Kind, thumb: FileThumb)] =
+            await Task.detached(priority: .userInitiated) {
+                media.compactMap { f in
+                    guard let hit = disk.lookup(f.hash) else { return nil }
+                    guard let img = Self.decodeTile(hit.data) else {
+                        disk.discard(f.hash)
+                        return nil
+                    }
+                    return (f.path, f.hash, hit.kind, FileThumb(image: img, data: hit.data))
+                }
+            }.value
+        guard seq == searchSeq else { return }
+        for c in cached { resultThumbs[c.path] = c.thumb }
+        // A big or unknown one is asked for again, once a launch.
+        let done = Set(cached.filter { $0.kind == .small || !disk.firstFilesReask($0.hash) }.map(\.path))
+        var paths = media.map(\.path).filter { !done.contains($0) }
+        while !paths.isEmpty, seq == searchSeq {
+            let batch = Array(paths.prefix(24))
+            paths.removeFirst(batch.count)
             var req = Msg_GetThumbnails()
             req.paths = batch
             // Tiles: small thumbnails (release 111; an older device sends
@@ -382,14 +425,21 @@ final class FilesExplorerViewModel: ObservableObject {
             req.smallThumbnails = true
             guard let resp = try? await request(.reqGetThumbnails(req)),
                   case .respListOfFiles(let lof) = resp.payload else { return }
-            let got = lof.files.map { (path: $0.path, data: $0.content) }
+            let asked = Set(batch)
+            let got = lof.files.filter { asked.contains($0.path) && !$0.content.isEmpty }
             let decoded = await Task.detached(priority: .userInitiated) {
-                got.map { ($0.path, $0.data, Self.decodeTile($0.data)) }
+                got.map { f -> (String, Data, UIImage?) in
+                    let img = Self.decodeTile(f.content)
+                    if img != nil { disk.store(f.hash, kind: ThumbDiskCache.Kind(f), data: f.content) }
+                    return (f.path, f.content, img)
+                }
             }.value
             guard seq == searchSeq else { return }
             for (path, data, img) in decoded {
                 if let img { resultThumbs[path] = FileThumb(image: img, data: data) }
             }
+            // Not looked at (the answer's size): asked for again.
+            paths.insert(contentsOf: ThumbAnswer.of(asked: batch, answer: lof, deviceIsNew: disk.deviceOmits == true).askAgain, at: 0)
         }
     }
 
@@ -405,7 +455,8 @@ final class FilesExplorerViewModel: ObservableObject {
                 thumbData: thumb?.data,
                 localURL: nil,
                 isLocalOnly: false,
-                thumbImage: thumb?.image
+                thumbImage: thumb?.image,
+                hash: f.hash
             )
         }
     }
@@ -429,10 +480,62 @@ final class FilesExplorerViewModel: ObservableObject {
         }
         guard thumbs[key] == nil, !noThumb.contains(key), !thumbInFlight.contains(key) else { return }
         thumbInFlight.insert(key)
-        thumbQueue.append((key, fullPath(for: row), path))
-        guard !thumbPumping else { return }
-        thumbPumping = true
-        Task { await pumpThumbnails() }
+        diskQueue.append(((key, fullPath(for: row), path), row.raw.hash))
+        guard !diskReading else { return }
+        diskReading = true
+        Task { await readDiskQueue() }
+    }
+
+    /// The thumbnail cache on this phone first, for the cells waiting, in
+    /// their order: a small one is all a cell needs; a big or unknown one
+    /// is shown and the small one asked for, once a launch; none is asked
+    /// for.
+    private func readDiskQueue() async {
+        defer { diskReading = false }
+        while !diskQueue.isEmpty {
+            let batch = diskQueue
+            diskQueue = []
+            let disk = thumbDisk
+            let found: [(kind: ThumbDiskCache.Kind, thumb: FileThumb)?] = await Task.detached(priority: .userInitiated) {
+                batch.map { item in
+                    guard let hit = disk.lookup(item.hash) else { return nil }
+                    guard let img = Self.decodeTile(hit.data) else {
+                        disk.discard(item.hash)
+                        return nil
+                    }
+                    return (hit.kind, FileThumb(image: img, data: hit.data))
+                }
+            }.value
+            var shown: [String: FileThumb] = [:]
+            var asks: [(key: String, path: String, folder: String)] = []
+            for (item, f) in zip(batch, found) {
+                let want = item.want
+                if let f {
+                    thumbBytes.setObject(f.thumb.data as NSData, forKey: want.key as NSString, cost: f.thumb.data.count)
+                    if visibleThumbs.contains(want.key) {
+                        shown[want.key] = f.thumb
+                    } else {
+                        thumbCache.setObject(f.thumb, forKey: want.key as NSString, cost: f.thumb.cost)
+                    }
+                }
+                if want.folder == path, f.map({ $0.kind != .small && disk.firstFilesReask(item.hash) }) ?? true {
+                    asks.append(want)
+                } else {
+                    thumbInFlight.remove(want.key)
+                }
+            }
+            // One change for the lot, not one redraw per tile.
+            if !shown.isEmpty {
+                objectWillChange.send()
+                thumbs.merge(shown) { $1 }
+            }
+            guard !asks.isEmpty else { continue }
+            thumbQueue.append(contentsOf: asks)
+            if !thumbPumping {
+                thumbPumping = true
+                Task { await pumpThumbnails() }
+            }
+        }
     }
 
     /// Called as a grid cell disappears: its image moves to the bounded
@@ -457,9 +560,13 @@ final class FilesExplorerViewModel: ObservableObject {
     }
 
     /// Sends the queue to the device in batches of 24 (it takes at most 48
-    /// and may stop early around 8 MB, so 24 stays clear of both). Anything
-    /// it doesn't answer has no thumbnail and keeps the type icon. Results
-    /// for a folder the user already left are dropped.
+    /// and may stop early around 8 MB, so 24 stays clear of both). What it
+    /// didn't look at (ask_again_from, release 113) is asked for again;
+    /// what it looked at and didn't answer has no thumbnail and keeps the
+    /// type icon - from an older device, which doesn't say where it
+    /// stopped, until the cell shows again (ThumbAnswer). Each thumbnail is
+    /// kept in the cache on this phone under the answer's hash. Results for
+    /// a folder the user already left are dropped.
     private func pumpThumbnails() async {
         defer { thumbPumping = false }
         while true {
@@ -478,21 +585,42 @@ final class FilesExplorerViewModel: ObservableObject {
             // stay (PhotoGalleryVM.thumbnailStays).
             req.smallThumbnails = true
             let resp = try? await request(.reqGetThumbnails(req))
-            for item in batch { thumbInFlight.remove(item.key) }
-            guard folder == path else { continue }
+            guard folder == path else {
+                for item in batch { thumbInFlight.remove(item.key) }
+                continue
+            }
             // A failed request (no connection) remembers nothing, so the
             // cells ask again the next time they appear.
-            guard let resp, case .respListOfFiles(let lof) = resp.payload else { continue }
-            var got: [String: Data] = [:]
-            for f in lof.files { got[f.path] = f.content }
-            let wanted = batch.map { (key: $0.key, data: got[$0.path]) }
+            guard let resp, case .respListOfFiles(let lof) = resp.payload else {
+                for item in batch { thumbInFlight.remove(item.key) }
+                continue
+            }
+            let outcome = ThumbAnswer.of(asked: batch.map(\.path), answer: lof,
+                                         deviceIsNew: thumbDisk.deviceOmits == true)
+            let again = Set(outcome.askAgain)
+            let none = Set(outcome.none)
+            // Not looked at: first in line again, still on their way.
+            thumbQueue.insert(contentsOf: batch.filter { again.contains($0.path) }, at: 0)
+            for item in batch where !again.contains(item.path) { thumbInFlight.remove(item.key) }
+            var got: [String: Msg_File] = [:]
+            for f in lof.files where !f.content.isEmpty { got[f.path] = f }
+            let wanted = batch.filter { !again.contains($0.path) }.map { (key: $0.key, path: $0.path, file: got[$0.path]) }
+            let disk = thumbDisk
             let decoded = await Task.detached(priority: .userInitiated) {
-                wanted.map { ($0.key, $0.data, $0.data.flatMap(Self.decodeTile)) }
+                wanted.map { w -> (String, String, Data?, UIImage?) in
+                    guard let f = w.file else { return (w.key, w.path, nil, nil) }
+                    let img = Self.decodeTile(f.content)
+                    if img != nil { disk.store(f.hash, kind: ThumbDiskCache.Kind(f), data: f.content) }
+                    return (w.key, w.path, f.content, img)
+                }
             }.value
             var fresh: [String: FileThumb] = [:]
-            for (key, data, img) in decoded {
+            for (key, filePath, data, img) in decoded {
                 guard let data, let img else {
-                    noThumb.insert(key)
+                    // None now (or one that doesn't decode); an older
+                    // device's silence is no answer: asked again when the
+                    // cell shows again.
+                    if data != nil || none.contains(filePath) { noThumb.insert(key) }
                     continue
                 }
                 thumbBytes.setObject(data as NSData, forKey: key as NSString, cost: data.count)
@@ -538,7 +666,8 @@ final class FilesExplorerViewModel: ObservableObject {
                 thumbData: thumb?.data ?? thumbBytes.object(forKey: key) as Data?,
                 localURL: nil,
                 isLocalOnly: false,
-                thumbImage: thumb?.image
+                thumbImage: thumb?.image,
+                hash: row.raw.hash
             )
         }
     }
@@ -598,6 +727,10 @@ final class FilesExplorerViewModel: ObservableObject {
             if resp.error && resp.errorCode == "upload_only" {
                 showToast("\(leafName(req.path)) is in an upload-only folder and cannot be deleted")
                 break
+            }
+            // A deleted photo's thumbnail doesn't stay on the phone either.
+            if !resp.error, let row = rows.first(where: { $0.path == p }), !row.isDir {
+                thumbDisk.discard(row.raw.hash)
             }
         }
         await load()

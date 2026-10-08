@@ -36,6 +36,11 @@ struct RootView: View {
                     .environmentObject(social)
                     .environmentObject(updateAlert)
                     .onAppear {
+                        // The thumbnails kept on the phone for the device
+                        // signed in to, from launch - before (or without)
+                        // a connection, for Settings' Thumbnail cache.
+                        // Signing in binds it again (OTCConnection).
+                        ThumbDiskCache.shared.use(endpoint: secrets.endpointURLString)
                         // The first sync right after setup or sign-in: the
                         // app is already active then, so the scenePhase
                         // change below never comes and photos waited for a

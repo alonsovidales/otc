@@ -80,6 +80,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        // The thumbnail cache reads and writes nothing while the phone's
+        // protected data is unavailable (a background launch while locked).
+        ProtectedDataWatch.start()
         // Set before launch finishes, so a tap that launched the app is
         // delivered here too.
         UNUserNotificationCenter.current().delegate = self

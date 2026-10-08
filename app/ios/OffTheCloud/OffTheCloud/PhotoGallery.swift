@@ -36,6 +36,10 @@ final class PhotoGalleryVM: ObservableObject {
         let path: String
         let mime: String
         let size: Int
+        // The tile's thumbnail bytes, only where nothing else keeps them:
+        // a local file's, or a page's content the thumbnail cache refused
+        // (GridThumbLoader.takePage). A device's tiles are otherwise read
+        // from the cache by `hash`, or asked for.
         var thumbData: Data?
         var localURL: URL?
         var isLocalOnly: Bool
@@ -49,6 +53,9 @@ final class PhotoGalleryVM: ObservableObject {
         // When it was taken: what VoiceOver reads on its tile ("Photo,
         // 5 October 2026", as the web's tiles). nil without a date.
         var created: Date? = nil
+        // The content hash its page gave it: its thumbnail's key in the
+        // cache on this phone (ThumbDiskCache). "" for a local file.
+        var hash: String = ""
     }
 
     // Shared, already-authenticated connection (see OTCConnection.swift)
@@ -324,6 +331,7 @@ final class PhotoGalleryVM: ObservableObject {
     /// search.
     private(set) var jumpBefore: Date?
     private var wakeWatch: AnyCancellable?
+    private var clearWatch: AnyCancellable?
 
     /// A failed page is being asked for again (Try again's "Trying…").
     var retrying: Bool { pageProblem != nil && loading }
@@ -450,9 +458,9 @@ final class PhotoGalleryVM: ObservableObject {
     // Android and the web's MediaViewer.
     /// The big thumbnails, by path, of items whose thumbnail stays on
     /// screen in the viewer: shown instead of the grid's small tile - the
-    /// open one's and the last few swiped past. Never in GridThumbCache,
-    /// which holds the tiles: the answers carry no mark of which size
-    /// came, so the two never share an entry.
+    /// open one's and the last few swiped past. Never in GridThumbCache
+    /// nor the thumbnail cache on the phone (ThumbDiskCache), which hold
+    /// the tiles: the two never share an entry.
     @Published private(set) var bigThumbs: [String: UIImage] = [:]
     private var bigThumbOrder: [String] = []
     private static let bigThumbsKept = 4
@@ -480,6 +488,12 @@ final class PhotoGalleryVM: ObservableObject {
     /// show a spinner rather than looking like the tap did nothing.
     @Published var preparing: SelectionActionTask?
 
+    /// The grid's tiles: from the thumbnail cache on this phone, asked for
+    /// (GetThumbnails) where it has none (GridThumbLoader).
+    let thumbs: GridThumbLoader
+    /// Bumped when tiles got their images: the grid draws them.
+    @Published private(set) var thumbsVersion = 0
+
     // Selection (via long-press)
     @Published var selected: Set<String> = []
     // Issue #45: confirm before bulk-deleting the current multi-selection.
@@ -491,9 +505,12 @@ final class PhotoGalleryVM: ObservableObject {
     @Published var infoLoading = false
     @Published var infoData: Msg_FileExifInfo? = nil
 
-    init(deviceID: String, localPhotosFolder: URL?) {
+    /// `thumbCache`: where the tiles' thumbnails are kept (tests use their own).
+    init(deviceID: String, localPhotosFolder: URL?, thumbCache: ThumbDiskCache = .shared) {
         self.deviceID = deviceID
         self.localFolder = localPhotosFolder
+        thumbs = GridThumbLoader(maxPt: PhotoGridMetrics.decodeSide, cache: thumbCache) { _ in throw CancellationError() }
+        attachThumbs()
         // Face recognition turned on: its people, for the search. Turned
         // off: nobody to search for any more.
         facesWatch = FaceRecognition.shared.$enabled
@@ -513,6 +530,21 @@ final class PhotoGalleryVM: ObservableObject {
             .dropFirst()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.wake() }
+        watchCacheCleared()
+    }
+
+    /// Settings cleared the thumbnail cache: the viewer's big thumbnails
+    /// go too (none is kept while the viewer is closed, but swiped-past
+    /// ones are while it is open).
+    private func watchCacheCleared() {
+        clearWatch = NotificationCenter.default.publisher(for: .otcThumbnailCacheCleared)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.stopBigThumb()
+                self.bigThumbs = [:]
+                self.bigThumbOrder = []
+            }
     }
 
     /// A wake: a page that failed is asked for again now, not at the end of
@@ -538,6 +570,44 @@ final class PhotoGalleryVM: ObservableObject {
         self.deviceID = ""
         self.localFolder = nil
         self.fixedList = true
+        thumbs = GridThumbLoader(maxPt: PhotoGridMetrics.decodeSide) { _ in throw CancellationError() }
+        watchCacheCleared()
+    }
+
+    /// The tiles' GetThumbnails go as Images' other requests (photoRequest,
+    /// which tests replace), as a kind of their own.
+    private func attachThumbs() {
+        thumbs.request = { [weak self] payload in
+            guard let self else { throw CancellationError() }
+            return try await self.photoRequest(payload, .tiles)
+        }
+        thumbs.onImages = { [weak self] in self?.thumbsVersion &+= 1 }
+    }
+
+    /// What the loader needs for a tile from the device; nil for one that
+    /// has its own bytes (a local file, content the cache refused).
+    func thumbWant(_ it: Item) -> GridThumbLoader.Want? {
+        guard it.localURL == nil, it.thumbData == nil, !it.hash.isEmpty else { return nil }
+        return GridThumbLoader.Want(id: it.id, path: it.path, hash: it.hash)
+    }
+
+    /// The tile at `i` came on screen: its thumbnail is asked for first,
+    /// and the tiles around it are read from the cache ahead of the scroll.
+    func tileShown(_ i: Int) {
+        guard !fixedList, items.indices.contains(i) else { return }
+        thumbs.appeared(items[i].path)
+        guard i % 6 == 0 else { return }
+        thumbs.readAhead(items[max(0, i - 12)..<min(items.count, i + 30)].compactMap(thumbWant))
+    }
+
+    func tileHidden(_ it: Item) {
+        thumbs.disappeared(it.path)
+    }
+
+    /// A tile on screen has no image: from the cache, else the device.
+    func needThumb(_ it: Item) {
+        guard !fixedList, let w = thumbWant(it) else { return }
+        thumbs.need(w)
     }
 
     /// Fills the viewer with these items (a folder's photos and videos, in
@@ -623,13 +693,15 @@ final class PhotoGalleryVM: ObservableObject {
     /// What Images asks for, by how long its answer may take: a page of
     /// photos and the lists that come with covers (people, collections)
     /// OTCConnection.pageTimeout, the small lists (tags, month counts) and
-    /// the viewer's big thumbnail listTimeout - as Android's kinds.
+    /// the viewer's big thumbnail listTimeout - as Android's kinds. The
+    /// tiles' thumbnails (GridThumbLoader, up to 24 a request: about a
+    /// page's bytes) pageTimeout.
     enum AskKind: Hashable {
-        case page, tags, buckets, people, groups, thumbnail
+        case page, tags, buckets, people, groups, thumbnail, tiles
 
         var base: TimeInterval {
             switch self {
-            case .page, .people, .groups: return OTCConnection.pageTimeout
+            case .page, .people, .groups, .tiles: return OTCConnection.pageTimeout
             case .tags, .buckets, .thumbnail: return OTCConnection.listTimeout
             }
         }
@@ -643,6 +715,7 @@ final class PhotoGalleryVM: ObservableObject {
             case .people: return "people"
             case .groups: return "groups"
             case .thumbnail: return "thumbnail"
+            case .tiles: return "tiles"
             }
         }
     }
@@ -854,6 +927,8 @@ final class PhotoGalleryVM: ObservableObject {
     /// timer go with it.
     private func startSearchState(jump: Date?) {
         stopPageRetry()
+        // The old grid's thumbnails on their way land nowhere.
+        thumbs.reset()
         loading = false
         // An ask from the previous grid's tiles: its index means nothing
         // against the new items, and would pull a page nobody scrolled to.
@@ -1391,8 +1466,12 @@ final class PhotoGalleryVM: ObservableObject {
             sp.includeVideos = true
             sp.token = tok
             // A search starting here (opening, a filter, the scrubber's
-            // jump) gets a small first page; scrolling on, the full size.
-            if tok.isEmpty { sp.limit = cFirstPhotoPageLimit }
+            // jump) gets a first page that paints quickly; scrolling on,
+            // a bigger one. Pages without content are a few KB however
+            // many photos: 60 then 120 (PhotoPageLimit); a device that
+            // sends content anyway (before release 113) answers at most
+            // its default, 30, so its first page stays small.
+            sp.limit = tok.isEmpty ? PhotoPageLimit.first(deviceOmits: thumbs.cache.deviceOmits) : PhotoPageLimit.next
             // Lets the device resume where this grid actually is if
             // it no longer holds the token (see SearchPhotos.have) - and
             // serve the same page again to a retry of one whose answer
@@ -1402,6 +1481,10 @@ final class PhotoGalleryVM: ObservableObject {
             // device sends big ones). The viewer shows one only until the
             // full size arrives (thumbnailStays).
             sp.smallThumbnails = true
+            // Without them (release 113): the tiles come from the cache
+            // on this phone, and what it lacks is asked for
+            // (GridThumbLoader). An older device sends them anyway.
+            sp.omitThumbnails = true
             // Issue #77: the date scrubber's "jump to date".
             if let before {
                 sp.before = SwiftProtobuf.Google_Protobuf_Timestamp(date: before)
@@ -1443,29 +1526,38 @@ final class PhotoGalleryVM: ObservableObject {
             return .failed
         }
 
-        var newItems: [Item] = []
-        // Gregorian, in the viewer's time zone: the device's buckets'.
-        let calendar = PhotoMonths.calendar()
+        // Every entry is a photo of the grid, with its content or without
+        // (`have` counts them all); those it already has are left out.
+        let existing = Set(items.map(\.id))
+        var fresh: [Msg_File] = []
+        var ids: [String] = []
         for f in lof.files {
             let id = "\(f.path)#\(f.hash)#\(f.fileSize)"
-            newItems.append(Item(
-                id: id,
+            guard !existing.contains(id) else { continue }
+            fresh.append(f)
+            ids.append(id)
+        }
+        // Content kept in the cache on this phone, the tiles that show
+        // first decoded off the main thread before they draw (see
+        // GridThumbCache), what the cache lacks asked for.
+        let keep = await thumbs.takePage(fresh, ids: ids)
+        guard myGeneration == searchGeneration, !Task.isCancelled else { return .skipped }
+        // Gregorian, in the viewer's time zone: the device's buckets'.
+        let calendar = PhotoMonths.calendar()
+        let filtered = fresh.enumerated().map { i, f in
+            Item(
+                id: ids[i],
                 path: f.path,
                 mime: f.mime,
                 size: Int(f.fileSize),
-                thumbData: f.hasContent ? f.content : nil,
+                thumbData: keep.indices.contains(i) ? keep[i] : nil,
                 localURL: nil,
                 isLocalOnly: false,
                 month: f.hasCreated ? PhotoMonths.key(for: f.created.date, calendar: calendar) : nil,
-                created: f.hasCreated ? f.created.date : nil
-            ))
+                created: f.hasCreated ? f.created.date : nil,
+                hash: f.hash
+            )
         }
-        // Decoded off the main thread, at tile size, before the tiles
-        // first draw (see GridThumbCache).
-        await GridThumbCache.prewarm(newItems.map { ($0.id, $0.thumbData) }, maxPt: PhotoTile.decodeSide)
-        guard myGeneration == searchGeneration, !Task.isCancelled else { return .skipped }
-        let existing = Set(items.map(\.id))
-        let filtered = newItems.filter { !existing.contains($0.id) }
         if !filtered.isEmpty { items.append(contentsOf: filtered) }
 
         self.token = lof.token.isEmpty ? nil : lof.token
@@ -1550,6 +1642,12 @@ final class PhotoGalleryVM: ObservableObject {
         // The viewer slides towards the neighbours, so have them ready.
         for n in [index - 1, index + 1] where items.indices.contains(n) {
             Task { await fetchHiRes(index: n, prefetch: true) }
+        }
+        // Until the full size comes the viewer shows the grid's tile: its
+        // own and the neighbours', decoded again from the thumbnail cache
+        // if they were let go.
+        if !fixedList {
+            thumbs.readAhead(items[max(0, index - 1)...min(items.count - 1, index + 1)].compactMap(thumbWant))
         }
     }
     func closeModal() {
@@ -1836,6 +1934,8 @@ final class PhotoGalleryVM: ObservableObject {
 
             items.remove(at: idx)
             selected.remove(item.path)
+            // Nothing of it stays on the phone either.
+            forgetThumbnails(of: [item])
             onDeleted?(item.path)
             countsChanged()
             if items.isEmpty {
@@ -2073,10 +2173,20 @@ final class PhotoGalleryVM: ObservableObject {
                 deletedPaths.insert(path)
             }
             if !deletedPaths.isEmpty {
+                // Nothing of them stays on the phone either.
+                forgetThumbnails(of: items.filter { deletedPaths.contains($0.path) })
                 items.removeAll { deletedPaths.contains($0.path) }
                 selected.subtract(deletedPaths)
                 countsChanged()
             }
+        }
+    }
+
+    /// Deleted photos' thumbnails leave the cache on this phone (the Files
+    /// viewer's items carry their hashes too).
+    private func forgetThumbnails(of deleted: [Item]) {
+        for it in deleted where !it.hash.isEmpty {
+            thumbs.cache.discard(it.hash)
         }
     }
 
@@ -2523,10 +2633,15 @@ struct PhotoGalleryView: View {
                 side: side,
                 isSelected: vm.selected.contains(it.path),
                 hasSelection: !vm.selected.isEmpty,
+                thumbsVersion: vm.thumbsVersion,
                 onTap: { openPath(it.path) },
-                onLongPress: { vm.toggleSelect(it.path) }
+                onLongPress: { vm.toggleSelect(it.path) },
+                needThumb: { vm.needThumb(it) }
             )
             .task { await vm.loadMoreIfNeeded(index: i, id: it.id) }
+            // Its thumbnail asked for first while it shows (GridThumbLoader).
+            .onAppear { vm.tileShown(i) }
+            .onDisappear { vm.tileHidden(it) }
         } else {
             // The first page on its way, or the scrubber's month. Grey
             // tiles say nothing to VoiceOver but, once, that photos are on
@@ -2846,7 +2961,9 @@ struct PhotoGalleryView: View {
         // grid's small tile.
         if let big = vm.bigThumbs[it.path] { return big }
         if let d = it.thumbData { return UIImage(data: d) }
-        return it.thumbImage
+        // The grid's decoded tile: the small thumbnail at its own size
+        // (tiles are decoded no smaller than 432 px on the short side).
+        return GridThumbCache.cached(id: it.id, maxPt: PhotoGridMetrics.decodeSide) ?? it.thumbImage
     }
 }
 
@@ -3102,8 +3219,13 @@ private struct PhotoTile: View {
     // tapping a tile toggles its selection instead of opening the preview,
     // matching the Photos app's selection-mode behavior.
     let hasSelection: Bool
+    /// The grid's thumbnails changed (PhotoGalleryVM.thumbsVersion): the
+    /// image is looked up again.
+    let thumbsVersion: Int
     let onTap: () -> Void
     let onLongPress: () -> Void
+    /// It has no image to show: from the thumbnail cache, else the device.
+    let needThumb: () -> Void
 
     /// The size thumbnails are decoded for (PhotoGridMetrics.decodeSide).
     static let decodeSide = PhotoGridMetrics.decodeSide
@@ -3151,16 +3273,20 @@ private struct PhotoTile: View {
     }
 
     private var thumb: some View {
-        Group {
-            // Decoded once at tile size and cached, not on every pass of
-            // this body. A local file is read from disk, as before.
-            if let img = GridThumbCache.image(id: item.id, data: item.thumbData,
-                                              localURL: item.localURL, maxPt: Self.decodeSide) {
+        // Decoded once at tile size and cached, not on every pass of this
+        // body. A local file is read from disk, as before.
+        let img = GridThumbCache.image(id: item.id, data: item.thumbData,
+                                       localURL: item.localURL, maxPt: Self.decodeSide)
+        return Group {
+            if let img {
                 Image(uiImage: img).resizable().scaledToFill()
             } else {
                 Color.gray.opacity(0.2)
             }
         }
+        // None (yet, or no longer - the decoded tiles' memory let it go):
+        // asked for, from the cache on this phone or the device.
+        .task(id: img == nil) { if img == nil { needThumb() } }
         // Cropped to the tile itself: scaledToFill's own frame is the
         // whole photo (127 x 283 pt for a portrait one in a 127 pt tile),
         // and the video mark below would sit at its corner, out of sight.
@@ -3390,7 +3516,10 @@ struct ImageModal: View {
     private func thumb(_ item: PhotoGalleryVM.Item) -> UIImage? {
         if let u = item.localURL, let img = UIImage(contentsOfFile: u.path) { return img }
         if let d = item.thumbData { return UIImage(data: d) }
-        return item.thumbImage
+        // The tile's decoded image (its bytes are in the thumbnail cache,
+        // not the item: PhotoGalleryVM.open has it decoded again if it was
+        // let go).
+        return GridThumbCache.cached(id: item.id, maxPt: PhotoGridMetrics.decodeSide) ?? item.thumbImage
     }
 }
 

@@ -35,11 +35,14 @@ final class NewPostPickerVM: ObservableObject {
         // Empty for a Source.phone item until publish() uploads/links it
         // and fills in the real server path.
         var path: String
-        // Set for Source.synced items, which arrive as raw bytes from the
-        // server - nil for Source.phone items, whose thumbnail is the
-        // UIImage PHImageManager hands back, kept in GridThumbCache under
-        // the item's id (see PhoneThumb). Not held here: a 450 px image
-        // per loaded phone photo added up to gigabytes over a long scroll.
+        // Set for Source.synced items only where nothing else keeps their
+        // thumbnail (content the thumbnail cache refused): otherwise it is
+        // read from the cache on this phone by `hash`, or asked for
+        // (GridThumbLoader). nil for Source.phone items, whose thumbnail
+        // is the UIImage PHImageManager hands back, kept in GridThumbCache
+        // under the item's id (see PhoneThumb). Not held here: a 450 px
+        // image per loaded phone photo added up to gigabytes over a long
+        // scroll.
         var thumbData: Data?
         // Set only for Source.phone items - nil for anything already on
         // the device (Source.synced).
@@ -50,6 +53,9 @@ final class NewPostPickerVM: ObservableObject {
         // videos with no restriction, so this is purely cosmetic, not a
         // filter).
         var isVideo: Bool = false
+        // A synced item's content hash: its thumbnail's key in the cache
+        // on this phone (ThumbDiskCache). "" for a phone item.
+        var hash: String = ""
 
         // UIImage/PHAsset aren't Hashable, and don't need to be: id alone
         // already uniquely identifies an item.
@@ -69,6 +75,11 @@ final class NewPostPickerVM: ObservableObject {
     @Published var items: [Item] = []
     @Published var loading = false
     @Published var endReached = false
+    /// The Synced tiles: from the thumbnail cache on this phone, asked for
+    /// (GetThumbnails) where it has none, as Images'.
+    let thumbs: GridThumbLoader
+    /// Bumped when tiles got their images: the grid draws them.
+    @Published private(set) var thumbsVersion = 0
     private var token: String? = nil
     // Bumped when the grid starts over (source, tags), so a page still in
     // flight for the old one lands nowhere (as Android's searchGeneration).
@@ -112,6 +123,38 @@ final class NewPostPickerVM: ObservableObject {
     @Published var showAlert = false
     @Published var alertMessage = ""
 
+    init() {
+        thumbs = GridThumbLoader(maxPt: PickTile.side, request: GridThumbLoader.deviceRequest)
+        thumbs.onImages = { [weak self] in self?.thumbsVersion &+= 1 }
+    }
+
+    /// What the loader needs for a synced tile; nil for a phone item (or
+    /// one with its own bytes).
+    func thumbWant(_ item: Item) -> GridThumbLoader.Want? {
+        guard item.asset == nil, item.thumbData == nil, !item.hash.isEmpty else { return nil }
+        return GridThumbLoader.Want(id: item.id, path: item.path, hash: item.hash)
+    }
+
+    /// A synced tile came on screen (`index`): its thumbnail first, and
+    /// the tiles around it read from the cache ahead of the scroll.
+    func tileShown(_ item: Item) {
+        guard item.asset == nil else { return }
+        thumbs.appeared(item.path)
+        guard let i = items.firstIndex(of: item), i % 6 == 0 else { return }
+        thumbs.readAhead(items[max(0, i - 12)..<min(items.count, i + 30)].compactMap(thumbWant))
+    }
+
+    func tileHidden(_ item: Item) {
+        guard item.asset == nil else { return }
+        thumbs.disappeared(item.path)
+    }
+
+    /// A synced tile has no image: from the cache, else the device.
+    func needThumb(_ item: Item) {
+        guard let w = thumbWant(item) else { return }
+        thumbs.need(w)
+    }
+
     func onAppearInitial() {
         guard !didAppear else { return }
         didAppear = true
@@ -152,6 +195,7 @@ final class NewPostPickerVM: ObservableObject {
 
     func resetAndLoadFirstPage() async {
         searchGeneration += 1
+        thumbs.reset()
         loading = false
         endReached = false
         items = []
@@ -192,6 +236,7 @@ final class NewPostPickerVM: ObservableObject {
         // count, not the phone's (a page asked for while on the phone's
         // source isn't this one's).
         let have = Int32(items.filter { $0.asset == nil }.count)
+        let firstLimit = PhotoPageLimit.first(deviceOmits: thumbs.cache.deviceOmits)
         do {
             let resp = try await ws.request { e in
                 var req = Msg_ReqEnvelope()
@@ -202,30 +247,35 @@ final class NewPostPickerVM: ObservableObject {
                 // token (SearchPhotos.have), as Images does.
                 sp.have = have
                 // A grid: its tiles' small thumbnails (release 111; an
-                // older device sends big ones).
+                // older device sends big ones) - without them (release
+                // 113): the tiles come from the cache on this phone, and
+                // what it lacks is asked for (GridThumbLoader). An older
+                // device sends them anyway.
                 sp.smallThumbnails = true
+                sp.omitThumbnails = true
                 // A new search (switching to Synced, a tag added or
-                // removed) gets a small first page so the grid paints
-                // quickly; scrolling on, the full size (see
-                // cFirstPhotoPageLimit).
-                if sp.token.isEmpty { sp.limit = cFirstPhotoPageLimit }
+                // removed) gets a first page that paints quickly;
+                // scrolling on, a bigger one (PhotoPageLimit, as Images).
+                sp.limit = sp.token.isEmpty ? firstLimit : PhotoPageLimit.next
                 // Issue #60: the composer offers videos alongside photos,
                 // unlike the Photo Gallery's own search.
                 sp.includeVideos = true
                 req.payload = .reqSearchPhotos(sp)
                 e = req
             }
-            guard case .respListOfFiles(let lof) = resp.payload else { return }
-            var newItems: [Item] = []
-            for f in lof.files {
-                newItems.append(Item(id: "\(f.path)#\(f.hash)#\(f.fileSize)", path: f.path, thumbData: f.hasContent ? f.content : nil, isVideo: f.mime.hasPrefix("video/")))
-            }
-            // Decoded off the main thread, at tile size, before the tiles
-            // first draw (see GridThumbCache).
-            await GridThumbCache.prewarm(newItems.map { ($0.id, $0.thumbData) }, maxPt: PickTile.side)
-            guard mine == searchGeneration, source == .synced else { return }
+            guard mine == searchGeneration, case .respListOfFiles(let lof) = resp.payload else { return }
             let existing = Set(items.map(\.id))
-            let filtered = newItems.filter { !existing.contains($0.id) }
+            let fresh = lof.files.filter { !existing.contains("\($0.path)#\($0.hash)#\($0.fileSize)") }
+            let ids = fresh.map { "\($0.path)#\($0.hash)#\($0.fileSize)" }
+            // Content kept in the cache on this phone, the first tiles
+            // decoded off the main thread before they draw (see
+            // GridThumbCache), what the cache lacks asked for.
+            let keep = await thumbs.takePage(fresh, ids: ids)
+            guard mine == searchGeneration, source == .synced else { return }
+            let filtered = fresh.enumerated().map { i, f in
+                Item(id: ids[i], path: f.path, thumbData: keep.indices.contains(i) ? keep[i] : nil,
+                     isVideo: f.mime.hasPrefix("video/"), hash: f.hash)
+            }
             if !filtered.isEmpty { items.append(contentsOf: filtered) }
             token = lof.token.isEmpty ? nil : lof.token
             endReached = (token == nil)
@@ -695,11 +745,15 @@ struct NewPostPickerView: View {
                         ForEach(vm.items) { item in
                             PickTile(
                                 item: item,
-                                selectionNumber: vm.selectedOrder.firstIndex(of: item.id).map { $0 + 1 }
-                            ) {
-                                vm.toggleSelect(item.id)
-                            }
+                                selectionNumber: vm.selectedOrder.firstIndex(of: item.id).map { $0 + 1 },
+                                thumbsVersion: vm.thumbsVersion,
+                                needThumb: { vm.needThumb(item) },
+                                onTap: { vm.toggleSelect(item.id) }
+                            )
                             .task { await vm.loadMoreIfNeeded(current: item) }
+                            // Its thumbnail asked for first while it shows.
+                            .onAppear { vm.tileShown(item) }
+                            .onDisappear { vm.tileHidden(item) }
                         }
                         if vm.loading {
                             ProgressView().frame(height: 60).gridCellColumns(cols.count)
@@ -904,11 +958,14 @@ private final class PendingThumb: @unchecked Sendable {
     }
 }
 
-/// A synced item's tile, decoded once at tile size (GridThumbCache); a
-/// phone item's while it is still cached.
+/// A synced item's tile, decoded once at tile size (GridThumbCache) - the
+/// grid's own decode where it has no bytes of its own (its thumbnail is in
+/// the cache on this phone: GridThumbLoader decodes it at the grid's
+/// size); a phone item's while it is still cached.
 private func tileImage(_ item: NewPostPickerVM.Item, maxPt: CGFloat) -> UIImage? {
     if item.asset != nil { return GridThumbCache.stored(item.id) }
     return GridThumbCache.image(id: item.id, data: item.thumbData, maxPt: maxPt)
+        ?? GridThumbCache.cached(id: item.id, maxPt: PickTile.side)
 }
 
 /// A phone item's tile, held by the tile while it is on screen: from the
@@ -931,6 +988,11 @@ private struct PickTile: View {
     // replaces a plain checkmark so the grid itself shows the current
     // order, not just membership.
     let selectionNumber: Int?
+    /// The grid's thumbnails changed (NewPostPickerVM.thumbsVersion): the
+    /// image is looked up again.
+    let thumbsVersion: Int
+    /// A synced tile has no image: from the thumbnail cache, else the device.
+    let needThumb: () -> Void
     let onTap: () -> Void
 
     private var isSelected: Bool { selectionNumber != nil }
@@ -939,15 +1001,17 @@ private struct PickTile: View {
     @State private var phoneThumb: UIImage?
 
     var body: some View {
+        let img = phoneThumb ?? tileImage(item, maxPt: Self.side)
         ZStack(alignment: .topTrailing) {
             Group {
-                if let img = phoneThumb ?? tileImage(item, maxPt: Self.side) {
+                if let img {
                     Image(uiImage: img).resizable().scaledToFill()
                 } else {
                     Color.gray.opacity(0.2)
                 }
             }
             .task(id: item.id) { await loadPhoneTile(item) { phoneThumb = $0 } }
+            .task(id: img == nil) { if img == nil, item.asset == nil { needThumb() } }
             .frame(maxWidth: Self.side, maxHeight: Self.side)
             .aspectRatio(1, contentMode: .fill)
             .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -1001,6 +1065,8 @@ private struct SelectedOrderStrip: View {
                         if let item = vm.items.first(where: { $0.id == id }) {
                             SelectedThumb(
                                 item: item,
+                                thumbsVersion: vm.thumbsVersion,
+                                needThumb: { vm.needThumb(item) },
                                 position: index + 1,
                                 canMoveLeft: index > 0,
                                 canMoveRight: index < vm.selectedOrder.count - 1,
@@ -1025,6 +1091,12 @@ private struct SelectedOrderStrip: View {
 
 private struct SelectedThumb: View {
     let item: NewPostPickerVM.Item
+    /// The grid's thumbnails changed (NewPostPickerVM.thumbsVersion): the
+    /// image is looked up again.
+    let thumbsVersion: Int
+    /// A synced item's image was let go (the app went to the background,
+    /// memory ran short): from the thumbnail cache, else the device.
+    let needThumb: () -> Void
     let position: Int
     let canMoveLeft: Bool
     let canMoveRight: Bool
@@ -1039,16 +1111,18 @@ private struct SelectedThumb: View {
     @State private var phoneThumb: UIImage?
 
     var body: some View {
+        let img = phoneThumb ?? tileImage(item, maxPt: 60)
         VStack(spacing: 2) {
             ZStack(alignment: .topTrailing) {
                 Group {
-                    if let img = phoneThumb ?? tileImage(item, maxPt: 60) {
+                    if let img {
                         Image(uiImage: img).resizable().scaledToFill()
                     } else {
                         Color.gray.opacity(0.2)
                     }
                 }
                 .task(id: item.id) { await loadPhoneTile(item) { phoneThumb = $0 } }
+                .task(id: img == nil) { if img == nil, item.asset == nil { needThumb() } }
                 .frame(width: 60, height: 60)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 // Issue #111: the whole thumbnail opens the trimmer, not

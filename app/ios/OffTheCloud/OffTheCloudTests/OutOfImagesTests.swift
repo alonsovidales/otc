@@ -66,6 +66,7 @@ struct OutOfImagesTests {
         answer: @escaping () throws -> Msg_RespEnvelope = { OutOfImagesTests.ack() }
     ) -> (FilesExplorerViewModel, Sent) {
         let vm = FilesExplorerViewModel(initialPath: path)
+        vm.thumbDisk = testThumbCache()
         let sent = Sent()
         let list = listing(files, supported: supported, folderOut: folderOut)
         vm.request = { payload in
@@ -119,6 +120,7 @@ struct OutOfImagesTests {
 
     @Test func aFailedListingDropsTheBanner() async {
         let vm = FilesExplorerViewModel(initialPath: "/Private/")
+        vm.thumbDisk = testThumbCache()
         var first = true
         vm.request = { [self] _ in
             if first {
@@ -268,6 +270,7 @@ struct OutOfImagesTests {
         // held to look at the screen in between.
         let gate = Gate()
         let vm = FilesExplorerViewModel(initialPath: "/x/sub/")
+        vm.thumbDisk = testThumbCache()
         vm.request = { [self] payload in
             guard case .reqListFiles(let req) = payload else { throw CancellationError() }
             switch req.path {
@@ -325,7 +328,7 @@ struct OutOfImagesTests {
     }
 
     @Test func imagesAsksAgainForWhatItHasShown() async {
-        let vm = PhotoGalleryVM(deviceID: "test", localPhotosFolder: nil)
+        let vm = PhotoGalleryVM(deviceID: "test", localPhotosFolder: nil, thumbCache: testThumbCache())
         let sent = Sent()
         vm.libraryRequest = { payload, _ in
             sent.list.append(payload)

@@ -19,7 +19,11 @@ final class DevicePhotoPickerVM: ObservableObject {
     struct Item: Identifiable, Hashable {
         let id: String
         let path: String
+        /// Only where nothing else keeps the thumbnail (content the
+        /// thumbnail cache refused): otherwise it is read from the cache on
+        /// this phone by `hash`, or asked for (GridThumbLoader).
         let thumbData: Data?
+        var hash: String = ""
     }
 
     private let ws = OTCConnection.shared
@@ -41,6 +45,40 @@ final class DevicePhotoPickerVM: ObservableObject {
     /// can't land in the new grid.
     private var generation = 0
 
+    /// The tiles: from the thumbnail cache on this phone, asked for
+    /// (GetThumbnails) where it has none, as Images'.
+    let thumbs: GridThumbLoader
+    /// Bumped when tiles got their images: the grid draws them.
+    @Published private(set) var thumbsVersion = 0
+
+    init() {
+        thumbs = GridThumbLoader(maxPt: Self.tileSide, request: GridThumbLoader.deviceRequest)
+        thumbs.onImages = { [weak self] in self?.thumbsVersion &+= 1 }
+    }
+
+    func thumbWant(_ item: Item) -> GridThumbLoader.Want? {
+        guard item.thumbData == nil, !item.hash.isEmpty else { return nil }
+        return GridThumbLoader.Want(id: item.id, path: item.path, hash: item.hash)
+    }
+
+    /// A tile came on screen: its thumbnail first, and the tiles around it
+    /// read from the cache ahead of the scroll.
+    func tileShown(_ item: Item) {
+        thumbs.appeared(item.path)
+        guard let i = items.firstIndex(of: item), i % 6 == 0 else { return }
+        thumbs.readAhead(items[max(0, i - 12)..<min(items.count, i + 30)].compactMap(thumbWant))
+    }
+
+    func tileHidden(_ item: Item) {
+        thumbs.disappeared(item.path)
+    }
+
+    /// A tile has no image: from the cache, else the device.
+    func needThumb(_ item: Item) {
+        guard let w = thumbWant(item) else { return }
+        thumbs.need(w)
+    }
+
     func loadGroups() async {
         guard let resp = try? await ws.request({ e in
             var req = Msg_ReqEnvelope()
@@ -61,6 +99,7 @@ final class DevicePhotoPickerVM: ObservableObject {
 
     func reset() async {
         generation += 1
+        thumbs.reset()
         items = []
         token = ""
         endReached = false
@@ -83,15 +122,16 @@ final class DevicePhotoPickerVM: ObservableObject {
         let pageToken = token
         // Snapshot, with the token it goes with (see the request below).
         let have = Int32(items.count)
+        let firstLimit = PhotoPageLimit.first(deviceOmits: thumbs.cache.deviceOmits)
         do {
             let resp = try await ws.request { e in
                 var req = Msg_ReqEnvelope()
                 var sp = Msg_SearchPhotos()
                 sp.token = pageToken
-                // A new search (opening, or another chip) gets a small
-                // first page so the grid paints quickly; scrolling on, the
-                // full size (see cFirstPhotoPageLimit).
-                if pageToken.isEmpty { sp.limit = cFirstPhotoPageLimit }
+                // A new search (opening, or another chip) gets a first page
+                // that paints quickly; scrolling on, a bigger one
+                // (PhotoPageLimit, as Images).
+                sp.limit = pageToken.isEmpty ? firstLimit : PhotoPageLimit.next
                 sp.groupID = group
                 // A profile photo can't be a video.
                 sp.includeVideos = false
@@ -100,23 +140,29 @@ final class DevicePhotoPickerVM: ObservableObject {
                 // picker.
                 sp.have = have
                 // A grid: its tiles' small thumbnails (release 111; an
-                // older device sends big ones).
+                // older device sends big ones) - without them (release
+                // 113): the tiles come from the cache on this phone, and
+                // what it lacks is asked for (GridThumbLoader). An older
+                // device sends them anyway.
                 sp.smallThumbnails = true
+                sp.omitThumbnails = true
                 req.payload = .reqSearchPhotos(sp)
                 e = req
             }
             guard myGeneration == generation,
                   case .respListOfFiles(let lof) = resp.payload else { return }
-            let page = lof.files
-                .filter { !$0.mime.hasPrefix("video/") }
-                .map { Item(id: "\($0.path)#\($0.hash)#\($0.fileSize)", path: $0.path,
-                            thumbData: $0.hasContent ? $0.content : nil) }
-            // Decoded off the main thread, at tile size, before the tiles
-            // first draw (see GridThumbCache).
-            await GridThumbCache.prewarm(page.map { ($0.id, $0.thumbData) }, maxPt: Self.tileSide)
-            guard myGeneration == generation else { return }
+            let files = lof.files.filter { !$0.mime.hasPrefix("video/") }
             let existing = Set(items.map(\.id))
-            let fresh = page.filter { !existing.contains($0.id) }
+            let freshFiles = files.filter { !existing.contains("\($0.path)#\($0.hash)#\($0.fileSize)") }
+            let ids = freshFiles.map { "\($0.path)#\($0.hash)#\($0.fileSize)" }
+            // Content kept in the cache on this phone, the first tiles
+            // decoded off the main thread before they draw (see
+            // GridThumbCache), what the cache lacks asked for.
+            let keep = await thumbs.takePage(freshFiles, ids: ids)
+            guard myGeneration == generation else { return }
+            let fresh = freshFiles.enumerated().map { i, f in
+                Item(id: ids[i], path: f.path, thumbData: keep.indices.contains(i) ? keep[i] : nil, hash: f.hash)
+            }
             items.append(contentsOf: fresh)
             token = lof.token
             endReached = lof.token.isEmpty
@@ -183,6 +229,9 @@ struct DevicePhotoPickerView: View {
                         ForEach(vm.items) { item in
                             tile(item)
                                 .task { await vm.loadMoreIfNeeded(current: item) }
+                                // Its thumbnail asked for first while it shows.
+                                .onAppear { vm.tileShown(item) }
+                                .onDisappear { vm.tileHidden(item) }
                         }
                         if vm.loading {
                             ProgressView().frame(height: 60).gridCellColumns(cols.count)
@@ -241,17 +290,22 @@ struct DevicePhotoPickerView: View {
     }
 
     private func tile(_ item: DevicePhotoPickerVM.Item) -> some View {
+        // Read again when the grid's thumbnails change (thumbsVersion).
+        _ = vm.thumbsVersion
+        let img = GridThumbCache.image(id: item.id, data: item.thumbData, maxPt: DevicePhotoPickerVM.tileSide)
         // Color.clear sized square, image overlaid and clipped, so an
         // aspect-fill thumbnail never widens its grid cell.
-        Color.clear
+        return Color.clear
             .aspectRatio(1, contentMode: .fit)
             .overlay {
-                if let img = GridThumbCache.image(id: item.id, data: item.thumbData, maxPt: DevicePhotoPickerVM.tileSide) {
+                if let img {
                     Image(uiImage: img).resizable().scaledToFill()
                 } else {
                     Color.gray.opacity(0.2)
                 }
             }
+            // None (yet, or no longer): from the cache, else the device.
+            .task(id: img == nil) { if img == nil { vm.needThumb(item) } }
             .clipped()
             .overlay {
                 if vm.fetchingPath == item.path {

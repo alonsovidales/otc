@@ -17,9 +17,13 @@
 //  (small_thumbnails, release 111 - an older device's big ones when it
 //  ignores the flag). A big thumbnail asked for on purpose (the viewer's,
 //  where the thumbnail stays on screen: PhotoGalleryVM.bigThumbs) is never
-//  kept here: the answers carry no mark of which size came, so the two
-//  must never share an entry - the keys say "small" (Android's
-//  ThumbStore.tileKey).
+//  kept here: the two must never share an entry - the keys say "small"
+//  (Android's ThumbStore.tileKey).
+//
+//  The bytes behind these images are kept on the phone between launches
+//  (ThumbDiskCache, by content hash); a grid's tiles don't hold them once
+//  the cache does, and a tile whose image was let go here is decoded again
+//  from there (GridThumbLoader.need).
 //
 
 import UIKit
@@ -58,18 +62,21 @@ enum GridThumbCache {
         return img
     }
 
-    /// Decodes a page's tiles off the main thread before they are shown,
-    /// so the first paint finds them ready.
-    static func prewarm(_ entries: [(id: String, data: Data?)], maxPt: CGFloat) async {
-        let missing = entries.filter { $0.data != nil && images.object(forKey: key($0.id, maxPt)) == nil }
-        guard !missing.isEmpty else { return }
-        await Task.detached(priority: .userInitiated) {
-            DispatchQueue.concurrentPerform(iterations: missing.count) { i in
-                if let img = decode(data: missing[i].data, localURL: nil, maxPt: maxPt) {
-                    images.setObject(img, forKey: key(missing[i].id, maxPt), cost: cost(of: img))
-                }
-            }
-        }.value
+    /// The tile image for `id` if it is decoded already: nothing is read or
+    /// decoded here.
+    static func cached(id: String, maxPt: CGFloat) -> UIImage? {
+        images.object(forKey: key(id, maxPt))
+    }
+
+    /// A tile image decoded elsewhere (GridThumbLoader, from the disk
+    /// cache or a GetThumbnails answer), for `id`'s tile.
+    static func put(_ image: UIImage, id: String, maxPt: CGFloat) {
+        images.setObject(image, forKey: key(id, maxPt), cost: cost(of: image))
+    }
+
+    /// Settings' "Clear thumbnail cache" and Log Out: no tile stays decoded.
+    static func removeAll() {
+        images.removeAllObjects()
     }
 
     /// An image that is already the right size (the composer's phone
@@ -80,6 +87,11 @@ enum GridThumbCache {
 
     static func stored(_ id: String) -> UIImage? {
         images.object(forKey: id as NSString)
+    }
+
+    /// A tile's image from thumbnail bytes, without caching it.
+    static func decodeTile(_ data: Data, maxPt: CGFloat) -> UIImage? {
+        decode(data: data, localURL: nil, maxPt: maxPt)
     }
 
     /// Decodes without caching, for a caller that keeps its own (the

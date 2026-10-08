@@ -586,6 +586,9 @@ final class OTCConnection: ObservableObject {
         authBackoff = 5
         connectionEpoch &+= 1
         connectedEndpoint = endpoint
+        // The grids' thumbnails kept on the phone are this device's (and
+        // account's): another one's go (ThumbDiskCache).
+        ThumbDiskCache.shared.use(endpoint: endpoint)
         authenticated = true
         homeLink = home
         homeNetwork = home != nil ? NetworkWatch.shared.localNetwork : nil

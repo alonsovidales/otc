@@ -1024,7 +1024,7 @@ extension ImagesNotificationTests {
 @Suite(.serialized)
 struct ImagesRetryTests {
     private func model() -> (PhotoGalleryVM, FakeDevice) {
-        let vm = PhotoGalleryVM(deviceID: "test", localPhotosFolder: nil)
+        let vm = PhotoGalleryVM(deviceID: "test", localPhotosFolder: nil, thumbCache: testThumbCache())
         let device = FakeDevice()
         device.attach(vm)
         return (vm, device)
@@ -1427,6 +1427,7 @@ extension ImagesNotificationTests {
 struct FilesListingRetryTests {
     @Test func aListingThatDidntComeSaysWhyAndIsAskedAgain() async {
         let vm = FilesExplorerViewModel(initialPath: "/Photos/")
+        vm.thumbDisk = testThumbCache()
         vm.listRetry.delay = { _ in 0.3 }
         var asks = 0
         vm.request = { payload in
@@ -1451,6 +1452,7 @@ struct FilesListingRetryTests {
 
     @Test func theBridgesWordIsAskedAgainTheDevicesOwnRefusalIsNot() async {
         let vm = FilesExplorerViewModel(initialPath: "/Gone/")
+        vm.thumbDisk = testThumbCache()
         vm.listRetry.delay = { _ in 0.05 }
         var asks = 0
         vm.request = { payload in
@@ -1484,7 +1486,7 @@ extension ImagesNotificationTests {
 @Suite(.serialized)
 struct ImagesReviewFixTests {
     private func model() -> (PhotoGalleryVM, FakeDevice) {
-        let vm = PhotoGalleryVM(deviceID: "test", localPhotosFolder: nil)
+        let vm = PhotoGalleryVM(deviceID: "test", localPhotosFolder: nil, thumbCache: testThumbCache())
         let device = FakeDevice()
         device.attach(vm)
         return (vm, device)
@@ -1875,6 +1877,7 @@ struct FilesReviewFixTests {
         // (5): it used to be cleared at every try (a flicker, announced
         // anew), and to keep saying the phone is offline once it wasn't.
         let vm = FilesExplorerViewModel(initialPath: "/Photos/")
+        vm.thumbDisk = testThumbCache()
         vm.listRetry.delay = { _ in 100 }
         var online = false
         vm.online = { online }
@@ -1929,6 +1932,7 @@ struct FilesReviewFixTests {
 
     @Test func theGridAndTheSearchAskForSmallTiles() async {
         let vm = FilesExplorerViewModel(initialPath: "/Photos/")
+        vm.thumbDisk = testThumbCache()
         var asked: [Msg_GetThumbnails] = []
         vm.request = { payload in
             var r = Msg_RespEnvelope()
