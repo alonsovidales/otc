@@ -545,7 +545,8 @@ struct FolderStateView: View {
 
 /// Settings: connected (configured), the device and a Disconnect button;
 /// not configured, the device and password fields with Connect. Below,
-/// always, the big "Set Up a New Device…" (issue #184).
+/// always, "Start at login" with "Set Up a New Device…" (issue #184) at its
+/// right, a button the size of Disconnect's.
 struct SettingsInlineView: View {
     var onSetUpDevice: () -> Void
 
@@ -576,17 +577,14 @@ struct SettingsInlineView: View {
             } else {
                 connectForm
             }
-            Toggle("Start at login", isOn: $settings.startAtLogin)
-                .toggleStyle(.checkbox)
-                .font(.footnote)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Divider()
-            Button(action: onSetUpDevice) {
-                Label("Set Up a New Device…", systemImage: "externaldrive.badge.plus")
-                    .frame(maxWidth: .infinity)
+            HStack(spacing: 8) {
+                Toggle("Start at login", isOn: $settings.startAtLogin)
+                    .toggleStyle(.checkbox)
+                    .font(.footnote)
+                Spacer()
+                Button("Set Up a New Device…", action: onSetUpDevice)
+                    .controlSize(.small)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
         }
         .padding(8)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))

@@ -858,8 +858,9 @@ dialog at launch. Once connected they show the device and a Disconnect button: M
 clears the address and password (`SyncModel.disconnect` / config with no folders and no domain).
 The files stay where they are. This is because folders kept across a change of device would sync
 with, or delete on, the other device. The Mac wizard's "Sync this Mac with my device" asks the same
-when another device is set (`SetupWizardView.switchDevice`). "Set Up a New Device…" is the large
-button at the bottom of the Mac's Settings, and its own section above Quit in the tray.
+when another device is set (`SetupWizardView.switchDevice`). "Set Up a New Device…" is a small
+button (Disconnect's size) at the right of "Start at login" in the Mac's Settings, and its own section
+above Quit in the tray.
 **Web app (issue #193).** Once a device is configured both offer "Open Web App": the Mac in the
 popover's header beside the gear, the tray as the last line of its top group, and `otc-sync open`
 (prints the address, and opens it where there is a display). It is the configured address's host
