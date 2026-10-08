@@ -193,7 +193,7 @@ func TestLargeSizesReachTheRowAndBothFields(t *testing.T) {
 
 	mock.ExpectQuery("from `files` where `path` = \\?").WithArgs("/v.mp4").
 		WillReturnRows(sqlmock.NewRows(cols).AddRow(hash, "video/mp4", now, now, "/v.mp4", size))
-	grid := mg.Thumbnails(ses, []string{"/v.mp4"})
+	grid := mg.Thumbnails(ses, []string{"/v.mp4"}, false)
 	if len(grid) != 1 || grid[0].Size64 != size || grid[0].Size != wrapped {
 		t.Fatalf("grid: %+v", grid)
 	}

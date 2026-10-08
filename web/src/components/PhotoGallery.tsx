@@ -340,6 +340,10 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
             have,
             // Issue #77: the date scrubber's jump.
             before: cutoff,
+            // The tiles' small thumbnails (release 111; older devices
+            // send big ones). The viewer shows them only until the full
+            // size arrives (MediaViewer).
+            smallThumbnails: true,
           },
         });
         // The cutoff goes only on the request that starts the search; the
@@ -1993,7 +1997,9 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
     setBusy("new");
     setError(null);
     try {
-      const resp = await ask({ $case: "reqCreateImageGroup", reqCreateImageGroup: { name: trimmed, paths } });
+      // The answer's cover goes unused (reloadGroups lists them again):
+      // the small one costs least.
+      const resp = await ask({ $case: "reqCreateImageGroup", reqCreateImageGroup: { name: trimmed, paths, smallThumbnails: true } });
       const g = resp.payload?.$case === "respImageGroup" ? resp.payload.respImageGroup.group : undefined;
       if (g) {
         void reloadGroups().catch(() => {});

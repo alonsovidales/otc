@@ -8,9 +8,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import { requestStreamURL, canStream } from "../net/media";
-import type { RespEnvelope, FileExifInfo } from "../proto/messages";
+import type { ReqEnvelope, RespEnvelope, FileExifInfo } from "../proto/messages";
 import "./PhotoGallery.css";
 import LowResBadge from "./LowResBadge";
+import { usePageRetry } from "./usePageRetry";
 import { startDownload, readFileInPieces, leafName, useDownloadState, useDownloadFailure, useDownloadHost } from "./mediaDownload";
 import { DownloadButton, DownloadNote } from "./DownloadButton";
 
@@ -111,24 +112,82 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
     return () => { if (u) URL.revokeObjectURL(u); };
   }, [itemThumbURL, itemContent]);
 
+  // The grids hand over their tiles' small thumbnails (release 111: 400
+  // px on the shorter side), fine while the full size loads. Where the
+  // thumbnail is what stays on screen - the full photo or video couldn't
+  // be fetched, a photo the browser can't decode, a video it can't play -
+  // the item's path is `stuck`, and the big thumbnail (its longest side
+  // 1000 px, GetThumbnails without small_thumbnails) is asked for and
+  // shown instead. The viewer's own URL, never the caller's: the two
+  // sizes don't share a cache. Freed after the commit that replaced it.
+  const [stuck, setStuck] = useState<string | null>(null);
+  const [bigThumb, setBigThumb] = useState<{ path: string; url: string } | null>(null);
+  useEffect(() => () => { if (bigThumb) URL.revokeObjectURL(bigThumb.url); }, [bigThumb]);
+  const itemPath = item?.path;
+  const thumbStays = itemPath != null && stuck === itemPath;
+  // The full size usually fails because the connection did (a dropped
+  // socket, the bridge not reaching the device), and then so does this
+  // request. It is asked again like a grid's page (usePageRetry: 1 s
+  // doubling to 10 s, at once when the device answers again or the
+  // browser is back online) for as long as the viewer stays on the item,
+  // so it never ends up with only the small tile scaled up.
+  const { tick: bigRetryTick, failed: bigFailed, reset: bigReset } = usePageRetry();
+  useEffect(() => {
+    if (!thumbStays || itemPath == null) return;
+    const gen = viewGenRef.current;
+    let live = true;
+    const mine = () => live && gen === viewGenRef.current;
+    void (async () => {
+      try {
+        const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+          e.payload = { $case: "reqGetThumbnails", reqGetThumbnails: { paths: [itemPath], smallThumbnails: false } };
+        });
+        if (!mine()) return;
+        if (resp.payload?.$case === "respListOfFiles") {
+          bigReset();
+          // A path the device left out has no thumbnail: nothing to retry.
+          const f = resp.payload.respListOfFiles.files.find(x => x.path === itemPath);
+          const url = bytesToURL(f?.content);
+          if (url) setBigThumb({ path: itemPath, url });
+        } else if (resp.errorCode === "unknown_payload") {
+          // A device before release 80 (no GetThumbnails) sent big tiles
+          // anyway: the grid's thumbnail stays.
+          bigReset();
+        } else {
+          // The bridge answering for an unreachable device, a session
+          // being restored.
+          bigFailed();
+        }
+      } catch {
+        // No connection.
+        if (mine()) bigFailed();
+      }
+    })();
+    return () => { live = false; };
+  }, [thumbStays, itemPath, bigRetryTick, bigFailed, bigReset]);
+
   useEffect(() => {
     const gen = ++viewGenRef.current;
     const current = () => gen === viewGenRef.current;
     setHiURL(null);
     setVideoProblem(null);
+    setStuck(null);
+    setBigThumb(null);
+    bigReset();
     setInfoOpen(false);
     setInfoData(null);
     setZoomScale(1);
     if (!item) return;
     setHiLoading(true);
     const fetchFull = async () => {
+      let got = false;
       try {
         // Issue #110: a video streams from a URL; the device declines
         // small clips, which fall through to the whole-file fetch.
         if (canStream(item.mime)) {
           const streamURL = await requestStreamURL({ path: item.path });
           if (!current()) return;
-          if (streamURL) { setHiURL(streamURL); return; }
+          if (streamURL) { got = true; setHiURL(streamURL); return; }
         }
         const resp = await useWS.request(e => {
           (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: item.path } };
@@ -136,12 +195,17 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
         if (!current()) return;
         if (resp.payload?.$case === "respFile") {
           const full = resp.payload.respFile!;
-          setHiURL(bytesToURL(full.content, full.mime || "image/jpeg"));
+          const url = bytesToURL(full.content, full.mime || "image/jpeg");
+          got = !!url;
+          setHiURL(url || null);
         }
       } catch {
         // the thumbnail stays
       } finally {
-        if (current()) setHiLoading(false);
+        if (current()) {
+          setHiLoading(false);
+          if (!got) setStuck(item.path);
+        }
       }
     };
     // A held arrow key steps about 30 times a second, and every full-size
@@ -323,7 +387,14 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
         >
           {(() => {
             const f = items[index];
-            const thumb = f.thumbURL || ownThumb; // always a JPEG thumbnail
+            // Always a JPEG thumbnail: the big one where it stays on
+            // screen (see stuck), the grid's own until then.
+            const thumb = (bigThumb?.path === f.path && bigThumb.url) || f.thumbURL || ownThumb;
+            // What the browser couldn't play keeps the thumbnail (above).
+            const videoFails = (why: "codec" | "stalled") => {
+              setVideoProblem(why);
+              setStuck(f.path);
+            };
             // Issue #106: a video opens as something you can actually
             // play. Until the full file arrives (hiURL), its own
             // thumbnail stands in - the same still the grid shows -
@@ -372,7 +443,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
                   // is reported as what it is.
                   onError={(e) => {
                     const code = (e.currentTarget as HTMLVideoElement).error?.code;
-                    setVideoProblem(
+                    videoFails(
                       code === MediaError.MEDIA_ERR_DECODE ||
                       code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
                         ? "codec"
@@ -380,7 +451,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
                     );
                   }}
                   onLoadedMetadata={(e) => {
-                    if ((e.currentTarget as HTMLVideoElement).videoWidth === 0) setVideoProblem("codec");
+                    if ((e.currentTarget as HTMLVideoElement).videoWidth === 0) videoFails("codec");
                   }}
                   ref={(el) => {
                     if (!el) return;
@@ -390,7 +461,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
                     // deadline back, and a video that streams in
                     // slowly is left alone to do it.
                     let timer: ReturnType<typeof setTimeout>;
-                    const giveUp = () => { if (el.readyState === 0) setVideoProblem("stalled"); };
+                    const giveUp = () => { if (el.readyState === 0) videoFails("stalled"); };
                     const arm = () => {
                       clearTimeout(timer);
                       timer = setTimeout(giveUp, cVideoStallMs);
@@ -404,15 +475,20 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
                 />
               );
             }
+            // A full size the browser can't decode (a format GetFile
+            // doesn't convert, a HEIC whose conversion failed) gives way
+            // to the thumbnail rather than a broken image.
+            const full = stuck === f.path ? null : hiURL;
             return (
               <>
                 <img
                   ref={imgRef}
-                  src={hiURL || thumb}
+                  src={full || thumb}
                   alt={f.path}
+                  onError={full ? () => setStuck(f.path) : undefined}
                   style={{ transform: `scale(${zoomScale})`, transition: pinchStartDist.current ? "none" : "transform 0.15s ease-out" }}
                 />
-                {!hiURL && thumb && <LowResBadge imgRef={imgRef} loading={hiLoading} />}
+                {!full && thumb && <LowResBadge imgRef={imgRef} loading={hiLoading} />}
               </>
             );
           })()}

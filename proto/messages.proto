@@ -308,6 +308,25 @@ message ListFiles {
 // thumbnails, per request. Answers with ListOfFiles.
 message GetThumbnails {
   repeated string paths = 1;
+  // The grids' small thumbnails (release 111) instead of the big ones:
+  // the shorter side 400 px, the longer at most 800, the picture's own
+  // aspect (crop it to the tile; never assume a square), JPEG. Content
+  // that has no small one yet comes with its big one as stored, and gets
+  // a small one shortly after. A big one made before release 111 was
+  // capped by width only - 1000x1333 for a portrait, 1000 px wide and
+  // any height for a long screenshot - until the device rescales it, so
+  // assume no bound on its size. Devices before release 111 ignore the
+  // flag and send those; clients that don't set it keep getting big
+  // ones. Answers don't say which one came, and no size tells them apart
+  // (an 800x600 photo's big one is 800x600 and its small one 533x400; a
+  // panorama's big one can be 1000x250): keep a thumbnail by what was
+  // asked for, not by its size. The same flag, with the same meaning,
+  // is on SearchPhotos, ListImageGroups and CreateImageGroup. A viewer
+  // may show an item's small tile until its full size arrives; where a
+  // thumbnail is what stays on screen (the full size couldn't be
+  // fetched, decoded or played) it asks for the big one: this request
+  // without the flag.
+  bool small_thumbnails = 2;
 }
 
 // The top bar's search: the files and folders whose path contains query
@@ -410,6 +429,10 @@ message SearchPhotos {
   // means the device's default ([tagger] max-images-search, 30); the
   // device never returns more than its default.
   int32 limit = 8;
+  // Each File's content is its small thumbnail (see
+  // GetThumbnails.small_thumbnails) instead of the big one: for grids,
+  // and for a viewer only until the full size arrives (see there).
+  bool small_thumbnails = 9;
 }
 
 message ListOfFiles {
@@ -1139,6 +1162,9 @@ message ImageGroup {
 }
 
 message ListImageGroups {
+  // cover_thumbnail is the cover's small thumbnail (see
+  // GetThumbnails.small_thumbnails).
+  bool small_thumbnails = 1;
 }
 
 message ImageGroups {
@@ -1151,6 +1177,8 @@ message ImageGroups {
 message CreateImageGroup {
   string name = 1;
   repeated string paths = 2;
+  // The answer's cover_thumbnail is the small one, as ListImageGroups'.
+  bool small_thumbnails = 3;
 }
 
 message RespImageGroup {

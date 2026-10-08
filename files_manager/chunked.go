@@ -121,6 +121,7 @@ func (mg *Manager) BeginUpload(ses *session.Session, path string, size int64, fo
 	if size < 0 {
 		return "", errors.New("bad size")
 	}
+	noteUploadActivity() // the thumbnails pass waits for a sync to stop
 	if path == "" {
 		return "", errors.New("no path")
 	}
@@ -163,6 +164,7 @@ func (mg *Manager) UploadChunk(ses *session.Session, id string, offset int64, da
 	if err != nil {
 		return 0, err
 	}
+	noteUploadActivity()
 	up.mu.Lock()
 	defer up.mu.Unlock()
 	up.lastTouch = time.Now()

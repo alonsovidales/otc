@@ -138,7 +138,7 @@ func TestImageSearchPagesThroughItsToken(t *testing.T) {
 	var got []string
 	token := ""
 	for page := 0; page < 3; page++ {
-		files, next, err := mg.ImageSearch(ses, "", nil, token, false, nil, "", nil, 0, 0)
+		files, next, err := mg.ImageSearch(ses, "", nil, token, false, nil, "", nil, 0, 0, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -187,7 +187,7 @@ func TestImageSearchLimitShrinksOnlyItsPage(t *testing.T) {
 	mg := keptOut(&Manager{dao: dao.NewWithDB(db), searchTokens: newSearchTokenCache(1000)})
 	search := func(token string, limit int32) ([]*pb.File, string) {
 		t.Helper()
-		files, next, err := mg.ImageSearch(ses, "", nil, token, false, nil, "", nil, 0, limit)
+		files, next, err := mg.ImageSearch(ses, "", nil, token, false, nil, "", nil, 0, limit, false)
 		if err != nil {
 			t.Fatal(err)
 		}

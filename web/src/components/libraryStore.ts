@@ -90,7 +90,8 @@ export const reloadPeople = serial(async () => {
 
 export const reloadGroups = serial(async () => {
   const resp: RespEnvelope = await useWS.request((e) => {
-    (e as any).payload = { $case: "reqListImageGroups", reqListImageGroups: {} };
+    // Covers are cards and list icons: the small thumbnails (release 111).
+    (e as any).payload = { $case: "reqListImageGroups", reqListImageGroups: { smallThumbnails: true } };
   });
   if (resp.payload?.$case !== "respImageGroups") return;
   // A group's cover is picked at random per listing, so every URL is new.

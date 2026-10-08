@@ -6,7 +6,8 @@
 // failed (an error reply, or no connection at all) was asked for again
 // straight away, in a loop with no delay: a request every round trip
 // against a device that keeps erroring, a new WebSocket attempt after
-// another while the network is down.
+// another while the network is down. MediaViewer asks for a big
+// thumbnail that failed again the same way.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { subscribeDeviceStatus } from "../net/deviceStatus";
 

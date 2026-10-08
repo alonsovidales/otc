@@ -428,6 +428,9 @@ before learning that the hard way isn't enough).
 bridge-addr=off-the.cloud
 storage-path=/mnt/storage/
 unenc-storage-path=/mnt/storage/unencrypted/
+# The LONGEST side of a thumbnail, in pixels (the name is historical: it
+# was the width until release 111). The grids' small thumbnails are fixed
+# at 400 px on the shorter side, at most 800 on the longer.
 max-thumbnail-width-px=1000
 shared-link-ttl-hours=168
 # Every outbound friend/bridge connection this device makes must be to a

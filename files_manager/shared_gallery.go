@@ -492,17 +492,14 @@ func (mg *Manager) galleryPreview(ses *session.Session, f *pb.File) ([]byte, ima
 // yet: from the photo already decoded for its preview, or a frame of the
 // video. Nil when it can't.
 func (mg *Manager) galleryThumbnail(ses *session.Session, f *pb.File, shown image.Image) []byte {
-	width := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
-	if width <= 0 {
-		width = 1000
-	}
+	maxSide := ThumbnailMaxSide()
 	if strings.HasPrefix(f.Mime, "video/") {
 		src, done, err := mg.videoSource(ses, f)
 		if err != nil {
 			return nil
 		}
 		defer done()
-		thumb, err := GenerateVideoThumbnailFrom(src, width)
+		thumb, err := GenerateVideoThumbnailFrom(src, maxSide)
 		if err != nil {
 			log.Error("shared gallery: no thumbnail for a video:", err)
 			return nil
@@ -512,17 +509,11 @@ func (mg *Manager) galleryThumbnail(ses *session.Session, f *pb.File, shown imag
 	if shown == nil {
 		return nil
 	}
-	img := shown
-	if b := img.Bounds(); b.Dx() > width {
-		dst := image.NewRGBA(image.Rect(0, 0, width, b.Dy()*width/b.Dx()))
-		draw.CatmullRom.Scale(dst, dst.Bounds(), img, b, draw.Over, nil)
-		img = dst
-	}
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 80}); err != nil {
+	thumb, err := encodeJPEG(thumbnailSource(shown, maxSide), cThumbnailQuality)
+	if err != nil {
 		return nil
 	}
-	return buf.Bytes()
+	return thumb
 }
 
 // openGallery checks a visitor's link and reads its manifest.

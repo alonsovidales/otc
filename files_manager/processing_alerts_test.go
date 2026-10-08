@@ -111,7 +111,7 @@ func storedFile(t *testing.T, ses *session.Session, hash, path, mime string, con
 	}
 	t.Cleanup(func() {
 		os.Remove(blobPath(hash))
-		os.Remove(blobPath(hash) + "_thumbnail")
+		removeThumbnails(blobPath(hash))
 	})
 	return &pb.File{Hash: hash, Path: path, Mime: mime}
 }

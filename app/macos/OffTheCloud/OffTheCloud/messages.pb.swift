@@ -970,6 +970,26 @@ public nonisolated struct Msg_GetThumbnails: Sendable {
 
   public var paths: [String] = []
 
+  /// The grids' small thumbnails (release 111) instead of the big ones:
+  /// the shorter side 400 px, the longer at most 800, the picture's own
+  /// aspect (crop it to the tile; never assume a square), JPEG. Content
+  /// that has no small one yet comes with its big one as stored, and gets
+  /// a small one shortly after. A big one made before release 111 was
+  /// capped by width only - 1000x1333 for a portrait, 1000 px wide and
+  /// any height for a long screenshot - until the device rescales it, so
+  /// assume no bound on its size. Devices before release 111 ignore the
+  /// flag and send those; clients that don't set it keep getting big
+  /// ones. Answers don't say which one came, and no size tells them apart
+  /// (an 800x600 photo's big one is 800x600 and its small one 533x400; a
+  /// panorama's big one can be 1000x250): keep a thumbnail by what was
+  /// asked for, not by its size. The same flag, with the same meaning,
+  /// is on SearchPhotos, ListImageGroups and CreateImageGroup. A viewer
+  /// may show an item's small tile until its full size arrives; where a
+  /// thumbnail is what stays on screen (the full size couldn't be
+  /// fetched, decoded or played) it asks for the big one: this request
+  /// without the flag.
+  public var smallThumbnails: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1143,6 +1163,11 @@ public nonisolated struct Msg_SearchPhotos: Sendable {
   /// means the device's default ([tagger] max-images-search, 30); the
   /// device never returns more than its default.
   public var limit: Int32 = 0
+
+  /// Each File's content is its small thumbnail (see
+  /// GetThumbnails.small_thumbnails) instead of the big one: for grids,
+  /// and for a viewer only until the full size arrives (see there).
+  public var smallThumbnails: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -2908,6 +2933,10 @@ public nonisolated struct Msg_ListImageGroups: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// cover_thumbnail is the cover's small thumbnail (see
+  /// GetThumbnails.small_thumbnails).
+  public var smallThumbnails: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -2936,6 +2965,9 @@ public nonisolated struct Msg_CreateImageGroup: Sendable {
   public var name: String = String()
 
   public var paths: [String] = []
+
+  /// The answer's cover_thumbnail is the small one, as ListImageGroups'.
+  public var smallThumbnails: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -7402,7 +7434,7 @@ nonisolated extension Msg_ListFiles: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 nonisolated extension Msg_GetThumbnails: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetThumbnails"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}paths\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}paths\0\u{3}small_thumbnails\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7411,6 +7443,7 @@ nonisolated extension Msg_GetThumbnails: SwiftProtobuf.Message, SwiftProtobuf._M
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeRepeatedStringField(value: &self.paths) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.smallThumbnails) }()
       default: break
       }
     }
@@ -7420,11 +7453,15 @@ nonisolated extension Msg_GetThumbnails: SwiftProtobuf.Message, SwiftProtobuf._M
     if !self.paths.isEmpty {
       try visitor.visitRepeatedStringField(value: self.paths, fieldNumber: 1)
     }
+    if self.smallThumbnails != false {
+      try visitor.visitSingularBoolField(value: self.smallThumbnails, fieldNumber: 2)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_GetThumbnails, rhs: Msg_GetThumbnails) -> Bool {
     if lhs.paths != rhs.paths {return false}
+    if lhs.smallThumbnails != rhs.smallThumbnails {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -7632,7 +7669,7 @@ nonisolated extension Msg_BridgeSendLogs: SwiftProtobuf.Message, SwiftProtobuf._
 
 nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SearchPhotos"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{1}token\0\u{3}include_videos\0\u{3}person_ids\0\u{1}before\0\u{1}have\0\u{3}group_id\0\u{1}limit\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{1}token\0\u{3}include_videos\0\u{3}person_ids\0\u{1}before\0\u{1}have\0\u{3}group_id\0\u{1}limit\0\u{3}small_thumbnails\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7648,6 +7685,7 @@ nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._Me
       case 6: try { try decoder.decodeSingularInt32Field(value: &self.have) }()
       case 7: try { try decoder.decodeSingularStringField(value: &self.groupID) }()
       case 8: try { try decoder.decodeSingularInt32Field(value: &self.limit) }()
+      case 9: try { try decoder.decodeSingularBoolField(value: &self.smallThumbnails) }()
       default: break
       }
     }
@@ -7682,6 +7720,9 @@ nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._Me
     if self.limit != 0 {
       try visitor.visitSingularInt32Field(value: self.limit, fieldNumber: 8)
     }
+    if self.smallThumbnails != false {
+      try visitor.visitSingularBoolField(value: self.smallThumbnails, fieldNumber: 9)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -7694,6 +7735,7 @@ nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._Me
     if lhs.have != rhs.have {return false}
     if lhs.groupID != rhs.groupID {return false}
     if lhs.limit != rhs.limit {return false}
+    if lhs.smallThumbnails != rhs.smallThumbnails {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -10933,18 +10975,29 @@ nonisolated extension Msg_ImageGroup: SwiftProtobuf.Message, SwiftProtobuf._Mess
 
 nonisolated extension Msg_ListImageGroups: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListImageGroups"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}small_thumbnails\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    // Load everything into unknown fields
-    while try decoder.nextFieldNumber() != nil {}
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.smallThumbnails) }()
+      default: break
+      }
+    }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.smallThumbnails != false {
+      try visitor.visitSingularBoolField(value: self.smallThumbnails, fieldNumber: 1)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_ListImageGroups, rhs: Msg_ListImageGroups) -> Bool {
+    if lhs.smallThumbnails != rhs.smallThumbnails {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -10982,7 +11035,7 @@ nonisolated extension Msg_ImageGroups: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_CreateImageGroup: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CreateImageGroup"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}paths\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}paths\0\u{3}small_thumbnails\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -10992,6 +11045,7 @@ nonisolated extension Msg_CreateImageGroup: SwiftProtobuf.Message, SwiftProtobuf
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.name) }()
       case 2: try { try decoder.decodeRepeatedStringField(value: &self.paths) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.smallThumbnails) }()
       default: break
       }
     }
@@ -11004,12 +11058,16 @@ nonisolated extension Msg_CreateImageGroup: SwiftProtobuf.Message, SwiftProtobuf
     if !self.paths.isEmpty {
       try visitor.visitRepeatedStringField(value: self.paths, fieldNumber: 2)
     }
+    if self.smallThumbnails != false {
+      try visitor.visitSingularBoolField(value: self.smallThumbnails, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_CreateImageGroup, rhs: Msg_CreateImageGroup) -> Bool {
     if lhs.name != rhs.name {return false}
     if lhs.paths != rhs.paths {return false}
+    if lhs.smallThumbnails != rhs.smallThumbnails {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

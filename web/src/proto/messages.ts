@@ -707,6 +707,27 @@ export interface ListFiles {
  */
 export interface GetThumbnails {
   paths: string[];
+  /**
+   * The grids' small thumbnails (release 111) instead of the big ones:
+   * the shorter side 400 px, the longer at most 800, the picture's own
+   * aspect (crop it to the tile; never assume a square), JPEG. Content
+   * that has no small one yet comes with its big one as stored, and gets
+   * a small one shortly after. A big one made before release 111 was
+   * capped by width only - 1000x1333 for a portrait, 1000 px wide and
+   * any height for a long screenshot - until the device rescales it, so
+   * assume no bound on its size. Devices before release 111 ignore the
+   * flag and send those; clients that don't set it keep getting big
+   * ones. Answers don't say which one came, and no size tells them apart
+   * (an 800x600 photo's big one is 800x600 and its small one 533x400; a
+   * panorama's big one can be 1000x250): keep a thumbnail by what was
+   * asked for, not by its size. The same flag, with the same meaning,
+   * is on SearchPhotos, ListImageGroups and CreateImageGroup. A viewer
+   * may show an item's small tile until its full size arrives; where a
+   * thumbnail is what stays on screen (the full size couldn't be
+   * fetched, decoded or played) it asks for the big one: this request
+   * without the flag.
+   */
+  smallThumbnails: boolean;
 }
 
 /**
@@ -835,6 +856,12 @@ export interface SearchPhotos {
    * device never returns more than its default.
    */
   limit: number;
+  /**
+   * Each File's content is its small thumbnail (see
+   * GetThumbnails.small_thumbnails) instead of the big one: for grids,
+   * and for a viewer only until the full size arrives (see there).
+   */
+  smallThumbnails: boolean;
 }
 
 export interface ListOfFiles {
@@ -1725,6 +1752,11 @@ export interface ImageGroup {
 }
 
 export interface ListImageGroups {
+  /**
+   * cover_thumbnail is the cover's small thumbnail (see
+   * GetThumbnails.small_thumbnails).
+   */
+  smallThumbnails: boolean;
 }
 
 export interface ImageGroups {
@@ -1739,6 +1771,8 @@ export interface ImageGroups {
 export interface CreateImageGroup {
   name: string;
   paths: string[];
+  /** The answer's cover_thumbnail is the small one, as ListImageGroups'. */
+  smallThumbnails: boolean;
 }
 
 export interface RespImageGroup {
@@ -5214,13 +5248,16 @@ export const ListFiles: MessageFns<ListFiles> = {
 };
 
 function createBaseGetThumbnails(): GetThumbnails {
-  return { paths: [] };
+  return { paths: [], smallThumbnails: false };
 }
 
 export const GetThumbnails: MessageFns<GetThumbnails> = {
   encode(message: GetThumbnails, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     for (const v of message.paths) {
       writer.uint32(10).string(v!);
+    }
+    if (message.smallThumbnails !== false) {
+      writer.uint32(16).bool(message.smallThumbnails);
     }
     return writer;
   },
@@ -5240,6 +5277,14 @@ export const GetThumbnails: MessageFns<GetThumbnails> = {
           message.paths.push(reader.string());
           continue;
         }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.smallThumbnails = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -5250,13 +5295,19 @@ export const GetThumbnails: MessageFns<GetThumbnails> = {
   },
 
   fromJSON(object: any): GetThumbnails {
-    return { paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [] };
+    return {
+      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [],
+      smallThumbnails: isSet(object.smallThumbnails) ? globalThis.Boolean(object.smallThumbnails) : false,
+    };
   },
 
   toJSON(message: GetThumbnails): unknown {
     const obj: any = {};
     if (message.paths?.length) {
       obj.paths = message.paths;
+    }
+    if (message.smallThumbnails !== false) {
+      obj.smallThumbnails = message.smallThumbnails;
     }
     return obj;
   },
@@ -5267,6 +5318,7 @@ export const GetThumbnails: MessageFns<GetThumbnails> = {
   fromPartial<I extends Exact<DeepPartial<GetThumbnails>, I>>(object: I): GetThumbnails {
     const message = createBaseGetThumbnails();
     message.paths = object.paths?.map((e) => e) || [];
+    message.smallThumbnails = object.smallThumbnails ?? false;
     return message;
   },
 };
@@ -5748,6 +5800,7 @@ function createBaseSearchPhotos(): SearchPhotos {
     have: 0,
     groupId: "",
     limit: 0,
+    smallThumbnails: false,
   };
 }
 
@@ -5776,6 +5829,9 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     }
     if (message.limit !== 0) {
       writer.uint32(64).int32(message.limit);
+    }
+    if (message.smallThumbnails !== false) {
+      writer.uint32(72).bool(message.smallThumbnails);
     }
     return writer;
   },
@@ -5851,6 +5907,14 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
           message.limit = reader.int32();
           continue;
         }
+        case 9: {
+          if (tag !== 72) {
+            break;
+          }
+
+          message.smallThumbnails = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -5872,6 +5936,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
       have: isSet(object.have) ? globalThis.Number(object.have) : 0,
       groupId: isSet(object.groupId) ? globalThis.String(object.groupId) : "",
       limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
+      smallThumbnails: isSet(object.smallThumbnails) ? globalThis.Boolean(object.smallThumbnails) : false,
     };
   },
 
@@ -5901,6 +5966,9 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     if (message.limit !== 0) {
       obj.limit = Math.round(message.limit);
     }
+    if (message.smallThumbnails !== false) {
+      obj.smallThumbnails = message.smallThumbnails;
+    }
     return obj;
   },
 
@@ -5917,6 +5985,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     message.have = object.have ?? 0;
     message.groupId = object.groupId ?? "";
     message.limit = object.limit ?? 0;
+    message.smallThumbnails = object.smallThumbnails ?? false;
     return message;
   },
 };
@@ -13371,11 +13440,14 @@ export const ImageGroup: MessageFns<ImageGroup> = {
 };
 
 function createBaseListImageGroups(): ListImageGroups {
-  return {};
+  return { smallThumbnails: false };
 }
 
 export const ListImageGroups: MessageFns<ListImageGroups> = {
-  encode(_: ListImageGroups, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: ListImageGroups, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.smallThumbnails !== false) {
+      writer.uint32(8).bool(message.smallThumbnails);
+    }
     return writer;
   },
 
@@ -13386,6 +13458,14 @@ export const ListImageGroups: MessageFns<ListImageGroups> = {
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.smallThumbnails = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -13395,20 +13475,24 @@ export const ListImageGroups: MessageFns<ListImageGroups> = {
     return message;
   },
 
-  fromJSON(_: any): ListImageGroups {
-    return {};
+  fromJSON(object: any): ListImageGroups {
+    return { smallThumbnails: isSet(object.smallThumbnails) ? globalThis.Boolean(object.smallThumbnails) : false };
   },
 
-  toJSON(_: ListImageGroups): unknown {
+  toJSON(message: ListImageGroups): unknown {
     const obj: any = {};
+    if (message.smallThumbnails !== false) {
+      obj.smallThumbnails = message.smallThumbnails;
+    }
     return obj;
   },
 
   create<I extends Exact<DeepPartial<ListImageGroups>, I>>(base?: I): ListImageGroups {
     return ListImageGroups.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ListImageGroups>, I>>(_: I): ListImageGroups {
+  fromPartial<I extends Exact<DeepPartial<ListImageGroups>, I>>(object: I): ListImageGroups {
     const message = createBaseListImageGroups();
+    message.smallThumbnails = object.smallThumbnails ?? false;
     return message;
   },
 };
@@ -13474,7 +13558,7 @@ export const ImageGroups: MessageFns<ImageGroups> = {
 };
 
 function createBaseCreateImageGroup(): CreateImageGroup {
-  return { name: "", paths: [] };
+  return { name: "", paths: [], smallThumbnails: false };
 }
 
 export const CreateImageGroup: MessageFns<CreateImageGroup> = {
@@ -13484,6 +13568,9 @@ export const CreateImageGroup: MessageFns<CreateImageGroup> = {
     }
     for (const v of message.paths) {
       writer.uint32(18).string(v!);
+    }
+    if (message.smallThumbnails !== false) {
+      writer.uint32(24).bool(message.smallThumbnails);
     }
     return writer;
   },
@@ -13511,6 +13598,14 @@ export const CreateImageGroup: MessageFns<CreateImageGroup> = {
           message.paths.push(reader.string());
           continue;
         }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.smallThumbnails = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -13524,6 +13619,7 @@ export const CreateImageGroup: MessageFns<CreateImageGroup> = {
     return {
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [],
+      smallThumbnails: isSet(object.smallThumbnails) ? globalThis.Boolean(object.smallThumbnails) : false,
     };
   },
 
@@ -13535,6 +13631,9 @@ export const CreateImageGroup: MessageFns<CreateImageGroup> = {
     if (message.paths?.length) {
       obj.paths = message.paths;
     }
+    if (message.smallThumbnails !== false) {
+      obj.smallThumbnails = message.smallThumbnails;
+    }
     return obj;
   },
 
@@ -13545,6 +13644,7 @@ export const CreateImageGroup: MessageFns<CreateImageGroup> = {
     const message = createBaseCreateImageGroup();
     message.name = object.name ?? "";
     message.paths = object.paths?.map((e) => e) || [];
+    message.smallThumbnails = object.smallThumbnails ?? false;
     return message;
   },
 };

@@ -238,7 +238,8 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   the request that starts a search (no token) so the first page paints fast over a slow upload,
   and no limit when continuing with a token. The device answers min(limit, its default `[tagger]
   max-images-search`, 30), never more. Older devices ignore it. Grids that start a new search
-  bump a search generation, so a page from the old search lands nowhere.
+  bump a search generation, so a page from the old search lands nowhere. A grid's tiles can come as
+  small thumbnails (`small_thumbnails`, release 111 - see Thumbnails under `files_manager`).
 - Home network (issue #190): at home the apps reach the device directly over a **pinned TLS**
   connection; anywhere else, or on any failure, through the bridge as before.
   - Device: `lantls` keeps an ECDSA P-256 key and a self-signed cert (CN/SAN `otc-lan`, 100 years)
@@ -385,6 +386,51 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   `flate.NoCompression`, never `zip.Store` - Go always writes data descriptors, and streaming
   unzippers (Java's ZipInputStream, funzip) reject stored entries that have one.
   `OpenSharedLinkRange` (pre-auth) serves only `kind='archive'` rows with canonical lowercase uuids.
+  **Thumbnails** (release 111, `files_manager/thumbnail_size.go`): every photo and video has two,
+  sealed next to its blob and made from the picture as shown (EXIF orientation applied), never
+  scaled up. `<hash>_thumbnail`, the big one: its LONGEST side at most `[otc]
+  max-thumbnail-width-px` (`ThumbnailMaxSide()`, default 1000; the key keeps its old name but
+  bounds the height too since 111 - a portrait was 1000x1333, a long screenshot 1000 px wide and
+  as tall as it was), JPEG q80: Social, shared galleries, video posters, a viewer's thumbnail that
+  stays on screen (below) and every answer that doesn't ask for small ones. `<hash>_thumbnail_small`, the grids' tile: shorter
+  side 400 px, longer at most 800 (a panorama stays small), q75, the picture's own aspect (clients
+  crop it to a square; the device never crops). Measured on 32 photos: big ~104 KB (was ~130 KB
+  width-capped, max 415 KB), small ~38 KB (max 70 KB) - a first page of 12 is ~0.46 MB instead of
+  ~1.5 MB. Processing writes both from one decode (`writeThumbnails`; the small one from the big
+  one's pixels), small first and big last, both under the hash's lock: the big one is what says "processed"
+  (`hasThumbnail`, ImageSearch's #147 rule), so `readGridThumbnail` shows a small one only when
+  the big one is there. Both go together under the hash's lock (`removeThumbnails`, from
+  `removeBlobIfUnused` and `dropIfOrphaned`); kept-out content (#192) gets both. Clients ask for
+  the small ones with `small_thumbnails` on `SearchPhotos` (9), `GetThumbnails` (2),
+  `ListImageGroups` (1) and `CreateImageGroup` (3); devices before 111 ignore it and send big ones,
+  and clients that don't set it keep getting big ones. Every grid asks for small ones (web: Images,
+  Files, Collections, the composer, the profile photo picker). A viewer shows the grid's small tile
+  only until the full size arrives; where a thumbnail stays on screen (the full fetch failed, a
+  photo the browser can't decode, a video it can't play) it asks `GetThumbnails` without the flag
+  for the big one, retried like a grid page while it stays on the item (web `MediaViewer`, with
+  `usePageRetry`; the apps' viewers follow the same rule). Content without a small one yet is answered
+  with its big one AS STORED - made before 111, that one is capped by width only (1000x1333, or 1000
+  px wide and any height) until the queue or the pass rescales it, so clients must assume no bound
+  on it - and queued (`thumbnail_fix.go`: one worker, at most 1024 hashes, deduplicated) to get one
+  from its big thumbnail - making it inline would cost ~60 ms a photo on a Pi 5 before the first
+  tile (14 ms on an M-series Mac), as much as the bytes it saves on most links. The queue's worker
+  gives way like the pass (below): it waits for quiet before each file, rests after each fix, and
+  is emptied by a full reprocess. Answers carry no marker of which thumbnail came and no size
+  tells them apart (an 800x600 photo's big one is 800x600, a panorama's 1000x250): clients keep a
+  thumbnail by what they asked for. The
+  one-time pass (`thumbnail_pass.go`, `FitStoredThumbnails`, after `BackfillMissingThumbnails` at
+  the first sign-in) does the rest: for every media hash it reads both headers and, only where
+  needed, makes the small one and scales a big one over the cap down - always from the big
+  thumbnail, never the original (`fixThumbnails`, which decides and writes under the hash's lock,
+  skipping content deleted or processed again meanwhile, and holds the content budget for what it
+  allocates, `thumbFixReserve`: the decode (3 B/px), x/image/draw's kernel scaler buffer (32 B x
+  dstW x srcH per scale - most of it: an old 1000x1333 portrait allocates ~51 MB) and the copies,
+  checked against the real allocations by a test; a 1000x30000 thumbnail holds ~124 MB and waits
+  for downloads instead of adding to them; over 120 MP it is skipped). It waits while uploads arrive (`noteUploadActivity`, a
+  minute) or the lanes are busy, rests as long as each fix took (at least 50 ms), stops for a full
+  reprocess, and records `<cap> <small side> <last hash>|done` in `<storage>/.thumbnails-sized` -
+  resumable, run again when the small size changes or the cap goes down. Posts' copies in
+  `unenc-storage-path` and shared galleries keep what they were made with.
   **Files grid** (release 80): the Files section on the web, iOS and Android switches between the
   list and a grid (remembered per browser/app). The grid shows each photo or video by its
   thumbnail - `GetThumbnails{paths}` answers up to 48 paths (about 8 MB) per request with the

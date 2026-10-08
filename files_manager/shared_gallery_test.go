@@ -192,14 +192,15 @@ func TestSharedGalleryRoundTrip(t *testing.T) {
 	}
 
 	// The library has no thumbnails for these (not processed yet): the
-	// gallery made them from the photos, at the thumbnail width.
+	// gallery made them from the photos, within the thumbnail's box (its
+	// longest side 1000 px).
 	alive()
 	th, _, mime, err := mg.ReadSharedGalleryItem(id, secret, 2, pb.GetSharedGalleryItem_THUMBNAIL, 0, 0)
 	if err != nil || mime != "image/jpeg" {
 		t.Fatalf("made thumbnail: %v %s", err, mime)
 	}
-	if c, _, err := image.DecodeConfig(bytes.NewReader(th)); err != nil || c.Width != 1000 || c.Height != 1333 {
-		t.Fatalf("thumbnail %dx%d (%v), want 1000x1333", c.Width, c.Height, err)
+	if c, _, err := image.DecodeConfig(bytes.NewReader(th)); err != nil || c.Width != 750 || c.Height != 1000 {
+		t.Fatalf("thumbnail %dx%d (%v), want 750x1000", c.Width, c.Height, err)
 	}
 	alive()
 	if _, _, _, err := mg.ReadSharedGalleryItem(id, secret, 0, pb.GetSharedGalleryItem_THUMBNAIL, 0, 0); err == nil {

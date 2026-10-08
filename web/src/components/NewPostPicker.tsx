@@ -143,6 +143,10 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
               token: sendToken,
               includeVideos: true,
               limit: sendToken ? 0 : cFirstPagePhotos,
+              // The grid's and the order strip's tiles: the small
+              // thumbnails (release 111). The post itself is made on the
+              // device from the files.
+              smallThumbnails: true,
             },
           };
         });

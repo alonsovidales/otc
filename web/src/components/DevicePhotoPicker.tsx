@@ -50,7 +50,8 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
   useEffect(() => {
     void (async () => {
       const resp: RespEnvelope = await useWS.request(e => {
-        (e as any).payload = { $case: "reqListImageGroups", reqListImageGroups: {} };
+        // Only the names and counts are shown: the small covers cost least.
+        (e as any).payload = { $case: "reqListImageGroups", reqListImageGroups: { smallThumbnails: true } };
       });
       if (resp.payload?.$case === "respImageGroups") setGroups(resp.payload.respImageGroups.groups ?? []);
     })();
@@ -70,6 +71,9 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
           reqSearchPhotos: {
             tags: [], personIds: [], groupId: group, includeVideos: false, token: sendToken,
             limit: sendToken ? 0 : cFirstPagePhotos,
+            // Tiles: the small thumbnails. The pick itself is fetched
+            // full size (GetFile, below).
+            smallThumbnails: true,
           },
         };
       });

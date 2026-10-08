@@ -221,6 +221,10 @@ func (mg *Manager) startBackfillOnce(ses *session.Session) {
 			// first; the backfill leaves those files to them.
 			mg.filesManager.ResumePendingAnalysis(ses)
 			mg.filesManager.BackfillMissingThumbnails(ses)
+			// Release 111: the small thumbnails, and big ones within the
+			// cap on their longest side, for what was stored before -
+			// once per device, in the background (thumbnail_pass.go).
+			mg.filesManager.FitStoredThumbnails(ses)
 		}()
 	})
 }
@@ -983,8 +987,9 @@ func (ch *connHandler) readLimit() int64 {
 	return cPreAuthReadLimit
 }
 
-// A feed page reserves cFeedPostBytes a post (a few thumbnails at
-// max-thumbnail-width-px), for at most cFeedReserveMaxPosts posts.
+// A feed page reserves cFeedPostBytes a post (a few big thumbnails, their
+// longest side max-thumbnail-width-px: ~105 KB each, 250 KB at most
+// measured), for at most cFeedReserveMaxPosts posts.
 const (
 	cFeedPostBytes       = 256 << 10
 	cFeedReserveMaxPosts = 1000
@@ -2481,7 +2486,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	case *pb.ReqEnvelope_ReqGetThumbnails:
 		resp.Payload = &pb.RespEnvelope_RespListOfFiles{
-			RespListOfFiles: &pb.ListOfFiles{Files: ch.mg.filesManager.Thumbnails(ses, p.ReqGetThumbnails.Paths)},
+			RespListOfFiles: &pb.ListOfFiles{Files: ch.mg.filesManager.Thumbnails(ses, p.ReqGetThumbnails.Paths, p.ReqGetThumbnails.SmallThumbnails)},
 		}
 
 	case *pb.ReqEnvelope_ReqGetTags:
@@ -2510,7 +2515,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			t := p.ReqSearchPhotos.Before.AsTime()
 			before = &t
 		}
-		files, token, err := ch.mg.filesManager.ImageSearch(ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, p.ReqSearchPhotos.GroupId, before, p.ReqSearchPhotos.Have, p.ReqSearchPhotos.Limit)
+		files, token, err := ch.mg.filesManager.ImageSearch(ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, p.ReqSearchPhotos.GroupId, before, p.ReqSearchPhotos.Have, p.ReqSearchPhotos.Limit, p.ReqSearchPhotos.SmallThumbnails)
 		if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true
@@ -2885,7 +2890,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 
 	// Issue #115: image groups (albums).
 	case *pb.ReqEnvelope_ReqListImageGroups:
-		groups, err := ch.mg.filesManager.ListImageGroups(ses)
+		groups, err := ch.mg.filesManager.ListImageGroups(ses, p.ReqListImageGroups.SmallThumbnails)
 		if err != nil {
 			log.Error("error listing image groups:", err)
 			resp.Error = true
@@ -2917,7 +2922,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			// client can drop it straight into its own list - read on its
 			// own, not by listing (and decrypting a cover for) every group.
 			created := &pb.ImageGroup{Id: id, Name: name, FileCount: int32(len(p.ReqCreateImageGroup.Paths))}
-			if g, err := ch.mg.filesManager.GetImageGroup(ses, id); err == nil {
+			if g, err := ch.mg.filesManager.GetImageGroup(ses, id, p.ReqCreateImageGroup.SmallThumbnails); err == nil {
 				created = g
 			}
 			resp.Payload = &pb.RespEnvelope_RespImageGroup{

@@ -29,7 +29,6 @@ import (
 	"github.com/jdeng/goheif"
 	"github.com/jdeng/goheif/heif"
 	"github.com/jdeng/goheif/heif/bmff"
-	"golang.org/x/image/draw"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"image"
@@ -147,6 +146,9 @@ type Manager struct {
 	// so the existing resume-from-last_hash path is what picks it back up
 	// on the next "Reprocess" click, rather than a separate code path.
 	reprocessCancel context.CancelFunc
+	// thumbFixes is the queue of thumbnails a grid asked for small ones of
+	// before they existed (thumbnail_fix.go).
+	thumbFixes thumbFixQueue
 }
 
 // waitForTagger blocks until the model loaded by Init is usable. Callers
@@ -883,10 +885,12 @@ const (
 )
 
 // Thumbnails returns, for each path that is a photo or video with a stored
-// thumbnail, its row with the thumbnail as content - the Files grid view.
-// Anything else (a folder, a document, a thumbnail not made yet) is left
-// out, and it stops at maxThumbnailsBytes: the client asks for the rest.
-func (mg *Manager) Thumbnails(ses *session.Session, paths []string) []*pb.File {
+// thumbnail, its row with the thumbnail as content - the Files grid view;
+// the small one when small (GetThumbnails.small_thumbnails, see
+// readGridThumbnail). Anything else (a folder, a document, a thumbnail not
+// made yet) is left out, and it stops at maxThumbnailsBytes: the client
+// asks for the rest.
+func (mg *Manager) Thumbnails(ses *session.Session, paths []string, small bool) []*pb.File {
 	if len(paths) > MaxThumbnailsPerRequest {
 		paths = paths[:MaxThumbnailsPerRequest]
 	}
@@ -897,7 +901,7 @@ func (mg *Manager) Thumbnails(ses *session.Session, paths []string) []*pb.File {
 		if err != nil || !isMedia(f) {
 			continue
 		}
-		thumb, err := mg.readThumbnail(ses, f)
+		thumb, err := mg.readGridThumbnail(ses, f, small)
 		if err != nil {
 			continue
 		}
@@ -915,7 +919,7 @@ func (mg *Manager) Thumbnails(ses *session.Session, paths []string) []*pb.File {
 // readThumbnail is GetThumbnail without the logging, for callers where a
 // thumbnail that doesn't exist yet is expected (os.IsNotExist on err).
 func (mg *Manager) readThumbnail(session *session.Session, file *pb.File) ([]byte, error) {
-	return blobstore.ReadAll(fmt.Sprintf("%s/%s_thumbnail", cfg.GetStr("otc", "storage-path"), file.Hash), session)
+	return blobstore.ReadAll(thumbnailPath(file.Hash), session)
 }
 
 // maxImagesSearch is how many photos a search page holds by default,
@@ -946,7 +950,9 @@ var maxImagesSearch = func() int { return int(cfg.GetInt("tagger", "max-images-s
 // default, never larger; 0 is the default. A grid's first page asks for a
 // few photos so it paints quickly over a slow upload, and what's left
 // stays behind the token, so the next page continues where it ended.
-func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before *time.Time, have int32, limit int32) (files []*pb.File, token string, err error) {
+// small (SearchPhotos.small_thumbnails) sends the grids' small thumbnails
+// instead of the big ones (readGridThumbnail).
+func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before *time.Time, have int32, limit int32, small bool) (files []*pb.File, token string, err error) {
 	log.Debug("Image search, token:", oldToken)
 	// Issue #192: read before the token or the folders kept out of
 	// Images, so a folder kept out meanwhile is left out of what is
@@ -1030,7 +1036,7 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 	next := 0
 	for ; next < len(files) && len(page) < toReturn; next++ {
 		file := files[next]
-		content, thumbErr := mg.readThumbnail(session, file)
+		content, thumbErr := mg.readGridThumbnail(session, file, small)
 		if thumbErr != nil {
 			if !os.IsNotExist(thumbErr) {
 				log.Error("error reading the thumbnail of", file.Hash, thumbErr)
@@ -1077,8 +1083,9 @@ func (mg *Manager) PhotoDateBuckets(tags []string, personIDs []string, groupID s
 // result goes through, which only needs the hash. A group with no cover
 // (empty, or every member since deleted) just has no picture. Members
 // only folders kept out of Images hold neither count nor make the cover
-// (issue #192), as the group's photos leave them out.
-func (mg *Manager) ListImageGroups(session *session.Session) ([]*pb.ImageGroup, error) {
+// (issue #192), as the group's photos leave them out. small sends the
+// cover's small thumbnail (ListImageGroups.small_thumbnails).
+func (mg *Manager) ListImageGroups(session *session.Session, small bool) ([]*pb.ImageGroup, error) {
 	excluded, err := mg.OutOfImagesFolders()
 	if err != nil {
 		return nil, err
@@ -1089,14 +1096,14 @@ func (mg *Manager) ListImageGroups(session *session.Session) ([]*pb.ImageGroup, 
 	}
 	out := make([]*pb.ImageGroup, 0, len(groups))
 	for _, g := range groups {
-		out = append(out, mg.imageGroupToPB(session, g))
+		out = append(out, mg.imageGroupToPB(session, g, small))
 	}
 	return out, nil
 }
 
 // GetImageGroup is one group as ListImageGroups lists it, reading only its
 // own cover.
-func (mg *Manager) GetImageGroup(session *session.Session, id string) (*pb.ImageGroup, error) {
+func (mg *Manager) GetImageGroup(session *session.Session, id string, small bool) (*pb.ImageGroup, error) {
 	excluded, err := mg.OutOfImagesFolders()
 	if err != nil {
 		return nil, err
@@ -1105,13 +1112,13 @@ func (mg *Manager) GetImageGroup(session *session.Session, id string) (*pb.Image
 	if err != nil {
 		return nil, err
 	}
-	return mg.imageGroupToPB(session, g), nil
+	return mg.imageGroupToPB(session, g, small), nil
 }
 
-func (mg *Manager) imageGroupToPB(session *session.Session, g *dao.ImageGroup) *pb.ImageGroup {
+func (mg *Manager) imageGroupToPB(session *session.Session, g *dao.ImageGroup, small bool) *pb.ImageGroup {
 	item := &pb.ImageGroup{Id: g.ID, Name: g.Name, FileCount: int32(g.FileCount)}
 	if g.CoverHash != "" {
-		if thumb, err := mg.GetThumbnail(session, &pb.File{Hash: g.CoverHash}); err == nil {
+		if thumb, err := mg.readGridThumbnail(session, &pb.File{Hash: g.CoverHash}, small); err == nil {
 			item.CoverThumbnail = thumb
 		} else {
 			log.Error("error reading a group cover thumbnail:", err)
@@ -1402,6 +1409,8 @@ func (mg *Manager) delFile(path string) (hashes []string, err error) {
 // name for the asset (UploadFile.cloud_id in the proto), kept with the row
 // and attached to any other row of the same content.
 func (mg *Manager) UploadFile(session *session.Session, path string, content []byte, forceOverride bool, created, modified *timestamppb.Timestamp, cloudID string) (file *pb.File, err error) {
+	// The thumbnails pass waits for uploads to stop (thumbnail_pass.go).
+	noteUploadActivity()
 	mimeType := mimetype.Detect(content)
 	log.Debug("Mime type:", mimeType.String())
 
@@ -1490,7 +1499,7 @@ func (mg *Manager) contentKnown(hash string) bool {
 
 // hasThumbnail is whether processing has written hash's thumbnail.
 func (mg *Manager) hasThumbnail(hash string) bool {
-	_, err := os.Stat(blobPath(hash) + "_thumbnail")
+	_, err := os.Stat(thumbnailPath(hash))
 	return err == nil
 }
 
@@ -1715,30 +1724,18 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			startThumb := time.Now()
 			// Issue #66 follow-up: img.Bounds() (not a fresh
 			// image.DecodeConfig of content's raw bytes, as this used to
-			// do) reflects the real, orientation-corrected shape — see
-			// thumbnailSource's doc comment for why that distinction
-			// matters.
-			maxWidth := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
-			thumbImg := thumbnailSource(img, maxWidth)
+			// do) reflects the real, orientation-corrected shape, so the
+			// cap on the longest side applies to the photo as shown: a
+			// rotated portrait is capped by its displayed height.
 			// A thumbnail must exist once a file is uploaded, full stop —
 			// NewPublication, the social feed, etc. all read one back via
 			// GetThumbnail unconditionally. This used to only write one
-			// when resizing was actually needed (imgW > maxWidth), leaving
-			// nothing on disk at all for an image that was already narrow
-			// enough — a gap the orientation fix above made easy to hit for
-			// real: a portrait photo's corrected (post-rotation) width can
-			// end up smaller than maxWidth even when its original,
-			// unrotated width wasn't, silently skipping the thumbnail a
-			// post with that photo in it then failed to ever find.
-			var buf bytes.Buffer
-			if err := jpeg.Encode(&buf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
-				mg.processingAlert("has no thumbnail (it could not be encoded)", file, err)
-			} else {
-				log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
-				if err := blobstore.WriteBytes(fmt.Sprintf("%s_thumbnail", targetPath), session, buf.Bytes()); err != nil {
-					mg.alert("has no thumbnail (it could not be written)", file.Path, err)
-				}
-			}
+			// when resizing was actually needed, leaving nothing on disk
+			// at all for an image that was already small enough —
+			// silently skipping the thumbnail a post with that photo in
+			// it then failed to ever find. The grids' small one is made
+			// from the same pixels (thumbnail_size.go).
+			mg.writeThumbnails(session, file, targetPath, img)
 			log.Debug("Time processing thumbnail:", time.Since(startThumb), targetPath)
 
 		}
@@ -1837,24 +1834,15 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			// A thumbnail must exist once a file is uploaded, full stop -
 			// the same rule the image branch above spells out, and the same
 			// bug this had: it only wrote one when the frame was wider than
-			// maxWidth, so a video narrower than the thumbnail cap ended up
+			// the cap, so a video narrower than the thumbnail cap ended up
 			// with no thumbnail on disk at all. NewPublication reads one
 			// back unconditionally, so posting such a video failed outright
 			// ("open <hash>_thumbnail: no such file or directory") after
 			// half a minute of polling for a file nothing was ever going to
 			// write. thumbnailSource scales only when scaling is needed,
-			// which is what makes "always write one" safe here.
-			maxWidth := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
-			thumbImg := thumbnailSource(frames[0], maxWidth)
-			var buf bytes.Buffer
-			if err := jpeg.Encode(&buf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
-				mg.processingAlert("has no thumbnail (it could not be encoded)", file, err)
-			} else {
-				log.Debug("Thumbnail:", fmt.Sprintf("%s_thumbnail", targetPath))
-				if err := blobstore.WriteBytes(fmt.Sprintf("%s_thumbnail", targetPath), session, buf.Bytes()); err != nil {
-					mg.alert("has no thumbnail (it could not be written)", file.Path, err)
-				}
-			}
+			// which is what makes "always write one" safe here. The
+			// small one too, from the same frame.
+			mg.writeThumbnails(session, file, targetPath, frames[0])
 			log.Debug("Time processing thumbnail:", time.Since(startThumb), targetPath)
 		}
 	}
@@ -1944,7 +1932,7 @@ func (mg *Manager) withBlob(hash string, fn func() error) error {
 	return fn()
 }
 
-// removeBlobIfUnused deletes hash's blob, thumbnail and faces once no file
+// removeBlobIfUnused deletes hash's blob, thumbnails and faces once no file
 // or kept version uses it any more.
 func (mg *Manager) removeBlobIfUnused(hash string) error {
 	unlock := lockBlob(hash)
@@ -1962,9 +1950,18 @@ func (mg *Manager) removeBlobIfUnused(hash string) error {
 	if err = os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	os.Remove(fullPath + "_thumbnail")
-	os.Remove(fullPath + cNoThumbnailSuffix)
+	removeThumbnails(fullPath)
 	return nil
+}
+
+// removeThumbnails removes what is derived from the blob at full: both
+// thumbnails - the big one first, which is what says the content is
+// processed (readGridThumbnail) - and the no-thumbnail marker. Callers
+// hold the hash's lock (issue #141).
+func removeThumbnails(full string) {
+	os.Remove(full + cThumbnailSuffix)
+	os.Remove(full + cSmallThumbnailSuffix)
+	os.Remove(full + cNoThumbnailSuffix)
 }
 
 // writeBlob stores a blob by writing a temporary file next to it and
@@ -2002,7 +1999,7 @@ func blobPath(hash string) string {
 }
 
 // dropIfOrphaned removes what processing left for hash - content,
-// thumbnail, tags, faces - when no file or kept version uses it any more: the
+// thumbnails, tags, faces - when no file or kept version uses it any more: the
 // file was deleted while it was being processed (issue #171). Under the
 // hash's lock, like every other decision to remove a blob, so an upload of
 // the same content can't slip in between the check and the removal.
@@ -2026,8 +2023,7 @@ func (mg *Manager) dropIfOrphaned(hash string) {
 	}
 	full := blobPath(hash)
 	os.Remove(full)
-	os.Remove(full + "_thumbnail")
-	os.Remove(full + cNoThumbnailSuffix)
+	removeThumbnails(full)
 	log.Info("removed what processing left for content deleted meanwhile:", hash)
 }
 
@@ -2050,6 +2046,7 @@ func (mg *Manager) hasBlob(hash string) bool {
 // no-op if the hash already matches, otherwise only overwritten with
 // forceOverride) — the one difference is this never touches disk at all.
 func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOverride bool, created, modified *timestamppb.Timestamp, cloudID string) (file *pb.File, err error) {
+	noteUploadActivity() // a sync's hash-first upload
 	existing, err := mg.dao.GetFileByHash(hash)
 	if err == sql.ErrNoRows {
 		return nil, errors.New("no file with that hash on this device")
@@ -2233,29 +2230,6 @@ func heifTransform(heicData []byte) (rotations int, hasMirror bool, mirrorAxis i
 		}
 	}
 	return rotations, false, 0
-}
-
-// thumbnailSource returns the image a thumbnail should be encoded from:
-// img resized down to maxWidth if it's wider than that, or img itself,
-// unchanged, if it's already narrow enough. Always returns something to
-// encode — a thumbnail must exist once a file is uploaded, full stop (see
-// this function's call site), so "no resize needed" must never mean "no
-// thumbnail". That distinction used to be missing here: the resize branch
-// was the only place anything got written to disk, silently leaving
-// nothing there at all for an already-narrow image — a gap the
-// orientation-correction fix above made easy to hit for real, since a
-// portrait photo's corrected (post-rotation) width can end up smaller than
-// maxWidth even when its original, unrotated width wasn't.
-func thumbnailSource(img image.Image, maxWidth int) image.Image {
-	w := img.Bounds().Dx()
-	if w <= maxWidth {
-		return img
-	}
-	h := img.Bounds().Dy()
-	newH := int(float64(h) * float64(maxWidth) / float64(w))
-	dst := image.NewRGBA(image.Rect(0, 0, maxWidth, newH))
-	draw.CatmullRom.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Over, nil)
-	return dst
 }
 
 // applyOrientation bakes an EXIF Orientation transform into the pixel data,

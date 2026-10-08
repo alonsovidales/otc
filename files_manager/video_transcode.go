@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"image/jpeg"
 	"os"
 	"strconv"
 	"strings"
@@ -18,7 +17,6 @@ import (
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/gabriel-vasile/mimetype"
-	"golang.org/x/image/draw"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -248,18 +246,15 @@ func BuildTransientFile(content []byte) *pb.File {
 }
 
 // GenerateVideoThumbnail extracts a representative frame from raw video
-// bytes and returns it JPEG-encoded, downscaled to maxWidth the same way a
-// regular upload's own video thumbnail is (see processMediaContent's video
-// branch, which passes cfg's "max-thumbnail-width-px" - kept as a plain
-// parameter here rather than read from cfg directly, same convention as
+// bytes and returns it JPEG-encoded, its longest side scaled down to maxSide
+// the same way a regular upload's own video thumbnail is (see processMedia's
+// video branch, which passes ThumbnailMaxSide() - kept as a plain parameter
+// here rather than read from cfg directly, same convention as
 // thumbnailSource, so this stays unit-testable without a config file).
 // Factored out so a transient file (see BuildTransientFile above) can get
-// a thumbnail without going through the whole UploadFile pipeline. Unlike
-// processMediaContent's own version, this always encodes a thumbnail
-// regardless of the frame's width (that unconditional part already had to
-// be fixed once for the image side - see processMediaContent's own
-// comment on it - no reason to reproduce the same gap here in new code).
-func (mg *Manager) GenerateVideoThumbnail(content []byte, maxWidth int) ([]byte, error) {
+// a thumbnail without going through the whole UploadFile pipeline. A frame
+// that already fits is encoded as it is: there is always a thumbnail.
+func (mg *Manager) GenerateVideoThumbnail(content []byte, maxSide int) ([]byte, error) {
 	// One frame: this is only the post's thumbnail - the tags come from
 	// processMediaContent's own frames. It decoded cVideoSampleFrames full
 	// frames and kept the first (issue #173).
@@ -267,39 +262,29 @@ func (mg *Manager) GenerateVideoThumbnail(content []byte, maxWidth int) ([]byte,
 	if err != nil {
 		return nil, fmt.Errorf("extracting video frames: %w", err)
 	}
-	return videoThumbnail(frames, maxWidth)
+	return videoThumbnail(frames, maxSide)
 }
 
 // GenerateVideoThumbnailFrom is GenerateVideoThumbnail for a video at src
 // (a file or a loopback stream URL), without loading it.
-func GenerateVideoThumbnailFrom(src string, maxWidth int) ([]byte, error) {
+func GenerateVideoThumbnailFrom(src string, maxSide int) ([]byte, error) {
 	frames, err := extractVideoFramesFrom(src, 1)
 	if err != nil {
 		return nil, fmt.Errorf("extracting video frames: %w", err)
 	}
-	return videoThumbnail(frames, maxWidth)
+	return videoThumbnail(frames, maxSide)
 }
 
-func videoThumbnail(frames []image.Image, maxWidth int) ([]byte, error) {
+func videoThumbnail(frames []image.Image, maxSide int) ([]byte, error) {
 	if len(frames) == 0 {
 		return nil, errors.New("no frames extracted from video")
 	}
 
-	thumbSrc := frames[0]
-	b := thumbSrc.Bounds()
-	var thumbImg image.Image = thumbSrc
-	if b.Dx() > maxWidth {
-		newH := int(float64(b.Dy()) * float64(maxWidth) / float64(b.Dx()))
-		dst := image.NewRGBA(image.Rect(0, 0, maxWidth, newH))
-		draw.CatmullRom.Scale(dst, dst.Bounds(), thumbSrc, thumbSrc.Bounds(), draw.Over, nil)
-		thumbImg = dst
-	}
-
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
+	thumb, err := encodeJPEG(thumbnailSource(frames[0], maxSide), cThumbnailQuality)
+	if err != nil {
 		return nil, fmt.Errorf("encoding thumbnail: %w", err)
 	}
-	return buf.Bytes(), nil
+	return thumb, nil
 }
 
 // playableEverywhere pins the H.264 a post is re-encoded to (issue: videos

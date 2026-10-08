@@ -789,7 +789,11 @@ export default function FilesExplorer({
         const batch = thumbQueue.current.splice(0, cThumbBatch);
         try {
           const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-            e.payload = { $case: "reqGetThumbnails", reqGetThumbnails: { paths: batch } };
+            // The tiles' small thumbnails (release 111; older devices send
+            // big ones). The viewer shows them only until the full size
+            // arrives, and asks for the big one itself where it would stay
+            // (MediaViewer).
+            e.payload = { $case: "reqGetThumbnails", reqGetThumbnails: { paths: batch, smallThumbnails: true } };
           });
           const got: Record<string, string> = {};
           if (resp.payload?.$case === "respListOfFiles") {

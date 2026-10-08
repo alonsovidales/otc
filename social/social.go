@@ -352,7 +352,7 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 		// may not be written yet.
 		sc.filesmanager.WaitForContent(path, 2*time.Minute)
 		unencDir := cfg.GetStr("otc", "unenc-storage-path")
-		maxThumb := int(cfg.GetInt("otc", "max-thumbnail-width-px"))
+		maxThumb := filesmanager.ThumbnailMaxSide()
 
 		// Issue #166: at most one file of the post is in memory at a
 		// time, and a video never is - see publishVideo.
