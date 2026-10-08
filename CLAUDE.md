@@ -875,7 +875,8 @@ other answer sends nothing, so it must not say "Show in Images"), and the CLI ta
 `--keep-out-of-images` on `backup`, `add` and `add-remote`. The add flow's caption says that tags
 and faces already found are deleted (`engine.OutOfImagesAddCaption` / `OutOfImagesText.addCaption`):
 the folder may already be on the device. Later, per folder: the eye button on the Mac's row (an
-inline confirmation, not an alert), the "Kept Out of Images" checkbox in the tray's folder submenu,
+inline confirmation, not an alert; the row has no text line about Images - the owner found it
+crowded - so the eye's tooltip carries the state, a request on its way and the device's refusal), the "Kept Out of Images" checkbox in the tray's folder submenu,
 and `otc-sync images <id|path> keep-out|show`. Either only records a request with the folder
 (`StoredFolder`/`StoredRemoteFolder.outOfImages`, `config.Folder`/`RemoteFolder.OutOfImages`; nil =
 nothing to send, absent from older data). It is sent as `SetOutOfImages` for the folder's device
@@ -891,8 +892,8 @@ is under way goes right after it, even when that request failed (otc-sync releas
 same lock hold as its last look at the request). `unknown_payload` (a device before release 108)
 keeps it pending and marks the device unable until the next connect: the Mac's checkbox is disabled
 with "Your device needs an update to keep folders out of Images.", the tray doesn't ask, and a
-pending folder says so. `out_of_images_by_parent` drops it and shows the device's message on the
-folder while a folder above still keeps it out (the next list that says otherwise drops the
+pending folder says so in the tray. `out_of_images_by_parent` drops it and shows the device's message
+on the folder while a folder above still keeps it out (the next list that says otherwise drops the
 message); any other failure leaves it for the next pass. `otc-sync images <id> keep-out` on a folder
 kept out by a folder above says it already is (exit 0); `show` there is refused. What the device
 keeps out comes from `ListOutOfImages` at connect, after each ack and with the one-minute poll,

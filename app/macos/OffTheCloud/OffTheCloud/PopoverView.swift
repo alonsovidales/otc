@@ -259,11 +259,10 @@ struct FolderRow: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-                    OutOfImagesLine(state: images, note: imagesNote)
                 }
                 Spacer()
                 FolderStateView(state: folder.state, watchingLabel: "Backed up")
-                OutOfImagesButton(state: images) { confirmImages = true }
+                OutOfImagesButton(state: images, note: imagesNote) { confirmImages = true }
                 Button(role: .destructive) {
                     remove()
                 } label: {
@@ -316,11 +315,10 @@ struct RemoteFolderRow: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.head)
-                    OutOfImagesLine(state: images, note: imagesNote)
                 }
                 Spacer()
                 FolderStateView(state: folder.state, watchingLabel: "Synced")
-                OutOfImagesButton(state: images) { confirmImages = true }
+                OutOfImagesButton(state: images, note: imagesNote) { confirmImages = true }
                 Button(role: .destructive) {
                     remove()
                 } label: {
@@ -359,45 +357,16 @@ enum OutOfImagesText {
     static func byParent(_ parent: String) -> String { "Inside \(parent), which is kept out of Images" }
 }
 
-/// A folder row's line about Images (issue #192): kept out, a request on
-/// its way, a device that can't yet, or the device's refusal to show it.
-/// Nothing while it is shown or not known.
-struct OutOfImagesLine: View {
-    let state: OutOfImagesState
-    let note: String?
-
-    private var text: String? {
-        switch state {
-        case .keptOut, .keptOutBy: return OutOfImagesText.state
-        case .keeping: return "Keeping out of Images…"
-        case .showing: return "Showing in Images…"
-        case .unsupported: return OutOfImagesText.needsUpdate
-        case .shown, .unknown: return nil
-        }
-    }
-
-    var body: some View {
-        // The device's refusal only while a folder above still keeps it out.
-        if let note, case .keptOutBy = state {
-            Text(note)
-                .font(.caption2)
-                .foregroundStyle(.orange)
-                .fixedSize(horizontal: false, vertical: true)
-        } else if let text {
-            Text(text)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}
-
 /// The eye on a folder's row (issue #192): open when the folder is shown
 /// in Images, crossed out when kept out; a click asks first (the row's
 /// OutOfImagesConfirmation). Not there while the state isn't known, nor
 /// for a device that can't; disabled when a folder above keeps it out.
+/// It is the row's only sign of it - a line under the name crowded the
+/// popover - so its tooltip carries the rest: a request on its way, or the
+/// device's refusal to show it while a folder above still keeps it out.
 struct OutOfImagesButton: View {
     let state: OutOfImagesState
+    let note: String?
     let action: () -> Void
 
     var body: some View {
@@ -412,6 +381,7 @@ struct OutOfImagesButton: View {
             .buttonStyle(.plain)
             .disabled(isByParent)
             .help(help)
+            .accessibilityLabel(help)
         }
     }
 
@@ -422,8 +392,10 @@ struct OutOfImagesButton: View {
 
     private var help: String {
         switch state {
-        case .keptOutBy(let parent): return OutOfImagesText.byParent(parent)
-        case .keptOut, .keeping: return OutOfImagesText.state
+        case .keptOutBy(let parent): return note ?? OutOfImagesText.byParent(parent)
+        case .keptOut: return OutOfImagesText.state
+        case .keeping: return "Keeping out of Images…"
+        case .showing: return "Showing in Images…"
         default: return OutOfImagesText.keep
         }
     }
