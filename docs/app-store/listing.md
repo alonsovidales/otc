@@ -93,7 +93,7 @@ THREE WAYS TO SYNC A FOLDER
 
 A QUIET MENU BAR APP
 • Sync progress and the health of your device's mirrored disks at a glance, with storage, CPU and memory
-• Starts at login
+• Can start at login, if you choose
 • Set up a new device from your Mac: it downloads the signed image, checks it, opens it in Raspberry Pi Imager, and finishes the setup over Bluetooth
 
 WHAT YOU NEED

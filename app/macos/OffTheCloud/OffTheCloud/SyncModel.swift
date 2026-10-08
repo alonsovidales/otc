@@ -525,6 +525,8 @@ final class SyncModel: ObservableObject {
                 guard let self else { return }
                 self.overallStatus = "Connected"
                 self.route = route
+                // The one-time "Start at login?" offer waits for this.
+                LoginItemSettings.shared.deviceConnected()
                 self.startRaidPolling()
                 // Issue #192: what the device keeps out of Images, then the
                 // requests still pending - asked again at every connect,

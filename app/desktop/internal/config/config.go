@@ -111,8 +111,11 @@ type Config struct {
 	ClientID      string         `json:"client_id"`
 	Folders       []Folder       `json:"folders"`
 	RemoteFolders []RemoteFolder `json:"remote_folders"`
-	// Autostart is whether the tray app registers itself to start at
-	// login; on by default, like a menu bar sync client is expected to be.
+	// Autostart is the user's answer to "Start Off The Cloud when you log
+	// in?" (the tray's one-time question, its "Start at login" checkbox,
+	// `otc-sync autostart on|off`): nil while never asked, and then nothing
+	// is registered - only a true lets the tray register itself at login
+	// (the Mac's startAtLoginChoice, App Store guideline 2.4.5).
 	Autostart *bool `json:"autostart,omitempty"`
 }
 
@@ -179,9 +182,15 @@ func (c *Config) Save() error {
 	return os.Rename(tmp, p)
 }
 
-// AutostartEnabled is the setting with its default applied.
+// AutostartEnabled says whether the user asked to start at login; no
+// answer is no.
 func (c *Config) AutostartEnabled() bool {
-	return c.Autostart == nil || *c.Autostart
+	return c.Autostart != nil && *c.Autostart
+}
+
+// AutostartAsked says whether the user has answered at all.
+func (c *Config) AutostartAsked() bool {
+	return c.Autostart != nil
 }
 
 // EnsureClientID gives this install a stable id for Auth.uuid, the way the

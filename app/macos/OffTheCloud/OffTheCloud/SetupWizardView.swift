@@ -295,6 +295,7 @@ struct SetupWizardView: View {
 
     @ObservedObject private var session = SetupWizardSession.shared
     @ObservedObject private var image = SetupWizardSession.shared.image
+    @ObservedObject private var login = LoginItemSettings.shared
     @State private var imagerURL: URL? = PiImager.appURL
     @Environment(\.dismiss) private var dismissWindow
 
@@ -548,6 +549,13 @@ struct SetupWizardView: View {
         Group {
             header("Your device is ready", usedDomain.isEmpty ? "" : "This Mac now syncs with \(usedDomain).")
             Text("Add folders to back up or keep in sync from the Off The Cloud menu bar icon. The device's own page, in a browser, has your photos, files and settings.")
+            // This Mac was just pointed at the device: the natural moment
+            // for the one-time start-at-login offer - the same one the
+            // popover shows, so answering either hides both. Not prominent:
+            // "Done" stays the page's one accent button (and Return).
+            if !usedDomain.isEmpty && login.choice == nil {
+                LoginItemOffer(prominent: false) { login.choose($0) }
+            }
             HStack {
                 Spacer()
                 Button("Done") { dismiss() }

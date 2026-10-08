@@ -42,8 +42,12 @@ type Controller interface {
 	// RemoteBrowser lists device folders for one use of the remote folder
 	// picker; done is called once it closes.
 	RemoteBrowser() (list func(path string) ([]engine.RemoteEntry, error), done func())
+	// AutostartEnabled is whether the tray starts at login now;
+	// SetAutostart records the user's answer and applies it.
 	AutostartEnabled() bool
 	SetAutostart(bool) error
+	// OfferAutostart: the one-time question is due (autostart.go).
+	OfferAutostart() bool
 	Quit()
 }
 
@@ -79,8 +83,10 @@ type ui struct {
 	autost    *systray.MenuItem
 	quit      *systray.MenuItem
 	lastIcon  string
-	refresh   chan struct{}
-	stopLoop  chan struct{}
+	// The start-at-login question has been put this run (autostart.go).
+	autostartAsked bool
+	refresh        chan struct{}
+	stopLoop       chan struct{}
 	// What each item was last set to (u.mu): apply runs every 2 s and on
 	// every engine change, and on Linux every write is D-Bus signals plus
 	// a re-fetch of the whole menu by the desktop shell, so a write that
@@ -260,7 +266,7 @@ func (u *ui) build(folders []config.FolderStatus) {
 	u.explain = systray.AddMenuItem("What Do These Do?", "The difference between backing up and syncing")
 	// Connected: the device and Disconnect; not: the device and password.
 	u.settings = systray.AddMenuItem(u.settingsTitle(), "")
-	u.autost = systray.AddMenuItemCheckbox("Start at login", "", u.c.AutostartEnabled())
+	u.autost = systray.AddMenuItemCheckbox(autostartToggle, autostartToggleTip, u.c.AutostartEnabled())
 	systray.AddSeparator()
 	u.setup = systray.AddMenuItem("Set Up a New Device…", "Prepare the SD card for a new Raspberry Pi device")
 	systray.AddSeparator()
@@ -397,6 +403,11 @@ func (u *ui) apply() {
 	// Read every time (a stat, or a registry read), so an entry removed
 	// outside the app shows; only the write is skipped.
 	u.setChecked(u.autost, u.c.AutostartEnabled())
+	// Once connected, start at login is asked about, once.
+	if st.Status == "Connected" && !u.autostartAsked {
+		u.autostartAsked = true
+		go u.askAutostart()
+	}
 }
 
 func statusDot(s string) string {

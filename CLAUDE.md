@@ -929,6 +929,34 @@ and port at `/` - https for a bridge name or a wss address, http for ws (`Settin
 `internal/browser`, http/https only: ShellExecute on Windows, xdg-open on Linux). Never the
 password or a token (the web app asks for the password itself), and never the home-network route,
 whose certificate a browser can't pin.
+**Start at login, only with consent.** The Mac App Store rejected macOS 2.0 (17) under guideline
+2.4.5(iii): 1.0 registered itself as a login item the first time it ran and re-registered at every
+launch. Now neither client registers anything until the user says yes. The Mac's
+`LoginItemSettings` (`LoginItem.swift`, `SMAppService.mainApp` behind `LoginItemService`, faked in
+`LoginItemTests`) records the answer as `startAtLoginChoice` (absent = never asked). Only a true
+lets `launch()` re-register an item the system dropped, and never one the user switched off in
+System Settings (`requiresApproval`: left alone, the checkbox shows it off, Settings says so with
+"Open Login Items…", ticking the box opens Login Items instead of registering). 1.0's
+`startAtLogin` key was written by the app itself, so it isn't consent: true means unregister
+whatever is there (the key stays until that works) and ask; false was the user unticking it, kept
+as a no. The question is asked once, inline (never an `.alert`, which closes the popover):
+`LoginItemOffer`, "Start Off The Cloud when you log in?" / "Start at Login" / "Not Now", shown
+below the folder list and above Add Folder/Quit once a device has connected this launch
+(`SyncModel`'s onConnect calls `deviceConnected()`), hidden while Settings is open, and also on
+the setup wizard's "Your device is ready" page after "Sync this Mac with my device". Either answer,
+or Settings' "Start at login" checkbox (`StartAtLoginToggle`, the real `SMAppService` state,
+re-read when the popover opens), records the choice. otc-sync does the same with config.json's
+`autostart` (nil = never asked; `autostart.AtLaunch` restores a consented entry and registers
+nothing else; `autostart.Apply`; `autostart.Backend` is faked in the tests): the tray asks once
+after the first successful connection (`tray/autostart.go`, a zenity question with the same
+words; closing it counts as Not Now; with no dialog program nothing is recorded and it asks at the
+next start), and not in a viewer tray next to the service (`OfferAutostart`); the menu's
+"Start at login" checkbox and `otc-sync autostart on|off|status` record an answer too. Unlike the
+Mac, an entry an older otc-sync made unasked is kept until the user answers (there is no store
+rule on Windows/Linux, and silently dropping it would stop the sync after the next reboot for
+someone relying on it); "Not Now" removes it. The systemd user service (`otc-sync service
+install`) is its own explicit choice and isn't affected. Never run the Debug Mac app to test this:
+it shares the bundle id, settings and login item with the owner's installed app.
 **Keep out of Images (issue #192).** Adding a folder offers it: the Mac's `AddFolderChooser` has a
 "Keep out of Images" checkbox above the three kinds (with its (i); above, because each kind acts on
 the first click), the tray asks after the folder is chosen ("Keep Out of Images" / "Not Now" - the
@@ -998,8 +1026,9 @@ WSClient.swift + PwCrypto.swift, `engine` = SyncModel.swift (upload folders with
 hash-first uploads, RAID polling), `engine/watcher.go` = FolderWatcher.swift (fsnotify, one watch
 per directory, added as directories appear), `tray` = PopoverView.swift (fyne.io/systray menu,
 the OS's own dialogs through ncruces/zenity - no GUI toolkit, no CGO), `config` = SettingsStore
-+ the bookmarks (config.json, keyring or a 0600 `secret` file, state.json), `autostart` (XDG
-autostart file / HKCU Run key), `service` (systemd user unit + linger). One process runs the
++ the bookmarks (config.json, keyring or a 0600 `secret` file, state.json), `autostart` = the
+registration half of LoginItem.swift (XDG autostart file / HKCU Run key, only with consent - see
+"Start at login" above), `service` (systemd user unit + linger). One process runs the
 engine (a flock in the config dir); a tray started next to the service is a viewer, and every
 edit goes through config.json, which the engine watches - so the CLI, the tray and the service
 never disagree. Remote paths are `/linux/<host>/…` and `/windows/<host>/C/…`, like `/mac/<host>`.
@@ -1063,7 +1092,8 @@ rejected password is reported before the socket closes. `otc-sync flash-device` 
 whose `--size`/`--name` changed. The Mac's unit tests are hosted by the real app (`TEST_HOST`), so
 `xcodebuild test` launches it with the saved settings and may reach the live device;
 `SyncPathsTests` can run in a scratch SwiftPM package holding only `SyncPaths.swift` (module
-`OffTheCloud`).
+`OffTheCloud`), and `LoginItemTests` likewise with only `LoginItem.swift` (a fake login item and a
+throwaway defaults suite).
 
 ### Native apps (`app/ios`, `app/macos`, `app/android`)
 

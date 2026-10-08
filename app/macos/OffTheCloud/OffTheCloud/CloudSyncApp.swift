@@ -11,6 +11,9 @@ struct CloudSyncApp: App {
         // until the icon is clicked - so after login the app sat idle,
         // not even connected, until someone opened the popover.
         Task { @MainActor in
+            // Start at login only with the owner's consent: carries 1.0's
+            // self-registration over and re-asserts a consented one.
+            LoginItemSettings.shared.launch()
             SyncModel.shared.bind(settings: SettingsStore.shared)
         }
     }

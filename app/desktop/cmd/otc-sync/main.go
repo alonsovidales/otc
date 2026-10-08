@@ -19,7 +19,7 @@
 //	otc-sync ls [remote path]      browse the device
 //	otc-sync open                  the device's web app in the browser
 //	otc-sync service install|uninstall|status   (Linux) run as a systemd user service
-//	otc-sync autostart on|off      start the tray app at login
+//	otc-sync autostart on|off|status   start the tray app at login (only when asked to)
 //
 // Only one process runs the engine (a lock in the config directory); the
 // tray started next to the service becomes a viewer of the service's
@@ -245,7 +245,10 @@ func usage() {
   otc-sync open                 open the device's web app in the browser (prints its address)
   otc-sync service install|uninstall|status
                                 run the daemon as a systemd user service (Linux)
-  otc-sync autostart on|off     start the tray app at login
+  otc-sync autostart on|off|status
+                                start the tray app at login, or not. Nothing is registered
+                                until you say so: here, with the tray's "Start at login", or
+                                when the tray asks once after the first connection
 `)
 }
 
@@ -327,14 +330,7 @@ func runDaemon(withTray bool) error {
 			return nil
 		}
 		defer func() { _ = trayLock.Unlock() }()
-		// First run on a desktop: register at login unless the owner said no.
-		if cfg.AutostartEnabled() {
-			if enabled, _ := autostart.Enabled(); !enabled {
-				if exe, err := os.Executable(); err == nil {
-					_ = autostart.Enable(exe)
-				}
-			}
-		}
+		registerAtLaunch(cfg)
 		tray.Run(a)
 
 		return nil
@@ -556,12 +552,30 @@ func (a *app) RemoteBrowser() (func(string) ([]engine.RemoteEntry, error), func(
 	return list, done
 }
 
+// loginItems is the start-at-login registration (a fake in tests).
+var loginItems = autostart.System
+
+// registerAtLaunch: start at login only with the user's yes
+// (autostart.AtLaunch) - a consented entry that went missing comes back,
+// nothing else is registered. Without an answer the tray asks once, after
+// the first successful connection (tray.askAutostart).
+func registerAtLaunch(cfg *config.Config) {
+	if exe, err := os.Executable(); err == nil {
+		_ = autostart.AtLaunch(loginItems, cfg.Autostart, exe)
+	}
+}
+
+// AutostartEnabled is the tray's checkbox: whether the entry is there, read
+// each time, so one removed outside the app shows.
 func (a *app) AutostartEnabled() bool {
-	enabled, _ := autostart.Enabled()
+	enabled, _ := loginItems.Enabled()
 
 	return enabled
 }
 
+// SetAutostart is the user's answer - the tray's question or its checkbox -
+// recorded in config.json first (so the question is never asked again),
+// then applied to the registration.
 func (a *app) SetAutostart(on bool) error {
 	// Before the login item changes: a failed read leaves both as they are.
 	cfg, err := a.LoadConfig()
@@ -573,16 +587,28 @@ func (a *app) SetAutostart(on bool) error {
 	if err := cfg.Save(); err != nil {
 		return err
 	}
-	if on {
-		exe, err := os.Executable()
-		if err != nil {
-			return err
-		}
-
-		return autostart.Enable(exe)
+	exe, err := os.Executable()
+	if err != nil {
+		return err
 	}
 
-	return autostart.Disable()
+	return autostart.Apply(loginItems, on, exe)
+}
+
+// OfferAutostart says whether the tray's one-time "Start Off The Cloud when
+// you log in?" is due: never answered, and this process runs the sync. A
+// tray next to the service is only a viewer, and the service already starts
+// at boot; it is asked once the tray runs the sync itself.
+func (a *app) OfferAutostart() bool {
+	if a.eng == nil {
+		return false
+	}
+	cfg, err := config.Load() // fresh: the CLI may have answered meanwhile
+	if err != nil {
+		return false
+	}
+
+	return !cfg.AutostartAsked()
 }
 
 func (a *app) Quit() { close(a.quit) }
@@ -1169,37 +1195,60 @@ func cmdService(args []string) error {
 	}
 }
 
+// cmdAutostart is the command line's start at login: an explicit answer,
+// recorded like the tray's, or what it is now.
 func cmdAutostart(args []string) error {
-	if len(args) != 1 || (args[0] != "on" && args[0] != "off") {
-		return errors.New("usage: otc-sync autostart on|off")
+	if len(args) != 1 || (args[0] != "on" && args[0] != "off" && args[0] != "status") {
+		return errors.New("usage: otc-sync autostart on|off|status")
 	}
 	cfg, err := config.Load()
 	if err != nil {
 		return err
+	}
+	if args[0] == "status" {
+		fmt.Println(autostartStatus(cfg))
+
+		return nil
 	}
 	on := args[0] == "on"
 	cfg.Autostart = &on
 	if err := cfg.Save(); err != nil {
 		return err
 	}
-	if on {
-		exe, err := os.Executable()
-		if err != nil {
-			return err
-		}
-		if err := autostart.Enable(exe); err != nil {
-			return err
-		}
-		fmt.Println("the tray app will start at login")
-
-		return nil
-	}
-	if err := autostart.Disable(); err != nil {
+	exe, err := os.Executable()
+	if err != nil {
 		return err
 	}
-	fmt.Println("the tray app will not start at login")
+	if err := autostart.Apply(loginItems, on, exe); err != nil {
+		return err
+	}
+	if on {
+		fmt.Println("the tray app will start at login")
+	} else {
+		fmt.Println("the tray app will not start at login")
+	}
 
 	return nil
+}
+
+// autostartStatus: whether the tray app starts at login, and whether the
+// user chose it.
+func autostartStatus(cfg *config.Config) string {
+	enabled, err := loginItems.Enabled()
+	switch {
+	case err != nil:
+		return "start at login: unknown (" + err.Error() + ")"
+	case !cfg.AutostartAsked() && enabled:
+		return "start at login: on, set up by an earlier version - the tray asks to keep it; `otc-sync autostart on|off` answers"
+	case !cfg.AutostartAsked():
+		return "start at login: off (not chosen yet; `otc-sync autostart on` turns it on)"
+	case enabled:
+		return "start at login: on"
+	case cfg.AutostartEnabled():
+		return "start at login: on, but the entry is missing - the tray adds it again at its next start"
+	default:
+		return "start at login: off"
+	}
 }
 
 var _ = context.Background

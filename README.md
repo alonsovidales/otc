@@ -29,8 +29,10 @@ A menu-bar app that keeps folders on your computer in sync with the device - wat
 The same sync client for Windows and Linux, `otc-sync`: a tray icon with the same menu (status,
 the RAID's health as the icon's colour, "Open Web App" for your device's web app in the browser,
 your folders, add a local or a remote folder, settings),
-plus a command line, and on Linux it can run as a service on a machine nobody logs into. It
-starts at login on its own, and updates itself: when a new version is out, the menu shows
+plus a command line, and on Linux it can run as a service on a machine nobody logs into. Once
+it has connected to your device it asks whether to start when you log in (nothing is set up
+until you say yes; "Start at login" in the menu changes it later), and it updates itself: when
+a new version is out, the menu shows
 "⬆ Update otc-sync to …" and one click installs it (`otc-sync update` on the command line).
 Updates are signed with the project's release key and checked before they are installed.
 Download it from [off-the.cloud](https://off-the.cloud/#download) or the
@@ -48,15 +50,15 @@ terminal) downloads the device image, checks its signature, writes it to an SD c
 administrator permission and lists only cards and removable disks), verifies the card and deletes
 the download. The Mac app has the same wizard and uses Raspberry Pi Imager to write the card.
 
-*Windows*: run the `.exe` once; it appears in the tray, asks for your device and password under
-Settings…, and registers itself to start at login. Keep it somewhere permanent (not Downloads),
-since that path is what starts at login.
+*Windows*: run the `.exe` once; it appears in the tray and asks for your device and password,
+and once connected, whether to start at login ("Start at Login" / "Not Now"). Keep it somewhere
+permanent (not Downloads), since that path is what starts at login.
 
 *Linux, with a desktop*:
 
 ```
 install -Dm755 otc-sync-linux-amd64 ~/.local/bin/otc-sync   # yours, so it can update itself
-otc-sync            # the tray app; registers itself under ~/.config/autostart
+otc-sync            # the tray app; once connected it asks whether to start at login (~/.config/autostart)
 ```
 
 *Linux, command line and service* (a server, a Pi, a box with no desktop):
@@ -71,7 +73,7 @@ otc-sync ls /                                     # browse the device
 otc-sync open                                     # the device's web app in the browser (prints its address)
 otc-sync service install                          # run as a systemd user service, from boot
 otc-sync status                                   # what it is doing
-otc-sync folders | remove <id> | service uninstall | autostart on|off
+otc-sync folders | remove <id> | service uninstall | autostart on|off|status
 ```
 
 *Keeping a folder out of Images*: when you add a folder, the Mac app (a checkbox), the tray (a

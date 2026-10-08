@@ -17,6 +17,7 @@ struct PopoverView: View {
     // to go stale in the first place.
     @ObservedObject private var settings = SettingsStore.shared
     @ObservedObject private var sync = SyncModel.shared
+    @ObservedObject private var login = LoginItemSettings.shared
 
     @State private var showSettings = false
     // Issue #47: remote → local sync — browse the device's tree, then pick
@@ -154,6 +155,15 @@ struct PopoverView: View {
             }
             .padding(.vertical, 4)
 
+            // Start at login, offered once (App Store guideline 2.4.5:
+            // never without consent). Below the folders, above the actions:
+            // the top belongs to the status and the device's alerts, and a
+            // one-time suggestion shouldn't push them down. Not while
+            // Settings is open, whose checkbox is the same choice.
+            if login.offerDue && settings.ready && !showSettings {
+                LoginItemOffer { login.choose($0) }
+            }
+
             HStack {
                 Button {
                     showAddChooser = true
@@ -194,6 +204,8 @@ struct PopoverView: View {
                 wizard.bringToFront()
                 // Issue #190: the home network, if it answers now.
                 sync.popoverOpened()
+                // A change made in System Settings > Login Items.
+                login.refresh()
             }
         }
     }
@@ -545,13 +557,14 @@ struct FolderStateView: View {
 
 /// Settings: connected (configured), the device and a Disconnect button;
 /// not configured, the device and password fields with Connect. Below,
-/// always, "Start at login" with "Set Up a New Device…" (issue #184) at its
+/// always, "Start at login" (StartAtLoginToggle) with "Set Up a New Device…" (issue #184) at its
 /// right, a button the size of Disconnect's.
 struct SettingsInlineView: View {
     var onSetUpDevice: () -> Void
 
     @ObservedObject private var settings = SettingsStore.shared
     @ObservedObject private var sync = SyncModel.shared
+    @ObservedObject private var login = LoginItemSettings.shared
     // Edited locally and applied with the Connect button - not bound to
     // the store, which would reconnect on every keystroke and spend one
     // of the device's five password attempts per minute per character
@@ -578,16 +591,17 @@ struct SettingsInlineView: View {
                 connectForm
             }
             HStack(spacing: 8) {
-                Toggle("Start at login", isOn: $settings.startAtLogin)
-                    .toggleStyle(.checkbox)
-                    .font(.footnote)
+                // The real state; a change records the owner's choice.
+                StartAtLoginToggle(login: login)
                 Spacer()
                 Button("Set Up a New Device…", action: onSetUpDevice)
                     .controlSize(.small)
             }
+            StartAtLoginNote(login: login)
         }
         .padding(8)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .onAppear { login.refresh() }
     }
 
     // Inline, not an .alert(): an alert takes key status from the

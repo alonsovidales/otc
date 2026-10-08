@@ -41,7 +41,7 @@ Steps:
 4. "Add Folder" > "Remote Folder…", pick a folder on the device and a local destination. It
    downloads and stays in two-way sync ("Synced").
 5. The minus button next to a folder stops syncing it; nothing is deleted on either side.
-6. "Start at login" (in the gear panel) is on by default.
+6. "Start at login" is off by default. After a device connects, the app asks once inline ("Start at Login" / "Not Now"), and the checkbox in the gear panel changes it at any time. Nothing is registered as a login item without that click.
 
 There is no account to create in this app: the password is the owner's device password, set
 when the device itself was installed. The app stores it only in the macOS Keychain.
