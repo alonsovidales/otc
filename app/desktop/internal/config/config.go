@@ -52,6 +52,14 @@ type Folder struct {
 	// the device has it, and never sends it again - the owner may change it
 	// later from the web or a phone (StoredFolder.outOfImages on the Mac).
 	OutOfImages *bool `json:"out_of_images,omitempty"`
+	// UploadOnly is the same kind of request for the folder's device folder
+	// to be made upload only (issue #132: the device keeps every older
+	// version of a file and refuses deletes there): asked when a two-way
+	// folder is added from this computer (`otc-sync add --upload-only`, the
+	// tray), and carried over when it becomes a RemoteFolder. Never on a
+	// backup, which is made upload only at every start instead
+	// (engine.markUploadOnly).
+	UploadOnly *bool `json:"upload_only,omitempty"`
 }
 
 // RemoteFolder is a device directory kept in two-way sync with a local one
@@ -60,46 +68,90 @@ type RemoteFolder struct {
 	ID         string `json:"id"`
 	RemotePath string `json:"remote_path"`
 	LocalPath  string `json:"local_path"`
-	// OutOfImages: as Folder's.
+	// OutOfImages and UploadOnly: as Folder's (StoredRemoteFolder's on the
+	// Mac). Only a folder added from this computer is asked for them; one
+	// synced from the device keeps what it has there, but a request an
+	// older version stored here is still sent once.
 	OutOfImages *bool `json:"out_of_images,omitempty"`
+	UploadOnly  *bool `json:"upload_only,omitempty"`
+}
+
+// Request is one of the requests a folder keeps in config.json until the
+// device has acknowledged it, and then never sends again.
+type Request int
+
+const (
+	// OutOfImagesRequest is Folder.OutOfImages (issue #192).
+	OutOfImagesRequest Request = iota
+	// UploadOnlyRequest is Folder.UploadOnly (issue #132).
+	UploadOnlyRequest
+)
+
+// requestField is where folder id keeps request r; nil when the folder
+// isn't there.
+func (c *Config) requestField(r Request, id string) **bool {
+	pick := func(images, uploadOnly **bool) **bool {
+		if r == UploadOnlyRequest {
+			return uploadOnly
+		}
+		return images
+	}
+	for i := range c.Folders {
+		if f := &c.Folders[i]; f.ID == id {
+			return pick(&f.OutOfImages, &f.UploadOnly)
+		}
+	}
+	for i := range c.RemoteFolders {
+		if f := &c.RemoteFolders[i]; f.ID == id {
+			return pick(&f.OutOfImages, &f.UploadOnly)
+		}
+	}
+	return nil
+}
+
+// PendingRequest is folder id's request r (nil when there is none), and
+// whether the folder is there.
+func (c *Config) PendingRequest(r Request, id string) (*bool, bool) {
+	field := c.requestField(r, id)
+	if field == nil {
+		return nil, false
+	}
+	return *field, true
+}
+
+// SetRequest records request r for folder id, for the engine to send, and
+// says whether the folder is there.
+func (c *Config) SetRequest(r Request, id string, on bool) bool {
+	field := c.requestField(r, id)
+	if field == nil {
+		return false
+	}
+	*field = &on
+	return true
+}
+
+// ClearRequest drops folder id's request r once the device has answered
+// it - only when it is still the one that was sent (sent), not one the
+// tray or the command line made meanwhile. Says whether it did.
+func (c *Config) ClearRequest(r Request, id string, sent bool) bool {
+	field := c.requestField(r, id)
+	if field == nil || *field == nil || **field != sent {
+		return false
+	}
+	*field = nil
+	return true
 }
 
 // SetOutOfImagesRequest records a request to keep folder id out of Images
 // (or show it again) for the engine to send, and says whether the folder
 // is there.
 func (c *Config) SetOutOfImagesRequest(id string, keepOut bool) bool {
-	for i := range c.Folders {
-		if c.Folders[i].ID == id {
-			c.Folders[i].OutOfImages = &keepOut
-			return true
-		}
-	}
-	for i := range c.RemoteFolders {
-		if c.RemoteFolders[i].ID == id {
-			c.RemoteFolders[i].OutOfImages = &keepOut
-			return true
-		}
-	}
-	return false
+	return c.SetRequest(OutOfImagesRequest, id, keepOut)
 }
 
-// ClearOutOfImagesRequest drops folder id's request once the device has
-// answered it - only when it is still the one that was sent (sent), not
-// one the tray or the command line made meanwhile. Says whether it did.
+// ClearOutOfImagesRequest is ClearRequest for Keep out of Images.
 func (c *Config) ClearOutOfImagesRequest(id string, sent bool) bool {
-	for i := range c.Folders {
-		if f := &c.Folders[i]; f.ID == id && f.OutOfImages != nil && *f.OutOfImages == sent {
-			f.OutOfImages = nil
-			return true
-		}
-	}
-	for i := range c.RemoteFolders {
-		if f := &c.RemoteFolders[i]; f.ID == id && f.OutOfImages != nil && *f.OutOfImages == sent {
-			f.OutOfImages = nil
-			return true
-		}
-	}
-	return false
+	return c.ClearRequest(OutOfImagesRequest, id, sent)
 }
 
 // Config is config.json.
@@ -301,6 +353,11 @@ type FolderStatus struct {
 	OutOfImages     string `json:"out_of_images,omitempty"`
 	OutOfImagesBy   string `json:"out_of_images_by,omitempty"`
 	OutOfImagesNote string `json:"out_of_images_note,omitempty"`
+	// Issue #132: a request to make the folder upload only on the device
+	// that hasn't been acknowledged yet - engine.UploadOnlyState ("" when
+	// there is none) - and the device's refusal of the last one.
+	UploadOnly     string `json:"upload_only,omitempty"`
+	UploadOnlyNote string `json:"upload_only_note,omitempty"`
 }
 
 // State is state.json.
@@ -329,6 +386,8 @@ type State struct {
 	// Issue #192: the device answered that it can't keep folders out of
 	// Images (a release before 108): the tray doesn't offer it when adding.
 	OutOfImagesUnsupported bool `json:"out_of_images_unsupported,omitempty"`
+	// Issue #132: likewise, that it can't make a folder upload only.
+	UploadOnlyUnsupported bool `json:"upload_only_unsupported,omitempty"`
 }
 
 // UpdateAlert is the status's update_alert: Level is "major" or

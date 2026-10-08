@@ -23,12 +23,10 @@ struct PopoverView: View {
     // Issue #47: remote → local sync — browse the device's tree, then pick
     // a local destination for it.
     @State private var showRemotePicker = false
-    // The three ways to add a folder, each with its explanation - inline,
-    // for the same reason as the remote picker below.
+    // The three ways to add a folder, each with its explanation, then the
+    // options of the one picked - inline, for the same reason as the
+    // remote picker below.
     @State private var showAddChooser = false
-    // Issue #192: the chooser's "Keep out of Images", carried through the
-    // remote picker to the folder it adds.
-    @State private var addOutOfImages = false
     // Issue #184: the new-device wizard lives in its own window.
     @Environment(\.openWindow) private var openWindow
 
@@ -44,9 +42,14 @@ struct PopoverView: View {
         if showAddChooser {
             AddFolderChooser(
                 outOfImagesSupported: sync.outOfImagesSupported,
+                uploadOnlySupported: sync.uploadOnlySupported,
                 onBackup: { keepOut in showAddChooser = false; sync.addBackupFolder(outOfImages: keepOut) },
-                onSyncLocal: { keepOut in showAddChooser = false; sync.addFolder(outOfImages: keepOut) },
-                onSyncDevice: { keepOut in showAddChooser = false; addOutOfImages = keepOut; showRemotePicker = true },
+                onSyncLocal: { uploadOnly, keepOut in
+                    showAddChooser = false
+                    sync.addFolder(uploadOnly: uploadOnly, outOfImages: keepOut)
+                },
+                // No options: a folder from the device keeps what it has there.
+                onSyncDevice: { showAddChooser = false; showRemotePicker = true },
                 onCancel: { showAddChooser = false }
             )
             // The main panel's own margins and width, which the chooser
@@ -57,7 +60,7 @@ struct PopoverView: View {
             RemoteFolderPickerView(
                 onChoose: { remotePath in
                     showRemotePicker = false
-                    chooseLocalDestinationAndAdd(remotePath: remotePath, outOfImages: addOutOfImages)
+                    chooseLocalDestinationAndAdd(remotePath: remotePath)
                 },
                 onCancel: { showRemotePicker = false }
             )
@@ -146,6 +149,8 @@ struct PopoverView: View {
                     // the only thing distinguishing direction.
                     ForEach(sync.remoteFolders) { f in
                         RemoteFolderRow(folder: f,
+                                        uploadOnly: sync.uploadOnlyState(for: f.id),
+                                        uploadOnlyNote: sync.uploadOnlyNotes[f.id],
                                         images: sync.outOfImagesState(for: f.id),
                                         imagesNote: sync.outOfImagesNotes[f.id],
                                         setOutOfImages: { sync.setOutOfImages(f.id, keepOut: $0) },
@@ -219,7 +224,7 @@ struct PopoverView: View {
     /// Same NSOpenPanel SyncModel.addFolder() uses for a local folder — the
     /// destination for the remote directory just picked, created if it
     /// doesn't already exist so a fresh empty folder is a one-click option.
-    private func chooseLocalDestinationAndAdd(remotePath: String, outOfImages: Bool) {
+    private func chooseLocalDestinationAndAdd(remotePath: String) {
         let panel = NSOpenPanel()
         panel.canCreateDirectories = true
         panel.canChooseDirectories = true
@@ -227,7 +232,7 @@ struct PopoverView: View {
         panel.prompt = "Choose"
         panel.message = "Choose where to download “\(remotePath)” and keep it in sync."
         if runFolderPanel(panel) == .OK, let url = panel.url {
-            sync.addRemoteFolder(remotePath: remotePath, localURL: url, outOfImages: outOfImages)
+            sync.addRemoteFolder(remotePath: remotePath, localURL: url)
         }
     }
 
@@ -300,6 +305,10 @@ struct FolderRow: View {
 // display for this direction too.
 struct RemoteFolderRow: View {
     let folder: SyncModel.RemoteFolder
+    /// Issue #132: its upload-only request on its way, and the device's
+    /// refusal of it (UploadOnlyBadge).
+    let uploadOnly: UploadOnlyRequestState
+    let uploadOnlyNote: String?
     /// Issue #192: as FolderRow's.
     let images: OutOfImagesState
     let imagesNote: String?
@@ -332,6 +341,7 @@ struct RemoteFolderRow: View {
                 }
                 Spacer()
                 FolderStateView(state: folder.state, watchingLabel: "Synced")
+                UploadOnlyBadge(state: uploadOnly, note: uploadOnlyNote)
                 OutOfImagesButton(state: images, note: imagesNote) { confirmImages = true }
                 Button(role: .destructive) {
                     remove()
@@ -362,13 +372,56 @@ enum OutOfImagesText {
     /// from it, or added again), and keeping it out deletes the tags and
     /// faces found there (otc-sync's engine.OutOfImagesAddCaption).
     static let addCaption = "Photos and videos in it aren't tagged, searched for faces or shown in Images. Files still has them. Any tags and faces already found in them are deleted."
-    static let addInfo = "Check it before choosing one of the options below: it applies to the folder you add. You can change it later with the eye button on the folder's row. A folder renamed later is a new folder on the device: keep it out of Images again."
+    static let addInfo = "You can change it later with the eye button on the folder's row. A folder renamed later is a new folder on the device: keep it out of Images again."
     static let keepMessage = "Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them."
     static let showMessage = "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background."
     static let needsUpdate = "Your device needs an update to keep folders out of Images."
     static func keepTitle(_ name: String) -> String { "Keep “\(name)” out of Images?" }
     static func showTitle(_ name: String) -> String { "Show “\(name)” in Images?" }
     static func byParent(_ parent: String) -> String { "Inside \(parent), which is kept out of Images" }
+}
+
+/// Issue #132's words, the same on every client (otc-sync's
+/// engine/upload_only.go, with "this computer" for "this Mac").
+enum UploadOnlyText {
+    static let toggle = "Upload only"
+    static let caption = "The device keeps every older version of a file, and nothing in the folder can be deleted on the device."
+    /// What it means for a two-way folder, in one sentence, and how it is
+    /// undone, which brings back what was deleted here meanwhile
+    /// (SyncPaths.baselines) - the add flow's (i).
+    static let addInfo = "Files you delete on this Mac stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this Mac while it was on then come back here."
+    /// The backup's fixed line: always on.
+    static let backup = "Always on for a backup."
+    static let needsUpdate = "Your device needs an update to make folders upload only."
+    static let making = "Making it upload only…"
+    static let lifting = "Turning upload only off…"
+}
+
+/// A two-way folder's upload-only request on its way, on its row: a lock
+/// whose tooltip says so - or that the device needs an update, or refused
+/// it. Nothing once the device has it (the tray's title says the same).
+struct UploadOnlyBadge: View {
+    let state: UploadOnlyRequestState
+    let note: String?
+
+    var body: some View {
+        if let help {
+            Image(systemName: "lock")
+                .foregroundStyle(note != nil || state == .unsupported ? Color.orange : Color.secondary)
+                .help(help)
+                .accessibilityLabel(help)
+        }
+    }
+
+    private var help: String? {
+        if let note { return note }
+        switch state {
+        case .making: return UploadOnlyText.making
+        case .lifting: return UploadOnlyText.lifting
+        case .unsupported: return UploadOnlyText.needsUpdate
+        case .none: return nil
+        }
+    }
 }
 
 /// The eye on a folder's row (issue #192): open when the folder is shown
@@ -742,90 +795,84 @@ struct DeviceAddressFields: View {
     }
 }
 
-/// "Add Folder": the three kinds of folder, each with an (i) that says in
-/// plain words what it does - the old menu's two entries didn't, and
-/// every folder being two-way came as a surprise.
+/// "Add Folder", in two steps (otc-sync's tray does the same,
+/// addfolder.go): first the kind of folder, each with an (i) that says in
+/// plain words what it does - the old menu's two entries didn't, and every
+/// folder being two-way came as a surprise; then the options that kind has
+/// - a backup: Keep out of Images (upload only it always is, a fixed line);
+/// a two-way folder from this Mac: Upload only and Keep out of Images - and
+/// "Choose Folder…", which only then opens the folder picker. A folder from
+/// the device has no options (it keeps what it has there): its kind goes
+/// straight to the device's folders.
 struct AddFolderChooser: View {
-    /// Issue #192: whether the device can keep folders out of Images (nil
-    /// while not known: offered, and sent once it is connected).
+    /// The kinds that have a second step.
+    enum Kind { case backup, local }
+    /// Whether the device can keep folders out of Images (issue #192) and
+    /// make them upload only (issue #132): nil while not known - offered,
+    /// and sent once it is connected.
     let outOfImagesSupported: Bool?
-    // Each is told whether to keep the folder out of Images.
-    let onBackup: (Bool) -> Void
-    let onSyncLocal: (Bool) -> Void
-    let onSyncDevice: (Bool) -> Void
+    let uploadOnlySupported: Bool?
+    let onBackup: (_ outOfImages: Bool) -> Void
+    let onSyncLocal: (_ uploadOnly: Bool, _ outOfImages: Bool) -> Void
+    let onSyncDevice: () -> Void
     let onCancel: () -> Void
-    @State private var open: Int?
+    @State private var kind: Kind?
+    /// Which (i) is open.
+    @State private var open: String?
     @State private var keepOut = false
+    @State private var uploadOnly = false
 
     private var canKeepOut: Bool { outOfImagesSupported != false }
+    private var canUploadOnly: Bool { uploadOnlySupported != false }
+
+    // The kinds' words (the tray's, with "this Mac" for "this computer").
+    static let backupTitle = "Back up a folder from this Mac"
+    static let backupSubtitle = "One way: this Mac → device (upload only, no deletes)"
+    static let localTitle = "Sync a folder from this Mac"
+    static let localSubtitle = "Two ways: starts from this Mac"
 
     var body: some View {
+        if let kind {
+            optionsStep(kind)
+        } else {
+            kindStep
+        }
+    }
+
+    // MARK: Step 1: the kind
+
+    private var kindStep: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("Add a folder").font(.headline)
                 Spacer()
                 Button("Cancel", action: onCancel).buttonStyle(.borderless)
             }
-            // First: each option below acts on the first click, so a
-            // checkbox under them would be read too late.
-            outOfImagesOption
-            option(0, icon: "arrow.up.circle.fill", tint: .orange,
-                   title: "Back up a folder from this Mac",
-                   subtitle: "One way: this Mac → device (upload only, no deletes)",
-                   info: "New and changed files are copied to the device. Nothing is ever deleted there: files you delete on this Mac stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder on the Mac. Good for photo archives and backups.",
-                   action: { onBackup(keepOut && canKeepOut) })
-            option(1, icon: "arrow.triangle.2.circlepath.circle.fill", tint: .blue,
-                   title: "Sync a folder from this Mac",
-                   subtitle: "Two ways: starts from this Mac",
-                   info: "The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device (from a phone, another computer or the web) change this folder too, and the other way round. Deleted files go to the Trash on the Mac. The first sync only adds - it never deletes.",
-                   action: { onSyncLocal(keepOut && canKeepOut) })
-            option(2, icon: "arrow.down.circle.fill", tint: .green,
-                   title: "Sync a folder from the device",
-                   subtitle: "Two ways: starts from the device",
-                   info: "Pick a folder that is already on the device and a place on this Mac: it is downloaded there and kept the same in both places from then on, changes and deletions included, like the option above. Handy for getting a folder onto a second computer.",
-                   action: { onSyncDevice(keepOut && canKeepOut) })
+            kindRow("backup", icon: "arrow.up.circle.fill", tint: .orange,
+                    title: Self.backupTitle, subtitle: Self.backupSubtitle,
+                    info: "New and changed files are copied to the device. Nothing is ever deleted there: files you delete on this Mac stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder on the Mac. Good for photo archives and backups.",
+                    action: { choose(.backup) })
+            kindRow("local", icon: "arrow.triangle.2.circlepath.circle.fill", tint: .blue,
+                    title: Self.localTitle, subtitle: Self.localSubtitle,
+                    info: "The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device (from a phone, another computer or the web) change this folder too, and the other way round. Deleted files go to the Trash on the Mac. The first sync only adds - it never deletes.",
+                    action: { choose(.local) })
+            kindRow("device", icon: "arrow.down.circle.fill", tint: .green,
+                    title: "Sync a folder from the device",
+                    subtitle: "Two ways: starts from the device",
+                    info: "Pick a folder that is already on the device and a place on this Mac: it is downloaded there and kept the same in both places from then on, changes and deletions included, like the option above. Handy for getting a folder onto a second computer. What is set for it on the device (upload only, kept out of Images) stays as it is.",
+                    action: onSyncDevice)
         }
     }
 
-    /// Issue #192: for whichever kind is picked below.
-    private var outOfImagesOption: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .top, spacing: 10) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Toggle(OutOfImagesText.toggle, isOn: $keepOut)
-                        .toggleStyle(.checkbox)
-                        .disabled(!canKeepOut)
-                    // Outside the toggle, so a device that needs an update
-                    // says so in full contrast.
-                    Text(canKeepOut ? OutOfImagesText.addCaption : OutOfImagesText.needsUpdate)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.leading, 20)
-                }
-                Spacer(minLength: 0)
-                Button {
-                    open = open == 3 ? nil : 3
-                } label: {
-                    Image(systemName: open == 3 ? "info.circle.fill" : "info.circle")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.borderless)
-                .help("What this does")
-            }
-            if open == 3 {
-                Text(OutOfImagesText.addInfo)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.leading, 20)
-            }
-        }
-        .padding(8)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+    /// A kind picked: its options start unticked.
+    private func choose(_ k: Kind) {
+        keepOut = false
+        uploadOnly = false
+        open = nil
+        kind = k
     }
 
-    private func option(_ i: Int, icon: String, tint: Color, title: String, subtitle: String, info: String, action: @escaping () -> Void) -> some View {
+    private func kindRow(_ id: String, icon: String, tint: Color, title: String, subtitle: String, info: String, action: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
                 Button(action: action) {
@@ -840,29 +887,122 @@ struct AddFolderChooser: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer(minLength: 0)
+                        // There is a next step: its options, or the
+                        // device's folders.
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
                     }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                Button {
-                    open = open == i ? nil : i
-                } label: {
-                    Image(systemName: open == i ? "info.circle.fill" : "info.circle")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.borderless)
-                .help("What this does")
+                infoButton(id)
             }
-            if open == i {
-                Text(info)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.leading, 34)
+            if open == id {
+                infoText(info, leading: 34)
             }
         }
         .padding(8)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    // MARK: Step 2: the options, then the folder
+
+    private func optionsStep(_ k: Kind) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Button {
+                    open = nil
+                    kind = nil
+                } label: {
+                    Label("Back", systemImage: "chevron.left")
+                }
+                .buttonStyle(.borderless)
+                Spacer()
+                Button("Cancel", action: onCancel).buttonStyle(.borderless)
+            }
+            HStack(spacing: 10) {
+                Image(systemName: k == .backup ? "arrow.up.circle.fill" : "arrow.triangle.2.circlepath.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(k == .backup ? Color.orange : Color.blue)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(k == .backup ? Self.backupTitle : Self.localTitle).font(.headline)
+                    Text(k == .backup ? Self.backupSubtitle : Self.localSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if k == .backup {
+                // Not a choice: a backup is made upload only at every start.
+                option("uploadOnly", isOn: .constant(true), title: UploadOnlyText.toggle,
+                       caption: UploadOnlyText.backup + " " + UploadOnlyText.caption, info: nil, enabled: false)
+            } else {
+                option("uploadOnly", isOn: $uploadOnly, title: UploadOnlyText.toggle,
+                       caption: canUploadOnly ? UploadOnlyText.caption : UploadOnlyText.needsUpdate,
+                       info: UploadOnlyText.addInfo, enabled: canUploadOnly)
+            }
+            option("keepOut", isOn: $keepOut, title: OutOfImagesText.toggle,
+                   caption: canKeepOut ? OutOfImagesText.addCaption : OutOfImagesText.needsUpdate,
+                   info: OutOfImagesText.addInfo, enabled: canKeepOut)
+            HStack {
+                Spacer()
+                Button("Choose Folder…") {
+                    switch k {
+                    case .backup: onBackup(keepOut && canKeepOut)
+                    case .local: onSyncLocal(uploadOnly && canUploadOnly, keepOut && canKeepOut)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+    }
+
+    private func option(_ id: String, isOn: Binding<Bool>, title: String, caption: String, info: String?, enabled: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Toggle(title, isOn: isOn)
+                        .toggleStyle(.checkbox)
+                        .disabled(!enabled)
+                    // Outside the toggle, so a device that needs an update
+                    // says so in full contrast.
+                    Text(caption)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.leading, 20)
+                }
+                Spacer(minLength: 0)
+                if info != nil {
+                    infoButton(id)
+                }
+            }
+            if let info, open == id {
+                infoText(info, leading: 20)
+            }
+        }
+        .padding(8)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func infoButton(_ id: String) -> some View {
+        Button {
+            open = open == id ? nil : id
+        } label: {
+            Image(systemName: open == id ? "info.circle.fill" : "info.circle")
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.borderless)
+        .help("What this does")
+    }
+
+    private func infoText(_ text: String, leading: CGFloat) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.leading, leading)
     }
 }
 

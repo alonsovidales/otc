@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // Package tray is PopoverView.swift as a system tray menu: status, RAID
-// health, the web app, one row per folder, add local/remote folder,
+// health, the web app, one row per folder, Add Folder… (addfolder.go),
 // settings, start at login, quit. Dialogs are the OS's own (a folder
 // chooser, a text entry, a list) rather than a window of ours, so the
 // binary stays free of a GUI toolkit and cross-compiles from anywhere.
@@ -57,6 +57,9 @@ type folderItem struct {
 	// Issue #192: "Kept Out of Images" and the line under it (images.go).
 	images     *systray.MenuItem
 	imagesInfo *systray.MenuItem
+	// Issue #132: the device's refusal of its upload-only request
+	// (uploadonly.go).
+	uploadInfo *systray.MenuItem
 	id         string
 	remote     bool
 }
@@ -75,10 +78,8 @@ type ui struct {
 	setup     *systray.MenuItem // issue #184: the SD card wizard
 	empty     *systray.MenuItem
 	folders   []*folderItem
-	addLocal  *systray.MenuItem
-	addBackup *systray.MenuItem
+	add       *systray.MenuItem
 	explain   *systray.MenuItem
-	addRem    *systray.MenuItem
 	settings  *systray.MenuItem
 	autost    *systray.MenuItem
 	quit      *systray.MenuItem
@@ -250,20 +251,19 @@ func (u *ui) build(folders []config.FolderStatus) {
 	for _, f := range folders {
 		mi := systray.AddMenuItem(folderTitle(f), "")
 		img, info := addImagesItems(mi)
+		upInfo := addUploadOnlyInfo(mi)
 		rm := mi.AddSubMenuItem("Remove", "Stop syncing this folder (nothing is deleted)")
-		u.folders = append(u.folders, &folderItem{item: mi, remove: rm, images: img, imagesInfo: info, id: f.ID, remote: f.RemotePath != ""})
+		u.folders = append(u.folders, &folderItem{item: mi, remove: rm, images: img, imagesInfo: info, uploadInfo: upInfo, id: f.ID, remote: f.RemotePath != ""})
 	}
 	if len(folders) > 0 {
 		u.empty.Hide()
 	}
 	systray.AddSeparator()
-	// The macOS app's three kinds of folder (AddFolderChooser); a tray menu
-	// has no (i) buttons, so each has a tooltip and "What do these do?"
-	// explains all three.
-	u.addBackup = systray.AddMenuItem("Back Up a Folder from This Computer…", "One way: this computer → device (upload only, no deletes)")
-	u.addLocal = systray.AddMenuItem("Sync a Folder from This Computer…", "Two ways: kept the same here and on the device, changes and deletions included")
-	u.addRem = systray.AddMenuItem("Sync a Folder from the Device…", "Two ways, starting from a folder already on the device")
-	u.explain = systray.AddMenuItem("What Do These Do?", "The difference between backing up and syncing")
+	// The macOS app's "Add Folder…" (AddFolderChooser): the kind, its
+	// options, then the folder (addfolder.go). A dialog has no (i) buttons,
+	// so "What Do These Do?" explains the kinds and options.
+	u.add = systray.AddMenuItem("Add Folder…", "Back up or sync a folder from this computer, or sync one from the device")
+	u.explain = systray.AddMenuItem("What Do These Do?", "The kinds of folder, and their options")
 	// Connected: the device and Disconnect; not: the device and password.
 	u.settings = systray.AddMenuItem(u.settingsTitle(), "")
 	u.autost = systray.AddMenuItemCheckbox(autostartToggle, autostartToggleTip, u.c.AutostartEnabled())
@@ -275,8 +275,8 @@ func (u *ui) build(folders []config.FolderStatus) {
 	stop := make(chan struct{})
 	u.stopLoop = stop
 	items := u.folders
-	addLocal, addRem, settings, autost, quit := u.addLocal, u.addRem, u.settings, u.autost, u.quit
-	addBackup, explain, appUpdate, setup, web := u.addBackup, u.explain, u.appUpdate, u.setup, u.web
+	add, settings, autost, quit := u.add, u.settings, u.autost, u.quit
+	explain, appUpdate, setup, web := u.explain, u.appUpdate, u.setup, u.web
 	go func() {
 		for {
 			select {
@@ -286,14 +286,10 @@ func (u *ui) build(folders []config.FolderStatus) {
 				go u.installUpdate()
 			case <-web.ClickedCh:
 				go u.openWebApp()
-			case <-addBackup.ClickedCh:
-				go u.addBackup_()
+			case <-add.ClickedCh:
+				go u.addFolder()
 			case <-explain.ClickedCh:
 				go u.explainKinds()
-			case <-addLocal.ClickedCh:
-				go u.addLocal_()
-			case <-addRem.ClickedCh:
-				go u.addRemote()
 			case <-setup.ClickedCh:
 				go u.setupDevice()
 			case <-settings.ClickedCh:
@@ -399,6 +395,7 @@ func (u *ui) apply() {
 	for i, f := range want {
 		u.setTitle(u.folders[i].item, folderTitle(f))
 		u.applyImages(u.folders[i], f)
+		u.applyUploadOnly(u.folders[i], f)
 	}
 	// Read every time (a stat, or a registry read), so an entry removed
 	// outside the app shows; only the write is skipped.
@@ -450,7 +447,7 @@ func folderTitle(f config.FolderStatus) string {
 		}
 	}
 
-	return fmt.Sprintf("%s %s — %s%s", arrow, name, state, imagesSuffix(f))
+	return fmt.Sprintf("%s %s — %s%s%s", arrow, name, state, uploadOnlySuffix(f), imagesSuffix(f))
 }
 
 // editConfig is config.json for an edit, or nil - and the reason shown -
@@ -494,60 +491,32 @@ func (u *ui) removeFolder(fi *folderItem) {
 	Refresh()
 }
 
-// addBackup_ adds a one-way backup (config.Folder.OneWay).
-func (u *ui) addBackup_() {
-	dir, err := zenity.SelectFile(zenity.Directory(), zenity.Title("Choose a folder to back up to the device"))
-	if err != nil || dir == "" {
-		return
-	}
-	outOfImages := u.askKeepOutOfImages(filepath.Base(dir))
-	cfg := u.editConfig()
-	if cfg == nil {
-		return
-	}
-	cfg.Folders = append(cfg.Folders, config.Folder{ID: config.NewID(), Path: dir, OneWay: true, OutOfImages: outOfImages})
-	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
-	}
-	Refresh()
-}
-
 // explainKinds is the tray's (i): the macOS chooser's three explanations.
 func (u *ui) explainKinds() {
-	_ = zenity.Info(`Back up a folder from this computer - one way: this computer → device (upload only, no deletes)
+	_ = zenity.Info(explainKindsText, zenity.Title("Adding a folder"), zenity.Width(520))
+}
+
+// explainKindsText is "What Do These Do?": the Mac chooser's (i)s - the
+// three kinds, then the options a folder from this computer has.
+var explainKindsText = `Back up a folder from this computer - one way: this computer → device (upload only, no deletes)
 New and changed files are copied to the device. Nothing is ever deleted there: files you delete here stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder here.
 
 Sync a folder from this computer - two ways
 The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device change this folder too, and the other way round. The first sync only adds, it never deletes.
 
 Sync a folder from the device - two ways
-Pick a folder already on the device and a place on this computer: it is downloaded there and kept the same in both places from then on, changes and deletions included.
+Pick a folder already on the device and a place on this computer: it is downloaded there and kept the same in both places from then on, changes and deletions included. What is set for it on the device (upload only, kept out of Images) stays as it is.
 
-`+imagesExplainKinds,
-		zenity.Title("Adding a folder"), zenity.Width(520))
-}
+Upload only (an option for a folder synced from this computer; always on for a backup)
+` + engine.UploadOnlyCaption + " " + engine.UploadOnlyTwoWay + " " + engine.UploadOnlyLater + `
 
-func (u *ui) addLocal_() {
-	dir, err := zenity.SelectFile(zenity.Directory(), zenity.Title("Choose a folder to keep in sync"))
-	if err != nil || dir == "" {
-		return
-	}
-	outOfImages := u.askKeepOutOfImages(filepath.Base(dir))
-	cfg := u.editConfig()
-	if cfg == nil {
-		return
-	}
-	// Made two-way by the engine (migrateFolders), the request with it.
-	cfg.Folders = append(cfg.Folders, config.Folder{ID: config.NewID(), Path: dir, OutOfImages: outOfImages})
-	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
-	}
-	Refresh()
-}
+` + imagesExplainKinds
 
 // addRemote is RemoteFolderPickerView: browse the device's tree (a native
 // window on Windows, the desktop's list dialog on Linux - see picker_*.go),
-// then the local destination in the folder chooser.
+// then the local destination in the folder chooser. A folder from the
+// device has no options: it keeps what it has there (Images, upload only),
+// which its menu, the web or a phone change.
 func (u *ui) addRemote() {
 	list, done := u.c.RemoteBrowser()
 	remote, ok := pickRemoteFolder(list)
@@ -559,12 +528,11 @@ func (u *ui) addRemote() {
 	if err != nil || dir == "" {
 		return
 	}
-	outOfImages := u.askKeepOutOfImages(baseName(remote))
 	cfg := u.editConfig()
 	if cfg == nil {
 		return
 	}
-	cfg.RemoteFolders = append(cfg.RemoteFolders, config.RemoteFolder{ID: config.NewID(), RemotePath: remote, LocalPath: dir, OutOfImages: outOfImages})
+	cfg.RemoteFolders = append(cfg.RemoteFolders, config.RemoteFolder{ID: config.NewID(), RemotePath: remote, LocalPath: dir})
 	if err := u.c.SaveConfig(cfg); err != nil {
 		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
 	}

@@ -30,6 +30,20 @@ enum OutOfImagesState: Equatable {
     }
 }
 
+/// Issue #132: how a folder's request to be made upload only stands
+/// (SyncPaths.uploadOnlyState; otc-sync's engine.UploadOnlyState): nothing
+/// on its way (the device has it, or nothing was asked), a request not
+/// acknowledged yet, or one the device can't take.
+enum UploadOnlyRequestState: Equatable {
+    case none
+    /// A request to make it upload only, on its way.
+    case making
+    /// A request to lift it (no control asks for it; kept for stored data).
+    case lifting
+    /// The device needs an update; sent by itself once it has one.
+    case unsupported
+}
+
 /// Which paths a sync pass may act on. Free of SyncModel (and of anything
 /// else) so the rules can be tested on their own.
 ///
@@ -154,6 +168,60 @@ enum SyncPaths {
             return .keptOutBy(p)
         }
         return own ? .keptOut : .shown
+    }
+
+    /// A folder's UploadOnlyRequestState from its pending request and
+    /// whether the device can (nil while unknown). As otc-sync's
+    /// engine.UploadOnlyRequestState.
+    static func uploadOnlyState(pending: Bool?, supported: Bool?) -> UploadOnlyRequestState {
+        switch (pending, supported) {
+        case (nil, _): return .none
+        case (_, false?): return .unsupported
+        case (true?, _): return .making
+        case (false?, _): return .lifting
+        }
+    }
+
+    /// Marks a two-way sync record entry for a file deleted on this Mac
+    /// that the device kept: its folder there is upload only (issue #132),
+    /// so the delete was refused ("upload_only"). The entry holds the
+    /// device's hash after the prefix and stands for two baselines - absent
+    /// here, that hash on the device (recordBaselines) - so while neither
+    /// side changes the file, nothing happens: it isn't downloaded again
+    /// and the delete isn't sent again. A new version on the device comes
+    /// down, a file put back here goes up, both at once are a conflict like
+    /// any other, gone from the device too the entry goes, and once the
+    /// folder is no longer upload only the file comes back here
+    /// (baselines). An older version reading the record sees a hash that
+    /// matches neither side and downloads the file, which is what it did
+    /// before. Same marker as otc-sync's keptOnDevice.
+    static let keptOnDevicePrefix = "kept-on-device:"
+
+    static func keptOnDevice(_ hash: String) -> String { keptOnDevicePrefix + hash }
+
+    /// What a sync record entry says each side had after the last pass: the
+    /// same hash, or for a file kept on the device, nothing here and its
+    /// hash there.
+    static func recordBaselines(_ entry: String?) -> (local: String?, remote: String?) {
+        guard let entry else { return (nil, nil) }
+        if entry.hasPrefix(keptOnDevicePrefix) {
+            return (nil, String(entry.dropFirst(keptOnDevicePrefix.count)))
+        }
+        return (entry, entry)
+    }
+
+    /// recordBaselines for a path the device lists with `listedUploadOnly`
+    /// (its File.upload_only; nil when the device doesn't list the path). A
+    /// file kept on the device whose folder is no longer upload only there -
+    /// lifted later from the web or a phone - has no baseline any more: it
+    /// comes back here, which deletes nothing on the device, and both sides
+    /// match again. Sending the old delete instead would delete what the
+    /// lock protected. As otc-sync's baselinesFor.
+    static func baselines(_ entry: String?, listedUploadOnly: Bool?) -> (local: String?, remote: String?) {
+        if let entry, entry.hasPrefix(keptOnDevicePrefix), listedUploadOnly == false {
+            return (nil, nil)
+        }
+        return recordBaselines(entry)
     }
 
     private static func hasHiddenComponent(_ relative: String) -> Bool {

@@ -31,19 +31,8 @@ func TestFolderTitleSaysOutOfImages(t *testing.T) {
 	}
 }
 
-// The add question says what keeping out does to a folder already on the
-// device (its tags and faces go), and its other button promises nothing
-// it doesn't do; "What Do These Do?" names the folder it is about.
-func TestImagesAddQuestionWords(t *testing.T) {
-	q := imagesAddQuestion("Trip")
-	for _, want := range []string{"“Trip”", "Files still has them", "tags and faces already found in them are deleted"} {
-		if !strings.Contains(q, want) {
-			t.Errorf("question %q lacks %q", q, want)
-		}
-	}
-	if imagesAddLater == "Show in Images" {
-		t.Error("the add question's other button sends nothing: it can't say Show in Images")
-	}
+// "What Do These Do?" names the folder it is about, never "here".
+func TestImagesExplainWords(t *testing.T) {
 	if strings.Contains(imagesExplainKinds, " here ") || strings.Contains(imagesExplainKinds, " its ") {
 		t.Errorf("explanation points at no folder: %q", imagesExplainKinds)
 	}

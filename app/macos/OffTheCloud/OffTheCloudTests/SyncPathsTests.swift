@@ -77,6 +77,46 @@ struct SyncPathsTests {
         #expect(!OutOfImagesState.showing.isKeptOut && !OutOfImagesState.unsupported.isKeptOut)
     }
 
+    /// Issue #132, as otc-sync's TestUploadOnlyRequestState.
+    @Test func uploadOnlyState() {
+        #expect(SyncPaths.uploadOnlyState(pending: nil, supported: nil) == .none)
+        #expect(SyncPaths.uploadOnlyState(pending: nil, supported: false) == .none)
+        #expect(SyncPaths.uploadOnlyState(pending: true, supported: nil) == .making)
+        #expect(SyncPaths.uploadOnlyState(pending: true, supported: true) == .making)
+        #expect(SyncPaths.uploadOnlyState(pending: false, supported: true) == .lifting)
+        #expect(SyncPaths.uploadOnlyState(pending: true, supported: false) == .unsupported)
+    }
+
+    /// A file deleted here that the device kept (an upload-only folder):
+    /// its record entry stands for nothing here and the device's hash
+    /// there. The same marker as otc-sync's, so a record reads the same.
+    @Test func keptOnDeviceRecord() {
+        let hash = String(repeating: "ab", count: 32)
+        #expect(SyncPaths.keptOnDevice(hash) == "kept-on-device:" + hash)
+        let kept = SyncPaths.recordBaselines(SyncPaths.keptOnDevice(hash))
+        #expect(kept.local == nil && kept.remote == hash)
+        let plain = SyncPaths.recordBaselines(hash)
+        #expect(plain.local == hash && plain.remote == hash)
+        let none = SyncPaths.recordBaselines(nil)
+        #expect(none.local == nil && none.remote == nil)
+    }
+
+    /// Upload only lifted later (the listing no longer says upload_only):
+    /// a file kept on the device has no baseline any more, so it comes back
+    /// here instead of the old delete going. As otc-sync's TestBaselinesFor.
+    @Test func keptOnDeviceAfterUploadOnlyIsLifted() {
+        let hash = String(repeating: "cd", count: 32)
+        let kept = SyncPaths.keptOnDevice(hash)
+        let still = SyncPaths.baselines(kept, listedUploadOnly: true)
+        #expect(still.local == nil && still.remote == hash)
+        let lifted = SyncPaths.baselines(kept, listedUploadOnly: false)
+        #expect(lifted.local == nil && lifted.remote == nil)
+        let gone = SyncPaths.baselines(kept, listedUploadOnly: nil)
+        #expect(gone.local == nil && gone.remote == hash)
+        let plain = SyncPaths.baselines(hash, listedUploadOnly: false)
+        #expect(plain.local == hash && plain.remote == hash)
+    }
+
     @Test func backupWatcherSkipsWhatReconcileSkips() {
         let root = "/Users/me/Documents"
         #expect(SyncPaths.isSkippedBackupPath(root + "/.DS_Store", root: root))

@@ -160,20 +160,19 @@ type Engine struct {
 	hostname      string
 	stopped       bool
 
+	// A folder's requests to the device (requests.go): Keep out of Images
+	// (issue #192) and Upload only (issue #132).
+	images requestState
+	upOnly requestState
+	// Two-way folders' deletes held until upload only is set (logged when
+	// the count changes; noteHeldDeletes).
+	heldDeletes map[string]int
 	// Issue #192 (out_of_images.go): the folders the device keeps out of
-	// Images (ListOutOfImages, each with its slash; nil until it answers)
-	// and whether it can (nil until known), both forgotten when the device
-	// or password changes (imagesGen counts those changes); a folder's
-	// request under way, the last error logged for it, the device's
-	// refusal of its last request to show it, and a request the device
-	// answered that config.json couldn't be cleared of yet (the value).
-	imagesFolders   []string
-	imagesSupported *bool
-	imagesGen       int
-	imagesBusy      map[string]chan struct{}
-	imagesErr       map[string]string
-	imagesNote      map[string]string
-	imagesAcked     map[string]bool
+	// Images (ListOutOfImages, each with its slash; nil until it answers),
+	// forgotten when the device or password changes (imagesGen counts
+	// those changes).
+	imagesFolders []string
+	imagesGen     int
 }
 
 // New builds an engine over cfg; onChange fires whenever anything the UI
@@ -208,10 +207,9 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		folderBusy:    map[string]bool{},
 		uploadOnlyOK:  map[string]bool{},
 		uploadOnlyErr: map[string]string{},
-		imagesBusy:    map[string]chan struct{}{},
-		imagesErr:     map[string]string{},
-		imagesNote:    map[string]string{},
-		imagesAcked:   map[string]bool{},
+		images:        newRequestState(),
+		upOnly:        newRequestState(),
+		heldDeletes:   map[string]int{},
 		hashCache:     map[string]map[string]hashEntry{},
 		hashDirty:     map[string]bool{},
 		hashLoaded:    map[string]bool{},
@@ -229,9 +227,10 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 	e.ws.OnConnect = func() {
 		e.setStatus("Connected")
 		e.startRaidPolling()
-		// Issue #192: alongside the passes, which wait for a folder's
-		// request under way before they send anything.
+		// Issues #192 and #132: alongside the passes, which wait for a
+		// folder's request under way before they send anything.
 		go e.imagesAtConnect()
+		go e.uploadOnlyAtConnect()
 		go e.startSync()
 	}
 	e.ws.OnDisconnect = func(err error) {
@@ -370,13 +369,15 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 		// the reconnect (harmless on the same one).
 		e.uploadOnlyOK = map[string]bool{}
 		e.uploadOnlyErr = map[string]string{}
-		// What it keeps out of Images is asked again, too; requests still
-		// pending go to it.
+		// What it keeps out of Images is asked again, too, and what it can
+		// do; requests still pending go to it.
 		e.forgetOutOfImagesLocked()
+		e.forgetRequestsLocked(uploadOnlyRequest)
 	}
-	// Issue #192: a request the tray or the command line just made for a
-	// folder already synced goes now, not at the folder's next pass.
-	imagesChanged := e.changedOutOfImagesLocked(old, cfg)
+	// A request the tray or the command line just made for a folder
+	// already synced goes now, not at the folder's next pass.
+	imagesChanged := e.changedRequestsLocked(imagesRequest, old, cfg)
+	uploadOnlyChanged := e.changedRequestsLocked(uploadOnlyRequest, old, cfg)
 	if old.Domain != cfg.Domain {
 		// The old device's home-network endpoint goes with it (issue
 		// #190); under e.mu, as keepLocalEndpoint stores one.
@@ -392,9 +393,12 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 
 		return
 	}
+	// Offline too: a clear config.json still owes is only a write.
 	if len(imagesChanged) > 0 {
-		// Offline too: a clear config.json still owes is only a write.
-		go e.applyPendingOutOfImages(imagesChanged...)
+		go e.applyPendingRequests(imagesRequest, imagesChanged...)
+	}
+	if len(uploadOnlyChanged) > 0 {
+		go e.applyPendingRequests(uploadOnlyRequest, uploadOnlyChanged...)
 	}
 	if e.ws.IsConnected() {
 		go e.startSync()
@@ -410,9 +414,7 @@ func (e *Engine) dropFolderLocked(id string) {
 	delete(e.folderStates, id)
 	delete(e.uploadOnlyOK, id)
 	delete(e.uploadOnlyErr, id)
-	delete(e.imagesErr, id)
-	delete(e.imagesNote, id)
-	delete(e.imagesAcked, id)
+	e.dropRequestsLocked(id)
 	// A running drainChanges ends at its next look at the queue.
 	delete(e.changeQueue, id)
 	delete(e.changeQueued, id)
@@ -437,10 +439,9 @@ func (e *Engine) dropRemoteFolderLocked(id string) {
 		delete(e.remoteRetry, id)
 	}
 	e.dropSyncedLocked(id)
+	delete(e.heldDeletes, id)
 	delete(e.remoteStates, id)
-	delete(e.imagesErr, id)
-	delete(e.imagesNote, id)
-	delete(e.imagesAcked, id)
+	e.dropRequestsLocked(id)
 	e.dropHashCacheLocked(id)
 }
 
@@ -496,14 +497,17 @@ func (e *Engine) Snapshot() config.State {
 		}
 	}
 	st.OutOfImagesUnsupported = e.imagesUnsupportedLocked()
+	st.UploadOnlyUnsupported = e.upOnly.unsupportedLocked()
 	for _, f := range e.cfg.Folders {
 		fs := toStatus(f.ID, f.Path, "", e.folderStates[f.ID])
 		e.imagesStatusLocked(&fs)
+		e.uploadOnlyStatusLocked(&fs)
 		st.Folders = append(st.Folders, fs)
 	}
 	for _, f := range e.cfg.RemoteFolders {
 		fs := toStatus(f.ID, f.LocalPath, f.RemotePath, e.remoteStates[f.ID])
 		e.imagesStatusLocked(&fs)
+		e.uploadOnlyStatusLocked(&fs)
 		st.RemoteFolders = append(st.RemoteFolders, fs)
 	}
 
@@ -996,7 +1000,7 @@ func (e *Engine) reconcile(f config.Folder) {
 	// Issue #192: before anything is sent, so a new folder's photos never
 	// reach Images. Not waited on beyond its one request: an old or
 	// unreachable device doesn't stop the backup.
-	e.applyOutOfImages(f.ID)
+	e.applyRequestsBeforePass(f.ID)
 
 	remotePrefix := e.remotePathFor(f.Path) + "/"
 	resp, err := e.request(func(r *pb.ReqEnvelope) {
@@ -1234,8 +1238,16 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 
 		return
 	}
-	// Issue #192: as reconcile - first, and never holding the pass up.
-	e.applyOutOfImages(f.ID)
+	// As reconcile - first, and never holding the pass up: upload only
+	// (issue #132) before anything could be deleted, and Images (issue
+	// #192) before anything is sent.
+	e.applyRequestsBeforePass(f.ID)
+	// Upload only asked for and not acknowledged yet (it failed, or the
+	// device can't yet): no delete goes to the device until it is. A file
+	// deleted here keeps its baseline, and its delete goes once the device
+	// has the flag - which then refuses it and keeps the file
+	// (keptOnDevice).
+	holdDeletes := e.uploadOnlyAwaited(f.ID)
 
 	remotePrefix := strings.TrimSuffix(f.RemotePath, "/") + "/"
 	resp, err := e.request(func(r *pb.ReqEnvelope) {
@@ -1371,6 +1383,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		newSynced[k] = v
 	}
 	var actions []action
+	deletesHeld := 0 // waiting for upload only (holdDeletes)
 	for rel := range all {
 		if unreadable[rel] {
 			continue
@@ -1386,7 +1399,10 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		if remoteFile != nil {
 			remoteHash = remoteFile.Hash
 		}
-		lastHash := last[rel]
+		// What each side had after the last pass: the same, except for a
+		// file the device kept when it was deleted here (keptOnDevice) -
+		// and none at all for one whose folder is no longer upload only.
+		lastLocal, lastRemote := baselinesFor(last[rel], remoteFile)
 		// Issue #141: listed without a hash means the device has lost
 		// this file's content. A copy here is sent again, which restores
 		// it; with none here there is nothing to fetch - never a download
@@ -1408,8 +1424,14 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 
 			continue
 		}
-		localChanged := localHash != lastHash
-		remoteChanged := remoteHash != lastHash
+		localChanged := localHash != lastLocal
+		remoteChanged := remoteHash != lastRemote
+		if !localChanged && !remoteChanged {
+			// Deleted here and kept by the device (an upload-only folder),
+			// and neither side changed it since: not downloaded again, nor
+			// the delete sent again. The record keeps saying so.
+			continue
+		}
 		remoteWins := remoteChanged
 		if localChanged && remoteChanged {
 			// Genuine conflict: the newer modification wins.
@@ -1451,12 +1473,20 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			} else if hasLocal {
 				actions = append(actions, action{rel, actUpload, localHash})
 				newSynced[rel] = localHash
+			} else if holdDeletes {
+				// Not upload only on the device yet: the delete waits, and
+				// newSynced keeps its baseline.
+				deletesHeld++
 			} else {
-				actions = append(actions, action{rel, actDeleteRemote, ""})
+				// The device's hash goes with it: kept there (upload only),
+				// it is what the record holds.
+				actions = append(actions, action{rel, actDeleteRemote, remoteHash})
 				delete(newSynced, rel)
 			}
 		}
 	}
+
+	e.noteHeldDeletes(f, deletesHeld)
 
 	// Mass-deletion guard (as SyncModel.reconcileRemoteFolder): a device
 	// wiped or set up again looks like one whose owner deleted everything,
@@ -1669,6 +1699,12 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			}
 		case actDeleteRemote:
 			err = e.deleteRemote(remotePath)
+			if errors.Is(err, errKeptOnDevice) {
+				// The folder is upload only on the device: the file stays
+				// there, and stays deleted here (recordBaselines).
+				newSynced[a.relative] = keptOnDevice(a.hash)
+				err = nil
+			}
 		case actDeleteLocal:
 			if err = stillAsScanned(a.relative, localPath); err == nil {
 				err = os.Remove(localPath)
@@ -1716,6 +1752,33 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		return
 	}
 	e.setRemoteState(f.ID, FolderState{Kind: StateWatching})
+}
+
+// uploadOnlyAwaited: folder id asked to be made upload only (issue #132)
+// and the device hasn't acknowledged it yet - a request that failed, or a
+// device that can't until it is updated.
+func (e *Engine) uploadOnlyAwaited(id string) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	pending, _, _ := e.pendingLocked(uploadOnlyRequest, id)
+
+	return pending != nil && *pending
+}
+
+// noteHeldDeletes logs how many deletes a two-way folder holds until it is
+// upload only on the device - when that changes, not at every pass.
+func (e *Engine) noteHeldDeletes(f config.RemoteFolder, held int) {
+	e.mu.Lock()
+	changed := e.heldDeletes[f.ID] != held
+	if held == 0 {
+		delete(e.heldDeletes, f.ID)
+	} else {
+		e.heldDeletes[f.ID] = held
+	}
+	e.mu.Unlock()
+	if changed && held > 0 {
+		log.Printf("%s: %d delete(s) made here wait until the device has made the folder upload only", f.RemotePath, held)
+	}
 }
 
 // errChangedHere: a planned overwrite or delete found the local file no
@@ -2095,16 +2158,20 @@ func (e *Engine) deleteRemote(remotePath string) error {
 	}
 	// Issue #132: the owner made that folder upload only, so the device
 	// keeps the file however the local copy goes. That is the folder
-	// working as intended, not a failure to retry (SyncModel.delete does
-	// the same).
+	// working as intended, not a failure to retry: errKeptOnDevice
+	// (SyncModel.delete does the same).
 	if resp != nil && resp.Error && resp.ErrorCode == "upload_only" {
-		log.Printf("delete of %s skipped: the folder is upload only", remotePath)
+		log.Printf("delete of %s skipped: the folder is upload only - kept on the device", remotePath)
 
-		return nil
+		return errKeptOnDevice
 	}
 
 	return wsclient.RespError(resp, "delete rejected")
 }
+
+// errKeptOnDevice: the device refused a delete because the folder is
+// upload only there (error_code "upload_only").
+var errKeptOnDevice = errors.New("kept on the device: the folder is upload only")
 
 // remotePathFor is SyncModel.remotePathFor: "/mac/<host><path>" there;
 // "/linux/<host><path>" and "/windows/<host>/C/Users/..." here, so a device

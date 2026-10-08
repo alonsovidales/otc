@@ -36,15 +36,26 @@ type fakeDevice struct {
 	pending map[string]*bytes.Buffer
 	paths   map[string]string
 	chunks  int
-	list    []*pb.File             // what ListFiles answers
-	reads   int                    // ReadFile/GetFile requests
-	deletes []string               // DelFile paths
-	onRead  func()                 // runs on each ReadFile, as if the user did something meanwhile
-	modTime *timestamppb.Timestamp // the files' date, when set
-	onHas   func()                 // runs on each HasFile (the start of an upload)
+	list    []*pb.File // what ListFiles answers
+	// listStored: ListFiles answers what is stored now (files, under the
+	// path asked for, with their hashes, and upload_only while delAnswer
+	// refuses deletes) instead of list.
+	listStored bool
+	reads      int                    // ReadFile/GetFile requests
+	deletes    []string               // DelFile paths
+	onRead     func()                 // runs on each ReadFile, as if the user did something meanwhile
+	modTime    *timestamppb.Timestamp // the files' date, when set
+	onHas      func()                 // runs on each HasFile (the start of an upload)
 	// SetUploadOnly requests answered, and whether they are refused.
 	uploadOnly       int
 	refuseUploadOnly bool
+	// Issue #132: the SetUploadOnly requests in order, how they are
+	// answered ("" ok, else that error_code), and the error_code DelFile
+	// answers with ("" deletes; "upload_only" refuses, as the device does
+	// under an upload-only folder).
+	uploadOnlySet    []*pb.SetUploadOnly
+	uploadOnlyAnswer string
+	delAnswer        string
 	// Uploads begun and not finished, now and at most.
 	open, maxOpen int
 	// Issue #192: the SetOutOfImages requests in order, how they are
@@ -102,7 +113,20 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 		resp.Payload = &pb.RespEnvelope_RespFile{RespFile: &pb.File{Path: d.paths[id]}}
 	case *pb.ReqEnvelope_ReqListFiles:
 		d.events = append(d.events, "list")
-		resp.Payload = &pb.RespEnvelope_RespListOfFiles{RespListOfFiles: &pb.ListOfFiles{Files: d.list}}
+		files := d.list
+		if d.listStored {
+			files = nil
+			for path, data := range d.files {
+				if strings.HasPrefix(path, p.ReqListFiles.Path) {
+					sum := sha256.Sum256(data)
+					// Under an upload-only folder, as the device lists it:
+					// the one that refuses deletes.
+					files = append(files, &pb.File{Path: path, Hash: hex.EncodeToString(sum[:]), Size64: int64(len(data)), Modified: d.modTime,
+						UploadOnly: d.delAnswer == "upload_only"})
+				}
+			}
+		}
+		resp.Payload = &pb.RespEnvelope_RespListOfFiles{RespListOfFiles: &pb.ListOfFiles{Files: files}}
 	case *pb.ReqEnvelope_ReqSetOutOfImages:
 		d.events = append(d.events, "images")
 		d.imagesSet = append(d.imagesSet, p.ReqSetOutOfImages)
@@ -137,14 +161,30 @@ func (d *fakeDevice) handle(req *pb.ReqEnvelope, pubDER []byte) *pb.RespEnvelope
 		}
 		resp.Payload = &pb.RespEnvelope_RespOutOfImagesFolders{RespOutOfImagesFolders: &pb.OutOfImagesFolders{Paths: append([]string(nil), d.keptOut...)}}
 	case *pb.ReqEnvelope_ReqSetUploadOnly:
+		d.events = append(d.events, "upload_only")
 		d.uploadOnly++
+		d.uploadOnlySet = append(d.uploadOnlySet, p.ReqSetUploadOnly)
 		if d.refuseUploadOnly {
 			resp.Error, resp.ErrorCode, resp.ErrorMessage = true, "unknown_payload", "unknown request"
 			break
 		}
-		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		switch d.uploadOnlyAnswer {
+		case "":
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		case "unknown_payload":
+			resp.Error, resp.ErrorCode, resp.ErrorMessage = true, "unknown_payload", "This device does not understand that request"
+		case "locked_by_parent":
+			resp.Error, resp.ErrorCode, resp.ErrorMessage = true, "locked_by_parent", "Docs is inside the upload-only folder /Archive - unlock /Archive to unlock it"
+		default:
+			resp.Error, resp.ErrorMessage = true, "error updating the folder: "+d.uploadOnlyAnswer
+		}
 	case *pb.ReqEnvelope_ReqDelFile:
 		d.deletes = append(d.deletes, p.ReqDelFile.Path)
+		if d.delAnswer == "upload_only" {
+			resp.Error, resp.ErrorCode, resp.ErrorMessage = true, "upload_only", "this folder is upload only: nothing in it can be deleted"
+			break
+		}
+		delete(d.files, p.ReqDelFile.Path)
 		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 	case *pb.ReqEnvelope_ReqGetFile:
 		d.reads++

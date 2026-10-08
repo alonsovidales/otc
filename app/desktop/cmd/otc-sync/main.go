@@ -13,7 +13,8 @@
 //	otc-sync backup <dir>          back up a local folder, one way: it is never changed from the device
 //	otc-sync add <dir>             keep a local folder in two-way sync (its first pass uploads)
 //	otc-sync add-remote <remote> <dir>   keep a device folder and a local one in two-way sync
-//	                               (all three take --keep-out-of-images, issue #192)
+//	                               (backup and add take --keep-out-of-images, issue #192, and add
+//	                               --upload-only, issue #132; a device folder keeps its own)
 //	otc-sync images <id|path> keep-out|show   keep a synced folder out of Images, or show it again
 //	otc-sync remove <id|path>      stop syncing a folder (nothing is deleted)
 //	otc-sync ls [remote path]      browse the device
@@ -226,11 +227,17 @@ func usage() {
                                 back up a local folder to the device, one way and upload only:
                                 new and changed files go up, nothing is ever deleted there,
                                 and nothing done on the device ever changes this folder
-  otc-sync add [--keep-out-of-images] <dir>
+  otc-sync add [--upload-only] [--keep-out-of-images] <dir>
                                 keep a local folder in two-way sync with the device: changes and
-                                deletions on either side reach the other (first pass only adds)
-  otc-sync add-remote [--keep-out-of-images] <remote-path> <dir>
-                                two-way sync between a device folder and a local one
+                                deletions on either side reach the other (first pass only adds).
+                                --upload-only: the device keeps every older version of a file and
+                                nothing in the folder can be deleted there - files you delete here
+                                stay on the device and aren't downloaded again; files added or
+                                changed on the device still come down
+  otc-sync add-remote <remote-path> <dir>
+                                two-way sync between a device folder and a local one. No options:
+                                what is set for it on the device (upload only, kept out of
+                                Images) stays as it is
   otc-sync images <id|path> keep-out|show
                                 keep a synced folder out of Images, or show it there again.
                                 Kept out, its photos and videos aren't tagged, searched for
@@ -688,11 +695,36 @@ func printFolders(st *config.State) {
 	}
 	fmt.Println("folders:")
 	for _, f := range st.Folders {
-		fmt.Printf("  ⬆ %-8s %s  [%s]%s\n", f.ID, f.Path, engine.Describe(f), imagesLabel(f))
+		fmt.Printf("  ⬆ %-8s %s  [%s]%s%s\n", f.ID, f.Path, engine.Describe(f), uploadOnlyLabel(f), imagesLabel(f))
 	}
 	for _, f := range st.RemoteFolders {
-		fmt.Printf("  ⇅ %-8s %s  ⇄ %s  [%s]%s\n", f.ID, f.Path, f.RemotePath, engine.Describe(f), imagesLabel(f))
+		fmt.Printf("  ⇅ %-8s %s  ⇄ %s  [%s]%s%s\n", f.ID, f.Path, f.RemotePath, engine.Describe(f), uploadOnlyLabel(f), imagesLabel(f))
 	}
+}
+
+// uploadOnlyLabel is a folder's upload-only request on its way (issue
+// #132), after its state; "" when there is none.
+func uploadOnlyLabel(f config.FolderStatus) string {
+	label := ""
+	switch engine.UploadOnlyState(f.UploadOnly) {
+	case engine.UploadOnlyMaking:
+		label = " (making it upload only…)"
+	case engine.UploadOnlyLifting:
+		label = " (turning upload only off…)"
+	case engine.UploadOnlyUnsupported:
+		label = " (" + engine.UploadOnlyNeedsUpdate + ")"
+	}
+	if f.UploadOnlyNote != "" {
+		label += " (" + f.UploadOnlyNote + ")"
+	}
+
+	return label
+}
+
+// pendingUploadOnlyLabel is uploadOnlyLabel from config.json alone, while
+// the sync isn't running.
+func pendingUploadOnlyLabel(want *bool) string {
+	return uploadOnlyLabel(config.FolderStatus{UploadOnly: string(engine.UploadOnlyRequestState(want, nil))})
 }
 
 // imagesLabel is how a folder stands with Images (issue #192), after its
@@ -840,10 +872,10 @@ func cmdFolders() error {
 		return nil
 	}
 	for _, f := range cfg.Folders {
-		fmt.Printf("  ⬆ %-8s %s%s\n", f.ID, f.Path, pendingImagesLabel(f.OutOfImages))
+		fmt.Printf("  ⬆ %-8s %s%s%s\n", f.ID, f.Path, pendingUploadOnlyLabel(f.UploadOnly), pendingImagesLabel(f.OutOfImages))
 	}
 	for _, f := range cfg.RemoteFolders {
-		fmt.Printf("  ⇅ %-8s %s  ⇄ %s%s\n", f.ID, f.LocalPath, f.RemotePath, pendingImagesLabel(f.OutOfImages))
+		fmt.Printf("  ⇅ %-8s %s  ⇄ %s%s%s\n", f.ID, f.LocalPath, f.RemotePath, pendingUploadOnlyLabel(f.UploadOnly), pendingImagesLabel(f.OutOfImages))
 	}
 	fmt.Println("(the sync is not running, so no state is shown)")
 
@@ -866,40 +898,66 @@ func absDir(p string) (string, error) {
 	return abs, nil
 }
 
-// keepOutFlag takes --keep-out-of-images (issue #192) out of args,
-// wherever it is: before or after the folder.
-func keepOutFlag(args []string) (rest []string, outOfImages *bool) {
+// The options a folder from this computer can be added with (the tray's
+// and the Mac's step 2): --keep-out-of-images (issue #192) for `backup` and
+// `add`, --upload-only (issue #132) for `add` - a backup always is.
+const (
+	flagKeepOut    = "--keep-out-of-images"
+	flagUploadOnly = "--upload-only"
+)
+
+// addFlags takes the options out of args, wherever they are: before or
+// after the folder. seen lists them as typed.
+func addFlags(args []string) (rest []string, outOfImages, uploadOnly *bool, seen []string) {
+	on := true
 	for _, a := range args {
-		if a == "--keep-out-of-images" || a == "-keep-out-of-images" {
-			keep := true
-			outOfImages = &keep
+		// -flag or --flag, as the flag package takes them.
+		name, isFlag := strings.CutPrefix(a, "-")
+		name = "--" + strings.TrimPrefix(name, "-")
+		switch {
+		case isFlag && name == flagKeepOut:
+			outOfImages = &on
+		case isFlag && name == flagUploadOnly:
+			uploadOnly = &on
+		default:
+			rest = append(rest, a)
 			continue
 		}
-		rest = append(rest, a)
+		seen = append(seen, a)
 	}
 
-	return rest, outOfImages
+	return rest, outOfImages, uploadOnly, seen
 }
 
-// addedOutOfImages says what a folder added with --keep-out-of-images
-// gets, and when.
-func addedOutOfImages(outOfImages *bool) {
-	if outOfImages == nil {
-		return
+// addedOptions says what a folder added with options gets, and when.
+func addedOptions(outOfImages, uploadOnly *bool) {
+	st, _ := config.LoadState()
+	if uploadOnly != nil {
+		fmt.Println("Upload only: " + engine.UploadOnlyCaption + " " + engine.UploadOnlyTwoWay)
+		if st != nil && st.UploadOnlyUnsupported {
+			fmt.Println(engine.UploadOnlyNeedsUpdate + " It is done once the device is updated.")
+		}
 	}
-	fmt.Println("Kept out of Images: " + engine.OutOfImagesAddCaption)
-	if st, _ := config.LoadState(); st != nil && st.OutOfImagesUnsupported {
-		fmt.Println(engine.OutOfImagesNeedsUpdate + " It is done once the device is updated.")
+	if outOfImages != nil {
+		fmt.Println("Kept out of Images: " + engine.OutOfImagesAddCaption)
+		if st != nil && st.OutOfImagesUnsupported {
+			fmt.Println(engine.OutOfImagesNeedsUpdate + " It is done once the device is updated.")
+		}
 	}
 }
 
 func cmdAdd(args []string, oneWay bool) error {
-	args, outOfImages := keepOutFlag(args)
+	args, outOfImages, uploadOnly, _ := addFlags(args)
 	if len(args) != 1 {
 		if oneWay {
 			return errors.New("usage: otc-sync backup [--keep-out-of-images] <dir>")
 		}
-		return errors.New("usage: otc-sync add [--keep-out-of-images] <dir>")
+		return errors.New("usage: otc-sync add [--upload-only] [--keep-out-of-images] <dir>")
+	}
+	if oneWay && uploadOnly != nil {
+		// Asked for what it always is: nothing to record.
+		fmt.Println("A backup is always upload only.")
+		uploadOnly = nil
 	}
 	dir, err := absDir(args[0])
 	if err != nil {
@@ -919,21 +977,29 @@ func cmdAdd(args []string, oneWay bool) error {
 			return fmt.Errorf("%s is already being synced (%s)", dir, f.ID)
 		}
 	}
-	f := config.Folder{ID: config.NewID(), Path: dir, OneWay: oneWay, OutOfImages: outOfImages}
+	f := config.Folder{ID: config.NewID(), Path: dir, OneWay: oneWay, OutOfImages: outOfImages, UploadOnly: uploadOnly}
 	cfg.Folders = append(cfg.Folders, f)
 	if err := cfg.Save(); err != nil {
 		return err
 	}
 	fmt.Printf("added %s as %s\n", dir, f.ID)
-	addedOutOfImages(outOfImages)
+	addedOptions(outOfImages, uploadOnly)
 
 	return nil
 }
 
+// cmdAddRemote takes no options: a folder from the device keeps what it
+// has there (Images, upload only) - `otc-sync images` changes Images once
+// it syncs, and upload only is the lock on the folder in the web app or
+// the phone app.
 func cmdAddRemote(args []string) error {
-	args, outOfImages := keepOutFlag(args)
+	args, _, _, seen := addFlags(args)
+	if len(seen) > 0 {
+		return fmt.Errorf("add-remote takes no %s: a folder synced from the device keeps what is set for it there "+
+			"(change Images later with: otc-sync images <id|path> keep-out|show; upload only from the web app or the phone app)", seen[0])
+	}
 	if len(args) != 2 {
-		return errors.New("usage: otc-sync add-remote [--keep-out-of-images] <remote-path> <dir>")
+		return errors.New("usage: otc-sync add-remote <remote-path> <dir>")
 	}
 	remote := args[0]
 	if !strings.HasPrefix(remote, "/") {
@@ -950,13 +1016,12 @@ func cmdAddRemote(args []string) error {
 	if err != nil {
 		return err
 	}
-	f := config.RemoteFolder{ID: config.NewID(), RemotePath: remote, LocalPath: dir, OutOfImages: outOfImages}
+	f := config.RemoteFolder{ID: config.NewID(), RemotePath: remote, LocalPath: dir}
 	cfg.RemoteFolders = append(cfg.RemoteFolders, f)
 	if err := cfg.Save(); err != nil {
 		return err
 	}
 	fmt.Printf("added %s ⇄ %s as %s\n", remote, dir, f.ID)
-	addedOutOfImages(outOfImages)
 
 	return nil
 }

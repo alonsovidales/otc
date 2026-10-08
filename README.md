@@ -28,7 +28,7 @@ A menu-bar app that keeps folders on your computer in sync with the device - wat
 
 The same sync client for Windows and Linux, `otc-sync`: a tray icon with the same menu (status,
 the RAID's health as the icon's colour, "Open Web App" for your device's web app in the browser,
-your folders, add a local or a remote folder, settings),
+your folders, "Add Folder…" - the kind of folder, its options, then the folder - and settings),
 plus a command line, and on Linux it can run as a service on a machine nobody logs into. Once
 it has connected to your device it asks whether to start when you log in (nothing is set up
 until you say yes; "Start at login" in the menu changes it later), and it updates itself: when
@@ -65,8 +65,9 @@ otc-sync            # the tray app; once connected it asks whether to start at l
 
 ```
 otc-sync settings --name cala --password-prompt   # or --address ws://192.168.1.10:8080/ws
-otc-sync add ~/Documents                          # mirror a folder up to the device
-otc-sync add-remote /Photos ~/Photos              # two-way sync with a device folder
+otc-sync add ~/Documents                          # two-way sync of a folder from this computer
+otc-sync add --upload-only ~/Projects             # the same, but nothing in it is ever deleted on the device
+otc-sync add-remote /Photos ~/Photos              # two-way sync with a device folder (no options)
 otc-sync backup --keep-out-of-images ~/Scans      # backed up, but kept out of Images
 otc-sync images <id> keep-out|show                # keep a synced folder out of Images, or show it again
 otc-sync ls /                                     # browse the device
@@ -76,11 +77,26 @@ otc-sync status                                   # what it is doing
 otc-sync folders | remove <id> | service uninstall | autostart on|off|status
 ```
 
-*Keeping a folder out of Images*: when you add a folder, the Mac app (a checkbox), the tray (a
-question) and the command line (`--keep-out-of-images`) can keep it out of Images - its photos and
-videos still go to the device and show in Files, but they aren't tagged, searched for faces or
-shown in Images. You can change it later from the folder's row on the Mac (the eye), its menu in
-the tray, or `otc-sync images`. A device that hasn't been updated yet does it once it is.
+*Adding a folder* takes two steps in the Mac app and the tray: first the kind of folder (a backup
+of a folder on this computer, a two-way sync of one, or a two-way sync of a folder already on the
+device), then the options that kind has, and only then the folder itself. A folder from this
+computer can be:
+
+- *Upload only* (two-way folders; a backup always is): the device keeps every older version of a
+  file, and nothing in the folder can be deleted on the device. A file you delete on this
+  computer stays on the device and isn't downloaded again; files added or changed on the device
+  still come down. Turn it off later with the lock on the folder in Files (web app, phone app);
+  the files you deleted on this computer while it was on then come back to it. Until the device
+  has made the folder upload only (an older device does it once it is updated), nothing deleted
+  on this computer is deleted on the device. On the command line: `otc-sync add --upload-only`.
+- *Kept out of Images*: its photos and videos still go to the device and show in Files, but they
+  aren't tagged, searched for faces or shown in Images. You can change it later from the folder's
+  row on the Mac (the eye), its menu in the tray, or `otc-sync images`. On the command line:
+  `--keep-out-of-images` on `backup` and `add`.
+
+A folder synced from the device has no options: it keeps what is set for it on the device. The
+tray asks the options in one checklist on Linux, and one Yes / No / Cancel question each on
+Windows (its dialogs have no checkboxes). A device that hasn't been updated yet does them once it is.
 
 Only one process syncs at a time: with the service installed, the tray app becomes a viewer of
 it, and every change made from the tray or the command line is picked up by the service at once.

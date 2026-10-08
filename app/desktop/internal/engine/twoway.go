@@ -8,8 +8,10 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
+	pb "github.com/alonsovidales/otc/proto/generated"
 )
 
 // Every synced folder is two-way: a file added or deleted on any computer
@@ -46,10 +48,11 @@ func (e *Engine) migrateFolders(cfg *config.Config) {
 		if f.OneWay || have[f.ID] {
 			continue
 		}
-		// Its request to keep it out of Images, or show it, goes with it
-		// (the tray's "Sync a Folder from This Computer" adds a Folder).
+		// Its requests - keep it out of Images (or show it), make it upload
+		// only - go with it (the tray's "Sync a folder from this computer"
+		// and `otc-sync add` add a Folder).
 		cfg.RemoteFolders = append(cfg.RemoteFolders, config.RemoteFolder{
-			ID: f.ID, RemotePath: e.remotePathFor(f.Path), LocalPath: f.Path, OutOfImages: f.OutOfImages,
+			ID: f.ID, RemotePath: e.remotePathFor(f.Path), LocalPath: f.Path, OutOfImages: f.OutOfImages, UploadOnly: f.UploadOnly,
 		})
 		log.Printf("folder %s is two-way now (%s)", f.Path, e.remotePathFor(f.Path))
 	}
@@ -57,6 +60,48 @@ func (e *Engine) migrateFolders(cfg *config.Config) {
 	if err := cfg.Save(); err != nil {
 		log.Printf("could not save the migrated folders: %v", err)
 	}
+}
+
+// keptOnDevicePrefix marks a sync record entry for a file deleted on this
+// computer that the device kept: its folder there is upload only (issue
+// #132), so the delete was refused ("upload_only"). The entry holds the
+// device's hash after the prefix and stands for two baselines - absent
+// here, that hash on the device (recordBaselines) - so while neither side
+// changes the file, nothing happens: it isn't downloaded again and the
+// delete isn't sent again. A new version on the device comes down, a file
+// put back here goes up, both at once are a conflict like any other, gone
+// from the device too the entry goes, and once the folder is no longer
+// upload only the file comes back here (baselinesFor). An older version
+// reading the record sees a hash that matches neither side and downloads
+// the file, which is what it did before. Same marker as
+// SyncPaths.keptOnDevice on the Mac.
+const keptOnDevicePrefix = "kept-on-device:"
+
+func keptOnDevice(hash string) string { return keptOnDevicePrefix + hash }
+
+// recordBaselines is what a sync record entry says each side had after
+// the last pass: the same hash, or for a file kept on the device, nothing
+// here and its hash there.
+func recordBaselines(entry string) (local, remote string) {
+	if hash, kept := strings.CutPrefix(entry, keptOnDevicePrefix); kept {
+		return "", hash
+	}
+
+	return entry, entry
+}
+
+// baselinesFor is recordBaselines for a path the device lists as f (nil
+// when it doesn't). A file kept on the device whose folder is no longer
+// upload only there - lifted later from the web or a phone; the listing
+// says so per file - has no baseline any more: it comes back here, which
+// deletes nothing on the device, and both sides match again. Sending the
+// old delete instead would delete what the lock protected.
+func baselinesFor(entry string, f *pb.File) (local, remote string) {
+	if strings.HasPrefix(entry, keptOnDevicePrefix) && f != nil && !f.GetUploadOnly() {
+		return "", ""
+	}
+
+	return recordBaselines(entry)
 }
 
 // The sync record - relative path -> hash as of the last pass - is what

@@ -327,7 +327,8 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   on 2026-09-03 (34a8c7d), which deleted the old blob while the row kept its hash. Issue #132's upload-only folders live
   here: `upload_only_folders` (paths with their trailing slash, checked by prefix) refuse
   `DelPath` for anything under them with `ErrUploadOnly` (`RespEnvelope.error_code =
-  "upload_only"`, which the sync clients treat as done rather than retry), and a second
+  "upload_only"`, which the sync clients take as "kept on the device": not retried, and a two-way
+  folder records it so the file isn't downloaded back - see the desktop section), and a second
   `UploadFile`/`LinkFile` to an existing path there moves the old row into `file_versions`
   (`dao.ReplaceFileKeepingVersion`) instead of failing or overwriting. Blobs are shared by hash
   between `files` and `file_versions`, so `HashReferenced` is the check before one is removed;
@@ -957,40 +958,94 @@ rule on Windows/Linux, and silently dropping it would stop the sync after the ne
 someone relying on it); "Not Now" removes it. The systemd user service (`otc-sync service
 install`) is its own explicit choice and isn't affected. Never run the Debug Mac app to test this:
 it shares the bundle id, settings and login item with the owner's installed app.
-**Keep out of Images (issue #192).** Adding a folder offers it: the Mac's `AddFolderChooser` has a
-"Keep out of Images" checkbox above the three kinds (with its (i); above, because each kind acts on
-the first click), the tray asks after the folder is chosen ("Keep Out of Images" / "Not Now" - the
-other answer sends nothing, so it must not say "Show in Images"), and the CLI takes
-`--keep-out-of-images` on `backup`, `add` and `add-remote`. The add flow's caption says that tags
-and faces already found are deleted (`engine.OutOfImagesAddCaption` / `OutOfImagesText.addCaption`):
-the folder may already be on the device. Later, per folder: the eye button on the Mac's row (an
-inline confirmation, not an alert; the row has no text line about Images - the owner found it
-crowded - so the eye's tooltip carries the state, a request on its way and the device's refusal), the "Kept Out of Images" checkbox in the tray's folder submenu,
-and `otc-sync images <id|path> keep-out|show`. Either only records a request with the folder
-(`StoredFolder`/`StoredRemoteFolder.outOfImages`, `config.Folder`/`RemoteFolder.OutOfImages`; nil =
-nothing to send, absent from older data). It is sent as `SetOutOfImages` for the folder's device
-path - at the start of its passes (before any transfer, never holding the pass up), at connect, and
-at once when made from the row, the tray or the CLI - until acknowledged, then cleared
-compare-and-clear (otc-sync in config.json first, retried like its reads, then in memory) and never
-sent again: unlike `markUploadOnly`, re-sending at every start would undo a change made since from
-the web or a phone. If config.json can't be written, the engine keeps the value in memory marked
-answered (`imagesAcked`): no pass or reload sends it, the clear is retried at the next pass and
-config.json reload, and only a different value (or a later request once the clear is written) goes.
-One request per folder at a time; a pass waits for one under way, and a change made while a request
-is under way goes right after it, even when that request failed (otc-sync releases the folder in the
-same lock hold as its last look at the request). `unknown_payload` (a device before release 108)
-keeps it pending and marks the device unable until the next connect: the Mac's checkbox is disabled
-with "Your device needs an update to keep folders out of Images.", the tray doesn't ask, and a
-pending folder says so in the tray. `out_of_images_by_parent` drops it and shows the device's message
-on the folder while a folder above still keeps it out (the next list that says otherwise drops the
-message); any other failure leaves it for the next pass. `otc-sync images <id> keep-out` on a folder
-kept out by a folder above says it already is (exit 0); `show` there is refused. What the device
-keeps out comes from `ListOutOfImages` at connect, after each ack and with the one-minute poll,
+**Adding a folder (two steps) and a folder's requests (issues #192 and #132).** Both apps add a
+folder in two steps: first the kind (backup, two-way from this computer, two-way from the device,
+each with its (i)), then that kind's options, and only then the folder picker. A backup offers
+"Keep out of Images" plus a fixed, already-on "Upload only" line (a backup always is,
+`markUploadOnly`); a two-way folder from this computer offers "Upload only" and "Keep out of
+Images"; a folder from the device offers nothing (it keeps what is set for it there) and goes
+straight to the device's folders. The Mac's `AddFolderChooser` is one inline view in the popover
+(never alerts, which close it) with Back and Cancel and a "Choose Folder…" button that opens the
+`NSOpenPanel`; options start unticked for each kind, and one the device can't do is disabled with
+its "needs an update" caption. The tray has one "Add Folder…" item (`tray/addfolder.go`): a zenity
+list of the kinds, then the options - one checklist on Linux (zenity `--checklist`, with Back),
+one question per option on Windows, whose stock list dialog has no checkboxes (only Ctrl+click
+multi-select): Yes / No / Cancel (MB_YESNOCANCEL; No is zenity's extra button, so Cancel, Esc and
+closing the dialog stop the whole flow instead of meaning No; there is no Back) - skipped when the
+kind has none or the device can't do them, then the folder chooser. "What Do These Do?" explains the kinds and the options. The CLI takes
+`--keep-out-of-images` on `backup` and `add`, `--upload-only` on `add` (`backup --upload-only`
+just says a backup always is); `add-remote` refuses both with an error naming where to change
+them. The words are the same in both apps ("this Mac" / "this computer"): `UploadOnlyText` /
+`engine.UploadOnly*`, `OutOfImagesText` / `engine.OutOfImages*`, the kinds' titles and (i)s.
+Upload only's (i) says what it means for a two-way folder in one sentence: "Files you delete on
+this computer stay on the device and aren't downloaded again; files added or changed on the
+device still come down.", then that turning it off later brings back the files deleted here
+while it was on. Each option only records a request with the folder (`config.Folder` /
+`RemoteFolder` `.OutOfImages` and `.UploadOnly`, `StoredFolder.outOfImages`,
+`StoredRemoteFolder.outOfImages` / `.uploadOnly`; nil = nothing to send, absent from older data;
+a request an older version stored for a folder from the device is still sent once). Both kinds
+share one machinery - otc-sync's `engine/requests.go` (`requestKind`, `requestState`,
+`applyRequest`, `config.Request`/`SetRequest`/`ClearRequest`), the Mac's `RequestKind` (key paths
+to each kind's state) and `sendRequest`. A request is sent for the folder's device path - at the
+start of its passes (upload only first, before the listing; never holding the pass up), at
+connect, and at once when config.json brings one or the row makes one - until acknowledged, then
+cleared compare-and-clear (otc-sync in config.json first, retried like its reads, then in memory)
+and never sent again: unlike `markUploadOnly`, re-sending at every start would undo a change made
+since from the web or a phone. If config.json can't be written, the engine keeps the value in
+memory marked answered (`requestState.acked`): no pass or reload sends it, the clear is retried at
+the next pass and config.json reload, and only a different value (or a later request once the
+clear is written) goes. One request per folder and kind at a time; a pass waits for one under way,
+and a change made while a request is under way goes right after it, even when that request failed
+(otc-sync releases the folder in the same lock hold as its last look at the request).
+`unknown_payload` keeps it pending and marks the device unable for that kind until the next
+connect (the option is disabled with "Your device needs an update to …", the tray doesn't offer
+it, and a pending folder says so). The kind's by-parent code (`out_of_images_by_parent`,
+`locked_by_parent` - only lifting upload only can get it, which no app asks) drops it and shows
+the device's message on the folder; any other failure leaves it for the next pass. A pending
+upload-only request shows as a lock on the Mac's row (`UploadOnlyBadge`, tooltip "Making it upload
+only…", orange for a device that can't or a refusal) and " · Making it upload only…" in the tray's
+folder title (the refusal on a line of its submenu); nothing once acknowledged. state.json has
+`FolderStatus.UploadOnly` (`engine.UploadOnlyState`: making, lifting, unsupported) and
+`UploadOnlyNote`, `State.UploadOnlyUnsupported`; `otc-sync folders` prints it.
+**Keep out of Images (issue #192)** in particular: the add flow's caption says that tags and faces
+already found are deleted (`engine.OutOfImagesAddCaption` / `OutOfImagesText.addCaption`): the
+folder may already be on the device. Later, per folder - every folder, from the device too: the
+eye button on the Mac's row (an inline confirmation, not an alert; the row has no text line about
+Images - the owner found it crowded - so the eye's tooltip carries the state, a request on its way
+and the device's refusal), the "Kept Out of Images" checkbox in the tray's folder submenu, and
+`otc-sync images <id|path> keep-out|show`. `unknown_payload` is a device before release 108.
+`out_of_images_by_parent` shows the device's message while a folder above still keeps it out (the
+next list that says otherwise drops the message). `otc-sync images <id> keep-out` on a folder kept
+out by a folder above says it already is (exit 0); `show` there is refused. What the device keeps
+out comes from `ListOutOfImages` at connect, after each ack and with the one-minute poll,
 forgotten when the device or password changes; a folder's state (`SyncPaths.outOfImagesState` /
 `engine.OutOfImagesState`: shown, kept out, kept out by a folder above - the control disabled -,
 keeping/showing while pending, unsupported, unknown = nothing shown) compares paths byte for byte.
-`engine.migrateFolders` carries the request. otc-sync's state.json has it per folder
+`engine.migrateFolders` carries both requests. otc-sync's state.json has it per folder
 (`FolderStatus.OutOfImages`, `OutOfImagesBy`, `OutOfImagesNote`) and `otc-sync folders` prints it.
+**Upload only in a two-way folder (issue #132).** The device refuses a delete under an
+upload-only folder (`upload_only`). Until 2026-10 the clients logged it and dropped the path from
+the sync record, so the next pass took the file for new on the device and downloaded it back. Now
+the refusal is recorded: the record entry becomes `kept-on-device:<device hash>`
+(`keptOnDevice` / `SyncPaths.keptOnDevice`), which stands for two baselines -
+absent here, that hash on the device (`recordBaselines`). While neither side changes the file
+nothing happens (not downloaded again, the delete not sent again, restarts included); a new
+version on the device comes down; a file put back here goes up (while the folder is upload only
+the device keeps the old one as a version); both at once are a conflict like any other (a copy is
+kept); gone from the device too, the entry goes. Upload only lifted later (from the web or a
+phone): the listing's per-file `upload_only` (File field 9) is false for a kept entry, which then
+has no baseline at all (`baselinesFor` / `SyncPaths.baselines`), so the file is downloaded back
+here and the record is a plain entry again - the old delete is never sent, so nothing the lock
+protected is deleted (owner's decision; the add flow's (i) says files deleted while it was on come
+back once it is turned off). The delete is still sent once per file (the device decides, not the
+listing's flag). While a folder's own Upload only request is pending and not acknowledged (a
+failure, or a device that answers `unknown_payload`), its passes plan no device deletes at all
+(`holdDeletes`, from `uploadOnlyAwaited` / `uploadOnlyPending[id] == true`): a file deleted here
+keeps its baseline, nothing is downloaded back, and the delete goes once the flag is set - where
+the device refuses it and it becomes kept-on-device. otc-sync logs the held count when it changes
+(`noteHeldDeletes`); the Mac counts it in each pass's summary line. The mass-deletion guard is
+unchanged (kept entries never become local deletes). An older client reading such a record sees a
+hash that matches neither side and downloads the file, as before.
 
 **Setting up a new device from a computer (issue #184).** Both desktop apps have "Set Up a New
 Device…". They download `off-the-cloud-rpi-lite-arm64.img.xz` from the `image` release and trust it
@@ -1034,7 +1089,7 @@ edit goes through config.json, which the engine watches - so the CLI, the tray a
 never disagree. Remote paths are `/linux/<host>/…` and `/windows/<host>/C/…`, like `/mac/<host>`.
 Any behaviour change in the macOS app must be mirrored here (and vice versa), the same rule as
 iOS/Android. There are three kinds of folder, each explained in the app (the Mac's
-`AddFolderChooser` with an (i) per option; the tray's tooltips and "What Do These Do?"):
+`AddFolderChooser` with an (i) per kind and option; the tray's "What Do These Do?"):
 **backup** (one way and upload only, `TrackedFolder` / `config.Folder{OneWay: true}`, `otc-sync
 backup`: new and changed files go up, nothing is ever deleted on the device, and nothing on the
 device ever changes the folder. Its device folder is made upload only at every start,
@@ -1085,8 +1140,11 @@ are removed after it (`removeEmptiedDirs` / `SyncPaths.removeEmptiedFolders`): u
 the synced folder, only while they hold nothing but a `.DS_Store`, with rmdir semantics. An unreadable directory is never a deleted one: paths under it keep their baseline
 and get no action (otc-sync reports "N file(s) could not be read"). Backups run one pass per
 folder, watched changes one upload at a time per folder (`drainChanges`), and a pass stops when its
-folder is removed or the device changes. `SetUploadOnly` is re-sent until acknowledged, and that
-is forgotten only when the device or password changes. A sync record counts as saved only after a
+folder is removed or the device changes. A backup's `SetUploadOnly` is re-sent until acknowledged,
+and that is forgotten only when the device or password changes. A two-way record entry
+`kept-on-device:<hash>` (a delete the device refused) is never a plain hash: read it only through
+`baselinesFor` / `SyncPaths.baselines` (which also drop it once the folder is no longer upload
+only). A two-way folder whose Upload only request isn't acknowledged sends no device deletes. A sync record counts as saved only after a
 successful write. In both WSClients a superseded connection attempt's outcome is dropped, and a
 rejected password is reported before the socket closes. `otc-sync flash-device` refuses a disk
 whose `--size`/`--name` changed. The Mac's unit tests are hosted by the real app (`TEST_HOST`), so

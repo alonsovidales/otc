@@ -89,8 +89,17 @@ final class SyncModel: ObservableObject {
         let id: UUID
         let remotePath: String
         let bookmark: Data
-        /// Issue #192: as StoredFolder's.
+        /// Issue #192: as StoredFolder's. Only a folder added from this Mac
+        /// is asked for it; one synced from the device keeps what it has
+        /// there, but a request an older version stored is still sent once.
         var outOfImages: Bool? = nil
+        /// Issue #132: the same kind of request for the device folder to be
+        /// made upload only (the device keeps every older version of a file
+        /// and refuses deletes there), asked when a two-way folder is added
+        /// from this Mac. nil (and absent from older data) when there is
+        /// nothing to send. A backup never has it: it is made upload only
+        /// at every start (markUploadOnly).
+        var uploadOnly: Bool? = nil
     }
     private let remoteFoldersKey = "sync.remoteFolders.bookmarks"
 
@@ -247,6 +256,15 @@ final class SyncModel: ObservableObject {
     @Published private(set) var outOfImagesNotes: [UUID: String] = [:]
     private var outOfImagesTasks: [UUID: Task<Void, Never>] = [:]
     private var outOfImagesErrors: [UUID: String] = [:]
+    // Issue #132: a two-way folder's request to be made upload only, chosen
+    // when it was added from this Mac - the same machinery (see "A folder's
+    // requests" below): pending until the device has it, whether the device
+    // can, its refusal, the send under way and the last error logged.
+    @Published private(set) var uploadOnlyPending: [UUID: Bool] = [:]
+    @Published private(set) var uploadOnlySupported: Bool?
+    @Published private(set) var uploadOnlyNotes: [UUID: String] = [:]
+    private var uploadOnlyTasks: [UUID: Task<Void, Never>] = [:]
+    private var uploadOnlyRequestErrors: [UUID: String] = [:]
     /// remoteDeviceRoot(), as the last backup pass found it: a row asks for
     /// its device path on every redraw, and Host's name lookup can be slow.
     private var deviceRootForImages: String?
@@ -533,7 +551,10 @@ final class SyncModel: ObservableObject {
                 // since updating a device that couldn't restarts it.
                 if self.outOfImagesSupported == false { self.outOfImagesSupported = nil }
                 await self.refreshOutOfImages()
-                self.applyPendingOutOfImages()
+                self.applyPendingRequests(Self.imagesRequest)
+                // Issue #132: likewise for upload only.
+                if self.uploadOnlySupported == false { self.uploadOnlySupported = nil }
+                self.applyPendingRequests(Self.uploadOnlyRequest)
                 // Folders left in an error while the link was down (their
                 // retry finds no connection and gives up) go again now,
                 // instead of waiting for the 10-minute pass.
@@ -739,11 +760,15 @@ final class SyncModel: ObservableObject {
                     // next launch, as otc-sync does.
                     self.uploadOnlyOK.removeAll()
                     self.uploadOnlyErrors.removeAll()
-                    // Nor is what it keeps out of Images: asked again.
+                    // Nor is what it keeps out of Images: asked again; nor
+                    // whether it can make folders upload only.
                     self.outOfImagesFolders = nil
                     self.outOfImagesSupported = nil
                     self.outOfImagesErrors.removeAll()
                     self.outOfImagesNotes.removeAll()
+                    self.uploadOnlySupported = nil
+                    self.uploadOnlyRequestErrors.removeAll()
+                    self.uploadOnlyNotes.removeAll()
                     if settings.ready {
                         self.overallStatus = "Connecting…"
                         self.ws.configure(domain: domain, key: key)
@@ -825,9 +850,10 @@ final class SyncModel: ObservableObject {
     }
 
     /// A one-way backup of a folder on this Mac: new and changed files go
-    /// to the device, files deleted here are deleted there, and nothing on
-    /// the device ever changes the folder here (reconcile()). With
-    /// `outOfImages`, kept out of Images from its first pass (issue #192).
+    /// to the device, which keeps what is deleted here (upload only,
+    /// markUploadOnly), and nothing on the device ever changes the folder
+    /// here (reconcile()). With `outOfImages`, kept out of Images from its
+    /// first pass (issue #192).
     func addBackupFolder(outOfImages: Bool = false) {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
@@ -854,7 +880,10 @@ final class SyncModel: ObservableObject {
         }
     }
 
-    func addFolder(outOfImages: Bool = false) {
+    /// A two-way folder from this Mac, with the options chosen for it
+    /// (AddFolderChooser's step 2): upload only (issue #132) and kept out of
+    /// Images (issue #192), each sent before its first pass sends anything.
+    func addFolder(uploadOnly: Bool = false, outOfImages: Bool = false) {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = true
@@ -863,7 +892,7 @@ final class SyncModel: ObservableObject {
             // Two-way like every folder: it syncs to this Mac's own place
             // on the device, and with nothing there yet its first pass
             // uploads what the folder holds.
-            addRemoteFolder(remotePath: remotePathFor(url.path), localURL: url, outOfImages: outOfImages)
+            addTwoWayFolder(remotePath: remotePathFor(url.path), localURL: url, uploadOnly: uploadOnly, outOfImages: outOfImages)
         }
     }
 
@@ -877,7 +906,7 @@ final class SyncModel: ObservableObject {
         changeQueues.removeValue(forKey: f.id)
         uploadOnlyOK.remove(f.id)
         uploadOnlyErrors.removeValue(forKey: f.id)
-        forgetOutOfImages(f.id)
+        forgetRequests(f.id)
 
         dropHashCache(f.id)
         f.url.stopAccessingSecurityScopedResource()
@@ -924,9 +953,16 @@ final class SyncModel: ObservableObject {
 
     /// Called once the user has picked both a remote directory (via
     /// RemoteFolderPickerView) and a local destination (via NSOpenPanel,
-    /// same picker addFolder() uses) for it. With `outOfImages`, the
-    /// device folder is kept out of Images before its first pass.
-    func addRemoteFolder(remotePath: String, localURL: URL, outOfImages: Bool = false) {
+    /// same picker addFolder() uses) for it. No options: a folder from the
+    /// device keeps what it has there (Images, upload only), which its row,
+    /// the web or a phone change.
+    func addRemoteFolder(remotePath: String, localURL: URL) {
+        addTwoWayFolder(remotePath: remotePath, localURL: localURL, uploadOnly: false, outOfImages: false)
+    }
+
+    /// Both two-way kinds: the folder, its requests (sent before its first
+    /// pass), and that first pass when connected.
+    private func addTwoWayFolder(remotePath: String, localURL: URL, uploadOnly: Bool, outOfImages: Bool) {
         do {
             let bookmark = try localURL.bookmarkData(
                 options: [.withSecurityScope],
@@ -937,10 +973,12 @@ final class SyncModel: ObservableObject {
 
             let rf = RemoteFolder(id: UUID(), remotePath: remotePath, localURL: localURL)
             if outOfImages { outOfImagesPending[rf.id] = true }
+            if uploadOnly { uploadOnlyPending[rf.id] = true }
             remoteFolders.append(rf)
 
             var stored = existingStoredRemote()
-            stored.append(StoredRemoteFolder(id: rf.id, remotePath: remotePath, bookmark: bookmark, outOfImages: outOfImages ? true : nil))
+            stored.append(StoredRemoteFolder(id: rf.id, remotePath: remotePath, bookmark: bookmark,
+                                             outOfImages: outOfImages ? true : nil, uploadOnly: uploadOnly ? true : nil))
             persistRemoteFolders(bookmarks: stored)
 
             if settings?.ready == true, ws.isConnected() {
@@ -963,7 +1001,7 @@ final class SyncModel: ObservableObject {
         dropSynced(f.id)
         remoteErrorRetryTasks[f.id]?.cancel()
         remoteErrorRetryTasks.removeValue(forKey: f.id)
-        forgetOutOfImages(f.id)
+        forgetRequests(f.id)
 
         dropHashCache(f.id)
         f.localURL.stopAccessingSecurityScopedResource()
@@ -1164,7 +1202,7 @@ final class SyncModel: ObservableObject {
         // Issue #192: before anything is sent, so a new folder's photos
         // never reach Images. One request at most: an old or unreachable
         // device doesn't hold the backup up.
-        await applyOutOfImagesBeforePass(folder.id)
+        await applyRequestsBeforePass(folder.id)
 
         do {
             let resp = try await ws.request { req in
@@ -1441,8 +1479,16 @@ final class SyncModel: ObservableObject {
             removeRemoteFolder(folder)
             return
         }
-        // Issue #192: as reconcile() - first, and never holding the pass up.
-        await applyOutOfImagesBeforePass(folder.id)
+        // As reconcile() - first, and never holding the pass up: upload only
+        // (issue #132) before anything could be deleted, and Images (issue
+        // #192) before anything is sent.
+        await applyRequestsBeforePass(folder.id)
+        // Upload only asked for and not acknowledged yet (it failed, or the
+        // device can't yet): no delete goes to the device until it is. A
+        // file deleted here keeps its baseline, and its delete goes once the
+        // device has the flag - which then refuses it and keeps the file
+        // (SyncPaths.keptOnDevice). As otc-sync's holdDeletes.
+        let holdDeletes = uploadOnlyPending[folder.id] == true
 
         // Guards against a real prefix-collision risk in the recursive
         // listing below: an unanchored "/subdir" would also match a
@@ -1600,10 +1646,13 @@ final class SyncModel: ObservableObject {
             enum ActionKind: Equatable { case upload, download, deleteLocal, deleteRemote, downloadKeepLocal, uploadKeepRemote(remoteHash: String) }
             // hash carries the already-computed local hash through to the
             // .upload case below, purely to avoid hashing the same file
-            // twice (issue #58's HasFile check needs it anyway) — unused
-            // for the other three kinds.
+            // twice (issue #58's HasFile check needs it anyway); for
+            // .deleteRemote it is the device's hash, recorded if the device
+            // keeps the file (upload only).
             var actions: [(relative: String, kind: ActionKind, size: Int, hash: String?)] = []
             var newSynced = lastSynced
+            // Deletes waiting for upload only (holdDeletes).
+            var deletesHeld = 0
             // The folders local deletions emptied: removed after the pass
             // (SyncPaths.removeEmptiedFolders).
             var emptiedFolders = Set<String>()
@@ -1618,6 +1667,11 @@ final class SyncModel: ObservableObject {
                 let remoteFile = remoteByRelative[relative]
                 let remoteHash = remoteFile?.hash
                 let last = lastSynced[relative]
+                // What each side had after the last pass: the same, except
+                // for a file the device kept when it was deleted here
+                // (SyncPaths.keptOnDevice) - and none at all for one whose
+                // folder is no longer upload only.
+                let (lastLocal, lastRemote) = SyncPaths.baselines(last, listedUploadOnly: remoteFile?.uploadOnly)
 
                 // Issue #141: listed without a hash means the device has
                 // lost this file's content. A copy here is sent again, which
@@ -1640,8 +1694,15 @@ final class SyncModel: ObservableObject {
                     continue
                 }
 
-                let localChanged = localHash != last
-                let remoteChanged = remoteHash != last
+                let localChanged = localHash != lastLocal
+                let remoteChanged = remoteHash != lastRemote
+                if !localChanged && !remoteChanged {
+                    // Deleted here and kept by the device (an upload-only
+                    // folder), and neither side changed it since: not
+                    // downloaded again, nor the delete sent again. The
+                    // record keeps saying so. As otc-sync.
+                    continue
+                }
                 // Genuine conflict (both sides moved since the baseline, or
                 // there's no baseline at all and they already disagree) —
                 // newest modification time wins.
@@ -1686,8 +1747,14 @@ final class SyncModel: ObservableObject {
                     } else if let localHash {
                         actions.append((relative, .upload, 0, localHash))
                         newSynced[relative] = localHash
+                    } else if holdDeletes {
+                        // Not upload only on the device yet: the delete
+                        // waits, and newSynced keeps its baseline.
+                        deletesHeld += 1
                     } else {
-                        actions.append((relative, .deleteRemote, 0, nil))
+                        // The device's hash goes with it: kept there (upload
+                        // only), it is what the record holds.
+                        actions.append((relative, .deleteRemote, 0, remoteHash))
                         newSynced.removeValue(forKey: relative)
                     }
                 }
@@ -1716,7 +1783,7 @@ final class SyncModel: ObservableObject {
             // old name before the new one comes down, in one pass.
             actions = actions.filter { $0.kind == .deleteLocal } + actions.filter { $0.kind != .deleteLocal }
 
-            syncLog.info("two-way \(folder.remotePath, privacy: .public): \(actions.count) action(s) - \(actions.filter { $0.kind == .download }.count) download, \(actions.filter { $0.kind == .upload }.count) upload, \(actions.filter { $0.kind == .deleteLocal }.count) delete local, \(actions.filter { $0.kind == .deleteRemote }.count) delete remote")
+            syncLog.info("two-way \(folder.remotePath, privacy: .public): \(actions.count) action(s) - \(actions.filter { $0.kind == .download }.count) download, \(actions.filter { $0.kind == .upload }.count) upload, \(actions.filter { $0.kind == .deleteLocal }.count) delete local, \(actions.filter { $0.kind == .deleteRemote }.count) delete remote, \(deletesHeld) delete(s) waiting for upload only")
             if !actions.isEmpty {
                 // Of the whole folder, as reconcile(): every path on either
                 // side counts, and what already agrees is done - "610 of
@@ -1796,7 +1863,13 @@ final class SyncModel: ObservableObject {
                             try await download(remotePath, to: copy, expectedHash: remoteHash, folderId: folder.id)
                             syncLog.info("conflict on \(action.relative, privacy: .public): the other version kept as \(copy.lastPathComponent, privacy: .public)")
                             newSynced[action.relative] = try await upload(localURL, to: remotePath, knownHash: action.hash, folderId: folder.id)
-                        case .deleteRemote: try await delete(remotePath)
+                        case .deleteRemote:
+                            if try await delete(remotePath) == .keptOnDevice, let hash = action.hash {
+                                // The folder is upload only on the device:
+                                // the file stays there, and stays deleted
+                                // here (SyncPaths.recordBaselines).
+                                newSynced[action.relative] = SyncPaths.keptOnDevice(hash)
+                            }
                         // To the Trash, not gone: recoverable if a deletion on
                         // the device was a mistake.
                         case .deleteLocal:
@@ -2159,39 +2232,108 @@ final class SyncModel: ObservableObject {
         syncLog.error("backup \(folder.url.path, privacy: .public): \(problem, privacy: .public)")
     }
 
-    // MARK: - Folders kept out of Images (issue #192)
+    // MARK: - A folder's requests (issues #192 and #132)
+    //
+    // Keep out of Images and Upload only are asked for when a folder from
+    // this Mac is added (AddFolderChooser's step 2), Images also later from
+    // the row's eye. Each is kept with the folder as a request (the
+    // kind's pending map, persisted with the stored folder) that is sent
+    // for the folder's device path - at the start of its passes, at
+    // connect, and at once when made from the row - until the device
+    // acknowledges it. Then never again: unlike markUploadOnly, which makes
+    // a backup upload only at every start, it is not re-sent, which would
+    // undo a change made since from the web or a phone. As otc-sync's
+    // engine/requests.go.
     //
     // Photos and videos in a folder kept out of Images still go to the
-    // device and Files shows them, but the device never tags them, searches
-    // them for faces or shows them in Images. Asked for when a folder is
-    // added (AddFolderChooser) or later from its row, and kept with the
-    // folder as a request (outOfImagesPending) that is sent once the
-    // folder's device path exists - at the start of its passes, at connect,
-    // and at once when made from the row - until the device acknowledges
-    // it. Then never again: unlike markUploadOnly it is not sent at every
-    // start, which would undo a change made since from the web or a phone.
-    // As otc-sync's engine/out_of_images.go.
+    // device and Files shows them, but the device never tags them,
+    // searches them for faces or shows them in Images. An upload-only
+    // folder keeps every older version of a file and refuses deletes; what
+    // a two-way pass does with a refused delete is in reconcileRemoteFolder
+    // (SyncPaths.keptOnDevice).
+
+    /// One kind of request: where its state lives, what it sends, and how
+    /// the device refuses it (otc-sync's requestKind).
+    private struct RequestKind {
+        let pending: ReferenceWritableKeyPath<SyncModel, [UUID: Bool]>
+        let notes: ReferenceWritableKeyPath<SyncModel, [UUID: String]>
+        let errors: ReferenceWritableKeyPath<SyncModel, [UUID: String]>
+        let supported: ReferenceWritableKeyPath<SyncModel, Bool?>
+        let tasks: ReferenceWritableKeyPath<SyncModel, [UUID: Task<Void, Never>]>
+        /// Where a stored folder keeps it; nil for a backup, which never
+        /// has it.
+        let stored: WritableKeyPath<StoredFolder, Bool?>?
+        let storedRemote: WritableKeyPath<StoredRemoteFolder, Bool?>
+        /// The folder above decides: the request is dropped and the
+        /// device's message shown on the row.
+        let byParentCode: String
+        /// "/" is never sent (the device refuses it): cleared as done.
+        let skipsRoot: Bool
+        /// Images: the device lists the folders it keeps out - read again
+        /// after an answer that changes them, forgotten when it can't.
+        let images: Bool
+        /// What the log says could not be done to a path.
+        let failure: (String) -> String
+        let unsupportedLog: String
+        let build: (String, Bool) -> Req.OneOf_Payload
+    }
+
+    private static let imagesRequest = RequestKind(
+        pending: \.outOfImagesPending, notes: \.outOfImagesNotes, errors: \.outOfImagesErrors,
+        supported: \.outOfImagesSupported, tasks: \.outOfImagesTasks,
+        stored: \.outOfImages, storedRemote: \.outOfImages,
+        byParentCode: "out_of_images_by_parent", skipsRoot: true, images: true,
+        failure: { "keep \($0) out of Images, or show it there" },
+        unsupportedLog: "the device can't keep folders out of Images yet (it needs an update)",
+        build: { path, on in
+            var m = Msg_SetOutOfImages()
+            m.path = path
+            m.outOfImages = on
+            return .reqSetOutOfImages(m)
+        })
+
+    private static let uploadOnlyRequest = RequestKind(
+        pending: \.uploadOnlyPending, notes: \.uploadOnlyNotes, errors: \.uploadOnlyRequestErrors,
+        supported: \.uploadOnlySupported, tasks: \.uploadOnlyTasks,
+        stored: nil, storedRemote: \.uploadOnly,
+        // Only lifting it is refused that way (issue #186); never asked here.
+        byParentCode: "locked_by_parent", skipsRoot: false, images: false,
+        failure: { "make \($0) upload only" },
+        unsupportedLog: "the device can't make folders upload only yet (it needs an update)",
+        build: { path, on in
+            var m = Msg_SetUploadOnly()
+            m.path = path
+            m.uploadOnly = on
+            return .reqSetUploadOnly(m)
+        })
+
+    private static let requestKinds = [imagesRequest, uploadOnlyRequest]
 
     /// A row's Keep Out / Show confirmed: recorded, and sent now when
     /// connected.
     func setOutOfImages(_ id: UUID, keepOut: Bool) {
-        guard outOfImagesDevicePath(id) != nil else { return }
+        guard requestDevicePath(id) != nil else { return }
         outOfImagesPending[id] = keepOut
         outOfImagesNotes[id] = nil
         outOfImagesErrors[id] = nil
-        persistOutOfImages(id)
-        if ws.isConnected() { applyOutOfImages(id) }
+        persistRequest(Self.imagesRequest, id)
+        if ws.isConnected() { applyRequest(Self.imagesRequest, id) }
     }
 
     /// How folder `id` stands with Images, for its row.
     func outOfImagesState(for id: UUID) -> OutOfImagesState {
-        guard let path = outOfImagesDevicePath(id) else { return .unknown }
+        guard let path = requestDevicePath(id) else { return .unknown }
         return SyncPaths.outOfImagesState(devicePath: path, folders: outOfImagesFolders,
                                           pending: outOfImagesPending[id], supported: outOfImagesSupported)
     }
 
+    /// Folder `id`'s upload-only request on its way, for its row.
+    func uploadOnlyState(for id: UUID) -> UploadOnlyRequestState {
+        SyncPaths.uploadOnlyState(pending: uploadOnlyPending[id], supported: uploadOnlySupported)
+    }
+
     /// The folder's device path, with the trailing slash; nil once removed.
-    private func outOfImagesDevicePath(_ id: UUID) -> String? {
+    private func requestDevicePath(_ id: UUID) -> String? {
         var path: String
         if let f = folders.first(where: { $0.id == id }) {
             let root = deviceRootForImages ?? remoteDeviceRoot()
@@ -2207,102 +2349,102 @@ final class SyncModel: ObservableObject {
         return path + "/"
     }
 
-    /// A pass's first step: the folder's pending request, if any - waiting
-    /// for one already under way rather than sending it twice.
-    private func applyOutOfImagesBeforePass(_ id: UUID) async {
-        guard outOfImagesPending[id] != nil, outOfImagesSupported != false else { return }
-        await applyOutOfImages(id).value
+    /// A pass's first step: the folder's pending requests, each waiting for
+    /// one already under way rather than sending it twice. Upload only
+    /// first: it is what protects the folder.
+    private func applyRequestsBeforePass(_ id: UUID) async {
+        for kind in [Self.uploadOnlyRequest, Self.imagesRequest] {
+            guard self[keyPath: kind.pending][id] != nil, self[keyPath: kind.supported] != false else { continue }
+            await applyRequest(kind, id).value
+        }
     }
 
-    /// Sends folder `id`'s pending request, or returns the send already
-    /// under way.
+    /// Sends folder `id`'s pending request of `kind`, or returns the send
+    /// already under way.
     @discardableResult
-    private func applyOutOfImages(_ id: UUID) -> Task<Void, Never> {
-        if let running = outOfImagesTasks[id] { return running }
+    private func applyRequest(_ kind: RequestKind, _ id: UUID) -> Task<Void, Never> {
+        if let running = self[keyPath: kind.tasks][id] { return running }
         let task = Task { [weak self] in
-            await self?.sendOutOfImages(id)
-            self?.outOfImagesTasks[id] = nil
+            await self?.sendRequest(kind, id)
+            self?[keyPath: kind.tasks][id] = nil
         }
-        outOfImagesTasks[id] = task
+        self[keyPath: kind.tasks][id] = task
         return task
     }
 
-    /// Every pending request, at connect.
-    private func applyPendingOutOfImages() {
-        for id in outOfImagesPending.keys { applyOutOfImages(id) }
+    /// Every pending request of `kind`, at connect.
+    private func applyPendingRequests(_ kind: RequestKind) {
+        for id in self[keyPath: kind.pending].keys { applyRequest(kind, id) }
     }
 
     /// Until the device has acknowledged what is pending now. The answer
     /// decides what happens to the request:
     /// - ok: cleared - only while it is still the one sent, so a change
     ///   made meanwhile from the row goes next;
-    /// - unknown_payload (a device before release 108): kept, and the
-    ///   device marked as unable - the row says it needs an update, and
-    ///   the request goes by itself after the update (the next connect);
-    /// - out_of_images_by_parent: dropped, the device's message on the row -
-    ///   it can't be shown until the folder above is;
+    /// - unknown_payload (a device before the request existed): kept, and
+    ///   the device marked as unable - the row says it needs an update,
+    ///   and the request goes by itself after the update (the next
+    ///   connect);
+    /// - the kind's byParentCode (out_of_images_by_parent, locked_by_parent):
+    ///   dropped, the device's message on the row - it can't happen until
+    ///   the folder above changes;
     /// - anything else, a dropped link included: kept for the next pass,
     ///   the error logged once - unless the row changed it while this one
     ///   was under way: the change goes now (the row's own call found this
     ///   send running and left it to it).
-    private func sendOutOfImages(_ id: UUID) async {
+    private func sendRequest(_ kind: RequestKind, _ id: UUID) async {
         // The value this send is through with (its request failed, or was
         // refused): it stops there unless the request changes meanwhile.
         var through: Bool?
-        while let want = outOfImagesPending[id], want != through, outOfImagesSupported != false, ws.isConnected(),
-              let path = outOfImagesDevicePath(id) {
-            guard path != "/" else {
+        while let want = self[keyPath: kind.pending][id], want != through, self[keyPath: kind.supported] != false,
+              ws.isConnected(), let path = requestDevicePath(id) {
+            guard !(kind.skipsRoot && path == "/") else {
                 // The device's whole library, which it refuses to keep
                 // out: nothing to send, ever.
-                clearOutOfImages(id, sent: want)
+                clearRequest(kind, id, sent: want)
                 return
             }
             let domain = settings?.domain
             let answer: Resp?
             var failure: String?
             do {
-                answer = try await ws.request { req in
-                    var m = Msg_SetOutOfImages()
-                    m.path = path
-                    m.outOfImages = want
-                    req.payload = .reqSetOutOfImages(m)
-                }
+                answer = try await ws.request { req in req.payload = kind.build(path, want) }
             } catch {
                 answer = nil
                 failure = error.localizedDescription
             }
             // Removed, or another device, meanwhile: the answer isn't
             // about it.
-            guard outOfImagesDevicePath(id) != nil, settings?.domain == domain else { return }
+            guard requestDevicePath(id) != nil, settings?.domain == domain else { return }
             through = want
             guard let answer else {
-                noteOutOfImagesError(id, path: path, failure ?? "no answer")
+                noteRequestError(kind, id, path: path, failure ?? "no answer")
                 continue
             }
             if Self.isUnknownPayload(answer) {
-                syncLog.notice("the device can't keep folders out of Images yet (it needs an update): \(path, privacy: .public) stays pending")
-                outOfImagesSupported = false
-                outOfImagesFolders = nil
+                syncLog.notice("\(kind.unsupportedLog, privacy: .public): \(path, privacy: .public) stays pending")
+                self[keyPath: kind.supported] = false
+                if kind.images { outOfImagesFolders = nil }
                 return
             }
-            if answer.error && answer.errorCode == "out_of_images_by_parent" {
-                clearOutOfImages(id, sent: want)
-                outOfImagesNotes[id] = answer.errorMessage
-                outOfImagesErrors[id] = nil
+            if answer.error && answer.errorCode == kind.byParentCode {
+                clearRequest(kind, id, sent: want)
+                self[keyPath: kind.notes][id] = answer.errorMessage
+                self[keyPath: kind.errors][id] = nil
                 // The folder above that keeps it out, for the row.
-                await refreshOutOfImages()
+                if kind.images { await refreshOutOfImages() }
                 continue
             }
             if answer.error {
-                noteOutOfImagesError(id, path: path, answer.errorMessage.isEmpty ? "refused" : answer.errorMessage)
+                noteRequestError(kind, id, path: path, answer.errorMessage.isEmpty ? "refused" : answer.errorMessage)
                 continue
             }
-            if outOfImagesSupported != true { outOfImagesSupported = true }
-            outOfImagesErrors[id] = nil
-            outOfImagesNotes[id] = nil
-            clearOutOfImages(id, sent: want)
+            if self[keyPath: kind.supported] != true { self[keyPath: kind.supported] = true }
+            self[keyPath: kind.errors][id] = nil
+            self[keyPath: kind.notes][id] = nil
+            clearRequest(kind, id, sent: want)
             through = nil
-            await refreshOutOfImages()
+            if kind.images { await refreshOutOfImages() }
             // What is pending now - a change made while this one was under
             // way - goes next.
         }
@@ -2310,41 +2452,44 @@ final class SyncModel: ObservableObject {
 
     /// The device answered `sent`: the request goes, unless it was changed
     /// meanwhile.
-    private func clearOutOfImages(_ id: UUID, sent: Bool) {
-        guard outOfImagesPending[id] == sent else { return }
-        outOfImagesPending[id] = nil
-        persistOutOfImages(id)
+    private func clearRequest(_ kind: RequestKind, _ id: UUID, sent: Bool) {
+        guard self[keyPath: kind.pending][id] == sent else { return }
+        self[keyPath: kind.pending][id] = nil
+        persistRequest(kind, id)
     }
 
-    /// Writes folder `id`'s request into its stored entry.
-    private func persistOutOfImages(_ id: UUID) {
-        let want = outOfImagesPending[id]
+    /// Writes folder `id`'s request of `kind` into its stored entry.
+    private func persistRequest(_ kind: RequestKind, _ id: UUID) {
+        let want = self[keyPath: kind.pending][id]
         var stored = existingStored()
         if let i = stored.firstIndex(where: { $0.id == id }) {
-            stored[i].outOfImages = want
+            guard let field = kind.stored else { return }
+            stored[i][keyPath: field] = want
             persistFolders(bookmarks: stored)
             return
         }
         var remote = existingStoredRemote()
         if let i = remote.firstIndex(where: { $0.id == id }) {
-            remote[i].outOfImages = want
+            remote[i][keyPath: kind.storedRemote] = want
             persistRemoteFolders(bookmarks: remote)
         }
     }
 
-    /// A removed folder's request and state go with it.
-    private func forgetOutOfImages(_ id: UUID) {
-        outOfImagesTasks.removeValue(forKey: id)?.cancel()
-        outOfImagesPending[id] = nil
-        outOfImagesNotes[id] = nil
-        outOfImagesErrors[id] = nil
+    /// A removed folder's requests and their state go with it.
+    private func forgetRequests(_ id: UUID) {
+        for kind in Self.requestKinds {
+            self[keyPath: kind.tasks].removeValue(forKey: id)?.cancel()
+            self[keyPath: kind.pending][id] = nil
+            self[keyPath: kind.notes][id] = nil
+            self[keyPath: kind.errors][id] = nil
+        }
     }
 
     /// Logged once per distinct error, not at every pass (as markUploadOnly).
-    private func noteOutOfImagesError(_ id: UUID, path: String, _ problem: String) {
-        guard outOfImagesErrors[id] != problem else { return }
-        outOfImagesErrors[id] = problem
-        syncLog.error("could not keep \(path, privacy: .public) out of Images, or show it there (tried again later): \(problem, privacy: .public)")
+    private func noteRequestError(_ kind: RequestKind, _ id: UUID, path: String, _ problem: String) {
+        guard self[keyPath: kind.errors][id] != problem else { return }
+        self[keyPath: kind.errors][id] = problem
+        syncLog.error("could not \(kind.failure(path), privacy: .public) (tried again later): \(problem, privacy: .public)")
     }
 
     /// Asks the device which folders it keeps out of Images: at connect,
@@ -2386,7 +2531,11 @@ final class SyncModel: ObservableObject {
         resp.error && (resp.errorCode == "unknown_payload" || resp.errorMessage == "unknown payload")
     }
 
-    private func delete(_ remotePath: String) async throws {
+    /// What a delete on the device came to.
+    private enum DeleteOutcome { case deleted, keptOnDevice }
+
+    @discardableResult
+    private func delete(_ remotePath: String) async throws -> DeleteOutcome {
         let resp = try await ws.request { req in
             var d = Msg_DelFile()
             d.path = remotePath
@@ -2395,13 +2544,15 @@ final class SyncModel: ObservableObject {
         if resp.error {
             // Issue #132: the owner made that folder upload only, so the
             // device keeps the file however the local copy goes. That is
-            // the folder working as intended, not a failure to retry.
+            // the folder working as intended, not a failure to retry:
+            // keptOnDevice. As otc-sync's errKeptOnDevice.
             if resp.errorCode == "upload_only" {
-                syncLog.notice("delete of \(remotePath, privacy: .public) skipped: the folder is upload only")
-                return
+                syncLog.notice("delete of \(remotePath, privacy: .public) skipped: the folder is upload only - kept on the device")
+                return .keptOnDevice
             }
             throw NSError(domain: "sync.delete", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "delete rejected" : resp.errorMessage])
         }
+        return .deleted
     }
 
     /// What enumerateFilesRecursively found.
@@ -2583,13 +2734,15 @@ final class SyncModel: ObservableObject {
                                                      relativeTo: nil)
                     var updated = stored
                     if let idx = updated.firstIndex(where: { $0.id == item.id }) {
-                        updated[idx] = StoredRemoteFolder(id: item.id, remotePath: item.remotePath, bookmark: fresh, outOfImages: item.outOfImages)
+                        updated[idx] = StoredRemoteFolder(id: item.id, remotePath: item.remotePath, bookmark: fresh,
+                                                          outOfImages: item.outOfImages, uploadOnly: item.uploadOnly)
                         persistRemoteFolders(bookmarks: updated)
                     }
                 }
 
                 restored.append(RemoteFolder(id: item.id, remotePath: item.remotePath, localURL: url))
                 if let want = item.outOfImages { outOfImagesPending[item.id] = want }
+                if let want = item.uploadOnly { uploadOnlyPending[item.id] = want }
             } catch {
                 print("Failed to resolve remote folder bookmark:", error)
             }
