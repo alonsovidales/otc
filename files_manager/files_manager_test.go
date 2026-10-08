@@ -425,9 +425,13 @@ func TestDelFileKeepsUnderlyingBlobWhenHashStillReferencedByAnotherPath(t *testi
 		WithArgs(hash, hash).
 		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 
-	mg := keptOut(&Manager{dao: dao.NewWithDB(db)})
+	mg := keptOut(&Manager{dao: dao.NewWithDB(db), searchTokens: newSearchTokenCache(10)})
 	if err := mg.DelFile(nil, "/photos/a.jpg"); err != nil {
 		t.Fatalf("DelFile returned an unexpected error: %v", err)
+	}
+	// Counted for the search tokens: no page is served again across it.
+	if _, deletes := mg.searchTokens.begin(); deletes != 1 {
+		t.Errorf("%d deletes counted, want 1", deletes)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {

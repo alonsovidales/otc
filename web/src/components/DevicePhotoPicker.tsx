@@ -42,6 +42,9 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
   const [opening, setOpening] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const gen = useRef(0);
+  // How many photos the grid holds, for SearchPhotos.have (a ref: the
+  // page request's closure would read a stale `items`).
+  const shown = useRef(0);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -71,6 +74,9 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
           reqSearchPhotos: {
             tags: [], personIds: [], groupId: group, includeVideos: false, token: sendToken,
             limit: sendToken ? 0 : cFirstPagePhotos,
+            // The photos the grid holds: a page asked again (its answer
+            // was lost) comes back as the same page (SearchPhotos.have).
+            have: sendToken ? shown.current : 0,
             // Tiles: the small thumbnails. The pick itself is fetched
             // full size (GetFile, below).
             smallThumbnails: true,
@@ -81,7 +87,11 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
       const lof = resp.payload.respListOfFiles;
       const added = (lof.files ?? []).map(f => ({ f, url: thumbURL(f) }));
       added.forEach(a => a.url && urls.current.push(a.url));
-      setItems(prev => (fresh ? added : prev.concat(added)));
+      setItems(prev => {
+        const next = fresh ? added : prev.concat(added);
+        shown.current = next.length;
+        return next;
+      });
       setToken(lof.token || "");
       setDone(!lof.token);
     } finally {

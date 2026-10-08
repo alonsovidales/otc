@@ -240,6 +240,30 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   max-images-search`, 30), never more. Older devices ignore it. Grids that start a new search
   bump a search generation, so a page from the old search lands nowhere. A grid's tiles can come as
   small thumbnails (`small_thumbnails`, release 111 - see Thumbnails under `files_manager`).
+  A page asked again is served again (2026-10-08): every grid retries a failed page with the same
+  token and `have` (`SearchPhotos.have`, field 6: photos it holds), and the device used to answer
+  with the page after it, so a page whose answer was lost (a timeout dropping a late answer, a
+  socket closed mid-reply, the bridge's 90 s answer) left a hole in the grid for good. A token
+  (`files_manager/search_tokens.go`, `searchCursor`) now remembers where its last page started
+  (`prev`), the `have` it was asked with (`before`) and the count it leaves (`after` = before +
+  its photos). `resume`: `have == after` goes on; `have == before` serves that page again from
+  `prev` (a #147 row without a thumbnail then may now come, and the page then ends earlier: what
+  no longer fits comes first on the next page, nothing skipped), but only once the client is in
+  step (`synced`: that page was asked for with the previous page's `after`; a page of a search
+  resumed from an unknown token that brought only photos the client had must go on), at most
+  `cMaxServedAgain` (5) times in a row, and only if no file was deleted since that page was served
+  (`delFile` counts every delete, `noteDelete`: a client lowers `have` by what it deletes, so one
+  that deleted as many photos as the page brought asks with `before` too); `have == 0` (clients
+  that don't send it, older apps) and any other count go on, as before. The rows from `prev` on
+  stay in the token (`pageCursor` compacts only what came before), and `keepOut` (#192) filters
+  them too. Each search takes a sequence number as it starts (`begin`), and `store` refuses a
+  cursor behind the stored one by (`pages`, `seq`): a request finishing late can't move a token
+  back, and of two requests for the same page (the first still being served when the client's
+  retry came) the token keeps the one started later - the retry, whose answer the client keeps.
+  A last page stores nothing, so asking it again goes on from the same place. Every grid and
+  picker sends `have` with token requests (web `PhotoGallery`, `NewPostPicker`,
+  `DevicePhotoPicker`; Android `PhotoGalleryViewModel`, `NewPostPickerView`, `DevicePhotoPicker`;
+  iOS `PhotoGallery`, `NewPostPicker`, `DevicePhotoPickerView`); with no token it means nothing.
 - Home network (issue #190): at home the apps reach the device directly over a **pinned TLS**
   connection; anywhere else, or on any failure, through the bridge as before.
   - Device: `lantls` keeps an ECDSA P-256 key and a self-signed cert (CN/SAN `otc-lan`, 100 years)

@@ -952,16 +952,30 @@ var maxImagesSearch = func() int { return int(cfg.GetInt("tagger", "max-images-s
 // stays behind the token, so the next page continues where it ended.
 // small (SearchPhotos.small_thumbnails) sends the grids' small thumbnails
 // instead of the big ones (readGridThumbnail).
+// have (SearchPhotos.have) is how many photos the client holds. With a
+// token this device holds, it tells a page whose answer was lost, asked
+// again with the same have, from the next one (searchCursor.resume): every
+// app asks a failed page again, and going on left a hole in its grid. With
+// a token it no longer holds, the search starts again past that many.
 func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before *time.Time, have int32, limit int32, small bool) (files []*pb.File, token string, err error) {
 	log.Debug("Image search, token:", oldToken)
 	// Issue #192: read before the token or the folders kept out of
 	// Images, so a folder kept out meanwhile is left out of what is
 	// stored at the end.
 	gen := mg.searchTokens.generation()
+	// When this request started, among the searches, and the files
+	// deleted so far: for the cursor it stores (searchCursor.seq and
+	// deletes) and resume.
+	seq, deletes := mg.searchTokens.begin()
 	tokenFound := false
-	// files is all[off:]: what the token (or the new search) has left.
+	// files is all[off:]: where this page starts in what the token (or
+	// the new search) holds.
 	var all []*pb.File
 	off := 0
+	// What the token held, and whether this is its last page served
+	// again (searchCursor.resume).
+	var last *searchCursor
+	again := false
 	if oldToken != "" && before == nil {
 		// Both halves of this have to be checked before the value is
 		// used. A token the device no longer holds - expired after
@@ -977,10 +991,15 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		// unknown token - start the search again from the beginning -
 		// it just never got the chance to run.
 		if cur, ok := mg.searchTokens.load(oldToken); ok {
-			all, off = cur.all, cur.off
+			last = cur
+			all = cur.all
+			off, again = cur.resume(have, deletes)
 			files = all[off:]
 			token = oldToken
 			tokenFound = true
+			if again {
+				log.Debug("Serving again the last page of token:", oldToken, "have:", have)
+			}
 		}
 	}
 	if !tokenFound {
@@ -1053,12 +1072,19 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 	}
 	if next < len(files) {
 		// The rows already served stay in the token only until they
-		// outnumber those left (nextCursor). Issue #173 copied what was
-		// left at every page, because served rows used to carry their
-		// thumbnails; since #171 Content is only ever set on the page's
-		// clones, never on these rows, so keeping them costs only the rows.
-		mg.searchTokens.store(token, nextCursor(all, off, next), time.Now(), gen)
+		// outnumber those from this page on (pageCursor), which stay so
+		// the page can be served again if its answer is lost. Issue #173
+		// copied what was left at every page, because served rows used to
+		// carry their thumbnails; since #171 Content is only ever set on
+		// the page's clones, never on these rows, so keeping them costs
+		// only the rows.
+		cur := pageCursor(last, all, off, next, have, len(page), again)
+		cur.seq, cur.deletes = seq, deletes
+		mg.searchTokens.store(token, cur, time.Now(), gen)
 	} else {
+		// Nothing stored: a last page whose answer is lost is asked
+		// again with the have the token still expects, and served again
+		// by going on from the same place.
 		log.Debug("End for token:", token)
 		token = "" // We reached the end
 	}
@@ -1372,6 +1398,9 @@ func (mg *Manager) delFile(path string) (hashes []string, err error) {
 	if err != nil {
 		return nil, err
 	}
+	// A client lowers its have by what it deletes: no search page is
+	// served again across this (searchCursor.resume).
+	mg.searchTokens.noteDelete()
 	hashes = []string{hash}
 
 	// Files are deduplicated on disk by hash (more than one path can point

@@ -228,6 +228,9 @@ class NewPostPickerViewModel : ViewModel() {
                 // A new search (Synced, a tag added or removed) gets a small
                 // first page; scrolling on, the device's own size.
                 if (requestToken.isEmpty()) sp.limit = FIRST_PHOTO_PAGE_LIMIT
+                // The photos the grid holds: a page asked again (its answer
+                // was lost) comes back as the same page (SearchPhotos.have).
+                else sp.have = _state.value.items.size
                 it.setReqSearchPhotos(sp)
             }
             if (mine != searchGeneration) return

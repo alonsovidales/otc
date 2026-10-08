@@ -143,6 +143,10 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
               token: sendToken,
               includeVideos: true,
               limit: sendToken ? 0 : cFirstPagePhotos,
+              // The photos the grid holds: a page asked again (its answer
+              // was lost) comes back as the same page instead of the one
+              // after it (SearchPhotos.have).
+              have: sendToken ? mapRef.current.size : 0,
               // The grid's and the order strip's tiles: the small
               // thumbnails (release 111). The post itself is made on the
               // device from the files.
