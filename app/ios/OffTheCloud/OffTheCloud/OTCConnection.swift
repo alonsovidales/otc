@@ -12,6 +12,7 @@
 
 import Foundation
 import CryptoKit
+import UIKit
 
 @MainActor
 final class OTCConnection: ObservableObject {
@@ -42,6 +43,12 @@ final class OTCConnection: ObservableObject {
     /// owner has to fix, and an app that keeps retrying in silence behind
     /// empty tabs gives them nothing to fix it with.
     @Published private(set) var connectionFailed = false
+    /// Bumped at the moments a load that failed is worth asking for again
+    /// at once, not at the end of its wait (Android's Wake; the web's
+    /// usePageRetry wakes on the device's first good answer and on the
+    /// browser's "online"): signed in again, a network came up, the app
+    /// back in front.
+    @Published private(set) var wakes = 0
 
     /// Issue #190: how the signed-in connection reaches the device, for
     /// Settings. nil while there is none.
@@ -132,22 +139,100 @@ final class OTCConnection: ObservableObject {
         TransferActivity.shared.setOnIdle { [weak self] in
             Task { @MainActor [weak self] in self?.recheckIfPending() }
         }
+        // Back in front: what failed while away is asked for again now,
+        // and a socket left in the background - often dead without a word -
+        // is checked rather than found out by the next request waiting on it.
+        NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.cameToForeground() }
+        }
     }
 
-    /// Sends a request, connecting/authenticating first if needed. Retries
-    /// once end-to-end (a fresh connect+auth, then the request again) if
-    /// anything in that path fails — including the connect/auth handshake
-    /// itself, not just the request after it succeeded. Without covering the
-    /// handshake too, a transient failure right as the device restarts (the
-    /// common case: a deploy) surfaced as a hard error instead of quietly
-    /// reconnecting, since ensureConnected() throwing used to bypass the
-    /// retry entirely.
-    func request(_ build: @escaping (inout Msg_ReqEnvelope) -> Void) async throws -> Msg_RespEnvelope {
+    /// How long what a screen shows waits for its answer before the request
+    /// fails (WSClient.TimedOut) and the screen asks again (its own retry,
+    /// 1 s doubling to 10 s), instead of hanging until the socket drops -
+    /// through ask(), which gives a kind that timed out more time
+    /// (Patience). As Android's PAGE_TIMEOUT_MS and LIST_TIMEOUT_MS.
+    /// pageTimeout: a page of photos, posts or covers (people,
+    /// collections), a folder's listing - a first page of Images from Pit
+    /// measured 6-70 s over the bridge, so 2 minutes, above the bridge's
+    /// own 90 s forward timeout (cForwardTimeout): through the bridge its
+    /// "device unreachable" always comes first, and this only ends a
+    /// request nothing will answer (at home, straight to the device,
+    /// nothing else would). listTimeout: the small lists (tags, month
+    /// counts), which still queue behind a page on the device's upload.
+    /// The clock starts once the request has left the phone
+    /// (WSClient.exchange), and connecting gets the same time on its own.
+    /// Everything else keeps the socket's 30 minutes
+    /// (WSClient.defaultTimeout: uploads, downloads in pieces, ApplyUpdate).
+    nonisolated static let pageTimeout: TimeInterval = 120
+    nonisolated static let listTimeout: TimeInterval = 60
+
+    /// GetPubKey and Auth while signing in (Android's SIGN_IN_TIMEOUT_MS):
+    /// above the bridge's 90 s, so its own "device unreachable" comes
+    /// first, and far above an Argon2id derivation on a busy device. They
+    /// used to wait for good, and every request waits on a sign-in in
+    /// progress: a device that took the socket and never answered left
+    /// Images on grey tiles through every wake and Try again. Tests
+    /// shorten it.
+    var signInTimeout: TimeInterval = 120
+
+    /// How long each kind of what a screen shows waits now, by route.
+    let patience = Patience()
+
+    /// Why connecting failed when the phone has no network at all (the
+    /// connection card's line), as on Android.
+    nonisolated static let offlineMessage = "This phone is offline. Connect to Wi-Fi or mobile data."
+
+    /// Sends a request, connecting/authenticating first if needed, and
+    /// waits `timeout` seconds at most for its answer (nil: the socket's
+    /// WSClient.defaultTimeout) - connecting included, which gets the same
+    /// time on its own. Retries once end-to-end (a fresh connect+auth, then
+    /// the request again) if anything in that path fails — including the
+    /// connect/auth handshake itself, not just the request after it
+    /// succeeded. Without covering the handshake too, a transient failure
+    /// right as the device restarts (the common case: a deploy) surfaced as
+    /// a hard error instead of quietly reconnecting, since
+    /// ensureConnected() throwing used to bypass the retry entirely.
+    func request(timeout: TimeInterval? = nil, _ build: @escaping (inout Msg_ReqEnvelope) -> Void) async throws -> Msg_RespEnvelope {
+        try await exchange(timeout: timeout ?? WSClient.defaultTimeout, build).resp
+    }
+
+    /// What a screen shows, of `kind` ("page", "feed", "listing", "tags"...):
+    /// `base` for its answer (pageTimeout, listTimeout), twice as long
+    /// after each timeout in a row up to 5 minutes, and back down once
+    /// answers come in time again - per kind and route (Patience, as
+    /// Android's ask). Throws WSClient.TimedOut when the time ran out,
+    /// connecting included.
+    func ask(_ kind: String, base: TimeInterval, _ build: @escaping (inout Msg_ReqEnvelope) -> Void) async throws -> Msg_RespEnvelope {
+        let key = "\(kind)/\(route == .home ? "home" : "bridge")"
+        do {
+            let a = try await exchange(timeout: patience.timeout(for: key, base: base), build)
+            patience.answered(key, base: base, took: a.waited)
+            return a.resp
+        } catch let e as WSClient.TimedOut {
+            // One that ran out while still connecting says nothing about
+            // how fast the device answers.
+            if e.answerTimedOut { patience.timedOut(key) }
+            throw e
+        }
+    }
+
+    private func exchange(timeout: TimeInterval, _ build: @escaping (inout Msg_ReqEnvelope) -> Void) async throws -> WSClient.Answer {
         var epoch: Int?
         do {
-            try await ensureConnected()
+            try await connectWithin(timeout)
             epoch = connectionEpoch
-            return try await ws.request(build: build)
+            return try await ws.exchange(timeout: timeout, build: build)
+        } catch let timedOut as WSClient.TimedOut {
+            // No answer in its time on a socket that is still up (WSClient
+            // checks it then, and one that is gone fails what it has in
+            // flight as Unresponsive, below), or still connecting when the
+            // time ran out: the session is fine, the device is slow or lost
+            // this one. The caller asks again; signing in again first would
+            // only add an Argon2id derivation to a device that is already
+            // slow, and asking again here would double the wait before the
+            // screen can say so.
+            throw timedOut
         } catch {
             // Issue #190: a request cut off by a route switch failed on a
             // socket already replaced. Its successor is up, or on its way
@@ -155,8 +240,45 @@ final class OTCConnection: ObservableObject {
             if epoch == nil || epoch == connectionEpoch {
                 authenticated = false
             }
-            try await ensureConnected()
-            return try await ws.request(build: build)
+            try await connectWithin(timeout)
+            return try await ws.exchange(timeout: timeout, build: build)
+        }
+    }
+
+    /// ensureConnected() within a request's own time (Android's
+    /// connectWithin): a connect stuck somewhere (each attempt is bounded -
+    /// WSClient.connectTimeout, signInTimeout - but a request may come in
+    /// behind one) no longer leaves a screen waiting with nothing failed;
+    /// the attempt itself goes on for whoever asks next. A sign-in's own
+    /// timeout is the connection failing, not this request's answer.
+    private func connectWithin(_ timeout: TimeInterval) async throws {
+        if authenticated { return }
+        do {
+            if timeout >= WSClient.defaultTimeout {
+                try await ensureConnected()
+                return
+            }
+            let outcome = ConnectRace()
+            let won: Bool = try await withCheckedThrowingContinuation { cont in
+                outcome.start(cont)
+                let timer = Task {
+                    try? await Task.sleep(for: .seconds(timeout))
+                    outcome.finish(.success(false))
+                }
+                Task { @MainActor in
+                    do {
+                        try await self.ensureConnected()
+                        outcome.finish(.success(true))
+                    } catch {
+                        outcome.finish(.failure(error))
+                    }
+                    timer.cancel()
+                }
+            }
+            if !won { throw WSClient.TimedOut(answerTimedOut: false) }
+        } catch let e as WSClient.TimedOut where e.answerTimedOut {
+            // GetPubKey or Auth unanswered: the connection failed.
+            throw NSError(domain: "OTCConnection", code: 5, userInfo: [NSLocalizedDescriptionKey: e.localizedDescription])
         }
     }
 
@@ -247,6 +369,18 @@ final class OTCConnection: ObservableObject {
         if let r = authRejection, r.credKey == credKey, Date() < r.notBefore {
             raced?.task.cancel()
             throw r.error
+        }
+        // No network at all: nothing to dial, and URLSession would wait for
+        // one (waitsForConnectivity) with every request queued behind the
+        // sign-in, so a screen could never say why it is empty. Failed at
+        // once, as Android's connect does: the screens say the phone is
+        // offline (and the connection card does, after a few seconds), and
+        // ask again as soon as a network is back (wakes).
+        if NetworkWatch.shared.offline {
+            raced?.task.cancel()
+            lastError = Self.offlineMessage
+            connectionFailed = true
+            throw URLError(.notConnectedToInternet)
         }
 
         // Issue #190: the home network first, on every connect, when the
@@ -379,7 +513,10 @@ final class OTCConnection: ObservableObject {
         // Fetch this connection's ephemeral public key and encrypt the
         // password with it before it ever leaves the device (issue #2:
         // the bridge only relays already-encrypted payloads).
-        let pubKeyResp = try await ws.request { req in
+        // Each step within signInTimeout: unanswered, the sign-in fails
+        // and its caller closes the socket (a bridge pool slot held for
+        // nothing otherwise), as a refused one.
+        let pubKeyResp = try await ws.request(timeout: signInTimeout) { req in
             req.payload = .reqGetPubKey(Msg_GetPubKey())
         }
         guard case .respPubKey(let pubKey) = pubKeyResp.payload else {
@@ -406,7 +543,7 @@ final class OTCConnection: ObservableObject {
         auth.key = encryptedKey
         auth.create = false
 
-        let resp = try await ws.request { req in
+        let resp = try await ws.request(timeout: signInTimeout) { req in
             req.payload = .reqAuth(auth)
         }
         guard case .respAck(let ack) = resp.payload, ack.ok else {
@@ -454,6 +591,8 @@ final class OTCConnection: ObservableObject {
         homeNetwork = home != nil ? NetworkWatch.shared.localNetwork : nil
         route = home != nil ? .home : .remote(host: URL(string: endpoint)?.host ?? "")
         registerPushToken()
+        // Back after a drop: what failed meanwhile is asked for again now.
+        wake()
     }
 
     /// Issue #190: after every sign-in through the endpoint, asks the
@@ -493,12 +632,17 @@ final class OTCConnection: ObservableObject {
 
     // MARK: Issue #190: switching route
 
-    /// A network change: once it has settled, reconsider the route.
+    /// A network change: once it has settled, what failed meanwhile is
+    /// asked for again (a network came up) and the route reconsidered. A
+    /// socket made over the network that went may be dead without a word
+    /// (a phone moving between Wi-Fi and mobile data): it is checked now.
     private func networkChanged() {
+        if !NetworkWatch.shared.offline { Task { await ws.verify() } }
         networkSettle?.cancel()
         networkSettle = Task {
             try? await Task.sleep(for: .seconds(1))
             guard !Task.isCancelled else { return }
+            if !NetworkWatch.shared.offline { wake() }
             await reconsiderRoute()
         }
     }
@@ -627,9 +771,40 @@ final class OTCConnection: ObservableObject {
         return SHA256.hash(data: Data(material.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
+    /// What failed to load is asked for again now (wakes).
+    func wake() {
+        wakes &+= 1
+    }
+
+    /// Waits `seconds`, cut short by a wake (Android's sleepOrWake) or the
+    /// task's cancellation.
+    func sleepOrWake(_ seconds: TimeInterval) async {
+        let seen = wakes
+        let end = Date() + seconds
+        while wakes == seen, Date() < end, !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(min(250, max(1, end.timeIntervalSinceNow * 1000))))
+        }
+    }
+
+    /// The app came back to the front: what failed while away is asked for
+    /// again, and the socket is checked (WSClient.verify).
+    private func cameToForeground() {
+        Task { await ws.verify() }
+        wake()
+    }
+
     /// Plain words for the errors URLSession hands back, which are not
     /// written for people ("There was a bad response from the server").
     private static func describe(_ error: Error) -> String {
+        // No network at all: not the address's fault, whatever failed.
+        if NetworkWatch.shared.offline { return offlineMessage }
+        if error is WSClient.Unresponsive {
+            return "The device isn't answering. It may be off, or the connection may be too slow."
+        }
+        // The upgrade unanswered (Android: a SocketTimeoutException).
+        if error is WSClient.ConnectTimeout {
+            return "The device isn't answering. It may be off, or the address may be wrong."
+        }
         let ns = error as NSError
         if ns.domain == NSURLErrorDomain {
             switch ns.code {
@@ -640,7 +815,7 @@ final class OTCConnection: ObservableObject {
             case NSURLErrorCannotConnectToHost, NSURLErrorTimedOut, NSURLErrorNetworkConnectionLost:
                 return "The device isn't answering. It may be off, or the address may be wrong."
             case NSURLErrorNotConnectedToInternet:
-                return "No internet connection."
+                return offlineMessage
             case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted, NSURLErrorServerCertificateHasBadDate:
                 return "Couldn't make a secure connection to that address."
             default:
@@ -659,5 +834,22 @@ final class OTCConnection: ObservableObject {
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             try? await self?.ensureConnected()
         }
+    }
+}
+
+/// connectWithin's two runners - the connect, the request's time - and the
+/// one outcome that counts: whichever finishes first.
+private final class ConnectRace: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cont: CheckedContinuation<Bool, Error>?
+
+    func start(_ c: CheckedContinuation<Bool, Error>) { lock.withLock { cont = c } }
+
+    func finish(_ result: Result<Bool, Error>) {
+        let c: CheckedContinuation<Bool, Error>? = lock.withLock {
+            defer { cont = nil }
+            return cont
+        }
+        c?.resume(with: result)
     }
 }

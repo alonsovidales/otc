@@ -1149,6 +1149,10 @@ public nonisolated struct Msg_SearchPhotos: Sendable {
   ///
   /// Only meaningful alongside a token (i.e. when resuming); a search
   /// starting from scratch sends nothing and is never skipped forward.
+  ///
+  /// With a token the device still holds, it also makes a page asked again
+  /// with the same have (its answer was lost) come back as the same page,
+  /// instead of the page after it, which left a hole in the grid.
   public var have: Int32 = 0
 
   /// Issue #115: restrict to one image group (album). A group is just

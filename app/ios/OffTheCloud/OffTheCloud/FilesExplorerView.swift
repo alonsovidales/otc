@@ -14,6 +14,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import QuickLook
+import Combine
 
 private func isDirFile(_ f: Msg_File) -> Bool { f.mime == "inode/directory" }
 
@@ -172,10 +173,13 @@ final class FilesExplorerViewModel: ObservableObject {
         return cache
     }()
     // The device's own thumbnail bytes, for the viewer: its placeholder
-    // and its save/share fallback stay at the full 1000 px (the Images
+    // until the full size arrives, and its save/share fallback (the Images
     // section feeds it the same way), while tiles are decoded smaller.
-    // Each tile keeps its own (FileThumb); this keeps them a while
-    // longer, for photos whose tile was given back.
+    // They are the grid's small thumbnails (release 111): where one would
+    // stay on screen the viewer asks for the big one itself
+    // (PhotoGalleryVM.thumbnailStays), never through these caches. Each
+    // tile keeps its own (FileThumb); this keeps them a while longer, for
+    // photos whose tile was given back.
     private let thumbBytes: NSCache<NSString, NSData> = {
         let cache = NSCache<NSString, NSData>()
         cache.totalCostLimit = 32 << 20
@@ -189,12 +193,65 @@ final class FilesExplorerViewModel: ObservableObject {
     private var thumbInFlight: Set<String> = []
     private var thumbPumping = false
 
-    init(initialPath: String) { self.path = initialPath }
+    /// A listing that failed on the way (no answer in time, a dropped
+    /// connection, the bridge's "device unreachable") is asked again, 1 s
+    /// doubling to 10 s and at once on a wake, while its folder is still
+    /// the one shown and nothing newer was asked for (listingAsks). The
+    /// device's own refusal (a folder that isn't there) is not.
+    let listRetry = PageRetry()
+    private var listingAsks = 0
+    private var wakeWatch: AnyCancellable?
+    /// Why the listing of failedPath failed: said while it is asked again
+    /// (not cleared at each try, which flickered and was announced anew).
+    private var listingProblem: LoadProblem?
+    private var failedPath: String?
+    /// Whether the phone has a network now. Tests decide in the phone's place.
+    var online: @MainActor () -> Bool = { !NetworkWatch.shared.offline }
+    /// Why a listing failed. Tests decide in the phone's place.
+    var problemOf: @MainActor (Msg_RespEnvelope?, Error?) -> LoadProblem = { LoadProblem.now(resp: $0, error: $1) }
+
+    init(initialPath: String) {
+        self.path = initialPath
+        wakeWatch = OTCConnection.shared.$wakes
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.listRetry.wake() }
+    }
 
     /// Sends one of the explorer's requests (the listing, the folder
-    /// switches). Tests answer them in the device's place.
+    /// switches, the grid's and the search results' thumbnails). Tests
+    /// answer them in the device's place.
     var request: @MainActor (Msg_ReqEnvelope.OneOf_Payload) async throws -> Msg_RespEnvelope = { payload in
-        try await OTCConnection.shared.request { $0.payload = payload }
+        // A folder of thousands of names is a page of its own, with more
+        // time after a timeout (OTCConnection.ask, as Android's
+        // "listing"); the rest get the socket's own time.
+        if case .reqListFiles = payload {
+            return try await OTCConnection.shared.ask("listing", base: OTCConnection.pageTimeout) { $0.payload = payload }
+        }
+        return try await OTCConnection.shared.request { $0.payload = payload }
+    }
+
+    /// What Files says while the folder `p` is listed (Android's
+    /// listingErrorWhileAsking): for the folder whose listing failed
+    /// (`failedPath`, `problem`), why - it stays up while it is asked
+    /// again rather than flickering away at each try - and the neutral
+    /// line once the phone is back `online`; nothing for another folder.
+    nonisolated static func errorWhileAsking(_ problem: LoadProblem?, failedPath: String?, _ p: String, online: Bool) -> String? {
+        guard let problem, failedPath == p else { return nil }
+        return problem.backOnline(online).text("The files")
+    }
+
+    /// The listing failed on the way (`problem`: why): said in plain words,
+    /// and asked again after the wait.
+    private func listingFailed(_ asked: String, _ problem: LoadProblem) {
+        listingProblem = problem
+        failedPath = asked
+        error = problem.text("The files")
+        let ask = listingAsks
+        listRetry.failed { [weak self] in
+            guard let self, self.listingAsks == ask, self.path == asked else { return }
+            Task { await self.load() }
+        }
     }
 
     func load() async {
@@ -202,15 +259,23 @@ final class FilesExplorerViewModel: ObservableObject {
         // screen moved on (the search sending it to another folder while
         // the first listing was on its way) is dropped.
         let asked = path
+        listingAsks += 1
         loading = true
         defer { if asked == path { loading = false } }
-        error = nil
+        error = Self.errorWhileAsking(listingProblem, failedPath: failedPath, asked, online: online())
         var req = Msg_ListFiles()
         req.path = asked
         do {
             let resp = try await request(.reqListFiles(req))
             guard asked == path else { return }
+            if case .respAck(let ack) = resp.payload, ack.code == LoadProblem.deviceUnreachable {
+                listingFailed(asked, problemOf(resp, nil))
+                return
+            }
             if case .respListOfFiles(let lof) = resp.payload {
+                listRetry.reset()
+                listingProblem = nil
+                error = nil
                 outOfImagesSupported = lof.outOfImagesSupported
                 folderOutOfImages = lof.folderOutOfImages
                 listedPath = asked
@@ -225,15 +290,17 @@ final class FilesExplorerViewModel: ObservableObject {
                 selected.removeAll()
             } else if resp.error {
                 folderOutOfImages = false
+                listingProblem = nil
                 error = resp.errorMessage.isEmpty ? "Failed to list path" : resp.errorMessage
             } else {
                 folderOutOfImages = false
+                listingProblem = nil
                 error = "Unexpected response"
             }
         } catch {
             guard asked == path else { return }
             folderOutOfImages = false
-            self.error = error.localizedDescription
+            listingFailed(asked, problemOf(nil, error))
         }
     }
 
@@ -310,7 +377,10 @@ final class FilesExplorerViewModel: ObservableObject {
             media.removeFirst(batch.count)
             var req = Msg_GetThumbnails()
             req.paths = batch
-            guard let resp = try? await ws.request({ $0.payload = .reqGetThumbnails(req) }),
+            // Tiles: small thumbnails (release 111; an older device sends
+            // big ones).
+            req.smallThumbnails = true
+            guard let resp = try? await request(.reqGetThumbnails(req)),
                   case .respListOfFiles(let lof) = resp.payload else { return }
             let got = lof.files.map { (path: $0.path, data: $0.content) }
             let decoded = await Task.detached(priority: .userInitiated) {
@@ -402,7 +472,12 @@ final class FilesExplorerViewModel: ObservableObject {
             thumbQueue.removeFirst(batch.count)
             var req = Msg_GetThumbnails()
             req.paths = batch.map(\.path)
-            let resp = try? await ws.request { $0.payload = .reqGetThumbnails(req) }
+            // The tiles' small thumbnails (release 111; an older device
+            // sends big ones). The viewer shows them only until the full
+            // size arrives, and asks for the big one itself where it would
+            // stay (PhotoGalleryVM.thumbnailStays).
+            req.smallThumbnails = true
+            let resp = try? await request(.reqGetThumbnails(req))
             for item in batch { thumbInFlight.remove(item.key) }
             guard folder == path else { continue }
             // A failed request (no connection) remembers nothing, so the
@@ -828,6 +903,10 @@ struct FilesExplorerView: View {
 
                         if let error = vm.error {
                             Text(error).font(.caption).foregroundColor(.red).padding(.horizontal)
+                                // Said to VoiceOver when it appears or
+                                // changes (Android's polite live region).
+                                .onAppear { Announce.polite(error) }
+                                .onChange(of: error) { _, e in Announce.polite(e) }
                         }
 
                         if vm.outOfImagesBanner {

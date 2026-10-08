@@ -13,6 +13,14 @@
 //  once, just big enough for its tile, off the main thread when possible,
 //  and kept in a bounded cache (like the feed's MediaSizeCache).
 //
+//  Only grid tiles: the small thumbnails every grid asks for
+//  (small_thumbnails, release 111 - an older device's big ones when it
+//  ignores the flag). A big thumbnail asked for on purpose (the viewer's,
+//  where the thumbnail stays on screen: PhotoGalleryVM.bigThumbs) is never
+//  kept here: the answers carry no mark of which size came, so the two
+//  must never share an entry - the keys say "small" (Android's
+//  ThumbStore.tileKey).
+//
 
 import UIKit
 import ImageIO
@@ -33,7 +41,7 @@ enum GridThumbCache {
     private static let pixelScale: CGFloat = 3
 
     private static func key(_ id: String, _ maxPt: CGFloat) -> NSString {
-        "\(id)@\(Int(maxPt))" as NSString
+        "\(id)#small@\(Int(maxPt))" as NSString
     }
 
     private static func cost(of image: UIImage) -> Int {

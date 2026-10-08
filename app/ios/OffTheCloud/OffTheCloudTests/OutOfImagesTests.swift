@@ -8,6 +8,10 @@ import Testing
 /// carries, what the switch sends and shows, and Images asking again.
 /// Serialized: the switch tells Images through the notification center,
 /// which every test here listens to.
+// Nested in ImagesNotificationTests (RetryTests.swift): its Files test and
+// imagesAsksAgainForWhatItHasShown post otcImagesChanged, which every
+// Images model alive hears - never while ImagesRetryTests counts requests.
+extension ImagesNotificationTests {
 @MainActor
 @Suite(.serialized)
 struct OutOfImagesTests {
@@ -323,7 +327,7 @@ struct OutOfImagesTests {
     @Test func imagesAsksAgainForWhatItHasShown() async {
         let vm = PhotoGalleryVM(deviceID: "test", localPhotosFolder: nil)
         let sent = Sent()
-        vm.libraryRequest = { payload in
+        vm.libraryRequest = { payload, _ in
             sent.list.append(payload)
             var r = Msg_RespEnvelope()
             switch payload {
@@ -338,7 +342,7 @@ struct OutOfImagesTests {
             }
             return r
         }
-        vm.peopleRequest = { payload in
+        vm.peopleRequest = { payload, _ in
             sent.list.append(payload)
             throw CancellationError()
         }
@@ -364,7 +368,7 @@ struct OutOfImagesTests {
     @Test func theFilesViewerAsksNothing() async {
         let vm = PhotoGalleryVM()
         let sent = Sent()
-        vm.libraryRequest = { payload in
+        vm.libraryRequest = { payload, _ in
             sent.list.append(payload)
             throw CancellationError()
         }
@@ -373,6 +377,7 @@ struct OutOfImagesTests {
         try? await Task.sleep(nanoseconds: 50_000_000)
         #expect(sent.list.isEmpty)
     }
+}
 }
 
 /// Where the search's panel goes (SearchPanelPlace), as Android's

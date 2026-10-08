@@ -396,6 +396,16 @@ final class NetworkWatch: @unchecked Sendable {
         monitor.start(queue: DispatchQueue(label: "cloud.off-the.OffTheCloud.network-watch"))
     }
 
+    /// True when the phone has no network at all (airplane mode, Wi-Fi and
+    /// mobile data off): requests can't go anywhere, and screens say so
+    /// rather than blame the device (Android's NetworkWatch.online). False
+    /// while the path isn't known yet, and for one that a connection may
+    /// bring up (`requiresConnection`: a VPN on demand).
+    var offline: Bool {
+        guard let p = lock.withLock({ path }) else { return false }
+        return p.status == .unsatisfied
+    }
+
     /// True when the phone's only way out is cellular: the home network
     /// can't be there, and each try would wait out the whole budget. Any
     /// Wi-Fi, Ethernet or VPN (which may route home) is worth a try, as is

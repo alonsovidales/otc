@@ -266,7 +266,7 @@ final class PhotoGalleryVM: ObservableObject {
         if let n = placeholderCount, let month = placeholderMonth {
             placeholder = .month(month)
             count = n
-        } else if items.isEmpty && (loading || firstPagePending) && !fixedList {
+        } else if gridBody == .skeleton {
             placeholder = .skeleton(titled: dated)
             count = PhotoGridLayout.skeletonTiles
         }
@@ -290,10 +290,85 @@ final class PhotoGalleryVM: ObservableObject {
     }
 
     @Published var loading = false
-    /// A search has started and its first page isn't here yet (nor did it
-    /// fail): grey tiles rather than an empty page, from the very first
-    /// paint (the web's firstLoad).
-    @Published private(set) var firstPagePending = false
+    /// The last page asked for failed, and why (nil: none did). It is asked
+    /// again meanwhile (pageRetry: 1 s doubling to 10 s, at once on a wake
+    /// or Try again); the grid says so until a page lands - in its place
+    /// for the first page, at its end for a later one (gridBody). Never a
+    /// blank page.
+    @Published private(set) var pageProblem: LoadProblem?
+    /// The first page has been on its way a while (slowFirstPageAfter): a
+    /// pill over the grey tiles says it is still coming.
+    @Published private(set) var slowFirstPage = false
+    private var slowTimer: Task<Void, Never>?
+    /// How long the first page may take before the grey tiles say it is
+    /// still coming (People's and Collections' 10 s): a first page from Pit
+    /// over the bridge measured up to 70 s. Tests shorten it.
+    var slowFirstPageAfter: TimeInterval = 10
+    /// A failed page's wait before it is asked again (Android's retryJob),
+    /// and the background retries of the lists the search and the headers
+    /// use (Android's keepAsking): the month counts, the tags, the people
+    /// and the collections - each asked again until it comes.
+    let pageRetry = PageRetry()
+    let bucketRetry = PageRetry()
+    let tagsRetry = PageRetry()
+    let peopleRetry = PageRetry()
+    let groupsRetry = PageRetry()
+    /// The pages asked for by scrolling or a retry: the model's own task,
+    /// so a tile scrolled away (whose task asked) never cancels a page on
+    /// its way - one dropped after the device had answered moved its token
+    /// on past photos that never arrived.
+    private var pageTask: Task<Void, Never>?
+    /// A jump's cutoff, for the search it started: a first page asked again
+    /// starts at that month again, and a page that went on by its token is
+    /// checked against it (PhotoPaging.lostCutoff). nil for any other
+    /// search.
+    private(set) var jumpBefore: Date?
+    private var wakeWatch: AnyCancellable?
+
+    /// A failed page is being asked for again (Try again's "Trying…").
+    var retrying: Bool { pageProblem != nil && loading }
+
+    /// What Images shows in the grid's place (Android's galleryBody, the
+    /// web's PhotoGallery body).
+    enum GridBody: Equatable {
+        /// The scrubber's month as grey tiles (dragged, or its jump on its way).
+        case grey
+        /// Grey tiles while the first page is on its way - from the moment
+        /// a search starts, so never a blank page.
+        case skeleton
+        /// The first page failed and is being asked for again: "Couldn't
+        /// load your photos", why, and Try again. It stays up through the
+        /// retries rather than flipping back to grey tiles.
+        case problem
+        /// Nothing to show (emptyKind says which).
+        case empty
+        /// The grid; a later page's failure at its end.
+        case photos
+    }
+
+    var gridBody: GridBody {
+        if fixedList { return .photos }
+        if placeholderCount != nil { return .grey }
+        if !items.isEmpty { return .photos }
+        if pageProblem != nil { return .problem }
+        if loading || !endReached { return .skeleton }
+        return .empty
+    }
+
+    /// Why there is nothing to show (the web's and Android's three empty
+    /// states).
+    enum EmptyKind: Equatable { case collection, noMatch, noPhotos }
+
+    var emptyKind: EmptyKind {
+        if !chips.isEmpty || !selectedPeople.isEmpty { return .noMatch }
+        if activeGroup != nil { return .collection }
+        return .noPhotos
+    }
+
+    /// Why a load failed, as the grid says it. Tests decide in the phone's
+    /// place.
+    var problemOf: @MainActor (Msg_RespEnvelope?, Error?) -> LoadProblem = { LoadProblem.now(resp: $0, error: $1) }
+
     /// Bumped by every search that replaces the grid (a filter change):
     /// the grid goes back to its top, as the web scrolls the window up -
     /// its grey tiles would otherwise show wherever the last search was
@@ -310,7 +385,7 @@ final class PhotoGalleryVM: ObservableObject {
     // a person on then off quickly, the avatar shows selected/deselected
     // correctly but the grid shows the other request's (wrong) results,
     // because that one's reply simply arrived second.
-    private var searchGeneration = 0
+    private(set) var searchGeneration = 0
     // The in-flight Task from the *previous* restartSearch() call, if any -
     // explicitly cancelled the moment a newer one starts, on top of (not
     // instead of) searchGeneration above: cancellation alone can't stop a
@@ -363,6 +438,33 @@ final class PhotoGalleryVM: ObservableObject {
     // recreated on every SwiftUI update, which tears playback down and
     // restarts it (see the same fix in the social feed, issue #107).
     @Published var videoPlayer: AVPlayer? = nil
+    /// The open video's player failing (watchPlayback).
+    private var playerWatch: [Any] = []
+
+    // Grids show small thumbnails (release 111, small_thumbnails): the
+    // viewer shows an item's small tile only until its full size arrives.
+    // Where the thumbnail stays on screen - the full size failed or can't
+    // be decoded, a video couldn't be fetched or played - it asks for the
+    // big one (GetThumbnails without the flag), again with the same backoff
+    // for as long as the viewer stays on that item (thumbnailStays), as
+    // Android and the web's MediaViewer.
+    /// The big thumbnails, by path, of items whose thumbnail stays on
+    /// screen in the viewer: shown instead of the grid's small tile - the
+    /// open one's and the last few swiped past. Never in GridThumbCache,
+    /// which holds the tiles: the answers carry no mark of which size
+    /// came, so the two never share an entry.
+    @Published private(set) var bigThumbs: [String: UIImage] = [:]
+    private var bigThumbOrder: [String] = []
+    private static let bigThumbsKept = 4
+    /// The big thumbnail asked for (bigThumbTask), and whose.
+    private var bigThumbTask: Task<Void, Never>?
+    private var bigThumbFor: String?
+    /// The waits between asks for a big thumbnail, by failures in a row:
+    /// a grid page's (tests shorten them).
+    var bigThumbDelay: (Int) -> TimeInterval = { PageRetry.delay(afterFailures: $0) }
+    /// Videos the player couldn't play, or that couldn't be fetched: their
+    /// poster stays, saying so, with Try again.
+    @Published private(set) var unplayable = Set<String>()
     @Published var showAlert = false
     @Published var alertMessage = ""
     // Issue #9: the system share sheet for the currently-open photo. A file
@@ -405,6 +507,23 @@ final class PhotoGalleryVM: ObservableObject {
             .sink { [weak self] _ in
                 Task { @MainActor in self?.imagesChanged() }
             }
+        // Signed in again, a network came up, back in the foreground
+        // (OTCConnection.wakes): what failed is asked for again at once.
+        wakeWatch = OTCConnection.shared.$wakes
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.wake() }
+    }
+
+    /// A wake: a page that failed is asked for again now, not at the end of
+    /// its wait, and so are the lists still being asked for.
+    func wake() {
+        guard !fixedList else { return }
+        if pageProblem != nil { retryPage() }
+        bucketRetry.wake()
+        tagsRetry.wake()
+        peopleRetry.wake()
+        groupsRetry.wake()
     }
 
     // The Files section opens its photos and videos in this same viewer:
@@ -433,12 +552,12 @@ final class PhotoGalleryVM: ObservableObject {
         guard !fixedList else { return }
         libraryAsked = true
         photosAsked = true
-        firstPagePending = true
-        Task {
-            await loadTags()
-            if FaceRecognition.shared.isOn { await loadPeople() }
-            await resetAndLoadFirstPage()
-        }
+        // The first page goes out at once: the tags and people come
+        // alongside, not ahead of it (a slow or lost answer to either used
+        // to hold the photos back, on a blank page).
+        restartSearch()
+        libraryFetchedAt = Date()
+        loadLibrary()
     }
 
     private func faceRecognitionChanged(_ on: Bool) {
@@ -470,19 +589,79 @@ final class PhotoGalleryVM: ObservableObject {
         guard !fixedList else { return }
         if libraryAsked {
             libraryFetchedAt = Date()
-            Task {
-                await loadTags()
-                if FaceRecognition.shared.isOn { await loadPeople() }
-            }
+            loadLibrary()
         }
-        if groupsLoaded { Task { await loadGroups() } }
+        if groupsLoaded || activeGroup != nil { Task { await loadGroups() } }
         if photosAsked { restartSearch() }
     }
 
+    /// One request to the device. `kind`: what a screen waits on (a page,
+    /// the tags...), asked through OTCConnection.ask - its usual time for
+    /// the answer, more after a timeout, back down once answers come in
+    /// time again, per kind and route (Patience); nil: anything else (a
+    /// rename, a delete), with the socket's own time. Tests answer in the
+    /// device's place. Android's GalleryRequest.
+    typealias Request = @MainActor (Msg_ReqEnvelope.OneOf_Payload, AskKind?) async throws -> Msg_RespEnvelope
+
+    /// Through OTCConnection: ask() for a kind, request() for the rest.
+    static let deviceRequest: Request = { payload, kind in
+        if let kind {
+            return try await OTCConnection.shared.ask(kind.key, base: kind.base) { $0.payload = payload }
+        }
+        return try await OTCConnection.shared.request { $0.payload = payload }
+    }
+
+    /// Sends Images' own requests (its pages, the date buckets, deletes,
+    /// the viewer's big thumbnails). Tests answer them in the device's
+    /// place.
+    var photoRequest: Request = PhotoGalleryVM.deviceRequest
+
     /// Sends the library's own requests (the tags, the collections). Tests
     /// answer them in the device's place.
-    var libraryRequest: @MainActor (Msg_ReqEnvelope.OneOf_Payload) async throws -> Msg_RespEnvelope = { payload in
-        try await OTCConnection.shared.request { $0.payload = payload }
+    var libraryRequest: Request = PhotoGalleryVM.deviceRequest
+
+    /// What Images asks for, by how long its answer may take: a page of
+    /// photos and the lists that come with covers (people, collections)
+    /// OTCConnection.pageTimeout, the small lists (tags, month counts) and
+    /// the viewer's big thumbnail listTimeout - as Android's kinds.
+    enum AskKind: Hashable {
+        case page, tags, buckets, people, groups, thumbnail
+
+        var base: TimeInterval {
+            switch self {
+            case .page, .people, .groups: return OTCConnection.pageTimeout
+            case .tags, .buckets, .thumbnail: return OTCConnection.listTimeout
+            }
+        }
+
+        /// Its name in Patience's keys (Android's).
+        var key: String {
+            switch self {
+            case .page: return "page"
+            case .tags: return "tags"
+            case .buckets: return "buckets"
+            case .people: return "people"
+            case .groups: return "groups"
+            case .thumbnail: return "thumbnail"
+            }
+        }
+    }
+
+    private func ask(_ kind: AskKind, _ payload: Msg_ReqEnvelope.OneOf_Payload, via send: Request) async throws -> Msg_RespEnvelope {
+        try await send(payload, kind)
+    }
+
+    /// Whether the phone has a network now (NetworkWatch). Tests decide in
+    /// the phone's place.
+    var online: @MainActor () -> Bool = { !NetworkWatch.shared.offline }
+
+    /// The phone is online again: "This phone is offline" no longer says
+    /// why while the page is asked for again - the neutral line instead
+    /// (it stayed up for as long as the page then took). Android's
+    /// backOnline.
+    private func backOnline() {
+        guard pageProblem == .offline else { return }
+        pageProblem = pageProblem?.backOnline(online())
     }
 
     /// The tags and people for the search, once, without the photos: the
@@ -492,10 +671,7 @@ final class PhotoGalleryVM: ObservableObject {
         guard !fixedList, !libraryAsked else { return }
         libraryAsked = true
         libraryFetchedAt = Date()
-        Task {
-            await loadTags()
-            if FaceRecognition.shared.isOn { await loadPeople() }
-        }
+        loadLibrary()
     }
 
     /// The search ended: the tags and people are fetched again if the last
@@ -503,10 +679,14 @@ final class PhotoGalleryVM: ObservableObject {
     func refreshLibraryIfStale() {
         guard !fixedList, Date().timeIntervalSince(libraryFetchedAt) > 5 * 60 else { return }
         libraryFetchedAt = Date()
-        Task {
-            await loadTags()
-            if FaceRecognition.shared.isOn { await loadPeople() }
-        }
+        loadLibrary()
+    }
+
+    /// The tags, and the people while face recognition is on, for the
+    /// search: each asked again in the background until it comes.
+    private func loadLibrary() {
+        Task { await loadTags() }
+        if FaceRecognition.shared.isOn { Task { await loadPeople() } }
     }
 
     /// The search's clear button: no tags, no people (an open collection
@@ -538,35 +718,74 @@ final class PhotoGalleryVM: ObservableObject {
     }
 
     // MARK: Tags
-    private func loadTags() async {
-        do {
-            let resp = try await libraryRequest(.reqGetTags(.init()))
-            if case .respTagsList(let tl) = resp.payload {
-                self.tags = tl.tags
-            }
-        } catch { /* ignore */ }
+    /// The tags, asked again: true once the device's list is in. One that
+    /// failed keeps being asked in the background (tagsRetry).
+    @discardableResult
+    private func loadTags() async -> Bool {
+        if await loadTagsOnce() {
+            // In: a loop still asking for an older failure ends.
+            tagsRetry.reset()
+            return true
+        }
+        tagsRetry.keepAsking { [weak self] in await self?.loadTagsOnce() ?? true }
+        return false
+    }
+
+    private func loadTagsOnce() async -> Bool {
+        guard let resp = try? await ask(.tags, .reqGetTags(.init()), via: libraryRequest) else { return false }
+        if case .respTagsList(let tl) = resp.payload {
+            tags = tl.tags
+            return true
+        }
+        // A device without them: nothing to ask again.
+        return resp.errorCode == "unknown_payload"
     }
 
     // MARK: Date scrubber (issue #77)
+    /// The month counts of the filter as it is now. One that fails is
+    /// asked again in the background (bucketRetry: 1 s doubling to 10 s,
+    /// the web's usePageRetry) for as long as it is still this filter's -
+    /// the headers' count and span, the scrubber and the last month's room
+    /// all wait on it. A filter changed meanwhile has asked for its own.
     private func loadDateBuckets() async {
         // A newer load (another filter, or the same after a delete) wins,
         // whichever answer lands last.
         bucketGeneration += 1
         let gen = bucketGeneration
+        bucketRetry.reset()
         guard let key = bucketKeyNow else { return }
         let people = selectedPeople // snapshot - see fetchPage's own doc comment on why
         let group = activeGroup?.id ?? ""
-        guard let resp = try? await ws.request({ e in
-            var req = ReqEnvelope()
-            var b = Msg_ReqPhotoDateBuckets()
-            b.personIds = people
-            b.groupID = group // issue #115
-            b.includeVideos = true // issue #106: same set the grid shows
-            req.payload = .reqPhotoDateBuckets(b)
-            e = req
-        }) else { return }
-        guard gen == bucketGeneration, case .respPhotoDateBuckets(let r) = resp.payload else { return }
-        setDateBuckets(r.buckets.map { ($0.month, Int($0.count)) }, key: key)
+        if await loadDateBucketsOnce(people: people, group: group, key: key, gen: gen) { return }
+        bucketRetry.keepAsking(wanted: { [weak self] in
+            guard let self else { return false }
+            return gen == self.bucketGeneration && self.bucketKeyNow == key
+        }) { [weak self] in
+            await self?.loadDateBucketsOnce(people: people, group: group, key: key, gen: gen) ?? true
+        }
+    }
+
+    /// One ask for the month counts: false when it failed and is worth
+    /// asking again.
+    private func loadDateBucketsOnce(people: [String], group: String, key: String, gen: Int) async -> Bool {
+        var b = Msg_ReqPhotoDateBuckets()
+        b.personIds = people
+        b.groupID = group // issue #115
+        b.includeVideos = true // issue #106: same set the grid shows
+        guard let resp = try? await ask(.buckets, .reqPhotoDateBuckets(b), via: photoRequest) else { return false }
+        // A newer filter asked for its own meanwhile: nothing left to do here.
+        guard gen == bucketGeneration else { return true }
+        if case .respPhotoDateBuckets(let r) = resp.payload {
+            setDateBuckets(r.buckets.map { ($0.month, Int($0.count)) }, key: key)
+            return true
+        }
+        // A device without them: no scrubber, no counts in the headers, and
+        // nothing to ask again.
+        if resp.errorCode == "unknown_payload" {
+            setDateBuckets([], key: key)
+            return true
+        }
+        return false
     }
 
     /// The month counts (newest first) for the filter `key` names.
@@ -589,24 +808,35 @@ final class PhotoGalleryVM: ObservableObject {
     // instant (so it starts at that month's newest photo and reads
     // backward, same as scrolling there normally would).
     func jumpToDate(_ month: String) {
+        // The bucket's month is Gregorian, whatever calendar the phone is
+        // set to: so is its last instant (PhotoMonths.calendar). Not a
+        // month at all: no jump, the photos as they were - never grey
+        // tiles left standing (as Android).
+        guard let before = PhotoMonths.jumpCutoff(of: month) else {
+            if scrubFrac == nil {
+                placeholderCount = nil
+                placeholderMonth = nil
+            }
+            return
+        }
         searchTask?.cancel()
-        searchTask = Task { await performJump(month) }
+        searchTask = Task { await performJump(before) }
     }
 
-    private func performJump(_ month: String) async {
-        // The bucket's month is Gregorian, whatever calendar the phone is
-        // set to: so is its last instant (PhotoMonths.calendar).
-        guard let before = PhotoMonths.lastInstant(of: month) else { return }
-
+    /// A fresh search like a filter change, anchored at `before` (the last
+    /// instant of the month, PhotoMonths.jumpCutoff). The grey tiles go
+    /// once this search is done, unless a newer one took over or a new
+    /// drag has its own. The selection stays, as on the web and Android:
+    /// picking photos from two dates is what the scrubber is for.
+    ///
+    /// A first page that fails takes the grey tiles away for the grid's
+    /// "Couldn't load your photos" (as the web's jump does), and is asked
+    /// again from the same month (jumpBefore).
+    private func performJump(_ before: Date) async {
         searchGeneration += 1
         let myGeneration = searchGeneration
-        loading = false
-        morePendingAt = nil // an ask from the old grid's tiles, not this one's
-        endReached = false
-        token = ""
-        items = []
-        selected.removeAll()
-        await fetchPage(overrideToken: "", before: before)
+        startSearchState(jump: before)
+        await fetchUntilProgress()
         // placeholderCount is left showing until this resolves (or is
         // superseded) - cleared here rather than by the caller so a jump
         // that gets superseded by a *newer* jump/filter change doesn't
@@ -619,14 +849,48 @@ final class PhotoGalleryVM: ObservableObject {
         }
     }
 
+    /// What every search that replaces the grid resets: a filter change
+    /// (jump nil) or a jump to `jump`. The old search's retry, pages and
+    /// timer go with it.
+    private func startSearchState(jump: Date?) {
+        stopPageRetry()
+        loading = false
+        // An ask from the previous grid's tiles: its index means nothing
+        // against the new items, and would pull a page nobody scrolled to.
+        morePendingAt = nil
+        endReached = false
+        token = ""
+        items = []
+        jumpBefore = jump
+        pageProblem = nil
+        slowFirstPage = false
+        watchSlowFirstPage(searchGeneration)
+    }
+
     // MARK: People (issue #52 follow-up)
 
     /// Asks the device for its people: for the search, and every time the
     /// People page opens (new faces are found as photos arrive). True once
     /// they are here.
+    /// One that failed keeps being asked in the background while face
+    /// recognition is on (peopleRetry): the People page, which shows its
+    /// own "Couldn't load people" until then, and the search fill in when
+    /// it comes.
     @discardableResult
     func loadPeople() async -> Bool {
-        guard let resp = try? await peopleRequest(.reqListPeople(.init())) else { return false }
+        if await loadPeopleOnce() {
+            peopleRetry.reset()
+            return true
+        }
+        peopleRetry.keepAsking(wanted: { FaceRecognition.shared.isOn }) { [weak self] in
+            await self?.loadPeopleOnce() ?? true
+        }
+        return false
+    }
+
+    private func loadPeopleOnce() async -> Bool {
+        // A page of faces: each person comes with their cover.
+        guard let resp = try? await ask(.people, .reqListPeople(.init()), via: peopleRequest) else { return false }
         // Turned off while the list was on its way: nobody to offer.
         guard FaceRecognition.shared.isOn, case .respPeople(let p) = resp.payload else { return false }
         allPeople = p.people
@@ -656,15 +920,13 @@ final class PhotoGalleryVM: ObservableObject {
 
     /// Sends one of People's requests (the list, a name, a merge, a
     /// deletion). Tests answer them in the device's place.
-    var peopleRequest: @MainActor (Msg_ReqEnvelope.OneOf_Payload) async throws -> Msg_RespEnvelope = { payload in
-        try await OTCConnection.shared.request { $0.payload = payload }
-    }
+    var peopleRequest: Request = PhotoGalleryVM.deviceRequest
 
     /// How a request the device answers with an Ack went.
     enum AckResult { case ok, refused, unanswered }
 
     private func ack(_ payload: Msg_ReqEnvelope.OneOf_Payload) async -> AckResult {
-        guard let resp = try? await peopleRequest(payload) else { return .unanswered }
+        guard let resp = try? await peopleRequest(payload, nil) else { return .unanswered }
         if case .respAck(let a) = resp.payload, a.ok { return .ok }
         return .refused
     }
@@ -754,10 +1016,27 @@ final class PhotoGalleryVM: ObservableObject {
     }
 
     // MARK: Image groups (issue #115)
-    /// false: the device didn't answer with the list.
+    /// The collections, asked again: true once the device's list is in
+    /// (groupsLoaded). One that failed keeps being asked in the background
+    /// (groupsRetry): the open collection's header, the Collections page
+    /// and its sheet fill in when it comes.
     @discardableResult
     func loadGroups() async -> Bool {
-        guard let resp = try? await libraryRequest(.reqListImageGroups(.init())) else { return false }
+        if await loadGroupsOnce() {
+            groupsRetry.reset()
+            return true
+        }
+        groupsRetry.keepAsking { [weak self] in await self?.loadGroupsOnce() ?? true }
+        return false
+    }
+
+    private func loadGroupsOnce() async -> Bool {
+        // Each collection comes with its cover.
+        // Covers as the grids' tiles: small thumbnails (release 111; an
+        // older device sends big ones).
+        var lg = Msg_ListImageGroups()
+        lg.smallThumbnails = true
+        guard let resp = try? await ask(.groups, .reqListImageGroups(lg), via: libraryRequest) else { return false }
         guard case .respImageGroups(let g) = resp.payload else { return false }
         groups = g.groups
         groupsLoaded = true
@@ -827,14 +1106,13 @@ final class PhotoGalleryVM: ObservableObject {
         guard !name.isEmpty else { return }
         let paths = Array(selected)
         guard await ensureUploadedIfLocal(paths) else { return }
-        guard let resp = try? await ws.request({ e in
-            var req = ReqEnvelope()
-            var c = Msg_CreateImageGroup()
-            c.name = name
-            c.paths = paths
-            req.payload = .reqCreateImageGroup(c)
-            e = req
-        }), case .respImageGroup(let r) = resp.payload else {
+        var c = Msg_CreateImageGroup()
+        c.name = name
+        c.paths = paths
+        // Its cover, as the list's (loadGroupsOnce).
+        c.smallThumbnails = true
+        guard let resp = try? await libraryRequest(.reqCreateImageGroup(c), nil),
+              case .respImageGroup(let r) = resp.payload else {
             alertMessage = "Could not create the collection."; showAlert = true
             return
         }
@@ -874,6 +1152,13 @@ final class PhotoGalleryVM: ObservableObject {
     }
 
     // MARK: Paging
+    //
+    // A page that fails - the first or a later one - is asked again, 1 s
+    // doubling to 10 s (the web's usePageRetry, pageRetry), at once on a
+    // wake (signed in again, a network came up, back in the foreground) or
+    // Try again, for as long as its search is the current one
+    // (searchGeneration). The grid says so meanwhile (pageProblem), never a
+    // blank page - as Android's PhotoGalleryViewModel.
     func resetAndLoadFirstPage() async {
         guard !fixedList else { return }
         // Invalidates any still-in-flight fetchPage from the *previous*
@@ -881,14 +1166,7 @@ final class PhotoGalleryVM: ObservableObject {
         // searchGeneration's doc comment.
         searchGeneration += 1
         searchStarts += 1
-        loading = false
-        // An ask from the previous selection's tiles: its index means
-        // nothing against the new items, and would pull a page nobody
-        // scrolled to.
-        morePendingAt = nil
-        endReached = false
-        token = ""
-        items = []
+        startSearchState(jump: nil)
         selected.removeAll()
         // A filter change makes any scrub in progress meaningless (its
         // target bucket was computed against the *previous* filter's
@@ -897,16 +1175,15 @@ final class PhotoGalleryVM: ObservableObject {
         scrubFrac = nil
         placeholderCount = nil
         placeholderMonth = nil
-        firstPagePending = true
         let myGeneration = searchGeneration
         async let buckets: Void = loadDateBuckets()
-        await fetchPage(overrideToken: "")
-        if myGeneration == searchGeneration { firstPagePending = false }
+        await fetchUntilProgress()
         await buckets
-        mergeLocalIfAny()
+        if myGeneration == searchGeneration { mergeLocalIfAny() }
     }
 
-    /// The tile of the photo at `idx` (whose id is `id`) came on screen.
+    /// The tile of the photo at `idx` (whose id is `id`) came on screen:
+    /// the next page, once it is near the end.
     func loadMoreIfNeeded(index idx: Int, id: String) async {
         guard !fixedList else { return }
         guard !endReached else { return }
@@ -915,6 +1192,9 @@ final class PhotoGalleryVM: ObservableObject {
         // grid can't queue up a page nobody needs yet. A tile of a grid
         // that has been replaced since (a new search) asks nothing.
         guard idx >= items.count - 12, items.indices.contains(idx), items[idx].id == id else { return }
+        // A page that failed waits for its retry (or Try again, or a wake),
+        // not for the next tile drawn: the web's retryReady().
+        guard pageProblem == nil else { return }
         // A tile that appears while a fetch is already running used to
         // just return. Nothing then asked again: the only thing that can
         // trigger the next page is a tile appearing for the first time
@@ -925,8 +1205,77 @@ final class PhotoGalleryVM: ObservableObject {
             morePendingAt = max(morePendingAt ?? idx, idx)
             return
         }
+        // In the model's own task (see pageTask), waited for here.
+        await askForPages().value
+    }
 
-        await fetchUntilProgress()
+    /// Try again (and a wake): the page that failed, asked for now, its
+    /// wait started over - the first page again (at a jump's month), or
+    /// the next one by the token.
+    func retryPage() {
+        guard !fixedList, !endReached else { return }
+        backOnline()
+        pageRetry.reset()
+        askForPages()
+    }
+
+    /// Pages in a task of the model's own (pageTask): a tile's task that
+    /// asked may go (scrolled away) while its page is still on its way. A
+    /// newer search drops it, by its generation.
+    @discardableResult
+    private func askForPages() -> Task<Void, Never> {
+        let gen = searchGeneration
+        let t = Task { [weak self] in
+            guard let self, gen == self.searchGeneration else { return }
+            await self.fetchUntilProgress()
+        }
+        pageTask = t
+        return t
+    }
+
+    /// A new search (or a jump): the old one's retry, pages and timer go
+    /// with it.
+    private func stopPageRetry() {
+        pageRetry.reset()
+        pageTask?.cancel()
+        pageTask = nil
+        slowTimer?.cancel()
+        slowTimer = nil
+    }
+
+    /// The page asked for failed (`problem`: why) while its search is the
+    /// current one: the grid says so, and it is asked again after 1 s,
+    /// doubling to 10 s (the web's usePageRetry) - `noProgress`: from 10 s
+    /// to a minute (PageRetry.noProgressDelay) - the wait cut short by a
+    /// wake or Try again.
+    private func pageFailed(_ problem: LoadProblem, generation gen: Int, noProgress: Bool = false) {
+        guard gen == searchGeneration else { return }
+        slowTimer?.cancel()
+        slowTimer = nil
+        pageProblem = problem
+        slowFirstPage = false
+        pageRetry.failed(noProgress: noProgress) { [weak self] in
+            guard let self, gen == self.searchGeneration else { return }
+            self.askForPages()
+        }
+    }
+
+    /// The first page still on its way after a while: the grey tiles say so.
+    private func watchSlowFirstPage(_ gen: Int) {
+        slowTimer?.cancel()
+        let wait = slowFirstPageAfter
+        slowTimer = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(wait))
+            guard !Task.isCancelled, let self, gen == self.searchGeneration,
+                  self.items.isEmpty, self.pageProblem == nil else { return }
+            self.slowFirstPage = true
+        }
+    }
+
+    /// Photos deleted until none is left while more pages are to come:
+    /// nothing on screen would ask for them.
+    private func refillIfEmptied() {
+        if items.isEmpty && !endReached && !loading && pageProblem == nil { askForPages() }
     }
 
     /// Fetches pages until one actually adds something, the end is
@@ -938,27 +1287,22 @@ final class PhotoGalleryVM: ObservableObject {
     /// them), it starts the search again from the beginning and hands
     /// back photos this grid already has. Stopping there is what made the
     /// gallery look like it had run out of photos partway down.
+    ///
+    /// A page that fails stops here: its retry is waiting already
+    /// (pageFailed).
     private func fetchUntilProgress() async {
-        var failures = 0
+        let gen = searchGeneration
         for _ in 0..<cMaxPagesWithoutProgress {
             let before = items.count
-            if await fetchPage() {
-                failures = 0
-                if endReached || items.count > before { return }
-                continue
-            }
-
-            // The request itself failed - a dropped connection, a device
-            // that went away mid-scroll. endReached is deliberately left
-            // alone (this is not the end of the library), but something
-            // has to try again: no new tiles appeared, so nothing else
-            // will ask. Back off a little between attempts, since the
-            // usual cause is a connection that needs a moment.
-            failures += 1
-            if failures > cMaxFetchRetries { return }
-            try? await Task.sleep(nanoseconds: UInt64(failures) * 1_500_000_000)
-            if Task.isCancelled { return }
+            guard case .loaded = await fetchPage() else { return }
+            if gen != searchGeneration || endReached || items.count > before { return }
         }
+        // Page after page that added nothing (a device starting the search
+        // over and over): said with its Try again, and asked for again in
+        // a while rather than on and on - the grid promises the photos
+        // (as Android: 10 s doubling to a minute, each round up to 12
+        // pages).
+        pageFailed(.failed, generation: gen, noProgress: true)
     }
 
     /// The furthest tile (its index) that asked for more while a fetch was
@@ -971,18 +1315,26 @@ final class PhotoGalleryVM: ObservableObject {
     /// never spin here forever.
     private let cMaxPagesWithoutProgress = 12
 
-    /// How many times to retry a page whose request failed outright
-    /// before leaving it to the next tile that scrolls into view.
-    private let cMaxFetchRetries = 2
+    /// How a page went.
+    enum PageOutcome: Equatable {
+        /// It came (it may have added nothing).
+        case loaded
+        /// It didn't: its retry is waiting (pageFailed).
+        case failed
+        /// Not asked (one is on its way, or the end is reached), or its
+        /// answer belongs to a search since replaced: nothing failed.
+        case skipped
+    }
 
-    /// Returns whether the request completed (not whether it added
-    /// anything) - a caller needs to tell "no more photos" apart from
-    /// "that didn't work", because only one of those means stop asking.
+    /// Asks for the next page: the first of a search (token "", at a jump's
+    /// cutoff), or the next one by the token. Records a failure itself
+    /// (pageFailed): the caller only needs to know whether to go on.
     @discardableResult
-    private func fetchPage(overrideToken: String? = nil, before: Date? = nil) async -> Bool {
-        guard !loading, !endReached else { return false }
+    private func fetchPage() async -> PageOutcome {
+        guard !loading, !endReached else { return .skipped }
         let myGeneration = searchGeneration
         loading = true
+        backOnline()
         defer {
             // Only this request's own generation may clear loading - a
             // stale one finishing after a newer search started must not
@@ -990,18 +1342,15 @@ final class PhotoGalleryVM: ObservableObject {
             // one.
             if myGeneration == searchGeneration {
                 loading = false
-                if let at = morePendingAt, !endReached {
-                    morePendingAt = nil
-                    // Only if that tile is still near the end. Every tile
-                    // of a small first page asks at once, and the page
-                    // that just landed moved the end well past them;
-                    // honouring them anyway pulled a third page nobody
-                    // had scrolled to.
-                    if at >= items.count - 12 {
-                        // Detached from this call so the defer isn't
-                        // waiting on another round trip.
-                        Task { await self.fetchUntilProgress() }
-                    }
+                // Only if that tile is still near the end. Every tile of a
+                // small first page asks at once, and the page that just
+                // landed moved the end well past them; honouring them
+                // anyway pulled a third page nobody had scrolled to. Not
+                // after a failure: that page waits for its retry.
+                let at = morePendingAt
+                morePendingAt = nil
+                if let at, !endReached, pageProblem == nil, at >= items.count - 12 {
+                    askForPages()
                 }
             }
         }
@@ -1020,85 +1369,113 @@ final class PhotoGalleryVM: ObservableObject {
         let tags = chips
         let people = selectedPeople
         let group = activeGroup?.id ?? ""
-        let requestToken = overrideToken ?? token ?? ""
-
-        do {
-            let resp = try await ws.request { e in
-                var req = ReqEnvelope()
-                var sp  = SearchPhotosMsg()
-                sp.tags  = tags
-                sp.personIds = people
-                sp.groupID = group // issue #115: inside a group, only its members
-                // Issue #106: videos belong in the Images section. They
-                // were excluded when this flag arrived (issue #60, where
-                // only the composer opted in), which left a device's
-                // videos unbrowsable from the app entirely.
-                sp.includeVideos = true
-                sp.token = requestToken
-                // A search starting here (a filter, the scrubber's jump)
-                // gets a small first page; scrolling on, the full size.
-                if requestToken.isEmpty { sp.limit = cFirstPhotoPageLimit }
-                // Lets the device resume where this grid actually is if
-                // it no longer holds the token (see SearchPhotos.have).
-                sp.have = Int32(self.items.count)
-                // Issue #77: the date scrubber's "jump to date" - set only
-                // by performJump above, which also resets loading/
-                // endReached/token so this always starts a fresh,
-                // cutoff-filtered search.
-                if let before {
-                    sp.before = SwiftProtobuf.Google_Protobuf_Timestamp(date: before)
-                }
-                req.payload = .reqSearchPhotos(sp)
-                e = req
+        let requestToken = token ?? ""
+        let have = items.count
+        let shown = Set(items.map(\.path))
+        let cutoff = jumpBefore
+        // What came instead of a page (nil: nothing came), and what was
+        // thrown instead of an answer: why the grid says it failed.
+        var resp: Msg_RespEnvelope?
+        var failure: Error?
+        func page(_ tok: String, _ before: Date?) async {
+            resp = nil
+            failure = nil
+            var sp = SearchPhotosMsg()
+            sp.tags = tags
+            sp.personIds = people
+            sp.groupID = group // issue #115: inside a group, only its members
+            // Issue #106: videos belong in the Images section. They
+            // were excluded when this flag arrived (issue #60, where
+            // only the composer opted in), which left a device's
+            // videos unbrowsable from the app entirely.
+            sp.includeVideos = true
+            sp.token = tok
+            // A search starting here (opening, a filter, the scrubber's
+            // jump) gets a small first page; scrolling on, the full size.
+            if tok.isEmpty { sp.limit = cFirstPhotoPageLimit }
+            // Lets the device resume where this grid actually is if
+            // it no longer holds the token (see SearchPhotos.have) - and
+            // serve the same page again to a retry of one whose answer
+            // was lost: the same token, the same `have`.
+            sp.have = Int32(have)
+            // The grid's tiles: small thumbnails (release 111; an older
+            // device sends big ones). The viewer shows one only until the
+            // full size arrives (thumbnailStays).
+            sp.smallThumbnails = true
+            // Issue #77: the date scrubber's "jump to date".
+            if let before {
+                sp.before = SwiftProtobuf.Google_Protobuf_Timestamp(date: before)
             }
-            // A newer search superseded this one while it was in flight -
-            // discard rather than let a stale reply clobber current
-            // results. Task.isCancelled backs up the generation check
-            // (restartSearch cancels this call's Task the moment a newer
-            // one starts) - belt and suspenders, since either alone
-            // catches the same case here.
-            guard myGeneration == searchGeneration, !Task.isCancelled else { return false }
-            // An error reply (the device answering "internal error", say)
-            // lands here too - it's not a page, and it must not be read
-            // as the end of the library.
-            guard case .respListOfFiles(let lof) = resp.payload else { return false }
-
-            var newItems: [Item] = []
-            // Gregorian, in the viewer's time zone: the device's buckets'.
-            let calendar = PhotoMonths.calendar()
-            for f in lof.files {
-                let id = "\(f.path)#\(f.hash)#\(f.fileSize)"
-                newItems.append(Item(
-                    id: id,
-                    path: f.path,
-                    mime: f.mime,
-                    size: Int(f.fileSize),
-                    thumbData: f.hasContent ? f.content : nil,
-                    localURL: nil,
-                    isLocalOnly: false,
-                    month: f.hasCreated ? PhotoMonths.key(for: f.created.date, calendar: calendar) : nil,
-                    created: f.hasCreated ? f.created.date : nil
-                ))
+            do {
+                resp = try await ask(.page, .reqSearchPhotos(sp), via: photoRequest)
+            } catch {
+                failure = error
             }
-            // Decoded off the main thread, at tile size, before the tiles
-            // first draw (see GridThumbCache).
-            await GridThumbCache.prewarm(newItems.map { ($0.id, $0.thumbData) }, maxPt: PhotoTile.decodeSide)
-            guard myGeneration == searchGeneration, !Task.isCancelled else { return false }
-            let existing = Set(items.map(\.id))
-            let filtered = newItems.filter { !existing.contains($0.id) }
-            if !filtered.isEmpty { items.append(contentsOf: filtered) }
-
-            self.token = lof.token.isEmpty ? nil : lof.token
-            self.endReached = (self.token == nil)
-
-            return true
-        } catch {
-            // Swallowed silently before, which meant one failed page
-            // stopped the grid loading anything ever again - nothing
-            // retries on its own here (see loadMoreIfNeeded).
-            print("[PhotoGallery] page fetch failed: \(error)")
-            return false
         }
+
+        // The cutoff goes only on the request that starts the search (a
+        // first page asked again after a jump starts at its month again);
+        // the token carries the place after.
+        await page(requestToken, requestToken.isEmpty ? cutoff : nil)
+        // A newer search superseded this one while it was in flight -
+        // discard rather than let a stale reply clobber current results.
+        // Task.isCancelled backs up the generation check (a new search
+        // cancels this call's task the moment it starts) - belt and
+        // suspenders, since either alone catches the same case here.
+        guard myGeneration == searchGeneration, !Task.isCancelled else { return .skipped }
+        // After a jump, a page from a search the device started again
+        // (lostCutoff) is from the wrong end of the library. Asked once
+        // more with the cutoff, the device runs the jump's search, skipping
+        // the `have` photos the grid holds, whatever the token (as the web
+        // and Android do).
+        if !requestToken.isEmpty, let cutoff, let first = resp, case .respListOfFiles(let lof) = first.payload,
+           PhotoPaging.lostCutoff(files: lof.files.map { ($0.hasCreated ? $0.created.date : nil, $0.path) },
+                                  token: lof.token, sent: requestToken, cutoff: cutoff, shown: shown) {
+            await page(requestToken, cutoff)
+            guard myGeneration == searchGeneration, !Task.isCancelled else { return .skipped }
+        }
+        // An error answer (the bridge's "device unreachable", the device's
+        // own "internal error") is no page and no end of the library either.
+        guard let got = resp, case .respListOfFiles(let lof) = got.payload else {
+            let problem = problemOf(resp, failure)
+            print("[PhotoGallery] page failed (\(problem)): \(failure.map { "\($0)" } ?? resp?.errorMessage ?? "")")
+            pageFailed(problem, generation: myGeneration)
+            return .failed
+        }
+
+        var newItems: [Item] = []
+        // Gregorian, in the viewer's time zone: the device's buckets'.
+        let calendar = PhotoMonths.calendar()
+        for f in lof.files {
+            let id = "\(f.path)#\(f.hash)#\(f.fileSize)"
+            newItems.append(Item(
+                id: id,
+                path: f.path,
+                mime: f.mime,
+                size: Int(f.fileSize),
+                thumbData: f.hasContent ? f.content : nil,
+                localURL: nil,
+                isLocalOnly: false,
+                month: f.hasCreated ? PhotoMonths.key(for: f.created.date, calendar: calendar) : nil,
+                created: f.hasCreated ? f.created.date : nil
+            ))
+        }
+        // Decoded off the main thread, at tile size, before the tiles
+        // first draw (see GridThumbCache).
+        await GridThumbCache.prewarm(newItems.map { ($0.id, $0.thumbData) }, maxPt: PhotoTile.decodeSide)
+        guard myGeneration == searchGeneration, !Task.isCancelled else { return .skipped }
+        let existing = Set(items.map(\.id))
+        let filtered = newItems.filter { !existing.contains($0.id) }
+        if !filtered.isEmpty { items.append(contentsOf: filtered) }
+
+        self.token = lof.token.isEmpty ? nil : lof.token
+        self.endReached = (self.token == nil)
+        pageRetry.reset()
+        slowTimer?.cancel()
+        slowTimer = nil
+        pageProblem = nil
+        slowFirstPage = false
+        return .loaded
     }
 
     // MARK: Local merge
@@ -1161,9 +1538,12 @@ final class PhotoGalleryVM: ObservableObject {
     // MARK: Modal hi-res
     func open(index: Int) {
         guard items.indices.contains(index) else { return }
+        // Another item: the last one's big thumbnail is no longer asked for.
+        if bigThumbFor != items[index].path { stopBigThumb() }
         openIndex = index
         videoPlayer?.pause()
         videoPlayer = nil
+        playerWatch = []
         infoOpen = false
         infoData = nil
         Task { await fetchHiRes(index: index) }
@@ -1178,8 +1558,120 @@ final class PhotoGalleryVM: ObservableObject {
         hiResSource.removeAll()
         hiResOrder.removeAll()
         hiResFailed.removeAll()
+        stopBigThumb()
+        bigThumbs.removeAll()
+        bigThumbOrder.removeAll()
+        unplayable.removeAll()
         videoPlayer?.pause()
         videoPlayer = nil
+        playerWatch = []
+    }
+
+    /// The open item's path; nil while the viewer is closed.
+    var openPath: String? {
+        openIndex.flatMap { items.indices.contains($0) ? items[$0].path : nil }
+    }
+
+    private func stopBigThumb() {
+        bigThumbTask?.cancel()
+        bigThumbTask = nil
+        bigThumbFor = nil
+    }
+
+    /// The open item's thumbnail stays on screen (`path`): the full size
+    /// failed or can't be decoded, the video couldn't be fetched or played.
+    /// The grid's small tile scaled up would be all there is, so the big
+    /// thumbnail is asked for (GetThumbnails without small_thumbnails) -
+    /// and asked again like a grid's page, 1 s doubling to 10 s and at once
+    /// on a wake, for as long as the viewer stays on it (the full size
+    /// usually failed because the connection did, and then so does this).
+    /// Android's thumbnailStays, the web's MediaViewer.
+    func thumbnailStays(_ path: String) {
+        guard openPath == path, bigThumbs[path] == nil else { return }
+        if bigThumbFor == path, bigThumbTask != nil { return }
+        bigThumbTask?.cancel()
+        bigThumbFor = path
+        bigThumbTask = Task { [weak self] in
+            var failures = 0
+            while !Task.isCancelled {
+                guard let self, self.openPath == path else { break }
+                if let got = await self.askBigThumb(path) {
+                    if !got.isEmpty, !Task.isCancelled, self.openPath == path {
+                        let img = await Task.detached(priority: .userInitiated) {
+                            CGImageSourceCreateWithData(got as CFData, nil).flatMap { Self.decodeForDisplay($0) }
+                        }.value
+                        if let img, self.openPath == path { self.keepBigThumb(img, for: path) }
+                    }
+                    break
+                }
+                failures += 1
+                await OTCConnection.shared.sleepOrWake(self.bigThumbDelay(failures))
+            }
+            guard let self, !Task.isCancelled, self.bigThumbFor == path else { return }
+            self.bigThumbFor = nil
+            self.bigThumbTask = nil
+        }
+    }
+
+    private func keepBigThumb(_ img: UIImage, for path: String) {
+        bigThumbOrder.removeAll { $0 == path }
+        bigThumbOrder.append(path)
+        var kept = bigThumbs
+        kept[path] = img
+        while bigThumbOrder.count > Self.bigThumbsKept {
+            kept.removeValue(forKey: bigThumbOrder.removeFirst())
+        }
+        bigThumbs = kept
+    }
+
+    /// One ask for `path`'s big thumbnail: its bytes; empty when there is
+    /// none to have (the device left the path out, or a device before
+    /// release 80 has no GetThumbnails - the grid's own stays); nil when
+    /// the ask failed and is worth repeating.
+    private func askBigThumb(_ path: String) async -> Data? {
+        var g = Msg_GetThumbnails()
+        g.paths = [path]
+        g.smallThumbnails = false
+        guard let resp = try? await photoRequest(.reqGetThumbnails(g), .thumbnail) else { return nil }
+        if case .respListOfFiles(let lof) = resp.payload {
+            return lof.files.first { $0.path == path && !$0.content.isEmpty }?.content ?? Data()
+        }
+        if resp.errorCode == "unknown_payload" { return Data() }
+        // The bridge answering for a device it can't reach, an error.
+        return nil
+    }
+
+    /// The open video (`path`) couldn't be fetched or played: its poster
+    /// stays (the big one), saying so, with Try again.
+    func videoFailed(_ path: String) {
+        guard openPath == path else { return }
+        unplayable.insert(path)
+        videoPlayer?.pause()
+        videoPlayer = nil
+        playerWatch = []
+        thumbnailStays(path)
+    }
+
+    /// The unplayable video's Try again: fetched and played again.
+    func retryVideo() {
+        guard let i = openIndex, let path = openPath else { return }
+        unplayable.remove(path)
+        open(index: i)
+    }
+
+    /// What the player can't play (a codec this phone lacks, a stream that
+    /// broke) goes back to its poster, saying so, rather than a crossed-out
+    /// play button.
+    private func watchPlayback(_ player: AVPlayer, path: String) {
+        guard let item = player.currentItem else { return }
+        let status = item.observe(\.status, options: [.new]) { [weak self] item, _ in
+            guard item.status == .failed else { return }
+            Task { @MainActor in self?.videoFailed(path) }
+        }
+        let broke = NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: item, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.videoFailed(path) }
+        }
+        playerWatch = [status, ObserverToken(broke)]
     }
 
     private func cacheHiRes(_ img: UIImage, source: HiResSource, for path: String) {
@@ -1328,13 +1820,9 @@ final class PhotoGalleryVM: ObservableObject {
         let item = items[idx]
         Task {
             do {
-                let resp = try await ws.request { e in
-                    var req = ReqEnvelope()
-                    var del = Msg_DelFile()
-                    del.path = item.path
-                    req.payload = .reqDelFile(del)
-                    e = req
-                }
+                var del = Msg_DelFile()
+                del.path = item.path
+                let resp = try await photoRequest(.reqDelFile(del), nil)
                 if resp.error {
                     alertMessage = "Delete failed: \(resp.errorMessage)"
                     showAlert = true
@@ -1349,7 +1837,7 @@ final class PhotoGalleryVM: ObservableObject {
             items.remove(at: idx)
             selected.remove(item.path)
             onDeleted?(item.path)
-            if !fixedList { Task { await loadDateBuckets() } }
+            countsChanged()
             if items.isEmpty {
                 closeModal()
             } else {
@@ -1369,7 +1857,7 @@ final class PhotoGalleryVM: ObservableObject {
         // written out and played instead. Its own thumbnail already stands
         // in on screen while this runs, so there is no blank frame.
         if it.mime.hasPrefix("video/") {
-            if !prefetch { await fetchVideo(it) }
+            if !prefetch && !unplayable.contains(it.path) { await fetchVideo(it) }
             return
         }
 
@@ -1388,13 +1876,9 @@ final class PhotoGalleryVM: ObservableObject {
         }
         hiResFailed.remove(it.path)
         do {
-            let resp = try await ws.request { e in
-                var req = ReqEnvelope()
-                var gf  = GetFileMsg()
-                gf.path = it.path
-                req.payload = .reqGetFile(gf)
-                e = req
-            }
+            var gf = GetFileMsg()
+            gf.path = it.path
+            let resp = try await photoRequest(.reqGetFile(gf), nil)
             if case .respFile(let f) = resp.payload {
                 let data = f.content
                 let img = await Task.detached(priority: .userInitiated) {
@@ -1402,13 +1886,15 @@ final class PhotoGalleryVM: ObservableObject {
                 }.value
                 if let img {
                     if openIndex != nil { cacheHiRes(img, source: .data(data), for: it.path) }
-                } else {
-                    hiResFailed.insert(it.path)
+                    return
                 }
-            } else {
-                hiResFailed.insert(it.path)
             }
-        } catch { hiResFailed.insert(it.path) }
+        } catch {}
+        // Failed, or a format the phone can't decode: the thumbnail stays,
+        // the big one if it is the open photo (a neighbour's full size is
+        // asked again when it is swiped to).
+        hiResFailed.insert(it.path)
+        thumbnailStays(it.path)
     }
 
     /// Issue #106/#107: fetches a video and hands back a player.
@@ -1423,7 +1909,9 @@ final class PhotoGalleryVM: ObservableObject {
         // next one.
         func stillOpen() -> Bool { openIndex.flatMap { items.indices.contains($0) ? items[$0].path : nil } == it.path }
         if let u = it.localURL {
-            self.videoPlayer = AVPlayer(url: u)
+            let player = AVPlayer(url: u)
+            watchPlayback(player, path: it.path)
+            self.videoPlayer = player
             return
         }
 
@@ -1437,6 +1925,7 @@ final class PhotoGalleryVM: ObservableObject {
             print("[video] streaming \(it.path) from \(streamURL.absoluteString)")
             let player = MediaStream.player(for: streamURL)
             Self.logFailure(of: player, what: "stream")
+            watchPlayback(player, path: it.path)
             self.videoPlayer = player
             return
         }
@@ -1467,9 +1956,13 @@ final class PhotoGalleryVM: ObservableObject {
             guard stillOpen() else { return }
             let player = AVPlayer(url: tmp)
             Self.logFailure(of: player, what: "download")
+            watchPlayback(player, path: it.path)
             self.videoPlayer = player
         } catch {
             print("[video] download of \(it.path) failed: \(error)")
+            // Neither streamed nor downloaded: its poster stays (the big
+            // one), saying so, with Try again.
+            if stillOpen() { videoFailed(it.path) }
         }
     }
 
@@ -1564,13 +2057,9 @@ final class PhotoGalleryVM: ObservableObject {
             var deletedPaths = Set<String>()
             for path in paths {
                 do {
-                    let resp = try await ws.request { e in
-                        var req = ReqEnvelope()
-                        var del = Msg_DelFile()
-                        del.path = path
-                        req.payload = .reqDelFile(del)
-                        e = req
-                    }
+                    var del = Msg_DelFile()
+                    del.path = path
+                    let resp = try await photoRequest(.reqDelFile(del), nil)
                     if resp.error {
                         alertMessage = "Delete failed: \(resp.errorMessage)"
                         showAlert = true
@@ -1586,10 +2075,20 @@ final class PhotoGalleryVM: ObservableObject {
             if !deletedPaths.isEmpty {
                 items.removeAll { deletedPaths.contains($0.path) }
                 selected.subtract(deletedPaths)
-                // The months' counts: the scrubber and the last month's room.
-                await loadDateBuckets()
+                countsChanged()
             }
         }
+    }
+
+    /// Photos deleted from Images: the months' counts (the scrubber, the
+    /// headers, the last month's room) and the open collection's count
+    /// follow, as on Android and the web.
+    private func countsChanged() {
+        guard !fixedList else { return }
+        refillIfEmptied()
+        Task { await loadDateBuckets() }
+        // Asked again in the background until it comes (loadGroups).
+        if activeGroup != nil { Task { await loadGroups() } }
     }
 
     /// Share, as the Files tab means it: a link to the selection, handed
@@ -1730,6 +2229,7 @@ struct PhotoGalleryView: View {
                             PersonHeader(filter: person, phone: layout.metrics.phone, face: vm.face(for:))
                         }
                         Color.clear.frame(height: 0).id("photoGridTop")
+                        gridMessage
                         // One row per line of the grid, lazily: a big
                         // month's title spans the row over its own rows of
                         // tiles; months sharing a line are one row.
@@ -1740,8 +2240,8 @@ struct PhotoGalleryView: View {
                             }
                         }
                         .scrollTargetLayout()
-                        if layout.placeholder == .none && vm.loading && !vm.items.isEmpty {
-                            ProgressView().frame(height: 60)
+                        if layout.placeholder == .none && !vm.items.isEmpty {
+                            gridFooter
                         }
                     }
                     .padding(.horizontal, layout.metrics.pad)
@@ -1758,6 +2258,16 @@ struct PhotoGalleryView: View {
                 .onScrollTargetVisibilityChange(idType: String.self, threshold: 0.5) { ids in
                     scrollMemo.visible(ids)
                 }
+                // The first page is slow to come (a slow link, a busy
+                // device): over the grey tiles, that it is still on its way.
+                .overlay(alignment: .bottom) {
+                    if showsStillWaiting {
+                        StillWaitingPill()
+                            .padding(.bottom, vm.selected.isEmpty ? 24 : 104)
+                            .transition(.opacity)
+                    }
+                }
+                .animation(.default, value: showsStillWaiting)
                 .overlay(alignment: .trailing) {
                     // Issue #77: Google-Photos-style date scrubber -
                     // overlaid directly on the grid's own right edge
@@ -2018,11 +2528,21 @@ struct PhotoGalleryView: View {
             )
             .task { await vm.loadMoreIfNeeded(index: i, id: it.id) }
         } else {
-            // The first page on its way, or the scrubber's month.
-            RoundedRectangle(cornerRadius: PhotoTile.corner)
+            // The first page on its way, or the scrubber's month. Grey
+            // tiles say nothing to VoiceOver but, once, that photos are on
+            // their way (the web's aria-busy "Loading photos", Android's
+            // PHOTOS_LOADING).
+            let grey = RoundedRectangle(cornerRadius: PhotoTile.corner)
                 .fill(Color(.secondarySystemFill))
                 .frame(width: side, height: side)
-                .accessibilityHidden(true)
+            if i == 0 {
+                grey
+                    .accessibilityElement()
+                    .accessibilityLabel(LoadProblem.photosLoading)
+                    .accessibilityAddTraits(.updatesFrequently)
+            } else {
+                grey.accessibilityHidden(true)
+            }
         }
     }
 
@@ -2252,6 +2772,67 @@ struct PhotoGalleryView: View {
         .accessibilityLabel(label)
     }
 
+    /// What the grid's place says while it has no photos (Android's
+    /// galleryBody): why the first page didn't come - it is asked for
+    /// again meanwhile - or that there are none.
+    @ViewBuilder
+    private var gridMessage: some View {
+        switch vm.gridBody {
+        case .problem:
+            PhotosProblemView(problem: vm.pageProblem ?? .failed, retrying: vm.retrying, retry: vm.retryPage)
+        case .empty:
+            emptyState
+        default:
+            EmptyView()
+        }
+    }
+
+    /// The end of the grid: where the next page shows it is coming, or that
+    /// it failed, with its Try again (it is asked again meanwhile).
+    @ViewBuilder
+    private var gridFooter: some View {
+        if vm.loading {
+            ProgressView().frame(height: 60)
+        } else if vm.pageProblem != nil {
+            MorePhotosProblem(retry: vm.retryPage)
+        }
+    }
+
+    /// The first page is slow to come (a slow link, a busy device): over
+    /// the grey tiles - the first page's, or a jump's on its way - that it
+    /// is still on its way.
+    private var showsStillWaiting: Bool {
+        vm.slowFirstPage && (vm.gridBody == .skeleton || (vm.gridBody == .grey && vm.scrubFrac == nil))
+    }
+
+    /// Nothing to show (the web's and Android's empty states): an empty
+    /// collection, a search with no match, or no photos at all.
+    @ViewBuilder
+    private var emptyState: some View {
+        switch vm.emptyKind {
+        case .collection:
+            PhotosStateView(
+                art: AnyView(NavIconView(.collections, size: 40, stroke: 1.2)),
+                title: "This collection is empty",
+                text: "Select photos in Images, then choose Add to collection.",
+                button: "Go to Images"
+            ) { vm.leaveGroup() }
+        case .noMatch:
+            PhotosStateView(
+                art: AnyView(NavIconView(.search, size: 40, stroke: 1.2)),
+                title: "No photos match",
+                text: vm.activeGroup.map { "Nothing in \u{201C}\($0.name)\u{201D} matches this search." } ?? "Try other words, or fewer of them.",
+                button: "Clear search"
+            ) { vm.clearSearch() }
+        case .noPhotos:
+            PhotosStateView(
+                art: AnyView(NavIconView(.images, size: 40, stroke: 1.2)),
+                title: "No photos yet",
+                text: "Photos from the phone and computer apps appear here."
+            )
+        }
+    }
+
     private func openPath(_ p: String) {
         if let idx = vm.items.firstIndex(where: { $0.path == p }) {
             vm.open(index: idx)
@@ -2261,12 +2842,127 @@ struct PhotoGalleryView: View {
         guard vm.items.indices.contains(idx) else { return nil }
         let it = vm.items[idx]
         if let u = it.localURL, let img = UIImage(contentsOfFile: u.path) { return img }
+        // The big thumbnail when the viewer asked for it, before the
+        // grid's small tile.
+        if let big = vm.bigThumbs[it.path] { return big }
         if let d = it.thumbData { return UIImage(data: d) }
-        return nil
+        return it.thumbImage
     }
 }
 
 // MARK: - UI pieces (iOS)
+
+/// What the grid's place shows instead of photos: a picture, a title, a
+/// line, maybe a button (Android's GridMessage).
+private struct PhotosStateView: View {
+    let art: AnyView
+    let title: String
+    let text: String
+    var action: AnyView? = nil
+
+    var body: some View {
+        VStack(spacing: 0) {
+            art.foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Text(title)
+                .font(.headline)
+                .multilineTextAlignment(.center)
+                .accessibilityAddTraits(.isHeader)
+                .padding(.top, 16)
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 420)
+                .padding(.top, 8)
+            if let action {
+                action.padding(.top, 20)
+            }
+        }
+        .padding(.horizontal, 32)
+        .padding(.vertical, 56)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+extension PhotosStateView {
+    /// With a plain button, `button`, doing `run`.
+    init(art: AnyView, title: String, text: String, button: String, run: @escaping () -> Void) {
+        self.init(art: art, title: title, text: text, action: AnyView(Button(button, action: run).buttonStyle(.bordered)))
+    }
+}
+
+/// The first page failed (`problem`: why) and is asked for again
+/// meanwhile: "Couldn't load your photos", why in plain words, and Try
+/// again - "Trying…" while a retry is on its way. In the grid's place,
+/// under any header (Android's PhotosProblem).
+struct PhotosProblemView: View {
+    let problem: LoadProblem
+    let retrying: Bool
+    let retry: () -> Void
+
+    var body: some View {
+        PhotosStateView(
+            art: AnyView(Image(systemName: problem == .offline ? "wifi.slash" : "icloud.slash")
+                .font(.system(size: 36, weight: .light))
+                .frame(height: 40)),
+            title: LoadProblem.photosTitle,
+            text: problem.photosText,
+            action: AnyView(
+                Button(action: retry) {
+                    HStack(spacing: 8) {
+                        if retrying { ProgressView().controlSize(.small) }
+                        Text(retrying ? LoadProblem.trying : LoadProblem.tryAgain)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(retrying)
+            )
+        )
+        // Said to VoiceOver when it appears and when its reason changes
+        // (Android's polite live region, the web's role="status").
+        .onAppear { Announce.polite("\(LoadProblem.photosTitle). \(problem.photosText)") }
+        .onChange(of: problem) { _, p in Announce.polite(p.photosText) }
+    }
+}
+
+/// A later page failed (the web's foot): it is asked for again meanwhile,
+/// or now with Try again.
+private struct MorePhotosProblem: View {
+    let retry: () -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(LoadProblem.morePhotos)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Button(LoadProblem.tryAgain, action: retry)
+                .font(.subheadline.weight(.semibold))
+        }
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: 60)
+        .onAppear { Announce.polite(LoadProblem.morePhotos) }
+    }
+}
+
+/// The first page is slow to come: a pill over the grey tiles (Android's
+/// StillWaiting).
+private struct StillWaitingPill: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            ProgressView().controlSize(.small)
+            Text(LoadProblem.photosSlow)
+                .font(.subheadline)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.regularMaterial, in: Capsule())
+        .shadow(color: .black.opacity(0.18), radius: 6, y: 2)
+        .accessibilityElement(children: .combine)
+        .onAppear { Announce.polite(LoadProblem.photosSlow) }
+    }
+}
 
 /// A month's title over its photos: one line, not sticky, as the web's
 /// .pg-month. A month one tile wide shows "Sep 2026" where "September
@@ -2637,7 +3333,12 @@ struct ImageModal: View {
                             player.play()
                         }
                         .onDisappear { player.pause() }
-                } else if let img = vm.hiResImages[item.path] ?? thumb(item) {
+                } else if let img = vm.hiResImages[item.path] ?? vm.bigThumbs[item.path] ?? thumb(item) {
+                    // Until the full size comes, the grid's small tile;
+                    // where the thumbnail stays (the full size failed or
+                    // can't be decoded, a video that can't be fetched or
+                    // played), the big one, asked for then
+                    // (PhotoGalleryVM.thumbnailStays).
                     Image(uiImage: img)
                         .resizable()
                         .scaledToFit()
@@ -2659,12 +3360,23 @@ struct ImageModal: View {
                                 .updating($pinchScale) { value, state, _ in state = value.magnification }
                                 .updating($pinchAnchor) { value, state, _ in state = value.startAnchor }
                         )
-                } else {
+                } else if !unplayable(i) {
                     ProgressView().tint(.white)
                 }
             }
         }
         .frame(width: size.width, height: size.height)
+        .overlay(alignment: .bottom) {
+            if unplayable(i) {
+                VideoUnplayable { vm.retryVideo() }
+            }
+        }
+    }
+
+    /// The open video couldn't be fetched or played: its poster stays,
+    /// saying so, with Try again.
+    private func unplayable(_ i: Int) -> Bool {
+        i == vm.openIndex && vm.items.indices.contains(i) && vm.unplayable.contains(vm.items[i].path)
     }
 
     /// Still drawn from its thumbnail: the full-size image hasn't arrived
@@ -2679,6 +3391,29 @@ struct ImageModal: View {
         if let u = item.localURL, let img = UIImage(contentsOfFile: u.path) { return img }
         if let d = item.thumbData { return UIImage(data: d) }
         return item.thumbImage
+    }
+}
+
+/// Over a video's poster: the player couldn't play it (or it couldn't be
+/// fetched), and Try again (Android's VideoUnplayable).
+private struct VideoUnplayable: View {
+    let retry: () -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(LoadProblem.videoUnplayable)
+                .font(.subheadline)
+            Button(LoadProblem.tryAgain, action: retry)
+                .font(.subheadline.weight(.semibold))
+        }
+        .foregroundStyle(.white)
+        .tint(.white)
+        .padding(.leading, 16)
+        .padding(.trailing, 8)
+        .padding(.vertical, 8)
+        .background(.black.opacity(0.7), in: Capsule())
+        .padding(16)
+        .onAppear { Announce.polite(LoadProblem.videoUnplayable) }
     }
 }
 
@@ -2792,12 +3527,7 @@ private struct PhotoDateScrubber: View {
     @ObservedObject var vm: PhotoGalleryVM
     let scrollProxy: ScrollViewProxy
 
-    private static let monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
-    private static func label(for month: String) -> String {
-        let parts = month.split(separator: "-")
-        guard parts.count == 2, let m = Int(parts[1]), (1...12).contains(m) else { return month }
-        return "\(monthNames[m - 1]) \(parts[0])"
-    }
+    private static func label(for month: String) -> String { PhotoMonths.scrubLabel(month) }
 
     // A run of sparse years can land closer together than a label is
     // tall - reproduced live (both here and on web) as several years'
@@ -2950,4 +3680,11 @@ private extension UIApplication {
         while let p = top.presentedViewController { top = p }
         return top
     }
+}
+
+/// A NotificationCenter observer, removed once nothing holds it.
+private final class ObserverToken {
+    private let token: NSObjectProtocol
+    init(_ token: NSObjectProtocol) { self.token = token }
+    deinit { NotificationCenter.default.removeObserver(token) }
 }

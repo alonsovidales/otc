@@ -188,12 +188,22 @@ final class NewPostPickerVM: ObservableObject {
         let mine = searchGeneration
         loading = true
         defer { if mine == searchGeneration { loading = false } }
+        // The photos this grid holds, for `have` below: the device's own
+        // count, not the phone's (a page asked for while on the phone's
+        // source isn't this one's).
+        let have = Int32(items.filter { $0.asset == nil }.count)
         do {
             let resp = try await ws.request { e in
                 var req = Msg_ReqEnvelope()
                 var sp = Msg_SearchPhotos()
                 sp.tags = self.chips
                 sp.token = overrideToken ?? self.token ?? ""
+                // Where this grid is, should the device no longer hold the
+                // token (SearchPhotos.have), as Images does.
+                sp.have = have
+                // A grid: its tiles' small thumbnails (release 111; an
+                // older device sends big ones).
+                sp.smallThumbnails = true
                 // A new search (switching to Synced, a tag added or
                 // removed) gets a small first page so the grid paints
                 // quickly; scrolling on, the full size (see

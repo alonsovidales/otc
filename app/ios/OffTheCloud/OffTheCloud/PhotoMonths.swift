@@ -58,6 +58,26 @@ enum PhotoMonths {
         return next.addingTimeInterval(-0.001)
     }
 
+    /// Where the scrubber's jump to the bucket `key` starts its search:
+    /// the month's last instant (lastInstant). A zero month is the device's
+    /// bucket of photos without a date ("No date", a zero datetime): there
+    /// the web's `new Date(0, 0, 0, 23, 59, 59, 999)` is the last instant of
+    /// 31 December 1899, before every real date, which finds those photos -
+    /// as Android's jumpCutoffMs. nil only for what is no month at all.
+    static func jumpCutoff(of key: String, calendar: Calendar = calendar()) -> Date? {
+        let p = key.split(separator: "-")
+        guard p.count == 2, Int(p[0]) != nil, let m = Int(p[1]) else { return nil }
+        return m == 0 ? lastInstant(of: "1899-12", calendar: calendar) : lastInstant(of: key, calendar: calendar)
+    }
+
+    /// The scrubber's bubble: "Mar 2024", or "No date" for the device's
+    /// bucket of photos without one (the web's DateScrubber monthLabel,
+    /// Android's scrubLabel).
+    static func scrubLabel(_ key: String) -> String {
+        guard let p = parts(key), p.year > 0 else { return "No date" }
+        return "\(p.name.prefix(3)) \(p.year)"
+    }
+
     private static func parts(_ key: String) -> (year: Int, name: String)? {
         let p = key.split(separator: "-")
         guard p.count == 2, let y = Int(p[0]), let m = Int(p[1]), (1...12).contains(m) else { return nil }

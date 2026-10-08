@@ -1272,8 +1272,7 @@ requests before sign-in and `wsframe`'s first 4 MiB (`cFree`) outside the frame 
 `admin/ratelimit.go` `purgeLocked` scans on every attempt, `Admin.Logout` answers ok
 when ending the other sessions failed and `SetAdminPassword` doesn't bump the admin epoch;
 clients - no final-path check on otc-sync's flash status file, no "could not be read" status on the
-Mac, no request timeout in iOS `WSClient`, no `usePageRetry` in Social's feed or
-`DevicePhotoPicker`.
+Mac, no `usePageRetry` in the web's Social feed or `DevicePhotoPicker`.
 
 ## Cutting a release (issue #94)
 

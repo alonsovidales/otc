@@ -10,6 +10,7 @@
 
 import SwiftUI
 import AVKit
+import Combine
 
 // When a post was published, shown in its header. Relative for anything
 // recent (the timescale people actually care about scrolling a feed),
@@ -87,12 +88,18 @@ final class SocialFeedViewModel: ObservableObject {
     // this before deciding "genuinely nothing in social, fall back to
     // Images" instead of racing a launch-time snapshot of an empty cache.
     @Published private(set) var hasLoadedOnce = false
+    /// The last load of the feed failed, and why (nil: it didn't): said
+    /// under "Loading…" until the first one comes.
+    @Published private(set) var problem: LoadProblem?
+    /// The next page failed: the end of the feed says so, with Try again.
+    @Published private(set) var moreFailed = false
     /// One more for every "New post" in the wide layout's top bar
     /// (AppMenu.swift), which opens the composer here.
     @Published var composeRequests = 0
     private var endReached = false
 
     private var pollTask: Task<Void, Never>?
+    private var wakeWatch: AnyCancellable?
 
     /// Log Out: an empty feed, no cached snapshot, and the auto-load stopped.
     func reset() {
@@ -102,6 +109,8 @@ final class SocialFeedViewModel: ObservableObject {
         loading = false
         loadingMore = false
         hasLoadedOnce = false
+        problem = nil
+        moreFailed = false
         endReached = false
         try? FileManager.default.removeItem(at: Self.cacheURL)
     }
@@ -113,10 +122,11 @@ final class SocialFeedViewModel: ObservableObject {
     private static let cacheURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("social_feed_cache.pb")
 
-    init() {
+    /// `autoLoad` false: nothing asked until told (tests).
+    init(autoLoad: Bool = true) {
         // Mark loading right away, synchronously, so the very first render
         // shows the loading state rather than a flash of "No posts yet".
-        loading = true
+        loading = autoLoad
         // The cached snapshot is read off the main thread, which costs a
         // moment of empty feed and is worth it.
         //
@@ -140,7 +150,54 @@ final class SocialFeedViewModel: ObservableObject {
         // tab's (TabView builds all its tabs' state eagerly even though
         // only one is visible), so `init` firing this is enough; no
         // view-appearance hook needed.
+        guard autoLoad else { return }
         startAutoLoad()
+        // Signed in again, a network came up, back in the foreground: a
+        // page that failed is asked for again (the first load's wait is
+        // cut short by sleepOrWake).
+        wakeWatch = OTCConnection.shared.$wakes
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.woke() }
+    }
+
+    /// A wake: the phone may be back online, and a page that failed is
+    /// asked for again.
+    func woke() {
+        backOnline()
+        if moreFailed { retryMore() }
+    }
+
+    /// Sends the feed's pages. Tests answer in the device's place.
+    var feedRequest: @MainActor (Msg_GetSocialPublications) async throws -> Msg_RespEnvelope = { req in
+        // More time after a timeout, as Images' pages (OTCConnection.ask).
+        try await OTCConnection.shared.ask("feed", base: OTCConnection.pageTimeout) { $0.payload = .reqGetSocialPublications(req) }
+    }
+
+    /// Whether the phone has a network now. Tests decide in the phone's place.
+    var online: @MainActor () -> Bool = { !NetworkWatch.shared.offline }
+
+    /// Why a load failed. Tests decide in the phone's place.
+    var problemOf: @MainActor (Msg_RespEnvelope?, Error?) -> LoadProblem = { LoadProblem.now(resp: $0, error: $1) }
+
+    /// Back online: "This phone is offline" no longer says why the posts
+    /// aren't here while they are asked for again (Android's backOnline).
+    private func backOnline() {
+        guard problem == .offline else { return }
+        problem = problem?.backOnline(online())
+    }
+
+    /// What says how the feed's loads went, as one value (Android's State
+    /// fields of the same names).
+    private var loadState: FeedLoadState {
+        get { FeedLoadState(loading: loading, loadingMore: loadingMore, hasLoadedOnce: hasLoadedOnce, problem: problem, moreFailed: moreFailed) }
+        set {
+            if loading != newValue.loading { loading = newValue.loading }
+            if loadingMore != newValue.loadingMore { loadingMore = newValue.loadingMore }
+            if hasLoadedOnce != newValue.hasLoadedOnce { hasLoadedOnce = newValue.hasLoadedOnce }
+            if problem != newValue.problem { problem = newValue.problem }
+            if moreFailed != newValue.moreFailed { moreFailed = newValue.moreFailed }
+        }
     }
 
     private func loadCachedPosts() async {
@@ -193,8 +250,11 @@ final class SocialFeedViewModel: ObservableObject {
     /// shared connection can be legitimately busy for a long time — e.g. a
     /// large photo sync uploading thousands of files — so "give up after a
     /// couple of seconds" just reproduced the bug. This only stops once the
-    /// server actually answers (even with zero publications); it doesn't
-    /// stop just because a request throws.
+    /// server actually answers with the feed (even with zero publications);
+    /// it doesn't stop just because a request throws, nor for an error
+    /// answer (the bridge's for a device it can't reach). The wait between
+    /// tries is cut short by a wake (signed in again, a network came up,
+    /// back in the foreground).
     /// Also what a new sign-in calls (issue #133): Log Out cancels this,
     /// and `init` only ever ran once per process, so the feed after
     /// signing in again sat on "No social posts" until the app was killed.
@@ -206,14 +266,15 @@ final class SocialFeedViewModel: ObservableObject {
                     self.hasLoadedOnce = true
                     break
                 }
-                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                await OTCConnection.shared.sleepOrWake(4)
             }
             self?.pollTask = nil
         }
     }
 
     /// Re-fetches from the start. Returns whether the server actually
-    /// answered (regardless of how many publications came back) so callers
+    /// answered with the feed (regardless of how many publications came
+    /// back; `problem` says why not otherwise) so callers
     /// can tell "legitimately empty" apart from "the request never
     /// completed".
     ///
@@ -226,22 +287,36 @@ final class SocialFeedViewModel: ObservableObject {
     @discardableResult
     func loadFeed() async -> Bool {
         loading = true
+        backOnline()
         defer { loading = false }
         endReached = false
         let count = Int32(max(posts.count, Int(Self.pageSize)))
-        return await fetchPage(total: count, excludeUuids: [], replacing: true)
+        let problem = await fetchPage(total: count, excludeUuids: [], replacing: true)
+        // A refresh that worked also takes "Couldn't load more posts" away:
+        // the end of the feed is a new one.
+        loadState = loadState.afterLoad(problem)
+        return problem == nil
     }
 
     /// Loads the next page once the feed has been scrolled near the end of
     /// what's currently loaded (issue #15: 4 at a time, fetched again before
     /// the user actually runs out of already-loaded posts).
     func loadMoreIfNeeded(current post: Msg_SocialPublication?) async {
-        guard let post, !loading, !loadingMore, !endReached else { return }
+        guard let post, !endReached else { return }
         guard let idx = posts.firstIndex(where: { $0.uuid == post.uuid }) else { return }
         guard idx >= posts.count - 2 else { return }
-        loadingMore = true
+        // Claimed in one step: a wake's retryMore and the last post's own
+        // task can both get here, and only one asks.
+        guard let claimed = loadState.claimMore() else { return }
+        loadState = claimed
         defer { loadingMore = false }
-        await fetchPage(total: Self.pageSize, excludeUuids: posts.map(\.uuid), replacing: false)
+        moreFailed = await fetchPage(total: Self.pageSize, excludeUuids: posts.map(\.uuid), replacing: false) != nil
+    }
+
+    /// The end of the feed's Try again (and a wake): the next page, asked
+    /// for again.
+    func retryMore() {
+        Task { await loadMoreIfNeeded(current: posts.last) }
     }
 
     /// Re-fetches exactly what's already on screen (not just page one) so a
@@ -252,29 +327,35 @@ final class SocialFeedViewModel: ObservableObject {
         await fetchPage(total: count, excludeUuids: [], replacing: true)
     }
 
+    /// nil once the page is in; otherwise why not. An answer that isn't the
+    /// feed (the bridge's "device unreachable", an error) is no page: the
+    /// first load used to take it for one, stop asking, and leave the feed
+    /// reading "No social posts".
     @discardableResult
-    private func fetchPage(total: Int32, excludeUuids: [String], replacing: Bool) async -> Bool {
+    private func fetchPage(total: Int32, excludeUuids: [String], replacing: Bool) async -> LoadProblem? {
         var req = Msg_GetSocialPublications()
         req.total = total
         req.excludeUuids = excludeUuids
         do {
-            let resp = try await ws.request { $0.payload = .reqGetSocialPublications(req) }
-            if case .respSocialPublications(let sp) = resp.payload {
-                if replacing {
-                    posts = sp.publications
-                } else {
-                    let existing = Set(posts.map(\.uuid))
-                    posts.append(contentsOf: sp.publications.filter { !existing.contains($0.uuid) })
-                }
-                if sp.publications.count < Int(total) {
-                    endReached = true
-                }
-                saveCachedPosts()
+            let resp = try await feedRequest(req)
+            guard case .respSocialPublications(let sp) = resp.payload else {
+                print("Social feed load refused, will retry:", resp.errorMessage)
+                return problemOf(resp, nil)
             }
-            return true
+            if replacing {
+                posts = sp.publications
+            } else {
+                let existing = Set(posts.map(\.uuid))
+                posts.append(contentsOf: sp.publications.filter { !existing.contains($0.uuid) })
+            }
+            if sp.publications.count < Int(total) {
+                endReached = true
+            }
+            saveCachedPosts()
+            return nil
         } catch {
             print("Social feed load failed, will retry:", error)
-            return false
+            return problemOf(nil, error)
         }
     }
 
@@ -525,12 +606,29 @@ struct SocialFeedView: View {
                 // is still in flight used to just look frozen — show an
                 // actual loading state instead, distinct from "genuinely no
                 // posts".
-                if vm.posts.isEmpty && vm.loading {
+                //
+                // Until the first answer comes (asked again every 4 s, at
+                // once on a wake), not only while a request is out: between
+                // two tries it used to read "No social posts". After a
+                // failure, why it isn't here yet.
+                if vm.posts.isEmpty && (vm.loading || !vm.hasLoadedOnce) {
                     VStack(spacing: 12) {
                         logoHeader
                         Spacer()
                         ProgressView()
                         Text("Loading…").foregroundColor(.secondary)
+                        if let problem = vm.problem {
+                            Text(problem.text("The posts"))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: 360)
+                                .padding(.horizontal, 32)
+                                // Said to VoiceOver when it appears or
+                                // changes (Android's polite live region).
+                                .onAppear { Announce.polite(problem.text("The posts")) }
+                                .onChange(of: problem) { _, p in Announce.polite(p.text("The posts")) }
+                        }
                         Spacer()
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -625,6 +723,19 @@ struct SocialFeedView: View {
                                     ProgressView()
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, 16)
+                                } else if vm.moreFailed {
+                                    // The next page failed: it is asked for
+                                    // again on a wake, or now.
+                                    HStack(spacing: 4) {
+                                        Text(LoadProblem.morePosts)
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                        Button(LoadProblem.tryAgain) { vm.retryMore() }
+                                            .font(.subheadline.weight(.semibold))
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(16)
+                                    .onAppear { Announce.polite(LoadProblem.morePosts) }
                                 }
                             }
                             // Issue #123: a centred column on an iPad,
@@ -1758,5 +1869,39 @@ private struct LikersListView: View {
             case .comment(let uuid): likers = await fetchCommentLikers(uuid)
             }
         }
+    }
+}
+
+/// How the feed's loads went (Android's SocialFeedViewModel.State fields of
+/// the same names), and what a load does to it: plain values, so the rules
+/// can be tested without a device.
+struct FeedLoadState: Equatable {
+    var loading = false
+    var loadingMore = false
+    var hasLoadedOnce = false
+    /// The last load of the feed failed, and why (nil: it didn't).
+    var problem: LoadProblem?
+    /// The next page failed: the end of the feed says so, with Try again.
+    var moreFailed = false
+
+    /// After a load of the feed: `problem` nil when it came. A refresh that
+    /// worked also takes away "Couldn't load more posts" - the end of the
+    /// feed is a new one (Android's afterLoad).
+    func afterLoad(_ problem: LoadProblem?) -> FeedLoadState {
+        var s = self
+        s.problem = problem
+        s.hasLoadedOnce = hasLoadedOnce || problem == nil
+        s.moreFailed = moreFailed && problem != nil
+        return s
+    }
+
+    /// The next page, claimed: nil when a load of the feed or of a page is
+    /// already on its way (Android's claimMore).
+    func claimMore() -> FeedLoadState? {
+        guard !loading, !loadingMore else { return nil }
+        var s = self
+        s.loadingMore = true
+        s.moreFailed = false
+        return s
     }
 }

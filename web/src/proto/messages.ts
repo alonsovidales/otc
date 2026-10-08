@@ -839,6 +839,10 @@ export interface SearchPhotos {
    *
    * Only meaningful alongside a token (i.e. when resuming); a search
    * starting from scratch sends nothing and is never skipped forward.
+   *
+   * With a token the device still holds, it also makes a page asked again
+   * with the same have (its answer was lost) come back as the same page,
+   * instead of the page after it, which left a hole in the grid.
    */
   have: number;
   /**

@@ -44,7 +44,10 @@ final class DevicePhotoPickerVM: ObservableObject {
     func loadGroups() async {
         guard let resp = try? await ws.request({ e in
             var req = Msg_ReqEnvelope()
-            req.payload = .reqListImageGroups(.init())
+            // Covers as the grids' tiles: small thumbnails (release 111).
+            var lg = Msg_ListImageGroups()
+            lg.smallThumbnails = true
+            req.payload = .reqListImageGroups(lg)
             e = req
         }) else { return }
         if case .respImageGroups(let g) = resp.payload { groups = g.groups }
@@ -78,6 +81,8 @@ final class DevicePhotoPickerVM: ObservableObject {
         defer { if myGeneration == generation { loading = false } }
         let group = groupID
         let pageToken = token
+        // Snapshot, with the token it goes with (see the request below).
+        let have = Int32(items.count)
         do {
             let resp = try await ws.request { e in
                 var req = Msg_ReqEnvelope()
@@ -90,6 +95,13 @@ final class DevicePhotoPickerVM: ObservableObject {
                 sp.groupID = group
                 // A profile photo can't be a video.
                 sp.includeVideos = false
+                // Where this grid is, should the device no longer hold the
+                // token (SearchPhotos.have) - as Images and Android's
+                // picker.
+                sp.have = have
+                // A grid: its tiles' small thumbnails (release 111; an
+                // older device sends big ones).
+                sp.smallThumbnails = true
                 req.payload = .reqSearchPhotos(sp)
                 e = req
             }

@@ -64,7 +64,7 @@ struct PeopleRequestTests {
         let vm = PhotoGalleryVM()
         vm.allPeople = people
         let sent = Sent()
-        vm.peopleRequest = { payload in
+        vm.peopleRequest = { payload, _ in
             sent.list.append(payload)
             if case .reqListPeople = payload { throw CancellationError() }
             var r = Msg_RespEnvelope()
