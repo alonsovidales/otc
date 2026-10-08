@@ -44,8 +44,14 @@ import cloud.offthe.otc.ui.common.SelectionActionTask
 import cloud.offthe.otc.ui.common.backOnline
 import cloud.offthe.otc.ui.common.loadProblem
 import cloud.offthe.otc.ui.common.Share
+import cloud.offthe.otc.ui.common.FIRST_PAGE_LIMIT_WITHOUT_THUMBS
+import cloud.offthe.otc.ui.common.GridThumbFetcher
+import cloud.offthe.otc.ui.common.GridThumbStore
+import cloud.offthe.otc.ui.common.NEXT_PAGE_LIMIT_WITHOUT_THUMBS
+import cloud.offthe.otc.ui.common.TILES_KIND
 import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.common.decodeBitmap
+import cloud.offthe.otc.ui.common.land
 import com.google.protobuf.Timestamp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -62,9 +68,12 @@ import java.time.ZoneId
 import java.util.UUID
 
 // SearchPhotos.limit for the request that starts a photo search (no
-// token): a small first page paints quickly over a slow upload. Pages that
-// continue the token send none and get the device's own size; a device
-// before release 97 ignores it and answers its default, 30.
+// token) on a device not known to leave thumbnails out of pages (before
+// release 113, which ignores omit_thumbnails and sends them): a small first
+// page paints quickly over a slow upload. One known to leave them out gets
+// FIRST_PAGE_LIMIT_WITHOUT_THUMBS (GridThumbs.kt), and pages that continue
+// the token NEXT_PAGE_LIMIT_WITHOUT_THUMBS - a device before 113 answers at
+// most its default, 30, whatever is asked; before release 97 it ignores it.
 const val FIRST_PHOTO_PAGE_LIMIT = 12
 
 // How old the tag and people lists may get before a search that ends
@@ -115,6 +124,12 @@ private const val BIG_THUMBS_KEPT = 4
 // headers use (tags, people, collections, date buckets) are asked again the
 // same way until they come.
 //
+// Pages come without thumbnails (omit_thumbnails, release 113): the tiles
+// come from the phone's thumbnail cache (ThumbStore), and what it lacks is
+// fetched with GetThumbnails, the tiles on screen first (GridThumbFetcher,
+// retried like the pages). A device before 113 sends them in the page: they
+// are shown and kept. See GridThumbs.kt.
+//
 // Grids show small thumbnails (release 111, small_thumbnails): the viewer
 // shows an item's small tile only until its full size arrives. Where the
 // thumbnail stays on screen - the full size failed or can't be decoded, a
@@ -134,20 +149,32 @@ class PhotoGalleryViewModel(
     private val problemOf: (RespEnvelope?, Throwable?) -> LoadProblem = { resp, error ->
         loadProblem(resp, error, online(), OTCConnection.statusCode.value)
     },
+    // Where the tiles' thumbnails are kept (tests: a cache of their own).
+    private val thumbs: GridThumbStore = ThumbStore,
     // Where its work runs: the view model's own scope, a test's in tests.
     scope: CoroutineScope? = null,
 ) : ViewModel(), PeopleStore {
     private val scope: CoroutineScope = scope ?: viewModelScope
 
-    // thumbKey: the grid tile's (small) thumbnail in ThumbStore
-    // (ThumbStore.tileKey), null when the device sent none. preview: an already decoded placeholder
+    // The tiles' missing thumbnails, fetched a batch at a time; each answer
+    // updates State.thumbKeys.
+    private val tiles by lazy {
+        GridThumbFetcher(this.scope, thumbs, send = { b -> ask(TILES_KIND, OTCConnection.PAGE_TIMEOUT_MS) { it.setReqGetThumbnails(b) } }, pause = pause) { landed ->
+            _state.update { st -> st.copy(thumbKeys = st.thumbKeys + landed.mapValues { it.value ?: "" }) }
+        }
+    }
+
+    // thumbKey: the grid tile's thumbnail in ThumbStore (thumbTileKey) as
+    // the page left it, null when there was none yet - State.thumbKeyOf has
+    // what was fetched since. preview: an already decoded placeholder
     // (the Files grid's thumbnail), used when there are no thumb bytes.
     // month: "2024-03" in the phone's time zone, null without a date
     // (monthOf) - the Images grid's month titles. created: the photo's
     // date (epoch ms, null without one), for the tile's label (tileLabel).
+    // hash: its content's, as the page listed it.
     data class Item(
         val id: String, val path: String, val mime: String, val size: Long, val thumbKey: String?,
-        val preview: Bitmap? = null, val month: String? = null, val created: Long? = null,
+        val preview: Bitmap? = null, val month: String? = null, val created: Long? = null, val hash: String = "",
     )
     data class DateBucket(val month: String, val count: Int, val start: Int, val end: Int)
 
@@ -184,6 +211,10 @@ class PhotoGalleryViewModel(
         // goes back to its top, as the web's does.
         val searchesStarted: Int = 0,
         val items: List<Item> = emptyList(),
+        // The tiles' thumbnails fetched since their page landed (by path; ""
+        // when the device has none now): apart from items, so a batch that
+        // lands doesn't lay the months out again.
+        val thumbKeys: Map<String, String> = emptyMap(),
         val loading: Boolean = false,
         val endReached: Boolean = false,
         // The last page asked for failed, and why (null: none did). It is
@@ -238,6 +269,11 @@ class PhotoGalleryViewModel(
         val body: GalleryBody get() = galleryBody(this)
         /** A failed page is being asked for again (Try again's "Trying…"). */
         val retrying: Boolean get() = pageProblem != null && loading
+        /** [item]'s tile key now: fetched since, or as its page left it; null while it has none. */
+        fun thumbKeyOf(item: Item): String? {
+            val k = thumbKeys[item.path] ?: return item.thumbKey
+            return k.ifEmpty { null }
+        }
     }
 
     private val _state = MutableStateFlow(State())
@@ -279,8 +315,10 @@ class PhotoGalleryViewModel(
         searchJob?.cancel()
         searchGeneration += 1
         stopPageRetry()
+        tiles.reset()
+        undecodable.clear()
         token = null
-        _state.update { it.copy(items = items, endReached = true, loading = false, selected = emptySet(), pageProblem = null, slowFirstPage = false) }
+        _state.update { it.copy(items = items, thumbKeys = emptyMap(), endReached = true, loading = false, selected = emptySet(), pageProblem = null, slowFirstPage = false) }
         open(startAt)
     }
 
@@ -288,10 +326,12 @@ class PhotoGalleryViewModel(
     // not ahead of it (a slow or lost answer to either used to hold the
     // photos back, on a blank page).
     fun onAppearInitial() = scope.launch {
+        watchThumbnailClears()
         watchFaceRecognition()
         watchImagesChanged()
         watchWake()
         listsAsked = true
+        thumbs.warmUp()
         restartSearch()
         launch { loadTags() }
         // Not while face recognition is off (as iOS): nobody to offer. Turned
@@ -368,6 +408,24 @@ class PhotoGalleryViewModel(
                 if (g == seen) return@collect
                 seen = g
                 imagesChanged()
+            }
+        }
+    }
+
+    // Settings' Clear thumbnail cache: the viewer's big thumbnails and the
+    // tiles marked as having none go too (asked for again as they show).
+    private var watchingClears = false
+    internal fun watchThumbnailClears() {
+        if (watchingClears) return
+        watchingClears = true
+        scope.launch {
+            var seen = thumbs.clears.value
+            thumbs.clears.collect { n ->
+                if (n == seen) return@collect
+                seen = n
+                tiles.forgetNone()
+                undecodable.clear()
+                _state.update { st -> st.copy(bigThumbs = emptyMap(), thumbKeys = st.thumbKeys.filterValues { it.isNotEmpty() }) }
             }
         }
     }
@@ -572,7 +630,9 @@ class PhotoGalleryViewModel(
         jumpBefore = before
         jumpLanding = true
         morePendingAt = null
-        _state.update { it.copy(loading = false, endReached = false, items = emptyList(), pageProblem = null, slowFirstPage = false) }
+        tiles.reset()
+        undecodable.clear()
+        _state.update { it.copy(loading = false, endReached = false, items = emptyList(), thumbKeys = emptyMap(), pageProblem = null, slowFirstPage = false) }
         watchSlowFirstPage(mine)
         fetchUntilProgress()
         if (mine == searchGeneration && _state.value.scrubFrac == null) _state.update { it.copy(placeholderCount = null, placeholderMonth = null) }
@@ -716,12 +776,14 @@ class PhotoGalleryViewModel(
         jumpBefore = null
         jumpLanding = false
         morePendingAt = null
+        tiles.reset()
+        undecodable.clear()
         // The selection stays, as the web's does across a filter change
         // (leaving for People or Collections clears it, as the web's page
         // change does: PhotoGalleryView).
         _state.update {
             it.copy(
-                loading = false, endReached = false, items = emptyList(), pageProblem = null, slowFirstPage = false,
+                loading = false, endReached = false, items = emptyList(), thumbKeys = emptyMap(), pageProblem = null, slowFirstPage = false,
                 scrubFrac = null, placeholderCount = null, placeholderMonth = null, searchesStarted = it.searchesStarted + 1,
             )
         }
@@ -741,6 +803,61 @@ class PhotoGalleryViewModel(
         if (st.loading) { morePendingAt = maxOf(morePendingAt ?: idx, idx); return }
         askForPages()
     }
+
+    // The rows of tiles the grid has composed (first item -> end), for the
+    // tiles within reach of the scroll (GridThumbFetcher.near).
+    private val composedRows = HashMap<Int, Int>()
+
+    /** A row of tiles (items [start] until [end]) is on screen or about to be. */
+    fun rowShown(start: Int, end: Int) {
+        if (fixedList) return
+        composedRows[start] = end
+        nearChanged()
+    }
+
+    fun rowGone(start: Int) { composedRows.remove(start) }
+
+    // About 12 tiles before the first row composed and 30 after the last:
+    // their thumbnails are asked for, after the tiles on screen.
+    private fun nearChanged() {
+        if (composedRows.isEmpty()) return
+        val items = _state.value.items
+        val from = maxOf(0, composedRows.keys.min() - GridThumbFetcher.REACH_BEFORE)
+        val to = minOf(items.size, composedRows.values.max() + GridThumbFetcher.REACH_AFTER)
+        if (from < to) tiles.near(items.subList(from, to).map { it.path })
+    }
+
+    /** A tile is on screen ([needsThumb]: without a thumbnail): its thumbnail is fetched before the others. */
+    fun tileShown(path: String, needsThumb: Boolean) { if (!fixedList) tiles.shown(path, needsThumb) }
+
+    /** The tile left the screen. */
+    fun tileGone(path: String) { if (!fixedList) tiles.gone(path) }
+
+    /** A tile's thumbnail is gone from the cache (cleared in Settings, or by the system): fetched again. */
+    fun thumbLost(path: String) {
+        if (fixedList) return
+        _state.update { it.copy(thumbKeys = it.thumbKeys + (path to "")) }
+        tiles.shown(path, needsThumb = true)
+    }
+
+    // Tiles whose bytes failed to decode this search: a second time, none.
+    private val undecodable = HashSet<String>()
+
+    /**
+     * A tile's bytes ([key]) didn't decode (a file a power cut left zeroed
+     * passes the size check): dropped from the cache and fetched again - and
+     * if those don't decode either, the tile has none (never a loop).
+     */
+    fun thumbUndecodable(path: String, key: String) {
+        if (fixedList) return
+        scope.launch { thumbs.discard(key) }
+        if (undecodable.add(path)) { thumbLost(path); return }
+        _state.update { it.copy(thumbKeys = it.thumbKeys + (path to "")) }
+        tiles.markNone(path)
+    }
+
+    /** Tiles' bytes by key (State.thumbKeyOf): memory, then the cache on disk. */
+    suspend fun loadThumb(key: String): ByteArray? = thumbs.load(key)
 
     /** Try again (and a Wake): the page that failed, asked for now, its wait started over. */
     fun retryPage() {
@@ -837,6 +954,13 @@ class PhotoGalleryViewModel(
             val group = st0.activeGroup?.id ?: ""
             val requestToken = overrideToken ?: token ?: ""
             val have = st0.items.size
+            // A device known to leave the thumbnails out gets a bigger first
+            // page: its rows are ~200 bytes each, the tiles come from the
+            // cache or GetThumbnails. One that sends them (before release
+            // 113) gets the small first page, as before.
+            val firstLimit = if (thumbs.omitsThumbnails()) FIRST_PAGE_LIMIT_WITHOUT_THUMBS else FIRST_PHOTO_PAGE_LIMIT
+            // The device this page is asked of: what it brings is kept for it only.
+            val thumbScope = thumbs.scope()
             // What came instead of a page (null: nothing came), and what was
             // thrown instead of an answer: why the grid says it failed.
             var resp: RespEnvelope? = null
@@ -847,13 +971,14 @@ class PhotoGalleryViewModel(
                 try {
                     resp = ask("page", OTCConnection.PAGE_TIMEOUT_MS) { e ->
                         // The grid's tiles: small thumbnails (release 111;
-                        // an older device sends big ones).
+                        // an older device sends big ones), left out of the
+                        // page (release 113; an older device sends them).
                         val sp = SearchPhotos.newBuilder().addAllTags(tags).addAllPersonIds(people).setGroupId(group).setIncludeVideos(true).setToken(tok).setHave(have)
-                            .setSmallThumbnails(true)
+                            .setSmallThumbnails(true).setOmitThumbnails(true)
                         // A search starting here (opening, a filter, the
-                        // scrubber's jump) gets a small first page; scrolling
-                        // on, the device's own size.
-                        if (tok.isEmpty()) sp.limit = FIRST_PHOTO_PAGE_LIMIT
+                        // scrubber's jump) gets a first page of its own size;
+                        // scrolling on, a bigger one.
+                        sp.limit = if (tok.isEmpty()) firstLimit else NEXT_PAGE_LIMIT_WITHOUT_THUMBS
                         if (cutoffMs != null) sp.before = Timestamp.newBuilder().setSeconds(Math.floorDiv(cutoffMs, 1000L)).setNanos(Math.floorMod(cutoffMs, 1000L).toInt() * 1_000_000).build()
                         e.setReqSearchPhotos(sp)
                     }
@@ -889,8 +1014,9 @@ class PhotoGalleryViewModel(
                 return PageResult.FAILED
             }
             val lof = got.respListOfFiles
-            val withThumb = lof.filesList.filter { it.hasContent() }.map { f -> ThumbStore.tileKey(f.path, f.hash, f.byteSize) to f.content.toByteArray() }
-            if (withThumb.isNotEmpty()) ThumbStore.putAll(withThumb)
+            // Each tile from the page (a device before release 113) or the
+            // cache; what it lacks is fetched once the page is in.
+            val landed = thumbs.land(lof.filesList, thumbScope)
             if (mine != searchGeneration) return PageResult.SKIPPED
             // Each photo's month, once, here: the grid lays the months out
             // from these (PhotoMonths.kt) without looking at a date again.
@@ -898,7 +1024,7 @@ class PhotoGalleryViewModel(
             val newItems = lof.filesList.map { f ->
                 val month = if (f.hasCreated()) monthOf(f.created.seconds, f.created.nanos, zone) else null
                 val created = if (f.hasCreated()) f.created.seconds * 1000 + f.created.nanos / 1_000_000 else null
-                Item("${f.path}#${f.hash}#${f.byteSize}", f.path, f.mime, f.byteSize, if (f.hasContent()) ThumbStore.tileKey(f.path, f.hash, f.byteSize) else null, month = month, created = created)
+                Item("${f.path}#${f.hash}#${f.byteSize}", f.path, f.mime, f.byteSize, landed.keys[f.path], month = month, created = created, hash = f.hash)
             }
             token = lof.token.ifEmpty { null }
             // A jump's first page (asked again after a failure too): the grid
@@ -916,6 +1042,9 @@ class PhotoGalleryViewModel(
                     pageProblem = null, slowFirstPage = false, jumpsLanded = if (jumped) st.jumpsLanded + 1 else st.jumpsLanded,
                 )
             }
+            // Asked for as their tiles show or come near.
+            tiles.note(landed.fetch, landed.refetch)
+            nearChanged()
             return PageResult.LANDED
         } finally {
             if (mine == searchGeneration) {
@@ -1163,7 +1292,7 @@ class PhotoGalleryViewModel(
         val idx = st.openIndex ?: return null
         val item = st.items.getOrNull(idx) ?: return null
         st.bigThumbs[item.path]?.let { b -> withContext(Dispatchers.Default) { decodeBitmap(b) } }?.let { return it }
-        return item.thumbKey?.let { ThumbStore.load(it) }?.let { decodeBitmap(it) } ?: item.preview
+        return st.thumbKeyOf(item)?.let { thumbs.load(it) }?.let { decodeBitmap(it) } ?: item.preview
     }
 
     /** Issue #9: write the loaded image to a temp file and hand it to the share sheet. */
@@ -1201,6 +1330,8 @@ class PhotoGalleryViewModel(
             if (resp.error) { alert("Delete failed: ${resp.errorMessage}"); return@launch }
         } catch (e: Exception) { alert("Delete failed: ${e.message}"); return@launch }
         _state.update { st -> st.copy(items = st.items.filterIndexed { i, _ -> i != idx }, selected = st.selected - item.path) }
+        // Gone from the device: its thumbnail goes from the phone too.
+        if (item.hash.isNotEmpty()) thumbs.discard(item.hash)
         if (_state.value.items.isEmpty()) closeModal() else open(minOf(idx, _state.value.items.size - 1))
         onDeleted?.invoke()
         countsChanged()
@@ -1232,6 +1363,8 @@ class PhotoGalleryViewModel(
             deleted += p
         }
         if (deleted.isNotEmpty()) {
+            // Gone from the device: their thumbnails go from the phone too.
+            for (i in _state.value.items) if (i.path in deleted && i.hash.isNotEmpty()) thumbs.discard(i.hash)
             _state.update { st -> st.copy(items = st.items.filter { it.path !in deleted }, selected = st.selected - deleted) }
             countsChanged()
         }

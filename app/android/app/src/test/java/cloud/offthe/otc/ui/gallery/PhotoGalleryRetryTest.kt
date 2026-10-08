@@ -15,7 +15,10 @@ import cloud.offthe.otc.proto.RespPhotoDateBuckets
 import cloud.offthe.otc.proto.SearchPhotos
 import cloud.offthe.otc.proto.TagsList
 import cloud.offthe.otc.ui.common.LoadProblem
-import cloud.offthe.otc.ui.common.ThumbStore
+import cloud.offthe.otc.ui.common.FIRST_PAGE_LIMIT_WITHOUT_THUMBS
+import cloud.offthe.otc.ui.common.NEXT_PAGE_LIMIT_WITHOUT_THUMBS
+import cloud.offthe.otc.ui.common.TestThumbStore
+import cloud.offthe.otc.ui.common.hx
 import com.google.protobuf.Timestamp
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -29,7 +32,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import java.io.IOException
 import java.time.ZoneId
 import java.util.concurrent.CopyOnWriteArrayList
@@ -44,6 +49,9 @@ class PhotoGalleryRetryTest {
     private val executor = Executors.newSingleThreadExecutor()
     private val dispatcher = executor.asCoroutineDispatcher()
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+    @get:Rule val tmp = TemporaryFolder()
+    // The tiles' thumbnail cache: empty, a device not known to leave thumbnails out.
+    private val thumbs by lazy { TestThumbStore(tmp.newFolder()) }
 
     @After fun tearDown() {
         scope.cancel()
@@ -76,7 +84,7 @@ class PhotoGalleryRetryTest {
 
     private fun photo(path: String, at: String = "2026-10-01T10:00:00Z"): File {
         val t = java.time.Instant.parse(at)
-        return File.newBuilder().setPath(path).setHash("h-$path").setMime("image/jpeg")
+        return File.newBuilder().setPath(path).setHash(hx(path)).setMime("image/jpeg")
             .setCreated(Timestamp.newBuilder().setSeconds(t.epochSecond)).build()
     }
     private fun page(files: List<File>, token: String = "") =
@@ -84,9 +92,11 @@ class PhotoGalleryRetryTest {
     private fun page(vararg paths: String, token: String = "") = page(paths.map { photo(it) }, token)
     private val noBuckets = RespEnvelope.newBuilder().setRespPhotoDateBuckets(RespPhotoDateBuckets.getDefaultInstance()).build()
     private val deviceError = RespEnvelope.newBuilder().setError(true).setErrorMessage("internal error").build()
+    // The grid's GetThumbnails for the photos' tiles (none here).
+    private val noThumbs = RespEnvelope.newBuilder().setRespListOfFiles(ListOfFiles.getDefaultInstance()).build()
 
     private fun vm(dev: Device, waits: Waits = Waits(), problem: LoadProblem = LoadProblem.FAILED, online: () -> Boolean = { true }) =
-        PhotoGalleryViewModel("test", send = dev.send, pause = waits.pause, online = online, problemOf = { _, _ -> problem }, scope = scope)
+        PhotoGalleryViewModel("test", send = dev.send, pause = waits.pause, online = online, problemOf = { _, _ -> problem }, thumbs = thumbs, scope = scope)
 
     /** Runs [block] on the view model's own thread. */
     private fun <T> on(block: suspend () -> T): T = runBlocking(dispatcher) { block() }
@@ -109,6 +119,7 @@ class PhotoGalleryRetryTest {
         when (req.payloadCase) {
             ReqEnvelope.PayloadCase.REQ_PHOTO_DATE_BUCKETS -> noBuckets
             ReqEnvelope.PayloadCase.REQ_SEARCH_PHOTOS -> searches(req.reqSearchPhotos)
+            ReqEnvelope.PayloadCase.REQ_GET_THUMBNAILS -> noThumbs
             else -> null
         }
     }
@@ -213,7 +224,7 @@ class PhotoGalleryRetryTest {
             if (kind != "page") dev.send(kind, baseMs, build)
             else patience.run(kind, baseMs) { limit -> limits += limit; WSClient.Answer(dev.send(kind, baseMs, build), 80_000) }
         }
-        val vm = PhotoGalleryViewModel("test", send = send, pause = Waits().pause, online = { true }, problemOf = { _, _ -> LoadProblem.SLOW }, scope = scope)
+        val vm = PhotoGalleryViewModel("test", send = send, pause = Waits().pause, online = { true }, problemOf = { _, _ -> LoadProblem.SLOW }, thumbs = thumbs, scope = scope)
         start(vm)
         await("the photo") { vm.state.value.items.size == 1 }
         // 2 minutes, then twice that, then at most 5 minutes: never cut off for good.
@@ -230,7 +241,7 @@ class PhotoGalleryRetryTest {
         val waits = Waits().apply { gate = CompletableDeferred() }
         val vm = PhotoGalleryViewModel(
             "test", send = dev.send, pause = waits.pause, online = { online },
-            problemOf = { _, _ -> if (online) LoadProblem.FAILED else LoadProblem.OFFLINE }, scope = scope,
+            problemOf = { _, _ -> if (online) LoadProblem.FAILED else LoadProblem.OFFLINE }, thumbs = thumbs, scope = scope,
         )
         start(vm)
         await("the failure") { vm.state.value.let { it.pageProblem != null && !it.loading } }
@@ -362,8 +373,9 @@ class PhotoGalleryRetryTest {
         assertNull(st.pageProblem)
         assertTrue(st.endReached)
         assertEquals(listOf("", "t1", "t1", "t1"), dev.searches().map { it.token })
-        // Continuing with the token: the device's own page size.
-        assertEquals(0, dev.searches().last().limit)
+        // Continuing with the token: a bigger page (a device before release
+        // 113 answers at most its default, 30, whatever is asked).
+        assertEquals(NEXT_PAGE_LIMIT_WITHOUT_THUMBS, dev.searches().last().limit)
     }
 
     // ---- the scrubber's jump --------------------------------------------------------
@@ -385,14 +397,17 @@ class PhotoGalleryRetryTest {
         assertEquals(1, st.jumpsLanded)
         assertNull(st.placeholderCount)
         assertNull(st.pageProblem)
-        // Both asks from the same month's end, as the first page of a search.
+        // Both asks from the same month's end, as the first page of a search
+        // - the bigger one: the page before came without thumbnails, so the
+        // device is known to leave them out.
         val cutoff = jumpCutoffMs("2019-03", ZoneId.systemDefault())!!
         val jumps = dev.searches().filter { it.hasBefore() }
         assertEquals(2, jumps.size)
+        assertEquals(FIRST_PHOTO_PAGE_LIMIT, dev.searches().first().limit)
         jumps.forEach {
             assertEquals(Math.floorDiv(cutoff, 1000L), it.before.seconds)
             assertEquals("", it.token)
-            assertEquals(FIRST_PHOTO_PAGE_LIMIT, it.limit)
+            assertEquals(FIRST_PAGE_LIMIT_WITHOUT_THUMBS, it.limit)
         }
     }
 
@@ -436,6 +451,8 @@ class PhotoGalleryRetryTest {
             }
         }
         val vm = vm(dev)
+        // The grid's rows on screen: their tiles' thumbnails are asked for.
+        on { vm.rowShown(0, 1_000) }
         start(vm)
         await("the first page") { vm.state.value.items.size == 12 }
         on { vm.loadMoreIfNeeded(11) }
@@ -447,8 +464,12 @@ class PhotoGalleryRetryTest {
         assertEquals(listOf("", "t1", ""), searches.map { it.token })
         assertTrue(searches.last().hasBefore())
         searches.forEach { assertTrue(it.smallThumbnails) }
-        // Tiles are kept under a key of their own: never where a big one would be.
-        assertEquals("/a.jpg#h1#3#small", ThumbStore.tileKey("/a.jpg", "h1", 3))
+        // And without them (release 113): the tiles come from the cache, and
+        // what it lacks from GetThumbnails - small ones too.
+        searches.forEach { assertTrue(it.omitThumbnails) }
+        // Asked for after a moment's gathering.
+        await("the tiles' thumbnails") { dev.of(ReqEnvelope.PayloadCase.REQ_GET_THUMBNAILS).isNotEmpty() }
+        dev.of(ReqEnvelope.PayloadCase.REQ_GET_THUMBNAILS).forEach { assertTrue(it.req.reqGetThumbnails.smallThumbnails) }
     }
 
     @Test fun aNewCollectionsCoverIsSmallToo() {
@@ -477,7 +498,9 @@ class PhotoGalleryRetryTest {
             ReqEnvelope.PayloadCase.REQ_PHOTO_DATE_BUCKETS -> noBuckets
             ReqEnvelope.PayloadCase.REQ_SEARCH_PHOTOS -> page("a", "b", "c")
             ReqEnvelope.PayloadCase.REQ_GET_FILE -> full(req.reqGetFile.path)
-            ReqEnvelope.PayloadCase.REQ_GET_THUMBNAILS -> thumbs(req.reqGetThumbnails.getPaths(0))
+            // The grid's tiles (small ones) apart from the viewer's big one.
+            ReqEnvelope.PayloadCase.REQ_GET_THUMBNAILS ->
+                if (req.reqGetThumbnails.smallThumbnails) noThumbs else thumbs(req.reqGetThumbnails.getPaths(0))
             else -> null
         }
     }

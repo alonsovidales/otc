@@ -136,7 +136,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import cloud.offthe.otc.ui.common.FileTypeIcon
+import cloud.offthe.otc.ui.common.THUMB_BATCH
+import cloud.offthe.otc.ui.common.TILES_KIND
+import cloud.offthe.otc.ui.common.ThumbKind
+import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.common.decodeBitmap
+import cloud.offthe.otc.ui.common.takeAnswer
+import cloud.offthe.otc.ui.common.thumbTileKey
 import androidx.compose.ui.graphics.asAndroidBitmap
 import cloud.offthe.otc.ui.gallery.ImageModal
 import cloud.offthe.otc.ui.gallery.PhotoGalleryViewModel
@@ -405,7 +411,6 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
 
     companion object {
         private const val VIEW_MODE_KEY = "files_view_mode"
-        private const val THUMB_BATCH = 24
         private val prefs get() = OTCApp.instance.getSharedPreferences("otc_settings", Context.MODE_PRIVATE)
     }
 
@@ -428,6 +433,21 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     private val thumbsPending = mutableSetOf<String>()
     private val noThumb = mutableSetOf<String>()
     private var pumping = false
+
+    // Settings' Clear thumbnail cache: the decoded tiles (the folder's and the
+    // search results') and the "none" marks go too; the tiles ask again.
+    init {
+        viewModelScope.launch {
+            var seen = ThumbStore.clears.value
+            ThumbStore.clears.collect { n ->
+                if (n == seen) return@collect
+                seen = n
+                thumbCache.evictAll()
+                synchronized(thumbLock) { noThumb.clear() }
+                _state.update { it.copy(thumbs = emptyMap(), thumbGen = it.thumbGen + 1) }
+            }
+        }
+    }
 
     private val _state = MutableStateFlow(State(path = initialPath))
     val state: StateFlow<State> = _state
@@ -574,20 +594,91 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         _state.update { it.copy(results = null) }
     }
 
-    /** The results' photos and videos, by their thumbnails: asked for together, 24 paths at a time. */
+    /** The results' photos and videos, by their thumbnails: the phone's cache first, the rest asked for together, 24 paths at a time. */
     private suspend fun resultThumbnails(files: List<PbFile>) {
-        val want = files.filter { isMediaFile(it) && thumbCache.get(it.path + "\u0000" + it.hash) == null }
-        for (batch in want.chunked(THUMB_BATCH)) {
+        val want = files.filter { isMediaFile(it) && thumbCache.get(resultThumbKey(it)) == null }.map { TileAsk(resultThumbKey(it), it.path) }
+        if (want.isEmpty()) return
+        var rest = try { thumbsFromCache(want) } catch (_: Exception) { want }
+        if (rest.size < want.size || rest.any { it.reask }) _state.update { it.copy(thumbs = thumbCache.snapshot()) }
+        while (rest.isNotEmpty()) {
+            val batch = rest.take(THUMB_BATCH)
+            rest = rest.drop(THUMB_BATCH)
             try {
-                val resp = OTCConnection.request { it.setReqGetThumbnails(GetThumbnails.newBuilder().addAllPaths(batch.map { f -> f.path }).setSmallThumbnails(true)) }
-                if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) continue
-                val byPath = resp.respListOfFiles.filesList.associateBy { it.path }
-                withContext(Dispatchers.Default) {
-                    for (f in batch) byPath[f.path]?.let { decodeBitmap(it.content.toByteArray(), maxSide = 512) }?.let { thumbCache.put(f.path + "\u0000" + f.hash, it.asImageBitmap()) }
-                }
-                _state.update { it.copy(thumbs = thumbCache.snapshot()) }
-            } catch (_: Exception) {}
+                // Paths the answer didn't get to (ask_again_from): first in line.
+                rest = askThumbnails(batch).second + rest
+            } catch (_: Exception) { continue }
+            _state.update { it.copy(thumbs = thumbCache.snapshot()) }
         }
+    }
+
+    /** A tile to ask the device for: its key (full path NUL hash), its full path, and whether it is asked again for its small one. */
+    private data class TileAsk(val key: String, val path: String, val reask: Boolean = false)
+
+    /**
+     * Tiles ([TileAsk.key], [TileAsk.path]) from the phone's thumbnail cache
+     * (ThumbStore), decoded into thumbCache: a small one is enough; a big or
+     * unknown one shows at once and is asked for again once a launch
+     * (ThumbStore.claimFilesReasks: Files' own, under the still-big rule).
+     * Bytes that don't decode are dropped and asked for. The ones to ask the
+     * device for.
+     */
+    private suspend fun thumbsFromCache(wanted: List<TileAsk>): List<TileAsk> {
+        val kinds = ThumbStore.kinds(wanted.map { it.key.substringAfter('\u0000') }.filter { it.isNotEmpty() })
+        val stale = wanted.map { it.key.substringAfter('\u0000') }.filter { kinds[it] == ThumbKind.BIG || kinds[it] == ThumbKind.UNKNOWN }
+        val reask = ThumbStore.claimFilesReasks(stale)
+        val ask = ArrayList<TileAsk>()
+        for (w in wanted) {
+            val hash = w.key.substringAfter('\u0000')
+            val kind = kinds[hash]
+            if (kind != null) {
+                val tile = thumbTileKey(hash, kind)
+                val bytes = ThumbStore.load(tile)
+                val bmp = bytes?.let { b -> withContext(Dispatchers.Default) { decodeBitmap(b, maxSide = 512) } }
+                if (bmp != null) {
+                    thumbCache.put(w.key, bmp.asImageBitmap())
+                    if (hash !in reask) continue
+                    ask += w.copy(reask = true)
+                    continue
+                }
+                // Kept but not decodable: dropped, asked for.
+                if (bytes != null) ThumbStore.discard(tile)
+            }
+            ask += w
+        }
+        return ask
+    }
+
+    /**
+     * One GetThumbnails (small ones) for [ask] (at most THUMB_BATCH): each
+     * thumbnail kept in the phone's cache under the answer's hash and decoded
+     * into thumbCache. The keys the device has none for (release 113: looked
+     * at and left out - never from an older device, whose answers can be cut
+     * at 8 MB unsaid - and, from any, bytes that don't decode, which are
+     * dropped), and the ones to ask again (not looked at: ask_again_from). A
+     * re-ask answered big again is noted still big. Throws when the request
+     * fails.
+     */
+    private suspend fun askThumbnails(ask: List<TileAsk>): Pair<Set<String>, List<TileAsk>> {
+        val paths = ask.map { it.path }
+        val scope = ThumbStore.scope()
+        val resp = OTCConnection.ask(TILES_KIND, OTCConnection.PAGE_TIMEOUT_MS) { it.setReqGetThumbnails(GetThumbnails.newBuilder().addAllPaths(paths).setSmallThumbnails(true)) }
+        if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) throw java.io.IOException("no thumbnails")
+        val answer = ThumbStore.takeAnswer(
+            paths, resp.respListOfFiles, knownDevice113 = ThumbStore.omitsThumbnails(), scope = scope,
+            reasked = ask.filter { it.reask }.mapTo(HashSet()) { it.path },
+        )
+        if (answer.dropped) return emptySet<String>() to emptyList()
+        val none = HashSet<String>()
+        for (a in ask) {
+            if (!answer.landed.containsKey(a.path)) continue
+            val tile = answer.landed[a.path]
+            if (tile == null) { none += a.key; continue }
+            val bmp = ThumbStore.load(tile)?.let { b -> withContext(Dispatchers.Default) { decodeBitmap(b, maxSide = 512) } }
+            if (bmp != null) thumbCache.put(a.key, bmp.asImageBitmap())
+            else { ThumbStore.discard(tile); none += a.key }
+        }
+        val again = answer.again.toHashSet()
+        return none to ask.filter { it.path in again }
     }
 
     /** A result's thumbnail, if it has one by now. */
@@ -641,8 +732,11 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     }
 
     /**
-     * Sends the queued tiles in batches of 24 full paths. Paths the answer
-     * leaves out have no thumbnail; tiles of a folder that was left are
+     * Sends the queued tiles in batches of 24 full paths, after looking
+     * each one up in the phone's thumbnail cache (thumbsFromCache: a small
+     * one kept is all a tile needs). Paths the device looked at and left out
+     * have no thumbnail (release 113; see askThumbnails); ones it didn't get
+     * to are first in line again. Tiles of a folder that was left are
      * dropped before they are asked for.
      */
     private suspend fun pumpThumbnails() {
@@ -656,23 +750,24 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
             if (batch.isEmpty()) return
             val folder = batch[0].third
             try {
+                val ask = thumbsFromCache(batch.map { TileAsk(it.first, it.second) })
+                if ((ask.size < batch.size || ask.any { it.reask }) && path == folder) _state.update { it.copy(thumbs = thumbCache.snapshot()) }
                 // The tiles' small thumbnails (release 111; an older device
                 // sends big ones). The viewer shows them only until the full
                 // size arrives, and asks for the big one itself where it
                 // would stay (PhotoGalleryViewModel.thumbnailStays).
-                val resp = OTCConnection.request { it.setReqGetThumbnails(GetThumbnails.newBuilder().addAllPaths(batch.map { b -> b.second }).setSmallThumbnails(true)) }
-                if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) {
-                    val byPath = resp.respListOfFiles.filesList.associateBy { it.path }
-                    for ((key, full, _) in batch) {
-                        val bmp = byPath[full]?.let { decodeBitmap(it.content.toByteArray(), maxSide = 512) }
-                        if (bmp != null) thumbCache.put(key, bmp.asImageBitmap())
-                        else synchronized(thumbLock) { noThumb.add(key) }
+                if (ask.isNotEmpty()) {
+                    val (none, again) = askThumbnails(ask)
+                    synchronized(thumbLock) {
+                        noThumb.addAll(none)
+                        for (a in again.asReversed()) thumbQueue.addFirst(Triple(a.key, a.path, folder))
                     }
                     if (path == folder) _state.update { it.copy(thumbs = thumbCache.snapshot()) }
                 }
             } catch (_: Exception) {
             } finally {
-                synchronized(thumbLock) { thumbsPending.removeAll(batch.map { it.first }.toSet()) }
+                // What waits again stays pending.
+                synchronized(thumbLock) { thumbsPending.removeAll(batch.map { it.first }.filter { k -> thumbQueue.none { it.first == k } }.toSet()) }
             }
         }
     }
@@ -726,6 +821,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     val selectionUploadOnly: Boolean get() = _state.value.rows.any { it.path in _state.value.selected && it.uploadOnly }
 
     suspend fun deleteSelected() {
+        val rows = _state.value.rows
         for (p in _state.value.selected) {
             try {
                 val full = if (p.contains("/")) p else joinPath(path, p)
@@ -734,6 +830,9 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
                     showToast("${leafName(full)} is in an upload-only folder and cannot be deleted")
                     break
                 }
+                // A file gone from the device: its thumbnail goes from the
+                // phone's cache too (a folder's contents aren't followed).
+                if (!resp.error) rows.firstOrNull { it.path == p && !it.isDir }?.raw?.hash?.takeIf { it.isNotEmpty() }?.let { ThumbStore.discard(it) }
             } catch (_: Exception) {}
         }
         load()
@@ -963,7 +1062,7 @@ fun FilesExplorerView(initialPath: String) {
         // The grid's thumbnail is the placeholder until the full size arrives.
         val items = media.map { r ->
             val full = vm.fullPath(r)
-            PhotoGalleryViewModel.Item("$full#${r.raw.hash}#${r.size}", full, r.raw.mime, r.size, null, st.thumbs[vm.thumbKey(r)]?.asAndroidBitmap())
+            PhotoGalleryViewModel.Item("$full#${r.raw.hash}#${r.size}", full, r.raw.mime, r.size, null, st.thumbs[vm.thumbKey(r)]?.asAndroidBitmap(), hash = r.raw.hash)
         }
         viewer.showFiles(items, media.indexOf(row)) { vm.launchLoad() }
     }
@@ -1006,7 +1105,7 @@ fun FilesExplorerView(initialPath: String) {
         val row = media.firstOrNull { vm.fullPath(it) == file.path }
         // Not in the listing (the file went): the file alone.
         if (row != null) openRow(row)
-        else viewer.showFiles(listOf(PhotoGalleryViewModel.Item("${file.path}#${file.hash}#${file.byteSize}", file.path, file.mime, file.byteSize, null)), 0) { vm.launchLoad() }
+        else viewer.showFiles(listOf(PhotoGalleryViewModel.Item("${file.path}#${file.hash}#${file.byteSize}", file.path, file.mime, file.byteSize, null, hash = file.hash)), 0) { vm.launchLoad() }
     }
     // The system back leaves the results for the folder.
     BackHandler(enabled = st.results != null) { vm.closeResults() }
@@ -1026,7 +1125,7 @@ fun FilesExplorerView(initialPath: String) {
         if (isMediaFile(f)) {
             val media = results.files.filter { isMediaFile(it) }
             val items = media.map { x ->
-                PhotoGalleryViewModel.Item("${x.path}#${x.hash}#${x.byteSize}", x.path, x.mime, x.byteSize, null, st.thumbs[vm.resultThumbKey(x)]?.asAndroidBitmap())
+                PhotoGalleryViewModel.Item("${x.path}#${x.hash}#${x.byteSize}", x.path, x.mime, x.byteSize, null, st.thumbs[vm.resultThumbKey(x)]?.asAndroidBitmap(), hash = x.hash)
             }
             viewer.showFiles(items, maxOf(0, media.indexOf(f))) { vm.startSearch(results.text) }
             return

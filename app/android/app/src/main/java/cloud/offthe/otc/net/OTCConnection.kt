@@ -322,12 +322,12 @@ object OTCConnection {
         if (open.connected) {
             signInOrFail(open, password, deviceId, credKey)
             currentCoroutineContext().ensureActive()
-            signedIn()
+            signedIn(url)
             if (_route.value != Route.HOME) refreshHomeEndpoint(open, url, gen)
             return
         }
 
-        secrets.homeEndpoint(url)?.let { ep -> if (signInAtHome(ep, password, deviceId, credKey)) return }
+        secrets.homeEndpoint(url)?.let { ep -> if (signInAtHome(ep, url, password, deviceId, credKey)) return }
 
         // Through the configured endpoint, as always. The socket is the
         // current one from the start, so a connect that fails schedules the
@@ -345,7 +345,7 @@ object OTCConnection {
         }
         signInOrFail(c, password, deviceId, credKey)
         currentCoroutineContext().ensureActive()
-        signedIn()
+        signedIn(url)
         refreshHomeEndpoint(c, url, gen)
         scheduleHomeRetry(first = true)
     }
@@ -386,7 +386,7 @@ object OTCConnection {
      * when the device itself turned the password down - the bridge would
      * say the same, and count one more failure.
      */
-    private suspend fun signInAtHome(ep: HomeEndpoint, password: String, deviceId: String, credKey: String): Boolean {
+    private suspend fun signInAtHome(ep: HomeEndpoint, url: String, password: String, deviceId: String, credKey: String): Boolean {
         val vias = NetworkWatch.homeRoutes()
         if (vias.isEmpty()) return false
         val opened = try {
@@ -428,7 +428,7 @@ object OTCConnection {
             if (!c.connected) return false
             install(c, Route.HOME, Home(HomeNetwork.origin(opened.address, ep.port), ep.certSha256, opened.via))
             kept = true
-            signedIn()
+            signedIn(url)
             Log.i(TAG, "signed in over the home network")
             return true
         } finally {
@@ -496,7 +496,8 @@ object OTCConnection {
         authBackoffMs = minOf(authBackoffMs * 2, maxAuthBackoffMs)
     }
 
-    private fun signedIn() {
+    /** Signed in through the configured endpoint [url] (or at home for it). */
+    private fun signedIn(url: String) {
         _lastError.value = null
         _statusCode.value = null
         _connectionFailed.value = false
@@ -504,6 +505,9 @@ object OTCConnection {
         authRejection = null
         authBackoffMs = 5_000L
         _authenticated.value = true
+        // The thumbnail cache is this device's (and account's) from now on:
+        // bound on a sign-in, never on an address merely saved.
+        cloud.offthe.otc.ui.common.ThumbStore.signedIn(url)
         // On every sign-in, not only when the main screen first shows: a
         // device set up (or reinstalled) while the app was running would
         // otherwise never learn this phone's token.

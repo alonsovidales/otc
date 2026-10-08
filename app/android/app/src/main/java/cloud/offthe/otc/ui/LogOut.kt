@@ -55,7 +55,6 @@ fun logOut(
         SocialFeedViewModel.reset()
         OTCConnection.reset()
         MediaStream.reset()
-        ThumbStore.clear()
         ThumbCache.clear()
         SyncScheduler.cancel()
         // Off the main thread: the wipe deletes the whole cache and files dirs.
@@ -66,7 +65,12 @@ fun logOut(
             // after the wipe, and the next device would skip the library.
             PhotoSync.cancel()
             AssetSyncCache.clear()
+            // The thumbnail cache is let go before the wipe deletes it (and
+            // its size setting in filesDir) - and again after, in case a grid
+            // opened it meanwhile: the next sign-in starts with an empty one.
+            ThumbStore.logOut()
             secrets.logOut()
+            ThumbStore.logOut()
             if (keepDevice) SecretsStore.saveLastDevice(last.first, last.second) else SecretsStore.clearLastDevice()
         }
         val activity = context as? Activity ?: return@launch

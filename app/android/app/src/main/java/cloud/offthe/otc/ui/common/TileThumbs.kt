@@ -37,14 +37,19 @@ object ThumbCache {
  * A tile's thumbnail, decoded on a background thread to the tile's size
  * ([sidePx]) and cached by [key] (null: no thumbnail), so a tile scrolled
  * back shows on its first frame. [key] must change when the image does
- * (path#hash#size for a file). [bytes]: the encoded thumbnail.
+ * (hash#kind for a grid tile). [bytes]: the encoded thumbnail.
+ * [onUndecodable]: there were bytes and they didn't decode - the grids drop
+ * them from the cache and fetch the tile again (a blank tile for good
+ * otherwise).
  */
 @Composable
-fun rememberTileThumb(key: String?, sidePx: Int, bytes: suspend () -> ByteArray?): Bitmap? {
+fun rememberTileThumb(key: String?, sidePx: Int, onUndecodable: (() -> Unit)? = null, bytes: suspend () -> ByteArray?): Bitmap? {
     if (key == null) return null
     val cacheKey = "$key@$sidePx"
     return rememberOffMain(cacheKey, { ThumbCache.get(cacheKey) }) {
         val b = bytes() ?: return@rememberOffMain null
-        withContext(Dispatchers.Default) { decodeThumbnail(b, sidePx) }?.also { ThumbCache.put(cacheKey, it) }
+        val bmp = withContext(Dispatchers.Default) { decodeThumbnail(b, sidePx) }
+        if (bmp == null) onUndecodable?.invoke()
+        bmp?.also { ThumbCache.put(cacheKey, it) }
     }
 }

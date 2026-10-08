@@ -31,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -39,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -50,13 +52,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import cloud.offthe.otc.net.OTCConnection
-import cloud.offthe.otc.net.byteSize
+import cloud.offthe.otc.net.sleepOrWake
 import cloud.offthe.otc.proto.GetFile
 import cloud.offthe.otc.proto.ImageGroup
 import cloud.offthe.otc.proto.ListImageGroups
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SearchPhotos
+import cloud.offthe.otc.ui.common.FIRST_PAGE_LIMIT_WITHOUT_THUMBS
+import cloud.offthe.otc.ui.common.GridThumbFetcher
+import cloud.offthe.otc.ui.common.NEXT_PAGE_LIMIT_WITHOUT_THUMBS
+import cloud.offthe.otc.ui.common.TILES_KIND
 import cloud.offthe.otc.ui.common.ThumbStore
+import cloud.offthe.otc.ui.common.land
 import cloud.offthe.otc.ui.common.gridCellPx
 import cloud.offthe.otc.ui.common.rememberTileThumb
 import cloud.offthe.otc.ui.gallery.FIRST_PHOTO_PAGE_LIMIT
@@ -74,7 +81,7 @@ import kotlinx.coroutines.withContext
  * circle crop, which the caller opens exactly as for a phone pick.
  */
 
-// thumbKey: the tile's small thumbnail in ThumbStore (ThumbStore.tileKey; null: none).
+// thumbKey: the tile's thumbnail in ThumbStore (thumbTileKey; null: none yet).
 private data class PickItem(val path: String, val thumbKey: String?)
 
 @Composable
@@ -95,6 +102,38 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
     var failures by remember { mutableIntStateOf(0) }
     // A page that then comes through takes this away (not a failed pick's).
     val pageError = "Could not load your photos."
+    // Tiles whose bytes failed to decode in this grid: a second time, none.
+    val undecodable = remember { HashSet<String>() }
+    // The tiles' missing thumbnails (pages come without them, release 113),
+    // a batch at a time, the tiles on screen first.
+    val tiles = remember {
+        GridThumbFetcher(
+            scope, ThumbStore,
+            send = { b -> OTCConnection.ask(TILES_KIND, OTCConnection.PAGE_TIMEOUT_MS) { it.setReqGetThumbnails(b) } },
+            pause = { sleepOrWake(it) },
+        ) { landed -> items = items.map { if (landed.containsKey(it.path)) it.copy(thumbKey = landed[it.path]) else it } }
+    }
+
+    val grid = rememberLazyGridState()
+    // The tiles within reach of the scroll (about 12 before the first on
+    // screen and 30 after the last) get their thumbnails.
+    fun nearTiles() {
+        val v = grid.layoutInfo.visibleItemsInfo
+        val first = v.firstOrNull()?.index ?: return
+        val last = v.lastOrNull()?.index ?: return
+        val from = maxOf(0, first - GridThumbFetcher.REACH_BEFORE)
+        val to = minOf(items.size, last + 1 + GridThumbFetcher.REACH_AFTER)
+        if (from < to) tiles.near(items.subList(from, to).map { it.path })
+    }
+    // Settings' Clear thumbnail cache (from another screen): the tiles marked as having none are asked for again.
+    LaunchedEffect(Unit) {
+        var seen = ThumbStore.clears.value
+        ThumbStore.clears.collect { n -> if (n != seen) { seen = n; tiles.forgetNone(); undecodable.clear() } }
+    }
+    LaunchedEffect(grid) {
+        snapshotFlow { grid.layoutInfo.visibleItemsInfo.let { v -> (v.firstOrNull()?.index ?: 0) to (v.lastOrNull()?.index ?: -1) } }
+            .collect { nearTiles() }
+    }
 
     suspend fun loadPage() {
         val t = token ?: return
@@ -102,22 +141,30 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
         val mine = generation
         loading = true
         try {
+            // Bigger pages from a device known to leave the thumbnails out (GridThumbs.kt).
+            val firstLimit = if (ThumbStore.omitsThumbnails()) FIRST_PAGE_LIMIT_WITHOUT_THUMBS else FIRST_PHOTO_PAGE_LIMIT
+            // The device this page is asked of: what it brings is kept for it only.
+            val thumbScope = ThumbStore.scope()
             val resp = OTCConnection.request { e ->
-                // A grid: its tiles' small thumbnails (release 111).
-                val sp = SearchPhotos.newBuilder().setGroupId(groupId).setIncludeVideos(false).setToken(t).setHave(items.size).setSmallThumbnails(true)
-                // A new search (opening, another chip) gets a small first
-                // page; scrolling on, the device's own size.
-                if (t.isEmpty()) sp.limit = FIRST_PHOTO_PAGE_LIMIT
+                // A grid: its tiles' small thumbnails (release 111), left out
+                // of the page (release 113: from the cache, or GetThumbnails).
+                val sp = SearchPhotos.newBuilder().setGroupId(groupId).setIncludeVideos(false).setToken(t).setHave(items.size)
+                    .setSmallThumbnails(true).setOmitThumbnails(true)
+                // A new search (opening, another chip) gets a first page of
+                // its own size; scrolling on, a bigger one.
+                sp.limit = if (t.isEmpty()) firstLimit else NEXT_PAGE_LIMIT_WITHOUT_THUMBS
                 e.setReqSearchPhotos(sp)
             }
             if (mine != generation) return
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) { error = pageError; failures += 1; return }
             val lof = resp.respListOfFiles
-            ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> ThumbStore.tileKey(f.path, f.hash, f.byteSize) to f.content.toByteArray() })
+            val landed = ThumbStore.land(lof.filesList, thumbScope)
             if (mine != generation) return
             val seen = items.map { it.path }.toSet()
-            items = items + lof.filesList.filter { it.path !in seen }
-                .map { f -> PickItem(f.path, if (f.hasContent()) ThumbStore.tileKey(f.path, f.hash, f.byteSize) else null) }
+            items = items + lof.filesList.filter { it.path !in seen }.map { f -> PickItem(f.path, landed.keys[f.path]) }
+            // Asked for as their tiles show or come near.
+            tiles.note(landed.fetch, landed.refetch)
+            nearTiles()
             token = lof.token.ifEmpty { null }
             failures = 0
             if (error == pageError) error = null
@@ -131,6 +178,8 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
     fun selectGroup(id: String) {
         if (id == groupId) return
         generation += 1
+        tiles.reset()
+        undecodable.clear()
         groupId = id; items = emptyList(); token = ""; loading = false; error = null; failures = 0
         scope.launch { loadPage() }
     }
@@ -155,7 +204,6 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
     // The page is launched apart from this effect: loadPage sets loading,
     // one of its keys, and the restart cancelled the request it had just
     // sent (shown as "Could not load your photos.", then asked again).
-    val grid = rememberLazyGridState()
     val nearEnd by remember { derivedStateOf { (grid.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) >= items.size - 12 } }
     LaunchedEffect(nearEnd, loading, token, generation) {
         if (nearEnd && !loading && token != null && items.isNotEmpty() && failures <= 2) {
@@ -196,7 +244,19 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(2.dp), verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxSize(),
                 ) {
                     items(items, key = { it.path }) { item ->
-                        PickTile(item, tilePx, busy = fetching == item.path) { pick(item) }
+                        DisposableEffect(item.path, item.thumbKey == null) {
+                            tiles.shown(item.path, needsThumb = item.thumbKey == null)
+                            onDispose { tiles.gone(item.path) }
+                        }
+                        PickTile(item, tilePx, busy = fetching == item.path, onLost = {
+                            // No longer kept (the cache was cleared): fetched again.
+                            items = items.map { if (it.path == item.path) it.copy(thumbKey = null) else it }
+                        }, onUndecodable = { key ->
+                            // Didn't decode: dropped and fetched again - none the second time.
+                            scope.launch { ThumbStore.discard(key) }
+                            items = items.map { if (it.path == item.path) it.copy(thumbKey = null) else it }
+                            if (!undecodable.add(item.path)) tiles.markNone(item.path)
+                        }) { pick(item) }
                     }
                     if (loading) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
@@ -214,8 +274,10 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
 }
 
 @Composable
-private fun PickTile(item: PickItem, sidePx: Int, busy: Boolean, onTap: () -> Unit) {
-    val bmp = rememberTileThumb(item.thumbKey, sidePx) { item.thumbKey?.let { ThumbStore.load(it) } }
+private fun PickTile(item: PickItem, sidePx: Int, busy: Boolean, onLost: () -> Unit, onUndecodable: (String) -> Unit, onTap: () -> Unit) {
+    val bmp = rememberTileThumb(item.thumbKey, sidePx, onUndecodable = { item.thumbKey?.let(onUndecodable) }) {
+        item.thumbKey?.let { ThumbStore.load(it) ?: run { onLost(); null } }
+    }
     Box(Modifier.aspectRatio(1f).background(Color(0x1A808080)).clickable(onClick = onTap)) {
         if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         if (busy) {

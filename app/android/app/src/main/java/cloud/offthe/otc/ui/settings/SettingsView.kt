@@ -7,6 +7,17 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import cloud.offthe.otc.ui.common.THUMB_CACHE_CHOICES
+import cloud.offthe.otc.ui.common.ThumbStore
+import cloud.offthe.otc.ui.common.formatCacheBytes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -183,6 +194,8 @@ fun SettingsView(secrets: SecretsStore) {
                 RowButton("Sync From Now") { secrets.persist(); PhotoSync.setWatermark(System.currentTimeMillis()) }
             }
 
+            ThumbnailCacheSection()
+
             Section("Image Tagging", "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.") {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("Image Tagging", Modifier.weight(1f))
@@ -298,6 +311,52 @@ private fun PasswordField(value: String, placeholder: String, onChange: (String)
         visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
     )
+}
+
+/**
+ * This phone's thumbnail cache (ThumbStore): its maximum size (250 MB to
+ * 5 GB, 1 GB unless changed - kept on this phone until Log Out), what it
+ * holds, and Clear (the tiles in memory go too). The strings are the iOS
+ * app's.
+ */
+@Composable
+private fun ThumbnailCacheSection() {
+    val usage by ThumbStore.usage.collectAsState()
+    val scope = rememberCoroutineScope()
+    var menu by remember { mutableStateOf(false) }
+    var clearing by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { ThumbStore.refreshUsage() }
+    Section("Thumbnail cache", "Thumbnails are kept on this phone so Images opens without downloading them again.") {
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                .clickable(onClickLabel = "Change the size", role = Role.DropdownList) { menu = true }
+                .semantics { contentDescription = "Maximum size, ${formatCacheBytes(usage.limit)}" }
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Maximum size", Modifier.weight(1f))
+            Box {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(formatCacheBytes(usage.limit), color = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Filled.ArrowDropDown, null, tint = MaterialTheme.colorScheme.primary)
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    for (choice in THUMB_CACHE_CHOICES) {
+                        DropdownMenuItem(
+                            text = { Text(formatCacheBytes(choice)) },
+                            trailingIcon = if (choice == usage.limit) ({ Icon(Icons.Filled.Check, "Selected") }) else null,
+                            onClick = { menu = false; scope.launch { ThumbStore.setLimit(choice) } },
+                        )
+                    }
+                }
+            }
+        }
+        Caption("Using ${formatCacheBytes(usage.used)} of ${formatCacheBytes(usage.limit)}")
+        RowButton("Clear thumbnail cache", enabled = !clearing) {
+            clearing = true
+            scope.launch { try { ThumbStore.clearAll() } finally { clearing = false } }
+        }
+    }
 }
 
 @Composable

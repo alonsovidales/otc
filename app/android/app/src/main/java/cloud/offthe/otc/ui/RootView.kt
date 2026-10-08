@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui
 
+import cloud.offthe.otc.ui.common.ThumbStore
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -63,7 +64,8 @@ fun RootView() {
                     NotificationsModel.startPolling()
                     Wake.fire()
                 }
-                Lifecycle.Event.ON_STOP -> { SyncScheduler.scheduleNext(); NotificationsModel.stopPolling() }
+                // The thumbnail cache's uses since its last write go out too.
+                Lifecycle.Event.ON_STOP -> { SyncScheduler.scheduleNext(); NotificationsModel.stopPolling(); ThumbStore.flushSoon() }
                 else -> {}
             }
         }

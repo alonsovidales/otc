@@ -64,6 +64,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -99,8 +101,14 @@ import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SearchPhotos
 import cloud.offthe.otc.proto.VideoTrim
 import cloud.offthe.otc.sync.PhotoSync
+import cloud.offthe.otc.net.sleepOrWake
+import cloud.offthe.otc.ui.common.FIRST_PAGE_LIMIT_WITHOUT_THUMBS
+import cloud.offthe.otc.ui.common.GridThumbFetcher
+import cloud.offthe.otc.ui.common.NEXT_PAGE_LIMIT_WITHOUT_THUMBS
+import cloud.offthe.otc.ui.common.TILES_KIND
 import cloud.offthe.otc.ui.common.ThumbCache
 import cloud.offthe.otc.ui.common.ThumbStore
+import cloud.offthe.otc.ui.common.land
 import cloud.offthe.otc.ui.common.gridCellPx
 import cloud.offthe.otc.ui.common.rememberOffMain
 import cloud.offthe.otc.ui.common.rememberTileThumb
@@ -119,7 +127,8 @@ import java.util.UUID
 class NewPostPickerViewModel : ViewModel() {
     enum class Source { PHONE, SYNCED }
 
-    // thumbKey: a synced item's thumbnail in ThumbStore. A phone item's comes
+    // thumbKey: a synced item's thumbnail in ThumbStore (thumbTileKey; null
+    // while it has none - fetched by `tiles`). A phone item's comes
     // from MediaStore when its tile shows (see thumbOf), so pages scrolled
     // through don't each keep 60 bitmaps.
     data class Item(val id: String, val path: String, val thumbKey: String? = null, val asset: PhotoSync.Asset? = null, val isVideo: Boolean = false) {
@@ -155,6 +164,67 @@ class NewPostPickerViewModel : ViewModel() {
     private var didAppear = false
     private val trimPreviewUrls = mutableMapOf<String, String>()
     private val localPageSize = 60
+
+    // Synced: the tiles' missing thumbnails (pages come without them,
+    // release 113), fetched a batch at a time, the tiles on screen first.
+    private val tiles by lazy {
+        GridThumbFetcher(
+            viewModelScope, ThumbStore,
+            send = { b -> OTCConnection.ask(TILES_KIND, OTCConnection.PAGE_TIMEOUT_MS) { it.setReqGetThumbnails(b) } },
+            pause = { sleepOrWake(it) },
+        ) { landed ->
+            _state.update { st -> st.copy(items = st.items.map { i -> if (i.asset == null && landed.containsKey(i.path)) i.copy(thumbKey = landed[i.path]) else i }) }
+        }
+    }
+
+    // The grid's visible tiles (indexes), for the tiles within reach of the scroll.
+    private var visible: IntRange? = null
+
+    /** The grid shows the tiles [first]..[last]: those within reach get their thumbnails. */
+    fun visibleRange(first: Int, last: Int) {
+        visible = first..last
+        nearChanged()
+    }
+
+    private fun nearChanged() {
+        val v = visible ?: return
+        val items = _state.value.items
+        val from = maxOf(0, v.first - GridThumbFetcher.REACH_BEFORE)
+        val to = minOf(items.size, v.last + 1 + GridThumbFetcher.REACH_AFTER)
+        if (from < to) tiles.near(items.subList(from, to).filter { it.asset == null }.map { it.path })
+    }
+
+    // Settings' Clear thumbnail cache: the tiles marked as having none are asked for again.
+    init {
+        viewModelScope.launch {
+            var seen = ThumbStore.clears.value
+            ThumbStore.clears.collect { n -> if (n != seen) { seen = n; tiles.forgetNone(); undecodable.clear() } }
+        }
+    }
+
+    /** A synced tile is on screen ([Item.thumbKey] null: fetched first). */
+    fun tileShown(item: Item) { if (item.asset == null) tiles.shown(item.path, needsThumb = item.thumbKey == null) }
+
+    fun tileGone(item: Item) { if (item.asset == null) tiles.gone(item.path) }
+
+    /** A synced tile's thumbnail is no longer kept (the cache was cleared): fetched again. */
+    fun thumbLost(item: Item) {
+        if (item.asset != null) return
+        _state.update { st -> st.copy(items = st.items.map { if (it.id == item.id) it.copy(thumbKey = null) else it }) }
+        tiles.shown(item.path, needsThumb = true)
+    }
+
+    // Synced tiles whose bytes failed to decode this search: a second time, none.
+    private val undecodable = HashSet<String>()
+
+    /** A synced tile's bytes ([key]) didn't decode: dropped and fetched again, or none the second time. */
+    fun thumbUndecodable(item: Item, key: String) {
+        if (item.asset != null) return
+        viewModelScope.launch { ThumbStore.discard(key) }
+        if (undecodable.add(item.path)) { thumbLost(item); return }
+        _state.update { st -> st.copy(items = st.items.map { if (it.id == item.id) it.copy(thumbKey = null) else it }) }
+        tiles.markNone(item.path)
+    }
 
     fun onAppearInitial() {
         if (didAppear) return
@@ -197,6 +267,8 @@ class NewPostPickerViewModel : ViewModel() {
 
     suspend fun resetAndLoadFirstPage() {
         searchGeneration += 1
+        tiles.reset()
+        undecodable.clear()
         _state.update { it.copy(loading = false, endReached = false, items = emptyList(), selectedOrder = emptyList()) }
         when (_state.value.source) {
             Source.SYNCED -> { token = ""; fetchPage(overrideToken = "") }
@@ -222,24 +294,35 @@ class NewPostPickerViewModel : ViewModel() {
         try {
             val chips = _state.value.chips
             val requestToken = overrideToken ?: token ?: ""
+            // Bigger pages from a device known to leave the thumbnails out (GridThumbs.kt).
+            val firstLimit = if (ThumbStore.omitsThumbnails()) FIRST_PAGE_LIMIT_WITHOUT_THUMBS else FIRST_PHOTO_PAGE_LIMIT
+            // The device this page is asked of: what it brings is kept for it only.
+            val thumbScope = ThumbStore.scope()
             val resp = OTCConnection.request {
-                // A grid: its tiles' small thumbnails (release 111).
-                val sp = SearchPhotos.newBuilder().addAllTags(chips).setToken(requestToken).setIncludeVideos(true).setSmallThumbnails(true)
-                // A new search (Synced, a tag added or removed) gets a small
-                // first page; scrolling on, the device's own size.
-                if (requestToken.isEmpty()) sp.limit = FIRST_PHOTO_PAGE_LIMIT
-                // The photos the grid holds: a page asked again (its answer
-                // was lost) comes back as the same page (SearchPhotos.have).
-                else sp.have = _state.value.items.size
+                // A grid: its tiles' small thumbnails (release 111), left out
+                // of the page (release 113: from the cache, or GetThumbnails).
+                val sp = SearchPhotos.newBuilder().addAllTags(chips).setToken(requestToken).setIncludeVideos(true).setSmallThumbnails(true).setOmitThumbnails(true)
+                // A new search (Synced, a tag added or removed) gets a first
+                // page of its own size; scrolling on, a bigger one.
+                if (requestToken.isEmpty()) sp.limit = firstLimit
+                else {
+                    sp.limit = NEXT_PAGE_LIMIT_WITHOUT_THUMBS
+                    // The photos the grid holds: a page asked again (its answer
+                    // was lost) comes back as the same page (SearchPhotos.have).
+                    sp.have = _state.value.items.size
+                }
                 it.setReqSearchPhotos(sp)
             }
             if (mine != searchGeneration) return
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) return
             val lof = resp.respListOfFiles
-            ThumbStore.putAll(lof.filesList.filter { it.hasContent() }.map { f -> ThumbStore.tileKey(f.path, f.hash, f.byteSize) to f.content.toByteArray() })
+            val landed = ThumbStore.land(lof.filesList, thumbScope)
             if (mine != searchGeneration) return
-            val newItems = lof.filesList.map { f -> Item("${f.path}#${f.hash}#${f.byteSize}", f.path, thumbKey = if (f.hasContent()) ThumbStore.tileKey(f.path, f.hash, f.byteSize) else null, isVideo = f.mime.startsWith("video/")) }
+            val newItems = lof.filesList.map { f -> Item("${f.path}#${f.hash}#${f.byteSize}", f.path, thumbKey = landed.keys[f.path], isVideo = f.mime.startsWith("video/")) }
             _state.update { st -> val existing = st.items.map { it.id }.toSet(); st.copy(items = st.items + newItems.filter { it.id !in existing }) }
+            // Asked for as their tiles show or come near.
+            tiles.note(landed.fetch, landed.refetch)
+            nearChanged()
             token = lof.token.ifEmpty { null }
             _state.update { it.copy(endReached = token == null) }
         } catch (_: Exception) {
@@ -505,11 +588,21 @@ fun NewPostPickerView(onDismiss: () -> Unit, onPosted: () -> Unit) {
                     // The tiles' side, as the grid lays them out: what thumbnails decode to.
                     val tilePx = if (constraints.hasBoundedWidth) gridCellPx(constraints.maxWidth, LocalDensity.current, 10.dp, 8.dp, count = 3)
                         else with(LocalDensity.current) { 240.dp.roundToPx() }
-                    LazyVerticalGrid(columns = GridCells.Fixed(3), contentPadding = PaddingValues(10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
+                    val gridState = rememberLazyGridState()
+                    // The tiles on screen: those within reach get their thumbnails.
+                    LaunchedEffect(gridState) {
+                        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.let { v -> (v.firstOrNull()?.index ?: 0) to (v.lastOrNull()?.index ?: -1) } }
+                            .collect { (first, last) -> if (last >= first) vm.visibleRange(first, last) }
+                    }
+                    LazyVerticalGrid(columns = GridCells.Fixed(3), state = gridState, contentPadding = PaddingValues(10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
                         items(st.items, key = { it.id }) { item ->
                             LaunchedEffect(item.id) { vm.loadMoreIfNeeded(item) }
+                            DisposableEffect(item.id, item.thumbKey == null) {
+                                vm.tileShown(item)
+                                onDispose { vm.tileGone(item) }
+                            }
                             val n = st.selectedOrder.indexOf(item.id).let { if (it < 0) null else it + 1 }
-                            PickTile(item, n, tilePx) { vm.toggleSelect(item.id) }
+                            PickTile(item, item.thumbKey, n, tilePx, onLost = { vm.thumbLost(item) }, onUndecodable = { k -> vm.thumbUndecodable(item, k) }) { vm.toggleSelect(item.id) }
                         }
                         if (st.loading) item(span = { GridItemSpan(maxLineSpan) }) { Box(Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
                     }
@@ -564,17 +657,25 @@ private fun phoneThumbnail(asset: PhotoSync.Asset): Bitmap? = try {
 // tile shows and kept in ThumbCache; a synced one's is decoded off the main
 // thread to [sidePx].
 @Composable
-private fun thumbOf(item: NewPostPickerViewModel.Item, sidePx: Int): Bitmap? {
+private fun thumbOf(
+    item: NewPostPickerViewModel.Item, thumbKey: String?, sidePx: Int, onLost: () -> Unit = {}, onUndecodable: (String) -> Unit = {},
+): Bitmap? {
     val asset = item.asset
     if (asset != null) return rememberOffMain(item.id, { ThumbCache.get(item.id) }) {
         withContext(Dispatchers.IO) { phoneThumbnail(asset) }?.also { ThumbCache.put(item.id, it) }
     }
-    return rememberTileThumb(item.thumbKey, sidePx) { item.thumbKey?.let { ThumbStore.load(it) } }
+    return rememberTileThumb(thumbKey, sidePx, onUndecodable = { thumbKey?.let(onUndecodable) }) {
+        thumbKey?.let { ThumbStore.load(it) ?: run { onLost(); null } }
+    }
 }
 
+// thumbKey apart from item: Item compares by id alone, and a thumbnail that
+// lands changes only its key.
 @Composable
-private fun PickTile(item: NewPostPickerViewModel.Item, selectionNumber: Int?, sidePx: Int, onTap: () -> Unit) {
-    val bmp = thumbOf(item, sidePx)
+private fun PickTile(
+    item: NewPostPickerViewModel.Item, thumbKey: String?, selectionNumber: Int?, sidePx: Int, onLost: () -> Unit, onUndecodable: (String) -> Unit, onTap: () -> Unit,
+) {
+    val bmp = thumbOf(item, thumbKey, sidePx, onLost, onUndecodable)
     val selected = selectionNumber != null
     Box(Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(Color(0x33808080)).clickable(onClick = onTap)) {
         if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize().alpha(if (selected) 0.75f else 1f), contentScale = ContentScale.Crop)
@@ -614,7 +715,7 @@ private fun SelectedThumb(
     item: NewPostPickerViewModel.Item, position: Int, canMoveLeft: Boolean, canMoveRight: Boolean,
     moveLeft: () -> Unit, moveRight: () -> Unit, remove: () -> Unit, trim: (() -> Unit)?, trimRange: TrimRange?, trimLoading: Boolean,
 ) {
-    val bmp = thumbOf(item, with(LocalDensity.current) { 60.dp.roundToPx() })
+    val bmp = thumbOf(item, item.thumbKey, with(LocalDensity.current) { 60.dp.roundToPx() })
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Box(Modifier.size(64.dp)) {
             Box(Modifier.size(60.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x33808080)).clickable(enabled = trim != null && !trimLoading) { trim?.invoke() }) {

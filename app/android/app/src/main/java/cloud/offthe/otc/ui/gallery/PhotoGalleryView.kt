@@ -415,6 +415,11 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                         else -> metrics.gap
                     }
                     if (!grey) LaunchedEffect(row.end) { vm.loadMoreIfNeeded(row.end - 1) }
+                    // Its tiles and those within reach of the scroll get their thumbnails.
+                    if (!grey) DisposableEffect(row.start, row.end) {
+                        vm.rowShown(row.start, row.end)
+                        onDispose { vm.rowGone(row.start) }
+                    }
                     // Grey tiles say nothing to TalkBack but, once, that
                     // photos are on their way (the web's aria-busy "Loading photos").
                     val rowSemantics = if (!grey) Modifier else Modifier.clearAndSetSemantics { if (i == 0) contentDescription = PHOTOS_LOADING }
@@ -423,7 +428,7 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                         else {
                             val item = st.items[k]
                             PhotoTile(
-                                item, tilePx, isSelected = item.path in st.selected, hasSelection = hasSelection,
+                                item, st.thumbKeyOf(item), vm, tilePx, isSelected = item.path in st.selected, hasSelection = hasSelection,
                                 onTap = { vm.open(k) }, onLongPress = { vm.toggleSelect(item.path) }, modifier = cell,
                             )
                         }
@@ -577,10 +582,20 @@ fun ConfirmDialog(title: String, message: String?, confirmLabel: String, onConfi
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PhotoTile(
-    item: PhotoGalleryViewModel.Item, sidePx: Int, isSelected: Boolean, hasSelection: Boolean,
+    item: PhotoGalleryViewModel.Item, thumbKey: String?, vm: PhotoGalleryViewModel, sidePx: Int, isSelected: Boolean, hasSelection: Boolean,
     onTap: () -> Unit, onLongPress: () -> Unit, modifier: Modifier = Modifier,
 ) {
-    val bmp = rememberTileThumb(item.thumbKey, sidePx) { item.thumbKey?.let { ThumbStore.load(it) } }
+    // On screen: a tile without its thumbnail has it fetched first; one
+    // whose thumbnail is no longer kept (Settings cleared the cache) has it
+    // fetched again.
+    val path = item.path
+    DisposableEffect(path, thumbKey == null) {
+        vm.tileShown(path, needsThumb = thumbKey == null)
+        onDispose { vm.tileGone(path) }
+    }
+    val bmp = rememberTileThumb(thumbKey, sidePx, onUndecodable = { thumbKey?.let { vm.thumbUndecodable(path, it) } }) {
+        thumbKey?.let { k -> vm.loadThumb(k) ?: run { vm.thumbLost(path); null } }
+    }
     val video = item.mime.startsWith("video/")
     val pick = if (isSelected) "Deselect" else "Select"
     Box(
@@ -1107,7 +1122,7 @@ private fun ViewerPage(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Stat
         // asked for then. Until the full size comes, the grid's small tile.
         val bigBytes = st.bigThumbs[path]
         val big = rememberOffMain(bigBytes, { null }) { bigBytes?.let { b -> withContext(Dispatchers.Default) { decodeBitmap(b) } } }
-        val image = hiRes ?: big ?: item.preview ?: rememberThumb(item.thumbKey)
+        val image = hiRes ?: big ?: item.preview ?: rememberThumb(st.thumbKeyOf(item))
         val unplayable = isCurrent && path in st.unplayable
         if (image == null) {
             if (unplayable) VideoUnplayable(Modifier.align(Alignment.BottomCenter)) { vm.retryVideo() }
