@@ -121,6 +121,13 @@ func (mg *Manager) fixThumbnails(keys blobstore.Keys, hash string, maxSide int) 
 		log.Error("thumbnails: the thumbnail of", hash, "is too large to decode:", bw, "x", bh)
 		return thumbSkipped
 	}
+	// Content whose blob is gone (issue #141: kept until an upload brings
+	// it back) gets nothing written below, checked again under the lock:
+	// skipped before the decode, or every grid asking for its small one
+	// (the queue) decoded the big one for nothing, each time.
+	if !mg.hasBlob(hash) {
+		return thumbSkipped
+	}
 
 	release := mg.ReserveBytes(thumbFixReserve(bw, bh, maxSide))
 	big, small, err := remakeThumbnails(bigPath, keys, maxSide, shrink)

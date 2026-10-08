@@ -979,15 +979,24 @@ public nonisolated struct Msg_GetThumbnails: Sendable {
   /// any height for a long screenshot - until the device rescales it, so
   /// assume no bound on its size. Devices before release 111 ignore the
   /// flag and send those; clients that don't set it keep getting big
-  /// ones. Answers don't say which one came, and no size tells them apart
-  /// (an 800x600 photo's big one is 800x600 and its small one 533x400; a
-  /// panorama's big one can be 1000x250): keep a thumbnail by what was
-  /// asked for, not by its size. The same flag, with the same meaning,
-  /// is on SearchPhotos, ListImageGroups and CreateImageGroup. A viewer
-  /// may show an item's small tile until its full size arrives; where a
-  /// thumbnail is what stays on screen (the full size couldn't be
-  /// fetched, decoded or played) it asks for the big one: this request
-  /// without the flag.
+  /// ones. No size tells them apart (an 800x600 photo's big one is
+  /// 800x600 and its small one 533x400; a panorama's big one can be
+  /// 1000x250): since release 113 each entry of this answer and of
+  /// SearchPhotos says whether its content is the small one
+  /// (File.thumbnail_small); before that answers didn't say, so keep a
+  /// thumbnail by what was asked for, not by its size. The same flag, with
+  /// the same meaning, is on SearchPhotos, ListImageGroups and
+  /// CreateImageGroup. A viewer may show an item's small tile until its
+  /// full size arrives; where a thumbnail is what stays on screen (the
+  /// full size couldn't be fetched, decoded or played) it asks for the big
+  /// one: this request without the flag.
+  ///
+  /// Up to 48 paths and about 8 MB of thumbnails a request: the answer
+  /// lists the paths that have one, in the order asked, and
+  /// ListOfFiles.ask_again_from says where it stopped short. Each entry
+  /// carries its path's current hash (key a cache by that, not by the
+  /// hash the path had when it was listed). A grid that keeps thumbnails
+  /// asks only for the ones it lacks (see SearchPhotos.omit_thumbnails).
   public var smallThumbnails: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -1173,6 +1182,22 @@ public nonisolated struct Msg_SearchPhotos: Sendable {
   /// and for a viewer only until the full size arrives (see there).
   public var smallThumbnails: Bool = false
 
+  /// Release 113: the page's Files come without content - everything else
+  /// as before (hash, path, mime, dates, size) - for a client that keeps
+  /// the thumbnails it got (the phones' cache, by hash) and asks
+  /// GetThumbnails for the ones it lacks. The page is the same page either
+  /// way: the same photos in the same order, only those processed (whose
+  /// thumbnail exists, issue #147, checked without reading it), the same
+  /// token, and have/limit mean the same; a token's pages may mix both.
+  /// With small_thumbnails too, File.thumbnail_small says whether the
+  /// device has the photo's small thumbnail now (what GetThumbnails with
+  /// small_thumbnails would send). Such a page may be bigger: limit up to
+  /// 200 is honoured (still 0 = the device's default, 30). Devices before
+  /// release 113 ignore the flag and send content, and a page of at most
+  /// their default: clients take the content when an entry has it and
+  /// fetch only entries that don't.
+  public var omitThumbnails: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1196,6 +1221,16 @@ public nonisolated struct Msg_ListOfFiles: Sendable {
   public var outOfImagesSupported: Bool = false
 
   public var folderOutOfImages: Bool = false
+
+  /// Release 113, set by GetThumbnails when it stopped short: the paths
+  /// asked for from this index (0-based) on were not looked at - the
+  /// answer reached its byte cap (about 8 MB) or the 48 paths a request
+  /// takes - so ask for them again. A path before it that isn't in the
+  /// answer has no thumbnail (not media, not processed yet, gone). 0 when
+  /// every path was looked at, and from devices before release 113, whose
+  /// answers can stop at the cap unsaid: a path left out may then only
+  /// have been cut, so don't remember it as having none.
+  public var askAgainFrom: Int32 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1310,6 +1345,27 @@ public nonisolated struct Msg_File: Sendable {
   /// inside, a folder kept out of Images (see SetOutOfImages).
   public var outOfImages: Bool = false
 
+  /// Release 113, on every entry of SearchPhotos and GetThumbnails answers:
+  /// true when its content is the small thumbnail (asked for with
+  /// small_thumbnails, and the device had it), false when it is the big
+  /// one (not asked for, or the device has no small one yet - it makes one
+  /// shortly). On a SearchPhotos entry without content (omit_thumbnails)
+  /// it says which one GetThumbnails would send now, so a client that
+  /// keeps a big one in place of a small one asks again once it is true.
+  /// Unset (optional: has/hasThumbnailSmall false) from devices before
+  /// release 113, which don't say: content asked for small is then the
+  /// small one or the big one (and from devices before 111 always the big
+  /// one) - keep it as asked for, or treat it as the big one and ask again
+  /// later.
+  public var thumbnailSmall: Bool {
+    get {_thumbnailSmall ?? false}
+    set {_thumbnailSmall = newValue}
+  }
+  /// Returns true if `thumbnailSmall` has been explicitly set.
+  public var hasThumbnailSmall: Bool {self._thumbnailSmall != nil}
+  /// Clears the value of `thumbnailSmall`. Subsequent reads from it will return its default value.
+  public mutating func clearThumbnailSmall() {self._thumbnailSmall = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1317,6 +1373,7 @@ public nonisolated struct Msg_File: Sendable {
   fileprivate var _created: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
   fileprivate var _modified: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
   fileprivate var _content: Data? = nil
+  fileprivate var _thumbnailSmall: Bool? = nil
 }
 
 public nonisolated struct Msg_Ack: Sendable {
@@ -7673,7 +7730,7 @@ nonisolated extension Msg_BridgeSendLogs: SwiftProtobuf.Message, SwiftProtobuf._
 
 nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SearchPhotos"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{1}token\0\u{3}include_videos\0\u{3}person_ids\0\u{1}before\0\u{1}have\0\u{3}group_id\0\u{1}limit\0\u{3}small_thumbnails\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{1}token\0\u{3}include_videos\0\u{3}person_ids\0\u{1}before\0\u{1}have\0\u{3}group_id\0\u{1}limit\0\u{3}small_thumbnails\0\u{3}omit_thumbnails\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7690,6 +7747,7 @@ nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._Me
       case 7: try { try decoder.decodeSingularStringField(value: &self.groupID) }()
       case 8: try { try decoder.decodeSingularInt32Field(value: &self.limit) }()
       case 9: try { try decoder.decodeSingularBoolField(value: &self.smallThumbnails) }()
+      case 10: try { try decoder.decodeSingularBoolField(value: &self.omitThumbnails) }()
       default: break
       }
     }
@@ -7727,6 +7785,9 @@ nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._Me
     if self.smallThumbnails != false {
       try visitor.visitSingularBoolField(value: self.smallThumbnails, fieldNumber: 9)
     }
+    if self.omitThumbnails != false {
+      try visitor.visitSingularBoolField(value: self.omitThumbnails, fieldNumber: 10)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -7740,6 +7801,7 @@ nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._Me
     if lhs.groupID != rhs.groupID {return false}
     if lhs.limit != rhs.limit {return false}
     if lhs.smallThumbnails != rhs.smallThumbnails {return false}
+    if lhs.omitThumbnails != rhs.omitThumbnails {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -7747,7 +7809,7 @@ nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 nonisolated extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListOfFiles"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}files\0\u{1}token\0\u{3}out_of_images_supported\0\u{3}folder_out_of_images\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}files\0\u{1}token\0\u{3}out_of_images_supported\0\u{3}folder_out_of_images\0\u{3}ask_again_from\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7759,6 +7821,7 @@ nonisolated extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._Mes
       case 2: try { try decoder.decodeSingularStringField(value: &self.token) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.outOfImagesSupported) }()
       case 4: try { try decoder.decodeSingularBoolField(value: &self.folderOutOfImages) }()
+      case 5: try { try decoder.decodeSingularInt32Field(value: &self.askAgainFrom) }()
       default: break
       }
     }
@@ -7777,6 +7840,9 @@ nonisolated extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._Mes
     if self.folderOutOfImages != false {
       try visitor.visitSingularBoolField(value: self.folderOutOfImages, fieldNumber: 4)
     }
+    if self.askAgainFrom != 0 {
+      try visitor.visitSingularInt32Field(value: self.askAgainFrom, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -7785,6 +7851,7 @@ nonisolated extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._Mes
     if lhs.token != rhs.token {return false}
     if lhs.outOfImagesSupported != rhs.outOfImagesSupported {return false}
     if lhs.folderOutOfImages != rhs.folderOutOfImages {return false}
+    if lhs.askAgainFrom != rhs.askAgainFrom {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -7902,7 +7969,7 @@ nonisolated extension Msg_RespPhotoDateBuckets: SwiftProtobuf.Message, SwiftProt
 
 nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".File"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{2}\u{2}content\0\u{3}upload_only\0\u{1}versions\0\u{1}size64\0\u{3}out_of_images\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{2}\u{2}content\0\u{3}upload_only\0\u{1}versions\0\u{1}size64\0\u{3}out_of_images\0\u{3}thumbnail_small\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7921,6 +7988,7 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
       case 10: try { try decoder.decodeSingularInt32Field(value: &self.versions) }()
       case 11: try { try decoder.decodeSingularInt64Field(value: &self.size64) }()
       case 12: try { try decoder.decodeSingularBoolField(value: &self.outOfImages) }()
+      case 13: try { try decoder.decodeSingularBoolField(value: &self._thumbnailSmall) }()
       default: break
       }
     }
@@ -7964,6 +8032,9 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     if self.outOfImages != false {
       try visitor.visitSingularBoolField(value: self.outOfImages, fieldNumber: 12)
     }
+    try { if let v = self._thumbnailSmall {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 13)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -7979,6 +8050,7 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     if lhs.versions != rhs.versions {return false}
     if lhs.size64 != rhs.size64 {return false}
     if lhs.outOfImages != rhs.outOfImages {return false}
+    if lhs._thumbnailSmall != rhs._thumbnailSmall {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

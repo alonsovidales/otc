@@ -110,33 +110,54 @@ CONFIG = {
 # ----------------------------
 # GPIO setup
 # ----------------------------
+# The lights are optional: on a machine that isn't a Raspberry Pi the GPIO
+# module may be missing, refuse to import ("This module can only be run on
+# a Raspberry Pi!" is a RuntimeError, not an ImportError) or fail when a pin
+# is set up or driven. Any of those turns the lights off for good and the
+# mirror is watched, repaired and grown exactly as on a Pi - an exception
+# here used to end the script, and systemd restarted it into the same one.
 try:
     import RPi.GPIO as GPIO
-except ImportError:
+except Exception as e:
     GPIO = None
-    print("WARNING: RPi.GPIO not available. LED operations will be no-ops (dry run).")
+    print(f"WARNING: GPIO not available ({e}). No status lights; the mirror is still watched.")
+
+def gpio_off(why):
+    global GPIO
+    if GPIO is not None:
+        print(f"WARNING: GPIO failed ({why}). No status lights from now on; the mirror is still watched.")
+    GPIO = None
 
 def gpio_setup():
     if GPIO is None:
         return
-    GPIO.setmode(GPIO.BCM)
-    for slot, pins in CONFIG["leds"].items():
-        for color in ("red", "green"):
-            GPIO.setup(pins[color], GPIO.OUT)
-            GPIO.output(pins[color], GPIO.LOW)
+    try:
+        GPIO.setmode(GPIO.BCM)
+        for slot, pins in CONFIG["leds"].items():
+            for color in ("red", "green"):
+                GPIO.setup(pins[color], GPIO.OUT)
+                GPIO.output(pins[color], GPIO.LOW)
+    except Exception as e:
+        gpio_off(e)
 
 def gpio_cleanup():
     if GPIO is None:
         return
-    GPIO.cleanup()
+    try:
+        GPIO.cleanup()
+    except Exception:
+        pass
 
 def led_set(slot: int, red_on: bool, green_on: bool):
     pins = CONFIG["leds"][slot]
     if GPIO is None:
         # Dry-run printout
         return
-    GPIO.output(pins["red"], GPIO.HIGH if red_on else GPIO.LOW)
-    GPIO.output(pins["green"], GPIO.HIGH if green_on else GPIO.LOW)
+    try:
+        GPIO.output(pins["red"], GPIO.HIGH if red_on else GPIO.LOW)
+        GPIO.output(pins["green"], GPIO.HIGH if green_on else GPIO.LOW)
+    except Exception as e:
+        gpio_off(e)
 
 # ----------------------------
 # Helpers

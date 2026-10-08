@@ -36,7 +36,10 @@ import (
 //
 // Thumbnails travel inline in those answers, a page of 12 or 30 at a time,
 // over mobile data: a 1000 px one is ~105 KB, a small one ~38 KB (32
-// photos measured; see CLAUDE.md).
+// photos measured; see CLAUDE.md). A grid that keeps them (the phones'
+// cache) asks for its pages without them (SearchPhotos.omit_thumbnails,
+// gridThumbnailState) and for the ones it lacks with GetThumbnails; every
+// answer's rows say whether they carry the small one (thumbnail_small).
 //
 // Processing writes the small one first and the big one last: the big one
 // is what says a file is processed (hasThumbnail, ImageSearch's #147
@@ -215,29 +218,57 @@ func (mg *Manager) writeThumbnails(ses *session.Session, file *pb.File, targetPa
 }
 
 // readGridThumbnail is the thumbnail a grid shows for f: the small one when
-// small is asked for and there is one, otherwise the big one. A small one
-// that is missing - content processed before they existed, until the pass
-// reaches it - is queued to be made from the big one (thumbnail_fix.go),
-// and the big one is answered meanwhile, as stored: one made before
-// release 111 is capped by width only (1000x1333, or 1000 px wide and any
-// height) until the queue or the pass rescales it. Either way only content whose big
-// thumbnail exists is shown (#147: processed).
-func (mg *Manager) readGridThumbnail(ses *session.Session, f *pb.File, small bool) ([]byte, error) {
+// small is asked for and there is one, otherwise the big one; isSmall says
+// which (File.thumbnail_small). A small one that is missing - content
+// processed before they existed, until the pass reaches it - is queued to
+// be made from the big one (thumbnail_fix.go), and the big one is answered
+// meanwhile, as stored: one made before release 111 is capped by width
+// only (1000x1333, or 1000 px wide and any height) until the queue or the
+// pass rescales it. Either way only content whose big thumbnail exists is
+// shown (#147: processed).
+func (mg *Manager) readGridThumbnail(ses *session.Session, f *pb.File, small bool) (content []byte, isSmall bool, err error) {
 	if small {
 		content, err := blobstore.ReadAll(smallThumbnailPath(f.Hash), ses)
 		if err == nil {
 			// The big one goes first when content is removed: a small one
 			// alone is a deletion half done, not a processed file.
 			if _, statErr := os.Stat(thumbnailPath(f.Hash)); statErr != nil {
-				return nil, statErr
+				return nil, false, statErr
 			}
-			return content, nil
+			return content, true, nil
 		}
 		big, bigErr := mg.readThumbnail(ses, f)
 		if bigErr == nil {
 			mg.queueThumbnailFix(ses, f.Hash)
 		}
-		return big, bigErr
+		return big, false, bigErr
 	}
-	return mg.readThumbnail(ses, f)
+	big, err := mg.readThumbnail(ses, f)
+	return big, false, err
+}
+
+// gridThumbnailState is readGridThumbnail without reading anything, for a
+// page that omits its thumbnails (SearchPhotos.omit_thumbnails): whether f
+// is shown - its big thumbnail exists (#147: processed) - and, small asked
+// for, whether a small one is stored. A file stat each, no read or
+// decrypt: a thumbnail that exists but can't be read is listed here, and
+// left out of the GetThumbnails answer the client asks next (or, for a
+// small one, answered by the big one there, whose thumbnail_small is what
+// the client keeps - it asks once, not on every page). A missing small
+// one is queued as readGridThumbnail queues it, so a client that keeps a
+// big one in its place sees thumbnail_small turn true.
+func (mg *Manager) gridThumbnailState(ses *session.Session, f *pb.File, small bool) (shown, isSmall bool) {
+	if !mg.hasThumbnail(f.Hash) {
+		return false, false
+	}
+	if !small {
+		return true, false
+	}
+	if _, err := os.Stat(smallThumbnailPath(f.Hash)); err == nil {
+		return true, true
+	}
+	if ses != nil {
+		mg.queueThumbnailFix(ses, f.Hash)
+	}
+	return true, false
 }

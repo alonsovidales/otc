@@ -1003,7 +1003,7 @@ func TestImageSearchFailsClosed(t *testing.T) {
 	mg.searchTokens = newSearchTokenCache(10)
 	mock.ExpectQuery(reLoadFolders).WillReturnError(errors.New("connection lost"))
 	expectSentinel(mock)
-	if _, _, err := mg.ImageSearch(nil, "", nil, "", false, nil, "", nil, 0, 0, false); err == nil {
+	if _, _, err := mg.ImageSearch(nil, "", nil, "", false, nil, "", nil, 0, 0, false, false); err == nil {
 		t.Error("a search ran without knowing what is kept out")
 	}
 	metUpToSentinel(t, mock)

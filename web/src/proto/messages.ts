@@ -717,15 +717,24 @@ export interface GetThumbnails {
    * any height for a long screenshot - until the device rescales it, so
    * assume no bound on its size. Devices before release 111 ignore the
    * flag and send those; clients that don't set it keep getting big
-   * ones. Answers don't say which one came, and no size tells them apart
-   * (an 800x600 photo's big one is 800x600 and its small one 533x400; a
-   * panorama's big one can be 1000x250): keep a thumbnail by what was
-   * asked for, not by its size. The same flag, with the same meaning,
-   * is on SearchPhotos, ListImageGroups and CreateImageGroup. A viewer
-   * may show an item's small tile until its full size arrives; where a
-   * thumbnail is what stays on screen (the full size couldn't be
-   * fetched, decoded or played) it asks for the big one: this request
-   * without the flag.
+   * ones. No size tells them apart (an 800x600 photo's big one is
+   * 800x600 and its small one 533x400; a panorama's big one can be
+   * 1000x250): since release 113 each entry of this answer and of
+   * SearchPhotos says whether its content is the small one
+   * (File.thumbnail_small); before that answers didn't say, so keep a
+   * thumbnail by what was asked for, not by its size. The same flag, with
+   * the same meaning, is on SearchPhotos, ListImageGroups and
+   * CreateImageGroup. A viewer may show an item's small tile until its
+   * full size arrives; where a thumbnail is what stays on screen (the
+   * full size couldn't be fetched, decoded or played) it asks for the big
+   * one: this request without the flag.
+   *
+   * Up to 48 paths and about 8 MB of thumbnails a request: the answer
+   * lists the paths that have one, in the order asked, and
+   * ListOfFiles.ask_again_from says where it stopped short. Each entry
+   * carries its path's current hash (key a cache by that, not by the
+   * hash the path had when it was listed). A grid that keeps thumbnails
+   * asks only for the ones it lacks (see SearchPhotos.omit_thumbnails).
    */
   smallThumbnails: boolean;
 }
@@ -866,6 +875,23 @@ export interface SearchPhotos {
    * and for a viewer only until the full size arrives (see there).
    */
   smallThumbnails: boolean;
+  /**
+   * Release 113: the page's Files come without content - everything else
+   * as before (hash, path, mime, dates, size) - for a client that keeps
+   * the thumbnails it got (the phones' cache, by hash) and asks
+   * GetThumbnails for the ones it lacks. The page is the same page either
+   * way: the same photos in the same order, only those processed (whose
+   * thumbnail exists, issue #147, checked without reading it), the same
+   * token, and have/limit mean the same; a token's pages may mix both.
+   * With small_thumbnails too, File.thumbnail_small says whether the
+   * device has the photo's small thumbnail now (what GetThumbnails with
+   * small_thumbnails would send). Such a page may be bigger: limit up to
+   * 200 is honoured (still 0 = the device's default, 30). Devices before
+   * release 113 ignore the flag and send content, and a page of at most
+   * their default: clients take the content when an entry has it and
+   * fetch only entries that don't.
+   */
+  omitThumbnails: boolean;
 }
 
 export interface ListOfFiles {
@@ -879,6 +905,17 @@ export interface ListOfFiles {
    */
   outOfImagesSupported: boolean;
   folderOutOfImages: boolean;
+  /**
+   * Release 113, set by GetThumbnails when it stopped short: the paths
+   * asked for from this index (0-based) on were not looked at - the
+   * answer reached its byte cap (about 8 MB) or the 48 paths a request
+   * takes - so ask for them again. A path before it that isn't in the
+   * answer has no thumbnail (not media, not processed yet, gone). 0 when
+   * every path was looked at, and from devices before release 113, whose
+   * answers can stop at the cap unsaid: a path left out may then only
+   * have been cut, so don't remember it as having none.
+   */
+  askAgainFrom: number;
 }
 
 /**
@@ -935,6 +972,21 @@ export interface File {
    * inside, a folder kept out of Images (see SetOutOfImages).
    */
   outOfImages: boolean;
+  /**
+   * Release 113, on every entry of SearchPhotos and GetThumbnails answers:
+   * true when its content is the small thumbnail (asked for with
+   * small_thumbnails, and the device had it), false when it is the big
+   * one (not asked for, or the device has no small one yet - it makes one
+   * shortly). On a SearchPhotos entry without content (omit_thumbnails)
+   * it says which one GetThumbnails would send now, so a client that
+   * keeps a big one in place of a small one asks again once it is true.
+   * Unset (optional: has/hasThumbnailSmall false) from devices before
+   * release 113, which don't say: content asked for small is then the
+   * small one or the big one (and from devices before 111 always the big
+   * one) - keep it as asked for, or treat it as the big one and ask again
+   * later.
+   */
+  thumbnailSmall?: boolean | undefined;
 }
 
 export interface Ack {
@@ -5805,6 +5857,7 @@ function createBaseSearchPhotos(): SearchPhotos {
     groupId: "",
     limit: 0,
     smallThumbnails: false,
+    omitThumbnails: false,
   };
 }
 
@@ -5836,6 +5889,9 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     }
     if (message.smallThumbnails !== false) {
       writer.uint32(72).bool(message.smallThumbnails);
+    }
+    if (message.omitThumbnails !== false) {
+      writer.uint32(80).bool(message.omitThumbnails);
     }
     return writer;
   },
@@ -5919,6 +5975,14 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
           message.smallThumbnails = reader.bool();
           continue;
         }
+        case 10: {
+          if (tag !== 80) {
+            break;
+          }
+
+          message.omitThumbnails = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -5941,6 +6005,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
       groupId: isSet(object.groupId) ? globalThis.String(object.groupId) : "",
       limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
       smallThumbnails: isSet(object.smallThumbnails) ? globalThis.Boolean(object.smallThumbnails) : false,
+      omitThumbnails: isSet(object.omitThumbnails) ? globalThis.Boolean(object.omitThumbnails) : false,
     };
   },
 
@@ -5973,6 +6038,9 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     if (message.smallThumbnails !== false) {
       obj.smallThumbnails = message.smallThumbnails;
     }
+    if (message.omitThumbnails !== false) {
+      obj.omitThumbnails = message.omitThumbnails;
+    }
     return obj;
   },
 
@@ -5990,12 +6058,13 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     message.groupId = object.groupId ?? "";
     message.limit = object.limit ?? 0;
     message.smallThumbnails = object.smallThumbnails ?? false;
+    message.omitThumbnails = object.omitThumbnails ?? false;
     return message;
   },
 };
 
 function createBaseListOfFiles(): ListOfFiles {
-  return { files: [], token: "", outOfImagesSupported: false, folderOutOfImages: false };
+  return { files: [], token: "", outOfImagesSupported: false, folderOutOfImages: false, askAgainFrom: 0 };
 }
 
 export const ListOfFiles: MessageFns<ListOfFiles> = {
@@ -6011,6 +6080,9 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
     }
     if (message.folderOutOfImages !== false) {
       writer.uint32(32).bool(message.folderOutOfImages);
+    }
+    if (message.askAgainFrom !== 0) {
+      writer.uint32(40).int32(message.askAgainFrom);
     }
     return writer;
   },
@@ -6054,6 +6126,14 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
           message.folderOutOfImages = reader.bool();
           continue;
         }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.askAgainFrom = reader.int32();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -6071,6 +6151,7 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
         ? globalThis.Boolean(object.outOfImagesSupported)
         : false,
       folderOutOfImages: isSet(object.folderOutOfImages) ? globalThis.Boolean(object.folderOutOfImages) : false,
+      askAgainFrom: isSet(object.askAgainFrom) ? globalThis.Number(object.askAgainFrom) : 0,
     };
   },
 
@@ -6088,6 +6169,9 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
     if (message.folderOutOfImages !== false) {
       obj.folderOutOfImages = message.folderOutOfImages;
     }
+    if (message.askAgainFrom !== 0) {
+      obj.askAgainFrom = Math.round(message.askAgainFrom);
+    }
     return obj;
   },
 
@@ -6100,6 +6184,7 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
     message.token = object.token ?? "";
     message.outOfImagesSupported = object.outOfImagesSupported ?? false;
     message.folderOutOfImages = object.folderOutOfImages ?? false;
+    message.askAgainFrom = object.askAgainFrom ?? 0;
     return message;
   },
 };
@@ -6365,6 +6450,7 @@ function createBaseFile(): File {
     versions: 0,
     size64: 0n,
     outOfImages: false,
+    thumbnailSmall: undefined,
   };
 }
 
@@ -6405,6 +6491,9 @@ export const File: MessageFns<File> = {
     }
     if (message.outOfImages !== false) {
       writer.uint32(96).bool(message.outOfImages);
+    }
+    if (message.thumbnailSmall !== undefined) {
+      writer.uint32(104).bool(message.thumbnailSmall);
     }
     return writer;
   },
@@ -6504,6 +6593,14 @@ export const File: MessageFns<File> = {
           message.outOfImages = reader.bool();
           continue;
         }
+        case 13: {
+          if (tag !== 104) {
+            break;
+          }
+
+          message.thumbnailSmall = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -6526,6 +6623,7 @@ export const File: MessageFns<File> = {
       versions: isSet(object.versions) ? globalThis.Number(object.versions) : 0,
       size64: isSet(object.size64) ? BigInt(object.size64) : 0n,
       outOfImages: isSet(object.outOfImages) ? globalThis.Boolean(object.outOfImages) : false,
+      thumbnailSmall: isSet(object.thumbnailSmall) ? globalThis.Boolean(object.thumbnailSmall) : undefined,
     };
   },
 
@@ -6564,6 +6662,9 @@ export const File: MessageFns<File> = {
     if (message.outOfImages !== false) {
       obj.outOfImages = message.outOfImages;
     }
+    if (message.thumbnailSmall !== undefined) {
+      obj.thumbnailSmall = message.thumbnailSmall;
+    }
     return obj;
   },
 
@@ -6583,6 +6684,7 @@ export const File: MessageFns<File> = {
     message.versions = object.versions ?? 0;
     message.size64 = object.size64 ?? 0n;
     message.outOfImages = object.outOfImages ?? false;
+    message.thumbnailSmall = object.thumbnailSmall ?? undefined;
     return message;
   },
 };

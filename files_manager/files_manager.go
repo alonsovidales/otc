@@ -885,35 +885,38 @@ const (
 )
 
 // Thumbnails returns, for each path that is a photo or video with a stored
-// thumbnail, its row with the thumbnail as content - the Files grid view;
-// the small one when small (GetThumbnails.small_thumbnails, see
-// readGridThumbnail). Anything else (a folder, a document, a thumbnail not
-// made yet) is left out, and it stops at maxThumbnailsBytes: the client
-// asks for the rest.
-func (mg *Manager) Thumbnails(ses *session.Session, paths []string, small bool) []*pb.File {
-	if len(paths) > MaxThumbnailsPerRequest {
-		paths = paths[:MaxThumbnailsPerRequest]
-	}
-	var out []*pb.File
+// thumbnail, its row with the thumbnail as content - the Files grid view,
+// and the grids' cache misses (SearchPhotos.omit_thumbnails); the small
+// one when small (GetThumbnails.small_thumbnails, see readGridThumbnail),
+// each row saying which came (thumbnail_small). Anything else (a folder, a
+// document, a thumbnail not made yet) is left out. It looks at the first
+// MaxThumbnailsPerRequest paths and stops at maxThumbnailsBytes: askAgainFrom
+// is the index of the first path it didn't look at (0 when it looked at
+// all of them), so the client asks for those again rather than take them
+// for paths without a thumbnail (ListOfFiles.ask_again_from).
+func (mg *Manager) Thumbnails(ses *session.Session, paths []string, small bool) (out []*pb.File, askAgainFrom int32) {
 	total := 0
-	for _, p := range paths {
+	for i, p := range paths {
+		if i == MaxThumbnailsPerRequest {
+			return out, int32(i)
+		}
 		f, err := mg.dao.GetFileByPath(p)
 		if err != nil || !isMedia(f) {
 			continue
 		}
-		thumb, err := mg.readGridThumbnail(ses, f, small)
+		thumb, isSmall, err := mg.readGridThumbnail(ses, f, small)
 		if err != nil {
 			continue
 		}
 		if total+len(thumb) > maxThumbnailsBytes && len(out) > 0 {
-			break
+			return out, int32(i)
 		}
 		total += len(thumb)
-		t := &pb.File{Path: f.Path, Hash: f.Hash, Mime: f.Mime, Content: thumb}
+		t := &pb.File{Path: f.Path, Hash: f.Hash, Mime: f.Mime, Content: thumb, ThumbnailSmall: proto.Bool(isSmall)}
 		dao.SetFileSize(t, dao.FileSize(f))
 		out = append(out, t)
 	}
-	return out
+	return out, 0
 }
 
 // readThumbnail is GetThumbnail without the logging, for callers where a
@@ -926,6 +929,30 @@ func (mg *Manager) readThumbnail(session *session.Session, file *pb.File) ([]byt
 // [tagger] max-images-search; a variable so tests can use the real 30
 // rather than the test config's 2.
 var maxImagesSearch = func() int { return int(cfg.GetInt("tagger", "max-images-search")) }
+
+// cMaxPageWithoutThumbnails is the most photos a page that omits its
+// thumbnails (SearchPhotos.omit_thumbnails) holds when its limit asks for
+// more than the default: a row is ~200 bytes and two file stats, so 200
+// of them are ~40 KB and a few milliseconds even on a Pi's SD card - a
+// phone's screenful or two, whose missing thumbnails it then asks for in
+// batches (GetThumbnails, 48 at most). Bounded all the same: the stats
+// (more of them where #147 leaves rows out) and the answer grow with it.
+const cMaxPageWithoutThumbnails = 200
+
+// pageSize is how many photos a search page holds: the device's default,
+// or limit (SearchPhotos.limit) when that is smaller - or, for a page
+// without thumbnails, larger up to cMaxPageWithoutThumbnails.
+func pageSize(limit int32, omit bool) int {
+	n := maxImagesSearch()
+	if limit <= 0 {
+		return n
+	}
+	ceiling := n
+	if omit {
+		ceiling = max(n, cMaxPageWithoutThumbnails)
+	}
+	return min(int(limit), ceiling)
+}
 
 // includeVideos (issue #60) only affects the no-filters case below - a
 // tag- or person-filtered search already includes videos regardless
@@ -947,17 +974,25 @@ var maxImagesSearch = func() int { return int(cfg.GetInt("tagger", "max-images-s
 // brand new search targeting a narrower result set reuses that same
 // mechanism instead of needing one of its own.
 // limit (SearchPhotos.limit) makes this page smaller than the device's
-// default, never larger; 0 is the default. A grid's first page asks for a
-// few photos so it paints quickly over a slow upload, and what's left
-// stays behind the token, so the next page continues where it ended.
+// default, never larger (but see omit); 0 is the default. A grid's first
+// page asks for a few photos so it paints quickly over a slow upload, and
+// what's left stays behind the token, so the next page continues where it
+// ended.
 // small (SearchPhotos.small_thumbnails) sends the grids' small thumbnails
-// instead of the big ones (readGridThumbnail).
+// instead of the big ones (readGridThumbnail), each row saying which came
+// (thumbnail_small).
+// omit (SearchPhotos.omit_thumbnails) sends the rows without content, for
+// a client that keeps thumbnails and asks GetThumbnails for those it
+// lacks: the same page - #147 checked by a stat, never a read
+// (gridThumbnailState), so the same rows, order and token - and its limit
+// may make it larger than the default, up to cMaxPageWithoutThumbnails
+// (pageSize).
 // have (SearchPhotos.have) is how many photos the client holds. With a
 // token this device holds, it tells a page whose answer was lost, asked
 // again with the same have, from the next one (searchCursor.resume): every
 // app asks a failed page again, and going on left a hole in its grid. With
 // a token it no longer holds, the search starts again past that many.
-func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before *time.Time, have int32, limit int32, small bool) (files []*pb.File, token string, err error) {
+func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before *time.Time, have int32, limit int32, small, omit bool) (files []*pb.File, token string, err error) {
 	log.Debug("Image search, token:", oldToken)
 	// Issue #192: read before the token or the folders kept out of
 	// Images, so a folder kept out meanwhile is left out of what is
@@ -1046,21 +1081,29 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 	// drawn as an empty box. The page is filled from further down the
 	// results instead, so it stays full; a later search (the gallery's
 	// refresh) picks the file up once it's ready. A missing thumbnail is
-	// a plain failed read here, not a scan of the whole result set.
-	toReturn := maxImagesSearch()
-	if limit > 0 && int(limit) < toReturn {
-		toReturn = int(limit)
-	}
+	// a plain failed read here (a stat when the page omits thumbnails),
+	// not a scan of the whole result set.
+	toReturn := pageSize(limit, omit)
 	page := make([]*pb.File, 0, toReturn)
 	next := 0
 	for ; next < len(files) && len(page) < toReturn; next++ {
 		file := files[next]
-		content, thumbErr := mg.readGridThumbnail(session, file, small)
-		if thumbErr != nil {
-			if !os.IsNotExist(thumbErr) {
-				log.Error("error reading the thumbnail of", file.Hash, thumbErr)
+		var content []byte
+		var isSmall bool
+		if omit {
+			var shown bool
+			if shown, isSmall = mg.gridThumbnailState(session, file, small); !shown {
+				continue
 			}
-			continue
+		} else {
+			var thumbErr error
+			content, isSmall, thumbErr = mg.readGridThumbnail(session, file, small)
+			if thumbErr != nil {
+				if !os.IsNotExist(thumbErr) {
+					log.Error("error reading the thumbnail of", file.Hash, thumbErr)
+				}
+				continue
+			}
 		}
 		// A copy per page: the rows behind a token are shared by every
 		// request that names it, and two of them (a quick double scroll)
@@ -1068,6 +1111,7 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		// it (issue #171).
 		file = proto.Clone(file).(*pb.File)
 		file.Content = content
+		file.ThumbnailSmall = proto.Bool(isSmall)
 		page = append(page, file)
 	}
 	if next < len(files) {
@@ -1144,7 +1188,7 @@ func (mg *Manager) GetImageGroup(session *session.Session, id string, small bool
 func (mg *Manager) imageGroupToPB(session *session.Session, g *dao.ImageGroup, small bool) *pb.ImageGroup {
 	item := &pb.ImageGroup{Id: g.ID, Name: g.Name, FileCount: int32(g.FileCount)}
 	if g.CoverHash != "" {
-		if thumb, err := mg.readGridThumbnail(session, &pb.File{Hash: g.CoverHash}, small); err == nil {
+		if thumb, _, err := mg.readGridThumbnail(session, &pb.File{Hash: g.CoverHash}, small); err == nil {
 			item.CoverThumbnail = thumb
 		} else {
 			log.Error("error reading a group cover thumbnail:", err)

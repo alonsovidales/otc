@@ -14,6 +14,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/dao"
+	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
 )
 
@@ -300,6 +301,33 @@ func TestThumbnailQueueDedupsAndIsBounded(t *testing.T) {
 	}
 }
 
+// Content whose blob is gone (issue #141) is skipped before its big
+// thumbnail is decoded: nothing would be written for it, and each grid
+// asking for its small one queued that whole decode again. Once the blob
+// is back, it is fixed.
+func TestFixThumbnailsSkipsContentWithoutItsBlob(t *testing.T) {
+	_, ses := galleryTestEnv(t)
+	mg := &Manager{}
+	h := fmt.Sprintf("%064x", 0xf6100)
+	sealedThumb(t, ses, thumbnailPath(h), 1000, 750)
+	t.Cleanup(func() { removeThumbnails(blobPath(h)) })
+	decoded := 0
+	old := beforeThumbFixWrite
+	beforeThumbFixWrite = func(string) { decoded++ }
+	t.Cleanup(func() { beforeThumbFixWrite = old })
+
+	if got := mg.fixThumbnails(ses, h, ThumbnailMaxSide()); got != thumbSkipped || decoded != 0 {
+		t.Errorf("without its blob: %v after %d decodes, want skipped before any", got, decoded)
+	}
+	if _, err := os.Stat(smallThumbnailPath(h)); err == nil {
+		t.Error("a small thumbnail was written for content that is gone")
+	}
+	withBlob(t, h)
+	if got := mg.fixThumbnails(ses, h, ThumbnailMaxSide()); got != thumbFixed || decoded != 1 {
+		t.Errorf("with its blob back: %v after %d decodes, want fixed after one", got, decoded)
+	}
+}
+
 // smallFixture is three photos: a with both thumbnails, b with only the
 // big one (processed before the small ones existed), c with only a small
 // one (a half-done delete: not shown).
@@ -329,10 +357,33 @@ func searchRows(f smallFixture) *sqlmock.Rows {
 	return rows
 }
 
+// tile is a grid row's thumbnail as a test expects it: its content and
+// whether the row says it is the small one (File.thumbnail_small).
+type tile struct {
+	content []byte
+	small   bool
+}
+
+func sameTiles(t *testing.T, what string, got []*pb.File, want ...tile) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("%s: %d photos, want %d", what, len(got), len(want))
+	}
+	for i, w := range want {
+		if !bytes.Equal(got[i].Content, w.content) {
+			t.Errorf("%s: photo %d is not the expected thumbnail", what, i)
+		}
+		if got[i].ThumbnailSmall == nil || got[i].GetThumbnailSmall() != w.small {
+			t.Errorf("%s: photo %d says small %v, want %v", what, i, got[i].ThumbnailSmall, w.small)
+		}
+	}
+}
+
 // SearchPhotos.small_thumbnails: the small thumbnail when asked for, the
 // big one when not; the big one for content with no small one yet, which
 // is then made in the background for the next look. Only processed
-// content (a big thumbnail) is shown either way.
+// content (a big thumbnail) is shown either way. Each row says which one
+// it carries.
 func TestImageSearchSmallThumbnails(t *testing.T) {
 	_, ses := galleryTestEnv(t)
 	quietQueue(t)
@@ -343,32 +394,17 @@ func TestImageSearchSmallThumbnails(t *testing.T) {
 		mock.ExpectQuery("select `f`.`hash`, `f`.`mime`").WillReturnRows(searchRows(f))
 	}
 	mg := keptOut(&Manager{dao: dao.NewWithDB(db), searchTokens: newSearchTokenCache(1000)})
-	search := func(small bool) [][]byte {
+	search := func(small bool) []*pb.File {
 		t.Helper()
-		files, _, err := mg.ImageSearch(ses, "", nil, "", false, nil, "", nil, 0, 0, small)
+		files, _, err := mg.ImageSearch(ses, "", nil, "", false, nil, "", nil, 0, 0, small, false)
 		if err != nil {
 			t.Fatal(err)
 		}
-		var out [][]byte
-		for _, file := range files {
-			out = append(out, file.Content)
-		}
-		return out
-	}
-	same := func(what string, got [][]byte, want ...[]byte) {
-		t.Helper()
-		if len(got) != len(want) {
-			t.Fatalf("%s: %d photos, want %d", what, len(got), len(want))
-		}
-		for i := range want {
-			if !bytes.Equal(got[i], want[i]) {
-				t.Errorf("%s: photo %d is not the expected thumbnail", what, i)
-			}
-		}
+		return files
 	}
 
-	same("not asked", search(false), f.aBig, f.bBig)
-	same("asked, b has none yet", search(true), f.aSmall, f.bBig)
+	sameTiles(t, "not asked", search(false), tile{f.aBig, false}, tile{f.bBig, false})
+	sameTiles(t, "asked, b has none yet", search(true), tile{f.aSmall, true}, tile{f.bBig, false})
 	waitForFile(t, smallThumbnailPath(f.b))
 	waitQueueIdle(t, mg)
 	if w, h := storedSize(t, ses, smallThumbnailPath(f.b)); w != 400 || h != 533 {
@@ -377,13 +413,14 @@ func TestImageSearchSmallThumbnails(t *testing.T) {
 	if w, h := storedSize(t, ses, thumbnailPath(f.b)); w != 750 || h != 1000 {
 		t.Errorf("b's big thumbnail is %dx%d, want it within the cap", w, h)
 	}
-	same("asked again", search(true), f.aSmall, readSealed(t, ses, smallThumbnailPath(f.b)))
+	sameTiles(t, "asked again", search(true), tile{f.aSmall, true}, tile{readSealed(t, ses, smallThumbnailPath(f.b)), true})
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
 	}
 }
 
-// GetThumbnails.small_thumbnails, the Files grid: the same rule.
+// GetThumbnails.small_thumbnails, the Files grid: the same rule, the same
+// marker.
 func TestFilesGridSmallThumbnails(t *testing.T) {
 	_, ses := galleryTestEnv(t)
 	quietQueue(t)
@@ -399,23 +436,18 @@ func TestFilesGridSmallThumbnails(t *testing.T) {
 		}
 	}
 	mg := &Manager{dao: dao.NewWithDB(db)}
-	grid := func(small bool) map[string][]byte {
+	grid := func(small bool) []*pb.File {
+		t.Helper()
 		expect()
-		out := map[string][]byte{}
-		for _, file := range mg.Thumbnails(ses, paths, small) {
-			out[file.Path] = file.Content
+		files, askAgainFrom := mg.Thumbnails(ses, paths, small)
+		if askAgainFrom != 0 {
+			t.Errorf("ask again from %d, with every path looked at", askAgainFrom)
 		}
-		return out
+		return files
 	}
 
-	got := grid(false)
-	if len(got) != 2 || !bytes.Equal(got["/a.jpg"], f.aBig) || !bytes.Equal(got["/b.jpg"], f.bBig) {
-		t.Errorf("not asked: %d tiles, want a's and b's big ones", len(got))
-	}
-	got = grid(true)
-	if len(got) != 2 || !bytes.Equal(got["/a.jpg"], f.aSmall) || !bytes.Equal(got["/b.jpg"], f.bBig) {
-		t.Errorf("asked: %d tiles, want a's small one and b's big one", len(got))
-	}
+	sameTiles(t, "not asked", grid(false), tile{f.aBig, false}, tile{f.bBig, false})
+	sameTiles(t, "asked", grid(true), tile{f.aSmall, true}, tile{f.bBig, false})
 	waitForFile(t, smallThumbnailPath(f.b))
 	waitQueueIdle(t, mg)
 	if err := mock.ExpectationsWereMet(); err != nil {

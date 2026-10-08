@@ -237,9 +237,29 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   hold. Every grid (web, iOS, Android: Images, the composer, the profile photo picker) sends 12 on
   the request that starts a search (no token) so the first page paints fast over a slow upload,
   and no limit when continuing with a token. The device answers min(limit, its default `[tagger]
-  max-images-search`, 30), never more. Older devices ignore it. Grids that start a new search
-  bump a search generation, so a page from the old search lands nowhere. A grid's tiles can come as
-  small thumbnails (`small_thumbnails`, release 111 - see Thumbnails under `files_manager`).
+  max-images-search`, 30), never more (a page without thumbnails may be larger, below). Older
+  devices ignore it. Grids that start a new search bump a search generation, so a page from the
+  old search lands nowhere. A grid's tiles can come as small thumbnails (`small_thumbnails`,
+  release 111 - see Thumbnails under `files_manager`).
+  Pages without thumbnails (release 113): `SearchPhotos.omit_thumbnails` (field 10) answers the
+  same page - same rows, order, token, `have`/serve-again and keep-out behaviour - with every
+  File's `content` left out, for the phones' persistent thumbnail cache (by content hash, small or
+  big), which then asks `GetThumbnails` for what it lacks. The #147 check is a stat
+  (`gridThumbnailState`: the big thumbnail exists; with `small_thumbnails` also whether a small
+  one is stored - queued for `thumbnail_fix.go` when not - which the row's `thumbnail_small`
+  reports), never a read: a thumbnail there but unreadable is listed (and then absent from
+  `GetThumbnails`, or a small one answered by the big one) where a page with thumbnails leaves it
+  out - the only difference. Such a page may be larger: `pageSize` honours a limit up to
+  `cMaxPageWithoutThumbnails` (200 rows, ~40 KB and two stats a row; with thumbnails a limit only
+  ever shrinks the page, and 0 is the default either way; `SearchPhotos.limit`'s comment says so
+  too). A token's pages may mix both kinds. Every `newSearchTest` case (serve-again, #147,
+  keep-out, retries, jump, delete) runs in both kinds (`bothPageKinds`);
+  `TestImageSearchPagesThroughItsToken` and `TestImageSearchLimitShrinksOnlyItsPage` run with
+  thumbnails only, and `TestImageSearchPagesMixingOmittedThumbnails` pages and sizes with omit;
+  `websocket`'s `TestSearchPhotosPassesItsThumbnailFlags` (in a child process: it loads a config,
+  which `cfg` can't unload) checks the handler doesn't swap the two flags. Devices before 113
+  ignore the flag and send content in pages of their default: clients take the content when an
+  entry has it and fetch only entries without.
   A page asked again is served again (2026-10-08): every grid retries a failed page with the same
   token and `have` (`SearchPhotos.have`, field 6: photos it holds), and the device used to answer
   with the page after it, so a page whose answer was lost (a timeout dropping a late answer, a
@@ -440,14 +460,21 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   from its big thumbnail - making it inline would cost ~60 ms a photo on a Pi 5 before the first
   tile (14 ms on an M-series Mac), as much as the bytes it saves on most links. The queue's worker
   gives way like the pass (below): it waits for quiet before each file, rests after each fix, and
-  is emptied by a full reprocess. Answers carry no marker of which thumbnail came and no size
-  tells them apart (an 800x600 photo's big one is 800x600, a panorama's 1000x250): clients keep a
-  thumbnail by what they asked for. The
+  is emptied by a full reprocess. No size tells the two apart (an 800x600 photo's big one is
+  800x600, a panorama's 1000x250), so since release 113 every entry of SearchPhotos and
+  GetThumbnails answers says which came: `File.thumbnail_small` (field 13, `optional bool`: 113+
+  always sets it, true or false; older devices leave it unset, and clients keep those by what they
+  asked for). On an entry without content (`omit_thumbnails`) it only says a small one is stored
+  (a stat, not a read): a phone that cached a big one under its small key asks `GetThumbnails` for
+  it once when it turns true and keeps what that answer's entry says - the marker on an entry with
+  content is the one that counts (a small one stored but unreadable comes as the big one, and is
+  not asked for again). The
   one-time pass (`thumbnail_pass.go`, `FitStoredThumbnails`, after `BackfillMissingThumbnails` at
   the first sign-in) does the rest: for every media hash it reads both headers and, only where
   needed, makes the small one and scales a big one over the cap down - always from the big
   thumbnail, never the original (`fixThumbnails`, which decides and writes under the hash's lock,
-  skipping content deleted or processed again meanwhile, and holds the content budget for what it
+  skipping content deleted or processed again meanwhile - and, before decoding, content whose blob
+  is gone (#141), which would otherwise be decoded for nothing at every grid's request - and holds the content budget for what it
   allocates, `thumbFixReserve`: the decode (3 B/px), x/image/draw's kernel scaler buffer (32 B x
   dstW x srcH per scale - most of it: an old 1000x1333 portrait allocates ~51 MB) and the copies,
   checked against the real allocations by a test; a 1000x30000 thumbnail holds ~124 MB and waits
@@ -458,11 +485,16 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   `unenc-storage-path` and shared galleries keep what they were made with.
   **Files grid** (release 80): the Files section on the web, iOS and Android switches between the
   list and a grid (remembered per browser/app). The grid shows each photo or video by its
-  thumbnail - `GetThumbnails{paths}` answers up to 48 paths (about 8 MB) per request with the
-  stored thumbnails, leaving out paths without one - and everything else by a generic labelled
-  document icon whose colour says the type (PDF red, DOC blue, XLS green, PPT orange...; the
-  mapping is the same in `FileTypeIcon.tsx`, `FileTypeIcon.swift` and `FileTypeIcon.kt` - change
-  all three together; no vendor logos).
+  thumbnail and everything else by a generic labelled document icon whose colour says the type
+  (PDF red, DOC blue, XLS green, PPT orange...; the mapping is the same in `FileTypeIcon.tsx`,
+  `FileTypeIcon.swift` and `FileTypeIcon.kt` - change all three together; no vendor logos).
+  `GetThumbnails{paths}` answers up to 48 paths (about 8 MB) per request with the stored
+  thumbnails, in the order asked, leaving out paths without one; since 113
+  `ListOfFiles.ask_again_from` (5) is the index of the first path it didn't look at (the byte cap,
+  or past 48), 0 when it looked at all - before, a cut answer looked like paths without
+  thumbnails. It stays by path, for the phones' cache misses too: every grid has each photo's
+  path, each entry carries its path's current hash to key a cache by, and a lookup by hash would
+  still need a query to know the hash is in use.
   **Logs** (Settings > Logs, web/iOS/Android, main instance only): `GetLogs{source "app"|"update",
   offset, max_bytes, wait_seconds}` reads the device's log (`[logger] log_file`) or the update log
   (`/var/log/otc-update/update.log`) in whole lines; with `wait_seconds` and nothing new the device

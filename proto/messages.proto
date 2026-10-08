@@ -317,15 +317,24 @@ message GetThumbnails {
   // any height for a long screenshot - until the device rescales it, so
   // assume no bound on its size. Devices before release 111 ignore the
   // flag and send those; clients that don't set it keep getting big
-  // ones. Answers don't say which one came, and no size tells them apart
-  // (an 800x600 photo's big one is 800x600 and its small one 533x400; a
-  // panorama's big one can be 1000x250): keep a thumbnail by what was
-  // asked for, not by its size. The same flag, with the same meaning,
-  // is on SearchPhotos, ListImageGroups and CreateImageGroup. A viewer
-  // may show an item's small tile until its full size arrives; where a
-  // thumbnail is what stays on screen (the full size couldn't be
-  // fetched, decoded or played) it asks for the big one: this request
-  // without the flag.
+  // ones. No size tells them apart (an 800x600 photo's big one is
+  // 800x600 and its small one 533x400; a panorama's big one can be
+  // 1000x250): since release 113 each entry of this answer and of
+  // SearchPhotos says whether its content is the small one
+  // (File.thumbnail_small); before that answers didn't say, so keep a
+  // thumbnail by what was asked for, not by its size. The same flag, with
+  // the same meaning, is on SearchPhotos, ListImageGroups and
+  // CreateImageGroup. A viewer may show an item's small tile until its
+  // full size arrives; where a thumbnail is what stays on screen (the
+  // full size couldn't be fetched, decoded or played) it asks for the big
+  // one: this request without the flag.
+  //
+  // Up to 48 paths and about 8 MB of thumbnails a request: the answer
+  // lists the paths that have one, in the order asked, and
+  // ListOfFiles.ask_again_from says where it stopped short. Each entry
+  // carries its path's current hash (key a cache by that, not by the
+  // hash the path had when it was listed). A grid that keeps thumbnails
+  // asks only for the ones it lacks (see SearchPhotos.omit_thumbnails).
   bool small_thumbnails = 2;
 }
 
@@ -431,12 +440,31 @@ message SearchPhotos {
   // page so it paints quickly over a slow upload, and continues with the
   // device's own size. 0 (unset, and all a device before release 97 sees)
   // means the device's default ([tagger] max-images-search, 30); the
-  // device never returns more than its default.
+  // device never returns more than its default - except for a page
+  // without thumbnails (omit_thumbnails, release 113), which may hold up
+  // to 200.
   int32 limit = 8;
   // Each File's content is its small thumbnail (see
   // GetThumbnails.small_thumbnails) instead of the big one: for grids,
   // and for a viewer only until the full size arrives (see there).
   bool small_thumbnails = 9;
+  // Release 113: the page's Files come without content - everything else
+  // as before (hash, path, mime, dates, size) - for a client that keeps
+  // the thumbnails it got (the phones' cache, by hash) and asks
+  // GetThumbnails for the ones it lacks. The page is the same page either
+  // way: the same photos in the same order, only those processed (whose
+  // thumbnail exists, issue #147, here checked without reading it), the
+  // same token, and have means the same; a token's pages may mix both.
+  // The one difference: a thumbnail stored but unreadable is listed here
+  // (a page with thumbnails leaves it out), and then left out of the
+  // GetThumbnails answer. With small_thumbnails too, File.thumbnail_small
+  // says whether a small thumbnail is stored for the photo (see there).
+  // Such a page may be bigger: limit up to 200 is honoured (0 is still the
+  // device's default, 30; with thumbnails a limit only ever shrinks a
+  // page). Devices before release 113 ignore the flag and send content,
+  // and a page of at most their default: clients take the content when an
+  // entry has it and fetch only entries that don't.
+  bool omit_thumbnails = 10;
 }
 
 message ListOfFiles {
@@ -448,6 +476,15 @@ message ListOfFiles {
   // itself is kept out (the explorers' banner; ListFiles only).
   bool out_of_images_supported = 3;
   bool folder_out_of_images = 4;
+  // Release 113, set by GetThumbnails when it stopped short: the paths
+  // asked for from this index (0-based) on were not looked at - the
+  // answer reached its byte cap (about 8 MB) or the 48 paths a request
+  // takes - so ask for them again. A path before it that isn't in the
+  // answer has no thumbnail (not media, not processed yet, gone). 0 when
+  // every path was looked at, and from devices before release 113, whose
+  // answers can stop at the cap unsaid: a path left out may then only
+  // have been cut, so don't remember it as having none.
+  int32 ask_again_from = 5;
 }
 
 // Issue #77: per-month photo counts, used to size/position the gallery's
@@ -491,6 +528,23 @@ message File {
   // Issue #192, filled by ListFiles and SearchFiles: this entry is, or is
   // inside, a folder kept out of Images (see SetOutOfImages).
   bool out_of_images = 12;
+  // Release 113, on every entry of SearchPhotos and GetThumbnails answers:
+  // true when its content is the small thumbnail (asked for with
+  // small_thumbnails, and the device had it), false when it is the big
+  // one (not asked for, or the device has no small one yet - it makes one
+  // shortly). On an entry with content this is what counts, and what a
+  // thumbnail is kept by. On a SearchPhotos entry without content
+  // (omit_thumbnails) it only says a small one is stored (found by a
+  // stat, not read): a client that keeps a big one in place of a small
+  // one asks GetThumbnails for it again - once - when this turns true,
+  // and keeps what that answer's entry says; if that is still the big one
+  // (a small one stored but unreadable), it doesn't ask again.
+  // Unset (optional: has/hasThumbnailSmall false) from devices before
+  // release 113, which don't say: content asked for small is then the
+  // small one or the big one (and from devices before 111 always the big
+  // one) - keep it as asked for, or treat it as the big one and ask again
+  // later.
+  optional bool thumbnail_small = 13;
 }
 
 message Ack {

@@ -2485,8 +2485,9 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		}
 
 	case *pb.ReqEnvelope_ReqGetThumbnails:
+		files, askAgainFrom := ch.mg.filesManager.Thumbnails(ses, p.ReqGetThumbnails.Paths, p.ReqGetThumbnails.SmallThumbnails)
 		resp.Payload = &pb.RespEnvelope_RespListOfFiles{
-			RespListOfFiles: &pb.ListOfFiles{Files: ch.mg.filesManager.Thumbnails(ses, p.ReqGetThumbnails.Paths, p.ReqGetThumbnails.SmallThumbnails)},
+			RespListOfFiles: &pb.ListOfFiles{Files: files, AskAgainFrom: askAgainFrom},
 		}
 
 	case *pb.ReqEnvelope_ReqGetTags:
@@ -2515,7 +2516,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			t := p.ReqSearchPhotos.Before.AsTime()
 			before = &t
 		}
-		files, token, err := ch.mg.filesManager.ImageSearch(ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, p.ReqSearchPhotos.GroupId, before, p.ReqSearchPhotos.Have, p.ReqSearchPhotos.Limit, p.ReqSearchPhotos.SmallThumbnails)
+		files, token, err := ch.mg.filesManager.ImageSearch(ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, p.ReqSearchPhotos.GroupId, before, p.ReqSearchPhotos.Have, p.ReqSearchPhotos.Limit, p.ReqSearchPhotos.SmallThumbnails, p.ReqSearchPhotos.OmitThumbnails)
 		if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true
