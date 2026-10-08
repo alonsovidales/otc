@@ -79,6 +79,7 @@ struct PopoverView: View {
                         NSWorkspace.shared.open(web)
                     } label: {
                         Label("Open Web App", systemImage: "globe")
+                            .foregroundStyle(Color.accentColor)
                     }
                     .buttonStyle(.borderless)
                     .help("Open \(web.absoluteString) in your browser")
@@ -315,6 +316,7 @@ struct RemoteFolderRow: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.head)
+                        .help(folder.remotePath)
                 }
                 Spacer()
                 FolderStateView(state: folder.state, watchingLabel: "Synced")
