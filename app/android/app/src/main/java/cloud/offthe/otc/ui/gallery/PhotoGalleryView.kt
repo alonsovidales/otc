@@ -31,11 +31,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -107,13 +102,43 @@ import cloud.offthe.otc.ui.common.SelectionActionBar
 import cloud.offthe.otc.ui.common.Share
 import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.common.decodeBitmap
-import cloud.offthe.otc.ui.common.gridCellPx
 import cloud.offthe.otc.ui.common.rememberOffMain
 import cloud.offthe.otc.ui.common.rememberTileThumb
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.abs
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Face
+import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.activity.compose.BackHandler
+import java.time.ZoneId
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
+import cloud.offthe.otc.proto.ImageGroup
+import cloud.offthe.otc.proto.Person
+import kotlin.math.roundToInt
 
 // Port of PhotoGalleryView (PhotoGallery.swift): the search (TopSearch.kt:
 // tags, people and files, as the web's top bar), the People button and page
@@ -164,7 +189,10 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
     // Issue #180: "Share as gallery" on a group - what is being shared.
     var gallerySource by remember { mutableStateOf<SharedGallerySource?>(null) }
     var confirmDeleteSelected by remember { mutableStateOf(false) }
-    val gridState = rememberLazyGridState()
+    // The rows of the grid (months, PhotoMonths.kt), with the open
+    // collection's or person's header first. Kept here, above the People
+    // and Collections pages, so the photos' place stays while those show.
+    val listState = rememberLazyListState()
     // The search (TopSearch.kt): its field here, its panel over the grid.
     val search: TopSearchViewModel = viewModel(key = "topsearch")
     val options = rememberSearchOptions(search, st)
@@ -182,26 +210,35 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
     LaunchedEffect(faces) { if (faces != true && showPeople) onPage(GalleryPage.PHOTOS) }
 
     LaunchedEffect(Unit) { vm.onAppearInitial() }
+    // The selection outlives a jump and a filter change, as on the web, but
+    // not the photos left for People or Collections (pages of their own
+    // there, so the web's grid starts again without one).
+    LaunchedEffect(page) { if (page != GalleryPage.PHOTOS) vm.clearSelection() }
 
     if (showPeople && faces == true) {
         PeopleView(
             vm,
-            onOpenPhotos = { onPage(GalleryPage.PHOTOS); scope.launch { gridState.scrollToItem(0) } },
+            onOpenPhotos = { onPage(GalleryPage.PHOTOS); scope.launch { listState.scrollToItem(0) } },
             onBack = { onPage(GalleryPage.PHOTOS) },
             showBack = !wide,
         )
     } else if (page == GalleryPage.COLLECTIONS && wide) {
         CollectionsView(
             vm,
-            onOpen = { onPage(GalleryPage.PHOTOS); scope.launch { gridState.scrollToItem(0) } },
+            onOpen = { onPage(GalleryPage.PHOTOS); scope.launch { listState.scrollToItem(0) } },
             onShowPhotos = { onPage(GalleryPage.PHOTOS) },
         )
     } else Column(Modifier.fillMaxSize()) {
+        // Back: the selection goes first (the web's selection bar has its
+        // ✕ for that). An open search panel's own Back comes before it.
+        BackHandler(enabled = st.selected.isNotEmpty() && !search.open) { vm.clearSelection() }
         // Wide, the search is in the top bar and People and Collections in
-        // the menu: only an open collection's bar is left up here.
-        if (!wide || st.activeGroup != null) Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow).padding(top = if (wide) 2.dp else 8.dp, bottom = 8.dp)) {
-            if (!wide) Row(Modifier.padding(start = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                TopSearchField(search, vm, st, options, Modifier.weight(1f))
+        // the menu. An open collection is the field's first chip either way
+        // (its x closes it), as on the web, and its header - name, count,
+        // the months it spans - heads the photos.
+        if (!wide) Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow).padding(top = 8.dp, bottom = 8.dp)) {
+            Row(Modifier.padding(start = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                TopSearchField(search, vm, st, options, Modifier.weight(1f), showGroup = true)
                 // The ways into People and collections, as the web's menu
                 // has them (Images, People, Collections); the tooltips name
                 // the icons for sighted users too.
@@ -215,57 +252,164 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                     IconButton(onClick = { onPage(GalleryPage.COLLECTIONS) }) { Icon(NavIcons.Collections, "Collections") }
                 }
             }
-            st.activeGroup?.let { g ->
-                Row(
-                    Modifier.padding(start = 8.dp, top = 6.dp).background(Color(0x26FF9800), CircleShape).padding(horizontal = 10.dp, vertical = 5.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(NavIcons.Collections, null, Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(g.name, Modifier.clickable { renameGroupName = g.name })
-                    Text(" · ${g.fileCount}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Default.Share, "Share as gallery", Modifier.size(16.dp).clickable {
-                        gallerySource = SharedGallerySource.newBuilder().setGroupId(g.id).build()
-                    }, tint = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Default.Delete, "Delete collection", Modifier.size(16.dp).clickable { confirmDeleteGroup = true }, tint = Color(0xFFE53935))
-                    Spacer(Modifier.width(6.dp))
-                    Text("×", Modifier.clickable { vm.leaveGroup() })
-                }
-            }
         }
 
         // Grid + scrubber + selection bar
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-            // The tiles' side, as the grid lays them out: what thumbnails decode to.
+            // The grid's sizes (the web's PhotoGallery.css) and its columns
+            // for this width; the tiles' side is what thumbnails decode to.
             val density = LocalDensity.current
-            val tilePx = if (constraints.hasBoundedWidth) gridCellPx(constraints.maxWidth, density, 10.dp, 1.dp, minSize = 120.dp)
-                else with(density) { 240.dp.roundToPx() }
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(120.dp), state = gridState, contentPadding = PaddingValues(10.dp),
-                horizontalArrangement = Arrangement.spacedBy(1.dp), verticalArrangement = Arrangement.spacedBy(1.dp), modifier = Modifier.fillMaxSize(),
-            ) {
-                val ph = st.placeholderCount
-                if (ph != null) {
-                    items(minOf(ph, 300)) { Box(Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(Color.Black)) }
-                } else {
-                    items(st.items, key = { it.id }) { item ->
-                        LaunchedEffect(item.id) { vm.loadMoreIfNeeded(item) }
-                        PhotoTile(
-                            item, tilePx, isSelected = item.path in st.selected, hasSelection = st.selected.isNotEmpty(),
-                            onTap = { vm.open(st.items.indexOfFirst { it.path == item.path }) }, onLongPress = { vm.toggleSelect(item.path) },
-                        )
+            val windowDp = LocalConfiguration.current.screenWidthDp
+            val metrics = remember(wide, windowDp) { gridMetrics(wide, windowDp) }
+            val contentWidth = if (constraints.hasBoundedWidth) maxWidth - metrics.pad * 2 else 360.dp
+            val geo = remember(contentWidth, metrics) {
+                GridGeometry.fit(contentWidth.value, metrics.gap.value, metrics.secGap.value, metrics.tileMin.value, if (metrics.phone) PHONE_COLUMNS else null)
+            }
+            val tilePx = with(density) { geo.tile.dp.roundToPx() }
+            // Below 900dp, as on the web, the collection's actions are icons
+            // and its span is years only.
+            val compact = windowDp < 900
+            val dated = st.dateOrdered
+            val buckets = st.freshBuckets
+            // The months' layout: once per page, filter or width - the
+            // photos' months were worked out as they came (Item.month).
+            val monthCounts = remember(buckets) { if (buckets.isEmpty()) null else buckets.associate { it.month to it.count } }
+            val layout = remember(st.items, dated, geo, monthCounts, st.endReached) {
+                val n = st.items.size
+                val runs = if (dated) monthRuns(st.items.map { it.month }) else if (n > 0) listOf(MonthRun(null, 0, n)) else emptyList()
+                layoutGallery(runs, dated, geo, monthCounts, more = !st.endReached)
+            }
+            // Grey tiles: the scrubber's month under its title, or the first
+            // page on its way (a grey title too, in date order).
+            val ph = st.placeholderCount
+            val skeleton = ph == null && st.items.isEmpty() && st.loading
+            val greyLayout = remember(ph, st.placeholderMonth, skeleton, dated, geo) {
+                when {
+                    ph != null -> layoutGallery(if (ph > 0) listOf(MonthRun(st.placeholderMonth, 0, ph)) else emptyList(), true, geo)
+                    skeleton -> layoutGallery(listOf(MonthRun(null, 0, SKELETON_TILES)), dated, geo)
+                    else -> null
+                }
+            }
+            val shown = greyLayout ?: layout
+
+            // The headers above the photos: the open collection, or the
+            // people searched for (without tags) - the web's CollectionHeader
+            // and PersonHeader.
+            val group = st.activeGroup
+            val personHeader = group == null && st.selectedPeople.isNotEmpty() && st.chips.isEmpty() && faces == true
+            val headerCount = (if (group != null) 1 else 0) + (if (personHeader) 1 else 0)
+
+            // A change of width (turned, unfolded, the menu) changes the
+            // columns and so every row: the photo that was first on screen
+            // goes back to the top, as the grid it replaces kept it. Where
+            // that is (the photo, and how far into its row, in tiles) is
+            // taken from the person's own scrolling, never from a frame in
+            // the middle of a rotation, where the list can be too short to
+            // be scrolled that far and would hand back a clamped place.
+            // (A page that lands keeps the rows already there, and the list
+            // its place by their keys: only a new geometry needs this.)
+            val anchor = remember { GridAnchor() }
+            LaunchedEffect(listState) {
+                var moving = false
+                snapshotFlow { Triple(listState.isScrollInProgress, listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) }
+                    .collect { (inProgress, index, offset) ->
+                        // While a scroll goes on, and where it ends.
+                        if (inProgress || moving) anchor.capture(index, offset)
+                        moving = inProgress
+                    }
+            }
+            // Asked for again at each recomposition until the list is there
+            // (the window settles over a few frames), or the person scrolls.
+            val lastGeo = remember { arrayOfNulls<GridGeometry>(1) }
+            SideEffect {
+                // Grey tiles stand for no photo: no place is read off them.
+                if (greyLayout != null) { anchor.layout = null; return@SideEffect }
+                // What the list's place is read against, when it scrolls.
+                anchor.layout = layout
+                anchor.headerCount = headerCount
+                anchor.tilePx = geo.tile * density.density
+                val oldGeo = lastGeo[0]
+                lastGeo[0] = geo
+                if (oldGeo != null && oldGeo != geo) anchor.pending = anchor.place
+                val (item, tiles) = anchor.pending ?: return@SideEffect
+                val row = layout.rowOf(item)
+                if (row < 0 || listState.isScrollInProgress) { anchor.pending = null; return@SideEffect }
+                val index = headerCount + row
+                val offset = (tiles * geo.tile * density.density).roundToInt()
+                if (oldGeo == geo && listState.firstVisibleItemIndex == index && listState.firstVisibleItemScrollOffset == offset) anchor.pending = null
+                else listState.requestScrollToItem(index, offset)
+            }
+            // A new list (a search, a jump): no place in it yet but its top.
+            LaunchedEffect(st.searchesStarted, st.jumpsLanded) { anchor.place = null; anchor.pending = null }
+            // A jump's photos landed: at the top, its month's title. A new
+            // search (a filter) starts at the top of the page.
+            var jumpsSeen by remember { mutableIntStateOf(st.jumpsLanded) }
+            LaunchedEffect(st.jumpsLanded) {
+                if (st.jumpsLanded != jumpsSeen) { jumpsSeen = st.jumpsLanded; listState.scrollToItem(headerCount) }
+            }
+            var searchesSeen by remember { mutableIntStateOf(st.searchesStarted) }
+            LaunchedEffect(st.searchesStarted) {
+                if (st.searchesStarted != searchesSeen) { searchesSeen = st.searchesStarted; listState.scrollToItem(0) }
+            }
+
+            val tileColor = tileBackground()
+            val hasSelection = st.selected.isNotEmpty()
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                if (group != null) item(key = "head:group", contentType = "head") {
+                    CollectionHeader(
+                        group, span = spanLabel(buckets, years = compact), compact = compact, metrics = metrics,
+                        // Leaving it, not just looking away: the search is the
+                        // whole library again.
+                        onBack = { vm.leaveGroup(); onPage(GalleryPage.COLLECTIONS) },
+                        onRename = { renameGroupName = group.name },
+                        onShare = { gallerySource = SharedGallerySource.newBuilder().setGroupId(group.id).build() },
+                        onDelete = { confirmDeleteGroup = true },
+                    )
+                }
+                if (personHeader) item(key = "head:people", contentType = "head") {
+                    PersonHeader(st.allPeople, st.peopleLoaded, st.selectedPeople, total = if (st.bucketsFresh) st.totalPhotos else null, metrics = metrics)
+                }
+                val rows = shown.rows
+                val grey = greyLayout != null
+                items(
+                    count = rows.size,
+                    key = { i ->
+                        val r = rows[i]
+                        val tag = if (r is TitledRow) "l" else "r"
+                        if (grey) "g:$tag:${r.start}" else "$tag:${st.items.getOrNull(r.start)?.id ?: r.start}"
+                    },
+                    contentType = { i -> if (rows[i] is TitledRow) "line" else "tiles" },
+                ) { i ->
+                    val row = rows[i]
+                    val top = when {
+                        i == 0 -> metrics.top
+                        row is TitledRow -> metrics.lineGap
+                        else -> metrics.gap
+                    }
+                    if (!grey) LaunchedEffect(row.end) { vm.loadMoreIfNeeded(row.end - 1) }
+                    GalleryRowView(row, geo, metrics, Modifier.padding(start = metrics.pad, end = metrics.pad, top = top), titleSkeleton = skeleton && ph == null) { k, cell ->
+                        if (grey) Box(cell.aspectRatio(1f).clip(TILE_SHAPE).background(tileColor))
+                        else {
+                            val item = st.items[k]
+                            PhotoTile(
+                                item, tilePx, isSelected = item.path in st.selected, hasSelection = hasSelection,
+                                onTap = { vm.open(k) }, onLongPress = { vm.toggleSelect(item.path) }, modifier = cell,
+                            )
+                        }
                     }
                 }
-                if (ph == null && st.loading) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        Box(Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                // The end of the grid: where the next page shows it is coming.
+                // A fixed height, so the spinner coming and going moves nothing.
+                // Not without rows: the list would hold on to it as the first
+                // item when they come, and open at its end.
+                if (rows.isNotEmpty()) item(key = "foot", contentType = "foot") {
+                    Box(Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(top = 8.dp, bottom = 24.dp), contentAlignment = Alignment.Center) {
+                        if (ph == null && st.loading && st.items.isNotEmpty()) CircularProgressIndicator()
                     }
                 }
             }
             if (st.showScrubber) {
-                PhotoDateScrubber(vm, st, Modifier.align(Alignment.CenterEnd).fillMaxHeight(), onEngage = { scope.launch { gridState.scrollToItem(0) } })
+                PhotoDateScrubber(vm, st, Modifier.align(Alignment.CenterEnd).fillMaxHeight(), onEngage = { scope.launch { listState.scrollToItem(headerCount) } })
             }
             if (st.selected.isNotEmpty()) {
                 Box(Modifier.align(Alignment.BottomCenter)) {
@@ -386,30 +530,311 @@ fun ConfirmDialog(title: String, message: String?, confirmLabel: String, onConfi
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PhotoTile(item: PhotoGalleryViewModel.Item, sidePx: Int, isSelected: Boolean, hasSelection: Boolean, onTap: () -> Unit, onLongPress: () -> Unit) {
+private fun PhotoTile(
+    item: PhotoGalleryViewModel.Item, sidePx: Int, isSelected: Boolean, hasSelection: Boolean,
+    onTap: () -> Unit, onLongPress: () -> Unit, modifier: Modifier = Modifier,
+) {
     val bmp = rememberTileThumb(item.thumbKey, sidePx) { item.thumbKey?.let { ThumbStore.load(it) } }
+    val video = item.mime.startsWith("video/")
+    val pick = if (isSelected) "Deselect" else "Select"
     Box(
-        Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(Color(0x1A808080))
-            .combinedClickable(onClick = { if (hasSelection) onLongPress() else onTap() }, onLongClick = onLongPress),
+        modifier.aspectRatio(1f).clip(TILE_SHAPE).background(tileBackground())
+            .combinedClickable(
+                onClickLabel = if (hasSelection) pick else null, onLongClickLabel = pick,
+                onClick = { if (hasSelection) onLongPress() else onTap() }, onLongClick = onLongPress,
+            )
+            // TalkBack reads a tile as the web's ("Photo, 5 October 2026"),
+            // and while photos are being picked whether it is one of them
+            // (the web's aria-pressed). Worked out only when asked for.
+            .semantics {
+                contentDescription = tileLabel(video, item.created, ZoneId.systemDefault())
+                if (hasSelection) selected = isSelected
+            },
     ) {
         if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        if (item.mime.startsWith("video/")) Icon(Icons.Default.PlayCircle, null, Modifier.align(Alignment.BottomStart).padding(4.dp).size(18.dp), tint = Color.White)
+        if (video) Icon(Icons.Default.PlayCircle, null, Modifier.align(Alignment.BottomStart).padding(4.dp).size(18.dp), tint = Color.White)
         if (isSelected) {
-            Box(Modifier.fillMaxSize().border(3.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp)))
+            Box(Modifier.fillMaxSize().border(3.dp, MaterialTheme.colorScheme.primary, TILE_SHAPE))
             Icon(Icons.Default.CheckCircle, null, Modifier.align(Alignment.TopStart).padding(6.dp), tint = MaterialTheme.colorScheme.primary)
         }
+    }
+}
+
+// ---- months ---------------------------------------------------------------------
+
+/**
+ * Where the grid is, kept across a change of width (PhotoGalleryView): the
+ * first photo of the row at the top and how far into that row, in tiles.
+ * [capture] reads it off the list with the rows on screen.
+ */
+private class GridAnchor {
+    var layout: GalleryLayout? = null
+    var headerCount = 0
+    var tilePx = 1f
+    // The photo's index and the offset into its row, in tiles; null at the top.
+    var place: Pair<Int, Float>? = null
+    // The place a change of width is still taking the list back to.
+    var pending: Pair<Int, Float>? = null
+
+    fun capture(index: Int, offset: Int) {
+        val row = layout?.rows?.getOrNull(index - headerCount)
+        place = row?.let { it.start to offset / tilePx.coerceAtLeast(1f) }
+        pending = null
+    }
+}
+
+// Grey tiles while the first page is on its way (the web's cSkeletonTiles).
+private const val SKELETON_TILES = 24
+// A phone's columns, whatever its width (the web's --pg-cols-fixed).
+private const val PHONE_COLUMNS = 3
+private val TILE_SHAPE = RoundedCornerShape(2.dp)
+
+/** A tile's colour before its thumbnail (and a grey tile's), in either theme. */
+@Composable
+private fun tileBackground() = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+
+/**
+ * The grid's sizes, as PhotoGallery.css has them: a phone three across,
+ * 2dp between tiles and between months side by side (a one- and a
+ * two-photo month share a row; their titles keep them apart); a wider
+ * window as many 120dp tiles as fit (150dp from 1024dp), 4dp apart, and
+ * more room between months.
+ */
+internal data class GridMetrics(
+    val phone: Boolean, val pad: Dp, val gap: Dp, val secGap: Dp,
+    // Above a line of months (their titles), and above the first.
+    val lineGap: Dp, val top: Dp, val tileMin: Dp,
+    // A title's size, its inset from the tiles' edge and the room under it.
+    val titleSp: Int, val titleInset: Dp, val titleBottom: Dp,
+)
+
+internal fun gridMetrics(wide: Boolean, windowDp: Int): GridMetrics = if (!wide) {
+    GridMetrics(phone = true, pad = 8.dp, gap = 2.dp, secGap = 2.dp, lineGap = 14.dp, top = 8.dp, tileMin = 120.dp, titleSp = 14, titleInset = 4.dp, titleBottom = 2.dp)
+} else {
+    val whole = windowDp >= 1024
+    GridMetrics(
+        phone = false, pad = 16.dp, gap = 4.dp, secGap = if (whole) 16.dp else 12.dp, lineGap = 20.dp, top = 12.dp,
+        tileMin = if (whole) 150.dp else 120.dp, titleSp = 15, titleInset = 0.dp, titleBottom = 4.dp,
+    )
+}
+
+/**
+ * A row of the grid: months side by side (each its title over its own
+ * tiles, as wide as they are) or a row of tiles across the width. [cell]
+ * draws the photo at an index with the modifier that sizes it.
+ */
+@Composable
+private fun GalleryRowView(
+    row: GalleryRow, geo: GridGeometry, m: GridMetrics, modifier: Modifier, titleSkeleton: Boolean,
+    cell: @Composable RowScope.(Int, Modifier) -> Unit,
+) {
+    when (row) {
+        is TileRow -> TileCells(row.start, row.end, geo.cols, m.gap, modifier.fillMaxWidth(), cell)
+        is TitledRow -> MonthsSideBySide(row.segments, geo.cols, m, modifier.fillMaxWidth()) { seg ->
+            val slots = minOf(seg.slots, geo.cols)
+            // One group per month, so TalkBack reads a month's title and
+            // then its tiles before the next month's title beside it (the
+            // web's order) - not both titles, which share a line, first.
+            Column(Modifier.semantics { isTraversalGroup = true }) {
+                MonthTitle(seg.month, oneTile = slots == 1, m, skeleton = titleSkeleton)
+                TileCells(seg.start, seg.end, slots, m.gap, Modifier.fillMaxWidth(), cell)
+            }
+        }
+    }
+}
+
+/**
+ * Months side by side, each as wide as its own tiles: worked out from the
+ * width the row is measured at, as the full rows' tiles are (weights), so a
+ * month beside another always has tiles of the same size.
+ */
+@Composable
+private fun MonthsSideBySide(segments: List<Segment>, cols: Int, m: GridMetrics, modifier: Modifier, content: @Composable (Segment) -> Unit) {
+    Layout(content = { segments.forEach { content(it) } }, modifier = modifier) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val gap = m.gap.toPx()
+        val between = m.secGap.roundToPx()
+        val tile = (width - (cols - 1) * gap) / cols
+        val placeables = measurables.mapIndexed { i, child ->
+            val slots = minOf(segments[i].slots, cols)
+            val w = if (slots >= cols) width else (slots * tile + (slots - 1) * gap).roundToInt().coerceIn(0, width)
+            child.measure(Constraints(minWidth = w, maxWidth = w, maxHeight = constraints.maxHeight))
+        }
+        layout(width, placeables.maxOfOrNull { it.height } ?: 0) {
+            var x = 0
+            placeables.forEach { p -> p.placeRelative(x, 0); x += p.width + between }
+        }
+    }
+}
+
+/** Tiles [start, end) in a row [slots] wide: the empty slots keep every tile the size of a full row's. */
+@Composable
+private fun TileCells(start: Int, end: Int, slots: Int, gap: Dp, modifier: Modifier, cell: @Composable RowScope.(Int, Modifier) -> Unit) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(gap)) {
+        for (k in start until end) cell(k, Modifier.weight(1f))
+        repeat(slots - (end - start)) { Spacer(Modifier.weight(1f)) }
+    }
+}
+
+/**
+ * A month's title, one line of the same height in every month, so months
+ * side by side keep their tiles level - "March 2024", or "Mar 2024" in a
+ * month one tile wide where the whole name doesn't fit. Photos without a
+ * date at the top get an empty line. [skeleton]: the first page's grey bar.
+ */
+@Composable
+private fun MonthTitle(month: String?, oneTile: Boolean, m: GridMetrics, skeleton: Boolean) {
+    Box(
+        Modifier.fillMaxWidth().padding(start = m.titleInset, end = m.titleInset, top = 4.dp, bottom = m.titleBottom + m.gap).height(20.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (skeleton) {
+            Box(Modifier.width(140.dp).height(14.dp).clip(RoundedCornerShape(7.dp)).background(tileBackground()))
+            return@Box
+        }
+        if (month == null) return@Box
+        val style = TextStyle(fontSize = m.titleSp.sp, fontWeight = FontWeight.SemiBold, lineHeight = 20.sp, color = MaterialTheme.colorScheme.onSurface)
+        val whole = monthTitle(month)
+        val heading = Modifier.semantics { heading(); contentDescription = whole }
+        if (!oneTile) {
+            Text(whole, heading, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        } else {
+            var short by remember(month) { mutableStateOf(false) }
+            Text(
+                if (short) monthShort(month) else whole, heading, style = style, maxLines = 1, softWrap = false,
+                overflow = if (short) TextOverflow.Ellipsis else TextOverflow.Clip,
+                onTextLayout = { if (!short && it.hasVisualOverflow) short = true },
+            )
+        }
+    }
+}
+
+/**
+ * An open collection, above its photos (the web's CollectionHeader): back
+ * to Collections, its name (a tap renames it), how many photos and the
+ * months they span, and sharing it as a gallery or deleting it - icons
+ * when [compact], labelled buttons on a wide window.
+ */
+@Composable
+private fun CollectionHeader(
+    g: ImageGroup, span: String, compact: Boolean, metrics: GridMetrics,
+    onBack: () -> Unit, onRename: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val danger = Color(0xFFE53935)
+    Column(Modifier.fillMaxWidth().padding(start = metrics.pad, end = metrics.pad, top = if (metrics.phone) 8.dp else 16.dp, bottom = 4.dp)) {
+        Row(
+            Modifier.offset(x = (-8).dp).height(36.dp).clip(CircleShape).clickable(onClick = onBack).padding(start = 8.dp, end = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(20.dp), tint = colors.onSurfaceVariant)
+            Spacer(Modifier.width(6.dp))
+            Text("Collections", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.onSurfaceVariant)
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (metrics.phone) 12.dp else 16.dp)) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.Top) {
+                    // The page's heading (the web's h1); a tap renames it.
+                    Text(
+                        g.name,
+                        Modifier.weight(1f, fill = false).clip(RoundedCornerShape(8.dp))
+                            .clickable(onClickLabel = "Rename collection", onClick = onRename).semantics { heading() },
+                        style = headerTitleStyle(metrics), maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    )
+                    IconButton(onClick = onRename, Modifier.size(if (metrics.phone) 30.dp else 36.dp)) {
+                        Icon(Icons.Outlined.Edit, "Rename collection", Modifier.size(20.dp), tint = colors.onSurfaceVariant)
+                    }
+                }
+                Text(
+                    countLabel(g.fileCount, "item") + if (span.isNotEmpty()) " · $span" else "",
+                    Modifier.padding(top = 2.dp), fontSize = 14.sp, lineHeight = 20.sp, color = colors.onSurfaceVariant,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (compact) Row {
+                IconButton(onClick = onShare) { Icon(Icons.Outlined.Public, "Share as gallery", tint = colors.onSurfaceVariant) }
+                IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, "Delete collection", tint = danger) }
+            } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onShare, contentPadding = PaddingValues(start = 14.dp, end = 18.dp)) {
+                    Icon(Icons.Outlined.Public, null, Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Share as gallery")
+                }
+                OutlinedButton(
+                    onClick = onDelete, contentPadding = PaddingValues(start = 14.dp, end = 18.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = danger),
+                ) {
+                    Icon(Icons.Outlined.Delete, null, Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Delete collection")
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The people searched for, above their photos (the web's PersonHeader):
+ * their faces, their names, and how many photos ([total], from the date
+ * buckets; the line is kept until it comes, so nothing moves).
+ */
+@Composable
+private fun PersonHeader(people: List<Person>, loaded: Boolean, ids: List<String>, total: Int?, metrics: GridMetrics) {
+    val colors = MaterialTheme.colorScheme
+    val face = if (metrics.phone) 48.dp else 56.dp
+    val picked = if (loaded) ids.mapNotNull { id -> people.firstOrNull { it.id == id } } else emptyList()
+    if (loaded && picked.isEmpty()) return
+    Row(
+        Modifier.fillMaxWidth().padding(start = metrics.pad, end = metrics.pad, top = if (metrics.phone) 8.dp else 16.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (metrics.phone) 12.dp else 16.dp),
+    ) {
+        // Overlapping, the first on top.
+        Row(horizontalArrangement = Arrangement.spacedBy((-16).dp)) {
+            if (!loaded) FaceCircle(null, face, 0f)
+            picked.take(3).forEachIndexed { i, p -> FaceCircle(p, face, 3f - i) }
+        }
+        Column(Modifier.weight(1f)) {
+            if (!loaded) {
+                // The same height as the header it stands in for.
+                Box(Modifier.padding(vertical = 7.dp).width(160.dp).height(16.dp).clip(RoundedCornerShape(8.dp)).background(tileBackground()))
+                Box(Modifier.padding(top = 6.dp, bottom = 4.dp).width(72.dp).height(12.dp).clip(RoundedCornerShape(6.dp)).background(tileBackground()))
+            } else {
+                Text(
+                    peopleTitle(picked.map { it.name.trim().ifEmpty { "Unnamed" } }), Modifier.semantics { heading() },
+                    style = headerTitleStyle(metrics), maxLines = 2, overflow = TextOverflow.Ellipsis,
+                )
+                Text(total?.let { countLabel(it, "item") } ?: "\u00a0", Modifier.padding(top = 2.dp), fontSize = 14.sp, lineHeight = 20.sp, color = colors.onSurfaceVariant, maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
+private fun headerTitleStyle(m: GridMetrics) = TextStyle(
+    fontSize = if (m.phone) 22.sp else 28.sp, lineHeight = if (m.phone) 30.sp else 36.sp,
+    fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface,
+)
+
+/** A person's face in the header, ringed in the page's colour so faces overlapping read apart. */
+@Composable
+private fun FaceCircle(p: Person?, size: Dp, z: Float) {
+    val px = with(LocalDensity.current) { size.roundToPx() }
+    val bmp = rememberTileThumb(if (p == null || p.coverThumbnail.isEmpty) null else "p:${p.id}:${p.coverThumbnail.hashCode()}", px) { p?.coverThumbnail?.toByteArray() }
+    val colors = MaterialTheme.colorScheme
+    Box(
+        Modifier.zIndex(z).size(size).clip(CircleShape).background(colors.surfaceContainerHighest).border(2.dp, colors.surface, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        // The ring (the Box's border) is drawn over the face.
+        if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        else if (p != null) Icon(Icons.Outlined.Face, null, Modifier.size(size * 0.5f), tint = colors.onSurfaceVariant)
     }
 }
 
 /** Issue #77/#113: the Google-Photos-style scrubber on the grid's right edge. */
 @Composable
 private fun PhotoDateScrubber(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.State, modifier: Modifier, onEngage: () -> Unit) {
-    val monthNames = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-    fun label(month: String): String {
-        val p = month.split("-")
-        val m = p.getOrNull(1)?.toIntOrNull() ?: return month
-        return if (m in 1..12) "${monthNames[m - 1]} ${p[0]}" else month
-    }
     val density = LocalDensity.current
     BoxWithConstraints(modifier.width(64.dp)) {
         val heightPx = with(density) { maxHeight.toPx() }
@@ -433,7 +858,7 @@ private fun PhotoDateScrubber(vm: PhotoGalleryViewModel, st: PhotoGalleryViewMod
             val frac = st.scrubFrac
             if (target != null && frac != null) {
                 Text(
-                    label(target.month), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
+                    scrubLabel(target.month), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
                     modifier = Modifier.align(Alignment.TopEnd).padding(end = 16.dp).offset { IntOffset(0, (heightPx * frac - 12.dp.toPx()).toInt()) }
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
                 )
@@ -449,20 +874,17 @@ private fun PhotoDateScrubber(vm: PhotoGalleryViewModel, st: PhotoGalleryViewMod
                         if (!engaged) { engaged = true; onEngage() }
                         val frac = (change.position.y / heightPx).coerceIn(0f, 1f)
                         vm.setScrubFrac(frac)
-                        val cur = vm.state.value
-                        if (cur.totalPhotos > 0) {
-                            val idx = (frac * cur.totalPhotos).toInt()
-                            val bucket = cur.dateBuckets.firstOrNull { idx >= it.start && idx < it.end } ?: cur.dateBuckets.lastOrNull()
-                            bucket?.let { vm.setPlaceholderCount(it.count) }
-                        }
+                        // The month under the finger, as grey tiles under its
+                        // title: no request, the buckets have its count.
+                        scrubBucketAt(vm.state.value.freshBuckets, frac)?.let { if (it.month != vm.state.value.placeholderMonth) vm.previewMonth(it) }
                     },
                     onDragEnd = {
                         val target = vm.state.value.scrubTarget
                         vm.setScrubFrac(null)
-                        if (target != null) vm.jumpToDate(target.month) else vm.setPlaceholderCount(null)
+                        if (target != null) { vm.previewMonth(target); vm.jumpToDate(target.month) } else vm.previewMonth(null)
                         engaged = false
                     },
-                    onDragCancel = { vm.setScrubFrac(null); vm.setPlaceholderCount(null); engaged = false },
+                    onDragCancel = { vm.setScrubFrac(null); vm.previewMonth(null); engaged = false },
                 )
             },
         )

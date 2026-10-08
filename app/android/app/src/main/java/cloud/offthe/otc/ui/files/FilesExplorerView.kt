@@ -134,18 +134,30 @@ import cloud.offthe.otc.ui.gallery.ImageModal
 import cloud.offthe.otc.ui.gallery.PhotoGalleryViewModel
 import java.util.Date
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
+import cloud.offthe.otc.ui.MenuLayout
+import cloud.offthe.otc.ui.menuLayout
+import cloud.offthe.otc.ui.gallery.FilesSearchField
+import cloud.offthe.otc.ui.gallery.FilesSearchPanel
+import cloud.offthe.otc.ui.gallery.TopSearchViewModel
+import cloud.offthe.otc.ui.gallery.rememberFileSearchOptions
 
 // Port of FilesExplorerView.swift: path navigation, per-row checkboxes,
 // upload from the phone, share/download/delete of the selection, and
 // opening a file in whatever app handles it - photos and videos in the
 // Images section's viewer instead. Shown as a list or a grid of tiles
-// (photo/video thumbnails from GetThumbnails, else FileTypeIcon).
+// (photo/video thumbnails from GetThumbnails, else FileTypeIcon). In the
+// narrow layout a search field for files and folders sits at the top
+// (TopSearch's FilesSearchField; wide, the top bar's search covers files).
 
 private fun isDir(f: PbFile) = f.mime == "inode/directory"
 private fun isImg(f: PbFile) = f.mime.startsWith("image/")
@@ -212,6 +224,98 @@ internal fun outOfImagesWait(task: SelectionActionTask): String = when (task) {
 }
 
 private fun foundRow(f: PbFile) = FileRow(f.path, leafName(f.path), isDir(f), f.byteSize, f, f.uploadOnly, f.versions, f.outOfImages)
+
+/**
+ * Files' own search field (TopSearch's FilesSearchField) shows in the
+ * narrow layout only - MainView's bottom bar, under 600dp across (wide,
+ * the top bar's search covers files) - and not on a device that can't
+ * search its files.
+ */
+internal fun filesSearchFieldShown(windowWidthDp: Float, noFileSearch: Boolean) =
+    menuLayout(windowWidthDp, menuOpen = true) == MenuLayout.NONE && !noFileSearch
+
+/** Which way a change of layout hands the search in use: Files' own field and the wide top bar's take each other's place. */
+internal enum class SearchHandOver { NONE, TO_TOP_BAR, TO_FILES }
+
+/**
+ * What a change of layout does with the search in use ([narrow]: the
+ * layout now is the narrow one, where Files has its own field). Going wide, Files' field
+ * goes and what is typed in it, while in use, moves to the top bar's; going
+ * narrow, the top bar's goes and what it holds, while in use in Files,
+ * moves to Files' field. A field not in use, or with nothing typed, hands
+ * nothing over: each keeps its own text.
+ */
+internal fun searchHandOver(narrow: Boolean, filesOpen: Boolean, filesText: String, topOpen: Boolean, topText: String): SearchHandOver = when {
+    !narrow && filesOpen && filesText.isNotBlank() -> SearchHandOver.TO_TOP_BAR
+    narrow && topOpen && topText.isNotBlank() -> SearchHandOver.TO_FILES
+    else -> SearchHandOver.NONE
+}
+
+/**
+ * The hand-over between Files' own field and the wide top bar's
+ * (searchHandOver), kept in Files' store. The top bar's search is the
+ * Images field's too: given Files' search (going wide while typing in
+ * Files' field), it sets its own text aside ([topBarOwn]) and gets it back
+ * when Files' search leaves it, so neither field ends up with the other's
+ * text:
+ * - back to the narrow layout: Files' field takes what the top bar holds
+ *   by then (typed on, or not; in use, with the focus), and the top bar its
+ *   own text - also when the top bar was emptied in between (a file or
+ *   folder picked, the x), which leaves Files' field empty;
+ * - out of Files: Files keeps what the top bar holds (not in use) for its
+ *   field. An emptied top bar there sets nothing back: it went to Images
+ *   with a tag or a person picked from it, which ends Images' typed text
+ *   as a pick in the Images field does.
+ */
+internal class FilesSearchHandOver : ViewModel() {
+    var topBarOwn: String? = null
+        private set
+
+    /** The layout is now the narrow one ([narrow]) or the wide one: the search in use goes with it. */
+    fun layoutChanged(narrow: Boolean, noFileSearch: Boolean, files: TopSearchViewModel, top: TopSearchViewModel) {
+        if (noFileSearch) {
+            // A device that can't search its files has no field: what was
+            // in it goes too, and the top bar, the one search left, keeps
+            // what it holds.
+            files.handOff()
+            topBarOwn = null
+            return
+        }
+        if (narrow && topBarOwn != null) { giveBack(files, top, inUse = top.open, evenIfEmptied = true); return }
+        when (searchHandOver(narrow, files.open, files.query, top.open, top.query)) {
+            SearchHandOver.TO_TOP_BAR -> {
+                if (topBarOwn == null) topBarOwn = top.query
+                top.takeOver(files.handOff())
+            }
+            SearchHandOver.TO_FILES -> files.takeOver(top.handOff())
+            SearchHandOver.NONE -> {}
+        }
+        // Gone with nothing handed over: no longer in use (it would take
+        // the focus back when it shows again); what is typed stays.
+        if (!narrow) files.close()
+    }
+
+    /** Files left (not only recreated): the top bar holding its search gives it back. */
+    fun filesLeft(files: TopSearchViewModel, top: TopSearchViewModel) {
+        giveBack(files, top, inUse = false, evenIfEmptied = false)
+        files.close()
+    }
+
+    // [evenIfEmptied]: the top bar's own text comes back even when the top
+    // bar holds nothing of Files' search any more.
+    private fun giveBack(files: TopSearchViewModel, top: TopSearchViewModel, inUse: Boolean, evenIfEmptied: Boolean) {
+        val own = topBarOwn ?: return
+        topBarOwn = null
+        val text = top.query
+        if (text.isBlank() && !evenIfEmptied) return
+        // In use, Files' field takes the focus as well; else only the text.
+        if (text.isNotBlank()) {
+            if (inUse) files.takeOver(text) else { files.type(text); files.close() }
+        }
+        top.type(own)
+        top.close()
+    }
+}
 
 /**
  * The Images search's "Search documents" (FilesNav.searchInFiles): every
@@ -767,6 +871,36 @@ fun FilesExplorerView(initialPath: String) {
     val viewer: PhotoGalleryViewModel = viewModel(key = "files-viewer") { PhotoGalleryViewModel("") }
     val vst by viewer.state.collectAsState()
 
+    // Files' own search, in the narrow layout (a phone held upright): a
+    // field at the top for files and folders only (TopSearch's
+    // FilesSearchField), with a model of its own, so the Images field keeps
+    // its text. Wide, Files has no field: the top bar's search covers
+    // files. A change of layout hands the search in use from one field to
+    // the other (FilesSearchHandOver) - never two fields, nor what is being
+    // typed gone from sight - and the top bar's own text comes back when
+    // Files' search leaves it. The top bar's model is MainView's
+    // ("topsearch", from the same store).
+    val fileSearch: TopSearchViewModel = viewModel(key = "files-search")
+    val topSearch: TopSearchViewModel = viewModel(key = "topsearch")
+    val handOver: FilesSearchHandOver = viewModel(key = "files-search-handover")
+    val fileOptions = rememberFileSearchOptions(fileSearch)
+    val noFileSearch by FilesNav.noFileSearch.collectAsState()
+    val widthDp = windowWidthDp()
+    val narrow = menuLayout(widthDp, menuOpen = true) == MenuLayout.NONE
+    val showSearch = filesSearchFieldShown(widthDp, noFileSearch)
+    LaunchedEffect(narrow, noFileSearch) { handOver.layoutChanged(narrow, noFileSearch, fileSearch, topSearch) }
+    // Leaving Files ends its search, as another section ends the Images
+    // one (MainView's go); what is typed stays, and what the top bar holds
+    // of it comes back to it. Only recreated (a change this activity
+    // doesn't handle itself, as dark mode), Files is straight back with
+    // the top bar as it was.
+    val activity = LocalActivity.current
+    DisposableEffect(Unit) {
+        onDispose {
+            if (activity?.isChangingConfigurations == true) fileSearch.close() else handOver.filesLeft(fileSearch, topSearch)
+        }
+    }
+
     LaunchedEffect(Unit) { vm.load() }
     LaunchedEffect(st.path) { pathField = st.path }
 
@@ -857,155 +991,170 @@ fun FilesExplorerView(initialPath: String) {
     }
 
     Box(Modifier.fillMaxSize()) {
-        val results = st.results
-        if (results != null) SearchResultsView(
-            results, folderLabel = if (st.path == "/") "Files" else leafName(st.path), thumbs = st.thumbs, openingPath = st.openingPath,
-            thumbKey = vm::resultThumbKey, onBack = { vm.closeResults() }, onRetry = { vm.startSearch(results.text) }, onOpen = ::openFound,
-        ) else Column(Modifier.fillMaxSize()) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                OTCTextField(
-                    value = pathField, onValueChange = { pathField = it }, singleLine = true, label = { Text("/path/") },
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, imeAction = ImeAction.Go),
-                    keyboardActions = KeyboardActions(onGo = { vm.navigate(pathField) }),
-                    modifier = Modifier.weight(1f),
-                )
-                if (st.loading) { Spacer(Modifier.width(8.dp)); CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
-                // List <-> grid; the icon is the mode a tap switches to.
-                IconButton(onClick = { vm.setGrid(!st.grid) }) {
-                    Icon(if (st.grid) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView, if (st.grid) "Show as list" else "Show as grid")
+        Column(Modifier.fillMaxSize()) {
+            // Narrow, the search field over the folder (or the results),
+            // in a strip like Images' header: the path field stays as it
+            // was, under it, for going to a folder by its path - their left
+            // edges lined up.
+            if (showSearch) {
+                Box(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow).padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    FilesSearchField(fileSearch, fileOptions, Modifier.fillMaxWidth())
                 }
             }
-            st.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp)) }
-            // Issue #192: in a folder kept out of Images (or inside one),
-            // what that means for its photos and videos - its files carry no
-            // mark of their own - and the way back. Only over the folder it
-            // was listed for.
-            // Inside a folder kept out because one above it is, it names
-            // that one and its Show acts on it - the only Show the device
-            // takes - once ListOutOfImages has said which (no button until
-            // then). Nothing else can start while something is under way.
-            if (st.outOfImagesBanner) {
-                val show = st.outOfImagesCover
-                OutOfImagesBanner(
-                    text = if (st.bannerByParent) OutOfImagesText.bannerByParent(st.keptOutBy) else OutOfImagesText.BANNER,
-                    show = show?.let { if (st.bannerByParent) OutOfImagesText.showNamed(leafName(it)) else OutOfImagesText.SHOW },
-                    busy = st.preparing == SelectionActionTask.OUT_OF_IMAGES, enabled = st.preparing == null,
-                ) { if (show != null) outOfImagesAsk = OutOfImagesAsk(show, leafName(show), out = true) }
-            }
-
-            PullToRefreshBox(
-                isRefreshing = refreshing,
-                onRefresh = { scope.launch { refreshing = true; vm.load(); refreshing = false } },
-                modifier = Modifier.weight(1f),
-            ) {
-                if (st.grid) LazyVerticalGrid(
-                    GridCells.Adaptive(104.dp), Modifier.fillMaxSize(), state = gridState,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    items(st.rows, key = { it.path }) { row ->
-                        // Asked for as the tile is composed (the visible rows
-                        // and the grid's prefetch), again if it was evicted
-                        // while shown or failed before a reload.
-                        if (isMedia(row)) {
-                            val key = vm.thumbKey(row)
-                            val has = st.thumbs[key] != null
-                            LaunchedEffect(key, has, st.thumbGen) { vm.wantThumbnail(row) }
-                            DisposableEffect(key) { onDispose { vm.dropThumbnail(key) } }
-                        }
-                        FileGridCell(
-                            row, selected = row.path in st.selected, opening = st.openingPath == row.path,
-                            thumb = if (isMedia(row)) st.thumbs[vm.thumbKey(row)] else null,
-                            onOpen = { openRow(row) },
-                            onToggle = { vm.toggleSelect(row.path) },
-                            onVersions = { scope.launch { vm.openVersions(row) } },
-                            onLock = { lockPrompt = row },
-                            outOfImages = st.outOfImagesSupported && row.outOfImages,
-                            onOutOfImages = { explainOutOfImages(row) },
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                val results = st.results
+                if (results != null) SearchResultsView(
+                    results, folderLabel = if (st.path == "/") "Files" else leafName(st.path), thumbs = st.thumbs, openingPath = st.openingPath,
+                    thumbKey = vm::resultThumbKey, onBack = { vm.closeResults() }, onRetry = { vm.startSearch(results.text) }, onOpen = ::openFound,
+                ) else Column(Modifier.fillMaxSize()) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        OTCTextField(
+                            value = pathField, onValueChange = { pathField = it }, singleLine = true, label = { Text("/path/") },
+                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, imeAction = ImeAction.Go),
+                            keyboardActions = KeyboardActions(onGo = { vm.navigate(pathField) }),
+                            modifier = Modifier.weight(1f),
                         )
+                        if (st.loading) { Spacer(Modifier.width(8.dp)); CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
+                        // List <-> grid; the icon is the mode a tap switches to.
+                        IconButton(onClick = { vm.setGrid(!st.grid) }) {
+                            Icon(if (st.grid) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView, if (st.grid) "Show as list" else "Show as grid")
+                        }
                     }
-                } else LazyColumn(Modifier.fillMaxSize(), state = listState) {
-                    items(st.rows, key = { it.path }) { row ->
-                        val selected = row.path in st.selected
-                        Row(
-                            Modifier.fillMaxWidth()
-                                .clickable(enabled = st.openingPath == null) { openRow(row) }
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                    st.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp)) }
+                    // Issue #192: in a folder kept out of Images (or inside one),
+                    // what that means for its photos and videos - its files carry no
+                    // mark of their own - and the way back. Only over the folder it
+                    // was listed for.
+                    // Inside a folder kept out because one above it is, it names
+                    // that one and its Show acts on it - the only Show the device
+                    // takes - once ListOutOfImages has said which (no button until
+                    // then). Nothing else can start while something is under way.
+                    if (st.outOfImagesBanner) {
+                        val show = st.outOfImagesCover
+                        OutOfImagesBanner(
+                            text = if (st.bannerByParent) OutOfImagesText.bannerByParent(st.keptOutBy) else OutOfImagesText.BANNER,
+                            show = show?.let { if (st.bannerByParent) OutOfImagesText.showNamed(leafName(it)) else OutOfImagesText.SHOW },
+                            busy = st.preparing == SelectionActionTask.OUT_OF_IMAGES, enabled = st.preparing == null,
+                        ) { if (show != null) outOfImagesAsk = OutOfImagesAsk(show, leafName(show), out = true) }
+                    }
+
+                    PullToRefreshBox(
+                        isRefreshing = refreshing,
+                        onRefresh = { scope.launch { refreshing = true; vm.load(); refreshing = false } },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        if (st.grid) LazyVerticalGrid(
+                            GridCells.Adaptive(104.dp), Modifier.fillMaxSize(), state = gridState,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            if (row.path != "..") {
-                                IconButton(onClick = { vm.toggleSelect(row.path) }, modifier = Modifier.size(36.dp)) {
-                                    Icon(if (selected) Icons.Default.CheckCircle else Icons.Outlined.Circle, if (selected) "Deselect" else "Select",
-                                        tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                            items(st.rows, key = { it.path }) { row ->
+                                // Asked for as the tile is composed (the visible rows
+                                // and the grid's prefetch), again if it was evicted
+                                // while shown or failed before a reload.
+                                if (isMedia(row)) {
+                                    val key = vm.thumbKey(row)
+                                    val has = st.thumbs[key] != null
+                                    LaunchedEffect(key, has, st.thumbGen) { vm.wantThumbnail(row) }
+                                    DisposableEffect(key) { onDispose { vm.dropThumbnail(key) } }
                                 }
-                            } else Spacer(Modifier.size(36.dp))
-                            Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
-                                if (st.openingPath == row.path) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                                else Icon(
-                                    if (row.isDir) Icons.Default.Folder else if (isImg(row.raw)) Icons.Default.Image else Icons.Default.Description,
-                                    null, tint = if (row.isDir) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                FileGridCell(
+                                    row, selected = row.path in st.selected, opening = st.openingPath == row.path,
+                                    thumb = if (isMedia(row)) st.thumbs[vm.thumbKey(row)] else null,
+                                    onOpen = { openRow(row) },
+                                    onToggle = { vm.toggleSelect(row.path) },
+                                    onVersions = { scope.launch { vm.openVersions(row) } },
+                                    onLock = { lockPrompt = row },
+                                    outOfImages = st.outOfImagesSupported && row.outOfImages,
+                                    onOutOfImages = { explainOutOfImages(row) },
                                 )
                             }
-                            Spacer(Modifier.width(8.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(row.name, maxLines = 1)
-                                if (!row.isDir) Text(formatBytes(row.size), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            // Issue #132: the versions badge opens the pop-up;
-                            // the lock on a folder toggles upload only, on a
-                            // file it just says it is inside one.
-                            if (!row.isDir && row.versions > 0) {
-                                TextButton(onClick = { scope.launch { vm.openVersions(row) } }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                                    Icon(Icons.Default.History, null, Modifier.size(16.dp))
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("${row.versions}", style = MaterialTheme.typography.labelMedium)
-                                }
-                            }
-                            // Issue #192: a folder kept out of Images (or inside
-                            // one) says so, left of its lock so the locks stay
-                            // in one column; a tap says what it means. The
-                            // switch is in the selection's actions.
-                            if (row.path != ".." && row.isDir && row.outOfImages && st.outOfImagesSupported) {
-                                IconButton(onClick = { explainOutOfImages(row) }, modifier = Modifier.size(36.dp)) {
-                                    Icon(Icons.Outlined.HideImage, OutOfImagesText.STATE, tint = MaterialTheme.colorScheme.primary)
-                                }
-                            }
-                            if (row.path != ".." && row.isDir) {
-                                IconButton(onClick = { lockPrompt = row }, modifier = Modifier.size(36.dp)) {
-                                    Icon(if (row.uploadOnly) Icons.Default.Lock else Icons.Outlined.LockOpen,
-                                        if (row.uploadOnly) "Clear upload only" else "Make upload only",
-                                        tint = if (row.uploadOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            } else if (row.uploadOnly) {
-                                Box(Modifier.size(36.dp).clip(CircleShape).clickable { lockInfo = UploadOnlyText.FILE_INFO }, contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Default.Lock, "In an upload-only folder", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                        } else LazyColumn(Modifier.fillMaxSize(), state = listState) {
+                            items(st.rows, key = { it.path }) { row ->
+                                val selected = row.path in st.selected
+                                Row(
+                                    Modifier.fillMaxWidth()
+                                        .clickable(enabled = st.openingPath == null) { openRow(row) }
+                                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    if (row.path != "..") {
+                                        IconButton(onClick = { vm.toggleSelect(row.path) }, modifier = Modifier.size(36.dp)) {
+                                            Icon(if (selected) Icons.Default.CheckCircle else Icons.Outlined.Circle, if (selected) "Deselect" else "Select",
+                                                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    } else Spacer(Modifier.size(36.dp))
+                                    Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
+                                        if (st.openingPath == row.path) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                                        else Icon(
+                                            if (row.isDir) Icons.Default.Folder else if (isImg(row.raw)) Icons.Default.Image else Icons.Default.Description,
+                                            null, tint = if (row.isDir) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(row.name, maxLines = 1)
+                                        if (!row.isDir) Text(formatBytes(row.size), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    // Issue #132: the versions badge opens the pop-up;
+                                    // the lock on a folder toggles upload only, on a
+                                    // file it just says it is inside one.
+                                    if (!row.isDir && row.versions > 0) {
+                                        TextButton(onClick = { scope.launch { vm.openVersions(row) } }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
+                                            Icon(Icons.Default.History, null, Modifier.size(16.dp))
+                                            Spacer(Modifier.width(4.dp))
+                                            Text("${row.versions}", style = MaterialTheme.typography.labelMedium)
+                                        }
+                                    }
+                                    // Issue #192: a folder kept out of Images (or inside
+                                    // one) says so, left of its lock so the locks stay
+                                    // in one column; a tap says what it means. The
+                                    // switch is in the selection's actions.
+                                    if (row.path != ".." && row.isDir && row.outOfImages && st.outOfImagesSupported) {
+                                        IconButton(onClick = { explainOutOfImages(row) }, modifier = Modifier.size(36.dp)) {
+                                            Icon(Icons.Outlined.HideImage, OutOfImagesText.STATE, tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                    }
+                                    if (row.path != ".." && row.isDir) {
+                                        IconButton(onClick = { lockPrompt = row }, modifier = Modifier.size(36.dp)) {
+                                            Icon(if (row.uploadOnly) Icons.Default.Lock else Icons.Outlined.LockOpen,
+                                                if (row.uploadOnly) "Clear upload only" else "Make upload only",
+                                                tint = if (row.uploadOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    } else if (row.uploadOnly) {
+                                        Box(Modifier.size(36.dp).clip(CircleShape).clickable { lockInfo = UploadOnlyText.FILE_INFO }, contentAlignment = Alignment.Center) {
+                                            Icon(Icons.Default.Lock, "In an upload-only folder", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            }
 
-            SelectionActionBar(
-                count = st.selected.size,
-                busy = st.preparing,
-                onShare = { scope.launch { vm.shareSelected(context) } },
-                onDownload = { scope.launch { vm.downloadSelected(context) } },
-                onDelete = {
-                    if (vm.selectionUploadOnly) vm.showToast("The selection is in an upload-only folder and cannot be deleted")
-                    else vm.setConfirmDelete(true)
-                },
-                onUpload = { importer.launch(arrayOf("*/*")) },
-                onGallery = selectedFolder?.let { row ->
-                    { gallerySource = SharedGallerySource.newBuilder().setDirectory(vm.fullPath(row)).build() }
-                },
-                // Issue #192: one folder picked, on a device that can, and
-                // not inside a folder kept out (State.outOfImagesSwitch).
-                onOutOfImages = st.outOfImagesSwitch?.let { row -> { askOutOfImages(row) } },
-                keptOutOfImages = st.outOfImagesSwitch?.outOfImages == true,
-            )
-            Spacer(Modifier.size(8.dp))
+                    SelectionActionBar(
+                        count = st.selected.size,
+                        busy = st.preparing,
+                        onShare = { scope.launch { vm.shareSelected(context) } },
+                        onDownload = { scope.launch { vm.downloadSelected(context) } },
+                        onDelete = {
+                            if (vm.selectionUploadOnly) vm.showToast("The selection is in an upload-only folder and cannot be deleted")
+                            else vm.setConfirmDelete(true)
+                        },
+                        onUpload = { importer.launch(arrayOf("*/*")) },
+                        onGallery = selectedFolder?.let { row ->
+                            { gallerySource = SharedGallerySource.newBuilder().setDirectory(vm.fullPath(row)).build() }
+                        },
+                        // Issue #192: one folder picked, on a device that can, and
+                        // not inside a folder kept out (State.outOfImagesSwitch).
+                        onOutOfImages = st.outOfImagesSwitch?.let { row -> { askOutOfImages(row) } },
+                        keptOutOfImages = st.outOfImagesSwitch?.outOfImages == true,
+                    )
+                    Spacer(Modifier.size(8.dp))
+                }
+                // Its suggestions, over everything under the field.
+                if (showSearch) FilesSearchPanel(fileSearch, fileOptions)
+            }
         }
         Toast(st.toast, Modifier.align(Alignment.TopCenter).padding(horizontal = 16.dp))
         // Issue #192: a change for Images, once done, said to TalkBack (the
@@ -1333,6 +1482,16 @@ private fun OutOfImagesBanner(text: String, show: String?, busy: Boolean, enable
             Text(show, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End)
         }
     }
+}
+
+/**
+ * The window's width in dp, as MainView takes it for its layout (the whole
+ * window, edge to edge); the configuration's until the window is measured.
+ */
+@Composable
+private fun windowWidthDp(): Float {
+    val px = LocalWindowInfo.current.containerSize.width
+    return if (px > 0) with(LocalDensity.current) { px.toDp().value } else LocalConfiguration.current.screenWidthDp.toFloat()
 }
 
 private fun queryDisplayName(context: Context, uri: Uri): String? =

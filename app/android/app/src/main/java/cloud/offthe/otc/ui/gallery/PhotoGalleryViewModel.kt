@@ -46,7 +46,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.util.Calendar
+import java.time.ZoneId
 import java.util.UUID
 
 // SearchPhotos.limit for the request that starts a photo search (no
@@ -63,7 +63,9 @@ private const val LISTS_REFRESH_MS = 5 * 60_000L
 // filter (issue #52, AND semantics), image groups (issue #115, which the
 // app calls collections), the date scrubber (issue #77), a search
 // generation counter that discards stale replies, and the paging that
-// keeps asking until a page adds something.
+// keeps asking until a page adds something. Each photo carries its month
+// (PhotoMonths.kt), worked out once as its page lands, for the grid's
+// month titles.
 //
 // The same view model also drives the viewer opened from the Files section
 // (showFiles): a separate instance holding just that folder's photos and
@@ -72,7 +74,13 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel(), PeopleS
     // thumbKey: the thumbnail's bytes in ThumbStore (the item's id), null
     // when the device sent none. preview: an already decoded placeholder
     // (the Files grid's thumbnail), used when there are no thumb bytes.
-    data class Item(val id: String, val path: String, val mime: String, val size: Long, val thumbKey: String?, val preview: Bitmap? = null)
+    // month: "2024-03" in the phone's time zone, null without a date
+    // (monthOf) - the Images grid's month titles. created: the photo's
+    // date (epoch ms, null without one), for the tile's label (tileLabel).
+    data class Item(
+        val id: String, val path: String, val mime: String, val size: Long, val thumbKey: String?,
+        val preview: Bitmap? = null, val month: String? = null, val created: Long? = null,
+    )
     data class DateBucket(val month: String, val count: Int, val start: Int, val end: Int)
 
     data class State(
@@ -87,9 +95,26 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel(), PeopleS
         // A list of collections came (the Collections page's skeleton until then).
         val groupsLoaded: Boolean = false,
         val activeGroup: ImageGroup? = null,
+        // Photo counts per month (issue #77), newest first, for the
+        // scrubber, the headers' count and span, the room the last month
+        // takes and the grey tiles of a month that hasn't loaded - and
+        // whose they are (bucketsKey: the people and the open collection;
+        // tags never change them), so a filter's old ones count for
+        // nothing until the new ones come (freshBuckets).
         val dateBuckets: List<DateBucket> = emptyList(),
+        val bucketsKey: String? = null,
         val scrubFrac: Float? = null,
+        // Grey tiles in place of the grid while the scrubber is dragged and
+        // until the jump it ends with has its photos, under their month's
+        // title (placeholderMonth), so the photos land where they were.
         val placeholderCount: Int? = null,
+        val placeholderMonth: String? = null,
+        // Counts the jumps whose photos have landed: the grid goes to its top
+        // then, the month's title.
+        val jumpsLanded: Int = 0,
+        // Counts the searches started anew (a filter, a refresh): the grid
+        // goes back to its top, as the web's does.
+        val searchesStarted: Int = 0,
         val items: List<Item> = emptyList(),
         val loading: Boolean = false,
         val endReached: Boolean = false,
@@ -110,31 +135,38 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel(), PeopleS
         val infoLoading: Boolean = false,
         val infoData: FileExifInfo? = null,
     ) {
-        val totalPhotos get() = dateBuckets.lastOrNull()?.end ?: 0
-        val showScrubber get() = chips.isEmpty() && dateBuckets.isNotEmpty()
+        /** A tag search is sorted by how well photos match: no month titles, no scrubber (the web's isDateOrdered). */
+        val dateOrdered get() = chips.isEmpty()
+        /** Whose date buckets this filter needs: null when it has none (a tag search). */
+        val bucketsKeyNow: String? get() = if (dateOrdered) bucketsKeyOf(selectedPeople, activeGroup?.id ?: "") else null
+        val bucketsFresh get() = bucketsKeyNow != null && bucketsKey == bucketsKeyNow
+        val freshBuckets: List<DateBucket> get() = if (bucketsFresh) dateBuckets else emptyList()
+        val totalPhotos get() = freshBuckets.lastOrNull()?.end ?: 0
+        val showScrubber get() = dateOrdered && freshBuckets.isNotEmpty()
         val yearTicks: List<Pair<String, Float>> get() {
             if (totalPhotos <= 0) return emptyList()
             val out = mutableListOf<Pair<String, Float>>()
             var last = ""
-            for (b in dateBuckets) {
+            for (b in freshBuckets) {
                 val y = b.month.take(4)
                 if (y != last) { out += y to b.start.toFloat() / totalPhotos; last = y }
             }
             return out
         }
         val hiRes: Bitmap? get() = openIndex?.let { items.getOrNull(it) }?.let { hiResImages[it.path] }
-        val scrubTarget: DateBucket? get() {
-            val f = scrubFrac ?: return null
-            if (totalPhotos <= 0) return null
-            val idx = (f * totalPhotos).toInt()
-            return dateBuckets.firstOrNull { idx >= it.start && idx < it.end } ?: dateBuckets.lastOrNull()
-        }
+        val scrubTarget: DateBucket? get() = scrubFrac?.let { scrubBucketAt(freshBuckets, it) }
     }
 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state
     private var token: String? = null
     private var searchGeneration = 0
+    // A jump's cutoff (epoch ms), for the search it started: a first page
+    // asked again starts at that month again, and a page that went on by
+    // its token is checked against it (lostCutoff).
+    private var jumpBefore: Long? = null
+    private var bucketGeneration = 0
+    private var bucketJob: Job? = null
     private var searchJob: Job? = null
     // The furthest tile (its index) that asked for more while a page was
     // loading, so the page that lands can honour it.
@@ -298,40 +330,85 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel(), PeopleS
         } catch (_: Exception) {}
     }
 
+    /** The date buckets of the filter as it is now: a load of its own, in place of any still going. */
+    private fun reloadDateBuckets() {
+        bucketJob?.cancel()
+        bucketJob = viewModelScope.launch { loadDateBuckets() }
+    }
+
+    // A load that failed is asked again, 1 s doubling to 10 s (the web's
+    // usePageRetry), for as long as it is still this filter's: the headers'
+    // count and span, the scrubber and the last month's room all wait on it.
+    // A filter changed meanwhile has asked for its own.
     private suspend fun loadDateBuckets() {
+        val gen = ++bucketGeneration
         val st = _state.value
-        if (st.chips.isNotEmpty()) { _state.update { it.copy(dateBuckets = emptyList()) }; return }
+        val key = st.bucketsKeyNow ?: run { _state.update { it.copy(dateBuckets = emptyList(), bucketsKey = null) }; return }
+        val people = st.selectedPeople
+        val group = st.activeGroup?.id ?: ""
+        retryWithBackoff(stillWanted = { gen == bucketGeneration && _state.value.bucketsKeyNow == key }) {
+            loadDateBucketsOnce(people, group, key, gen)
+        }
+    }
+
+    /** One ask for the buckets: false when it failed and is worth asking again. */
+    private suspend fun loadDateBucketsOnce(people: List<String>, group: String, key: String, gen: Int): Boolean {
         val resp = try {
             OTCConnection.request {
-                it.setReqPhotoDateBuckets(ReqPhotoDateBuckets.newBuilder().addAllPersonIds(st.selectedPeople).setGroupId(st.activeGroup?.id ?: "").setIncludeVideos(true))
+                it.setReqPhotoDateBuckets(ReqPhotoDateBuckets.newBuilder().addAllPersonIds(people).setGroupId(group).setIncludeVideos(true))
             }
-        } catch (e: Exception) { return }
-        if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_PHOTO_DATE_BUCKETS) return
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { return false }
+        // A newer filter asked for its own meanwhile: nothing left to do here.
+        if (gen != bucketGeneration) return true
+        // A device without them: no scrubber, no counts in the headers, and
+        // nothing to ask again.
+        if (resp.isUnknownPayload()) { _state.update { it.copy(dateBuckets = emptyList(), bucketsKey = key) }; return true }
+        if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_PHOTO_DATE_BUCKETS) return false
         var cum = 0
         val buckets = resp.respPhotoDateBuckets.bucketsList.map { pb -> val s = cum; cum += pb.count; DateBucket(pb.month, pb.count, s, cum) }
-        _state.update { it.copy(dateBuckets = buckets) }
+        _state.update { it.copy(dateBuckets = buckets, bucketsKey = key) }
+        return true
     }
 
     fun setScrubFrac(f: Float?) = _state.update { it.copy(scrubFrac = f) }
-    fun setPlaceholderCount(n: Int?) = _state.update { it.copy(placeholderCount = n) }
 
-    fun jumpToDate(month: String) {
-        searchJob?.cancel()
-        searchJob = viewModelScope.launch { performJump(month) }
+    /**
+     * While the scrubber is dragged: the month under it as grey tiles under
+     * its title - no request, the count comes from the buckets already
+     * loaded (at most [MAX_PLACEHOLDERS]); null puts the photos back.
+     */
+    fun previewMonth(bucket: DateBucket?) = _state.update {
+        if (bucket == null) it.copy(placeholderCount = null, placeholderMonth = null)
+        else it.copy(placeholderCount = minOf(bucket.count, MAX_PLACEHOLDERS), placeholderMonth = bucket.month)
     }
 
-    private suspend fun performJump(month: String) {
-        val parts = month.split("-").mapNotNull { it.toIntOrNull() }
-        if (parts.size != 2) return
-        val cal = Calendar.getInstance().apply { clear(); set(parts[0], parts[1] - 1, 1); add(Calendar.MONTH, 1) }
-        val before = cal.timeInMillis - 1000
+    fun jumpToDate(month: String) {
+        // Not a month (the device's "No date" bucket has its own cutoff): no
+        // jump, the photos as they were - never grey tiles left standing.
+        val before = jumpCutoffMs(month, ZoneId.systemDefault()) ?: run { previewMonth(null); return }
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch { performJump(before) }
+    }
+
+    // A fresh search like a filter change, anchored at `before` (the last
+    // instant of the month, jumpCutoffMs). The grey tiles go once this
+    // search is done, unless a newer one took over or a new drag has its
+    // own. The selection stays, as on the web: picking photos from two
+    // dates is what the scrubber is for.
+    private suspend fun performJump(before: Long) {
         searchGeneration += 1
         val mine = searchGeneration
         token = ""
+        jumpBefore = before
         morePendingAt = null
-        _state.update { it.copy(loading = false, endReached = false, items = emptyList(), selected = emptySet()) }
-        fetchPage(overrideToken = "", beforeMs = before)
-        if (mine == searchGeneration) _state.update { it.copy(placeholderCount = null) }
+        _state.update { it.copy(loading = false, endReached = false, items = emptyList()) }
+        val landed = fetchPage(overrideToken = "", beforeMs = before)
+        if (mine == searchGeneration) _state.update {
+            val jumps = if (landed) it.jumpsLanded + 1 else it.jumpsLanded
+            if (it.scrubFrac != null) it.copy(jumpsLanded = jumps) else it.copy(placeholderCount = null, placeholderMonth = null, jumpsLanded = jumps)
+        }
     }
 
     /** The people, asked again: true once the device's list is in. */
@@ -444,17 +521,20 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel(), PeopleS
         if (fixedList) return
         searchGeneration += 1
         token = ""
+        jumpBefore = null
         morePendingAt = null
-        _state.update { it.copy(loading = false, endReached = false, items = emptyList(), selected = emptySet(), scrubFrac = null, placeholderCount = null) }
-        val buckets = viewModelScope.launch { loadDateBuckets() }
+        // The selection stays, as the web's does across a filter change
+        // (leaving for People or Collections clears it, as the web's page
+        // change does: PhotoGalleryView).
+        _state.update { it.copy(loading = false, endReached = false, items = emptyList(), scrubFrac = null, placeholderCount = null, placeholderMonth = null, searchesStarted = it.searchesStarted + 1) }
+        reloadDateBuckets()
         fetchPage(overrideToken = "")
-        buckets.join()
     }
 
-    suspend fun loadMoreIfNeeded(item: Item?) {
+    /** The grid drew the photo at [idx]: the next page, once it is near the end. */
+    suspend fun loadMoreIfNeeded(idx: Int) {
         val st = _state.value
-        if (item == null || st.endReached || fixedList) return
-        val idx = st.items.indexOf(item)
+        if (st.endReached || fixedList) return
         if (idx < 0 || idx < st.items.size - 12) return
         if (st.loading) { morePendingAt = maxOf(morePendingAt ?: idx, idx); return }
         fetchUntilProgress()
@@ -486,24 +566,47 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel(), PeopleS
             val group = st0.activeGroup?.id ?: ""
             val requestToken = overrideToken ?: token ?: ""
             val have = st0.items.size
-            val resp = try {
-                OTCConnection.request { e ->
-                    val sp = SearchPhotos.newBuilder().addAllTags(tags).addAllPersonIds(people).setGroupId(group).setIncludeVideos(true).setToken(requestToken).setHave(have)
-                    // A search starting here (opening, a filter, the
-                    // scrubber's jump) gets a small first page; scrolling
-                    // on, the device's own size.
-                    if (requestToken.isEmpty()) sp.limit = FIRST_PHOTO_PAGE_LIMIT
-                    if (beforeMs != null) sp.before = Timestamp.newBuilder().setSeconds(beforeMs / 1000).build()
-                    e.setReqSearchPhotos(sp)
-                }
+            suspend fun page(tok: String, cutoffMs: Long?) = OTCConnection.request { e ->
+                val sp = SearchPhotos.newBuilder().addAllTags(tags).addAllPersonIds(people).setGroupId(group).setIncludeVideos(true).setToken(tok).setHave(have)
+                // A search starting here (opening, a filter, the
+                // scrubber's jump) gets a small first page; scrolling
+                // on, the device's own size.
+                if (tok.isEmpty()) sp.limit = FIRST_PHOTO_PAGE_LIMIT
+                if (cutoffMs != null) sp.before = Timestamp.newBuilder().setSeconds(Math.floorDiv(cutoffMs, 1000L)).setNanos(Math.floorMod(cutoffMs, 1000L).toInt() * 1_000_000).build()
+                e.setReqSearchPhotos(sp)
+            }
+            var resp = try {
+                // The cutoff goes only on the request that starts the search
+                // (a first page asked again after a jump starts at its month
+                // again); the token carries the place after.
+                page(requestToken, if (requestToken.isEmpty()) beforeMs ?: jumpBefore else null)
             } catch (e: Exception) { return false }
             if (mine != searchGeneration) return false
+            // After a jump, a page from a search the device started again
+            // (lostCutoff) is from the wrong end of the library. Asked once
+            // more with the cutoff, the device runs the jump's search,
+            // skipping the `have` photos the grid holds, whatever the token.
+            val cutoff = jumpBefore
+            if (requestToken.isNotEmpty() && cutoff != null && resp.payloadCase == RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) {
+                val lof = resp.respListOfFiles
+                if (lostCutoff(lof.filesList.map { (if (it.hasCreated()) it.created.seconds * 1000 + it.created.nanos / 1_000_000 else null) to it.path }, lof.token, requestToken, cutoff, st0.items.mapTo(HashSet()) { it.path })) {
+                    resp = try { page(requestToken, cutoff) } catch (e: Exception) { return false }
+                    if (mine != searchGeneration) return false
+                }
+            }
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) return false
             val lof = resp.respListOfFiles
             val withThumb = lof.filesList.filter { it.hasContent() }.map { f -> "${f.path}#${f.hash}#${f.byteSize}" to f.content.toByteArray() }
             ThumbStore.putAll(withThumb)
             if (mine != searchGeneration) return false
-            val newItems = lof.filesList.map { f -> "${f.path}#${f.hash}#${f.byteSize}".let { id -> Item(id, f.path, f.mime, f.byteSize, if (f.hasContent()) id else null) } }
+            // Each photo's month, once, here: the grid lays the months out
+            // from these (PhotoMonths.kt) without looking at a date again.
+            val zone = ZoneId.systemDefault()
+            val newItems = lof.filesList.map { f ->
+                val month = if (f.hasCreated()) monthOf(f.created.seconds, f.created.nanos, zone) else null
+                val created = if (f.hasCreated()) f.created.seconds * 1000 + f.created.nanos / 1_000_000 else null
+                "${f.path}#${f.hash}#${f.byteSize}".let { id -> Item(id, f.path, f.mime, f.byteSize, if (f.hasContent()) id else null, month = month, created = created) }
+            }
             _state.update { st ->
                 val existing = st.items.map { it.id }.toSet()
                 st.copy(items = st.items + newItems.filter { it.id !in existing })
@@ -691,9 +794,21 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel(), PeopleS
         _state.update { st -> st.copy(items = st.items.filterIndexed { i, _ -> i != idx }, selected = st.selected - item.path) }
         if (_state.value.items.isEmpty()) closeModal() else open(minOf(idx, _state.value.items.size - 1))
         onDeleted?.invoke()
+        countsChanged()
+    }
+
+    // Photos deleted from Images: the months' counts (the headers, the
+    // scrubber) and the open collection's count follow.
+    private fun countsChanged() {
+        if (fixedList) return
+        reloadDateBuckets()
+        if (_state.value.activeGroup != null) viewModelScope.launch { loadGroups() }
     }
 
     fun toggleSelect(path: String) = _state.update { st -> st.copy(selected = if (path in st.selected) st.selected - path else st.selected + path) }
+
+    /** Nothing selected any more (Back, or leaving for People or Collections). */
+    fun clearSelection() { if (_state.value.selected.isNotEmpty()) _state.update { it.copy(selected = emptySet()) } }
 
     fun deleteSelected() = viewModelScope.launch {
         val paths = _state.value.selected.toList()
@@ -706,7 +821,10 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel(), PeopleS
             } catch (e: Exception) { alert("Delete failed: ${e.message}"); continue }
             deleted += p
         }
-        if (deleted.isNotEmpty()) _state.update { st -> st.copy(items = st.items.filter { it.path !in deleted }, selected = st.selected - deleted) }
+        if (deleted.isNotEmpty()) {
+            _state.update { st -> st.copy(items = st.items.filter { it.path !in deleted }, selected = st.selected - deleted) }
+            countsChanged()
+        }
     }
 
     private suspend fun shareLink(): String? {
@@ -731,4 +849,50 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel(), PeopleS
 
     fun alert(m: String) = _state.update { it.copy(alert = m) }
     fun dismissAlert() = _state.update { it.copy(alert = null) }
+
+    companion object {
+        // While the scrubber is dragged, a month that hasn't loaded shows
+        // this many grey tiles at most: enough to read as "a lot", not
+        // thousands of views (the web's cMaxPlaceholders).
+        const val MAX_PLACEHOLDERS = 300
+
+        /** Whose date buckets: the people and the open collection (tags never change them). */
+        fun bucketsKeyOf(people: List<String>, groupId: String) = "${people.joinToString(",")}|$groupId"
+    }
+}
+
+/**
+ * Runs [attempt] until it succeeds (true), waiting [firstMs] after the first
+ * failure and twice as long after each next one, up to [maxMs] - the web's
+ * usePageRetry - and only while [stillWanted] after each wait. True once an
+ * attempt succeeded, false when it was no longer wanted.
+ */
+internal suspend fun retryWithBackoff(
+    firstMs: Long = 1_000, maxMs: Long = 10_000,
+    stillWanted: () -> Boolean = { true },
+    sleep: suspend (Long) -> Unit = { delay(it) },
+    attempt: suspend () -> Boolean,
+): Boolean {
+    var wait = firstMs
+    while (true) {
+        if (attempt()) return true
+        sleep(wait)
+        if (!stillWanted()) return false
+        wait = minOf(wait * 2, maxMs)
+    }
+}
+
+/**
+ * Whether a page that went on with a jump's search (by its token) came from
+ * a search the device started again: one that no longer holds the token
+ * (unused for five minutes, or a restart) searches again without the jump's
+ * cutoff, from the newest photo. A held token comes back as it was sent;
+ * the last page of either has none, and then the photos tell - newer than
+ * the cutoff, or already on the screen. [files]: each one's date (epoch ms,
+ * null without one) and path. The web's lostCutoff.
+ */
+fun lostCutoff(files: List<Pair<Long?, String>>, token: String, sent: String, cutoffMs: Long, shown: Set<String>): Boolean {
+    if (token.isNotEmpty()) return token != sent
+    if (files.any { (created, _) -> created != null && created > cutoffMs }) return true
+    return files.any { (_, path) -> path in shown }
 }

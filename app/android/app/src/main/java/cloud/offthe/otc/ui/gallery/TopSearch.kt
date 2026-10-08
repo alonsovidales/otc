@@ -128,6 +128,15 @@ import java.text.NumberFormat
 // picking a folder shows it in Files, and a file opens there as a tap on
 // it would. The Search key never opens a file. With nothing typed there
 // is no panel.
+//
+// Files has the same field of its own in the narrow layout (a phone held
+// upright, FilesExplorerView), searching files and folders only: no
+// chips, no Things or People (fileSearchOptions), "Search files" for a
+// placeholder, and the documents row always first - what the Search key
+// takes. It has its own TopSearchViewModel, so neither field changes the
+// other's text. Wide, Files has no field of its own: the top bar's covers
+// files. Turning the phone while one of them is in use hands what is
+// typed to the other (takeOver).
 
 private const val MATCH_TAGS = 5
 private const val MATCH_PEOPLE = 5
@@ -215,6 +224,16 @@ fun searchOptions(
     return SearchOptions(out, exact ?: out.firstOrNull { it !is SearchOption.FileHit }?.key)
 }
 
+/**
+ * Files' own search (FilesSearchField): the options with no things or
+ * people - the documents row first, which is what the Search key takes
+ * (the whole list of results, in Files), then the files and folders the
+ * device found. A device without SearchFiles has neither (Files hides the
+ * field then).
+ */
+fun fileSearchOptions(typed: String, found: FoundFiles?, noFileSearch: Boolean): SearchOptions =
+    searchOptions(typed, emptyList(), emptyList(), null, found, noFileSearch)
+
 /** Where the arrow keys moved the highlight to: above the first row, so Enter takes the words as typed. */
 const val ABOVE_ROWS = ""
 
@@ -266,6 +285,13 @@ class TopSearchViewModel : ViewModel() {
      */
     var moved by mutableStateOf<String?>(null)
         private set
+    /**
+     * Bumped when the search is handed over from a field that went away
+     * (takeOver): the field showing this search takes the focus, and the
+     * keyboard, as it does when it appears with the search in use.
+     */
+    var focusAsks by mutableStateOf(0)
+        private set
 
     // The last file search sent: an answer to an earlier one is dropped.
     private var seq = 0
@@ -290,6 +316,25 @@ class TopSearchViewModel : ViewModel() {
         query = ""
         moved = null
         askFiles()
+    }
+
+    /**
+     * What was typed in another field, in use when it went away - the
+     * phone turned between the layouts, where Files' own field (narrow)
+     * and the top bar's (wide) take each other's place: this search takes
+     * it, in use, and its field the focus.
+     */
+    fun takeOver(text: String) {
+        type(text)
+        focusAsks++
+    }
+
+    /** Handed to another field (takeOver): the text goes, and the search is no longer in use. */
+    fun handOff(): String {
+        val text = query
+        clearQuery()
+        close()
+        return text
     }
 
     /** A hardware keyboard's up (-1) or down (1) arrow, through [o]. */
@@ -331,6 +376,18 @@ class TopSearchViewModel : ViewModel() {
     }
 }
 
+/**
+ * What Enter, or the keyboard's Search key, takes for [typed] (trimmed):
+ * the highlighted row - where the arrows went ([moved]), or else the best
+ * match - or else the documents searched for the words. null: nothing is
+ * typed, or the device can't search its files and nothing matches.
+ */
+fun searchKeyChoice(typed: String, o: SearchOptions, moved: String?, noFileSearch: Boolean): SearchOption? {
+    if (typed.isEmpty()) return null
+    val active = activeKey(o, moved)
+    return o.options.firstOrNull { it.key == active } ?: if (noFileSearch) null else SearchOption.Docs(typed)
+}
+
 /** A device older than the request: it says so in the code, or (very old) only in the message. */
 fun RespEnvelope.isUnknownPayload() = error && (errorCode == "unknown_payload" || errorMessage == "unknown payload")
 
@@ -348,19 +405,29 @@ fun rememberSearchOptions(search: TopSearchViewModel, st: PhotoGalleryViewModel.
     }
 }
 
+/** Files' own search: the options for what is typed now, files and folders only (fileSearchOptions). */
+@Composable
+fun rememberFileSearchOptions(search: TopSearchViewModel): SearchOptions {
+    val noFileSearch by FilesNav.noFileSearch.collectAsState()
+    val query = search.query
+    val found = search.found
+    return remember(query, found, noFileSearch) { fileSearchOptions(query.trim(), found, noFileSearch) }
+}
+
 /**
  * Picking an option: the text goes, and the photos, Files or the viewer
  * show what was picked. [onShowPhotos]: a tag or a person was picked - the
  * wide layout's top bar shows Images then, from whichever section (Files
- * follows FilesNav by itself).
+ * follows FilesNav by itself). [gallery] is null for Files' own search,
+ * which offers neither.
  */
-private fun pick(o: SearchOption, search: TopSearchViewModel, gallery: PhotoGalleryViewModel, onShowPhotos: () -> Unit) {
+private fun pick(o: SearchOption, search: TopSearchViewModel, gallery: PhotoGalleryViewModel?, onShowPhotos: () -> Unit) {
     search.clearQuery()
     search.close()
-    gallery.refreshListsIfStale()
+    gallery?.refreshListsIfStale()
     when (o) {
-        is SearchOption.Tag -> { gallery.addChip(o.tag); onShowPhotos() }
-        is SearchOption.PersonHit -> { gallery.togglePerson(o.person.id); onShowPhotos() }
+        is SearchOption.Tag -> { gallery?.addChip(o.tag); onShowPhotos() }
+        is SearchOption.PersonHit -> { gallery?.togglePerson(o.person.id); onShowPhotos() }
         is SearchOption.Docs -> FilesNav.searchInFiles(o.text)
         // A folder opens; a file opens in its folder, as a tap there.
         is SearchOption.FileHit ->
@@ -423,11 +490,34 @@ private fun marked(text: String, span: Span?, markColor: Color? = null): Annotat
  * the highlighted row, and Escape closes the panel, keeping the field in
  * use - a second Escape lets go of it.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TopSearchField(
     search: TopSearchViewModel, gallery: PhotoGalleryViewModel, st: PhotoGalleryViewModel.State, options: SearchOptions,
     modifier: Modifier = Modifier, onShowPhotos: () -> Unit = {}, showGroup: Boolean = false,
+) = SearchField(search, gallery, st, options, modifier, onShowPhotos, showGroup, PLACEHOLDER)
+
+/**
+ * Files' own search field, in the narrow layout (FilesExplorerView): the
+ * same field, for files and folders only - no chips; the Search key lists
+ * every match in Files (fileSearchOptions). [search] is its own model, not
+ * the Images field's.
+ */
+@Composable
+fun FilesSearchField(search: TopSearchViewModel, options: SearchOptions, modifier: Modifier = Modifier) =
+    SearchField(search, null, null, options, modifier, {}, false, FILES_PLACEHOLDER)
+
+private const val PLACEHOLDER = "Search photos and files"
+private const val FILES_PLACEHOLDER = "Search files"
+
+/**
+ * The field of either search: Images' and the wide top bar's ([gallery]
+ * and [st] given), or Files' own (both null: no chips, files only).
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SearchField(
+    search: TopSearchViewModel, gallery: PhotoGalleryViewModel?, st: PhotoGalleryViewModel.State?, options: SearchOptions,
+    modifier: Modifier, onShowPhotos: () -> Unit, showGroup: Boolean, placeholder: String,
 ) {
     val focus = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
@@ -436,35 +526,34 @@ fun TopSearchField(
     val faces by FaceRecognition.enabled.collectAsState()
     val typed = search.query.trim()
     val shown = search.open && FilesNav.fold(typed).text.isNotEmpty()
-    val people = if (faces == true) st.selectedPeople else emptyList()
-    val group = st.activeGroup?.takeIf { showGroup }
+    val people = if (faces == true && st != null) st.selectedPeople else emptyList()
+    val chips = st?.chips.orEmpty()
+    val group = st?.activeGroup?.takeIf { showGroup }
     // Tags and people: what the clear button takes away. An open
     // collection is a chip too, which only its own x closes.
-    val searched = people.size + st.chips.size
+    val searched = people.size + chips.size
     val chipCount = searched + (if (group != null) 1 else 0)
     val colors = MaterialTheme.colorScheme
 
     fun dismiss() {
         search.close()
-        gallery.refreshListsIfStale()
+        gallery?.refreshListsIfStale()
         focus.clearFocus()
     }
 
     // Enter, or the keyboard's Search key: the highlighted row - where the
     // arrows went, or else the best match - or else the documents searched
-    // for the words. A device that can't do that leaves the panel showing
-    // that nothing matches. With nothing typed, Images narrowed to the
-    // chips (from another section, the wide top bar's).
+    // for the words (searchKeyChoice). A device that can't do that leaves
+    // the panel showing that nothing matches. With nothing typed, Images
+    // narrowed to the chips (from another section, the wide top bar's).
     fun submit() {
-        val active = search.active(options)
-        val o = options.options.firstOrNull { it.key == active }
+        val o = searchKeyChoice(typed, options, search.moved, noFileSearch)
         when {
             typed.isEmpty() -> {
                 dismiss()
-                if (searched > 0 || st.activeGroup != null) onShowPhotos()
+                if (searched > 0 || st?.activeGroup != null) onShowPhotos()
             }
             o != null -> { pick(o, search, gallery, onShowPhotos); focus.clearFocus() }
-            !noFileSearch -> { pick(SearchOption.Docs(typed), search, gallery, onShowPhotos); focus.clearFocus() }
             else -> search.opened()
         }
     }
@@ -475,14 +564,16 @@ fun TopSearchField(
     fun escape() {
         if (shown) {
             search.close()
-            gallery.refreshListsIfStale()
+            gallery?.refreshListsIfStale()
         } else dismiss()
     }
     // A change of section ends the search (MainView's go); a change of
     // layout - the window turned or unfolded - only moves this field
     // between the Images header and the wide top bar: in use, it takes
-    // the focus back where it lands, and the keyboard with it.
-    LaunchedEffect(Unit) { if (search.open) runCatching { focusRequester.requestFocus() } }
+    // the focus back where it lands, and the keyboard with it. So does a
+    // search handed over to it (takeOver: Files' own field and the top
+    // bar's take each other's place).
+    LaunchedEffect(search.focusAsks) { if (search.open) runCatching { focusRequester.requestFocus() } }
     // The text with its cursor: at the end of what is typed when the field
     // appears (the focus given back above), or when the text changes from
     // outside (cleared, a pick).
@@ -514,7 +605,7 @@ fun TopSearchField(
                 if (shown) Icon(SearchIcons.Back, "Close search", Modifier.size(22.dp), tint = colors.onSurface)
                 else Icon(SearchIcons.Search, null, Modifier.size(22.dp), tint = if (focused) colors.onSurface else colors.onSurfaceVariant)
             }
-            if (chipCount > 0) {
+            if (chipCount > 0 && gallery != null && st != null) {
                 val scroll = rememberScrollState()
                 // A chip added goes at the end of the row: scrolled to.
                 var shownChips by remember { mutableStateOf(chipCount) }
@@ -547,7 +638,7 @@ fun TopSearchField(
             }
             Box(Modifier.weight(1f).padding(horizontal = 8.dp), contentAlignment = Alignment.CenterStart) {
                 if (search.query.isEmpty() && chipCount == 0) {
-                    Text("Search photos and files", style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(placeholder, style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 BasicTextField(
                     value = fieldValue,
@@ -582,7 +673,7 @@ fun TopSearchField(
                                 else -> false
                             }
                         }
-                        .semantics { contentDescription = "Search photos and files" }
+                        .semantics { contentDescription = placeholder }
                         .onFocusChanged {
                             focused = it.isFocused
                             if (it.isFocused) search.opened()
@@ -595,7 +686,7 @@ fun TopSearchField(
                 Box(
                     Modifier.size(40.dp).clip(CircleShape).clickable {
                         search.clearQuery()
-                        gallery.clearSearch()
+                        gallery?.clearSearch()
                     },
                     contentAlignment = Alignment.Center,
                 ) { Icon(SearchIcons.Close, "Clear search", Modifier.size(20.dp), tint = colors.onSurfaceVariant) }
@@ -649,13 +740,30 @@ private fun PersonPic(p: Person?, sizeDp: Int) {
  * dropdown may rise when the keyboard leaves too little room under the
  * field - a phone turned sideways (dropdownPlace).
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TopSearchPanel(
     search: TopSearchViewModel, gallery: PhotoGalleryViewModel, st: PhotoGalleryViewModel.State, options: SearchOptions,
     modifier: Modifier = Modifier, onShowPhotos: () -> Unit = {},
     dropdown: Boolean = false, dropdownOffset: IntOffset = IntOffset.Zero, dropdownWidth: Dp = 0.dp,
     riseTo: Int? = null,
+) = SearchPanel(search, gallery, st, options, modifier, onShowPhotos, dropdown, dropdownOffset, dropdownWidth, riseTo)
+
+/**
+ * Files' own search's panel (FilesSearchField's), laid over Files under
+ * the field as Images' is over the photos: the documents row, then the
+ * files and folders that match.
+ */
+@Composable
+fun FilesSearchPanel(search: TopSearchViewModel, options: SearchOptions, modifier: Modifier = Modifier) =
+    SearchPanel(search, null, null, options, modifier, {}, false, IntOffset.Zero, 0.dp, null)
+
+/** The panel of either search (SearchField): [gallery] and [st] are null for Files' own. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SearchPanel(
+    search: TopSearchViewModel, gallery: PhotoGalleryViewModel?, st: PhotoGalleryViewModel.State?, options: SearchOptions,
+    modifier: Modifier, onShowPhotos: () -> Unit,
+    dropdown: Boolean, dropdownOffset: IntOffset, dropdownWidth: Dp, riseTo: Int?,
 ) {
     val focus = LocalFocusManager.current
     // A swipe through the matches puts the keyboard away (all of them show
@@ -683,7 +791,7 @@ fun TopSearchPanel(
     if (dropdown) {
         BackHandler(enabled = !keyboardUp) {
             search.close()
-            gallery.refreshListsIfStale()
+            gallery?.refreshListsIfStale()
             focus.clearFocus()
         }
     }
@@ -693,7 +801,7 @@ fun TopSearchPanel(
     val docs = options.options.filterIsInstance<SearchOption.Docs>().firstOrNull()
     // The row to search the documents: first when no tag or person matches.
     val docsFirst = tags.isEmpty() && people.isEmpty()
-    val alreadyIn = st.chips.any { FilesNav.fold(it).text == q }
+    val alreadyIn = st?.chips.orEmpty().any { FilesNav.fold(it).text == q }
     // A new query, or a new first row (the tags arrived after the files,
     // say), starts at the top: the list would otherwise keep the row that
     // was first in sight, wherever it moved to, and the best matches go
@@ -727,7 +835,7 @@ fun TopSearchPanel(
             Modifier.fillMaxSize().background(if (dropdown) Color.Transparent else Color.Black.copy(alpha = 0.5f))
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                     search.close()
-                    gallery.refreshListsIfStale()
+                    gallery?.refreshListsIfStale()
                     focus.clearFocus()
                 },
         )
@@ -756,7 +864,7 @@ fun TopSearchPanel(
                 if (people.isNotEmpty()) {
                     section("People")
                     items(people, key = { it.key }) { o ->
-                        val on = o.person.id in st.selectedPeople
+                        val on = st?.selectedPeople?.contains(o.person.id) == true
                         OptionRow(o.key == active, { choose(o) }) {
                             Box(if (on) Modifier.border(2.dp, colors.primary, CircleShape).padding(2.dp) else Modifier) { PersonPic(o.person, 36) }
                             Column(Modifier.weight(1f)) {
