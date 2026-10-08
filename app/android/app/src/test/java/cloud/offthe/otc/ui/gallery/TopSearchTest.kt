@@ -78,6 +78,39 @@ class TopSearchTest {
         assertEquals(listOf("t:a2", "t:a3", "t:a4", "t:a5", "t:a6"), o.options.map { it.key })
     }
 
+    // A hardware keyboard's arrows, as the web's step: every row in the
+    // panel's order, up past the first to none (Enter then searches the
+    // documents for the words), from none to the first or the last.
+    @Test fun arrowsStepThroughEveryRow() {
+        val found = FoundFiles("tax", "tax", listOf(file("/Docs/Taxes/", "inode/directory")))
+        val o = searchOptions("tax", tags("taxi", "syntax"), emptyList(), null, found, noFileSearch = false)
+        assertEquals(listOf("t:taxi", "t:syntax", "f:/Docs/Taxes/", "docs"), o.options.map { it.key })
+        // Nothing moved yet: the best is highlighted.
+        assertEquals("t:taxi", activeKey(o, null))
+        var moved: String? = null
+        val downs = (1..4).map { moved = stepKey(o, moved, 1); activeKey(o, moved) }
+        assertEquals(listOf("t:syntax", "f:/Docs/Taxes/", "docs", "docs"), downs)
+        val ups = (1..4).map { moved = stepKey(o, moved, -1); activeKey(o, moved) }
+        assertEquals(listOf("f:/Docs/Taxes/", "t:syntax", "t:taxi", null), ups)
+        assertEquals(ABOVE_ROWS, moved)
+        // From none: down to the first, up to the last.
+        assertEquals("t:taxi", stepKey(o, ABOVE_ROWS, 1))
+        assertEquals("docs", stepKey(o, ABOVE_ROWS, -1))
+    }
+
+    @Test fun aRowThatWentGivesWayToTheBest() {
+        val o = searchOptions("tax", tags("taxi"), emptyList(), null, null, noFileSearch = false)
+        assertEquals("t:taxi", activeKey(o, "f:/gone.pdf"))
+        // No best (only files, on a device that can't search documents):
+        // down starts at the first row.
+        val files = FoundFiles("tax", "tax", listOf(file("/tax.pdf", "application/pdf")))
+        val onlyFiles = searchOptions("tax", emptyList(), emptyList(), null, files, noFileSearch = true)
+        assertNull(activeKey(onlyFiles, null))
+        assertEquals("f:/tax.pdf", stepKey(onlyFiles, null, 1))
+        // Nothing to step through.
+        assertNull(stepKey(SearchOptions(emptyList(), null), null, 1))
+    }
+
     @Test fun anEarlierAnswerNarrowsOnlyWhileTypingOnFromIt() {
         val found = FoundFiles("ta", "ta", listOf(file("/tax.pdf", "application/pdf"), file("/tea.txt", "text/plain")))
         // "tax" goes on from "ta": kept to what still matches.

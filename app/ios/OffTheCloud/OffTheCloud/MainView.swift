@@ -41,8 +41,8 @@ struct MainView: View {
     @ObservedObject private var faces = FaceRecognition.shared
     /// The window's size, safe areas included.
     @State private var windowSize: CGSize
-    /// The layout's own height (less the keyboard): room for the search's panel.
-    @State private var contentHeight: CGFloat = 0
+    /// Whether the keyboard shows: the search's panel may rise over its field.
+    @State private var keyboardUp = false
     /// People, Collections or Friends shown as a page over the tabs (a wide
     /// window only; a narrow one has them as sheets).
     @State private var page: AppSection?
@@ -81,7 +81,7 @@ struct MainView: View {
                     height: proxy.size.height + proxy.safeAreaInsets.top + proxy.safeAreaInsets.bottom
                 )
             } action: { windowSize = $0 }
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+            .keyboardShown($keyboardUp)
             .onChange(of: wide) { _, isWide in layoutChanged(wide: isWide) }
             .onChange(of: fullWidth) { _, _ in drawerOpen = false }
             .onChange(of: scenePhase) { _, _ in pollStorage() }
@@ -180,11 +180,12 @@ struct MainView: View {
             .overlay(alignment: .leading) { drawer }
         }
         // The panel hangs from the field itself, both edges lined up with
-        // it as the web's (left: 0; right: 0 under the field).
+        // it as the web's (left: 0; right: 0 under the field). The space
+        // here ends above the keyboard while it shows.
         .overlayPreferenceValue(SearchFieldAnchorKey.self, alignment: .topLeading) { anchor in
             GeometryReader { proxy in
                 if let anchor {
-                    searchPanel(under: proxy[anchor])
+                    searchPanel(under: proxy[anchor], height: proxy.size.height)
                 }
             }
         }
@@ -200,7 +201,16 @@ struct MainView: View {
         // Every tab is wrapped in LazyTab - see its doc comment for why
         // the ones not showing must not be built at launch. A wide window
         // hides the bar: the menu switches the tabs.
-        TabView(selection: $selectedTab) {
+        TabView(selection: Binding(
+            get: { selectedTab },
+            set: { tab in
+                // Files picked in the tab bar - from another tab, or its own
+                // button while a search's results show - is the folder, as
+                // Android's tab bar and the wide layout's menu have it.
+                if tab == AppSection.files.tab { filesNav.leaveSearch() }
+                selectedTab = tab
+            }
+        )) {
             // Issue #78 follow-up: notifications became a section of
             // its own (was a header/toolbar bell+sheet) - leftmost tab,
             // per the user's explicit ask ("in the ios app, it should
@@ -325,9 +335,12 @@ struct MainView: View {
     }
 
     /// The search's suggestions, under the top bar's field (`field`, in the
-    /// panel's own coordinates).
+    /// panel's own coordinates, whose foot is `height` down - the
+    /// keyboard's top while it shows). With the keyboard up on a short
+    /// window (a phone turned sideways) it rises over the field instead,
+    /// its foot just above the keyboard (SearchPanelPlace).
     @ViewBuilder
-    private func searchPanel(under field: CGRect) -> some View {
+    private func searchPanel(under field: CGRect, height: CGFloat) -> some View {
         if wide && search.open && !search.typed.isEmpty {
             ZStack(alignment: .topLeading) {
                 // A tap anywhere else closes it, as on the web.
@@ -335,25 +348,35 @@ struct MainView: View {
                     .contentShape(Rectangle())
                     .padding(.top, WideLayout.topBarHeight)
                     .onTapGesture { searchActions.finish() }
-                TopSearchPanel(
-                    suggestions: searchActions.suggestions(),
-                    typed: search.typed,
-                    alreadyIn: gallery.chips.contains { FoldedText($0).text == FoldedText(search.typed).text },
-                    selectedPeople: gallery.selectedPeople,
-                    face: gallery.face(for:),
-                    onPick: searchActions.pick,
-                    moved: search.moved,
-                    maxHeight: max(88, min(windowSize.height * 0.7, 640, contentHeight - field.maxY - 20)),
-                    background: MenuStyle.drawer
-                )
-                .padding(.vertical, 6)
-                .background(MenuStyle.drawer)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(MenuStyle.line, lineWidth: 1))
-                .shadow(color: .black.opacity(0.22), radius: 24, y: 10)
-                .frame(width: max(field.width, 320))
-                .padding(.leading, field.minX)
-                .padding(.top, field.maxY + 6)
+                SearchPanelLayout(
+                    place: SearchPanelPlace(
+                        under: field.maxY + 6,
+                        bottom: height,
+                        // Just under the status bar: the top of this space.
+                        ceiling: 4,
+                        keyboardUp: keyboardUp,
+                        cap: min(windowSize.height * 0.7, 640)
+                    ),
+                    x: field.minX,
+                    width: max(field.width, 320)
+                ) {
+                    TopSearchPanel(
+                        suggestions: searchActions.suggestions(),
+                        typed: search.typed,
+                        alreadyIn: gallery.chips.contains { FoldedText($0).text == FoldedText(search.typed).text },
+                        selectedPeople: gallery.selectedPeople,
+                        face: gallery.face(for:),
+                        onPick: searchActions.pick,
+                        moved: search.moved,
+                        fitsRows: true,
+                        background: MenuStyle.drawer
+                    )
+                    .padding(.vertical, 6)
+                    .background(MenuStyle.drawer)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(MenuStyle.line, lineWidth: 1))
+                    .shadow(color: .black.opacity(0.22), radius: 24, y: 10)
+                }
             }
         }
     }

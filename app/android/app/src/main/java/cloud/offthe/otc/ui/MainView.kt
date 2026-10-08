@@ -320,6 +320,8 @@ fun MainView(secrets: SecretsStore) {
                             search, gallery, gst, options,
                             Modifier.widthIn(max = 720.dp).fillMaxWidth().onGloballyPositioned { fieldBounds = it.boundsInRoot() },
                             onShowPhotos = { if (section != Section.Images) go(Section.Images) },
+                            // An open collection is the field's first chip, as on the web.
+                            showGroup = true,
                         )
                     }
                 }

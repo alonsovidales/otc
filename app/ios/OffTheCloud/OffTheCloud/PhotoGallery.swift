@@ -67,6 +67,8 @@ final class PhotoGalleryVM: ObservableObject {
     // and the chips first show them.
     private var faceCache: [String: UIImage] = [:]
     private var facesWatch: AnyCancellable?
+    // Issue #192: Files keeping a folder out of Images, or showing it again.
+    private var imagesWatch: AnyCancellable?
     // When the tags and people were last fetched: a search that ends a
     // while later fetches them again (new photos bring new ones), so the
     // next search has them and nothing moves while picking.
@@ -250,6 +252,11 @@ final class PhotoGalleryVM: ObservableObject {
             .sink { [weak self] on in
                 Task { @MainActor in self?.faceRecognitionChanged(on == true) }
             }
+        imagesWatch = NotificationCenter.default.publisher(for: .otcImagesChanged)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.imagesChanged() }
+            }
     }
 
     // The Files section opens its photos and videos in this same viewer:
@@ -277,6 +284,7 @@ final class PhotoGalleryVM: ObservableObject {
     func onAppearInitial() {
         guard !fixedList else { return }
         libraryAsked = true
+        photosAsked = true
         Task {
             await loadTags()
             if FaceRecognition.shared.isOn { await loadPeople() }
@@ -299,6 +307,34 @@ final class PhotoGalleryVM: ObservableObject {
     }
 
     private var libraryAsked = false
+    /// Images has shown its photos: a change to what it shows asks again.
+    private var photosAsked = false
+
+    /// Issue #192: Files kept a folder out of Images, or showed it there
+    /// again. Its photos leave the grid or come back, and the tags and
+    /// faces found only in them are gone (or come back as they are found),
+    /// so everything Images has asked for so far is asked for again: the
+    /// photos, the tags and people the search offers (People shows the
+    /// same list), and the collections, whose counts and covers leave out
+    /// what is kept out.
+    func imagesChanged() {
+        guard !fixedList else { return }
+        if libraryAsked {
+            libraryFetchedAt = Date()
+            Task {
+                await loadTags()
+                if FaceRecognition.shared.isOn { await loadPeople() }
+            }
+        }
+        if groupsLoaded { Task { await loadGroups() } }
+        if photosAsked { restartSearch() }
+    }
+
+    /// Sends the library's own requests (the tags, the collections). Tests
+    /// answer them in the device's place.
+    var libraryRequest: @MainActor (Msg_ReqEnvelope.OneOf_Payload) async throws -> Msg_RespEnvelope = { payload in
+        try await OTCConnection.shared.request { $0.payload = payload }
+    }
 
     /// The tags and people for the search, once, without the photos: the
     /// wide layout's top bar searches from any section, before Images
@@ -355,11 +391,7 @@ final class PhotoGalleryVM: ObservableObject {
     // MARK: Tags
     private func loadTags() async {
         do {
-            let resp = try await ws.request { e in
-                var env = e
-                env.payload = .reqGetTags(.init())
-                e = env
-            }
+            let resp = try await libraryRequest(.reqGetTags(.init()))
             if case .respTagsList(let tl) = resp.payload {
                 self.tags = tl.tags
             }
@@ -566,11 +598,7 @@ final class PhotoGalleryVM: ObservableObject {
     /// false: the device didn't answer with the list.
     @discardableResult
     func loadGroups() async -> Bool {
-        guard let resp = try? await ws.request({ e in
-            var req = ReqEnvelope()
-            req.payload = .reqListImageGroups(.init())
-            e = req
-        }) else { return false }
+        guard let resp = try? await libraryRequest(.reqListImageGroups(.init())) else { return false }
         guard case .respImageGroups(let g) = resp.payload else { return false }
         groups = g.groups
         groupsLoaded = true
@@ -1463,6 +1491,10 @@ struct PhotoGalleryView: View {
     // open collection's chip, and the photos.
     @Environment(\.wideLayout) private var wide
     @FocusState private var searchFocused: Bool
+    /// The search's header height, where its panel starts, and whether the
+    /// keyboard shows: the panel may rise over the field (SearchPanelPlace).
+    @State private var headerHeight: CGFloat = 0
+    @State private var keyboardUp = false
     // Issue #180: set to start the "Share as Gallery" flow - one for the
     // view itself (the open group's chip), one for the groups sheet, which
     // has to present the flow from inside itself.
@@ -1488,6 +1520,7 @@ struct PhotoGalleryView: View {
             // collection - only the last on a wide window.
             if !wide || vm.activeGroup != nil {
                 header
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
             }
 
             // Grid - while the date scrubber has a target bucket (dragging,
@@ -1581,22 +1614,18 @@ struct PhotoGalleryView: View {
                     }
                 }
             }
-            // The search's suggestions, over the photos while something is
-            // typed.
-            .overlay {
-                if panelShown && !wide {
-                    TopSearchPanel(
-                        suggestions: actions.suggestions(),
-                        typed: search.typed,
-                        alreadyIn: vm.chips.contains { FoldedText($0).text == FoldedText(search.typed).text },
-                        selectedPeople: vm.selectedPeople,
-                        face: vm.face(for:),
-                        onPick: actions.pick,
-                        moved: search.moved
-                    )
+        }
+        // The search's suggestions, over the photos while something is
+        // typed - and over the search too on a window too short for them
+        // under it while the keyboard shows.
+        .overlay {
+            if panelShown && !wide {
+                GeometryReader { proxy in
+                    narrowPanel(height: proxy.size.height)
                 }
             }
         }
+        .keyboardShown($keyboardUp)
         .onChange(of: searchFocused) { _, focused in
             if focused { search.open = true }
         }
@@ -1827,6 +1856,27 @@ struct PhotoGalleryView: View {
 
     /// Something is typed and the panel is up.
     private var panelShown: Bool { search.open && !search.typed.isEmpty }
+
+    /// The panel under the search, the whole space down to the keyboard
+    /// (`height` down). Risen over the search when that space is too short
+    /// (SearchPanelPlace): then a card only as tall as its rows.
+    private func narrowPanel(height: CGFloat) -> some View {
+        let place = SearchPanelPlace(under: headerHeight, bottom: height, ceiling: 4, keyboardUp: keyboardUp, cap: nil)
+        return SearchPanelLayout(place: place) {
+            TopSearchPanel(
+                suggestions: actions.suggestions(),
+                typed: search.typed,
+                alreadyIn: vm.chips.contains { FoldedText($0).text == FoldedText(search.typed).text },
+                selectedPeople: vm.selectedPeople,
+                face: vm.face(for:),
+                onPick: actions.pick,
+                moved: search.moved,
+                fitsRows: place.rises
+            )
+            .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: place.rises ? 16 : 0, bottomTrailingRadius: place.rises ? 16 : 0, style: .continuous))
+            .shadow(color: .black.opacity(place.rises ? 0.22 : 0), radius: 24, y: 10)
+        }
+    }
     /// The field has the keyboard, or its panel shows: Cancel ends it.
     private var searchActive: Bool { searchFocused || panelShown }
 

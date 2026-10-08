@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.data.FaceRecognition
+import cloud.offthe.otc.data.ImagesChanged
 import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.net.OTCConnection
@@ -158,6 +159,7 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel(), PeopleS
 
     fun onAppearInitial() = viewModelScope.launch {
         watchFaceRecognition()
+        watchImagesChanged()
         listsAsked = true
         loadTags(); loadPeople(); resetAndLoadFirstPage()
     }
@@ -171,6 +173,7 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel(), PeopleS
         if (listsAsked) return
         listsAsked = true
         watchFaceRecognition()
+        watchImagesChanged()
         viewModelScope.launch {
             loadTags()
             if (FaceRecognition.enabled.value == true) loadPeople()
@@ -209,6 +212,42 @@ class PhotoGalleryViewModel(private val deviceId: String) : ViewModel(), PeopleS
                 }
             }
         }
+    }
+
+    // Issue #192: a folder kept out of Images, or shown there again
+    // (Files, ImagesChanged), changes what is here: its photos leave or come
+    // back, their tags and faces are deleted (or found again later), an
+    // unnamed person left with no face goes and the collections' counts
+    // and covers change. The search starts over, and the tags, the people
+    // (a person searched for who has gone stops being searched for, as
+    // after deleting them in People) and the collections are asked for
+    // again. Started once, by the Images grid or the wide top bar's search
+    // (not the Files viewer's instance).
+    private var watchingImages = false
+    private fun watchImagesChanged() {
+        if (watchingImages) return
+        watchingImages = true
+        viewModelScope.launch {
+            var seen = ImagesChanged.generation.value
+            ImagesChanged.generation.collect { g ->
+                if (g == seen) return@collect
+                seen = g
+                imagesChanged()
+            }
+        }
+    }
+
+    private fun imagesChanged() {
+        listsFetchedAt = System.currentTimeMillis()
+        restartSearch()
+        viewModelScope.launch {
+            loadTags()
+            if (FaceRecognition.enabled.value == true && loadPeople()) {
+                val ids = _state.value.allPeople.map { it.id }.toSet()
+                forgetPeople(_state.value.selectedPeople.filter { it !in ids }.toSet())
+            }
+        }
+        if (_state.value.groupsLoaded || _state.value.activeGroup != null) viewModelScope.launch { loadGroups() }
     }
 
     // New photos bring new tags and faces. The lists are fetched again when

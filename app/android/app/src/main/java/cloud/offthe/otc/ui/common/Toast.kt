@@ -8,15 +8,24 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import java.security.MessageDigest
 
-/** The little capsule the iOS screens show at the top for a couple of seconds. */
+/**
+ * The little capsule the iOS screens show at the top for a couple of
+ * seconds. A polite live region: TalkBack never moves to it, so without
+ * that a refusal (a folder inside one kept out of Images or upload only)
+ * looked to its users as if nothing happened. iOS announces its toasts.
+ */
 @Composable
 fun Toast(message: String?, modifier: Modifier = Modifier) {
     AnimatedVisibility(visible = message != null, modifier = modifier.padding(top = 8.dp)) {
         Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp, shadowElevation = 4.dp) {
-            Text(message ?: "", modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
+            Text(message ?: "", style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }.padding(horizontal = 12.dp, vertical = 8.dp))
         }
     }
 }

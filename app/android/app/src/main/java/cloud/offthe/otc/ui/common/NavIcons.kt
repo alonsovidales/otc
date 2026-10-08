@@ -116,7 +116,12 @@ object NavIcons {
         )
     }
 
-    /** The gear's outline fills the whole box: drawn at 85% so it weighs the same as the others. */
+    /**
+     * The gear's outline fills the whole box: drawn at 85% so it weighs the
+     * same as the others. Its line shrinks with it, as the web's <g
+     * transform> does: Compose draws a group's paths inside the group's
+     * transform, so the 1.8 here is 1.53 in the box (iOS's strokeScale).
+     */
     val Settings: ImageVector by lazy {
         outlineIcon(
             "Settings",

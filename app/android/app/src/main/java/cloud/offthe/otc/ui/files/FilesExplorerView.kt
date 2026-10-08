@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -56,6 +57,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.OTCApp
+import cloud.offthe.otc.data.ImagesChanged
 import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.ChunkedUpload
 import cloud.offthe.otc.net.OTCConnection
@@ -67,6 +69,7 @@ import cloud.offthe.otc.proto.GetThumbnails
 import cloud.offthe.otc.proto.HasFile
 import cloud.offthe.otc.proto.LinkFile
 import cloud.offthe.otc.proto.ListFiles
+import cloud.offthe.otc.proto.ListOfFiles
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.ShareFilesLink
 import cloud.offthe.otc.proto.SharedGallerySource
@@ -94,11 +97,20 @@ import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.ui.text.font.FontWeight
 import cloud.offthe.otc.proto.ListFileVersions
 import cloud.offthe.otc.proto.SetUploadOnly
+import cloud.offthe.otc.proto.SetOutOfImages
+import cloud.offthe.otc.proto.ListOutOfImages
+import kotlinx.coroutines.CancellationException
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.material.icons.outlined.HideImage
 import cloud.offthe.otc.proto.SearchFiles
 import cloud.offthe.otc.ui.gallery.isUnknownPayload
 import java.text.DateFormat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -157,7 +169,49 @@ private fun normPath(p: String): String {
 private fun leafName(full: String) = full.split('/').lastOrNull { it.isNotEmpty() } ?: full
 // A file as SearchFiles or the Images search found it (its path is whole).
 private fun isMediaFile(f: PbFile) = !isDir(f) && (isImg(f) || isVideo(f) || f.path.endsWith(".heic", ignoreCase = true))
-private fun foundRow(f: PbFile) = FileRow(f.path, leafName(f.path), isDir(f), f.byteSize, f, f.uploadOnly, f.versions)
+/** A folder's listing as rows: ".." first below the root, each with its marks (issues #132, #192). */
+internal fun listingRows(lof: ListOfFiles, path: String): List<FileRow> {
+    val files = lof.filesList.toMutableList()
+    if (path != "/") files.add(0, PbFile.newBuilder().setMime("inode/directory").setPath("..").build())
+    return files.map { f ->
+        FileRow(f.path, if (f.path == "..") ".." else leafName(f.path), isDir(f), f.byteSize, f, f.uploadOnly, f.versions, f.outOfImages)
+    }
+}
+
+/** Issue #192: the request that keeps [full] out of Images, or shows it there again ([out]: kept out now). */
+internal fun setOutOfImagesRequest(full: String, out: Boolean): SetOutOfImages =
+    SetOutOfImages.newBuilder().setPath(full).setOutOfImages(!out).build()
+
+/**
+ * Issue #192: what SetOutOfImages' answer leaves to say - null when it was
+ * done. A refusal (a folder inside another one kept out: error_code
+ * "out_of_images_by_parent") is the device's own sentence, shown as it is.
+ */
+internal fun outOfImagesFailure(resp: RespEnvelope): String? = when {
+    resp.error -> resp.errorMessage.ifEmpty { "Could not update the folder" }
+    resp.payloadCase != RespEnvelope.PayloadCase.RESP_ACK || !resp.respAck.ok -> resp.respAck.errorMsg.ifEmpty { "Could not update the folder" }
+    else -> null
+}
+
+/**
+ * Issue #192: of the folders kept out of Images (ListOutOfImages, each with
+ * its trailing slash), the outermost one at or above [folder] - the one
+ * whose "Show in Images" the device takes, as no folder above it keeps it
+ * out - without its slash; null when none is.
+ */
+internal fun outermostKeptOut(kept: List<String>, folder: String): String? {
+    val key = if (folder.endsWith("/")) folder else "$folder/"
+    return kept.filter { it.endsWith("/") && it.length > 1 && key.startsWith(it) }.minByOrNull { it.length }?.trimEnd('/')
+}
+
+/** Issue #192: what to wait for before keeping a folder out of Images, or showing it, while [task] is under way. */
+internal fun outOfImagesWait(task: SelectionActionTask): String = when (task) {
+    SelectionActionTask.SHARE -> "Wait for the share link to be ready"
+    SelectionActionTask.DOWNLOAD -> "Wait for the download link to be ready"
+    SelectionActionTask.OUT_OF_IMAGES -> "Wait for the folder to be updated"
+}
+
+private fun foundRow(f: PbFile) = FileRow(f.path, leafName(f.path), isDir(f), f.byteSize, f, f.uploadOnly, f.versions, f.outOfImages)
 
 /**
  * The Images search's "Search documents" (FilesNav.searchInFiles): every
@@ -173,8 +227,9 @@ private const val SEARCH_LIMIT = 50
 
 // uploadOnly/versions: issue #132 - inside (or itself) an upload-only
 // folder, and how many older versions the device keeps for the file.
+// outOfImages: issue #192 - inside (or itself) a folder kept out of Images.
 data class FileRow(val path: String, val name: String, val isDir: Boolean, val size: Long, val raw: PbFile,
-                   val uploadOnly: Boolean = false, val versions: Int = 0)
+                   val uploadOnly: Boolean = false, val versions: Int = 0, val outOfImages: Boolean = false)
 
 class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     data class State(
@@ -201,7 +256,40 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         val listedPath: String? = null,
         // The search's results, shown over the folder; null: the folder.
         val results: SearchResults? = null,
-    )
+        // Issue #192, from the last listing (of listedPath): the device can
+        // keep folders out of Images (devices before release 108 can't: no
+        // badge, action or banner then), and that folder is kept out itself
+        // or is inside one (the banner).
+        val outOfImagesSupported: Boolean = false,
+        val folderOutOfImages: Boolean = false,
+        // Issue #192, in a folder kept out (folderOutOfImages): the folder
+        // whose "Show in Images" the device takes - the outermost one kept
+        // out at or above it (outermostKeptOut), no trailing slash. Null
+        // while ListOutOfImages is asked (the banner has no button yet); the
+        // folder listed itself when that failed (a refusal then says which).
+        val outOfImagesCover: String? = null,
+        // Issue #192: said to TalkBack once a change is done ("Trips kept
+        // out of Images"); the screen shows it by the mark and the banner.
+        val outOfImagesSaid: String? = null,
+    ) {
+        /** The selection when it is one folder: what "Share as gallery" (issue #180) acts on. */
+        val selectedFolder: FileRow? get() = selected.singleOrNull()?.let { p -> rows.firstOrNull { it.path == p && it.isDir && it.path != ".." } }
+        /**
+         * Issue #192: the folder the selection's switch for Images acts on -
+         * one folder picked, on a device that can. Not inside a folder kept
+         * out: a folder there is kept out by it (or one above it), and the
+         * device refuses its Show; the banner shows that folder instead.
+         */
+        val outOfImagesSwitch: FileRow? get() = selectedFolder?.takeIf { outOfImagesSupported && !folderOutOfImages }
+        /** Issue #192: the banner over a folder kept out of Images - the folder listed, on a device that can. */
+        val outOfImagesBanner: Boolean get() = outOfImagesSupported && folderOutOfImages && listedPath == path
+        /** Issue #192: the folder listed, as a path without its trailing slash ("/" stays "/"). */
+        val listedFolder: String get() = (listedPath ?: path).let { if (it.length > 1) it.trimEnd('/').ifEmpty { "/" } else it }
+        /** Issue #192: the folder keeping the rows of a folder kept out out of Images, as far as known: the one whose Show the device takes, else the folder listed. */
+        val keptOutBy: String get() = outOfImagesCover ?: listedFolder
+        /** Issue #192: the banner names a folder above the one listed - the one its Show acts on. */
+        val bannerByParent: Boolean get() = outOfImagesCover != null && outOfImagesCover != listedFolder
+    }
 
     companion object {
         private const val VIEW_MODE_KEY = "files_view_mode"
@@ -233,6 +321,10 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     val state: StateFlow<State> = _state
     val path get() = _state.value.path
 
+    // Bumped by every listing that lands: ListOutOfImages' answer is for
+    // the listing that asked, not one that replaced it meanwhile.
+    private val listings = java.util.concurrent.atomic.AtomicInteger()
+
     suspend fun load() {
         // The folder asked for: a listing that comes back after another
         // folder was opened (the search opening one as Files appears) is
@@ -243,12 +335,18 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
             val resp = OTCConnection.request { it.setReqListFiles(ListFiles.newBuilder().setPath(p)) }
             if (path != p) return
             if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) {
-                val files = resp.respListOfFiles.filesList.toMutableList()
-                if (p != "/") files.add(0, PbFile.newBuilder().setMime("inode/directory").setPath("..").build())
-                val rows = files.map { f ->
-                    FileRow(f.path, if (f.path == "..") ".." else leafName(f.path), isDir(f), f.byteSize, f, f.uploadOnly, f.versions)
+                val lof = resp.respListOfFiles
+                val rows = listingRows(lof, p)
+                val folderOut = lof.outOfImagesSupported && lof.folderOutOfImages
+                val listing = listings.incrementAndGet()
+                _state.update {
+                    it.copy(rows = rows, selected = emptySet(), thumbGen = it.thumbGen + 1, listedPath = p,
+                        outOfImagesSupported = lof.outOfImagesSupported, folderOutOfImages = lof.folderOutOfImages, outOfImagesCover = null)
                 }
-                _state.update { it.copy(rows = rows, selected = emptySet(), thumbGen = it.thumbGen + 1, listedPath = p) }
+                // Issue #192: in a folder kept out, which folder keeps it
+                // out - asked after the listing shows, so a slow answer
+                // never holds it up.
+                if (folderOut) viewModelScope.launch { askCover(p, listing) }
             } else if (resp.error) {
                 if (mediaToOpen?.first == p) mediaToOpen = null
                 _state.update { it.copy(error = resp.errorMessage.ifEmpty { "Failed to list path" }) }
@@ -259,6 +357,25 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
             if (path == p) _state.update { it.copy(error = e.message ?: "Error") }
         } finally {
             if (path == p) _state.update { it.copy(loading = false) }
+        }
+    }
+
+    /**
+     * Issue #192: the folder whose "Show in Images" the device takes for
+     * the folder [p] kept out (State.outOfImagesCover): it is the outermost
+     * one kept out at or above it, as the web's Files has it. When that
+     * can't be told, [p] itself - a refusal then names the folder above.
+     */
+    private suspend fun askCover(p: String, listing: Int) {
+        val cover = try {
+            val resp = OTCConnection.request { it.setReqListOutOfImages(ListOutOfImages.getDefaultInstance()) }
+            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_OUT_OF_IMAGES_FOLDERS) outermostKeptOut(resp.respOutOfImagesFolders.pathsList, p) else null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) { null }
+        _state.update {
+            if (listings.get() != listing || it.listedPath != p) it
+            else it.copy(outOfImagesCover = cover ?: it.listedFolder)
         }
     }
 
@@ -474,6 +591,53 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         load()
     }
 
+    /**
+     * Issue #192: keep a folder ([full], its whole path) out of Images, or
+     * show it there again ([out]: whether it is kept out now). Only offered
+     * where the device takes it - but should it still refuse (another app
+     * changed a folder above meanwhile: error_code "out_of_images_by_parent")
+     * its message, naming that folder, is shown as it is. Done, Images asks
+     * for its photos, tags, people and collections again (ImagesChanged)
+     * and TalkBack hears it; either way the folder is listed again.
+     *
+     * The view model's own work, not the screen's: the device can take most
+     * of a minute, and leaving Files meanwhile must neither cut it short
+     * (Images not told, a false failure) nor let another change start.
+     * While a share or download link is being made it waits, and says so.
+     */
+    fun toggleOutOfImages(full: String, out: Boolean) {
+        val wait = _state.value.preparing
+        if (wait != null) { showToast(outOfImagesWait(wait)); return }
+        _state.update { it.copy(preparing = SelectionActionTask.OUT_OF_IMAGES, outOfImagesSaid = null) }
+        viewModelScope.launch {
+            try {
+                val resp = OTCConnection.request { it.setReqSetOutOfImages(setOutOfImagesRequest(full, out)) }
+                val failure = outOfImagesFailure(resp)
+                if (failure != null) showToast(failure)
+                else {
+                    ImagesChanged.bump()
+                    say(if (out) OutOfImagesText.shownSaid(leafName(full)) else OutOfImagesText.keptSaid(leafName(full)))
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                showToast("Could not update the folder: ${e.message}")
+            } finally {
+                _state.update { it.copy(preparing = null) }
+            }
+            load()
+        }
+    }
+
+    /** Issue #192: [m] for TalkBack (State.outOfImagesSaid), for a few seconds, so the same words said again are heard again. */
+    private fun say(m: String) {
+        _state.update { it.copy(outOfImagesSaid = m) }
+        viewModelScope.launch {
+            delay(5000)
+            _state.update { if (it.outOfImagesSaid == m) it.copy(outOfImagesSaid = null) else it }
+        }
+    }
+
     /** Issue #132: the versions badge - list the file's older versions. */
     suspend fun openVersions(row: FileRow) {
         _state.update { it.copy(versionsOf = row to emptyList(), versionsLoading = true) }
@@ -561,7 +725,9 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     fun showToast(m: String) {
         _state.update { it.copy(toast = m) }
         kotlinx.coroutines.GlobalScope.launch {
-            delay(2500)
+            // Long enough to read: a refusal naming two folders (issue
+            // #186's and #192's) runs to a hundred characters or more.
+            delay((2500L + 50L * (m.length - 50).coerceAtLeast(0)).coerceAtMost(8000L))
             _state.update { if (it.toast == m) it.copy(toast = null) else it }
         }
     }
@@ -583,7 +749,18 @@ fun FilesExplorerView(initialPath: String) {
     // only marks something explains itself.
     var lockPrompt by remember { mutableStateOf<FileRow?>(null) }
     var lockInfo by remember { mutableStateOf<String?>(null) }
-    val selectedFolder = st.selected.singleOrNull()?.let { p -> st.rows.firstOrNull { it.path == p && it.isDir && it.path != ".." } }
+    // Issue #192: keeping a folder out of Images, or showing it there
+    // again, asks first - keeping it out deletes the tags and faces found
+    // in it, and showing it searches it for faces when that is on. The
+    // mark on a folder kept out says what that means when tapped.
+    // Inside a folder kept out, the mark names the folder keeping it out
+    // and has no Show: the device would refuse it (the banner's acts on
+    // that folder).
+    var outOfImagesAsk by remember { mutableStateOf<OutOfImagesAsk?>(null) }
+    var outOfImagesInfo by remember { mutableStateOf<OutOfImagesInfo?>(null) }
+    fun askOutOfImages(row: FileRow) { outOfImagesAsk = OutOfImagesAsk(vm.fullPath(row), row.name, row.outOfImages) }
+    fun explainOutOfImages(row: FileRow) { outOfImagesInfo = OutOfImagesInfo(row, by = if (st.folderOutOfImages) st.keptOutBy else null) }
+    val selectedFolder = st.selectedFolder
 
     // Photos and videos open in the Images section's viewer, its own
     // instance, paging through this folder's photos and videos only.
@@ -699,6 +876,22 @@ fun FilesExplorerView(initialPath: String) {
                 }
             }
             st.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp)) }
+            // Issue #192: in a folder kept out of Images (or inside one),
+            // what that means for its photos and videos - its files carry no
+            // mark of their own - and the way back. Only over the folder it
+            // was listed for.
+            // Inside a folder kept out because one above it is, it names
+            // that one and its Show acts on it - the only Show the device
+            // takes - once ListOutOfImages has said which (no button until
+            // then). Nothing else can start while something is under way.
+            if (st.outOfImagesBanner) {
+                val show = st.outOfImagesCover
+                OutOfImagesBanner(
+                    text = if (st.bannerByParent) OutOfImagesText.bannerByParent(st.keptOutBy) else OutOfImagesText.BANNER,
+                    show = show?.let { if (st.bannerByParent) OutOfImagesText.showNamed(leafName(it)) else OutOfImagesText.SHOW },
+                    busy = st.preparing == SelectionActionTask.OUT_OF_IMAGES, enabled = st.preparing == null,
+                ) { if (show != null) outOfImagesAsk = OutOfImagesAsk(show, leafName(show), out = true) }
+            }
 
             PullToRefreshBox(
                 isRefreshing = refreshing,
@@ -728,6 +921,8 @@ fun FilesExplorerView(initialPath: String) {
                             onToggle = { vm.toggleSelect(row.path) },
                             onVersions = { scope.launch { vm.openVersions(row) } },
                             onLock = { lockPrompt = row },
+                            outOfImages = st.outOfImagesSupported && row.outOfImages,
+                            onOutOfImages = { explainOutOfImages(row) },
                         )
                     }
                 } else LazyColumn(Modifier.fillMaxSize(), state = listState) {
@@ -767,6 +962,15 @@ fun FilesExplorerView(initialPath: String) {
                                     Text("${row.versions}", style = MaterialTheme.typography.labelMedium)
                                 }
                             }
+                            // Issue #192: a folder kept out of Images (or inside
+                            // one) says so, left of its lock so the locks stay
+                            // in one column; a tap says what it means. The
+                            // switch is in the selection's actions.
+                            if (row.path != ".." && row.isDir && row.outOfImages && st.outOfImagesSupported) {
+                                IconButton(onClick = { explainOutOfImages(row) }, modifier = Modifier.size(36.dp)) {
+                                    Icon(Icons.Outlined.HideImage, OutOfImagesText.STATE, tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
                             if (row.path != ".." && row.isDir) {
                                 IconButton(onClick = { lockPrompt = row }, modifier = Modifier.size(36.dp)) {
                                     Icon(if (row.uploadOnly) Icons.Default.Lock else Icons.Outlined.LockOpen,
@@ -796,10 +1000,20 @@ fun FilesExplorerView(initialPath: String) {
                 onGallery = selectedFolder?.let { row ->
                     { gallerySource = SharedGallerySource.newBuilder().setDirectory(vm.fullPath(row)).build() }
                 },
+                // Issue #192: one folder picked, on a device that can, and
+                // not inside a folder kept out (State.outOfImagesSwitch).
+                onOutOfImages = st.outOfImagesSwitch?.let { row -> { askOutOfImages(row) } },
+                keptOutOfImages = st.outOfImagesSwitch?.outOfImages == true,
             )
             Spacer(Modifier.size(8.dp))
         }
-        Toast(st.toast, Modifier.align(Alignment.TopCenter))
+        Toast(st.toast, Modifier.align(Alignment.TopCenter).padding(horizontal = 16.dp))
+        // Issue #192: a change for Images, once done, said to TalkBack (the
+        // web's status line). Nothing to see: the mark and the banner show it.
+        Box(Modifier.align(Alignment.BottomStart).size(1.dp).semantics {
+            liveRegion = LiveRegionMode.Polite
+            contentDescription = st.outOfImagesSaid ?: ""
+        })
     }
 
     // Issue #132: the versions pop-up - the current file and every older
@@ -849,6 +1063,32 @@ fun FilesExplorerView(initialPath: String) {
         AlertDialog(onDismissRequest = { lockInfo = null }, title = { Text("Upload only") }, text = { Text(it) },
             confirmButton = { TextButton(onClick = { lockInfo = null }) { Text("OK") } })
     }
+    outOfImagesAsk?.let { a ->
+        AlertDialog(
+            onDismissRequest = { outOfImagesAsk = null },
+            title = { Text(if (a.out) OutOfImagesText.showTitle(a.name) else OutOfImagesText.keepTitle(a.name)) },
+            text = { Text(if (a.out) OutOfImagesText.SHOW_MESSAGE else OutOfImagesText.KEEP_MESSAGE) },
+            confirmButton = {
+                // Not while a share or download link is being made: it
+                // would wait for that, so the button does.
+                TextButton(onClick = { outOfImagesAsk = null; vm.toggleOutOfImages(a.full, a.out) }, enabled = st.preparing == null) {
+                    Text(if (a.out) OutOfImagesText.SHOW else OutOfImagesText.KEEP)
+                }
+            },
+            dismissButton = { TextButton(onClick = { outOfImagesAsk = null }) { Text("Cancel") } },
+        )
+    }
+    outOfImagesInfo?.let { info ->
+        AlertDialog(
+            onDismissRequest = { outOfImagesInfo = null },
+            title = { Text(OutOfImagesText.STATE) },
+            text = { Text(info.by?.let { OutOfImagesText.byParentInfo(it) } ?: OutOfImagesText.EXPLAIN) },
+            confirmButton = { TextButton(onClick = { outOfImagesInfo = null }) { Text("OK") } },
+            dismissButton = if (info.by != null) null else {
+                { TextButton(onClick = { outOfImagesInfo = null; askOutOfImages(info.row) }, enabled = st.preparing == null) { Text(OutOfImagesText.SHOW) } }
+            },
+        )
+    }
     if (st.confirmDeleteSelected) {
         val n = st.selected.size
         AlertDialog(
@@ -866,13 +1106,15 @@ fun FilesExplorerView(initialPath: String) {
 
 /**
  * One grid tile: the folder, thumbnail or file-type icon, with the list's
- * selection circle (top left), lock (folders, top right), versions count
- * (bottom right) and a play badge on videos (bottom left); the name below.
+ * selection circle (top left), lock (folders, top right) and the mark of a
+ * folder kept out of Images beside it, versions count (bottom right) and a
+ * play badge on videos (bottom left); the name below.
  */
 @Composable
 private fun FileGridCell(
     row: FileRow, selected: Boolean, opening: Boolean, thumb: ImageBitmap?,
     onOpen: () -> Unit, onToggle: () -> Unit, onVersions: () -> Unit, onLock: () -> Unit,
+    outOfImages: Boolean = false, onOutOfImages: () -> Unit = {},
 ) {
     Column(Modifier.fillMaxWidth()) {
         Box(
@@ -909,6 +1151,14 @@ private fun FileGridCell(
                     .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)).clickable(onClick = onLock),
                     contentAlignment = Alignment.Center) {
                     Icon(Icons.Default.Lock, "Upload only", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                }
+            }
+            // Issue #192: left of the lock, which keeps its corner.
+            if (row.isDir && outOfImages) {
+                Box(Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = if (row.uploadOnly) 34.dp else 6.dp).size(24.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)).clickable(onClick = onOutOfImages),
+                    contentAlignment = Alignment.Center) {
+                    Icon(Icons.Outlined.HideImage, OutOfImagesText.STATE, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
                 }
             }
             if (row.path != "..") {
@@ -991,7 +1241,16 @@ private fun SearchResultsView(
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(marked(parts.name, parts.nameSpan), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        // Issue #192: in (or itself) a folder kept out of
+                        // Images - only a mark here; the switch is on the
+                        // folder in its own listing.
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(marked(parts.name, parts.nameSpan), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                            if (f.outOfImages) {
+                                Spacer(Modifier.width(6.dp))
+                                Icon(Icons.Outlined.HideImage, OutOfImagesText.STATE, Modifier.size(16.dp), tint = colors.primary)
+                            }
+                        }
                         // Long folders lose their start, not the end nearest the file.
                         Text(marked(parts.dir, parts.dirSpan, colors.onSurface), style = MaterialTheme.typography.bodySmall,
                             color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.StartEllipsis)
@@ -1022,6 +1281,58 @@ private object UploadOnlyText {
     const val MAKE_MESSAGE = "Nothing in this folder can be deleted - from this phone, a computer or the web - and uploading a file again keeps its older version. Good for photo archives and backups."
     const val CLEAR_MESSAGE = "Files in this folder can be deleted again, and uploading a file again replaces it. The older versions kept so far stay."
     const val FILE_INFO = "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it."
+}
+
+/** Issue #192: the folder a confirmation is for - its whole path, its name, and whether it is kept out of Images now. */
+private data class OutOfImagesAsk(val full: String, val name: String, val out: Boolean)
+
+/** Issue #192: a folder's mark, tapped - [by]: the folder keeping it out when it is inside one kept out (no Show of its own then). */
+private data class OutOfImagesInfo(val row: FileRow, val by: String?)
+
+/** What keeping a folder out of Images says (issue #192). The same words as
+ *  iOS's OutOfImagesText (in its Title Case for menus) and the web's. */
+internal object OutOfImagesText {
+    const val KEEP = "Keep out of Images"
+    const val SHOW = "Show in Images"
+    const val STATE = "Kept out of Images"
+    const val EXPLAIN = "Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them."
+    fun keepTitle(name: String) = "Keep \u201C$name\u201D out of Images?"
+    const val KEEP_MESSAGE = "Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them."
+    fun showTitle(name: String) = "Show \u201C$name\u201D in Images?"
+    const val SHOW_MESSAGE = "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background."
+    const val BANNER = "Kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images."
+    // Inside a folder kept out because one above it is (the web's words):
+    // the banner names that one, and its button shows it.
+    fun bannerByParent(parent: String) = "Inside $parent, which is kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images."
+    fun showNamed(name: String) = "Show \u201C$name\u201D in Images"
+    fun byParent(parent: String) = "Inside $parent, which is kept out of Images"
+    fun byParentInfo(parent: String) = "${byParent(parent)}. $EXPLAIN"
+    // Said to TalkBack once a change is done.
+    fun keptSaid(name: String) = "$name kept out of Images"
+    fun shownSaid(name: String) = "$name shown in Images"
+}
+
+/** Issue #192: over a folder kept out of Images - what that means, and the way to show it again ([show]: its label; none yet when null). */
+@Composable
+private fun OutOfImagesBanner(text: String, show: String?, busy: Boolean, enabled: Boolean, onShow: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    // The button under the words, at the end: beside them a folder's name
+    // in it ("Show “Trips 2024” in Images") left the words a narrow column.
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).clip(RoundedCornerShape(10.dp))
+            .background(colors.surfaceContainerLow).border(1.dp, colors.outlineVariant, RoundedCornerShape(10.dp))
+            .padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = if (show != null) 0.dp else 8.dp),
+    ) {
+        Row(Modifier.padding(end = 8.dp)) {
+            Icon(Icons.Outlined.HideImage, null, Modifier.padding(top = 1.dp).size(18.dp), tint = colors.primary)
+            Spacer(Modifier.width(10.dp))
+            Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+        }
+        if (show != null) TextButton(onClick = onShow, enabled = enabled, modifier = Modifier.align(Alignment.End)) {
+            if (busy) { CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp); Spacer(Modifier.width(6.dp)) }
+            Text(show, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End)
+        }
+    }
 }
 
 private fun queryDisplayName(context: Context, uri: Uri): String? =

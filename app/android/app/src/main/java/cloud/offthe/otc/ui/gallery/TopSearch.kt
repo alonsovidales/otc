@@ -28,6 +28,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -58,6 +60,11 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -96,6 +103,7 @@ import cloud.offthe.otc.ui.common.circlePath
 import cloud.offthe.otc.ui.common.outlineIcon
 import cloud.offthe.otc.ui.common.rectPath
 import cloud.offthe.otc.ui.common.rememberTileThumb
+import cloud.offthe.otc.ui.menuColors
 import cloud.offthe.otc.ui.files.FilesNav
 import cloud.offthe.otc.ui.files.Folded
 import cloud.offthe.otc.ui.files.FoundParts
@@ -207,6 +215,41 @@ fun searchOptions(
     return SearchOptions(out, exact ?: out.firstOrNull { it !is SearchOption.FileHit }?.key)
 }
 
+/** Where the arrow keys moved the highlight to: above the first row, so Enter takes the words as typed. */
+const val ABOVE_ROWS = ""
+
+/**
+ * The highlighted row, what Enter (or the Search key) takes: where a
+ * hardware keyboard's arrows moved to ([moved]: a row's key, [ABOVE_ROWS],
+ * or null for none), else the best suggestion. A row that went (the files
+ * came in) gives way to the best again. null: no row.
+ */
+fun activeKey(o: SearchOptions, moved: String?): String? = when {
+    moved == null -> o.best
+    moved == ABOVE_ROWS -> null
+    o.options.any { it.key == moved } -> moved
+    else -> o.best
+}
+
+/**
+ * Where an arrow ([dir]: 1 down, -1 up) moves the highlight, as the web's
+ * step: through every row in the panel's order, up past the first to none
+ * ([ABOVE_ROWS]), and from none to the first (down) or the last (up). It
+ * stays on the last row going down.
+ */
+fun stepKey(o: SearchOptions, moved: String?, dir: Int): String? {
+    val rows = o.options
+    if (rows.isEmpty()) return moved
+    val at = activeKey(o, moved)?.let { k -> rows.indexOfFirst { it.key == k } } ?: -1
+    if (at < 0) return rows[if (dir > 0) 0 else rows.size - 1].key
+    val next = at + dir
+    return when {
+        next < 0 -> ABOVE_ROWS
+        next < rows.size -> rows[next].key
+        else -> moved
+    }
+}
+
 /** The search's own state: what is typed, whether the panel is wanted, the files found. */
 class TopSearchViewModel : ViewModel() {
     var query by mutableStateOf("")
@@ -216,6 +259,13 @@ class TopSearchViewModel : ViewModel() {
         private set
     var found by mutableStateOf<FoundFiles?>(null)
         private set
+    /**
+     * Where a hardware keyboard's arrows moved the highlight (a row's key,
+     * [ABOVE_ROWS]), or null: the best suggestion. Forgotten as the text
+     * changes or the panel closes, as on the web.
+     */
+    var moved by mutableStateOf<String?>(null)
+        private set
 
     // The last file search sent: an answer to an earlier one is dropped.
     private var seq = 0
@@ -224,21 +274,35 @@ class TopSearchViewModel : ViewModel() {
 
     fun type(text: String) {
         query = text
+        moved = null
         open = true
         askFiles()
     }
 
     fun opened() { open = true }
 
-    fun close() { open = false }
+    fun close() {
+        open = false
+        moved = null
+    }
 
     fun clearQuery() {
         query = ""
+        moved = null
         askFiles()
     }
 
+    /** A hardware keyboard's up (-1) or down (1) arrow, through [o]. */
+    fun step(dir: Int, o: SearchOptions) { moved = stepKey(o, moved, dir) }
+
+    /** The highlighted row of [o]: what Enter takes. */
+    fun active(o: SearchOptions) = activeKey(o, moved)
+
     // The files whose path holds what is typed, once the typing pauses.
     // Emptying the field forgets the last answer, and one still on its way.
+    // A key that leaves the trimmed text as it was (a space) asks nothing
+    // again and keeps the answer on its way, as the web keys its request
+    // on the trimmed text.
     private fun askFiles() {
         val typed = query.trim()
         if (typed == asked) return
@@ -348,13 +412,22 @@ private fun marked(text: String, span: Span?, markColor: Color? = null): Annotat
  * text, and a button that clears the text and the chips (an open
  * collection stays, as on the web). At the top of Images, or in the wide
  * layout's top bar (MainView), where [onShowPhotos] shows Images for a tag
- * or a person picked from another section.
+ * or a person picked from another section, and [showGroup] puts an open
+ * collection first among the chips, as the web's field does - every
+ * section then shows that Images is narrowed to it; its x closes it.
+ * (Narrow, the collection keeps its own bar under the field.)
+ *
+ * A hardware keyboard, as on the web and iOS: the up and down arrows go
+ * through every row of the panel in order (above the first, none is
+ * highlighted and Enter searches the documents for the words), Enter takes
+ * the highlighted row, and Escape closes the panel, keeping the field in
+ * use - a second Escape lets go of it.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TopSearchField(
     search: TopSearchViewModel, gallery: PhotoGalleryViewModel, st: PhotoGalleryViewModel.State, options: SearchOptions,
-    modifier: Modifier = Modifier, onShowPhotos: () -> Unit = {},
+    modifier: Modifier = Modifier, onShowPhotos: () -> Unit = {}, showGroup: Boolean = false,
 ) {
     val focus = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
@@ -364,13 +437,46 @@ fun TopSearchField(
     val typed = search.query.trim()
     val shown = search.open && FilesNav.fold(typed).text.isNotEmpty()
     val people = if (faces == true) st.selectedPeople else emptyList()
-    val chipCount = people.size + st.chips.size
+    val group = st.activeGroup?.takeIf { showGroup }
+    // Tags and people: what the clear button takes away. An open
+    // collection is a chip too, which only its own x closes.
+    val searched = people.size + st.chips.size
+    val chipCount = searched + (if (group != null) 1 else 0)
     val colors = MaterialTheme.colorScheme
 
     fun dismiss() {
         search.close()
         gallery.refreshListsIfStale()
         focus.clearFocus()
+    }
+
+    // Enter, or the keyboard's Search key: the highlighted row - where the
+    // arrows went, or else the best match - or else the documents searched
+    // for the words. A device that can't do that leaves the panel showing
+    // that nothing matches. With nothing typed, Images narrowed to the
+    // chips (from another section, the wide top bar's).
+    fun submit() {
+        val active = search.active(options)
+        val o = options.options.firstOrNull { it.key == active }
+        when {
+            typed.isEmpty() -> {
+                dismiss()
+                if (searched > 0 || st.activeGroup != null) onShowPhotos()
+            }
+            o != null -> { pick(o, search, gallery, onShowPhotos); focus.clearFocus() }
+            !noFileSearch -> { pick(SearchOption.Docs(typed), search, gallery, onShowPhotos); focus.clearFocus() }
+            else -> search.opened()
+        }
+    }
+
+    // A hardware keyboard's Escape: the panel goes and the field stays in
+    // use; with no panel showing, the field lets go too. Handled here, so it
+    // isn't also the system's back.
+    fun escape() {
+        if (shown) {
+            search.close()
+            gallery.refreshListsIfStale()
+        } else dismiss()
     }
     // A change of section ends the search (MainView's go); a change of
     // layout - the window turned or unfolded - only moves this field
@@ -420,6 +526,13 @@ fun TopSearchField(
                     Modifier.widthIn(max = chipsMax).horizontalScroll(scroll).padding(start = 2.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // The open collection first, as the web's field has it.
+                    if (group != null) {
+                        val gold = menuColors().accent
+                        SearchChip(label = group.name, removeLabel = "Close the collection ${group.name}", onRemove = { gallery.leaveGroup() }, leadingPad = 8.dp) {
+                            Icon(NavIcons.Collections, null, Modifier.size(18.dp), tint = gold)
+                        }
+                    }
                     val byId = st.allPeople.associateBy { it.id }
                     people.forEach { pid ->
                         val p = byId[pid]
@@ -446,19 +559,29 @@ fun TopSearchField(
                     textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
                     cursorBrush = SolidColor(colors.primary),
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false, imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = {
-                        // The best match; else the documents searched for
-                        // the words. A device that can't do that leaves
-                        // the panel showing that nothing matches.
-                        val best = options.options.firstOrNull { it.key == options.best }
-                        when {
-                            typed.isNotEmpty() && best != null -> { pick(best, search, gallery, onShowPhotos); focus.clearFocus() }
-                            typed.isNotEmpty() && !noFileSearch -> { pick(SearchOption.Docs(typed), search, gallery, onShowPhotos); focus.clearFocus() }
-                            typed.isNotEmpty() -> search.opened()
-                            else -> dismiss()
-                        }
-                    }),
+                    keyboardActions = KeyboardActions(onSearch = { submit() }),
                     modifier = Modifier.fillMaxWidth().focusRequester(focusRequester)
+                        // A hardware keyboard's keys, ahead of the field's
+                        // own (the arrows would move the cursor, Escape
+                        // would become the system's back). Both halves of a
+                        // key are taken, the action on the press.
+                        .onPreviewKeyEvent { e ->
+                            val down = e.type == KeyEventType.KeyDown
+                            when (e.key) {
+                                Key.DirectionUp, Key.DirectionDown -> {
+                                    // Nothing typed: the arrows move the focus, as anywhere.
+                                    if (FilesNav.fold(typed).text.isEmpty()) return@onPreviewKeyEvent false
+                                    if (down) {
+                                        if (shown) search.step(if (e.key == Key.DirectionDown) 1 else -1, options)
+                                        else search.opened()
+                                    }
+                                    true
+                                }
+                                Key.Enter, Key.NumPadEnter -> { if (down) submit(); true }
+                                Key.Escape -> { if (down) escape(); true }
+                                else -> false
+                            }
+                        }
                         .semantics { contentDescription = "Search photos and files" }
                         .onFocusChanged {
                             focused = it.isFocused
@@ -466,7 +589,9 @@ fun TopSearchField(
                         },
                 )
             }
-            if (search.query.isNotEmpty() || chipCount > 0) {
+            // Everything typed and searched for goes - not an open
+            // collection, which its chip's x closes.
+            if (search.query.isNotEmpty() || searched > 0) {
                 Box(
                     Modifier.size(40.dp).clip(CircleShape).clickable {
                         search.clearQuery()
@@ -480,12 +605,15 @@ fun TopSearchField(
 }
 
 @Composable
-private fun SearchChip(label: String, removeLabel: String, onRemove: () -> Unit, dim: Boolean = false, leading: (@Composable () -> Unit)? = null) {
+private fun SearchChip(
+    label: String, removeLabel: String, onRemove: () -> Unit, dim: Boolean = false,
+    leadingPad: Dp = 3.dp, leading: (@Composable () -> Unit)? = null,
+) {
     val colors = MaterialTheme.colorScheme
     Row(
         Modifier.height(32.dp).widthIn(max = 168.dp).clip(RoundedCornerShape(8.dp))
             .background(colors.primary.copy(alpha = 0.12f)).border(1.dp, colors.primary.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-            .padding(start = if (leading != null) 3.dp else 12.dp, end = 2.dp),
+            .padding(start = if (leading != null) leadingPad else 12.dp, end = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (leading != null) { leading(); Spacer(Modifier.width(6.dp)) }
@@ -573,6 +701,26 @@ fun TopSearchPanel(
     val list = rememberLazyListState()
     val firstKey = options.options.firstOrNull()?.key
     LaunchedEffect(q, firstKey) { if (list.firstVisibleItemIndex != 0 || list.firstVisibleItemScrollOffset != 0) list.scrollToItem(0) }
+    // The highlighted row (TopSearchViewModel.active): where a hardware
+    // keyboard's arrows went, else the best match. The row they move to
+    // stays in sight; the first shows with its section's heading.
+    val active = search.active(options)
+    val moved = search.moved
+    val order = remember(options) {
+        buildList {
+            if (tags.isNotEmpty()) { add("h:Things"); tags.forEach { add(it.key) } }
+            if (people.isNotEmpty()) { add("h:People"); people.forEach { add(it.key) } }
+            if (docs != null && docsFirst) add("docs")
+            if (files.isNotEmpty()) { add("h:Files"); files.forEach { add(it.key) } }
+            if (docs != null && !docsFirst) add("docs")
+        }
+    }
+    LaunchedEffect(moved) {
+        if (moved.isNullOrEmpty()) return@LaunchedEffect
+        if (moved == firstKey) { list.scrollToItem(0); return@LaunchedEffect }
+        val at = order.indexOf(moved)
+        if (at >= 0) list.reveal(at)
+    }
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         Box(
@@ -599,7 +747,7 @@ fun TopSearchPanel(
                 if (tags.isNotEmpty()) {
                     section("Things")
                     items(tags, key = { it.key }) { o ->
-                        OptionRow(o.key == options.best, { choose(o) }) {
+                        OptionRow(o.key == active, { choose(o) }) {
                             RowIcon(SearchIcons.Tag)
                             Text(marked(o.tag, o.span), style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                         }
@@ -609,7 +757,7 @@ fun TopSearchPanel(
                     section("People")
                     items(people, key = { it.key }) { o ->
                         val on = o.person.id in st.selectedPeople
-                        OptionRow(o.key == options.best, { choose(o) }) {
+                        OptionRow(o.key == active, { choose(o) }) {
                             Box(if (on) Modifier.border(2.dp, colors.primary, CircleShape).padding(2.dp) else Modifier) { PersonPic(o.person, 36) }
                             Column(Modifier.weight(1f)) {
                                 Text(marked(personLabel(o.person), o.span), style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -619,11 +767,11 @@ fun TopSearchPanel(
                         }
                     }
                 }
-                if (docs != null && docsFirst) item(key = "docs") { DocsRow(docs, docs.key == options.best) { choose(docs) } }
+                if (docs != null && docsFirst) item(key = "docs") { DocsRow(docs, docs.key == active) { choose(docs) } }
                 if (files.isNotEmpty()) {
                     section("Files")
                     items(files, key = { it.key }) { o ->
-                        OptionRow(false, { choose(o) }) {
+                        OptionRow(o.key == active, { choose(o) }) {
                             val folder = o.kind == FileKind.FOLDER
                             Box(
                                 Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(colors.onSurface.copy(alpha = 0.06f)),
@@ -640,7 +788,7 @@ fun TopSearchPanel(
                         }
                     }
                 }
-                if (docs != null && !docsFirst) item(key = "docs") { DocsRow(docs, docs.key == options.best) { choose(docs) } }
+                if (docs != null && !docsFirst) item(key = "docs") { DocsRow(docs, docs.key == active) { choose(docs) } }
                 if (options.options.isEmpty()) item(key = "hint") {
                     Text(
                         if (alreadyIn) "“$typed” is already in the search." else "Nothing matches “$typed”.",
@@ -650,6 +798,25 @@ fun TopSearchPanel(
                 }
             }
         }
+    }
+}
+
+/**
+ * Scrolls as little as it takes to show the item at [index] whole: at the
+ * top when it is above, at the foot when below.
+ */
+private suspend fun LazyListState.reveal(index: Int) {
+    val info = layoutInfo
+    val end = info.viewportEndOffset - info.afterContentPadding
+    val item = info.visibleItemsInfo.firstOrNull { it.index == index }
+    when {
+        item == null -> {
+            val above = index < (info.visibleItemsInfo.firstOrNull()?.index ?: 0)
+            scrollToItem(index)
+            if (!above) layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }?.let { scrollBy(-(end - it.size - it.offset).toFloat()) }
+        }
+        item.offset < 0 -> scrollBy(item.offset.toFloat())
+        item.offset + item.size > end -> scrollBy((item.offset + item.size - end).toFloat())
     }
 }
 
@@ -695,7 +862,7 @@ private fun RowIcon(icon: ImageVector) {
     }
 }
 
-/** One option: the best one (what the Search key takes) highlighted. */
+/** One option: the highlighted one (what the Search key takes) shaded. */
 @Composable
 private fun OptionRow(active: Boolean, onClick: () -> Unit, content: @Composable RowScope.() -> Unit) {
     Row(

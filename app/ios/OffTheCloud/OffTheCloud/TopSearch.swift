@@ -619,9 +619,10 @@ struct TopSearchPanel: View {
     let onPick: (SearchOption) -> Void
     /// Where the arrow keys moved to (TopSearchModel.moved).
     var moved: String? = nil
-    /// Under the top bar's field (a wide window): as tall as the rows, up
-    /// to this. nil: the whole space it is given, over the photos.
-    var maxHeight: CGFloat? = nil
+    /// As tall as the rows, up to the height it is offered (the top bar's
+    /// dropdown, or a panel risen over the keyboard - SearchPanelLayout).
+    /// false: the whole space it is given, over the photos.
+    var fitsRows = false
     var background = Color(.systemBackground)
 
     @State private var rowsHeight: CGFloat = 0
@@ -643,7 +644,19 @@ struct TopSearchPanel: View {
                         proxy.scrollTo(m)
                     }
                 }
+                // A new text, or a new first row (the files came after the
+                // tags, say), starts at the top: the list would otherwise
+                // keep its place, and the best matches go out of sight
+                // above it.
+                .onChange(of: FirstRow(typed: typed, id: suggestions.ordered.first?.id)) { _, _ in
+                    proxy.scrollTo(Self.topID, anchor: .top)
+                }
         }
+    }
+
+    private struct FirstRow: Equatable {
+        let typed: String
+        let id: String?
     }
 
     private var rows: some View {
@@ -668,7 +681,7 @@ struct TopSearchPanel: View {
             .padding(.bottom, 12)
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { rowsHeight = $0 }
         }
-        .frame(height: maxHeight.map { min(rowsHeight, $0) })
+        .frame(maxHeight: fitsRows ? rowsHeight : nil)
         // A swipe through the suggestions puts the keyboard away, and the
         // search stays open.
         .scrollDismissesKeyboard(.immediately)
@@ -777,6 +790,92 @@ struct TopSearchPanel: View {
     }
 
     static func photos(_ n: Int) -> String { "\(n.formatted()) \(n == 1 ? "photo" : "photos")" }
+}
+
+// MARK: - Where the panel goes
+
+/// Where the search's panel goes, and how tall it may be (Android's
+/// dropdownPlace): from `under`, under its field, as tall as its rows up
+/// to `cap` and the room left down to `bottom` (`shortest` at least), or
+/// with no cap the whole room (the narrow panel over the photos).
+///
+/// With the keyboard up and less than `roomy` under the field - a phone
+/// turned sideways, where the keyboard takes most of the window - it would
+/// end under the keyboard, its matches out of sight and reach while
+/// typing. There it rises over the field instead, as high as `ceiling`
+/// (just under the status bar), with its foot just above the keyboard
+/// (`bottom` is the keyboard's top then): only as far as its rows need,
+/// and back under the field when the keyboard goes. The keyboard's own
+/// strip still shows the word being typed.
+struct SearchPanelPlace: Equatable {
+    static let roomy: CGFloat = 200
+    /// Between the panel's foot and the keyboard (or the window's foot).
+    static let gap: CGFloat = 8
+
+    var under: CGFloat
+    var bottom: CGFloat
+    var ceiling: CGFloat
+    var keyboardUp: Bool
+    var cap: CGFloat? = 640
+    var shortest: CGFloat = 88
+
+    /// The room under the field.
+    var below: CGFloat { cap == nil ? bottom - under : bottom - Self.gap - under }
+    var rises: Bool { keyboardUp && below < Self.roomy }
+
+    /// The tallest the panel may be.
+    var maxHeight: CGFloat {
+        if rises { return max(0, min(cap ?? .infinity, bottom - Self.gap - ceiling)) }
+        guard let cap else { return max(0, below) }
+        return max(shortest, min(cap, below))
+    }
+
+    /// The panel's top, once it is `height` tall.
+    func top(height: CGFloat) -> CGFloat {
+        guard rises else { return under }
+        return max(ceiling, min(under, bottom - Self.gap - height))
+    }
+}
+
+/// Lays the search's panel out where SearchPanelPlace puts it, in the space
+/// it is given (whose height is the place's bottom): offered the place's
+/// tallest, `width` wide (nil: the whole width) from `x`.
+struct SearchPanelLayout: Layout {
+    let place: SearchPanelPlace
+    var x: CGFloat = 0
+    var width: CGFloat?
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        proposal.replacingUnspecifiedDimensions()
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var place = place
+        place.bottom = bounds.height
+        let w = width ?? bounds.width
+        for view in subviews {
+            let h = min(view.sizeThatFits(ProposedViewSize(width: w, height: place.maxHeight)).height, place.maxHeight)
+            view.place(
+                at: CGPoint(x: bounds.minX + x, y: bounds.minY + place.top(height: h)),
+                anchor: .topLeading,
+                proposal: ProposedViewSize(width: w, height: h)
+            )
+        }
+    }
+}
+
+extension View {
+    /// Keeps `up` saying whether the keyboard shows (a hardware keyboard's
+    /// bar counts), as UIKit tells it - before the window is laid out for
+    /// it, so the search's panel is placed for the keyboard as it comes.
+    func keyboardShown(_ up: Binding<Bool>) -> some View {
+        onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            up.wrappedValue = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            up.wrappedValue = false
+        }
+    }
 }
 
 /// A row darkens while pressed, like a list row.

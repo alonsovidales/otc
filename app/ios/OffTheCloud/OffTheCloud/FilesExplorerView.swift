@@ -79,6 +79,8 @@ struct FileRow: Identifiable {
     // older versions the device keeps for the file.
     let uploadOnly: Bool
     let versions: Int32
+    // Issue #192: inside (or itself) a folder kept out of Images.
+    let outOfImages: Bool
     let raw: Msg_File
 }
 
@@ -94,6 +96,7 @@ extension FileRow {
             modified: f.hasModified ? f.modified.date : nil,
             uploadOnly: f.uploadOnly,
             versions: f.versions,
+            outOfImages: f.outOfImages,
             raw: f
         )
     }
@@ -130,6 +133,24 @@ final class FilesExplorerViewModel: ObservableObject {
     // versions the device listed (newest first).
     @Published var versionsOf: (row: FileRow, versions: [Msg_File])?
     @Published var versionsLoading = false
+    // Issue #192: whether the device can keep folders out of Images -
+    // devices before release 108 leave it false, and then nothing about it
+    // shows - and whether the folder listed (listedPath) is kept out.
+    @Published var outOfImagesSupported = false
+    @Published var folderOutOfImages = false
+    /// The folder the rows and folderOutOfImages were listed for. Until the
+    /// next folder's listing arrives `path` is already that folder's, so
+    /// the banner - and its "Show in Images", which acts on `path` - waits
+    /// for it (outOfImagesBanner).
+    @Published private(set) var listedPath: String?
+    /// The folder whose switch is on its way, without its trailing slash
+    /// (a row's full path). The device answers once the tags and faces are
+    /// gone, which can take a while on a busy device (most of a minute was
+    /// seen on Pit), so its row - or the banner - shows a spinner until
+    /// then, and every other switch (the menu item, the mark's alert, the
+    /// banner) is disabled until it is answered: one at a time, as on
+    /// Android and the web.
+    @Published private(set) var outOfImagesBusy: String?
     // The grid's thumbnails, by full path + hash so a replaced file gets a
     // fresh one. noThumb remembers the paths the device answered without
     // one, so they aren't asked for again.
@@ -168,6 +189,12 @@ final class FilesExplorerViewModel: ObservableObject {
 
     init(initialPath: String) { self.path = initialPath }
 
+    /// Sends one of the explorer's requests (the listing, the folder
+    /// switches). Tests answer them in the device's place.
+    var request: @MainActor (Msg_ReqEnvelope.OneOf_Payload) async throws -> Msg_RespEnvelope = { payload in
+        try await OTCConnection.shared.request { $0.payload = payload }
+    }
+
     func load() async {
         // The folder this listing is for: one that comes back after the
         // screen moved on (the search sending it to another folder while
@@ -179,9 +206,12 @@ final class FilesExplorerViewModel: ObservableObject {
         var req = Msg_ListFiles()
         req.path = asked
         do {
-            let resp = try await ws.request { $0.payload = .reqListFiles(req) }
+            let resp = try await request(.reqListFiles(req))
             guard asked == path else { return }
             if case .respListOfFiles(let lof) = resp.payload {
+                outOfImagesSupported = lof.outOfImagesSupported
+                folderOutOfImages = lof.folderOutOfImages
+                listedPath = asked
                 var files = lof.files
                 if asked != "/" {
                     var up = Msg_File()
@@ -192,12 +222,15 @@ final class FilesExplorerViewModel: ObservableObject {
                 rows = files.map(FileRow.init(file:))
                 selected.removeAll()
             } else if resp.error {
+                folderOutOfImages = false
                 error = resp.errorMessage.isEmpty ? "Failed to list path" : resp.errorMessage
             } else {
+                folderOutOfImages = false
                 error = "Unexpected response"
             }
         } catch {
             guard asked == path else { return }
+            folderOutOfImages = false
             self.error = error.localizedDescription
         }
     }
@@ -498,10 +531,73 @@ final class FilesExplorerViewModel: ObservableObject {
         var req = Msg_SetUploadOnly()
         req.path = fullPath(for: row)
         req.uploadOnly = !row.uploadOnly
-        if let resp = try? await ws.request({ $0.payload = .reqSetUploadOnly(req) }), resp.error {
+        if let resp = try? await request(.reqSetUploadOnly(req)), resp.error {
             showToast(resp.errorMessage.isEmpty ? "Could not update the folder" : resp.errorMessage)
         }
         await load()
+    }
+
+    /// Issue #192: keeps a folder out of Images (`keepOut`), or shows it
+    /// there again - asked first (OutOfImagesText.promptTitle). The device
+    /// answers once the tags and faces found only in it are gone, so Images,
+    /// its tags and People are asked for again at once (otcImagesChanged).
+    /// A refusal says why in the device's words: showing a folder inside
+    /// another one kept out names that one (out_of_images_by_parent).
+    /// One at a time: while one is under way every way to start another is
+    /// disabled (outOfImagesIdle), so this only drops a tap racing that.
+    func setOutOfImages(_ folder: String, keepOut: Bool) async {
+        guard outOfImagesIdle else { return }
+        outOfImagesBusy = Self.folderKey(folder)
+        defer { outOfImagesBusy = nil }
+        var req = Msg_SetOutOfImages()
+        req.path = folder
+        req.outOfImages = keepOut
+        do {
+            let resp = try await request(.reqSetOutOfImages(req))
+            if case .respAck(let ack) = resp.payload, ack.ok, !resp.error {
+                NotificationCenter.default.post(name: .otcImagesChanged, object: nil)
+            } else {
+                showToast(resp.errorMessage.isEmpty ? "Could not update the folder" : resp.errorMessage)
+            }
+        } catch {
+            showToast("Could not update the folder")
+        }
+        await load()
+    }
+
+    /// A folder row, as the keep-out-of-Images prompt asks about it.
+    func outOfImagesAsk(_ row: FileRow) -> OutOfImagesAsk {
+        OutOfImagesAsk(path: fullPath(for: row), name: row.name, outOfImages: row.outOfImages)
+    }
+
+    /// The folder being browsed, as the banner's "Show in Images" asks
+    /// about it: its full path (no trailing slash, as a row's) and name.
+    var currentFolder: OutOfImagesAsk {
+        OutOfImagesAsk(path: Self.folderKey(path), name: path == "/" ? "/" : leafName(path), outOfImages: folderOutOfImages)
+    }
+
+    /// The banner shows over the folder it was listed for only: right after
+    /// moving to another folder `path` is already the new one while
+    /// folderOutOfImages is still the old one's.
+    var outOfImagesBanner: Bool {
+        outOfImagesSupported && folderOutOfImages && listedPath == path
+    }
+
+    /// No switch under way: the switches are enabled.
+    var outOfImagesIdle: Bool { outOfImagesBusy == nil }
+
+    /// Whether `folder` - a row's full path, or the folder browsed with its
+    /// trailing slash - is the one whose switch is under way.
+    func isOutOfImagesBusy(_ folder: String) -> Bool {
+        outOfImagesBusy != nil && outOfImagesBusy == Self.folderKey(folder)
+    }
+
+    /// A folder's path without its trailing slash ("/" stays "/"), so the
+    /// folder browsed ("/x/sub/") and its row ("/x/sub") compare equal.
+    nonisolated static func folderKey(_ folder: String) -> String {
+        var s = folder
+        while s.count > 1 && s.hasSuffix("/") { s.removeLast() }
+        return s
     }
 
     /// Issue #132: the versions badge - list the file's older versions.
@@ -606,10 +702,19 @@ final class FilesExplorerViewModel: ObservableObject {
         await load()
     }
 
+    /// Says a toast to VoiceOver, which never moves to it on its own - a
+    /// refused switch (out_of_images_by_parent, locked_by_parent) would
+    /// look as if it did nothing. Tests listen in its place.
+    var announce: @MainActor (String) -> Void = { AccessibilityNotification.Announcement($0).post() }
+
     func showToast(_ m: String) {
         toast = m
+        announce(m)
+        // Long enough to read: 2.5 s, longer for a sentence (issue #192's
+        // refusal names two folders).
+        let seconds = max(2.5, Double(m.count) / 18)
         Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 2_500_000_000)
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
             if self?.toast == m { self?.toast = nil }
         }
     }
@@ -629,6 +734,11 @@ struct FilesExplorerView: View {
     // only marks something explains itself.
     @State private var lockPrompt: FileRow?
     @State private var lockInfo: String?
+    // Issue #192: keeping a folder out of Images asks first too (it deletes
+    // the tags and faces found in it), and the mark on a folder kept out
+    // says what that means, with the way back.
+    @State private var outOfImagesPrompt: OutOfImagesAsk?
+    @State private var outOfImagesInfo: OutOfImagesAsk?
     // List or grid ("list"/"grid"), remembered across launches - the web and
     // Android explorers keep theirs under the same key.
     @AppStorage("files.viewMode") private var viewMode = "list"
@@ -682,6 +792,10 @@ struct FilesExplorerView: View {
                         Text(error).font(.caption).foregroundColor(.red).padding(.horizontal)
                     }
 
+                    if vm.outOfImagesBanner {
+                        outOfImagesBanner
+                    }
+
                     if viewMode == "grid" {
                         grid
                     } else {
@@ -719,7 +833,7 @@ struct FilesExplorerView: View {
                                     // flight - the only feedback a tap used to get
                                     // was however long that took, which just
                                     // looked stuck.
-                                    if vm.openingPath == row.path {
+                                    if vm.openingPath == row.path || (row.isDir && vm.isOutOfImagesBusy(vm.fullPath(for: row))) {
                                         ProgressView().frame(width: 20)
                                     } else {
                                         Image(systemName: row.isDir ? "folder.fill" : (isImgFile(row.raw) ? "photo" : "doc"))
@@ -747,6 +861,22 @@ struct FilesExplorerView: View {
                                         }
                                         .buttonStyle(.plain)
                                         .accessibilityLabel("\(row.versions) older version\(row.versions == 1 ? "" : "s")")
+                                    }
+                                    // Issue #192: a folder kept out of Images says
+                                    // so; a tap says what that means. Changed from
+                                    // the long-press menu. Before the lock, so
+                                    // the locks stay in one column.
+                                    if row.path != ".." && row.isDir && row.outOfImages && vm.outOfImagesSupported {
+                                        Button {
+                                            outOfImagesInfo = vm.outOfImagesAsk(row)
+                                        } label: {
+                                            Image(systemName: "eye.slash.fill")
+                                                .foregroundColor(.accentColor)
+                                                .frame(width: 28, height: 28)
+                                                .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel(OutOfImagesText.state)
                                     }
                                     if row.path != ".." && row.isDir {
                                         Button {
@@ -811,9 +941,13 @@ struct FilesExplorerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .overlay(alignment: .top) {
                 if let toast = vm.toast {
+                    // A device's refusal is a whole sentence: on lines of
+                    // its own, clear of the screen's edges.
                     Text(toast)
-                        .padding(.horizontal, 12).padding(.vertical, 8)
-                        .background(.ultraThinMaterial, in: Capsule())
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .padding(.horizontal)
                         .padding(.top, 8)
                 }
             }
@@ -908,6 +1042,34 @@ struct FilesExplorerView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(lockInfo ?? "")
+        }
+        // Issue #192: keep a folder out of Images, or show it there again.
+        .alert(
+            outOfImagesPrompt.map { OutOfImagesText.promptTitle(name: $0.name, outOfImages: $0.outOfImages) } ?? "",
+            isPresented: Binding(get: { outOfImagesPrompt != nil }, set: { if !$0 { outOfImagesPrompt = nil } }),
+            presenting: outOfImagesPrompt
+        ) { ask in
+            Button(ask.outOfImages ? OutOfImagesText.show : OutOfImagesText.keep) {
+                Task { await vm.setOutOfImages(ask.path, keepOut: !ask.outOfImages) }
+            }
+            // One switch at a time (setOutOfImages).
+            .disabled(!vm.outOfImagesIdle)
+            Button("Cancel", role: .cancel) {}
+        } message: { ask in
+            Text(ask.outOfImages ? OutOfImagesText.showMessage : OutOfImagesText.keepMessage)
+        }
+        // The mark on a folder kept out: what it means, and the way back
+        // (asked, as from the menu).
+        .alert(
+            OutOfImagesText.state,
+            isPresented: Binding(get: { outOfImagesInfo != nil }, set: { if !$0 { outOfImagesInfo = nil } }),
+            presenting: outOfImagesInfo
+        ) { ask in
+            Button(OutOfImagesText.show) { outOfImagesPrompt = ask }
+                .disabled(!vm.outOfImagesIdle)
+            Button("OK", role: .cancel) {}
+        } message: { _ in
+            Text(OutOfImagesText.explain)
         }
         .confirmationDialog(
             "Delete \(vm.selected.count) item\(vm.selected.count == 1 ? "" : "s")?",
@@ -1096,11 +1258,18 @@ struct FilesExplorerView: View {
             if !row.isDir {
                 Text(formatByteCount(row.size)).font(.caption2).foregroundColor(.secondary)
             }
+            // Issue #192: found in (or as) a folder kept out of Images.
+            // Only a mark: the folder's menu changes it.
+            if row.outOfImages {
+                Image(systemName: "eye.slash.fill")
+                    .font(.caption)
+                    .foregroundColor(.accentColor)
+            }
         }
         .contentShape(Rectangle())
         .onTapGesture { openFound(f) }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(name), \(FoundKind(f).word) in \(dir)")
+        .accessibilityLabel("\(name), \(FoundKind(f).word) in \(dir)\(row.outOfImages ? ", kept out of Images" : "")")
         .accessibilityAddTraits(.isButton)
     }
 
@@ -1188,6 +1357,17 @@ struct FilesExplorerView: View {
                 } label: {
                     Label(row.uploadOnly ? "Clear upload only" : "Make upload only", systemImage: row.uploadOnly ? "lock.open" : "lock")
                 }
+                // Issue #192: not on a device too old to do it, and greyed
+                // out while another folder's switch is under way.
+                if vm.outOfImagesSupported {
+                    Button {
+                        outOfImagesPrompt = vm.outOfImagesAsk(row)
+                    } label: {
+                        Label(row.outOfImages ? OutOfImagesText.show : OutOfImagesText.keep,
+                              systemImage: row.outOfImages ? "eye" : "eye.slash")
+                    }
+                    .disabled(!vm.outOfImagesIdle)
+                }
             }
             if !row.uploadOnly {
                 Button(role: .destructive) {
@@ -1198,6 +1378,40 @@ struct FilesExplorerView: View {
                 }
             }
         }
+    }
+
+    /// Issue #192: the folder being browsed is kept out of Images (itself,
+    /// or inside one that is) - the way back is here too. Showing a folder
+    /// inside another one kept out is refused, and the device's reply says
+    /// which one to show first.
+    private var outOfImagesBanner: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "eye.slash.fill")
+                .foregroundColor(.accentColor)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(OutOfImagesText.banner)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if vm.isOutOfImagesBusy(vm.path) {
+                    ProgressView().controlSize(.small)
+                } else {
+                    // Greyed out while another folder's switch is under way.
+                    Button(OutOfImagesText.show) { outOfImagesPrompt = vm.currentFolder }
+                        .font(.footnote.weight(.semibold))
+                        .buttonStyle(.borderless)
+                        .disabled(!vm.outOfImagesIdle)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(.horizontal)
+        .padding(.top, 8)
+        .accessibilityElement(children: .contain)
     }
 
     private var grid: some View {
@@ -1257,7 +1471,7 @@ struct FilesExplorerView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay {
                 // Issue #71: the same in-flight spinner the row shows.
-                if vm.openingPath == row.path {
+                if vm.openingPath == row.path || (row.isDir && vm.isOutOfImagesBusy(vm.fullPath(for: row))) {
                     ProgressView()
                         .padding(8)
                         .background(.ultraThinMaterial, in: Circle())
@@ -1282,21 +1496,40 @@ struct FilesExplorerView: View {
                 }
             }
             .overlay(alignment: .topTrailing) {
-                // The lock itself is toggled from the long-press menu here;
-                // a tap on it says what it means.
-                if row.isDir && row.uploadOnly && row.path != ".." {
-                    Button {
-                        lockInfo = UploadOnlyText.folderInfo
-                    } label: {
-                        Image(systemName: "lock.fill")
-                            .font(.caption)
-                            .foregroundColor(.accentColor)
-                            .padding(5)
-                            .background(.ultraThinMaterial, in: Circle())
-                            .padding(5)
+                // The lock and the out-of-Images mark (issue #192) are
+                // changed from the long-press menu here; a tap on either
+                // says what it means.
+                if row.isDir && row.path != ".." {
+                    HStack(spacing: 0) {
+                        if row.outOfImages && vm.outOfImagesSupported {
+                            Button {
+                                outOfImagesInfo = vm.outOfImagesAsk(row)
+                            } label: {
+                                Image(systemName: "eye.slash.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.accentColor)
+                                    .padding(5)
+                                    .background(.ultraThinMaterial, in: Circle())
+                                    .padding(5)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(OutOfImagesText.state)
+                        }
+                        if row.uploadOnly {
+                            Button {
+                                lockInfo = UploadOnlyText.folderInfo
+                            } label: {
+                                Image(systemName: "lock.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.accentColor)
+                                    .padding(5)
+                                    .background(.ultraThinMaterial, in: Circle())
+                                    .padding(5)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Upload only")
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Upload only")
                 }
             }
             .overlay(alignment: .bottomLeading) {
@@ -1329,6 +1562,51 @@ struct FilesExplorerView: View {
     }
 }
 
+/// What the upload-only lock says (issue #132). The same words as
+/// Android's UploadOnlyText and the web lock's tooltip.
+enum UploadOnlyText {
+    static func promptTitle(name: String, uploadOnly: Bool) -> String {
+        uploadOnly ? "Allow deletions in \u{201C}\(name)\u{201D} again?" : "Make \u{201C}\(name)\u{201D} upload only?"
+    }
+    static let makeMessage = "Nothing in this folder can be deleted - from this phone, a computer or the web - and uploading a file again keeps its older version. Good for photo archives and backups."
+    static let clearMessage = "Files in this folder can be deleted again, and uploading a file again replaces it. The older versions kept so far stay."
+    static let folderInfo = "Nothing in this folder can be deleted, and uploading a file again keeps its older version. Long-press the folder to change it."
+    static let fileInfo = "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it."
+}
+
+/// What keeping a folder out of Images says (issue #192). The same words
+/// as Android's OutOfImagesText, the web's and the computer apps', with
+/// iOS's Title Case on its menu item and buttons.
+enum OutOfImagesText {
+    /// The menu item and the prompt's button.
+    static let keep = "Keep Out of Images"
+    static let show = "Show in Images"
+    static let state = "Kept out of Images"
+    static let explain = "Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them."
+    static func promptTitle(name: String, outOfImages: Bool) -> String {
+        outOfImages ? "Show \u{201C}\(name)\u{201D} in Images?" : "Keep \u{201C}\(name)\u{201D} out of Images?"
+    }
+    static let keepMessage = "Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them."
+    static let showMessage = "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background."
+    static let banner = "Kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images."
+}
+
+/// A folder the out-of-Images prompt asks about (issue #192): a row, or
+/// the folder being browsed (the banner's "Show in Images").
+struct OutOfImagesAsk: Equatable {
+    /// The folder's full path, as SetOutOfImages takes it.
+    let path: String
+    let name: String
+    /// Whether it is kept out now: the prompt offers the other way.
+    let outOfImages: Bool
+}
+
+extension Notification.Name {
+    /// Issue #192: Files kept a folder out of Images, or showed it there
+    /// again - Images' photos, tags, people and collections have changed.
+    static let otcImagesChanged = Notification.Name("otcImagesChanged")
+}
+
 /// Issue #72: the system Quick Look previewer - the same one Mail/Files use
 /// for attachments/downloads - natively renders images, PDFs, Office docs,
 /// plain text, audio and video, not just images.
@@ -1343,18 +1621,6 @@ struct FilesExplorerView: View {
 /// Wrapping it here, plus an explicit Done item wired to onDismiss rather
 /// than relying on that auto-detection alone, makes sure the button is
 /// always there regardless.
-/// What the upload-only lock says (issue #132). The same words as
-/// Android's UploadOnlyText and the web lock's tooltip.
-enum UploadOnlyText {
-    static func promptTitle(name: String, uploadOnly: Bool) -> String {
-        uploadOnly ? "Allow deletions in \u{201C}\(name)\u{201D} again?" : "Make \u{201C}\(name)\u{201D} upload only?"
-    }
-    static let makeMessage = "Nothing in this folder can be deleted - from this phone, a computer or the web - and uploading a file again keeps its older version. Good for photo archives and backups."
-    static let clearMessage = "Files in this folder can be deleted again, and uploading a file again replaces it. The older versions kept so far stay."
-    static let folderInfo = "Nothing in this folder can be deleted, and uploading a file again keeps its older version. Long-press the folder to change it."
-    static let fileInfo = "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it."
-}
-
 private struct QuickLookView: UIViewControllerRepresentable {
     let url: URL
     let onDismiss: () -> Void
