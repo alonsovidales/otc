@@ -2002,18 +2002,21 @@ func (dao *Dao) strToNotificationType(s string) pb.NotificationType {
 
 // AddUpdateNotification (issue #183) tells the owner about a major or
 // critical update, once: a notification with the same title (which names
-// the version) is not added again.
-func (dao *Dao) AddUpdateNotification(title, detail string) error {
+// the version) is not added again. added says whether this call added it,
+// so a push that goes with it is sent once too, across restarts.
+func (dao *Dao) AddUpdateNotification(title, detail string) (added bool, err error) {
 	var n int
 	if err := dao.db.QueryRow("select count(*) from `notifications` where `type` = 'Update' and `title` = ?", title).Scan(&n); err != nil {
-		return err
+		return false, err
 	}
 	if n > 0 {
-		return nil
+		return false, nil
 	}
-	_, err := dao.db.Exec("insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`) values (?, now(), 'Update', 'This device', '', ?, ?, 1)",
-		uuid.New(), title, detail)
-	return err
+	if _, err := dao.db.Exec("insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`) values (?, now(), 'Update', 'This device', '', ?, ?, 1)",
+		uuid.New(), title, detail); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // AddStorageNotification tells the owner a disk of the mirror stopped

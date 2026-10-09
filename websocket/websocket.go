@@ -311,15 +311,23 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 
 	// Issue #183: check for updates by itself, on the main instance (the
 	// one that can install them), and tell the owner about a major or
-	// critical one in Notifications.
+	// critical one in Notifications - a critical one also as a push, sent
+	// with the notification so once per release.
 	if sup != nil {
 		go updater.Watch(func(a *updater.Alert) {
 			title := fmt.Sprintf("Update %s is available", a.Version)
-			if a.Level == updater.KindCritical {
+			critical := a.Level == updater.KindCritical
+			if critical {
 				title = fmt.Sprintf("Critical update %s - please install it soon", a.Version)
 			}
-			if err := dao.AddUpdateNotification(title, a.Summary+" Install it from Settings."); err != nil {
+			body := a.Summary + " Install it from Settings."
+			added, err := dao.AddUpdateNotification(title, body)
+			if err != nil {
 				log.Error("could not add the update notification:", err)
+				return
+			}
+			if added && critical {
+				ps.Notify(title, body, push.Target{})
 			}
 		})
 	}

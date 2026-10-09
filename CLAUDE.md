@@ -1486,8 +1486,8 @@ number, a major or critical starts the next major. Release 84 is 1.0; earlier on
 and show as builds. Kinds and versions are in `scripts/updates/RELEASES` (`<release> <kind>
 <version>`), signed into `RELEASES.sig` by `release.sh` and checked by the device with Go's Ed25519
 (`updater/kinds.go`) - a separate file because the runners read `VERSIONS` by position. The main
-instance checks for updates by itself every 6 hours (`updater.Watch`): a pending major or critical
-update adds one `Update` notification per version, and `Status.update_alert` carries it to every
+instance checks for updates by itself every hour (`updater.Watch`): a pending major or critical
+update adds one `Update` notification per version (a critical one also pushes, once, with it), and `Status.update_alert` carries it to every
 app; a critical one shows a banner in the web app, iOS and Android (and a line in the Mac app and
 otc-sync) until it is installed. Settings shows "1.1 (build 85)" and badges pending releases.
 `updater.Check` trusts `VERSIONS` only with its signature (a fork must sign its VERSIONS too) and

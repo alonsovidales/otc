@@ -222,7 +222,7 @@ func CurrentAlert() *Alert {
 // cWatchRetry how soon it tries again after a check that failed or could
 // not verify the kinds (doubling up to cWatchEvery).
 var (
-	cWatchEvery = 6 * time.Hour
+	cWatchEvery = time.Hour
 	cWatchRetry = 5 * time.Minute
 )
 
