@@ -186,6 +186,21 @@
   display: grid; place-items: center;
 }
 .sv-replay:hover { background: rgba(0, 0, 0, 0.7); }
+/* Previous/next over a video in a multi-item post (PostNavButtons): the
+   player keeps every click, so paging needs real buttons there. Clear of
+   the player's control bar at the bottom and of the speaker top right. */
+.sv-nav {
+  position: absolute; top: 50%; z-index: 3;
+  transform: translateY(-50%);
+  width: 40px; height: 40px; padding: 0 0 3px; border: 0; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45); color: #fff;
+  font-size: 28px; line-height: 1; cursor: pointer;
+  display: grid; place-items: center;
+}
+.sv-nav:hover { background: rgba(0, 0, 0, 0.7); }
+.sv-nav:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.sv-nav.prev { left: 10px; }
+.sv-nav.next { right: 10px; }
 .sv-media img { cursor: pointer; }
 .sv-media-ph { color: var(--mist-dim); padding: 20px; }
 

@@ -870,6 +870,10 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
                 ) : null}
                 {viewerLoading && !viewerVideoURL && <div className="sv-loading">Loading…</div>}
                 {(viewerPub?.files.length ?? 0) > 1 && (
+                  // The clicks are the player's here too (see the feed).
+                  <PostNavButtons onPrev={prevImg} onNext={nextImg} />
+                )}
+                {(viewerPub?.files.length ?? 0) > 1 && (
                   <div className="sv-dots" aria-hidden="true">
                     {viewerPub!.files.map((_, i) => (
                       <span key={i} className={`sv-dot${i === viewerIdx ? " active" : ""}`} />
@@ -939,6 +943,23 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
 }
 
 // -------- Small bits --------
+
+/** Previous/next over a video in a post with more than one item: the
+    player takes every click, so the click-to-page zones can't be used.
+    A touch on them must not start the strip's swipe either. */
+function PostNavButtons({ onPrev, onNext }: { onPrev: () => void; onNext: () => void }) {
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+  return (
+    <>
+      <button type="button" className="sv-nav prev" aria-label="Previous item" title="Previous"
+              onTouchStart={stop} onTouchEnd={stop}
+              onClick={e => { e.stopPropagation(); onPrev(); }}>‹</button>
+      <button type="button" className="sv-nav next" aria-label="Next item" title="Next"
+              onTouchStart={stop} onTouchEnd={stop}
+              onClick={e => { e.stopPropagation(); onNext(); }}>›</button>
+    </>
+  );
+}
 
 // One post of the feed. Its own component at module level: declared inside
 // Social it was a new component type on every Social render, so a like, a
@@ -1353,6 +1374,13 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
               {muted ? "🔇" : "🔊"}
             </button>
           </div>
+        )}
+        {/* A video takes every click for its own controls, so the
+            left/right-quarter paging above can't reach the next item from
+            it: while a video is the item on screen, visible buttons page
+            instead. Photos keep the button-free paging (issue #20). */}
+        {isVideo && p.files.length > 1 && (
+          <PostNavButtons onPrev={goLeft} onNext={goRight} />
         )}
         {/* Issue #68: the iOS app already shows a dot per image (current
             one solid, the rest dimmed) over a multi-image post - the web
