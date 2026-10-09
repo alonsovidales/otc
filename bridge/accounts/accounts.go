@@ -600,6 +600,7 @@ func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 	// The account's id, never its email or the address it came from
 	// (issue #162: personal data kept in logs with no retention).
 	log.Info("account created:", acc.ID)
+	a.notifyNewAccount(acc.Email)
 	if err := a.sendVerification(&acc); err != nil {
 		log.Error("could not send the verification email for", acc.ID, ":", err)
 	}
@@ -1067,6 +1068,22 @@ const (
 
 // SetMailer gives the account emails a way out (main, after [smtp]).
 func (a *Accounts) SetMailer(m *mailer.Mailer) { a.mailer = m }
+
+// notifyNewAccount tells the project that an account was created, at its
+// own address (info@off-the.cloud, the mailer's): the new account's email
+// and nothing else. In the background, so a slow SMTP server never holds
+// up a sign-up; a failure is only logged, by account-free text (#162).
+func (a *Accounts) notifyNewAccount(email string) {
+	m := a.mailer
+	if m == nil || m.Self() == "" {
+		return
+	}
+	go func() {
+		if err := m.Send(m.Self(), "New account", email); err != nil {
+			log.Error("could not send the new-account email:", err)
+		}
+	}()
+}
 
 func (a *Accounts) verified(accountID string) (bool, error) {
 	acc, err := a.dao.GetAccount(accountID)

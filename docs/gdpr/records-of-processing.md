@@ -29,6 +29,7 @@ for it. The bridge relays connections to devices in memory and stores none of th
 | 8 | Setup beacon | a device's LAN address during setup, under a random setup token; sent by every device set up from the image, with or without an account | Letting the setup page find the device again | Contract; legitimate interest for a setup without an account | 10 minutes | `setup_beacons` |
 | 9 | Logs sent by owners | last part of the device's logs (may include file names, search words, Wi-Fi names, addresses), note, account email | Support the owner asked for | Consent, Art. 6(1)(a), given per send | Until the problem is solved, at most 12 months | emailed to info@off-the.cloud (Proton) |
 | 10 | Contact messages | name, email, message | Answering | Legitimate interest | Until closed, at most 12 months (pruned automatically) | `contact_requests` |
+| 11 | New-account notice | the new account's email, nothing else | Knowing when accounts are created | Legitimate interest | Deleted from the info@ mailbox with the account, at most 12 months | `notifyNewAccount` in `bridge/accounts`; emailed to info@off-the.cloud (Proton) |
 | 11 | Server logs | technical errors with IP addresses | Keeping the service working and secure | Legitimate interest | 30 days (journald `MaxRetentionSec`, `bridge/cluster/journald-otc.conf`) | journald on the bridge nodes |
 | 12 | Backups | copies of the database (all of 1-10) | Recovering from failure | Legitimate interest | OVH backup retention | OVH Veeam backups of the nodes |
 
