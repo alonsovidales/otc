@@ -383,3 +383,88 @@ func (h hashArg) Match(v driver.Value) bool {
 	*h.to = s
 	return ok
 }
+
+// changePasswordRequest is a signed-in operator's POST /admin/api/password.
+func changePasswordRequest(a *Admin, body string) *http.Request {
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/password", strings.NewReader(body))
+	req.RemoteAddr = "203.0.113.9:40000"
+	req.AddCookie(&http.Cookie{Name: cSessionCookie, Value: newSessionToken(a.sessionSecret, "operator", 0, time.Now())})
+	return req
+}
+
+func TestChangePasswordStoresTheNewOneAndEndsOtherSessions(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select `password_hash` from `admin_users`").
+		WithArgs("operator").
+		WillReturnRows(sqlmock.NewRows([]string{"password_hash"}).AddRow(mustHash(t, "the-old-password")))
+	mock.ExpectExec("insert into `admin_users`").
+		WithArgs("operator", sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("update `admin_users` set `session_epoch`").
+		WithArgs("operator").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("select `session_epoch` from `admin_users`").
+		WithArgs("operator").
+		WillReturnRows(sqlmock.NewRows([]string{"session_epoch"}).AddRow(1))
+
+	a := Init(dao.NewWithDB(db), []byte("session-secret"))
+	w := httptest.NewRecorder()
+	a.ChangePassword(w, changePasswordRequest(a, `{"current":"the-old-password","new":"a-brand-new-password"}`))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (%s)", w.Code, w.Body.String())
+	}
+	// This session carries on with a cookie for the new epoch.
+	var fresh *http.Cookie
+	for _, c := range w.Result().Cookies() {
+		if c.Name == cSessionCookie {
+			fresh = c
+		}
+	}
+	if fresh == nil {
+		t.Fatal("no fresh session cookie")
+	}
+	if user, epoch, ok := verifySessionToken(a.sessionSecret, fresh.Value, time.Now()); !ok || user != "operator" || epoch != 1 {
+		t.Errorf("fresh cookie = %q epoch %d ok %v, want operator epoch 1", user, epoch, ok)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestChangePasswordRefusesAWrongCurrentOrShortNewOne(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+	mock.ExpectQuery("select `password_hash` from `admin_users`").
+		WithArgs("operator").
+		WillReturnRows(sqlmock.NewRows([]string{"password_hash"}).AddRow(mustHash(t, "the-old-password")))
+
+	a := Init(dao.NewWithDB(db), []byte("session-secret"))
+	w := httptest.NewRecorder()
+	a.ChangePassword(w, changePasswordRequest(a, `{"current":"a-wrong-guess","new":"a-brand-new-password"}`))
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("wrong current password: status = %d, want 401", w.Code)
+	}
+	// Too short: refused before the database is asked anything.
+	w = httptest.NewRecorder()
+	a.ChangePassword(w, changePasswordRequest(a, `{"current":"the-old-password","new":"short"}`))
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("short new password: status = %d, want 400", w.Code)
+	}
+	// No session: refused.
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/password", strings.NewReader(`{"current":"x","new":"a-brand-new-password"}`))
+	w = httptest.NewRecorder()
+	a.ChangePassword(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("no session: status = %d, want 401", w.Code)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Error(err)
+	}
+}

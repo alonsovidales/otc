@@ -302,6 +302,7 @@ func (api *API) registerAdminAPIs() {
 
 	api.muxHTTPServer.HandleFunc("POST /admin/api/login", api.admin.Login)
 	api.muxHTTPServer.HandleFunc("POST /admin/api/logout", api.admin.Logout)
+	api.muxHTTPServer.HandleFunc("POST /admin/api/password", api.admin.RequireAuth(api.admin.ChangePassword))
 	api.muxHTTPServer.HandleFunc("GET /admin/api/devices", api.admin.RequireAuth(api.admin.ListDevices))
 	api.muxHTTPServer.HandleFunc("POST /admin/api/devices", api.admin.RequireAuth(api.admin.AddDevice))
 	api.muxHTTPServer.HandleFunc("DELETE /admin/api/devices/{domain}", api.admin.RequireAuth(api.admin.DeleteDevice))

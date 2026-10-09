@@ -261,6 +261,91 @@ func (a *Admin) Logout(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"ok": "true"})
 }
 
+// cMinPasswordLen is the shortest admin password accepted, here and by the
+// command-line bootstrap (readAdminPassword in bin/otc_bridge.go).
+const cMinPasswordLen = 12
+
+// ChangePassword lets the signed-in admin change their own password, from
+// the panel (POST /admin/api/password, behind RequireAuth). The current
+// password is asked again - a panel left open must not be enough to take
+// the account over - and a wrong one counts against the address like a
+// failed login. Every other session of the admin ends; this one gets a
+// fresh cookie and carries on.
+func (a *Admin) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	now := time.Now()
+	ip := clientIP(r)
+	if ok, retryAfter := a.loginLimiter.allow(ip, now); !ok {
+		w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())+1))
+		writeError(w, http.StatusTooManyRequests, "too many failed attempts, try again later")
+		return
+	}
+	cookie, err := r.Cookie(cSessionCookie)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "not logged in")
+		return
+	}
+	user, _, ok := verifySessionToken(a.sessionSecret, cookie.Value, now)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "session expired")
+		return
+	}
+	var body struct {
+		Current string `json:"current"`
+		New     string `json:"new"`
+	}
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if len(body.New) < cMinPasswordLen {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("use at least %d characters for the new password", cMinPasswordLen))
+		return
+	}
+	if len(body.New) > 72 {
+		// bcrypt reads only the first 72 bytes; longer would look accepted
+		// and silently not count.
+		writeError(w, http.StatusBadRequest, "use at most 72 characters for the new password")
+		return
+	}
+	hash, found, err := a.dao.GetAdminPasswordHash(user)
+	if err != nil {
+		log.Error("error looking up admin user:", err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	if !found || !checkPassword(hash, body.Current) {
+		a.loginLimiter.recordFailure(ip, now)
+		writeError(w, http.StatusUnauthorized, "the current password is wrong")
+		return
+	}
+	a.loginLimiter.recordSuccess(ip)
+	if body.New == body.Current {
+		writeError(w, http.StatusBadRequest, "the new password is the same as the current one")
+		return
+	}
+	newHash, err := hashPassword(body.New)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not change the password right now")
+		return
+	}
+	if err := a.dao.SetAdminPassword(user, newHash); err != nil {
+		log.Error("error changing an admin password:", err)
+		writeError(w, http.StatusInternalServerError, "could not change the password right now")
+		return
+	}
+	if err := a.dao.BumpAdminSessionEpoch(user); err != nil {
+		log.Error("could not end the other admin sessions:", err)
+	}
+	epoch, _, err := a.dao.AdminSessionEpoch(user)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "the password was changed; sign in again")
+		return
+	}
+	log.Info("admin password changed")
+	http.SetCookie(w, a.sessionCookie(newSessionToken(a.sessionSecret, user, epoch, now), now, r.TLS != nil))
+	writeJSON(w, http.StatusOK, map[string]string{"ok": "true"})
+}
+
 // RequireAuth wraps a handler so it only runs for a request carrying a
 // valid, unexpired session cookie.
 func (a *Admin) RequireAuth(next http.HandlerFunc) http.HandlerFunc {

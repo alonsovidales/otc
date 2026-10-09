@@ -158,7 +158,7 @@ func readAdminPassword() (string, error) {
 	if string(first) != string(second) {
 		return "", errors.New("the passwords don't match")
 	}
-	if len(first) < 12 {
+	if len(first) < 12 { // admin.cMinPasswordLen, the panel's minimum too
 		return "", errors.New("use at least 12 characters")
 	}
 	return string(first), nil

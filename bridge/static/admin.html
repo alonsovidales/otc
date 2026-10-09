@@ -226,6 +226,27 @@
             <tbody id="security-body"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
           </table>
         </div>
+              <div class="card">
+          <h3 style="margin:0 0 6px">Change admin password</h3>
+          <p class="muted" style="margin-top:0">At least 12 characters. Every other signed-in admin session ends; this one stays signed in.</p>
+          <form id="password-form" class="row" autocomplete="on">
+            <input type="text" name="username" autocomplete="username" hidden />
+            <div class="field">
+              <label for="pw-current">Current password</label>
+              <input id="pw-current" name="current" type="password" autocomplete="current-password" required />
+            </div>
+            <div class="field">
+              <label for="pw-new">New password</label>
+              <input id="pw-new" name="new" type="password" autocomplete="new-password" minlength="12" maxlength="72" required />
+            </div>
+            <div class="field">
+              <label for="pw-again">New password again</label>
+              <input id="pw-again" name="again" type="password" autocomplete="new-password" minlength="12" maxlength="72" required />
+            </div>
+            <button class="btn primary" type="submit" id="pw-submit">Change password</button>
+          </form>
+          <div id="password-msg" style="margin-top:12px"></div>
+        </div>
       </section>
 
       <section id="tab-messages" hidden>
@@ -317,6 +338,30 @@
       localStorage.removeItem('otc_admin_user');
       loginScreen.hidden = false;
       panel.hidden = true;
+    });
+
+    // ---- Change admin password ----
+    const passwordForm = document.getElementById('password-form');
+    const passwordMsg = document.getElementById('password-msg');
+    passwordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      showMsg(passwordMsg, '', '');
+      const fd = new FormData(passwordForm);
+      if (fd.get('new') !== fd.get('again')) {
+        showMsg(passwordMsg, "The new passwords don't match.", 'error');
+        return;
+      }
+      const btn = document.getElementById('pw-submit');
+      btn.disabled = true;
+      try {
+        await api.call('POST', '/admin/api/password', { current: fd.get('current'), new: fd.get('new') });
+        passwordForm.reset();
+        showMsg(passwordMsg, 'Password changed. Other admin sessions have been signed out.', 'ok');
+      } catch (err) {
+        showMsg(passwordMsg, err.message || 'Could not change the password', 'error');
+      } finally {
+        btn.disabled = false;
+      }
     });
 
     // ---- Tabs ----
