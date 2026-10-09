@@ -98,6 +98,15 @@ func (c *Cluster) Node() string {
 	return c.node
 }
 
+// Redis is the cluster's Redis client (the admin panel's Fleet tab reads
+// the servers' reports from it); nil without a cluster.
+func (c *Cluster) Redis() *redis.Client {
+	if c == nil {
+		return nil
+	}
+	return c.rdb
+}
+
 // InternalAddr is where this node's internal listener runs.
 func (c *Cluster) InternalAddr() string { return c.addr }
 

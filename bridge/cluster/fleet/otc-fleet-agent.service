@@ -1,0 +1,54 @@
+# OTC fleet agent: reports this server to the bridge admin panel's Fleet
+# tab (bridge/fleet, bridge/cluster/README.md "Fleet tab and alerts").
+# Installed on every cluster host by `make -C bridge bridge` (or `fleet`),
+# with this host's settings in otc-fleet-agent.service.d/host.conf.
+#
+# Least privilege: its own system user (otc-fleet, no shell, no home - the
+# makefile creates it; not DynamicUser=, which Ubuntu's dbus-daemon
+# refuses, and systemctl needs the bus), no capabilities,
+# a read-only view of the system, no listening socket. It reads /proc,
+# statfs, /proc/mdstat, `systemctl is-active/list-units`, adjtimex (read
+# only) and apt's package lists, and writes one Redis key. The Redis (and
+# on MySQL hosts the monitoring user's) password reach it as systemd
+# credentials, readable by this service only - never on its command line.
+[Unit]
+Description=OTC fleet agent (admin panel Fleet tab)
+After=network-online.target wg-quick@wg0.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=otc-fleet
+Group=otc-fleet
+LoadCredential=redis.pass:/root/otc-cluster/fleet-redis.pass
+ExecStart=/usr/local/bin/otc-fleet-agent $OTC_FLEET_ARGS
+Restart=always
+RestartSec=15
+
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+UMask=0077
+# apt-check, once an hour, is the heaviest thing it runs.
+Nice=10
+CPUWeight=20
+MemoryMax=256M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

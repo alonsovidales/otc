@@ -135,6 +135,10 @@ Redis on the old KS-B (51.83.103.72, `redis`), everything internal over WireGuar
 `authorized_keys2` and systemd units; a host gets 240 s (plus a 300 s watchdog on the Mac), a run
 cut short skips the fingerprint comparison, and a new *kind* of fingerprint line (`unit:`,
 `unit_link:`) joins the baseline without an alarm.
+The same `make -C bridge bridge` then runs `fleet`: it builds `otc-fleet-agent`
+(`bridge/fleetagent`) and installs it with its unit on all three hosts (`FLEET_HOSTS`) - the admin
+panel's Fleet tab and its email alerts (`bridge/fleet`; README "Fleet tab and alerts", which has
+the one-time Redis ACL user and MySQL monitoring user to create first).
 
 **Toolchain requirements** (not present by default in a generic dev container):
 - `go.mod` requires Go **1.25+**; the system `go` may be much older (check with `go version` before
@@ -832,6 +836,17 @@ registration evicts other owners' relays. `DropDomains` (release, account deleti
 publish on Redis `otc:drop` for every node, and every 20 s each node checks its domains against
 MySQL (`dao.DeviceOwners`). One node sends the offline alert per outage (`otc:alert:<domain>`). The
 bridge's Web Push client reaches only public addresses, without redirects.
+
+Fleet tab (`bridge/fleet`): every host's `otc-fleet-agent` (unprivileged user `otc-fleet`, passwords
+as systemd credentials) and every bridge node (`fleet.Reporter`, counts from
+`Manager.FleetStats`) write a JSON snapshot to Redis every 30 s (`fleet:host:<name>`,
+`fleet:bridge:<node>`, 10-minute TTL, `fleet:known-*` remember the last report);
+`GET /admin/api/fleet` reads them (`fleet.Read`) and judges each host with `fleet.Evaluate` - the
+one function the email alerts use too (`fleet/alerts.go`: one node at a time under
+`fleet:alert-lock`, bad twice in a row or warn 5 times before mailing, reminders every 6 h, one
+"resolved", grouped per minute, state in `fleet:alert-state`; `[fleet] alert-to`). Snapshots carry
+counts and host figures only - never a domain, account or address; MySQL errors lose their quoted
+values.
 
 ### Frontend (`web/`)
 

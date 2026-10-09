@@ -172,6 +172,160 @@ notifies, so a deploy and its `--accept` don't send a burst of mails. Unsigned k
 accepted only when they are byte for byte the DKMS build of a packaged source (the Veeam agent's
 `bdevfilter`/`veeamblksnap`), and loopback listeners are not part of the fingerprint.
 
+## Fleet tab and alerts
+
+The admin panel's **Fleet** tab (`/admin.html#fleet`) shows one card per
+server: its roles, CPU, memory, disks, connections and a good / warn / bad
+line per check. Problems are also emailed. Code: `bridge/fleet` (shared
+types, `Evaluate`, `Read`, the alerts), `bridge/fleet/agent` +
+`bridge/fleetagent` (the agent), `bridge/cluster/fleet/` (its unit).
+
+How the figures get there - everything travels through the cluster's
+Redis, over the tunnel:
+
+- **`otc-fleet-agent`** runs on all three hosts (`/usr/local/bin`, unit
+  `otc-fleet-agent.service`, this host's settings in
+  `otc-fleet-agent.service.d/host.conf` = `cluster/fleet/<host>.conf`).
+  Every 30 s it writes one JSON snapshot to `fleet:host:<name>` (10-minute
+  TTL) and the time to `fleet:known-hosts`. It reads `/proc` (load, CPU,
+  memory, swap, network, uptime), statfs (disks, inodes), `/proc/mdstat`,
+  `systemctl is-active` (the roles' services) and `list-units
+  --state=failed`, adjtimex (NTP sync and offset, read only),
+  `/var/run/reboot-required`, apt's `apt-check` once an hour (pending and
+  security updates), MySQL's status (bridge nodes) and Redis's `INFO`
+  (redis host). It runs as its own system user `otc-fleet` (no shell, no
+  home; not `DynamicUser=`, which Ubuntu's dbus-daemon refuses and
+  `systemctl` needs), with no capabilities, a read-only view of the system
+  and no listening socket. Its passwords reach it as systemd credentials
+  (`LoadCredential=`, readable only by the service), never on a command line.
+- **Each bridge node** writes `fleet:bridge:<node-id>` the same way: devices
+  connected (and their connections, idle ones), app and web clients paired
+  with a device on that node (a client forwarded from the other node counts
+  where it is paired, so once), its version (the commit, set by the
+  makefile), uptime, goroutines, open files against `LimitNOFILE`, heap,
+  ERROR lines logged in the last 15 minutes, and the days left on the
+  certificate it serves (`[otc-api] ssl-cert`, as the file is now).
+- `GET /admin/api/fleet` (admin session) reads them all back and judges
+  each host with `fleet.Evaluate`; the tab refreshes every 15 s while open.
+  A host that stops reporting stays listed: "stale" (its last figures are
+  shown, not judged) and, once the key has expired, "no report since ...".
+
+Only counts and host figures go in: no domain, account, email or client
+address; a MySQL error's quoted values (a duplicate key's value, a user
+name) are cut out (`redactQuoted`). So `docs/gdpr` needs no change.
+
+What each host runs and reports:
+
+| Host | Roles (`-roles`) | Services checked | Also |
+|------|------------------|------------------|------|
+| `bridge1` | bridge, mysql | `otc_bridge`, `mysql`, `wg-quick@wg0`, `ufw` | MySQL primary: connections, replicas streaming |
+| `bridge2` | bridge, mysql | the same | MySQL replica: IO/SQL threads, seconds behind, GTID backlog, last errors |
+| `redis` | redis, certbot | `redis-server`, `certbot.timer`, `wg-quick@wg0`, `ufw` | Redis memory, clients, keys; a failed `certbot.service` shows under failed units |
+
+The certificate's days left are those each bridge node serves (what the
+renewal on `redis` pushes); add `-cert <file>` to `redis.conf` for a copy
+the `otc-fleet` user can read there. Not reported: WireGuard handshake ages
+(`wg show` needs `CAP_NET_ADMIN`; a broken tunnel shows anyway as a stale
+report or a stopped replication IO thread), SMART (servercheck.sh has it).
+
+### Thresholds (`fleet/evaluate.go`)
+
+| Check | Warn | Bad |
+|-------|------|-----|
+| Agent report | | older than 3 intervals (90 s at least), or gone |
+| Bridge process report | | the same, or never seen on a bridge host |
+| Services of the host's roles | | any not `active` |
+| Failed systemd units | | any |
+| Disk (each mount) and its inodes | 85% | 95% |
+| Memory available | under 10% | under 5% |
+| Swap used | 50% | |
+| RAID | resync/recovery/check running | degraded, a failed member, inactive ("no RAID" is fine) |
+| Replication (replica) | 30 s behind, or lag unknown | 300 s behind, or IO/SQL thread not running |
+| Replication (primary) | no replica streaming | |
+| MySQL | connections at 80% of `max_connections`; a writable replica | down while the host has the mysql role |
+| Redis | 90% of `maxmemory` (when set) | down on the redis host |
+| Certificates | under 14 days | under 7 days, expired |
+| Clock | not synchronised, or 100 ms off | 1 s off |
+| Bridge open files | 80% of the limit | |
+| Shown, never mailed | CPU 90% busy, load 2 x CPUs, reboot required, security updates pending, 300 bridge errors in 15 min | |
+
+### Email alerts
+
+Every minute one bridge node - the one holding `fleet:alert-lock` (a
+150-second lock; if its holder dies, the other node takes over) - runs the
+same `Evaluate` and mails changes, all of one minute in one email
+("[OTC fleet] 2 problems: bridge2 replication stopped (IO connecting), redis
+disk / 96%"): a check bad on 2 evaluations in a row (a host that stopped
+reporting at once), or warn for 5; a reminder every 6 hours while it lasts; one
+"resolved" when it is good again. A mail that fails is tried again the next
+minute. The state (`fleet:alert-state`) lives in Redis, which keeps nothing
+on disk: after a Redis restart a problem still going on is mailed once
+more. Mail goes through the bridge's own mailer (`[smtp]`) to `[fleet]
+alert-to` in the bridge's ini, or the mailer's own address
+(info@off-the.cloud) without one; no `[smtp]`, no alerts (logged once).
+
+**If both bridge nodes are down, or Redis is, nobody mails** - the Mac's
+`servercheck.sh` still covers that.
+
+```ini
+[fleet]
+alert-to = someone@example.org   ; optional
+```
+
+### One-time setup (before the first deploy of the agent)
+
+From the Mac, in this order; nothing here prints a password.
+
+1. **Redis user for the agents**, limited to `fleet:*` keys and to `SET`,
+   `HSET`, `INFO`, `PING` (it can't touch `otc:*` or publish `otc:drop`).
+   Its password goes in `/root/otc-cluster/fleet-redis.pass` on all three hosts:
+
+   ```sh
+   ssh redis 'sudo sh -c "umask 077; openssl rand -hex 24 | tr -d \"\\n\" > /root/otc-cluster/fleet-redis.pass"'
+   for h in bridge1 bridge2; do ssh redis 'sudo cat /root/otc-cluster/fleet-redis.pass' | ssh $h 'sudo install -m 600 /dev/stdin /root/otc-cluster/fleet-redis.pass'; done
+   ssh redis 'sudo sh -c '"'"'H=$(sha256sum < /root/otc-cluster/fleet-redis.pass | cut -d" " -f1)
+     echo "user otc-fleet on #$H resetkeys ~fleet:* resetchannels -@all +ping +info +set +hset" >> /etc/redis/otc-cluster.conf
+     REDISCLI_AUTH=$(cat /root/otc-cluster/redis.pass) redis-cli --no-auth-warning ACL SETUSER otc-fleet reset on "#$H" "~fleet:*" resetchannels -@all +ping +info +set +hset'"'"
+   ```
+
+   The `ACL SETUSER` applies it now (no Redis restart); the config line keeps
+   it after one. Check: `... redis-cli ACL LIST` shows the user with its hash.
+2. **MySQL monitoring user**, created on the primary (it replicates to
+   bridge2), with `REPLICATION CLIENT` (replication status) and `PROCESS`
+   (to count the replicas streaming from the primary - without it that line
+   says it can't count them). No grant on any database:
+
+   ```sh
+   ssh bridge1 'sudo sh -c "umask 077; openssl rand -hex 16 | tr -d \"\\n\" > /root/otc-cluster/fleet-mysql.pass"'
+   ssh bridge1 'sudo cat /root/otc-cluster/fleet-mysql.pass' | ssh bridge2 'sudo install -m 600 /dev/stdin /root/otc-cluster/fleet-mysql.pass'
+   ssh bridge1 'sudo sh -c '"'"'printf "CREATE USER IF NOT EXISTS \`otc-fleet\`@localhost IDENTIFIED BY \"%s\";\nALTER USER \`otc-fleet\`@localhost IDENTIFIED BY \"%s\";\nGRANT REPLICATION CLIENT, PROCESS ON *.* TO \`otc-fleet\`@localhost;\n" "$(cat /root/otc-cluster/fleet-mysql.pass)" "$(cat /root/otc-cluster/fleet-mysql.pass)" | mysql'"'"
+   ```
+
+   (`printf` is the shell's own, so the password never shows in `ps`; run
+   again, it sets the password from the file.)
+3. Optionally `[fleet] alert-to` in both nodes' ini.
+4. Deploy: `make -C bridge bridge` (the bridge, then the agent on all three
+   hosts; `make -C bridge fleet` for the agent alone). It creates the
+   `otc-fleet` user if missing, installs the binary, the unit and the host's
+   drop-in, enables and (re)starts the agent. A host where it doesn't start
+   (step 1 or 2 not done) is reported without stopping the deploy.
+5. Run `bash bridge/cluster/servercheck.sh` by hand: the new binary
+   (`binary:/usr/local/bin/otc-fleet-agent`), unit, drop-in and enable link
+   show as a fingerprint change (and `otc_bridge`'s new hash) - expected;
+   `servercheck.sh --accept`. The `otc-fleet` user has no login shell, so
+   the login-users line doesn't change. Worth adding `otc-fleet-agent` to
+   `services_for` there once it runs everywhere.
+
+Check: `ssh bridge1 'systemctl status otc-fleet-agent; journalctl -u
+otc-fleet-agent -n 20'` (it logs a failure to publish once, and again once
+it works), then the Fleet tab. A server taken out of the cluster for good
+stays listed as stale until it is forgotten:
+`redis-cli HDEL fleet:known-hosts <name>` (and `fleet:known-bridges`).
+
+All agents share one Redis user, so a compromised host could write a false
+snapshot for another (shown escaped in the tab, at most 256 KB each); one
+user per host (`~fleet:host:<name>`) would close that if it ever matters.
+
 ## Rule: no request-to-request state in a node's memory
 
 Round-robin DNS sends consecutive requests of one flow to either node, so

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/alonsovidales/otc/bridge/cluster"
 	"github.com/alonsovidales/otc/bridge/dao"
+	"github.com/alonsovidales/otc/bridge/fleet"
 	"github.com/alonsovidales/otc/bridge/limits"
 	"github.com/alonsovidales/otc/bridge/mailer"
 	"github.com/alonsovidales/otc/cfg"
@@ -759,6 +760,34 @@ func (mg *Manager) heldDomains() []string {
 		p.lock.Unlock()
 	}
 	return out
+}
+
+// FleetStats is this node's connections for the admin panel's Fleet tab
+// (counts only): devices with at least one connection here, all their
+// connections, the idle ones, and the clients paired with a device here.
+func (mg *Manager) FleetStats() fleet.BridgeStats {
+	mg.bridgesMu.RLock()
+	pools := make([]*bridgePool, 0, len(mg.bridges))
+	for _, p := range mg.bridges {
+		pools = append(pools, p)
+	}
+	mg.bridgesMu.RUnlock()
+	var st fleet.BridgeStats
+	for _, p := range pools {
+		p.lock.Lock()
+		if p.liveCount > 0 {
+			st.Devices++
+			st.DeviceConns += p.liveCount
+			st.Idle += len(p.availableConns)
+		}
+		p.lock.Unlock()
+	}
+	mg.pairedMu.Lock()
+	for _, n := range mg.pairedByAddr {
+		st.Clients += n
+	}
+	mg.pairedMu.Unlock()
+	return st
 }
 
 // HasLocal reports whether this node has a free connection to domain's

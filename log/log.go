@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -89,12 +90,20 @@ func Info(v ...interface{}) {
 // Error Adds a new log line to the logs file in case of being in a ERROR level
 // or higer
 func Error(v ...interface{}) {
+	errorCount.Add(1)
 	if level <= ERROR {
 		_, file, line, _ := runtime.Caller(1)
 		fileParts := strings.Split(file, "/")
 		newLog(fmt.Sprintf("ERROR: <%s:%d> ", fileParts[len(fileParts)-1], line), v...)
 	}
 }
+
+// errorCount is how many times Error was called since the start.
+var errorCount atomic.Uint64
+
+// ErrorCount is how many errors were logged since the process started (the
+// bridge's Fleet report counts the recent ones).
+func ErrorCount() uint64 { return errorCount.Load() }
 
 // Fatal Adds a new log line to the logs file and interrupts the execution of
 // the application

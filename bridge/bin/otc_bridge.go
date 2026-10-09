@@ -4,6 +4,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"github.com/alonsovidales/otc/bridge/accounts"
@@ -11,6 +12,7 @@ import (
 	"github.com/alonsovidales/otc/bridge/api"
 	"github.com/alonsovidales/otc/bridge/cluster"
 	"github.com/alonsovidales/otc/bridge/dao"
+	"github.com/alonsovidales/otc/bridge/fleet"
 	"github.com/alonsovidales/otc/bridge/mailer"
 	"github.com/alonsovidales/otc/bridge/websocket"
 	"github.com/alonsovidales/otc/cfg"
@@ -22,6 +24,7 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -73,8 +76,10 @@ func main() {
 	// (a different cookie, the same signing key).
 	acc := accounts.Init(dao, sessionSecret(), cfg.GetStr("otc-api", "tld"))
 	// Verification and password-reset emails ([smtp]).
-	if m, err := mailer.Init(); err != nil {
+	m, err := mailer.Init()
+	if err != nil {
 		log.Error("email is off:", err)
+		m = nil
 	} else {
 		if m == nil {
 			log.Info("no [smtp] section: account emails are off")
@@ -82,6 +87,7 @@ func main() {
 		acc.SetMailer(m)
 		webSocket.SetMailer(m)
 	}
+	startFleet(clu, adm, webSocket, m)
 
 	api.Init(
 		webSocket,
@@ -107,6 +113,35 @@ func main() {
 
 	log.Info("Stopping all the services")
 	dao.Stop()
+}
+
+// startFleet runs this node's part of the admin panel's Fleet tab: its
+// own report every 30 s, the tab's reader, and the email alerts (one node
+// mails at a time, see fleet/alerts.go). Only in a cluster: the reports
+// travel through its Redis.
+func startFleet(clu *cluster.Cluster, adm *admin.Admin, ws *websocket.Manager, m *mailer.Mailer) {
+	if !clu.Enabled() {
+		return
+	}
+	rdb := clu.Redis()
+	fleet.NewReporter(rdb, clu.Node(), cfg.GetStr("otc-api", "ssl-cert"), ws.FleetStats).Start()
+	adm.FleetView = func(ctx context.Context) (*fleet.View, error) {
+		return fleet.Read(ctx, rdb, time.Now())
+	}
+	if m == nil {
+		log.Info("fleet alerts are off: no mailer ([smtp])")
+		return
+	}
+	to := m.Self()
+	if cfg.HasSection("fleet") && cfg.GetStr("fleet", "alert-to") != "" {
+		to = cfg.GetStr("fleet", "alert-to")
+	}
+	link := ""
+	if tld := cfg.GetStr("otc-api", "tld"); tld != "" {
+		link = "https://" + tld + "/admin.html#fleet"
+	}
+	fleet.NewAlerter(rdb, clu.Node(), to, link, m.Send).Start()
+	log.Info("fleet alerts are on ([fleet] alert-to, or the mailer's own address)")
 }
 
 // sessionSecret returns [admin] session-secret from config, so admin panel

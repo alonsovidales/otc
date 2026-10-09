@@ -9,6 +9,7 @@
 package admin
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -23,6 +24,7 @@ import (
 	"time"
 
 	"github.com/alonsovidales/otc/bridge/dao"
+	"github.com/alonsovidales/otc/bridge/fleet"
 	"github.com/alonsovidales/otc/log"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -46,6 +48,10 @@ type Admin struct {
 	// relay pool, set by main once the websocket manager exists). Nil
 	// means unknown - every device shows offline.
 	IsOnline func(domain string) bool
+	// FleetView reads the servers' reports for the Fleet tab (fleet.Read
+	// on the cluster's Redis, set by main). Nil on a bridge without a
+	// cluster: the tab says there is nothing to show.
+	FleetView func(ctx context.Context) (*fleet.View, error)
 }
 
 // Init builds the admin manager. sessionSecret signs session tokens, so it
@@ -645,6 +651,31 @@ func (a *Admin) DeleteContactRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"ok": "true"})
+}
+
+// fleetAnswer is GET /admin/api/fleet's body: the View, and whether there
+// is a cluster to show at all.
+type fleetAnswer struct {
+	Enabled bool `json:"enabled"`
+	*fleet.View
+}
+
+// Fleet is the Fleet tab: every server of the cluster, its figures and its
+// checks (fleet.Evaluate - the same the email alerts use). Counts only:
+// nothing in it names a device, an account or an address.
+func (a *Admin) Fleet(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	if a.FleetView == nil {
+		writeJSON(w, http.StatusOK, fleetAnswer{View: &fleet.View{Time: time.Now().UTC(), Hosts: []fleet.HostView{}}})
+		return
+	}
+	v, err := a.FleetView(r.Context())
+	if err != nil {
+		log.Error("fleet: could not read the servers' reports:", err)
+		writeError(w, http.StatusServiceUnavailable, "could not read the servers' reports from Redis")
+		return
+	}
+	writeJSON(w, http.StatusOK, fleetAnswer{Enabled: true, View: v})
 }
 
 func isDuplicateKeyErr(err error) bool {

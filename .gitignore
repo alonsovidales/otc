@@ -29,3 +29,6 @@ app/android/app/google-services.json
 # every machine, so tracking it made `git pull` fail on the other Mac.
 xcuserdata/
 .otc-run
+
+# The fleet agent the bridge makefile builds (bridge/fleetagent).
+/bridge/bin/otc_fleet_agent
