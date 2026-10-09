@@ -199,7 +199,11 @@ check_host() {
 
   # Security fingerprint against the baseline.
   local cur="$DIR/baseline/$host.current" base="$DIR/baseline/$host"
-  grep $'^FP\t' <<< "$out" | cut -f2- | sort > "$cur"
+  # Sorted bytewise (LC_ALL=C) everywhere: a scheduled run and one from a
+  # terminal have different locales, and a locale-aware sort put the same
+  # lines in another order - reported as a changed fingerprint when only
+  # the order had moved.
+  grep $'^FP\t' <<< "$out" | cut -f2- | LC_ALL=C sort > "$cur"
   if [ $ACCEPT -eq 1 ] || [ ! -f "$base" ]; then
     cp "$cur" "$base"; say "  (security baseline saved)"
   else
@@ -215,10 +219,12 @@ check_host() {
       fi
     done
     if [ -n "$adopted" ]; then
-      sort -o "$base" "$base"
+      LC_ALL=C sort -o "$base" "$base"
       say "  (fingerprint lines of a new kind taken into the baseline:$adopted)"
     fi
-    local d; d=$(diff "$base" "$cur")
+    # The baseline sorted again too, so one saved under another locale
+    # still compares line for line.
+    local d; d=$(diff <(LC_ALL=C sort "$base") "$cur")
     if [ -n "$d" ]; then
       bad "$host: security fingerprint changed (if you made this change: servercheck.sh --accept)"
       say "$(sed 's/^/     /' <<< "$d")"
