@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Restarts the Wi-Fi as root. Started by otc-wifi-restart.path when the
+# device's Wi-Fi watchdog drops /var/lib/otc/wifi-restart.request - see
+# otc-wifi-restart-runner.sh. Under the watchdog's 10 minutes of waiting
+# for an answer, so a stuck step ends here first.
+[Unit]
+Description=Off The Cloud Wi-Fi restart
+
+[Service]
+Type=oneshot
+User=root
+TimeoutStartSec=8min
+ExecStart=/usr/local/bin/otc-wifi-restart-runner

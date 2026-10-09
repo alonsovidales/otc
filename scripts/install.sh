@@ -1034,6 +1034,15 @@ log "Tailscale switch trigger (otc-tailscale.path)"
 install -m 0755 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale-runner.sh" /usr/local/bin/otc-tailscale-runner
 install -m 0644 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale.service" /etc/systemd/system/otc-tailscale.service
 install -m 0644 "$SRC_DIR/scripts/tailscale-runner/otc-tailscale.path" /etc/systemd/system/otc-tailscale.path
+# Settings > Restart device, and the Wi-Fi watchdog's restart of the
+# Wi-Fi (wifiwatch) - the same trigger-file shape, see
+# scripts/device-runner/.
+log "Restart and Wi-Fi restart triggers (otc-reboot.path, otc-wifi-restart.path)"
+for unit in reboot wifi-restart; do
+    install -m 0755 "$SRC_DIR/scripts/device-runner/otc-$unit-runner.sh" "/usr/local/bin/otc-$unit-runner"
+    install -m 0644 "$SRC_DIR/scripts/device-runner/otc-$unit.service" "/etc/systemd/system/otc-$unit.service"
+    install -m 0644 "$SRC_DIR/scripts/device-runner/otc-$unit.path" "/etc/systemd/system/otc-$unit.path"
+done
 
 # Issue #178: what the setup wizard asked about the owner - the profile's
 # name, description and picture, and whether face recognition is on (off
@@ -1065,6 +1074,9 @@ systemctl enable otc.service
 systemctl enable --now otc-update.path
 systemctl enable --now otc-bridge.path
 systemctl enable --now otc-tailscale.path
+rm -f /var/lib/otc/reboot.request /var/lib/otc/wifi-restart.request
+systemctl enable --now otc-reboot.path
+systemctl enable --now otc-wifi-restart.path
 systemctl restart otc.service
 
 IP=$(hostname -I 2>/dev/null | awk '{print $1}')

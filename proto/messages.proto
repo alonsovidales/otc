@@ -832,6 +832,19 @@ message RespUpdateInfo {
 // ReqCheckUpdate for progress.
 message ReqApplyUpdate {}
 
+// Settings > Restart device: the owner of the primary instance restarts
+// the whole machine (systemctl reboot, run as root by otc-reboot.service -
+// see scripts/device-runner/). Supervised per-user instances (issue #82)
+// are refused. Answers RestartingDevice before the restart begins; the
+// connection then drops and the apps reconnect once the device is back.
+// A device before this release answers error_code "unknown_payload".
+message RestartDevice {}
+
+message RestartingDevice {
+  // About how long the device is expected to be unreachable, in seconds.
+  int32 expected_seconds = 1;
+}
+
 // Issue #80: reaching the device over Tailscale Funnel instead of the
 // bridge. Offered at first setup; see the limitations spelled out there.
 message ReqSetupTailscale {
@@ -2076,6 +2089,8 @@ message ReqEnvelope {
     // the generic Ack, ListOutOfImages with resp_out_of_images_folders.
     SetOutOfImages req_set_out_of_images = 135;
     ListOutOfImages req_list_out_of_images = 136;
+    // Settings > Restart device. Answers with resp_restarting_device.
+    RestartDevice req_restart_device = 137;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -2178,5 +2193,7 @@ message RespEnvelope {
     LocalEndpoint resp_local_endpoint = 66;
     // Issue #192.
     OutOfImagesFolders resp_out_of_images_folders = 67;
+    // Settings > Restart device.
+    RestartingDevice resp_restarting_device = 68;
   }
 }

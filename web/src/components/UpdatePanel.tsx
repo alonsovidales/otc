@@ -9,6 +9,7 @@
 // replace. The device enforces that too - this only decides what to draw.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
+import { isDeviceStatusCode } from "../net/deviceStatus";
 import type { RespEnvelope } from "../proto/messages";
 import Spinner from "./Spinner";
 import "./UpdatePanel.css";
@@ -46,6 +47,20 @@ const formatWhen = (iso: string) => {
   return isNaN(when.getTime()) ? iso : when.toLocaleString();
 };
 
+// Settings > Restart device. "asking" until the device answers, then
+// "restarting" until it answers again, "back" once it has, or "slow" when
+// it hasn't within cRestartGiveUpMs.
+type RestartPhase = "" | "asking" | "restarting" | "back" | "slow";
+const cRestartFirstLookMs = 20_000;
+const cRestartPollMs = 5000;
+// Until the restart really begins the device still answers: an answer
+// counts once a look has failed since, or after this long.
+const cRestartSureMs = 90_000;
+const cRestartGiveUpMs = 5 * 60_000;
+const cRestartLookTimeoutMs = 10_000;
+
+const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+
 export default function UpdatePanel() {
   const [isPrimary, setIsPrimary] = useState<boolean | null>(null);
   const [info, setInfo] = useState<UpdateInfo | null>(null);
@@ -53,6 +68,11 @@ export default function UpdatePanel() {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [restartPhase, setRestartPhase] = useState<RestartPhase>("");
+  const [restartError, setRestartError] = useState<string | null>(null);
+  // Bumped on unmount, so a wait for the device stops with the panel.
+  const restartGen = useRef(0);
+  useEffect(() => () => { restartGen.current++; }, []);
 
   useEffect(() => {
     void (async () => {
@@ -137,6 +157,66 @@ export default function UpdatePanel() {
     }
   };
 
+  // Waits for the device to answer again after a restart. Through the
+  // bridge a device that is away still gets an answer - the bridge's
+  // error - which isn't the device, so only the device's own answer counts.
+  const waitUntilBack = async (gen: number) => {
+    const asked = Date.now();
+    let failed = false;
+    await sleep(cRestartFirstLookMs);
+    while (restartGen.current === gen && Date.now() - asked < cRestartGiveUpMs) {
+      let answered = false;
+      try {
+        const resp: RespEnvelope = await Promise.race([
+          useWS.request(e => {
+            (e as any).payload = { $case: "reqGetInstanceRole", reqGetInstanceRole: {} };
+          }),
+          sleep(cRestartLookTimeoutMs).then(() => { throw new Error("no answer"); }),
+        ]);
+        // The device's own answer - or its own refusal, when this tab
+        // must sign in again (a session token doesn't outlive a restart).
+        const bridgeSaid = resp.payload?.$case === "respAck" && isDeviceStatusCode(resp.payload.respAck.code);
+        answered = resp.payload?.$case === "respInstanceRole" || (resp.error && !bridgeSaid);
+      } catch {
+        answered = false;
+      }
+      if (!answered) failed = true;
+      if (restartGen.current !== gen) return;
+      if (answered && (failed || Date.now() - asked >= cRestartSureMs)) {
+        setRestartPhase("back");
+        void check();
+        return;
+      }
+      await sleep(cRestartPollMs);
+    }
+    if (restartGen.current === gen) setRestartPhase("slow");
+  };
+
+  const restart = async () => {
+    if (!window.confirm("Restart the device? It will be unreachable for about a minute.")) return;
+    const gen = ++restartGen.current;
+    setRestartPhase("asking");
+    setRestartError(null);
+    try {
+      const resp: RespEnvelope = await useWS.request(e => {
+        (e as any).payload = { $case: "reqRestartDevice", reqRestartDevice: {} };
+      });
+      if (resp.payload?.$case !== "respRestartingDevice") {
+        setRestartPhase("");
+        setRestartError(resp.error && resp.errorCode === "unknown_payload"
+          ? "Your device needs an update before it can be restarted from here."
+          : (resp.errorMessage || "Could not restart the device."));
+        return;
+      }
+    } catch (e: any) {
+      setRestartPhase("");
+      setRestartError(e?.message ?? String(e));
+      return;
+    }
+    setRestartPhase("restarting");
+    void waitUntilBack(gen);
+  };
+
   if (isPrimary === false) return null;
 
   const running = info?.state === "running";
@@ -215,6 +295,30 @@ export default function UpdatePanel() {
       )}
 
       {error && <p className="up-error">{error}</p>}
+
+      {/* Settings > Restart device: the whole machine, owner of the main
+          instance only (the device refuses the others too). */}
+      {isPrimary && (
+        <div className="up-restart">
+          <div className="up-actions">
+            <button className="sf-btn sf-danger" onClick={() => void restart()}
+              disabled={restartPhase === "asking" || restartPhase === "restarting" || info?.state === "running"}>
+              {restartPhase === "asking" || restartPhase === "restarting" ? "Restarting…" : "Restart Device"}
+            </button>
+          </div>
+          {restartPhase === "restarting" && (
+            <div className="up-line"><Spinner label="Restarting… the device will be back in about a minute." /></div>
+          )}
+          {restartPhase === "back" && <p className="up-note">The device is back.</p>}
+          {restartPhase === "slow" && (
+            <p className="up-warn">
+              The device hasn't come back yet. It can take a little longer; if it doesn't come
+              back, unplug it and plug it back in.
+            </p>
+          )}
+          {restartError && <p className="up-error">{restartError}</p>}
+        </div>
+      )}
     </section>
   );
 }

@@ -32,12 +32,19 @@ final class UpdateViewModel: ObservableObject {
     @Published var checking = false
     @Published var starting = false
     @Published var error: String?
+    // Settings > Restart device: "" (nothing asked), "asking", "restarting",
+    // "back" or "slow".
+    @Published var restartPhase = ""
+    @Published var restartError: String?
 
     private let ws = OTCConnection.shared
     private var pollTask: Task<Void, Never>?
+    // Bounded by waitUntilBack's five minutes, like pollTask by the update.
+    private var restartTask: Task<Void, Never>?
 
     var hasUpdate: Bool { !pending.isEmpty }
     var running: Bool { state == "running" }
+    var restarting: Bool { restartPhase == "asking" || restartPhase == "restarting" }
 
     /// Issue #183: "1.1 (build 42)", or "build 42" without a label.
     var installedText: String {
@@ -113,6 +120,69 @@ final class UpdateViewModel: ObservableObject {
         }
     }
 
+    /// Restarts the whole device (owner of the primary only; the device
+    /// checks too), then waits for it to answer again. An answer only
+    /// counts once a request has failed since, or 90 s have passed: until
+    /// the restart really begins the device still answers.
+    func restart() async {
+        restartPhase = "asking"
+        restartError = nil
+        do {
+            let resp = try await ws.request { e in
+                e.payload = .reqRestartDevice(Msg_RestartDevice())
+            }
+            guard case .respRestartingDevice = resp.payload else {
+                if resp.error && resp.errorCode == "unknown_payload" {
+                    restartError = "Your device needs an update before it can be restarted from here."
+                } else if resp.error && !resp.errorMessage.isEmpty {
+                    restartError = resp.errorMessage
+                } else {
+                    restartError = "Could not restart the device."
+                }
+                restartPhase = ""
+                return
+            }
+        } catch {
+            restartError = error.localizedDescription
+            restartPhase = ""
+            return
+        }
+        restartPhase = "restarting"
+        restartTask?.cancel()
+        restartTask = Task { [weak self] in
+            await self?.waitUntilBack(asked: Date())
+        }
+    }
+
+    private func waitUntilBack(asked: Date) async {
+        var failed = false
+        try? await Task.sleep(nanoseconds: 20_000_000_000)
+        while !Task.isCancelled && Date().timeIntervalSince(asked) < 300 {
+            var answered = false
+            do {
+                let resp = try await ws.request { e in
+                    e.payload = .reqGetInstanceRole(Msg_ReqGetInstanceRole())
+                }
+                // Through the bridge a device that is away still gets an
+                // answer - the bridge's error - which isn't the device.
+                if case .respInstanceRole = resp.payload {
+                    answered = true
+                } else {
+                    failed = true
+                }
+            } catch {
+                failed = true
+            }
+            if answered && (failed || Date().timeIntervalSince(asked) >= 90) {
+                restartPhase = "back"
+                await check()
+                return
+            }
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+        }
+        if !Task.isCancelled { restartPhase = "slow" }
+    }
+
     /// The device rebuilds and restarts itself, so the connection drops
     /// partway through - polling is how this picks the story back up once
     /// it reconnects.
@@ -136,6 +206,7 @@ final class UpdateViewModel: ObservableObject {
 
 struct UpdateSection: View {
     @StateObject private var vm = UpdateViewModel()
+    @State private var confirmRestart = false
 
     var body: some View {
         if vm.isPrimary {
@@ -207,8 +278,43 @@ struct UpdateSection: View {
                 if let error = vm.error {
                     Text(error).font(.caption).foregroundStyle(.red)
                 }
+
+                // Settings > Restart device: the whole machine, owner of
+                // the primary only.
+                Button(vm.restarting ? "Restarting…" : "Restart Device", role: .destructive) {
+                    confirmRestart = true
+                }
+                .disabled(vm.restarting || vm.running)
+
+                switch vm.restartPhase {
+                case "restarting":
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("Restarting… the device will be back in about a minute.")
+                            .foregroundStyle(.secondary)
+                    }
+                case "back":
+                    Text("The device is back.").font(.caption).foregroundStyle(.secondary)
+                case "slow":
+                    Text("The device hasn't come back yet. It can take a little longer; if it doesn't come back, unplug it and plug it back in.")
+                        .font(.caption).foregroundStyle(.orange)
+                default:
+                    EmptyView()
+                }
+
+                if let error = vm.restartError {
+                    Text(error).font(.caption).foregroundStyle(.red)
+                }
             }
             .task { await vm.load() }
+            .alert("Restart the device?", isPresented: $confirmRestart) {
+                Button("Cancel", role: .cancel) {}
+                Button("Restart", role: .destructive) {
+                    Task { await vm.restart() }
+                }
+            } message: {
+                Text("It will be unreachable for about a minute.")
+            }
         } else {
             // Nothing to show, but the role still has to be asked for.
             Color.clear.frame(height: 0).task { await vm.load() }

@@ -21,3 +21,7 @@
 .up-kind { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; font-size: 11px; font-weight: 700; vertical-align: 1px; }
 .up-kind.major { background: rgba(255,170,60,.18); color: #ffb454; }
 .up-kind.critical { background: var(--danger-bg); color: var(--danger); }
+
+/* Settings > Restart device, below the update. */
+.up-restart { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line, rgba(255,255,255,.08)); }
+.up-warn { color: #ffb454; font-size: 13px; margin: 6px 0 0; }

@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.data.UploadModel
@@ -467,6 +468,7 @@ private fun UpdateSection() {
     val vm: UpdateViewModel = viewModel()
     val st by vm.state.collectAsState()
     val scope = rememberCoroutineScope()
+    var confirmRestart by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { vm.load() }
     if (!st.isPrimary) return
     Section("Device version") {
@@ -491,7 +493,22 @@ private fun UpdateSection() {
         if (st.hasUpdate) RowButton(if (st.starting) "Starting…" else "Update to ${st.latestText}", enabled = !st.starting && !st.running) { scope.launch { vm.apply() } }
         if (st.hasUpdate || st.running) Caption("The device rebuilds itself and restarts, which takes a few minutes and drops this connection on the way. Your photos and settings are left alone.")
         st.error?.let { Caption(it, Color(0xFFE53935)) }
+        // Settings > Restart device: the whole machine, owner of the primary only.
+        RowButton(if (st.restarting) "Restarting…" else "Restart Device", enabled = !st.restarting && !st.running) { confirmRestart = true }
+        when (st.restartPhase) {
+            "restarting" -> Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Caption("Restarting… the device will be back in about a minute.") }
+            "back" -> Caption("The device is back.")
+            "slow" -> Caption("The device hasn't come back yet. It can take a little longer; if it doesn't come back, unplug it and plug it back in.", Color(0xFFFF9800))
+        }
+        st.restartError?.let { Caption(it, Color(0xFFE53935)) }
     }
+    if (confirmRestart) AlertDialog(
+        onDismissRequest = { confirmRestart = false },
+        title = { Text("Restart the device?") },
+        text = { Text("It will be unreachable for about a minute.") },
+        confirmButton = { TextButton(onClick = { confirmRestart = false; vm.viewModelScope.launch { vm.restart() } }) { Text("Restart", color = Color(0xFFE53935)) } },
+        dismissButton = { TextButton(onClick = { confirmRestart = false }) { Text("Cancel") } },
+    )
 }
 
 /** Issue #183: "Major" (orange) or "Critical" (red) next to a release; nothing for a minor one. */

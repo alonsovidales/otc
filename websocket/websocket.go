@@ -30,6 +30,7 @@ import (
 	"github.com/alonsovidales/otc/bridgeaccess"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/devicerestart"
 	facerecognition "github.com/alonsovidales/otc/face_recognition"
 	filesmanager "github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/lantls"
@@ -49,6 +50,7 @@ import (
 	"github.com/alonsovidales/otc/supervisor"
 	"github.com/alonsovidales/otc/tailscalefunnel"
 	"github.com/alonsovidales/otc/updater"
+	"github.com/alonsovidales/otc/wifiwatch"
 	"github.com/alonsovidales/otc/wsframe"
 	"github.com/google/uuid"
 	gorilla "github.com/gorilla/websocket"
@@ -334,6 +336,13 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 			},
 			Push: func(title, body string) { ps.Notify(title, body, push.Target{}) },
 		})
+	}
+
+	// A Wi-Fi that stopped sending properly (Pit, brcmfmac over SDIO) is
+	// restarted, once per episode, with an Alert once it has been judged
+	// - see wifiwatch. Machine-level, so main instance only.
+	if sup != nil {
+		go wifiwatch.Watch(dao.AddErrorNotification)
 	}
 
 	// Stored videos reach ffmpeg (thumbnails, tags, metadata) through this
@@ -3289,6 +3298,25 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+
+	// Settings > Restart device: the whole machine, so the owner of the
+	// main instance only - a supervised per-user instance (issue #82)
+	// shares the machine with the owner and its other users.
+	case *pb.ReqEnvelope_ReqRestartDevice:
+		if ch.mg.sup == nil {
+			resp.Error = true
+			resp.ErrorMessage = "not available on this instance"
+			break
+		}
+		if err := devicerestart.Request(); err != nil {
+			log.Error("error requesting a device restart:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespRestartingDevice{RespRestartingDevice: &pb.RestartingDevice{
+			ExpectedSeconds: int32(devicerestart.ExpectedDowntime / time.Second),
+		}}
 
 	case *pb.ReqEnvelope_ReqSetupStorage:
 		// Issue #85: machine-level, so primary-only. An additional user

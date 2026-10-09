@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Watches for the trigger the device's Wi-Fi watchdog (wifiwatch) writes
+# when the Wi-Fi has stopped sending properly, and starts
+# otc-wifi-restart.service (as root).
+[Unit]
+Description=Off The Cloud Wi-Fi restart trigger
+
+[Path]
+PathExists=/var/lib/otc/wifi-restart.request
+Unit=otc-wifi-restart.service
+
+[Install]
+WantedBy=multi-user.target

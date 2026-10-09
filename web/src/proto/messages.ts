@@ -866,7 +866,9 @@ export interface SearchPhotos {
    * page so it paints quickly over a slow upload, and continues with the
    * device's own size. 0 (unset, and all a device before release 97 sees)
    * means the device's default ([tagger] max-images-search, 30); the
-   * device never returns more than its default.
+   * device never returns more than its default - except for a page
+   * without thumbnails (omit_thumbnails, release 113), which may hold up
+   * to 200.
    */
   limit: number;
   /**
@@ -881,15 +883,17 @@ export interface SearchPhotos {
    * the thumbnails it got (the phones' cache, by hash) and asks
    * GetThumbnails for the ones it lacks. The page is the same page either
    * way: the same photos in the same order, only those processed (whose
-   * thumbnail exists, issue #147, checked without reading it), the same
-   * token, and have/limit mean the same; a token's pages may mix both.
-   * With small_thumbnails too, File.thumbnail_small says whether the
-   * device has the photo's small thumbnail now (what GetThumbnails with
-   * small_thumbnails would send). Such a page may be bigger: limit up to
-   * 200 is honoured (still 0 = the device's default, 30). Devices before
-   * release 113 ignore the flag and send content, and a page of at most
-   * their default: clients take the content when an entry has it and
-   * fetch only entries that don't.
+   * thumbnail exists, issue #147, here checked without reading it), the
+   * same token, and have means the same; a token's pages may mix both.
+   * The one difference: a thumbnail stored but unreadable is listed here
+   * (a page with thumbnails leaves it out), and then left out of the
+   * GetThumbnails answer. With small_thumbnails too, File.thumbnail_small
+   * says whether a small thumbnail is stored for the photo (see there).
+   * Such a page may be bigger: limit up to 200 is honoured (0 is still the
+   * device's default, 30; with thumbnails a limit only ever shrinks a
+   * page). Devices before release 113 ignore the flag and send content,
+   * and a page of at most their default: clients take the content when an
+   * entry has it and fetch only entries that don't.
    */
   omitThumbnails: boolean;
 }
@@ -977,9 +981,13 @@ export interface File {
    * true when its content is the small thumbnail (asked for with
    * small_thumbnails, and the device had it), false when it is the big
    * one (not asked for, or the device has no small one yet - it makes one
-   * shortly). On a SearchPhotos entry without content (omit_thumbnails)
-   * it says which one GetThumbnails would send now, so a client that
-   * keeps a big one in place of a small one asks again once it is true.
+   * shortly). On an entry with content this is what counts, and what a
+   * thumbnail is kept by. On a SearchPhotos entry without content
+   * (omit_thumbnails) it only says a small one is stored (found by a
+   * stat, not read): a client that keeps a big one in place of a small
+   * one asks GetThumbnails for it again - once - when this turns true,
+   * and keeps what that answer's entry says; if that is still the big one
+   * (a small one stored but unreadable), it doesn't ask again.
    * Unset (optional: has/hasThumbnailSmall false) from devices before
    * release 113, which don't say: content asked for small is then the
    * small one or the big one (and from devices before 111 always the big
@@ -1363,6 +1371,22 @@ export interface RespUpdateInfo {
  * ReqCheckUpdate for progress.
  */
 export interface ReqApplyUpdate {
+}
+
+/**
+ * Settings > Restart device: the owner of the primary instance restarts
+ * the whole machine (systemctl reboot, run as root by otc-reboot.service -
+ * see scripts/device-runner/). Supervised per-user instances (issue #82)
+ * are refused. Answers RestartingDevice before the restart begins; the
+ * connection then drops and the apps reconnect once the device is back.
+ * A device before this release answers error_code "unknown_payload".
+ */
+export interface RestartDevice {
+}
+
+export interface RestartingDevice {
+  /** About how long the device is expected to be unreachable, in seconds. */
+  expectedSeconds: number;
 }
 
 /**
@@ -2786,6 +2810,9 @@ export interface ReqEnvelope {
     { $case: "reqSetOutOfImages"; reqSetOutOfImages: SetOutOfImages }
     | { $case: "reqListOutOfImages"; reqListOutOfImages: ListOutOfImages }
     | //
+    /** Settings > Restart device. Answers with resp_restarting_device. */
+    { $case: "reqRestartDevice"; reqRestartDevice: RestartDevice }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -2913,6 +2940,9 @@ export interface RespEnvelope {
     | //
     /** Issue #192. */
     { $case: "respOutOfImagesFolders"; respOutOfImagesFolders: OutOfImagesFolders }
+    | //
+    /** Settings > Restart device. */
+    { $case: "respRestartingDevice"; respRestartingDevice: RestartingDevice }
     | undefined;
 }
 
@@ -9725,6 +9755,107 @@ export const ReqApplyUpdate: MessageFns<ReqApplyUpdate> = {
   },
   fromPartial<I extends Exact<DeepPartial<ReqApplyUpdate>, I>>(_: I): ReqApplyUpdate {
     const message = createBaseReqApplyUpdate();
+    return message;
+  },
+};
+
+function createBaseRestartDevice(): RestartDevice {
+  return {};
+}
+
+export const RestartDevice: MessageFns<RestartDevice> = {
+  encode(_: RestartDevice, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RestartDevice {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRestartDevice();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): RestartDevice {
+    return {};
+  },
+
+  toJSON(_: RestartDevice): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RestartDevice>, I>>(base?: I): RestartDevice {
+    return RestartDevice.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RestartDevice>, I>>(_: I): RestartDevice {
+    const message = createBaseRestartDevice();
+    return message;
+  },
+};
+
+function createBaseRestartingDevice(): RestartingDevice {
+  return { expectedSeconds: 0 };
+}
+
+export const RestartingDevice: MessageFns<RestartingDevice> = {
+  encode(message: RestartingDevice, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.expectedSeconds !== 0) {
+      writer.uint32(8).int32(message.expectedSeconds);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RestartingDevice {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRestartingDevice();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.expectedSeconds = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RestartingDevice {
+    return { expectedSeconds: isSet(object.expectedSeconds) ? globalThis.Number(object.expectedSeconds) : 0 };
+  },
+
+  toJSON(message: RestartingDevice): unknown {
+    const obj: any = {};
+    if (message.expectedSeconds !== 0) {
+      obj.expectedSeconds = Math.round(message.expectedSeconds);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RestartingDevice>, I>>(base?: I): RestartingDevice {
+    return RestartingDevice.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RestartingDevice>, I>>(object: I): RestartingDevice {
+    const message = createBaseRestartingDevice();
+    message.expectedSeconds = object.expectedSeconds ?? 0;
     return message;
   },
 };
@@ -20315,6 +20446,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqListOutOfImages":
         ListOutOfImages.encode(message.payload.reqListOutOfImages, writer.uint32(1090).fork()).join();
         break;
+      case "reqRestartDevice":
+        RestartDevice.encode(message.payload.reqRestartDevice, writer.uint32(1098).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -21527,6 +21661,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 137: {
+          if (tag !== 1098) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqRestartDevice",
+            reqRestartDevice: RestartDevice.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -21954,6 +22099,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqSetOutOfImages", reqSetOutOfImages: SetOutOfImages.fromJSON(object.reqSetOutOfImages) }
         : isSet(object.reqListOutOfImages)
         ? { $case: "reqListOutOfImages", reqListOutOfImages: ListOutOfImages.fromJSON(object.reqListOutOfImages) }
+        : isSet(object.reqRestartDevice)
+        ? { $case: "reqRestartDevice", reqRestartDevice: RestartDevice.fromJSON(object.reqRestartDevice) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -22228,6 +22375,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqSetOutOfImages = SetOutOfImages.toJSON(message.payload.reqSetOutOfImages);
     } else if (message.payload?.$case === "reqListOutOfImages") {
       obj.reqListOutOfImages = ListOutOfImages.toJSON(message.payload.reqListOutOfImages);
+    } else if (message.payload?.$case === "reqRestartDevice") {
+      obj.reqRestartDevice = RestartDevice.toJSON(message.payload.reqRestartDevice);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -23300,6 +23449,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqRestartDevice": {
+        if (object.payload?.reqRestartDevice !== undefined && object.payload?.reqRestartDevice !== null) {
+          message.payload = {
+            $case: "reqRestartDevice",
+            reqRestartDevice: RestartDevice.fromPartial(object.payload.reqRestartDevice),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -23552,6 +23710,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respOutOfImagesFolders":
         OutOfImagesFolders.encode(message.payload.respOutOfImagesFolders, writer.uint32(538).fork()).join();
+        break;
+      case "respRestartingDevice":
+        RestartingDevice.encode(message.payload.respRestartingDevice, writer.uint32(546).fork()).join();
         break;
     }
     return writer;
@@ -24156,6 +24317,17 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 68: {
+          if (tag !== 546) {
+            break;
+          }
+
+          message.payload = {
+            $case: "respRestartingDevice",
+            respRestartingDevice: RestartingDevice.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -24326,6 +24498,11 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           $case: "respOutOfImagesFolders",
           respOutOfImagesFolders: OutOfImagesFolders.fromJSON(object.respOutOfImagesFolders),
         }
+        : isSet(object.respRestartingDevice)
+        ? {
+          $case: "respRestartingDevice",
+          respRestartingDevice: RestartingDevice.fromJSON(object.respRestartingDevice),
+        }
         : undefined,
     };
   },
@@ -24462,6 +24639,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respLocalEndpoint = LocalEndpoint.toJSON(message.payload.respLocalEndpoint);
     } else if (message.payload?.$case === "respOutOfImagesFolders") {
       obj.respOutOfImagesFolders = OutOfImagesFolders.toJSON(message.payload.respOutOfImagesFolders);
+    } else if (message.payload?.$case === "respRestartingDevice") {
+      obj.respRestartingDevice = RestartingDevice.toJSON(message.payload.respRestartingDevice);
     }
     return obj;
   },
@@ -24970,6 +25149,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respOutOfImagesFolders",
             respOutOfImagesFolders: OutOfImagesFolders.fromPartial(object.payload.respOutOfImagesFolders),
+          };
+        }
+        break;
+      }
+      case "respRestartingDevice": {
+        if (object.payload?.respRestartingDevice !== undefined && object.payload?.respRestartingDevice !== null) {
+          message.payload = {
+            $case: "respRestartingDevice",
+            respRestartingDevice: RestartingDevice.fromPartial(object.payload.respRestartingDevice),
           };
         }
         break;

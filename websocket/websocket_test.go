@@ -653,6 +653,9 @@ func TestMachineLevelRPCsAreRefusedOnAChildInstance(t *testing.T) {
 			ReqListStorageDevices: &pb.ListStorageDevices{}}}},
 		{"list wifi networks", &pb.ReqEnvelope{Id: 4, Payload: &pb.ReqEnvelope_ReqListWifiNetworks{
 			ReqListWifiNetworks: &pb.ListWifiNetworks{}}}},
+		// Settings > Restart device restarts the whole machine.
+		{"restart device", &pb.ReqEnvelope{Id: 5, Payload: &pb.ReqEnvelope_ReqRestartDevice{
+			ReqRestartDevice: &pb.RestartDevice{}}}},
 	}
 
 	for _, c := range cases {

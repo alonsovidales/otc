@@ -583,6 +583,42 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   rebuilt like a replacement); once every member has room to spare, `raid_watch.py` grows md0
   (`mdadm --grow --size=max`) and the ext4 on it (`resize2fs`, online), checked every 10 minutes, never
   while degraded or rebuilding (tested on loop devices in the Lima VM). Disks go in the two blue USB ports (README, website).
+- `wifiwatch` — the Wi-Fi watchdog (release 115). Pit (Pi 5, brcmfmac over SDIO) after ~27 h up
+  kept receiving at 6.6 MB/s but sent at 0.15 MB/s, 7.7% of TCP segments retransmitted
+  (`CMD53 sg block write failed -84`); a reboot fixed it. Main instance only, only while the IPv4
+  default route is a wireless interface. Once a minute: TCP RetransSegs/OutSegs from
+  `/proc/net/snmp` with loopback's tx packets taken off OutSegs, judged only with >= 1000 segments
+  sent in the minute (idle never counts); bad >= 4%, healthy < 1%, in between holds a streak; quiet
+  minutes are tolerated up to 10 (`MaxGap`). Restart after 5 bad minutes in a row when the radio
+  confirms (>= 10 tx errors+drops on the interface - brcmfmac counts a failed SDIO write there - or
+  >= 5% of frames unacknowledged in `iw dev <if> station dump`), 10 without; never while an update
+  runs. All overridable in `[otc]` (`wifi-watchdog = off`, `wifi-watchdog-*`, README). Once per
+  episode (the owner's rule): phases armed -> restarting -> restarted -> armed (5 healthy minutes
+  after a 2-minute settle) or gave_up (bad again: no second restart until 5 healthy minutes re-arm
+  it). Persisted in `<working dir>/.wifi-watchdog.json` with any Alert not yet stored
+  (`pending_alert`). Alerts (`AddErrorNotification`) come after the restart, once judged: "The
+  Wi-Fi was restarted: sending data had slowed down: ... It is working normally again." (or, after
+  an hour without enough traffic to judge, "...There hasn't been enough traffic since..."), "The
+  Wi-Fi is still slow after a restart" (Restart button / Ethernet), "could not be restarted" (root
+  failed or silent for 10 min) - never at the request. The root side
+  (`scripts/device-runner/otc-wifi-restart-runner.sh`, `otc-wifi-restart.path` on
+  `/var/lib/otc/wifi-restart.request`, answer in `wifi-restart-status.json`: running/done/failed/
+  rebooted) reads nothing from the request: interface from `/proc/net/route` (refused unless
+  wireless), driver module from sysfs (holders first, e.g. brcmfmac_wcc), the SDIO controller
+  (`.../mmc_host/...`'s platform device) unbound and bound again only when no block device sits
+  under it, the module back, power save off, NetworkManager reconnect; not connected within 150 s
+  -> it reboots (`rebooted`, mentioned in the Alert). At most one restart per 30 min
+  (`/run/otc-wifi-restart.last`). Tested with fake readings (`wifiwatch_test.go`) and
+  `mac80211_hwsim` in the Lima VM; the SDIO reset itself only on a Pi.
+- `devicerestart` — Settings > Restart device (release 115): `RestartDevice` (137) ->
+  `RestartingDevice{expected_seconds}` (68), owner of the main instance only (`sup == nil` refused;
+  older devices answer `unknown_payload`). Writes `/var/lib/otc/reboot.request`;
+  `otc-reboot.path` runs `otc-reboot-runner` (removes the request first, refuses in the first 2
+  minutes after boot - the device too - waits 3 s for the answer to leave, `systemctl reboot`). In
+  the Device version section of web `UpdatePanel`, iOS `UpdateSection`, Android `UpdateViewModel`:
+  confirm, "Restarting…", then a `GetInstanceRole` every 5 s from 20 s on; back = the device's own
+  answer (never the bridge's `device_unreachable` Ack) after a failed look or 90 s; "slow" after 5
+  minutes.
 - `images_tagger` — runs the RAM++ ONNX model (paths from `[tagger]` config) to auto-tag photos;
   requires CGO + libonnxruntime at runtime (see Build section). The model file is 873 MB (int8,
   `ram_plus_int8.onnx`); measured with ONNX Runtime 1.24.3 on arm64 (macOS, 2026-10-08) it is
@@ -1407,9 +1443,11 @@ otc-update.service has `TimeoutStartSec=4h` (a migration must finish well inside
 `/var/lib/otc`, which `otc` owns. Downloads in the runner, update.sh, verified-install.sh and
 `fetch_pinned` carry `curl --connect-timeout 30 --speed-limit 1 --speed-time 120`, cutting only a
 stalled transfer (no `--max-time`).
-Two more root runners follow the same trigger-file shape, and update.sh reinstalls all of them on
-every update: `scripts/bridge-runner/` (switching the bridge on later, #145) and
-`scripts/tailscale-runner/` (release 50). tailscaled runs only while Tailscale Funnel is on:
+More root runners follow the same trigger-file shape, and update.sh reinstalls all of them on
+every update: `scripts/bridge-runner/` (switching the bridge on later, #145),
+`scripts/tailscale-runner/` (release 50) and `scripts/device-runner/` (release 115: `otc-reboot` for
+Settings > Restart device and `otc-wifi-restart` for `wifiwatch`; release 115's script installs them
+on older devices from `$OTC_VERIFIED_SRC`). tailscaled runs only while Tailscale Funnel is on:
 install.sh and release 50 stop and disable it unless `tailscale funnel status` serves `:8080`;
 `tailscalefunnel.Enable` writes `on` to `/var/lib/otc/tailscale.request` when the daemon isn't
 answering, and the runner starts it and sets `--operator=otc` (which needs the daemon up);

@@ -5,7 +5,7 @@ OTC is a self hosted and inexpensive *NAS* solution to backup all your photos, v
 
 OTC runs in your mobile devices as a iOS or Android application that can be download from the store (they are still not published). These apps will backup in background all the photos to the device in full resolution, we also have a MacOS and Windows client to backup and keep in sync folders in your computer.
 
-OTC is hosted in your home using your network connection and inexpensive hardware, everything is designed to work on a Raspberry Pi 5 with 8GB of RAM (4GB works too, in a slower low-memory mode) and two MicroSD cards in a RAID 1 configuration to store the data. The estimated cost of all the necessary hardware for a 1TB device is under 250 euros.
+OTC is hosted in your home using your network connection and inexpensive hardware, everything is designed to work on a Raspberry Pi 5 with 8GB of RAM (a 4GB one runs only with Image Tagging and Face Recognition turned off in Settings) and two MicroSD cards in a RAID 1 configuration to store the data. The estimated cost of all the necessary hardware for a 1TB device is under 250 euros.
 
 **OTC is composed by four systems:**
 ====================================
@@ -140,10 +140,9 @@ With this you can access all your data and social network from any browser just 
 **Recommended Hardware**
 ========================
 - 1x [Raspberry Pi 5 with 8GB or RAM](https://www.raspberrypi.com/products/raspberry-pi-5/).
-  A 4GB one works in low-memory mode, chosen automatically: it processes one photo at a time
-  (so after a big first backup, tags and faces take longer to catch up), loads the tagging model
-  only while there is something to tag, and has room for one extra user at most. 8GB is
-  recommended, and needed for more users.
+  8GB is recommended. A 4GB one can run only with **Image Tagging** and **Face Recognition**
+  turned off in Settings - turn both off before backing up your photos, or it runs out of memory
+  and restarts; it also has room for one extra user at most.
 - 2x USB MicroSD card readers, plugged into the Pi 5's two blue (USB 3) ports: they are the fast
   ones, and if a card fails the device tells you which port it is in (top or bottom)
 - 2x MicroSD Cards of the same size for storage
@@ -155,7 +154,7 @@ With this you can access all your data and social network from any browser just 
 ==============================
 
 There are four ways to set up a device, from least to most work: flash the pre-built image (a
-Raspberry Pi 5 with 8 GB of RAM, or 4 GB in low-memory mode - no keyboard, monitor or Linux knowledge needed, RAID1
+Raspberry Pi 5 with 8 GB of RAM, or 4 GB with Image Tagging and Face Recognition turned off - no keyboard, monitor or Linux knowledge needed, RAID1
 included), run the one-line install script against a machine you already have login access to
 (Ubuntu, Debian, Raspberry Pi OS or another Debian-based 64-bit distro - no flashing, RAID1 and the
 status LEDs included, no WiFi setup), run `Makefile.pi` against a plain Raspberry Pi OS install (if
@@ -201,8 +200,8 @@ everything from a first boot with nothing pre-configured.
 Use the **official Raspberry Pi 27 W USB-C power supply** (or a better one): a Pi 5 on a weaker
 supply, with USB disks attached, can restart or hang from low voltage while it processes photos.
 The image is for a **Raspberry Pi 5 with 8 GB of RAM** (the tagging model and the build from
-source need the memory); a 4 GB one runs in low-memory mode - one photo at a time, slower to tag
-and find faces after a big backup, one extra user at most. It is a stock Raspberry Pi OS Lite with a first-boot setup wizard on
+source need the memory); a 4 GB one can run only with Image Tagging and Face Recognition turned
+off in Settings (turn both off before backing up photos), and has room for one extra user at most. It is a stock Raspberry Pi OS Lite with a first-boot setup wizard on
 it and nothing else (about 530 MB). The wizard asks for your WiFi, the device's name and its disks, then installs the
 current software with the same `install.sh` as Option 0, showing its progress - so there is never
 an "old image": whatever you flash installs today's release.
@@ -269,6 +268,14 @@ and the few things listed here:
   SSH only ever accepts keys (`/etc/ssh/sshd_config.d/01-otc-keys-only.conf`): the password
   above is public, so it works at the console only, never over the network.
   (Cards flashed from a newer image generate the keys on their own the first time sshd starts.)
+- **Restart the device**: Settings > Device version > **Restart Device** (web, iPhone and
+  Android; the device's owner only) restarts it cleanly; it is back in about a minute. Settings
+  shows when it is. From the console, `sudo reboot` does the same.
+- **The Wi-Fi restarted by itself**: if the Wi-Fi keeps receiving but stops sending properly
+  (most TCP data sent twice, for minutes on end), the device restarts its Wi-Fi once and says so
+  in Alerts. If that didn't help it doesn't try again until the Wi-Fi has worked normally for a
+  while - restart the device from Settings, or use an Ethernet cable. Its log:
+  `journalctl -u otc-wifi-restart` and the `wifi watchdog:` lines in `/var/log/otc/otc.log`.
 - **Force an update from the console** - normally you press **Update** in Settings, but a device
   installed before release 5 can't start one on its own and needs this once:
   ```
@@ -482,6 +489,22 @@ friend-domain-tld=off-the.cloud
 # Mac app, browser tabs, friends) this device is expected to serve through
 # the bridge at once. Defaults to 20 if omitted.
 bridge-pool-target=20
+# The Wi-Fi watchdog: a Wi-Fi that keeps receiving but has stopped sending
+# properly (seen on a Pi 5 after a day up) is restarted once per episode,
+# with an Alert. Only while the device is on Wi-Fi. "off" turns it off; the
+# other keys override its thresholds (defaults shown).
+# A minute is bad at bad-pct % of TCP segments retransmitted or more, and
+# healthy under healthy-pct, judged only with min-segments sent in it; it
+# restarts after bad-minutes in a row while the radio itself reports
+# failures (tx errors, frames the router never acknowledged), or after
+# bad-minutes-alone without that; healthy-minutes count as working again.
+#wifi-watchdog=on
+#wifi-watchdog-bad-pct=4
+#wifi-watchdog-healthy-pct=1
+#wifi-watchdog-min-segments=1000
+#wifi-watchdog-bad-minutes=5
+#wifi-watchdog-bad-minutes-alone=10
+#wifi-watchdog-healthy-minutes=5
 
 [logger]
 log_file=/var/log/otc/otc.log

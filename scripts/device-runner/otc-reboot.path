@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Watches for the trigger the device writes when its owner presses
+# Restart device in Settings, and starts otc-reboot.service (as root).
+[Unit]
+Description=Off The Cloud restart trigger
+
+[Path]
+PathExists=/var/lib/otc/reboot.request
+Unit=otc-reboot.service
+
+[Install]
+WantedBy=multi-user.target

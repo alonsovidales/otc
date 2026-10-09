@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Restarts the device as root. Started by otc-reboot.path when the device
+# (running unprivileged, see otc.service's NoNewPrivileges) drops
+# /var/lib/otc/reboot.request - see otc-reboot-runner.sh.
+[Unit]
+Description=Off The Cloud restart from Settings
+
+[Service]
+Type=oneshot
+User=root
+TimeoutStartSec=1min
+ExecStart=/usr/local/bin/otc-reboot-runner

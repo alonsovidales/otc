@@ -25,6 +25,7 @@ import cloud.offthe.otc.proto.ReqGetUserMetrics
 import cloud.offthe.otc.proto.ReqListUsers
 import cloud.offthe.otc.proto.ReqSetUserActive
 import cloud.offthe.otc.proto.ReqSetupTailscale
+import cloud.offthe.otc.proto.RestartDevice
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.RespUserMetrics
 import cloud.offthe.otc.proto.SetFaceRecognitionEnabled
@@ -36,6 +37,7 @@ import cloud.offthe.otc.proto.StopReprocess
 import cloud.offthe.otc.proto.UpdateRelease
 import cloud.offthe.otc.proto.User
 import com.google.protobuf.ByteString
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -253,9 +255,12 @@ class UpdateViewModel : ViewModel() {
         val currentLabel: String = "", val latestLabel: String = "",
         val state: String = "", val message: String = "", val checkError: String = "", val lastUpdated: String = "",
         val checking: Boolean = false, val starting: Boolean = false, val error: String? = null,
+        // Settings > Restart device: "" (nothing asked), "asking", "restarting", "back" or "slow".
+        val restartPhase: String = "", val restartError: String? = null,
     ) {
         val hasUpdate get() = pending.isNotEmpty()
         val running get() = state == "running"
+        val restarting get() = restartPhase == "asking" || restartPhase == "restarting"
         /** Issue #183: "1.1 (build 45)", or "build 45" for an older release. */
         val installedText get() = if (currentLabel.isNotEmpty()) "$currentLabel (build $currentVersion)" else "build $currentVersion"
         val latestText get() = latestLabel.ifEmpty { "build $latestVersion" }
@@ -292,6 +297,59 @@ class UpdateViewModel : ViewModel() {
             else state.update { it.copy(error = if (resp.error) resp.errorMessage else "Could not start the update.") }
         } catch (e: Exception) { state.update { it.copy(error = e.message) } }
         finally { state.update { it.copy(starting = false) } }
+    }
+
+    /**
+     * Restarts the whole device (owner of the primary only; the device checks
+     * too), then waits for it to answer again. An answer only counts once a
+     * request has failed since, or 90 s have passed: until the restart
+     * really begins the device still answers.
+     */
+    suspend fun restart() {
+        state.update { it.copy(restartPhase = "asking", restartError = null) }
+        try {
+            val resp = OTCConnection.request { it.setReqRestartDevice(RestartDevice.getDefaultInstance()) }
+            if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_RESTARTING_DEVICE) {
+                val why = when {
+                    resp.error && resp.errorCode == "unknown_payload" -> "Your device needs an update before it can be restarted from here."
+                    resp.error -> resp.errorMessage.ifEmpty { "Could not restart the device." }
+                    else -> "Could not restart the device."
+                }
+                state.update { it.copy(restartPhase = "", restartError = why) }
+                return
+            }
+        } catch (e: Exception) {
+            state.update { it.copy(restartPhase = "", restartError = e.message ?: "Could not restart the device.") }
+            return
+        }
+        state.update { it.copy(restartPhase = "restarting") }
+        restartPoll?.cancel()
+        restartPoll = viewModelScope.launch { waitUntilBack(System.currentTimeMillis()) }
+    }
+
+    private var restartPoll: Job? = null
+
+    private suspend fun waitUntilBack(asked: Long) {
+        var failed = false
+        delay(20_000)
+        while (System.currentTimeMillis() - asked < 5 * 60_000) {
+            // Through the bridge a device that is away still gets an answer -
+            // the bridge's error - which isn't the device.
+            val answered = try {
+                OTCConnection.request { it.setReqGetInstanceRole(ReqGetInstanceRole.getDefaultInstance()) }
+                    .payloadCase == RespEnvelope.PayloadCase.RESP_INSTANCE_ROLE
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) { false }
+            if (!answered) failed = true
+            if (answered && (failed || System.currentTimeMillis() - asked >= 90_000)) {
+                state.update { it.copy(restartPhase = "back") }
+                check()
+                return
+            }
+            delay(5000)
+        }
+        state.update { it.copy(restartPhase = "slow") }
     }
 
     private fun startPollingIfRunning() {
