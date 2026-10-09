@@ -186,7 +186,20 @@ func (mg *Manager) runReprocess(ctx context.Context, ses *session.Session, lastH
 				return
 			}
 
-			mg.safelyOn("reprocessing", file, func() { mg.reprocessOneFile(ses, file, storagePath) })
+			// Content set aside after it took the process down twice
+			// (runstate.go) isn't tried again by a Reprocess; an update
+			// tries it again (retrySetAside).
+			if isMedia(file) && !mg.isSetAside(file.Hash) {
+				// One file at a time on a low-memory device and after a
+				// death, after the pause - which Cancel ends.
+				done, ok := mg.beginProcessingUnless(file.Hash, jobReprocess, func() bool { return ctx.Err() != nil })
+				if !ok {
+					stop()
+					return
+				}
+				mg.safelyOn("reprocessing", file, func() { mg.reprocessOneFile(ses, file, storagePath) })
+				done()
+			}
 			processed++
 			lastHash = file.Hash
 			// Persisted after every single file, deliberately - the whole
@@ -209,7 +222,9 @@ func (mg *Manager) runReprocess(ctx context.Context, ses *session.Session, lastH
 // original bytes, read straight off disk and decrypted with the owner's
 // key. Logged and skipped on error (a corrupt file, a read failure)
 // rather than aborting the whole run - same "don't let one bad thing take
-// down the rest" reasoning as DetectFaces' own per-face handling.
+// down the rest" reasoning as DetectFaces' own per-face handling. The
+// caller holds the processing guard's turn (beginProcessing: Reprocess,
+// the backfill).
 func (mg *Manager) reprocessOneFile(ses *session.Session, file *pb.File, storagePath string) {
 	if !isMedia(file) {
 		return // nothing here decodes it: not read

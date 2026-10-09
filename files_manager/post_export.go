@@ -47,6 +47,8 @@ func (mg *Manager) transcodeStored(ses *session.Session, file *pb.File, trim *Tr
 	// The slot first: the stream's token must not age while this waits.
 	transcodeSlots <- struct{}{}
 	defer func() { <-transcodeSlots }()
+	// And the processing guard's turn on a low-memory device (lowmem.go).
+	defer mg.beginProcessing("", jobTranscode)()
 	src, done, err := mg.videoSource(ses, file)
 	if err != nil {
 		return nil, err

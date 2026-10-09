@@ -175,6 +175,9 @@ func (mg *Manager) processStoredStages(ses *session.Session, file *pb.File, targ
 }
 
 func (mg *Manager) thumbnailJob(j mediaJob) bool {
+	// One job at a time on a low-memory device and after a death
+	// (lowmem.go); never paused.
+	defer mg.beginProcessing(j.file.Hash, jobThumbnail)()
 	ok := false
 	mg.safelyOn("processing", j.file, func() {
 		ok = mg.processStoredStages(j.ses, j.file, j.target, stageThumbnail)
@@ -187,6 +190,7 @@ func (mg *Manager) thumbnailJob(j mediaJob) bool {
 }
 
 func (mg *Manager) analysisJob(j mediaJob) {
+	defer mg.beginProcessing(j.file.Hash, jobAnalysis)()
 	// Done meanwhile by a reprocess or the backfill.
 	if pending, err := mg.dao.IsPendingAnalysis(j.file.Hash); err == nil && !pending {
 		return

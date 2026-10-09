@@ -286,7 +286,18 @@ export CGO_LDFLAGS="-L/opt/onnxruntime/lib -lonnxruntime"
 # Built into a temporary name and moved into place only on success: a
 # failed build must leave the running binary alone rather than truncating
 # the one the service needs to start again.
-go build -o "$tmp/otc" ./bin/otc.go || fail "the build failed - see $LOG_FILE"
+#
+# One compile at a time on a device with less than 6 GB of memory: the
+# build runs next to the service, and a cold cache compiles gocv's C++ with
+# a compiler per core - on a 4 GB Pi that alone can run out of memory.
+build_jobs=""
+mem_kb="$(awk '/^MemTotal:/ {print $2}' /proc/meminfo 2>/dev/null || true)"
+if [ -n "$mem_kb" ] && [ "$mem_kb" -lt $((6 * 1024 * 1024)) ]; then
+    build_jobs="-p 1"
+    echo "less than 6 GB of memory: building one package at a time"
+fi
+# shellcheck disable=SC2086 # build_jobs is empty or two words on purpose
+go build $build_jobs -o "$tmp/otc" ./bin/otc.go || fail "the build failed - see $LOG_FILE"
 
 # The web app ships prebuilt, attached to the release. Devices have no
 # Node - the bundle is built once, by whoever cuts the release, rather

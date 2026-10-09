@@ -113,6 +113,18 @@ func SocketPath() string {
 // called per request, so it can wait for a model still loading; faces may
 // be nil (no face models on this device).
 func Serve(path string, tagger func() Tagger, faces FaceDetector) error {
+	return ServeLimited(path, tagger, faces, 0)
+}
+
+// ServeLimited is Serve answering at most limit requests at once (0: no
+// limit), the others waiting their turn - within cCallTimeout - before
+// their pixels are read: a full-resolution photo is ~48 MB as it arrives,
+// and a device short of memory shouldn't hold one per child at once.
+func ServeLimited(path string, tagger func() Tagger, faces FaceDetector, limit int) error {
+	var slots chan struct{}
+	if limit > 0 {
+		slots = make(chan struct{}, limit)
+	}
 	os.Remove(path) // a socket left by the previous run
 	l, err := net.Listen("unix", path)
 	if err != nil {
@@ -129,11 +141,11 @@ func Serve(path string, tagger func() Tagger, faces FaceDetector) error {
 		if err != nil {
 			return err
 		}
-		go serveConn(conn, tagger, faces)
+		go serveConn(conn, tagger, faces, slots)
 	}
 }
 
-func serveConn(conn net.Conn, tagger func() Tagger, faces FaceDetector) {
+func serveConn(conn net.Conn, tagger func() Tagger, faces FaceDetector, slots chan struct{}) {
 	defer conn.Close()
 	conn.SetDeadline(time.Now().Add(cCallTimeout))
 	// The pixels after the header are read from the same buffered reader
@@ -143,6 +155,16 @@ func serveConn(conn net.Conn, tagger func() Tagger, faces FaceDetector) {
 	var req request
 	if err := gob.NewDecoder(br).Decode(&req); err != nil {
 		return
+	}
+	// A request with pixels waits for its turn before they are read; "info"
+	// never waits.
+	if slots != nil && req.Op != "info" {
+		select {
+		case slots <- struct{}{}:
+			defer func() { <-slots }()
+		case <-time.After(cCallTimeout):
+			return // the child has given up on it by now
+		}
 	}
 	var resp response
 	switch req.Op {

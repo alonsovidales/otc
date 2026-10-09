@@ -2040,7 +2040,8 @@ const errorNotificationDetailsCap = 60000
 // Error notification. Grouped so the list is never flooded: if an Error
 // row was opened within the last five minutes this joins it (its line is
 // appended to details, occurrences goes up, and the row is unread again);
-// otherwise a new row starts with title as its one-liner.
+// otherwise a new row starts with title as its one-liner. A standalone row
+// (UpsertErrorNotification's, cStandaloneError) is never joined.
 func (dao *Dao) AddErrorNotification(title, detail string) error {
 	// One otc process owns each database (issue #82), so this is enough to
 	// stop two first errors from each taking the gap lock of the select
@@ -2061,7 +2062,7 @@ func (dao *Dao) AddErrorNotification(title, detail string) error {
 	}
 	var id string
 	var size int
-	err = tx.QueryRow("select `uuid`, coalesce(length(`details`), 0) from `notifications` where `type` = 'Error' and `dt` >= now() - interval "+errorNotificationWindow+" order by `dt` desc limit 1 for update").Scan(&id, &size)
+	err = tx.QueryRow("select `uuid`, coalesce(length(`details`), 0) from `notifications` where `type` = 'Error' and `actor_domain` = '' and `dt` >= now() - interval "+errorNotificationWindow+" order by `dt` desc limit 1 for update").Scan(&id, &size)
 	switch {
 	case err == nil && size+1+len(line) <= errorNotificationDetailsCap:
 		_, err = tx.Exec("update `notifications` set `details` = concat(coalesce(`details`, ''), '\n', ?), `occurrences` = `occurrences` + 1, `acknowledged` = 0 where `uuid` = ?", line, id)
@@ -2076,6 +2077,48 @@ func (dao *Dao) AddErrorNotification(title, detail string) error {
 	}
 
 	return tx.Commit()
+}
+
+// cStandaloneError marks, in actor_domain, an Error row no other error
+// joins (AddErrorNotification groups only rows with an empty one). Not a
+// domain anything could have - friends' notifications carry theirs, and
+// friend data is deleted by it - and the clients show actor_name ("This
+// device") instead.
+const cStandaloneError = "(standalone)"
+
+// UpsertErrorNotification is AddErrorNotification for an error that is one
+// story however often it recurs - a device that keeps running out of
+// memory - or that must not be buried in others' details (content set
+// aside): the row id names, while it is there, takes the new title (which
+// keeps the count), a line of details and one more occurrence, and is
+// unread again; otherwise a standalone row starts (no grouped error joins
+// it), with detail on its first line. It returns the row's id, for the
+// next time.
+func (dao *Dao) UpsertErrorNotification(id, title, detail string) (string, error) {
+	dao.errNotifMu.Lock()
+	defer dao.errNotifMu.Unlock()
+
+	line := time.Now().Format("15:04") + " " + title
+	if detail != "" {
+		line += ": " + detail
+	}
+	if id != "" {
+		res, err := dao.db.Exec("update `notifications` set `title` = ?, `details` = if(coalesce(length(`details`), 0) + 1 + ? <= ?, concat(coalesce(`details`, ''), '\n', ?), `details`), `occurrences` = `occurrences` + 1, `acknowledged` = 0 where `uuid` = ? and `type` = 'Error'",
+			title, len(line), errorNotificationDetailsCap, line, id)
+		if err != nil {
+			return "", err
+		}
+		if n, err := res.RowsAffected(); err == nil && n > 0 {
+			return id, nil
+		}
+	}
+	newID := uuid.New().String()
+	_, err := dao.db.Exec("insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`) values (?, now(), 'Error', 'This device', ?, ?, ?, 1)",
+		newID, cStandaloneError, title, truncateUTF8(line, errorNotificationDetailsCap))
+	if err != nil {
+		return "", err
+	}
+	return newID, nil
 }
 
 // truncateUTF8 cuts s to at most n bytes, at a character boundary.

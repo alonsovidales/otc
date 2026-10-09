@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	ort "github.com/yalue/onnxruntime_go"
 	"golang.org/x/image/draw"
@@ -66,13 +67,55 @@ type RAMTagger struct {
 // line, aligned by index to tagListPath) — issue #33. Pass "" to use the
 // flat RAMOptions.Threshold for every tag instead, as before.
 func NewRAMTagger(modelPath, tagListPath, thresholdsPath string, opt RAMOptions) (*RAMTagger, error) {
+	return NewRAMTaggerWith(modelPath, tagListPath, thresholdsPath, opt, LoadOptions{})
+}
+
+// LoadOptions is how the model runs in ONNX Runtime. The zero value is
+// ONNX Runtime's defaults, what NewRAMTagger has always used.
+type LoadOptions struct {
+	// NoArena turns off ONNX Runtime's CPU memory arena and memory
+	// pattern, for a device short of memory. With them a run's
+	// intermediate tensors - ~650 MB for RAM++ at 384x384 - stay
+	// allocated after it, and runs at once each grow the arena by as
+	// much (three at once took the process from ~2.3 to ~3.6 GB);
+	// without them a run allocates and frees its own, a little slower.
+	NoArena bool
+}
+
+// sessionOptions are lo as ONNX Runtime's session options: nil for the
+// defaults, so NewRAMTagger passes none, as it always has.
+func (lo LoadOptions) sessionOptions() (*ort.SessionOptions, error) {
+	if !lo.NoArena {
+		return nil, nil
+	}
+	so, err := ort.NewSessionOptions()
+	if err != nil {
+		return nil, err
+	}
+	if err := so.SetCpuMemArena(false); err != nil {
+		so.Destroy()
+		return nil, err
+	}
+	if err := so.SetMemPattern(false); err != nil {
+		so.Destroy()
+		return nil, err
+	}
+	return so, nil
+}
+
+// NewRAMTaggerWith is NewRAMTagger with lo. It can be called again after
+// Close (a device short of memory lets the model go while it is idle):
+// ONNX Runtime's environment is created once per process.
+func NewRAMTaggerWith(modelPath, tagListPath, thresholdsPath string, opt RAMOptions, lo LoadOptions) (*RAMTagger, error) {
 	if opt.ImageSize == 0 {
 		opt.ImageSize = 384
 	}
 
-	ort.SetSharedLibraryPath("/opt/onnxruntime/lib/libonnxruntime.so")
-	if err := ort.InitializeEnvironment(); err != nil {
-		return nil, fmt.Errorf("InitializeEnvironment: %w", err)
+	if !ort.IsInitialized() {
+		ort.SetSharedLibraryPath("/opt/onnxruntime/lib/libonnxruntime.so")
+		if err := ort.InitializeEnvironment(); err != nil {
+			return nil, fmt.Errorf("InitializeEnvironment: %w", err)
+		}
 	}
 
 	// read tag names
@@ -93,13 +136,20 @@ func NewRAMTagger(modelPath, tagListPath, thresholdsPath string, opt RAMOptions)
 	}
 
 	// detect IO names (don't hardcode)
-	inName, outName, err := firstTensorIO(modelPath, "input", "logits")
+	inName, outName, err := cachedTensorIO(modelPath, "input", "logits")
 	if err != nil {
 		return nil, err
 	}
 
 	// create session
-	sess, err := ort.NewDynamicAdvancedSession(modelPath, []string{inName}, []string{outName}, nil)
+	so, err := lo.sessionOptions()
+	if err != nil {
+		return nil, fmt.Errorf("session options: %w", err)
+	}
+	if so != nil {
+		defer so.Destroy()
+	}
+	sess, err := ort.NewDynamicAdvancedSession(modelPath, []string{inName}, []string{outName}, so)
 	if err != nil {
 		return nil, err
 	}
@@ -331,6 +381,26 @@ func readThresholds(path string) ([]float32, error) {
 		out = append(out, float32(v))
 	}
 	return out, nil
+}
+
+// ioNames holds the IO names firstTensorIO resolved, per model path: they
+// are read from a whole temporary session - the model loaded once more -
+// which a model loaded again after Close (a low-memory device) needn't pay
+// for twice.
+var ioNames sync.Map
+
+// cachedTensorIO is firstTensorIO, once per model path and process.
+func cachedTensorIO(onnxPath, wantIn, wantOut string) (inName, outName string, err error) {
+	key := onnxPath + "\x00" + wantIn + "\x00" + wantOut
+	if v, ok := ioNames.Load(key); ok {
+		names := v.([2]string)
+		return names[0], names[1], nil
+	}
+	inName, outName, err = firstTensorIO(onnxPath, wantIn, wantOut)
+	if err == nil {
+		ioNames.Store(key, [2]string{inName, outName})
+	}
+	return inName, outName, err
 }
 
 // Resolve first input containing wantIn and first output containing wantOut (fallback to [0])

@@ -241,3 +241,12 @@ func TestTagsResizedRefusesAnotherSize(t *testing.T) {
 		t.Error("an image not at 0,0 was taken as the model's input")
 	}
 }
+
+// The zero LoadOptions pass no session options at all - ONNX Runtime's
+// defaults, what the tagger has always run with (8 GB devices).
+func TestDefaultLoadOptionsPassNoSessionOptions(t *testing.T) {
+	so, err := LoadOptions{}.sessionOptions()
+	if so != nil || err != nil {
+		t.Errorf("sessionOptions() = %v, %v; want nil, nil", so, err)
+	}
+}

@@ -65,10 +65,16 @@ func initOwnerPassword(d *dao.Dao) int {
 // memory, unless GOMEMLIMIT already sets one. Without it the collector lets
 // the heap grow to twice what is live before collecting, which on an 8 GB
 // Raspberry Pi running a second user's process, MariaDB and the ML models
-// ended in the kernel killing the service. It lives in this file because
+// ended in the kernel killing the service. A low-memory device (less than
+// 6 GB, files_manager/lowmem.go) gives Go 20%: the models' native memory,
+// which no Go limit sees, needs the rest. It lives in this file because
 // install.sh and the updater build ./bin/otc.go alone.
-func setMemoryLimit() {
+func setMemoryLimit(p filesmanager.MemoryProfile) {
 	if os.Getenv("GOMEMLIMIT") != "" {
+		return
+	}
+	if p.Low && p.Total > 0 {
+		debug.SetMemoryLimit(p.GoMemoryLimit())
 		return
 	}
 	raw, err := os.ReadFile("/proc/meminfo")
@@ -134,7 +140,6 @@ func initProfile(d *dao.Dao) int {
 }
 
 func main() {
-	setMemoryLimit()
 	env := "dev"
 	if len(os.Args) > 1 {
 		env = os.Args[1]
@@ -148,6 +153,9 @@ func main() {
 	} else {
 		cfg.Init("otc", "dev")
 	}
+	// Decided once the config is read: [otc] low-memory can set it.
+	memProfile := filesmanager.CurrentMemoryProfile()
+	setMemoryLimit(memProfile)
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	dao := dao.Init()
@@ -164,8 +172,22 @@ func main() {
 	if len(os.Args) > 2 && os.Args[2] == "init-profile" {
 		os.Exit(initProfile(dao))
 	}
+	if line := memProfile.Describe(); line != "" {
+		log.Info(line)
+	}
+	memProfile.ExportForChildren()
+	if memProfile.Low {
+		hardening.ReturnFreedMemory()
+	}
 	hardening.LockMemory()
 	hardening.SecureTempDir()
+
+	// Caught before filesmanager.Init writes the run marker: a stop asked
+	// for while the rest starts is a clean stop once it has started, not
+	// a death for the next start to count. After the init-* commands
+	// above, which a Ctrl-C must still end.
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
 
 	filesManager := filesmanager.Init(cfg.GetStr("otc-api", "base-url"), dao)
 
@@ -209,16 +231,22 @@ func main() {
 		cfg.GetStr("otc", "storage-path"))
 
 	log.Info("System started...")
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
 	// Block until a signal is received.
 	<-c
 
 	log.Info("Stopping all the services")
+	stopServices(filesManager, sup, dao)
+}
+
+// stopServices is the clean stop, in order. The run marker goes first: a
+// stop that was asked for, however it ends, mustn't be taken for a death
+// by the next start (files_manager/runstate.go).
+func stopServices(fm interface{ Stopped() }, sup *supervisor.Supervisor, d interface{ Stop() }) {
+	fm.Stopped()
 	if sup != nil {
 		sup.StopAll()
 	}
-	dao.Stop()
+	d.Stop()
 }
 
 // logLevel is [logger] level, any case; an unknown one stops the start

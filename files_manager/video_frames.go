@@ -88,7 +88,8 @@ func extractVideoFramesFrom(tmpPath string, n int) ([]image.Image, error) {
 
 // extractFirstFrame decodes the video's very first frame, no seeking.
 func extractFirstFrame(path string) (image.Image, error) {
-	cmd, cancel := command(cFrameTimeout, "ffmpeg", "-v", "error", "-i", path, "-frames:v", "1", "-f", "image2pipe", "-vcodec", "png", "-")
+	args := append([]string{"-v", "error"}, ffmpegInput(path)...)
+	cmd, cancel := command(cFrameTimeout, "ffmpeg", append(args, "-frames:v", "1", "-f", "image2pipe", "-vcodec", "png", "-")...)
 	defer cancel()
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -140,9 +141,9 @@ func probeVideoDuration(path string) (float64, error) {
 func extractFrameAt(path string, seconds float64) (image.Image, error) {
 	// -ss before -i seeks first (fast, keyframe-ish) rather than decoding
 	// from the start — plenty accurate for "roughly evenly spaced samples".
+	args := append([]string{"-ss", fmt.Sprintf("%.3f", seconds)}, ffmpegInput(path)...)
 	cmd, cancel := command(cFrameTimeout,
-		"ffmpeg", "-ss", fmt.Sprintf("%.3f", seconds), "-i", path,
-		"-frames:v", "1", "-f", "image2pipe", "-vcodec", "mjpeg", "-",
+		"ffmpeg", append(args, "-frames:v", "1", "-f", "image2pipe", "-vcodec", "mjpeg", "-")...,
 	)
 	defer cancel()
 	var stdout, stderr bytes.Buffer

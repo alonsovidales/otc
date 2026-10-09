@@ -104,6 +104,14 @@ func (mg *Manager) BackfillMissingThumbnails(ses *session.Session) {
 				continue
 			}
 
+			// The guard's turn first (one file at a time on a low-memory
+			// device and after a death, after the pause): the marker below
+			// must not be left by a stop while this waits.
+			done := mg.beginProcessing(file.Hash, jobBackfill)
+			if _, statErr := os.Stat(thumb); statErr == nil {
+				done() // made by the lanes meanwhile
+				continue
+			}
 			log.Debug("thumbnail backfill: rebuilding", file.Path)
 			// The marker goes down first and comes off once there's a
 			// thumbnail (issue #165): a file that takes the process down
@@ -115,6 +123,7 @@ func (mg *Manager) BackfillMissingThumbnails(ses *session.Session) {
 			if _, statErr := os.Stat(thumb); statErr == nil {
 				_ = os.Remove(marker)
 			}
+			done()
 			time.Sleep(cBackfillPause)
 		}
 	}

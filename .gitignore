@@ -28,3 +28,4 @@ app/android/app/google-services.json
 # Xcode per-user state (window layout, scheme order): rewritten by Xcode on
 # every machine, so tracking it made `git pull` fail on the other Mac.
 xcuserdata/
+.otc-run

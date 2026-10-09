@@ -149,6 +149,13 @@ type Manager struct {
 	// thumbFixes is the queue of thumbnails a grid asked for small ones of
 	// before they existed (thumbnail_fix.go).
 	thumbFixes thumbFixQueue
+
+	// guard makes processing gentler on a low-memory device and after a
+	// run that died (lowmem.go, runstate.go); nil otherwise - processing
+	// as it always was. run is this run's marker (runstate.go), nil where
+	// there is none.
+	guard *processingGuard
+	run   *runState
 }
 
 // waitForTagger blocks until the model loaded by Init is usable. Callers
@@ -157,6 +164,12 @@ type Manager struct {
 // making the whole device unreachable while it loads (see Init).
 func (mg *Manager) waitForTagger() modelserver.Tagger {
 	<-mg.taggerReady
+	// A low-memory device loads the model at first use (lowmem.go): here,
+	// before the caller's deadline starts, as it does for one loading at
+	// start.
+	if m, ok := mg.tagger.(*idleModels); ok {
+		m.ensureTagger()
+	}
 	return mg.tagger
 }
 
@@ -167,13 +180,30 @@ func NewWithDAO(d *dao.Dao) *Manager {
 }
 
 func Init(baseUrl string, dao *dao.Dao) *Manager {
+	memProfile := CurrentMemoryProfile()
+	budget := contentBudgetBytes()
+	if memProfile.Low {
+		budget = memProfile.lowContentBudget()
+		ffmpegThreads = cFFmpegLowThreads
+	}
 	mg := &Manager{
 		searchTokens:  newSearchTokenCache(cSearchTokensMaxRows),
 		baseUrl:       baseUrl,
 		dao:           dao,
-		contentBudget: newMemBudget(contentBudgetBytes()),
+		contentBudget: newMemBudget(budget),
 		sharedLinkTTL: sharedLinkTTLFromCfg(),
 	}
+	// How the previous run ended (runstate.go), before anything is
+	// processed: a run that follows one that died processes later and one
+	// file at a time.
+	if env, err := defaultRunEnv(); err == nil {
+		mg.guard = mg.checkPreviousRun(env, memProfile)
+	} else {
+		mg.guard = mg.profileGuard(memProfile, nil)
+	}
+	// Content set aside under another binary, or long ago, is tried again
+	// (setaside.go).
+	mg.retrySetAside()
 
 	// Issue #105 follow-up: loading the RAM++ model is ~870MB of work and
 	// takes well over ten seconds on a Pi. It used to happen right here,
@@ -208,6 +238,12 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 			log.Info("Face recognition not available (the primary instance has no face models)")
 		}
 		log.Info("using the models shared by the primary instance on", sock)
+		go mg.tokenCollector()
+		go mg.sharedLinksSweeper()
+		return mg.initRest()
+	}
+	if memProfile.Low {
+		mg.initIdleModels()
 		go mg.tokenCollector()
 		go mg.sharedLinksSweeper()
 		return mg.initRest()

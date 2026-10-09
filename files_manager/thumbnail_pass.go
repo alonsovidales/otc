@@ -86,7 +86,7 @@ func (mg *Manager) waitForQuiet() bool {
 			return false
 		}
 		ls := mg.mediaLanes()
-		if !uploadedWithin(cUploadQuiet) && !ls.fast.busy() && !ls.analysis.busy() {
+		if !uploadedWithin(cUploadQuiet) && !ls.fast.busy() && !ls.analysis.busy() && !mg.processingDeferred() {
 			return true
 		}
 		time.Sleep(cThumbPassIdlePoll)

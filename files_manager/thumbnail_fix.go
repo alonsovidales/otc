@@ -96,7 +96,7 @@ func imageSizeOf(path string, keys blobstore.Keys) (int, int, error) {
 // (both thumbnails went with it and must not come back) or processed
 // again (new thumbnails, already right: kept).
 func (mg *Manager) fixThumbnails(keys blobstore.Keys, hash string, maxSide int) thumbFix {
-	if !dao.IsContentHash(hash) {
+	if !dao.IsContentHash(hash) || mg.isSetAside(hash) {
 		return thumbSkipped
 	}
 	bigPath, smallPath := thumbnailPath(hash), smallThumbnailPath(hash)
@@ -129,6 +129,10 @@ func (mg *Manager) fixThumbnails(keys blobstore.Keys, hash string, maxSide int) 
 		return thumbSkipped
 	}
 
+	// The decode takes the guard's turn - one job at a time on a
+	// low-memory device and after a death, recorded as in flight
+	// (lowmem.go) - only now: the pass looks at every hash.
+	defer mg.beginProcessing(hash, jobThumbFix)()
 	release := mg.ReserveBytes(thumbFixReserve(bw, bh, maxSide))
 	big, small, err := remakeThumbnails(bigPath, keys, maxSide, shrink)
 	release()

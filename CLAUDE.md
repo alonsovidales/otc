@@ -344,8 +344,9 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   photo that could not be processed, an upload that never reached the disk) goes into
   `notifications` as type `Error` through `dao.AddErrorNotification` - grouped, so an error
   within five minutes of an open Error row joins it (`details` gains a line, `occurrences`
-  goes up, the row is unread again) rather than adding a row; `files_manager.alert` is the
-  one call site helper. Not alerted, only logged (`files_manager/processing_alerts.go`): an image/*
+  goes up, the row is unread again) rather than adding a row - never a standalone row
+  (`actor_domain` `(standalone)`: `UpsertErrorNotification`'s memory and set-aside Alerts);
+  `files_manager.alert` is the one call site helper. Not alerted, only logged (`files_manager/processing_alerts.go`): an image/*
   file in a format the device makes no preview of that fails to decode (a `.cur`, a `.djvu`: no
   thumbnail, no analysis; "previewed" is `previewedMimes` - the Go decoders, HEIC/HEIF, and JPEG
   2000/Photoshop through ffmpeg - by a `.HEIC` name, the row's MIME or the sniffed content, so a
@@ -516,7 +517,8 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   include file names, search words, Wi-Fi names and addresses.
   **Processing lanes** (release 73, `files_manager/lanes.go`): an upload is answered once its
   bytes and row are stored, then `enqueueMedia` (media only) records its hash in
-  `pending_analysis` and queues it in the *fast lane* (NumCPU-1 workers): EXIF, decode,
+  `pending_analysis` and queues it in the *fast lane* (NumCPU-1 workers; one job at a time across
+  both lanes in low-memory mode and for an hour after a death - see Low-memory profile): EXIF, decode,
   orientation, thumbnail - one frame for a video. It then moves to the *slow lane* (tags,
   faces; four frames for a video), whose workers only take a job while the fast lane has none
   queued or running, so during a big sync every thumbnail comes first. `processMedia(...,
@@ -582,11 +584,68 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   (`mdadm --grow --size=max`) and the ext4 on it (`resize2fs`, online), checked every 10 minutes, never
   while degraded or rebuilding (tested on loop devices in the Lima VM). Disks go in the two blue USB ports (README, website).
 - `images_tagger` — runs the RAM++ ONNX model (paths from `[tagger]` config) to auto-tag photos;
-  requires CGO + libonnxruntime at runtime (see Build section).
+  requires CGO + libonnxruntime at runtime (see Build section). The model file is 873 MB (int8,
+  `ram_plus_int8.onnx`); measured with ONNX Runtime 1.24.3 on arm64 (macOS, 2026-10-08) it is
+  ~0.85-1.0 GB resident when freed memory goes back to the system (~2.3 GB with what the
+  allocator keeps of the load), ~1.4 GB while loading, and a run needs ~650 MB more - which the
+  default CPU arena keeps after it (three runs at once: +1.3 GB). Loading reads the IO names from a
+  whole temporary session (`firstTensorIO`), cached per process (`cachedTensorIO`) for reloads.
+- **Low-memory profile** (`files_manager/lowmem.go`): MemTotal under 6 GB (a 4 GB Pi 5 reports
+  ~3.7 GB) or `[otc] low-memory = on` (`auto` default, `off`; the primary passes a configured
+  choice to its supervised instances as `OTC_LOW_MEMORY`). Logged once at start ("low-memory mode:
+  4 GB of memory ..."); a device with 8 GB and no setting logs and does nothing new. One media job
+  at a time (`processingGuard`'s slot, taken through `beginProcessing(hash, kind)` by the lanes'
+  jobs, the backfill and Reprocess - which take it themselves before `reprocessOneFile` - a
+  thumbnail fix right before its decode, and - in low-memory mode only - a post's transcode), Go's soft limit 20% of MemTotal
+  instead of 40% (`setMemoryLimit`, after `cfg.Init` now), content budget MemTotal/16 (the 256 MB
+  floor on 4 GB), ffmpeg with `-threads 2` (`ffmpegInput` for frames and transcodes, plus the
+  encoder's; a 4K HEVC frame took ~680 MB with ffmpeg's own thread count on 16 cores, ~270 MB with
+  1-2), glibc's mmap threshold fixed at 1 MiB and 2 arenas (`hardening.ReturnFreedMemory`, cgo
+  `mallopt`: Linux refuses MADV_DONTNEED on mlocked pages, so freed native memory stayed resident;
+  Go's own scavenger falls back to mmap and is fine). RAM++ runs without ONNX Runtime's CPU arena and
+  memory pattern (`imagestagger.LoadOptions{NoArena}`), loads at first use (`waitForTagger` loads it
+  before a photo's 10 s deadline starts) and is released with the face models after 10 idle minutes
+  (`idleModels`, which also runs one model call at a time - tags or faces, local or a supervised
+  instance's; `serveModels` = `modelserver.ServeLimited(..., 1)` reads one child's pixels at a time,
+  "info" never waits). Face detection is unchanged (YuNet at 1600 px keeps ~100 MB; at 1024 px, or
+  cropping from a 2x-downscaled photo, a group photo lost 2 of 8 faces). After each job a new
+  resident-memory high-water mark (128 MB steps) is logged ("memory high-water mark: this process
+  holds ... MB"), and each model load logs what the process holds after it.
+- **Run marker** (`files_manager/runstate.go`): `.otc-run` in the instance's working directory
+  (the StateDirectory, or the user's home - not the RuntimeDirectory, which systemd empties at every
+  stop), written at start with the boot id and the OOM kill counters (`/proc/vmstat` `oom_kill`,
+  the cgroup's `memory.events`), refreshed when they move (a look every minute and at each
+  in-flight write, so another program's OOM kill long ago isn't taken for this run's). bin/otc.go
+  catches SIGTERM before `filesmanager.Init` writes it, and `stopServices` removes it first
+  (`Manager.Stopped()`), except when the cgroup's oom_kill rose during the run: systemd's default
+  `OOMPolicy=stop` then stops the whole unit after the kernel killed one of its processes (a
+  supervised instance, an ffmpeg), and the marker stays, `stopped_oom`. Found at a start, the
+  previous run died: same boot and a counter higher than at the last look (or `stopped_oom`) = out
+  of memory - one Alert per series (`dao.UpsertErrorNotification`, kept by id in the marker: "Your
+  device ran out of memory and restarted 12 times since 19:34", detail "This device has 4 GB of
+  memory, ..."; never a push). Other deaths are only logged, another boot (a power cut) counts
+  nothing. A series is deaths of runs younger than an hour. The run after a death goes one job at a
+  time and records the hash in flight (rewritten in place, padded, never truncated - ext4 flushes
+  a truncated-and-rewritten file at once) for an hour (`recoveryFor`; a low-memory device always
+  does). Its analysis, backfill and Reprocess (Cancel ends that wait) - never an upload's
+  thumbnail - wait 1, 2, 4, 8, 16, then 30 minutes, only when the death looked like processing's
+  (out of memory, or content in flight), and a death during the dead run's own pause doesn't make
+  it longer (`level`, `resume_at`). Content in flight at two deaths gets set aside, unless a model
+  was loading (`loading`, set by `idleModels.load`): no strike for that. Set aside
+  (`files_manager/setaside.go`): its `pending_analysis` row goes, it gets the backfill's
+  `.nothumb` marker, it is listed in `<storage>/.set-aside` with when and the binary
+  (`binaryID`: size and mtime) - skipped by Reprocess and the thumbnail fixes - and gets an Alert
+  of its own ("<name> was set aside"). `retrySetAside` at start gives it back (pending again, the
+  marker removed) under another binary or after 30 days. The memory Alert and set-aside rows are
+  standalone: `actor_domain = '(standalone)'`, which `AddErrorNotification`'s grouping skips (it
+  joins only rows with an empty one). The unit keeps systemd's default `OOMPolicy=stop`;
+  `OOMPolicy=continue` (an ffmpeg or a supervised instance killed without restarting everything)
+  would need install.sh and a release script.
 - `modelserver` — issue #167: the primary instance loads RAM++ and the face models once and
   serves them on `models.sock` in its working directory (0600, Unix socket); the supervisor sets
   `OTC_MODELS_SOCKET` on each child, which then uses `modelserver.Client` for
-  `files_manager`'s `Tagger`/`FaceDetector` instead of loading its own ~870 MB copy. Protocol v1
+  `files_manager`'s `Tagger`/`FaceDetector` instead of loading its own copy (~1-2.3 GB resident).
+  Protocol v1
   (`cProto`, reported by "info"): a gob header, then raw RGBA pixels (`request.N` = 4*W*H, checked
   under 2 GiB before allocating); tags use `tags-resized` with only the 384x384 image the child
   scaled itself (`imagestagger.Resize`, then `TagsResized`), faces still get full resolution. A

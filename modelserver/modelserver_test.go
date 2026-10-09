@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -264,5 +265,66 @@ func TestANewChildSpeaksAnOlderPrimarysSocket(t *testing.T) {
 	}
 	if req := <-got; req.Op != "faces" || len(req.Pix) != 50*40*4 {
 		t.Errorf("faces sent as %s with %d bytes", req.Op, len(req.Pix))
+	}
+}
+
+// slowFaces is a detector that takes a while and counts calls at once.
+type slowFaces struct {
+	mu        sync.Mutex
+	now, peak int
+	release   chan struct{}
+}
+
+func (f *slowFaces) DetectFaces(img image.Image) ([]facerecognition.FaceDetection, error) {
+	f.mu.Lock()
+	f.now++
+	f.peak = max(f.peak, f.now)
+	f.mu.Unlock()
+	<-f.release
+	f.mu.Lock()
+	f.now--
+	f.mu.Unlock()
+	return nil, nil
+}
+
+// ServeLimited(1) - a low-memory primary - answers one image request at a
+// time; "info" never waits for its turn.
+func TestServeLimitedOneAtATime(t *testing.T) {
+	path := socketPath(t)
+	faces := &slowFaces{release: make(chan struct{})}
+	go ServeLimited(path, func() Tagger { return &fakeTagger{} }, faces, 1)
+	waitForSocket(path)
+	c := &Client{Path: path}
+	img := image.NewRGBA(image.Rect(0, 0, 64, 48))
+
+	var wg sync.WaitGroup
+	for i := 0; i < 3; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := c.DetectFaces(img); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	time.Sleep(100 * time.Millisecond) // all three sent
+	done := make(chan struct{})
+	go func() {
+		if _, err := c.HasFaces(); err != nil {
+			t.Error(err)
+		}
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("info waited behind the image requests")
+	}
+	for i := 0; i < 3; i++ {
+		faces.release <- struct{}{}
+	}
+	wg.Wait()
+	if faces.peak != 1 {
+		t.Errorf("%d requests at once, want 1", faces.peak)
 	}
 }

@@ -126,6 +126,8 @@ func (mg *Manager) transcodeForSocial(content []byte, trim *TrimRange, downscale
 	defer os.Remove(outPath)
 	transcodeSlots <- struct{}{}
 	defer func() { <-transcodeSlots }()
+	// And the processing guard's turn on a low-memory device (lowmem.go).
+	defer mg.beginProcessing("", jobTranscode)()
 	if err := transcodeFile(inPath, outPath, trim, downscale); err != nil {
 		return nil, err
 	}
@@ -157,7 +159,7 @@ func transcodeFile(inPath, outPath string, trim *TrimRange, downscale bool) erro
 		// moment.
 		args = append(args, "-ss", strconv.FormatFloat(trim.Start, 'f', 3, 64))
 	}
-	args = append(args, "-i", inPath)
+	args = append(args, ffmpegInput(inPath)...)
 	if d := trimDuration(trim); d > 0 {
 		// -t (a duration) rather than -to (an absolute timestamp): after
 		// an input -ss the output clock has already been rebased to the
@@ -182,6 +184,10 @@ func transcodeFile(inPath, outPath string, trim *TrimRange, downscale bool) erro
 		vf := strings.Join(append(chain, cTagBT709), ",")
 		a := append(append([]string{}, args...), "-vf", vf,
 			"-c:v", "libx264", "-preset", "veryfast")
+		if ffmpegThreads != "" {
+			// The encoder's threads too, on a low-memory device.
+			a = append(a, "-threads", ffmpegThreads)
+		}
 		a = append(a, rate...)
 		a = append(a, playableEverywhere...)
 		return append(a, "-c:a", "aac", "-b:a", cSocialVideoAudioBitrate, "-movflags", "+faststart", outPath)
