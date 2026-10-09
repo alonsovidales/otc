@@ -308,7 +308,7 @@
           <button class="install-tab" role="tab" id="tab-script" aria-selected="false" aria-controls="panel-script" type="button">Install script</button>
         </div>
         <div class="install-panel on" id="panel-image" role="tabpanel" aria-labelledby="tab-image">
-          <div class="install-req">For a <strong>Raspberry Pi 5 with at least 8 GB of RAM</strong>, a MicroSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <strong>two blue USB ports</strong>. Use the <strong>official Raspberry Pi 27 W USB-C power supply</strong> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed.</div>
+          <div class="install-req">For a <strong>Raspberry Pi 5 with at least 8 GB of RAM</strong>, a MicroSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <strong>two blue USB ports</strong>. Use the <strong>official Raspberry Pi 27 W USB-C power supply</strong> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. <strong>Only have a 4 GB Pi?</strong> It can run, but only with <strong>Image Tagging</strong> and <strong>Face Recognition</strong> turned off in Settings, before you back up your photos: those models need more memory than 4 GB leaves.</div>
           <a class="btn ember" href="https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz">⬇ Download the image (≈ 530 MB)</a>
           <ol>
             <li><strong>Flash it</strong> to the MicroSD card with <a href="https://www.raspberrypi.com/software/">Raspberry Pi Imager</a>: "Use custom", pick the file, write. Skip Imager's own customisation step.</li>
@@ -537,11 +537,11 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
         <div class="faq">
           <details open>
             <summary>Do I need to buy special hardware?</summary>
-            <p>A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two more for storage, mirrored so that each holds a full copy of your files. The two storage cards go in USB card readers plugged into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a card ever fails). Add a power supply and an active cooler: all off-the-shelf, roughly €250 all in for 1TB of protected storage. See the README for the exact recommended parts list.</p>
+            <p>A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two more for storage, mirrored so that each holds a full copy of your files. The two storage cards go in USB card readers plugged into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a card ever fails). Add a power supply and an active cooler: all off-the-shelf, roughly €250 all in for 1TB of protected storage. See the README for the exact recommended parts list. A Pi 5 with 4 GB can work too, with photo tagging and face recognition turned off.</p>
           </details>
           <details>
             <summary>Is there a pre-built image I can just flash?</summary>
-            <p>Yes — for a Raspberry Pi 5 with at least 8 GB of RAM: see the <a href="#install">Raspberry Pi 5 image</a> tab at the top. Flash it, power the Pi on and set it up from your phone: tap "Set up a new device" in the iOS or Android app, which finds the Pi over Bluetooth and walks you through the rest. For any other Debian/Ubuntu machine, use the install script.</p>
+            <p>Yes — for a Raspberry Pi 5 with at least 8 GB of RAM (a 4 GB one works only with Image Tagging and Face Recognition turned off in Settings): see the <a href="#install">Raspberry Pi 5 image</a> tab at the top. Flash it, power the Pi on and set it up from your phone: tap "Set up a new device" in the iOS or Android app, which finds the Pi over Bluetooth and walks you through the rest. For any other Debian/Ubuntu machine, use the install script.</p>
           </details>
           <details>
             <summary>Can I use something other than a Raspberry Pi, like an Orange Pi or an old PC?</summary>
