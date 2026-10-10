@@ -1,0 +1,10 @@
+{
+  "common.cancel": {
+    "text": "Cancel",
+    "note": "Button that closes a dialog."
+  },
+  "common.loading": {
+    "text": "Loading…",
+    "note": "Shown while a page loads."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "app.settings.brand": {
+    "text": "Off The Cloud",
+    "note": "The product name, never translated.",
+    "translate": false
+  },
+  "app.settings.quotes": {
+    "text": "Type \"delete\" to confirm.\nThis can't be undone: C:\\ & <b>bold</b> 100%",
+    "note": "Two lines with quotes, a backslash, an ampersand and a percent sign.",
+    "rich": ["b"]
+  },
+  "app.settings.storage_used": {
+    "text": "{percent}% used of {total} GB",
+    "args": [["percent", "int"], ["total", "int"]],
+    "note": "Storage line in Settings."
+  },
+  "app.settings.terms": {
+    "text": "By continuing you accept the <terms>terms</terms> of {name}.",
+    "args": [["name", "user"]],
+    "note": "Line under the sign-up button; the code links the terms.",
+    "rich": ["terms"]
+  }
+}

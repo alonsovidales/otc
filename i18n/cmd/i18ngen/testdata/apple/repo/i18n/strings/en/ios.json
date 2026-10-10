@@ -1,0 +1,10 @@
+{
+  "ios.plist.nscamerausagedescription": {
+    "text": "Used to take a photo or video to post to your feed (100% optional)",
+    "note": "iOS camera permission prompt."
+  },
+  "ios.tab.photos": {
+    "text": "Photos",
+    "note": "Tab bar item."
+  }
+}

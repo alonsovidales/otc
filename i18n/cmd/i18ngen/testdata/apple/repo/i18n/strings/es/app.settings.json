@@ -1,0 +1,10 @@
+{
+  "app.settings.storage_used": {
+    "text": "{percent} % usado de {total} GB",
+    "en": "{percent}% used of {total} GB"
+  },
+  "app.settings.terms": {
+    "text": "Al continuar aceptas las <terms>condiciones</terms> de {name}.",
+    "en": "By continuing you accept the <terms>terms</terms> of {name}."
+  }
+}

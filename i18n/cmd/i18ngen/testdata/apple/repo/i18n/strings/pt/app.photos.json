@@ -1,0 +1,12 @@
+{
+  "app.photos.count": {
+    "text": {
+      "one": "{count} fotografia",
+      "other": "{count} fotografias"
+    },
+    "en": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    }
+  }
+}

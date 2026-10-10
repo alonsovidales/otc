@@ -1,0 +1,35 @@
+{
+  "app.photos.count": {
+    "text": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    },
+    "args": [["count", "count"]],
+    "note": "Number of photos under a collection's name."
+  },
+  "app.photos.deleted_by": {
+    "text": {
+      "one": "{name} deleted a photo",
+      "other": "{name} deleted {count} photos"
+    },
+    "args": [["name", "user"], ["count", "count"]],
+    "note": "Alert line in Notifications."
+  },
+  "app.photos.deleted_from": {
+    "text": {
+      "one": "{name} deleted a photo from {place}",
+      "other": "{name} deleted {count} photos from {place}"
+    },
+    "args": [["name", "user"], ["count", "count"], ["place", "text"]],
+    "note": "Alert line naming the collection the photos were in; one leaves out the number."
+  },
+  "app.photos.shared_by": {
+    "text": "{file}, shared by {name}",
+    "args": [["file", "user"], ["name", "user"]],
+    "note": "Caption under a shared photo."
+  },
+  "app.photos.stale": {
+    "text": "Pick the photos to keep",
+    "note": "Title of the duplicate picker."
+  }
+}

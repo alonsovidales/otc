@@ -1,0 +1,40 @@
+{
+  "app.photos.count": {
+    "text": {
+      "one": "{count} foto",
+      "other": "{count} fotos"
+    },
+    "en": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    }
+  },
+  "app.photos.deleted_by": {
+    "text": {
+      "one": "{name} borró una foto",
+      "other": "{name} borró {count} fotos"
+    },
+    "en": {
+      "one": "{name} deleted a photo",
+      "other": "{name} deleted {count} photos"
+    }
+  },
+  "app.photos.deleted_from": {
+    "text": {
+      "one": "{name} borró una foto de {place}",
+      "other": "{name} borró {count} fotos de {place}"
+    },
+    "en": {
+      "one": "{name} deleted a photo from {place}",
+      "other": "{name} deleted {count} photos from {place}"
+    }
+  },
+  "app.photos.shared_by": {
+    "text": "Compartido por {name}: {file}",
+    "en": "{file}, shared by {name}"
+  },
+  "app.photos.stale": {
+    "text": "Elige las fotos",
+    "en": "Pick the photos"
+  }
+}

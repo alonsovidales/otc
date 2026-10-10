@@ -1,0 +1,12 @@
+{
+  "desk.folders.syncing": {
+    "text": {
+      "one": "Synchronisation de {count} dossier",
+      "other": "Synchronisation de {count} dossiers"
+    },
+    "en": {
+      "one": "Syncing {count} folder",
+      "other": "Syncing {count} folders"
+    }
+  }
+}

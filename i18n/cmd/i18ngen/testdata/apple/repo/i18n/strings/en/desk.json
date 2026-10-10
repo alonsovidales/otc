@@ -1,0 +1,10 @@
+{
+  "desk.folders.syncing": {
+    "text": {
+      "one": "Syncing {count} folder",
+      "other": "Syncing {count} folders"
+    },
+    "args": [["count", "count"]],
+    "note": "Status line in the menu."
+  }
+}
