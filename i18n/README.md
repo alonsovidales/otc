@@ -28,6 +28,9 @@ i18n/
   stored.json                 generated: the keys databases hold (see "Stored keys")
   model/                      the catalog in memory: reading, checking, canonical form
   cmd/i18ngen/                the generator and checker, and the platform emitters
+  catalog/<code>/<prefix>.json  generated: what the Go programs embed
+  *.go                        package i18n, the Go runtime (device, bridge, otc-sync)
+  scan/, cmd/i18nscan/        the hard-coded-text scanners and their baselines (scan/README.md)
 ```
 
 `languages.json` is the only list of languages:
@@ -246,9 +249,18 @@ Cloud, Tailscale, GitHub, Google and Apple.
 make i18n                     canonicalize the sources, write every generated file
 make i18n DRAFT=1             also the draft languages and the pseudo-locale - never commit this
 make i18n DRAFT=1 LANGS=es    ... only Spanish among the drafts
-make i18n-check               validate, compare the generated files, go vet ./i18n/...
-make i18n-check I18N_FLAGS="-release"
+make i18n-check               validate, compare the generated files, run the scanners'
+                              ratchet, vet and build what embeds the catalog; writes nothing
+make i18n-check I18N_RELEASE=1  ... missing, stale or unreviewed shipping text is an error
+                              (what the release scripts run)
+make i18n-check I18N_SCAN_FLAGS="-surface ios,android"  ... scan only these surfaces
+                              (the web surface needs node and web/node_modules)
 ```
+
+The scanners count hard-coded user-visible text per file and fail when a file's count rises
+above `scan/baseline/<surface>.json`; after moving text into the catalog, lower your entries with
+`go run ./i18n/cmd/i18nscan -update -path <your files>` in the same commit. See
+[`scan/README.md`](scan/README.md).
 
 `go run ./i18n/cmd/i18ngen [flags]`:
 
@@ -283,7 +295,8 @@ checker compares the sources with it.
 ## Writing an emitter
 
 An emitter writes one platform's files. It lives in `cmd/i18ngen/emit_<platform>*.go` (package
-`main`) and registers itself:
+`main`) and registers itself. A file name must not end in a GOOS or GOARCH suffix: Go silently
+skips `emit_android.go` (hence `emit_android_res.go`).
 
 ```go
 func init() { register(appleEmitter{}) }
@@ -348,7 +361,9 @@ Rules every emitter follows (`docs/i18n.md`, "Rendering contract"):
 - Name things with `model.AndroidName`, `CamelName`, `GoName`, `ArgName`, `PrefixFileName` and
   `PrefixTypeName`: the checker guarantees those never collide.
 - Every language gets every key; `Resolve` already put English where a translation is missing or
-  stale.
+  stale. The exception is the Go catalog and the wizard's dictionary, which hold only real
+  translations: their runtimes fall back to English key by key, so English text never meets
+  another language's plural rules.
 - Plural rules come from `Language.Tag`, never from `Code`.
 
 Tests sit next to the emitter in package `main`. `writeRepo(t, files)` in `main_test.go` builds a

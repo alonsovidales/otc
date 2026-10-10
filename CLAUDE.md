@@ -823,9 +823,18 @@ design is `docs/i18n.md`; the contributor guide is `i18n/README.md`. The user's 
 stored on the device per user (`Settings.language` / `Status.language`, `optional`: absent =
 device predates it, `""` = Automatic, `SetLanguage` = 138), and every app sends its effective
 language as `ReqEnvelope.lang` (= 2); a request without it gets today's English, byte for byte.
-One source, `i18n/strings/<code>/<prefix>.json`, generates every platform's files: `make i18n`;
-`make i18n-check` validates (placeholders, tags, glossary in `i18n/glossary/`, staleness) and
-fails on a stale generated file. Codes before prose: clients check `error_code` first and read
+One source, `i18n/strings/<code>/<prefix>.json`, generates every platform's files: `make i18n`
+(web `web/src/i18n/`, Apple `OffTheCloud/i18n/` with the hand-written `L10n.swift`, Android
+`cloud/offthe/otc/i18n/` with the hand-written `UiText.kt`, Go `i18n/catalog` + `i18n/*_gen.go`
+for package `i18n`'s runtime, the wizard's `# BEGIN GENERATED I18N` block); never edit those
+generated files or the catalogs in Xcode. `make i18n-check` validates (placeholders, tags,
+glossary in `i18n/glossary/`, staleness), fails on a stale generated file, runs the
+hard-coded-text ratchet (`i18n/scan/README.md`: a file whose count of literal UI text rises
+fails - lower the baseline with `go run ./i18n/cmd/i18nscan -update -path <files>` in the commit
+that moves text into the catalog) and builds what embeds the catalog. It gates
+`scripts/release.sh` (on a `git archive` of HEAD; needs `make pb`'s `proto/generated` and
+`web/node_modules`), `scripts/desktop-release.sh` (needs `i18n/` committed), `make -C bridge
+bridge`, `make android-release` and CI (`.github/workflows/i18n.yml`). Codes before prose: clients check `error_code` first and read
 the English message only when the code is empty (`duplicated_file` on UploadFile/FinishUpload/
 LinkFile, from `filesmanager.ErrDuplicatedFile`; `unknown_payload`) - iOS/macOS `ErrorCodes.swift`,
 Android `net/ErrorCodes.kt`, otc-sync `engine/requests.go`. Machine alerts (update, RAID, Wi-Fi
