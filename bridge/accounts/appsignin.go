@@ -95,22 +95,22 @@ func (a *Accounts) AppExchange(w http.ResponseWriter, r *http.Request) {
 		Verifier string `json:"verifier"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+		writeError(w, http.StatusBadRequest, "invalid_body", "invalid request body")
 		return
 	}
 	// Single use, right or wrong.
 	accountID, challenge, created, ok, err := a.dao.ConsumeAppCode(codeHash(strings.TrimSpace(body.Code)))
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not finish the sign-in")
+		writeError(w, http.StatusInternalServerError, "signin_unavailable", "could not finish the sign-in")
 		return
 	}
 	if !ok || time.Since(created) > cAppCodeTTL || !verifierMatches(body.Verifier, challenge) {
-		writeError(w, http.StatusUnauthorized, "that sign-in has expired - try again")
+		writeError(w, http.StatusUnauthorized, "signin_expired", "that sign-in has expired - try again")
 		return
 	}
 	tok, err := a.IssueSetupToken(accountID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not finish the sign-in")
+		writeError(w, http.StatusInternalServerError, "signin_unavailable", "could not finish the sign-in")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"setup_token": tok})

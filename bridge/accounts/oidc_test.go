@@ -277,7 +277,7 @@ func TestOAuthStateBelongsToTheBrowser(t *testing.T) {
 		mock.ExpectBegin()
 		w := httptest.NewRecorder()
 		a.OAuthCallback(w, r)
-		if loc := w.Header().Get("Location"); w.Code != http.StatusFound || !strings.Contains(loc, "expired") || sessionCookie(w) != "" {
+		if loc := w.Header().Get("Location"); w.Code != http.StatusFound || loc != "/account?error="+cSignInExpired || sessionCookie(w) != "" {
 			t.Errorf("a callback this browser didn't start: %d %q", w.Code, loc)
 		}
 		if mock.ExpectationsWereMet() == nil {

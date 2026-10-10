@@ -75,6 +75,62 @@
     <div id="view"><p class="hint">Loading…</p></div>
     <p class="hint" style="margin-top:32px"><a href="/privacy">Privacy</a> · <a href="/">Off The Cloud</a></p>
   </main>
+  <!-- What the page says for each error code (docs/i18n.md): "api" for
+       the {code, error} answers of bridge/accounts and bridge/api, the
+       {braced} figures filled in from the terms (fillIn); "signin" for
+       the ?error= a Google or Apple sign-in comes back with (oidc.go's
+       cSignIn* codes). Data only, read with JSON.parse: a later version
+       swaps it for the reader's language. errorcodes_test.go keeps it in
+       step with the Go side. -->
+  <script type="application/json" id="error-text">
+  {
+    "api": {
+      "invalid_body": "invalid request body",
+      "not_signed_in": "not signed in",
+      "signin_check_unavailable": "could not check your sign-in right now - try again",
+      "cross_origin": "not allowed from this page",
+      "invalid_credentials": "wrong email or password - if you signed up with Google or Apple, use that instead (on the account page, then a setup code)",
+      "too_many_attempts": "too many failed attempts, try again later",
+      "signin_unavailable": "could not sign in right now",
+      "too_many_signups": "too many sign-ups from this address, try again later",
+      "invalid_email": "that email address doesn't look right",
+      "password_too_short": "the password needs at least {min_password} characters",
+      "profile_incomplete": "name, surname and country of residence are required",
+      "terms_required": "please accept the terms of use",
+      "signup_unavailable": "could not sign up right now",
+      "email_taken": "there is already an account with that email - sign in instead",
+      "save_unavailable": "could not save right now",
+      "wrong_password": "the password is not right",
+      "recent_signin_required": "sign in again (with Google or Apple), then try again within 15 minutes",
+      "account_check_unavailable": "could not check your account right now",
+      "confirm_required": "confirm with {\"confirm\": \"delete\"}",
+      "delete_unavailable": "could not delete the account right now",
+      "too_many_emails": "too many emails asked for from here, try again later",
+      "email_send_unavailable": "could not send the email right now",
+      "verify_unavailable": "could not confirm right now",
+      "verify_link_invalid": "that link is not valid any more - sign in and ask for a new one",
+      "reset_unavailable": "could not reset it right now",
+      "reset_link_invalid": "that link is not valid any more - ask for a new one",
+      "email_not_verified": "confirm your email first - open the link we sent you, or ask for a new one above",
+      "terms_not_accepted": "accept the terms of use above first",
+      "setup_code_unavailable": "could not make a setup code right now",
+      "register_unavailable": "could not register that name right now",
+      "invalid_name": "a name is lower-case letters, digits and hyphens, up to 63 characters",
+      "name_taken": "that name is already taken",
+      "name_held": "that name was released recently and is held for its previous owner for 30 days",
+      "domain_limit": "an account can register up to {max_domains} domains - for more ({extra_domain_eur} euros a year each), write to {contact}",
+      "reissue_unavailable": "could not re-issue that domain right now",
+      "not_your_domain": "that domain is not yours",
+      "release_unavailable": "could not release that domain right now"
+    },
+    "signin": {
+      "cancelled": "the sign-in was cancelled",
+      "expired": "that sign-in has expired, please try again",
+      "failed": "the sign-in could not be completed",
+      "no_email": "the sign-in did not include an email address"
+    }
+  }
+  </script>
   <script>
   // Issue #124: the account page. Everything here talks to /api/account/*
   // with the session cookie; the shape of each answer is documented next
@@ -88,6 +144,28 @@
     return { ok: r.ok, status: r.status, ...j };
   };
   let me = null, domains = [], providers = [], terms = {}, countries = {}, maxDomains = 5;
+
+  // Error messages come from the #error-text table by code. An API answer
+  // with a code the table lacks shows the server's own text, then the
+  // caller's fallback; a sign-in's ?error= is only ever looked up, never
+  // shown as it is, so a crafted link can't make this page say anything.
+  const hasOwn = Object.hasOwn || ((o, k) => Object.prototype.hasOwnProperty.call(o, k));
+  const errorTable = (() => { try { return JSON.parse($('#error-text').textContent); } catch (e) { return {}; } })();
+  const lookUp = (table, code) => (typeof code === 'string' && table && typeof table === 'object' && hasOwn(table, code)) ? String(table[code]) : '';
+  // fillIn puts the terms' figures into a message; one it can't fill
+  // (the terms not loaded) gives '' so the server's text is shown instead.
+  function fillIn(text) {
+    const vars = { min_password: 8, max_domains: terms.max_domains, extra_domain_eur: terms.extra_domain_eur, contact: terms.contact };
+    let missing = false;
+    const out = text.replace(/\{([a-z_]+)\}/g, (m, k) => {
+      if (hasOwn(vars, k) && vars[k] !== undefined && vars[k] !== null && vars[k] !== '') return String(vars[k]);
+      missing = true; return m;
+    });
+    return missing ? '' : out;
+  }
+  const errText = (r, fallback) => fillIn(lookUp(errorTable.api, r.code)) || r.error || fallback;
+  // An unknown sign-in code gets the general "could not be completed".
+  const signInErrorText = (code) => lookUp(errorTable.signin, code) || lookUp(errorTable.signin, 'failed');
 
   const termsHTML = () => `<div class="terms">Creating an account is only necessary to use our bridge: you will get up to <b>${esc(terms.max_domains)} domains</b> like <i>name</i>.${esc(location.hostname)} to connect to your device and also connect with the devices of your friends and family. If you only want to use your device in your local network as a NAS or with Tailscale Funnel, you do not need an account.<br><br>An account for up to ${esc(terms.max_domains)} domains is <b>free for the first ${esc(terms.free_years)} years</b>, and after this period will cost ${esc(terms.price_per_year_eur)} euros + VAT a year (we will e-mail you before the period ends). If you need more domains, each extra one costs ${esc(terms.extra_domain_eur)} euros a year: please contact us at <a href="mailto:${esc(terms.contact)}">${esc(terms.contact)}</a>. An account unused for ${esc(terms.inactive_months)} months (no sign-in here, and no app or friend reaching your devices through the bridge) is removed and its domains released; we email you a month before. Read the full <a href="/terms" target="_blank">terms of use</a> and the <a href="/privacy" target="_blank">privacy notice</a>.</div>`;
   const termsCheck = (id) => `<label class="check"><input type="checkbox" id="${id}"> <span>I accept the <a href="/terms" target="_blank">terms of use</a> and have read the <a href="/privacy" target="_blank">privacy notice</a>.</span></label>`;
@@ -128,7 +206,7 @@
       $('#rs-go').disabled = true;
       const r = await api('POST', '/api/account/reset', { token, password: $('#rs-pass').value });
       $('#rs-go').disabled = false;
-      if (!r.ok) { m.textContent = r.error || 'Could not set it'; m.className = 'msg bad'; return; }
+      if (!r.ok) { m.textContent = errText(r, 'Could not set it'); m.className = 'msg bad'; return; }
       banner('Your new password is set, and you are signed in.', 'ok');
       load();
     };
@@ -139,7 +217,7 @@
     if (link && link.kind === 'verify' && !link.used) {
       link.used = true;
       const r = await api('POST', '/api/account/verify', { token: link.token });
-      banner(r.ok ? 'Your email is confirmed. You can register your devices now.' : (r.error || 'Could not confirm the email'), r.ok ? 'ok' : '');
+      banner(r.ok ? 'Your email is confirmed. You can register your devices now.' : errText(r, 'Could not confirm the email'), r.ok ? 'ok' : '');
     }
     const [p, c] = await Promise.all([api('GET', '/api/account/providers'), api('GET', '/api/account/countries')]);
     providers = p.providers || []; terms = p.terms || {}; countries = c.ok ? c : {};
@@ -147,7 +225,7 @@
     const r = await api('GET', '/api/account/me');
     me = r.ok ? r.account : null;
     if (me) { const d = await api('GET', '/api/account/domains'); domains = d.domains || []; maxDomains = d.max_domains || 5; }
-    if (params.get('error')) banner(params.get('error'));
+    if (params.get('error')) banner(signInErrorText(params.get('error')));
     render();
   }
 
@@ -191,7 +269,7 @@
       $('#li-msg').textContent = ''; $('#li-go').disabled = true;
       const r = await api('POST', '/api/account/login', { email: $('#li-email').value, password: $('#li-pass').value });
       $('#li-go').disabled = false;
-      if (!r.ok) { $('#li-msg').textContent = r.error || 'Could not sign in'; $('#li-msg').className = 'msg bad'; return; }
+      if (!r.ok) { $('#li-msg').textContent = errText(r, 'Could not sign in'); $('#li-msg').className = 'msg bad'; return; }
       location.href = '/account' + (params.get('return') ? '?complete=0&return=' + encodeURIComponent(params.get('return')) : '');
     };
     $('#li-pass').onkeydown = (e) => { if (e.key === 'Enter') $('#li-go').click(); };
@@ -200,7 +278,7 @@
       const m = $('#fp-msg'); m.textContent = ''; m.className = 'msg'; $('#fp-go').disabled = true;
       const r = await api('POST', '/api/account/forgot', { email: $('#fp-email').value });
       $('#fp-go').disabled = false;
-      if (!r.ok) { m.textContent = r.error || 'Could not send it right now'; m.className = 'msg bad'; return; }
+      if (!r.ok) { m.textContent = errText(r, 'Could not send it right now'); m.className = 'msg bad'; return; }
       m.textContent = 'If there is an account for that email, a link to reset its password is on its way. It works for an hour.';
       m.className = 'msg';
     };
@@ -208,7 +286,7 @@
       $('#su-msg').textContent = ''; $('#su-go').disabled = true;
       const r = await api('POST', '/api/account/signup', { name: $('#su-name').value, surname: $('#su-surname').value, country: $('#su-country').value, email: $('#su-email').value, password: $('#su-pass').value, accept_terms: $('#su-terms').checked });
       $('#su-go').disabled = false;
-      if (!r.ok) { $('#su-msg').textContent = r.error || 'Could not create the account'; $('#su-msg').className = 'msg bad'; return; }
+      if (!r.ok) { $('#su-msg').textContent = errText(r, 'Could not create the account'); $('#su-msg').className = 'msg bad'; return; }
       location.href = '/account';
     };
   }
@@ -231,7 +309,7 @@
       $('#c-go').disabled = true;
       const r = await api('PUT', '/api/account/me', { name: $('#c-name').value, surname: $('#c-surname').value, country: $('#c-country').value, accept_terms: !!($('#c-terms') && $('#c-terms').checked) });
       $('#c-go').disabled = false;
-      if (!r.ok) { $('#c-msg').textContent = r.error || 'Could not save'; $('#c-msg').className = 'msg bad'; return; }
+      if (!r.ok) { $('#c-msg').textContent = errText(r, 'Could not save'); $('#c-msg').className = 'msg bad'; return; }
       if (ret) { location.href = '/api/account/continue?return=' + encodeURIComponent(ret); return; }
       location.href = '/account';
     };
@@ -298,7 +376,7 @@
       tm.disabled = true;
       const r = await api('POST', '/api/account/accept-terms');
       tm.disabled = false;
-      if (!r.ok) { m.textContent = r.error || 'Could not save right now'; m.className = 'msg bad'; return; }
+      if (!r.ok) { m.textContent = errText(r, 'Could not save right now'); m.className = 'msg bad'; return; }
       location.reload();
     };
     const vr = $('#vr-go');
@@ -306,7 +384,7 @@
       const m = $('#vr-msg'); m.textContent = ''; vr.disabled = true;
       const r = await api('POST', '/api/account/resend-verification');
       vr.disabled = false;
-      m.textContent = r.ok ? 'Sent - check your inbox (and the spam folder).' : (r.error || 'Could not send it right now');
+      m.textContent = r.ok ? 'Sent - check your inbox (and the spam folder).' : errText(r, 'Could not send it right now');
       m.className = r.ok ? 'msg' : 'msg bad';
     };
     // Issue #182: deleting the account.
@@ -316,7 +394,7 @@
       $('#del-go').disabled = true;
       const r = await api('DELETE', '/api/account/me', { confirm: 'delete', password: me.has_password ? $('#del-pw').value : '' });
       $('#del-go').disabled = false;
-      if (!r.ok) { m.textContent = r.error || 'Could not delete the account'; m.className = 'msg bad'; return; }
+      if (!r.ok) { m.textContent = errText(r, 'Could not delete the account'); m.className = 'msg bad'; return; }
       me = null; domains = [];
       $('#who').innerHTML = '';
       $('#view').innerHTML = `<h1>Your account is deleted</h1><p class="lead">${r.released && r.released.length ? 'Released: ' + r.released.map(esc).join(', ') + '. ' : ''}Your devices go on working at home, at <code>http://otc.local:8080</code>.</p><p><a href="/">Back to the home page</a></p>`;
@@ -328,7 +406,7 @@
       const m = $('#pw-msg'); m.textContent = ''; m.className = 'msg';
       if ($('#pw-new').value !== $('#pw-new2').value) { m.textContent = "The two passwords don't match"; m.className = 'msg bad'; return; }
       const r = await api('PUT', '/api/account/password', { password: $('#pw-new').value, current: me.has_password ? $('#pw-cur').value : '' });
-      if (!r.ok) { m.textContent = r.error || 'Could not save the password'; m.className = 'msg bad'; return; }
+      if (!r.ok) { m.textContent = errText(r, 'Could not save the password'); m.className = 'msg bad'; return; }
       me.has_password = true; banner('Password saved. Other sessions are signed out.', 'ok'); render();
     };
     $('#out-all').onclick = async () => {
@@ -337,14 +415,14 @@
     };
     $('#code-go').onclick = async () => {
       const r = await api('GET', '/api/account/setup-token');
-      if (!r.ok) { $('#code').innerHTML = `<div class="msg bad">${esc(r.error || 'Could not make a code')}</div>`; return; }
+      if (!r.ok) { $('#code').innerHTML = `<div class="msg bad">${esc(errText(r, 'Could not make a code'))}</div>`; return; }
       $('#code').innerHTML = `<div class="code">${esc(r.setup_token)}</div><p class="hint">Expires in ${Math.round(r.expires_in_seconds / 60)} minutes.</p>`;
     };
     $('#add-go').onclick = async () => {
       $('#add-msg').textContent = ''; $('#add-go').disabled = true;
       const r = await api('POST', '/api/account/domains', { name: $('#add-name').value });
       $('#add-go').disabled = false;
-      if (!r.ok) { $('#add-msg').textContent = r.error || 'Could not register that name'; $('#add-msg').className = 'msg bad'; return; }
+      if (!r.ok) { $('#add-msg').textContent = errText(r, 'Could not register that name'); $('#add-msg').className = 'msg bad'; return; }
       $('#add-out').innerHTML = identityBlock(r);
       const d = await api('GET', '/api/account/domains'); domains = d.domains || []; renderDomainsOnly();
     };
@@ -360,13 +438,13 @@
       const domain = b.dataset.identity;
       if (!confirm(`Give ${domain} a new identity? The device using it now will be locked out of the bridge until it is set up with the new one.`)) return;
       const r = await api('POST', `/api/account/domains/${encodeURIComponent(domain)}/identity`);
-      $('#dom-out').innerHTML = r.ok ? identityBlock(r) : `<div class="msg bad">${esc(r.error || 'Could not re-issue that domain')}</div>`;
+      $('#dom-out').innerHTML = r.ok ? identityBlock(r) : `<div class="msg bad">${esc(errText(r, 'Could not re-issue that domain'))}</div>`;
     });
     document.querySelectorAll('[data-release]').forEach((b) => b.onclick = async () => {
       const domain = b.dataset.release;
       if (!confirm(`Release ${domain}? Its device goes on working at home only (http://otc.local:8080), and the name stays reserved for you for 30 days.`)) return;
       const r = await api('DELETE', `/api/account/domains/${encodeURIComponent(domain)}`);
-      if (!r.ok) { $('#dom-out').innerHTML = `<div class="msg bad">${esc(r.error || 'Could not release that domain')}</div>`; return; }
+      if (!r.ok) { $('#dom-out').innerHTML = `<div class="msg bad">${esc(errText(r, 'Could not release that domain'))}</div>`; return; }
       const d = await api('GET', '/api/account/domains'); domains = d.domains || []; render();
     });
   }

@@ -253,6 +253,23 @@ func oauthStartedHere(r *http.Request, state string) bool {
 	return false
 }
 
+// What a provider sign-in that went wrong sends the account page in
+// ?error=: a code, never words. The page shows its own message for each
+// (account.html, signInErrors) and a general one for anything else, so a
+// crafted link can't put text of its choosing on the bridge's own page,
+// and the message can be shown in the reader's language.
+const (
+	cSignInCancelled = "cancelled" // the person stopped at the provider, or it sent no code
+	cSignInExpired   = "expired"   // a state this browser didn't start, used, too old or unreadable
+	cSignInFailed    = "failed"    // the code exchange or the id_token check failed
+	cSignInNoEmail   = "no_email"  // no subject, or no email the provider verified
+)
+
+// signInError sends the browser back to the account page with code.
+func signInError(w http.ResponseWriter, r *http.Request, code string) {
+	http.Redirect(w, r, "/account?error="+url.QueryEscape(code), http.StatusFound)
+}
+
 // OAuthCallback finishes a sign-in: exchanges the code, verifies the
 // id_token, finds or creates the account, sets the session, and sends the
 // browser on: to the wizard with a setup token when the sign-in started
@@ -273,7 +290,7 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		setOAuthCookies(w, state, -1)
 	}
 	if errCode := r.Form.Get("error"); errCode != "" || code == "" {
-		http.Redirect(w, r, "/account?error="+url.QueryEscape("the sign-in was cancelled"), http.StatusFound)
+		signInError(w, r, cSignInCancelled)
 		return
 	}
 	// Checked before the state is consumed: a planted link can neither use
@@ -281,12 +298,12 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	// cookie (isPreCookieState).
 	startedHere := oauthStartedHere(r, state)
 	if !startedHere && !isPreCookieState(state) {
-		http.Redirect(w, r, "/account?error="+url.QueryEscape("that sign-in has expired, please try again"), http.StatusFound)
+		signInError(w, r, cSignInExpired)
 		return
 	}
 	returnURL, found, err := a.dao.ConsumeOAuthState(state)
 	if err != nil || !found {
-		http.Redirect(w, r, "/account?error="+url.QueryEscape("that sign-in has expired, please try again"), http.StatusFound)
+		signInError(w, r, cSignInExpired)
 		return
 	}
 	if !startedHere {
@@ -296,7 +313,7 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	claims, err := a.exchange(p, code)
 	if err != nil {
 		log.Error("sign in with", p.name, "failed:", err)
-		http.Redirect(w, r, "/account?error="+url.QueryEscape("the sign-in could not be completed"), http.StatusFound)
+		signInError(w, r, cSignInFailed)
 		return
 	}
 	subject, _ := claims["sub"].(string)
@@ -309,7 +326,7 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		emailOK = false
 	}
 	if subject == "" || !emailOK {
-		http.Redirect(w, r, "/account?error="+url.QueryEscape("the sign-in did not include an email address"), http.StatusFound)
+		signInError(w, r, cSignInNoEmail)
 		return
 	}
 	given, _ := claims["given_name"].(string)

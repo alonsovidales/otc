@@ -488,7 +488,7 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 		Website string `json:"website"`
 	}
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
-		writeJSONErr(w, http.StatusBadRequest, "invalid request body")
+		writeJSONErr(w, http.StatusBadRequest, "invalid_body", "invalid request body")
 		return
 	}
 
@@ -504,16 +504,16 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 	message := strings.TrimSpace(body.Message)
 
 	if name == "" || email == "" || message == "" {
-		writeJSONErr(w, http.StatusBadRequest, "name, email and message are required")
+		writeJSONErr(w, http.StatusBadRequest, "missing_fields", "name, email and message are required")
 		return
 	}
 	if !strings.Contains(email, "@") || strings.ContainsAny(email, " \t\n") {
-		writeJSONErr(w, http.StatusBadRequest, "that doesn't look like a valid email address")
+		writeJSONErr(w, http.StatusBadRequest, "invalid_email", "that doesn't look like a valid email address")
 		return
 	}
 	if len(name) > cContactNameMax || len(email) > cContactEmailMax ||
 		len(reason) > cContactReasonMax || len(message) > cContactMaxLen {
-		writeJSONErr(w, http.StatusBadRequest, "one of the fields is too long")
+		writeJSONErr(w, http.StatusBadRequest, "field_too_long", "one of the fields is too long")
 		return
 	}
 	if reason == "" {
@@ -534,7 +534,7 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	if last, ok := api.lastContactByAddr[remoteAddr]; ok && now.Sub(last) < cContactCooldown {
 		api.contactMu.Unlock()
-		writeJSONErr(w, http.StatusTooManyRequests, "please wait a moment before sending another message")
+		writeJSONErr(w, http.StatusTooManyRequests, "too_many_messages", "please wait a moment before sending another message")
 		return
 	}
 	api.lastContactByAddr[remoteAddr] = now
@@ -551,7 +551,7 @@ func (api *API) submitContact(w http.ResponseWriter, r *http.Request) {
 	if err := api.dao.NewContactRequest(name, email, reason, message); err != nil {
 		log.Error("error storing contact request:", err)
 		releaseCooldown(&api.contactMu, api.lastContactByAddr, remoteAddr, now)
-		writeJSONErr(w, http.StatusInternalServerError, "internal error, please try again")
+		writeJSONErr(w, http.StatusInternalServerError, "internal_error", "internal error, please try again")
 		return
 	}
 
@@ -586,7 +586,7 @@ func (api *API) deviceDomain(name string) string {
 func (api *API) nameAvailable(w http.ResponseWriter, r *http.Request) {
 	name := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("name")))
 	if !cNamePattern.MatchString(name) {
-		writeJSONErr(w, http.StatusBadRequest, "a name is lower-case letters, digits and hyphens, up to 63 characters")
+		writeJSONErr(w, http.StatusBadRequest, "invalid_name", "a name is lower-case letters, digits and hyphens, up to 63 characters")
 		return
 	}
 	if cReservedNames[name] {
@@ -596,7 +596,7 @@ func (api *API) nameAvailable(w http.ResponseWriter, r *http.Request) {
 	registered, err := api.dao.IsDomainRegistered(api.deviceDomain(name))
 	if err != nil {
 		log.Error("error checking name availability:", err)
-		writeJSONErr(w, http.StatusInternalServerError, "could not check that name right now")
+		writeJSONErr(w, http.StatusInternalServerError, "name_check_unavailable", "could not check that name right now")
 		return
 	}
 	// A recently released name is held for its last account: not
@@ -620,14 +620,14 @@ func (api *API) nameAvailable(w http.ResponseWriter, r *http.Request) {
 		// wizard would call the account's own name someone else's.
 		accountID, ok, err := api.accounts.LookupSetupToken(token)
 		if err != nil {
-			writeJSONErr(w, http.StatusInternalServerError, "could not check that name right now")
+			writeJSONErr(w, http.StatusInternalServerError, "name_check_unavailable", "could not check that name right now")
 			return
 		}
 		if ok {
 			owner, _, err := api.dao.DomainAccount(api.deviceDomain(name))
 			if err != nil {
 				log.Error("error checking whose name", name, "is:", err)
-				writeJSONErr(w, http.StatusInternalServerError, "could not check that name right now")
+				writeJSONErr(w, http.StatusInternalServerError, "name_check_unavailable", "could not check that name right now")
 				return
 			}
 			yours := owner == accountID
@@ -661,31 +661,31 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 		SetupToken string `json:"setup_token"`
 	}
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
-		writeJSONErr(w, http.StatusBadRequest, "invalid request body")
+		writeJSONErr(w, http.StatusBadRequest, "invalid_body", "invalid request body")
 		return
 	}
 	accountID, refusal, err := api.claimAccount(r, body.SetupToken)
 	if err != nil {
-		writeJSONErr(w, http.StatusInternalServerError, "could not reserve that name right now")
+		writeJSONErr(w, http.StatusInternalServerError, "claim_unavailable", "could not reserve that name right now")
 		return
 	}
-	if refusal != "" {
-		writeJSONErr(w, http.StatusForbidden, refusal)
+	if refusal.code != "" {
+		writeJSONErr(w, http.StatusForbidden, refusal.code, refusal.msg)
 		return
 	}
 	if accountID == "" && (api.accounts != nil && !api.accounts.OpenRegistration()) {
-		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "sign in to register a name", "code": "login_required"})
+		writeJSONErr(w, http.StatusUnauthorized, "login_required", "sign in to register a name")
 		return
 	}
 	name := strings.ToLower(strings.TrimSpace(body.Name))
 	if !cNamePattern.MatchString(name) || cReservedNames[name] {
-		writeJSONErr(w, http.StatusBadRequest, "that name can't be used")
+		writeJSONErr(w, http.StatusBadRequest, "invalid_name", "that name can't be used")
 		return
 	}
 	// The identity is what the device will present forever after, so it
 	// has to be a real one - not a blank the wizard forgot to fill in.
 	if len(body.OwnerUUID) < 16 || len(body.OwnerUUID) > 64 || len(body.Secret) < 32 || len(body.Secret) > 128 {
-		writeJSONErr(w, http.StatusBadRequest, "owner_uuid and secret are required")
+		writeJSONErr(w, http.StatusBadRequest, "invalid_identity", "owner_uuid and secret are required")
 		return
 	}
 
@@ -694,7 +694,7 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	if last, ok := api.lastClaimByAddr[remoteAddr]; ok && now.Sub(last) < cClaimCooldown {
 		api.claimMu.Unlock()
-		writeJSONErr(w, http.StatusTooManyRequests, "please wait a moment before trying another name")
+		writeJSONErr(w, http.StatusTooManyRequests, "too_many_claims", "please wait a moment before trying another name")
 		return
 	}
 	api.lastClaimByAddr[remoteAddr] = now
@@ -710,7 +710,7 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error("error checking name before claim:", err)
 		releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
-		writeJSONErr(w, http.StatusInternalServerError, "could not reserve that name right now")
+		writeJSONErr(w, http.StatusInternalServerError, "claim_unavailable", "could not reserve that name right now")
 		return
 	}
 	if registered {
@@ -720,7 +720,7 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 			if ok, err := api.dao.ReplaceDeviceIdentity(accountID, domain, body.OwnerUUID, body.Secret); err != nil || !ok {
 				log.Error("error handing", domain, "to a new device:", err)
 				releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
-				writeJSONErr(w, http.StatusInternalServerError, "could not reserve that name right now")
+				writeJSONErr(w, http.StatusInternalServerError, "claim_unavailable", "could not reserve that name right now")
 				return
 			}
 			log.Info("name handed to a new device by its account:", domain) // no address (issue #162)
@@ -731,21 +731,21 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusCreated, map[string]any{"domain": domain, "replaced": true})
 			return
 		}
-		writeJSONErr(w, http.StatusConflict, "that name is already taken")
+		writeJSONErr(w, http.StatusConflict, "name_taken", "that name is already taken")
 		return
 	}
 	if held, err := api.dao.NameHeld(domain, accountID); err != nil {
 		log.Error("could not check whether", domain, "is held (run db/migrations/004-released-domains.sql):", err)
 	} else if held {
-		writeJSONErr(w, http.StatusConflict, "that name was released recently and is held for its previous owner for 30 days")
+		writeJSONErr(w, http.StatusConflict, "name_held", "that name was released recently and is held for its previous owner for 30 days")
 		return
 	}
 	if accountID != "" {
-		if code, msg := api.domainLimitReached(accountID); code != 0 {
-			if code == http.StatusInternalServerError {
+		if status, limit := api.domainLimitReached(accountID); status != 0 {
+			if status == http.StatusInternalServerError {
 				releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
 			}
-			writeJSON(w, code, map[string]any{"error": msg, "code": "domain_limit"})
+			writeJSONErr(w, status, limit.code, limit.msg)
 			return
 		}
 		err = api.dao.RegisterAccountDevice(accountID, body.OwnerUUID, domain, body.Secret)
@@ -756,14 +756,14 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 		if dao.IsDuplicateKey(err) {
 			// Lost a race with another claim for the same name.
 			log.Info("lost a claim race for", domain)
-			writeJSONErr(w, http.StatusConflict, "that name is already taken")
+			writeJSONErr(w, http.StatusConflict, "name_taken", "that name is already taken")
 			return
 		}
 		// Anything else is the database failing: the name may well be
 		// free, so don't tell the person it's taken.
 		log.Error("error claiming name", domain, ":", err)
 		releaseCooldown(&api.claimMu, api.lastClaimByAddr, remoteAddr, now)
-		writeJSONErr(w, http.StatusInternalServerError, "could not reserve that name right now")
+		writeJSONErr(w, http.StatusInternalServerError, "claim_unavailable", "could not reserve that name right now")
 		return
 	}
 	log.Info("name claimed by the setup wizard:", domain) // no address (issue #162)
@@ -772,14 +772,14 @@ func (api *API) claimName(w http.ResponseWriter, r *http.Request) {
 
 // claimAccount is the account behind a claim: a setup token from the
 // body or the Authorization header, or the account page's own session.
-// A session is refused (with the reason) for an account that hasn't
-// proved its email or accepted the terms in force, as on the account
-// page: a token is only ever issued to one that has. err is the database
-// failing to load the session's account (logged here): not a refusal,
-// the claim can be tried again.
-func (api *API) claimAccount(r *http.Request, bodyToken string) (accountID, refusal string, err error) {
+// A session is refused (with the reason, a non-empty refusal.code) for an
+// account that hasn't proved its email or accepted the terms in force, as
+// on the account page: a token is only ever issued to one that has. err
+// is the database failing to load the session's account (logged here):
+// not a refusal, the claim can be tried again.
+func (api *API) claimAccount(r *http.Request, bodyToken string) (accountID string, refusal apiError, err error) {
 	if api.accounts == nil {
-		return "", "", nil
+		return "", apiError{}, nil
 	}
 	token := bodyToken
 	if auth := r.Header.Get("Authorization"); token == "" && strings.HasPrefix(auth, "Bearer ") {
@@ -790,19 +790,19 @@ func (api *API) claimAccount(r *http.Request, bodyToken string) (accountID, refu
 		// code that may well be good.
 		id, ok, err := api.accounts.LookupSetupToken(token)
 		if err != nil || !ok {
-			return "", "", err
+			return "", apiError{}, err
 		}
-		return id, "", nil
+		return id, apiError{}, nil
 	}
 	id, ok, err := api.accounts.AccountFromRequest(r)
 	if err != nil {
-		return "", "", err
+		return "", apiError{}, err
 	}
 	if ok {
 		acc, err := api.dao.GetAccount(id)
 		if err != nil {
 			log.Error("error loading the account behind a claim:", err)
-			return "", "", err
+			return "", apiError{}, err
 		}
 		if acc == nil || !acc.EmailVerified {
 			return "", cConfirmEmailFirst, nil
@@ -810,32 +810,34 @@ func (api *API) claimAccount(r *http.Request, bodyToken string) (accountID, refu
 		if !accounts.TermsAccepted(acc) {
 			return "", cAcceptTermsFirst, nil
 		}
-		return id, "", nil
+		return id, apiError{}, nil
 	}
 
-	return "", "", nil
+	return "", apiError{}, nil
 }
 
 // Why an account may not register a name yet (accountAddDomain, and a
 // claim with the account page's session).
-const (
-	cConfirmEmailFirst = "confirm your email first - open the link we sent you, or ask for a new one above"
-	cAcceptTermsFirst  = "accept the terms of use above first"
+var (
+	cConfirmEmailFirst = apiError{"email_not_verified", "confirm your email first - open the link we sent you, or ask for a new one above"}
+	cAcceptTermsFirst  = apiError{"terms_not_accepted", "accept the terms of use above first"}
 )
 
 // domainLimitReached is the terms' cap (accounts.MaxDomains): 0 when the
-// account may add one, else the status and message to answer with.
-func (api *API) domainLimitReached(accountID string) (int, string) {
+// account may add one, else the status and error to answer with:
+// domain_limit, or account_check_unavailable when the count can't be read
+// (a 500 that used to say domain_limit too).
+func (api *API) domainLimitReached(accountID string) (int, apiError) {
 	n, err := api.dao.CountAccountDomains(accountID)
 	if err != nil {
 		log.Error("error counting an account's domains:", err)
-		return http.StatusInternalServerError, "could not check your account right now"
+		return http.StatusInternalServerError, apiError{"account_check_unavailable", "could not check your account right now"}
 	}
 	if n >= accounts.MaxDomains {
-		return http.StatusForbidden, fmt.Sprintf("an account can register up to %d domains - for more (%d euros a year each), write to %s", accounts.MaxDomains, accounts.ExtraDomainEUR, accounts.ContactEmail)
+		return http.StatusForbidden, apiError{"domain_limit", fmt.Sprintf("an account can register up to %d domains - for more (%d euros a year each), write to %s", accounts.MaxDomains, accounts.ExtraDomainEUR, accounts.ContactEmail)}
 	}
 
-	return 0, ""
+	return 0, apiError{}
 }
 
 // --- Issue #124: the account page's domains ---
@@ -866,7 +868,7 @@ func (api *API) accountDomains(w http.ResponseWriter, r *http.Request, accountID
 	out, err := api.accountDomainList(accountID)
 	if err != nil {
 		log.Error("error listing an account's domains:", err)
-		writeJSONErr(w, http.StatusInternalServerError, "could not list your domains right now")
+		writeJSONErr(w, http.StatusInternalServerError, "domains_unavailable", "could not list your domains right now")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"domains": out, "max_domains": accounts.MaxDomains})
@@ -882,56 +884,56 @@ func (api *API) accountAddDomain(w http.ResponseWriter, r *http.Request, account
 	acc, err := api.dao.GetAccount(accountID)
 	if err != nil {
 		log.Error("error loading the account adding a name:", err)
-		writeJSONErr(w, http.StatusInternalServerError, "could not register that name right now")
+		writeJSONErr(w, http.StatusInternalServerError, "register_unavailable", "could not register that name right now")
 		return
 	}
 	if acc == nil || !acc.EmailVerified {
-		writeJSONErr(w, http.StatusForbidden, cConfirmEmailFirst)
+		writeJSONErr(w, http.StatusForbidden, cConfirmEmailFirst.code, cConfirmEmailFirst.msg)
 		return
 	}
 	if !accounts.TermsAccepted(acc) {
-		writeJSONErr(w, http.StatusForbidden, cAcceptTermsFirst)
+		writeJSONErr(w, http.StatusForbidden, cAcceptTermsFirst.code, cAcceptTermsFirst.msg)
 		return
 	}
 	var body struct {
 		Name string `json:"name"`
 	}
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
-		writeJSONErr(w, http.StatusBadRequest, "invalid request body")
+		writeJSONErr(w, http.StatusBadRequest, "invalid_body", "invalid request body")
 		return
 	}
 	name := strings.ToLower(strings.TrimSpace(body.Name))
 	if !cNamePattern.MatchString(name) || cReservedNames[name] {
-		writeJSONErr(w, http.StatusBadRequest, "a name is lower-case letters, digits and hyphens, up to 63 characters")
+		writeJSONErr(w, http.StatusBadRequest, "invalid_name", "a name is lower-case letters, digits and hyphens, up to 63 characters")
 		return
 	}
 	domain := api.deviceDomain(name)
 	if _, registered, err := api.dao.DomainAccount(domain); err != nil {
 		log.Error("error checking", domain, "before registering it:", err)
-		writeJSONErr(w, http.StatusInternalServerError, "could not register that name right now")
+		writeJSONErr(w, http.StatusInternalServerError, "register_unavailable", "could not register that name right now")
 		return
 	} else if registered {
-		writeJSONErr(w, http.StatusConflict, "that name is already taken")
+		writeJSONErr(w, http.StatusConflict, "name_taken", "that name is already taken")
 		return
 	}
 	if held, err := api.dao.NameHeld(domain, accountID); err != nil {
 		log.Error("could not check whether", domain, "is held (run db/migrations/004-released-domains.sql):", err)
 	} else if held {
-		writeJSONErr(w, http.StatusConflict, "that name was released recently and is held for its previous owner for 30 days")
+		writeJSONErr(w, http.StatusConflict, "name_held", "that name was released recently and is held for its previous owner for 30 days")
 		return
 	}
-	if code, msg := api.domainLimitReached(accountID); code != 0 {
-		writeJSON(w, code, map[string]any{"error": msg, "code": "domain_limit"})
+	if status, limit := api.domainLimitReached(accountID); status != 0 {
+		writeJSONErr(w, status, limit.code, limit.msg)
 		return
 	}
 	owner, secret := uuid.New().String(), newSecret()
 	if err := api.dao.RegisterAccountDevice(accountID, owner, domain, secret); err != nil {
 		if dao.IsDuplicateKey(err) {
-			writeJSONErr(w, http.StatusConflict, "that name is already taken")
+			writeJSONErr(w, http.StatusConflict, "name_taken", "that name is already taken")
 			return
 		}
 		log.Error("error registering", domain, "from the account page:", err)
-		writeJSONErr(w, http.StatusInternalServerError, "could not register that name right now")
+		writeJSONErr(w, http.StatusInternalServerError, "register_unavailable", "could not register that name right now")
 		return
 	}
 	log.Info("name registered from the account page:", domain)
@@ -949,11 +951,11 @@ func (api *API) accountNewIdentity(w http.ResponseWriter, r *http.Request, accou
 	ok, err := api.dao.ReplaceDeviceIdentity(accountID, domain, owner, secret)
 	if err != nil {
 		log.Error("error re-issuing", domain, ":", err)
-		writeJSONErr(w, http.StatusInternalServerError, "could not re-issue that domain right now")
+		writeJSONErr(w, http.StatusInternalServerError, "reissue_unavailable", "could not re-issue that domain right now")
 		return
 	}
 	if !ok {
-		writeJSONErr(w, http.StatusNotFound, "that domain is not yours")
+		writeJSONErr(w, http.StatusNotFound, "not_your_domain", "that domain is not yours")
 		return
 	}
 	log.Info("domain re-issued from the account page:", domain)
@@ -970,11 +972,11 @@ func (api *API) accountReleaseDomain(w http.ResponseWriter, r *http.Request, acc
 	ok, err := api.dao.DeleteAccountDomain(accountID, domain)
 	if err != nil {
 		log.Error("error releasing", domain, ":", err)
-		writeJSONErr(w, http.StatusInternalServerError, "could not release that domain right now")
+		writeJSONErr(w, http.StatusInternalServerError, "release_unavailable", "could not release that domain right now")
 		return
 	}
 	if !ok {
-		writeJSONErr(w, http.StatusNotFound, "that domain is not yours")
+		writeJSONErr(w, http.StatusNotFound, "not_your_domain", "that domain is not yours")
 		return
 	}
 	log.Info("domain released from the account page:", domain)
@@ -990,7 +992,7 @@ func (api *API) accountReleaseDomain(w http.ResponseWriter, r *http.Request, acc
 func (api *API) accountDelete(w http.ResponseWriter, r *http.Request, accountID string) {
 	var body struct{ Confirm, Password string }
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil || body.Confirm != "delete" {
-		writeJSONErr(w, http.StatusBadRequest, `confirm with {"confirm": "delete"}`)
+		writeJSONErr(w, http.StatusBadRequest, "confirm_required", `confirm with {"confirm": "delete"}`)
 		return
 	}
 	if !api.accounts.ConfirmOwner(w, r, accountID, body.Password) {
@@ -999,7 +1001,7 @@ func (api *API) accountDelete(w http.ResponseWriter, r *http.Request, accountID 
 	domains, err := api.dao.DeleteAccount(accountID)
 	if err != nil {
 		log.Error("error deleting an account:", err)
-		writeJSONErr(w, http.StatusInternalServerError, "could not delete the account right now")
+		writeJSONErr(w, http.StatusInternalServerError, "delete_unavailable", "could not delete the account right now")
 		return
 	}
 	api.websocket.DropDomains(domains)
@@ -1029,7 +1031,7 @@ func newSecret() string {
 func (api *API) deviceOnline(w http.ResponseWriter, r *http.Request) {
 	name := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("name")))
 	if !cNamePattern.MatchString(name) {
-		writeJSONErr(w, http.StatusBadRequest, "invalid name")
+		writeJSONErr(w, http.StatusBadRequest, "invalid_name", "invalid name")
 		return
 	}
 	online := api.websocket != nil && api.websocket.IsOnline(api.deviceDomain(name))
@@ -1045,7 +1047,7 @@ var cSetupTokenPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 func (api *API) setupBeacon(w http.ResponseWriter, r *http.Request) {
 	if api.beaconPerAddr != nil && !api.beaconPerAddr.Allow(requestAddr(r)) {
 		w.Header().Set("Retry-After", "5")
-		writeJSONErr(w, http.StatusTooManyRequests, "too many requests")
+		writeJSONErr(w, http.StatusTooManyRequests, "too_many_requests", "too many requests")
 		return
 	}
 	var body struct {
@@ -1053,21 +1055,21 @@ func (api *API) setupBeacon(w http.ResponseWriter, r *http.Request) {
 		Addr  string `json:"addr"`
 	}
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
-		writeJSONErr(w, http.StatusBadRequest, "invalid request body")
+		writeJSONErr(w, http.StatusBadRequest, "invalid_body", "invalid request body")
 		return
 	}
 	if len(body.Token) < cSetupTokenMinLen || len(body.Token) > cSetupTokenMaxLen || !cSetupTokenPattern.MatchString(body.Token) {
-		writeJSONErr(w, http.StatusBadRequest, "invalid token")
+		writeJSONErr(w, http.StatusBadRequest, "invalid_token", "invalid token")
 		return
 	}
 	ip := net.ParseIP(body.Addr)
 	if ip == nil || !ip.IsPrivate() {
-		writeJSONErr(w, http.StatusBadRequest, "addr must be a private (LAN) IPv4 or IPv6 address")
+		writeJSONErr(w, http.StatusBadRequest, "invalid_addr", "addr must be a private (LAN) IPv4 or IPv6 address")
 		return
 	}
 	if err := api.dao.SetSetupBeacon(body.Token, ip.String()); err != nil {
 		log.Error("error storing setup beacon:", err)
-		writeJSONErr(w, http.StatusInternalServerError, "could not store the report")
+		writeJSONErr(w, http.StatusInternalServerError, "beacon_unavailable", "could not store the report")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -1088,17 +1090,17 @@ func (api *API) setupLookup(w http.ResponseWriter, r *http.Request) {
 	}
 	token := r.URL.Query().Get("token")
 	if len(token) < cSetupTokenMinLen || len(token) > cSetupTokenMaxLen || !cSetupTokenPattern.MatchString(token) {
-		writeJSONErr(w, http.StatusBadRequest, "invalid token")
+		writeJSONErr(w, http.StatusBadRequest, "invalid_token", "invalid token")
 		return
 	}
 	addr, found, err := api.dao.GetSetupBeacon(token)
 	if err != nil {
 		log.Error("error looking up setup beacon:", err)
-		writeJSONErr(w, http.StatusInternalServerError, "could not look that up right now")
+		writeJSONErr(w, http.StatusInternalServerError, "lookup_unavailable", "could not look that up right now")
 		return
 	}
 	if !found {
-		writeJSONErr(w, http.StatusNotFound, "not reported yet")
+		writeJSONErr(w, http.StatusNotFound, "not_reported", "not reported yet")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"addr": addr})
@@ -1110,11 +1112,17 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func writeJSONErr(w http.ResponseWriter, status int, msg string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+// writeJSONErr answers {"code", "error"}, like accounts.writeError: a
+// stable snake_case code the clients act on and word in their own
+// language, and the English text the older clients show as it is. Codes
+// are never translated or renamed.
+func writeJSONErr(w http.ResponseWriter, status int, code, msg string) {
+	writeJSON(w, status, map[string]string{"code": code, "error": msg})
 }
+
+// apiError is an error answer worked out away from the handler that
+// sends it: its code and English text, as writeJSONErr takes them.
+type apiError struct{ code, msg string }
 
 // originGuard refuses state-changing requests to the bridge's own pages
 // (accounts, claims, admin) from any other origin. Device sites live on
@@ -1147,7 +1155,7 @@ func (api *API) originGuard(next http.Handler) http.Handler {
 		}
 		if (origin != "" && origin != own) || (withCookie && origin != own) {
 			log.Info("refused a cross-origin", r.Method, p, "from origin", origin)
-			writeJSONErr(w, http.StatusForbidden, "not allowed from this page")
+			writeJSONErr(w, http.StatusForbidden, "cross_origin", "not allowed from this page")
 			return
 		}
 		next.ServeHTTP(w, r)
