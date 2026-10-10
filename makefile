@@ -69,17 +69,33 @@ pb:
 # platform file (committed, like the protobuf bindings). DRAFT=1 also writes
 # the draft languages (LANGS=es,fr: only those) and the pseudo-locale, for
 # local testing only - that output is marked and `make i18n-check` refuses
-# it, so run `make i18n` again before committing. `make i18n-check`
-# validates the catalog, fails when a committed generated file is out of
-# date and vets the i18n packages; I18N_FLAGS adds -release, -strict,
+# it, so run `make i18n` again before committing. `make i18n-check` (below)
+# is the gate every release path runs; I18N_FLAGS adds -release, -strict,
 # -lang or -prefix.
 I18N_FLAGS ?=
 i18n:
 	go run ./i18n/cmd/i18ngen $(if $(DRAFT),-draft) $(if $(LANGS),-lang $(LANGS)) $(I18N_FLAGS)
 
+# `make i18n-check`: validates the catalog and fails when a committed
+# generated file is out of date or holds draft output (i18ngen -check); fails
+# when a file has more hard-coded text than its baseline (i18nscan, a ratchet:
+# i18n/scan/README.md - its web surface needs node and `npm ci --prefix
+# web`); and vets and builds what embeds the catalog - the i18n packages,
+# otc-sync (also for the Linux and Windows it ships to) and the bridge. Read
+# only: it never writes a file. scripts/release.sh, scripts/desktop-release.sh,
+# bridge/makefile's `bridge`, `make android-release` and
+# .github/workflows/i18n.yml run it, the release paths with I18N_RELEASE=1:
+# missing, stale or unreviewed text in a shipping language is then an error
+# (i18ngen -release), not a warning. I18N_SCAN_FLAGS passes flags to i18nscan
+# (-surface ios,macos,... on a machine without node, -v for every finding).
+I18N_SCAN_FLAGS ?=
 i18n-check:
-	go run ./i18n/cmd/i18ngen -check $(I18N_FLAGS)
-	go vet ./i18n/...
+	go run ./i18n/cmd/i18ngen -check $(if $(I18N_RELEASE),-release) $(I18N_FLAGS)
+	go run ./i18n/cmd/i18nscan $(I18N_SCAN_FLAGS)
+	go vet ./i18n/... ./app/desktop/... ./bridge/...
+	go build ./i18n/... ./app/desktop/... ./bridge/...
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go vet ./app/desktop/... ./bridge/...
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go vet ./app/desktop/...
 
 .PHONY: i18n i18n-check
 
@@ -173,7 +189,9 @@ desktop-publish:
 # it); `android-release` is the Play bundle, signed with the upload key in
 # ~/.otc/otc-upload.jks whose password comes from the Keychain for this one
 # build - see docs/play-store/README.md. google-services.json is copied in
-# by hand (never committed), or the build has no push notifications.
+# by hand (never committed), or the build has no push notifications. The
+# bundle is built only once `make i18n-check` passes in release mode: its
+# strings are generated files (docs/i18n.md).
 ANDROID_DIR := app/android
 android:
 	cd $(ANDROID_DIR) && ./gradlew -q assembleDebug
@@ -182,6 +200,7 @@ android:
 android-release:
 	@test -f $(HOME)/.otc/otc-upload.jks || { echo "no upload key at ~/.otc/otc-upload.jks"; exit 1; }
 	@test -f $(ANDROID_DIR)/app/google-services.json || echo "warning: app/google-services.json is missing - no push notifications"
+	@$(MAKE) --no-print-directory i18n-check I18N_RELEASE=1
 	cd $(ANDROID_DIR) && OTC_UPLOAD_PASSWORD="$$(security find-generic-password -s otc-android-upload -a otc-upload -w)" ./gradlew -q bundleRelease
 	@ls -la $(ANDROID_DIR)/app/build/outputs/bundle/release/app-release.aab
 

@@ -12,16 +12,24 @@
 # (scripts/sign-file.sh) and uploads everything to the "desktop" GitHub
 # release, whose download URLs never change: the website links to them and
 # the apps read desktop.json + desktop.json.sig from there (selfupdate).
+# Before any of it: app/desktop, proto and i18n must be committed and `make
+# i18n-check` must pass in release mode.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 BUMP=minor
 [ "${1:-}" = "--patch" ] && { BUMP=patch; shift; }
 NOTES="${1:?usage: scripts/desktop-release.sh [--patch] \"what changed\"}"
 REL=desktop
+
+# otc-sync embeds the translations (i18n/catalog), so they are committed
+# like its code, and nothing is built or published until `make i18n-check`
+# passes in release mode (docs/i18n.md) on this checkout - what the
+# binaries are built from.
+[ -z "$(git status --porcelain --untracked-files=no -- app/desktop proto i18n)" ] || { echo "commit app/desktop, proto and i18n first"; exit 1; }
+make --no-print-directory i18n-check I18N_RELEASE=1 \
+    || { echo "make i18n-check failed - nothing was built or published"; exit 1; }
 REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
 BASE="https://github.com/$REPO/releases/download/$REL"
-
-[ -z "$(git status --porcelain --untracked-files=no -- app/desktop proto)" ] || { echo "commit app/desktop and proto first"; exit 1; }
 cur="$(cat app/desktop/VERSION)"
 IFS=. read -r maj min pat <<<"$cur"
 if [ "$BUMP" = patch ]; then VERSION="$maj.$min.$((pat + 1))"; else VERSION="$maj.$((min + 1)).0"; fi

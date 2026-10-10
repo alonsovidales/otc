@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# The translations' gate (docs/i18n.md, i18n/README.md): `make i18n-check`
+# on pushes and pull requests - the catalog and the generated files, the
+# hard-coded-text ratchet (i18n/scan/README.md) and the Go builds of the i18n
+# packages, otc-sync and the bridge. The release scripts run the same target
+# in release mode (I18N_RELEASE=1) before they tag or deploy anything.
+name: i18n
+
+on:
+  # Every branch but the CLA bot's (cla.yml commits signatures there); tags
+  # are left out too, their commits were checked when they were pushed.
+  push:
+    branches-ignore: [cla-signatures]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: i18n-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      # The Go version is go.mod's.
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      # proto/generated is gitignored (otc-sync and the bridge import it):
+      # generated as devices do in scripts/update.sh - protoc pinned by hash,
+      # protoc-gen-go at go.mod's google.golang.org/protobuf version.
+      - name: Generate proto/generated
+        env:
+          PROTOC_VERSION: "29.3"
+          PROTOC_SHA: 3e866620c5be27664f3d2fa2d656b5f3e09b5152b42f1bedbf427b333e90021a
+        run: |
+          curl -fsSL --retry 3 --retry-delay 2 -o "$RUNNER_TEMP/protoc.zip" \
+            "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
+          echo "${PROTOC_SHA}  $RUNNER_TEMP/protoc.zip" | sha256sum -c -
+          unzip -q -d "$RUNNER_TEMP/protoc" "$RUNNER_TEMP/protoc.zip"
+          go install "google.golang.org/protobuf/cmd/protoc-gen-go@$(awk '/google.golang.org\/protobuf /{print $2}' go.mod)"
+          mkdir -p proto/generated
+          PATH="$RUNNER_TEMP/protoc/bin:$(go env GOPATH)/bin:$PATH" \
+            protoc -I=proto --go_out=proto/generated --go_opt=paths=source_relative proto/messages.proto
+
+      # The web surface's scanner runs the web app's own TypeScript compiler
+      # (web/node_modules/typescript) under node; nothing is built here.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install the web app's dependencies
+        run: npm ci --prefix web --ignore-scripts --no-audit --no-fund
+
+      - name: make i18n-check
+        run: make i18n-check

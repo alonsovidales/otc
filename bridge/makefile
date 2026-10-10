@@ -15,7 +15,13 @@ FLEET_HOSTS ?= bridge1 bridge2 redis
 VERSION := $(shell git describe --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -X github.com/alonsovidales/otc/bridge/fleet.Version=$(VERSION)
 
+# The binary embeds the translations (emails, API errors, public pages:
+# docs/i18n.md), so nothing is built or deployed until the root's `make
+# i18n-check` passes in release mode - pass I18N_SCAN_FLAGS="-surface ..."
+# on a machine without node for the web surface's scanner.
 bridge:
+	@echo "$(OK_COLOR)==> Checking the translations (make i18n-check)...$(NO_COLOR)"
+	@$(MAKE) --no-print-directory -C .. i18n-check I18N_RELEASE=1
 	@echo "$(OK_COLOR)==> Compiling...$(NO_COLOR)"
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o bin/otc_bridge bin/otc_bridge.go
 	@for n in $(NODES); do \

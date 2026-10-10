@@ -16,6 +16,8 @@
 #
 # If scripts/updates/<N>.sh exists (N = the manifest's last version + 1) it
 # is the release's migration script. In order:
+#   0. runs `make i18n-check` in release mode on a `git archive` of HEAD
+#      (docs/i18n.md) and stops there if it fails;
 #   1. builds the web bundle (web-dist.tar.gz) and tags HEAD as vN;
 #   2. makes the release's own source archive (src.tar.gz: `git archive` of
 #      the tag, gzip -n - reproducible), which devices build from instead of
@@ -73,6 +75,23 @@ if [ "$KIND" = minor ]; then LABEL="$lmaj.$((lmin + 1))"; else LABEL="$((lmaj + 
 echo "release $N = version $LABEL ($KIND; migration script: $SCRIPT_SHA)"
 
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
+
+# The translations' gate (docs/i18n.md), before anything is built or tagged:
+# `make i18n-check` in release mode - catalog, generated files, the
+# hard-coded-text ratchet, the Go builds. It runs on exactly what is about
+# to be tagged, a `git archive` of HEAD, not on this checkout: an untracked
+# or ignored file here (a generated file never committed) would pass the
+# check and still be missing from src.tar.gz, which devices build from. Only
+# what is never committed comes from this checkout: the TypeScript compiler
+# for the web scanner, and proto/generated (gitignored; devices run protoc
+# themselves, here it is `make pb`'s output).
+[ -f proto/generated/messages.pb.go ] || { echo "proto/generated is missing - run make pb first"; exit 1; }
+mkdir "$work/check"
+git archive --format=tar HEAD | tar -xf - -C "$work/check"
+cp -R proto/generated "$work/check/proto/"
+ln -s "$PWD/web/node_modules" "$work/check/web/node_modules"
+make -C "$work/check" --no-print-directory i18n-check I18N_RELEASE=1 \
+    || { echo "make i18n-check failed on HEAD - nothing was built or tagged"; exit 1; }
 
 npm run build --prefix web >/dev/null
 tar -cf - -C web/dist . | gzip -n > "$work/web-dist.tar.gz"
