@@ -3346,62 +3346,53 @@ struct ImageModal: View {
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            VStack(spacing: 0) {
-                HStack {
-                    Button { vm.openInfo() } label: {
-                        Image(systemName: "info.circle").font(.title2).foregroundStyle(.white)
+            GeometryReader { screen in
+                // In landscape the controls move to the sides, into the
+                // black the photo leaves there anyway, so the photo gets
+                // the whole height instead of what a top and a bottom bar
+                // left it (the owner's rule: as large as it can be without
+                // covering a button). Portrait is unchanged. The strip
+                // stays at the same place in the tree either way, so a
+                // rotation re-lays it out without starting it (or the
+                // video in it) again.
+                let landscape = Self.controlsBeside(screen.size)
+                VStack(spacing: 0) {
+                    if !landscape {
+                        HStack {
+                            infoButton(landscape: false)
+                            Spacer()
+                            closeButton(landscape: false)
+                        }
+                        .padding()
                     }
-                    Spacer()
-                    Button { vm.closeModal() } label: {
-                        Image(systemName: "xmark.circle.fill").font(.title).foregroundStyle(.white)
-                    }
-                }
-                .padding()
 
-                GeometryReader { geo in
-                    let w = geo.size.width
-                    let idx = vm.openIndex ?? 0
                     HStack(spacing: 0) {
-                        page(idx - 1, size: geo.size)
-                        page(idx, size: geo.size)
-                        page(idx + 1, size: geo.size)
+                        if landscape {
+                            // Leading column: info at the top.
+                            infoButton(landscape: true)
+                                .frame(maxHeight: .infinity, alignment: .top)
+                                .frame(width: Self.sideColumnWidth)
+                                .padding(.top, 8)
+                        }
+                        strip
+                        if landscape {
+                            // Trailing column: close at the top, share,
+                            // save and delete in the middle, under the
+                            // right thumb.
+                            VStack(spacing: 20) { actionButtons(landscape: true) }
+                                .frame(maxHeight: .infinity)
+                                .overlay(alignment: .top) { closeButton(landscape: true).padding(.top, 8) }
+                                .frame(width: Self.sideColumnWidth)
+                        }
                     }
-                    .frame(width: w * 3, height: geo.size.height)
-                    .offset(x: -w + dragOffset)
-                    .gesture(
-                        DragGesture(minimumDistance: 20)
-                            .onChanged { v in
-                                guard !sliding else { return }
-                                var dx = v.translation.width
-                                // Rubber-band at either end rather than
-                                // sliding into nothing.
-                                if (dx > 0 && idx == 0) || (dx < 0 && idx >= vm.items.count - 1) { dx /= 3 }
-                                dragOffset = dx
-                            }
-                            .onEnded { v in
-                                guard !sliding else { return }
-                                let dx = v.translation.width
-                                let flick = v.predictedEndTranslation.width
-                                if (dx < -w / 4 || flick < -w / 2), idx < vm.items.count - 1 {
-                                    slide(to: -w) { vm.next() }
-                                } else if (dx > w / 4 || flick > w / 2), idx > 0 {
-                                    slide(to: w) { vm.prev() }
-                                } else {
-                                    withAnimation(.easeOut(duration: 0.2)) { dragOffset = 0 }
-                                }
-                            }
-                    )
-                }
-                .clipped()
 
-                HStack(spacing: 48) {
-                    Button { share() } label: { Image(systemName: "square.and.arrow.up") }
-                    Button { save() } label: { Image(systemName: "arrow.down.circle") }
-                    Button(role: .destructive) { confirmDelete = true } label: { Image(systemName: "trash") }
+                    if !landscape {
+                        HStack(spacing: 48) { actionButtons(landscape: false) }
+                            .font(.title2)
+                            .foregroundStyle(.white)
+                            .padding(.vertical, 12)
+                    }
                 }
-                .font(.title2)
-                .foregroundStyle(.white)
-                .padding(.vertical, 12)
             }
         }
         .confirmationDialog("Delete this photo?", isPresented: $confirmDelete, titleVisibility: .visible) {
@@ -3419,6 +3410,109 @@ struct ImageModal: View {
         .sheet(isPresented: $vm.infoOpen) {
             FileInfoView(loading: vm.infoLoading, info: vm.infoData)
         }
+    }
+
+    /// How wide each side column is in landscape: a 44 pt button with a
+    /// little room either side.
+    private static let sideColumnWidth: CGFloat = 56
+    /// Roughly what the top bar (~66 pt) and the bottom one (~54 pt) take
+    /// from the photo's height in portrait.
+    private static let barsHeight: CGFloat = 120
+
+    /// Whether the controls go in columns beside the photo rather than in
+    /// bars above and below it: only in landscape, and only when that
+    /// leaves a typical (4:3) landscape photo more room - always on an
+    /// iPhone, not necessarily on a nearly square screen like an iPad's
+    /// (Android's controlsBeside).
+    static func controlsBeside(_ size: CGSize) -> Bool {
+        guard size.width > size.height else { return false }
+        func area(_ w: CGFloat, _ h: CGFloat) -> CGFloat {
+            let unit = max(0, min(w / 4, h / 3))
+            return unit * unit * 12
+        }
+        return area(size.width - 2 * sideColumnWidth, size.height) > area(size.width, size.height - barsHeight)
+    }
+
+    /// Landscape gives every button a full 44 pt target, as it stands
+    /// alone in a column; portrait keeps the bars as they always were.
+    private func infoButton(landscape: Bool) -> some View {
+        Button { vm.openInfo() } label: {
+            Image(systemName: "info.circle").font(.title2).foregroundStyle(.white)
+                .frame(width: landscape ? 44 : nil, height: landscape ? 44 : nil)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel("More info")
+    }
+
+    private func closeButton(landscape: Bool) -> some View {
+        Button { vm.closeModal() } label: {
+            Image(systemName: "xmark.circle.fill").font(.title).foregroundStyle(.white)
+                .frame(width: landscape ? 44 : nil, height: landscape ? 44 : nil)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel("Close")
+    }
+
+    /// Share, save and delete: a row under the photo in portrait, a
+    /// column beside it in landscape.
+    @ViewBuilder
+    private func actionButtons(landscape: Bool) -> some View {
+        let side: CGFloat? = landscape ? 44 : nil
+        Group {
+            Button { share() } label: {
+                Image(systemName: "square.and.arrow.up").frame(width: side, height: side).contentShape(Rectangle())
+            }
+            .accessibilityLabel("Share")
+            Button { save() } label: {
+                Image(systemName: "arrow.down.circle").frame(width: side, height: side).contentShape(Rectangle())
+            }
+            .accessibilityLabel("Save")
+            Button(role: .destructive) { confirmDelete = true } label: {
+                Image(systemName: "trash").frame(width: side, height: side).contentShape(Rectangle())
+            }
+            .accessibilityLabel("Delete")
+        }
+        .font(.title2)
+        .foregroundStyle(.white)
+    }
+
+    /// The previous, open and next photos side by side, slid by a drag.
+    private var strip: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let idx = vm.openIndex ?? 0
+            HStack(spacing: 0) {
+                page(idx - 1, size: geo.size)
+                page(idx, size: geo.size)
+                page(idx + 1, size: geo.size)
+            }
+            .frame(width: w * 3, height: geo.size.height)
+            .offset(x: -w + dragOffset)
+            .gesture(
+                DragGesture(minimumDistance: 20)
+                    .onChanged { v in
+                        guard !sliding else { return }
+                        var dx = v.translation.width
+                        // Rubber-band at either end rather than
+                        // sliding into nothing.
+                        if (dx > 0 && idx == 0) || (dx < 0 && idx >= vm.items.count - 1) { dx /= 3 }
+                        dragOffset = dx
+                    }
+                    .onEnded { v in
+                        guard !sliding else { return }
+                        let dx = v.translation.width
+                        let flick = v.predictedEndTranslation.width
+                        if (dx < -w / 4 || flick < -w / 2), idx < vm.items.count - 1 {
+                            slide(to: -w) { vm.next() }
+                        } else if (dx > w / 4 || flick > w / 2), idx > 0 {
+                            slide(to: w) { vm.prev() }
+                        } else {
+                            withAnimation(.easeOut(duration: 0.2)) { dragOffset = 0 }
+                        }
+                    }
+            )
+        }
+        .clipped()
     }
 
     /// Animates the strip one page over, then commits the new index and

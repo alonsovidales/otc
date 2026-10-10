@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -1051,6 +1052,8 @@ private fun PhotoDateScrubber(vm: PhotoGalleryViewModel, st: PhotoGalleryViewMod
 @Composable
 internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.State) {
     val context = LocalContext.current
+    // Here, not in ViewerActions, which moves between the bottom bar and
+    // the side column on a rotation: a share or save under way carries on.
     val scope = rememberCoroutineScope()
     var confirmDelete by remember { mutableStateOf(false) }
     val idx = st.openIndex ?: return
@@ -1064,20 +1067,43 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
     Dialog(onDismissRequest = { vm.closeModal() }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             // Edge to edge, so the toolbar has to step down from under the
-            // status bar itself or its buttons can't be tapped.
-            Column(Modifier.fillMaxSize().systemBarsPadding()) {
-                Row(Modifier.fillMaxWidth().padding(8.dp)) {
-                    IconButton(onClick = { vm.openInfo() }) { Icon(Icons.Default.Info, "More info", tint = Color.White) }
-                    Spacer(Modifier.weight(1f))
-                    IconButton(onClick = { vm.closeModal() }) { Icon(Icons.Default.Cancel, "Close", tint = Color.White) }
-                }
-                HorizontalPager(state = pagerState, modifier = Modifier.weight(1f).fillMaxWidth(), beyondViewportPageCount = 1) { page ->
-                    ViewerPage(vm, st, page, isCurrent = page == idx)
-                }
-                Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(48.dp, Alignment.CenterHorizontally)) {
-                    IconButton(onClick = { scope.launch { vm.shareCurrentPhoto(context) } }) { Icon(Icons.Default.Share, "Share", tint = Color.White) }
-                    IconButton(onClick = { scope.launch { vm.saveToPhotos(context) } }) { Icon(Icons.Default.ArrowCircleDown, "Save", tint = Color.White) }
-                    IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Default.Delete, "Delete", tint = Color.White) }
+            // status bar itself or its buttons can't be tapped - and, in
+            // landscape, step in from a camera cutout at the side.
+            BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding().displayCutoutPadding()) {
+                // In landscape the controls move to the sides, into the black
+                // the photo leaves there anyway, so the photo gets the whole
+                // height instead of what a top and a bottom bar left it (the
+                // owner's rule: as large as it can be without covering a
+                // button). Portrait is unchanged. The pager stays at the same
+                // place in the composition either way, so a rotation re-lays
+                // it out without disposing it (or restarting the video in it).
+                val landscape = controlsBeside(maxWidth, maxHeight)
+                Column(Modifier.fillMaxSize()) {
+                    if (!landscape) Row(Modifier.fillMaxWidth().padding(8.dp)) {
+                        ViewerInfoButton(vm)
+                        Spacer(Modifier.weight(1f))
+                        ViewerCloseButton(vm)
+                    }
+                    Row(Modifier.weight(1f).fillMaxWidth()) {
+                        // Leading column: info at the top.
+                        if (landscape) Box(Modifier.width(VIEWER_SIDE_COLUMN).fillMaxHeight().padding(top = 8.dp), contentAlignment = Alignment.TopCenter) {
+                            ViewerInfoButton(vm)
+                        }
+                        HorizontalPager(state = pagerState, modifier = Modifier.weight(1f).fillMaxHeight(), beyondViewportPageCount = 1) { page ->
+                            ViewerPage(vm, st, page, isCurrent = page == idx)
+                        }
+                        // Trailing column: close at the top, share, save and
+                        // delete in the middle, under the right thumb.
+                        if (landscape) Box(Modifier.width(VIEWER_SIDE_COLUMN).fillMaxHeight()) {
+                            Box(Modifier.align(Alignment.TopCenter).padding(top = 8.dp)) { ViewerCloseButton(vm) }
+                            Column(Modifier.align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                ViewerActions(onShare = { scope.launch { vm.shareCurrentPhoto(context) } }, onSave = { scope.launch { vm.saveToPhotos(context) } }, onDelete = { confirmDelete = true })
+                            }
+                        }
+                    }
+                    if (!landscape) Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(48.dp, Alignment.CenterHorizontally)) {
+                        ViewerActions(onShare = { scope.launch { vm.shareCurrentPhoto(context) } }, onSave = { scope.launch { vm.saveToPhotos(context) } }, onDelete = { confirmDelete = true })
+                    }
                 }
             }
         }
@@ -1092,6 +1118,45 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
         onDismissRequest = { vm.closeInfo() },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) { FileInfoView(st.infoLoading, st.infoData) }
+}
+
+/** How wide each side column of the viewer is in landscape: a 48 dp button with a little room. */
+private val VIEWER_SIDE_COLUMN = 56.dp
+
+/** What the top bar (64 dp) and the bottom one (72 dp) take from the photo's height in portrait. */
+private val VIEWER_BARS_HEIGHT = 136.dp
+
+/**
+ * Whether the viewer's controls go in columns beside the photo rather than
+ * in bars above and below it: only in landscape, and only when that leaves
+ * a typical (4:3) landscape photo more room - always on a phone, not on a
+ * nearly square screen like an unfolded Fold's (iOS ImageModal.controlsBeside).
+ */
+private fun controlsBeside(width: Dp, height: Dp): Boolean {
+    if (width <= height) return false
+    fun area(w: Float, h: Float): Float {
+        val unit = minOf(w / 4f, h / 3f).coerceAtLeast(0f)
+        return unit * unit * 12f
+    }
+    return area((width - VIEWER_SIDE_COLUMN * 2).value, height.value) > area(width.value, (height - VIEWER_BARS_HEIGHT).value)
+}
+
+@Composable
+private fun ViewerInfoButton(vm: PhotoGalleryViewModel) {
+    IconButton(onClick = { vm.openInfo() }) { Icon(Icons.Default.Info, "More info", tint = Color.White) }
+}
+
+@Composable
+private fun ViewerCloseButton(vm: PhotoGalleryViewModel) {
+    IconButton(onClick = { vm.closeModal() }) { Icon(Icons.Default.Cancel, "Close", tint = Color.White) }
+}
+
+/** Share, save and delete: a row under the photo in portrait, a column beside it in landscape. */
+@Composable
+private fun ViewerActions(onShare: () -> Unit, onSave: () -> Unit, onDelete: () -> Unit) {
+    IconButton(onClick = onShare) { Icon(Icons.Default.Share, "Share", tint = Color.White) }
+    IconButton(onClick = onSave) { Icon(Icons.Default.ArrowCircleDown, "Save", tint = Color.White) }
+    IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Delete", tint = Color.White) }
 }
 
 @Composable
