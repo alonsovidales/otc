@@ -816,6 +816,22 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   a file path, search term, share path or Wi-Fi network - those are Debug only - errors name hashes,
   and no request is dumped whole (a friendship secret once was).
 
+### Localization (`docs/i18n.md`, `i18n/`)
+
+Being added across every surface (2026-10): English plus es, fr, de, it, pt (pt-PT) and nl. The
+design is `docs/i18n.md`; the contributor guide is `i18n/README.md`. The user's language is
+stored on the device per user (`Settings.language` / `Status.language`, `optional`: absent =
+device predates it, `""` = Automatic, `SetLanguage` = 138), and every app sends its effective
+language as `ReqEnvelope.lang` (= 2); a request without it gets today's English, byte for byte.
+One source, `i18n/strings/<code>/<prefix>.json`, generates every platform's files: `make i18n`;
+`make i18n-check` validates (placeholders, tags, glossary in `i18n/glossary/`, staleness) and
+fails on a stale generated file. Codes before prose: clients check `error_code` first and read
+the English message only when the code is empty (`duplicated_file` on UploadFile/FinishUpload/
+LinkFile, from `filesmanager.ErrDuplicatedFile`; `unknown_payload`) - iOS/macOS `ErrorCodes.swift`,
+Android `net/ErrorCodes.kt`, otc-sync `engine/requests.go`. Machine alerts (update, RAID, Wi-Fi
+wiring) live in `websocket/machine_alerts.go`; `raidwatch.MissingPorts()` keeps the failed disks'
+ports as data.
+
 ### Bridge (`bridge/`)
 
 A separate deployable with its own `dao`/`websocket`/`api`/`makefile`, sharing only `proto/generated`

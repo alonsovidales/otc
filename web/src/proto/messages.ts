@@ -413,7 +413,14 @@ export interface Status {
    * yet (unset when there is none). Every app polls Status, so a critical
    * one reaches them all: they show a banner until it's installed.
    */
-  updateAlert?: UpdateAlert | undefined;
+  updateAlert?:
+    | UpdateAlert
+    | undefined;
+  /**
+   * Localization: Settings.language, here too so every app picks up a
+   * change made from another one. Absent on devices that predate it.
+   */
+  language?: string | undefined;
 }
 
 /**
@@ -1663,6 +1670,12 @@ export interface Settings {
    * Toggled with SetImageTaggingEnabled.
    */
   imageTaggingEnabled: boolean;
+  /**
+   * Localization: the language the user chose for every app, "" for
+   * Automatic (each app follows its system language). Always set by devices
+   * that know it; absent means the device predates localization.
+   */
+  language?: string | undefined;
 }
 
 /**
@@ -1758,6 +1771,17 @@ export interface SetFaceRecognitionEnabled {
  */
 export interface SetImageTaggingEnabled {
   enabled: boolean;
+}
+
+/**
+ * Localization (docs/i18n.md): the user's language for every app. language
+ * is "" (Automatic) or a lowercase language code; the device stores it only
+ * while its current value equals `expected` (when set), so a change made
+ * meanwhile from another app is not overwritten.
+ */
+export interface SetLanguage {
+  language: string;
+  expected?: string | undefined;
 }
 
 /**
@@ -2189,6 +2213,11 @@ export interface UpdatePushRegistrations {
   vapidPrivateKey: string;
   /** Issue #125: the Android app instances, sent through FCM. */
   fcmTokens: string[];
+  /**
+   * Localization: the language the bridge writes its own push in (the
+   * user's stored choice, else the app that last registered), "" for English.
+   */
+  language: string;
 }
 
 export interface WebPushSub {
@@ -2629,6 +2658,13 @@ export interface LocalEndpoint {
 
 export interface ReqEnvelope {
   id: number;
+  /**
+   * Localization (docs/i18n.md): the app's effective language code ("es"),
+   * set on every request after its build closure. The device writes its
+   * replies in it; a request without it (apps released before this, friend
+   * devices, the bridge) gets the English text exactly as before.
+   */
+  lang: string;
   payload?:
     | { $case: "reqListFiles"; reqListFiles: ListFiles }
     | { $case: "reqGetStatus"; reqGetStatus: GetStatus }
@@ -2813,6 +2849,12 @@ export interface ReqEnvelope {
     /** Settings > Restart device. Answers with resp_restarting_device. */
     { $case: "reqRestartDevice"; reqRestartDevice: RestartDevice }
     | //
+    /**
+     * Localization: store the user's language (owner only). Answers with
+     * the generic Ack; code "changed" when `expected` no longer matches.
+     */
+    { $case: "reqSetLanguage"; reqSetLanguage: SetLanguage }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -2840,7 +2882,10 @@ export interface RespEnvelope {
    * to act on rather than just show: "upload_only" (issue #132: a delete
    * under an upload-only folder - a sync client must not retry it),
    * "out_of_images_by_parent" (issue #192: SetOutOfImages can't show a
-   * folder inside another one kept out of Images; the message names it).
+   * folder inside another one kept out of Images; the message names it),
+   * "duplicated_file" (an upload or link onto a path that is taken - photo
+   * sync renames and retries; devices before it send only the message,
+   * ending in "Duplicated file", which clients check when the code is empty).
    */
   errorCode: string;
   payload?:
@@ -3082,6 +3127,7 @@ function createBaseStatus(): Status {
     raidDevicesActive: 0,
     raidSyncPercent: 0,
     updateAlert: undefined,
+    language: undefined,
   };
 }
 
@@ -3131,6 +3177,9 @@ export const Status: MessageFns<Status> = {
     }
     if (message.updateAlert !== undefined) {
       UpdateAlert.encode(message.updateAlert, writer.uint32(130).fork()).join();
+    }
+    if (message.language !== undefined) {
+      writer.uint32(138).string(message.language);
     }
     return writer;
   },
@@ -3262,6 +3311,14 @@ export const Status: MessageFns<Status> = {
           message.updateAlert = UpdateAlert.decode(reader, reader.uint32());
           continue;
         }
+        case 17: {
+          if (tag !== 138) {
+            break;
+          }
+
+          message.language = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3288,6 +3345,7 @@ export const Status: MessageFns<Status> = {
       raidDevicesActive: isSet(object.raidDevicesActive) ? globalThis.Number(object.raidDevicesActive) : 0,
       raidSyncPercent: isSet(object.raidSyncPercent) ? globalThis.Number(object.raidSyncPercent) : 0,
       updateAlert: isSet(object.updateAlert) ? UpdateAlert.fromJSON(object.updateAlert) : undefined,
+      language: isSet(object.language) ? globalThis.String(object.language) : undefined,
     };
   },
 
@@ -3338,6 +3396,9 @@ export const Status: MessageFns<Status> = {
     if (message.updateAlert !== undefined) {
       obj.updateAlert = UpdateAlert.toJSON(message.updateAlert);
     }
+    if (message.language !== undefined) {
+      obj.language = message.language;
+    }
     return obj;
   },
 
@@ -3363,6 +3424,7 @@ export const Status: MessageFns<Status> = {
     message.updateAlert = (object.updateAlert !== undefined && object.updateAlert !== null)
       ? UpdateAlert.fromPartial(object.updateAlert)
       : undefined;
+    message.language = object.language ?? undefined;
     return message;
   },
 };
@@ -12096,6 +12158,7 @@ function createBaseSettings(): Settings {
     socialStorageLimitMb: 0,
     socialStorageUsedBytes: 0n,
     imageTaggingEnabled: false,
+    language: undefined,
   };
 }
 
@@ -12121,6 +12184,9 @@ export const Settings: MessageFns<Settings> = {
     }
     if (message.imageTaggingEnabled !== false) {
       writer.uint32(48).bool(message.imageTaggingEnabled);
+    }
+    if (message.language !== undefined) {
+      writer.uint32(58).string(message.language);
     }
     return writer;
   },
@@ -12180,6 +12246,14 @@ export const Settings: MessageFns<Settings> = {
           message.imageTaggingEnabled = reader.bool();
           continue;
         }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.language = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -12199,6 +12273,7 @@ export const Settings: MessageFns<Settings> = {
       socialStorageLimitMb: isSet(object.socialStorageLimitMb) ? globalThis.Number(object.socialStorageLimitMb) : 0,
       socialStorageUsedBytes: isSet(object.socialStorageUsedBytes) ? BigInt(object.socialStorageUsedBytes) : 0n,
       imageTaggingEnabled: isSet(object.imageTaggingEnabled) ? globalThis.Boolean(object.imageTaggingEnabled) : false,
+      language: isSet(object.language) ? globalThis.String(object.language) : undefined,
     };
   },
 
@@ -12222,6 +12297,9 @@ export const Settings: MessageFns<Settings> = {
     if (message.imageTaggingEnabled !== false) {
       obj.imageTaggingEnabled = message.imageTaggingEnabled;
     }
+    if (message.language !== undefined) {
+      obj.language = message.language;
+    }
     return obj;
   },
 
@@ -12236,6 +12314,7 @@ export const Settings: MessageFns<Settings> = {
     message.socialStorageLimitMb = object.socialStorageLimitMb ?? 0;
     message.socialStorageUsedBytes = object.socialStorageUsedBytes ?? 0n;
     message.imageTaggingEnabled = object.imageTaggingEnabled ?? false;
+    message.language = object.language ?? undefined;
     return message;
   },
 };
@@ -13141,6 +13220,82 @@ export const SetImageTaggingEnabled: MessageFns<SetImageTaggingEnabled> = {
   fromPartial<I extends Exact<DeepPartial<SetImageTaggingEnabled>, I>>(object: I): SetImageTaggingEnabled {
     const message = createBaseSetImageTaggingEnabled();
     message.enabled = object.enabled ?? false;
+    return message;
+  },
+};
+
+function createBaseSetLanguage(): SetLanguage {
+  return { language: "", expected: undefined };
+}
+
+export const SetLanguage: MessageFns<SetLanguage> = {
+  encode(message: SetLanguage, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.language !== "") {
+      writer.uint32(10).string(message.language);
+    }
+    if (message.expected !== undefined) {
+      writer.uint32(18).string(message.expected);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetLanguage {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetLanguage();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.language = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.expected = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SetLanguage {
+    return {
+      language: isSet(object.language) ? globalThis.String(object.language) : "",
+      expected: isSet(object.expected) ? globalThis.String(object.expected) : undefined,
+    };
+  },
+
+  toJSON(message: SetLanguage): unknown {
+    const obj: any = {};
+    if (message.language !== "") {
+      obj.language = message.language;
+    }
+    if (message.expected !== undefined) {
+      obj.expected = message.expected;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SetLanguage>, I>>(base?: I): SetLanguage {
+    return SetLanguage.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SetLanguage>, I>>(object: I): SetLanguage {
+    const message = createBaseSetLanguage();
+    message.language = object.language ?? "";
+    message.expected = object.expected ?? undefined;
     return message;
   },
 };
@@ -16079,6 +16234,7 @@ function createBaseUpdatePushRegistrations(): UpdatePushRegistrations {
     vapidPublicKey: "",
     vapidPrivateKey: "",
     fcmTokens: [],
+    language: "",
   };
 }
 
@@ -16107,6 +16263,9 @@ export const UpdatePushRegistrations: MessageFns<UpdatePushRegistrations> = {
     }
     for (const v of message.fcmTokens) {
       writer.uint32(66).string(v!);
+    }
+    if (message.language !== "") {
+      writer.uint32(74).string(message.language);
     }
     return writer;
   },
@@ -16182,6 +16341,14 @@ export const UpdatePushRegistrations: MessageFns<UpdatePushRegistrations> = {
           message.fcmTokens.push(reader.string());
           continue;
         }
+        case 9: {
+          if (tag !== 74) {
+            break;
+          }
+
+          message.language = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -16207,6 +16374,7 @@ export const UpdatePushRegistrations: MessageFns<UpdatePushRegistrations> = {
       fcmTokens: globalThis.Array.isArray(object?.fcmTokens)
         ? object.fcmTokens.map((e: any) => globalThis.String(e))
         : [],
+      language: isSet(object.language) ? globalThis.String(object.language) : "",
     };
   },
 
@@ -16236,6 +16404,9 @@ export const UpdatePushRegistrations: MessageFns<UpdatePushRegistrations> = {
     if (message.fcmTokens?.length) {
       obj.fcmTokens = message.fcmTokens;
     }
+    if (message.language !== "") {
+      obj.language = message.language;
+    }
     return obj;
   },
 
@@ -16252,6 +16423,7 @@ export const UpdatePushRegistrations: MessageFns<UpdatePushRegistrations> = {
     message.vapidPublicKey = object.vapidPublicKey ?? "";
     message.vapidPrivateKey = object.vapidPrivateKey ?? "";
     message.fcmTokens = object.fcmTokens?.map((e) => e) || [];
+    message.language = object.language ?? "";
     return message;
   },
 };
@@ -20078,13 +20250,16 @@ export const LocalEndpoint: MessageFns<LocalEndpoint> = {
 };
 
 function createBaseReqEnvelope(): ReqEnvelope {
-  return { id: 0, payload: undefined };
+  return { id: 0, lang: "", payload: undefined };
 }
 
 export const ReqEnvelope: MessageFns<ReqEnvelope> = {
   encode(message: ReqEnvelope, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.id !== 0) {
       writer.uint32(8).int32(message.id);
+    }
+    if (message.lang !== "") {
+      writer.uint32(18).string(message.lang);
     }
     switch (message.payload?.$case) {
       case "reqListFiles":
@@ -20449,6 +20624,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqRestartDevice":
         RestartDevice.encode(message.payload.reqRestartDevice, writer.uint32(1098).fork()).join();
         break;
+      case "reqSetLanguage":
+        SetLanguage.encode(message.payload.reqSetLanguage, writer.uint32(1106).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -20484,6 +20662,14 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           }
 
           message.id = reader.int32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.lang = reader.string();
           continue;
         }
         case 10: {
@@ -21672,6 +21858,14 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 138: {
+          if (tag !== 1106) {
+            break;
+          }
+
+          message.payload = { $case: "reqSetLanguage", reqSetLanguage: SetLanguage.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -21750,6 +21944,7 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
   fromJSON(object: any): ReqEnvelope {
     return {
       id: isSet(object.id) ? globalThis.Number(object.id) : 0,
+      lang: isSet(object.lang) ? globalThis.String(object.lang) : "",
       payload: isSet(object.reqListFiles)
         ? { $case: "reqListFiles", reqListFiles: ListFiles.fromJSON(object.reqListFiles) }
         : isSet(object.reqGetStatus)
@@ -22101,6 +22296,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqListOutOfImages", reqListOutOfImages: ListOutOfImages.fromJSON(object.reqListOutOfImages) }
         : isSet(object.reqRestartDevice)
         ? { $case: "reqRestartDevice", reqRestartDevice: RestartDevice.fromJSON(object.reqRestartDevice) }
+        : isSet(object.reqSetLanguage)
+        ? { $case: "reqSetLanguage", reqSetLanguage: SetLanguage.fromJSON(object.reqSetLanguage) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -22136,6 +22333,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
     const obj: any = {};
     if (message.id !== 0) {
       obj.id = Math.round(message.id);
+    }
+    if (message.lang !== "") {
+      obj.lang = message.lang;
     }
     if (message.payload?.$case === "reqListFiles") {
       obj.reqListFiles = ListFiles.toJSON(message.payload.reqListFiles);
@@ -22377,6 +22577,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqListOutOfImages = ListOutOfImages.toJSON(message.payload.reqListOutOfImages);
     } else if (message.payload?.$case === "reqRestartDevice") {
       obj.reqRestartDevice = RestartDevice.toJSON(message.payload.reqRestartDevice);
+    } else if (message.payload?.$case === "reqSetLanguage") {
+      obj.reqSetLanguage = SetLanguage.toJSON(message.payload.reqSetLanguage);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -22399,6 +22601,7 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
   fromPartial<I extends Exact<DeepPartial<ReqEnvelope>, I>>(object: I): ReqEnvelope {
     const message = createBaseReqEnvelope();
     message.id = object.id ?? 0;
+    message.lang = object.lang ?? "";
     switch (object.payload?.$case) {
       case "reqListFiles": {
         if (object.payload?.reqListFiles !== undefined && object.payload?.reqListFiles !== null) {
@@ -23454,6 +23657,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqRestartDevice",
             reqRestartDevice: RestartDevice.fromPartial(object.payload.reqRestartDevice),
+          };
+        }
+        break;
+      }
+      case "reqSetLanguage": {
+        if (object.payload?.reqSetLanguage !== undefined && object.payload?.reqSetLanguage !== null) {
+          message.payload = {
+            $case: "reqSetLanguage",
+            reqSetLanguage: SetLanguage.fromPartial(object.payload.reqSetLanguage),
           };
         }
         break;

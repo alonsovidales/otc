@@ -64,6 +64,9 @@ message Status {
   // yet (unset when there is none). Every app polls Status, so a critical
   // one reaches them all: they show a banner until it's installed.
   UpdateAlert update_alert = 16;
+  // Localization: Settings.language, here too so every app picks up a
+  // change made from another one. Absent on devices that predate it.
+  optional string language = 17;
 }
 
 // Issue #183: releases are minor, major (security, stability or durability)
@@ -1086,6 +1089,10 @@ message Settings {
   // Issue #181: tag photos and videos with what they show (on by default).
   // Toggled with SetImageTaggingEnabled.
   bool image_tagging_enabled = 6;
+  // Localization: the language the user chose for every app, "" for
+  // Automatic (each app follows its system language). Always set by devices
+  // that know it; absent means the device predates localization.
+  optional string language = 7;
 }
 
 // Chunked transfers: every file moves in pieces of at most 4 MB, so no
@@ -1169,6 +1176,15 @@ message SetFaceRecognitionEnabled {
 // for what is processed from now on. Answers with the generic Ack.
 message SetImageTaggingEnabled {
   bool enabled = 1;
+}
+
+// Localization (docs/i18n.md): the user's language for every app. language
+// is "" (Automatic) or a lowercase language code; the device stores it only
+// while its current value equals `expected` (when set), so a change made
+// meanwhile from another app is not overwritten.
+message SetLanguage {
+  string language = 1;
+  optional string expected = 2;
 }
 
 // Person is one named (or not-yet-named) individual recognized across the
@@ -1544,6 +1560,9 @@ message UpdatePushRegistrations {
   string vapid_private_key = 7;
   // Issue #125: the Android app instances, sent through FCM.
   repeated string fcm_tokens = 8;
+  // Localization: the language the bridge writes its own push in (the
+  // user's stored choice, else the app that last registered), "" for English.
+  string language = 9;
 }
 
 message WebPushSub {
@@ -1938,6 +1957,11 @@ message LocalEndpoint {
 
 message ReqEnvelope {
   int32 id = 1;
+  // Localization (docs/i18n.md): the app's effective language code ("es"),
+  // set on every request after its build closure. The device writes its
+  // replies in it; a request without it (apps released before this, friend
+  // devices, the bridge) gets the English text exactly as before.
+  string lang = 2;
   oneof payload {
     ListFiles req_list_files = 10;
     GetStatus req_get_status = 11;
@@ -2091,6 +2115,9 @@ message ReqEnvelope {
     ListOutOfImages req_list_out_of_images = 136;
     // Settings > Restart device. Answers with resp_restarting_device.
     RestartDevice req_restart_device = 137;
+    // Localization: store the user's language (owner only). Answers with
+    // the generic Ack; code "changed" when `expected` no longer matches.
+    SetLanguage req_set_language = 138;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -2113,7 +2140,10 @@ message RespEnvelope {
   // to act on rather than just show: "upload_only" (issue #132: a delete
   // under an upload-only folder - a sync client must not retry it),
   // "out_of_images_by_parent" (issue #192: SetOutOfImages can't show a
-  // folder inside another one kept out of Images; the message names it).
+  // folder inside another one kept out of Images; the message names it),
+  // "duplicated_file" (an upload or link onto a path that is taken - photo
+  // sync renames and retries; devices before it send only the message,
+  // ending in "Duplicated file", which clients check when the code is empty).
   string error_code = 4;
   oneof payload {
     Status resp_status = 10;

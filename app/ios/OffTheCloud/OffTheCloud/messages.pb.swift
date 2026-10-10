@@ -432,6 +432,17 @@ public nonisolated struct Msg_Status: @unchecked Sendable {
   /// Clears the value of `updateAlert`. Subsequent reads from it will return its default value.
   public mutating func clearUpdateAlert() {_uniqueStorage()._updateAlert = nil}
 
+  /// Localization: Settings.language, here too so every app picks up a
+  /// change made from another one. Absent on devices that predate it.
+  public var language: String {
+    get {_storage._language ?? String()}
+    set {_uniqueStorage()._language = newValue}
+  }
+  /// Returns true if `language` has been explicitly set.
+  public var hasLanguage: Bool {_storage._language != nil}
+  /// Clears the value of `language`. Subsequent reads from it will return its default value.
+  public mutating func clearLanguage() {_uniqueStorage()._language = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -2682,9 +2693,23 @@ public nonisolated struct Msg_Settings: Sendable {
   /// Toggled with SetImageTaggingEnabled.
   public var imageTaggingEnabled: Bool = false
 
+  /// Localization: the language the user chose for every app, "" for
+  /// Automatic (each app follows its system language). Always set by devices
+  /// that know it; absent means the device predates localization.
+  public var language: String {
+    get {_language ?? String()}
+    set {_language = newValue}
+  }
+  /// Returns true if `language` has been explicitly set.
+  public var hasLanguage: Bool {self._language != nil}
+  /// Clears the value of `language`. Subsequent reads from it will return its default value.
+  public mutating func clearLanguage() {self._language = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _language: String? = nil
 }
 
 /// Chunked transfers: every file moves in pieces of at most 4 MB, so no
@@ -2900,6 +2925,33 @@ public nonisolated struct Msg_SetImageTaggingEnabled: Sendable {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+}
+
+/// Localization (docs/i18n.md): the user's language for every app. language
+/// is "" (Automatic) or a lowercase language code; the device stores it only
+/// while its current value equals `expected` (when set), so a change made
+/// meanwhile from another app is not overwritten.
+public nonisolated struct Msg_SetLanguage: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var language: String = String()
+
+  public var expected: String {
+    get {_expected ?? String()}
+    set {_expected = newValue}
+  }
+  /// Returns true if `expected` has been explicitly set.
+  public var hasExpected: Bool {self._expected != nil}
+  /// Clears the value of `expected`. Subsequent reads from it will return its default value.
+  public mutating func clearExpected() {self._expected = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _expected: String? = nil
 }
 
 /// Person is one named (or not-yet-named) individual recognized across the
@@ -3654,6 +3706,10 @@ public nonisolated struct Msg_UpdatePushRegistrations: Sendable {
 
   /// Issue #125: the Android app instances, sent through FCM.
   public var fcmTokens: [String] = []
+
+  /// Localization: the language the bridge writes its own push in (the
+  /// user's stored choice, else the app that last registered), "" for English.
+  public var language: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -4572,6 +4628,12 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
   // methods supported on all messages.
 
   public var id: Int32 = 0
+
+  /// Localization (docs/i18n.md): the app's effective language code ("es"),
+  /// set on every request after its build closure. The device writes its
+  /// replies in it; a request without it (apps released before this, friend
+  /// devices, the bridge) gets the English text exactly as before.
+  public var lang: String = String()
 
   public var payload: Msg_ReqEnvelope.OneOf_Payload? = nil
 
@@ -5557,6 +5619,16 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqRestartDevice(newValue)}
   }
 
+  /// Localization: store the user's language (owner only). Answers with
+  /// the generic Ack; code "changed" when `expected` no longer matches.
+  public var reqSetLanguage: Msg_SetLanguage {
+    get {
+      if case .reqSetLanguage(let v)? = payload {return v}
+      return Msg_SetLanguage()
+    }
+    set {payload = .reqSetLanguage(newValue)}
+  }
+
   /// Issue #93. Answers with the generic Ack.
   public var reqSetDeviceDisabled: Msg_ReqSetDeviceDisabled {
     get {
@@ -5762,6 +5834,9 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     case reqListOutOfImages(Msg_ListOutOfImages)
     /// Settings > Restart device. Answers with resp_restarting_device.
     case reqRestartDevice(Msg_RestartDevice)
+    /// Localization: store the user's language (owner only). Answers with
+    /// the generic Ack; code "changed" when `expected` no longer matches.
+    case reqSetLanguage(Msg_SetLanguage)
     /// Issue #93. Answers with the generic Ack.
     case reqSetDeviceDisabled(Msg_ReqSetDeviceDisabled)
     /// Issue #101: session tokens in place of a password in localStorage.
@@ -5803,7 +5878,10 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
   /// to act on rather than just show: "upload_only" (issue #132: a delete
   /// under an upload-only folder - a sync client must not retry it),
   /// "out_of_images_by_parent" (issue #192: SetOutOfImages can't show a
-  /// folder inside another one kept out of Images; the message names it).
+  /// folder inside another one kept out of Images; the message names it),
+  /// "duplicated_file" (an upload or link onto a path that is taken - photo
+  /// sync renames and retries; devices before it send only the message,
+  /// ending in "Duplicated file", which clients check when the code is empty).
   public var errorCode: String {
     get {_storage._errorCode}
     set {_uniqueStorage()._errorCode = newValue}
@@ -6478,7 +6556,7 @@ nonisolated extension Msg_GetStatus: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Status"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}online\0\u{2}\u{2}disks\0\u{1}errors\0\u{3}raid_size\0\u{3}raid_usage\0\u{3}disk_size\0\u{3}disk_usage\0\u{3}cpu_usage_prc\0\u{3}mem_size\0\u{3}mem_usage\0\u{3}raid_state\0\u{3}raid_level\0\u{3}raid_devices_active\0\u{3}raid_sync_percent\0\u{3}update_alert\0\u{b}local_ip\0\u{c}\u{2}\u{1}")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}online\0\u{2}\u{2}disks\0\u{1}errors\0\u{3}raid_size\0\u{3}raid_usage\0\u{3}disk_size\0\u{3}disk_usage\0\u{3}cpu_usage_prc\0\u{3}mem_size\0\u{3}mem_usage\0\u{3}raid_state\0\u{3}raid_level\0\u{3}raid_devices_active\0\u{3}raid_sync_percent\0\u{3}update_alert\0\u{1}language\0\u{b}local_ip\0\u{c}\u{2}\u{1}")
 
   fileprivate class _StorageClass {
     var _online: Bool = false
@@ -6496,6 +6574,7 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     var _raidDevicesActive: Int32 = 0
     var _raidSyncPercent: Float = 0
     var _updateAlert: Msg_UpdateAlert? = nil
+    var _language: String? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -6521,6 +6600,7 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       _raidDevicesActive = source._raidDevicesActive
       _raidSyncPercent = source._raidSyncPercent
       _updateAlert = source._updateAlert
+      _language = source._language
     }
   }
 
@@ -6554,6 +6634,7 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
         case 14: try { try decoder.decodeSingularInt32Field(value: &_storage._raidDevicesActive) }()
         case 15: try { try decoder.decodeSingularFloatField(value: &_storage._raidSyncPercent) }()
         case 16: try { try decoder.decodeSingularMessageField(value: &_storage._updateAlert) }()
+        case 17: try { try decoder.decodeSingularStringField(value: &_storage._language) }()
         default: break
         }
       }
@@ -6611,6 +6692,9 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       try { if let v = _storage._updateAlert {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 16)
       } }()
+      try { if let v = _storage._language {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 17)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -6635,6 +6719,7 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
         if _storage._raidDevicesActive != rhs_storage._raidDevicesActive {return false}
         if _storage._raidSyncPercent != rhs_storage._raidSyncPercent {return false}
         if _storage._updateAlert != rhs_storage._updateAlert {return false}
+        if _storage._language != rhs_storage._language {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -10467,7 +10552,7 @@ nonisolated extension Msg_SetSettings: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Settings"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0\u{3}face_recognition_enabled\0\u{3}social_storage_limit_mb\0\u{3}social_storage_used_bytes\0\u{3}image_tagging_enabled\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}domain\0\u{3}bridge_secret\0\u{3}face_recognition_enabled\0\u{3}social_storage_limit_mb\0\u{3}social_storage_used_bytes\0\u{3}image_tagging_enabled\0\u{1}language\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -10481,12 +10566,17 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
       case 4: try { try decoder.decodeSingularInt32Field(value: &self.socialStorageLimitMb) }()
       case 5: try { try decoder.decodeSingularInt64Field(value: &self.socialStorageUsedBytes) }()
       case 6: try { try decoder.decodeSingularBoolField(value: &self.imageTaggingEnabled) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self._language) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.domain.isEmpty {
       try visitor.visitSingularStringField(value: self.domain, fieldNumber: 1)
     }
@@ -10505,6 +10595,9 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if self.imageTaggingEnabled != false {
       try visitor.visitSingularBoolField(value: self.imageTaggingEnabled, fieldNumber: 6)
     }
+    try { if let v = self._language {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 7)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -10515,6 +10608,7 @@ nonisolated extension Msg_Settings: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if lhs.socialStorageLimitMb != rhs.socialStorageLimitMb {return false}
     if lhs.socialStorageUsedBytes != rhs.socialStorageUsedBytes {return false}
     if lhs.imageTaggingEnabled != rhs.imageTaggingEnabled {return false}
+    if lhs._language != rhs._language {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -10913,6 +11007,45 @@ nonisolated extension Msg_SetImageTaggingEnabled: SwiftProtobuf.Message, SwiftPr
 
   public static func ==(lhs: Msg_SetImageTaggingEnabled, rhs: Msg_SetImageTaggingEnabled) -> Bool {
     if lhs.enabled != rhs.enabled {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_SetLanguage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetLanguage"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}language\0\u{1}expected\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.language) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self._expected) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.language.isEmpty {
+      try visitor.visitSingularStringField(value: self.language, fieldNumber: 1)
+    }
+    try { if let v = self._expected {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_SetLanguage, rhs: Msg_SetLanguage) -> Bool {
+    if lhs.language != rhs.language {return false}
+    if lhs._expected != rhs._expected {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -12287,7 +12420,7 @@ nonisolated extension Msg_RegenerateBridgeSecret: SwiftProtobuf.Message, SwiftPr
 
 nonisolated extension Msg_UpdatePushRegistrations: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UpdatePushRegistrations"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}owner_uuid\0\u{1}domain\0\u{1}secret\0\u{3}apns_tokens\0\u{3}web_push_subs\0\u{3}vapid_public_key\0\u{3}vapid_private_key\0\u{3}fcm_tokens\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}owner_uuid\0\u{1}domain\0\u{1}secret\0\u{3}apns_tokens\0\u{3}web_push_subs\0\u{3}vapid_public_key\0\u{3}vapid_private_key\0\u{3}fcm_tokens\0\u{1}language\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -12303,6 +12436,7 @@ nonisolated extension Msg_UpdatePushRegistrations: SwiftProtobuf.Message, SwiftP
       case 6: try { try decoder.decodeSingularStringField(value: &self.vapidPublicKey) }()
       case 7: try { try decoder.decodeSingularStringField(value: &self.vapidPrivateKey) }()
       case 8: try { try decoder.decodeRepeatedStringField(value: &self.fcmTokens) }()
+      case 9: try { try decoder.decodeSingularStringField(value: &self.language) }()
       default: break
       }
     }
@@ -12333,6 +12467,9 @@ nonisolated extension Msg_UpdatePushRegistrations: SwiftProtobuf.Message, SwiftP
     if !self.fcmTokens.isEmpty {
       try visitor.visitRepeatedStringField(value: self.fcmTokens, fieldNumber: 8)
     }
+    if !self.language.isEmpty {
+      try visitor.visitSingularStringField(value: self.language, fieldNumber: 9)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -12345,6 +12482,7 @@ nonisolated extension Msg_UpdatePushRegistrations: SwiftProtobuf.Message, SwiftP
     if lhs.vapidPublicKey != rhs.vapidPublicKey {return false}
     if lhs.vapidPrivateKey != rhs.vapidPrivateKey {return false}
     if lhs.fcmTokens != rhs.fcmTokens {return false}
+    if lhs.language != rhs.language {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -14036,7 +14174,7 @@ nonisolated extension Msg_LocalEndpoint: SwiftProtobuf.Message, SwiftProtobuf._M
 
 nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{4}\u{9}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -14045,6 +14183,7 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularInt32Field(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.lang) }()
       case 10: try {
         var v: Msg_ListFiles?
         var hadOneofValue = false
@@ -15670,6 +15809,19 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.payload = .reqRestartDevice(v)
         }
       }()
+      case 138: try {
+        var v: Msg_SetLanguage?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqSetLanguage(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqSetLanguage(v)
+        }
+      }()
       default: break
       }
     }
@@ -15682,6 +15834,9 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
     // https://github.com/apple/swift-protobuf/issues/1182
     if self.id != 0 {
       try visitor.visitSingularInt32Field(value: self.id, fieldNumber: 1)
+    }
+    if !self.lang.isEmpty {
+      try visitor.visitSingularStringField(value: self.lang, fieldNumber: 2)
     }
     switch self.payload {
     case .reqListFiles?: try {
@@ -16184,6 +16339,10 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
       guard case .reqRestartDevice(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 137)
     }()
+    case .reqSetLanguage?: try {
+      guard case .reqSetLanguage(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 138)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -16191,6 +16350,7 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
   public static func ==(lhs: Msg_ReqEnvelope, rhs: Msg_ReqEnvelope) -> Bool {
     if lhs.id != rhs.id {return false}
+    if lhs.lang != rhs.lang {return false}
     if lhs.payload != rhs.payload {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
