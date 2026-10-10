@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Off The Cloud — your account</title>
+  <meta name="description" content="Sign in to see your domains.">
+  <style>.msg { color: red; } /* "Not text in a style" */</style>
+</head>
+<body>
+  <!-- a comment with words in it -->
+  <h1>Your account</h1>
+  <p>Read the <a href="/privacy">privacy notice</a> before you sign up.</p>
+  <p><code>sudo otc-sync flash</code></p>
+  <img src="/logo.png" alt="The Off The Cloud logo">
+  <input type="submit" value="Sign in">
+  <p>Kept for the record</p> <!-- i18n-ignore: fixture for the escape hatch -->
+  <script type="application/json" id="error-text">
+  {"api": {"invalid_body": "invalid request body", "code": "x"}}
+  </script>
+  <script>
+    const $ = (s) => document.querySelector(s);
+    function render(me) {
+      $('#view').innerHTML = `<h2>Hello, ${me.name}</h2>
+        <button class="btn" id="go">Sign out</button>`;
+      $('#msg').textContent = 'The two passwords don\'t match';
+      $('#msg').className = me.ok ? 'msg' : 'msg bad';
+      const cmd = 'curl -fsSL https://example.org/install.sh | sudo bash -s -- <subdomain>';
+      banner(me.error || 'Could not sign in');
+      if (me.state === 'Some State Value') return;
+      if (!confirm(`Release ${me.domain}? Its device goes on working at home only.`)) return;
+      console.log('Rendering the page now');
+      const re = /"quoted" isn't a string/g;
+      const opts = { label: 'Download my data', id: 'dl' };
+    }
+  </script>
+</body>
+</html>

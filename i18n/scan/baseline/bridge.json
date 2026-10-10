@@ -1,0 +1,15 @@
+{
+  "surface": "bridge",
+  "total": 194,
+  "files": {
+    "bridge/accounts/accounts.go": 78,
+    "bridge/accounts/appsignin.go": 4,
+    "bridge/accounts/inactivity.go": 3,
+    "bridge/accounts/oidc.go": 18,
+    "bridge/api/api.go": 50,
+    "bridge/api/media.go": 5,
+    "bridge/api/tls.go": 1,
+    "bridge/websocket/pushclient.go": 1,
+    "bridge/websocket/websocket.go": 34
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "surface": "macos",
+  "total": 214,
+  "files": {
+    "app/macos/OffTheCloud/OffTheCloud/BluetoothSetupView.swift": 28,
+    "app/macos/OffTheCloud/OffTheCloud/CloudSyncApp.swift": 1,
+    "app/macos/OffTheCloud/OffTheCloud/LocalRoute.swift": 3,
+    "app/macos/OffTheCloud/OffTheCloud/LoginItem.swift": 7,
+    "app/macos/OffTheCloud/OffTheCloud/PopoverView.swift": 69,
+    "app/macos/OffTheCloud/OffTheCloud/RemoteFolderPickerView.swift": 5,
+    "app/macos/OffTheCloud/OffTheCloud/SetupWizardView.swift": 60,
+    "app/macos/OffTheCloud/OffTheCloud/SyncModel.swift": 36,
+    "app/macos/OffTheCloud/OffTheCloud/WSClient.swift": 5
+  }
+}

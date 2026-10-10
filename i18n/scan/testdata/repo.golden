@@ -1,0 +1,96 @@
+# web: 13 found, 1 ignored
+web/public/sw.js:4: assign:body: New activity from a friend
+web/src/components/Panel.tsx:5: assign:EXPLAIN: Photos here aren't tagged or shown in Images.
+web/src/components/Panel.tsx:17: sink:setError: Could not save the panel.
+web/src/components/Panel.tsx:18: sink:setError: Something went wrong
+web/src/components/Panel.tsx:23: attr:aria-label: Settings panel
+web/src/components/Panel.tsx:24: jsx-text: Your photos and videos
+web/src/components/Panel.tsx:25: attr:title: More about this
+web/src/components/Panel.tsx:26: jsx-expr: Saving…
+web/src/components/Panel.tsx:26: jsx-expr: Save
+web/src/components/Panel.tsx:31: jsx-text: privacy
+web/src/components/Panel.tsx:32: attr:placeholder: Your name
+web/src/components/Panel.tsx:34: jsx-expr: Photos
+web/src/components/Panel.tsx:34: jsx-expr: Files
+# ios: 16 found, 1 ignored
+app/ios/OffTheCloud/OffTheCloud/SettingsView.swift:9: prose: Keep Out of Images
+app/ios/OffTheCloud/OffTheCloud/SettingsView.swift:22: sink:Section: Storage
+app/ios/OffTheCloud/OffTheCloud/SettingsView.swift:23: sink:Text: Used {} of the disk
+app/ios/OffTheCloud/OffTheCloud/SettingsView.swift:26: sink:Label: Photos
+app/ios/OffTheCloud/OffTheCloud/SettingsView.swift:27: sink:Toggle: Face recognition
+app/ios/OffTheCloud/OffTheCloud/SettingsView.swift:28: sink:TextField: Name
+app/ios/OffTheCloud/OffTheCloud/SettingsView.swift:29: sink:Text: One photo
+app/ios/OffTheCloud/OffTheCloud/SettingsView.swift:29: sink:Text: {} photos
+app/ios/OffTheCloud/OffTheCloud/SettingsView.swift:32: sink:Button: Delete
+app/ios/OffTheCloud/OffTheCloud/SettingsView.swift:33: sink:accessibilityLabel: Delete the folder
+app/ios/OffTheCloud/OffTheCloud/SettingsView.swift:36: sink:navigationTitle: Settings
+app/ios/OffTheCloud/OffTheCloud/SettingsView.swift:37: sink:alert: Couldn't save
+app/ios/OffTheCloud/OffTheCloud/SettingsView.swift:38: sink:Button: OK
+app/ios/OffTheCloud/OffTheCloud/SettingsView.swift:49: assign:alertMessage: Could not delete the folder.
+app/ios/OffTheCloud/OffTheCloud/SettingsView.swift:50: assign:message: Everything in it is removed from the device.
+app/ios/OffTheCloud/OffTheCloud/SettingsView.swift:61: prose: The device did not answer in time
+# macos: 5 found, 0 ignored
+app/macos/OffTheCloud/OffTheCloud/PopoverView.swift:6: assign:messageText: Disconnect from the device?
+app/macos/OffTheCloud/OffTheCloud/PopoverView.swift:7: assign:informativeText: Your synced folders are removed from this Mac.
+app/macos/OffTheCloud/OffTheCloud/PopoverView.swift:8: label:withTitle: Disconnect
+app/macos/OffTheCloud/OffTheCloud/PopoverView.swift:10: assign:prompt: Choose
+app/macos/OffTheCloud/OffTheCloud/PopoverView.swift:12: prose: A raw "quoted" sentence here.
+# android: 9 found, 1 ignored
+app/android/app/src/main/java/cloud/offthe/otc/ui/SettingsView.kt:13: sink:Text: Storage
+app/android/app/src/main/java/cloud/offthe/otc/ui/SettingsView.kt:14: sink:Text: Used {} of {} on the disk
+app/android/app/src/main/java/cloud/offthe/otc/ui/SettingsView.kt:16: label:contentDescription: Delete the folder
+app/android/app/src/main/java/cloud/offthe/otc/ui/SettingsView.kt:17: sink:Caption: Photos are kept on the device.
+app/android/app/src/main/java/cloud/offthe/otc/ui/SettingsView.kt:18: sink:makeText: Saved to the device
+app/android/app/src/main/java/cloud/offthe/otc/ui/SettingsView.kt:28: prose: A raw string across lines.
+app/android/app/src/main/java/cloud/offthe/otc/ui/SettingsView.kt:40: assign:error: Could not save the settings.
+app/android/app/src/main/java/cloud/offthe/otc/ui/SettingsView.kt:41: assign:toast: Saved
+app/android/app/src/main/java/cloud/offthe/otc/ui/SettingsView.kt:42: prose: The device sent an answer this app could not read
+# device: 9 found, 1 ignored
+dao/dao.go:10: field:ErrorMsg: Too many attempts. Try again later.
+websocket/handler.go:12: prose: this folder is upload only: nothing in it can be deleted
+websocket/handler.go:24: field:ErrorMessage: not available on this instance
+websocket/handler.go:25: field:ErrorMessage: error trying to delete file: %s
+websocket/handler.go:26: field:ErrorMessage: a collection needs a name
+websocket/handler.go:35: sink:AddErrorNotification: This device left the bridge
+websocket/handler.go:35: sink:AddErrorNotification: The bridge no longer knows it.
+websocket/handler.go:36: prose: could not reach %s: %w
+websocket/handler.go:39: key:error: sign in first
+# bridge: 2 found, 0 ignored
+bridge/api/api.go:9: sink:writeJSONErr: that name is already taken
+bridge/api/api.go:11: sink:Error: could not start the sign-in
+# otcsync: 7 found, 0 ignored
+app/desktop/internal/tray/tray.go:9: prose: Start Off The Cloud when you log in?
+app/desktop/internal/tray/tray.go:12: sink:AddMenuItem: Open Web App
+app/desktop/internal/tray/tray.go:13: sink:AddMenuItem: Quit
+app/desktop/internal/tray/tray.go:13: sink:AddMenuItem: Quit the app
+app/desktop/internal/tray/tray.go:15: sink:Question: Remove this folder?
+app/desktop/internal/tray/tray.go:15: sink:OKLabel: Remove
+app/desktop/internal/tray/tray.go:15: sink:CancelLabel: Cancel
+# pages: 13 found, 1 ignored
+bridge/static/account.html:5: text: Off The Cloud — your account
+bridge/static/account.html:6: attr:content: Sign in to see your domains.
+bridge/static/account.html:11: text: Your account
+bridge/static/account.html:12: text: Read the privacy notice before you sign up.
+bridge/static/account.html:14: attr:alt: The Off The Cloud logo
+bridge/static/account.html:15: attr:value: Sign in
+bridge/static/account.html:18: json: invalid request body
+bridge/static/account.html:23: text: Hello, {}
+bridge/static/account.html:24: text: Sign out
+bridge/static/account.html:25: assign:textContent: The two passwords don't match
+bridge/static/account.html:28: sink:banner: Could not sign in
+bridge/static/account.html:30: sink:confirm: Release {}? Its device goes on working at home only.
+bridge/static/account.html:33: prop:label: Download my data
+# wizard: 13 found, 1 ignored
+scripts/setup_wizard.py:11: key:error: choose a network
+scripts/setup_wizard.py:12: key:error: {} needs a password
+scripts/setup_wizard.py:13: key:error: a network with a very long name across two lines
+scripts/setup_wizard.py:16: fallback: could not reserve that name
+scripts/setup_wizard.py:17: fallback: could not check that setup code
+scripts/setup_wizard.py:23: text: Off The Cloud setup
+scripts/setup_wizard.py:25: text: Let's set up your device
+scripts/setup_wizard.py:26: text: This takes about ten minutes.
+scripts/setup_wizard.py:27: text: Device password
+scripts/setup_wizard.py:29: text: 1 · Connect to your WiFi
+scripts/setup_wizard.py:29: text: Join
+scripts/setup_wizard.py:30: assign:textContent: Connecting…
+scripts/setup_wizard.py:31: sink:msg: Failed

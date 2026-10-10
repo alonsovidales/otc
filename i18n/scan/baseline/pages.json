@@ -1,0 +1,10 @@
+{
+  "surface": "pages",
+  "total": 378,
+  "files": {
+    "bridge/static/account.html": 129,
+    "bridge/static/disabled.html": 3,
+    "bridge/static/landing.html": 240,
+    "bridge/static/unavailable.html": 6
+  }
+}
