@@ -1,0 +1,52 @@
+{
+  "dev.disk_failed": {
+    "text": "The {port} disk stopped working: {reason}",
+    "args": [["port", "text"], ["reason", "msg"]],
+    "note": "Alert title when a disk of the mirror fails; reason is a dev.reason_* key."
+  },
+  "dev.files_left": {
+    "text": "{done} of {total} files",
+    "args": [["done", "int"], ["total", "int"]],
+    "note": "Progress of an upload."
+  },
+  "dev.free_space": {
+    "text": "{free} free of {total}",
+    "args": [["free", "bytes"], ["total", "bytes"]],
+    "note": "Storage line in Settings."
+  },
+  "dev.last_seen": {
+    "text": "Last seen {at}",
+    "args": [["at", "datetime"]],
+    "note": "When a friend's device was last online."
+  },
+  "dev.literal": {
+    "text": "100% of {name}'s \"space\" & $1 $& %s%n \\ done",
+    "args": [["name", "user"]],
+    "note": "Test text full of characters templates and formats treat specially."
+  },
+  "dev.only_en": {
+    "text": "Only in English",
+    "note": "Never translated in the fixture."
+  },
+  "dev.photos_deleted": {
+    "text": {
+      "one": "{name} deleted a photo",
+      "other": "{name} deleted {count} photos"
+    },
+    "args": [["name", "user"], ["count", "count"]],
+    "note": "Alert line in Notifications."
+  },
+  "dev.reason_plugged": {
+    "text": "it is plugged in as {port}",
+    "args": [["port", "text"]],
+    "note": "A reason with an argument, which a msg argument may not name."
+  },
+  "dev.reason_unplugged": {
+    "text": "it was unplugged",
+    "note": "Reason in dev.disk_failed."
+  },
+  "dev.stale": {
+    "text": "The new English",
+    "note": "Its Spanish was made from older English."
+  }
+}

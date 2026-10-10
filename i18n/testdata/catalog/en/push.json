@@ -1,0 +1,3 @@
+{
+  "push.update_ready": {"text": "Update {version} is ready", "args": [["version", "text"]]}
+}

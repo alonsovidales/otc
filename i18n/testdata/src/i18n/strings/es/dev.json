@@ -1,0 +1,44 @@
+{
+  "dev.disk_failed": {
+    "text": "El disco {port} dejó de funcionar: {reason}",
+    "en": "The {port} disk stopped working: {reason}"
+  },
+  "dev.files_left": {
+    "text": "{done} de {total} archivos",
+    "en": "{done} of {total} files"
+  },
+  "dev.free_space": {
+    "text": "{free} libres de {total}",
+    "en": "{free} free of {total}"
+  },
+  "dev.last_seen": {
+    "text": "Visto por última vez el {at}",
+    "en": "Last seen {at}"
+  },
+  "dev.literal": {
+    "text": "El 100% del \"espacio\" de {name} & $1 $& %s%n \\ hecho",
+    "en": "100% of {name}'s \"space\" & $1 $& %s%n \\ done"
+  },
+  "dev.photos_deleted": {
+    "text": {
+      "one": "{name} borró una foto",
+      "other": "{name} borró {count} fotos"
+    },
+    "en": {
+      "one": "{name} deleted a photo",
+      "other": "{name} deleted {count} photos"
+    }
+  },
+  "dev.reason_plugged": {
+    "text": "está conectado como {port}",
+    "en": "it is plugged in as {port}"
+  },
+  "dev.reason_unplugged": {
+    "text": "se desconectó",
+    "en": "it was unplugged"
+  },
+  "dev.stale": {
+    "text": "El inglés viejo",
+    "en": "The old English"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "site.privacy": {
+    "text": "Read the <link>privacy policy</link>, {name}.",
+    "args": [["name", "user"]],
+    "note": "Footer line of a public page.",
+    "rich": ["link"]
+  }
+}

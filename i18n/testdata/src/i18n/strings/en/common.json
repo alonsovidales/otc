@@ -1,0 +1,10 @@
+{
+  "common.cancel": {
+    "text": "Cancel",
+    "note": "Button."
+  },
+  "common.save": {
+    "text": "Save",
+    "note": "Button."
+  }
+}

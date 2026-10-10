@@ -1,0 +1,4 @@
+{
+  "dev.free_space": {"text": "{free} libres sur {total}"},
+  "dev.photos_deleted": {"text": {"one": "{name} a supprimé {count} photo", "other": "{name} a supprimé {count} photos"}}
+}

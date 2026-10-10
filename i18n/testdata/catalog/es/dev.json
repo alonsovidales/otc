@@ -1,0 +1,10 @@
+{
+  "dev.disk_failed": {"text": "El disco {port} dejó de funcionar: {reason}"},
+  "dev.files_left": {"text": "{done} de {total} archivos"},
+  "dev.free_space": {"text": "{free} libres de {total}"},
+  "dev.last_seen": {"text": "Visto por última vez el {at}"},
+  "dev.literal": {"text": "El 100% del \"espacio\" de {name} & $1 $& %s%n \\ hecho"},
+  "dev.photos_deleted": {"text": {"one": "{name} borró una foto", "other": "{name} borró {count} fotos"}},
+  "dev.reason_plugged": {"text": "está conectado como {port}"},
+  "dev.reason_unplugged": {"text": "se desconectó"}
+}

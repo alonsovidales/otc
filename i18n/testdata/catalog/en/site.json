@@ -1,0 +1,3 @@
+{
+  "site.privacy": {"text": "Read the <link>privacy policy</link>, {name}.", "args": [["name", "user"]]}
+}

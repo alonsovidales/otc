@@ -1,0 +1,18 @@
+{
+  "languages": [
+    {"code": "en", "tag": "en", "apple": "en", "android": "", "name": "English", "status": "shipping"},
+    {"code": "es", "tag": "es", "apple": "es", "android": "es", "name": "Español", "status": "shipping"},
+    {"code": "fr", "tag": "fr", "apple": "fr", "android": "fr", "name": "Français", "status": "shipping"},
+    {"code": "de", "tag": "de", "apple": "de", "android": "de", "name": "Deutsch", "status": "shipping"},
+    {"code": "pt", "tag": "pt-PT", "apple": "pt-PT", "android": "pt", "name": "Português", "status": "shipping"},
+    {"code": "nl", "tag": "nl", "apple": "nl", "android": "nl", "name": "Nederlands", "status": "draft"}
+  ],
+  "routes": {
+    "common": ["otcsync", "wizard"],
+    "desk": ["otcsync"],
+    "dev": ["go"],
+    "push": ["go"],
+    "site": ["go"],
+    "wiz": ["wizard"]
+  }
+}

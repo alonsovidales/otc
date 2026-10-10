@@ -1,0 +1,6 @@
+{
+  "wiz.welcome": {
+    "text": "Te damos la bienvenida, {name}",
+    "en": "Welcome, {name}"
+  }
+}

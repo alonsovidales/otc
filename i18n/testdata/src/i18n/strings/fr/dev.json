@@ -1,0 +1,16 @@
+{
+  "dev.free_space": {
+    "text": "{free} libres sur {total}",
+    "en": "{free} free of {total}"
+  },
+  "dev.photos_deleted": {
+    "text": {
+      "one": "{name} a supprimé {count} photo",
+      "other": "{name} a supprimé {count} photos"
+    },
+    "en": {
+      "one": "{name} deleted a photo",
+      "other": "{name} deleted {count} photos"
+    }
+  }
+}

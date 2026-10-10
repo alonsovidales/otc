@@ -1,0 +1,12 @@
+{
+  "dev.photos_deleted": {
+    "text": {
+      "one": "{name} apagou uma foto",
+      "other": "{name} apagou {count} fotos"
+    },
+    "en": {
+      "one": "{name} deleted a photo",
+      "other": "{name} deleted {count} photos"
+    }
+  }
+}

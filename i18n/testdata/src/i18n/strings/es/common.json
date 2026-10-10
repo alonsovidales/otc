@@ -1,0 +1,10 @@
+{
+  "common.cancel": {
+    "text": "Cancelar",
+    "en": "Cancel"
+  },
+  "common.save": {
+    "text": "Guardar",
+    "en": "Save"
+  }
+}

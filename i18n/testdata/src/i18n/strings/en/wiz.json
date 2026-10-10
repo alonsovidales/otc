@@ -1,0 +1,7 @@
+{
+  "wiz.welcome": {
+    "text": "Welcome, {name}",
+    "args": [["name", "user"]],
+    "note": "First line of the setup wizard."
+  }
+}

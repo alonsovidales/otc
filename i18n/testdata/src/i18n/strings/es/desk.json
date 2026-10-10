@@ -1,0 +1,12 @@
+{
+  "desk.syncing": {
+    "text": {
+      "one": "Sincronizando {count} archivo",
+      "other": "Sincronizando {count} archivos"
+    },
+    "en": {
+      "one": "Syncing {count} file",
+      "other": "Syncing {count} files"
+    }
+  }
+}

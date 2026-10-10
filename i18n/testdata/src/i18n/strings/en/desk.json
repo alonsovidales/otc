@@ -1,0 +1,10 @@
+{
+  "desk.syncing": {
+    "text": {
+      "one": "Syncing {count} file",
+      "other": "Syncing {count} files"
+    },
+    "args": [["count", "count"]],
+    "note": "Tray status while files upload."
+  }
+}

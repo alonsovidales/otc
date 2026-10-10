@@ -1,0 +1,12 @@
+{
+  "dev.disk_failed": {"text": "The {port} disk stopped working: {reason}", "args": [["port", "text"], ["reason", "msg"]]},
+  "dev.files_left": {"text": "{done} of {total} files", "args": [["done", "int"], ["total", "int"]]},
+  "dev.free_space": {"text": "{free} free of {total}", "args": [["free", "bytes"], ["total", "bytes"]]},
+  "dev.last_seen": {"text": "Last seen {at}", "args": [["at", "datetime"]]},
+  "dev.literal": {"text": "100% of {name}'s \"space\" & $1 $& %s%n \\ done", "args": [["name", "user"]]},
+  "dev.only_en": {"text": "Only in English"},
+  "dev.photos_deleted": {"text": {"one": "{name} deleted a photo", "other": "{name} deleted {count} photos"}, "args": [["name", "user"], ["count", "count"]]},
+  "dev.reason_plugged": {"text": "it is plugged in as {port}", "args": [["port", "text"]]},
+  "dev.reason_unplugged": {"text": "it was unplugged"},
+  "dev.stale": {"text": "The new English"}
+}
