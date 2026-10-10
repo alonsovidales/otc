@@ -14,6 +14,7 @@ import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.data.UploadModel
 import cloud.offthe.otc.net.ChunkedUpload
+import cloud.offthe.otc.net.ErrorCodes
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.net.sizeMatches
 import cloud.offthe.otc.proto.HasFile
@@ -163,10 +164,6 @@ object PhotoSync {
         else "$targetDir${cleanName}_$tag"
     }
 
-    // The device's answer when another file has the path (LinkFile and
-    // FinishUpload, every release, no error code of its own).
-    private fun isPathTaken(message: String?) = message?.contains("Duplicated file") == true
-
     /**
      * Uploads (or links) one asset; returns the server path. Shared with the
      * composer, which has no listing ([known] empty). [known]: the target
@@ -220,11 +217,14 @@ object PhotoSync {
         }
 
         // null: another file took the plain name since the listing (two
-        // same-named assets in one run), or the composer met one.
+        // same-named assets in one run), or the composer met one. The device
+        // says so (LinkFile and FinishUpload, every release) with error_code
+        // "duplicated_file", or before the localization release only in the
+        // message (ErrorCodes).
         suspend fun sendUnlessTaken(to: String): RespEnvelope? = try {
-            send(to).takeUnless { to != alt && it.payloadCase != RespEnvelope.PayloadCase.RESP_FILE && isPathTaken(it.errorMessage) }
+            send(to).takeUnless { to != alt && it.payloadCase != RespEnvelope.PayloadCase.RESP_FILE && ErrorCodes.isDuplicatedFile(it.errorCode, it.errorMessage) }
         } catch (e: OTCConnection.RequestError) {
-            if (to == alt || !isPathTaken(e.message)) throw e
+            if (to == alt || !ErrorCodes.isDuplicatedFile(e.code, e.message)) throw e
             null
         }
 

@@ -424,7 +424,14 @@ func (e *Engine) pendingLocked(k *requestKind, id string) (pending *bool, device
 
 // unknownPayload: the device is older than the request (release 108 for
 // Images), which it says with error_code "unknown_payload" - or, before
-// that code existed, the bare message.
+// that code existed, the bare message. Codes before prose (docs/i18n.md):
+// a localized device writes its message in the owner's language, so the
+// message is read only when there is no code. The Mac's
+// ErrorCodes.isUnknownPayload is the same.
 func unknownPayload(resp *pb.RespEnvelope) bool {
-	return resp != nil && resp.Error && (resp.ErrorCode == "unknown_payload" || resp.ErrorMessage == "unknown payload")
+	if resp == nil || !resp.Error {
+		return false
+	}
+	return resp.ErrorCode == "unknown_payload" ||
+		(resp.ErrorCode == "" && strings.Contains(resp.ErrorMessage, "unknown payload"))
 }

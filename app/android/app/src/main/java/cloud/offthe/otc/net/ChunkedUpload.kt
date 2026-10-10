@@ -51,7 +51,8 @@ object ChunkedUpload {
      * Uploads [size] bytes from [open] to [path]; answers with FinishUpload's
      * response (a RESP_FILE, like UploadFile's). [sha256] is the content's hash
      * when already computed (for HasFile), else it is hashed while sending.
-     * Any error answer throws - the caller's retry (the sync pass) handles it.
+     * Any error answer throws, with the device's message and error code - the
+     * caller's retry (the sync pass) handles it.
      */
     suspend fun upload(
         path: String,
@@ -107,12 +108,12 @@ object ChunkedUpload {
 
         val hash = sha256 ?: hex(md!!.digest())
         val resp = OTCConnection.request { it.setReqFinishUpload(FinishUpload.newBuilder().setUploadId(uploadId).setSha256(hash)) }
-        if (resp.error) throw OTCConnection.RequestError(resp.errorMessage.ifEmpty { "FinishUpload failed" })
+        if (resp.error) throw OTCConnection.RequestError(resp.errorMessage.ifEmpty { "FinishUpload failed" }, resp.errorCode)
         resp
     }
 
     private fun check(resp: RespEnvelope, want: RespEnvelope.PayloadCase, what: String) {
-        if (resp.error) throw OTCConnection.RequestError(resp.errorMessage.ifEmpty { "$what failed" })
+        if (resp.error) throw OTCConnection.RequestError(resp.errorMessage.ifEmpty { "$what failed" }, resp.errorCode)
         if (resp.payloadCase != want) throw OTCConnection.RequestError("$what: unexpected ${resp.payloadCase}")
     }
 

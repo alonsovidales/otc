@@ -187,13 +187,6 @@ final class PhotoSync: NSObject {
         return "\((cleanName as NSString).deletingPathExtension)_\(suffix).\(ext)"
     }
 
-    /// The device's answer when a path already holds different content
-    /// (LinkFile and FinishUpload, every release; same content returns the
-    /// existing row instead).
-    static func isDuplicatedFile(_ message: String) -> Bool {
-        message.hasSuffix("Duplicated file")
-    }
-
     func exportAssetToTempFile(_ asset: PHAsset,
                                allowNetwork: Bool) throws -> (url: URL, filename: String, mime: String) {
         // Pick a sensible resource (photo/video full size if available)
@@ -731,8 +724,12 @@ final class PhotoSync: NSObject {
                             var resp: Msg_RespEnvelope
                             do {
                                 resp = try await send(to: path)
-                            } catch let error where path != altPath && Self.isDuplicatedFile(error.localizedDescription) {
-                                resp = Msg_RespEnvelope.with { $0.error = true; $0.errorMessage = error.localizedDescription }
+                            } catch let error where path != altPath && ErrorCodes.isDuplicatedFile(error) {
+                                resp = Msg_RespEnvelope.with {
+                                    $0.error = true
+                                    $0.errorCode = ErrorCodes.code(of: error)
+                                    $0.errorMessage = error.localizedDescription
+                                }
                             }
                             print("[dedup] \(cleanName): \(alreadyOnDevice ? "LinkFile" : "chunked upload") round trip in \(String(format: "%.3f", Date().timeIntervalSince(sendStart)))s")
                             // Another file got the name first (in this run,
@@ -740,7 +737,9 @@ final class PhotoSync: NSObject {
                             // the asset's own alternate name. The device
                             // says this only for different content, so it
                             // can never store the same photo twice.
-                            if resp.error && path != altPath && Self.isDuplicatedFile(resp.errorMessage) {
+                            // ErrorCodes: error_code "duplicated_file", or
+                            // an older device's message.
+                            if path != altPath && ErrorCodes.isDuplicatedFile(resp) {
                                 print("[dedup] \(cleanName): \(path) holds another file, using \(altPath)")
                                 path = altPath
                                 guard self.ifLive(gen) else { return .retry(id) }

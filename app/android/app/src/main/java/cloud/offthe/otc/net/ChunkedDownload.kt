@@ -63,7 +63,7 @@ object ChunkedDownload {
                 // A device from before ReadFile (v40): the whole file at once,
                 // as before. Builds before v9 answer with no error code, only
                 // the bare message.
-                if (at == 0L && (resp.errorCode == "unknown_payload" || resp.errorMessage == "unknown payload")) return wholeFile(path, hash, out)
+                if (at == 0L && ErrorCodes.isUnknownPayload(resp.errorCode, resp.errorMessage)) return wholeFile(path, hash, out)
                 throw Refused(resp.errorMessage)
             }
             if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_FILE_CHUNK) throw Refused("")

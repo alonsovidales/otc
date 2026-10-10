@@ -2526,9 +2526,9 @@ final class SyncModel: ObservableObject {
     }
 
     /// The device is older than the request: error_code "unknown_payload",
-    /// or before that code existed, the bare message.
+    /// or before that code existed, the bare message (ErrorCodes).
     private nonisolated static func isUnknownPayload(_ resp: Resp) -> Bool {
-        resp.error && (resp.errorCode == "unknown_payload" || resp.errorMessage == "unknown payload")
+        resp.error && ErrorCodes.isUnknownPayload(code: resp.errorCode, message: resp.errorMessage)
     }
 
     /// What a delete on the device came to.

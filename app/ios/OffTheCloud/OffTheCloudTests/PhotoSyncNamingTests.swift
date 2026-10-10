@@ -23,12 +23,6 @@ struct PhotoSyncNamingTests {
         #expect(a.count == "scan_".count + 8)
     }
 
-    @Test func recognizesTheDevicesDuplicateAnswer() {
-        #expect(PhotoSync.isDuplicatedFile("error trying to link file: Duplicated file"))
-        #expect(PhotoSync.isDuplicatedFile("error finishing the upload: Duplicated file"))
-        #expect(!PhotoSync.isDuplicatedFile("error finishing the upload: upload incomplete: 1 of 2 bytes"))
-    }
-
     @Test func aNameTakenInTheRunIsSharedOnlyByTheSameContent() {
         let claims = PhotoSync.PathClaims()
         let path = "/ios/d/IMG_0001.HEIC"

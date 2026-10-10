@@ -34,11 +34,12 @@ extension OTCConnection {
     /// Uploads `source` to `path` in chunks and returns FinishUpload's
     /// response (a .respFile on success), so callers handle it exactly as
     /// they handled UploadFile's. Any error answer along the way throws,
-    /// with the device's message - the callers' own retry/skip handling
-    /// covers it. `sha256` is the content's hex SHA-256 when the caller
-    /// already computed it (e.g. for HasFile); otherwise it is computed
-    /// while sending. Nonisolated so the reading and hashing stay off the
-    /// main actor; only the requests themselves hop onto it.
+    /// with the device's message and error code (ErrorCodes.code(of:)) -
+    /// the callers' own retry/skip handling covers it. `sha256` is the
+    /// content's hex SHA-256 when the caller already computed it (e.g. for
+    /// HasFile); otherwise it is computed while sending. Nonisolated so the
+    /// reading and hashing stay off the main actor; only the requests
+    /// themselves hop onto it.
     nonisolated func uploadChunked(path: String,
                                    source: UploadSource,
                                    forceOverride: Bool,
@@ -46,9 +47,10 @@ extension OTCConnection {
                                    modified: Google_Protobuf_Timestamp? = nil,
                                    cloudID: String = "",
                                    sha256: String? = nil) async throws -> Msg_RespEnvelope {
-        func fail(_ message: String) -> NSError {
-            NSError(domain: "ChunkedUpload", code: -1,
-                    userInfo: [NSLocalizedDescriptionKey: message])
+        func fail(_ message: String, code: String = "") -> NSError {
+            var info: [String: Any] = [NSLocalizedDescriptionKey: message]
+            if !code.isEmpty { info[ErrorCodes.userInfoKey] = code }
+            return NSError(domain: "ChunkedUpload", code: -1, userInfo: info)
         }
         // Issue #190: no route switch while this runs.
         TransferActivity.shared.begin()
@@ -75,7 +77,7 @@ extension OTCConnection {
         begin.cloudID = cloudID
         let started = try await request { $0.payload = .reqBeginUpload(begin) }
         guard !started.error, case .respUploadStarted(let st) = started.payload else {
-            throw fail(started.errorMessage.isEmpty ? "BeginUpload failed" : started.errorMessage)
+            throw fail(started.errorMessage.isEmpty ? "BeginUpload failed" : started.errorMessage, code: started.errorCode)
         }
         let uploadID = st.uploadID
 
@@ -101,7 +103,7 @@ extension OTCConnection {
             up.data = chunk
             let resp = try await request { $0.payload = .reqUploadChunk(up) }
             guard !resp.error, case .respUploadProgress(let p) = resp.payload else {
-                throw fail(resp.errorMessage.isEmpty ? "UploadChunk failed" : resp.errorMessage)
+                throw fail(resp.errorMessage.isEmpty ? "UploadChunk failed" : resp.errorMessage, code: resp.errorCode)
             }
             let expected = offset + Int64(chunk.count)
             guard p.received == expected else {
@@ -116,7 +118,7 @@ extension OTCConnection {
             ?? hasher!.finalize().map { String(format: "%02x", $0) }.joined()
         let done = try await request { $0.payload = .reqFinishUpload(finish) }
         if done.error {
-            throw fail(done.errorMessage.isEmpty ? "FinishUpload failed" : done.errorMessage)
+            throw fail(done.errorMessage.isEmpty ? "FinishUpload failed" : done.errorMessage, code: done.errorCode)
         }
         return done
     }

@@ -93,6 +93,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cloud.offthe.otc.data.FaceRecognition
+import cloud.offthe.otc.net.ErrorCodes
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.File as PbFile
 import cloud.offthe.otc.proto.Person
@@ -389,7 +390,7 @@ fun searchKeyChoice(typed: String, o: SearchOptions, moved: String?, noFileSearc
 }
 
 /** A device older than the request: it says so in the code, or (very old) only in the message. */
-fun RespEnvelope.isUnknownPayload() = error && (errorCode == "unknown_payload" || errorMessage == "unknown payload")
+fun RespEnvelope.isUnknownPayload() = error && ErrorCodes.isUnknownPayload(errorCode, errorMessage)
 
 /** The options for what is typed now, from the gallery's tags and people. */
 @Composable

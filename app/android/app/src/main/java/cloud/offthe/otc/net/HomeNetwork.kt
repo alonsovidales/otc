@@ -228,7 +228,7 @@ object HomeNetwork {
             return HomeEndpoint.valid(le.addressesList, le.port, le.certSha256.toByteArray())?.let { Answer.Store(it) } ?: Answer.Forget
         }
         // Builds before v9 answered an unknown request with only the message.
-        if (resp.error && (resp.errorCode == "unknown_payload" || resp.errorCode == "local_unavailable" || resp.errorMessage == "unknown payload")) {
+        if (resp.error && (resp.errorCode == "local_unavailable" || ErrorCodes.isUnknownPayload(resp.errorCode, resp.errorMessage))) {
             return Answer.Forget
         }
         return Answer.Keep

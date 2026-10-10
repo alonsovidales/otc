@@ -117,7 +117,8 @@ object OTCConnection {
     @Volatile private var authBackoffMs = 5_000L
     private const val maxAuthBackoffMs = 300_000L
 
-    class RequestError(message: String) : IOException(message)
+    /** [code]: the device's error_code when it refused with one ("" otherwise), checked before the message (ErrorCodes). */
+    class RequestError(message: String, val code: String = "") : IOException(message)
 
     /**
      * How long what a screen shows waits for its answer before the request

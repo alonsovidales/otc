@@ -584,7 +584,7 @@ final class NewPostPickerVM: ObservableObject {
         // goes under its alternate name, as PhotoSync does. The device
         // says this only for different content.
         func isDuplicated(_ resp: Msg_RespEnvelope) -> Bool {
-            resp.error && PhotoSync.isDuplicatedFile(resp.errorMessage)
+            ErrorCodes.isDuplicatedFile(resp)
         }
 
         // Cache hit (already synced under some other path before, e.g. a
@@ -643,8 +643,12 @@ final class NewPostPickerVM: ObservableObject {
         var resp: Msg_RespEnvelope
         do {
             resp = try await send(to: target)
-        } catch let error where PhotoSync.isDuplicatedFile(error.localizedDescription) {
-            resp = Msg_RespEnvelope.with { $0.error = true; $0.errorMessage = error.localizedDescription }
+        } catch let error where ErrorCodes.isDuplicatedFile(error) {
+            resp = Msg_RespEnvelope.with {
+                $0.error = true
+                $0.errorCode = ErrorCodes.code(of: error)
+                $0.errorMessage = error.localizedDescription
+            }
         }
         if isDuplicated(resp) {
             target = altPath

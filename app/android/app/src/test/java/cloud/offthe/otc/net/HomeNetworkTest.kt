@@ -116,6 +116,8 @@ class HomeNetworkTest {
         // Anything else is no news.
         assertEquals(HomeNetwork.Answer.Keep, HomeNetwork.answer(resp { error = true; errorCode = "not_authenticated" }))
         assertEquals(HomeNetwork.Answer.Keep, HomeNetwork.answer(resp { error = true; errorCode = "device_unreachable" }))
+        // A message that comes with another code is never read.
+        assertEquals(HomeNetwork.Answer.Keep, HomeNetwork.answer(resp { error = true; errorCode = "device_unreachable"; errorMessage = "unknown payload" }))
         assertEquals(HomeNetwork.Answer.Keep, HomeNetwork.answer(resp {}))
     }
 
