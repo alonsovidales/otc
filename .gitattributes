@@ -4,10 +4,11 @@ scripts/updates/VERSIONS export-ignore
 scripts/updates/VERSIONS.sig export-ignore
 scripts/updates/RELEASES export-ignore
 scripts/updates/RELEASES.sig export-ignore
-# The store listings' screenshots and the committed bridge binary: devices
-# never read them, and they were ~88% of the src.tar.gz every update
-# downloads, stages in RAM and rewrites to the SD card (90 MB -> 11 MB).
+# The store listings' screenshots, the promo images and the committed bridge
+# binary: devices never read them, and they were ~88% of the src.tar.gz every
+# update downloads, stages in RAM and rewrites to the SD card (90 MB -> 11 MB).
 docs/app-store export-ignore
 docs/play-store export-ignore
 docs/screenshots export-ignore
+docs/promo export-ignore
 bridge/bin/otc_bridge export-ignore
