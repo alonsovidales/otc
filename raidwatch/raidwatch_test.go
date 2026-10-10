@@ -5,6 +5,7 @@ package raidwatch
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -182,5 +183,98 @@ func TestNoArray(t *testing.T) {
 	check(t.TempDir(), r.notify())
 	if len(r.alerts)+len(r.pushes) != 0 {
 		t.Fatalf("no array alerted: %v", r.alerts)
+	}
+}
+
+// The alert and the push say exactly what they said before the port was
+// kept as data (English byte for byte), and MissingPorts names the same
+// disks Missing does, as data, while the failure is reported and after.
+func TestFailureTextAndPorts(t *testing.T) {
+	f := newFakeSys(t)
+	store := t.TempDir()
+	r := &recorder{}
+	check(store, r.notify())
+	if MissingPorts() != nil {
+		t.Fatalf("healthy: MissingPorts() = %v", MissingPorts())
+	}
+
+	f.unplug("sdb")
+	f.write("block/md0/md/degraded", "1")
+	var during []Port
+	n := r.notify()
+	alert := n.Alert
+	n.Alert = func(title, detail string) { during = MissingPorts(); alert(title, detail) }
+	check(store, n)
+	top := bluePort["xhci-hcd.1"]
+	wantAlert := "The disk in the " + top + " blue USB port stopped working | Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card. (sdb BBB xhci-hcd.1 usb4 4-1)"
+	wantPush := "Storage disk stopped working | The disk in the " + top + " blue USB port failed. Your files are safe on the other one: replace it soon."
+	if len(r.alerts) != 1 || r.alerts[0] != wantAlert {
+		t.Errorf("alert:\n got %q\nwant %q", r.alerts, wantAlert)
+	}
+	if len(r.pushes) != 1 || r.pushes[0] != wantPush {
+		t.Errorf("push:\n got %q\nwant %q", r.pushes, wantPush)
+	}
+	if Missing() != "the disk in the "+top+" blue USB port" {
+		t.Errorf("Missing() = %q", Missing())
+	}
+	want := []Port{Port(top)}
+	if !slices.Equal(during, want) || !slices.Equal(MissingPorts(), want) {
+		t.Errorf("ports: during the alert %v, after %v, want %v", during, MissingPorts(), want)
+	}
+
+	// Both gone: the two labels joined, the two ports in slot order.
+	f.unplug("sda")
+	check(store, r.notify())
+	bottom := bluePort["xhci-hcd.0"]
+	if Missing() != "the disk in the "+bottom+" blue USB port and the disk in the "+top+" blue USB port" {
+		t.Errorf("both: Missing() = %q", Missing())
+	}
+	if got := MissingPorts(); !slices.Equal(got, []Port{Port(bottom), Port(top)}) {
+		t.Errorf("both: MissingPorts() = %v", got)
+	}
+	// A copy: what a caller does with it doesn't reach the next caller.
+	MissingPorts()[0] = "changed"
+	if MissingPorts()[0] != Port(bottom) {
+		t.Errorf("MissingPorts shares its slice")
+	}
+}
+
+// A disk nothing is known of is PortUnknown, as it is unknownLabel.
+func TestUnknownPort(t *testing.T) {
+	f := newFakeSys(t)
+	f.unplug("sdb")
+	f.write("block/md0/md/degraded", "1")
+	check(t.TempDir(), (&recorder{}).notify())
+	if Missing() != unknownLabel || !slices.Equal(MissingPorts(), []Port{PortUnknown}) {
+		t.Errorf("Missing() = %q, MissingPorts() = %v", Missing(), MissingPorts())
+	}
+	if got := describe(nil); got.label != unknownLabel || !slices.Equal(got.ports, []Port{PortUnknown}) {
+		t.Errorf("nothing missing yet degraded: %+v", got)
+	}
+	for pos, want := range map[string]Port{"top": PortTop, "bottom": PortBottom, "": PortUnknown, "left": PortUnknown} {
+		if got := (Member{Position: pos}).Where(); got != want {
+			t.Errorf("Where(%q) = %q, want %q", pos, got, want)
+		}
+	}
+}
+
+// capitalize upper-cases a whole first character, however many bytes it
+// takes - a translated label may start with one - and leaves English as
+// it was.
+func TestCapitalize(t *testing.T) {
+	for in, want := range map[string]string{
+		"écran":                             "Écran",
+		"ünder":                             "Ünder",
+		"ĳsselmeer":                         "Ĳsselmeer",
+		"the disk in the top blue USB port": "The disk in the top blue USB port",
+		unknownLabel:                        "One of the two storage disks",
+		"Already":                           "Already",
+		"1 disk":                            "1 disk",
+		"":                                  "",
+		"\xffbad":                           "\xffbad",
+	} {
+		if got := capitalize(in); got != want {
+			t.Errorf("capitalize(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

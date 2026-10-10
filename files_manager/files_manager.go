@@ -531,6 +531,14 @@ func (mg *Manager) alert(what string, path string, err error) {
 // (issue #132); the handler turns it into RespEnvelope.error_code.
 var ErrUploadOnly = errors.New("this folder is upload only: nothing in it can be deleted")
 
+// ErrDuplicatedFile is the refusal of an upload or a link (UploadFile,
+// FinishUpload, LinkFile) to a path that already holds other content,
+// without force_override and outside an upload-only folder; the handler
+// turns it into RespEnvelope.error_code duplicated_file. Its text never
+// changes: the phone apps released before that code match a reply ending
+// in "Duplicated file" (iOS and Android PhotoSync).
+var ErrDuplicatedFile = errors.New("Duplicated file")
+
 // folderPath is a folder as upload_only_folders (and issue #192's
 // out_of_images_folders) stores it: with its trailing slash, so "/kim/"
 // never also covers "/kimono/".
@@ -1698,7 +1706,7 @@ func (mg *Manager) registerUpload(session *session.Session, path, hash, mime str
 				mg.reconcileAnalysis(session, []string{oldHash})
 			}
 		default:
-			return nil, false, errors.New("Duplicated file")
+			return nil, false, ErrDuplicatedFile
 		}
 	}
 
@@ -2213,7 +2221,7 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 			return file, nil
 		}
 		if !forceOverride {
-			return nil, errors.New("Duplicated file")
+			return nil, ErrDuplicatedFile
 		}
 		// In place, keeping the path's versions, as UploadFile's override.
 		var oldHash string

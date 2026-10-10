@@ -18,11 +18,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/alonsovidales/otc/log"
 )
@@ -77,6 +80,48 @@ func (m Member) Label() string {
 		return "the disk in the " + m.Position + " blue USB port"
 	}
 	return unknownLabel
+}
+
+// Port is where a disk is plugged in, as data rather than words, so what
+// Label says in English can be said in other languages too.
+type Port string
+
+const (
+	PortTop    Port = "top"
+	PortBottom Port = "bottom"
+	// PortUnknown: not one of a Pi 5's blue ports, or nothing is known of
+	// the disk (Label's unknownLabel).
+	PortUnknown Port = "unknown"
+)
+
+// Where is the Port m is plugged in.
+func (m Member) Where() Port {
+	if p := Port(m.Position); p == PortTop || p == PortBottom {
+		return p
+	}
+	return PortUnknown
+}
+
+// failure is what the mirror is missing: the disks' Labels as one English
+// phrase, and their Ports, in the same order.
+type failure struct {
+	label string
+	ports []Port
+}
+
+// describe names the missing disks; none at all (md says degraded but
+// every slot is in sync) is unknownLabel.
+func describe(missing []Member) failure {
+	if len(missing) == 0 {
+		return failure{label: unknownLabel, ports: []Port{PortUnknown}}
+	}
+	labels := make([]string, 0, len(missing))
+	ports := make([]Port, 0, len(missing))
+	for _, m := range missing {
+		labels = append(labels, m.Label())
+		ports = append(ports, m.Where())
+	}
+	return failure{label: strings.Join(labels, " and "), ports: ports}
 }
 
 type array struct {
@@ -166,7 +211,7 @@ type Notify struct {
 
 var (
 	mu     sync.Mutex
-	broken string // the Label of what is missing now, "" when healthy
+	broken failure // what is missing now, the zero value when healthy
 )
 
 // Missing names the disk the mirror is missing now ("the disk in the top
@@ -174,7 +219,16 @@ var (
 func Missing() string {
 	mu.Lock()
 	defer mu.Unlock()
-	return broken
+	return broken.label
+}
+
+// MissingPorts is Missing as data: the Port of each disk it names, in the
+// same order, or nil. While Notify reports a failure it already holds
+// that failure's ports.
+func MissingPorts() []Port {
+	mu.Lock()
+	defer mu.Unlock()
+	return slices.Clone(broken.ports)
 }
 
 // Watch checks the array every minute, from 30 s after start. Blocks.
@@ -253,7 +307,7 @@ func check(storagePath string, n Notify) {
 
 	if !a.degraded {
 		mu.Lock()
-		broken = ""
+		broken = failure{}
 		mu.Unlock()
 		// Healthy and settled: record where each disk is, and say so if a
 		// failure was reported.
@@ -285,16 +339,10 @@ func check(storagePath string, n Notify) {
 	}
 
 	missing := missingSlots(a, known)
-	labels := make([]string, 0, len(missing))
-	for _, m := range missing {
-		labels = append(labels, m.Label())
-	}
-	what := unknownLabel
-	if len(labels) > 0 {
-		what = strings.Join(labels, " and ")
-	}
+	f := describe(missing)
+	what := f.label
 	mu.Lock()
-	broken = what
+	broken = f
 	mu.Unlock()
 	if alerted {
 		return
@@ -335,9 +383,13 @@ func changed(known map[int]Member, cur []Member) bool {
 	return false
 }
 
+// capitalize upper-cases s's first letter, a whole character however
+// many bytes it takes ("écran" -> "Écran"); s is unchanged when it doesn't
+// start with valid UTF-8.
 func capitalize(s string) string {
-	if s == "" {
+	r, size := utf8.DecodeRuneInString(s)
+	if r == utf8.RuneError {
 		return s
 	}
-	return strings.ToUpper(s[:1]) + s[1:]
+	return string(unicode.ToUpper(r)) + s[size:]
 }

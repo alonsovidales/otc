@@ -40,7 +40,6 @@ import (
 	"github.com/alonsovidales/otc/profile"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/push"
-	"github.com/alonsovidales/otc/raidwatch"
 	"github.com/alonsovidales/otc/session"
 	"github.com/alonsovidales/otc/settings"
 	"github.com/alonsovidales/otc/social"
@@ -50,7 +49,6 @@ import (
 	"github.com/alonsovidales/otc/supervisor"
 	"github.com/alonsovidales/otc/tailscalefunnel"
 	"github.com/alonsovidales/otc/updater"
-	"github.com/alonsovidales/otc/wifiwatch"
 	"github.com/alonsovidales/otc/wsframe"
 	"github.com/google/uuid"
 	gorilla "github.com/gorilla/websocket"
@@ -67,6 +65,13 @@ const (
 	// reply (issue #105). Clients key their sign-out handling off this
 	// rather than the prose beside it.
 	cCodeNotAuthenticated = "not_authenticated"
+
+	// cCodeDuplicatedFile is RespEnvelope.error_code on an UploadFile,
+	// FinishUpload or LinkFile refused because the path already holds
+	// other content (filesmanager.ErrDuplicatedFile). The message beside
+	// it stays as it was, ending in "Duplicated file", which is what apps
+	// released before the code match.
+	cCodeDuplicatedFile = "duplicated_file"
 
 	// Bridge connection pool. A connection is consumed for as long as the
 	// bridge-side client that picked it up keeps its socket open — see
@@ -309,49 +314,8 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	// this feature shipped.
 	mg.requestPushSync()
 
-	// Issue #183: check for updates by itself, on the main instance (the
-	// one that can install them), and tell the owner about a major or
-	// critical one in Notifications - a critical one also as a push, sent
-	// with the notification so once per release.
-	if sup != nil {
-		go updater.Watch(func(a *updater.Alert) {
-			title := fmt.Sprintf("Update %s is available", a.Version)
-			critical := a.Level == updater.KindCritical
-			if critical {
-				title = fmt.Sprintf("Critical update %s - please install it soon", a.Version)
-			}
-			body := a.Summary + " Install it from Settings."
-			added, err := dao.AddUpdateNotification(title, body)
-			if err != nil {
-				log.Error("could not add the update notification:", err)
-				return
-			}
-			if added && critical {
-				ps.Notify(title, body, push.Target{})
-			}
-		})
-	}
-
-	// A disk of the mirror that stops working: an Alert and a push naming
-	// the USB port it is in, and another once the mirror is whole again.
-	// The one device error that is pushed - the others never are (#64).
-	if sup != nil && cfg.HasSection("otc") && cfg.GetStr("otc", "storage-path") != "" {
-		go raidwatch.Watch(cfg.GetStr("otc", "storage-path"), raidwatch.Notify{
-			Alert: func(title, detail string) {
-				if err := dao.AddStorageNotification(title, detail); err != nil {
-					log.Error("could not add the storage notification:", err)
-				}
-			},
-			Push: func(title, body string) { ps.Notify(title, body, push.Target{}) },
-		})
-	}
-
-	// A Wi-Fi that stopped sending properly (Pit, brcmfmac over SDIO) is
-	// restarted, once per episode, with an Alert once it has been judged
-	// - see wifiwatch. Machine-level, so main instance only.
-	if sup != nil {
-		go wifiwatch.Watch(dao.AddErrorNotification)
-	}
+	// Updates, the mirror's disks and the Wi-Fi: machine_alerts.go.
+	startMachineAlerts(dao, ps, sup)
 
 	// Stored videos reach ffmpeg (thumbnails, tags, metadata) through this
 	// device's own stream on loopback: a short-lived media token over the
@@ -2264,6 +2228,9 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error trying to upload file: %s", err)
+			if errors.Is(err, filesmanager.ErrDuplicatedFile) {
+				resp.ErrorCode = cCodeDuplicatedFile
+			}
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespFile{
 				RespFile: pbFile,
@@ -2313,6 +2280,9 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error finishing the upload: %s", err)
+			if errors.Is(err, filesmanager.ErrDuplicatedFile) {
+				resp.ErrorCode = cCodeDuplicatedFile
+			}
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespFile{RespFile: file}
@@ -2347,6 +2317,9 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 		if err != nil {
 			resp.Error = true
 			resp.ErrorMessage = fmt.Sprintf("error trying to link file: %s", err)
+			if errors.Is(err, filesmanager.ErrDuplicatedFile) {
+				resp.ErrorCode = cCodeDuplicatedFile
+			}
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespFile{
 				RespFile: pbFile,
