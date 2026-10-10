@@ -1,0 +1,10 @@
+{
+  "web.files.deleted": {
+    "one": "\u2068{name}\u2069 deleted a file",
+    "other": "\u2068{name}\u2069 deleted {files} files",
+    "arg": "files"
+  },
+  "web.files.escapes": "Quotes \" and ', a backslash in C:\\Users\\Ana, 100% \u0026 more \u003e less, $\u0026 and $1, %s%n, Español… 😀 {size}\nSecond line",
+  "web.files.renamed": "\u2068{fileName}\u2069 is now {newName}",
+  "web.files.terms": "Read the \u003clink\u003eterms\u003c/link\u003e before \u003cb\u003e\u2068{name}\u2069\u003c/b\u003e signs"
+}
