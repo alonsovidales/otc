@@ -405,7 +405,7 @@ class BLESetupTransport(private val context: Context) {
                 val done = CompletableDeferred<Boolean>()
                 writeDone = done
                 val ok = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    g.writeCharacteristic(chrc, chunk, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothGatt.GATT_SUCCESS
+                    g.writeCharacteristic(chrc, chunk, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothStatusCodes.SUCCESS
                 } else {
                     @Suppress("DEPRECATION")
                     chrc.value = chunk

@@ -165,6 +165,7 @@ fun MainView(secrets: SecretsStore) {
     val lastError by OTCConnection.lastError.collectAsState()
     val connectionFailed by OTCConnection.connectionFailed.collectAsState()
     val faces by FaceRecognition.enabled.collectAsState()
+    val deviceId by secrets.deviceId.collectAsState()
 
     // Issue #151: one failed attempt is not a connection problem - at
     // launch the first try often goes out before the network is up, and
@@ -385,7 +386,7 @@ fun MainView(secrets: SecretsStore) {
                             )
                             Section.Files -> FilesExplorerView(initialPath = "/")
                             Section.Images -> PhotoGalleryView(
-                                deviceId = secrets.deviceId.value, wide = wide,
+                                deviceId = deviceId, wide = wide,
                                 page = when (section) {
                                     Section.People -> GalleryPage.PEOPLE
                                     Section.Collections -> GalleryPage.COLLECTIONS
