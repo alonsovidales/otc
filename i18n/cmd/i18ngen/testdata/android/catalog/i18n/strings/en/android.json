@@ -1,0 +1,55 @@
+{
+  "android.esc.at": {
+    "text": "@home is where the photos are",
+    "note": "Starts with an at sign (a resource reference to aapt2)."
+  },
+  "android.esc.fixed": {
+    "text": "Off The Cloud {version}",
+    "args": [["version", "text"]],
+    "note": "Never translated.",
+    "translate": false
+  },
+  "android.esc.leading_arg": {
+    "text": "{name} first",
+    "args": [["name", "user"]],
+    "note": "Starts with a user argument."
+  },
+  "android.esc.lines": {
+    "text": "First line\nSecond line",
+    "note": "Two lines."
+  },
+  "android.esc.markup": {
+    "text": "Fish & chips > fries",
+    "note": "An ampersand and a greater-than sign."
+  },
+  "android.esc.percent": {
+    "text": "100% sure",
+    "note": "A percent sign without arguments."
+  },
+  "android.esc.percent_args": {
+    "text": "{name} is 100% sure, %s%n and $& stay text",
+    "args": [["name", "text"]],
+    "note": "A percent sign with arguments, and format-looking text."
+  },
+  "android.esc.question": {
+    "text": "?! is not a question",
+    "note": "Starts with a question mark (an attribute reference to aapt2)."
+  },
+  "android.esc.quotes": {
+    "text": "It's \"quoted\", with a back\\slash",
+    "note": "Quotes, an apostrophe and a backslash."
+  },
+  "android.esc.shadow": {
+    "text": "{list_of} and {s} in {r}",
+    "args": [["list_of", "text"], ["s", "text"], ["r", "int"]],
+    "note": "Argument names that could shadow names in the accessor."
+  },
+  "android.esc.spaces": {
+    "text": "Keep 10 GB free, « ok »",
+    "note": "A no-break space and narrow no-break spaces."
+  },
+  "android.esc.unicode": {
+    "text": "Connecting… ¿Qué? 😀 ñ",
+    "note": "Non-ASCII text."
+  }
+}

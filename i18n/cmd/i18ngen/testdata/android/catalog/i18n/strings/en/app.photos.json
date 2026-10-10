@@ -1,0 +1,38 @@
+{
+  "app.photos.count": {
+    "text": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    },
+    "args": [["count", "count"]],
+    "note": "Under a collection's name."
+  },
+  "app.photos.deleted_by": {
+    "text": {
+      "one": "{name} deleted a photo",
+      "other": "{name} deleted {count} photos"
+    },
+    "args": [["name", "user"], ["count", "count"]],
+    "note": "Alert line in Notifications."
+  },
+  "app.photos.privacy": {
+    "text": "Read the <link>privacy policy</link> before sharing <b>{file_name}</b>",
+    "args": [["file_name", "user"]],
+    "note": "Above the share button; link opens the policy.",
+    "rich": ["b", "link"]
+  },
+  "app.photos.removed": {
+    "text": {
+      "one": "<b>A photo</b> was removed",
+      "other": "<b>{count} photos</b> were removed"
+    },
+    "args": [["count", "count"]],
+    "note": "Banner after a deletion.",
+    "rich": ["b"]
+  },
+  "app.photos.slots": {
+    "text": "Used {used} of {total} slots",
+    "args": [["used", "int"], ["total", "int"]],
+    "note": "Storage line."
+  }
+}

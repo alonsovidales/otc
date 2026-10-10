@@ -1,0 +1,16 @@
+{
+  "app.photos.deleted_by": {
+    "text": {
+      "one": "{name} borró una foto",
+      "other": "{name} borró {count} fotos"
+    },
+    "en": {
+      "one": "{name} deleted a photo",
+      "other": "{name} deleted {count} photos"
+    }
+  },
+  "app.photos.privacy": {
+    "text": "Lee la <link>política de privacidad</link> antes de compartir <b>{file_name}</b>",
+    "en": "Read the <link>privacy policy</link> before sharing <b>{file_name}</b>"
+  }
+}

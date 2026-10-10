@@ -1,0 +1,6 @@
+{
+  "web.only": {
+    "text": "Web only",
+    "note": "Not routed to Android."
+  }
+}

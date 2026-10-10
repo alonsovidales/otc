@@ -1,0 +1,10 @@
+{
+  "android.esc.percent": {
+    "text": "100% seguro",
+    "en": "100% sure"
+  },
+  "android.esc.quotes": {
+    "text": "Está \"citado\", con una barra\\invertida",
+    "en": "It's \"quoted\", with a back\\slash"
+  }
+}
