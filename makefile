@@ -64,6 +64,25 @@ pb:
 
 .PHONY: pb
 
+# Translations (docs/i18n.md, i18n/README.md). `make i18n` rewrites the
+# catalog's sources in their canonical form and writes every generated
+# platform file (committed, like the protobuf bindings). DRAFT=1 also writes
+# the draft languages (LANGS=es,fr: only those) and the pseudo-locale, for
+# local testing only - that output is marked and `make i18n-check` refuses
+# it, so run `make i18n` again before committing. `make i18n-check`
+# validates the catalog, fails when a committed generated file is out of
+# date and vets the i18n packages; I18N_FLAGS adds -release, -strict,
+# -lang or -prefix.
+I18N_FLAGS ?=
+i18n:
+	go run ./i18n/cmd/i18ngen $(if $(DRAFT),-draft) $(if $(LANGS),-lang $(LANGS)) $(I18N_FLAGS)
+
+i18n-check:
+	go run ./i18n/cmd/i18ngen -check $(I18N_FLAGS)
+	go vet ./i18n/...
+
+.PHONY: i18n i18n-check
+
 # Issue #38: the flashable Raspberry Pi image - stock Raspberry Pi OS Lite
 # plus the setup wizard and hotspot scripts (scripts/build_image.sh), so
 # it is independent of the software release: the wizard installs the
