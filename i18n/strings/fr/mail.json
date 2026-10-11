@@ -28,8 +28,14 @@
     "en": "June"
   },
   "mail.date.long": {
-    "text": "{day} {month} {year}",
-    "en": "{day} {month} {year}"
+    "text": {
+      "one": "{day}er {month} {year}",
+      "other": "{day} {month} {year}"
+    },
+    "en": {
+      "one": "{day} {month} {year}",
+      "other": "{day} {month} {year}"
+    }
   },
   "mail.date.march": {
     "text": "mars",

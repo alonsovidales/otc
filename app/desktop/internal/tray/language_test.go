@@ -46,10 +46,11 @@ func TestLanguageMenuText(t *testing.T) {
 }
 
 // A pick is the local copy, pending, against the device's value as the
-// engine last saw it; with no engine running, against nothing.
+// engine last saw it; with no engine running (no value seen), or no device
+// set up, for the next one, against nothing.
 func TestPickLanguage(t *testing.T) {
 	now := time.Now()
-	cfg := &config.Config{Language: "fr"}
+	cfg := &config.Config{Language: "fr", Domain: "cala.off-the.cloud"}
 	device := ""
 	pickLanguage(cfg, "es", config.State{Status: "Connected", DeviceLanguage: &device}, now)
 	if cfg.Language != "es" || cfg.LanguagePending == nil || !cfg.LanguagePending.Equal(now) ||
@@ -57,7 +58,13 @@ func TestPickLanguage(t *testing.T) {
 		t.Fatalf("%+v", cfg)
 	}
 	pickLanguage(cfg, "", config.State{Status: "Sync not running"}, now)
-	if cfg.Language != "" || cfg.LanguagePending == nil || cfg.LanguageExpected != nil {
+	if cfg.Language != "" || cfg.LanguagePending == nil || cfg.LanguageExpected != nil || !cfg.LanguageNextDevice {
 		t.Fatalf("%+v", cfg)
+	}
+	// Disconnected (a state written just before still names a value).
+	cfg = &config.Config{Language: "fr"}
+	pickLanguage(cfg, "de", config.State{Status: "Connected", DeviceLanguage: &device}, now)
+	if cfg.Language != "de" || cfg.LanguagePending == nil || cfg.LanguageExpected != nil || !cfg.LanguageNextDevice {
+		t.Fatalf("no device: %+v", cfg)
 	}
 }

@@ -291,6 +291,9 @@ final class SetupWizardSession: ObservableObject {
     @Published var step: SetupWizardView.Step = .intro
     @Published var deleted = false
     @Published var usedDomain = ""
+    /// A language was picked in this wizard (its LanguageMenu): it goes to
+    /// the device set up, once this Mac syncs with it.
+    var languageChosen = false
     let image = SetupImageModel()
 
     /// The wizard's window while it is open.
@@ -309,6 +312,7 @@ final class SetupWizardSession: ObservableObject {
         step = .intro
         deleted = false
         usedDomain = ""
+        languageChosen = false
     }
 }
 
@@ -350,6 +354,9 @@ struct SetupWizardView: View {
                 VStack(spacing: 0) {
                     BluetoothSetupView { domain, password in
                         guard Self.switchDevice(to: domain) else { return }
+                        // The language picked in this wizard is the new
+                        // device's too: sent at its first sign-in.
+                        if session.languageChosen { LanguageSettings.shared.carryToNextDevice() }
                         SettingsStore.shared.apply(domain: domain, password: password)
                         usedDomain = domain
                         step = .done
@@ -357,6 +364,9 @@ struct SetupWizardView: View {
                     HStack {
                         Button(S.commonBack) { step = .continueSetup }
                         Spacer()
+                        // Under the setup page, which follows it
+                        // (BLESetupTransport.appLanguageChanged).
+                        languageMenu
                     }
                     .padding(10)
                 }
@@ -364,6 +374,13 @@ struct SetupWizardView: View {
                 page
                     .frame(width: 520)
                     .padding(28)
+                    // In the margin above the title, at the right: every
+                    // step keeps its layout.
+                    .overlay(alignment: .topTrailing) {
+                        languageMenu
+                            .padding(.top, 6)
+                            .padding(.trailing, 12)
+                    }
             }
         }
         .navigationTitle(S.deskFoldersSetupTitle)
@@ -590,6 +607,12 @@ struct SetupWizardView: View {
     }
 
     // MARK: pieces
+
+    /// The language for every app, chosen here by someone setting up a
+    /// device: no Settings to go to yet, maybe no device to sign in to.
+    private var languageMenu: some View {
+        LanguageMenu { _ in session.languageChosen = true }
+    }
 
     private func header(_ title: String, _ subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {

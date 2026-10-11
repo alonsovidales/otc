@@ -4,8 +4,10 @@ package accounts
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/alonsovidales/otc/bridge/site"
 	"github.com/alonsovidales/otc/i18n"
 )
 
@@ -20,6 +22,9 @@ import (
 // text, not user): the isolation marks a user argument gets are invisible
 // in a browser, but a plain-text email reader may show them, spam filters
 // score bidi controls, and the English stays byte for byte what it was.
+//
+// Their links open the account page in the email's language
+// (accountPage): /<code>/account, or /account in English.
 
 // emailGreeting opens every account email on a line of its own: "Hello
 // Ann," or, without a name (an Apple account that shared none), "Hello,".
@@ -36,18 +41,43 @@ func (a *Accounts) signature() string {
 	return "- Off The Cloud\nhttps://" + a.tld + "\n" // i18n-ignore: the product's name and address
 }
 
+// accountPage is the account page's address for an email in lang:
+// https://<tld>/<code>/account for a language this build carries other
+// than English, so that the page opens in the email's language;
+// https://<tld>/account, as always, for English, "" (not known) and any
+// other language.
+func (a *Accounts) accountPage(lang string) string {
+	code := i18n.Normalize(lang)
+	if code == "" {
+		code = site.English()
+	}
+	return "https://" + a.tld + site.AccountPath(code)
+}
+
+// pageLink is link - emailLink's, on the English account page
+// (https://<tld>/account#verify=…) - on the page in lang. Any other link
+// stays as it is.
+func (a *Accounts) pageLink(lang, link string) string {
+	if rest, ok := strings.CutPrefix(link, a.accountPage("")); ok && (rest == "" || rest[0] == '#' || rest[0] == '?') {
+		return a.accountPage(lang) + rest
+	}
+	return link
+}
+
 func verificationSubject(lang string) string { return i18n.MailVerifySubject().Render(lang) }
 
-// verificationBody is the verification email's text, carrying link.
+// verificationBody is the verification email's text, carrying link on the
+// account page in lang (pageLink).
 func (a *Accounts) verificationBody(lang, name, link string) string {
-	return emailGreeting(lang, name) + "\n\n" + i18n.MailVerifyBody(link).Render(lang) + "\n\n" + a.signature()
+	return emailGreeting(lang, name) + "\n\n" + i18n.MailVerifyBody(a.pageLink(lang, link)).Render(lang) + "\n\n" + a.signature()
 }
 
 func resetSubject(lang string) string { return i18n.MailResetSubject().Render(lang) }
 
-// resetBody is the password-reset email's text, carrying link.
+// resetBody is the password-reset email's text, carrying link on the
+// account page in lang (pageLink).
 func (a *Accounts) resetBody(lang, name, link string) string {
-	return emailGreeting(lang, name) + "\n\n" + i18n.MailResetBody(link).Render(lang) + "\n\n" + a.signature()
+	return emailGreeting(lang, name) + "\n\n" + i18n.MailResetBody(a.pageLink(lang, link)).Render(lang) + "\n\n" + a.signature()
 }
 
 // inactivityEmail is the warning that an account unused for five months
@@ -56,7 +86,7 @@ func (a *Accounts) inactivityEmail(lang, name, email string, removeOn time.Time)
 	date := longDate(lang, removeOn)
 	subject = i18n.MailInactivitySubject(date).Render(lang)
 	body = emailGreeting(lang, name) + "\n\n" +
-		i18n.MailInactivityBody(email, date, "https://"+a.tld+"/account").Render(lang) +
+		i18n.MailInactivityBody(email, date, a.accountPage(lang)).Render(lang) +
 		"\n\nOff The Cloud\n" // i18n-ignore: the product's name, the signature
 	return subject, body
 }
@@ -70,7 +100,8 @@ var monthNames = [12]func() i18n.Msg{
 
 // longDate writes t's date as the emails do, in t's location: "2 January
 // 2027" in English (Go's "2 January 2006"), each language's own order and
-// month names in the others. The year goes in as text: as a number the
+// month names in the others - the day a count, so that French writes the
+// first "1er janvier 2027". The year goes in as text: as a number the
 // language's format would group it ("2,027").
 func longDate(lang string, t time.Time) string {
 	return i18n.MailDateLong(t.Day(), monthNames[t.Month()-1](), strconv.Itoa(t.Year())).Render(lang)

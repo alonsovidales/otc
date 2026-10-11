@@ -23,6 +23,10 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
 }
 
 async function sendSetLanguage(language: string, expected: string | undefined): Promise<SendResult> {
+  // Signed out (the top bar, a new device's setup, the unreachable page, a
+  // shared gallery): nothing to send it with. It stays pending and goes at
+  // the next sign-in (useWS calls choice.ts's noteSignIn), unasked.
+  if (!useWS.signedIn()) return "failed";
   const resp: RespEnvelope | null = await withTimeout(useWS.request((e: Partial<ReqEnvelope>) => {
     e.payload = { $case: "reqSetLanguage", reqSetLanguage: expected === undefined ? { language } : { language, expected } };
   }), cSendTimeoutMs);

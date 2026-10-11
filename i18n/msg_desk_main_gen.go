@@ -304,6 +304,11 @@ func DeskMainPasswordTitle(device string) Msg {
 	return Msg{Key: "desk.main.password_title", Args: map[string]any{"device": device}}
 }
 
+// DeskMainPercent is desk.main.percent: "{percent}%".
+func DeskMainPercent(percent int) Msg {
+	return Msg{Key: "desk.main.percent", Args: map[string]any{"percent": int64(percent)}}
+}
+
 // DeskMainRemoveTip is desk.main.remove_tip: "Stop syncing this folder (nothing is deleted)".
 func DeskMainRemoveTip() Msg {
 	return Msg{Key: "desk.main.remove_tip"}
@@ -327,6 +332,11 @@ func DeskMainSetUpDeviceTip() Msg {
 // DeskMainSettingsHint is desk.main.settings_hint: "Device name (as on the bridge, e.g. “cala”), or a full address for a device else…".
 func DeskMainSettingsHint() Msg {
 	return Msg{Key: "desk.main.settings_hint"}
+}
+
+// DeskMainSettingsHintWindows is desk.main.settings_hint_windows: "Device name or address:".
+func DeskMainSettingsHintWindows() Msg {
+	return Msg{Key: "desk.main.settings_hint_windows"}
 }
 
 // DeskMainSettingsTitle is desk.main.settings_title: "Off The Cloud — Settings".

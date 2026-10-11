@@ -251,6 +251,10 @@
     "text": "Off The Cloud — Password del dispositivo {device}",
     "en": "Off The Cloud — Password for {device}"
   },
+  "desk.main.percent": {
+    "text": "{percent}%",
+    "en": "{percent}%"
+  },
   "desk.main.remove_tip": {
     "text": "Interrompi la sincronizzazione di questa cartella (non viene eliminato nulla)",
     "en": "Stop syncing this folder (nothing is deleted)"
@@ -270,6 +274,10 @@
   "desk.main.settings_hint": {
     "text": "Nome del dispositivo (come sul bridge, ad esempio “cala”), oppure un indirizzo completo per un dispositivo altrove (wss://host/ws, ws://192.168.1.10:8080/ws).",
     "en": "Device name (as on the bridge, e.g. “cala”), or a full address for a device elsewhere (wss://host/ws, ws://192.168.1.10:8080/ws)."
+  },
+  "desk.main.settings_hint_windows": {
+    "text": "Nome del dispositivo o indirizzo:",
+    "en": "Device name or address:"
   },
   "desk.main.settings_title": {
     "text": "Off The Cloud — Impostazioni",

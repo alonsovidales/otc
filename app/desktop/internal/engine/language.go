@@ -30,12 +30,20 @@ import (
 // config.json) whenever it differs from the copy - except while a change
 // made here is pending: a different value is then taken for one from
 // before the change and ignored until the device reports the change, or
-// languageWindow has passed. Another device or password drops a pending
-// change (it was made against the old one's value) and keeps the copy.
+// languageWindow has passed since the change was made or last sent
+// (langSentAt: a change made long before signing in whose first SetLanguage
+// failed is still answered by polls that predate it). Another device or
+// password drops a pending change (it was made against the old one's
+// value) and keeps the copy - except a change for the next device
+// (config's LanguageNextDevice): made with no device set up, or with no
+// value of the device set up seen (never signed in to it - a wrong
+// password -, not since the engine started, a device that predates
+// localization, or no sync running). It goes, without expected, to the
+// device signed in to next, which keeps it (a new device has Automatic).
 // As SyncModel and LanguageSettings on the Mac.
 
 // languageWindow: how long a pending change outweighs a different value
-// the device reports.
+// the device reports, from the change or its last send.
 const languageWindow = 30 * time.Second
 
 // applyLanguageLocked has requests carry the language the copy gives.
@@ -51,7 +59,17 @@ func (e *Engine) applyLanguageLocked() {
 func (e *Engine) languageAtConnect() {
 	e.mu.Lock()
 	e.langUnsupported = false
+	next := e.cfg.LanguageNextDevice
 	e.mu.Unlock()
+	if next {
+		// A change for the next device: this one's now.
+		if err := editConfigOnDisk((*config.Config).SignedInForLanguage); err != nil {
+			log.Printf("could not record that the language change is this device's: %v", err)
+		}
+		e.mu.Lock()
+		e.cfg.SignedInForLanguage()
+		e.mu.Unlock()
+	}
 	e.sendLanguage()
 }
 
@@ -67,6 +85,9 @@ func (e *Engine) sendLanguage() {
 	}
 	e.langSending = true
 	e.langEpoch++
+	// The window starts again: a status asked for before this send may
+	// still answer with the value from before the change.
+	e.langSentAt = time.Now()
 	sent, domain := e.cfg.Language, e.cfg.Domain
 	var expected *string
 	if x := e.cfg.LanguageExpected; x != nil {
@@ -170,14 +191,21 @@ func (e *Engine) deviceLanguage(v *string, epoch uint64) {
 	device := *v
 	e.devLanguage = &device
 	cur, pending := e.cfg.Language, e.cfg.LanguagePending
+	next, sentAt := e.cfg.LanguageNextDevice, e.langSentAt
 	e.mu.Unlock()
+	if next {
+		// A change for the next device waits for that device's sign-in
+		// (languageAtConnect): this answer is not about it.
+		return
+	}
 	switch {
 	case device == cur:
 		if pending != nil {
 			e.clearLanguagePending(cur, true) // the device has it
 		}
-	case pending != nil && time.Since(*pending) < languageWindow:
-		// From before the change, most likely: ignored for now.
+	case pending != nil && (time.Since(*pending) < languageWindow || time.Since(sentAt) < languageWindow):
+		// From before the change or its last send, most likely: ignored
+		// for now.
 	default:
 		e.adoptLanguage(device, cur, pending)
 	}
@@ -214,12 +242,16 @@ func languageChangedLocked(old, cfg *config.Config) bool {
 
 // forgetLanguageLocked: another device or password - its value is not
 // this one's, whether it can store one is asked again, and a change made
-// against the old one's value isn't sent to it (the choice stays). It
-// returns that change's mark, for dropLanguagePending once e.mu is
-// released. e.mu must be held.
+// against the old one's value isn't sent to it (the choice stays); a
+// change for the next device is. It returns the mark of the change it
+// drops, for dropLanguagePending once e.mu is released. e.mu must be held.
 func (e *Engine) forgetLanguageLocked() *time.Time {
 	e.devLanguage = nil
 	e.langUnsupported = false
+	e.langSentAt = time.Time{}
+	if e.cfg.LanguageNextDevice && e.cfg.LanguagePending != nil {
+		return nil
+	}
 	at := e.cfg.LanguagePending
 	e.cfg.LanguagePending, e.cfg.LanguageExpected = nil, nil
 

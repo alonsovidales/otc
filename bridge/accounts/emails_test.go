@@ -145,38 +145,116 @@ func TestInactivityPassSendsTheSameWarning(t *testing.T) {
 	}
 }
 
-// With a second language carried (a draft build: make i18n DRAFT=1 adds
-// the pseudo-locale qps), every email follows the language it is given
-// and keeps the links, the address and the name it carries. Skipped in a
-// build that ships English only.
+// Every other language this build carries - and the pseudo-locale qps in
+// a draft build (make i18n DRAFT=1) - writes every email in that language,
+// keeps the address and the name it carries, and links to the account page
+// in that language.
 func TestEmailsFollowTheLanguage(t *testing.T) {
-	const lang = "qps"
-	if i18n.Normalize(lang) != lang {
-		t.Skip("this build carries no pseudo-locale (make i18n DRAFT=1)")
-	}
 	a := &Accounts{tld: "off-the.cloud"}
 	link := "https://off-the.cloud/account#verify=Qx-_9aZ"
 	now := time.Date(2026, 10, 11, 3, 4, 5, 0, time.UTC)
-	ins, inb := a.inactivityEmail(lang, "Ann", "a@b.c", now.Add(cWarnAhead))
 	ens, enb := a.inactivityEmail("en", "Ann", "a@b.c", now.Add(cWarnAhead))
-	for _, c := range []struct {
-		kind, got, english string
-		keep               []string
-	}{
-		{"verification subject", verificationSubject(lang), verificationSubject("en"), nil},
-		{"verification body", a.verificationBody(lang, "Ann", link), a.verificationBody("en", "Ann", link), []string{"Ann", link, "- Off The Cloud\nhttps://off-the.cloud\n"}},
-		{"reset subject", resetSubject(lang), resetSubject("en"), nil},
-		{"reset body", a.resetBody(lang, "", link), a.resetBody("en", "", link), []string{link}},
-		{"inactivity subject", ins, ens, []string{"2026"}},
-		{"inactivity body", inb, enb, []string{"Ann", "a@b.c", "https://off-the.cloud/account", "2026", "\n\nOff The Cloud\n"}},
-	} {
-		if c.got == c.english || strings.Contains(c.got, "Hello") || strings.Contains(c.got, "November") {
-			t.Errorf("%s is still English: %q", c.kind, c.got)
+	others := 0
+	for _, l := range i18n.Languages() {
+		lang := l.Code
+		if lang == "en" {
+			continue
 		}
-		for _, k := range c.keep {
-			if !strings.Contains(c.got, k) {
-				t.Errorf("%s lost %q: %q", c.kind, k, c.got)
+		others++
+		page := "https://off-the.cloud/" + lang + "/account"
+		ins, inb := a.inactivityEmail(lang, "Ann", "a@b.c", now.Add(cWarnAhead))
+		for _, c := range []struct {
+			kind, got, english string
+			keep               []string
+		}{
+			{"verification subject", verificationSubject(lang), verificationSubject("en"), nil},
+			{"verification body", a.verificationBody(lang, "Ann", link), a.verificationBody("en", "Ann", link), []string{"Ann", page + "#verify=Qx-_9aZ", "- Off The Cloud\nhttps://off-the.cloud\n"}},
+			{"reset subject", resetSubject(lang), resetSubject("en"), nil},
+			{"reset body", a.resetBody(lang, "", link), a.resetBody("en", "", link), []string{page + "#verify=Qx-_9aZ\n"}},
+			{"inactivity subject", ins, ens, []string{"2026"}},
+			{"inactivity body", inb, enb, []string{"Ann", "a@b.c", page + " ", "2026", "\n\nOff The Cloud\n"}},
+		} {
+			if c.got == c.english || strings.Contains(c.got, "Hello") || strings.Contains(c.got, "10 November 2026") {
+				t.Errorf("%s: %s is still English: %q", lang, c.kind, c.got)
+			}
+			if strings.Contains(c.got, "https://off-the.cloud/account") {
+				t.Errorf("%s: %s links to the English page: %q", lang, c.kind, c.got)
+			}
+			for _, k := range c.keep {
+				if !strings.Contains(c.got, k) {
+					t.Errorf("%s: %s lost %q: %q", lang, c.kind, k, c.got)
+				}
 			}
 		}
+	}
+	if others == 0 {
+		t.Skip("this build carries English only")
+	}
+}
+
+// The links open the account page in the email's language: a carried
+// language by its code (any case or region), English and anything else
+// on /account as before; a link elsewhere stays as it is.
+func TestEmailLinksFollowTheLanguage(t *testing.T) {
+	a := &Accounts{tld: "bridge.test:8081"}
+	english := "https://bridge.test:8081/account"
+	cases := map[string]string{"": english, "en": english, "EN-gb": english, "zz": english, "en; drop table": english}
+	if i18n.Normalize("es") == "es" {
+		cases["es"], cases["ES"], cases["es-MX"] = "https://bridge.test:8081/es/account", "https://bridge.test:8081/es/account", "https://bridge.test:8081/es/account"
+	}
+	if i18n.Normalize("pt") == "pt" {
+		cases["pt-BR"], cases["pt_PT"] = "https://bridge.test:8081/pt/account", "https://bridge.test:8081/pt/account"
+	}
+	for lang, page := range cases {
+		if got := a.accountPage(lang); got != page {
+			t.Errorf("accountPage(%q) = %q, want %q", lang, got, page)
+		}
+		for _, frag := range []string{"#verify=Qx-_9aZ", "#reset=Qx-_9aZ", "?error=x#reset=y", ""} {
+			if got := a.pageLink(lang, english+frag); got != page+frag {
+				t.Errorf("pageLink(%q, %q) = %q, want %q", lang, english+frag, got, page+frag)
+			}
+		}
+		for _, other := range []string{"https://bridge.test:8081/accounts#verify=x", "https://elsewhere.test/account#verify=x", "https://bridge.test:8081/"} {
+			if got := a.pageLink(lang, other); got != other {
+				t.Errorf("pageLink(%q, %q) = %q", lang, other, got)
+			}
+		}
+		_, body := a.inactivityEmail(lang, "Ann", "a@b.c", time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC))
+		if !strings.Contains(body, page+" ") {
+			t.Errorf("%q: the inactivity email doesn't link %s: %q", lang, page, body)
+		}
+		if b := a.verificationBody(lang, "Ann", english+"#verify=Qx-_9aZ"); !strings.Contains(b, page+"#verify=Qx-_9aZ\n") {
+			t.Errorf("%q: the verification email doesn't link %s: %q", lang, page, b)
+		}
+		if b := a.resetBody(lang, "Ann", english+"#reset=Qx-_9aZ"); !strings.Contains(b, page+"#reset=Qx-_9aZ\n") {
+			t.Errorf("%q: the reset email doesn't link %s: %q", lang, page, b)
+		}
+	}
+}
+
+// The first of the month: "1er" in French, the plain number elsewhere;
+// the other days as before.
+func TestLongDateFirstOfTheMonth(t *testing.T) {
+	want := map[string][3]string{
+		"en": {"1 January 2027", "2 January 2027", "21 January 2027"},
+		"es": {"1 de enero de 2027", "2 de enero de 2027", "21 de enero de 2027"},
+		"fr": {"1er janvier 2027", "2 janvier 2027", "21 janvier 2027"},
+		"de": {"1. Januar 2027", "2. Januar 2027", "21. Januar 2027"},
+		"it": {"1 gennaio 2027", "2 gennaio 2027", "21 gennaio 2027"},
+		"pt": {"1 de janeiro de 2027", "2 de janeiro de 2027", "21 de janeiro de 2027"},
+		"nl": {"1 januari 2027", "2 januari 2027", "21 januari 2027"},
+	}
+	for lang, dates := range want {
+		if i18n.Normalize(lang) != lang {
+			continue // a build that doesn't carry it
+		}
+		for i, day := range []int{1, 2, 21} {
+			if got := longDate(lang, time.Date(2027, 1, day, 12, 0, 0, 0, time.UTC)); got != dates[i] {
+				t.Errorf("%s, day %d: %q, want %q", lang, day, got, dates[i])
+			}
+		}
+	}
+	if got := longDate("fr", time.Date(2027, 3, 1, 0, 0, 0, 0, time.UTC)); i18n.Normalize("fr") == "fr" && got != "1er mars 2027" {
+		t.Errorf("French, 1 March: %q", got)
 	}
 }

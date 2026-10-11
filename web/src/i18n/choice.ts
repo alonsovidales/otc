@@ -116,9 +116,10 @@ export class LanguageChoice {
   // pending (it may predate the change). Cleared by "changed", whose
   // re-read value must be taken.
   private sentAt = Number.NEGATIVE_INFINITY;
-  // Connections, counted by noteConnection(), and the one the last
-  // SetLanguage went out on: a change that failed is retried once per
-  // connection, at its first Status or Settings reply.
+  // Connections and sign-ins, counted by noteConnection() and noteSignIn(),
+  // and the one the last SetLanguage went out on: a change that failed is
+  // retried once per connection or session, at the sign-in or at its first
+  // Status or Settings reply.
   private conn = 0;
   private attemptConn = -1;
   private flight: Promise<ChooseOutcome> | null = null;
@@ -206,6 +207,32 @@ export class LanguageChoice {
       this.tooOld = false;
       this.emit();
     }
+  }
+
+  /**
+   * A sign-in the device accepted (useWS): a session of its own, on a new
+   * socket or on the one the signed-out page already had open. A change
+   * still pending - one made signed out (the top bar, a new device's setup,
+   * the unreachable page), or one that failed earlier - goes now, ahead of
+   * anything the device says in this session. The socket alone can't tell:
+   * a change made signed out on an open socket would count as tried on it,
+   * and the device's value would replace it 30 s after the sign-in.
+   */
+  noteSignIn() {
+    this.noteConnection();
+    if (this.pending && !this.flight) void this.flush();
+  }
+
+  /**
+   * The session ended without Sign Out's reload (the device dropped it):
+   * the device's value last seen goes with it, as it does on Sign Out. A
+   * change made before the next sign-in, by whoever makes it, is made over
+   * no value seen and reaches the device as is (expected left out), rather
+   * than being refused against one from a session that is over - a device
+   * set up again keeps "" and would answer "changed".
+   */
+  noteSignedOut() {
+    this.device = undefined;
   }
 
   /** Sign Out: a change the device never got must not reach whoever signs in next. */
@@ -403,4 +430,14 @@ export function noteLanguageReply(env: RespEnvelope) {
 /** A new socket to the device (ws.ts). */
 export function noteLanguageConnection() {
   languageChoice.noteConnection();
+}
+
+/** The device accepted a sign-in: a password, a stored token, a replay (useWS). */
+export function noteLanguageSignIn() {
+  languageChoice.noteSignIn();
+}
+
+/** The device ended the session and nothing can sign in again by itself (useWS). */
+export function noteLanguageSignedOut() {
+  languageChoice.noteSignedOut();
 }

@@ -725,6 +725,26 @@
     "text": "Dit is apparaat <b>{id}</b>.",
     "en": "This is device <b>{id}</b>."
   },
+  "wiz.page.language": {
+    "text": "Taal",
+    "en": "Language"
+  },
+  "wiz.page.language_auto": {
+    "text": "Automatisch ({language})",
+    "en": "Automatic ({language})"
+  },
+  "wiz.page.language_change": {
+    "text": "Taal wijzigen",
+    "en": "Change language"
+  },
+  "wiz.page.language_lost": {
+    "text": "Als je de taal wijzigt, wordt deze pagina opnieuw geladen en gaat wat je erop hebt ingevoerd verloren.",
+    "en": "Changing the language reloads this page, and what you entered on it will be lost."
+  },
+  "wiz.page.language_passwords": {
+    "text": "Als je de taal wijzigt, wordt deze pagina opnieuw geladen en moet je de wachtwoorden die je hebt getypt opnieuw invoeren.",
+    "en": "Changing the language reloads this page, and the passwords you typed will have to be typed again."
+  },
   "wiz.page.lead": {
     "text": "Laten we je apparaat instellen.",
     "en": "Let's set up your device."

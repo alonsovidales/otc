@@ -12,6 +12,7 @@ import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope, SharedGallery, SharedGalleryItem } from "../proto/messages";
 import { GetSharedGalleryItem_Part } from "../proto/messages";
 import Spinner from "./Spinner";
+import LanguagePicker from "./LanguagePicker";
 import "./SharedGalleryView.css";
 import { fmtDate, useT, type TFunction } from "../i18n";
 import { asIs, percentText, say, type PlainKey, type UiText } from "./uiText";
@@ -37,7 +38,9 @@ const fmtBytes = (t: TFunction, n: number) => sizeText(t, n, [0, 1, 2]);
 // A request that failed, with what the visitor is told: the device's own
 // words (in the language the request carried) or ours. The page is for
 // anyone with the link, signed in or not: it follows the browser's
-// language, as the rest of the app does with no choice stored.
+// language, as the rest of the app does with no choice stored, or the one
+// picked in its language picker (this browser's choice for the device's
+// address, as on the signed-out top bar).
 class GalleryFailure extends Error {
   readonly text: UiText;
   constructor(text: UiText) {
@@ -208,6 +211,7 @@ export default function SharedGalleryView() {
   if (error) {
     return (
       <div className="sg-page">
+        <LanguagePicker className="sg-corner-lang" />
         <div className="sg-empty"><h1>{t("web.files.gallery.title")}</h1><p>{error(t)}</p></div>
       </div>
     );
@@ -257,6 +261,7 @@ export default function SharedGalleryView() {
               <button className="btn primary" disabled={!!dl} onClick={() => void download(items.map(it => it.index))}>{t("web.files.gallery.download_all")}</button>
             </>
           )}
+          <LanguagePicker className="sg-lang lpk-phone" />
         </div>
       </header>
       {dl && (

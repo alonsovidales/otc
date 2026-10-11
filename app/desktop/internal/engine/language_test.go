@@ -201,7 +201,7 @@ func eqStrings(a, b []string) bool { return strings.Join(a, ",") == strings.Join
 // acknowledged it is cleared in config.json and never sent again.
 func TestLanguageChangeSentAtConnectThenCleared(t *testing.T) {
 	d := &langDevice{stored: strp("")}
-	cfg := &config.Config{}
+	cfg := &config.Config{Domain: "dev-a"}
 	cfg.SetLanguage("es", strp(""), time.Now().Add(-time.Hour)) // made offline, long ago
 	e := langFixture(t, d, cfg)
 
@@ -256,7 +256,7 @@ func TestLanguageAdoptedFromTheDevice(t *testing.T) {
 // device's reporting the change itself clears it.
 func TestLanguagePendingIgnoresTheDeviceForAWhile(t *testing.T) {
 	d := &langDevice{stored: strp(""), fail: true}
-	cfg := &config.Config{}
+	cfg := &config.Config{Domain: "dev-a"}
 	cfg.SetLanguage("es", strp(""), time.Now())
 	e := langFixture(t, d, cfg)
 
@@ -284,9 +284,44 @@ func TestLanguagePendingIgnoresTheDeviceForAWhile(t *testing.T) {
 	}
 	e.UpdateConfig(disk, "")
 	settle(t, e)
+	e.pollRaid() // within the window of the send just refused
+	if disk := langOnDisk(t); disk.Language != "nl" || disk.LanguagePending == nil {
+		t.Fatalf("adopted within the window of its send: %+v", disk)
+	}
+	e.mu.Lock()
+	e.langSentAt = time.Now().Add(-languageWindow - time.Second)
+	e.mu.Unlock()
 	e.pollRaid()
 	if disk := langOnDisk(t); disk.Language != "es" || disk.LanguagePending != nil {
 		t.Fatalf("after the window: %+v", disk)
+	}
+}
+
+// The window runs from the change or its last send: a change made minutes
+// before signing in whose first SetLanguage is refused isn't replaced by
+// the next poll, which may predate it.
+func TestLanguageWindowRunsFromTheLastSend(t *testing.T) {
+	d := &langDevice{stored: strp(""), fail: true}
+	cfg := &config.Config{Domain: "dev-a"}
+	cfg.SetLanguage("es", strp(""), time.Now().Add(-10*time.Minute))
+	e := langFixture(t, d, cfg)
+
+	e.languageAtConnect() // refused: stays pending
+	settle(t, e)
+	e.pollRaid()
+	if disk := langOnDisk(t); disk.Language != "es" || disk.LanguagePending == nil {
+		t.Fatalf("adopted right after the send: %+v", disk)
+	}
+	if got := d.sent(); !eqStrings(got, []string{"es/"}) {
+		t.Fatalf("asked %v", got)
+	}
+
+	e.mu.Lock()
+	e.langSentAt = time.Now().Add(-languageWindow - time.Second)
+	e.mu.Unlock()
+	e.pollRaid()
+	if disk := langOnDisk(t); disk.Language != "" || disk.LanguagePending != nil {
+		t.Fatalf("past the window of its send: %+v", disk)
 	}
 }
 
@@ -294,7 +329,7 @@ func TestLanguagePendingIgnoresTheDeviceForAWhile(t *testing.T) {
 // against - that one is adopted, nothing overwritten.
 func TestLanguageChangedElsewhereIsAdopted(t *testing.T) {
 	d := &langDevice{stored: strp("it")}
-	cfg := &config.Config{}
+	cfg := &config.Config{Domain: "dev-a"}
 	cfg.SetLanguage("es", strp(""), time.Now())
 	e := langFixture(t, d, cfg)
 
@@ -316,7 +351,7 @@ func TestLanguageChangedElsewhereIsAdopted(t *testing.T) {
 // and its status (without a language) leaves the copy alone.
 func TestLanguageOnAnOldDevice(t *testing.T) {
 	d := &langDevice{}
-	cfg := &config.Config{}
+	cfg := &config.Config{Domain: "dev-a"}
 	cfg.SetLanguage("pt", nil, time.Now())
 	e := langFixture(t, d, cfg)
 
@@ -361,7 +396,7 @@ func TestLanguageOnAnOldDevice(t *testing.T) {
 // value the device was just given - not taken for one made elsewhere.
 func TestLanguageChangedWhileSending(t *testing.T) {
 	d := &langDevice{stored: strp(""), hold: make(chan struct{})}
-	cfg := &config.Config{}
+	cfg := &config.Config{Domain: "dev-a"}
 	cfg.SetLanguage("es", strp(""), time.Now())
 	e := langFixture(t, d, cfg)
 
@@ -416,5 +451,103 @@ func TestLanguageForgottenWithTheDevice(t *testing.T) {
 	e.mu.Unlock()
 	if pending != nil {
 		t.Fatal("still pending in memory")
+	}
+}
+
+// A change made with no device set up (a fresh install's tray, after
+// Disconnect) goes to the device signed in to next, without expected:
+// nothing was seen to compare it with, so the choice made here is what
+// that device keeps - a new one has Automatic; here its user had French.
+func TestLanguageChosenBeforeAnyDeviceReachesIt(t *testing.T) {
+	d := &langDevice{stored: strp("fr")}
+	cfg := &config.Config{}
+	cfg.SetLanguage("es", nil, time.Now().Add(-time.Hour))
+	if !cfg.LanguageNextDevice {
+		t.Fatal("not for the next device")
+	}
+	e := langFixture(t, d, cfg) // set up and signed in
+
+	e.languageAtConnect()
+	e.pollRaid() // the device still says French: not adopted over it
+	settle(t, e)
+	e.pollRaid()
+
+	if got := d.sent(); !eqStrings(got, []string{"es/-"}) {
+		t.Fatalf("asked %v", got)
+	}
+	if disk := langOnDisk(t); disk.Language != "es" || disk.LanguagePending != nil || disk.LanguageNextDevice {
+		t.Fatalf("config.json: %+v", disk)
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if *d.stored != "es" {
+		t.Fatalf("the device has %q", *d.stored)
+	}
+}
+
+// A device set up, never signed in to (a wrong password): a change made
+// then saw nothing of it, so it is for the next device - a status doesn't
+// replace it, and Disconnect (the only way to fix the password) and the
+// device set up again keep it until that sign-in.
+func TestLanguageChosenBeforeSigningInSurvivesDisconnect(t *testing.T) {
+	d := &langDevice{stored: strp("it")}
+	cfg := &config.Config{Domain: "dev-a"}
+	cfg.SetLanguage("es", nil, time.Now().Add(-10*time.Minute)) // no value seen
+	e := langFixture(t, d, cfg)
+
+	e.pollRaid()
+	if disk := langOnDisk(t); disk.Language != "es" || disk.LanguagePending == nil || !disk.LanguageNextDevice {
+		t.Fatalf("replaced by the device's value: %+v", disk)
+	}
+	for _, domain := range []string{"", "dev-a"} { // Disconnect, then set up again
+		other := langOnDisk(t)
+		other.Domain = domain
+		if err := other.Save(); err != nil {
+			t.Fatal(err)
+		}
+		e.UpdateConfig(other, "")
+		if disk := langOnDisk(t); disk.Language != "es" || disk.LanguagePending == nil || !disk.LanguageNextDevice {
+			t.Fatalf("domain %q: config.json %+v", domain, disk)
+		}
+	}
+}
+
+// A change for the next device stays through changes of device before
+// one is signed in to (a name typed wrong, then the right one), and is
+// that device's once signed in: then another device drops it, as any
+// change made against a device's value.
+func TestLanguageForTheNextDeviceUntilSignedIn(t *testing.T) {
+	d := &langDevice{stored: strp("")}
+	cfg := &config.Config{}
+	cfg.SetLanguage("de", nil, time.Now())
+	e := langFixture(t, d, cfg)
+	for _, domain := range []string{"dev-b", "dev-c"} {
+		other := langOnDisk(t)
+		other.Domain = domain
+		if err := other.Save(); err != nil {
+			t.Fatal(err)
+		}
+		e.UpdateConfig(other, "") // no password: nothing is dialled
+		disk := langOnDisk(t)
+		e.mu.Lock()
+		pending := e.cfg.LanguagePending
+		e.mu.Unlock()
+		if disk.Language != "de" || disk.LanguagePending == nil || !disk.LanguageNextDevice || pending == nil {
+			t.Fatalf("%s: config.json %+v, pending in memory %v", domain, disk, pending)
+		}
+	}
+
+	e.languageAtConnect() // signed in to dev-c (nothing to send it over here)
+	if disk := langOnDisk(t); disk.LanguageNextDevice || disk.LanguagePending == nil {
+		t.Fatalf("signed in: %+v", disk)
+	}
+	other := langOnDisk(t)
+	other.Domain = "dev-d"
+	if err := other.Save(); err != nil {
+		t.Fatal(err)
+	}
+	e.UpdateConfig(other, "")
+	if disk := langOnDisk(t); disk.Language != "de" || disk.LanguagePending != nil {
+		t.Fatalf("kept for another device: %+v", disk)
 	}
 }

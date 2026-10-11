@@ -347,6 +347,11 @@ I18N = {
         "wiz.page.blink": "Licht blinken lassen",
         "wiz.page.blinking": "Blinkt – achte auf das blinkende grüne Licht",
         "wiz.page.device_id": "Das ist Gerät \u003cb\u003e{id}\u003c/b\u003e.",
+        "wiz.page.language": "Sprache",
+        "wiz.page.language_auto": "Automatisch ({language})",
+        "wiz.page.language_change": "Sprache ändern",
+        "wiz.page.language_lost": "Wenn du die Sprache änderst, wird diese Seite neu geladen und deine Eingaben darauf gehen verloren.",
+        "wiz.page.language_passwords": "Wenn du die Sprache änderst, wird diese Seite neu geladen und du musst die eingegebenen Passwörter erneut eingeben.",
         "wiz.page.lead": "Lass uns dein Gerät einrichten.",
         "wiz.page.title": "Einrichtung von Off The Cloud",
         "wiz.profile.about_label": "Über dich",
@@ -613,6 +618,11 @@ I18N = {
         "wiz.page.blink": "Blink its light",
         "wiz.page.blinking": "Blinking - look for the flashing green light",
         "wiz.page.device_id": "This is device \u003cb\u003e{id}\u003c/b\u003e.",
+        "wiz.page.language": "Language",
+        "wiz.page.language_auto": "Automatic ({language})",
+        "wiz.page.language_change": "Change language",
+        "wiz.page.language_lost": "Changing the language reloads this page, and what you entered on it will be lost.",
+        "wiz.page.language_passwords": "Changing the language reloads this page, and the passwords you typed will have to be typed again.",
         "wiz.page.lead": "Let's set up your device.",
         "wiz.page.title": "Off The Cloud setup",
         "wiz.profile.about_label": "About you",
@@ -879,6 +889,11 @@ I18N = {
         "wiz.page.blink": "Hacer parpadear la luz",
         "wiz.page.blinking": "Parpadeando: busca la luz verde intermitente",
         "wiz.page.device_id": "Este es el dispositivo \u003cb\u003e{id}\u003c/b\u003e.",
+        "wiz.page.language": "Idioma",
+        "wiz.page.language_auto": "Automático ({language})",
+        "wiz.page.language_change": "Cambiar idioma",
+        "wiz.page.language_lost": "Al cambiar el idioma, esta página se vuelve a cargar y se perderá lo que hayas introducido en ella.",
+        "wiz.page.language_passwords": "Al cambiar el idioma, esta página se vuelve a cargar y tendrás que escribir de nuevo las contraseñas que habías escrito.",
         "wiz.page.lead": "Vamos a configurar tu dispositivo.",
         "wiz.page.title": "Configuración de Off The Cloud",
         "wiz.profile.about_label": "Sobre ti",
@@ -1145,6 +1160,11 @@ I18N = {
         "wiz.page.blink": "Faire clignoter le voyant",
         "wiz.page.blinking": "Clignotement : repérez le voyant vert qui clignote",
         "wiz.page.device_id": "Il s’agit de l’appareil \u003cb\u003e{id}\u003c/b\u003e.",
+        "wiz.page.language": "Langue",
+        "wiz.page.language_auto": "Automatique ({language})",
+        "wiz.page.language_change": "Changer de langue",
+        "wiz.page.language_lost": "Changer de langue recharge cette page, et ce que vous y avez saisi sera perdu.",
+        "wiz.page.language_passwords": "Changer de langue recharge cette page, et vous devrez saisir à nouveau les mots de passe que vous avez tapés.",
         "wiz.page.lead": "Configurons votre appareil.",
         "wiz.page.title": "Configuration d’Off The Cloud",
         "wiz.profile.about_label": "À propos de vous",
@@ -1411,6 +1431,11 @@ I18N = {
         "wiz.page.blink": "Fai lampeggiare la luce",
         "wiz.page.blinking": "Lampeggia: cerca la luce verde intermittente",
         "wiz.page.device_id": "Questo è il dispositivo \u003cb\u003e{id}\u003c/b\u003e.",
+        "wiz.page.language": "Lingua",
+        "wiz.page.language_auto": "Automatica ({language})",
+        "wiz.page.language_change": "Cambia lingua",
+        "wiz.page.language_lost": "Se cambi lingua, questa pagina viene ricaricata e quello che hai inserito andrà perso.",
+        "wiz.page.language_passwords": "Se cambi lingua, questa pagina viene ricaricata e dovrai digitare di nuovo le password che hai inserito.",
         "wiz.page.lead": "Configuriamo il tuo dispositivo.",
         "wiz.page.title": "Configurazione di Off The Cloud",
         "wiz.profile.about_label": "Su di te",
@@ -1677,6 +1702,11 @@ I18N = {
         "wiz.page.blink": "Lampje laten knipperen",
         "wiz.page.blinking": "Knippert – zoek het knipperende groene lampje",
         "wiz.page.device_id": "Dit is apparaat \u003cb\u003e{id}\u003c/b\u003e.",
+        "wiz.page.language": "Taal",
+        "wiz.page.language_auto": "Automatisch ({language})",
+        "wiz.page.language_change": "Taal wijzigen",
+        "wiz.page.language_lost": "Als je de taal wijzigt, wordt deze pagina opnieuw geladen en gaat wat je erop hebt ingevoerd verloren.",
+        "wiz.page.language_passwords": "Als je de taal wijzigt, wordt deze pagina opnieuw geladen en moet je de wachtwoorden die je hebt getypt opnieuw invoeren.",
         "wiz.page.lead": "Laten we je apparaat instellen.",
         "wiz.page.title": "Off The Cloud instellen",
         "wiz.profile.about_label": "Over jou",
@@ -1943,6 +1973,11 @@ I18N = {
         "wiz.page.blink": "Fazer piscar a luz",
         "wiz.page.blinking": "A piscar: procura a luz verde intermitente",
         "wiz.page.device_id": "Este é o dispositivo \u003cb\u003e{id}\u003c/b\u003e.",
+        "wiz.page.language": "Idioma",
+        "wiz.page.language_auto": "Automático ({language})",
+        "wiz.page.language_change": "Alterar idioma",
+        "wiz.page.language_lost": "Ao alterar o idioma, esta página é recarregada e o que nela introduziste perde-se.",
+        "wiz.page.language_passwords": "Ao alterar o idioma, esta página é recarregada e terás de voltar a escrever as palavras-passe que escreveste.",
         "wiz.page.lead": "Vamos configurar o teu dispositivo.",
         "wiz.page.title": "Configuração do Off The Cloud",
         "wiz.profile.about_label": "Sobre ti",
@@ -2094,19 +2129,40 @@ def accept_language(header):
 I18N_SLOT = '<script type="application/json" id="i18n">{}</script>'
 _pages = {}
 
+# The page's language list (the globe at the top): code, tag and each
+# language's own name, never translated - i18n/languages.json's, in its
+# order. It lists the languages I18N has (the shipping ones); a code I18N
+# has and this list doesn't (make i18n DRAFT=1's drafts) is listed by its
+# code.
+LANGUAGES = [  # i18n-ignore: each language's own name (i18n/languages.json), never translated
+    ("en", "en", "English"), ("es", "es", "Español"), ("fr", "fr", "Français"), ("de", "de", "Deutsch"),
+    ("it", "it", "Italiano"), ("pt", "pt-PT", "Português"), ("nl", "nl", "Nederlands"),
+]
 
-def page_in(code, chosen):
+
+def page_languages():
+    """The languages the page offers, as {"code", "tag", "name"}."""
+    named = [{"code": c, "tag": t, "name": n} for c, t, n in LANGUAGES if c in I18N]
+    known = {c for c, _, _ in LANGUAGES}
+    return named + [{"code": c, "tag": c, "name": c} for c in sorted(I18N) if c not in known]
+
+
+def page_in(code, chosen, explicit=False, auto=""):
     """PAGE with its dictionaries for language code: English, and code's
     translations, as JSON data the page reads with JSON.parse (escaped so
     nothing in it can end the script element). chosen: code came from the
-    request, so the page sends it back with every call."""
-    if (code, chosen) not in _pages:
-        data = json.dumps({"lang": code, "chosen": chosen, "en": I18N["en"],
-                           "texts": I18N.get(code, {}) if code != "en" else {}},
+    request, so the page sends it back with every call. langs: what its
+    language list offers (page_languages); explicit: code is ?lang=, the
+    list's choice, else the list shows Automatic; auto: what Automatic
+    gives, the Accept-Language match ("" for none: English)."""
+    key = (code, chosen, explicit, auto)
+    if key not in _pages:
+        data = json.dumps({"lang": code, "chosen": chosen, "explicit": explicit, "auto": auto, "en": I18N["en"],
+                           "texts": I18N.get(code, {}) if code != "en" else {}, "langs": page_languages()},
                           ensure_ascii=False, separators=(",", ":"), sort_keys=True)
         data = data.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
-        _pages[(code, chosen)] = PAGE.replace(I18N_SLOT, I18N_SLOT.replace(">{}<", ">" + data + "<"), 1).encode()
-    return _pages[(code, chosen)]
+        _pages[key] = PAGE.replace(I18N_SLOT, I18N_SLOT.replace(">{}<", ">" + data + "<"), 1).encode()
+    return _pages[key]
 
 
 def run(cmd, timeout=30):
@@ -2950,6 +3006,13 @@ class Handler(BaseHTTPRequestHandler):
         code = lang_code(q) or accept_language(self.headers.get("Accept-Language"))
         return (code, True) if code else ("en", False)
 
+    def page_lang(self):
+        """page_in's arguments: lang(), whether ?lang= gave it (the
+        language list's own choice), and the Accept-Language match - what
+        the list's Automatic reloads to."""
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get("lang", [""])[0]
+        return self.lang() + (bool(lang_code(q)), accept_language(self.headers.get("Accept-Language")))
+
     def read_body(self):
         n = int(self.headers.get("Content-Length") or 0)
         if n <= 0 or n > 256 * 1024:  # the setup profile picture (#178)
@@ -2963,7 +3026,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = urllib.parse.urlparse(self.path).path
         if path == "/":
-            body = page_in(*self.lang())
+            body = page_in(*self.page_lang())
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
@@ -3313,8 +3376,13 @@ a{color:var(--ember)}
 .sso.apple{background:#000;color:#fff;border:1px solid #5a5b62}
 .sso.google,.sso.email{background:transparent;color:var(--ink);border:1px solid var(--line)}
 .sso-or{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:.85rem;margin:14px 0 2px}.sso-or:before,.sso-or:after{content:"";flex:1;border-top:1px solid var(--line)}
+.top{display:flex;align-items:center;flex-wrap:wrap;column-gap:12px}
+.top .lang{display:flex;align-items:center;gap:6px;margin:0 0 0 auto;color:var(--dim);font-size:1rem}.top .lang svg{width:18px;height:18px;flex:none}
+.lang select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;color-scheme:dark;cursor:pointer}.lang select:disabled{opacity:.5;cursor:default}
+.langnote{border:1px solid var(--ember);border-radius:10px;padding:10px 12px;margin:4px 0 14px}.langnote p{margin:0}
+.lang[hidden],.langnote[hidden]{display:none}@media (max-width:340px){.top .lang svg{display:none}}
 </style></head><body><main>
-<h1>Off The Cloud</h1><p class="lead" id="lead"><span id="devid" hidden></span></p>
+<header class="top"><h1>Off The Cloud</h1><label class="lang" id="langbox" hidden></label></header><div class="langnote" id="langnote" role="status" hidden></div><p class="lead" id="lead"><span id="devid" hidden></span></p>
 <ol class="steps"><li id="s1"></li><li id="s2"></li><li id="s3"></li><li id="s4"></li><li id="s5"></li></ol>
 <div id="view" class="card"></div>
 </main>
@@ -3329,7 +3397,8 @@ const $=s=>document.querySelector(s);const view=$('#view');
 // headers. Arguments go into a text in one pass, as plain text, and no
 // translated text or argument is ever parsed as markup: the views are built
 // node by node (h, rich).
-const L=JSON.parse($('#i18n').textContent),EN=L.en||{},TX=L.texts||{},LQ=L.chosen?'lang='+encodeURIComponent(L.lang):'';
+const L=JSON.parse($('#i18n').textContent),EN=L.en||{},TX=L.texts||{};
+let LQ=L.chosen?'lang='+encodeURIComponent(L.lang):'';
 const has=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
 // The arguments the catalog types "user" (a network's name, an email
 // address): isolated, so a right-to-left value can't reorder the sentence
@@ -3432,15 +3501,107 @@ function wireOwner(update){const a=$('#opw'),b=$('#opw2');if(!a)return;const on=
 let state=null,step=1,wifi={list:[],sel:null,joining:false},name={val:'',ok:null,domain:'',msg:''},disks={list:[],sel:[],recovery:null,loaded:false,wipe:false},acct={mode:'login',msg:'',busy:false,countries:null,email:false};
 const api=async(p,o)=>{if(LQ)p+=(p.includes('?')?'&':'?')+LQ;const r=await fetch(p,Object.assign({cache:'no-store'},o||{}));let j={};try{j=await r.json()}catch(e){}return{ok:r.ok,status:r.status,...j}};
 const post=(p,b)=>api(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});
+// The language list at the top (docs/i18n.md, "Setup wizard"): first
+// Automatic - the language this browser asks for (Accept-Language), named
+// by its own name - then the languages this wizard has, each by its own
+// name. Choosing a language reloads the page in it (?lang=, which every
+// /api call then sends back) on the same step, with the choices made and
+// the text typed - all but passwords, which are never kept anywhere, so the
+// page asks first when some are typed. Automatic reloads it without ?lang=,
+// dropping the choice. When the page already shows what is chosen (the
+// browser's language picked by name, or Automatic over that same
+// language), only the address changes. Hidden inside the apps: there the
+// app's own language choice is the one that counts (the app keeps it, and
+// the new device gets it once the app signs in to it), and the app re-words
+// an open page by calling window.otcSetupLang(code), which goes through the
+// same steps: true when the page goes to that language (now, once the
+// person says yes, or once the wizard answers again), false when there is
+// nothing to do.
+const LANGS=Array.isArray(L.langs)?L.langs:[];
+// What Automatic gives ('' from the server: nothing matched, English), and
+// the list's entry: '' for Automatic, else the language picked (?lang=).
+const AUTO=LANGS.some(l=>l.code===L.auto)?L.auto:'en';
+let langCur=L.explicit?L.lang:'';
+const GLOBE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+const langSel=LANGS.length>1&&!window.otcApp?h('select',{id:'langsel','aria-label':t('wiz.page.language')},
+ h('option',{value:'',selected:!langCur},t('wiz.page.language_auto',{language:(LANGS.find(l=>l.code===AUTO)||{name:AUTO}).name})),
+ LANGS.map(l=>h('option',{value:l.code,lang:l.tag,selected:l.code===langCur},l.name))):null;
+if(langSel){$('#langbox').append(svg(GLOBE),langSel);$('#langbox').hidden=false;langSel.onchange=()=>relang(langSel.value)}
+window.otcSetupLang=c=>{c=String(c||'');return c!==''&&relang(c)};
+// wizOk: the last /api/state was answered. A reload while the wizard isn't
+// answering (the hotspot going down for a join, the wizard gone once set
+// up) would leave a browser's error page in place of the setup. langWant:
+// an entry ('' Automatic) waiting for that; null for none.
+let wizOk=true,langWant=null;
+const langReady=()=>wizOk&&!(step===1&&wifi.joining);
+function langUpdate(){if(langSel)langSel.disabled=!langReady();if(langWant!==null&&langReady()){const c=langWant;langWant=null;relang(c)}}
+function relang(c){if(c!==''&&!LANGS.some(l=>l.code===c)||c===langCur){langWant=null;langAsk(null);return false}
+ if((c||AUTO)===L.lang){langWant=null;langAsk(null);langAt(c);return true}
+ if(!langReady()){langWant=c;if(langSel)langSel.value=langCur;return true}
+ const lost=!keepWorks();
+ if(lost||secrets())langAsk(c,lost);else langGo(c,false);
+ return true}
+// The address for entry c ('' Automatic): ?lang=c, or none.
+function langURL(c){const u=new URL(location.href);if(c)u.searchParams.set('lang',c);else u.searchParams.delete('lang');return u}
+// The page already reads as c gives: the entry and the address change, and
+// the /api calls carry what a reload would (Automatic: the browser's match,
+// or nothing).
+function langAt(c){langCur=c;LQ=c?'lang='+encodeURIComponent(c):L.auto?'lang='+encodeURIComponent(L.auto):'';
+ try{history.replaceState(history.state,'',langURL(c).href)}catch(e){}if(langSel)langSel.value=c}
+// Asks before a reload that would lose something: the passwords typed, or
+// everything when this browser can't keep anything (lost). null takes the
+// question away.
+function langAsk(c,lost){const n=$('#langnote');
+ if(c===null){n.hidden=true;n.replaceChildren();if(langSel){langSel.value=langCur;langSel.disabled=!langReady()}return}
+ const go=h('button',{},t('wiz.page.language_change')),no=h('button',{class:'ghost'},t('common.cancel'));
+ go.onclick=()=>{go.disabled=no.disabled=true;langGo(c,lost)};no.onclick=()=>langAsk(null);
+ n.replaceChildren(h('p',{},t(lost?'wiz.page.language_lost':'wiz.page.language_passwords')),h('div',{class:'row'},go,no));n.hidden=false;
+ if(langSel)langSel.value=c;go.focus()}
+async function langGo(c,lostOk){let r=null;try{r=await api('/api/state')}catch(e){}
+ if(!r||!r.ok){wizOk=false;langAsk(null);return}
+ if(!keepPut(JSON.stringify(kept()))&&!lostOk){langAsk(c,true);return}
+ const u=langURL(c);u.hash='';location.replace(u.href)}
+// The passwords a reload would lose: those typed in the fields shown, the
+// account's kept for "I've confirmed my email", and the owner password while
+// it can still be used (until the install starts, or to try a failed one
+// again).
+const secrets=()=>!!(acct.verify||(owner.pw||owner.pw2)&&(step<5||state&&state.install.phase==='failed'))||[...view.querySelectorAll('input[type=password]')].some(i=>i.value!=='');
+// What the reload keeps: sessionStorage, this tab's and this page's only,
+// taken back once at the next start. Never a password, nor the terms
+// checkbox (consent is given on the page as it reads).
+const KEEP='otc-setup-keep';
+function keepPut(s){try{sessionStorage.setItem(KEEP,s);return sessionStorage.getItem(KEEP)===s}catch(e){return false}}
+function keepTake(){try{const s=sessionStorage.getItem(KEEP);sessionStorage.removeItem(KEEP);const k=JSON.parse(s);return k&&k.v===1&&Math.abs(Date.now()-k.at)<18e5?k:null}catch(e){return null}}
+function keepWorks(){const ok=keepPut('{}');keepTake();return ok}
+function kept(){const f={};for(const id of ['a-email','a-name','a-surname','a-country','a-code']){const e=$('#'+id);if(e)f[id]=e.value}
+ return {v:1,at:Date.now(),step,wifi:wifi.sel,disks:{sel:disks.sel,wipe:disks.wipe},acct:{mode:acct.mode,email:acct.email,verify:acct.verify?acct.verify.email:'',f},name:name.val,prof}}
+// Back after such a reload: the choices and texts now, the step with the
+// first /api/state (refresh), the account fields when that step is drawn
+// (refill) until the person types, and the name checked again.
+const KEPT=keepTake();
+if(KEPT){const s=x=>typeof x==='string'?x:'',k=KEPT,a=k.acct&&typeof k.acct==='object'?k.acct:{},p=k.prof&&typeof k.prof==='object'?k.prof:{};
+ wifi.sel=s(k.wifi)||null;
+ disks.sel=(k.disks&&Array.isArray(k.disks.sel)?k.disks.sel:[]).filter(x=>typeof x==='string').slice(0,2);disks.wipe=!!(k.disks&&k.disks.wipe);
+ if(['login','signup','code','change'].includes(a.mode))acct.mode=a.mode;acct.email=!!a.email;
+ acct.refill={};if(a.f&&typeof a.f==='object')for(const id of ['a-email','a-name','a-surname','a-country','a-code'])if(s(a.f[id]))acct.refill[id]=a.f[id];
+ if(s(a.verify)){acct.mode='login';acct.refill['a-email']=a.verify}
+ name.val=s(k.name);name.recheck=!!name.val;
+ prof={name:s(p.name),text:s(p.text),image:s(p.image),faces:!!p.faces};
+ if(prof.image){const im=new Image();im.onload=()=>{crop.img=im;crop.z=1;crop.x=crop.y=0;const z=$('#pz');if(z){z.disabled=false;z.value=1}cropDraw()};im.src='data:image/jpeg;base64,'+prof.image}
+ view.addEventListener('input',()=>{acct.refill=null;acct.country=''},{once:true})}
+const keptStep=KEPT&&[2,3,4].includes(KEPT.step)?KEPT.step:0;
+function refill(){const f=acct.refill;if(!f)return;for(const id in f){const e=$('#'+id);if(!e)continue;if(e.tagName==='SELECT')acct.country=f[id];e.value=f[id]}}
 function marks(){for(let i=1;i<=5;i++){const li=$('#s'+i);li.className=i<step?'done':i===step?'on':''}}
 let lastKey='';
-async function refresh(){let st;try{st=await api('/api/state')}catch(e){return}
+async function refresh(){let st;try{st=await api('/api/state')}catch(e){wizOk=false;langUpdate();return}
+ wizOk=!!st.ok;langUpdate();
  if(st.device_id&&$('#devid').hidden){const bl=h('a',{href:'#',id:'blink'},t('wiz.page.blink'));$('#devid').replaceChildren(' ',...rich('wiz.page.device_id',{id:st.device_id}),' ',bl);$('#devid').hidden=false;
   bl.onclick=e=>{e.preventDefault();post('/api/identify',{}).catch(()=>{});bl.textContent=t('wiz.page.blinking');setTimeout(()=>{bl.textContent=t('wiz.page.blink')},15000)}}
  const first=state===null;state=st;
  const ph=state.install.phase;const jr=state.join_result||{};
  if(state.already_installed&&ph==='idle'){step=6}
  else if(ph!=='idle'){step=5}
+ else if(first&&keptStep){step=keptStep;if(!disks.loaded)loadDisks()}
  else if(step===1&&state.online&&(wifi.joining||(first&&jr.ok))){wifi.joining=false;step=2;if(!disks.loaded)loadDisks()}
  // Only touch the page when something it shows has changed - a re-render
  // while someone is typing a password throws their focus away.
@@ -3451,7 +3612,7 @@ async function refresh(){let st;try{st=await api('/api/state')}catch(e){return}
  if(typing()||(step===1&&wifi.joining&&!state.online))return;
  render()}
 function typing(){const a=document.activeElement;return a&&(a.tagName==='INPUT')&&view.contains(a)&&a.value!==''}
-function render(){marks();
+function render(){marks();langUpdate();
  if(step===1)return renderWifi();if(step===2)return renderDisks();if(step===3)return renderAccount();if(step===4)return renderName(false);if(step===5)return renderInstall();
  paint(h('h2',{},t('wiz.done.title')),h('p',{class:'hint'},t('wiz.done.hint')),h('p',{},h('a',{href:'https://'+(state.domain||state.bridge)},state.domain?t('wiz.done.open',{domain:state.domain}):t('wiz.done.open_app'))))}
 function renderWifi(){const online=state&&state.online;const cur=state&&state.ssid;const jr=state&&state.join_result;
@@ -3484,7 +3645,7 @@ async function pollBridge(){if(polling||!state||!state.token)return;polling=true
   if(r.ok){const j=await r.json();if(j.addr){polling=false;location.href='http://'+j.addr+'/'+(LQ?'?'+LQ:'');return}}}catch(e){}
   await new Promise(res=>setTimeout(res,2000))}}
 async function scan(rescan){$('#scanmsg').replaceChildren(spin(),t('wiz.wifi.scanning'));const r=await api('/api/wifi'+(rescan?'?rescan=1':''));wifi.list=r.networks||[];render()}
-async function loadDisks(){disks.loaded=true;disks.loading=true;render();const r=await api('/api/disks');disks.list=r.disks||[];disks.recovery=r.recovery&&r.recovery.found?r.recovery:null;disks.loading=false;render()}
+async function loadDisks(){disks.loaded=true;disks.loading=true;if(step===2)render();const r=await api('/api/disks');disks.list=r.disks||[];disks.recovery=r.recovery&&r.recovery.found?r.recovery:null;disks.loading=false;if(step===2)render()}
 function renderDisks(){const two=disks.sel.length===2;const rec=disks.recovery;
  if(disks.loading){paint(h('h2',{},t('wiz.disks.title')),h('p',{class:'hint'},spin(),t('wiz.disks.looking')));return}
  if(rec&&!disks.wipe){paint(h('h2',{},t('wiz.disks.title')),
@@ -3551,6 +3712,7 @@ function renderAccount(){const a=state.account||{};const m=acct.mode;loadProvide
    h('p',{class:'hint',style:'margin-top:8px'},t('wiz.account.skip_hint')),
    h('div',{class:'row'},h('button',{class:'ghost',id:'a-skip'},t('wiz.account.skip')))),
   h('div',{class:'row',style:'margin-top:6px'},h('button',{class:'ghost',id:'back'},t('common.back'))));
+ refill();
  document.querySelectorAll('button[data-provider]').forEach(b=>b.onclick=()=>providerSignIn(b.dataset.provider));
  const eo=$('#a-email-open');if(eo)eo.onclick=()=>{acct.email=true;acct.msg='';render()};
  $('#back').onclick=()=>{step=2;render()};
@@ -3569,7 +3731,7 @@ function renderAccount(){const a=state.account||{};const m=acct.mode;loadProvide
 // The country list comes from the bridge, named in English; in another
 // language the browser names them (Intl.DisplayNames), where it can.
 async function loadCountries(){if(!acct.countries){const r=await api('/api/countries');if(r.ok){delete r.ok;delete r.status;acct.countries=r}else{$('#amsg').textContent=errOf(r,'wiz.account.countries_failed');$('#amsg').className='msg bad';return}}
- const sel=$('#a-country');if(!sel)return;const cur=sel.value;let dn=null;try{if(L.lang!=='en'&&window.Intl&&Intl.DisplayNames)dn=new Intl.DisplayNames([L.lang],{type:'region'})}catch(e){}
+ const sel=$('#a-country');if(!sel)return;const cur=sel.value||acct.country||'';let dn=null;try{if(L.lang!=='en'&&window.Intl&&Intl.DisplayNames)dn=new Intl.DisplayNames([L.lang],{type:'region'})}catch(e){}
  const nm=(c,n)=>{if(!dn)return n;try{return dn.of(c)||n}catch(e){return n}};
  sel.replaceChildren(h('option',{value:''},t('wiz.account.choose_country')),...Object.entries(acct.countries).map(([c,n])=>[c,nm(c,n)]).sort((x,y)=>dn?x[1].localeCompare(y[1],L.lang):x[1].localeCompare(y[1])).map(([c,n])=>h('option',{value:c,selected:c===cur},n)))}
 function renderName(rebind){const a=state.account||{};
@@ -3588,6 +3750,7 @@ function renderName(rebind){const a=state.account||{};
   rebind?null:profileFields(),
   h('div',{class:'row'},h('button',{id:'claim',disabled:!(name.ok&&(rebind||ownerValid()))},t(rebind?'wiz.name.register':'wiz.action.continue')),rebind?null:h('button',{class:'ghost',id:'back'},t('common.back'))));
  nameRebind=rebind;const inp=$('#nm');inp.focus();let tm;inp.oninput=()=>{name.val=inp.value.trim().toLowerCase();name.ok=null;name.warn=false;name.msg='';clearTimeout(tm);nameStatus();if(name.val)tm=setTimeout(check,400)};
+ if(name.recheck){name.recheck=false;if(name.val)check()}
  if(!rebind){wireOwner(()=>{$('#claim').disabled=!(name.ok&&ownerValid())});wireProfile()}
  const bk=$('#back');if(bk)bk.onclick=()=>{step=3;render()};
  $('#claim').onclick=async()=>{$('#claim').disabled=true;$('#nmsg').replaceChildren(spin(),t('wiz.name.reserving'));const r=await post('/api/name',{name:name.val});

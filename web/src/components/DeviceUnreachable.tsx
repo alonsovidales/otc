@@ -12,6 +12,7 @@ import { useEffect } from "react";
 import { useWS } from "../net/useWS";
 import type { DeviceStatus } from "../net/deviceStatus";
 import { useT } from "../i18n";
+import LanguagePicker from "./LanguagePicker";
 import "./DeviceUnreachable.css";
 
 // How often to check whether the device is answering again. Cheap enough
@@ -51,6 +52,9 @@ export default function DeviceUnreachable({ status }: { status: DeviceStatus }) 
   }, [disabled]);
   return (
     <div className="du-root">
+      {/* The language, where the top bar has it: this screen covers the
+          app, Settings included, until the device answers again. */}
+      <LanguagePicker className="du-lang" />
       <div className="du-card">
         {disabled ? (
           <svg className="du-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true">

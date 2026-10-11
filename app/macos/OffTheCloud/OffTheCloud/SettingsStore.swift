@@ -129,6 +129,7 @@ final class SettingsStore: ObservableObject {
     private static let cLanguageKey = "language"
     private static let cLanguagePendingKey = "languagePendingSince"
     private static let cLanguageExpectedKey = "languageExpected"
+    private static let cLanguageForNextDeviceKey = "languageForNextDevice"
 }
 
 extension SettingsStore: LanguageStore {
@@ -138,7 +139,8 @@ extension SettingsStore: LanguageStore {
         set { UserDefaults.standard.set(newValue, forKey: Self.cLanguageKey) }
     }
 
-    /// When the choice was changed on this Mac, until the device has it.
+    /// When the choice was changed on this Mac or last sent, until the
+    /// device has it.
     var languagePendingSince: Date? {
         get { UserDefaults.standard.object(forKey: Self.cLanguagePendingKey) as? Date }
         set { UserDefaults.standard.set(newValue, forKey: Self.cLanguagePendingKey) }
@@ -149,6 +151,14 @@ extension SettingsStore: LanguageStore {
         get { UserDefaults.standard.string(forKey: Self.cLanguageExpectedKey) }
         set { UserDefaults.standard.set(newValue, forKey: Self.cLanguageExpectedKey) }
     }
+
+    /// The pending change is for the device signed in to next.
+    var languageForNextDevice: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.cLanguageForNextDeviceKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.cLanguageForNextDeviceKey) }
+    }
+
+    var hasDevice: Bool { ready }
 }
 
 extension LanguageSettings {

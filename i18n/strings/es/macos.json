@@ -16,7 +16,7 @@
     "en": "Pick a folder that is already on the device and a place on this Mac: it is downloaded there and kept the same in both places from then on, changes and deletions included, like the option above. Handy for getting a folder onto a second computer. What is set for it on the device (upload only, kept out of Images) stays as it is."
   },
   "macos.add.local_info": {
-    "text": "La carpeta se copia en el dispositivo y, a partir de entonces, se mantiene igual en los dos sitios: los archivos que se añaden, cambian o eliminan en el dispositivo (desde un teléfono, otro ordenador o la web) también cambian esta carpeta, y al revés. Los archivos eliminados van a la Papelera del Mac. La primera sincronización solo añade, nunca elimina.",
+    "text": "La carpeta se copia en el dispositivo y, a partir de entonces, se mantiene igual en los dos sitios: los archivos que se añaden, cambian o eliminan en el dispositivo (desde un teléfono, otro ordenador o la web) también cambian esta carpeta, y al revés. Los archivos eliminados van a la papelera del Mac. La primera sincronización solo añade, nunca elimina.",
     "en": "The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device (from a phone, another computer or the web) change this folder too, and the other way round. Deleted files go to the Trash on the Mac. The first sync only adds - it never deletes."
   },
   "macos.add.local_subtitle": {
@@ -54,6 +54,10 @@
   "macos.bluetooth.enter_password": {
     "text": "Introduce la contraseña del dispositivo",
     "en": "Enter the device's password"
+  },
+  "macos.bluetooth.language_later": {
+    "text": "La página de configuración cambiará a {language} cuando empiece la instalación.",
+    "en": "The setup page will switch to {language} once the installation starts."
   },
   "macos.bluetooth.looking": {
     "text": "Buscando un dispositivo para configurar…",
@@ -209,7 +213,7 @@
     "en": "Start at login is switched off in System Settings."
   },
   "macos.login.open_login_items": {
-    "text": "Abrir Ítems de inicio…",
+    "text": "Abrir ítems de inicio…",
     "en": "Open Login Items…"
   },
   "macos.picker.no_subfolders": {
@@ -408,7 +412,7 @@
     "en": "Continue on your phone"
   },
   "macos.setup.show_in_finder": {
-    "text": "Mostrar en Finder",
+    "text": "Mostrar en el Finder",
     "en": "Show in Finder"
   },
   "macos.setup.start_subtitle": {
@@ -447,7 +451,7 @@
     "en": "Choose Device: Raspberry Pi 5."
   },
   "macos.setup.write_step3": {
-    "text": "Elegir SO: desplázate hacia abajo hasta “Usar personalizado” y elige {file} en tu carpeta Descargas (está seleccionado en Finder), a menos que Imager ya lo muestre.",
+    "text": "Elegir SO: desplázate hacia abajo hasta “Usar personalizado” y elige {file} en tu carpeta Descargas (está seleccionado en el Finder), a menos que Imager ya lo muestre.",
     "en": "Choose OS: scroll down to Use custom and pick {file} in your Downloads folder (it is selected in Finder) - unless Imager already shows it."
   },
   "macos.setup.write_step4": {
@@ -456,11 +460,11 @@
     "reviewed": "claude-backtranslation 2026-10-11 #f23258c9"
   },
   "macos.setup.write_step5": {
-    "text": "Haz clic en Siguiente y responde No a “aplicar ajustes de personalización del SO”: el dispositivo se configura desde este Mac o desde tu teléfono.",
+    "text": "Haz clic en Siguiente y responde No a “aplicar los ajustes de personalización del SO”: el dispositivo se configura desde este Mac o desde tu teléfono.",
     "en": "Click Next and answer No to \"apply OS customisation settings\": the device is set up from this Mac or your phone."
   },
   "macos.setup.write_subtitle": {
-    "text": "macOS solo permite escribir tarjetas SD a las apps de fuera del App Store, así que Raspberry Pi Imager hace este paso.",
+    "text": "macOS solo permite escribir tarjetas SD a las apps de fuera de App Store, así que Raspberry Pi Imager hace este paso.",
     "en": "macOS only lets apps outside the App Store write SD cards, so Raspberry Pi Imager does this step."
   },
   "macos.setup.write_title": {

@@ -26,17 +26,29 @@ import Combine
 // The device's value is taken whenever it differs from the copy - except
 // while a change made here is pending: a different value is then taken
 // for one from before the change and ignored until the device reports the
-// change, or `window` has passed. An answer to a status asked for before
-// a SetLanguage was sent or answered may predate it (the device answers
-// each request on its own) and is left out (`epoch`). Another device or
-// password drops a pending change (it was made against the old one's
-// value) and keeps the copy. otc-sync's engine/language.go does the same.
+// change, or `window` has passed since the change was made or last sent
+// (a change made long before signing in whose first SetLanguage failed is
+// still answered by polls that predate it). An answer to a status asked
+// for before a SetLanguage was sent or answered may predate it (the device
+// answers each request on its own) and is left out (`epoch`). Another
+// device or password drops a pending change (it was made against the old
+// one's value) and keeps the copy - except a change made for the next
+// device (`forNextDevice`): one made with no device set up (the connect
+// form, a fresh install, after Disconnect), or before this Mac has seen
+// the device's value (`deviceSeen` nil: never signed in to the device and
+// password set - a wrong password, which only Disconnect fixes -, not yet
+// since launch, or a device that predates localization), or in the setup
+// wizard for the device it sets up (carryToNextDevice). Nothing was seen
+// to compare it with, so it goes without `expected` to the device this
+// Mac signs in to next, which keeps it - a new device has Automatic.
+// otc-sync's engine/language.go does the same.
 
 /// The language state, without any I/O: what is kept, and the rules above.
 struct LanguageState: Equatable {
     /// The local copy: "" for Automatic, else a language code.
     var choice = ""
-    /// When the choice was changed on this Mac, until the device has it.
+    /// When the choice was changed on this Mac or last sent (nextSend),
+    /// until the device has it: the start of `window`.
     var pendingSince: Date?
     /// The device's value the pending change was made against, sent as
     /// SetLanguage.expected; nil when none had been seen (left out).
@@ -51,9 +63,14 @@ struct LanguageState: Equatable {
     var deviceTooOld = false
     /// Counts SetLanguage requests sent and answered (see deviceReported).
     var epoch = 0
+    /// The pending change is for the device this Mac signs in to next: a
+    /// change of device or password keeps it, and the next sign-in takes
+    /// it (connected). Made with no device set up, before any value of the
+    /// device set up was seen, or in the setup wizard.
+    var forNextDevice = false
 
     /// How long a pending change outweighs a different value the device
-    /// reports.
+    /// reports, from the change or its last send.
     static let window: TimeInterval = 30
 
     var pending: Bool { pendingSince != nil }
@@ -62,19 +79,37 @@ struct LanguageState: Equatable {
     enum Answer: Equatable { case ok, changed, unknownPayload, failed }
 
     /// A language chosen here; false when it is already the choice.
-    mutating func choose(_ code: String, now: Date) -> Bool {
+    /// `noDevice`: none is set up, so the change is for the next one - as
+    /// is a change made before any value of the device set up was seen
+    /// (never signed in to it: a wrong password, which only Disconnect
+    /// fixes, would otherwise drop it), and one made before signing in to
+    /// the device that a change for the next one is still waiting for.
+    mutating func choose(_ code: String, now: Date, noDevice: Bool = false) -> Bool {
         guard code != choice else { return false }
+        forNextDevice = noDevice || deviceSeen == nil || (forNextDevice && pending)
         choice = code
         pendingSince = now
-        expected = deviceSeen
+        expected = forNextDevice ? nil : deviceSeen
         return true
+    }
+
+    /// The setup wizard hands this Mac a device it has just set up, after
+    /// the language was chosen in it: the choice as it stands goes to that
+    /// device, without `expected` (its value has never been seen).
+    mutating func carryToNextDevice(now: Date) {
+        pendingSince = now
+        expected = nil
+        forNextDevice = true
     }
 
     /// The next SetLanguage to send, marked under way; nil when nothing is
     /// pending, one is under way already, or the device can't keep it.
-    mutating func nextSend() -> (language: String, expected: String?)? {
+    /// `window` starts again from `now`: a status asked for before this
+    /// send may still answer with the value from before the change.
+    mutating func nextSend(now: Date) -> (language: String, expected: String?)? {
         guard sending == nil, pending, !deviceTooOld else { return nil }
         sending = choice
+        pendingSince = now
         epoch += 1
         return (choice, expected)
     }
@@ -112,6 +147,10 @@ struct LanguageState: Equatable {
     mutating func deviceReported(_ value: String?, askedAt: Int, now: Date) -> Bool {
         // Possibly from before a SetLanguage sent or answered since.
         guard sending == nil, askedAt == epoch else { return false }
+        // A change for the next device waits for that device's sign-in:
+        // the one still connected (the wizard's switch is under way) says
+        // nothing about it.
+        guard !forNextDevice else { return false }
         guard let value else {
             deviceSeen = nil
             return false
@@ -129,20 +168,31 @@ struct LanguageState: Equatable {
         return true
     }
 
-    /// Signed in again: a device updated since may keep it now.
-    mutating func connected() { deviceTooOld = false }
+    /// Signed in again: a device updated since may keep it now. A change
+    /// for the next device is this device's from now on: sent to it, and
+    /// dropped like any other by a later change of device or password.
+    mutating func connected() {
+        deviceTooOld = false
+        forNextDevice = false
+    }
 
     /// Another device or password: what the old one said doesn't count,
-    /// and a change made against its value isn't sent to the new one.
+    /// and a change made against its value isn't sent to the new one; a
+    /// change for the next device is.
     mutating func forgetDevice() {
         deviceSeen = nil
         deviceTooOld = false
-        clearPending()
+        if forNextDevice && pending {
+            expected = nil
+        } else {
+            clearPending()
+        }
     }
 
     private mutating func clearPending() {
         pendingSince = nil
         expected = nil
+        forNextDevice = false
     }
 }
 
@@ -153,6 +203,12 @@ protocol LanguageStore: AnyObject {
     var language: String { get set }
     var languagePendingSince: Date? { get set }
     var languageExpected: String? { get set }
+    /// LanguageState.forNextDevice.
+    var languageForNextDevice: Bool { get set }
+    /// Whether a device is set up (an address and a password): a change
+    /// made without one is for the next device (as is one made before any
+    /// value of it was seen: LanguageState.choose).
+    var hasDevice: Bool { get }
 }
 
 /// The language the app shows, the local copy and its pending change, for
@@ -174,7 +230,8 @@ final class LanguageSettings: ObservableObject {
     init(store: LanguageStore) {
         self.store = store
         state = LanguageState(choice: store.language, pendingSince: store.languagePendingSince,
-                              expected: store.languageExpected)
+                              expected: store.languageExpected,
+                              forNextDevice: store.languageForNextDevice && store.languagePendingSince != nil)
     }
 
     /// Whether the user can pick at all: only with more than one language
@@ -217,12 +274,23 @@ final class LanguageSettings: ObservableObject {
         }
     }
 
-    /// The Language picker: saved and shown at once, then sent.
+    /// The Language picker: saved and shown at once, then sent - with no
+    /// device set up, or none of its values seen, to the device signed in
+    /// to next.
     func choose(_ code: String) {
-        guard state.choose(code, now: Date()) else { return }
+        guard state.choose(code, now: Date(), noDevice: !store.hasDevice) else { return }
         save()
         apply()
         sendPending()
+    }
+
+    /// The setup wizard, about to sync this Mac with the device it set up,
+    /// after the language was chosen in it: the choice goes to that device
+    /// at its first sign-in (LanguageState.carryToNextDevice). Not sent
+    /// now: this Mac may still be signed in to another one.
+    func carryToNextDevice() {
+        state.carryToNextDevice(now: Date())
+        save()
     }
 
     /// Signed in (SyncModel's onConnect, before the status poll): a change
@@ -255,7 +323,8 @@ final class LanguageSettings: ObservableObject {
     /// Sends what is pending, one SetLanguage at a time; marked under way
     /// before this returns.
     private func sendPending() {
-        guard let send, let next = state.nextSend() else { return }
+        guard let send, let next = state.nextSend(now: Date()) else { return }
+        save()
         Task { @MainActor [weak self] in
             let answer = await send(next.language, next.expected)
             guard let self else { return }
@@ -272,6 +341,7 @@ final class LanguageSettings: ObservableObject {
         if store.language != state.choice { store.language = state.choice }
         if store.languagePendingSince != state.pendingSince { store.languagePendingSince = state.pendingSince }
         if store.languageExpected != state.expected { store.languageExpected = state.expected }
+        if store.languageForNextDevice != state.forNextDevice { store.languageForNextDevice = state.forNextDevice }
     }
 
     private func apply() {

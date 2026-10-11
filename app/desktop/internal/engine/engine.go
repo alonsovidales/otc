@@ -260,6 +260,9 @@ type Engine struct {
 	// langEpoch counts SetLanguage requests sent and answered: a status
 	// asked for before the last of those may be older than it.
 	langEpoch uint64
+	// langSentAt is when the last SetLanguage went out: languageWindow
+	// runs from the change or from it, whichever is later.
+	langSentAt time.Time
 }
 
 // New builds an engine over cfg; onChange fires whenever anything the UI

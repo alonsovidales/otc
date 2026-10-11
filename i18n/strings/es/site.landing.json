@@ -120,7 +120,7 @@
     "en": "Get it on the Mac App Store"
   },
   "site.landing.desktop.mac_text": {
-    "text": "Una app en la barra de menús con las mismas carpetas y reglas de sincronización, en el Mac App Store, que la mantiene actualizada por ti.",
+    "text": "Una app en la barra de menús con las mismas carpetas y reglas de sincronización, en Mac App Store, que la mantiene actualizada por ti.",
     "en": "A menu bar app with the same folders and sync rules, on the Mac App Store, which keeps it up to date for you."
   },
   "site.landing.desktop.signed_note": {
@@ -749,7 +749,7 @@
     "en": "Phone apps"
   },
   "site.landing.phone.ios_soon": {
-    "text": "Muy pronto en el App Store",
+    "text": "Muy pronto en App Store",
     "en": "Coming soon to the App Store"
   },
   "site.landing.phone.ios_text": {

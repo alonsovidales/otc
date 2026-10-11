@@ -36,6 +36,7 @@ import { loadLastTab, saveLastTab } from "./net/uiState";
 import SharedGalleryView from "./components/SharedGalleryView";
 import AccountMenu from "./components/AccountMenu";
 import TopSignIn, { type Interrupted } from "./components/TopSignIn";
+import LanguagePicker from "./components/LanguagePicker";
 
 declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password: string; deviceId: string; }; } }
 
@@ -516,6 +517,10 @@ function App() {
         {authenticated && (
           <AccountMenu onOpenSettings={() => setTab("Settings")} refreshKey={tab === "Settings"} tip={canHover} />
         )}
+        {/* The language, before signing in: Settings, where it lives, needs
+            a session. Below 700px only its globe shows, as the page action
+            only its "+", and none while a phone's password field is out. */}
+        {showSignIn && !signInFieldOut && <LanguagePicker iconOnly={actionIconOnly} />}
         {showSignIn && (
           <TopSignIn
             deviceHost={deviceHost(endpoint)}

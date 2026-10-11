@@ -16,7 +16,7 @@
     "en": "Pick a folder that is already on the device and a place on this Mac: it is downloaded there and kept the same in both places from then on, changes and deletions included, like the option above. Handy for getting a folder onto a second computer. What is set for it on the device (upload only, kept out of Images) stays as it is."
   },
   "macos.add.local_info": {
-    "text": "Le dossier est copié sur l’appareil, puis maintenu identique aux deux endroits : les fichiers ajoutés, modifiés ou supprimés sur l’appareil (depuis un téléphone, un autre ordinateur ou le Web) modifient aussi ce dossier, et inversement. Sur le Mac, les fichiers supprimés vont dans la Corbeille. La première synchronisation ne fait qu’ajouter : elle ne supprime jamais rien.",
+    "text": "Le dossier est copié sur l’appareil, puis maintenu identique aux deux endroits : les fichiers ajoutés, modifiés ou supprimés sur l’appareil (depuis un téléphone, un autre ordinateur ou le Web) modifient aussi ce dossier, et inversement. Sur le Mac, les fichiers supprimés vont dans la corbeille. La première synchronisation ne fait qu’ajouter : elle ne supprime jamais rien.",
     "en": "The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device (from a phone, another computer or the web) change this folder too, and the other way round. Deleted files go to the Trash on the Mac. The first sync only adds - it never deletes."
   },
   "macos.add.local_subtitle": {
@@ -54,6 +54,10 @@
   "macos.bluetooth.enter_password": {
     "text": "Saisissez le mot de passe de l’appareil",
     "en": "Enter the device's password"
+  },
+  "macos.bluetooth.language_later": {
+    "text": "La page de configuration s’affichera en {language} dès le début de l’installation.",
+    "en": "The setup page will switch to {language} once the installation starts."
   },
   "macos.bluetooth.looking": {
     "text": "Recherche d’un appareil à configurer…",
@@ -209,7 +213,7 @@
     "en": "Start at login is switched off in System Settings."
   },
   "macos.login.open_login_items": {
-    "text": "Ouvrir Éléments d’ouverture…",
+    "text": "Ouvrir les réglages Ouverture…",
     "en": "Open Login Items…"
   },
   "macos.picker.no_subfolders": {
@@ -443,11 +447,11 @@
     "en": "Insert the microSD card and click {button} below."
   },
   "macos.setup.write_step2": {
-    "text": "Choisir l’appareil : Raspberry Pi 5.",
+    "text": "Choisir le modèle : Raspberry Pi 5.",
     "en": "Choose Device: Raspberry Pi 5."
   },
   "macos.setup.write_step3": {
-    "text": "Choisir l’OS : faites défiler jusqu’à « Utiliser une image personnalisée » et choisissez {file} dans votre dossier Téléchargements (il est sélectionné dans le Finder), sauf si Imager l’affiche déjà.",
+    "text": "Choisir l’OS : faites défiler jusqu’à « Utiliser image personnalisée » et choisissez {file} dans votre dossier Téléchargements (il est sélectionné dans le Finder), sauf si Imager l’affiche déjà.",
     "en": "Choose OS: scroll down to Use custom and pick {file} in your Downloads folder (it is selected in Finder) - unless Imager already shows it."
   },
   "macos.setup.write_step4": {
@@ -456,7 +460,7 @@
     "reviewed": "claude-backtranslation 2026-10-11 #b46d3b78"
   },
   "macos.setup.write_step5": {
-    "text": "Cliquez sur Suivant et répondez Non à « appliquer les paramètres de personnalisation de l’OS » : l’appareil se configure depuis ce Mac ou votre téléphone.",
+    "text": "Cliquez sur Suivant et répondez Non à « appliquer les réglages de personnalisation de l’OS » : l’appareil se configure depuis ce Mac ou votre téléphone.",
     "en": "Click Next and answer No to \"apply OS customisation settings\": the device is set up from this Mac or your phone."
   },
   "macos.setup.write_subtitle": {

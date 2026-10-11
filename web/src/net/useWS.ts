@@ -5,6 +5,7 @@ import { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { encryptWithPubKey, savePersistedToken, loadPersistedToken, clearPersistedToken } from "./pwCrypto";
 import { isDeviceStatusCode } from "./deviceStatus";
 import { t } from "../i18n/runtime";
+import { noteLanguageSignedOut, noteLanguageSignIn } from "../i18n/choice";
 
 // The device refused a password and refuses any more from this address
 // for a while (issue #117). Unlike a sign-in nobody answered, that is a
@@ -127,6 +128,7 @@ export function UseWS() {
 
     hadSession = false;
     clearPersistedToken();
+    noteLanguageSignedOut();
     if (setAuth) void setAuth(false);
   });
 
@@ -167,6 +169,7 @@ export function UseWS() {
           sendAuth(lastAuthRef).then((ok) => {
             if (!ok && lastAuthRef === '') {
               hadSession = false;
+              noteLanguageSignedOut();
               if (setAuth) void setAuth(false);
             }
           }, () => {
@@ -259,6 +262,9 @@ export function UseWS() {
         });
         if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
           lastAuthRef = key;
+          // A language picked signed out, or not yet on the device, goes
+          // now: it waits for this sign-in to finish, like any request.
+          noteLanguageSignIn();
           // Issue #46/#101: keep the browser signed in across reloads —
           // with a token the device issues for this session, never the
           // password that was just used to establish it.
@@ -351,6 +357,7 @@ export function UseWS() {
             (e as any).payload = { $case: "reqAuthWithToken", reqAuthWithToken: { token: current } };
           });
           if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
+            noteLanguageSignIn();
             // Redeeming consumes the token (see session.RedeemToken), so the
             // one in storage is spent the moment this succeeds — replace it
             // with a fresh one, which also slides the TTL forward another
@@ -404,6 +411,13 @@ export function UseWS() {
     return wsClient.connected;
   };
 
+  // A session to send with: one this tab has (a sign-in, a stored token
+  // redeemed, a password kept for the reconnect's replay) or one being
+  // made. Without it request() would send on a connection the device
+  // answers "not authenticated" (i18n/deviceSync.ts asks before sending
+  // the language, which then waits for the next sign-in).
+  const signedIn = () => hadSession || lastAuthRef !== '' || authPromise !== null;
+
   // After Change Password: a reconnect replays the new password, not the
   // old one the device now refuses. A session restored from a token holds
   // no password (#101) and keeps holding none.
@@ -411,7 +425,7 @@ export function UseWS() {
     if (lastAuthRef !== '') lastAuthRef = newKey;
   };
 
-  return { connected, request, sendAuth, authWithToken, refreshSessionToken, passwordChanged, init, ws: wsClient };
+  return { connected, signedIn, request, sendAuth, authWithToken, refreshSessionToken, passwordChanged, init, ws: wsClient };
 }
 
 export const useWS = UseWS();

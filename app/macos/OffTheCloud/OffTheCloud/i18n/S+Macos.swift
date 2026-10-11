@@ -78,6 +78,13 @@ extension S {
     /// Mac app, Set Up a New Device over Bluetooth: heading above the password field, for a recovered device that keeps the password it had.
     static var macosBluetoothEnterPassword: String { L("macos.bluetooth.enter_password", table: "Macos") }
 
+    /// The setup page will switch to {language} once the installation starts.
+    ///
+    /// Mac app, setting up a device over Bluetooth: a line under the setup page (the web page the device serves) after the language was changed with the window's language menu while that page was already open. The page changes language only once the device starts installing, so that nothing typed on it is lost; until then it stays in the language it opened in. {language} is the newly chosen language, written by its own name (for example Español, Deutsch); language names are never translated.
+    static func macosBluetoothLanguageLater(language: String) -> String {
+        L("macos.bluetooth.language_later", table: "Macos", language)
+    }
+
     /// Looking for a device to set up…
     ///
     /// Mac app, Set Up a New Device over Bluetooth: heading while it looks for a device announcing its setup over Bluetooth.

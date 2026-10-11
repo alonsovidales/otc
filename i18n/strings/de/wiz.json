@@ -725,6 +725,26 @@
     "text": "Das ist Gerät <b>{id}</b>.",
     "en": "This is device <b>{id}</b>."
   },
+  "wiz.page.language": {
+    "text": "Sprache",
+    "en": "Language"
+  },
+  "wiz.page.language_auto": {
+    "text": "Automatisch ({language})",
+    "en": "Automatic ({language})"
+  },
+  "wiz.page.language_change": {
+    "text": "Sprache ändern",
+    "en": "Change language"
+  },
+  "wiz.page.language_lost": {
+    "text": "Wenn du die Sprache änderst, wird diese Seite neu geladen und deine Eingaben darauf gehen verloren.",
+    "en": "Changing the language reloads this page, and what you entered on it will be lost."
+  },
+  "wiz.page.language_passwords": {
+    "text": "Wenn du die Sprache änderst, wird diese Seite neu geladen und du musst die eingegebenen Passwörter erneut eingeben.",
+    "en": "Changing the language reloads this page, and the passwords you typed will have to be typed again."
+  },
   "wiz.page.lead": {
     "text": "Lass uns dein Gerät einrichten.",
     "en": "Let's set up your device."

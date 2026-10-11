@@ -760,6 +760,9 @@ final class SyncModel: ObservableObject {
     func bind(settings: SettingsStore) {
         guard self.settings == nil else { return }
         self.settings = settings
+        // The first pair is the one saved at the last launch: the same
+        // device and password, not another one.
+        var launchPair = true
 
         settings.$domain
             .combineLatest(settings.$password)
@@ -771,6 +774,8 @@ final class SyncModel: ObservableObject {
             .debounce(for: .seconds(0.3), scheduler: DispatchQueue.main)
             .removeDuplicates { $0.0 == $1.0 && $0.1 == $1.1 }
             .sink { [weak self] domain, key in
+                let atLaunch = launchPair
+                launchPair = false
                 guard let self else { return }
                 Task { @MainActor in
                     self.authRetryTask?.cancel()
@@ -791,8 +796,9 @@ final class SyncModel: ObservableObject {
                     self.uploadOnlyRequestErrors.removeAll()
                     self.uploadOnlyNotes.removeAll()
                     // Nor the user's language there (the choice itself is
-                    // kept).
-                    LanguageSettings.shared.forgetDevice()
+                    // kept). Not at launch: a change still pending from
+                    // the last run goes to the same device at connect.
+                    if !atLaunch { LanguageSettings.shared.forgetDevice() }
                     if settings.ready {
                         self.overallStatus = .connecting
                         self.ws.configure(domain: domain, key: key)

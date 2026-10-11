@@ -16,7 +16,7 @@
     "en": "Pick a folder that is already on the device and a place on this Mac: it is downloaded there and kept the same in both places from then on, changes and deletions included, like the option above. Handy for getting a folder onto a second computer. What is set for it on the device (upload only, kept out of Images) stays as it is."
   },
   "macos.add.local_info": {
-    "text": "De map wordt naar het apparaat gekopieerd en blijft vanaf dan op beide plekken hetzelfde: bestanden die op het apparaat worden toegevoegd, gewijzigd of verwijderd (vanaf een telefoon, een andere computer of het web), veranderen ook deze map, en omgekeerd. Verwijderde bestanden gaan op de Mac naar de Prullenmand. De eerste synchronisatie voegt alleen toe en verwijdert nooit iets.",
+    "text": "De map wordt naar het apparaat gekopieerd en blijft vanaf dan op beide plekken hetzelfde: bestanden die op het apparaat worden toegevoegd, gewijzigd of verwijderd (vanaf een telefoon, een andere computer of het web), veranderen ook deze map, en omgekeerd. Verwijderde bestanden gaan op de Mac naar de prullenmand. De eerste synchronisatie voegt alleen toe en verwijdert nooit iets.",
     "en": "The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device (from a phone, another computer or the web) change this folder too, and the other way round. Deleted files go to the Trash on the Mac. The first sync only adds - it never deletes."
   },
   "macos.add.local_subtitle": {
@@ -54,6 +54,10 @@
   "macos.bluetooth.enter_password": {
     "text": "Voer het wachtwoord van het apparaat in",
     "en": "Enter the device's password"
+  },
+  "macos.bluetooth.language_later": {
+    "text": "De configuratiepagina schakelt over naar {language} zodra de installatie begint.",
+    "en": "The setup page will switch to {language} once the installation starts."
   },
   "macos.bluetooth.looking": {
     "text": "Zoeken naar een apparaat om in te stellen…",
@@ -443,20 +447,20 @@
     "en": "Insert the microSD card and click {button} below."
   },
   "macos.setup.write_step2": {
-    "text": "Kies apparaat: Raspberry Pi 5.",
+    "text": "Kies model: Raspberry Pi 5.",
     "en": "Choose Device: Raspberry Pi 5."
   },
   "macos.setup.write_step3": {
-    "text": "Kies OS: scrol omlaag naar “Eigen image gebruiken” en kies {file} in je map Downloads (het bestand is geselecteerd in de Finder), tenzij Imager het al toont.",
+    "text": "Kies OS: scrol omlaag naar “Gebruik eigen bestand” en kies {file} in je map Downloads (het bestand is geselecteerd in de Finder), tenzij Imager het al toont.",
     "en": "Choose OS: scroll down to Use custom and pick {file} in your Downloads folder (it is selected in Finder) - unless Imager already shows it."
   },
   "macos.setup.write_step4": {
-    "text": "Kies opslagapparaat: je SD-kaart. Alles op de kaart wordt gewist.",
+    "text": "Kies opslag: je SD-kaart. Alles op de kaart wordt gewist.",
     "en": "Choose Storage: your SD card. Everything on it is erased.",
-    "reviewed": "claude-backtranslation 2026-10-11 #5278455a"
+    "reviewed": "claude-backtranslation 2026-10-11 #88ec8880"
   },
   "macos.setup.write_step5": {
-    "text": "Klik op Volgende en antwoord Nee op “OS-aanpassingsinstellingen toepassen”: het apparaat wordt ingesteld vanaf deze Mac of je telefoon.",
+    "text": "Klik op Volgende en antwoord Nee als Imager vraagt of je je eigen instellingen op het OS wilt toepassen: het apparaat wordt ingesteld vanaf deze Mac of je telefoon.",
     "en": "Click Next and answer No to \"apply OS customisation settings\": the device is set up from this Mac or your phone."
   },
   "macos.setup.write_subtitle": {

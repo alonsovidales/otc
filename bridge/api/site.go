@@ -36,9 +36,11 @@ import (
 //	/landing(.html)   301 to /, the page's old address
 //	/account.html     301 to /account, the account page's old address
 //
-// The account page's own links (emails' #verify= and #reset=, the Google
-// and Apple sign-ins' ?error= and ?complete=) all come to /account: a
-// redirect keeps the query, and the browser keeps the fragment.
+// The account page's own links (the Google and Apple sign-ins' ?error= and
+// ?complete=, and emails' #verify= and #reset=) come to /account: a
+// redirect keeps the query, and the browser keeps the fragment. An email
+// in a carried language other than English links /<code>/account instead
+// (accounts' accountPage), so the page opens in the email's language.
 //
 // /disabled and /unavailable show those pages on the bridge's host too
 // (Accept-Language), for a look at them. Everything else (the privacy,

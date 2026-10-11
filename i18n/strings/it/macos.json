@@ -55,6 +55,10 @@
     "text": "Inserisci la password del dispositivo",
     "en": "Enter the device's password"
   },
+  "macos.bluetooth.language_later": {
+    "text": "La pagina di configurazione verrà mostrata in {language} all’avvio dell’installazione.",
+    "en": "The setup page will switch to {language} once the installation starts."
+  },
   "macos.bluetooth.looking": {
     "text": "Ricerca di un dispositivo da configurare…",
     "en": "Looking for a device to set up…"
@@ -209,7 +213,7 @@
     "en": "Start at login is switched off in System Settings."
   },
   "macos.login.open_login_items": {
-    "text": "Apri Elementi login…",
+    "text": "Apri “Elementi login”…",
     "en": "Open Login Items…"
   },
   "macos.picker.no_subfolders": {
@@ -460,7 +464,7 @@
     "en": "Click Next and answer No to \"apply OS customisation settings\": the device is set up from this Mac or your phone."
   },
   "macos.setup.write_subtitle": {
-    "text": "macOS consente di scrivere schede SD solo alle app esterne all’App Store, quindi questo passaggio lo esegue Raspberry Pi Imager.",
+    "text": "macOS consente di scrivere schede SD solo alle app che non provengono da App Store, quindi questo passaggio lo esegue Raspberry Pi Imager.",
     "en": "macOS only lets apps outside the App Store write SD cards, so Raspberry Pi Imager does this step."
   },
   "macos.setup.write_title": {

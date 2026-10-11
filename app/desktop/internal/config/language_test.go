@@ -103,3 +103,79 @@ func TestAdoptLanguage(t *testing.T) {
 		t.Fatalf("a pending change that timed out: %+v", cfg)
 	}
 }
+
+// A device set up but none of its values seen (the engine never signed in
+// to it - a wrong password -, a device that predates localization, no sync
+// running): a change is for the next device too, so Disconnect, the only
+// way to fix the password, keeps it (engine's
+// TestLanguageChosenBeforeSigningInSurvivesDisconnect). A value seen makes
+// it this device's.
+func TestLanguageBeforeAnyValueOfTheDevice(t *testing.T) {
+	now := time.Now()
+	cfg := &Config{Domain: "cala.off-the.cloud"}
+	cfg.SetLanguage("es", nil, now)
+	if !cfg.LanguageNextDevice || cfg.LanguageExpected != nil {
+		t.Fatalf("nothing seen: %+v", cfg)
+	}
+	seen := "it"
+	cfg = &Config{Domain: "cala.off-the.cloud"}
+	cfg.SetLanguage("es", &seen, now)
+	if cfg.LanguageNextDevice || cfg.LanguageExpected == nil || *cfg.LanguageExpected != "it" {
+		t.Fatalf("its value seen: %+v", cfg)
+	}
+}
+
+// A change made with no device set up is for the next one: against
+// nothing (a value a stale state names doesn't count), still so when made
+// again before signing in to the device set up since, and that device's
+// once signed in to - after which a change counts against what was seen.
+func TestLanguageForTheNextDevice(t *testing.T) {
+	withConfigDir(t)
+	now := time.Now()
+	seen := "fr"
+	cfg := &Config{}
+	cfg.SetLanguage("es", &seen, now)
+	if !cfg.LanguageNextDevice || cfg.LanguageExpected != nil {
+		t.Fatalf("no device: %+v", cfg)
+	}
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if raw := readConfigJSON(t); !strings.Contains(raw, `"language_next_device": true`) {
+		t.Fatalf("not saved:\n%s", raw)
+	}
+	back, err := Load()
+	if err != nil || !back.LanguageNextDevice {
+		t.Fatalf("not kept: %+v %v", back, err)
+	}
+
+	cfg.Domain = "cala.off-the.cloud"
+	cfg.SetLanguage("de", &seen, now)
+	if !cfg.LanguageNextDevice || cfg.LanguageExpected != nil {
+		t.Fatalf("before signing in: %+v", cfg)
+	}
+	if !cfg.SignedInForLanguage() || cfg.LanguageNextDevice || cfg.LanguagePending == nil {
+		t.Fatalf("signed in: %+v", cfg)
+	}
+	if cfg.SignedInForLanguage() {
+		t.Fatal("signed in twice")
+	}
+	cfg.SetLanguage("it", &seen, now)
+	if cfg.LanguageNextDevice || cfg.LanguageExpected == nil || *cfg.LanguageExpected != "fr" {
+		t.Fatalf("signed in, then chosen: %+v", cfg)
+	}
+
+	// Answered, adopted or dropped: nothing is left for the next device.
+	for _, end := range []func(c *Config){
+		func(c *Config) { c.ClearLanguagePending(c.Language) },
+		func(c *Config) { c.AdoptLanguage("pt", c.Language, c.LanguagePending) },
+		func(c *Config) { c.DropLanguagePending(c.LanguagePending) },
+	} {
+		c := &Config{}
+		c.SetLanguage("nl", nil, now)
+		end(c)
+		if c.LanguagePending != nil || c.LanguageNextDevice {
+			t.Fatalf("left: %+v", c)
+		}
+	}
+}

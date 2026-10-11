@@ -306,7 +306,7 @@ extension S {
 
     /// Language
     ///
-    /// Label of the language picker in the Mac app's Settings, and title of the Language submenu in otc-sync's tray menu (Windows and Linux). The choice applies to every Off The Cloud app.
+    /// Label of the language picker in the Mac app's Settings, and title of the Language submenu in otc-sync's tray menu (Windows and Linux). Also the tooltip and the VoiceOver name of the Mac setup wizard's language menu, a button that shows a globe and the current language's own name. The choice applies to every Off The Cloud app.
     static var deskMainLanguage: String { L("desk.main.language", table: "DeskMain") }
 
     /// Automatic ({language})
@@ -359,6 +359,13 @@ extension S {
         L("desk.main.password_title", table: "DeskMain", device)
     }
 
+    /// {percent}%
+    ///
+    /// Both apps: a percentage on its own. Mac app: how far a folder's pass has got, next to its progress bar, and the device's processor use in the storage line's pop-up. otc-sync: a folder's progress in the tray menu, before the file it is on ("42% · 12/340 · photo.jpg"). {percent} is a whole number from 0 to 100. Write the percentage as your language does.
+    static func deskMainPercent(percent: Int) -> String {
+        L("desk.main.percent", table: "DeskMain", percent)
+    }
+
     /// Stop syncing this folder (nothing is deleted)
     ///
     /// otc-sync: tooltip of Remove in a folder's submenu of the tray menu.
@@ -385,6 +392,11 @@ extension S {
     ///
     /// otc-sync: prompt of the dialog that asks which device to connect to. "cala" is an example device name and the addresses are examples: keep them as they are. "Bridge" is the off-the.cloud relay service.
     static var deskMainSettingsHint: String { L("desk.main.settings_hint", table: "DeskMain") }
+
+    /// Device name or address:
+    ///
+    /// otc-sync on Windows: the prompt above the field of the dialog that asks which device to connect to. Windows' dialog shows a single short line there (about 240 pixels), so this replaces desk.main.settings_hint, which Linux shows: keep it as short. The field takes the device's name on the bridge (for example "cala") or a full address (wss://host/ws).
+    static var deskMainSettingsHintWindows: String { L("desk.main.settings_hint_windows", table: "DeskMain") }
 
     /// Off The Cloud — Settings
     ///

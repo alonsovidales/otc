@@ -7,7 +7,7 @@
 // the same signInWithPassword - this one with setUp, the top bar's never
 // to a new device.
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import './SignIn.css'
 import { useWS } from "../net/useWS";
@@ -15,6 +15,7 @@ import { signInWithPassword } from "../net/signIn";
 import type { StorageDevice, WifiNetwork } from "../proto/messages";
 import { useT, type TFunction } from "../i18n";
 import { asIs, percentText, say, unitText, type UiText } from "../components/uiText";
+import LanguagePicker from "../components/LanguagePicker";
 
 type Step = "credentials" | "storage" | "wifi";
 
@@ -22,6 +23,18 @@ type Step = "credentials" | "storage" | "wifi";
 function formatSize(t: TFunction, bytes: bigint): string {
   const gb = Number(bytes) / (1000 * 1000 * 1000);
   return gb >= 1 ? unitText(t, gb, "gigabyte", 1) : unitText(t, Number(bytes) / (1000 * 1000), "megabyte", 0);
+}
+
+// A step's heading, with the language in the card's top-right corner above
+// it (SignIn.css): a new device's setup comes before any Settings, so it is
+// chosen here (sent to the device as soon as its password is set).
+function StepHeading({ children }: { children: ReactNode }) {
+  return (
+    <div className="setup-head">
+      <h3>{children}</h3>
+      <LanguagePicker className="setup-lang lpk-phone" />
+    </div>
+  );
 }
 
 function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void }) {
@@ -185,7 +198,7 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
   if (step === "wifi") {
     return (
       <section className="sf-section setup-section">
-        <h3>{t("web.shell.setup.wifi")}</h3>
+        <StepHeading>{t("web.shell.setup.wifi")}</StepHeading>
         <p className="sf-hint">{t("web.shell.setup.wifi_intro")}</p>
         <form onSubmit={submitWifi}>
           {networks.map((n) => (
@@ -227,7 +240,7 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
   if (step === "storage") {
     return (
       <section className="sf-section setup-section">
-        <h3>{t("web.shell.setup.storage")}</h3>
+        <StepHeading>{t("web.shell.setup.storage")}</StepHeading>
         <p className="sf-hint">
           {devices.length === 0 ? t("web.shell.setup.no_disks") : t("web.shell.setup.choose_disks")}
         </p>
@@ -257,7 +270,7 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
 
   return (
     <section className="sf-section setup-section">
-      <h3>{t("web.shell.setup.welcome")}</h3>
+      <StepHeading>{t("web.shell.setup.welcome")}</StepHeading>
       {/* Issue #85: an additional user isn't setting up a device - the
           machine is already running, someone else set it up, and saying
           otherwise invites them to go looking for disks and WiFi that

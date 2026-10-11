@@ -657,7 +657,7 @@
     "reviewed": "claude-backtranslation 2026-10-11 #f3a95ed0"
   },
   "site.landing.install.step_flash": {
-    "text": "<b>Flash de image</b> naar de microSD-kaart met <imager>Raspberry Pi Imager</imager>: “Eigen image gebruiken”, kies het bestand, schrijf. Sla de eigen aanpassingsstap van Imager over.",
+    "text": "<b>Flash de image</b> naar de microSD-kaart met <imager>Raspberry Pi Imager</imager>: “Gebruik eigen bestand”, kies het bestand, schrijf. Sla de eigen aanpassingsstap van Imager over.",
     "en": "<b>Flash it</b> to the MicroSD card with <imager>Raspberry Pi Imager</imager>: \"Use custom\", pick the file, write. Skip Imager's own customisation step."
   },
   "site.landing.install.step_plug": {

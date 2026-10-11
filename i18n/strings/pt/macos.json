@@ -55,6 +55,10 @@
     "text": "Introduz a palavra-passe do dispositivo",
     "en": "Enter the device's password"
   },
+  "macos.bluetooth.language_later": {
+    "text": "A página de configuração passa a aparecer em {language} quando a instalação começar.",
+    "en": "The setup page will switch to {language} once the installation starts."
+  },
   "macos.bluetooth.looking": {
     "text": "A procurar um dispositivo para configurar…",
     "en": "Looking for a device to set up…"
@@ -209,7 +213,7 @@
     "en": "Start at login is switched off in System Settings."
   },
   "macos.login.open_login_items": {
-    "text": "Abrir Elementos de início de sessão…",
+    "text": "Abrir elementos de início de sessão…",
     "en": "Open Login Items…"
   },
   "macos.picker.no_subfolders": {
@@ -316,7 +320,7 @@
     "en": "{done} of {total}"
   },
   "macos.setup.download_subtitle": {
-    "text": "Para a tua pasta Transferências.",
+    "text": "Para a tua pasta Descargas.",
     "en": "Into your Downloads folder."
   },
   "macos.setup.download_title": {
@@ -340,7 +344,7 @@
     "en": "The download failed (HTTP {code}). Try again in a moment."
   },
   "macos.setup.image_deleted": {
-    "text": "A imagem transferida foi eliminada da tua pasta Transferências.",
+    "text": "A imagem transferida foi eliminada da tua pasta Descargas.",
     "en": "The downloaded image was deleted from your Downloads folder."
   },
   "macos.setup.imager_missing": {
@@ -447,7 +451,7 @@
     "en": "Choose Device: Raspberry Pi 5."
   },
   "macos.setup.write_step3": {
-    "text": "Escolher SO: desce até Usar personalizado e escolhe {file} na tua pasta Transferências (está selecionado no Finder), a não ser que o Imager já o mostre.",
+    "text": "Escolher SO: desce até «Utilizar ficheiro personalizado» e escolhe {file} na tua pasta Descargas (está selecionado no Finder), a não ser que o Imager já o mostre.",
     "en": "Choose OS: scroll down to Use custom and pick {file} in your Downloads folder (it is selected in Finder) - unless Imager already shows it."
   },
   "macos.setup.write_step4": {

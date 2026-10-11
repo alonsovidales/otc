@@ -191,16 +191,30 @@ type Config struct {
 	// app isn't overwritten. nil when the process that made the change
 	// hadn't seen one (expected is then left out).
 	LanguageExpected *string `json:"language_expected,omitempty"`
+	// LanguageNextDevice: the pending change is for the device otc-sync
+	// signs in to next - made with no device set up (Domain empty), with
+	// no value of the device set up seen (SetLanguage's expected nil: the
+	// engine never signed in to that device and password - a wrong
+	// password, which only Disconnect fixes -, hasn't since it started,
+	// the device predates localization, or no sync is running), or again
+	// before signing in to the one set up since. A change of device or
+	// password keeps it, where it drops any other pending change, and the
+	// next sign-in makes it that device's. The Mac's
+	// languageForNextDevice.
+	LanguageNextDevice bool `json:"language_next_device,omitempty"`
 }
 
 // SetLanguage records a language chosen on this computer ("" Automatic),
 // pending for the engine to send, against expected: the device's value as
-// last seen (nil when none was).
+// last seen (nil when none was). With no device set up, or none of its
+// values seen, the change is for the next one (LanguageNextDevice), sent
+// without expected: nothing was seen to compare it with.
 func (c *Config) SetLanguage(code string, expected *string, now time.Time) {
+	c.LanguageNextDevice = c.Domain == "" || expected == nil || (c.LanguageNextDevice && c.LanguagePending != nil)
 	c.Language = code
 	at := now.UTC()
 	c.LanguagePending = &at
-	if expected != nil {
+	if expected != nil && !c.LanguageNextDevice {
 		e := *expected
 		c.LanguageExpected = &e
 	} else {
@@ -216,7 +230,7 @@ func (c *Config) ClearLanguagePending(sent string) bool {
 	if c.LanguagePending == nil || c.Language != sent {
 		return false
 	}
-	c.LanguagePending, c.LanguageExpected = nil, nil
+	c.LanguagePending, c.LanguageExpected, c.LanguageNextDevice = nil, nil, false
 
 	return true
 }
@@ -228,7 +242,20 @@ func (c *Config) DropLanguagePending(at *time.Time) bool {
 	if at == nil || !sameTime(c.LanguagePending, at) {
 		return false
 	}
-	c.LanguagePending, c.LanguageExpected = nil, nil
+	c.LanguagePending, c.LanguageExpected, c.LanguageNextDevice = nil, nil, false
+
+	return true
+}
+
+// SignedInForLanguage: otc-sync signed in to a device - a change for the
+// next device is that one's from now on (sent to it, and dropped like any
+// other by a later change of device or password). Says whether there was
+// one.
+func (c *Config) SignedInForLanguage() bool {
+	if !c.LanguageNextDevice {
+		return false
+	}
+	c.LanguageNextDevice = false
 
 	return true
 }
@@ -254,7 +281,7 @@ func (c *Config) AdoptLanguage(device, seen string, pending *time.Time) bool {
 	if c.Language != seen || !sameTime(c.LanguagePending, pending) {
 		return false
 	}
-	c.Language, c.LanguagePending, c.LanguageExpected = device, nil, nil
+	c.Language, c.LanguagePending, c.LanguageExpected, c.LanguageNextDevice = device, nil, nil, false
 
 	return true
 }

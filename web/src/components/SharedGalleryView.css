@@ -12,6 +12,12 @@
 .sg-actions .btn, .sg-viewer-bar .btn { background: var(--panel); color: var(--mist); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; }
 .sg-actions .btn.primary { background: var(--ember); color: var(--ember-ink); border-color: transparent; font-weight: 600; }
 .sg-actions .btn:disabled { opacity: 0.5; cursor: default; }
+/* The language picker (LanguagePicker.css): after the actions, at the
+   buttons' height (the globe alone on a phone); over an error, in the
+   page's top corner. */
+.lpk.sg-lang { height: auto; align-self: stretch; }
+.sg-page:has(> .sg-corner-lang) { position: relative; }
+.lpk.sg-corner-lang { position: absolute; top: 12px; right: 16px; }
 .sg-actions .btn:focus-visible, .sg-tile:focus-visible, .sg-viewer .btn:focus-visible, .sg-nav:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 .sg-progress { max-width: 1400px; margin: 0 auto 14px; color: var(--mist-dim); font-size: 0.9rem; font-variant-numeric: tabular-nums; }

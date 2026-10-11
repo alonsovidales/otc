@@ -879,15 +879,23 @@ patterns (docs/i18n.md "Each platform"): a date written by hand is a key with `t
 ("{month} {year}", "{day} {month} {year}"; month names from `Intl.DateTimeFormat(t.tag, {month})` on
 the web, `app.photos.months.*` on the phones); a sentence that would need two plurals takes its
 counted pieces, each its own plural key, as a `{what}` text argument; name lists are two recursive
-keys ("{first} and {second}", "{first}, {rest}"), never `Intl.ListFormat`; a typed confirmation
+keys ("{first} and {second}", "{first}, {rest}"), never `Intl.ListFormat`; a number written by
+hand follows the language's canonical tag, never the region (web `plainNumber`/`percentText`, iOS
+`decimalText`, the Mac's and otc-sync's `desk.main.percent`), so English stays byte for byte; a typed confirmation
 sends the code constant (the account page shows and accepts `site.account.delete.word`, and
 `delete`, but always sends `{"confirm": "delete"}`; deleting a user in Settings asks for the
 username). The setup wizard (`wiz.*`) takes `?lang=` from the apps (iOS `BLESetupLang`, Android
-`withLang`, Mac `BLESetupTransport.withLanguage`) and words install.sh's steps from its
+`withLang`, Mac `BLESetupTransport.withLanguage`); in a browser its page has a language list
+(Automatic first, which drops `?lang=`), hidden inside the apps, which call
+`window.otcSetupLang(code)`: it reloads with `?lang=` on the same step, keeping the state in
+sessionStorage (never passwords or the terms checkbox); the Mac's setup window has its own
+language menu (`LanguageMenu` in `LanguagePicker.swift`). It words install.sh's steps from its
 `[otc-install] @step|@error <token>` marks, only when the key's English equals the line that
 follows. The bridge's landing, account, disabled and unavailable pages are templates in
-`bridge/site` (Frontend below); its emails follow `accounts.lang`, while its JSON `error` texts and
-websocket replies stay English (a fallback only) and clients word them by `code`.
+`bridge/site` (Frontend below); its emails follow `accounts.lang` (their links go to
+`/<code>/account` for a carried non-English language; `mail.date.long`'s `{day}` is a count only so
+French can write "1er janvier"), while its JSON `error` texts and websocket replies stay English (a
+fallback only) and clients word them by `code`.
 
 The stored choice (`docs/i18n.md`, "The stored choice"; every client follows the same rules):
 - Device (release 118, `scripts/updates/118.sh`): `settings.language` and `last_ui_language`.
@@ -907,9 +915,13 @@ The stored choice (`docs/i18n.md`, "The stored choice"; every client follows the
   account or domain.
 - Apps: a local copy plus a pending change, sent with SetLanguage against the device value seen
   when it was made. Sign-out, Log Out, Disconnect or another device/password keeps the copy and
-  drops the pending change. `unknown_payload` keeps it pending until the next connection. `lang`
-  is set only in iOS/Android `WSClient.exchange`, macOS `WSClient.envelope`, otc-sync
-  `Client.Request` and web `ws.ts`. The Language row/panel/picker/tray submenu is hidden while
+  drops the pending change - except one made for the next device (no device set up; on macOS
+  and otc-sync also none of its values seen yet, e.g. a wrong password; or picked in the Mac's
+  setup wizard; macOS `languageForNextDevice`, otc-sync `language_next_device`), which the next
+  sign-in sends without `expected`. The 30 s window runs from the change or its last send.
+  `unknown_payload` keeps it pending until the next connection. `lang` is set only in
+  iOS/Android `WSClient.exchange`, macOS `WSClient.envelope`, otc-sync `Client.Request` and web
+  `ws.ts`. The Language row/panel/picker/tray submenu is hidden while
   English is the only shipping language. Parity: iOS `LanguageSettings.swift` <-> Android
   `i18n/LanguageSettings.kt`; macOS `LanguageSettings.swift` <-> otc-sync `engine/language.go` +
   `internal/oslang`; `otc-sync language [auto|<code>]` (English output). Android recreates the
@@ -1156,7 +1168,10 @@ registers an unknown domain on dial-in unless open registration is on. The accou
 come as JSON blocks (`site.account.*`, and `api.error.*` for its error table by code) built by the
 `jstexts`/`jsform` template functions (`bridge/site/site.go`), filled in as text nodes only
 (docs/i18n.md "bridge"). Its links (the emails' `#verify=`/`#reset=`, the sign-ins' `?error=`
-and `?complete=1`, BridgePanel's `?delete=1`) all land on `/account`. The wizard's account step
+and `?complete=1`, BridgePanel's `?delete=1`) all land on `/account`, except that the emails
+(verification, reset and the inactivity warning) link `/<code>/account` when the account's
+`accounts.lang` is a carried language other than English (`accountPage`/`pageLink` in
+`bridge/accounts/emails.go`; English, `""` and anything else keep `/account`, byte for byte). The wizard's account step
 goes through the device (`/api/account` in `setup_wizard.py` proxies sign-in/sign-up with
 `?for=setup`, which returns a setup token; a typed code is checked with
 `/api/account/setup-token-info`) because the hotspot's captive DNS only lets the device reach
@@ -1229,10 +1244,11 @@ clears the address and password (`SyncModel.disconnect` / config with no folders
 The files stay where they are. This is because folders kept across a change of device would sync
 with, or delete on, the other device. The Mac wizard's "Sync this Mac with my device" asks the same
 when another device is set (`SetupWizardView.switchDevice`). "Set Up a New Device…" is a small
-button (Disconnect's size) at the right of "Start at login" in the Mac's Settings, and its own section
-above Quit in the tray.
+button (Disconnect's size) at the right of "Start at login" in the Mac's Settings (the Language
+picker is the row below, last, at the left), and its own section above Quit in the tray.
 **Web app (issue #193).** Once a device is configured both offer "Open Web App": the Mac in the
-popover's header beside the gear, the tray as the last line of its top group, and `otc-sync open`
+popover's header beside the gear (where the header doesn't fit, its heading drops "— Sync" before
+the button keeps only its globe), the tray as the last line of its top group, and `otc-sync open`
 (prints the address, and opens it where there is a display). It is the configured address's host
 and port at `/` - https for a bridge name or a wss address, http for ws (`SettingsStore.webAppURL`
 / `config.WebURL`) - opened in the default browser (`NSWorkspace.open`; otc-sync's
@@ -1365,6 +1381,9 @@ image-publish` via `scripts/sign-file.sh`). otc-sync (`internal/flasher`, tray `
   on, followed through device-mapper slaves;
 - on Windows, `Get-Disk` with bus type USB, SD or MMC, not boot or system.
 
+The tray's list of cards shows Linux's full labels; Windows' list is 241 px wide and cuts what
+doesn't fit, so there a row is the size, the disk's number and the name, at most 34 characters
+(`windowsCardRow`; the device dialog's prompt there is the short `desk.main.settings_hint_windows`).
 It needs 8 GB or more. Writing runs elevated as the hidden `otc-sync flash-device` (pkexec, or UAC
 through `ShellExecuteExW runas`), which reports progress as JSON lines in a status file the
 wizard polls. The elevated process re-checks that the disk is removable, fetches the signed hash
@@ -1421,7 +1440,7 @@ downloaded file must carry the device's time and not "now". Both keep their loca
 disk too (`Application Support/OffTheCloud/hashes/<folder id>.json` on macOS, `<config
 dir>/hashes/<folder id>.json` for otc-sync; path -> size, mtime, hash), so a relaunch doesn't
 re-read every file - the reference two-way folder is 66 GB - just to confirm nothing changed;
-the checking pass shows "Checking i/N · name" while it runs (#138). Next to the storage health both show how full the device is and its load: on the Mac "Storage healthy · 15% used" on one line (`StorageStatusView`) with storage, CPU and memory in a pop-up on hover (`DeviceLoadView`); in otc-sync a text bar in the storage line (`storageTitle`) whose submenu, opened on hover, holds the same three, also its tooltip (`config.State.StorageUsed`/`CPUPercent`/`MemUsed`, from the same status poll). Storage comes first, used of total ("39.6 of 474 GB", `storageUseTitle`), and only once the device reports a size; on the Mac its bar turns orange past 75% and red past 90%, like the line (`fullnessColor`). Storage and memory share one number format (`sizeText`/`usedOfTotal` in both apps): one decimal under 100 GB, whole GB from 100 GB, TB with one decimal from 1000 GB ("1.2 of 3.6 TB"; "39.6 GB of 3.6 TB" when the units differ). Conflicts in a two-way folder (both sides changed a file since the last sync) still go to the newer
+the checking pass shows "Checking i/N · name" while it runs (#138). Next to the storage health both show how full the device is and its load: on the Mac "Storage healthy · 15% used" (`StorageStatusView`: one text that wraps after the dot rather than cut, for a longer health or language) with storage, CPU and memory in a pop-up on hover (`DeviceLoadView`); in otc-sync a text bar in the storage line (`storageTitle`) whose submenu, opened on hover, holds the same three, also its tooltip (`config.State.StorageUsed`/`CPUPercent`/`MemUsed`, from the same status poll). Storage comes first, used of total ("39.6 of 474 GB", `storageUseTitle`), and only once the device reports a size; on the Mac its bar turns orange past 75% and red past 90%, like the line (`fullnessColor`). Storage and memory share one number format (`sizeText`/`usedOfTotal` in both apps): one decimal under 100 GB, whole GB from 100 GB, TB with one decimal from 1000 GB ("1.2 of 3.6 TB"; "39.6 GB of 3.6 TB" when the units differ). Conflicts in a two-way folder (both sides changed a file since the last sync) still go to the newer
 modification, but the losing version is kept next to it as `name (conflict from <computer>
 <yyyy-mm-dd hh.mm>).ext` (this computer's version) or `name (conflict <date>).ext` (the device's),
 and then syncs like any new file. The steps are ordered so a failure loses nothing: rename, then

@@ -36,7 +36,15 @@ func TestLanguageCommand(t *testing.T) {
 		t.Fatalf("a fresh install:\n%s", out)
 	}
 
-	// A running sync that has seen the device's value.
+	// A device set up, and a running sync that has seen its value.
+	set, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	set.Domain = "cala.off-the.cloud"
+	if err := set.Save(); err != nil {
+		t.Fatal(err)
+	}
 	device := "fr"
 	if err := config.SaveState(&config.State{Status: "Connected", DeviceLanguage: &device}); err != nil {
 		t.Fatal(err)
@@ -49,7 +57,8 @@ func TestLanguageCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Language != "en" || cfg.LanguagePending == nil || cfg.LanguageExpected == nil || *cfg.LanguageExpected != "fr" {
+	if cfg.Language != "en" || cfg.LanguagePending == nil || cfg.LanguageExpected == nil || *cfg.LanguageExpected != "fr" ||
+		cfg.LanguageNextDevice {
 		t.Fatalf("config.json: %+v", cfg)
 	}
 	if !strings.Contains(out, "language:  English (en)") || !strings.Contains(out, "shows:     English (en)") ||
@@ -71,6 +80,19 @@ func TestLanguageCommand(t *testing.T) {
 	}
 	if cfg, _ = config.Load(); cfg.Language != "" || cfg.LanguagePending == nil {
 		t.Fatalf("auto: %+v", cfg)
+	}
+
+	// No device set up (`otc-sync disconnect`): for the device set up
+	// next, against nothing.
+	cfg.Domain = ""
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := languageCmd(t, now, "en"); err != nil {
+		t.Fatal(err)
+	}
+	if cfg, _ = config.Load(); cfg.Language != "en" || cfg.LanguageExpected != nil || !cfg.LanguageNextDevice {
+		t.Fatalf("no device: %+v", cfg)
 	}
 
 	if _, err := languageCmd(t, now, "xx"); err == nil || !strings.Contains(err.Error(), "en") {

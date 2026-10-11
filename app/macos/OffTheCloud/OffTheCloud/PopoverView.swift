@@ -71,12 +71,14 @@ struct PopoverView: View {
 
     private var mainContent: some View {
         VStack(spacing: 12) {
-            // The heading on one line: where it and the web app's label
-            // don't fit side by side (a longer word for "Sync"), the button
-            // keeps only its globe - its tooltip says where it goes.
+            // The heading on one line beside the web app's button with its
+            // label. Where they don't fit side by side (a longer word for
+            // "Sync"), the heading drops "— Sync" first; only then does the
+            // button keep its globe alone - its tooltip says where it goes.
             ViewThatFits(in: .horizontal) {
-                header(webTitle: true)
-                header(webTitle: false)
+                header(fullTitle: true, webTitle: true)
+                header(fullTitle: false, webTitle: true)
+                header(fullTitle: false, webTitle: false)
             }
 
             // Connection status
@@ -87,6 +89,8 @@ struct PopoverView: View {
                 Text(sync.overallStatus.text)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    // Its width first: the storage line wraps instead.
+                    .layoutPriority(1)
                 Spacer()
                 // Issue #69: the icon in words, for anyone who noticed
                 // it change colour.
@@ -197,11 +201,18 @@ struct PopoverView: View {
         }
     }
 
-    /// The heading, the web app's button and the gear; `webTitle` false
-    /// leaves the button its globe alone.
-    private func header(webTitle: Bool) -> some View {
+    /// The heading, the web app's button and the gear; `fullTitle` false
+    /// leaves the heading the product name alone, `webTitle` false leaves
+    /// the button its globe alone.
+    private func header(fullTitle: Bool, webTitle: Bool) -> some View {
         HStack {
-            Text(S.deskMainTitle)
+            Group {
+                if fullTitle {
+                    Text(S.deskMainTitle)
+                } else {
+                    Text(verbatim: "Off The Cloud") // i18n-ignore: the product name alone
+                }
+            }
                 .font(.headline)
                 .fixedSize(horizontal: webTitle, vertical: false)
             Spacer()
@@ -577,10 +588,19 @@ struct FolderStateView: View {
                         .progressViewStyle(.linear)
                         .frame(width: 100)
                         .tint(progressColor(progress))
-                    Text("\(Int(progress * 100))%")
+                    // As the language writes a percentage ("42 %" in
+                    // French), as wide as its own "100%" / "100 %" (a
+                    // hidden widest value) and never narrower than the
+                    // 36 pt it always had, so English keeps its width.
+                    Text(S.deskMainPercent(percent: 100))
                         .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                        .frame(width: 36, alignment: .trailing)
+                        .hidden()
+                        .frame(minWidth: 36, alignment: .trailing)
+                        .overlay(alignment: .trailing) {
+                            Text(S.deskMainPercent(percent: Int(progress * 100)))
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
                 }
                 // Shown so a folder with a couple of huge files (e.g.
                 // drone video) doesn't look stuck at a low percentage for
@@ -628,9 +648,9 @@ struct FolderStateView: View {
 
 /// Settings: connected (configured), the device and a Disconnect button;
 /// not configured, the device and password fields with Connect. Below,
-/// the Language picker (only once more than English ships), then always
-/// "Start at login" (StartAtLoginToggle) with "Set Up a New Device…" (issue #184) at its
-/// right, a button the size of Disconnect's.
+/// always "Start at login" (StartAtLoginToggle) with "Set Up a New Device…" (issue #184)
+/// at its right, a button the size of Disconnect's, and last the Language picker
+/// (only once more than English ships), at the left.
 struct SettingsInlineView: View {
     var onSetUpDevice: () -> Void
 
@@ -662,9 +682,6 @@ struct SettingsInlineView: View {
             } else {
                 connectForm
             }
-            // The user's language for every app; hidden while English is
-            // the only language that ships.
-            LanguagePicker()
             HStack(spacing: 8) {
                 // The real state; a change records the owner's choice.
                 StartAtLoginToggle(login: login)
@@ -673,6 +690,14 @@ struct SettingsInlineView: View {
                     .controlSize(.small)
             }
             StartAtLoginNote(login: login)
+            // The user's language for every app, last and at the left like
+            // the rows above; hidden while English is the only language
+            // that ships.
+            HStack {
+                LanguagePicker()
+                    .fixedSize()
+                Spacer()
+            }
         }
         .padding(8)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
@@ -1037,31 +1062,41 @@ struct AddFolderChooser: View {
 /// The storage line: its health, how full the device is, and -
 /// with the pointer over it - the device's storage in GB, CPU and memory
 /// in a pop-up. otc-sync's tray shows the same (a text bar, and a submenu).
+/// One text that wraps, never cut: a longer health ("A drive is down - the
+/// RAID is degraded", in any language) takes a second line rather than
+/// losing its end.
 private struct StorageStatusView: View {
     let health: RaidHealth
     let status: Msg_Status?
     @State private var showLoad = false
 
+    /// The health in its colour, then " · 42% used" in the fullness's. A
+    /// line breaks only after the dot: "42% used" stays whole.
+    private var line: AttributedString {
+        var text = AttributedString(health.summary)
+        text.foregroundColor = health == .ok ? Color.secondary : Color.red
+        if let s = status?.storageUse {
+            let percent = S.deskMainStorageUsed(percent: Int((s.fraction * 100).rounded()))
+            var used = AttributedString("\u{00A0}· " + percent.replacingOccurrences(of: " ", with: "\u{00A0}"))
+            used.foregroundColor = fullnessColor(s.fraction) ?? Color.secondary
+            used.font = .caption.monospacedDigit()
+            text += used
+        }
+        return text
+    }
+
     var body: some View {
-        HStack(spacing: 0) {
-            Text(health.summary)
-                .foregroundStyle(health == .ok ? Color.secondary : Color.red)
-            if let s = status?.storageUse {
-                let frac = s.fraction
-                Text(" · " + S.deskMainStorageUsed(percent: Int((frac * 100).rounded())))
-                    .foregroundStyle(fullnessColor(frac) ?? Color.secondary)
-                    .monospacedDigit()
+        Text(line)
+            .font(.caption)
+            .multilineTextAlignment(.trailing)
+            .fixedSize(horizontal: false, vertical: true)
+            .contentShape(Rectangle())
+            .onHover { showLoad = $0 && status != nil }
+            .popover(isPresented: $showLoad, arrowEdge: .bottom) {
+                if let s = status {
+                    DeviceLoadView(status: s)
+                }
             }
-        }
-        .font(.caption)
-        .lineLimit(1)
-        .contentShape(Rectangle())
-        .onHover { showLoad = $0 && status != nil }
-        .popover(isPresented: $showLoad, arrowEdge: .bottom) {
-            if let s = status {
-                DeviceLoadView(status: s)
-            }
-        }
     }
 }
 
@@ -1151,7 +1186,7 @@ private struct DeviceLoadView: View {
             GridRow {
                 Text(S.macosLoadCpu).font(.caption)
                 ProgressView(value: min(max(cpu, 0), 1)).frame(width: 90)
-                Text("\(Int((cpu * 100).rounded()))%")
+                Text(S.deskMainPercent(percent: Int((cpu * 100).rounded())))
                     .font(.caption).monospacedDigit()
             }
             GridRow {

@@ -207,13 +207,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La carpeta se copia en el dispositivo y, a partir de entonces, se mantiene igual en los dos sitios: los archivos que se añaden, cambian o eliminan en el dispositivo (desde un teléfono, otro ordenador o la web) también cambian esta carpeta, y al revés. Los archivos eliminados van a la Papelera del Mac. La primera sincronización solo añade, nunca elimina."
+            "value" : "La carpeta se copia en el dispositivo y, a partir de entonces, se mantiene igual en los dos sitios: los archivos que se añaden, cambian o eliminan en el dispositivo (desde un teléfono, otro ordenador o la web) también cambian esta carpeta, y al revés. Los archivos eliminados van a la papelera del Mac. La primera sincronización solo añade, nunca elimina."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le dossier est copié sur l’appareil, puis maintenu identique aux deux endroits : les fichiers ajoutés, modifiés ou supprimés sur l’appareil (depuis un téléphone, un autre ordinateur ou le Web) modifient aussi ce dossier, et inversement. Sur le Mac, les fichiers supprimés vont dans la Corbeille. La première synchronisation ne fait qu’ajouter : elle ne supprime jamais rien."
+            "value" : "Le dossier est copié sur l’appareil, puis maintenu identique aux deux endroits : les fichiers ajoutés, modifiés ou supprimés sur l’appareil (depuis un téléphone, un autre ordinateur ou le Web) modifient aussi ce dossier, et inversement. Sur le Mac, les fichiers supprimés vont dans la corbeille. La première synchronisation ne fait qu’ajouter : elle ne supprime jamais rien."
           }
         },
         "it" : {
@@ -225,7 +225,7 @@
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "De map wordt naar het apparaat gekopieerd en blijft vanaf dan op beide plekken hetzelfde: bestanden die op het apparaat worden toegevoegd, gewijzigd of verwijderd (vanaf een telefoon, een andere computer of het web), veranderen ook deze map, en omgekeerd. Verwijderde bestanden gaan op de Mac naar de Prullenmand. De eerste synchronisatie voegt alleen toe en verwijdert nooit iets."
+            "value" : "De map wordt naar het apparaat gekopieerd en blijft vanaf dan op beide plekken hetzelfde: bestanden die op het apparaat worden toegevoegd, gewijzigd of verwijderd (vanaf een telefoon, een andere computer of het web), veranderen ook deze map, en omgekeerd. Verwijderde bestanden gaan op de Mac naar de prullenmand. De eerste synchronisatie voegt alleen toe en verwijdert nooit iets."
           }
         },
         "pt-PT" : {
@@ -655,6 +655,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Introduz a palavra-passe do dispositivo"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.language_later" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Einrichtungsseite wird auf %1$@ umgestellt, sobald die Installation beginnt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The setup page will switch to %1$@ once the installation starts."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La página de configuración cambiará a %1$@ cuando empiece la instalación."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La page de configuration s’affichera en %1$@ dès le début de l’installation."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La pagina di configurazione verrà mostrata in %1$@ all’avvio dell’installazione."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De configuratiepagina schakelt over naar %1$@ zodra de installatie begint."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A página de configuração passa a aparecer em %1$@ quando a instalação começar."
           }
         }
       }
@@ -2463,19 +2510,19 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abrir Ítems de inicio…"
+            "value" : "Abrir ítems de inicio…"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ouvrir Éléments d’ouverture…"
+            "value" : "Ouvrir les réglages Ouverture…"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apri Elementi login…"
+            "value" : "Apri “Elementi login”…"
           }
         },
         "nl" : {
@@ -2487,7 +2534,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abrir Elementos de início de sessão…"
+            "value" : "Abrir elementos de início de sessão…"
           }
         }
       }
@@ -3709,7 +3756,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Para a tua pasta Transferências."
+            "value" : "Para a tua pasta Descargas."
           }
         }
       }
@@ -3991,7 +4038,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A imagem transferida foi eliminada da tua pasta Transferências."
+            "value" : "A imagem transferida foi eliminada da tua pasta Descargas."
           }
         }
       }
@@ -4766,7 +4813,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mostrar en Finder"
+            "value" : "Mostrar en el Finder"
           }
         },
         "fr" : {
@@ -5148,7 +5195,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choisir l’appareil : Raspberry Pi 5."
+            "value" : "Choisir le modèle : Raspberry Pi 5."
           }
         },
         "it" : {
@@ -5160,7 +5207,7 @@
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kies apparaat: Raspberry Pi 5."
+            "value" : "Kies model: Raspberry Pi 5."
           }
         },
         "pt-PT" : {
@@ -5189,13 +5236,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Elegir SO: desplázate hacia abajo hasta “Usar personalizado” y elige %1$@ en tu carpeta Descargas (está seleccionado en Finder), a menos que Imager ya lo muestre."
+            "value" : "Elegir SO: desplázate hacia abajo hasta “Usar personalizado” y elige %1$@ en tu carpeta Descargas (está seleccionado en el Finder), a menos que Imager ya lo muestre."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choisir l’OS : faites défiler jusqu’à « Utiliser une image personnalisée » et choisissez %1$@ dans votre dossier Téléchargements (il est sélectionné dans le Finder), sauf si Imager l’affiche déjà."
+            "value" : "Choisir l’OS : faites défiler jusqu’à « Utiliser image personnalisée » et choisissez %1$@ dans votre dossier Téléchargements (il est sélectionné dans le Finder), sauf si Imager l’affiche déjà."
           }
         },
         "it" : {
@@ -5207,13 +5254,13 @@
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kies OS: scrol omlaag naar “Eigen image gebruiken” en kies %1$@ in je map Downloads (het bestand is geselecteerd in de Finder), tenzij Imager het al toont."
+            "value" : "Kies OS: scrol omlaag naar “Gebruik eigen bestand” en kies %1$@ in je map Downloads (het bestand is geselecteerd in de Finder), tenzij Imager het al toont."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Escolher SO: desce até Usar personalizado e escolhe %1$@ na tua pasta Transferências (está selecionado no Finder), a não ser que o Imager já o mostre."
+            "value" : "Escolher SO: desce até «Utilizar ficheiro personalizado» e escolhe %1$@ na tua pasta Descargas (está selecionado no Finder), a não ser que o Imager já o mostre."
           }
         }
       }
@@ -5254,7 +5301,7 @@
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kies opslagapparaat: je SD-kaart. Alles op de kaart wordt gewist."
+            "value" : "Kies opslag: je SD-kaart. Alles op de kaart wordt gewist."
           }
         },
         "pt-PT" : {
@@ -5283,13 +5330,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Haz clic en Siguiente y responde No a “aplicar ajustes de personalización del SO”: el dispositivo se configura desde este Mac o desde tu teléfono."
+            "value" : "Haz clic en Siguiente y responde No a “aplicar los ajustes de personalización del SO”: el dispositivo se configura desde este Mac o desde tu teléfono."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cliquez sur Suivant et répondez Non à « appliquer les paramètres de personnalisation de l’OS » : l’appareil se configure depuis ce Mac ou votre téléphone."
+            "value" : "Cliquez sur Suivant et répondez Non à « appliquer les réglages de personnalisation de l’OS » : l’appareil se configure depuis ce Mac ou votre téléphone."
           }
         },
         "it" : {
@@ -5301,7 +5348,7 @@
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Klik op Volgende en antwoord Nee op “OS-aanpassingsinstellingen toepassen”: het apparaat wordt ingesteld vanaf deze Mac of je telefoon."
+            "value" : "Klik op Volgende en antwoord Nee als Imager vraagt of je je eigen instellingen op het OS wilt toepassen: het apparaat wordt ingesteld vanaf deze Mac of je telefoon."
           }
         },
         "pt-PT" : {
@@ -5330,7 +5377,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "macOS solo permite escribir tarjetas SD a las apps de fuera del App Store, así que Raspberry Pi Imager hace este paso."
+            "value" : "macOS solo permite escribir tarjetas SD a las apps de fuera de App Store, así que Raspberry Pi Imager hace este paso."
           }
         },
         "fr" : {
@@ -5342,7 +5389,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "macOS consente di scrivere schede SD solo alle app esterne all’App Store, quindi questo passaggio lo esegue Raspberry Pi Imager."
+            "value" : "macOS consente di scrivere schede SD solo alle app che non provengono da App Store, quindi questo passaggio lo esegue Raspberry Pi Imager."
           }
         },
         "nl" : {

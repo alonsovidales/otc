@@ -847,6 +847,32 @@
     "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): after the top line, once the device is known: which device this page belongs to (several can be set up at once). {id} is its four-character ID, for example 1A2B, in bold. Followed by the link Blink its light.",
     "rich": ["b"]
   },
+  "wiz.page.language": {
+    "text": "Language",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the name screen readers give the language list at the top right of the page: a globe and the page's language written by its own name (Español, Deutsch...). Not shown on screen. Language names are never translated.",
+    "max": 30
+  },
+  "wiz.page.language_auto": {
+    "text": "Automatic ({language})",
+    "args": [["language", "text"]],
+    "note": "Setup wizard (the page a new device shows in a browser; the apps hide the list): the first entry of the language list at the top right of the page: follow this browser's language. {language} is what that gives right now, written as the language's own name (for example Español), never translated. Picking it reloads the page in that language, dropping a language picked from the list.",
+    "max": 40
+  },
+  "wiz.page.language_change": {
+    "text": "Change language",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): button under the message about changing the language: reloads the page in the language just picked. Next to it: Cancel.",
+    "max": 30
+  },
+  "wiz.page.language_lost": {
+    "text": "Changing the language reloads this page, and what you entered on it will be lost.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): message under the language list at the top of the page, shown instead of the passwords one when this browser can't keep anything across the reload (its storage is blocked), so the step and everything entered start again. Buttons under it: Change language, Cancel.",
+    "max": 160
+  },
+  "wiz.page.language_passwords": {
+    "text": "Changing the language reloads this page, and the passwords you typed will have to be typed again.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): message under the language list at the top of the page, shown when someone picks another language while passwords are typed in. The page then reloads in that language on the same step and keeps the other choices and text, but passwords are never kept. Buttons under it: Change language, Cancel.",
+    "max": 160
+  },
   "wiz.page.lead": {
     "text": "Let's set up your device.",
     "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the line under the Off The Cloud heading, at the top of every step."

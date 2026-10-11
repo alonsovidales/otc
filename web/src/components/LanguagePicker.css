@@ -1,0 +1,63 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* The language where Settings can't be reached (LanguagePicker.tsx): a quiet
+   button, a globe and the language's own name, with the browser's own list
+   over it, invisible. */
+.lpk {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border-radius: 10px;
+  color: var(--mist-dim);
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
+  transition: background-color .15s ease, color .15s ease;
+}
+/* The globe alone: round, as the top bar's menu button. lpk-phone: only on
+   a phone, where a heading or a row of buttons beside it needs the room. */
+.lpk.icon-only {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 50%;
+}
+@media (max-width: 520px) {
+  .lpk.lpk-phone { width: 44px; padding: 0; justify-content: center; }
+  .lpk.lpk-phone .lpk-name, .lpk.lpk-phone .lpk-chevron { display: none; }
+}
+.lpk:hover { background: var(--panel); color: var(--mist); }
+.lpk:has(.lpk-select:focus-visible) { outline: 2px solid var(--ember); outline-offset: 2px; color: var(--mist); }
+.lpk-globe, .lpk-chevron { flex: none; display: block; }
+.lpk-chevron { margin-left: -2px; }
+
+.lpk-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  opacity: 0;
+  appearance: none;
+  cursor: pointer;
+  /* What the list itself shows where the browser draws it with the page's
+     colours. 16px: a phone zooms into anything smaller as it opens. */
+  background: var(--ink-2);
+  color: var(--mist);
+  font: inherit;
+  font-size: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lpk { transition: none; }
+}

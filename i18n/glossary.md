@@ -217,12 +217,17 @@ sections keep their capital inside a sentence (en Imágenes, dans Images).
 
 ## Other products' words
 
-- System screens, paths and buttons (Settings › Privacy & Security › Bluetooth, Control Centre,
-  Login Items, Trash) use the operating system's own words in that language. The platform table
-  below has them; where a note says to check, check on a device in that language.
+- System screens, paths, folders and commands (Settings › Privacy & Security › Bluetooth, Control
+  Centre, Login Items, Trash, Downloads, Show in Finder, the Photos library, Android's Nearby
+  devices permission) use the operating system's own words in that language. The platform table
+  below has them, taken from macOS 27's own translations and Android's (AOSP); each note names
+  its source and says where the platforms differ (Portuguese Windows calls Downloads
+  Transferências). App Store stays English, but its article is the language's (the row's note).
 - The Mac setup quotes Raspberry Pi Imager's buttons (Choose Device, Choose OS, Use custom, Choose
   Storage, Next, "apply OS customisation settings"). Imager is translated, so use Imager's own
-  words in that language.
+  words in that language: the platform table has them from Imager's translations (1.9.6 for the
+  Choose buttons, 2.0.12 for Use custom), which aren't always word for word (French Choisir le
+  modèle, German SD-Karte wählen).
 - Apple and Google publish their localized sign-in buttons (Continue with Apple, Continue with
   Google) and store badges. Use their wording when it differs from the table.
 - System UI the apps can't change stays in the phone's language, not the app's: permission
@@ -385,7 +390,8 @@ sections keep their capital inside a sentence (en Imágenes, dans Images).
 ## Product terms
 
 Copied from `<code>.json`. **Bold** terms are enforced in that language. The notes in the JSON
-files give gender, plural and usage.
+files give gender, plural and usage, and the `except` lists are there too (device and devices in
+every language; also Settings in German and folder in Italian).
 
 | English | es | fr | de | it | pt | nl |
 |---|---|---|---|---|---|---|
@@ -421,7 +427,7 @@ files give gender, plural and usage.
 | setup codes | **códigos de configuración** | **codes de configuration** | **Einrichtungscodes** | **codici di configurazione** | **códigos de configuração** | **configuratiecodes** |
 | I have a setup code | **Tengo un código de configuración** | **J’ai un code de configuration** | **Ich habe einen Einrichtungscode** | **Ho un codice di configurazione** | **Tenho um código de configuração** | **Ik heb een configuratiecode** |
 | set up | configurar | configurer | einrichten | configurare | configurar | instellen |
-| Set up a new device | Configurar un dispositivo nuevo | Configurer un nouvel appareil | Neues Gerät einrichten | Configura un nuovo dispositivo | Configurar um novo dispositivo | Nieuw apparaat instellen |
+| Set up a new device | Configurar dispositivo nuevo | Configurer un nouvel appareil | Neues Gerät einrichten | Configura un nuovo dispositivo | Configurar um novo dispositivo | Nieuw apparaat instellen |
 | recover | recuperar | récupérer | wiederherstellen | recuperare | recuperar | herstellen |
 | Recover this device | **Recuperar este dispositivo** | **Récupérer cet appareil** | **Dieses Gerät wiederherstellen** | **Recupera questo dispositivo** | **Recuperar este dispositivo** | **Dit apparaat herstellen** |
 | Start fresh instead | **Empezar de cero** | **Repartir de zéro** | **Neu beginnen** | **Ricomincia da zero** | **Começar do zero** | **Opnieuw beginnen** |
@@ -510,10 +516,10 @@ files give gender, plural and usage.
 
 ## Platform terms
 
-What iOS, macOS, Android and Windows call things in each language, so that our text matches the
-system around it. These are never enforced. The JSON notes say where the platforms disagree;
-names marked "check" in the notes must be confirmed on a device in that language before
-shipping.
+What iOS, macOS, Android, Windows and Raspberry Pi Imager call things in each language, so that
+our text matches the system around it. These are never enforced. The JSON notes give the
+system names' sources (macOS 27's translations, AOSP, Imager's translations) and say where the
+platforms disagree.
 
 | English | es | fr | de | it | pt | nl |
 |---|---|---|---|---|---|---|
@@ -545,11 +551,19 @@ shipping.
 | System Settings | Ajustes del Sistema | Réglages Système | Systemeinstellungen | Impostazioni di Sistema | Definições do Sistema | Systeeminstellingen |
 | Privacy & Security | Privacidad y seguridad | Confidentialité et sécurité | Datenschutz & Sicherheit | Privacy e sicurezza | Privacidade e segurança | Privacy en beveiliging |
 | Control Centre | Centro de control | Centre de contrôle | Kontrollzentrum | Centro di Controllo | Central de controlo | Bedieningspaneel |
-| Login Items | Ítems de inicio | Éléments d’ouverture | Anmeldeobjekte | Elementi login | Elementos de início de sessão | Inlogonderdelen |
+| Login Items | Ítems de inicio | Ouverture | Anmeldeobjekte | Elementi login | Início de sessão | Inlogonderdelen |
 | Trash | Papelera | Corbeille | Papierkorb | Cestino | Lixo | Prullenmand |
-| Downloads | Descargas | Téléchargements | Downloads | Download | Transferências | Downloads |
+| Downloads | Descargas | Téléchargements | Downloads | Download | Descargas | Downloads |
 | Photos | Fotos | Photos | Fotos | Foto | Fotografias | Foto’s |
 | menu bar | barra de menús | barre des menus | Menüleiste | barra dei menu | barra de menus | menubalk |
+| Choose Device | Elegir dispositivo | Choisir le modèle | Modell wählen | Scegli dispositivo | Escolher dispositivo | Kies model |
+| Choose OS | Elegir SO | Choisir l’OS | OS wählen | Scegli S.O. | Escolher SO | Kies OS |
+| Choose Storage | Elegir almacenamiento | Choisir le stockage | SD-Karte wählen | Scegli scheda SD | Escolher armazenamento | Kies opslag |
+| Use custom | Usar personalizado | Utiliser image personnalisée | Eigenes Image | Usa immagine personalizzata | Utilizar ficheiro personalizado | Gebruik eigen bestand |
+| Show in Finder | Mostrar en el Finder | Afficher dans le Finder | Im Finder anzeigen | Mostra nel Finder | Mostrar no Finder | Toon in Finder |
+| Photos library | fototeca | photothèque | Fotomediathek | libreria di Foto | biblioteca de Fotografias | Foto’s-bibliotheek |
+| App Store | App Store | App Store | App Store | App Store | App Store | App Store |
+| Nearby devices | Dispositivos cercanos | Appareils à proximité | Geräte in der Nähe | Dispositivi nelle vicinanze | Dispositivos próximos | Apparaten in de buurt |
 
 ## Changing the glossary
 

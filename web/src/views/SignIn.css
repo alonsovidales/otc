@@ -1,8 +1,19 @@
 /* A new device's setup (SignIn.tsx): one card in the middle, as wide as a
    phone leaves room for. */
 .setup-section {
+  position: relative;
   width: 420px;
   max-width: calc(100% - 32px);
   box-sizing: border-box;
   margin: 0 auto;
 }
+
+/* A step's heading keeps the card's whole width, as the unreachable page's
+   card does: the language picker sits in the card's top-right corner (the
+   globe alone on a phone, LanguagePicker.css), and the heading starts just
+   below it - 6px lower than an h3 alone (12px of padding + 28px = the
+   picker's 40px). Beside the heading it squeezed it onto two lines: English
+   at 320px, Portuguese at any width. */
+.setup-head { margin: 28px 0 1.17em; }
+.setup-head h3 { margin: 0; }
+.lpk.setup-lang { position: absolute; top: 0; right: 0; }

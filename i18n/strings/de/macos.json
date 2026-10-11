@@ -55,6 +55,10 @@
     "text": "Gib das Passwort des Geräts ein",
     "en": "Enter the device's password"
   },
+  "macos.bluetooth.language_later": {
+    "text": "Die Einrichtungsseite wird auf {language} umgestellt, sobald die Installation beginnt.",
+    "en": "The setup page will switch to {language} once the installation starts."
+  },
   "macos.bluetooth.looking": {
     "text": "Suche nach einem Gerät zum Einrichten…",
     "en": "Looking for a device to set up…"

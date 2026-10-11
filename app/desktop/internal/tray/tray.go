@@ -513,7 +513,7 @@ func folderTitle(f config.FolderStatus) string {
 	default:
 		switch {
 		case f.CurrentFile != "" && f.Progress > 0:
-			state = fmt.Sprintf("%d%% · %s", int(f.Progress*100), f.CurrentFile)
+			state = progressText(l, f.Progress, f.CurrentFile)
 		case f.CurrentFile != "":
 			// Issue #138: "Checking 12/300 · name" while hashing - no
 			// percentage, that is not a transfer.
@@ -524,6 +524,13 @@ func folderTitle(f config.FolderStatus) string {
 	}
 
 	return fmt.Sprintf("%s %s — %s%s%s", arrow, name, state, uploadOnlySuffix(f), imagesSuffix(f))
+}
+
+// progressText is a pass's progress in a folder's line: the percentage as
+// lang writes one ("42% · 12/340 · photo.jpg", "42 % · …" in French), then
+// the file it is on (state.json's "12/340 · photo.jpg").
+func progressText(lang string, progress float64, file string) string {
+	return i18n.DeskMainPercent(int(progress*100)).Render(lang) + " · " + file
 }
 
 // editConfig is config.json for an edit, or nil - and the reason shown -
@@ -651,7 +658,7 @@ func (u *ui) settingsDialog() {
 	}
 	// The buttons' words too: Windows' own dialog says OK and Cancel in
 	// English otherwise.
-	entered, err := zenity.Entry(i18n.DeskMainSettingsHint().Render(l), zenity.Title(i18n.DeskMainSettingsTitle().Render(l)), zenity.EntryText(current),
+	entered, err := zenity.Entry(settingsHint(l), zenity.Title(i18n.DeskMainSettingsTitle().Render(l)), zenity.EntryText(current),
 		zenity.OKLabel(i18n.CommonOk().Render(l)), zenity.CancelLabel(i18n.CommonCancel().Render(l)))
 	if err != nil {
 		return
@@ -669,25 +676,49 @@ func (u *ui) settingsDialog() {
 	// Both halves are asked for before anything is saved, so the engine
 	// reconnects once with the new pair - not once with the new device and
 	// the old password, which would spend one of the device's five
-	// password attempts per minute for nothing.
+	// password attempts per minute for nothing. In the menu's language as
+	// the dialog opens: one may have been picked in the Language menu
+	// while the first dialog was open (at the first start, it opens by
+	// itself).
+	l = lang()
 	pw, err := askPassword(l, i18n.DeskMainPasswordTitle(cfg.Domain).Render(l))
 	if err != nil {
 		return
 	}
+	// config.json as it is now, with the new device: what the tray
+	// changed while the dialogs were open - a language picked in its
+	// Language menu, a change for the device set up now - stays.
+	latest := u.editConfig()
+	if latest == nil {
+		return
+	}
+	latest.Domain = cfg.Domain
 	if pw != "" {
 		if err := u.c.SetPassword(pw); err != nil {
-			_ = zenity.Error(errorText(l, err), zenity.Title("Off The Cloud"))
+			_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
 
 			return
 		}
 	}
-	if cfg.Domain != oldDomain {
+	if latest.Domain != oldDomain {
 		_ = config.ClearLocalEndpoint() // the old device's (issue #190)
 	}
-	if err := u.c.SaveConfig(cfg); err != nil {
+	if err := u.c.SaveConfig(latest); err != nil {
 		_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
 	}
 	Refresh()
+}
+
+// settingsHint is the device dialog's prompt in lang. Windows' entry
+// dialog shows its prompt on one line 241 pixels wide and cuts the rest,
+// so there it is the short "Device name or address:"; Linux's dialog
+// wraps the whole explanation, with its examples.
+func settingsHint(lang string) string {
+	if runtime.GOOS == "windows" {
+		return i18n.DeskMainSettingsHintWindows().Render(lang)
+	}
+
+	return i18n.DeskMainSettingsHint().Render(lang)
 }
 
 func (u *ui) configured() bool {

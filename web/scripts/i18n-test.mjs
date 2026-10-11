@@ -31,7 +31,8 @@ globalThis.window = {
 };
 Object.defineProperty(globalThis, "navigator", { value: { languages: ["en-GB", "en"], language: "en-GB" }, configurable: true, writable: true });
 
-// A socket that opens at once and keeps what is sent.
+// A socket that opens at once and keeps what is sent; a test may put a
+// device behind it (globalThis.fakeDevice: request bytes -> reply bytes).
 const sent = [];
 class FakeWebSocket {
   static OPEN = 1;
@@ -40,7 +41,11 @@ class FakeWebSocket {
     this.url = url;
     setTimeout(() => this.onopen?.(), 0);
   }
-  send(bytes) { sent.push(bytes); }
+  send(bytes) {
+    sent.push(bytes);
+    const reply = globalThis.fakeDevice?.(bytes);
+    if (reply) setTimeout(() => this.onmessage?.({ data: reply }), 0);
+  }
   close() { this.readyState = 3; this.onclose?.(); }
 }
 globalThis.WebSocket = FakeWebSocket;
@@ -152,11 +157,14 @@ function harness({ system = ["en-US"], stored = {} } = {}) {
     languages: table,
   });
   h.choice.connect(async (language, expected) => {
+    // As deviceSync.ts: with no session nothing is sent, and it stays pending.
+    if (h.signedOut) return "failed";
     h.sends.push({ language, expected });
     return h.answers.shift() ?? "ok";
   }, () => { h.refetches++; });
   return h;
 }
+const tick = () => new Promise((r) => setTimeout(r, 0));
 
 describe("the stored choice", () => {
   test("effective language: choice, else the system's, else English", () => {
@@ -310,6 +318,102 @@ describe("the stored choice", () => {
     assert.equal(h.choice.snapshot().effective, "es");
   });
 
+  test("a choice made signed out: kept here, sent at the first sign-in with no expected", async () => {
+    const h = harness();
+    h.signedOut = true;
+    h.choice.noteConnection(); // the signed-out page's socket (its new-device check)
+    assert.equal(await h.choice.choose("es"), "failed");
+    assert.equal(h.choice.snapshot().effective, "es"); // re-worded at once
+    assert.equal(h.storage.get("otc_language"), "es");
+    assert.equal(h.choice.snapshot().pending, true);
+    assert.deepEqual(h.sends, []);
+    // Signed in two minutes later, on the same socket: no new connection.
+    h.now += 120_000;
+    h.signedOut = false;
+    h.choice.noteSignIn();
+    assert.deepEqual(h.sends, [{ language: "es", expected: undefined }]);
+    // The session's first Status, read before the change landed.
+    h.choice.noteDevice("");
+    assert.equal(h.choice.snapshot().choice, "es");
+    await tick();
+    assert.equal(h.choice.snapshot().pending, false);
+    h.now += 31_000;
+    h.choice.noteDevice("es");
+    assert.equal(h.choice.snapshot().choice, "es");
+    assert.equal(h.sends.length, 1);
+  });
+
+  test("the pending choice reaching a device that has none (Automatic, a new device)", async () => {
+    const h = harness();
+    h.signedOut = true;
+    await h.choice.choose("fr");
+    h.signedOut = false;
+    h.choice.noteSignIn(); // the setup's password, set
+    assert.deepEqual(h.sends, [{ language: "fr", expected: undefined }]); // applied whatever it holds
+    await tick();
+    h.choice.noteDevice("fr"); // its Settings, read after
+    assert.equal(h.choice.snapshot().choice, "fr");
+    assert.equal(h.choice.snapshot().pending, false);
+  });
+
+  test("the pending choice reaching a device too old to keep one: here until the next connection", async () => {
+    const h = harness();
+    h.signedOut = true;
+    await h.choice.choose("de");
+    h.signedOut = false;
+    h.answers.push("unknown_payload");
+    h.choice.noteSignIn();
+    await tick();
+    assert.equal(h.choice.snapshot().tooOld, true);
+    assert.equal(h.choice.snapshot().pending, true);
+    h.choice.noteDevice(undefined); // its Status has no language field
+    h.now += 60_000;
+    h.choice.noteDevice(undefined);
+    assert.equal(h.choice.snapshot().choice, "de");
+    assert.equal(h.sends.length, 1);
+  });
+
+  test("a sign-in while the change is on its way sends nothing more", async () => {
+    const h = harness();
+    let answer;
+    h.choice.connect((language, expected) => {
+      h.sends.push({ language, expected });
+      return new Promise((r) => { answer = r; });
+    }, () => {});
+    h.choice.noteDevice("");
+    const p = h.choice.choose("es");
+    h.choice.noteSignIn(); // a replayed password on a reconnect
+    assert.equal(h.sends.length, 1);
+    answer("ok");
+    assert.equal(await p, "ok");
+  });
+
+  test("a session that ends forgets the device's value: a choice before the next sign-in isn't refused", async () => {
+    const h = harness();
+    h.choice.noteDevice("de"); // signed in: the device says de
+    h.choice.noteSignedOut(); // the device dropped the session
+    h.signedOut = true;
+    await h.choice.choose("fr");
+    h.signedOut = false;
+    h.choice.noteSignIn();
+    assert.deepEqual(h.sends, [{ language: "fr", expected: undefined }]);
+  });
+
+  test("a change made signed in keeps what the device had across a dropped session", async () => {
+    const h = harness();
+    h.choice.noteDevice("de");
+    h.answers.push("failed", "changed");
+    await h.choice.choose("fr"); // the device restarting: no answer
+    h.choice.noteSignedOut();
+    h.choice.noteSignIn();
+    assert.deepEqual(h.sends[1], { language: "fr", expected: "de" });
+    await tick();
+    // Changed on another app meanwhile: the device's value wins.
+    assert.equal(h.refetches, 1);
+    h.choice.noteDevice("it");
+    assert.equal(h.choice.snapshot().choice, "it");
+  });
+
   test("Sign Out drops a pending change and keeps the choice", async () => {
     const h = harness();
     h.answers.push("failed");
@@ -328,6 +432,78 @@ describe("the stored choice", () => {
     assert.equal(setLanguageResult({ id: 1, error: true, errorCode: "", errorMessage: "unknown payload", payload: undefined }), "unknown_payload");
     assert.equal(setLanguageResult(ack({ code: "device_unreachable", errorMsg: "unknown payload" })), "failed");
     assert.equal(setLanguageResult(ack({ ok: true }, { error: true })), "failed");
+  });
+});
+
+describe("a language picked signed out reaches the device at sign-in (useWS, deviceSync)", () => {
+  test("on the socket the signed-out page opened, with no expected, before any Status counts", async (t) => {
+    const { languageChoice } = m.choice;
+    if (!m.messages.languages.some((l) => l.code === "es")) return t.skip("this build ships English only");
+    const { generateKeyPairSync } = await import("node:crypto");
+    const { useWS } = await server.ssrLoadModule("/src/net/useWS.ts");
+    await server.ssrLoadModule("/src/i18n/deviceSync.ts");
+    const { ReqEnvelope, RespEnvelope } = m.proto;
+    const publicKey = new Uint8Array(generateKeyPairSync("rsa", { modulusLength: 2048 }).publicKey.export({ type: "spki", format: "der" }));
+
+    // A device whose owner chose Deutsch on another app long ago.
+    const device = { session: false, language: "de", setLanguage: [], unauthenticated: [], order: [] };
+    const ack = (ok, code = "") => ({ $case: "respAck", respAck: { ok, code, errorMsg: "", retryAfterSeconds: 0 } });
+    globalThis.fakeDevice = (bytes) => {
+      const req = ReqEnvelope.decode(bytes);
+      const c = req.payload?.$case;
+      let payload;
+      if (c === "reqGetPubKey") payload = { $case: "respPubKey", respPubKey: { publicKey, isNewDevice: false, isPrimary: true } };
+      else if (c === "reqAuth") { device.session = true; payload = ack(true); }
+      else if (c === "reqIssueSessionToken") payload = { $case: "respSessionToken", respSessionToken: { sessionToken: { token: "t1", expiresAtUnixMs: BigInt(Date.now() + 3_600_000) } } };
+      else if (!device.session) { device.unauthenticated.push(c); payload = ack(false, "not_authenticated"); }
+      else device.order.push(c);
+      if (payload) { /* answered above */ } else if (c === "reqSetLanguage") {
+        const { language, expected } = req.payload.reqSetLanguage;
+        device.setLanguage.push({ language, expected, lang: req.lang });
+        if (expected !== undefined && expected !== device.language) payload = ack(false, "changed");
+        else { device.language = language; payload = ack(true); }
+      } else if (c === "reqGetStatus") payload = { $case: "respStatus", respStatus: { language: device.language } };
+      else payload = ack(false);
+      return RespEnvelope.encode(RespEnvelope.fromPartial({ id: req.id, payload })).finish();
+    };
+    t.after(() => { globalThis.fakeDevice = undefined; });
+
+    let signedIn = false;
+    useWS.init("wss://test.invalid/ws", (v) => { signedIn = v; });
+    languageChoice.dropPending();
+    // The signed-out page: its new-device check on the open socket.
+    const keyResp = await useWS.request((e) => { e.payload = { $case: "reqGetPubKey", reqGetPubKey: {} }; });
+    assert.equal(keyResp.payload?.$case, "respPubKey");
+    assert.equal(useWS.signedIn(), false);
+
+    // Picked on the top bar: the page re-words, nothing goes to the device.
+    assert.equal(await languageChoice.choose("es"), "failed");
+    assert.equal(languageChoice.snapshot().effective, "es");
+    assert.equal(languageChoice.snapshot().pending, true);
+    assert.deepEqual(device.setLanguage, []);
+    assert.deepEqual(device.unauthenticated, []); // not even refused: never sent
+
+    // Signing in sends it. A Status waiting for the sign-in (the update
+    // banner's) may be answered first, with the old value: ignored, the
+    // change being on its way.
+    const signingIn = useWS.sendAuth("correct horse", { keepOnlyIfAccepted: true });
+    const status = useWS.request((e) => { e.payload = { $case: "reqGetStatus", reqGetStatus: {} }; });
+    assert.equal(await signingIn, true);
+    assert.equal(signedIn, true);
+    const first = await status;
+    assert.equal(first.payload?.$case === "respStatus" && first.payload.respStatus.language, "de");
+    assert.equal(languageChoice.snapshot().effective, "es");
+    for (let i = 0; i < 20 && languageChoice.snapshot().pending; i++) await tick();
+    assert.deepEqual(device.setLanguage, [{ language: "es", expected: undefined, lang: "es" }]);
+    assert.deepEqual([...device.order].sort(), ["reqGetStatus", "reqSetLanguage"]);
+    assert.deepEqual(device.unauthenticated, []);
+    assert.equal(device.language, "es"); // over the Deutsch it had
+    assert.equal(languageChoice.snapshot().pending, false);
+    assert.equal(languageChoice.snapshot().choice, "es");
+
+    // Picked again, signed in: sent at once, over the value just stored.
+    assert.equal(await languageChoice.choose(""), "ok");
+    assert.deepEqual(device.setLanguage[1], { language: "", expected: "es", lang: "en" });
   });
 });
 

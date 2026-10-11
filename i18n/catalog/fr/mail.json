@@ -6,7 +6,7 @@
   "mail.date.january": {"text": "janvier"},
   "mail.date.july": {"text": "juillet"},
   "mail.date.june": {"text": "juin"},
-  "mail.date.long": {"text": "{day} {month} {year}"},
+  "mail.date.long": {"text": {"one": "{day}er {month} {year}", "other": "{day} {month} {year}"}},
   "mail.date.march": {"text": "mars"},
   "mail.date.may": {"text": "mai"},
   "mail.date.november": {"text": "novembre"},

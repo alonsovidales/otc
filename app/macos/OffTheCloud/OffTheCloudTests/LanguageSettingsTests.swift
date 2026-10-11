@@ -18,6 +18,8 @@ final class LanguageSettingsTests {
         var language = ""
         var languagePendingSince: Date?
         var languageExpected: String?
+        var languageForNextDevice = false
+        var hasDevice = true
     }
 
     /// A device keeping the language as the real one does: nil predates
@@ -26,6 +28,8 @@ final class LanguageSettingsTests {
     final class FakeDevice {
         var stored: String?
         var fail = false
+        /// False: not connected - nothing reaches it.
+        var reachable = true
         var sets: [String] = []
 
         func set(_ language: String, expected: String?) -> LanguageState.Answer {
@@ -70,14 +74,14 @@ final class LanguageSettingsTests {
         let chosenAgain = s.choose("es", now: now) // already the choice
         #expect(!chosenAgain)
         #expect(s.pending && s.expected == "")
-        let send = s.nextSend()
+        let send = s.nextSend(now: now)
         #expect(send?.language == "es" && send?.expected == "")
-        let second = s.nextSend() // one at a time
+        let second = s.nextSend(now: now) // one at a time
         #expect(second == nil)
         let reread = s.answered(.ok, sent: "es")
         #expect(!reread)
         #expect(!s.pending && s.expected == nil && s.deviceSeen == "es")
-        let more = s.nextSend()
+        let more = s.nextSend(now: now)
         #expect(more == nil)
     }
 
@@ -86,7 +90,7 @@ final class LanguageSettingsTests {
         var s = LanguageState()
         _ = s.deviceReported("", askedAt: s.epoch, now: now)
         _ = s.choose("es", now: now)
-        _ = s.nextSend()
+        _ = s.nextSend(now: now)
         let reread = s.answered(.failed, sent: "es")
         #expect(!reread)
         #expect(s.pending)
@@ -105,12 +109,37 @@ final class LanguageSettingsTests {
         #expect(!s.pending && s.choice == "fr")
     }
 
+    /// The window runs from the change or its last send: a change made
+    /// minutes before signing in whose first SetLanguage failed isn't
+    /// replaced by the next poll, which may predate it.
+    @Test func theWindowRunsFromTheLastSend() {
+        let now = Date()
+        var s = LanguageState()
+        _ = s.deviceReported("", askedAt: s.epoch, now: now.addingTimeInterval(-700))
+        _ = s.choose("es", now: now.addingTimeInterval(-600))
+        #expect(!s.forNextDevice && s.expected == "")
+        s.connected()
+        _ = s.nextSend(now: now)
+        _ = s.answered(.failed, sent: "es")
+        let early = s.deviceReported("", askedAt: s.epoch, now: now.addingTimeInterval(5))
+        #expect(!early && s.choice == "es" && s.pending)
+        // Sent again at the next connection: the window starts again.
+        s.connected()
+        _ = s.nextSend(now: now.addingTimeInterval(60))
+        _ = s.answered(.failed, sent: "es")
+        let again = s.deviceReported("", askedAt: s.epoch, now: now.addingTimeInterval(85))
+        #expect(!again && s.choice == "es" && s.pending)
+        // Past it: the device's wins.
+        let late = s.deviceReported("", askedAt: s.epoch, now: now.addingTimeInterval(91))
+        #expect(late && s.choice == "" && !s.pending)
+    }
+
     @Test func aStatusFromBeforeASetLanguageIsLeftOut() {
         let now = Date()
         var s = LanguageState(choice: "")
         _ = s.choose("es", now: now.addingTimeInterval(-3600))
         let asked = s.epoch
-        _ = s.nextSend()
+        _ = s.nextSend(now: now)
         // Answered while it is under way, or after: either way it may
         // predate the change.
         let whileSending = s.deviceReported("", askedAt: asked, now: now)
@@ -130,14 +159,14 @@ final class LanguageSettingsTests {
         var s = LanguageState()
         _ = s.deviceReported("", askedAt: s.epoch, now: now)
         _ = s.choose("es", now: now)
-        _ = s.nextSend()
+        _ = s.nextSend(now: now)
         _ = s.choose("fr", now: now)
-        let second = s.nextSend()
+        let second = s.nextSend(now: now)
         #expect(second == nil)
         let reread = s.answered(.ok, sent: "es")
         #expect(!reread)
         #expect(s.pending && s.expected == "es")
-        let next = s.nextSend()
+        let next = s.nextSend(now: now)
         #expect(next?.language == "fr" && next?.expected == "es")
     }
 
@@ -145,7 +174,7 @@ final class LanguageSettingsTests {
         let now = Date()
         var s = LanguageState()
         _ = s.choose("es", now: now)
-        _ = s.nextSend()
+        _ = s.nextSend(now: now)
         let reread = s.answered(.changed, sent: "es") // read the device again
         #expect(reread)
         #expect(!s.pending)
@@ -154,24 +183,25 @@ final class LanguageSettingsTests {
         #expect(s.choice == "it")
 
         _ = s.choose("pt", now: now)
-        _ = s.nextSend()
+        _ = s.nextSend(now: now)
         let rereadOld = s.answered(.unknownPayload, sent: "pt")
         #expect(!rereadOld)
         // Still pending: sent again at the next connection, when the
         // device may have been updated.
         #expect(s.pending && s.choice == "pt" && s.deviceTooOld)
         _ = s.choose("nl", now: now)
-        let toOldDevice = s.nextSend() // not to a device that can't
+        let toOldDevice = s.nextSend(now: now) // not to a device that can't
         #expect(toOldDevice == nil)
         let adoptedNothing = s.deviceReported(nil, askedAt: s.epoch, now: now) // the copy stands
         #expect(!adoptedNothing)
         #expect(s.choice == "nl")
         s.connected()
-        let afterReconnect = s.nextSend()
+        let afterReconnect = s.nextSend(now: now)
         #expect(afterReconnect?.language == "nl")
     }
 
     @Test func anotherDeviceForgetsWhatTheOldOneSaid() {
+        let now = Date()
         var s = LanguageState()
         _ = s.deviceReported("es", askedAt: s.epoch, now: Date())
         _ = s.choose("de", now: Date()) // never reached the old device
@@ -179,9 +209,91 @@ final class LanguageSettingsTests {
         // The copy stays; the change made against the old device's value
         // doesn't go to the new one.
         #expect(s.deviceSeen == nil && s.choice == "de" && !s.pending && s.expected == nil)
-        #expect(s.nextSend() == nil)
+        #expect(s.nextSend(now: now) == nil)
+        // Nothing of the new one seen yet: for the device signed in to next.
         _ = s.choose("fr", now: Date())
-        #expect(s.expected == nil)
+        #expect(s.expected == nil && s.forNextDevice)
+    }
+
+    @Test func aChangeWithNoDeviceGoesToTheNextOne() {
+        let now = Date()
+        var s = LanguageState()
+        // Nothing set up: nothing to compare with.
+        _ = s.choose("es", now: now, noDevice: true)
+        #expect(s.pending && s.forNextDevice && s.expected == nil)
+        // Not connected: the send fails, it stays.
+        _ = s.nextSend(now: now)
+        _ = s.answered(.failed, sent: "es")
+        // A device and a password, then a wrong one typed again: it stays
+        // for whichever signs in.
+        s.forgetDevice()
+        s.forgetDevice()
+        #expect(s.pending && s.forNextDevice && s.expected == nil && s.choice == "es")
+        // Chosen again before signing in: still for that device.
+        _ = s.choose("fr", now: now)
+        #expect(s.forNextDevice && s.expected == nil)
+        // Signed in: this device's now - sent without expected.
+        s.connected()
+        #expect(!s.forNextDevice && s.pending)
+        let send = s.nextSend(now: now)
+        #expect(send?.language == "fr" && send?.expected == nil)
+        _ = s.answered(.ok, sent: "fr")
+        #expect(!s.pending && s.deviceSeen == "fr")
+    }
+
+    /// A device and password saved but never signed in to (a wrong
+    /// password): nothing of it was seen, so a change is for the device
+    /// signed in to next - Disconnect, the only way to fix the password,
+    /// keeps it.
+    @Test func aChangeBeforeSigningInToTheDeviceSetUpIsForTheNextOne() {
+        let now = Date()
+        var s = LanguageState()
+        _ = s.choose("es", now: now)
+        #expect(s.pending && s.forNextDevice && s.expected == nil)
+        _ = s.nextSend(now: now) // not signed in: fails
+        _ = s.answered(.failed, sent: "es")
+        s.forgetDevice() // Disconnect
+        s.forgetDevice() // the right password
+        #expect(s.pending && s.forNextDevice && s.expected == nil && s.choice == "es")
+        s.connected()
+        let send = s.nextSend(now: now)
+        #expect(send?.language == "es" && send?.expected == nil)
+        _ = s.answered(.ok, sent: "es")
+        // Its value seen: a change is made against it.
+        _ = s.choose("fr", now: now)
+        #expect(!s.forNextDevice && s.expected == "es")
+    }
+
+    @Test func aChangeForTheNextDeviceIsDroppedOnceItSignedIn() {
+        let now = Date()
+        var s = LanguageState()
+        _ = s.choose("es", now: Date(), noDevice: true)
+        s.forgetDevice()
+        s.connected()
+        _ = s.nextSend(now: now)
+        _ = s.answered(.failed, sent: "es") // never reached that device
+        s.forgetDevice() // another device: not for it
+        #expect(!s.pending && !s.forNextDevice && s.choice == "es")
+    }
+
+    @Test func theWizardCarriesItsChoiceToTheDeviceItSetUp() {
+        let now = Date()
+        var s = LanguageState()
+        _ = s.deviceReported("", askedAt: s.epoch, now: now) // signed in to device A
+        _ = s.choose("de", now: now) // in the wizard: A takes it
+        _ = s.nextSend(now: now)
+        _ = s.answered(.ok, sent: "de")
+        #expect(!s.pending)
+        s.carryToNextDevice(now: now) // "Sync this Mac with my device"
+        // A last status from A, saying the same, before the switch: not
+        // the new device's word on it.
+        let fromA = s.deviceReported("de", askedAt: s.epoch, now: now)
+        #expect(!fromA && s.pending && s.forNextDevice)
+        s.forgetDevice()
+        #expect(s.pending && s.forNextDevice && s.expected == nil && s.deviceSeen == nil)
+        s.connected()
+        let send = s.nextSend(now: now)
+        #expect(send?.language == "de" && send?.expected == nil)
     }
 
     // MARK: LanguageSettings
@@ -238,6 +350,86 @@ final class LanguageSettingsTests {
         #expect(device.sets == ["de/"])
         #expect(store.language == "de" && store.languagePendingSince == nil)
         L10n.shared.set(L10nLanguage.english.code)
+    }
+
+    /// A fresh install: the language is picked in the connect form, the
+    /// device is set up and signed in to - it gets the choice, whatever it
+    /// had (a new one has Automatic), instead of the choice giving way to
+    /// the device's value.
+    @Test func aChoiceMadeBeforeTheFirstSignInReachesTheDevice() async {
+        let store = FakeStore(), device = FakeDevice()
+        store.hasDevice = false
+        device.stored = ""
+        device.reachable = false
+        let settings = LanguageSettings(store: store)
+        settings.send = { language, expected in device.reachable ? device.set(language, expected: expected) : .failed }
+        let target = Self.has("es") ? "es" : "sv"
+
+        settings.choose(target)
+        await settle(settings)
+        #expect(store.language == target && store.languagePendingSince != nil && store.languageForNextDevice)
+        #expect(device.sets.isEmpty)
+
+        // Connect: the device and password are applied, then it signs in
+        // and polls its status, which still says Automatic.
+        store.hasDevice = true
+        settings.forgetDevice()
+        device.reachable = true
+        let asked = settings.epoch
+        settings.connected()
+        settings.deviceReported("", askedAt: asked)
+        await settle(settings)
+
+        #expect(device.sets == [target + "/-"] && device.stored == target)
+        #expect(store.language == target && store.languagePendingSince == nil && !store.languageForNextDevice)
+        // The next status says the same: nothing changes.
+        settings.deviceReported(target, askedAt: settings.epoch)
+        #expect(settings.choice == target)
+        L10n.shared.set(L10nLanguage.english.code)
+    }
+
+    /// The same with a device saved: a wrong password, never signed in to.
+    @Test func aChoiceMadeBeforeSigningInSurvivesDisconnect() async {
+        let store = FakeStore(), device = FakeDevice()
+        device.stored = "it"
+        device.reachable = false
+        let settings = LanguageSettings(store: store)
+        settings.send = { language, expected in device.reachable ? device.set(language, expected: expected) : .failed }
+        let target = Self.has("es") ? "es" : "sv"
+
+        settings.choose(target)
+        await settle(settings)
+        #expect(store.languagePendingSince != nil && store.languageForNextDevice && store.languageExpected == nil)
+
+        // Disconnect clears the address and password; then the right one.
+        store.hasDevice = false
+        settings.forgetDevice()
+        store.hasDevice = true
+        settings.forgetDevice()
+        device.reachable = true
+        let asked = settings.epoch
+        settings.connected()
+        settings.deviceReported("it", askedAt: asked)
+        await settle(settings)
+
+        #expect(device.sets == [target + "/-"] && device.stored == target)
+        #expect(store.language == target && store.languagePendingSince == nil && !store.languageForNextDevice)
+        L10n.shared.set(L10nLanguage.english.code)
+    }
+
+    /// Relaunched with a change still waiting for the next device.
+    @Test func aChangeForTheNextDeviceSurvivesARelaunch() {
+        let store = FakeStore()
+        store.language = "fr"
+        store.languagePendingSince = Date()
+        store.languageForNextDevice = true
+        let settings = LanguageSettings(store: store)
+        settings.forgetDevice()
+        #expect(settings.state.pending && settings.state.forNextDevice)
+        // A stale flag without a pending change means nothing.
+        let stale = FakeStore()
+        stale.languageForNextDevice = true
+        #expect(!LanguageSettings(store: stale).state.forNextDevice)
     }
 
     @Test func changedReadsTheDeviceAgain() async {

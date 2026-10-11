@@ -657,7 +657,7 @@
     "reviewed": "claude-backtranslation 2026-10-11 #cd63ca12"
   },
   "site.landing.install.step_flash": {
-    "text": "<b>Grava-a</b> no cartão MicroSD com o <imager>Raspberry Pi Imager</imager>: «Usar personalizado», escolhe o ficheiro e grava. Salta o passo de personalização do próprio Imager.",
+    "text": "<b>Grava-a</b> no cartão MicroSD com o <imager>Raspberry Pi Imager</imager>: «Utilizar ficheiro personalizado», escolhe o ficheiro e grava. Salta o passo de personalização do próprio Imager.",
     "en": "<b>Flash it</b> to the MicroSD card with <imager>Raspberry Pi Imager</imager>: \"Use custom\", pick the file, write. Skip Imager's own customisation step."
   },
   "site.landing.install.step_plug": {

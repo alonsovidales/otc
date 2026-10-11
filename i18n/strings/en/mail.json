@@ -28,9 +28,12 @@
     "note": "Name of the month, the {month} in mail.date.long (a date written in an email, such as \"2 June 2027\"). Write it as it reads inside a full date in your language."
   },
   "mail.date.long": {
-    "text": "{day} {month} {year}",
-    "args": [["day", "int"], ["month", "msg"], ["year", "text"]],
-    "note": "A date as the bridge's emails write it, such as \"2 January 2027\" (in the account-removal warning's subject and text). {day} is the day of the month (1 to 31), {month} the month's name (one of mail.date.january to mail.date.december), {year} the year (2027). Arrange them as your language writes a full date, adding its words or punctuation (\"2 de enero de 2027\", \"2. Januar 2027\")."
+    "text": {
+      "one": "{day} {month} {year}",
+      "other": "{day} {month} {year}"
+    },
+    "args": [["day", "count"], ["month", "msg"], ["year", "text"]],
+    "note": "A date as the bridge's emails write it, such as \"2 January 2027\" (in the account-removal warning's subject and text). {day} is the day of the month (1 to 31), {month} the month's name (one of mail.date.january to mail.date.december), {year} the year (2027). Arrange them as your language writes a full date, adding its words or punctuation (\"2 de enero de 2027\", \"2. Januar 2027\"). {day} is a count only so that a language can write the first of the month its own way in the form one (French: \"1er janvier 2027\"); where that is the plain number, both forms are the same."
   },
   "mail.date.march": {
     "text": "March",
