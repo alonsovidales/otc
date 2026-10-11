@@ -163,7 +163,8 @@ the one-time Redis ACL user and MySQL monitoring user to create first).
 **Tests**: most device and bridge packages have `_test.go` files (`face_recognition` needs the
 OpenCV install above). The MySQL ones (`bridge/accounts` `TestInactivityPassMySQL`, `bridge/dao`'s
 `TestAccountPasswordMySQL`, `TestEmailTokensMySQL`, `TestListAdminDevicesMySQL` under
-`ONLY_FULL_GROUP_BY`) skip unless `OTC_TEST_MYSQL_DSN` points at the Lima VM's bridge schema. A
+`ONLY_FULL_GROUP_BY`) skip unless `OTC_TEST_MYSQL_DSN` points at the Lima VM's bridge schema
+(with `&time_zone=%27%2B00%3A00%27`, as the bridge's own DSN). A
 package var a test shortens must be restored only after the handlers reading it are done (a plain
 `defer` raced under `-race`): bridge tests use `setVar` with a test bridge that waits for its
 handlers; httptest's `Close` doesn't wait for hijacked websockets. `websocket/write_reply_test.go`'s
@@ -839,7 +840,35 @@ the English message only when the code is empty (`duplicated_file` on UploadFile
 LinkFile, from `filesmanager.ErrDuplicatedFile`; `unknown_payload`) - iOS/macOS `ErrorCodes.swift`,
 Android `net/ErrorCodes.kt`, otc-sync `engine/requests.go`. Machine alerts (update, RAID, Wi-Fi
 wiring) live in `websocket/machine_alerts.go`; `raidwatch.MissingPorts()` keeps the failed disks'
-ports as data.
+ports as data; update alerts are one per `notifications.update_version`, with the legacy English
+titles still matched (`updateTitles` keeps them even if the title is reworded).
+
+The stored choice (`docs/i18n.md`, "The stored choice"; every client follows the same rules):
+- Device (release 118, `scripts/updates/118.sh`): `settings.language` and `last_ui_language`.
+  SetLanguage is owner-only (`websocket/language.go`), compare-and-set under `settings.langMu`,
+  Ack codes `changed` and `invalid_language`. `processMessage` passes `requestLang(env)` to the
+  three `process*` handlers as `lang`, never as connection state (requests run concurrently).
+  Owner push registrations write `last_ui_language` after they succeed. The push language is
+  `push.ResolveLanguage` -> `UpdatePushRegistrations.language` and `Push.Lang()`. A binary newer
+  than its schema gets `dao.ErrSchemaBehind` (MySQL 1054) and carries on with the defaults.
+- Bridge: migration `010-language.sql` (`accounts.lang`, `push_registrations.language`), tolerated
+  when absent (`bridge/dao/language.go`); `PUT /api/account/language {"lang"}`; sign-up takes the
+  body's `lang` else `Accept-Language` (`""` when none matches); `/me` carries `lang`; the export
+  adds `account.language` and `domains[].push_language`; the offline alert's language comes from
+  `push_registrations.language` (`offlineAlertText`). Never log a language next to an account or
+  domain.
+- Apps: a local copy plus a pending change, sent with SetLanguage against the device value seen
+  when it was made. Sign-out, Log Out, Disconnect or another device/password keeps the copy and
+  drops the pending change. `unknown_payload` keeps it pending until the next connection. `lang`
+  is set only in iOS/Android `WSClient.exchange`, macOS `WSClient.envelope`, otc-sync
+  `Client.Request` and web `ws.ts`. The Language row/panel/picker/tray submenu is hidden while
+  English is the only shipping language. Parity: iOS `LanguageSettings.swift` <-> Android
+  `i18n/LanguageSettings.kt`; macOS `LanguageSettings.swift` <-> otc-sync `engine/language.go` +
+  `internal/oslang`; `otc-sync language [auto|<code>]` (English output). Android recreates the
+  Activity on a change: state that must survive uses `rememberSaveable`, and launch-time prompts
+  ask only on a fresh create. `node web/scripts/i18n-test.mjs` tests the web runtime and choice.
+- New web text goes through `useT()` / `<Trans>` from `web/src/i18n` with an entry in
+  `i18n/strings/en/web.<area>.json`; never keep translated text at module level or in state.
 
 ### Bridge (`bridge/`)
 
@@ -930,9 +959,11 @@ the password is encrypted with) says it is new gets nothing (`NewDevice`), so it
 as its owner password and its setup shows instead;
 call `useWS.passwordChanged(newKey)` after a ChangeKey; the bridge's `device_unreachable` is not a
 refused sign-in (`authOwed`); only a tab that has signed in (`hadSession`) redeems the stored token
-on reconnect. Sign Out also clears `otc_files_path` and `otc_photo_search_tags`. `web/` has no test
-runner; `npm run lint` already reports about 150 problems (mostly `no-explicit-any`), so compare
-counts before and after a change.
+on reconnect. Sign Out also clears `otc_files_path`, `otc_photo_search_tags` and a pending
+language change (`otc_language_pending`; `otc_language` stays). `web/` has no test runner
+(`node web/scripts/i18n-test.mjs` tests the i18n runtime and ws.ts's `lang` line through Vite's
+SSR loader); `npm run lint` already reports about 150 problems (mostly `no-explicit-any`), so
+compare counts before and after a change.
 
 Issue #182 (and #175/#176): accounts can be deleted - `DELETE /api/account/me` (`{"confirm":
 "delete", "password"}`, or a sign-in within 15 minutes for Google/Apple-only accounts;
