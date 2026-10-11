@@ -66,7 +66,7 @@ func TestBridgeRefusalEnglishUnchanged(t *testing.T) {
 	for code, english := range bridgeTexts {
 		for _, codes := range []map[string]func(string) (i18n.Msg, bool){signInCodes, claimCodes} {
 			err := bridgeRefusal(codes, code, english, "ana@example.com", i18n.DevStatusBridgeSigninFailed())
-			for _, lang := range []string{"", "en", "es"} {
+			for _, lang := range []string{"", "en", "ja"} { // "ja": a language no build carries
 				if got := devtext.Text(lang, err); got != english {
 					t.Errorf("%s in %q: %q", code, lang, got)
 				}

@@ -27,7 +27,7 @@ func TestErrorText(t *testing.T) {
 	if !errors.Is(e, cause) {
 		t.Error("errors.Is lost the cause")
 	}
-	for _, lang := range []string{"", "en", "fr"} {
+	for _, lang := range []string{"", "en", "ja"} { // "ja": a language no build carries
 		if got := Text(lang, e); got != e.Error() {
 			t.Errorf("Text(%q) = %q", lang, got)
 		}
@@ -68,7 +68,7 @@ func TestRunnerTextFallsBackToTheMessage(t *testing.T) {
 		{"dev.update.downloading", `{"release":"1"}`, "a key is not a code"},
 	}
 	for _, c := range cases {
-		for _, lang := range []string{"", "en", "pt"} {
+		for _, lang := range []string{"", "en", "ja"} {
 			if got := UpdateStatus(lang, c.code, []byte(c.args), c.message); got != c.message {
 				t.Errorf("%q %s in %q: %q", c.code, c.args, lang, got)
 			}

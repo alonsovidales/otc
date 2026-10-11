@@ -52,7 +52,7 @@ func TestSignInPagesInEnglishAreUnchanged(t *testing.T) {
 	a.providers = map[string]*provider{}
 	r := httptest.NewRequest("GET", "/account/auth/github/start", nil)
 	r.SetPathValue("provider", "github")
-	r.Header.Set("Accept-Language", "fr-FR")
+	r.Header.Set("Accept-Language", "ja-JP") // a language no build carries
 	w := httptest.NewRecorder()
 	a.OAuthStart(w, r)
 	if w.Code != http.StatusNotFound || w.Body.String() != "that sign-in provider is not configured on this bridge\n" {
