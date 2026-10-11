@@ -17,7 +17,7 @@
     {"en": "Alerts", "text": "Meldingen", "note": "Tab name: the device’s alerts and friends’ activity. Not the same word as notifications. Notifications are pushmeldingen, to keep the two apart.", "enforce": true},
     {"en": "Settings", "text": "Instellingen", "note": "Tab name; also the phone’s own Settings app. macOS: Systeeminstellingen.", "enforce": true},
     {"en": "Sharing", "text": "Delen", "note": "Menu heading above Social and Friends.", "enforce": false},
-    {"en": "device", "text": "apparaat", "note": "The Off The Cloud box (a Raspberry Pi with its disks) that holds everything; also the menu heading Device. Never server, NAS or box in app text. Het apparaat; plural apparaten.", "enforce": true},
+    {"en": "device", "text": "apparaat", "note": "The Off The Cloud box (a Raspberry Pi with its disks) that holds everything; also the menu heading Device. Never server, NAS or box in app text. Het apparaat; plural apparaten.", "enforce": true, "except": ["web.images.share.zip_hint"]},
     {"en": "devices", "text": "apparaten", "note": "Plural of device.", "enforce": true, "except": ["dev.device.storage_too_many"]},
     {"en": "bridge", "text": "bridge", "note": "Our relay at off-the.cloud that connects the apps and friends to a device away from home. A common noun, lowercase inside a sentence, one fixed word per language. De bridge; plural bridges.", "enforce": true},
     {"en": "bridge access", "text": "toegang tot de bridge", "note": "Being reachable through the bridge (a Settings section and the request a user account can carry).", "enforce": true},

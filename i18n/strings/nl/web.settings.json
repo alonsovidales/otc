@@ -1,0 +1,781 @@
+{
+  "web.settings.bridge.code_failed": {
+    "text": "Die configuratiecode werkte niet.",
+    "en": "That setup code didn't work."
+  },
+  "web.settings.bridge.continue_apple": {
+    "text": "Doorgaan met Apple",
+    "en": "Continue with Apple"
+  },
+  "web.settings.bridge.continue_google": {
+    "text": "Doorgaan met Google",
+    "en": "Continue with Google"
+  },
+  "web.settings.bridge.email": {
+    "text": "E-mailadres",
+    "en": "Email"
+  },
+  "web.settings.bridge.enable_failed": {
+    "text": "Kan de bridge niet inschakelen.",
+    "en": "Could not switch the bridge on."
+  },
+  "web.settings.bridge.intro": {
+    "text": "Dit apparaat is alleen bereikbaar op je thuisnetwerk. Via de bridge {bridge} krijgt het een eigen adres, zodat je het overal kunt bereiken en vrienden kunt toevoegen. Je hebt een Off The Cloud-account nodig.",
+    "en": "This device is only reachable on your home network. Through the {bridge} bridge it gets its own address, so you can reach it from anywhere and add friends. You'll need an Off The Cloud account."
+  },
+  "web.settings.bridge.join": {
+    "text": "Verbinden met de bridge",
+    "en": "Join the bridge"
+  },
+  "web.settings.bridge.joining": {
+    "text": "Verbinden…",
+    "en": "Joining…"
+  },
+  "web.settings.bridge.last_failed": {
+    "text": "De laatste poging is mislukt: {detail}",
+    "en": "The last attempt failed: {detail}"
+  },
+  "web.settings.bridge.leave": {
+    "text": "De bridge verlaten",
+    "en": "Leave the bridge",
+    "reviewed": "claude-backtranslation 2026-10-11 #ea32b348"
+  },
+  "web.settings.bridge.leave_confirm": {
+    "text": "Dit apparaat van de bridge halen? {domain} wordt vrijgegeven en het apparaat herstart. Alles wat erop staat, blijft bewaard en het werkt thuis, op {address}, maar is niet meer bereikbaar van buitenaf of voor je vrienden. Je kunt later opnieuw verbinding maken.",
+    "en": "Take this device off the bridge? {domain} is given back and the device restarts. It keeps everything on it and works at home, at {address}, but is no longer reachable from outside or by your friends. You can join again later.",
+    "reviewed": "claude-backtranslation 2026-10-11 #18f98980"
+  },
+  "web.settings.bridge.leave_failed": {
+    "text": "Kan de bridge niet verlaten.",
+    "en": "Could not leave the bridge."
+  },
+  "web.settings.bridge.leave_hint": {
+    "text": "Als je de bridge verlaat, wordt de naam vrijgegeven; het apparaat blijft thuis werken. Wil je ook je Off The Cloud-account verwijderen, verlaat dan eerst de bridge en gebruik daarna <account>je accountpagina</account>. Wat de bridge over je bewaart, staat in de <privacy>privacyverklaring</privacy>.",
+    "en": "Leaving the bridge gives the name back; the device keeps working at home. To delete your Off The Cloud account as well, leave first, then use <account>your account page</account>. What the bridge keeps about you is in the <privacy>privacy notice</privacy>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #dc0d1c3b"
+  },
+  "web.settings.bridge.leaving": {
+    "text": "Verlaten…",
+    "en": "Leaving…"
+  },
+  "web.settings.bridge.name": {
+    "text": "Apparaatnaam",
+    "en": "Device name"
+  },
+  "web.settings.bridge.name_example": {
+    "text": "mijnhuis",
+    "en": "myhome"
+  },
+  "web.settings.bridge.name_hint": {
+    "text": "Kleine letters, cijfers en koppeltekens. Een naam die je account al heeft, wordt naar dit apparaat verplaatst.",
+    "en": "Lower-case letters, digits and hyphens. A name your account already holds moves to this device."
+  },
+  "web.settings.bridge.other_account": {
+    "text": "Ander account gebruiken",
+    "en": "Use another account"
+  },
+  "web.settings.bridge.pending_join": {
+    "text": "Verbinden met {bridge}… Het apparaat herstart om dit af te ronden; dat duurt ongeveer een minuut. Mogelijk moet je daarna opnieuw inloggen.",
+    "en": "Joining {bridge}… the device restarts to finish, which takes about a minute. You may need to sign in again afterwards."
+  },
+  "web.settings.bridge.pending_leave": {
+    "text": "Loskoppelen van {bridge}… Het apparaat herstart; dat duurt ongeveer een minuut. Open het daarna thuis, op <link>{address}</link>.",
+    "en": "Leaving {bridge}… the device restarts, which takes about a minute. From then on open it at home, at <link>{address}</link>."
+  },
+  "web.settings.bridge.reachable": {
+    "text": "Overal bereikbaar op <link>{domain}</link>.",
+    "en": "Reachable from anywhere at <link>{domain}</link>."
+  },
+  "web.settings.bridge.released": {
+    "text": "Dit apparaat heeft de bridge verlaten: {bridge} kende de naam niet meer (het account is verwijderd, of de naam is vrijgegeven). Alles wat erop staat, is er nog.",
+    "en": "This device left the bridge: {bridge} no longer knew its name (its account was deleted, or the name released). Everything on it is still here."
+  },
+  "web.settings.bridge.setup_code": {
+    "text": "Configuratiecode",
+    "en": "Setup code"
+  },
+  "web.settings.bridge.setup_hint": {
+    "text": "Nog geen account, of log je op een andere manier in? Maak er een aan of log in op <account>{address}</account>, kies “Configuratiecode aanvragen” en plak de code hier. Zie de <terms>voorwaarden</terms> en de <privacy>privacyverklaring</privacy>.",
+    "en": "No account yet, or you sign in another way? Create one or sign in at <account>{address}</account>, choose “Get a setup code” and paste it here. See the <terms>terms</terms> and the <privacy>privacy notice</privacy>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #f0bb61e5"
+  },
+  "web.settings.bridge.sign_in": {
+    "text": "Inloggen",
+    "en": "Sign in"
+  },
+  "web.settings.bridge.sign_in_failed": {
+    "text": "Kan niet inloggen.",
+    "en": "Could not sign in."
+  },
+  "web.settings.bridge.signed_in_as": {
+    "text": "Ingelogd als <b>{email}</b>.",
+    "en": "Signed in as <b>{email}</b>."
+  },
+  "web.settings.bridge.signing_in": {
+    "text": "Inloggen…",
+    "en": "Signing in…"
+  },
+  "web.settings.bridge.title": {
+    "text": "Toegang tot de bridge",
+    "en": "Bridge access"
+  },
+  "web.settings.bridge.use": {
+    "text": "Gebruiken",
+    "en": "Use"
+  },
+  "web.settings.faces.disable": {
+    "text": "Gezichtsherkenning uitschakelen",
+    "en": "Disable Face Recognition"
+  },
+  "web.settings.faces.enable": {
+    "text": "Gezichtsherkenning inschakelen",
+    "en": "Enable Face Recognition",
+    "reviewed": "claude-backtranslation 2026-10-11 #a3258cdb"
+  },
+  "web.settings.faces.hint": {
+    "text": "Herkent gezichten in nieuw geüploade foto’s, zodat je op persoon kunt zoeken, zoals in andere foto-apps. Dit staat uit tot je het inschakelt (hier of tijdens de configuratie), en gezichten verlaten het apparaat nooit. Het kijkt naar iedereen op je foto’s, niet alleen naar jou. Het werkt alleen voor foto’s die worden geüpload terwijl het aanstaat; gebruik “Media opnieuw verwerken” om de foto’s te scannen die je al hebt.",
+    "en": "Detect faces in newly uploaded photos so you can search by person, like other photo apps. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media to scan the ones you already have.",
+    "reviewed": "claude-backtranslation 2026-10-11 #1c4eb093"
+  },
+  "web.settings.faces.title": {
+    "text": "Gezichtsherkenning",
+    "en": "Face Recognition"
+  },
+  "web.settings.general.load_failed": {
+    "text": "Kan de instellingen niet laden.",
+    "en": "Failed to load settings."
+  },
+  "web.settings.general.saving": {
+    "text": "Opslaan…",
+    "en": "Saving…"
+  },
+  "web.settings.general.starting": {
+    "text": "Starten…",
+    "en": "Starting…"
+  },
+  "web.settings.general.update_failed": {
+    "text": "Kan deze instelling niet bijwerken.",
+    "en": "Could not update this setting."
+  },
+  "web.settings.general.working": {
+    "text": "Bezig…",
+    "en": "Working…"
+  },
+  "web.settings.language.automatic": {
+    "text": "Automatisch ({language})",
+    "en": "Automatic ({language})"
+  },
+  "web.settings.language.changed": {
+    "text": "Een andere app heeft tegelijkertijd de taal gewijzigd. Deze browser gebruikt nu die taal.",
+    "en": "Another app changed the language at the same time. This browser now uses that one."
+  },
+  "web.settings.language.hint": {
+    "text": "Elke app die is ingelogd op dit apparaat, gebruikt deze taal. Automatisch volgt de taal van elke browser, telefoon of computer.",
+    "en": "Every app signed in to this device uses this language. Automatic follows the language of each browser, phone or computer."
+  },
+  "web.settings.language.not_saved": {
+    "text": "Kan de taal niet opslaan op je apparaat. Deze browser probeert het opnieuw zodra er weer verbinding is.",
+    "en": "Couldn't save it on your device. This browser will try again when it reconnects."
+  },
+  "web.settings.language.title": {
+    "text": "Taal",
+    "en": "Language"
+  },
+  "web.settings.language.too_old": {
+    "text": "Deze browser onthoudt je keuze. Werk je apparaat bij om de taal in elke app te gebruiken.",
+    "en": "This browser will remember it. Update your device to use it in every app."
+  },
+  "web.settings.logs.copied": {
+    "text": "Gekopieerd",
+    "en": "Copied"
+  },
+  "web.settings.logs.copy": {
+    "text": "Kopiëren",
+    "en": "Copy"
+  },
+  "web.settings.logs.hint": {
+    "text": "Wat het apparaat doet, live: handig als er iets misgaat. Je kunt de logboeken kopiëren, of naar ons sturen zodat we je kunnen helpen.",
+    "en": "What the device is doing, live - useful when something goes wrong. You can copy them, or send them to us so we can help."
+  },
+  "web.settings.logs.live": {
+    "text": "Live",
+    "en": "Live"
+  },
+  "web.settings.logs.note": {
+    "text": "Wat ging er mis? (optioneel)",
+    "en": "What went wrong? (optional)"
+  },
+  "web.settings.logs.paused": {
+    "text": "Gepauzeerd",
+    "en": "Paused"
+  },
+  "web.settings.logs.read_failed": {
+    "text": "Kan de logboeken niet lezen",
+    "en": "Could not read the logs"
+  },
+  "web.settings.logs.retrying": {
+    "text": "{error} – opnieuw proberen…",
+    "en": "{error} - trying again…"
+  },
+  "web.settings.logs.send_failed": {
+    "text": "Kan de logboeken niet versturen.",
+    "en": "Could not send them."
+  },
+  "web.settings.logs.send_hint": {
+    "text": "Stuurt het laatste deel van de logboeken van je apparaat, je opmerking en het e-mailadres van je account naar info@off-the.cloud, zodat we je kunnen helpen.",
+    "en": "Sends the last part of your device's logs, your note and your account's email to info@off-the.cloud, so we can help.",
+    "reviewed": "claude-backtranslation 2026-10-11 #730774f2"
+  },
+  "web.settings.logs.send_to_us": {
+    "text": "Naar ons sturen…",
+    "en": "Send to us…"
+  },
+  "web.settings.logs.sending": {
+    "text": "Versturen…",
+    "en": "Sending…"
+  },
+  "web.settings.logs.sent": {
+    "text": "Verstuurd: we antwoorden via het e-mailadres van je account.",
+    "en": "Sent - we'll answer at your account's email."
+  },
+  "web.settings.logs.show": {
+    "text": "Logboeken tonen",
+    "en": "Show logs"
+  },
+  "web.settings.logs.tab_device": {
+    "text": "Apparaat",
+    "en": "Device"
+  },
+  "web.settings.logs.tab_updates": {
+    "text": "Updates",
+    "en": "Updates"
+  },
+  "web.settings.logs.title": {
+    "text": "Logboeken",
+    "en": "Logs"
+  },
+  "web.settings.logs.waiting": {
+    "text": "Wachten op het logboek…",
+    "en": "Waiting for the log…"
+  },
+  "web.settings.logs.warning": {
+    "text": "Logboeken kunnen namen van bestanden en mappen, zoekwoorden, namen van wifinetwerken en de adressen van je apparaat bevatten. Controleer ze voordat je ze deelt.",
+    "en": "Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses. Check them before you share them.",
+    "reviewed": "claude-backtranslation 2026-10-11 #11d29483"
+  },
+  "web.settings.notifications.denied": {
+    "text": "Toestemming voor pushmeldingen is geweigerd.",
+    "en": "Notification permission was denied."
+  },
+  "web.settings.notifications.disable": {
+    "text": "Pushmeldingen uitschakelen",
+    "en": "Disable Notifications"
+  },
+  "web.settings.notifications.enable": {
+    "text": "Pushmeldingen inschakelen",
+    "en": "Enable Notifications"
+  },
+  "web.settings.notifications.hint": {
+    "text": "Krijg een pushmelding in deze browser wanneer vrienden nieuwe berichten plaatsen. In eigen beheer: dit apparaat stuurt de melding rechtstreeks, zonder tussenkomst van een meldingendienst van derden.",
+    "en": "Get a push notification in this browser when a friend posts. Self-hosted — this device sends it directly, no third-party notification service involved.",
+    "reviewed": "claude-backtranslation 2026-10-11 #f78425d9"
+  },
+  "web.settings.notifications.title": {
+    "text": "Pushmeldingen",
+    "en": "Notifications"
+  },
+  "web.settings.password.change": {
+    "text": "Wachtwoord wijzigen",
+    "en": "Change Password"
+  },
+  "web.settings.password.changed": {
+    "text": "Wachtwoord gewijzigd.",
+    "en": "Password changed.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c2f4b38e"
+  },
+  "web.settings.password.confirm": {
+    "text": "Nieuw wachtwoord bevestigen",
+    "en": "Confirm new password",
+    "reviewed": "claude-backtranslation 2026-10-11 #a4e9d9df"
+  },
+  "web.settings.password.failed": {
+    "text": "Wijzigen mislukt.",
+    "en": "Change failed."
+  },
+  "web.settings.password.mismatch": {
+    "text": "De nieuwe wachtwoorden komen niet overeen.",
+    "en": "New passwords do not match.",
+    "reviewed": "claude-backtranslation 2026-10-11 #5ccf5c93"
+  },
+  "web.settings.password.new": {
+    "text": "Nieuw wachtwoord",
+    "en": "New password",
+    "reviewed": "claude-backtranslation 2026-10-11 #397de265"
+  },
+  "web.settings.password.old": {
+    "text": "Huidig wachtwoord",
+    "en": "Old password",
+    "reviewed": "claude-backtranslation 2026-10-11 #04c372c8"
+  },
+  "web.settings.password.title": {
+    "text": "Wachtwoord wijzigen",
+    "en": "Change Password"
+  },
+  "web.settings.password.too_short": {
+    "text": "Gebruik minstens 8 tekens.",
+    "en": "Use at least 8 characters.",
+    "reviewed": "claude-backtranslation 2026-10-11 #8e162ad2"
+  },
+  "web.settings.password.unexpected": {
+    "text": "Onverwacht antwoord.",
+    "en": "Unexpected response."
+  },
+  "web.settings.profile.title": {
+    "text": "Profiel",
+    "en": "Profile"
+  },
+  "web.settings.reprocess.all": {
+    "text": "Alle media opnieuw verwerken",
+    "en": "Reprocess All Media"
+  },
+  "web.settings.reprocess.cancel": {
+    "text": "Annuleren",
+    "en": "Cancel"
+  },
+  "web.settings.reprocess.completed": {
+    "text": {
+      "one": "Laatste verwerking voltooid: {count} bestand verwerkt.",
+      "other": "Laatste verwerking voltooid: {count} bestanden verwerkt."
+    },
+    "en": {
+      "one": "Last run completed — {count} file(s) processed.",
+      "other": "Last run completed — {count} file(s) processed."
+    }
+  },
+  "web.settings.reprocess.confirm": {
+    "text": "Herverwerken",
+    "en": "Reprocess",
+    "reviewed": "claude-backtranslation 2026-10-11 #d9cdb45a"
+  },
+  "web.settings.reprocess.confirm_restart": {
+    "text": "Elke foto en video in je bibliotheek opnieuw verwerken? Hiermee worden alle bestaande tags en herkende personen verwijderd en vanaf nul opnieuw opgebouwd. Dit kan even duren en kan niet ongedaan worden gemaakt.",
+    "en": "Reprocess every photo and video in your library? This deletes all existing tags and recognized people and rebuilds them from scratch. It can take a while and can't be undone.",
+    "reviewed": "claude-backtranslation 2026-10-11 #d440c3cc"
+  },
+  "web.settings.reprocess.confirm_resume": {
+    "text": "Het opnieuw verwerken hervatten waar het was gebleven? Dit kan even duren.",
+    "en": "Resume reprocessing where it left off? It can take a while."
+  },
+  "web.settings.reprocess.failed": {
+    "text": {
+      "one": "Laatste verwerking mislukt na {count} bestand: probeer het opnieuw.",
+      "other": "Laatste verwerking mislukt na {count} bestanden: probeer het opnieuw."
+    },
+    "en": {
+      "one": "Last run failed after {count} file(s) — try again.",
+      "other": "Last run failed after {count} file(s) — try again."
+    }
+  },
+  "web.settings.reprocess.hint": {
+    "text": "Voert beeldherkenning en gezichtsdetectie opnieuw uit op elke foto en video die al in je bibliotheek staat: handig na een verbetering van de detectie of een update van het model. Hiermee worden eerst de bestaande tags en herkende personen gewist, waarna ze vanaf nul opnieuw worden opgebouwd.",
+    "en": "Re-run tagging and face detection on every photo and video already in your library — useful after a detection fix or model update. This clears existing tags and recognized people first and rebuilds them from scratch.",
+    "reviewed": "claude-backtranslation 2026-10-11 #cc7c90bc"
+  },
+  "web.settings.reprocess.progress": {
+    "text": "Opnieuw verwerken… {percent} ({processed} / {total})",
+    "en": "Reprocessing… {percent} ({processed} / {total})"
+  },
+  "web.settings.reprocess.resume": {
+    "text": "Hervatten",
+    "en": "Resume"
+  },
+  "web.settings.reprocess.resume_all": {
+    "text": "Opnieuw verwerken hervatten",
+    "en": "Resume Reprocessing"
+  },
+  "web.settings.reprocess.start_failed": {
+    "text": "Kan het opnieuw verwerken niet starten.",
+    "en": "Could not start reprocessing."
+  },
+  "web.settings.reprocess.start_over": {
+    "text": "Opnieuw beginnen",
+    "en": "Start Over"
+  },
+  "web.settings.reprocess.stop_failed": {
+    "text": "Kan het opnieuw verwerken niet stoppen.",
+    "en": "Could not stop reprocessing."
+  },
+  "web.settings.reprocess.stopped": {
+    "text": "Gestopt bij {percent} ({processed} / {total}).",
+    "en": "Stopped at {percent} ({processed} / {total})."
+  },
+  "web.settings.reprocess.stopping": {
+    "text": "Stoppen…",
+    "en": "Stopping…"
+  },
+  "web.settings.reprocess.title": {
+    "text": "Media opnieuw verwerken",
+    "en": "Reprocess Media"
+  },
+  "web.settings.restart.back": {
+    "text": "Het apparaat is er weer.",
+    "en": "The device is back."
+  },
+  "web.settings.restart.button": {
+    "text": "Apparaat herstarten",
+    "en": "Restart Device"
+  },
+  "web.settings.restart.confirm": {
+    "text": "Het apparaat herstarten? Het is dan ongeveer een minuut onbereikbaar.",
+    "en": "Restart the device? It will be unreachable for about a minute.",
+    "reviewed": "claude-backtranslation 2026-10-11 #bb376d06"
+  },
+  "web.settings.restart.failed": {
+    "text": "Kan het apparaat niet herstarten.",
+    "en": "Could not restart the device."
+  },
+  "web.settings.restart.needs_update": {
+    "text": "Je apparaat heeft een update nodig voordat het hier kan worden herstart.",
+    "en": "Your device needs an update before it can be restarted from here."
+  },
+  "web.settings.restart.restarting": {
+    "text": "Herstarten…",
+    "en": "Restarting…"
+  },
+  "web.settings.restart.slow": {
+    "text": "Het apparaat is nog niet terug. Het kan iets langer duren; komt het niet terug, haal dan de stekker eruit en steek hem er weer in.",
+    "en": "The device hasn't come back yet. It can take a little longer; if it doesn't come back, unplug it and plug it back in."
+  },
+  "web.settings.restart.wait": {
+    "text": "Herstarten… Het apparaat is over ongeveer een minuut weer terug.",
+    "en": "Restarting… the device will be back in about a minute."
+  },
+  "web.settings.session.hint": {
+    "text": "Deze browser blijft ingelogd, ook als je de pagina opnieuw laadt. Log uit als je een gedeelde of openbare computer gebruikt.",
+    "en": "This browser stays signed in across reloads. Sign out if you're on a shared or public computer.",
+    "reviewed": "claude-backtranslation 2026-10-11 #be6c1f7c"
+  },
+  "web.settings.session.sign_out": {
+    "text": "Uitloggen",
+    "en": "Sign Out"
+  },
+  "web.settings.session.signing_out": {
+    "text": "Uitloggen…",
+    "en": "Signing out…"
+  },
+  "web.settings.session.title": {
+    "text": "Sessie",
+    "en": "Session"
+  },
+  "web.settings.social.failed": {
+    "text": "Kan de limiet niet opslaan.",
+    "en": "Could not save the limit."
+  },
+  "web.settings.social.hint": {
+    "text": "Foto’s en video’s uit de berichten van je vrienden worden op dit apparaat bewaard, zodat je feed ook werkt als zij offline zijn. Als ze meer ruimte innemen dan dit, worden de oudste berichten van vrienden verwijderd. Je eigen berichten en bestanden blijven altijd onaangeroerd.",
+    "en": "Photos and videos from your friends' posts are kept on this device, so your feed works even when they're offline. When they take more than this, the oldest friends' posts are removed. Your own posts and files are never touched.",
+    "reviewed": "claude-backtranslation 2026-10-11 #bd820475"
+  },
+  "web.settings.social.limit": {
+    "text": "Limiet (GB)",
+    "en": "Limit (GB)"
+  },
+  "web.settings.social.saved": {
+    "text": "Opgeslagen. Oudere berichten boven de limiet worden verwijderd.",
+    "en": "Saved. Older posts over the limit are being removed.",
+    "reviewed": "claude-backtranslation 2026-10-11 #57062e27"
+  },
+  "web.settings.social.title": {
+    "text": "Opslag van vriendenberichten",
+    "en": "Friends' posts storage"
+  },
+  "web.settings.social.too_small": {
+    "text": "Voer een grootte in van minstens 0,1 GB.",
+    "en": "Enter a size of at least 0.1 GB."
+  },
+  "web.settings.social.using": {
+    "text": "Nu in gebruik: {size}.",
+    "en": "Using {size} now."
+  },
+  "web.settings.tagging.disable": {
+    "text": "Beeldherkenning uitschakelen",
+    "en": "Disable Image Tagging"
+  },
+  "web.settings.tagging.enable": {
+    "text": "Beeldherkenning inschakelen",
+    "en": "Enable Image Tagging"
+  },
+  "web.settings.tagging.hint": {
+    "text": "Herkent wat nieuw geüploade foto’s en video’s laten zien (een strand, een hond, een verjaardagstaart), zodat je erop kunt zoeken. Dit gebeurt op dit apparaat en er gaat niets naar buiten. Uitschakelen bespaart verwerkingstijd; plaatsen uit de eigen locatiegegevens van een foto blijven doorzoekbaar. Het geldt alleen voor wat wordt geüpload terwijl het uitstaat.",
+    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.",
+    "reviewed": "claude-backtranslation 2026-10-11 #bf554995"
+  },
+  "web.settings.tagging.title": {
+    "text": "Beeldherkenning",
+    "en": "Image Tagging"
+  },
+  "web.settings.tailscale.auth_key": {
+    "text": "Auth key (optioneel)",
+    "en": "Auth key (optional)"
+  },
+  "web.settings.tailscale.authorise": {
+    "text": "Autoriseer dit apparaat in Tailscale en klik daarna opnieuw op Inschakelen.",
+    "en": "Authorise this device in Tailscale, then press Enable again."
+  },
+  "web.settings.tailscale.authorise_window": {
+    "text": "Autoriseer dit apparaat in het venster dat net is geopend en klik daarna opnieuw op Inschakelen.",
+    "en": "Authorise this device in the window that just opened, then press Enable again."
+  },
+  "web.settings.tailscale.change_failed": {
+    "text": "Kan de instelling niet wijzigen.",
+    "en": "Could not change the setting."
+  },
+  "web.settings.tailscale.done": {
+    "text": "Klaar: dit apparaat is bereikbaar op {address}",
+    "en": "Done — this device is reachable at {address}"
+  },
+  "web.settings.tailscale.enable": {
+    "text": "Tailscale Funnel inschakelen",
+    "en": "Enable Tailscale Funnel"
+  },
+  "web.settings.tailscale.intro": {
+    "text": "Tailscale Funnel is een alternatief voor de Off The Cloud-bridge: het publiceert dit apparaat op je eigen adres op <code>ts.net</code>, maar met deze beperkingen:",
+    "en": "Tailscale Funnel is an alternative to the Off The Cloud bridge, it publishes this device on your own <code>ts.net</code> address but with the next limitations:",
+    "reviewed": "claude-backtranslation 2026-10-11 #960ea46e"
+  },
+  "web.settings.tailscale.key_hint": {
+    "text": "Met een sleutel uit je Tailscale-beheerconsole gaat dit vanzelf. Zonder sleutel word je naar Tailscale gestuurd om dit apparaat te autoriseren.",
+    "en": "With a key from your Tailscale admin console this finishes on its own. Without one, you'll be taken to Tailscale to authorise this device."
+  },
+  "web.settings.tailscale.limit_account": {
+    "text": "Je hebt een Tailscale-account nodig, met Funnel ingeschakeld voor je tailnet.",
+    "en": "You'll need a Tailscale account, with Funnel enabled for your tailnet."
+  },
+  "web.settings.tailscale.limit_one_user": {
+    "text": "<b>Maar één gebruiker.</b> Extra gebruikers hebben elk een eigen webadres nodig, en Funnel geeft deze machine er maar één.",
+    "en": "<b>One user only.</b> Extra users need a web address each, and Funnel gives this machine a single one."
+  },
+  "web.settings.tailscale.limit_social": {
+    "text": "<b>Het sociale deel werkt niet.</b> Vrienden vinden elkaar via de bridge, dus delen en de tijdlijnen van vrienden zijn niet beschikbaar.",
+    "en": "<b>The social side won't work.</b> Friends find each other through the bridge, so sharing and friends' timelines are unavailable."
+  },
+  "web.settings.tailscale.limit_traffic": {
+    "text": "Tailscale beperkt hoeveel verkeer er via Funnel kan, en maakt die limiet niet bekend.",
+    "en": "Tailscale caps how much traffic can pass through Funnel, and doesn't publish the limit."
+  },
+  "web.settings.tailscale.no_funnel": {
+    "text": "Tailscale is verbonden, maar Funnel is niet gestart. Controleer of Funnel is ingeschakeld voor je tailnet.",
+    "en": "Tailscale is connected, but Funnel didn't come up. Check that Funnel is enabled for your tailnet."
+  },
+  "web.settings.tailscale.not_installed": {
+    "text": "Tailscale is niet geïnstalleerd op dit apparaat, dus Funnel is hier niet beschikbaar.",
+    "en": "Tailscale isn't installed on this device, so Funnel isn't available here."
+  },
+  "web.settings.tailscale.not_installed_enable": {
+    "text": "Tailscale is niet geïnstalleerd op dit apparaat, dus Funnel kan hier niet worden ingeschakeld.",
+    "en": "Tailscale isn't installed on this device, so Funnel can't be turned on here."
+  },
+  "web.settings.tailscale.off": {
+    "text": "Funnel staat uit. Dit apparaat is weer bereikbaar via de bridge.",
+    "en": "Funnel is off. This device is reachable through the bridge again."
+  },
+  "web.settings.tailscale.popup_blocked": {
+    "text": "Je browser heeft het venster geblokkeerd: <link>autoriseer dit apparaat in plaats daarvan in Tailscale</link>.",
+    "en": "Your browser blocked the window — <link>authorise this device in Tailscale</link> instead."
+  },
+  "web.settings.tailscale.served_at": {
+    "text": "Beschikbaar via Tailscale Funnel op <link>{address}</link>.",
+    "en": "Served over Tailscale Funnel at <link>{address}</link>."
+  },
+  "web.settings.tailscale.setting_up": {
+    "text": "Instellen…",
+    "en": "Setting up…"
+  },
+  "web.settings.tailscale.suits": {
+    "text": "Het is geschikt voor een apparaat dat je puur als je eigen privé-NAS wilt gebruiken: je bestanden en foto’s, overal bereikbaar, niets gedeeld met anderen.",
+    "en": "It suits a device you want purely as your own private NAS — your files and photos, reachable from anywhere, nothing shared with anyone."
+  },
+  "web.settings.tailscale.turn_off": {
+    "text": "Funnel uitschakelen",
+    "en": "Turn Funnel off"
+  },
+  "web.settings.update.check_again": {
+    "text": "Opnieuw controleren",
+    "en": "Check again"
+  },
+  "web.settings.update.check_failed": {
+    "text": "Kan niet controleren op updates.",
+    "en": "Could not check for updates."
+  },
+  "web.settings.update.checking": {
+    "text": "Controleren…",
+    "en": "Checking…"
+  },
+  "web.settings.update.checking_updates": {
+    "text": "Controleren op updates…",
+    "en": "Checking for updates…"
+  },
+  "web.settings.update.critical": {
+    "text": "Kritiek",
+    "en": "Critical"
+  },
+  "web.settings.update.failed": {
+    "text": "Update mislukt: {reason}",
+    "en": "Update failed: {reason}"
+  },
+  "web.settings.update.failed_on": {
+    "text": "Update mislukt op {date}: {reason}",
+    "en": "Update failed on {date}: {reason}"
+  },
+  "web.settings.update.major": {
+    "text": "Belangrijk",
+    "en": "Major"
+  },
+  "web.settings.update.restarts_note": {
+    "text": "Het apparaat bouwt zichzelf opnieuw en herstart; dat duurt een paar minuten en verbreekt onderweg deze verbinding. Je foto’s en instellingen blijven onaangeroerd.",
+    "en": "The device rebuilds itself and restarts, which takes a few minutes and drops this connection on the way. Your photos and settings are left alone."
+  },
+  "web.settings.update.server_unreachable": {
+    "text": "Kan de updateserver nu niet bereiken, dus dit is mogelijk niet actueel.",
+    "en": "Couldn't reach the update server just now, so this may be out of date."
+  },
+  "web.settings.update.start_failed": {
+    "text": "Kan de update niet starten.",
+    "en": "Could not start the update."
+  },
+  "web.settings.update.starting_status": {
+    "text": "Starten",
+    "en": "Starting"
+  },
+  "web.settings.update.title": {
+    "text": "Apparaatversie",
+    "en": "Device version"
+  },
+  "web.settings.update.up_to_date": {
+    "text": "Up-to-date",
+    "en": "Up to date"
+  },
+  "web.settings.update.update_to": {
+    "text": "Bijwerken naar {version}",
+    "en": "Update to {version}"
+  },
+  "web.settings.update.version": {
+    "text": "Versie {version}",
+    "en": "Version {version}"
+  },
+  "web.settings.update.version_build": {
+    "text": "build {build}",
+    "en": "build {build}"
+  },
+  "web.settings.update.version_label": {
+    "text": "{label} (build {build})",
+    "en": "{label} (build {build})"
+  },
+  "web.settings.update.version_to": {
+    "text": "Versie {version} → <b>{latest}</b>",
+    "en": "Version {version} → <b>{latest}</b>"
+  },
+  "web.settings.users.add": {
+    "text": "Gebruiker toevoegen",
+    "en": "Add User"
+  },
+  "web.settings.users.create_failed": {
+    "text": "Kan de gebruiker niet maken.",
+    "en": "Could not create user."
+  },
+  "web.settings.users.created": {
+    "text": "Gebruiker “{name}” aangemaakt.",
+    "en": "User \"{name}\" created."
+  },
+  "web.settings.users.creating": {
+    "text": "Maken…",
+    "en": "Creating…"
+  },
+  "web.settings.users.delete_confirm": {
+    "text": "<b>{name}</b> verwijderen? Hiermee worden de database en alle bestanden die deze gebruiker heeft opgeslagen definitief verwijderd. Typ <b>{name}</b> om te bevestigen.",
+    "en": "Delete <b>{name}</b>? This permanently removes its database and every file it stored. Type <b>{name}</b> to confirm.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c2fe9bbe"
+  },
+  "web.settings.users.delete_failed": {
+    "text": "Kan de gebruiker niet verwijderen.",
+    "en": "Could not delete user."
+  },
+  "web.settings.users.deleted": {
+    "text": "Gebruiker “{name}” verwijderd.",
+    "en": "User \"{name}\" deleted."
+  },
+  "web.settings.users.disable": {
+    "text": "Uitschakelen",
+    "en": "Disable"
+  },
+  "web.settings.users.enable": {
+    "text": "Inschakelen",
+    "en": "Enable"
+  },
+  "web.settings.users.hint": {
+    "text": "Elke gebruiker draait als een eigen, volledig gescheiden instantie (eigen poort, eigen database, eigen opslag) en wordt alleen hier beheerd.",
+    "en": "Each user runs as its own fully separate instance — own port, own database, own storage — managed only from here."
+  },
+  "web.settings.users.inactive": {
+    "text": "inactief",
+    "en": "inactive"
+  },
+  "web.settings.users.load_usage": {
+    "text": "Gebruik laden",
+    "en": "Load usage"
+  },
+  "web.settings.users.local_hint": {
+    "text": "Vink dit uit om dit account alleen op je eigen netwerk te houden: geen toegang op afstand, en geen vrienden buiten je huis.",
+    "en": "Uncheck to keep this account on your own network only — no remote access, and no friends outside your home."
+  },
+  "web.settings.users.none": {
+    "text": "Nog geen andere gebruikers.",
+    "en": "No additional users yet."
+  },
+  "web.settings.users.port": {
+    "text": "poort (optioneel)",
+    "en": "port (optional)"
+  },
+  "web.settings.users.port_address": {
+    "text": "poort {port} · {address}",
+    "en": "port {port} · {address}"
+  },
+  "web.settings.users.port_local": {
+    "text": "poort {port} · alleen lokaal (geen toegang tot de bridge)",
+    "en": "port {port} · local only (no bridge access)"
+  },
+  "web.settings.users.reachable_at": {
+    "text": "Overal bereikbaar op {address}.",
+    "en": "Reachable from anywhere at {address}."
+  },
+  "web.settings.users.reachable_own": {
+    "text": "Overal bereikbaar op een eigen subdomein.",
+    "en": "Reachable from anywhere at their own subdomain."
+  },
+  "web.settings.users.request_bridge": {
+    "text": "Toegang tot de bridge aanvragen",
+    "en": "Request bridge access"
+  },
+  "web.settings.users.title": {
+    "text": "Gebruikers",
+    "en": "Users"
+  },
+  "web.settings.users.update_failed": {
+    "text": "Kan deze gebruiker niet bijwerken.",
+    "en": "Could not update this user."
+  },
+  "web.settings.users.usage": {
+    "text": {
+      "one": "{size} ({percent}) · {count} actief",
+      "other": "{size} ({percent}) · {count} actief"
+    },
+    "en": {
+      "one": "{size} ({percent}) · {count} active",
+      "other": "{size} ({percent}) · {count} active"
+    }
+  },
+  "web.settings.users.username": {
+    "text": "gebruikersnaam",
+    "en": "username"
+  }
+}

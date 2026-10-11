@@ -1,0 +1,591 @@
+{
+  "web.social.alerts.commented": {
+    "text": "<b>{name}</b> ha comentado tu publicación",
+    "en": "<b>{name}</b> commented on your post"
+  },
+  "web.social.alerts.friend_accepted": {
+    "text": "<b>{name}</b> ha aceptado tu solicitud de amistad",
+    "en": "<b>{name}</b> accepted your friend request"
+  },
+  "web.social.alerts.friend_request": {
+    "text": "<b>{name}</b> te ha enviado una solicitud de amistad",
+    "en": "<b>{name}</b> sent you a friend request"
+  },
+  "web.social.alerts.friends": {
+    "text": "Amigos ✓",
+    "en": "Friends ✓"
+  },
+  "web.social.alerts.liked_comment": {
+    "text": "A <b>{name}</b> le ha gustado tu comentario",
+    "en": "<b>{name}</b> liked your comment"
+  },
+  "web.social.alerts.liked_post": {
+    "text": "A <b>{name}</b> le ha gustado tu publicación",
+    "en": "<b>{name}</b> liked your post"
+  },
+  "web.social.alerts.more": {
+    "text": "+{more} más",
+    "en": "+{more} more"
+  },
+  "web.social.alerts.nothing": {
+    "text": "Aún no hay nada",
+    "en": "Nothing yet"
+  },
+  "web.social.comment.author": {
+    "text": "{name}:",
+    "en": "{name}:"
+  },
+  "web.social.comment.confirm_delete": {
+    "text": "¿Eliminar este comentario?",
+    "en": "Delete this comment?",
+    "reviewed": "claude-backtranslation 2026-10-11 #3f67550c"
+  },
+  "web.social.comment.delete": {
+    "text": "Eliminar comentario",
+    "en": "Delete comment"
+  },
+  "web.social.comment.like": {
+    "text": "Dar Me gusta al comentario",
+    "en": "Like comment"
+  },
+  "web.social.comment.me": {
+    "text": "yo",
+    "en": "me"
+  },
+  "web.social.comment.placeholder": {
+    "text": "Añade un comentario…",
+    "en": "Add a comment…"
+  },
+  "web.social.comment.post": {
+    "text": "Publicar",
+    "en": "Post"
+  },
+  "web.social.comment.unlike": {
+    "text": "Quitar Me gusta del comentario",
+    "en": "Unlike comment"
+  },
+  "web.social.composer.camera": {
+    "text": "Hacer una foto o grabar un vídeo",
+    "en": "Take a photo or video"
+  },
+  "web.social.composer.caption": {
+    "text": "Escribe un pie de foto…",
+    "en": "Write a caption…"
+  },
+  "web.social.composer.drop": {
+    "text": "Arrastra fotos o vídeos aquí, o haz clic para elegir archivos de este ordenador.",
+    "en": "Drag photos or videos here, or click to choose files from this computer."
+  },
+  "web.social.composer.library": {
+    "text": "Biblioteca",
+    "en": "Library"
+  },
+  "web.social.composer.move_earlier": {
+    "text": "Mover {name} una posición antes",
+    "en": "Move {name} earlier"
+  },
+  "web.social.composer.move_later": {
+    "text": "Mover {name} una posición después",
+    "en": "Move {name} later"
+  },
+  "web.social.composer.order": {
+    "text": "Orden en la publicación: arrastra o usa ‹ ›",
+    "en": "Order in post — drag, or use ‹ ›"
+  },
+  "web.social.composer.publish": {
+    "text": "Publicar",
+    "en": "Publish"
+  },
+  "web.social.composer.publish_count": {
+    "text": "Publicar ({count})",
+    "en": "Publish ({count})"
+  },
+  "web.social.composer.publish_failed": {
+    "text": "No se ha podido publicar.",
+    "en": "Could not publish the post."
+  },
+  "web.social.composer.publishing": {
+    "text": "Publicando…",
+    "en": "Publishing…"
+  },
+  "web.social.composer.remove_file": {
+    "text": "Quitar {name}",
+    "en": "Remove {name}"
+  },
+  "web.social.composer.remove_from_post": {
+    "text": "Quitar {name} de la publicación",
+    "en": "Remove {name} from the post"
+  },
+  "web.social.composer.remove_tag": {
+    "text": "Quitar {tag}",
+    "en": "Remove {tag}"
+  },
+  "web.social.composer.tag_filter": {
+    "text": "Filtrar por etiqueta…",
+    "en": "Filter by tag…"
+  },
+  "web.social.composer.this_computer": {
+    "text": "Este ordenador",
+    "en": "This Computer"
+  },
+  "web.social.composer.title": {
+    "text": "Nueva publicación",
+    "en": "New post"
+  },
+  "web.social.composer.trim": {
+    "text": "✂ Recortar",
+    "en": "✂ Trim"
+  },
+  "web.social.composer.trim_item": {
+    "text": "Recortar {name}",
+    "en": "Trim {name}"
+  },
+  "web.social.composer.trim_load_failed": {
+    "text": "No se ha podido cargar ese vídeo para recortarlo.",
+    "en": "Could not load that video to trim it."
+  },
+  "web.social.composer.upload_none": {
+    "text": "No se ha podido subir ninguno de los archivos seleccionados.",
+    "en": "Could not upload any of the selected files."
+  },
+  "web.social.composer.upload_some": {
+    "text": {
+      "one": "No se ha podido subir {count} archivo: se publicará el resto.",
+      "other": "No se han podido subir {count} archivos: se publicará el resto."
+    },
+    "en": {
+      "one": "{count} file(s) failed to upload - publishing the rest.",
+      "other": "{count} file(s) failed to upload - publishing the rest."
+    }
+  },
+  "web.social.feed.empty_text": {
+    "text": "Comparte una foto o un vídeo con tus amigos: va de tu dispositivo a los suyos, sin ninguna nube de por medio.",
+    "en": "Share a photo or a video with your friends — it goes from your device to theirs, with no cloud in between."
+  },
+  "web.social.feed.empty_title": {
+    "text": "No hay publicaciones en Social",
+    "en": "No social posts"
+  },
+  "web.social.feed.loading_more": {
+    "text": "Cargando más…",
+    "en": "Loading more…"
+  },
+  "web.social.feed.new_post": {
+    "text": "Nueva publicación",
+    "en": "New post"
+  },
+  "web.social.feed.user": {
+    "text": "Usuario",
+    "en": "User"
+  },
+  "web.social.friends.add_title": {
+    "text": "Enviar solicitud de amistad",
+    "en": "Add a friend"
+  },
+  "web.social.friends.ask_delete_mine": {
+    "text": "Pedir al dispositivo de {name} que elimine lo que he compartido allí",
+    "en": "Ask {name}'s device to delete what I shared there",
+    "reviewed": "claude-backtranslation 2026-10-11 #7ce84e53"
+  },
+  "web.social.friends.ask_delete_mine_hint": {
+    "text": "Tus publicaciones, comentarios y Me gusta en su dispositivo. Si no tiene conexión, se hará la próxima vez que se conecte; hasta entonces, la amistad aparece como “Saliendo”.",
+    "en": "Your posts, comments and likes on their device. If it's offline, it happens the next time it connects; until then they show as leaving.",
+    "reviewed": "claude-backtranslation 2026-10-11 #bb645d34"
+  },
+  "web.social.friends.asked_delete": {
+    "text": "Se ha pedido a su dispositivo que elimine lo que has compartido",
+    "en": "Asked their device to delete what you shared"
+  },
+  "web.social.friends.block": {
+    "text": "Bloquear",
+    "en": "Block"
+  },
+  "web.social.friends.cancel_request": {
+    "text": "Cancelar solicitud",
+    "en": "Cancel request"
+  },
+  "web.social.friends.confirm_cancel": {
+    "text": "¿Cancelar esta solicitud?",
+    "en": "Cancel this request?",
+    "reviewed": "claude-backtranslation 2026-10-11 #44328336"
+  },
+  "web.social.friends.confirm_delete": {
+    "text": "¿Eliminar esta solicitud?",
+    "en": "Delete this request?",
+    "reviewed": "claude-backtranslation 2026-10-11 #4ba1cce4"
+  },
+  "web.social.friends.confirm_remove_now": {
+    "text": "¿Eliminar ya la amistad con {name}? Se dejará de esperar a su dispositivo. Lo que aún no haya eliminado se quedará allí.",
+    "en": "Remove {name} now? This stops waiting for their device. Whatever it hasn't deleted yet stays there.",
+    "reviewed": "claude-backtranslation 2026-10-11 #0f31b0c8"
+  },
+  "web.social.friends.delete_error": {
+    "text": "Error al eliminar la solicitud",
+    "en": "Error deleting request"
+  },
+  "web.social.friends.delete_failed": {
+    "text": "No se ha podido eliminar",
+    "en": "Delete failed"
+  },
+  "web.social.friends.delete_theirs": {
+    "text": "Eliminar también todo lo de {name} en este dispositivo",
+    "en": "Also delete everything from {name} on this device",
+    "reviewed": "claude-backtranslation 2026-10-11 #1f8a3a35"
+  },
+  "web.social.friends.delete_theirs_hint": {
+    "text": "Sus publicaciones y fotos, y sus comentarios y Me gusta en cualquier publicación.",
+    "en": "Their posts and photos, and their comments and likes on any post.",
+    "reviewed": "claude-backtranslation 2026-10-11 #7dc9ee9b"
+  },
+  "web.social.friends.friends_again": {
+    "text": "Volvéis a ser amigos ✅",
+    "en": "You're friends again ✅"
+  },
+  "web.social.friends.invalid_name": {
+    "text": "Escribe el nombre del dispositivo, como pit: letras, números y guiones.",
+    "en": "Enter the device's name, like pit - letters, digits and dashes."
+  },
+  "web.social.friends.keep": {
+    "text": "Mantener",
+    "en": "Keep"
+  },
+  "web.social.friends.leaving": {
+    "text": "Saliendo",
+    "en": "Leaving"
+  },
+  "web.social.friends.name_label": {
+    "text": "Nombre del dispositivo de tu amigo o amiga, antes de .{suffix}",
+    "en": "Friend's device name, before .{suffix}"
+  },
+  "web.social.friends.name_placeholder": {
+    "text": "nombre",
+    "en": "name"
+  },
+  "web.social.friends.no_domain": {
+    "text": "(sin dominio)",
+    "en": "(no domain)"
+  },
+  "web.social.friends.no_name": {
+    "text": "(sin nombre)",
+    "en": "(no name)"
+  },
+  "web.social.friends.no_others": {
+    "text": "Aún no hay más amigos.",
+    "en": "No other friends yet."
+  },
+  "web.social.friends.none": {
+    "text": "Aún no hay amistades.",
+    "en": "No friendships yet."
+  },
+  "web.social.friends.remove": {
+    "text": "Eliminar amistad",
+    "en": "Remove friend"
+  },
+  "web.social.friends.remove_error": {
+    "text": "Error al eliminar la amistad",
+    "en": "Error removing friend"
+  },
+  "web.social.friends.remove_failed": {
+    "text": "No se ha podido eliminar la amistad",
+    "en": "Remove failed"
+  },
+  "web.social.friends.remove_now": {
+    "text": "Eliminar ya",
+    "en": "Remove now"
+  },
+  "web.social.friends.removed": {
+    "text": "Amistad eliminada",
+    "en": "Friend removed"
+  },
+  "web.social.friends.request_cancelled": {
+    "text": "Solicitud cancelada",
+    "en": "Request cancelled"
+  },
+  "web.social.friends.request_deleted": {
+    "text": "Solicitud eliminada",
+    "en": "Request deleted"
+  },
+  "web.social.friends.request_failed": {
+    "text": "No se ha podido enviar la solicitud",
+    "en": "Request failed"
+  },
+  "web.social.friends.request_sent": {
+    "text": "Solicitud de amistad enviada ✅",
+    "en": "Friend request sent ✅"
+  },
+  "web.social.friends.send": {
+    "text": "Enviar solicitud",
+    "en": "Send request"
+  },
+  "web.social.friends.send_error": {
+    "text": "Error al enviar la solicitud",
+    "en": "Error sending request"
+  },
+  "web.social.friends.sending": {
+    "text": "Enviando…",
+    "en": "Sending…"
+  },
+  "web.social.friends.set_pending": {
+    "text": "Dejar pendiente",
+    "en": "Set Pending"
+  },
+  "web.social.friends.status_accepted": {
+    "text": "Aceptada",
+    "en": "Accepted"
+  },
+  "web.social.friends.status_accepted_sent": {
+    "text": "Aceptada (enviada)",
+    "en": "Accepted (sent)"
+  },
+  "web.social.friends.status_blocked": {
+    "text": "Bloqueada",
+    "en": "Blocked"
+  },
+  "web.social.friends.status_blocked_sent": {
+    "text": "Bloqueada (enviada)",
+    "en": "Blocked (sent)"
+  },
+  "web.social.friends.status_pending": {
+    "text": "Pendiente",
+    "en": "Pending"
+  },
+  "web.social.friends.status_pending_sent": {
+    "text": "Pendiente (enviada)",
+    "en": "Pending (sent)"
+  },
+  "web.social.friends.status_updated": {
+    "text": "Estado actualizado ✅",
+    "en": "Status updated ✅"
+  },
+  "web.social.friends.title": {
+    "text": "Amigos",
+    "en": "Friends"
+  },
+  "web.social.friends.unexpected": {
+    "text": "Respuesta inesperada",
+    "en": "Unexpected response"
+  },
+  "web.social.friends.update_error": {
+    "text": "Error al actualizar el estado",
+    "en": "Error updating status"
+  },
+  "web.social.friends.update_failed": {
+    "text": "No se ha podido actualizar",
+    "en": "Update failed"
+  },
+  "web.social.friends.waiting_delete": {
+    "text": "Esperando a que su dispositivo elimine lo que has compartido.",
+    "en": "Waiting for their device to delete what you shared."
+  },
+  "web.social.friends.waiting_title": {
+    "text": "Esperando tu respuesta",
+    "en": "Waiting for your answer"
+  },
+  "web.social.friends.yes": {
+    "text": "Sí",
+    "en": "Yes"
+  },
+  "web.social.likes.none": {
+    "text": "Aún no hay ningún Me gusta",
+    "en": "No likes yet"
+  },
+  "web.social.likes.title": {
+    "text": "Me gusta",
+    "en": "Likes"
+  },
+  "web.social.post.confirm_delete": {
+    "text": "¿Eliminar esta publicación?",
+    "en": "Delete this post?",
+    "reviewed": "claude-backtranslation 2026-10-11 #27731589"
+  },
+  "web.social.post.delete": {
+    "text": "Eliminar publicación",
+    "en": "Delete post"
+  },
+  "web.social.post.download_photo_position": {
+    "text": "Descargar esta foto, {index} de {total}",
+    "en": "Download this photo {index} of {total}"
+  },
+  "web.social.post.download_video_position": {
+    "text": "Descargar este vídeo, {index} de {total}",
+    "en": "Download this video {index} of {total}"
+  },
+  "web.social.post.label_photo": {
+    "text": "Descargar foto",
+    "en": "Download photo"
+  },
+  "web.social.post.label_photo_position": {
+    "text": "Descargar foto {index} de {total}",
+    "en": "Download photo {index} of {total}"
+  },
+  "web.social.post.label_video": {
+    "text": "Descargar vídeo",
+    "en": "Download video"
+  },
+  "web.social.post.label_video_position": {
+    "text": "Descargar vídeo {index} de {total}",
+    "en": "Download video {index} of {total}"
+  },
+  "web.social.post.like": {
+    "text": "Dar Me gusta a la publicación",
+    "en": "Like publication"
+  },
+  "web.social.post.likes": {
+    "text": {
+      "one": "{count} Me gusta",
+      "other": "{count} Me gusta"
+    },
+    "en": {
+      "one": "{count} like",
+      "other": "{count} likes"
+    }
+  },
+  "web.social.post.mute": {
+    "text": "Silenciar vídeo",
+    "en": "Mute video"
+  },
+  "web.social.post.next": {
+    "text": "Siguiente",
+    "en": "Next"
+  },
+  "web.social.post.next_item": {
+    "text": "Elemento siguiente",
+    "en": "Next item"
+  },
+  "web.social.post.previous": {
+    "text": "Anterior",
+    "en": "Previous"
+  },
+  "web.social.post.previous_item": {
+    "text": "Elemento anterior",
+    "en": "Previous item"
+  },
+  "web.social.post.replay": {
+    "text": "Volver a reproducir el vídeo",
+    "en": "Replay video"
+  },
+  "web.social.post.share_unavailable": {
+    "text": "Compartir (aún no disponible)",
+    "en": "Share (not implemented)"
+  },
+  "web.social.post.unlike": {
+    "text": "Quitar Me gusta de la publicación",
+    "en": "Unlike publication"
+  },
+  "web.social.post.unmute": {
+    "text": "Activar sonido del vídeo",
+    "en": "Unmute video"
+  },
+  "web.social.profile.avatar": {
+    "text": "avatar",
+    "en": "avatar"
+  },
+  "web.social.profile.bio": {
+    "text": "Di algo sobre ti…",
+    "en": "Say something about you…"
+  },
+  "web.social.profile.from_computer": {
+    "text": "Desde este ordenador",
+    "en": "From this computer"
+  },
+  "web.social.profile.from_device": {
+    "text": "Desde tu dispositivo",
+    "en": "From your device"
+  },
+  "web.social.profile.load_failed": {
+    "text": "No se ha podido cargar el perfil.",
+    "en": "Failed to load profile."
+  },
+  "web.social.profile.name": {
+    "text": "Tu nombre",
+    "en": "Your name"
+  },
+  "web.social.profile.no_bio": {
+    "text": "Aún no hay biografía.",
+    "en": "No bio yet."
+  },
+  "web.social.profile.save": {
+    "text": "Guardar perfil",
+    "en": "Save profile"
+  },
+  "web.social.profile.save_failed": {
+    "text": "No se ha podido guardar.",
+    "en": "Save failed."
+  },
+  "web.social.profile.saved": {
+    "text": "Perfil guardado.",
+    "en": "Profile saved."
+  },
+  "web.social.profile.saving": {
+    "text": "Guardando…",
+    "en": "Saving…"
+  },
+  "web.social.profile.unexpected": {
+    "text": "Respuesta inesperada.",
+    "en": "Unexpected response."
+  },
+  "web.social.profile.unnamed": {
+    "text": "Usuario sin nombre",
+    "en": "Unnamed user"
+  },
+  "web.social.time.days": {
+    "text": "{days} d",
+    "en": "{days}d"
+  },
+  "web.social.time.days_ago": {
+    "text": "{days} d",
+    "en": "{days}d ago"
+  },
+  "web.social.time.hours": {
+    "text": "{hours} h",
+    "en": "{hours}h"
+  },
+  "web.social.time.hours_ago": {
+    "text": "{hours} h",
+    "en": "{hours}h ago"
+  },
+  "web.social.time.just_now": {
+    "text": "ahora mismo",
+    "en": "just now"
+  },
+  "web.social.time.minutes": {
+    "text": "{minutes} min",
+    "en": "{minutes}m"
+  },
+  "web.social.time.minutes_ago": {
+    "text": "{minutes} min",
+    "en": "{minutes}m ago"
+  },
+  "web.social.viewer.download_photo": {
+    "text": "Descargar esta foto",
+    "en": "Download this photo"
+  },
+  "web.social.viewer.download_video": {
+    "text": "Descargar este vídeo",
+    "en": "Download this video"
+  },
+  "web.social.viewer.full": {
+    "text": "tamaño completo",
+    "en": "full"
+  },
+  "web.social.viewer.photo_by": {
+    "text": "Foto de {name}",
+    "en": "Photo by {name}"
+  },
+  "web.social.viewer.photo_by_position": {
+    "text": "Foto de {name}, {index} de {total}",
+    "en": "Photo by {name}, {index} of {total}"
+  },
+  "web.social.viewer.video_by": {
+    "text": "Vídeo de {name}",
+    "en": "Video by {name}"
+  },
+  "web.social.viewer.video_by_position": {
+    "text": "Vídeo de {name}, {index} de {total}",
+    "en": "Video by {name}, {index} of {total}"
+  },
+  "web.social.viewer.video_loading": {
+    "text": "cargando vídeo",
+    "en": "video loading"
+  }
+}

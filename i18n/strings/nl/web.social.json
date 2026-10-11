@@ -1,0 +1,591 @@
+{
+  "web.social.alerts.commented": {
+    "text": "<b>{name}</b> heeft gereageerd op je bericht",
+    "en": "<b>{name}</b> commented on your post"
+  },
+  "web.social.alerts.friend_accepted": {
+    "text": "<b>{name}</b> heeft je vriendschapsverzoek geaccepteerd",
+    "en": "<b>{name}</b> accepted your friend request"
+  },
+  "web.social.alerts.friend_request": {
+    "text": "<b>{name}</b> heeft je een vriendschapsverzoek gestuurd",
+    "en": "<b>{name}</b> sent you a friend request"
+  },
+  "web.social.alerts.friends": {
+    "text": "Vrienden ✓",
+    "en": "Friends ✓"
+  },
+  "web.social.alerts.liked_comment": {
+    "text": "<b>{name}</b> vindt je reactie leuk",
+    "en": "<b>{name}</b> liked your comment"
+  },
+  "web.social.alerts.liked_post": {
+    "text": "<b>{name}</b> vindt je bericht leuk",
+    "en": "<b>{name}</b> liked your post"
+  },
+  "web.social.alerts.more": {
+    "text": "+{more} meer",
+    "en": "+{more} more"
+  },
+  "web.social.alerts.nothing": {
+    "text": "Nog niets",
+    "en": "Nothing yet"
+  },
+  "web.social.comment.author": {
+    "text": "{name}:",
+    "en": "{name}:"
+  },
+  "web.social.comment.confirm_delete": {
+    "text": "Deze reactie verwijderen?",
+    "en": "Delete this comment?",
+    "reviewed": "claude-backtranslation 2026-10-11 #0d359007"
+  },
+  "web.social.comment.delete": {
+    "text": "Reactie verwijderen",
+    "en": "Delete comment"
+  },
+  "web.social.comment.like": {
+    "text": "Reactie leuk vinden",
+    "en": "Like comment"
+  },
+  "web.social.comment.me": {
+    "text": "ik",
+    "en": "me"
+  },
+  "web.social.comment.placeholder": {
+    "text": "Schrijf een reactie…",
+    "en": "Add a comment…"
+  },
+  "web.social.comment.post": {
+    "text": "Plaatsen",
+    "en": "Post"
+  },
+  "web.social.comment.unlike": {
+    "text": "Reactie niet meer leuk vinden",
+    "en": "Unlike comment"
+  },
+  "web.social.composer.camera": {
+    "text": "Foto of video maken",
+    "en": "Take a photo or video"
+  },
+  "web.social.composer.caption": {
+    "text": "Schrijf een bijschrift…",
+    "en": "Write a caption…"
+  },
+  "web.social.composer.drop": {
+    "text": "Sleep foto’s of video’s hierheen, of klik om bestanden op deze computer te kiezen.",
+    "en": "Drag photos or videos here, or click to choose files from this computer."
+  },
+  "web.social.composer.library": {
+    "text": "Bibliotheek",
+    "en": "Library"
+  },
+  "web.social.composer.move_earlier": {
+    "text": "{name} naar voren verplaatsen",
+    "en": "Move {name} earlier"
+  },
+  "web.social.composer.move_later": {
+    "text": "{name} naar achteren verplaatsen",
+    "en": "Move {name} later"
+  },
+  "web.social.composer.order": {
+    "text": "Volgorde in het bericht: sleep, of gebruik ‹ ›",
+    "en": "Order in post — drag, or use ‹ ›"
+  },
+  "web.social.composer.publish": {
+    "text": "Publiceren",
+    "en": "Publish"
+  },
+  "web.social.composer.publish_count": {
+    "text": "Publiceren ({count})",
+    "en": "Publish ({count})"
+  },
+  "web.social.composer.publish_failed": {
+    "text": "Kan het bericht niet publiceren.",
+    "en": "Could not publish the post."
+  },
+  "web.social.composer.publishing": {
+    "text": "Publiceren…",
+    "en": "Publishing…"
+  },
+  "web.social.composer.remove_file": {
+    "text": "{name} verwijderen",
+    "en": "Remove {name}"
+  },
+  "web.social.composer.remove_from_post": {
+    "text": "{name} uit het bericht verwijderen",
+    "en": "Remove {name} from the post"
+  },
+  "web.social.composer.remove_tag": {
+    "text": "{tag} verwijderen",
+    "en": "Remove {tag}"
+  },
+  "web.social.composer.tag_filter": {
+    "text": "Filteren op tag…",
+    "en": "Filter by tag…"
+  },
+  "web.social.composer.this_computer": {
+    "text": "Deze computer",
+    "en": "This Computer"
+  },
+  "web.social.composer.title": {
+    "text": "Nieuw bericht",
+    "en": "New post"
+  },
+  "web.social.composer.trim": {
+    "text": "✂ Inkorten",
+    "en": "✂ Trim"
+  },
+  "web.social.composer.trim_item": {
+    "text": "{name} inkorten",
+    "en": "Trim {name}"
+  },
+  "web.social.composer.trim_load_failed": {
+    "text": "Kan die video niet laden om hem in te korten.",
+    "en": "Could not load that video to trim it."
+  },
+  "web.social.composer.upload_none": {
+    "text": "Kan geen van de geselecteerde bestanden uploaden.",
+    "en": "Could not upload any of the selected files."
+  },
+  "web.social.composer.upload_some": {
+    "text": {
+      "one": "{count} bestand kon niet worden geüpload; de rest wordt gepubliceerd.",
+      "other": "{count} bestanden konden niet worden geüpload; de rest wordt gepubliceerd."
+    },
+    "en": {
+      "one": "{count} file(s) failed to upload - publishing the rest.",
+      "other": "{count} file(s) failed to upload - publishing the rest."
+    }
+  },
+  "web.social.feed.empty_text": {
+    "text": "Deel een foto of video met je vrienden: die gaat van jouw apparaat naar dat van hen, zonder cloud ertussen.",
+    "en": "Share a photo or a video with your friends — it goes from your device to theirs, with no cloud in between."
+  },
+  "web.social.feed.empty_title": {
+    "text": "Geen berichten",
+    "en": "No social posts"
+  },
+  "web.social.feed.loading_more": {
+    "text": "Meer laden…",
+    "en": "Loading more…"
+  },
+  "web.social.feed.new_post": {
+    "text": "Nieuw bericht",
+    "en": "New post"
+  },
+  "web.social.feed.user": {
+    "text": "Gebruiker",
+    "en": "User"
+  },
+  "web.social.friends.add_title": {
+    "text": "Vrienden toevoegen",
+    "en": "Add a friend"
+  },
+  "web.social.friends.ask_delete_mine": {
+    "text": "Het apparaat van {name} vragen om te verwijderen wat ik daar heb gedeeld",
+    "en": "Ask {name}'s device to delete what I shared there",
+    "reviewed": "claude-backtranslation 2026-10-11 #b1fb88ed"
+  },
+  "web.social.friends.ask_delete_mine_hint": {
+    "text": "Je berichten, reacties en likes op hun apparaat. Als dat offline is, gebeurt het de volgende keer dat het verbinding maakt; tot die tijd staat de vriendschap op “Wordt verwijderd”.",
+    "en": "Your posts, comments and likes on their device. If it's offline, it happens the next time it connects; until then they show as leaving.",
+    "reviewed": "claude-backtranslation 2026-10-11 #3dcecd2c"
+  },
+  "web.social.friends.asked_delete": {
+    "text": "Hun apparaat is gevraagd te verwijderen wat je hebt gedeeld",
+    "en": "Asked their device to delete what you shared"
+  },
+  "web.social.friends.block": {
+    "text": "Blokkeren",
+    "en": "Block"
+  },
+  "web.social.friends.cancel_request": {
+    "text": "Verzoek intrekken",
+    "en": "Cancel request"
+  },
+  "web.social.friends.confirm_cancel": {
+    "text": "Dit verzoek intrekken?",
+    "en": "Cancel this request?",
+    "reviewed": "claude-backtranslation 2026-10-11 #896b2387"
+  },
+  "web.social.friends.confirm_delete": {
+    "text": "Dit verzoek verwijderen?",
+    "en": "Delete this request?",
+    "reviewed": "claude-backtranslation 2026-10-11 #92a87fd9"
+  },
+  "web.social.friends.confirm_remove_now": {
+    "text": "{name} nu verwijderen? Er wordt dan niet langer gewacht op hun apparaat. Wat het nog niet heeft verwijderd, blijft daar staan.",
+    "en": "Remove {name} now? This stops waiting for their device. Whatever it hasn't deleted yet stays there.",
+    "reviewed": "claude-backtranslation 2026-10-11 #b0c6f7eb"
+  },
+  "web.social.friends.delete_error": {
+    "text": "Fout bij het verwijderen van het verzoek",
+    "en": "Error deleting request"
+  },
+  "web.social.friends.delete_failed": {
+    "text": "Verwijderen mislukt",
+    "en": "Delete failed"
+  },
+  "web.social.friends.delete_theirs": {
+    "text": "Ook alles van {name} op dit apparaat verwijderen",
+    "en": "Also delete everything from {name} on this device",
+    "reviewed": "claude-backtranslation 2026-10-11 #38205a6c"
+  },
+  "web.social.friends.delete_theirs_hint": {
+    "text": "Hun berichten en foto’s, en hun reacties en likes op elk bericht.",
+    "en": "Their posts and photos, and their comments and likes on any post.",
+    "reviewed": "claude-backtranslation 2026-10-11 #75f00dbc"
+  },
+  "web.social.friends.friends_again": {
+    "text": "Jullie zijn weer vrienden ✅",
+    "en": "You're friends again ✅"
+  },
+  "web.social.friends.invalid_name": {
+    "text": "Voer de naam van het apparaat in, bijvoorbeeld pit: letters, cijfers en streepjes.",
+    "en": "Enter the device's name, like pit - letters, digits and dashes."
+  },
+  "web.social.friends.keep": {
+    "text": "Behouden",
+    "en": "Keep"
+  },
+  "web.social.friends.leaving": {
+    "text": "Wordt verwijderd",
+    "en": "Leaving"
+  },
+  "web.social.friends.name_label": {
+    "text": "Apparaatnaam van je vriend, vóór .{suffix}",
+    "en": "Friend's device name, before .{suffix}"
+  },
+  "web.social.friends.name_placeholder": {
+    "text": "naam",
+    "en": "name"
+  },
+  "web.social.friends.no_domain": {
+    "text": "(geen domein)",
+    "en": "(no domain)"
+  },
+  "web.social.friends.no_name": {
+    "text": "(geen naam)",
+    "en": "(no name)"
+  },
+  "web.social.friends.no_others": {
+    "text": "Nog geen andere vrienden.",
+    "en": "No other friends yet."
+  },
+  "web.social.friends.none": {
+    "text": "Nog geen vriendschappen.",
+    "en": "No friendships yet."
+  },
+  "web.social.friends.remove": {
+    "text": "Vriend verwijderen",
+    "en": "Remove friend"
+  },
+  "web.social.friends.remove_error": {
+    "text": "Fout bij het verwijderen van de vriendschap",
+    "en": "Error removing friend"
+  },
+  "web.social.friends.remove_failed": {
+    "text": "Verwijderen mislukt",
+    "en": "Remove failed"
+  },
+  "web.social.friends.remove_now": {
+    "text": "Nu verwijderen",
+    "en": "Remove now"
+  },
+  "web.social.friends.removed": {
+    "text": "Vriend verwijderd",
+    "en": "Friend removed"
+  },
+  "web.social.friends.request_cancelled": {
+    "text": "Verzoek ingetrokken",
+    "en": "Request cancelled"
+  },
+  "web.social.friends.request_deleted": {
+    "text": "Verzoek verwijderd",
+    "en": "Request deleted"
+  },
+  "web.social.friends.request_failed": {
+    "text": "Verzoek mislukt",
+    "en": "Request failed"
+  },
+  "web.social.friends.request_sent": {
+    "text": "Vriendschapsverzoek verstuurd ✅",
+    "en": "Friend request sent ✅"
+  },
+  "web.social.friends.send": {
+    "text": "Verzoek sturen",
+    "en": "Send request"
+  },
+  "web.social.friends.send_error": {
+    "text": "Fout bij het versturen van het verzoek",
+    "en": "Error sending request"
+  },
+  "web.social.friends.sending": {
+    "text": "Versturen…",
+    "en": "Sending…"
+  },
+  "web.social.friends.set_pending": {
+    "text": "Op openstaand zetten",
+    "en": "Set Pending"
+  },
+  "web.social.friends.status_accepted": {
+    "text": "Geaccepteerd",
+    "en": "Accepted"
+  },
+  "web.social.friends.status_accepted_sent": {
+    "text": "Geaccepteerd (verstuurd)",
+    "en": "Accepted (sent)"
+  },
+  "web.social.friends.status_blocked": {
+    "text": "Geblokkeerd",
+    "en": "Blocked"
+  },
+  "web.social.friends.status_blocked_sent": {
+    "text": "Geblokkeerd (verstuurd)",
+    "en": "Blocked (sent)"
+  },
+  "web.social.friends.status_pending": {
+    "text": "Openstaand",
+    "en": "Pending"
+  },
+  "web.social.friends.status_pending_sent": {
+    "text": "Openstaand (verstuurd)",
+    "en": "Pending (sent)"
+  },
+  "web.social.friends.status_updated": {
+    "text": "Status bijgewerkt ✅",
+    "en": "Status updated ✅"
+  },
+  "web.social.friends.title": {
+    "text": "Vrienden",
+    "en": "Friends"
+  },
+  "web.social.friends.unexpected": {
+    "text": "Onverwacht antwoord",
+    "en": "Unexpected response"
+  },
+  "web.social.friends.update_error": {
+    "text": "Fout bij het bijwerken van de status",
+    "en": "Error updating status"
+  },
+  "web.social.friends.update_failed": {
+    "text": "Bijwerken mislukt",
+    "en": "Update failed"
+  },
+  "web.social.friends.waiting_delete": {
+    "text": "Wachten tot hun apparaat verwijdert wat je hebt gedeeld.",
+    "en": "Waiting for their device to delete what you shared."
+  },
+  "web.social.friends.waiting_title": {
+    "text": "Wachten op je antwoord",
+    "en": "Waiting for your answer"
+  },
+  "web.social.friends.yes": {
+    "text": "Ja",
+    "en": "Yes"
+  },
+  "web.social.likes.none": {
+    "text": "Nog geen likes",
+    "en": "No likes yet"
+  },
+  "web.social.likes.title": {
+    "text": "Likes",
+    "en": "Likes"
+  },
+  "web.social.post.confirm_delete": {
+    "text": "Dit bericht verwijderen?",
+    "en": "Delete this post?",
+    "reviewed": "claude-backtranslation 2026-10-11 #c6883dff"
+  },
+  "web.social.post.delete": {
+    "text": "Bericht verwijderen",
+    "en": "Delete post"
+  },
+  "web.social.post.download_photo_position": {
+    "text": "Deze foto downloaden ({index} van {total})",
+    "en": "Download this photo {index} of {total}"
+  },
+  "web.social.post.download_video_position": {
+    "text": "Deze video downloaden ({index} van {total})",
+    "en": "Download this video {index} of {total}"
+  },
+  "web.social.post.label_photo": {
+    "text": "Foto downloaden",
+    "en": "Download photo"
+  },
+  "web.social.post.label_photo_position": {
+    "text": "Foto {index} van {total} downloaden",
+    "en": "Download photo {index} of {total}"
+  },
+  "web.social.post.label_video": {
+    "text": "Video downloaden",
+    "en": "Download video"
+  },
+  "web.social.post.label_video_position": {
+    "text": "Video {index} van {total} downloaden",
+    "en": "Download video {index} of {total}"
+  },
+  "web.social.post.like": {
+    "text": "Bericht leuk vinden",
+    "en": "Like publication"
+  },
+  "web.social.post.likes": {
+    "text": {
+      "one": "{count} like",
+      "other": "{count} likes"
+    },
+    "en": {
+      "one": "{count} like",
+      "other": "{count} likes"
+    }
+  },
+  "web.social.post.mute": {
+    "text": "Geluid van video uitzetten",
+    "en": "Mute video"
+  },
+  "web.social.post.next": {
+    "text": "Volgende",
+    "en": "Next"
+  },
+  "web.social.post.next_item": {
+    "text": "Volgend item",
+    "en": "Next item"
+  },
+  "web.social.post.previous": {
+    "text": "Vorige",
+    "en": "Previous"
+  },
+  "web.social.post.previous_item": {
+    "text": "Vorig item",
+    "en": "Previous item"
+  },
+  "web.social.post.replay": {
+    "text": "Video opnieuw afspelen",
+    "en": "Replay video"
+  },
+  "web.social.post.share_unavailable": {
+    "text": "Delen (niet beschikbaar)",
+    "en": "Share (not implemented)"
+  },
+  "web.social.post.unlike": {
+    "text": "Bericht niet meer leuk vinden",
+    "en": "Unlike publication"
+  },
+  "web.social.post.unmute": {
+    "text": "Geluid van video aanzetten",
+    "en": "Unmute video"
+  },
+  "web.social.profile.avatar": {
+    "text": "avatar",
+    "en": "avatar"
+  },
+  "web.social.profile.bio": {
+    "text": "Vertel iets over jezelf…",
+    "en": "Say something about you…"
+  },
+  "web.social.profile.from_computer": {
+    "text": "Van deze computer",
+    "en": "From this computer"
+  },
+  "web.social.profile.from_device": {
+    "text": "Van je apparaat",
+    "en": "From your device"
+  },
+  "web.social.profile.load_failed": {
+    "text": "Kan het profiel niet laden.",
+    "en": "Failed to load profile."
+  },
+  "web.social.profile.name": {
+    "text": "Je naam",
+    "en": "Your name"
+  },
+  "web.social.profile.no_bio": {
+    "text": "Nog geen bio.",
+    "en": "No bio yet."
+  },
+  "web.social.profile.save": {
+    "text": "Profiel opslaan",
+    "en": "Save profile"
+  },
+  "web.social.profile.save_failed": {
+    "text": "Opslaan mislukt.",
+    "en": "Save failed."
+  },
+  "web.social.profile.saved": {
+    "text": "Profiel opgeslagen.",
+    "en": "Profile saved."
+  },
+  "web.social.profile.saving": {
+    "text": "Opslaan…",
+    "en": "Saving…"
+  },
+  "web.social.profile.unexpected": {
+    "text": "Onverwacht antwoord.",
+    "en": "Unexpected response."
+  },
+  "web.social.profile.unnamed": {
+    "text": "Gebruiker zonder naam",
+    "en": "Unnamed user"
+  },
+  "web.social.time.days": {
+    "text": "{days} d",
+    "en": "{days}d"
+  },
+  "web.social.time.days_ago": {
+    "text": "{days} d",
+    "en": "{days}d ago"
+  },
+  "web.social.time.hours": {
+    "text": "{hours} h",
+    "en": "{hours}h"
+  },
+  "web.social.time.hours_ago": {
+    "text": "{hours} uur",
+    "en": "{hours}h ago"
+  },
+  "web.social.time.just_now": {
+    "text": "zojuist",
+    "en": "just now"
+  },
+  "web.social.time.minutes": {
+    "text": "{minutes} m",
+    "en": "{minutes}m"
+  },
+  "web.social.time.minutes_ago": {
+    "text": "{minutes} min",
+    "en": "{minutes}m ago"
+  },
+  "web.social.viewer.download_photo": {
+    "text": "Deze foto downloaden",
+    "en": "Download this photo"
+  },
+  "web.social.viewer.download_video": {
+    "text": "Deze video downloaden",
+    "en": "Download this video"
+  },
+  "web.social.viewer.full": {
+    "text": "volledige grootte",
+    "en": "full"
+  },
+  "web.social.viewer.photo_by": {
+    "text": "Foto van {name}",
+    "en": "Photo by {name}"
+  },
+  "web.social.viewer.photo_by_position": {
+    "text": "Foto van {name}, {index} van {total}",
+    "en": "Photo by {name}, {index} of {total}"
+  },
+  "web.social.viewer.video_by": {
+    "text": "Video van {name}",
+    "en": "Video by {name}"
+  },
+  "web.social.viewer.video_by_position": {
+    "text": "Video van {name}, {index} van {total}",
+    "en": "Video by {name}, {index} of {total}"
+  },
+  "web.social.viewer.video_loading": {
+    "text": "video wordt geladen",
+    "en": "video loading"
+  }
+}

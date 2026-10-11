@@ -17,7 +17,7 @@
     {"en": "Alerts", "text": "Alertes", "note": "Tab name: the device’s alerts and friends’ activity. Not the same word as notifications.", "enforce": true},
     {"en": "Settings", "text": "Paramètres", "note": "Tab name; also the phone’s own Settings app. Our tab, as on Android and Windows. A text that sends the user to the iPhone’s Settings app says Réglages, and Réglages Système on a Mac, so this term is not enforced.", "enforce": false},
     {"en": "Sharing", "text": "Partage", "note": "Menu heading above Social and Friends.", "enforce": false},
-    {"en": "device", "text": "appareil", "note": "The Off The Cloud box (a Raspberry Pi with its disks) that holds everything; also the menu heading Device. Never server, NAS or box in app text. Masculine.", "enforce": true},
+    {"en": "device", "text": "appareil", "note": "The Off The Cloud box (a Raspberry Pi with its disks) that holds everything; also the menu heading Device. Never server, NAS or box in app text. Masculine.", "enforce": true, "except": ["web.images.share.zip_hint"]},
     {"en": "devices", "text": "appareils", "note": "Plural of device.", "enforce": true, "except": ["dev.device.storage_too_many"]},
     {"en": "bridge", "text": "passerelle", "note": "Our relay at off-the.cloud that connects the apps and friends to a device away from home. A common noun, lowercase inside a sentence, one fixed word per language. Feminine: la passerelle. Not pont.", "enforce": true},
     {"en": "bridge access", "text": "accès à la passerelle", "note": "Being reachable through the bridge (a Settings section and the request a user account can carry).", "enforce": true},

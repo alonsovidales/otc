@@ -567,6 +567,40 @@
     "text": "A usar {used} de {limit}",
     "en": "Using {used} of {limit}"
   },
+  "app.shell.time_days_ago": {
+    "text": {
+      "one": "há {count} d",
+      "other": "há {count} d"
+    },
+    "en": {
+      "one": "{count}d ago",
+      "other": "{count}d ago"
+    }
+  },
+  "app.shell.time_hours_ago": {
+    "text": {
+      "one": "há {count} h",
+      "other": "há {count} h"
+    },
+    "en": {
+      "one": "{count}h ago",
+      "other": "{count}h ago"
+    }
+  },
+  "app.shell.time_just_now": {
+    "text": "agora mesmo",
+    "en": "just now"
+  },
+  "app.shell.time_minutes_ago": {
+    "text": {
+      "one": "há {count} min",
+      "other": "há {count} min"
+    },
+    "en": {
+      "one": "{count}m ago",
+      "other": "{count}m ago"
+    }
+  },
   "app.shell.upload_left": {
     "text": {
       "one": "falta {count}",

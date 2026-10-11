@@ -17,7 +17,7 @@
     {"en": "Alerts", "text": "Alertas", "note": "Tab name: the device’s alerts and friends’ activity. Not the same word as notifications.", "enforce": true},
     {"en": "Settings", "text": "Definições", "note": "Tab name; also the phone’s own Settings app. European Portuguese (Brazil says Configurações). macOS: Definições do Sistema.", "enforce": true},
     {"en": "Sharing", "text": "Partilha", "note": "Menu heading above Social and Friends.", "enforce": false},
-    {"en": "device", "text": "dispositivo", "note": "The Off The Cloud box (a Raspberry Pi with its disks) that holds everything; also the menu heading Device. Never server, NAS or box in app text. Masculine.", "enforce": true},
+    {"en": "device", "text": "dispositivo", "note": "The Off The Cloud box (a Raspberry Pi with its disks) that holds everything; also the menu heading Device. Never server, NAS or box in app text. Masculine.", "enforce": true, "except": ["web.images.share.zip_hint"]},
     {"en": "devices", "text": "dispositivos", "note": "Plural of device.", "enforce": true, "except": ["dev.device.storage_too_many"]},
     {"en": "bridge", "text": "ponte", "note": "Our relay at off-the.cloud that connects the apps and friends to a device away from home. A common noun, lowercase inside a sentence, one fixed word per language. Feminine: a ponte.", "enforce": true},
     {"en": "bridge access", "text": "acesso à ponte", "note": "Being reachable through the bridge (a Settings section and the request a user account can carry).", "enforce": true},

@@ -1,0 +1,651 @@
+{
+  "app.photos.collections.add_title": {
+    "text": {
+      "one": "{count} zu einer Sammlung hinzufügen",
+      "other": "{count} zu einer Sammlung hinzufügen"
+    },
+    "en": {
+      "one": "Add {count} to a collection",
+      "other": "Add {count} to a collection"
+    }
+  },
+  "app.photos.collections.delete": {
+    "text": "Sammlung löschen",
+    "en": "Delete collection",
+    "reviewed": "claude-backtranslation 2026-10-11 #61e4e965"
+  },
+  "app.photos.collections.delete_message": {
+    "text": "Die Fotos und Videos selbst bleiben erhalten.",
+    "en": "The pictures themselves are kept.",
+    "reviewed": "claude-backtranslation 2026-10-11 #dd3dad91"
+  },
+  "app.photos.collections.delete_title": {
+    "text": "Die Sammlung „{name}“ löschen?",
+    "en": "Delete the collection \"{name}\"?",
+    "reviewed": "claude-backtranslation 2026-10-11 #4957302f"
+  },
+  "app.photos.collections.name_placeholder": {
+    "text": "Name der Sammlung",
+    "en": "Collection name"
+  },
+  "app.photos.collections.new_item": {
+    "text": "Neue Sammlung…",
+    "en": "New collection…"
+  },
+  "app.photos.collections.new_message": {
+    "text": {
+      "one": "{count} Element wird der Sammlung hinzugefügt.",
+      "other": "{count} Elemente werden der Sammlung hinzugefügt."
+    },
+    "en": {
+      "one": "{count} picture will be added to it.",
+      "other": "{count} pictures will be added to it."
+    }
+  },
+  "app.photos.collections.new_title": {
+    "text": "Neue Sammlung",
+    "en": "New collection"
+  },
+  "app.photos.collections.pictures": {
+    "text": {
+      "one": "{count} Element",
+      "other": "{count} Elemente"
+    },
+    "en": {
+      "one": "{count} picture",
+      "other": "{count} pictures"
+    }
+  },
+  "app.photos.collections.rename": {
+    "text": "Sammlung umbenennen",
+    "en": "Rename collection"
+  },
+  "app.photos.collections.sheet_empty": {
+    "text": "Noch keine Sammlungen – wähle Fotos aus und tippe auf „Zur Sammlung hinzufügen“.",
+    "en": "No collections yet — select some pictures and choose Add to collection."
+  },
+  "app.photos.grid.collection_items_span": {
+    "text": {
+      "one": "{count} Element · {span}",
+      "other": "{count} Elemente · {span}"
+    },
+    "en": {
+      "one": "{count} item · {span}",
+      "other": "{count} items · {span}"
+    }
+  },
+  "app.photos.grid.empty_collection_text": {
+    "text": "Wähle in „Bilder“ Fotos aus und tippe dann auf „Zur Sammlung hinzufügen“.",
+    "en": "Select photos in Images, then choose Add to collection."
+  },
+  "app.photos.grid.empty_collection_title": {
+    "text": "Diese Sammlung ist leer",
+    "en": "This collection is empty"
+  },
+  "app.photos.grid.no_match_in": {
+    "text": "Nichts in „{name}“ passt zu dieser Suche.",
+    "en": "Nothing in “{name}” matches this search."
+  },
+  "app.photos.grid.no_match_text": {
+    "text": "Versuche es mit anderen oder weniger Wörtern.",
+    "en": "Try other words, or fewer of them."
+  },
+  "app.photos.grid.no_match_title": {
+    "text": "Keine passenden Fotos",
+    "en": "No photos match"
+  },
+  "app.photos.grid.no_photos_text": {
+    "text": "Fotos aus den Handy- und Computer-Apps erscheinen hier.",
+    "en": "Photos from the phone and computer apps appear here."
+  },
+  "app.photos.grid.no_photos_title": {
+    "text": "Noch keine Fotos",
+    "en": "No photos yet"
+  },
+  "app.photos.grid.people_more": {
+    "text": {
+      "one": "{first}, {second} & {count} weitere",
+      "other": "{first}, {second} & {count} weitere"
+    },
+    "en": {
+      "one": "{first}, {second} & {count} other",
+      "other": "{first}, {second} & {count} others"
+    }
+  },
+  "app.photos.grid.people_two": {
+    "text": "{first} & {second}",
+    "en": "{first} & {second}"
+  },
+  "app.photos.grid.person_items": {
+    "text": {
+      "one": "{count} Element",
+      "other": "{count} Elemente"
+    },
+    "en": {
+      "one": "{count} item",
+      "other": "{count} items"
+    }
+  },
+  "app.photos.grid.tile_photo": {
+    "text": "Foto",
+    "en": "Photo"
+  },
+  "app.photos.grid.tile_photo_on": {
+    "text": "Foto, {date}",
+    "en": "Photo, {date}"
+  },
+  "app.photos.grid.tile_video": {
+    "text": "Video",
+    "en": "Video"
+  },
+  "app.photos.grid.tile_video_on": {
+    "text": "Video, {date}",
+    "en": "Video, {date}"
+  },
+  "app.photos.months.april": {
+    "text": "April",
+    "en": "April"
+  },
+  "app.photos.months.april_short": {
+    "text": "Apr.",
+    "en": "Apr"
+  },
+  "app.photos.months.august": {
+    "text": "August",
+    "en": "August"
+  },
+  "app.photos.months.august_short": {
+    "text": "Aug.",
+    "en": "Aug"
+  },
+  "app.photos.months.day": {
+    "text": "{day}. {month} {year}",
+    "en": "{day} {month} {year}"
+  },
+  "app.photos.months.december": {
+    "text": "Dezember",
+    "en": "December"
+  },
+  "app.photos.months.december_short": {
+    "text": "Dez.",
+    "en": "Dec"
+  },
+  "app.photos.months.february": {
+    "text": "Februar",
+    "en": "February"
+  },
+  "app.photos.months.february_short": {
+    "text": "Feb.",
+    "en": "Feb"
+  },
+  "app.photos.months.january": {
+    "text": "Januar",
+    "en": "January"
+  },
+  "app.photos.months.january_short": {
+    "text": "Jan.",
+    "en": "Jan"
+  },
+  "app.photos.months.july": {
+    "text": "Juli",
+    "en": "July"
+  },
+  "app.photos.months.july_short": {
+    "text": "Juli",
+    "en": "Jul"
+  },
+  "app.photos.months.june": {
+    "text": "Juni",
+    "en": "June"
+  },
+  "app.photos.months.june_short": {
+    "text": "Juni",
+    "en": "Jun"
+  },
+  "app.photos.months.march": {
+    "text": "März",
+    "en": "March"
+  },
+  "app.photos.months.march_short": {
+    "text": "März",
+    "en": "Mar"
+  },
+  "app.photos.months.may": {
+    "text": "Mai",
+    "en": "May"
+  },
+  "app.photos.months.may_short": {
+    "text": "Mai",
+    "en": "May"
+  },
+  "app.photos.months.no_date": {
+    "text": "Ohne Datum",
+    "en": "No date"
+  },
+  "app.photos.months.november": {
+    "text": "November",
+    "en": "November"
+  },
+  "app.photos.months.november_short": {
+    "text": "Nov.",
+    "en": "Nov"
+  },
+  "app.photos.months.october": {
+    "text": "Oktober",
+    "en": "October"
+  },
+  "app.photos.months.october_short": {
+    "text": "Okt.",
+    "en": "Oct"
+  },
+  "app.photos.months.range": {
+    "text": "{from} – {to}",
+    "en": "{from} – {to}"
+  },
+  "app.photos.months.range_in_year": {
+    "text": "{from} – {to} {year}",
+    "en": "{from} – {to} {year}"
+  },
+  "app.photos.months.september": {
+    "text": "September",
+    "en": "September"
+  },
+  "app.photos.months.september_short": {
+    "text": "Sept.",
+    "en": "Sep"
+  },
+  "app.photos.months.short_title": {
+    "text": "{month} {year}",
+    "en": "{month} {year}"
+  },
+  "app.photos.months.title": {
+    "text": "{month} {year}",
+    "en": "{month} {year}"
+  },
+  "app.photos.notice.add_failed": {
+    "text": "Hinzufügen zur Sammlung fehlgeschlagen.",
+    "en": "Could not add to the collection."
+  },
+  "app.photos.notice.added": {
+    "text": "Zu „{name}“ hinzugefügt.",
+    "en": "Added to \"{name}\"."
+  },
+  "app.photos.notice.create_failed": {
+    "text": "Die Sammlung konnte nicht erstellt werden.",
+    "en": "Could not create the collection."
+  },
+  "app.photos.notice.created": {
+    "text": "Sammlung „{name}“ erstellt.",
+    "en": "Collection \"{name}\" created."
+  },
+  "app.photos.notice.delete_collection_failed": {
+    "text": "Die Sammlung konnte nicht gelöscht werden.",
+    "en": "Could not delete the collection."
+  },
+  "app.photos.notice.delete_failed": {
+    "text": "Löschen fehlgeschlagen: {detail}",
+    "en": "Delete failed: {detail}"
+  },
+  "app.photos.notice.no_download_link": {
+    "text": "Der Download-Link konnte nicht erstellt werden.",
+    "en": "Could not create download link."
+  },
+  "app.photos.notice.no_share_link": {
+    "text": "Der Freigabelink konnte nicht erstellt werden.",
+    "en": "Could not create share link."
+  },
+  "app.photos.notice.not_loaded": {
+    "text": "Das Bild ist noch nicht geladen",
+    "en": "Image isn't loaded yet"
+  },
+  "app.photos.notice.rename_failed": {
+    "text": "Die Sammlung konnte nicht umbenannt werden.",
+    "en": "Could not rename the collection."
+  },
+  "app.photos.notice.save_failed": {
+    "text": "Speichern fehlgeschlagen: {detail}",
+    "en": "Save failed: {detail}"
+  },
+  "app.photos.notice.saved": {
+    "text": "In Fotos gespeichert ✅",
+    "en": "Saved to Photos ✅"
+  },
+  "app.photos.notice.share_failed": {
+    "text": "Teilen fehlgeschlagen: {detail}",
+    "en": "Share failed: {detail}"
+  },
+  "app.photos.people.add_name": {
+    "text": "Namen hinzufügen",
+    "en": "Add a name"
+  },
+  "app.photos.people.clear_selection": {
+    "text": "Auswahl aufheben",
+    "en": "Clear selection"
+  },
+  "app.photos.people.delete_failed": {
+    "text": "Die Personen konnten nicht gelöscht werden. Versuche es erneut.",
+    "en": "They couldn't be deleted. Try again."
+  },
+  "app.photos.people.delete_many": {
+    "text": {
+      "one": "{count} Personen löschen?",
+      "other": "{count} Personen löschen?"
+    },
+    "en": {
+      "one": "Delete {count} people?",
+      "other": "Delete {count} people?"
+    },
+    "reviewed": "claude-backtranslation 2026-10-11 #42b46894"
+  },
+  "app.photos.people.delete_named": {
+    "text": "{name} löschen?",
+    "en": "Delete {name}?",
+    "reviewed": "claude-backtranslation 2026-10-11 #2b43e50f"
+  },
+  "app.photos.people.delete_one": {
+    "text": "Diese Person löschen?",
+    "en": "Delete this person?",
+    "reviewed": "claude-backtranslation 2026-10-11 #4f05c7b3"
+  },
+  "app.photos.people.delete_one_failed": {
+    "text": "Diese Person konnte nicht gelöscht werden. Versuche es erneut.",
+    "en": "This person couldn't be deleted. Try again."
+  },
+  "app.photos.people.delete_partly": {
+    "text": {
+      "one": "{count} von {total} Personen konnte nicht gelöscht werden und ist noch ausgewählt. Versuche es erneut.",
+      "other": "{count} von {total} Personen konnten nicht gelöscht werden und sind noch ausgewählt. Versuche es erneut."
+    },
+    "en": {
+      "one": "{count} of {total} people couldn't be deleted and is still selected. Try again.",
+      "other": "{count} of {total} people couldn't be deleted and are still selected. Try again."
+    }
+  },
+  "app.photos.people.delete_text": {
+    "text": "Die Fotos bleiben erhalten; nur die zugeordneten Gesichter werden vergessen. Das kann nicht rückgängig gemacht werden, und in später hinzugefügten Fotos werden sie als neue Personen erkannt.",
+    "en": "Their photos stay; only the faces matched to them are forgotten. This can't be undone, and they'll come back as new people in photos added later.",
+    "reviewed": "claude-backtranslation 2026-10-11 #aab53571"
+  },
+  "app.photos.people.deleted_many": {
+    "text": {
+      "one": "{count} Person gelöscht",
+      "other": "{count} Personen gelöscht"
+    },
+    "en": {
+      "one": "Deleted {count} person",
+      "other": "Deleted {count} people"
+    }
+  },
+  "app.photos.people.deleted_one": {
+    "text": "Person gelöscht",
+    "en": "Person deleted"
+  },
+  "app.photos.people.face_label": {
+    "text": {
+      "one": "{name}, {count} Foto",
+      "other": "{name}, {count} Fotos"
+    },
+    "en": {
+      "one": "{name}, {count} photo",
+      "other": "{name}, {count} photos"
+    }
+  },
+  "app.photos.people.face_label_unnamed": {
+    "text": {
+      "one": "Person ohne Namen, {count} Foto",
+      "other": "Person ohne Namen, {count} Fotos"
+    },
+    "en": {
+      "one": "Unnamed person, {count} photo",
+      "other": "Unnamed person, {count} photos"
+    }
+  },
+  "app.photos.people.failed_title": {
+    "text": "Personen konnten nicht geladen werden",
+    "en": "Couldn't load people"
+  },
+  "app.photos.people.keep": {
+    "text": "Behalten",
+    "en": "Keep"
+  },
+  "app.photos.people.list_more": {
+    "text": "{first}, {rest}",
+    "en": "{first}, {rest}"
+  },
+  "app.photos.people.list_two": {
+    "text": "{first} und {second}",
+    "en": "{first} and {second}"
+  },
+  "app.photos.people.loading": {
+    "text": "Personen werden geladen",
+    "en": "Loading people"
+  },
+  "app.photos.people.merge": {
+    "text": "Zusammenführen",
+    "en": "Merge"
+  },
+  "app.photos.people.merge_called": {
+    "text": "Die zusammengeführte Person heißt <b>{name}</b>.",
+    "en": "The merged person will be called <b>{name}</b>."
+  },
+  "app.photos.people.merge_drops_name": {
+    "text": "Der Name {name} wird entfernt.",
+    "en": "The name {name} will be dropped."
+  },
+  "app.photos.people.merge_drops_names": {
+    "text": "Die Namen {names} werden entfernt.",
+    "en": "The names {names} will be dropped."
+  },
+  "app.photos.people.merge_failed": {
+    "text": "Die Personen konnten nicht zusammengeführt werden. Versuche es erneut.",
+    "en": "They couldn't be merged. Try again."
+  },
+  "app.photos.people.merge_hint": {
+    "text": "Wähle die Gesichter derselben Person aus",
+    "en": "Select the faces of the same person"
+  },
+  "app.photos.people.merge_name_label": {
+    "text": "Name <dim>(optional)</dim>",
+    "en": "Name <dim>(optional)</dim>"
+  },
+  "app.photos.people.merge_name_not_saved": {
+    "text": "Der Name konnte nicht gespeichert werden, daher wurde nichts zusammengeführt. Versuche es erneut.",
+    "en": "The name couldn't be saved, so nothing was merged. Try again."
+  },
+  "app.photos.people.merge_name_placeholder": {
+    "text": "Namen hinzufügen",
+    "en": "Add a name"
+  },
+  "app.photos.people.merge_need_two": {
+    "text": "Wähle mindestens 2 Gesichter aus, um sie zu einer Person zusammenzuführen.",
+    "en": "Select 2 or more faces to merge them into one."
+  },
+  "app.photos.people.merge_pick": {
+    "text": "Die Personen haben unterschiedliche Namen, und nur einer kann bleiben. Wähle das Gesicht, das bleiben soll.",
+    "en": "They have different names, and only one can stay. Pick the face to keep."
+  },
+  "app.photos.people.merge_text": {
+    "text": "Wähle das Gesicht, das bleiben soll: Es behält seinen Namen und sein Bild und erhält die Fotos der anderen. Das kann nicht rückgängig gemacht werden.",
+    "en": "Pick the face to keep: it keeps its name and picture, and gets the photos of the others. This can't be undone.",
+    "reviewed": "claude-backtranslation 2026-10-11 #2166c8fa"
+  },
+  "app.photos.people.merge_title": {
+    "text": {
+      "one": "{count} Personen zu einer zusammenführen?",
+      "other": "{count} Personen zu einer zusammenführen?"
+    },
+    "en": {
+      "one": "Merge {count} people into one?",
+      "other": "Merge {count} people into one?"
+    },
+    "reviewed": "claude-backtranslation 2026-10-11 #a57a5fe1"
+  },
+  "app.photos.people.merge_with_others": {
+    "text": "Mit anderen zusammenführen…",
+    "en": "Merge with others…"
+  },
+  "app.photos.people.merged_faces": {
+    "text": {
+      "one": "{count} Gesichter zusammengeführt",
+      "other": "{count} Gesichter zusammengeführt"
+    },
+    "en": {
+      "one": "Merged {count} faces",
+      "other": "Merged {count} faces"
+    }
+  },
+  "app.photos.people.merged_into": {
+    "text": {
+      "one": "{count} Gesichter zu {name} zusammengeführt",
+      "other": "{count} Gesichter zu {name} zusammengeführt"
+    },
+    "en": {
+      "one": "Merged {count} into {name}",
+      "other": "Merged {count} into {name}"
+    }
+  },
+  "app.photos.people.more_options": {
+    "text": "Weitere Optionen für {name}",
+    "en": "More options for {name}"
+  },
+  "app.photos.people.more_options_unnamed": {
+    "text": "Weitere Optionen für diese Person",
+    "en": "More options for this person"
+  },
+  "app.photos.people.name_not_saved": {
+    "text": "Der Name konnte nicht gespeichert werden. Versuche es erneut.",
+    "en": "The name couldn't be saved. Try again."
+  },
+  "app.photos.people.name_placeholder": {
+    "text": "Name",
+    "en": "Name"
+  },
+  "app.photos.people.name_this_person": {
+    "text": "Dieser Person einen Namen geben",
+    "en": "Name this person"
+  },
+  "app.photos.people.no_answer": {
+    "text": "Dein Gerät hat nicht geantwortet. Versuche es erneut.",
+    "en": "Your device didn't answer. Try again."
+  },
+  "app.photos.people.no_faces_text": {
+    "text": "Die Gesichtserkennung läuft auf dem Gerät, nachdem Fotos hochgeladen wurden. Du kannst sie in den Einstellungen einschalten.",
+    "en": "Face recognition runs on the device after photos are uploaded. You can switch it on in Settings.",
+    "reviewed": "claude-backtranslation 2026-10-11 #ca164278"
+  },
+  "app.photos.people.no_faces_title": {
+    "text": "Noch keine Gesichter gefunden",
+    "en": "No faces found yet"
+  },
+  "app.photos.people.photo_count": {
+    "text": {
+      "one": "{count} Foto",
+      "other": "{count} Fotos"
+    },
+    "en": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    }
+  },
+  "app.photos.people.slow_text": {
+    "text": "Die Personen brauchen länger als sonst zum Laden.",
+    "en": "People are taking longer than usual to load."
+  },
+  "app.photos.search.already": {
+    "text": "„{text}“ ist bereits in der Suche.",
+    "en": "“{text}” is already in the search."
+  },
+  "app.photos.search.documents": {
+    "text": "Dokumente nach „<b>{text}</b>“ durchsuchen",
+    "en": "Search documents for “<b>{text}</b>”"
+  },
+  "app.photos.search.files": {
+    "text": "Dateien",
+    "en": "Files"
+  },
+  "app.photos.search.nothing": {
+    "text": "Keine Treffer für „{text}“.",
+    "en": "Nothing matches “{text}”."
+  },
+  "app.photos.search.people": {
+    "text": "Personen",
+    "en": "People"
+  },
+  "app.photos.search.things": {
+    "text": "Dinge",
+    "en": "Things"
+  },
+  "app.photos.selection.delete_title": {
+    "text": {
+      "one": "{count} Element löschen?",
+      "other": "{count} Elemente löschen?"
+    },
+    "en": {
+      "one": "Delete {count} item?",
+      "other": "Delete {count} items?"
+    },
+    "reviewed": "claude-backtranslation 2026-10-11 #8e1297ef"
+  },
+  "app.photos.viewer.delete": {
+    "text": "Foto löschen",
+    "en": "Delete Photo",
+    "reviewed": "claude-backtranslation 2026-10-11 #d8c8344c"
+  },
+  "app.photos.viewer.delete_title": {
+    "text": "Dieses Foto löschen?",
+    "en": "Delete this photo?",
+    "reviewed": "claude-backtranslation 2026-10-11 #63be866a"
+  },
+  "app.photos.viewer.info_aperture": {
+    "text": "Blende",
+    "en": "Aperture"
+  },
+  "app.photos.viewer.info_camera": {
+    "text": "Kamera",
+    "en": "Camera"
+  },
+  "app.photos.viewer.info_dimensions": {
+    "text": "Abmessungen",
+    "en": "Dimensions"
+  },
+  "app.photos.viewer.info_exposure": {
+    "text": "Belichtung",
+    "en": "Exposure"
+  },
+  "app.photos.viewer.info_focal_length": {
+    "text": "Brennweite",
+    "en": "Focal length"
+  },
+  "app.photos.viewer.info_iso": {
+    "text": "ISO",
+    "en": "ISO"
+  },
+  "app.photos.viewer.info_location": {
+    "text": "Ort",
+    "en": "Location"
+  },
+  "app.photos.viewer.info_no_exif": {
+    "text": "Keine EXIF-Metadaten in dieser Datei",
+    "en": "No EXIF metadata in this file"
+  },
+  "app.photos.viewer.info_none": {
+    "text": "Keine Metadaten gefunden",
+    "en": "No metadata found"
+  },
+  "app.photos.viewer.info_taken": {
+    "text": "Aufgenommen",
+    "en": "Taken"
+  },
+  "app.photos.viewer.info_title": {
+    "text": "Weitere Infos",
+    "en": "More Info"
+  },
+  "app.photos.viewer.low_res": {
+    "text": "Vorschau",
+    "en": "Low res"
+  },
+  "app.photos.viewer.more_info": {
+    "text": "Weitere Infos",
+    "en": "More info"
+  }
+}

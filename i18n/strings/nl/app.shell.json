@@ -567,6 +567,40 @@
     "text": "{used} van {limit} in gebruik",
     "en": "Using {used} of {limit}"
   },
+  "app.shell.time_days_ago": {
+    "text": {
+      "one": "{count}d geleden",
+      "other": "{count}d geleden"
+    },
+    "en": {
+      "one": "{count}d ago",
+      "other": "{count}d ago"
+    }
+  },
+  "app.shell.time_hours_ago": {
+    "text": {
+      "one": "{count}h geleden",
+      "other": "{count}h geleden"
+    },
+    "en": {
+      "one": "{count}h ago",
+      "other": "{count}h ago"
+    }
+  },
+  "app.shell.time_just_now": {
+    "text": "zojuist",
+    "en": "just now"
+  },
+  "app.shell.time_minutes_ago": {
+    "text": {
+      "one": "{count}m geleden",
+      "other": "{count}m geleden"
+    },
+    "en": {
+      "one": "{count}m ago",
+      "other": "{count}m ago"
+    }
+  },
   "app.shell.upload_left": {
     "text": {
       "one": "Nog {count}",

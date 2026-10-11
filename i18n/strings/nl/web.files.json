@@ -1,0 +1,619 @@
+{
+  "web.files.column.created": {
+    "text": "Gemaakt",
+    "en": "Created"
+  },
+  "web.files.column.modified": {
+    "text": "Gewijzigd",
+    "en": "Modified"
+  },
+  "web.files.column.name": {
+    "text": "Naam",
+    "en": "Name"
+  },
+  "web.files.column.size": {
+    "text": "Grootte",
+    "en": "Size"
+  },
+  "web.files.gallery.cant_show": {
+    "text": "Dit bestand kan hier niet worden getoond: download het in plaats daarvan.",
+    "en": "This file could not be shown here - download it instead."
+  },
+  "web.files.gallery.download_all": {
+    "text": "Alles downloaden",
+    "en": "Download all"
+  },
+  "web.files.gallery.download_count": {
+    "text": "{count} downloaden",
+    "en": "Download {count}"
+  },
+  "web.files.gallery.download_failed": {
+    "text": "Het downloaden is mislukt.",
+    "en": "The download failed."
+  },
+  "web.files.gallery.downloading": {
+    "text": "Downloaden ({current} van {total}) · {size}",
+    "en": "Downloading {current} of {total} · {size}"
+  },
+  "web.files.gallery.incomplete": {
+    "text": "Deze link is onvolledig: kopieer de hele link en probeer het opnieuw.",
+    "en": "This link is incomplete - copy the whole link and try again."
+  },
+  "web.files.gallery.loading_percent": {
+    "text": "Laden… {percent}",
+    "en": "Loading… {percent}"
+  },
+  "web.files.gallery.low_res": {
+    "text": "Lage resolutie: dit zijn kleine kopieën, niet de originele foto’s.",
+    "en": "Low resolution: these are small copies, not the original photos."
+  },
+  "web.files.gallery.meta": {
+    "text": {
+      "one": "{count} item · {size}",
+      "other": "{count} items · {size}"
+    },
+    "en": {
+      "one": "{count} item · {size}",
+      "other": "{count} items · {size}"
+    }
+  },
+  "web.files.gallery.meta_until": {
+    "text": {
+      "one": "{count} item · {size} · beschikbaar tot {date}",
+      "other": "{count} items · {size} · beschikbaar tot {date}"
+    },
+    "en": {
+      "one": "{count} item · {size} · available until {date}",
+      "other": "{count} items · {size} · available until {date}"
+    }
+  },
+  "web.files.gallery.next": {
+    "text": "Volgende",
+    "en": "Next"
+  },
+  "web.files.gallery.not_found": {
+    "text": "Deze link bestaat niet of is verlopen.",
+    "en": "This link doesn't exist or has expired."
+  },
+  "web.files.gallery.open_failed": {
+    "text": "Kan deze galerij niet openen.",
+    "en": "Could not open this gallery."
+  },
+  "web.files.gallery.opening": {
+    "text": "De galerij openen…",
+    "en": "Opening the gallery…"
+  },
+  "web.files.gallery.position": {
+    "text": "{name} · {index} van {total}",
+    "en": "{name} · {index} of {total}"
+  },
+  "web.files.gallery.previous": {
+    "text": "Vorige",
+    "en": "Previous"
+  },
+  "web.files.gallery.select_all": {
+    "text": "Alles selecteren",
+    "en": "Select all"
+  },
+  "web.files.gallery.stopped": {
+    "text": "Het apparaat is gestopt met het verzenden van het bestand.",
+    "en": "The device stopped sending the file."
+  },
+  "web.files.gallery.title": {
+    "text": "Gedeelde galerij",
+    "en": "Shared gallery"
+  },
+  "web.files.keep_out.banner": {
+    "text": "Buiten Afbeeldingen: foto’s en video’s hier krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond.",
+    "en": "Kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images."
+  },
+  "web.files.keep_out.banner_parent": {
+    "text": "In de map {folder}, die buiten Afbeeldingen wordt gehouden: foto’s en video’s hier krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond.",
+    "en": "Inside {folder}, which is kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images."
+  },
+  "web.files.keep_out.confirm_keep": {
+    "text": "De map “{name}” buiten Afbeeldingen houden?\n\nDe foto’s en video’s erin krijgen geen tags meer, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond, en de tags en gezichten die er al in zijn gevonden, worden verwijderd. Bestanden toont ze nog wel.",
+    "en": "Keep “{name}” out of Images?\n\nIts photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them.",
+    "reviewed": "claude-backtranslation 2026-10-11 #9ff27d78"
+  },
+  "web.files.keep_out.confirm_show": {
+    "text": "De map “{name}” in Afbeeldingen tonen?\n\nDe foto’s en video’s erin komen terug in Afbeeldingen en krijgen op de achtergrond tags (en worden doorzocht op gezichten, als gezichtsherkenning aanstaat).",
+    "en": "Show “{name}” in Images?\n\nIts photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background.",
+    "reviewed": "claude-backtranslation 2026-10-11 #701b235d"
+  },
+  "web.files.keep_out.kept": {
+    "text": "De map {name} wordt nu buiten Afbeeldingen gehouden",
+    "en": "{name} kept out of Images"
+  },
+  "web.files.keep_out.parent_tip": {
+    "text": "In de map {folder}, die buiten Afbeeldingen wordt gehouden",
+    "en": "Inside {folder}, which is kept out of Images"
+  },
+  "web.files.keep_out.show": {
+    "text": "In Afbeeldingen tonen",
+    "en": "Show in Images"
+  },
+  "web.files.keep_out.show_named": {
+    "text": "De map “{name}” in Afbeeldingen tonen",
+    "en": "Show “{name}” in Images"
+  },
+  "web.files.keep_out.shown": {
+    "text": "De map {name} wordt weer getoond in Afbeeldingen",
+    "en": "{name} shown in Images"
+  },
+  "web.files.keep_out.state": {
+    "text": "Buiten Afbeeldingen",
+    "en": "Kept out of Images"
+  },
+  "web.files.keep_out.switch": {
+    "text": "De map {name} buiten Afbeeldingen houden",
+    "en": "Keep {name} out of Images"
+  },
+  "web.files.keep_out.tip_off": {
+    "text": "Buiten Afbeeldingen houden: foto’s en video’s hier krijgen geen tags meer, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond",
+    "en": "Keep out of Images: photos and videos here won't be tagged, searched for faces or shown in Images"
+  },
+  "web.files.keep_out.tip_on": {
+    "text": "Buiten Afbeeldingen: foto’s en video’s hier krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond. Klik om ze in Afbeeldingen te tonen.",
+    "en": "Kept out of Images: photos and videos here aren't tagged, searched for faces or shown in Images. Click to show them in Images."
+  },
+  "web.files.links.confirm_delete": {
+    "text": "Deze link verwijderen? De gedeelde kopieën worden verwijderd en de link werkt niet meer.",
+    "en": "Delete this link? The shared copies are deleted and the link stops working.",
+    "reviewed": "claude-backtranslation 2026-10-11 #25d2d56f"
+  },
+  "web.files.links.delete_failed": {
+    "text": "Kan de link niet verwijderen.",
+    "en": "Could not delete it."
+  },
+  "web.files.links.details": {
+    "text": "{size} · gemaakt op {made} · geldig tot {until}",
+    "en": "{size} · made {made} · until {until}"
+  },
+  "web.files.links.details_files": {
+    "text": {
+      "one": "{count} bestand · {size} · gemaakt op {made} · geldig tot {until}",
+      "other": "{count} bestanden · {size} · gemaakt op {made} · geldig tot {until}"
+    },
+    "en": {
+      "one": "{count} file · {size} · made {made} · until {until}",
+      "other": "{count} files · {size} · made {made} · until {until}"
+    }
+  },
+  "web.files.links.gallery": {
+    "text": "Gedeelde galerij",
+    "en": "Shared gallery"
+  },
+  "web.files.links.hint": {
+    "text": "Galerijen en downloads die je hebt gedeeld. De links zelf worden niet op het apparaat bewaard, dus ze kunnen niet opnieuw worden getoond, alleen verwijderd.",
+    "en": "Galleries and downloads you shared. The links themselves aren't kept on the device, so they can't be shown again - only removed."
+  },
+  "web.files.links.load_failed": {
+    "text": "Kan de gedeelde links niet laden.",
+    "en": "Could not load the shared links."
+  },
+  "web.files.links.never_opened": {
+    "text": "Nooit geopend",
+    "en": "Never opened"
+  },
+  "web.files.links.none": {
+    "text": "Geen gedeelde links.",
+    "en": "No shared links."
+  },
+  "web.files.links.opened": {
+    "text": {
+      "one": "{count} keer geopend, laatst op {date}",
+      "other": "{count} keer geopend, laatst op {date}"
+    },
+    "en": {
+      "one": "Opened {count} time, last {date}",
+      "other": "Opened {count} times, last {date}"
+    }
+  },
+  "web.files.links.title": {
+    "text": "Gedeelde links",
+    "en": "Shared Links"
+  },
+  "web.files.links.total": {
+    "text": "Samen nemen ze {size} in beslag.",
+    "en": "Together they take {size}."
+  },
+  "web.files.links.zip": {
+    "text": "Gedeelde bestanden (zip)",
+    "en": "Shared files (zip)"
+  },
+  "web.files.list.contents": {
+    "text": "Inhoud van {folder}",
+    "en": "Contents of {folder}"
+  },
+  "web.files.list.empty": {
+    "text": "Deze map is leeg.",
+    "en": "This folder is empty."
+  },
+  "web.files.list.list_failed": {
+    "text": "Kan de inhoud van de map niet weergeven",
+    "en": "Failed to list path"
+  },
+  "web.files.list.opening": {
+    "text": "Openen…",
+    "en": "Opening…"
+  },
+  "web.files.list.select_item": {
+    "text": "{name} selecteren",
+    "en": "Select {name}"
+  },
+  "web.files.list.tip": {
+    "text": "Tip: sleep bestanden hierheen om ze te uploaden naar <code>{folder}</code>.",
+    "en": "Tip: Drag files here to upload to <code>{folder}</code>."
+  },
+  "web.files.list.total": {
+    "text": "Totaal aantal bestanden: <b>{count}</b>",
+    "en": "Total files: <b>{count}</b>"
+  },
+  "web.files.list.unexpected": {
+    "text": "Onverwacht antwoord",
+    "en": "Unexpected response"
+  },
+  "web.files.list.update_failed": {
+    "text": "Kan de map niet bijwerken.",
+    "en": "Could not update the folder."
+  },
+  "web.files.list.upload_only_refused": {
+    "text": "{name} staat in een map met “Alleen uploaden” en kan niet worden verwijderd.",
+    "en": "{name} is in an upload-only folder and cannot be deleted."
+  },
+  "web.files.list.video": {
+    "text": "Video",
+    "en": "Video"
+  },
+  "web.files.lock.clear": {
+    "text": "“Alleen uploaden” uitschakelen",
+    "en": "Clear upload only"
+  },
+  "web.files.lock.file": {
+    "text": "In een map met “Alleen uploaden”: kan niet worden verwijderd",
+    "en": "In an upload-only folder: cannot be deleted"
+  },
+  "web.files.lock.make": {
+    "text": "Op “Alleen uploaden” zetten",
+    "en": "Make upload only"
+  },
+  "web.files.lock.off_tip": {
+    "text": "Op “Alleen uploaden” zetten: er kan niets uit deze map worden verwijderd, en opnieuw uploaden bewaart de oude versie",
+    "en": "Make upload only: nothing in this folder can be deleted, and re-uploads keep the old version"
+  },
+  "web.files.lock.on_tip": {
+    "text": "Alleen uploaden: er kan niets uit deze map worden verwijderd, en opnieuw uploaden bewaart de oude versie. Klik om uit te schakelen.",
+    "en": "Upload only: nothing in this folder can be deleted, and re-uploads keep the old version. Click to clear."
+  },
+  "web.files.lock.on_tip_short": {
+    "text": "Alleen uploaden. Klik om uit te schakelen.",
+    "en": "Upload only. Click to clear."
+  },
+  "web.files.results.back": {
+    "text": "Terug naar {folder}",
+    "en": "Back to {folder}"
+  },
+  "web.files.results.back_files": {
+    "text": "Terug naar Bestanden",
+    "en": "Back to Files"
+  },
+  "web.files.results.cant_search": {
+    "text": "Dit apparaat kan zijn bestanden nog niet doorzoeken. Werk het bij in Instellingen.",
+    "en": "This device can't search its files yet. Update it in Settings."
+  },
+  "web.files.results.count": {
+    "text": {
+      "one": "{count} resultaat",
+      "other": "{count} resultaten"
+    },
+    "en": {
+      "one": "{count} result",
+      "other": "{count} results"
+    }
+  },
+  "web.files.results.file_kept_out": {
+    "text": "{name}, bestand in de map {folder}, buiten Afbeeldingen",
+    "en": "{name}, file in {folder}, kept out of Images"
+  },
+  "web.files.results.first": {
+    "text": "De eerste {limit} resultaten worden getoond",
+    "en": "Showing the first {limit} results"
+  },
+  "web.files.results.folder_kept_out": {
+    "text": "{name}, map in {folder}, buiten Afbeeldingen",
+    "en": "{name}, folder in {folder}, kept out of Images"
+  },
+  "web.files.results.list": {
+    "text": "Bestanden die overeenkomen met {text}",
+    "en": "Files matching {text}"
+  },
+  "web.files.results.no_answer": {
+    "text": "Het apparaat heeft niet op de zoekopdracht geantwoord.",
+    "en": "The device didn't answer the search."
+  },
+  "web.files.results.none_for": {
+    "text": "Geen bestanden gevonden voor {text}",
+    "en": "No files match {text}"
+  },
+  "web.files.results.nothing": {
+    "text": "Geen bestanden gevonden voor “{text}”.",
+    "en": "No files match “{text}”."
+  },
+  "web.files.results.photo_kept_out": {
+    "text": "{name}, foto in de map {folder}, buiten Afbeeldingen",
+    "en": "{name}, photo in {folder}, kept out of Images"
+  },
+  "web.files.results.searching": {
+    "text": "Zoeken…",
+    "en": "Searching…"
+  },
+  "web.files.results.searching_for": {
+    "text": "Zoeken naar {text}",
+    "en": "Searching for {text}"
+  },
+  "web.files.results.title": {
+    "text": "Bestanden die overeenkomen met “{text}”",
+    "en": "Files matching “{text}”"
+  },
+  "web.files.results.unreachable": {
+    "text": "De zoekopdracht heeft het apparaat niet bereikt. Controleer de verbinding en probeer het opnieuw.",
+    "en": "The search didn't reach the device. Check the connection and try again."
+  },
+  "web.files.results.video_kept_out": {
+    "text": "{name}, video in de map {folder}, buiten Afbeeldingen",
+    "en": "{name}, video in {folder}, kept out of Images"
+  },
+  "web.files.selection.confirm_delete": {
+    "text": {
+      "one": "{count} item verwijderen? Dit kan niet ongedaan worden gemaakt.",
+      "other": "{count} items verwijderen? Dit kan niet ongedaan worden gemaakt."
+    },
+    "en": {
+      "one": "Delete {count} item? This cannot be undone.",
+      "other": "Delete {count} items? This cannot be undone."
+    },
+    "reviewed": "claude-backtranslation 2026-10-11 #ca36b409"
+  },
+  "web.files.selection.download_zip": {
+    "text": "ZIP downloaden",
+    "en": "Download ZIP"
+  },
+  "web.files.selection.link_copied": {
+    "text": "Deellink gekopieerd naar het klembord",
+    "en": "Share link copied to clipboard"
+  },
+  "web.files.selection.preparing": {
+    "text": "Voorbereiden…",
+    "en": "Preparing…"
+  },
+  "web.files.selection.preparing_zip": {
+    "text": "ZIP voorbereiden…",
+    "en": "Preparing ZIP…"
+  },
+  "web.files.selection.selected": {
+    "text": {
+      "one": "<b>{count}</b> geselecteerd",
+      "other": "<b>{count}</b> geselecteerd"
+    },
+    "en": {
+      "one": "<b>{count}</b> selected",
+      "other": "<b>{count}</b> selected"
+    }
+  },
+  "web.files.selection.share_gallery": {
+    "text": "Delen als galerij",
+    "en": "Share as gallery"
+  },
+  "web.files.selection.share_gallery_tip": {
+    "text": "De foto’s en video’s van deze map delen als galerij",
+    "en": "Share this folder's photos and videos as a gallery"
+  },
+  "web.files.selection.upload_only": {
+    "text": "De selectie bevat inhoud van een map met “Alleen uploaden”, die niet kan worden verwijderd",
+    "en": "The selection includes an upload-only folder's contents, which cannot be deleted"
+  },
+  "web.files.share.available_for": {
+    "text": "Beschikbaar voor",
+    "en": "Available for"
+  },
+  "web.files.share.copied": {
+    "text": "Gekopieerd",
+    "en": "Copied"
+  },
+  "web.files.share.copy": {
+    "text": "Kopiëren",
+    "en": "Copy"
+  },
+  "web.files.share.copying": {
+    "text": "Kopiëren ({current} van {total}) · {done} van {size}",
+    "en": "Copying {current} of {total} · {done} of {size}"
+  },
+  "web.files.share.days": {
+    "text": {
+      "one": "{count} dag",
+      "other": "{count} dagen"
+    },
+    "en": {
+      "one": "{count} day",
+      "other": "{count} days"
+    }
+  },
+  "web.files.share.default_description": {
+    "text": "Gedeelde media {date}",
+    "en": "Shared Media {date}"
+  },
+  "web.files.share.description": {
+    "text": "Beschrijving",
+    "en": "Description"
+  },
+  "web.files.share.link": {
+    "text": "Galerijlink",
+    "en": "Gallery link"
+  },
+  "web.files.share.looking": {
+    "text": "Nagaan wat er wordt gedeeld…",
+    "en": "Looking at what to share…"
+  },
+  "web.files.share.lost": {
+    "text": "Kan de voortgang van het kopiëren niet meer volgen.",
+    "en": "Lost track of the copy."
+  },
+  "web.files.share.low_res": {
+    "text": "<b>Alleen lage resolutie</b>: kleine kopieën van de foto’s, niet de originelen",
+    "en": "<b>Low resolution only</b> - small copies of the photos, not the originals"
+  },
+  "web.files.share.low_res_note": {
+    "text": "Alleen kleine kopieën van de foto’s worden gedeeld (ongeveer 1000 pixels breed), opnieuw versleuteld met een eigen sleutel die alleen de link bevat; de originelen verlaten je apparaat nooit.",
+    "en": "Only small copies of the photos are shared (about 1000 pixels wide), re-encrypted with a key of their own that only the link carries; the originals never leave your device.",
+    "reviewed": "claude-backtranslation 2026-10-11 #92dc8135"
+  },
+  "web.files.share.note": {
+    "text": "Ze worden gekopieerd en opnieuw versleuteld met een eigen sleutel, die alleen de link bevat. Iedereen met de link kan ze zien tot die verloopt; de kopie neemt {size} in beslag op het apparaat.",
+    "en": "They are copied and re-encrypted with a key of their own, which only the link carries. Anyone with the link can see them until it expires; the copy takes {size} on the device.",
+    "reviewed": "claude-backtranslation 2026-10-11 #21dcd7c7"
+  },
+  "web.files.share.preview_failed": {
+    "text": "Kan niet nagaan wat er wordt gedeeld.",
+    "en": "Could not look at what to share."
+  },
+  "web.files.share.ready": {
+    "text": "Je galerij is klaar. Dit is de enige keer dat de link wordt getoond: kopieer hem nu. Het apparaat bewaart geen kopie van de link, dus die kan niet opnieuw worden getoond.",
+    "en": "Your gallery is ready. This is the only time the link is shown: copy it now - the device keeps no copy of it, so it can't be shown again.",
+    "reviewed": "claude-backtranslation 2026-10-11 #754a16d2"
+  },
+  "web.files.share.skipped": {
+    "text": {
+      "one": "{count} ander bestand wordt niet meegenomen",
+      "other": "{count} andere bestanden worden niet meegenomen"
+    },
+    "en": {
+      "one": "{count} other file is not included",
+      "other": "{count} other files are not included"
+    }
+  },
+  "web.files.share.start_failed": {
+    "text": "Kan het delen niet starten.",
+    "en": "Could not start sharing."
+  },
+  "web.files.share.summary": {
+    "text": {
+      "one": "<b>{count}</b> foto of video, <b>{size}</b>",
+      "other": "<b>{count}</b> foto’s en video’s, <b>{size}</b>"
+    },
+    "en": {
+      "one": "<b>{count}</b> photo or video, <b>{size}</b>",
+      "other": "<b>{count}</b> photos and videos, <b>{size}</b>"
+    }
+  },
+  "web.files.share.title": {
+    "text": "Delen als galerij",
+    "en": "Share as a gallery"
+  },
+  "web.files.share.videos_left_out": {
+    "text": {
+      "one": "{count} video wordt weggelaten.",
+      "other": "{count} video’s worden weggelaten."
+    },
+    "en": {
+      "one": "{count} video is left out.",
+      "other": "{count} videos are left out."
+    }
+  },
+  "web.files.size.b": {
+    "text": "{size} B",
+    "en": "{size} B"
+  },
+  "web.files.size.gb": {
+    "text": "{size} GB",
+    "en": "{size} GB"
+  },
+  "web.files.size.kb": {
+    "text": "{size} KB",
+    "en": "{size} KB"
+  },
+  "web.files.size.mb": {
+    "text": "{size} MB",
+    "en": "{size} MB"
+  },
+  "web.files.toolbar.grid": {
+    "text": "Raster",
+    "en": "Grid"
+  },
+  "web.files.toolbar.list": {
+    "text": "Lijst",
+    "en": "List"
+  },
+  "web.files.toolbar.path": {
+    "text": "Pad:",
+    "en": "Path:"
+  },
+  "web.files.toolbar.view": {
+    "text": "Weergave",
+    "en": "View"
+  },
+  "web.files.upload.done": {
+    "text": "✓ Klaar",
+    "en": "✓ Done"
+  },
+  "web.files.upload.failed": {
+    "text": "✕ Mislukt",
+    "en": "✕ Failed"
+  },
+  "web.files.upload.finished_failed": {
+    "text": "Uploads voltooid ({done} gelukt, {failed} mislukt)",
+    "en": "Uploads finished ({done} ok, {failed} failed)"
+  },
+  "web.files.upload.progress": {
+    "text": "Uploaden ({done}/{total})…",
+    "en": "Uploading {done}/{total}…"
+  },
+  "web.files.upload.reading": {
+    "text": "Lezen…",
+    "en": "Reading…"
+  },
+  "web.files.upload.uploaded": {
+    "text": {
+      "one": "{count} bestand geüpload",
+      "other": "{count} bestanden geüpload"
+    },
+    "en": {
+      "one": "Uploaded {count} file",
+      "other": "Uploaded {count} files"
+    }
+  },
+  "web.files.upload.uploading": {
+    "text": "Uploaden…",
+    "en": "Uploading…"
+  },
+  "web.files.versions.count": {
+    "text": {
+      "one": "{count} versie",
+      "other": "{count} versies"
+    },
+    "en": {
+      "one": "{count} version",
+      "other": "{count} versions"
+    }
+  },
+  "web.files.versions.current": {
+    "text": "Huidige versie",
+    "en": "Current"
+  },
+  "web.files.versions.hint": {
+    "text": "Het bestand staat in een map met “Alleen uploaden”, dus bij elke upload naar dit pad is de vorige versie bewaard.",
+    "en": "The file is in an upload-only folder, so each upload to this path kept the one before it."
+  },
+  "web.files.versions.replaced": {
+    "text": "Vervangen: {date}",
+    "en": "Replaced {date}"
+  },
+  "web.files.versions.tip": {
+    "text": "Oudere versies van dit bestand",
+    "en": "Older versions of this file"
+  },
+  "web.files.versions.title": {
+    "text": "Versies van {name}",
+    "en": "Versions of {name}"
+  }
+}

@@ -567,6 +567,40 @@
     "text": "En uso: {used} de {limit}",
     "en": "Using {used} of {limit}"
   },
+  "app.shell.time_days_ago": {
+    "text": {
+      "one": "hace {count} d",
+      "other": "hace {count} d"
+    },
+    "en": {
+      "one": "{count}d ago",
+      "other": "{count}d ago"
+    }
+  },
+  "app.shell.time_hours_ago": {
+    "text": {
+      "one": "hace {count} h",
+      "other": "hace {count} h"
+    },
+    "en": {
+      "one": "{count}h ago",
+      "other": "{count}h ago"
+    }
+  },
+  "app.shell.time_just_now": {
+    "text": "ahora mismo",
+    "en": "just now"
+  },
+  "app.shell.time_minutes_ago": {
+    "text": {
+      "one": "hace {count} min",
+      "other": "hace {count} min"
+    },
+    "en": {
+      "one": "{count}m ago",
+      "other": "{count}m ago"
+    }
+  },
   "app.shell.upload_left": {
     "text": {
       "one": "Queda {count}",

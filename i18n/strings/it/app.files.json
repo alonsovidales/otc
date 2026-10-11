@@ -1,0 +1,295 @@
+{
+  "app.files.allow_deletions_message": {
+    "text": "I file di questa cartella potranno di nuovo essere eliminati, e caricare di nuovo un file lo sostituirà. Le versioni precedenti conservate finora restano.",
+    "en": "Files in this folder can be deleted again, and uploading a file again replaces it. The older versions kept so far stay.",
+    "reviewed": "claude-backtranslation 2026-10-11 #0ad2af80"
+  },
+  "app.files.allow_deletions_title": {
+    "text": "Consentire di nuovo le eliminazioni nella cartella “{name}”?",
+    "en": "Allow deletions in “{name}” again?",
+    "reviewed": "claude-backtranslation 2026-10-11 #a7d93d40"
+  },
+  "app.files.back_to_files": {
+    "text": "Torna a File",
+    "en": "Back to Files"
+  },
+  "app.files.back_to_folder": {
+    "text": "Torna a {folder}",
+    "en": "Back to {folder}"
+  },
+  "app.files.clear_upload_only": {
+    "text": "Disattiva “Solo caricamento”",
+    "en": "Clear upload only"
+  },
+  "app.files.delete_confirm": {
+    "text": {
+      "one": "Eliminare {count} elemento?",
+      "other": "Eliminare {count} elementi?"
+    },
+    "en": {
+      "one": "Delete {count} item?",
+      "other": "Delete {count} items?"
+    },
+    "reviewed": "claude-backtranslation 2026-10-11 #6c1ed228"
+  },
+  "app.files.delete_refused": {
+    "text": "{name} si trova in una cartella in solo caricamento: non si può eliminare",
+    "en": "{name} is in an upload-only folder and cannot be deleted"
+  },
+  "app.files.download_failed": {
+    "text": "Download non riuscito: {detail}",
+    "en": "Download failed: {detail}"
+  },
+  "app.files.download_link_failed": {
+    "text": "Impossibile creare il link di download",
+    "en": "Could not create download link"
+  },
+  "app.files.folder_update_failed": {
+    "text": "Impossibile aggiornare la cartella",
+    "en": "Could not update the folder"
+  },
+  "app.files.gallery_bytes": {
+    "text": "{done} di {total}",
+    "en": "{done} of {total}"
+  },
+  "app.files.gallery_contents": {
+    "text": {
+      "one": "{count} foto o video, {size}",
+      "other": "{count} foto e video, {size}"
+    },
+    "en": {
+      "one": "{count} photos and videos, {size}",
+      "other": "{count} photos and videos, {size}"
+    }
+  },
+  "app.files.gallery_copy_link": {
+    "text": "Copia link",
+    "en": "Copy Link"
+  },
+  "app.files.gallery_copying": {
+    "text": "Copia {done} di {total}",
+    "en": "Copying {done} of {total}"
+  },
+  "app.files.gallery_create_failed": {
+    "text": "Impossibile creare la galleria",
+    "en": "Could not create the gallery"
+  },
+  "app.files.gallery_days": {
+    "text": {
+      "one": "{count} giorno",
+      "other": "{count} giorni"
+    },
+    "en": {
+      "one": "{count} day",
+      "other": "{count} days"
+    }
+  },
+  "app.files.gallery_default_description": {
+    "text": "Contenuti condivisi {date}",
+    "en": "Shared Media {date}"
+  },
+  "app.files.gallery_description": {
+    "text": "Descrizione",
+    "en": "Description"
+  },
+  "app.files.gallery_full_res_note": {
+    "text": "Vengono condivisi gli originali a dimensione piena.",
+    "en": "The full-size originals are shared.",
+    "reviewed": "claude-backtranslation 2026-10-11 #181c032e"
+  },
+  "app.files.gallery_low_res": {
+    "text": "Solo bassa risoluzione",
+    "en": "Low resolution only"
+  },
+  "app.files.gallery_low_res_note": {
+    "text": "Vengono condivise solo copie ridotte delle foto (larghe circa 1000 pixel); gli originali non lasciano mai il tuo dispositivo.",
+    "en": "Only small copies of the photos are shared (about 1000 pixels wide); the originals never leave your device.",
+    "reviewed": "claude-backtranslation 2026-10-11 #0ce11269"
+  },
+  "app.files.gallery_low_res_note_videos": {
+    "text": {
+      "one": "Vengono condivise solo copie ridotte delle foto (larghe circa 1000 pixel); gli originali non lasciano mai il tuo dispositivo. {count} video è escluso.",
+      "other": "Vengono condivise solo copie ridotte delle foto (larghe circa 1000 pixel); gli originali non lasciano mai il tuo dispositivo. {count} video sono esclusi."
+    },
+    "en": {
+      "one": "Only small copies of the photos are shared (about 1000 pixels wide); the originals never leave your device. {count} video is left out.",
+      "other": "Only small copies of the photos are shared (about 1000 pixels wide); the originals never leave your device. {count} videos are left out."
+    },
+    "reviewed": "claude-backtranslation 2026-10-11 #f3f082cb"
+  },
+  "app.files.gallery_no_link": {
+    "text": "Il dispositivo non ha restituito un link",
+    "en": "The device did not return a link"
+  },
+  "app.files.gallery_prepare_failed": {
+    "text": "Impossibile preparare la galleria",
+    "en": "Could not prepare the gallery"
+  },
+  "app.files.gallery_privacy": {
+    "text": "Vengono copiati e crittografati di nuovo con una chiave propria. Solo chi ha il link può vederli, finché non scade.",
+    "en": "They are copied and re-encrypted with a key of their own. Only people with the link can see them, until it expires.",
+    "reviewed": "claude-backtranslation 2026-10-11 #962be130"
+  },
+  "app.files.gallery_share_link": {
+    "text": "Condividi link",
+    "en": "Share Link"
+  },
+  "app.files.gallery_title": {
+    "text": "Condividi come galleria",
+    "en": "Share as Gallery"
+  },
+  "app.files.in_upload_only": {
+    "text": "In una cartella in solo caricamento",
+    "en": "In an upload-only folder"
+  },
+  "app.files.keep_out_message": {
+    "text": "Le sue foto e i suoi video non verranno etichettati, analizzati alla ricerca di volti né mostrati in Immagini, e le etichette e i volti già trovati verranno eliminati. File continua a mostrarli.",
+    "en": "Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them.",
+    "reviewed": "claude-backtranslation 2026-10-11 #47c31984"
+  },
+  "app.files.keep_out_title": {
+    "text": "Escludere la cartella “{name}” da Immagini?",
+    "en": "Keep “{name}” out of Images?",
+    "reviewed": "claude-backtranslation 2026-10-11 #5f925563"
+  },
+  "app.files.kept_out": {
+    "text": "Fuori da Immagini",
+    "en": "Kept out of Images"
+  },
+  "app.files.kept_out_banner": {
+    "text": "Fuori da Immagini: le foto e i video qui non vengono etichettati, analizzati alla ricerca di volti né mostrati in Immagini.",
+    "en": "Kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images."
+  },
+  "app.files.kept_out_explain": {
+    "text": "Le foto e i video qui non vengono etichettati, analizzati alla ricerca di volti né mostrati in Immagini. File continua a mostrarli.",
+    "en": "Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them."
+  },
+  "app.files.list_failed": {
+    "text": "Impossibile elencare il percorso",
+    "en": "Failed to list path"
+  },
+  "app.files.make_upload_only": {
+    "text": "Attiva “Solo caricamento”",
+    "en": "Make upload only"
+  },
+  "app.files.make_upload_only_message": {
+    "text": "Nulla in questa cartella potrà essere eliminato (da questo telefono, da un computer o dal web), e caricare di nuovo un file ne conserva la versione precedente. Ideale per archivi di foto e backup.",
+    "en": "Nothing in this folder can be deleted - from this phone, a computer or the web - and uploading a file again keeps its older version. Good for photo archives and backups.",
+    "reviewed": "claude-backtranslation 2026-10-11 #77570835"
+  },
+  "app.files.make_upload_only_title": {
+    "text": "Impostare la cartella “{name}” in solo caricamento?",
+    "en": "Make “{name}” upload only?"
+  },
+  "app.files.no_results": {
+    "text": "Nessun file corrisponde a “{query}”.",
+    "en": "No files match “{query}”."
+  },
+  "app.files.open_failed": {
+    "text": "Impossibile recuperare il file",
+    "en": "Could not fetch file"
+  },
+  "app.files.results_count": {
+    "text": {
+      "one": "{count} risultato",
+      "other": "{count} risultati"
+    },
+    "en": {
+      "one": "{count} result",
+      "other": "{count} results"
+    }
+  },
+  "app.files.results_limited": {
+    "text": "Mostrati i primi {limit} risultati",
+    "en": "Showing the first {limit} results"
+  },
+  "app.files.results_title": {
+    "text": "File corrispondenti a “{query}”",
+    "en": "Files matching “{query}”"
+  },
+  "app.files.search_field": {
+    "text": "Cerca file",
+    "en": "Search files"
+  },
+  "app.files.search_no_answer": {
+    "text": "Il dispositivo non ha risposto alla ricerca.",
+    "en": "The device didn't answer the search."
+  },
+  "app.files.search_too_old": {
+    "text": "Questo dispositivo non può ancora cercare tra i suoi file. Aggiornalo in Impostazioni.",
+    "en": "This device can't search its files yet. Update it in Settings."
+  },
+  "app.files.search_unreached": {
+    "text": "La ricerca non ha raggiunto il dispositivo. Controlla la connessione e riprova.",
+    "en": "The search didn't reach the device. Check the connection and try again."
+  },
+  "app.files.searching": {
+    "text": "Ricerca…",
+    "en": "Searching…"
+  },
+  "app.files.selection_upload_only": {
+    "text": "La selezione si trova in una cartella in solo caricamento e non può essere eliminata",
+    "en": "The selection is in an upload-only folder and cannot be deleted"
+  },
+  "app.files.share_link_failed": {
+    "text": "Impossibile creare il link di condivisione",
+    "en": "Could not create share link"
+  },
+  "app.files.show_as_grid": {
+    "text": "Mostra come griglia",
+    "en": "Show as grid"
+  },
+  "app.files.show_as_list": {
+    "text": "Mostra come elenco",
+    "en": "Show as list"
+  },
+  "app.files.show_message": {
+    "text": "Le sue foto e i suoi video tornano in Immagini e vengono etichettati (e analizzati alla ricerca di volti, se il riconoscimento facciale è attivo) in background.",
+    "en": "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background.",
+    "reviewed": "claude-backtranslation 2026-10-11 #376f77a4"
+  },
+  "app.files.show_title": {
+    "text": "Mostrare la cartella “{name}” in Immagini?",
+    "en": "Show “{name}” in Images?"
+  },
+  "app.files.unexpected_response": {
+    "text": "Risposta inattesa",
+    "en": "Unexpected response"
+  },
+  "app.files.upload_failed": {
+    "text": "Caricamento non riuscito: {detail}",
+    "en": "Upload failed: {detail}"
+  },
+  "app.files.upload_only": {
+    "text": "Solo caricamento",
+    "en": "Upload only"
+  },
+  "app.files.upload_only_file_info": {
+    "text": "Questo file si trova in una cartella in solo caricamento: non può essere eliminato, e caricarlo di nuovo ne conserva la versione precedente. Il lucchetto sulla cartella cambia questa impostazione.",
+    "en": "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it."
+  },
+  "app.files.version_current": {
+    "text": "Attuale",
+    "en": "Current"
+  },
+  "app.files.version_open_failed": {
+    "text": "Impossibile recuperare quella versione",
+    "en": "Could not fetch that version"
+  },
+  "app.files.version_replaced": {
+    "text": "Sostituita: {date}",
+    "en": "Replaced {date}"
+  },
+  "app.files.versions_explain": {
+    "text": "Il file si trova in una cartella in solo caricamento, quindi ogni caricamento in questo percorso ha conservato la versione precedente.",
+    "en": "The file is in an upload-only folder, so each upload to this path kept the one before it."
+  },
+  "app.files.versions_title": {
+    "text": "Versioni del file {name}",
+    "en": "Versions of {name}"
+  },
+  "app.files.video": {
+    "text": "Video",
+    "en": "Video"
+  }
+}

@@ -1,0 +1,417 @@
+{
+  "ios.alerts_errors_collapse": {
+    "text": {
+      "one": "{title}, {count} error, contraer",
+      "other": "{title}, {count} errores, contraer"
+    },
+    "en": {
+      "one": "{title}, {count} error, collapse",
+      "other": "{title}, {count} errors, collapse"
+    }
+  },
+  "ios.alerts_errors_expand": {
+    "text": {
+      "one": "{title}, {count} error, expandir",
+      "other": "{title}, {count} errores, expandir"
+    },
+    "en": {
+      "one": "{title}, {count} error, expand",
+      "other": "{title}, {count} errors, expand"
+    }
+  },
+  "ios.alerts_friends": {
+    "text": "Amigos",
+    "en": "Friends"
+  },
+  "ios.bluetooth_needed_hint": {
+    "text": "En Ajustes, permite que Off The Cloud use el Bluetooth para configurar un dispositivo de esta forma.",
+    "en": "Allow Bluetooth for Off The Cloud in Settings to set a device up this way."
+  },
+  "ios.bluetooth_off_hint": {
+    "text": "Activa el Bluetooth en el Centro de control para encontrar el dispositivo.",
+    "en": "Turn Bluetooth on in Control Centre to find the device."
+  },
+  "ios.compose_capture_save_failed": {
+    "text": "No se ha podido guardar la captura en Fotos: {detail}",
+    "en": "Couldn't save the capture to Photos: {detail}"
+  },
+  "ios.compose_capture_unreadable": {
+    "text": "La captura se ha guardado en Fotos, pero no se ha podido volver a leer.",
+    "en": "The capture was saved to Photos but couldn't be read back."
+  },
+  "ios.compose_photo_unreadable": {
+    "text": "No se ha podido leer esta foto",
+    "en": "Could not read this photo"
+  },
+  "ios.compose_source": {
+    "text": "Origen",
+    "en": "Source"
+  },
+  "ios.compose_upload_failed": {
+    "text": "No se ha podido subir",
+    "en": "Upload failed"
+  },
+  "ios.compose_video_unavailable": {
+    "text": "Este vídeo no está disponible en el teléfono",
+    "en": "This video is not available on the phone"
+  },
+  "ios.connection_superseded": {
+    "text": "Los ajustes de conexión han cambiado; vuelve a intentarlo.",
+    "en": "The connection settings changed; try again."
+  },
+  "ios.download_bad_piece": {
+    "text": "El dispositivo ha enviado una parte que no encaja en el archivo",
+    "en": "The device sent a piece that doesn't fit the file"
+  },
+  "ios.download_changed": {
+    "text": "El archivo ha cambiado en el dispositivo durante la descarga",
+    "en": "The file changed on the device during the download"
+  },
+  "ios.file_type_label": {
+    "text": "Archivo {type}",
+    "en": "{type} file"
+  },
+  "ios.files.allow_deletions": {
+    "text": "Permitir eliminaciones",
+    "en": "Allow Deletions",
+    "reviewed": "claude-backtranslation 2026-10-11 #c10a7f28"
+  },
+  "ios.files.gallery_copied": {
+    "text": "Copiado",
+    "en": "Copied"
+  },
+  "ios.files.gallery_counting": {
+    "text": "Contando fotos y vídeos…",
+    "en": "Counting photos and videos…"
+  },
+  "ios.files.gallery_expires": {
+    "text": "Caduca después de",
+    "en": "Expires after"
+  },
+  "ios.files.gallery_job_failed": {
+    "text": "No se ha podido crear la galería",
+    "en": "The gallery could not be created"
+  },
+  "ios.files.gallery_keep_open": {
+    "text": "Mantén esta pantalla abierta: el enlace aparecerá aquí cuando termine la copia.",
+    "en": "Keep this screen open: the link is shown here once the copy is done."
+  },
+  "ios.files.gallery_link_once": {
+    "text": "Este enlace solo se muestra ahora: el dispositivo nunca lo guarda. Envíalo o cópialo antes de cerrar.",
+    "en": "This link is shown only now - the device never stores it. Send or copy it before closing.",
+    "reviewed": "claude-backtranslation 2026-10-11 #e25e3e20"
+  },
+  "ios.files.gallery_nothing": {
+    "text": "Aquí no hay fotos ni vídeos que compartir.",
+    "en": "There are no photos or videos to share here."
+  },
+  "ios.files.gallery_skipped": {
+    "text": {
+      "one": "No se incluye {count} archivo de otro tipo",
+      "other": "No se incluyen {count} archivos de otro tipo"
+    },
+    "en": {
+      "one": "{count} other files are not included",
+      "other": "{count} other files are not included"
+    }
+  },
+  "ios.files.gallery_starting": {
+    "text": "Iniciando…",
+    "en": "Starting…"
+  },
+  "ios.files.keep_out_of_images": {
+    "text": "Excluir de Imágenes",
+    "en": "Keep Out of Images",
+    "reviewed": "claude-backtranslation 2026-10-11 #8fae7cea"
+  },
+  "ios.files.make_upload_only": {
+    "text": "Activar solo subida",
+    "en": "Make Upload Only"
+  },
+  "ios.files.older_versions": {
+    "text": {
+      "one": "{count} versión anterior",
+      "other": "{count} versiones anteriores"
+    },
+    "en": {
+      "one": "{count} older version",
+      "other": "{count} older versions"
+    }
+  },
+  "ios.files.result_file": {
+    "text": "{name}, archivo en la carpeta {folder}",
+    "en": "{name}, file in {folder}"
+  },
+  "ios.files.result_file_kept_out": {
+    "text": "{name}, archivo en la carpeta {folder}, fuera de Imágenes",
+    "en": "{name}, file in {folder}, kept out of Images"
+  },
+  "ios.files.result_folder": {
+    "text": "{name}, carpeta dentro de {folder}",
+    "en": "{name}, folder in {folder}"
+  },
+  "ios.files.result_folder_kept_out": {
+    "text": "{name}, carpeta dentro de {folder}, fuera de Imágenes",
+    "en": "{name}, folder in {folder}, kept out of Images"
+  },
+  "ios.files.result_photo": {
+    "text": "{name}, foto en la carpeta {folder}",
+    "en": "{name}, photo in {folder}"
+  },
+  "ios.files.result_photo_kept_out": {
+    "text": "{name}, foto en la carpeta {folder}, fuera de Imágenes",
+    "en": "{name}, photo in {folder}, kept out of Images"
+  },
+  "ios.files.result_video": {
+    "text": "{name}, vídeo en la carpeta {folder}",
+    "en": "{name}, video in {folder}"
+  },
+  "ios.files.result_video_kept_out": {
+    "text": "{name}, vídeo en la carpeta {folder}, fuera de Imágenes",
+    "en": "{name}, video in {folder}, kept out of Images"
+  },
+  "ios.files.try_again": {
+    "text": "Reintentar",
+    "en": "Try Again"
+  },
+  "ios.files.upload_only_folder_info": {
+    "text": "No se puede eliminar nada de esta carpeta, y al volver a subir un archivo se conserva su versión anterior. Mantén pulsada la carpeta para cambiarlo.",
+    "en": "Nothing in this folder can be deleted, and uploading a file again keeps its older version. Long-press the folder to change it."
+  },
+  "ios.friends_delete_theirs": {
+    "text": "Eliminar todo lo de {name} en este iPhone",
+    "en": "Delete everything from {name} on this iPhone",
+    "reviewed": "claude-backtranslation 2026-10-11 #06a8d303"
+  },
+  "ios.friends_remove_friend": {
+    "text": "Eliminar amistad",
+    "en": "Remove Friend",
+    "reviewed": "claude-backtranslation 2026-10-11 #89d63f66"
+  },
+  "ios.menu_close": {
+    "text": "Cerrar el menú",
+    "en": "Close the menu"
+  },
+  "ios.no_answer_slow": {
+    "text": "El dispositivo no responde. Puede que esté apagado o que la conexión sea demasiado lenta.",
+    "en": "The device isn't answering. It may be off, or the connection may be too slow."
+  },
+  "ios.photos_access_denied": {
+    "text": "Acceso a Fotos denegado",
+    "en": "Photos access denied"
+  },
+  "ios.photos_download_failed": {
+    "text": "No se ha podido descargar: {detail}",
+    "en": "Download failed: {detail}"
+  },
+  "ios.photos_people_deleting": {
+    "text": "Eliminando {current} de {total}…",
+    "en": "Deleting {current} of {total}…"
+  },
+  "ios.photos_people_face_to_keep": {
+    "text": "Cara que se conserva",
+    "en": "Face to keep"
+  },
+  "ios.photos_people_merge_hint": {
+    "text": "Selecciona 2 o más para combinarlas",
+    "en": "Select 2 or more to merge"
+  },
+  "ios.photos_people_new_name": {
+    "text": "Nombre nuevo",
+    "en": "New name"
+  },
+  "ios.photos_search_documents": {
+    "text": "Buscar {text} en los documentos",
+    "en": "Search documents for {text}"
+  },
+  "ios.photos_search_key_hint": {
+    "text": "Lo que elige la tecla Buscar",
+    "en": "What the Search key picks"
+  },
+  "ios.photos_search_person_in": {
+    "text": {
+      "one": "{name}, {count} foto, en la búsqueda",
+      "other": "{name}, {count} fotos, en la búsqueda"
+    },
+    "en": {
+      "one": "{name}, {count} photo, in the search",
+      "other": "{name}, {count} photos, in the search"
+    }
+  },
+  "ios.photos_search_suggestions": {
+    "text": "Sugerencias",
+    "en": "Suggestions"
+  },
+  "ios.photos_upload_failed": {
+    "text": "No se ha podido subir: {detail}",
+    "en": "Upload failed: {detail}"
+  },
+  "ios.plist.nsbluetoothalwaysusagedescription": {
+    "text": "Se usa para configurar un dispositivo Off The Cloud nuevo que está a tu lado, antes de que se haya conectado a tu red Wi-Fi.",
+    "en": "Used to set up a new Off The Cloud device next to you, before it has joined your WiFi.",
+    "reviewed": "claude-backtranslation 2026-10-11 #645c50c1"
+  },
+  "ios.plist.nscamerausagedescription": {
+    "text": "Se usa para hacer una foto o grabar un vídeo y publicarlo en tu feed",
+    "en": "Used to take a photo or video to post to your feed",
+    "reviewed": "claude-backtranslation 2026-10-11 #9ae63814"
+  },
+  "ios.plist.nslocalnetworkusagedescription": {
+    "text": "Off The Cloud se conecta a tu propio dispositivo en tu red doméstica para sincronizar fotos y archivos.",
+    "en": "Off The Cloud connects to your own device on your home network to sync photos and files.",
+    "reviewed": "claude-backtranslation 2026-10-11 #a03f84de"
+  },
+  "ios.plist.nsmicrophoneusagedescription": {
+    "text": "Se usa para grabar el sonido de los vídeos que publicas en tu feed",
+    "en": "Used to record sound with videos you post to your feed",
+    "reviewed": "claude-backtranslation 2026-10-11 #d1c9bc82"
+  },
+  "ios.plist.nsphotolibraryaddusagedescription": {
+    "text": "Se usa para guardar en tu fototeca las fotos del visor de la galería y las fotos y vídeos que haces para publicar",
+    "en": "Used to save photos from the gallery viewer, and photos and videos you take to post, to your Photos library",
+    "reviewed": "claude-backtranslation 2026-10-11 #17a30727"
+  },
+  "ios.plist.nsphotolibraryusagedescription": {
+    "text": "Esta app necesita acceder a tu fototeca para hacer una copia de seguridad de las fotos",
+    "en": "This app needs access to your Photos to back them up",
+    "reviewed": "claude-backtranslation 2026-10-11 #98fbcf9e"
+  },
+  "ios.settings.bridge_leave_delete": {
+    "text": "Salir y eliminar la cuenta",
+    "en": "Leave and Delete the Account",
+    "reviewed": "claude-backtranslation 2026-10-11 #3902dea6"
+  },
+  "ios.settings.crop_hint": {
+    "text": "Arrastra la foto para centrar tu cara.",
+    "en": "Drag the photo to centre your face."
+  },
+  "ios.settings.crop_title": {
+    "text": "Recortar foto",
+    "en": "Crop photo"
+  },
+  "ios.settings.links_delete_message": {
+    "text": "¿Eliminar este enlace? Las copias compartidas se eliminarán y el enlace dejará de funcionar.",
+    "en": "Delete this link? The shared copies are deleted and the link stops working.",
+    "reviewed": "claude-backtranslation 2026-10-11 #bb9ee765"
+  },
+  "ios.settings.logs_picker": {
+    "text": "Registro",
+    "en": "Log"
+  },
+  "ios.settings.logs_read_failed": {
+    "text": "No se han podido leer los registros.",
+    "en": "Could not read the logs."
+  },
+  "ios.settings.logs_send_failed": {
+    "text": "No se han podido enviar los registros.",
+    "en": "Could not send the logs."
+  },
+  "ios.settings.logs_troubleshooting": {
+    "text": "Solución de problemas",
+    "en": "Troubleshooting"
+  },
+  "ios.settings.picker_empty": {
+    "text": "Aquí no hay fotos.",
+    "en": "No photos here."
+  },
+  "ios.settings.picker_error": {
+    "text": "No se ha podido cargar esa foto: {detail}",
+    "en": "Couldn't load that photo: {detail}"
+  },
+  "ios.settings.picker_load_failed": {
+    "text": "No se ha podido cargar esa foto desde tu dispositivo.",
+    "en": "Couldn't load that photo from your device."
+  },
+  "ios.settings.picker_open_failed": {
+    "text": "No se ha podido abrir esa foto.",
+    "en": "That photo couldn't be opened."
+  },
+  "ios.settings.profile_from_iphone": {
+    "text": "Desde este iPhone",
+    "en": "From this iPhone"
+  },
+  "ios.settings.profile_unexpected": {
+    "text": "Respuesta inesperada al guardar el perfil",
+    "en": "Unexpected response while saving profile"
+  },
+  "ios.settings.sync_icloud": {
+    "text": "Sincronizar desde iCloud",
+    "en": "Sync from iCloud"
+  },
+  "ios.settings.thumbs_title": {
+    "text": "Caché de miniaturas",
+    "en": "Thumbnail Cache"
+  },
+  "ios.setup_signin_cancelled": {
+    "text": "Inicio de sesión cancelado",
+    "en": "Sign-in cancelled"
+  },
+  "ios.storage_details_hidden": {
+    "text": "Detalles ocultos",
+    "en": "Details hidden"
+  },
+  "ios.storage_details_shown": {
+    "text": "Detalles visibles",
+    "en": "Details shown"
+  },
+  "ios.storage_gauge_attention": {
+    "text": "Almacenamiento, requiere atención",
+    "en": "Storage, needs attention"
+  },
+  "ios.storage_gauge_hint": {
+    "text": "Muestra los detalles",
+    "en": "Shows the details"
+  },
+  "ios.storage_gauge_used": {
+    "text": "Almacenamiento, {percent} en uso",
+    "en": "Storage, {percent} used"
+  },
+  "ios.storage_gauge_used_attention": {
+    "text": "Almacenamiento, {percent} en uso, requiere atención",
+    "en": "Storage, {percent} used, needs attention"
+  },
+  "ios.storage_needs_attention": {
+    "text": "Requiere atención",
+    "en": "Needs attention"
+  },
+  "ios.storage_percent": {
+    "text": "{percent} por ciento",
+    "en": "{percent} percent"
+  },
+  "ios.storage_used": {
+    "text": "Almacenamiento usado",
+    "en": "Storage used"
+  },
+  "ios.trim_cant_title": {
+    "text": "No se puede recortar este vídeo",
+    "en": "Can't trim this video"
+  },
+  "ios.trim_end_handle": {
+    "text": "Fin del recorte",
+    "en": "End of the cut"
+  },
+  "ios.trim_play_cut": {
+    "text": "Reproducir recorte",
+    "en": "Play cut"
+  },
+  "ios.trim_start_handle": {
+    "text": "Inicio del recorte",
+    "en": "Start of the cut"
+  },
+  "ios.ws_connect_timeout": {
+    "text": "El dispositivo no ha respondido a la conexión a tiempo.",
+    "en": "The device didn't answer the connection in time."
+  },
+  "ios.ws_still_connecting": {
+    "text": "Aún se está conectando con el dispositivo.",
+    "en": "Still connecting to the device."
+  },
+  "ios.ws_timed_out": {
+    "text": "El dispositivo no ha respondido a tiempo.",
+    "en": "The device didn't answer in time."
+  },
+  "ios.ws_unresponsive": {
+    "text": "La conexión con el dispositivo ha dejado de responder.",
+    "en": "The connection to the device stopped answering."
+  }
+}

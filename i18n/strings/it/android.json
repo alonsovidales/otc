@@ -1,0 +1,486 @@
+{
+  "android.alerts_collapse": {
+    "text": "Comprimi",
+    "en": "Collapse"
+  },
+  "android.alerts_expand": {
+    "text": "Espandi",
+    "en": "Expand"
+  },
+  "android.alerts_friends": {
+    "text": "Amici ✓",
+    "en": "Friends ✓"
+  },
+  "android.ble_lost": {
+    "text": "Connessione al dispositivo persa: riconnessione in corso",
+    "en": "Lost the device - reconnecting"
+  },
+  "android.ble_send_failed": {
+    "text": "Impossibile inviare al dispositivo",
+    "en": "Could not send to the device"
+  },
+  "android.bluetooth_needed_hint": {
+    "text": "Consenti “Dispositivi nelle vicinanze” a Off The Cloud in Impostazioni per configurare un dispositivo in questo modo.",
+    "en": "Allow nearby devices for Off The Cloud in Settings to set a device up this way."
+  },
+  "android.bluetooth_off_hint": {
+    "text": "Attiva il Bluetooth per trovare il dispositivo.",
+    "en": "Turn Bluetooth on to find the device."
+  },
+  "android.cache_bytes": {
+    "text": {
+      "one": "{count} byte",
+      "other": "{count} byte"
+    },
+    "en": {
+      "one": "{count} byte",
+      "other": "{count} bytes"
+    }
+  },
+  "android.compose_move_left": {
+    "text": "Sposta a sinistra",
+    "en": "Move left"
+  },
+  "android.compose_move_right": {
+    "text": "Sposta a destra",
+    "en": "Move right"
+  },
+  "android.compose_record_video": {
+    "text": "Registra un video",
+    "en": "Record a video"
+  },
+  "android.compose_take_photo": {
+    "text": "Scatta una foto",
+    "en": "Take a photo"
+  },
+  "android.download_changed": {
+    "text": "il file è cambiato sul dispositivo durante il download",
+    "en": "the file changed on the device while downloading"
+  },
+  "android.download_empty_piece": {
+    "text": "il dispositivo ha inviato una parte vuota del file",
+    "en": "the device sent an empty piece of the file"
+  },
+  "android.download_wrong_piece": {
+    "text": "il dispositivo ha inviato la parte sbagliata del file",
+    "en": "the device sent the wrong piece of the file"
+  },
+  "android.files.allow_deletions": {
+    "text": "Consenti eliminazioni",
+    "en": "Allow deletions",
+    "reviewed": "claude-backtranslation 2026-10-11 #82007b9d"
+  },
+  "android.files.cannot_read": {
+    "text": "impossibile leggere {uri}",
+    "en": "cannot read {uri}"
+  },
+  "android.files.folder_update_failed_detail": {
+    "text": "Impossibile aggiornare la cartella: {detail}",
+    "en": "Could not update the folder: {detail}"
+  },
+  "android.files.gallery_clip_label": {
+    "text": "Link della galleria condivisa",
+    "en": "Shared gallery link"
+  },
+  "android.files.gallery_copy_failed": {
+    "text": "La copia non è riuscita",
+    "en": "The copy failed"
+  },
+  "android.files.gallery_empty": {
+    "text": "Qui non ci sono foto o video.",
+    "en": "There are no photos or videos here."
+  },
+  "android.files.gallery_empty_skipped": {
+    "text": {
+      "one": "Qui non ci sono foto o video ({count} altro file).",
+      "other": "Qui non ci sono foto o video ({count} altri file)."
+    },
+    "en": {
+      "one": "There are no photos or videos here ({count} other file).",
+      "other": "There are no photos or videos here ({count} other files)."
+    }
+  },
+  "android.files.gallery_expires": {
+    "text": "Il link scade dopo",
+    "en": "Link expires after"
+  },
+  "android.files.gallery_failed_title": {
+    "text": "Impossibile condividere",
+    "en": "Couldn't Share"
+  },
+  "android.files.gallery_keep_open": {
+    "text": "Tieni aperta questa finestra: il link comparirà al termine della copia.",
+    "en": "Keep this open: the link is shown when the copy finishes."
+  },
+  "android.files.gallery_link_copied": {
+    "text": "Link copiato",
+    "en": "Link copied"
+  },
+  "android.files.gallery_link_once": {
+    "text": "Questo link viene mostrato solo ora: il dispositivo non lo conserva mai. Condividilo o copialo prima di chiudere.",
+    "en": "This link is shown only now - the device never stores it. Share it or copy it before closing.",
+    "reviewed": "claude-backtranslation 2026-10-11 #7d1ba9af"
+  },
+  "android.files.gallery_looking": {
+    "text": "Verifica di cosa verrà condiviso…",
+    "en": "Looking at what will be shared…"
+  },
+  "android.files.gallery_lost": {
+    "text": "Impossibile seguire l’avanzamento della copia",
+    "en": "Lost track of the copy"
+  },
+  "android.files.gallery_ready": {
+    "text": "Galleria pronta",
+    "en": "Gallery Ready"
+  },
+  "android.files.gallery_skipped": {
+    "text": {
+      "one": "{count} altro file non è incluso",
+      "other": "{count} altri file non sono inclusi"
+    },
+    "en": {
+      "one": "{count} other file is not included",
+      "other": "{count} other files are not included"
+    }
+  },
+  "android.files.inside_kept_out": {
+    "text": "Dentro {folder}, che è fuori da Immagini",
+    "en": "Inside {folder}, which is kept out of Images"
+  },
+  "android.files.inside_kept_out_banner": {
+    "text": "Dentro {folder}, che è fuori da Immagini: le foto e i video qui non vengono etichettati, analizzati alla ricerca di volti né mostrati in Immagini.",
+    "en": "Inside {folder}, which is kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images."
+  },
+  "android.files.inside_kept_out_info": {
+    "text": "Dentro {folder}, che è fuori da Immagini. Le foto e i video qui non vengono etichettati, analizzati alla ricerca di volti né mostrati in Immagini. File continua a mostrarli.",
+    "en": "Inside {folder}, which is kept out of Images. Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them."
+  },
+  "android.files.kept_out_said": {
+    "text": "La cartella {name} è ora fuori da Immagini",
+    "en": "{name} kept out of Images"
+  },
+  "android.files.show_named": {
+    "text": "Mostra la cartella “{name}” in Immagini",
+    "en": "Show “{name}” in Images"
+  },
+  "android.files.shown_said": {
+    "text": "La cartella {name} è di nuovo in Immagini",
+    "en": "{name} shown in Images"
+  },
+  "android.files.wait_download_link": {
+    "text": "Attendi che il link di download sia pronto",
+    "en": "Wait for the download link to be ready"
+  },
+  "android.files.wait_folder": {
+    "text": "Attendi che la cartella sia aggiornata",
+    "en": "Wait for the folder to be updated"
+  },
+  "android.files.wait_share_link": {
+    "text": "Attendi che il link di condivisione sia pronto",
+    "en": "Wait for the share link to be ready"
+  },
+  "android.friends_ask_theirs_unnamed": {
+    "text": "Chiedi al dispositivo di questa persona di eliminare ciò che ho condiviso",
+    "en": "Ask this friend's device to delete what I shared",
+    "reviewed": "claude-backtranslation 2026-10-11 #4a0f8cc7"
+  },
+  "android.friends_delete_theirs": {
+    "text": "Elimina da questo telefono tutto ciò che viene da {name}",
+    "en": "Delete everything from {name} on this phone",
+    "reviewed": "claude-backtranslation 2026-10-11 #8ea8f7ff"
+  },
+  "android.friends_delete_theirs_unnamed": {
+    "text": "Elimina da questo telefono tutto ciò che viene da questa persona",
+    "en": "Delete everything from this friend on this phone",
+    "reviewed": "claude-backtranslation 2026-10-11 #2b2e589f"
+  },
+  "android.friends_keep": {
+    "text": "Mantieni",
+    "en": "Keep",
+    "reviewed": "claude-backtranslation 2026-10-11 #6b8f99a0"
+  },
+  "android.friends_keep_waiting": {
+    "text": "Aspetta ancora",
+    "en": "Keep waiting",
+    "reviewed": "claude-backtranslation 2026-10-11 #e4228c42"
+  },
+  "android.friends_remove_friend": {
+    "text": "Rimuovi dagli amici",
+    "en": "Remove friend",
+    "reviewed": "claude-backtranslation 2026-10-11 #e6ea3cd5"
+  },
+  "android.friends_remove_now": {
+    "text": "Rimuovi ora",
+    "en": "Remove now",
+    "reviewed": "claude-backtranslation 2026-10-11 #2e3eb48e"
+  },
+  "android.friends_remove_now_title_unnamed": {
+    "text": "Rimuovere ora questa persona dagli amici?",
+    "en": "Remove this friend now?",
+    "reviewed": "claude-backtranslation 2026-10-11 #58a6efe1"
+  },
+  "android.friends_remove_title_unnamed": {
+    "text": "Rimuovere questa persona dagli amici?",
+    "en": "Remove this friend?",
+    "reviewed": "claude-backtranslation 2026-10-11 #3983722f"
+  },
+  "android.menu_sections": {
+    "text": "Sezioni",
+    "en": "Sections"
+  },
+  "android.notification_channel": {
+    "text": "Amici e post",
+    "en": "Friends and posts"
+  },
+  "android.notification_channel_description": {
+    "text": "Richieste di amicizia, nuovi post, Mi piace e commenti",
+    "en": "Friend requests, new posts, likes and comments"
+  },
+  "android.photos_open_in_maps": {
+    "text": "Apri in Maps ({latitude}, {longitude})",
+    "en": "Open in Maps ({latitude}, {longitude})"
+  },
+  "android.photos_people_back": {
+    "text": "Torna alle foto",
+    "en": "Back to photos"
+  },
+  "android.photos_people_deleting": {
+    "text": "{current} di {total}",
+    "en": "{current} of {total}"
+  },
+  "android.photos_people_keep": {
+    "text": {
+      "one": "Mantieni {name}, {count} foto",
+      "other": "Mantieni {name}, {count} foto"
+    },
+    "en": {
+      "one": "Keep {name}, {count} photo",
+      "other": "Keep {name}, {count} photos"
+    }
+  },
+  "android.photos_people_merge_dimmed": {
+    "text": "Unisci (seleziona 2 o più volti da unire)",
+    "en": "Merge (select 2 or more to merge)"
+  },
+  "android.photos_search_close": {
+    "text": "Chiudi ricerca",
+    "en": "Close search"
+  },
+  "android.photos_search_in_search": {
+    "text": "Nella ricerca",
+    "en": "In the search"
+  },
+  "android.settings.bridge_leave_delete": {
+    "text": "Lascia ed elimina",
+    "en": "Leave and Delete",
+    "reviewed": "claude-backtranslation 2026-10-11 #36848bd7"
+  },
+  "android.settings.crop_hint": {
+    "text": "Trascina la foto per centrare il tuo viso",
+    "en": "Drag the photo to centre your face"
+  },
+  "android.settings.crop_zoom": {
+    "text": "Zoom",
+    "en": "Zoom"
+  },
+  "android.settings.links_delete_text": {
+    "text": "Le copie condivise vengono eliminate e il link smette di funzionare.",
+    "en": "The shared copies are deleted and the link stops working.",
+    "reviewed": "claude-backtranslation 2026-10-11 #15ed45d7"
+  },
+  "android.settings.links_empty_text": {
+    "text": "I link creati con “Condividi” o “Condividi come galleria” in Immagini e File compaiono qui finché non scadono.",
+    "en": "Links made with Share or Share as Gallery in Images and Files show up here until they expire."
+  },
+  "android.settings.logs_empty": {
+    "text": "Ancora nessuna voce nel log.",
+    "en": "Nothing logged yet."
+  },
+  "android.settings.logs_footer": {
+    "text": "Ciò che il dispositivo e i suoi aggiornamenti registrano mentre sono in esecuzione, in tempo reale: puoi leggerlo, condividerlo o inviarcelo con “Inviaci” quando qualcosa va storto.",
+    "en": "What the device and its updates write down as they run - live, to read, share or send to us when something goes wrong."
+  },
+  "android.settings.logs_load_failed": {
+    "text": "Impossibile caricare il log",
+    "en": "Could not load the log"
+  },
+  "android.settings.logs_send_failed": {
+    "text": "Impossibile inviare i log",
+    "en": "Could not send the logs"
+  },
+  "android.settings.logs_send_title": {
+    "text": "Inviaci i log",
+    "en": "Send logs to us",
+    "reviewed": "claude-backtranslation 2026-10-11 #015ad180"
+  },
+  "android.settings.picker_empty": {
+    "text": "Ancora nessuna foto qui.",
+    "en": "No photos here yet."
+  },
+  "android.settings.picker_load_failed": {
+    "text": "Impossibile caricare le tue foto.",
+    "en": "Could not load your photos."
+  },
+  "android.settings.picker_open_failed": {
+    "text": "Impossibile aprire quella foto.",
+    "en": "Could not open that photo."
+  },
+  "android.settings.profile_description": {
+    "text": "Descrizione",
+    "en": "Description"
+  },
+  "android.settings.profile_from_phone": {
+    "text": "Da questo telefono",
+    "en": "From this phone"
+  },
+  "android.settings.sharing_footer": {
+    "text": "Gallerie e link di download che hai condiviso, finché non scadono. Se ne elimini uno, le copie condivise vengono rimosse e il link smette di funzionare.",
+    "en": "Galleries and download links you shared, until they expire. Deleting one removes the shared copies and the link stops working."
+  },
+  "android.settings.sync_cloud": {
+    "text": "Sincronizza dal cloud",
+    "en": "Sync from cloud"
+  },
+  "android.settings.sync_title": {
+    "text": "Sincronizzazione",
+    "en": "Sync"
+  },
+  "android.settings.thumbs_change_size": {
+    "text": "Cambia la dimensione",
+    "en": "Change the size"
+  },
+  "android.settings.thumbs_max_size_a11y": {
+    "text": "Dimensione massima, {size}",
+    "en": "Maximum size, {size}"
+  },
+  "android.settings.thumbs_selected": {
+    "text": "Selezionata",
+    "en": "Selected"
+  },
+  "android.settings.thumbs_title": {
+    "text": "Cache delle miniature",
+    "en": "Thumbnail cache"
+  },
+  "android.settings.update_version_unknown": {
+    "text": "Versione —",
+    "en": "Version —"
+  },
+  "android.settings.upload_pending": {
+    "text": {
+      "one": "{count} in attesa",
+      "other": "{count} in attesa"
+    },
+    "en": {
+      "one": "{count} pending",
+      "other": "{count} pending"
+    }
+  },
+  "android.settings.upload_waiting": {
+    "text": "In attesa",
+    "en": "Waiting"
+  },
+  "android.settings.uploading": {
+    "text": "Caricamento di {name}",
+    "en": "Uploading {name}"
+  },
+  "android.signal_good": {
+    "text": "Segnale buono",
+    "en": "Good signal"
+  },
+  "android.signal_strong": {
+    "text": "Segnale forte",
+    "en": "Strong signal"
+  },
+  "android.signal_weak": {
+    "text": "Segnale debole",
+    "en": "Weak signal"
+  },
+  "android.social_delete_comment": {
+    "text": "Elimina commento",
+    "en": "Delete comment"
+  },
+  "android.social_like": {
+    "text": "Mi piace",
+    "en": "Like"
+  },
+  "android.social_like_comment": {
+    "text": "Metti Mi piace al commento",
+    "en": "Like comment"
+  },
+  "android.social_mute": {
+    "text": "Disattiva audio",
+    "en": "Mute"
+  },
+  "android.social_play": {
+    "text": "Riproduci",
+    "en": "Play"
+  },
+  "android.social_replay": {
+    "text": "Riproduci di nuovo",
+    "en": "Replay"
+  },
+  "android.social_unlike": {
+    "text": "Togli Mi piace",
+    "en": "Unlike"
+  },
+  "android.social_unlike_comment": {
+    "text": "Togli Mi piace al commento",
+    "en": "Unlike comment"
+  },
+  "android.storage_gauge": {
+    "text": "Archiviazione. Mostra dettagli",
+    "en": "Storage. Show details"
+  },
+  "android.storage_gauge_attention": {
+    "text": "Archiviazione, richiede attenzione. Mostra dettagli",
+    "en": "Storage, needs attention. Show details"
+  },
+  "android.storage_gauge_used": {
+    "text": "Archiviazione, {percent} in uso. Mostra dettagli",
+    "en": "Storage, {percent} used. Show details"
+  },
+  "android.storage_gauge_used_attention": {
+    "text": "Archiviazione, {percent} in uso, richiede attenzione. Mostra dettagli",
+    "en": "Storage, {percent} used, needs attention. Show details"
+  },
+  "android.storage_hide_details": {
+    "text": "Archiviazione, nascondi dettagli",
+    "en": "Storage, hide details"
+  },
+  "android.storage_hide_details_attention": {
+    "text": "Archiviazione, richiede attenzione, nascondi dettagli",
+    "en": "Storage, needs attention, hide details"
+  },
+  "android.storage_show_details": {
+    "text": "Archiviazione, mostra dettagli",
+    "en": "Storage, show details"
+  },
+  "android.storage_show_details_attention": {
+    "text": "Archiviazione, richiede attenzione, mostra dettagli",
+    "en": "Storage, needs attention, show details"
+  },
+  "android.storage_used": {
+    "text": "Spazio utilizzato, {percent}%",
+    "en": "Storage used, {percent}%"
+  },
+  "android.trim_cant": {
+    "text": "Impossibile tagliare questo video: {reason}",
+    "en": "Can't trim this video: {reason}"
+  },
+  "android.trim_play_cut": {
+    "text": "▶ Riproduci taglio",
+    "en": "▶ Play cut"
+  },
+  "android.ws_connect_timeout": {
+    "text": "Il dispositivo non ha risposto in tempo alla connessione",
+    "en": "The device didn't answer the connection in time"
+  },
+  "android.ws_still_connecting": {
+    "text": "Connessione al dispositivo ancora in corso",
+    "en": "Still connecting to the device"
+  },
+  "android.ws_timed_out": {
+    "text": "Il dispositivo non ha risposto in tempo",
+    "en": "The device did not answer in time"
+  }
+}

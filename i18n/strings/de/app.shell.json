@@ -567,6 +567,40 @@
     "text": "{used} von {limit} belegt",
     "en": "Using {used} of {limit}"
   },
+  "app.shell.time_days_ago": {
+    "text": {
+      "one": "vor {count} T.",
+      "other": "vor {count} T."
+    },
+    "en": {
+      "one": "{count}d ago",
+      "other": "{count}d ago"
+    }
+  },
+  "app.shell.time_hours_ago": {
+    "text": {
+      "one": "vor {count} Std.",
+      "other": "vor {count} Std."
+    },
+    "en": {
+      "one": "{count}h ago",
+      "other": "{count}h ago"
+    }
+  },
+  "app.shell.time_just_now": {
+    "text": "gerade eben",
+    "en": "just now"
+  },
+  "app.shell.time_minutes_ago": {
+    "text": {
+      "one": "vor {count} Min.",
+      "other": "vor {count} Min."
+    },
+    "en": {
+      "one": "{count}m ago",
+      "other": "{count}m ago"
+    }
+  },
   "app.shell.upload_left": {
     "text": {
       "one": "{count} übrig",

@@ -1,0 +1,415 @@
+{
+  "app.social.alerts.commented": {
+    "text": "<b>{name}</b> heeft gereageerd op je bericht",
+    "en": "<b>{name}</b> commented on your post"
+  },
+  "app.social.alerts.empty": {
+    "text": "Nog niets",
+    "en": "Nothing yet"
+  },
+  "app.social.alerts.error_more": {
+    "text": {
+      "one": "<b>{title}</b> <dim>+{count} meer</dim>",
+      "other": "<b>{title}</b> <dim>+{count} meer</dim>"
+    },
+    "en": {
+      "one": "<b>{title}</b> <dim>+{count} more</dim>",
+      "other": "<b>{title}</b> <dim>+{count} more</dim>"
+    }
+  },
+  "app.social.alerts.friend_accepted": {
+    "text": "<b>{name}</b> heeft je vriendschapsverzoek geaccepteerd",
+    "en": "<b>{name}</b> accepted your friend request"
+  },
+  "app.social.alerts.friend_request": {
+    "text": "<b>{name}</b> heeft je een vriendschapsverzoek gestuurd",
+    "en": "<b>{name}</b> sent you a friend request"
+  },
+  "app.social.alerts.liked_comment": {
+    "text": "<b>{name}</b> vindt je reactie leuk",
+    "en": "<b>{name}</b> liked your comment"
+  },
+  "app.social.alerts.liked_post": {
+    "text": "<b>{name}</b> vindt je bericht leuk",
+    "en": "<b>{name}</b> liked your post"
+  },
+  "app.social.alerts.title": {
+    "text": "Meldingen",
+    "en": "Notifications"
+  },
+  "app.social.compose.camera": {
+    "text": "Foto of video maken",
+    "en": "Take a photo or video"
+  },
+  "app.social.compose.caption_placeholder": {
+    "text": "Schrijf een bijschrift…",
+    "en": "Write a caption…"
+  },
+  "app.social.compose.empty_response": {
+    "text": "Leeg antwoord",
+    "en": "Empty response"
+  },
+  "app.social.compose.filter_placeholder": {
+    "text": "Filteren op tag…",
+    "en": "Filter by tag…"
+  },
+  "app.social.compose.order": {
+    "text": "Volgorde in het bericht",
+    "en": "Order in post"
+  },
+  "app.social.compose.photos_access": {
+    "text": "Toegang tot je foto’s is nodig om van je telefoon te kiezen.",
+    "en": "Photos access is needed to pick from your phone."
+  },
+  "app.social.compose.publish": {
+    "text": "Publiceren",
+    "en": "Publish"
+  },
+  "app.social.compose.publish_count": {
+    "text": "Publiceren ({number})",
+    "en": "Publish ({number})"
+  },
+  "app.social.compose.publish_failed": {
+    "text": "Kan niet publiceren",
+    "en": "Could not publish"
+  },
+  "app.social.compose.publish_failed_detail": {
+    "text": "Kan niet publiceren: {detail}",
+    "en": "Could not publish: {detail}"
+  },
+  "app.social.compose.publishing": {
+    "text": "Publiceren…",
+    "en": "Publishing…"
+  },
+  "app.social.compose.source_phone": {
+    "text": "Telefoon",
+    "en": "Phone"
+  },
+  "app.social.compose.source_synced": {
+    "text": "Gesynchroniseerd",
+    "en": "Synced"
+  },
+  "app.social.compose.title": {
+    "text": "Nieuw bericht",
+    "en": "New Post"
+  },
+  "app.social.compose.trim_badge": {
+    "text": "✂ Inkorten",
+    "en": "✂ Trim"
+  },
+  "app.social.compose.trim_load_failed": {
+    "text": "Kan die video niet laden om hem in te korten: {detail}",
+    "en": "Could not load that video to trim it: {detail}"
+  },
+  "app.social.compose.uploading": {
+    "text": "Uploaden ({done} van {total})…",
+    "en": "Uploading {done} of {total}…"
+  },
+  "app.social.feed.empty_text": {
+    "text": "Deel een foto of video met je vrienden: die gaat van jouw apparaat naar dat van hen, zonder cloud ertussen.",
+    "en": "Share a photo or a video with your friends - it goes from your device to theirs, with no cloud in between."
+  },
+  "app.social.feed.empty_title": {
+    "text": "Geen berichten",
+    "en": "No social posts"
+  },
+  "app.social.friends.add_heading": {
+    "text": "Vrienden toevoegen",
+    "en": "Add a friend"
+  },
+  "app.social.friends.ask_theirs": {
+    "text": "Het apparaat van {name} vragen om te verwijderen wat ik heb gedeeld",
+    "en": "Ask {name}'s device to delete what I shared",
+    "reviewed": "claude-backtranslation 2026-10-11 #ba0806f9"
+  },
+  "app.social.friends.ask_theirs_text": {
+    "text": "Je berichten, reacties en likes op hun apparaat. Als dat offline is, gebeurt het de volgende keer dat het verbinding maakt; tot die tijd staat de vriendschap op “Wordt verwijderd”.",
+    "en": "Your posts, comments and likes on their device. If it's offline, it happens the next time it connects; until then they show as leaving.",
+    "reviewed": "claude-backtranslation 2026-10-11 #3dcecd2c"
+  },
+  "app.social.friends.block": {
+    "text": "Blokkeren",
+    "en": "Block"
+  },
+  "app.social.friends.cancel_confirm_text": {
+    "text": "Het verzoek wordt op beide apparaten ingetrokken.",
+    "en": "The request will be withdrawn on both devices.",
+    "reviewed": "claude-backtranslation 2026-10-11 #0879ad11"
+  },
+  "app.social.friends.cancel_confirm_title": {
+    "text": "Dit vriendschapsverzoek intrekken?",
+    "en": "Cancel this friend request?",
+    "reviewed": "claude-backtranslation 2026-10-11 #5d4eb4e8"
+  },
+  "app.social.friends.cancel_request": {
+    "text": "Verzoek intrekken",
+    "en": "Cancel request",
+    "reviewed": "claude-backtranslation 2026-10-11 #21e865fb"
+  },
+  "app.social.friends.cancel_request_button": {
+    "text": "Verzoek intrekken",
+    "en": "Cancel Request"
+  },
+  "app.social.friends.delete_confirm_text": {
+    "text": "Het verzoek wordt hier en op het apparaat van de afzender verwijderd.",
+    "en": "The request will be removed here and on the sender's device.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c586eb79"
+  },
+  "app.social.friends.delete_confirm_title": {
+    "text": "Dit vriendschapsverzoek verwijderen?",
+    "en": "Delete this friend request?",
+    "reviewed": "claude-backtranslation 2026-10-11 #9d9fcfcf"
+  },
+  "app.social.friends.delete_error": {
+    "text": "Fout bij het verwijderen van het verzoek",
+    "en": "Error deleting request"
+  },
+  "app.social.friends.delete_failed": {
+    "text": "Verwijderen mislukt",
+    "en": "Delete failed"
+  },
+  "app.social.friends.delete_request": {
+    "text": "Verzoek verwijderen",
+    "en": "Delete request",
+    "reviewed": "claude-backtranslation 2026-10-11 #98994d42"
+  },
+  "app.social.friends.delete_theirs_text": {
+    "text": "Hun berichten en foto’s, en hun reacties en likes op elk bericht.",
+    "en": "Their posts and photos, and their comments and likes on any post.",
+    "reviewed": "claude-backtranslation 2026-10-11 #75f00dbc"
+  },
+  "app.social.friends.empty": {
+    "text": "Nog geen vriendschappen.",
+    "en": "No friendships yet."
+  },
+  "app.social.friends.friends_again": {
+    "text": "Jullie zijn weer vrienden ✅",
+    "en": "You're friends again ✅"
+  },
+  "app.social.friends.leaving_note": {
+    "text": "Wachten tot hun apparaat verwijdert wat je hebt gedeeld.",
+    "en": "Waiting for their device to delete what you shared."
+  },
+  "app.social.friends.list_heading": {
+    "text": "Vrienden",
+    "en": "Friends"
+  },
+  "app.social.friends.load_failed": {
+    "text": "Kan de vriendschappen niet laden",
+    "en": "Could not load friendships"
+  },
+  "app.social.friends.name_invalid": {
+    "text": "Voer de naam van het apparaat in, bijvoorbeeld pit: letters, cijfers en streepjes.",
+    "en": "Enter the device's name, like pit - letters, digits and dashes."
+  },
+  "app.social.friends.name_placeholder": {
+    "text": "naam",
+    "en": "name"
+  },
+  "app.social.friends.no_domain": {
+    "text": "(geen domein)",
+    "en": "(no domain)"
+  },
+  "app.social.friends.no_name": {
+    "text": "(geen naam)",
+    "en": "(no name)"
+  },
+  "app.social.friends.remove_button": {
+    "text": "Verwijderen…",
+    "en": "Remove…"
+  },
+  "app.social.friends.remove_error": {
+    "text": "Fout bij het verwijderen van de vriendschap",
+    "en": "Error removing friend"
+  },
+  "app.social.friends.remove_failed": {
+    "text": "Verwijderen mislukt",
+    "en": "Remove failed"
+  },
+  "app.social.friends.remove_now": {
+    "text": "Nu verwijderen",
+    "en": "Remove Now",
+    "reviewed": "claude-backtranslation 2026-10-11 #4feabc3d"
+  },
+  "app.social.friends.remove_now_text": {
+    "text": "Er wordt niet langer gewacht op hun apparaat. Wat het nog niet heeft verwijderd, blijft daar staan.",
+    "en": "Stops waiting for their device. Whatever it hasn't deleted yet stays there.",
+    "reviewed": "claude-backtranslation 2026-10-11 #08c5d1ad"
+  },
+  "app.social.friends.remove_now_title": {
+    "text": "{name} nu verwijderen?",
+    "en": "Remove {name} now?",
+    "reviewed": "claude-backtranslation 2026-10-11 #1b189df3"
+  },
+  "app.social.friends.remove_title": {
+    "text": "{name} verwijderen?",
+    "en": "Remove {name}?",
+    "reviewed": "claude-backtranslation 2026-10-11 #2593ea65"
+  },
+  "app.social.friends.removed": {
+    "text": "Vriend verwijderd",
+    "en": "Friend removed"
+  },
+  "app.social.friends.request_cancelled": {
+    "text": "Verzoek ingetrokken",
+    "en": "Request cancelled"
+  },
+  "app.social.friends.request_deleted": {
+    "text": "Verzoek verwijderd",
+    "en": "Request deleted"
+  },
+  "app.social.friends.request_failed": {
+    "text": "Verzoek mislukt",
+    "en": "Request failed"
+  },
+  "app.social.friends.request_sent": {
+    "text": "Vriendschapsverzoek verstuurd ✅",
+    "en": "Friend request sent ✅"
+  },
+  "app.social.friends.send_error": {
+    "text": "Fout bij het versturen van het verzoek",
+    "en": "Error sending request"
+  },
+  "app.social.friends.set_pending": {
+    "text": "Op openstaand zetten",
+    "en": "Set Pending"
+  },
+  "app.social.friends.status_accepted": {
+    "text": "Geaccepteerd",
+    "en": "Accepted"
+  },
+  "app.social.friends.status_accepted_sent": {
+    "text": "Geaccepteerd (verstuurd)",
+    "en": "Accepted (sent)"
+  },
+  "app.social.friends.status_blocked": {
+    "text": "Geblokkeerd",
+    "en": "Blocked"
+  },
+  "app.social.friends.status_blocked_sent": {
+    "text": "Geblokkeerd (verstuurd)",
+    "en": "Blocked (sent)"
+  },
+  "app.social.friends.status_leaving": {
+    "text": "Wordt verwijderd",
+    "en": "Leaving"
+  },
+  "app.social.friends.status_pending": {
+    "text": "Openstaand",
+    "en": "Pending"
+  },
+  "app.social.friends.status_pending_sent": {
+    "text": "Openstaand (verstuurd)",
+    "en": "Pending (sent)"
+  },
+  "app.social.friends.status_updated": {
+    "text": "Status bijgewerkt ✅",
+    "en": "Status updated ✅"
+  },
+  "app.social.friends.title": {
+    "text": "Vrienden",
+    "en": "Friends"
+  },
+  "app.social.friends.unexpected_response": {
+    "text": "Onverwacht antwoord",
+    "en": "Unexpected response"
+  },
+  "app.social.friends.update_error": {
+    "text": "Fout bij het bijwerken van de status",
+    "en": "Error updating status"
+  },
+  "app.social.friends.update_failed": {
+    "text": "Bijwerken mislukt",
+    "en": "Update failed"
+  },
+  "app.social.friends.waiting_answer": {
+    "text": "Wachten op je antwoord",
+    "en": "Waiting for your answer"
+  },
+  "app.social.friends.waiting_their_device": {
+    "text": "Wachten op hun apparaat",
+    "en": "Waiting for their device"
+  },
+  "app.social.likes.empty": {
+    "text": "Nog geen likes",
+    "en": "No likes yet"
+  },
+  "app.social.likes.title": {
+    "text": "Likes",
+    "en": "Likes"
+  },
+  "app.social.post.comment": {
+    "text": "<b>{name}</b>: {comment}",
+    "en": "<b>{name}</b>: {comment}"
+  },
+  "app.social.post.comment_placeholder": {
+    "text": "Schrijf een reactie…",
+    "en": "Add a comment…"
+  },
+  "app.social.post.comment_unnamed": {
+    "text": "<b>Gebruiker</b>: {comment}",
+    "en": "<b>User</b>: {comment}"
+  },
+  "app.social.post.delete_comment": {
+    "text": "Reactie verwijderen",
+    "en": "Delete Comment",
+    "reviewed": "claude-backtranslation 2026-10-11 #4bc2326f"
+  },
+  "app.social.post.delete_comment_title": {
+    "text": "Deze reactie verwijderen?",
+    "en": "Delete this comment?",
+    "reviewed": "claude-backtranslation 2026-10-11 #0d359007"
+  },
+  "app.social.post.delete_post": {
+    "text": "Bericht verwijderen",
+    "en": "Delete Post",
+    "reviewed": "claude-backtranslation 2026-10-11 #4217d581"
+  },
+  "app.social.post.delete_post_title": {
+    "text": "Dit bericht verwijderen?",
+    "en": "Delete this post?",
+    "reviewed": "claude-backtranslation 2026-10-11 #c6883dff"
+  },
+  "app.social.post.likes": {
+    "text": {
+      "one": "{count} like",
+      "other": "{count} likes"
+    },
+    "en": {
+      "one": "{count} like",
+      "other": "{count} likes"
+    }
+  },
+  "app.social.post.send_comment": {
+    "text": "Plaatsen",
+    "en": "Post"
+  },
+  "app.social.post.unnamed": {
+    "text": "Gebruiker",
+    "en": "User"
+  },
+  "app.social.trim.cant_open": {
+    "text": "Deze video kan niet worden geopend.",
+    "en": "This video could not be opened."
+  },
+  "app.social.trim.keeping": {
+    "text": "{kept} van {total} behouden",
+    "en": "Keeping {kept} of {total}"
+  },
+  "app.social.trim.no_length": {
+    "text": "De lengte van deze video kan niet worden gelezen.",
+    "en": "This video's length could not be read."
+  },
+  "app.social.trim.reading": {
+    "text": "De video wordt gelezen…",
+    "en": "Reading the clip…"
+  },
+  "app.social.trim.remove": {
+    "text": "Inkorten ongedaan maken",
+    "en": "Remove trim"
+  },
+  "app.social.trim.title": {
+    "text": "Video inkorten",
+    "en": "Trim video"
+  }
+}

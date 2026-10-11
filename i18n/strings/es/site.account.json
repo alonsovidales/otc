@@ -1,0 +1,490 @@
+{
+  "site.account.data.download": {
+    "text": "Descargar mis datos",
+    "en": "Download my data"
+  },
+  "site.account.data.hint": {
+    "text": "Descarga todo lo que este puente guarda sobre ti: tus datos, cómo inicias sesión, tus dominios y sus recuentos de tráfico. Qué <privacy>guardamos y por qué</privacy>.",
+    "en": "Download everything this bridge keeps about you: your details, how you sign in, your domains and their traffic counts. What <privacy>we keep, and why</privacy>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #fd84cca4"
+  },
+  "site.account.data.title": {
+    "text": "Tus datos y tu cuenta",
+    "en": "Your data and your account"
+  },
+  "site.account.delete.button": {
+    "text": "Eliminar mi cuenta",
+    "en": "Delete my account",
+    "reviewed": "claude-backtranslation 2026-10-11 #394a6312"
+  },
+  "site.account.delete.failed": {
+    "text": "No se ha podido eliminar la cuenta",
+    "en": "Could not delete the account"
+  },
+  "site.account.delete.hint": {
+    "text": "<b>Al eliminar tu cuenta</b> se liberan todos tus dominios (cada nombre se te reserva durante 30 días, para que nadie pueda hacerse pasar por tu dispositivo ante tus amigos) y se eliminan tus datos, tus inicios de sesión y tus códigos de configuración. Tus dispositivos siguen funcionando en casa, en <code>{address}</code>, como si se hubieran configurado sin cuenta, con todo lo que tienen guardado, pero ya no son accesibles desde fuera ni para tus amigos. Esto no se puede deshacer.",
+    "en": "<b>Deleting your account</b> releases all your domains (each name stays reserved for you for 30 days, so no one can pose as your device to your friends) and removes your details, sign-ins and setup codes. Your devices keep working at home, at <code>{address}</code>, as if they had been set up without an account - with everything on them - but are no longer reachable from outside nor by your friends. This can't be undone.",
+    "reviewed": "claude-backtranslation 2026-10-11 #49fe50bc"
+  },
+  "site.account.delete.password_label": {
+    "text": "Tu contraseña",
+    "en": "Your password"
+  },
+  "site.account.delete.provider_hint": {
+    "text": "Inicias sesión con Google o Apple: vuelve a iniciar sesión justo antes de eliminar la cuenta (como mucho 15 minutos antes).",
+    "en": "You sign in with Google or Apple: sign in again just before deleting (within 15 minutes).",
+    "reviewed": "claude-backtranslation 2026-10-11 #49a2b939"
+  },
+  "site.account.delete.type_error": {
+    "text": "Escribe {word} para confirmar",
+    "en": "Type {word} to confirm",
+    "reviewed": "claude-backtranslation 2026-10-11 #9dae8e2a"
+  },
+  "site.account.delete.type_label": {
+    "text": "Escribe <b>{word}</b> para confirmar",
+    "en": "Type <b>{word}</b> to confirm",
+    "reviewed": "claude-backtranslation 2026-10-11 #60a1a20d"
+  },
+  "site.account.delete.word": {
+    "text": "eliminar",
+    "en": "delete",
+    "reviewed": "claude-backtranslation 2026-10-11 #cadfe72f"
+  },
+  "site.account.deleted.home": {
+    "text": "Volver a la página de inicio",
+    "en": "Back to the home page"
+  },
+  "site.account.deleted.lead": {
+    "text": "Tus dispositivos siguen funcionando en casa, en <code>{address}</code>.",
+    "en": "Your devices go on working at home, at <code>{address}</code>."
+  },
+  "site.account.deleted.lead_released": {
+    "text": "Dominios liberados: {domains}. Tus dispositivos siguen funcionando en casa, en <code>{address}</code>.",
+    "en": "Released: {domains}. Your devices go on working at home, at <code>{address}</code>."
+  },
+  "site.account.deleted.title": {
+    "text": "Tu cuenta se ha eliminado",
+    "en": "Your account is deleted"
+  },
+  "site.account.domains.connected": {
+    "text": "conectado",
+    "en": "connected"
+  },
+  "site.account.domains.disabled": {
+    "text": "desactivado",
+    "en": "disabled"
+  },
+  "site.account.domains.empty": {
+    "text": "Aún no hay dominios. Configura un dispositivo con un código de configuración o registra un nombre para una instalación manual.",
+    "en": "No domains yet. Set up a device with a setup code, or register a name for a manual install."
+  },
+  "site.account.domains.identity_confirm": {
+    "text": "¿Dar una identidad nueva a {domain}? El dispositivo que lo usa ahora no podrá acceder al puente hasta que se configure con la nueva.",
+    "en": "Give {domain} a new identity? The device using it now will be locked out of the bridge until it is set up with the new one.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c68023e5"
+  },
+  "site.account.domains.identity_failed": {
+    "text": "No se ha podido volver a emitir ese dominio",
+    "en": "Could not re-issue that domain"
+  },
+  "site.account.domains.new_identity": {
+    "text": "Identidad nueva",
+    "en": "New identity"
+  },
+  "site.account.domains.not_connected": {
+    "text": "no conectado",
+    "en": "not connected"
+  },
+  "site.account.domains.release": {
+    "text": "Liberar",
+    "en": "Release"
+  },
+  "site.account.domains.release_confirm": {
+    "text": "¿Liberar {domain}? Su dispositivo seguirá funcionando solo en casa ({address}), y el nombre se te reservará durante 30 días.",
+    "en": "Release {domain}? Its device goes on working at home only ({address}), and the name stays reserved for you for 30 days.",
+    "reviewed": "claude-backtranslation 2026-10-11 #d32ed6bb"
+  },
+  "site.account.domains.release_failed": {
+    "text": "No se ha podido liberar ese dominio",
+    "en": "Could not release that domain"
+  },
+  "site.account.domains.since": {
+    "text": "desde el {date}",
+    "en": "since {date}"
+  },
+  "site.account.domains.title": {
+    "text": "Tus dominios",
+    "en": "Your domains"
+  },
+  "site.account.error.confirm_required": {
+    "text": "confirma con {body}",
+    "en": "confirm with {body}",
+    "reviewed": "claude-backtranslation 2026-10-11 #cccd223f"
+  },
+  "site.account.error.recent_signin_required": {
+    "text": "inicia sesión de nuevo (con Google o Apple) y vuelve a intentarlo en los 15 minutos siguientes",
+    "en": "sign in again (with Google or Apple), then try again within 15 minutes",
+    "reviewed": "claude-backtranslation 2026-10-11 #5121af26"
+  },
+  "site.account.field.country": {
+    "text": "País de residencia",
+    "en": "Country of residence"
+  },
+  "site.account.field.country_choose": {
+    "text": "Elige…",
+    "en": "Choose…"
+  },
+  "site.account.field.email": {
+    "text": "Correo electrónico",
+    "en": "Email"
+  },
+  "site.account.field.name": {
+    "text": "Nombre",
+    "en": "Name"
+  },
+  "site.account.field.surname": {
+    "text": "Apellidos",
+    "en": "Surname"
+  },
+  "site.account.footer.privacy": {
+    "text": "Privacidad",
+    "en": "Privacy"
+  },
+  "site.account.forgot.email_label": {
+    "text": "El correo electrónico de tu cuenta",
+    "en": "Your account's email"
+  },
+  "site.account.forgot.open": {
+    "text": "¿Has olvidado tu contraseña?",
+    "en": "Forgot your password?"
+  },
+  "site.account.forgot.send": {
+    "text": "Enviarme un enlace para restablecerla",
+    "en": "Email me a reset link"
+  },
+  "site.account.forgot.sent": {
+    "text": "Si hay una cuenta con ese correo electrónico, ya va de camino un enlace para restablecer su contraseña. Es válido durante una hora.",
+    "en": "If there is an account for that email, a link to reset its password is on its way. It works for an hour.",
+    "reviewed": "claude-backtranslation 2026-10-11 #20d21919"
+  },
+  "site.account.header.sign_out": {
+    "text": "Cerrar sesión",
+    "en": "Sign out"
+  },
+  "site.account.home.hello": {
+    "text": "Hola, {name}",
+    "en": "Hello, {name}"
+  },
+  "site.account.home.summary": {
+    "text": "{registered} de {max} dominios registrados · gratis hasta el <b>{date}</b> · <details>tus datos</details>",
+    "en": "{registered} of {max} domains registered · free until <b>{date}</b> · <details>your details</details>"
+  },
+  "site.account.identity.yours": {
+    "text": "<b>{domain}</b> es tuyo. Copia esto ahora; no se volverá a mostrar:",
+    "en": "<b>{domain}</b> is yours. Copy this now - it is not shown again:",
+    "reviewed": "claude-backtranslation 2026-10-11 #b1598877"
+  },
+  "site.account.loading": {
+    "text": "Cargando…",
+    "en": "Loading…"
+  },
+  "site.account.manual.failed": {
+    "text": "No se ha podido registrar ese nombre",
+    "en": "Could not register that name"
+  },
+  "site.account.manual.hint": {
+    "text": "Para un dispositivo instalado con el script de instalación en lugar de con la imagen: registra aquí su nombre y pon la identidad que obtengas en <code>{path}</code> antes de ejecutar el script (solo se muestra una vez).",
+    "en": "For a device installed with the install script rather than the image: register its name here and put the identity you get into <code>{path}</code> before running the script (it is shown once).",
+    "reviewed": "claude-backtranslation 2026-10-11 #943c2b3e"
+  },
+  "site.account.manual.name_label": {
+    "text": "Nombre",
+    "en": "Name"
+  },
+  "site.account.manual.name_placeholder": {
+    "text": "p. ej., casa",
+    "en": "e.g. casa"
+  },
+  "site.account.manual.register": {
+    "text": "Registrar el nombre",
+    "en": "Register the name"
+  },
+  "site.account.manual.title": {
+    "text": "¿Instalación manual?",
+    "en": "Installing by hand?"
+  },
+  "site.account.meta.description": {
+    "text": "Inicia sesión para ver los dominios registrados en tu cuenta de Off The Cloud, liberarlos, sustituir un dispositivo perdido y obtener un código de configuración para uno nuevo.",
+    "en": "Sign in to see the domains registered to your Off The Cloud account, release them, replace a lost device, and get a setup code for a new one."
+  },
+  "site.account.meta.title": {
+    "text": "Off The Cloud — tu cuenta",
+    "en": "Off The Cloud — your account"
+  },
+  "site.account.password.add": {
+    "text": "Añadir una contraseña",
+    "en": "Add a password"
+  },
+  "site.account.password.change": {
+    "text": "Cambiar contraseña",
+    "en": "Change password"
+  },
+  "site.account.password.current_label": {
+    "text": "Contraseña actual",
+    "en": "Current password"
+  },
+  "site.account.password.mismatch": {
+    "text": "Las dos contraseñas no coinciden",
+    "en": "The two passwords don't match"
+  },
+  "site.account.password.new_label": {
+    "text": "Contraseña nueva <small>({min_chars} caracteres o más)</small>",
+    "en": "New password <small>({min_chars} characters or more)</small>"
+  },
+  "site.account.password.provider_hint": {
+    "text": "Inicias sesión con Google o Apple. Puedes añadir una contraseña en los 15 minutos siguientes a iniciar sesión de esa forma.",
+    "en": "You sign in with Google or Apple. You can add a password within 15 minutes of signing in that way.",
+    "reviewed": "claude-backtranslation 2026-10-11 #8b957623"
+  },
+  "site.account.password.repeat_label": {
+    "text": "Repite la contraseña nueva",
+    "en": "Repeat the new password"
+  },
+  "site.account.password.save_failed": {
+    "text": "No se ha podido guardar la contraseña",
+    "en": "Could not save the password"
+  },
+  "site.account.password.saved": {
+    "text": "Contraseña guardada. Se han cerrado las demás sesiones.",
+    "en": "Password saved. Other sessions are signed out."
+  },
+  "site.account.password.sign_out_all": {
+    "text": "Cerrar sesión en todas partes",
+    "en": "Sign out everywhere"
+  },
+  "site.account.password.sign_out_all_confirm": {
+    "text": "¿Cerrar sesión en tu cuenta en todos los navegadores y dispositivos, incluido este?",
+    "en": "Sign out of your account on every browser and device, this one included?",
+    "reviewed": "claude-backtranslation 2026-10-11 #96ece8f0"
+  },
+  "site.account.password.signs_out": {
+    "text": "Al cambiar la contraseña, se cierra tu sesión en todos los demás sitios. ¿Has dejado la sesión iniciada en un ordenador que ya no usas?",
+    "en": "Changing the password signs you out everywhere else. Left signed in on a computer you don't use any more?",
+    "reviewed": "claude-backtranslation 2026-10-11 #6f18f00f"
+  },
+  "site.account.password.title": {
+    "text": "Contraseña e inicio de sesión",
+    "en": "Password and sign-in"
+  },
+  "site.account.profile.back": {
+    "text": "Atrás",
+    "en": "Back"
+  },
+  "site.account.profile.lead_edit": {
+    "text": "Actualiza los datos de tu cuenta.",
+    "en": "Update the details on your account."
+  },
+  "site.account.profile.lead_new": {
+    "text": "Necesitamos un nombre y tu país de residencia para terminar de crear la cuenta.",
+    "en": "We need a name and your country of residence to finish creating the account."
+  },
+  "site.account.profile.save": {
+    "text": "Guardar",
+    "en": "Save"
+  },
+  "site.account.profile.save_continue": {
+    "text": "Guardar y continuar la configuración",
+    "en": "Save and continue the setup"
+  },
+  "site.account.profile.save_failed": {
+    "text": "No se ha podido guardar",
+    "en": "Could not save"
+  },
+  "site.account.profile.title_edit": {
+    "text": "Tus datos",
+    "en": "Your details"
+  },
+  "site.account.profile.title_new": {
+    "text": "Ya casi está",
+    "en": "Almost there"
+  },
+  "site.account.reset.card_title": {
+    "text": "Contraseña nueva",
+    "en": "New password"
+  },
+  "site.account.reset.done": {
+    "text": "Se ha establecido tu contraseña nueva y has iniciado sesión.",
+    "en": "Your new password is set, and you are signed in."
+  },
+  "site.account.reset.failed": {
+    "text": "No se ha podido establecer la contraseña",
+    "en": "Could not set it"
+  },
+  "site.account.reset.set": {
+    "text": "Establecer la contraseña",
+    "en": "Set the password"
+  },
+  "site.account.reset.signs_out": {
+    "text": "Al establecerla, se cierra la sesión de tu cuenta en todos los demás sitios.",
+    "en": "Setting it signs your account out everywhere else.",
+    "reviewed": "claude-backtranslation 2026-10-11 #938cfaf3"
+  },
+  "site.account.reset.title": {
+    "text": "Elige una contraseña nueva",
+    "en": "Choose a new password"
+  },
+  "site.account.send_failed": {
+    "text": "Ahora mismo no se ha podido enviar",
+    "en": "Could not send it right now"
+  },
+  "site.account.setup.expires": {
+    "text": "Caduca en {minutes} minutos.",
+    "en": "Expires in {minutes} minutes."
+  },
+  "site.account.setup.failed": {
+    "text": "No se ha podido generar un código",
+    "en": "Could not make a code"
+  },
+  "site.account.setup.get": {
+    "text": "Obtener un código de configuración",
+    "en": "Get a setup code"
+  },
+  "site.account.setup.hint": {
+    "text": "Graba la imagen, enciende el dispositivo y configúralo desde la app para iOS o Android (“Configurar dispositivo nuevo”, por Bluetooth). En el paso de la cuenta, elige <b>Tengo un código de configuración</b> y escribe este código: vincula el nombre del dispositivo nuevo a esta cuenta. Válido durante 15 minutos.",
+    "en": "Flash the image, power the device on and set it up from the iOS or Android app (Set up a new device, over Bluetooth). At the account step choose <b>I have a setup code</b> and type this code - it links the new device's name to this account. Good for 15 minutes."
+  },
+  "site.account.setup.lost": {
+    "text": "¿Has perdido un dispositivo? Configura el que lo sustituye de la misma forma y ponle el <b>mismo nombre</b>: el nombre pasa al dispositivo nuevo y el antiguo deja de tener acceso.",
+    "en": "Lost a device? Set up its replacement the same way and give it the <b>same name</b>: the name moves to the new device and the old one is locked out.",
+    "reviewed": "claude-backtranslation 2026-10-11 #9935e630"
+  },
+  "site.account.setup.title": {
+    "text": "¿Vas a configurar un dispositivo?",
+    "en": "Setting up a device?"
+  },
+  "site.account.signed_out.lead": {
+    "text": "Una cuenta reúne los dominios de tus dispositivos: inicia sesión aquí para verlos, sustituir un dispositivo perdido u obtener un código para configurar uno nuevo.",
+    "en": "One account holds the domains of your devices: sign in here to see them, replace a lost device, or get a code for setting up a new one."
+  },
+  "site.account.signed_out.title": {
+    "text": "Tu cuenta de Off The Cloud",
+    "en": "Your Off The Cloud account"
+  },
+  "site.account.signin.button": {
+    "text": "Iniciar sesión",
+    "en": "Sign in"
+  },
+  "site.account.signin.continue_with": {
+    "text": "Continuar con {provider}",
+    "en": "Continue with {provider}"
+  },
+  "site.account.signin.failed": {
+    "text": "No se ha podido iniciar sesión",
+    "en": "Could not sign in"
+  },
+  "site.account.signin.password_label": {
+    "text": "Contraseña",
+    "en": "Password"
+  },
+  "site.account.signin.title": {
+    "text": "Iniciar sesión",
+    "en": "Sign in"
+  },
+  "site.account.signin_error.cancelled": {
+    "text": "se ha cancelado el inicio de sesión",
+    "en": "the sign-in was cancelled"
+  },
+  "site.account.signin_error.expired": {
+    "text": "ese inicio de sesión ha caducado; vuelve a intentarlo",
+    "en": "that sign-in has expired, please try again"
+  },
+  "site.account.signin_error.failed": {
+    "text": "no se ha podido completar el inicio de sesión",
+    "en": "the sign-in could not be completed"
+  },
+  "site.account.signin_error.no_email": {
+    "text": "el inicio de sesión no incluía ninguna dirección de correo electrónico",
+    "en": "the sign-in did not include an email address"
+  },
+  "site.account.signup.button": {
+    "text": "Crear cuenta",
+    "en": "Create account"
+  },
+  "site.account.signup.failed": {
+    "text": "No se ha podido crear la cuenta",
+    "en": "Could not create the account"
+  },
+  "site.account.signup.password_label": {
+    "text": "Contraseña <small>({min_chars} caracteres o más)</small>",
+    "en": "Password <small>({min_chars} characters or more)</small>"
+  },
+  "site.account.signup.providers": {
+    "text": "O créala con un proveedor de inicio de sesión (aceptarás las condiciones en la página siguiente):",
+    "en": "Or create it with a sign-in provider (you accept the terms on the next page):",
+    "reviewed": "claude-backtranslation 2026-10-11 #af3f00cc"
+  },
+  "site.account.signup.title": {
+    "text": "Crear una cuenta",
+    "en": "Create an account"
+  },
+  "site.account.terms.accept": {
+    "text": "Acepto las <terms>condiciones de uso</terms> y he leído el <privacy>aviso de privacidad</privacy>.",
+    "en": "I accept the <terms>terms of use</terms> and have read the <privacy>privacy notice</privacy>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #7898561d"
+  },
+  "site.account.terms.accept_button": {
+    "text": "Aceptar",
+    "en": "Accept"
+  },
+  "site.account.terms.intro": {
+    "text": "Crear una cuenta solo es necesario para usar nuestro puente: tendrás hasta <b>{max_domains} dominios</b> como <i>nombre</i>.{host} para conectarte a tu dispositivo y también conectar con los dispositivos de tus amigos y tu familia. Si solo quieres usar tu dispositivo en tu red local como NAS o con Tailscale Funnel, no necesitas una cuenta.",
+    "en": "Creating an account is only necessary to use our bridge: you will get up to <b>{max_domains} domains</b> like <i>name</i>.{host} to connect to your device and also connect with the devices of your friends and family. If you only want to use your device in your local network as a NAS or with Tailscale Funnel, you do not need an account.",
+    "reviewed": "claude-backtranslation 2026-10-11 #225a8844"
+  },
+  "site.account.terms.pricing": {
+    "text": "Una cuenta para hasta {max_domains} dominios es <b>gratuita durante los primeros {free_years} años</b> y, después de ese periodo, costará {price} euros + IVA al año (te enviaremos un correo electrónico antes de que termine el periodo). Si necesitas más dominios, cada uno adicional cuesta {extra_domain_eur} euros al año: escríbenos a <mail>{contact}</mail>. Una cuenta que no se use durante {inactive_months} meses (sin inicios de sesión aquí y sin que ninguna app ni ningún amigo acceda a tus dispositivos a través del puente) se elimina y sus dominios se liberan; te enviaremos un correo electrónico un mes antes. Lee las <terms>condiciones de uso</terms> completas y el <privacy>aviso de privacidad</privacy>.",
+    "en": "An account for up to {max_domains} domains is <b>free for the first {free_years} years</b>, and after this period will cost {price} euros + VAT a year (we will e-mail you before the period ends). If you need more domains, each extra one costs {extra_domain_eur} euros a year: please contact us at <mail>{contact}</mail>. An account unused for {inactive_months} months (no sign-in here, and no app or friend reaching your devices through the bridge) is removed and its domains released; we email you a month before. Read the full <terms>terms of use</terms> and the <privacy>privacy notice</privacy>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c57d54fe"
+  },
+  "site.account.terms.prompt": {
+    "text": "Hemos publicado unas <terms>condiciones de uso</terms> para las cuentas y el puente. Léelas y acéptalas: hasta entonces, esta cuenta no podrá registrar nombres de dispositivos ni generar códigos de configuración.",
+    "en": "We have published <terms>terms of use</terms> for accounts and the bridge. Please read and accept them: until then this account can't register device names or give setup codes.",
+    "reviewed": "claude-backtranslation 2026-10-11 #8073fcf3"
+  },
+  "site.account.terms.prompt_title": {
+    "text": "Nuestras condiciones de uso",
+    "en": "Our terms of use"
+  },
+  "site.account.terms.save_failed": {
+    "text": "Ahora mismo no se ha podido guardar",
+    "en": "Could not save right now"
+  },
+  "site.account.terms.tick": {
+    "text": "Marca la casilla para aceptarlas.",
+    "en": "Tick the box to accept them."
+  },
+  "site.account.verify.done": {
+    "text": "Tu correo electrónico se ha confirmado. Ya puedes registrar tus dispositivos.",
+    "en": "Your email is confirmed. You can register your devices now."
+  },
+  "site.account.verify.failed": {
+    "text": "No se ha podido confirmar el correo electrónico",
+    "en": "Could not confirm the email"
+  },
+  "site.account.verify.prompt": {
+    "text": "Hemos enviado un enlace a <b>{email}</b>. Ábrelo para confirmar que la dirección es tuya; hasta entonces, esta cuenta no podrá registrar nombres de dispositivos ni generar códigos de configuración.",
+    "en": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours - until then this account can't register device names or give setup codes."
+  },
+  "site.account.verify.prompt_title": {
+    "text": "Confirma tu correo electrónico",
+    "en": "Confirm your email"
+  },
+  "site.account.verify.resend": {
+    "text": "Volver a enviar el enlace",
+    "en": "Send the link again"
+  },
+  "site.account.verify.resent": {
+    "text": "Enviado: revisa tu bandeja de entrada (y la carpeta de spam).",
+    "en": "Sent - check your inbox (and the spam folder)."
+  }
+}

@@ -1,0 +1,486 @@
+{
+  "android.alerts_collapse": {
+    "text": "Samenvouwen",
+    "en": "Collapse"
+  },
+  "android.alerts_expand": {
+    "text": "Uitvouwen",
+    "en": "Expand"
+  },
+  "android.alerts_friends": {
+    "text": "Vrienden ✓",
+    "en": "Friends ✓"
+  },
+  "android.ble_lost": {
+    "text": "Verbinding met het apparaat verbroken – opnieuw verbinden",
+    "en": "Lost the device - reconnecting"
+  },
+  "android.ble_send_failed": {
+    "text": "Kan niet naar het apparaat versturen",
+    "en": "Could not send to the device"
+  },
+  "android.bluetooth_needed_hint": {
+    "text": "Sta “Apparaten in de buurt” toe voor Off The Cloud in Instellingen om een apparaat op deze manier in te stellen.",
+    "en": "Allow nearby devices for Off The Cloud in Settings to set a device up this way."
+  },
+  "android.bluetooth_off_hint": {
+    "text": "Schakel Bluetooth in om het apparaat te vinden.",
+    "en": "Turn Bluetooth on to find the device."
+  },
+  "android.cache_bytes": {
+    "text": {
+      "one": "{count} byte",
+      "other": "{count} bytes"
+    },
+    "en": {
+      "one": "{count} byte",
+      "other": "{count} bytes"
+    }
+  },
+  "android.compose_move_left": {
+    "text": "Naar links verplaatsen",
+    "en": "Move left"
+  },
+  "android.compose_move_right": {
+    "text": "Naar rechts verplaatsen",
+    "en": "Move right"
+  },
+  "android.compose_record_video": {
+    "text": "Video opnemen",
+    "en": "Record a video"
+  },
+  "android.compose_take_photo": {
+    "text": "Foto maken",
+    "en": "Take a photo"
+  },
+  "android.download_changed": {
+    "text": "het bestand is op het apparaat gewijzigd tijdens het downloaden",
+    "en": "the file changed on the device while downloading"
+  },
+  "android.download_empty_piece": {
+    "text": "het apparaat stuurde een leeg deel van het bestand",
+    "en": "the device sent an empty piece of the file"
+  },
+  "android.download_wrong_piece": {
+    "text": "het apparaat stuurde het verkeerde deel van het bestand",
+    "en": "the device sent the wrong piece of the file"
+  },
+  "android.files.allow_deletions": {
+    "text": "Verwijderen toestaan",
+    "en": "Allow deletions",
+    "reviewed": "claude-backtranslation 2026-10-11 #ffe4d979"
+  },
+  "android.files.cannot_read": {
+    "text": "kan {uri} niet lezen",
+    "en": "cannot read {uri}"
+  },
+  "android.files.folder_update_failed_detail": {
+    "text": "Kan de map niet bijwerken: {detail}",
+    "en": "Could not update the folder: {detail}"
+  },
+  "android.files.gallery_clip_label": {
+    "text": "Link naar gedeelde galerij",
+    "en": "Shared gallery link"
+  },
+  "android.files.gallery_copy_failed": {
+    "text": "Het kopiëren is mislukt",
+    "en": "The copy failed"
+  },
+  "android.files.gallery_empty": {
+    "text": "Er staan hier geen foto’s of video’s.",
+    "en": "There are no photos or videos here."
+  },
+  "android.files.gallery_empty_skipped": {
+    "text": {
+      "one": "Er staan hier geen foto’s of video’s ({count} ander bestand).",
+      "other": "Er staan hier geen foto’s of video’s ({count} andere bestanden)."
+    },
+    "en": {
+      "one": "There are no photos or videos here ({count} other file).",
+      "other": "There are no photos or videos here ({count} other files)."
+    }
+  },
+  "android.files.gallery_expires": {
+    "text": "Link verloopt na",
+    "en": "Link expires after"
+  },
+  "android.files.gallery_failed_title": {
+    "text": "Kan niet delen",
+    "en": "Couldn't Share"
+  },
+  "android.files.gallery_keep_open": {
+    "text": "Houd dit open: de link verschijnt zodra het kopiëren klaar is.",
+    "en": "Keep this open: the link is shown when the copy finishes."
+  },
+  "android.files.gallery_link_copied": {
+    "text": "Link gekopieerd",
+    "en": "Link copied"
+  },
+  "android.files.gallery_link_once": {
+    "text": "Deze link wordt alleen nu getoond: het apparaat bewaart hem nooit. Deel of kopieer hem voordat je sluit.",
+    "en": "This link is shown only now - the device never stores it. Share it or copy it before closing.",
+    "reviewed": "claude-backtranslation 2026-10-11 #ad21ad12"
+  },
+  "android.files.gallery_looking": {
+    "text": "Nagaan wat er wordt gedeeld…",
+    "en": "Looking at what will be shared…"
+  },
+  "android.files.gallery_lost": {
+    "text": "Kan de voortgang van het kopiëren niet meer volgen",
+    "en": "Lost track of the copy"
+  },
+  "android.files.gallery_ready": {
+    "text": "Galerij klaar",
+    "en": "Gallery Ready"
+  },
+  "android.files.gallery_skipped": {
+    "text": {
+      "one": "{count} ander bestand wordt niet meegenomen",
+      "other": "{count} andere bestanden worden niet meegenomen"
+    },
+    "en": {
+      "one": "{count} other file is not included",
+      "other": "{count} other files are not included"
+    }
+  },
+  "android.files.inside_kept_out": {
+    "text": "In de map {folder}, die buiten Afbeeldingen wordt gehouden",
+    "en": "Inside {folder}, which is kept out of Images"
+  },
+  "android.files.inside_kept_out_banner": {
+    "text": "In de map {folder}, die buiten Afbeeldingen wordt gehouden: foto’s en video’s hier krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond.",
+    "en": "Inside {folder}, which is kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images."
+  },
+  "android.files.inside_kept_out_info": {
+    "text": "In de map {folder}, die buiten Afbeeldingen wordt gehouden. Foto’s en video’s hier krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond. Bestanden toont ze nog wel.",
+    "en": "Inside {folder}, which is kept out of Images. Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them."
+  },
+  "android.files.kept_out_said": {
+    "text": "De map {name} wordt nu buiten Afbeeldingen gehouden",
+    "en": "{name} kept out of Images"
+  },
+  "android.files.show_named": {
+    "text": "De map “{name}” in Afbeeldingen tonen",
+    "en": "Show “{name}” in Images"
+  },
+  "android.files.shown_said": {
+    "text": "De map {name} wordt weer getoond in Afbeeldingen",
+    "en": "{name} shown in Images"
+  },
+  "android.files.wait_download_link": {
+    "text": "Wacht tot de downloadlink klaar is",
+    "en": "Wait for the download link to be ready"
+  },
+  "android.files.wait_folder": {
+    "text": "Wacht tot de map is bijgewerkt",
+    "en": "Wait for the folder to be updated"
+  },
+  "android.files.wait_share_link": {
+    "text": "Wacht tot de deellink klaar is",
+    "en": "Wait for the share link to be ready"
+  },
+  "android.friends_ask_theirs_unnamed": {
+    "text": "Het apparaat van deze vriend vragen om te verwijderen wat ik heb gedeeld",
+    "en": "Ask this friend's device to delete what I shared",
+    "reviewed": "claude-backtranslation 2026-10-11 #7f208084"
+  },
+  "android.friends_delete_theirs": {
+    "text": "Ook alles van {name} op deze telefoon verwijderen",
+    "en": "Delete everything from {name} on this phone",
+    "reviewed": "claude-backtranslation 2026-10-11 #e5a68137"
+  },
+  "android.friends_delete_theirs_unnamed": {
+    "text": "Ook alles van deze vriend op deze telefoon verwijderen",
+    "en": "Delete everything from this friend on this phone",
+    "reviewed": "claude-backtranslation 2026-10-11 #31d61049"
+  },
+  "android.friends_keep": {
+    "text": "Behouden",
+    "en": "Keep",
+    "reviewed": "claude-backtranslation 2026-10-11 #d3e8ed90"
+  },
+  "android.friends_keep_waiting": {
+    "text": "Blijven wachten",
+    "en": "Keep waiting",
+    "reviewed": "claude-backtranslation 2026-10-11 #51516d6e"
+  },
+  "android.friends_remove_friend": {
+    "text": "Vriend verwijderen",
+    "en": "Remove friend",
+    "reviewed": "claude-backtranslation 2026-10-11 #e021c7cd"
+  },
+  "android.friends_remove_now": {
+    "text": "Nu verwijderen",
+    "en": "Remove now",
+    "reviewed": "claude-backtranslation 2026-10-11 #accc0c4a"
+  },
+  "android.friends_remove_now_title_unnamed": {
+    "text": "Deze vriend nu verwijderen?",
+    "en": "Remove this friend now?",
+    "reviewed": "claude-backtranslation 2026-10-11 #5c28a764"
+  },
+  "android.friends_remove_title_unnamed": {
+    "text": "Deze vriend verwijderen?",
+    "en": "Remove this friend?",
+    "reviewed": "claude-backtranslation 2026-10-11 #829dec56"
+  },
+  "android.menu_sections": {
+    "text": "Onderdelen",
+    "en": "Sections"
+  },
+  "android.notification_channel": {
+    "text": "Vrienden en berichten",
+    "en": "Friends and posts"
+  },
+  "android.notification_channel_description": {
+    "text": "Vriendschapsverzoeken, nieuwe berichten, likes en reacties",
+    "en": "Friend requests, new posts, likes and comments"
+  },
+  "android.photos_open_in_maps": {
+    "text": "Openen in Maps ({latitude}, {longitude})",
+    "en": "Open in Maps ({latitude}, {longitude})"
+  },
+  "android.photos_people_back": {
+    "text": "Terug naar foto’s",
+    "en": "Back to photos"
+  },
+  "android.photos_people_deleting": {
+    "text": "{current} van {total}",
+    "en": "{current} of {total}"
+  },
+  "android.photos_people_keep": {
+    "text": {
+      "one": "{name} behouden, {count} foto",
+      "other": "{name} behouden, {count} foto’s"
+    },
+    "en": {
+      "one": "Keep {name}, {count} photo",
+      "other": "Keep {name}, {count} photos"
+    }
+  },
+  "android.photos_people_merge_dimmed": {
+    "text": "Samenvoegen (selecteer er 2 of meer om samen te voegen)",
+    "en": "Merge (select 2 or more to merge)"
+  },
+  "android.photos_search_close": {
+    "text": "Zoeken sluiten",
+    "en": "Close search"
+  },
+  "android.photos_search_in_search": {
+    "text": "In de zoekopdracht",
+    "en": "In the search"
+  },
+  "android.settings.bridge_leave_delete": {
+    "text": "Verlaten en verwijderen",
+    "en": "Leave and Delete",
+    "reviewed": "claude-backtranslation 2026-10-11 #2cf4fedf"
+  },
+  "android.settings.crop_hint": {
+    "text": "Sleep de foto om je gezicht in het midden te zetten",
+    "en": "Drag the photo to centre your face"
+  },
+  "android.settings.crop_zoom": {
+    "text": "Zoomen",
+    "en": "Zoom"
+  },
+  "android.settings.links_delete_text": {
+    "text": "De gedeelde kopieën worden verwijderd en de link werkt niet meer.",
+    "en": "The shared copies are deleted and the link stops working.",
+    "reviewed": "claude-backtranslation 2026-10-11 #b99d41ea"
+  },
+  "android.settings.links_empty_text": {
+    "text": "Links die je maakt met “Delen” of “Delen als galerij” in Afbeeldingen en Bestanden, verschijnen hier tot ze verlopen.",
+    "en": "Links made with Share or Share as Gallery in Images and Files show up here until they expire."
+  },
+  "android.settings.logs_empty": {
+    "text": "Er is nog niets vastgelegd.",
+    "en": "Nothing logged yet."
+  },
+  "android.settings.logs_footer": {
+    "text": "Wat het apparaat en zijn updates vastleggen terwijl ze draaien: live te lezen en te delen. Gaat er iets mis, gebruik dan “Naar ons sturen”.",
+    "en": "What the device and its updates write down as they run - live, to read, share or send to us when something goes wrong."
+  },
+  "android.settings.logs_load_failed": {
+    "text": "Kan het logboek niet laden",
+    "en": "Could not load the log"
+  },
+  "android.settings.logs_send_failed": {
+    "text": "Kan de logboeken niet versturen",
+    "en": "Could not send the logs"
+  },
+  "android.settings.logs_send_title": {
+    "text": "Logboeken naar ons sturen",
+    "en": "Send logs to us",
+    "reviewed": "claude-backtranslation 2026-10-11 #270c3826"
+  },
+  "android.settings.picker_empty": {
+    "text": "Hier staan nog geen foto’s.",
+    "en": "No photos here yet."
+  },
+  "android.settings.picker_load_failed": {
+    "text": "Kan je foto’s niet laden.",
+    "en": "Could not load your photos."
+  },
+  "android.settings.picker_open_failed": {
+    "text": "Kan die foto niet openen.",
+    "en": "Could not open that photo."
+  },
+  "android.settings.profile_description": {
+    "text": "Beschrijving",
+    "en": "Description"
+  },
+  "android.settings.profile_from_phone": {
+    "text": "Van deze telefoon",
+    "en": "From this phone"
+  },
+  "android.settings.sharing_footer": {
+    "text": "Galerijen en downloadlinks die je hebt gedeeld, tot ze verlopen. Als je er een verwijdert, worden de gedeelde kopieën verwijderd en werkt de link niet meer.",
+    "en": "Galleries and download links you shared, until they expire. Deleting one removes the shared copies and the link stops working."
+  },
+  "android.settings.sync_cloud": {
+    "text": "Synchroniseren vanuit de cloud",
+    "en": "Sync from cloud"
+  },
+  "android.settings.sync_title": {
+    "text": "Synchronisatie",
+    "en": "Sync"
+  },
+  "android.settings.thumbs_change_size": {
+    "text": "Grootte wijzigen",
+    "en": "Change the size"
+  },
+  "android.settings.thumbs_max_size_a11y": {
+    "text": "Maximale grootte, {size}",
+    "en": "Maximum size, {size}"
+  },
+  "android.settings.thumbs_selected": {
+    "text": "Geselecteerd",
+    "en": "Selected"
+  },
+  "android.settings.thumbs_title": {
+    "text": "Miniatuurcache",
+    "en": "Thumbnail cache"
+  },
+  "android.settings.update_version_unknown": {
+    "text": "Versie —",
+    "en": "Version —"
+  },
+  "android.settings.upload_pending": {
+    "text": {
+      "one": "{count} in wachtrij",
+      "other": "{count} in wachtrij"
+    },
+    "en": {
+      "one": "{count} pending",
+      "other": "{count} pending"
+    }
+  },
+  "android.settings.upload_waiting": {
+    "text": "Wachten",
+    "en": "Waiting"
+  },
+  "android.settings.uploading": {
+    "text": "{name} wordt geüpload",
+    "en": "Uploading {name}"
+  },
+  "android.signal_good": {
+    "text": "Goed signaal",
+    "en": "Good signal"
+  },
+  "android.signal_strong": {
+    "text": "Sterk signaal",
+    "en": "Strong signal"
+  },
+  "android.signal_weak": {
+    "text": "Zwak signaal",
+    "en": "Weak signal"
+  },
+  "android.social_delete_comment": {
+    "text": "Reactie verwijderen",
+    "en": "Delete comment"
+  },
+  "android.social_like": {
+    "text": "Vind ik leuk",
+    "en": "Like"
+  },
+  "android.social_like_comment": {
+    "text": "Reactie leuk vinden",
+    "en": "Like comment"
+  },
+  "android.social_mute": {
+    "text": "Dempen",
+    "en": "Mute"
+  },
+  "android.social_play": {
+    "text": "Afspelen",
+    "en": "Play"
+  },
+  "android.social_replay": {
+    "text": "Opnieuw afspelen",
+    "en": "Replay"
+  },
+  "android.social_unlike": {
+    "text": "Vind ik niet meer leuk",
+    "en": "Unlike"
+  },
+  "android.social_unlike_comment": {
+    "text": "Reactie niet meer leuk vinden",
+    "en": "Unlike comment"
+  },
+  "android.storage_gauge": {
+    "text": "Opslag. Details tonen",
+    "en": "Storage. Show details"
+  },
+  "android.storage_gauge_attention": {
+    "text": "Opslag, vereist aandacht. Details tonen",
+    "en": "Storage, needs attention. Show details"
+  },
+  "android.storage_gauge_used": {
+    "text": "Opslag, {percent} gebruikt. Details tonen",
+    "en": "Storage, {percent} used. Show details"
+  },
+  "android.storage_gauge_used_attention": {
+    "text": "Opslag, {percent} gebruikt, vereist aandacht. Details tonen",
+    "en": "Storage, {percent} used, needs attention. Show details"
+  },
+  "android.storage_hide_details": {
+    "text": "Opslag, details verbergen",
+    "en": "Storage, hide details"
+  },
+  "android.storage_hide_details_attention": {
+    "text": "Opslag, vereist aandacht, details verbergen",
+    "en": "Storage, needs attention, hide details"
+  },
+  "android.storage_show_details": {
+    "text": "Opslag, details tonen",
+    "en": "Storage, show details"
+  },
+  "android.storage_show_details_attention": {
+    "text": "Opslag, vereist aandacht, details tonen",
+    "en": "Storage, needs attention, show details"
+  },
+  "android.storage_used": {
+    "text": "Gebruikte opslag, {percent}%",
+    "en": "Storage used, {percent}%"
+  },
+  "android.trim_cant": {
+    "text": "Kan deze video niet inkorten: {reason}",
+    "en": "Can't trim this video: {reason}"
+  },
+  "android.trim_play_cut": {
+    "text": "▶ Fragment afspelen",
+    "en": "▶ Play cut"
+  },
+  "android.ws_connect_timeout": {
+    "text": "Het apparaat heeft niet op tijd op de verbinding gereageerd",
+    "en": "The device didn't answer the connection in time"
+  },
+  "android.ws_still_connecting": {
+    "text": "Nog bezig met verbinden met het apparaat",
+    "en": "Still connecting to the device"
+  },
+  "android.ws_timed_out": {
+    "text": "Het apparaat heeft niet op tijd geantwoord",
+    "en": "The device did not answer in time"
+  }
+}

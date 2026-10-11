@@ -1,0 +1,490 @@
+{
+  "site.account.data.download": {
+    "text": "Mijn gegevens downloaden",
+    "en": "Download my data"
+  },
+  "site.account.data.hint": {
+    "text": "Download alles wat deze bridge over je bewaart: je gegevens, hoe je inlogt, je domeinen en hun verkeerstellingen. Wat <privacy>we bewaren, en waarom</privacy>.",
+    "en": "Download everything this bridge keeps about you: your details, how you sign in, your domains and their traffic counts. What <privacy>we keep, and why</privacy>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c3c114ba"
+  },
+  "site.account.data.title": {
+    "text": "Je gegevens en je account",
+    "en": "Your data and your account"
+  },
+  "site.account.delete.button": {
+    "text": "Mijn account verwijderen",
+    "en": "Delete my account",
+    "reviewed": "claude-backtranslation 2026-10-11 #c9fe8d07"
+  },
+  "site.account.delete.failed": {
+    "text": "Kan het account niet verwijderen",
+    "en": "Could not delete the account"
+  },
+  "site.account.delete.hint": {
+    "text": "<b>Als je je account verwijdert</b>, worden al je domeinen vrijgegeven (elke naam blijft 30 dagen voor je gereserveerd, zodat niemand zich bij je vrienden voor je apparaat kan uitgeven) en worden je gegevens, inloggegevens en configuratiecodes verwijderd. Je apparaten blijven thuis werken, op <code>{address}</code>, alsof ze zonder account zijn ingesteld – met alles wat erop staat – maar zijn niet meer bereikbaar van buitenaf of voor je vrienden. Dit kan niet ongedaan worden gemaakt.",
+    "en": "<b>Deleting your account</b> releases all your domains (each name stays reserved for you for 30 days, so no one can pose as your device to your friends) and removes your details, sign-ins and setup codes. Your devices keep working at home, at <code>{address}</code>, as if they had been set up without an account - with everything on them - but are no longer reachable from outside nor by your friends. This can't be undone.",
+    "reviewed": "claude-backtranslation 2026-10-11 #d8617083"
+  },
+  "site.account.delete.password_label": {
+    "text": "Je wachtwoord",
+    "en": "Your password"
+  },
+  "site.account.delete.provider_hint": {
+    "text": "Je logt in met Google of Apple: log vlak voor het verwijderen opnieuw in (binnen 15 minuten).",
+    "en": "You sign in with Google or Apple: sign in again just before deleting (within 15 minutes).",
+    "reviewed": "claude-backtranslation 2026-10-11 #5aa93171"
+  },
+  "site.account.delete.type_error": {
+    "text": "Typ {word} om te bevestigen",
+    "en": "Type {word} to confirm",
+    "reviewed": "claude-backtranslation 2026-10-11 #e04a88dd"
+  },
+  "site.account.delete.type_label": {
+    "text": "Typ <b>{word}</b> om te bevestigen",
+    "en": "Type <b>{word}</b> to confirm",
+    "reviewed": "claude-backtranslation 2026-10-11 #ed39ff7d"
+  },
+  "site.account.delete.word": {
+    "text": "verwijderen",
+    "en": "delete",
+    "reviewed": "claude-backtranslation 2026-10-11 #3168942f"
+  },
+  "site.account.deleted.home": {
+    "text": "Terug naar de startpagina",
+    "en": "Back to the home page"
+  },
+  "site.account.deleted.lead": {
+    "text": "Je apparaten blijven thuis werken, op <code>{address}</code>.",
+    "en": "Your devices go on working at home, at <code>{address}</code>."
+  },
+  "site.account.deleted.lead_released": {
+    "text": "Vrijgegeven: {domains}. Je apparaten blijven thuis werken, op <code>{address}</code>.",
+    "en": "Released: {domains}. Your devices go on working at home, at <code>{address}</code>."
+  },
+  "site.account.deleted.title": {
+    "text": "Je account is verwijderd",
+    "en": "Your account is deleted"
+  },
+  "site.account.domains.connected": {
+    "text": "verbonden",
+    "en": "connected"
+  },
+  "site.account.domains.disabled": {
+    "text": "uitgeschakeld",
+    "en": "disabled"
+  },
+  "site.account.domains.empty": {
+    "text": "Nog geen domeinen. Stel een apparaat in met een configuratiecode, of registreer een naam voor een handmatige installatie.",
+    "en": "No domains yet. Set up a device with a setup code, or register a name for a manual install."
+  },
+  "site.account.domains.identity_confirm": {
+    "text": "{domain} een nieuwe identiteit geven? Het apparaat dat het domein nu gebruikt, wordt van de bridge buitengesloten totdat het met de nieuwe identiteit is ingesteld.",
+    "en": "Give {domain} a new identity? The device using it now will be locked out of the bridge until it is set up with the new one.",
+    "reviewed": "claude-backtranslation 2026-10-11 #63562bd1"
+  },
+  "site.account.domains.identity_failed": {
+    "text": "Kan dat domein niet opnieuw uitgeven",
+    "en": "Could not re-issue that domain"
+  },
+  "site.account.domains.new_identity": {
+    "text": "Nieuwe identiteit",
+    "en": "New identity"
+  },
+  "site.account.domains.not_connected": {
+    "text": "niet verbonden",
+    "en": "not connected"
+  },
+  "site.account.domains.release": {
+    "text": "Vrijgeven",
+    "en": "Release"
+  },
+  "site.account.domains.release_confirm": {
+    "text": "{domain} vrijgeven? Het apparaat werkt dan alleen nog thuis ({address}), en de naam blijft 30 dagen voor je gereserveerd.",
+    "en": "Release {domain}? Its device goes on working at home only ({address}), and the name stays reserved for you for 30 days.",
+    "reviewed": "claude-backtranslation 2026-10-11 #3e5c8321"
+  },
+  "site.account.domains.release_failed": {
+    "text": "Kan dat domein niet vrijgeven",
+    "en": "Could not release that domain"
+  },
+  "site.account.domains.since": {
+    "text": "sinds {date}",
+    "en": "since {date}"
+  },
+  "site.account.domains.title": {
+    "text": "Je domeinen",
+    "en": "Your domains"
+  },
+  "site.account.error.confirm_required": {
+    "text": "bevestig met {body}",
+    "en": "confirm with {body}",
+    "reviewed": "claude-backtranslation 2026-10-11 #fbe7a5e7"
+  },
+  "site.account.error.recent_signin_required": {
+    "text": "log opnieuw in (met Google of Apple) en probeer het daarna binnen 15 minuten opnieuw",
+    "en": "sign in again (with Google or Apple), then try again within 15 minutes",
+    "reviewed": "claude-backtranslation 2026-10-11 #42d5b37f"
+  },
+  "site.account.field.country": {
+    "text": "Woonland",
+    "en": "Country of residence"
+  },
+  "site.account.field.country_choose": {
+    "text": "Kies…",
+    "en": "Choose…"
+  },
+  "site.account.field.email": {
+    "text": "E-mailadres",
+    "en": "Email"
+  },
+  "site.account.field.name": {
+    "text": "Voornaam",
+    "en": "Name"
+  },
+  "site.account.field.surname": {
+    "text": "Achternaam",
+    "en": "Surname"
+  },
+  "site.account.footer.privacy": {
+    "text": "Privacy",
+    "en": "Privacy"
+  },
+  "site.account.forgot.email_label": {
+    "text": "E-mailadres van je account",
+    "en": "Your account's email"
+  },
+  "site.account.forgot.open": {
+    "text": "Wachtwoord vergeten?",
+    "en": "Forgot your password?"
+  },
+  "site.account.forgot.send": {
+    "text": "Resetlink versturen",
+    "en": "Email me a reset link"
+  },
+  "site.account.forgot.sent": {
+    "text": "Als er een account is voor dat e-mailadres, is er een link onderweg om het wachtwoord opnieuw in te stellen. De link werkt een uur.",
+    "en": "If there is an account for that email, a link to reset its password is on its way. It works for an hour.",
+    "reviewed": "claude-backtranslation 2026-10-11 #33e73752"
+  },
+  "site.account.header.sign_out": {
+    "text": "Uitloggen",
+    "en": "Sign out"
+  },
+  "site.account.home.hello": {
+    "text": "Hallo {name}",
+    "en": "Hello, {name}"
+  },
+  "site.account.home.summary": {
+    "text": "{registered} van {max} domeinen geregistreerd · gratis tot <b>{date}</b> · <details>je gegevens</details>",
+    "en": "{registered} of {max} domains registered · free until <b>{date}</b> · <details>your details</details>"
+  },
+  "site.account.identity.yours": {
+    "text": "<b>{domain}</b> is van jou. Kopieer dit nu, want het wordt niet nog een keer getoond:",
+    "en": "<b>{domain}</b> is yours. Copy this now - it is not shown again:",
+    "reviewed": "claude-backtranslation 2026-10-11 #98d7c83a"
+  },
+  "site.account.loading": {
+    "text": "Laden…",
+    "en": "Loading…"
+  },
+  "site.account.manual.failed": {
+    "text": "Kan die naam niet registreren",
+    "en": "Could not register that name"
+  },
+  "site.account.manual.hint": {
+    "text": "Voor een apparaat dat met het installatiescript is geïnstalleerd in plaats van met de image: registreer hier de naam en zet de identiteit die je krijgt in <code>{path}</code> voordat je het script uitvoert (die wordt maar één keer getoond).",
+    "en": "For a device installed with the install script rather than the image: register its name here and put the identity you get into <code>{path}</code> before running the script (it is shown once).",
+    "reviewed": "claude-backtranslation 2026-10-11 #831b2e19"
+  },
+  "site.account.manual.name_label": {
+    "text": "Naam",
+    "en": "Name"
+  },
+  "site.account.manual.name_placeholder": {
+    "text": "bijv. casa",
+    "en": "e.g. casa"
+  },
+  "site.account.manual.register": {
+    "text": "Naam registreren",
+    "en": "Register the name"
+  },
+  "site.account.manual.title": {
+    "text": "Handmatig installeren?",
+    "en": "Installing by hand?"
+  },
+  "site.account.meta.description": {
+    "text": "Log in om de domeinen te zien die op je Off The Cloud-account zijn geregistreerd, ze vrij te geven, een verloren apparaat te vervangen en een configuratiecode voor een nieuw apparaat aan te vragen.",
+    "en": "Sign in to see the domains registered to your Off The Cloud account, release them, replace a lost device, and get a setup code for a new one."
+  },
+  "site.account.meta.title": {
+    "text": "Off The Cloud — je account",
+    "en": "Off The Cloud — your account"
+  },
+  "site.account.password.add": {
+    "text": "Wachtwoord toevoegen",
+    "en": "Add a password"
+  },
+  "site.account.password.change": {
+    "text": "Wachtwoord wijzigen",
+    "en": "Change password"
+  },
+  "site.account.password.current_label": {
+    "text": "Huidig wachtwoord",
+    "en": "Current password"
+  },
+  "site.account.password.mismatch": {
+    "text": "De twee wachtwoorden komen niet overeen",
+    "en": "The two passwords don't match"
+  },
+  "site.account.password.new_label": {
+    "text": "Nieuw wachtwoord <small>(minstens {min_chars} tekens)</small>",
+    "en": "New password <small>({min_chars} characters or more)</small>"
+  },
+  "site.account.password.provider_hint": {
+    "text": "Je logt in met Google of Apple. Je kunt een wachtwoord toevoegen binnen 15 minuten nadat je op die manier bent ingelogd.",
+    "en": "You sign in with Google or Apple. You can add a password within 15 minutes of signing in that way.",
+    "reviewed": "claude-backtranslation 2026-10-11 #faa2156d"
+  },
+  "site.account.password.repeat_label": {
+    "text": "Herhaal het nieuwe wachtwoord",
+    "en": "Repeat the new password"
+  },
+  "site.account.password.save_failed": {
+    "text": "Kan het wachtwoord niet opslaan",
+    "en": "Could not save the password"
+  },
+  "site.account.password.saved": {
+    "text": "Wachtwoord opgeslagen. Andere sessies zijn uitgelogd.",
+    "en": "Password saved. Other sessions are signed out."
+  },
+  "site.account.password.sign_out_all": {
+    "text": "Overal uitloggen",
+    "en": "Sign out everywhere"
+  },
+  "site.account.password.sign_out_all_confirm": {
+    "text": "In elke browser en op elk apparaat uitloggen bij je account, ook hier?",
+    "en": "Sign out of your account on every browser and device, this one included?",
+    "reviewed": "claude-backtranslation 2026-10-11 #92e940fd"
+  },
+  "site.account.password.signs_out": {
+    "text": "Als je het wachtwoord wijzigt, word je overal anders uitgelogd. Nog ingelogd op een computer die je niet meer gebruikt?",
+    "en": "Changing the password signs you out everywhere else. Left signed in on a computer you don't use any more?",
+    "reviewed": "claude-backtranslation 2026-10-11 #a47f5064"
+  },
+  "site.account.password.title": {
+    "text": "Wachtwoord en inloggen",
+    "en": "Password and sign-in"
+  },
+  "site.account.profile.back": {
+    "text": "Terug",
+    "en": "Back"
+  },
+  "site.account.profile.lead_edit": {
+    "text": "Werk de gegevens van je account bij.",
+    "en": "Update the details on your account."
+  },
+  "site.account.profile.lead_new": {
+    "text": "We hebben je naam en je woonland nodig om het aanmaken van het account af te ronden.",
+    "en": "We need a name and your country of residence to finish creating the account."
+  },
+  "site.account.profile.save": {
+    "text": "Opslaan",
+    "en": "Save"
+  },
+  "site.account.profile.save_continue": {
+    "text": "Opslaan en doorgaan met de configuratie",
+    "en": "Save and continue the setup"
+  },
+  "site.account.profile.save_failed": {
+    "text": "Kan niet opslaan",
+    "en": "Could not save"
+  },
+  "site.account.profile.title_edit": {
+    "text": "Je gegevens",
+    "en": "Your details"
+  },
+  "site.account.profile.title_new": {
+    "text": "Bijna klaar",
+    "en": "Almost there"
+  },
+  "site.account.reset.card_title": {
+    "text": "Nieuw wachtwoord",
+    "en": "New password"
+  },
+  "site.account.reset.done": {
+    "text": "Je nieuwe wachtwoord is ingesteld en je bent ingelogd.",
+    "en": "Your new password is set, and you are signed in."
+  },
+  "site.account.reset.failed": {
+    "text": "Kan het wachtwoord niet instellen",
+    "en": "Could not set it"
+  },
+  "site.account.reset.set": {
+    "text": "Wachtwoord instellen",
+    "en": "Set the password"
+  },
+  "site.account.reset.signs_out": {
+    "text": "Hiermee wordt je account overal anders uitgelogd.",
+    "en": "Setting it signs your account out everywhere else.",
+    "reviewed": "claude-backtranslation 2026-10-11 #7c96443c"
+  },
+  "site.account.reset.title": {
+    "text": "Kies een nieuw wachtwoord",
+    "en": "Choose a new password"
+  },
+  "site.account.send_failed": {
+    "text": "Kan de e-mail nu niet versturen",
+    "en": "Could not send it right now"
+  },
+  "site.account.setup.expires": {
+    "text": "Verloopt over {minutes} minuten.",
+    "en": "Expires in {minutes} minutes."
+  },
+  "site.account.setup.failed": {
+    "text": "Kan geen code maken",
+    "en": "Could not make a code"
+  },
+  "site.account.setup.get": {
+    "text": "Configuratiecode aanvragen",
+    "en": "Get a setup code"
+  },
+  "site.account.setup.hint": {
+    "text": "Flash de image, zet het apparaat aan en stel het in vanuit de iOS- of Android-app (“Nieuw apparaat instellen”, via Bluetooth). Kies bij de accountstap <b>Ik heb een configuratiecode</b> en typ deze code in: die koppelt de naam van het nieuwe apparaat aan dit account. 15 minuten geldig.",
+    "en": "Flash the image, power the device on and set it up from the iOS or Android app (Set up a new device, over Bluetooth). At the account step choose <b>I have a setup code</b> and type this code - it links the new device's name to this account. Good for 15 minutes."
+  },
+  "site.account.setup.lost": {
+    "text": "Een apparaat kwijt? Stel de vervanger op dezelfde manier in en geef die <b>dezelfde naam</b>: de naam gaat over naar het nieuwe apparaat en het oude wordt buitengesloten.",
+    "en": "Lost a device? Set up its replacement the same way and give it the <b>same name</b>: the name moves to the new device and the old one is locked out.",
+    "reviewed": "claude-backtranslation 2026-10-11 #a5636aa0"
+  },
+  "site.account.setup.title": {
+    "text": "Een apparaat instellen?",
+    "en": "Setting up a device?"
+  },
+  "site.account.signed_out.lead": {
+    "text": "Eén account bevat de domeinen van je apparaten: log hier in om ze te zien, een verloren apparaat te vervangen of een code aan te vragen om een nieuw apparaat in te stellen.",
+    "en": "One account holds the domains of your devices: sign in here to see them, replace a lost device, or get a code for setting up a new one."
+  },
+  "site.account.signed_out.title": {
+    "text": "Je Off The Cloud-account",
+    "en": "Your Off The Cloud account"
+  },
+  "site.account.signin.button": {
+    "text": "Inloggen",
+    "en": "Sign in"
+  },
+  "site.account.signin.continue_with": {
+    "text": "Doorgaan met {provider}",
+    "en": "Continue with {provider}"
+  },
+  "site.account.signin.failed": {
+    "text": "Kan niet inloggen",
+    "en": "Could not sign in"
+  },
+  "site.account.signin.password_label": {
+    "text": "Wachtwoord",
+    "en": "Password"
+  },
+  "site.account.signin.title": {
+    "text": "Inloggen",
+    "en": "Sign in"
+  },
+  "site.account.signin_error.cancelled": {
+    "text": "het inloggen is geannuleerd",
+    "en": "the sign-in was cancelled"
+  },
+  "site.account.signin_error.expired": {
+    "text": "die inlogpoging is verlopen, probeer het opnieuw",
+    "en": "that sign-in has expired, please try again"
+  },
+  "site.account.signin_error.failed": {
+    "text": "het inloggen kon niet worden voltooid",
+    "en": "the sign-in could not be completed"
+  },
+  "site.account.signin_error.no_email": {
+    "text": "bij het inloggen is geen e-mailadres meegestuurd",
+    "en": "the sign-in did not include an email address"
+  },
+  "site.account.signup.button": {
+    "text": "Account aanmaken",
+    "en": "Create account"
+  },
+  "site.account.signup.failed": {
+    "text": "Kan het account niet aanmaken",
+    "en": "Could not create the account"
+  },
+  "site.account.signup.password_label": {
+    "text": "Wachtwoord <small>(minstens {min_chars} tekens)</small>",
+    "en": "Password <small>({min_chars} characters or more)</small>"
+  },
+  "site.account.signup.providers": {
+    "text": "Of maak het aan met een inlogprovider (je accepteert de voorwaarden op de volgende pagina):",
+    "en": "Or create it with a sign-in provider (you accept the terms on the next page):",
+    "reviewed": "claude-backtranslation 2026-10-11 #3d0b2ef1"
+  },
+  "site.account.signup.title": {
+    "text": "Een account aanmaken",
+    "en": "Create an account"
+  },
+  "site.account.terms.accept": {
+    "text": "Ik accepteer de <terms>gebruiksvoorwaarden</terms> en heb de <privacy>privacyverklaring</privacy> gelezen.",
+    "en": "I accept the <terms>terms of use</terms> and have read the <privacy>privacy notice</privacy>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #a7b888a4"
+  },
+  "site.account.terms.accept_button": {
+    "text": "Accepteren",
+    "en": "Accept"
+  },
+  "site.account.terms.intro": {
+    "text": "Een account is alleen nodig om onze bridge te gebruiken: je krijgt maximaal <b>{max_domains} domeinen</b> zoals <i>naam</i>.{host} om verbinding te maken met je apparaat en ook met de apparaten van je vrienden en familie. Wil je je apparaat alleen in je lokale netwerk gebruiken als NAS of met Tailscale Funnel, dan heb je geen account nodig.",
+    "en": "Creating an account is only necessary to use our bridge: you will get up to <b>{max_domains} domains</b> like <i>name</i>.{host} to connect to your device and also connect with the devices of your friends and family. If you only want to use your device in your local network as a NAS or with Tailscale Funnel, you do not need an account.",
+    "reviewed": "claude-backtranslation 2026-10-11 #fea57c4b"
+  },
+  "site.account.terms.pricing": {
+    "text": "Een account voor maximaal {max_domains} domeinen is <b>de eerste {free_years} jaar gratis</b> en kost daarna {price} euro + btw per jaar (we sturen je een e-mail voordat die periode afloopt). Heb je meer domeinen nodig, dan kost elk extra domein {extra_domain_eur} euro per jaar: neem contact met ons op via <mail>{contact}</mail>. Een account dat {inactive_months} maanden niet wordt gebruikt (niet ingelogd hier, en geen app of vriend die je apparaten via de bridge bereikt), wordt verwijderd en de domeinen worden vrijgegeven; we sturen je een maand van tevoren een e-mail. Lees de volledige <terms>gebruiksvoorwaarden</terms> en de <privacy>privacyverklaring</privacy>.",
+    "en": "An account for up to {max_domains} domains is <b>free for the first {free_years} years</b>, and after this period will cost {price} euros + VAT a year (we will e-mail you before the period ends). If you need more domains, each extra one costs {extra_domain_eur} euros a year: please contact us at <mail>{contact}</mail>. An account unused for {inactive_months} months (no sign-in here, and no app or friend reaching your devices through the bridge) is removed and its domains released; we email you a month before. Read the full <terms>terms of use</terms> and the <privacy>privacy notice</privacy>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #74b970cb"
+  },
+  "site.account.terms.prompt": {
+    "text": "We hebben <terms>gebruiksvoorwaarden</terms> gepubliceerd voor accounts en de bridge. Lees en accepteer ze: tot die tijd kan dit account geen apparaatnamen registreren of configuratiecodes geven.",
+    "en": "We have published <terms>terms of use</terms> for accounts and the bridge. Please read and accept them: until then this account can't register device names or give setup codes.",
+    "reviewed": "claude-backtranslation 2026-10-11 #bd2ad7e6"
+  },
+  "site.account.terms.prompt_title": {
+    "text": "Onze gebruiksvoorwaarden",
+    "en": "Our terms of use"
+  },
+  "site.account.terms.save_failed": {
+    "text": "Kan nu niet opslaan",
+    "en": "Could not save right now"
+  },
+  "site.account.terms.tick": {
+    "text": "Vink het vakje aan om ze te accepteren.",
+    "en": "Tick the box to accept them."
+  },
+  "site.account.verify.done": {
+    "text": "Je e-mailadres is bevestigd. Je kunt nu je apparaten registreren.",
+    "en": "Your email is confirmed. You can register your devices now."
+  },
+  "site.account.verify.failed": {
+    "text": "Kan het e-mailadres niet bevestigen",
+    "en": "Could not confirm the email"
+  },
+  "site.account.verify.prompt": {
+    "text": "We hebben een link gestuurd naar <b>{email}</b>. Open die om te bevestigen dat het adres van jou is; tot die tijd kan dit account geen apparaatnamen registreren of configuratiecodes geven.",
+    "en": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours - until then this account can't register device names or give setup codes."
+  },
+  "site.account.verify.prompt_title": {
+    "text": "Bevestig je e-mailadres",
+    "en": "Confirm your email"
+  },
+  "site.account.verify.resend": {
+    "text": "Link opnieuw versturen",
+    "en": "Send the link again"
+  },
+  "site.account.verify.resent": {
+    "text": "Verstuurd: kijk in je inbox (en in je spammap).",
+    "en": "Sent - check your inbox (and the spam folder)."
+  }
+}

@@ -1,0 +1,415 @@
+{
+  "app.social.alerts.commented": {
+    "text": "<b>{name}</b> a commenté votre publication",
+    "en": "<b>{name}</b> commented on your post"
+  },
+  "app.social.alerts.empty": {
+    "text": "Rien pour l’instant",
+    "en": "Nothing yet"
+  },
+  "app.social.alerts.error_more": {
+    "text": {
+      "one": "<b>{title}</b> <dim>+{count} de plus</dim>",
+      "other": "<b>{title}</b> <dim>+{count} de plus</dim>"
+    },
+    "en": {
+      "one": "<b>{title}</b> <dim>+{count} more</dim>",
+      "other": "<b>{title}</b> <dim>+{count} more</dim>"
+    }
+  },
+  "app.social.alerts.friend_accepted": {
+    "text": "<b>{name}</b> a accepté votre demande d’ami",
+    "en": "<b>{name}</b> accepted your friend request"
+  },
+  "app.social.alerts.friend_request": {
+    "text": "<b>{name}</b> vous a envoyé une demande d’ami",
+    "en": "<b>{name}</b> sent you a friend request"
+  },
+  "app.social.alerts.liked_comment": {
+    "text": "<b>{name}</b> a aimé votre commentaire",
+    "en": "<b>{name}</b> liked your comment"
+  },
+  "app.social.alerts.liked_post": {
+    "text": "<b>{name}</b> a aimé votre publication",
+    "en": "<b>{name}</b> liked your post"
+  },
+  "app.social.alerts.title": {
+    "text": "Notifications",
+    "en": "Notifications"
+  },
+  "app.social.compose.camera": {
+    "text": "Prendre une photo ou une vidéo",
+    "en": "Take a photo or video"
+  },
+  "app.social.compose.caption_placeholder": {
+    "text": "Écrire une légende…",
+    "en": "Write a caption…"
+  },
+  "app.social.compose.empty_response": {
+    "text": "Réponse vide",
+    "en": "Empty response"
+  },
+  "app.social.compose.filter_placeholder": {
+    "text": "Filtrer par étiquette…",
+    "en": "Filter by tag…"
+  },
+  "app.social.compose.order": {
+    "text": "Ordre dans la publication",
+    "en": "Order in post"
+  },
+  "app.social.compose.photos_access": {
+    "text": "L’accès aux photos est nécessaire pour choisir parmi celles de votre téléphone.",
+    "en": "Photos access is needed to pick from your phone."
+  },
+  "app.social.compose.publish": {
+    "text": "Publier",
+    "en": "Publish"
+  },
+  "app.social.compose.publish_count": {
+    "text": "Publier ({number})",
+    "en": "Publish ({number})"
+  },
+  "app.social.compose.publish_failed": {
+    "text": "Impossible de publier",
+    "en": "Could not publish"
+  },
+  "app.social.compose.publish_failed_detail": {
+    "text": "Impossible de publier : {detail}",
+    "en": "Could not publish: {detail}"
+  },
+  "app.social.compose.publishing": {
+    "text": "Publication…",
+    "en": "Publishing…"
+  },
+  "app.social.compose.source_phone": {
+    "text": "Téléphone",
+    "en": "Phone"
+  },
+  "app.social.compose.source_synced": {
+    "text": "Synchronisées",
+    "en": "Synced"
+  },
+  "app.social.compose.title": {
+    "text": "Nouvelle publication",
+    "en": "New Post"
+  },
+  "app.social.compose.trim_badge": {
+    "text": "✂ Découper",
+    "en": "✂ Trim"
+  },
+  "app.social.compose.trim_load_failed": {
+    "text": "Impossible de charger cette vidéo pour la découper : {detail}",
+    "en": "Could not load that video to trim it: {detail}"
+  },
+  "app.social.compose.uploading": {
+    "text": "Envoi {done} sur {total}…",
+    "en": "Uploading {done} of {total}…"
+  },
+  "app.social.feed.empty_text": {
+    "text": "Partagez une photo ou une vidéo avec vos amis : elle passe de votre appareil au leur, sans aucun cloud entre les deux.",
+    "en": "Share a photo or a video with your friends - it goes from your device to theirs, with no cloud in between."
+  },
+  "app.social.feed.empty_title": {
+    "text": "Pas de publications sur Social",
+    "en": "No social posts"
+  },
+  "app.social.friends.add_heading": {
+    "text": "Ajouter des amis",
+    "en": "Add a friend"
+  },
+  "app.social.friends.ask_theirs": {
+    "text": "Demander à l’appareil de {name} de supprimer ce que j’ai partagé",
+    "en": "Ask {name}'s device to delete what I shared",
+    "reviewed": "claude-backtranslation 2026-10-11 #b33f6d7b"
+  },
+  "app.social.friends.ask_theirs_text": {
+    "text": "Vos publications, commentaires et J’aime sur son appareil. S’il est hors ligne, la suppression aura lieu à sa prochaine connexion ; d’ici là, la personne apparaît avec l’état « Retrait en cours ».",
+    "en": "Your posts, comments and likes on their device. If it's offline, it happens the next time it connects; until then they show as leaving.",
+    "reviewed": "claude-backtranslation 2026-10-11 #00c8e394"
+  },
+  "app.social.friends.block": {
+    "text": "Bloquer",
+    "en": "Block"
+  },
+  "app.social.friends.cancel_confirm_text": {
+    "text": "La demande sera retirée sur les deux appareils.",
+    "en": "The request will be withdrawn on both devices.",
+    "reviewed": "claude-backtranslation 2026-10-11 #119eb3bc"
+  },
+  "app.social.friends.cancel_confirm_title": {
+    "text": "Annuler cette demande d’ami ?",
+    "en": "Cancel this friend request?",
+    "reviewed": "claude-backtranslation 2026-10-11 #f6587875"
+  },
+  "app.social.friends.cancel_request": {
+    "text": "Annuler la demande",
+    "en": "Cancel request",
+    "reviewed": "claude-backtranslation 2026-10-11 #a184143f"
+  },
+  "app.social.friends.cancel_request_button": {
+    "text": "Annuler la demande",
+    "en": "Cancel Request"
+  },
+  "app.social.friends.delete_confirm_text": {
+    "text": "La demande sera supprimée ici et sur l’appareil de la personne qui l’a envoyée.",
+    "en": "The request will be removed here and on the sender's device.",
+    "reviewed": "claude-backtranslation 2026-10-11 #f5abc30c"
+  },
+  "app.social.friends.delete_confirm_title": {
+    "text": "Supprimer cette demande d’ami ?",
+    "en": "Delete this friend request?",
+    "reviewed": "claude-backtranslation 2026-10-11 #e02d6adf"
+  },
+  "app.social.friends.delete_error": {
+    "text": "Erreur lors de la suppression de la demande",
+    "en": "Error deleting request"
+  },
+  "app.social.friends.delete_failed": {
+    "text": "Échec de la suppression",
+    "en": "Delete failed"
+  },
+  "app.social.friends.delete_request": {
+    "text": "Supprimer la demande",
+    "en": "Delete request",
+    "reviewed": "claude-backtranslation 2026-10-11 #9ece72de"
+  },
+  "app.social.friends.delete_theirs_text": {
+    "text": "Ses publications et photos, ainsi que ses commentaires et J’aime sur toutes les publications.",
+    "en": "Their posts and photos, and their comments and likes on any post.",
+    "reviewed": "claude-backtranslation 2026-10-11 #2b5a8d2c"
+  },
+  "app.social.friends.empty": {
+    "text": "Pas encore d’amis.",
+    "en": "No friendships yet."
+  },
+  "app.social.friends.friends_again": {
+    "text": "Vous êtes de nouveau amis ✅",
+    "en": "You're friends again ✅"
+  },
+  "app.social.friends.leaving_note": {
+    "text": "En attente : son appareil doit supprimer ce que vous avez partagé.",
+    "en": "Waiting for their device to delete what you shared."
+  },
+  "app.social.friends.list_heading": {
+    "text": "Amis",
+    "en": "Friends"
+  },
+  "app.social.friends.load_failed": {
+    "text": "Impossible de charger la liste d’amis",
+    "en": "Could not load friendships"
+  },
+  "app.social.friends.name_invalid": {
+    "text": "Saisissez le nom de l’appareil, par exemple pit : lettres, chiffres et tirets.",
+    "en": "Enter the device's name, like pit - letters, digits and dashes."
+  },
+  "app.social.friends.name_placeholder": {
+    "text": "nom",
+    "en": "name"
+  },
+  "app.social.friends.no_domain": {
+    "text": "(aucun domaine)",
+    "en": "(no domain)"
+  },
+  "app.social.friends.no_name": {
+    "text": "(sans nom)",
+    "en": "(no name)"
+  },
+  "app.social.friends.remove_button": {
+    "text": "Retirer…",
+    "en": "Remove…"
+  },
+  "app.social.friends.remove_error": {
+    "text": "Erreur lors du retrait de la liste d’amis",
+    "en": "Error removing friend"
+  },
+  "app.social.friends.remove_failed": {
+    "text": "Échec du retrait",
+    "en": "Remove failed"
+  },
+  "app.social.friends.remove_now": {
+    "text": "Retirer maintenant",
+    "en": "Remove Now",
+    "reviewed": "claude-backtranslation 2026-10-11 #d9385aa2"
+  },
+  "app.social.friends.remove_now_text": {
+    "text": "Cela met fin à l’attente de son appareil. Ce qu’il n’a pas encore supprimé y reste.",
+    "en": "Stops waiting for their device. Whatever it hasn't deleted yet stays there.",
+    "reviewed": "claude-backtranslation 2026-10-11 #e93893f8"
+  },
+  "app.social.friends.remove_now_title": {
+    "text": "Retirer {name} maintenant ?",
+    "en": "Remove {name} now?",
+    "reviewed": "claude-backtranslation 2026-10-11 #1098ec49"
+  },
+  "app.social.friends.remove_title": {
+    "text": "Retirer {name} de vos amis ?",
+    "en": "Remove {name}?",
+    "reviewed": "claude-backtranslation 2026-10-11 #19a2cd7d"
+  },
+  "app.social.friends.removed": {
+    "text": "Personne retirée de vos amis",
+    "en": "Friend removed"
+  },
+  "app.social.friends.request_cancelled": {
+    "text": "Demande annulée",
+    "en": "Request cancelled"
+  },
+  "app.social.friends.request_deleted": {
+    "text": "Demande supprimée",
+    "en": "Request deleted"
+  },
+  "app.social.friends.request_failed": {
+    "text": "Échec de la demande",
+    "en": "Request failed"
+  },
+  "app.social.friends.request_sent": {
+    "text": "Demande d’ami envoyée ✅",
+    "en": "Friend request sent ✅"
+  },
+  "app.social.friends.send_error": {
+    "text": "Erreur lors de l’envoi de la demande",
+    "en": "Error sending request"
+  },
+  "app.social.friends.set_pending": {
+    "text": "Remettre en attente",
+    "en": "Set Pending"
+  },
+  "app.social.friends.status_accepted": {
+    "text": "Acceptée",
+    "en": "Accepted"
+  },
+  "app.social.friends.status_accepted_sent": {
+    "text": "Acceptée (envoyée)",
+    "en": "Accepted (sent)"
+  },
+  "app.social.friends.status_blocked": {
+    "text": "Bloquée",
+    "en": "Blocked"
+  },
+  "app.social.friends.status_blocked_sent": {
+    "text": "Bloquée (envoyée)",
+    "en": "Blocked (sent)"
+  },
+  "app.social.friends.status_leaving": {
+    "text": "Retrait en cours",
+    "en": "Leaving"
+  },
+  "app.social.friends.status_pending": {
+    "text": "En attente",
+    "en": "Pending"
+  },
+  "app.social.friends.status_pending_sent": {
+    "text": "En attente (envoyée)",
+    "en": "Pending (sent)"
+  },
+  "app.social.friends.status_updated": {
+    "text": "Statut mis à jour ✅",
+    "en": "Status updated ✅"
+  },
+  "app.social.friends.title": {
+    "text": "Amis",
+    "en": "Friends"
+  },
+  "app.social.friends.unexpected_response": {
+    "text": "Réponse inattendue",
+    "en": "Unexpected response"
+  },
+  "app.social.friends.update_error": {
+    "text": "Erreur lors de la mise à jour du statut",
+    "en": "Error updating status"
+  },
+  "app.social.friends.update_failed": {
+    "text": "Échec de la mise à jour",
+    "en": "Update failed"
+  },
+  "app.social.friends.waiting_answer": {
+    "text": "En attente de votre réponse",
+    "en": "Waiting for your answer"
+  },
+  "app.social.friends.waiting_their_device": {
+    "text": "En attente de son appareil",
+    "en": "Waiting for their device"
+  },
+  "app.social.likes.empty": {
+    "text": "Pas encore de J’aime",
+    "en": "No likes yet"
+  },
+  "app.social.likes.title": {
+    "text": "J’aime",
+    "en": "Likes"
+  },
+  "app.social.post.comment": {
+    "text": "<b>{name}</b> : {comment}",
+    "en": "<b>{name}</b>: {comment}"
+  },
+  "app.social.post.comment_placeholder": {
+    "text": "Ajouter un commentaire…",
+    "en": "Add a comment…"
+  },
+  "app.social.post.comment_unnamed": {
+    "text": "<b>Utilisateur</b> : {comment}",
+    "en": "<b>User</b>: {comment}"
+  },
+  "app.social.post.delete_comment": {
+    "text": "Supprimer",
+    "en": "Delete Comment",
+    "reviewed": "claude-backtranslation 2026-10-11 #029adabc"
+  },
+  "app.social.post.delete_comment_title": {
+    "text": "Supprimer ce commentaire ?",
+    "en": "Delete this comment?",
+    "reviewed": "claude-backtranslation 2026-10-11 #f5709bde"
+  },
+  "app.social.post.delete_post": {
+    "text": "Supprimer",
+    "en": "Delete Post",
+    "reviewed": "claude-backtranslation 2026-10-11 #3f626636"
+  },
+  "app.social.post.delete_post_title": {
+    "text": "Supprimer cette publication ?",
+    "en": "Delete this post?",
+    "reviewed": "claude-backtranslation 2026-10-11 #9db2ac7f"
+  },
+  "app.social.post.likes": {
+    "text": {
+      "one": "{count} J’aime",
+      "other": "{count} J’aime"
+    },
+    "en": {
+      "one": "{count} like",
+      "other": "{count} likes"
+    }
+  },
+  "app.social.post.send_comment": {
+    "text": "Publier",
+    "en": "Post"
+  },
+  "app.social.post.unnamed": {
+    "text": "Utilisateur",
+    "en": "User"
+  },
+  "app.social.trim.cant_open": {
+    "text": "Impossible d’ouvrir cette vidéo.",
+    "en": "This video could not be opened."
+  },
+  "app.social.trim.keeping": {
+    "text": "Extrait conservé : {kept} sur {total}",
+    "en": "Keeping {kept} of {total}"
+  },
+  "app.social.trim.no_length": {
+    "text": "Impossible de lire la durée de cette vidéo.",
+    "en": "This video's length could not be read."
+  },
+  "app.social.trim.reading": {
+    "text": "Ouverture de la vidéo…",
+    "en": "Reading the clip…"
+  },
+  "app.social.trim.remove": {
+    "text": "Annuler le découpage",
+    "en": "Remove trim"
+  },
+  "app.social.trim.title": {
+    "text": "Découper la vidéo",
+    "en": "Trim video"
+  }
+}

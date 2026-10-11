@@ -1,0 +1,836 @@
+{
+  "app.settings.bridge.account_page": {
+    "text": "La pagina del tuo account",
+    "en": "Your Account Page"
+  },
+  "app.settings.bridge.at_home": {
+    "text": "A casa: {address}",
+    "en": "At home: {address}"
+  },
+  "app.settings.bridge.delete_account": {
+    "text": "Elimina il mio account…",
+    "en": "Delete My Account…",
+    "reviewed": "claude-backtranslation 2026-10-11 #e419f58d"
+  },
+  "app.settings.bridge.delete_message": {
+    "text": "Prima questo dispositivo lascia il bridge e continua a funzionare a casa. Poi si apre la pagina del tuo account: accedi lì ed elimina l’account; in questo modo vengono rilasciati anche i nomi di eventuali altri dispositivi.",
+    "en": "This device leaves the bridge first and goes on working at home. Then your account page opens: sign in there and delete the account, which releases any other devices' names too.",
+    "reviewed": "claude-backtranslation 2026-10-11 #3e93d32f"
+  },
+  "app.settings.bridge.delete_title": {
+    "text": "Eliminare il tuo account?",
+    "en": "Delete your account?",
+    "reviewed": "claude-backtranslation 2026-10-11 #41e5d41d"
+  },
+  "app.settings.bridge.footer": {
+    "text": "Se lasci il bridge, il nome viene rilasciato; il dispositivo continua a funzionare a casa, all’indirizzo http://{address}.",
+    "en": "Leaving gives the name back; the device keeps working at home, at http://{address}.",
+    "reviewed": "claude-backtranslation 2026-10-11 #e04812f5"
+  },
+  "app.settings.bridge.leave": {
+    "text": "Lascia il bridge",
+    "en": "Leave the Bridge",
+    "reviewed": "claude-backtranslation 2026-10-11 #6b0f0aba"
+  },
+  "app.settings.bridge.leave_confirm": {
+    "text": "Lascia il bridge",
+    "en": "Leave the Bridge",
+    "reviewed": "claude-backtranslation 2026-10-11 #6b0f0aba"
+  },
+  "app.settings.bridge.leave_failed": {
+    "text": "Impossibile lasciare il bridge.",
+    "en": "Could not leave the bridge."
+  },
+  "app.settings.bridge.leave_message": {
+    "text": "Il nome {domain} viene rilasciato e il dispositivo si riavvia. Conserva tutto e funziona a casa, ma non è più raggiungibile dall’esterno né dai tuoi amici. Puoi unirti di nuovo al bridge più tardi.",
+    "en": "{domain} is given back and the device restarts. It keeps everything and works at home, but is no longer reachable from outside or by your friends. You can join again later.",
+    "reviewed": "claude-backtranslation 2026-10-11 #b3da9843"
+  },
+  "app.settings.bridge.leave_title": {
+    "text": "Lasciare il bridge?",
+    "en": "Leave the bridge?",
+    "reviewed": "claude-backtranslation 2026-10-11 #1db42977"
+  },
+  "app.settings.bridge.left": {
+    "text": "Il dispositivo si sta riavviando fuori dal bridge. D’ora in poi l’app lo raggiunge sulla tua rete domestica, all’indirizzo {address}.",
+    "en": "The device is restarting off the bridge. From now on the app reaches it on your home network, at {address}."
+  },
+  "app.settings.bridge.local_only": {
+    "text": "Raggiungibile solo sulla tua rete domestica. Unisciti al bridge da Impostazioni nell’app web del dispositivo.",
+    "en": "Only reachable on your home network. Join the bridge from Settings in the device's web app."
+  },
+  "app.settings.bridge.reachable": {
+    "text": "Raggiungibile da qualsiasi luogo all’indirizzo {domain}",
+    "en": "Reachable from anywhere at {domain}"
+  },
+  "app.settings.bridge.released": {
+    "text": "Questo dispositivo ha lasciato il bridge: {bridge} non conosceva più il suo nome (il suo account è stato eliminato, o il nome è stato rilasciato). Tutto ciò che contiene è ancora lì.",
+    "en": "This device left the bridge: {bridge} no longer knew its name (its account was deleted, or the name released). Everything on it is still there."
+  },
+  "app.settings.bridge.title": {
+    "text": "Bridge e account",
+    "en": "Bridge and Account"
+  },
+  "app.settings.connection.device_id": {
+    "text": "ID dispositivo: {id}",
+    "en": "Device ID: {id}"
+  },
+  "app.settings.connection.log_out": {
+    "text": "Esci",
+    "en": "Log Out",
+    "reviewed": "claude-backtranslation 2026-10-11 #93e310ab"
+  },
+  "app.settings.connection.log_out_confirm": {
+    "text": "Esci",
+    "en": "Log Out",
+    "reviewed": "claude-backtranslation 2026-10-11 #93e310ab"
+  },
+  "app.settings.connection.log_out_message": {
+    "text": "La connessione, la cronologia di sincronizzazione e tutti i dati del dispositivo salvati nella cache vengono rimossi da questo telefono. Sul dispositivo stesso non viene eliminato nulla.",
+    "en": "The connection, the sync history and everything cached from the device are removed from this phone. Nothing on the device itself is deleted.",
+    "reviewed": "claude-backtranslation 2026-10-11 #63ff2a45"
+  },
+  "app.settings.connection.log_out_title": {
+    "text": "Uscire da questo dispositivo?",
+    "en": "Log out of this device?",
+    "reviewed": "claude-backtranslation 2026-10-11 #b39edd25"
+  },
+  "app.settings.connection.save": {
+    "text": "Salva connessione",
+    "en": "Save Connection"
+  },
+  "app.settings.connection.title": {
+    "text": "Connessione",
+    "en": "Connection"
+  },
+  "app.settings.crop.use": {
+    "text": "Usa foto",
+    "en": "Use photo"
+  },
+  "app.settings.error.setting": {
+    "text": "Errore durante l’aggiornamento di questa impostazione",
+    "en": "Error updating this setting"
+  },
+  "app.settings.error.unexpected": {
+    "text": "Risposta inattesa",
+    "en": "Unexpected response"
+  },
+  "app.settings.error.update_failed": {
+    "text": "Modifica non riuscita",
+    "en": "Update failed"
+  },
+  "app.settings.faces.footer": {
+    "text": "Rileva i volti nelle foto caricate da ora in poi, così puoi cercare per persona. È disattivato finché non lo attivi tu (qui o durante la configurazione), e i volti non lasciano mai il dispositivo. Analizza tutte le persone nelle tue foto, non solo te. Riguarda solo le foto caricate mentre è attivo: usa “Rielabora media” qui sotto per analizzare quelle che hai già.",
+    "en": "Detect faces in newly uploaded photos so you can search by person. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media below to scan the ones you already have.",
+    "reviewed": "claude-backtranslation 2026-10-11 #2785e469"
+  },
+  "app.settings.faces.title": {
+    "text": "Persone",
+    "en": "People",
+    "reviewed": "claude-backtranslation 2026-10-11 #6c2d4746"
+  },
+  "app.settings.faces.toggle": {
+    "text": "Riconoscimento facciale",
+    "en": "Face Recognition",
+    "reviewed": "claude-backtranslation 2026-10-11 #4302f620"
+  },
+  "app.settings.language": {
+    "text": "Lingua",
+    "en": "Language"
+  },
+  "app.settings.language_automatic": {
+    "text": "Automatica",
+    "en": "Automatic"
+  },
+  "app.settings.language_automatic_named": {
+    "text": "Automatica ({language})",
+    "en": "Automatic ({language})"
+  },
+  "app.settings.language_footer": {
+    "text": "Salvata sul tuo dispositivo, così tutte le app collegate usano la stessa lingua. “Automatica” segue la lingua impostata su questo telefono.",
+    "en": "Saved on your device, so every app signed in to it uses the same language. Automatic follows the language this phone is set to."
+  },
+  "app.settings.language_this_phone": {
+    "text": "Il tuo dispositivo ha bisogno di un aggiornamento software per condividere questa scelta con le altre app. Fino ad allora vale solo per questo telefono.",
+    "en": "Your device needs a software update to share this choice with your other apps. Until then it applies to this phone only."
+  },
+  "app.settings.links.created": {
+    "text": "Creato: {date}",
+    "en": "Created {date}"
+  },
+  "app.settings.links.delete_failed": {
+    "text": "Impossibile eliminare il link",
+    "en": "Could not delete the link"
+  },
+  "app.settings.links.delete_link": {
+    "text": "Elimina link",
+    "en": "Delete link"
+  },
+  "app.settings.links.delete_title": {
+    "text": "Eliminare questo link?",
+    "en": "Delete this link?",
+    "reviewed": "claude-backtranslation 2026-10-11 #6445fcd4"
+  },
+  "app.settings.links.empty": {
+    "text": "Non ci sono link condivisi",
+    "en": "No shared links"
+  },
+  "app.settings.links.expires": {
+    "text": "Scadenza: {date}",
+    "en": "Expires {date}"
+  },
+  "app.settings.links.load_failed": {
+    "text": "Impossibile caricare i link condivisi",
+    "en": "Could not load the shared links"
+  },
+  "app.settings.links.never_opened": {
+    "text": "Mai aperto",
+    "en": "Never opened"
+  },
+  "app.settings.links.opened": {
+    "text": {
+      "one": "Aperto {count} volta",
+      "other": "Aperto {count} volte"
+    },
+    "en": {
+      "one": "Opened {count} time",
+      "other": "Opened {count} times"
+    }
+  },
+  "app.settings.links.opened_last": {
+    "text": {
+      "one": "Aperto {count} volta, ultima apertura: {last}",
+      "other": "Aperto {count} volte, ultima apertura: {last}"
+    },
+    "en": {
+      "one": "Opened {count} time, last {last}",
+      "other": "Opened {count} times, last {last}"
+    }
+  },
+  "app.settings.links.size_files": {
+    "text": {
+      "one": "{size} · {count} file",
+      "other": "{size} · {count} file"
+    },
+    "en": {
+      "one": "{size} · {count} file",
+      "other": "{size} · {count} files"
+    }
+  },
+  "app.settings.links.title": {
+    "text": "Link condivisi",
+    "en": "Shared Links"
+  },
+  "app.settings.links.untitled_gallery": {
+    "text": "Galleria condivisa",
+    "en": "Shared gallery"
+  },
+  "app.settings.links.untitled_zip": {
+    "text": "File condivisi (zip)",
+    "en": "Shared files (zip)"
+  },
+  "app.settings.logs.device": {
+    "text": "Dispositivo",
+    "en": "Device"
+  },
+  "app.settings.logs.note": {
+    "text": "Nota (facoltativa)",
+    "en": "Note (optional)"
+  },
+  "app.settings.logs.send_explain": {
+    "text": "Invia l’ultima parte dei log del tuo dispositivo, la tua nota e l’email del tuo account a info@off-the.cloud, così possiamo aiutarti. I log possono includere nomi di file e di cartella, parole cercate, nomi di reti Wi-Fi e gli indirizzi del tuo dispositivo.",
+    "en": "Sends the last part of your device's logs, your note and your account's email to info@off-the.cloud, so we can help. Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses.",
+    "reviewed": "claude-backtranslation 2026-10-11 #86a08727"
+  },
+  "app.settings.logs.send_to_us": {
+    "text": "Inviaci",
+    "en": "Send to us",
+    "reviewed": "claude-backtranslation 2026-10-11 #bed31be9"
+  },
+  "app.settings.logs.sending": {
+    "text": "Invio…",
+    "en": "Sending…"
+  },
+  "app.settings.logs.sent": {
+    "text": "Inviati: ti risponderemo all’email del tuo account.",
+    "en": "Sent - we'll answer at your account's email."
+  },
+  "app.settings.logs.title": {
+    "text": "Log",
+    "en": "Logs"
+  },
+  "app.settings.logs.updates": {
+    "text": "Aggiornamenti",
+    "en": "Updates"
+  },
+  "app.settings.logs.warning": {
+    "text": "I log possono includere nomi di file e di cartella, parole cercate, nomi di reti Wi-Fi e gli indirizzi del tuo dispositivo. Controllali prima di condividerli.",
+    "en": "Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses. Check them before you share them.",
+    "reviewed": "claude-backtranslation 2026-10-11 #e141a896"
+  },
+  "app.settings.password.change": {
+    "text": "Modifica password",
+    "en": "Change Password",
+    "reviewed": "claude-backtranslation 2026-10-11 #c1bb03ca"
+  },
+  "app.settings.password.changed": {
+    "text": "Password modificata ✅",
+    "en": "Password changed ✅",
+    "reviewed": "claude-backtranslation 2026-10-11 #a1a37f37"
+  },
+  "app.settings.password.changing": {
+    "text": "Modifica in corso…",
+    "en": "Changing…"
+  },
+  "app.settings.password.confirm": {
+    "text": "Conferma la nuova password",
+    "en": "Confirm new password",
+    "reviewed": "claude-backtranslation 2026-10-11 #b6f70eb8"
+  },
+  "app.settings.password.current": {
+    "text": "Password attuale",
+    "en": "Current password",
+    "reviewed": "claude-backtranslation 2026-10-11 #be7c3ca3"
+  },
+  "app.settings.password.error": {
+    "text": "Errore durante la modifica della password: {detail}",
+    "en": "Error changing password: {detail}",
+    "reviewed": "claude-backtranslation 2026-10-11 #e587f929"
+  },
+  "app.settings.password.failed": {
+    "text": "Modifica non riuscita",
+    "en": "Change failed",
+    "reviewed": "claude-backtranslation 2026-10-11 #c68b6958"
+  },
+  "app.settings.password.fill_all": {
+    "text": "Compila tutti i campi",
+    "en": "Fill in all fields",
+    "reviewed": "claude-backtranslation 2026-10-11 #d420913e"
+  },
+  "app.settings.password.mismatch": {
+    "text": "Le password non corrispondono",
+    "en": "Passwords don't match",
+    "reviewed": "claude-backtranslation 2026-10-11 #0d0d35e9"
+  },
+  "app.settings.password.new": {
+    "text": "Nuova password",
+    "en": "New password",
+    "reviewed": "claude-backtranslation 2026-10-11 #6ad06cc2"
+  },
+  "app.settings.password.no_key": {
+    "text": "Impossibile ottenere la chiave pubblica della connessione",
+    "en": "Could not fetch the connection's public key",
+    "reviewed": "claude-backtranslation 2026-10-11 #b40a3e2f"
+  },
+  "app.settings.password.title": {
+    "text": "Modifica password",
+    "en": "Change Password",
+    "reviewed": "claude-backtranslation 2026-10-11 #c1bb03ca"
+  },
+  "app.settings.picker.all": {
+    "text": "Tutte le foto",
+    "en": "All photos"
+  },
+  "app.settings.picker.title": {
+    "text": "Scegli una foto",
+    "en": "Choose a photo"
+  },
+  "app.settings.profile.change_photo": {
+    "text": "Cambia foto",
+    "en": "Change photo"
+  },
+  "app.settings.profile.from_device": {
+    "text": "Dal tuo dispositivo",
+    "en": "From your device"
+  },
+  "app.settings.profile.name": {
+    "text": "Nome",
+    "en": "Name"
+  },
+  "app.settings.profile.save": {
+    "text": "Salva profilo",
+    "en": "Save Profile"
+  },
+  "app.settings.profile.save_error": {
+    "text": "Errore durante il salvataggio del profilo",
+    "en": "Error saving profile"
+  },
+  "app.settings.profile.save_failed": {
+    "text": "Aggiornamento del profilo non riuscito",
+    "en": "Profile update failed"
+  },
+  "app.settings.profile.saved": {
+    "text": "Profilo aggiornato ✅",
+    "en": "Profile updated ✅"
+  },
+  "app.settings.profile.title": {
+    "text": "Profilo",
+    "en": "Profile"
+  },
+  "app.settings.reprocess.all": {
+    "text": "Rielabora tutti i media",
+    "en": "Reprocess All Media"
+  },
+  "app.settings.reprocess.completed": {
+    "text": {
+      "one": "Ultima esecuzione completata: {count} file elaborato.",
+      "other": "Ultima esecuzione completata: {count} file elaborati."
+    },
+    "en": {
+      "one": "Last run completed — {count} file(s) processed.",
+      "other": "Last run completed — {count} file(s) processed."
+    }
+  },
+  "app.settings.reprocess.confirm_restart": {
+    "text": "Rielaborare ogni foto e video della tua libreria? L’operazione elimina tutte le etichette e le persone riconosciute esistenti e le ricostruisce da zero. Può richiedere un po’ di tempo e non può essere annullata.",
+    "en": "Reprocess every photo and video in your library? This deletes all existing tags and recognized people and rebuilds them from scratch. It can take a while and can't be undone.",
+    "reviewed": "claude-backtranslation 2026-10-11 #2e07b1cd"
+  },
+  "app.settings.reprocess.confirm_resume": {
+    "text": "Riprendere la rielaborazione da dove si era interrotta? Può richiedere un po’ di tempo.",
+    "en": "Resume reprocessing where it left off? It can take a while."
+  },
+  "app.settings.reprocess.failed": {
+    "text": {
+      "one": "Ultima esecuzione non riuscita dopo {count} file: riprova.",
+      "other": "Ultima esecuzione non riuscita dopo {count} file: riprova."
+    },
+    "en": {
+      "one": "Last run failed after {count} file(s) — try again.",
+      "other": "Last run failed after {count} file(s) — try again."
+    }
+  },
+  "app.settings.reprocess.footer": {
+    "text": "Esegue di nuovo l’etichettatura e il rilevamento dei volti su ogni foto e video già presente nella tua libreria: utile dopo una correzione del rilevamento o un aggiornamento del modello. Prima elimina le etichette e le persone riconosciute esistenti, poi le ricostruisce da zero.",
+    "en": "Re-run tagging and face detection on every photo and video already in your library — useful after a detection fix or model update. This clears existing tags and recognized people first and rebuilds them from scratch.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c195ceb3"
+  },
+  "app.settings.reprocess.restart_button": {
+    "text": "Rielabora",
+    "en": "Reprocess",
+    "reviewed": "claude-backtranslation 2026-10-11 #fb876575"
+  },
+  "app.settings.reprocess.resume": {
+    "text": "Riprendi la rielaborazione",
+    "en": "Resume Reprocessing"
+  },
+  "app.settings.reprocess.resume_button": {
+    "text": "Riprendi",
+    "en": "Resume"
+  },
+  "app.settings.reprocess.running": {
+    "text": "Rielaborazione… {percent}% ({done} / {total})",
+    "en": "Reprocessing… {percent}% ({done} / {total})"
+  },
+  "app.settings.reprocess.start_error": {
+    "text": "Errore durante l’avvio della rielaborazione",
+    "en": "Error starting reprocessing"
+  },
+  "app.settings.reprocess.start_failed": {
+    "text": "Impossibile avviare la rielaborazione",
+    "en": "Could not start reprocessing"
+  },
+  "app.settings.reprocess.start_over": {
+    "text": "Ricomincia da capo",
+    "en": "Start Over"
+  },
+  "app.settings.reprocess.starting": {
+    "text": "Avvio…",
+    "en": "Starting…"
+  },
+  "app.settings.reprocess.stop_error": {
+    "text": "Errore durante l’interruzione della rielaborazione",
+    "en": "Error stopping reprocessing"
+  },
+  "app.settings.reprocess.stop_failed": {
+    "text": "Impossibile interrompere la rielaborazione",
+    "en": "Could not stop reprocessing"
+  },
+  "app.settings.reprocess.stopped": {
+    "text": "Interrotta: {percent}% ({done} / {total}).",
+    "en": "Stopped at {percent}% ({done} / {total})."
+  },
+  "app.settings.reprocess.stopping": {
+    "text": "Interruzione…",
+    "en": "Stopping…"
+  },
+  "app.settings.reprocess.title": {
+    "text": "Rielabora media",
+    "en": "Reprocess Media"
+  },
+  "app.settings.sharing.title": {
+    "text": "Condivisione",
+    "en": "Sharing"
+  },
+  "app.settings.status.cpu_mem": {
+    "text": "CPU: {cpu}% · Memoria: {used} di {total}",
+    "en": "CPU: {cpu}% · Mem: {used} of {total}"
+  },
+  "app.settings.status.disk": {
+    "text": "Disco: {used} di {total}",
+    "en": "Disk: {used} of {total}"
+  },
+  "app.settings.status.raid": {
+    "text": "RAID: {state} · Dischi: {disks}",
+    "en": "RAID: {state} · Disks: {disks}"
+  },
+  "app.settings.status.raid_degraded": {
+    "text": "Degradato",
+    "en": "Degraded"
+  },
+  "app.settings.status.raid_in_sync": {
+    "text": "Sincronizzato",
+    "en": "In sync"
+  },
+  "app.settings.status.raid_level": {
+    "text": "RAID: {level} — {state} · Dischi: {disks}",
+    "en": "RAID: {level} — {state} · Disks: {disks}"
+  },
+  "app.settings.status.raid_none": {
+    "text": "Nessun RAID",
+    "en": "No RAID"
+  },
+  "app.settings.status.raid_syncing": {
+    "text": "Sincronizzazione ({percent}%)",
+    "en": "Syncing ({percent}%)"
+  },
+  "app.settings.status.raid_unknown": {
+    "text": "Sconosciuto",
+    "en": "Unknown"
+  },
+  "app.settings.status.raid_used": {
+    "text": "Spazio RAID usato: {used} di {total}",
+    "en": "RAID used: {used} of {total}"
+  },
+  "app.settings.status.title": {
+    "text": "Stato",
+    "en": "Status"
+  },
+  "app.settings.status.used_percent": {
+    "text": "{percent}%",
+    "en": "{percent}%"
+  },
+  "app.settings.sync.all": {
+    "text": "Sincronizza tutto",
+    "en": "Sync All"
+  },
+  "app.settings.sync.authorize": {
+    "text": "Consenti l’accesso alle foto",
+    "en": "Authorize Photos Access"
+  },
+  "app.settings.sync.footer": {
+    "text": "“Sincronizza tutto” ripercorre l’intera libreria. “Sincronizza da ora” salta tutto ciò che contiene già: vengono caricati solo le foto e i video scattati da ora in poi.",
+    "en": "Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded."
+  },
+  "app.settings.sync.from_now": {
+    "text": "Sincronizza da ora",
+    "en": "Sync From Now"
+  },
+  "app.settings.sync.now": {
+    "text": "Sincronizza ora",
+    "en": "Sync Now"
+  },
+  "app.settings.sync.title": {
+    "text": "Opzioni di sincronizzazione",
+    "en": "Sync Options"
+  },
+  "app.settings.sync.videos": {
+    "text": "Includi i video",
+    "en": "Include videos"
+  },
+  "app.settings.sync.wifi_only": {
+    "text": "Solo Wi-Fi",
+    "en": "Wi-Fi only"
+  },
+  "app.settings.tagging.footer": {
+    "text": "Riconosce ciò che mostrano le foto e i video caricati da ora in poi (una spiaggia, un cane, una torta di compleanno) così puoi cercarlo. Avviene su questo dispositivo e non ne esce nulla. Disattivandola risparmi tempo di elaborazione; i luoghi presi dai dati di posizione della foto restano comunque ricercabili. Riguarda solo ciò che viene caricato mentre è disattivata.",
+    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.",
+    "reviewed": "claude-backtranslation 2026-10-11 #e797f8b8"
+  },
+  "app.settings.tagging.title": {
+    "text": "Etichettatura delle immagini",
+    "en": "Image Tagging"
+  },
+  "app.settings.tailscale.auth_key": {
+    "text": "Auth key (facoltativa)",
+    "en": "Auth key (optional)"
+  },
+  "app.settings.tailscale.authorise": {
+    "text": "Autorizza questo dispositivo nella pagina che si è appena aperta, poi premi di nuovo Attiva.",
+    "en": "Authorise this device in the page that just opened, then press Enable again."
+  },
+  "app.settings.tailscale.change_failed": {
+    "text": "Impossibile modificare l’impostazione.",
+    "en": "Could not change the setting."
+  },
+  "app.settings.tailscale.done": {
+    "text": "Fatto: questo dispositivo è raggiungibile all’indirizzo {url}",
+    "en": "Done — this device is reachable at {url}"
+  },
+  "app.settings.tailscale.enable": {
+    "text": "Attiva Tailscale Funnel",
+    "en": "Enable Tailscale Funnel"
+  },
+  "app.settings.tailscale.intro": {
+    "text": "Tailscale Funnel è un’alternativa al bridge di Off The Cloud: pubblica questo dispositivo su un tuo indirizzo ts.net, ma con i seguenti limiti:",
+    "en": "Tailscale Funnel is an alternative to the Off The Cloud bridge, it publishes this device on your own ts.net address but with the next limitations:",
+    "reviewed": "claude-backtranslation 2026-10-11 #fdddec8e"
+  },
+  "app.settings.tailscale.key_hint": {
+    "text": "Con una chiave della console di amministrazione di Tailscale la procedura si completa da sola. Senza, si apre Tailscale per autorizzare questo dispositivo.",
+    "en": "With a key from your Tailscale admin console this finishes on its own. Without one, you'll be taken to Tailscale to authorise this device."
+  },
+  "app.settings.tailscale.limit_account": {
+    "text": "<b>Ti serve un account Tailscale,</b> con Funnel attivato per la tua tailnet.",
+    "en": "<b>You'll need a Tailscale account,</b> with Funnel enabled for your tailnet."
+  },
+  "app.settings.tailscale.limit_bandwidth": {
+    "text": "<b>La banda è limitata.</b> Tailscale limita ciò che può passare tramite Funnel e non pubblica il limite.",
+    "en": "<b>Bandwidth is capped.</b> Tailscale limits what can pass through Funnel and doesn't publish the limit."
+  },
+  "app.settings.tailscale.limit_one_user": {
+    "text": "<b>Un solo utente.</b> Gli utenti aggiuntivi hanno bisogno di un indirizzo web ciascuno, e Funnel dà a questa macchina un solo indirizzo.",
+    "en": "<b>One user only.</b> Extra users need a web address each, and Funnel gives this machine a single one."
+  },
+  "app.settings.tailscale.limit_social": {
+    "text": "<b>La parte social non funzionerà.</b> Gli amici si trovano tramite il bridge, quindi la condivisione e i feed degli amici non sono disponibili.",
+    "en": "<b>The social side won't work.</b> Friends find each other through the bridge, so sharing and friends' timelines are unavailable."
+  },
+  "app.settings.tailscale.no_funnel": {
+    "text": "Tailscale è connesso, ma Funnel non si è avviato. Controlla che Funnel sia attivato per la tua tailnet.",
+    "en": "Tailscale is connected, but Funnel didn't come up. Check that Funnel is enabled for your tailnet."
+  },
+  "app.settings.tailscale.not_installed": {
+    "text": "Tailscale non è installato su questo dispositivo, quindi Funnel non è disponibile qui.",
+    "en": "Tailscale isn't installed on this device, so Funnel isn't available here."
+  },
+  "app.settings.tailscale.not_installed_on": {
+    "text": "Tailscale non è installato su questo dispositivo, quindi Funnel non può essere attivato qui.",
+    "en": "Tailscale isn't installed on this device, so Funnel can't be turned on here."
+  },
+  "app.settings.tailscale.off": {
+    "text": "Funnel è disattivato. Questo dispositivo è di nuovo raggiungibile tramite il bridge.",
+    "en": "Funnel is off. This device is reachable through the bridge again."
+  },
+  "app.settings.tailscale.served": {
+    "text": "Pubblicato tramite Tailscale Funnel all’indirizzo {url}",
+    "en": "Served over Tailscale Funnel at {url}"
+  },
+  "app.settings.tailscale.suits": {
+    "text": "È adatto a un dispositivo che vuoi usare solo come tuo NAS privato: i tuoi file e le tue foto, raggiungibili da qualsiasi luogo, senza condividere niente con nessuno.",
+    "en": "It suits a device you want purely as your own private NAS — your files and photos, reachable from anywhere, nothing shared with anyone."
+  },
+  "app.settings.tailscale.turn_off": {
+    "text": "Disattiva Funnel",
+    "en": "Turn Funnel off"
+  },
+  "app.settings.tailscale.working": {
+    "text": "Operazione in corso…",
+    "en": "Working…"
+  },
+  "app.settings.thumbs.clear": {
+    "text": "Svuota la cache delle miniature",
+    "en": "Clear thumbnail cache",
+    "reviewed": "claude-backtranslation 2026-10-11 #aab53af8"
+  },
+  "app.settings.thumbs.footer": {
+    "text": "Le miniature vengono conservate su questo telefono, così Immagini si apre senza scaricarle di nuovo.",
+    "en": "Thumbnails are kept on this phone so Images opens without downloading them again."
+  },
+  "app.settings.thumbs.max_size": {
+    "text": "Dimensione massima",
+    "en": "Maximum size"
+  },
+  "app.settings.update.back": {
+    "text": "Il dispositivo è di nuovo attivo.",
+    "en": "The device is back."
+  },
+  "app.settings.update.build": {
+    "text": "build {build}",
+    "en": "build {build}"
+  },
+  "app.settings.update.check_again": {
+    "text": "Controlla di nuovo",
+    "en": "Check again"
+  },
+  "app.settings.update.check_error": {
+    "text": "Impossibile raggiungere il server degli aggiornamenti in questo momento, quindi queste informazioni potrebbero non essere aggiornate.",
+    "en": "Couldn't reach the update server just now, so this may be out of date."
+  },
+  "app.settings.update.checking": {
+    "text": "Verifica…",
+    "en": "Checking…"
+  },
+  "app.settings.update.critical": {
+    "text": "Critico",
+    "en": "Critical"
+  },
+  "app.settings.update.failed": {
+    "text": "Aggiornamento non riuscito: {message}",
+    "en": "Update failed: {message}"
+  },
+  "app.settings.update.failed_on": {
+    "text": "Aggiornamento non riuscito ({date}): {message}",
+    "en": "Update failed on {date}: {message}"
+  },
+  "app.settings.update.label_build": {
+    "text": "{label} (build {build})",
+    "en": "{label} (build {build})"
+  },
+  "app.settings.update.major": {
+    "text": "Importante",
+    "en": "Major"
+  },
+  "app.settings.update.restart": {
+    "text": "Riavvia dispositivo",
+    "en": "Restart Device",
+    "reviewed": "claude-backtranslation 2026-10-11 #fa91c9a7"
+  },
+  "app.settings.update.restart_confirm": {
+    "text": "Riavvia",
+    "en": "Restart",
+    "reviewed": "claude-backtranslation 2026-10-11 #ac96d9c1"
+  },
+  "app.settings.update.restart_failed": {
+    "text": "Impossibile riavviare il dispositivo.",
+    "en": "Could not restart the device."
+  },
+  "app.settings.update.restart_message": {
+    "text": "Non sarà raggiungibile per circa un minuto.",
+    "en": "It will be unreachable for about a minute.",
+    "reviewed": "claude-backtranslation 2026-10-11 #4eb48aa6"
+  },
+  "app.settings.update.restart_note": {
+    "text": "Il dispositivo si ricompila e si riavvia: ci vogliono alcuni minuti e nel frattempo questa connessione si interrompe. Le tue foto e le tue impostazioni restano intatte.",
+    "en": "The device rebuilds itself and restarts, which takes a few minutes and drops this connection on the way. Your photos and settings are left alone."
+  },
+  "app.settings.update.restart_old": {
+    "text": "Il tuo dispositivo deve essere aggiornato prima di poter essere riavviato da qui.",
+    "en": "Your device needs an update before it can be restarted from here."
+  },
+  "app.settings.update.restart_title": {
+    "text": "Riavviare il dispositivo?",
+    "en": "Restart the device?",
+    "reviewed": "claude-backtranslation 2026-10-11 #53edbf88"
+  },
+  "app.settings.update.restarting": {
+    "text": "Riavvio…",
+    "en": "Restarting…"
+  },
+  "app.settings.update.restarting_note": {
+    "text": "Riavvio… il dispositivo tornerà attivo tra circa un minuto.",
+    "en": "Restarting… the device will be back in about a minute."
+  },
+  "app.settings.update.slow": {
+    "text": "Il dispositivo non è ancora tornato attivo. Può volerci un po’ di più; se non torna, scollegalo dalla corrente e ricollegalo.",
+    "en": "The device hasn't come back yet. It can take a little longer; if it doesn't come back, unplug it and plug it back in."
+  },
+  "app.settings.update.start_failed": {
+    "text": "Impossibile avviare l’aggiornamento.",
+    "en": "Could not start the update."
+  },
+  "app.settings.update.starting": {
+    "text": "Avvio…",
+    "en": "Starting…"
+  },
+  "app.settings.update.starting_status": {
+    "text": "Avvio",
+    "en": "Starting"
+  },
+  "app.settings.update.title": {
+    "text": "Versione del dispositivo",
+    "en": "Device version"
+  },
+  "app.settings.update.up_to_date": {
+    "text": "Aggiornato",
+    "en": "Up to date"
+  },
+  "app.settings.update.update_to": {
+    "text": "Aggiorna a {version}",
+    "en": "Update to {version}"
+  },
+  "app.settings.update.update_to_build": {
+    "text": "Aggiorna alla build {build}",
+    "en": "Update to build {build}"
+  },
+  "app.settings.uploads.title": {
+    "text": "Caricamenti",
+    "en": "Uploads"
+  },
+  "app.settings.users.confirm_delete": {
+    "text": "Conferma eliminazione",
+    "en": "Confirm Delete",
+    "reviewed": "claude-backtranslation 2026-10-11 #c98a773d"
+  },
+  "app.settings.users.confirm_hint": {
+    "text": "Digita “{name}” per confermare l’eliminazione.",
+    "en": "Type \"{name}\" to confirm deletion.",
+    "reviewed": "claude-backtranslation 2026-10-11 #f396ad53"
+  },
+  "app.settings.users.create_failed": {
+    "text": "Impossibile creare l’utente.",
+    "en": "Could not create user."
+  },
+  "app.settings.users.created": {
+    "text": "Utente “{name}” creato.",
+    "en": "User \"{name}\" created."
+  },
+  "app.settings.users.delete_failed": {
+    "text": "Impossibile eliminare l’utente.",
+    "en": "Could not delete user."
+  },
+  "app.settings.users.deleted": {
+    "text": "Utente “{name}” eliminato.",
+    "en": "User \"{name}\" deleted."
+  },
+  "app.settings.users.disable": {
+    "text": "Disattiva",
+    "en": "Disable"
+  },
+  "app.settings.users.enable": {
+    "text": "Attiva",
+    "en": "Enable"
+  },
+  "app.settings.users.inactive": {
+    "text": "INATTIVO",
+    "en": "INACTIVE"
+  },
+  "app.settings.users.intro": {
+    "text": "Ogni utente funziona come un’istanza propria, completamente separata (porta, database e spazio di archiviazione propri), gestita solo da qui.",
+    "en": "Each user runs as its own fully separate instance — own port, own database, own storage — managed only from here."
+  },
+  "app.settings.users.load_usage": {
+    "text": "Mostra utilizzo",
+    "en": "Load usage"
+  },
+  "app.settings.users.port": {
+    "text": "porta",
+    "en": "port"
+  },
+  "app.settings.users.port_domain": {
+    "text": "porta {port} · {domain}",
+    "en": "port {port} · {domain}"
+  },
+  "app.settings.users.title": {
+    "text": "Utenti",
+    "en": "Users"
+  },
+  "app.settings.users.update_failed": {
+    "text": "Impossibile aggiornare questo utente.",
+    "en": "Could not update this user."
+  },
+  "app.settings.users.usage": {
+    "text": {
+      "one": "{size} MB ({percent}%) · {count} connessione attiva",
+      "other": "{size} MB ({percent}%) · {count} connessioni attive"
+    },
+    "en": {
+      "one": "{size} MB ({percent}%) · {count} active",
+      "other": "{size} MB ({percent}%) · {count} active"
+    }
+  },
+  "app.settings.users.username": {
+    "text": "nome utente",
+    "en": "username"
+  }
+}

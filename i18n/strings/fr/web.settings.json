@@ -1,0 +1,781 @@
+{
+  "web.settings.bridge.code_failed": {
+    "text": "Ce code de configuration n’a pas fonctionné.",
+    "en": "That setup code didn't work."
+  },
+  "web.settings.bridge.continue_apple": {
+    "text": "Continuer avec Apple",
+    "en": "Continue with Apple"
+  },
+  "web.settings.bridge.continue_google": {
+    "text": "Continuer avec Google",
+    "en": "Continue with Google"
+  },
+  "web.settings.bridge.email": {
+    "text": "E-mail",
+    "en": "Email"
+  },
+  "web.settings.bridge.enable_failed": {
+    "text": "Impossible d’activer la passerelle.",
+    "en": "Could not switch the bridge on."
+  },
+  "web.settings.bridge.intro": {
+    "text": "Cet appareil n’est joignable que sur votre réseau domestique. Grâce à la passerelle {bridge}, il obtient sa propre adresse : vous pouvez ainsi le joindre de n’importe où et ajouter des amis. Il vous faut un compte Off The Cloud.",
+    "en": "This device is only reachable on your home network. Through the {bridge} bridge it gets its own address, so you can reach it from anywhere and add friends. You'll need an Off The Cloud account."
+  },
+  "web.settings.bridge.join": {
+    "text": "Rejoindre la passerelle",
+    "en": "Join the bridge"
+  },
+  "web.settings.bridge.joining": {
+    "text": "Connexion…",
+    "en": "Joining…"
+  },
+  "web.settings.bridge.last_failed": {
+    "text": "La dernière tentative a échoué : {detail}",
+    "en": "The last attempt failed: {detail}"
+  },
+  "web.settings.bridge.leave": {
+    "text": "Quitter la passerelle",
+    "en": "Leave the bridge",
+    "reviewed": "claude-backtranslation 2026-10-11 #fc47c00d"
+  },
+  "web.settings.bridge.leave_confirm": {
+    "text": "Retirer cet appareil de la passerelle ? Le nom {domain} est libéré et l’appareil redémarre. Il conserve tout ce qu’il contient et continue de fonctionner à la maison, à l’adresse {address}, mais n’est plus joignable depuis l’extérieur ni par vos amis. Vous pourrez rejoindre de nouveau la passerelle plus tard.",
+    "en": "Take this device off the bridge? {domain} is given back and the device restarts. It keeps everything on it and works at home, at {address}, but is no longer reachable from outside or by your friends. You can join again later.",
+    "reviewed": "claude-backtranslation 2026-10-11 #e710769a"
+  },
+  "web.settings.bridge.leave_failed": {
+    "text": "Impossible de quitter la passerelle.",
+    "en": "Could not leave the bridge."
+  },
+  "web.settings.bridge.leave_hint": {
+    "text": "Quitter la passerelle libère le nom ; l’appareil continue de fonctionner à la maison. Pour supprimer aussi votre compte Off The Cloud, quittez d’abord la passerelle, puis utilisez <account>la page de votre compte</account>. Ce que la passerelle conserve à votre sujet figure dans la <privacy>politique de confidentialité</privacy>.",
+    "en": "Leaving the bridge gives the name back; the device keeps working at home. To delete your Off The Cloud account as well, leave first, then use <account>your account page</account>. What the bridge keeps about you is in the <privacy>privacy notice</privacy>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #00ed0364"
+  },
+  "web.settings.bridge.leaving": {
+    "text": "Retrait…",
+    "en": "Leaving…"
+  },
+  "web.settings.bridge.name": {
+    "text": "Nom de l’appareil",
+    "en": "Device name"
+  },
+  "web.settings.bridge.name_example": {
+    "text": "maison",
+    "en": "myhome"
+  },
+  "web.settings.bridge.name_hint": {
+    "text": "Lettres minuscules, chiffres et traits d’union. Un nom que votre compte possède déjà est transféré sur cet appareil.",
+    "en": "Lower-case letters, digits and hyphens. A name your account already holds moves to this device."
+  },
+  "web.settings.bridge.other_account": {
+    "text": "Utiliser un autre compte",
+    "en": "Use another account"
+  },
+  "web.settings.bridge.pending_join": {
+    "text": "Connexion à la passerelle {bridge}… L’appareil redémarre pour terminer, ce qui prend environ une minute. Vous devrez peut-être vous reconnecter ensuite.",
+    "en": "Joining {bridge}… the device restarts to finish, which takes about a minute. You may need to sign in again afterwards."
+  },
+  "web.settings.bridge.pending_leave": {
+    "text": "Retrait de la passerelle {bridge}… L’appareil redémarre, ce qui prend environ une minute. Ensuite, ouvrez-le à la maison, à l’adresse <link>{address}</link>.",
+    "en": "Leaving {bridge}… the device restarts, which takes about a minute. From then on open it at home, at <link>{address}</link>."
+  },
+  "web.settings.bridge.reachable": {
+    "text": "Joignable de n’importe où à l’adresse <link>{domain}</link>.",
+    "en": "Reachable from anywhere at <link>{domain}</link>."
+  },
+  "web.settings.bridge.released": {
+    "text": "Cet appareil a quitté la passerelle : la passerelle {bridge} ne connaissait plus son nom (son compte a été supprimé ou le nom a été libéré). Tout ce qu’il contient est toujours là.",
+    "en": "This device left the bridge: {bridge} no longer knew its name (its account was deleted, or the name released). Everything on it is still here."
+  },
+  "web.settings.bridge.setup_code": {
+    "text": "Code de configuration",
+    "en": "Setup code"
+  },
+  "web.settings.bridge.setup_hint": {
+    "text": "Pas encore de compte, ou vous vous connectez autrement ? Créez-en un ou connectez-vous sur <account>{address}</account>, choisissez « Obtenir un code de configuration » et collez-le ici. Consultez les <terms>conditions</terms> et la <privacy>politique de confidentialité</privacy>.",
+    "en": "No account yet, or you sign in another way? Create one or sign in at <account>{address}</account>, choose “Get a setup code” and paste it here. See the <terms>terms</terms> and the <privacy>privacy notice</privacy>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #b6ab8b2f"
+  },
+  "web.settings.bridge.sign_in": {
+    "text": "Se connecter",
+    "en": "Sign in"
+  },
+  "web.settings.bridge.sign_in_failed": {
+    "text": "Impossible de se connecter.",
+    "en": "Could not sign in."
+  },
+  "web.settings.bridge.signed_in_as": {
+    "text": "Compte connecté : <b>{email}</b>.",
+    "en": "Signed in as <b>{email}</b>."
+  },
+  "web.settings.bridge.signing_in": {
+    "text": "Connexion…",
+    "en": "Signing in…"
+  },
+  "web.settings.bridge.title": {
+    "text": "Accès à la passerelle",
+    "en": "Bridge access"
+  },
+  "web.settings.bridge.use": {
+    "text": "Utiliser",
+    "en": "Use"
+  },
+  "web.settings.faces.disable": {
+    "text": "Désactiver la reconnaissance faciale",
+    "en": "Disable Face Recognition"
+  },
+  "web.settings.faces.enable": {
+    "text": "Activer la reconnaissance faciale",
+    "en": "Enable Face Recognition",
+    "reviewed": "claude-backtranslation 2026-10-11 #d5412461"
+  },
+  "web.settings.faces.hint": {
+    "text": "Détecte les visages dans les photos nouvellement envoyées pour que vous puissiez rechercher par personne, comme dans d’autres apps photo. Désactivée sauf si vous l’activez (ici ou pendant la configuration) ; les visages ne quittent jamais l’appareil. Elle analyse toutes les personnes présentes sur vos photos, pas seulement vous. Elle ne s’applique qu’aux photos envoyées pendant qu’elle est activée : utilisez « Retraiter les médias » pour analyser celles que vous avez déjà.",
+    "en": "Detect faces in newly uploaded photos so you can search by person, like other photo apps. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media to scan the ones you already have.",
+    "reviewed": "claude-backtranslation 2026-10-11 #347a33f1"
+  },
+  "web.settings.faces.title": {
+    "text": "Reconnaissance faciale",
+    "en": "Face Recognition"
+  },
+  "web.settings.general.load_failed": {
+    "text": "Impossible de charger les paramètres.",
+    "en": "Failed to load settings."
+  },
+  "web.settings.general.saving": {
+    "text": "Enregistrement…",
+    "en": "Saving…"
+  },
+  "web.settings.general.starting": {
+    "text": "Démarrage…",
+    "en": "Starting…"
+  },
+  "web.settings.general.update_failed": {
+    "text": "Impossible de modifier ce paramètre.",
+    "en": "Could not update this setting."
+  },
+  "web.settings.general.working": {
+    "text": "En cours…",
+    "en": "Working…"
+  },
+  "web.settings.language.automatic": {
+    "text": "Automatique ({language})",
+    "en": "Automatic ({language})"
+  },
+  "web.settings.language.changed": {
+    "text": "Une autre app a changé la langue au même moment. Ce navigateur utilise désormais celle-ci.",
+    "en": "Another app changed the language at the same time. This browser now uses that one."
+  },
+  "web.settings.language.hint": {
+    "text": "Toutes les apps connectées à cet appareil utilisent cette langue. « Automatique » suit la langue de chaque navigateur, téléphone ou ordinateur.",
+    "en": "Every app signed in to this device uses this language. Automatic follows the language of each browser, phone or computer."
+  },
+  "web.settings.language.not_saved": {
+    "text": "Impossible de l’enregistrer sur votre appareil. Ce navigateur réessaiera lors de sa reconnexion.",
+    "en": "Couldn't save it on your device. This browser will try again when it reconnects."
+  },
+  "web.settings.language.title": {
+    "text": "Langue",
+    "en": "Language"
+  },
+  "web.settings.language.too_old": {
+    "text": "Ce navigateur s’en souviendra. Mettez à jour votre appareil pour l’utiliser dans toutes les apps.",
+    "en": "This browser will remember it. Update your device to use it in every app."
+  },
+  "web.settings.logs.copied": {
+    "text": "Copié",
+    "en": "Copied"
+  },
+  "web.settings.logs.copy": {
+    "text": "Copier",
+    "en": "Copy"
+  },
+  "web.settings.logs.hint": {
+    "text": "Ce que fait l’appareil, en direct : utile en cas de problème. Vous pouvez copier les journaux, ou nous les envoyer pour que nous puissions vous aider.",
+    "en": "What the device is doing, live - useful when something goes wrong. You can copy them, or send them to us so we can help."
+  },
+  "web.settings.logs.live": {
+    "text": "En direct",
+    "en": "Live"
+  },
+  "web.settings.logs.note": {
+    "text": "Quel est le problème ? (facultatif)",
+    "en": "What went wrong? (optional)"
+  },
+  "web.settings.logs.paused": {
+    "text": "En pause",
+    "en": "Paused"
+  },
+  "web.settings.logs.read_failed": {
+    "text": "Impossible de lire les journaux",
+    "en": "Could not read the logs"
+  },
+  "web.settings.logs.retrying": {
+    "text": "{error} : nouvel essai…",
+    "en": "{error} - trying again…"
+  },
+  "web.settings.logs.send_failed": {
+    "text": "Impossible de les envoyer.",
+    "en": "Could not send them."
+  },
+  "web.settings.logs.send_hint": {
+    "text": "Envoie la dernière partie des journaux de votre appareil, votre note et l’adresse e-mail de votre compte à info@off-the.cloud, pour que nous puissions vous aider.",
+    "en": "Sends the last part of your device's logs, your note and your account's email to info@off-the.cloud, so we can help.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c7f55062"
+  },
+  "web.settings.logs.send_to_us": {
+    "text": "Nous envoyer…",
+    "en": "Send to us…"
+  },
+  "web.settings.logs.sending": {
+    "text": "Envoi…",
+    "en": "Sending…"
+  },
+  "web.settings.logs.sent": {
+    "text": "Envoyé : nous vous répondrons à l’adresse e-mail de votre compte.",
+    "en": "Sent - we'll answer at your account's email."
+  },
+  "web.settings.logs.show": {
+    "text": "Afficher les journaux",
+    "en": "Show logs"
+  },
+  "web.settings.logs.tab_device": {
+    "text": "Appareil",
+    "en": "Device"
+  },
+  "web.settings.logs.tab_updates": {
+    "text": "Mises à jour",
+    "en": "Updates"
+  },
+  "web.settings.logs.title": {
+    "text": "Journaux",
+    "en": "Logs"
+  },
+  "web.settings.logs.waiting": {
+    "text": "En attente du journal…",
+    "en": "Waiting for the log…"
+  },
+  "web.settings.logs.warning": {
+    "text": "Les journaux peuvent contenir des noms de fichiers et de dossiers, des mots recherchés, des noms de réseaux Wi-Fi et les adresses de votre appareil. Vérifiez-les avant de les partager.",
+    "en": "Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses. Check them before you share them.",
+    "reviewed": "claude-backtranslation 2026-10-11 #73b82e86"
+  },
+  "web.settings.notifications.denied": {
+    "text": "L’autorisation d’afficher des notifications a été refusée.",
+    "en": "Notification permission was denied."
+  },
+  "web.settings.notifications.disable": {
+    "text": "Désactiver les notifications",
+    "en": "Disable Notifications"
+  },
+  "web.settings.notifications.enable": {
+    "text": "Activer les notifications",
+    "en": "Enable Notifications"
+  },
+  "web.settings.notifications.hint": {
+    "text": "Recevez une notification push dans ce navigateur pour les nouvelles publications de vos amis. Auto-hébergé : cet appareil l’envoie directement, sans aucun service de notification tiers.",
+    "en": "Get a push notification in this browser when a friend posts. Self-hosted — this device sends it directly, no third-party notification service involved.",
+    "reviewed": "claude-backtranslation 2026-10-11 #182bbaf3"
+  },
+  "web.settings.notifications.title": {
+    "text": "Notifications",
+    "en": "Notifications"
+  },
+  "web.settings.password.change": {
+    "text": "Modifier le mot de passe",
+    "en": "Change Password"
+  },
+  "web.settings.password.changed": {
+    "text": "Mot de passe modifié.",
+    "en": "Password changed.",
+    "reviewed": "claude-backtranslation 2026-10-11 #0db12ecd"
+  },
+  "web.settings.password.confirm": {
+    "text": "Confirmer le mot de passe",
+    "en": "Confirm new password",
+    "reviewed": "claude-backtranslation 2026-10-11 #7426ab5c"
+  },
+  "web.settings.password.failed": {
+    "text": "Échec de la modification.",
+    "en": "Change failed."
+  },
+  "web.settings.password.mismatch": {
+    "text": "Les nouveaux mots de passe ne correspondent pas.",
+    "en": "New passwords do not match.",
+    "reviewed": "claude-backtranslation 2026-10-11 #6a78b5f2"
+  },
+  "web.settings.password.new": {
+    "text": "Nouveau mot de passe",
+    "en": "New password",
+    "reviewed": "claude-backtranslation 2026-10-11 #911c24c7"
+  },
+  "web.settings.password.old": {
+    "text": "Mot de passe actuel",
+    "en": "Old password",
+    "reviewed": "claude-backtranslation 2026-10-11 #90345ab4"
+  },
+  "web.settings.password.title": {
+    "text": "Modifier le mot de passe",
+    "en": "Change Password"
+  },
+  "web.settings.password.too_short": {
+    "text": "Utilisez au moins 8 caractères.",
+    "en": "Use at least 8 characters.",
+    "reviewed": "claude-backtranslation 2026-10-11 #592905fc"
+  },
+  "web.settings.password.unexpected": {
+    "text": "Réponse inattendue.",
+    "en": "Unexpected response."
+  },
+  "web.settings.profile.title": {
+    "text": "Profil",
+    "en": "Profile"
+  },
+  "web.settings.reprocess.all": {
+    "text": "Retraiter tous les médias",
+    "en": "Reprocess All Media"
+  },
+  "web.settings.reprocess.cancel": {
+    "text": "Annuler",
+    "en": "Cancel"
+  },
+  "web.settings.reprocess.completed": {
+    "text": {
+      "one": "Dernière exécution terminée : {count} fichier traité.",
+      "other": "Dernière exécution terminée : {count} fichiers traités."
+    },
+    "en": {
+      "one": "Last run completed — {count} file(s) processed.",
+      "other": "Last run completed — {count} file(s) processed."
+    }
+  },
+  "web.settings.reprocess.confirm": {
+    "text": "Retraiter",
+    "en": "Reprocess",
+    "reviewed": "claude-backtranslation 2026-10-11 #2dad7a2a"
+  },
+  "web.settings.reprocess.confirm_restart": {
+    "text": "Retraiter toutes les photos et vidéos de votre bibliothèque ? Cette opération supprime toutes les étiquettes et personnes reconnues existantes, puis les reconstruit de zéro. Elle peut prendre un moment et est irréversible.",
+    "en": "Reprocess every photo and video in your library? This deletes all existing tags and recognized people and rebuilds them from scratch. It can take a while and can't be undone.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c248d168"
+  },
+  "web.settings.reprocess.confirm_resume": {
+    "text": "Reprendre le retraitement là où il s’était arrêté ? Cela peut prendre un moment.",
+    "en": "Resume reprocessing where it left off? It can take a while."
+  },
+  "web.settings.reprocess.failed": {
+    "text": {
+      "one": "La dernière exécution a échoué après {count} fichier : réessayez.",
+      "other": "La dernière exécution a échoué après {count} fichiers : réessayez."
+    },
+    "en": {
+      "one": "Last run failed after {count} file(s) — try again.",
+      "other": "Last run failed after {count} file(s) — try again."
+    }
+  },
+  "web.settings.reprocess.hint": {
+    "text": "Relancer l’étiquetage et la détection des visages sur toutes les photos et vidéos déjà présentes dans votre bibliothèque : utile après une correction de la détection ou une mise à jour du modèle. Les étiquettes et personnes reconnues existantes sont d’abord effacées, puis reconstruites de zéro.",
+    "en": "Re-run tagging and face detection on every photo and video already in your library — useful after a detection fix or model update. This clears existing tags and recognized people first and rebuilds them from scratch.",
+    "reviewed": "claude-backtranslation 2026-10-11 #677bbc0e"
+  },
+  "web.settings.reprocess.progress": {
+    "text": "Retraitement… {percent} ({processed} / {total})",
+    "en": "Reprocessing… {percent} ({processed} / {total})"
+  },
+  "web.settings.reprocess.resume": {
+    "text": "Reprendre",
+    "en": "Resume"
+  },
+  "web.settings.reprocess.resume_all": {
+    "text": "Reprendre le retraitement",
+    "en": "Resume Reprocessing"
+  },
+  "web.settings.reprocess.start_failed": {
+    "text": "Impossible de démarrer le retraitement.",
+    "en": "Could not start reprocessing."
+  },
+  "web.settings.reprocess.start_over": {
+    "text": "Recommencer",
+    "en": "Start Over"
+  },
+  "web.settings.reprocess.stop_failed": {
+    "text": "Impossible d’arrêter le retraitement.",
+    "en": "Could not stop reprocessing."
+  },
+  "web.settings.reprocess.stopped": {
+    "text": "Arrêté à {percent} ({processed} / {total}).",
+    "en": "Stopped at {percent} ({processed} / {total})."
+  },
+  "web.settings.reprocess.stopping": {
+    "text": "Arrêt…",
+    "en": "Stopping…"
+  },
+  "web.settings.reprocess.title": {
+    "text": "Retraiter les médias",
+    "en": "Reprocess Media"
+  },
+  "web.settings.restart.back": {
+    "text": "L’appareil est de retour.",
+    "en": "The device is back."
+  },
+  "web.settings.restart.button": {
+    "text": "Redémarrer l’appareil",
+    "en": "Restart Device"
+  },
+  "web.settings.restart.confirm": {
+    "text": "Redémarrer l’appareil ? Il sera injoignable pendant environ une minute.",
+    "en": "Restart the device? It will be unreachable for about a minute.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c15b1487"
+  },
+  "web.settings.restart.failed": {
+    "text": "Impossible de redémarrer l’appareil.",
+    "en": "Could not restart the device."
+  },
+  "web.settings.restart.needs_update": {
+    "text": "Votre appareil doit être mis à jour avant de pouvoir être redémarré d’ici.",
+    "en": "Your device needs an update before it can be restarted from here."
+  },
+  "web.settings.restart.restarting": {
+    "text": "Redémarrage…",
+    "en": "Restarting…"
+  },
+  "web.settings.restart.slow": {
+    "text": "L’appareil n’est pas encore revenu. Cela peut prendre un peu plus de temps ; s’il ne revient pas, débranchez-le et rebranchez-le.",
+    "en": "The device hasn't come back yet. It can take a little longer; if it doesn't come back, unplug it and plug it back in."
+  },
+  "web.settings.restart.wait": {
+    "text": "Redémarrage… L’appareil sera de retour dans environ une minute.",
+    "en": "Restarting… the device will be back in about a minute."
+  },
+  "web.settings.session.hint": {
+    "text": "Ce navigateur reste connecté même après un rechargement de la page. Déconnectez-vous si vous utilisez un ordinateur partagé ou public.",
+    "en": "This browser stays signed in across reloads. Sign out if you're on a shared or public computer.",
+    "reviewed": "claude-backtranslation 2026-10-11 #59c4ed90"
+  },
+  "web.settings.session.sign_out": {
+    "text": "Se déconnecter",
+    "en": "Sign Out"
+  },
+  "web.settings.session.signing_out": {
+    "text": "Déconnexion…",
+    "en": "Signing out…"
+  },
+  "web.settings.session.title": {
+    "text": "Session",
+    "en": "Session"
+  },
+  "web.settings.social.failed": {
+    "text": "Impossible d’enregistrer la limite.",
+    "en": "Could not save the limit."
+  },
+  "web.settings.social.hint": {
+    "text": "Les photos et vidéos des publications de vos amis sont conservées sur cet appareil, pour que votre fil fonctionne même quand ils sont hors ligne. Quand elles occupent plus que cette limite, les publications d’amis les plus anciennes sont supprimées. Vos propres publications et fichiers ne sont jamais touchés.",
+    "en": "Photos and videos from your friends' posts are kept on this device, so your feed works even when they're offline. When they take more than this, the oldest friends' posts are removed. Your own posts and files are never touched.",
+    "reviewed": "claude-backtranslation 2026-10-11 #9d250ad5"
+  },
+  "web.settings.social.limit": {
+    "text": "Limite (Go)",
+    "en": "Limit (GB)"
+  },
+  "web.settings.social.saved": {
+    "text": "Enregistré. Les publications plus anciennes au-delà de la limite sont en cours de suppression.",
+    "en": "Saved. Older posts over the limit are being removed.",
+    "reviewed": "claude-backtranslation 2026-10-11 #3a5dbfcb"
+  },
+  "web.settings.social.title": {
+    "text": "Stockage des publications d’amis",
+    "en": "Friends' posts storage"
+  },
+  "web.settings.social.too_small": {
+    "text": "Saisissez une taille d’au moins 0,1 Go.",
+    "en": "Enter a size of at least 0.1 GB."
+  },
+  "web.settings.social.using": {
+    "text": "Espace utilisé actuellement : {size}.",
+    "en": "Using {size} now."
+  },
+  "web.settings.tagging.disable": {
+    "text": "Désactiver l’étiquetage des images",
+    "en": "Disable Image Tagging"
+  },
+  "web.settings.tagging.enable": {
+    "text": "Activer l’étiquetage des images",
+    "en": "Enable Image Tagging"
+  },
+  "web.settings.tagging.hint": {
+    "text": "Reconnaît ce que montrent les photos et vidéos nouvellement envoyées (une plage, un chien, un gâteau d’anniversaire) pour que vous puissiez les rechercher. L’étiquetage s’exécute sur cet appareil et rien n’en sort. Le désactiver économise du temps de traitement ; les lieux issus des données de localisation d’une photo restent trouvables par la recherche. Cela ne concerne que ce qui est envoyé pendant qu’il est désactivé.",
+    "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.",
+    "reviewed": "claude-backtranslation 2026-10-11 #42c081a7"
+  },
+  "web.settings.tagging.title": {
+    "text": "Étiquetage des images",
+    "en": "Image Tagging"
+  },
+  "web.settings.tailscale.auth_key": {
+    "text": "Clé Tailscale (facultative)",
+    "en": "Auth key (optional)"
+  },
+  "web.settings.tailscale.authorise": {
+    "text": "Autorisez cet appareil dans Tailscale, puis cliquez de nouveau sur Activer.",
+    "en": "Authorise this device in Tailscale, then press Enable again."
+  },
+  "web.settings.tailscale.authorise_window": {
+    "text": "Autorisez cet appareil dans la fenêtre qui vient de s’ouvrir, puis cliquez de nouveau sur Activer.",
+    "en": "Authorise this device in the window that just opened, then press Enable again."
+  },
+  "web.settings.tailscale.change_failed": {
+    "text": "Impossible de modifier le paramètre.",
+    "en": "Could not change the setting."
+  },
+  "web.settings.tailscale.done": {
+    "text": "Terminé : cet appareil est joignable à l’adresse {address}",
+    "en": "Done — this device is reachable at {address}"
+  },
+  "web.settings.tailscale.enable": {
+    "text": "Activer Tailscale Funnel",
+    "en": "Enable Tailscale Funnel"
+  },
+  "web.settings.tailscale.intro": {
+    "text": "Tailscale Funnel est une alternative à la passerelle Off The Cloud : il publie cet appareil à votre propre adresse <code>ts.net</code>, mais avec les limites suivantes :",
+    "en": "Tailscale Funnel is an alternative to the Off The Cloud bridge, it publishes this device on your own <code>ts.net</code> address but with the next limitations:",
+    "reviewed": "claude-backtranslation 2026-10-11 #a0dbc478"
+  },
+  "web.settings.tailscale.key_hint": {
+    "text": "Avec une clé générée dans la console d’administration Tailscale, l’opération se termine d’elle-même. Sans clé, Tailscale s’ouvrira pour que vous autorisiez cet appareil.",
+    "en": "With a key from your Tailscale admin console this finishes on its own. Without one, you'll be taken to Tailscale to authorise this device."
+  },
+  "web.settings.tailscale.limit_account": {
+    "text": "Il vous faut un compte Tailscale, avec Funnel activé pour votre tailnet.",
+    "en": "You'll need a Tailscale account, with Funnel enabled for your tailnet."
+  },
+  "web.settings.tailscale.limit_one_user": {
+    "text": "<b>Un seul utilisateur.</b> Les utilisateurs supplémentaires ont chacun besoin d’une adresse web, et Funnel n’en attribue qu’une à cette machine.",
+    "en": "<b>One user only.</b> Extra users need a web address each, and Funnel gives this machine a single one."
+  },
+  "web.settings.tailscale.limit_social": {
+    "text": "<b>La partie sociale ne fonctionnera pas.</b> Les amis se retrouvent via la passerelle : le partage et les fils de vos amis sont donc indisponibles.",
+    "en": "<b>The social side won't work.</b> Friends find each other through the bridge, so sharing and friends' timelines are unavailable."
+  },
+  "web.settings.tailscale.limit_traffic": {
+    "text": "Tailscale limite le volume de trafic qui peut passer par Funnel, et ne publie pas cette limite.",
+    "en": "Tailscale caps how much traffic can pass through Funnel, and doesn't publish the limit."
+  },
+  "web.settings.tailscale.no_funnel": {
+    "text": "Tailscale est connecté, mais Funnel n’a pas démarré. Vérifiez que Funnel est activé pour votre tailnet.",
+    "en": "Tailscale is connected, but Funnel didn't come up. Check that Funnel is enabled for your tailnet."
+  },
+  "web.settings.tailscale.not_installed": {
+    "text": "Tailscale n’est pas installé sur cet appareil : Funnel n’est donc pas disponible ici.",
+    "en": "Tailscale isn't installed on this device, so Funnel isn't available here."
+  },
+  "web.settings.tailscale.not_installed_enable": {
+    "text": "Tailscale n’est pas installé sur cet appareil : Funnel ne peut donc pas être activé ici.",
+    "en": "Tailscale isn't installed on this device, so Funnel can't be turned on here."
+  },
+  "web.settings.tailscale.off": {
+    "text": "Funnel est désactivé. Cet appareil est de nouveau joignable via la passerelle.",
+    "en": "Funnel is off. This device is reachable through the bridge again."
+  },
+  "web.settings.tailscale.popup_blocked": {
+    "text": "Votre navigateur a bloqué la fenêtre : <link>autorisez plutôt cet appareil dans Tailscale</link>.",
+    "en": "Your browser blocked the window — <link>authorise this device in Tailscale</link> instead."
+  },
+  "web.settings.tailscale.served_at": {
+    "text": "Accessible via Tailscale Funnel à l’adresse <link>{address}</link>.",
+    "en": "Served over Tailscale Funnel at <link>{address}</link>."
+  },
+  "web.settings.tailscale.setting_up": {
+    "text": "Configuration…",
+    "en": "Setting up…"
+  },
+  "web.settings.tailscale.suits": {
+    "text": "Convient à un appareil que vous voulez utiliser uniquement comme NAS privé : vos fichiers et photos, joignables de partout, sans rien partager avec personne.",
+    "en": "It suits a device you want purely as your own private NAS — your files and photos, reachable from anywhere, nothing shared with anyone."
+  },
+  "web.settings.tailscale.turn_off": {
+    "text": "Désactiver Funnel",
+    "en": "Turn Funnel off"
+  },
+  "web.settings.update.check_again": {
+    "text": "Vérifier à nouveau",
+    "en": "Check again"
+  },
+  "web.settings.update.check_failed": {
+    "text": "Impossible de rechercher des mises à jour.",
+    "en": "Could not check for updates."
+  },
+  "web.settings.update.checking": {
+    "text": "Vérification…",
+    "en": "Checking…"
+  },
+  "web.settings.update.checking_updates": {
+    "text": "Recherche de mises à jour…",
+    "en": "Checking for updates…"
+  },
+  "web.settings.update.critical": {
+    "text": "Critique",
+    "en": "Critical"
+  },
+  "web.settings.update.failed": {
+    "text": "Échec de la mise à jour : {reason}",
+    "en": "Update failed: {reason}"
+  },
+  "web.settings.update.failed_on": {
+    "text": "Échec de la mise à jour le {date} : {reason}",
+    "en": "Update failed on {date}: {reason}"
+  },
+  "web.settings.update.major": {
+    "text": "Majeure",
+    "en": "Major"
+  },
+  "web.settings.update.restarts_note": {
+    "text": "L’appareil se recompile et redémarre, ce qui prend quelques minutes et interrompt cette connexion au passage. Vos photos et paramètres ne sont pas touchés.",
+    "en": "The device rebuilds itself and restarts, which takes a few minutes and drops this connection on the way. Your photos and settings are left alone."
+  },
+  "web.settings.update.server_unreachable": {
+    "text": "Impossible de joindre le serveur de mises à jour pour le moment : ces informations ne sont peut-être pas à jour.",
+    "en": "Couldn't reach the update server just now, so this may be out of date."
+  },
+  "web.settings.update.start_failed": {
+    "text": "Impossible de démarrer la mise à jour.",
+    "en": "Could not start the update."
+  },
+  "web.settings.update.starting_status": {
+    "text": "Démarrage",
+    "en": "Starting"
+  },
+  "web.settings.update.title": {
+    "text": "Version de l’appareil",
+    "en": "Device version"
+  },
+  "web.settings.update.up_to_date": {
+    "text": "À jour",
+    "en": "Up to date"
+  },
+  "web.settings.update.update_to": {
+    "text": "Mettre à jour vers {version}",
+    "en": "Update to {version}"
+  },
+  "web.settings.update.version": {
+    "text": "Version {version}",
+    "en": "Version {version}"
+  },
+  "web.settings.update.version_build": {
+    "text": "build {build}",
+    "en": "build {build}"
+  },
+  "web.settings.update.version_label": {
+    "text": "{label} (build {build})",
+    "en": "{label} (build {build})"
+  },
+  "web.settings.update.version_to": {
+    "text": "Version {version} → <b>{latest}</b>",
+    "en": "Version {version} → <b>{latest}</b>"
+  },
+  "web.settings.users.add": {
+    "text": "Ajouter un utilisateur",
+    "en": "Add User"
+  },
+  "web.settings.users.create_failed": {
+    "text": "Impossible de créer l’utilisateur.",
+    "en": "Could not create user."
+  },
+  "web.settings.users.created": {
+    "text": "Utilisateur « {name} » créé.",
+    "en": "User \"{name}\" created."
+  },
+  "web.settings.users.creating": {
+    "text": "Création…",
+    "en": "Creating…"
+  },
+  "web.settings.users.delete_confirm": {
+    "text": "Supprimer <b>{name}</b> ? Cette action supprime définitivement sa base de données et tous les fichiers enregistrés par ce compte. Saisissez <b>{name}</b> pour confirmer.",
+    "en": "Delete <b>{name}</b>? This permanently removes its database and every file it stored. Type <b>{name}</b> to confirm.",
+    "reviewed": "claude-backtranslation 2026-10-11 #ab5da178"
+  },
+  "web.settings.users.delete_failed": {
+    "text": "Impossible de supprimer l’utilisateur.",
+    "en": "Could not delete user."
+  },
+  "web.settings.users.deleted": {
+    "text": "Utilisateur « {name} » supprimé.",
+    "en": "User \"{name}\" deleted."
+  },
+  "web.settings.users.disable": {
+    "text": "Désactiver",
+    "en": "Disable"
+  },
+  "web.settings.users.enable": {
+    "text": "Activer",
+    "en": "Enable"
+  },
+  "web.settings.users.hint": {
+    "text": "Chaque utilisateur fonctionne comme une instance entièrement séparée (son propre port, sa propre base de données, son propre stockage), gérée uniquement depuis cet écran.",
+    "en": "Each user runs as its own fully separate instance — own port, own database, own storage — managed only from here."
+  },
+  "web.settings.users.inactive": {
+    "text": "inactif",
+    "en": "inactive"
+  },
+  "web.settings.users.load_usage": {
+    "text": "Afficher l’usage",
+    "en": "Load usage"
+  },
+  "web.settings.users.local_hint": {
+    "text": "Décochez pour limiter ce compte à votre propre réseau : pas d’accès à distance, ni d’amis hors de chez vous.",
+    "en": "Uncheck to keep this account on your own network only — no remote access, and no friends outside your home."
+  },
+  "web.settings.users.none": {
+    "text": "Pas encore d’autres utilisateurs.",
+    "en": "No additional users yet."
+  },
+  "web.settings.users.port": {
+    "text": "port (facultatif)",
+    "en": "port (optional)"
+  },
+  "web.settings.users.port_address": {
+    "text": "port {port} · {address}",
+    "en": "port {port} · {address}"
+  },
+  "web.settings.users.port_local": {
+    "text": "port {port} · local uniquement (sans accès à la passerelle)",
+    "en": "port {port} · local only (no bridge access)"
+  },
+  "web.settings.users.reachable_at": {
+    "text": "Joignable de n’importe où à l’adresse {address}.",
+    "en": "Reachable from anywhere at {address}."
+  },
+  "web.settings.users.reachable_own": {
+    "text": "Joignable de n’importe où à son propre sous-domaine.",
+    "en": "Reachable from anywhere at their own subdomain."
+  },
+  "web.settings.users.request_bridge": {
+    "text": "Demander l’accès à la passerelle",
+    "en": "Request bridge access"
+  },
+  "web.settings.users.title": {
+    "text": "Utilisateurs",
+    "en": "Users"
+  },
+  "web.settings.users.update_failed": {
+    "text": "Impossible de mettre à jour cet utilisateur.",
+    "en": "Could not update this user."
+  },
+  "web.settings.users.usage": {
+    "text": {
+      "one": "{size} ({percent}) · {count} connexion active",
+      "other": "{size} ({percent}) · {count} connexions actives"
+    },
+    "en": {
+      "one": "{size} ({percent}) · {count} active",
+      "other": "{size} ({percent}) · {count} active"
+    }
+  },
+  "web.settings.users.username": {
+    "text": "nom d’utilisateur",
+    "en": "username"
+  }
+}

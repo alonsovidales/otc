@@ -1,0 +1,619 @@
+{
+  "web.files.column.created": {
+    "text": "Data creazione",
+    "en": "Created"
+  },
+  "web.files.column.modified": {
+    "text": "Data modifica",
+    "en": "Modified"
+  },
+  "web.files.column.name": {
+    "text": "Nome",
+    "en": "Name"
+  },
+  "web.files.column.size": {
+    "text": "Dimensioni",
+    "en": "Size"
+  },
+  "web.files.gallery.cant_show": {
+    "text": "Questo file non può essere mostrato qui: scaricalo.",
+    "en": "This file could not be shown here - download it instead."
+  },
+  "web.files.gallery.download_all": {
+    "text": "Scarica tutto",
+    "en": "Download all"
+  },
+  "web.files.gallery.download_count": {
+    "text": "Scarica {count}",
+    "en": "Download {count}"
+  },
+  "web.files.gallery.download_failed": {
+    "text": "Il download non è riuscito.",
+    "en": "The download failed."
+  },
+  "web.files.gallery.downloading": {
+    "text": "Download {current} di {total} · {size}",
+    "en": "Downloading {current} of {total} · {size}"
+  },
+  "web.files.gallery.incomplete": {
+    "text": "Questo link è incompleto: copia il link intero e riprova.",
+    "en": "This link is incomplete - copy the whole link and try again."
+  },
+  "web.files.gallery.loading_percent": {
+    "text": "Caricamento… {percent}",
+    "en": "Loading… {percent}"
+  },
+  "web.files.gallery.low_res": {
+    "text": "Bassa risoluzione: queste sono copie ridotte, non le foto originali.",
+    "en": "Low resolution: these are small copies, not the original photos."
+  },
+  "web.files.gallery.meta": {
+    "text": {
+      "one": "{count} elemento · {size}",
+      "other": "{count} elementi · {size}"
+    },
+    "en": {
+      "one": "{count} item · {size}",
+      "other": "{count} items · {size}"
+    }
+  },
+  "web.files.gallery.meta_until": {
+    "text": {
+      "one": "{count} elemento · {size} · disponibile fino al giorno {date}",
+      "other": "{count} elementi · {size} · disponibile fino al giorno {date}"
+    },
+    "en": {
+      "one": "{count} item · {size} · available until {date}",
+      "other": "{count} items · {size} · available until {date}"
+    }
+  },
+  "web.files.gallery.next": {
+    "text": "Successivo",
+    "en": "Next"
+  },
+  "web.files.gallery.not_found": {
+    "text": "Questo link non esiste o è scaduto.",
+    "en": "This link doesn't exist or has expired."
+  },
+  "web.files.gallery.open_failed": {
+    "text": "Impossibile aprire questa galleria.",
+    "en": "Could not open this gallery."
+  },
+  "web.files.gallery.opening": {
+    "text": "Apertura della galleria…",
+    "en": "Opening the gallery…"
+  },
+  "web.files.gallery.position": {
+    "text": "{name} · {index} di {total}",
+    "en": "{name} · {index} of {total}"
+  },
+  "web.files.gallery.previous": {
+    "text": "Precedente",
+    "en": "Previous"
+  },
+  "web.files.gallery.select_all": {
+    "text": "Seleziona tutto",
+    "en": "Select all"
+  },
+  "web.files.gallery.stopped": {
+    "text": "Il dispositivo ha smesso di inviare il file.",
+    "en": "The device stopped sending the file."
+  },
+  "web.files.gallery.title": {
+    "text": "Galleria condivisa",
+    "en": "Shared gallery"
+  },
+  "web.files.keep_out.banner": {
+    "text": "Fuori da Immagini: le foto e i video qui non vengono etichettati, analizzati alla ricerca di volti né mostrati in Immagini.",
+    "en": "Kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images."
+  },
+  "web.files.keep_out.banner_parent": {
+    "text": "Dentro {folder}, che è fuori da Immagini: le foto e i video qui non vengono etichettati, analizzati alla ricerca di volti né mostrati in Immagini.",
+    "en": "Inside {folder}, which is kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images."
+  },
+  "web.files.keep_out.confirm_keep": {
+    "text": "Escludere la cartella “{name}” da Immagini?\n\nLe sue foto e i suoi video non verranno etichettati, analizzati alla ricerca di volti né mostrati in Immagini, e le etichette e i volti già trovati verranno eliminati. File continua a mostrarli.",
+    "en": "Keep “{name}” out of Images?\n\nIts photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them.",
+    "reviewed": "claude-backtranslation 2026-10-11 #257d6ddd"
+  },
+  "web.files.keep_out.confirm_show": {
+    "text": "Mostrare la cartella “{name}” in Immagini?\n\nLe sue foto e i suoi video tornano in Immagini e vengono etichettati (e analizzati alla ricerca di volti, se il riconoscimento facciale è attivo) in background.",
+    "en": "Show “{name}” in Images?\n\nIts photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background.",
+    "reviewed": "claude-backtranslation 2026-10-11 #63bef7e3"
+  },
+  "web.files.keep_out.kept": {
+    "text": "La cartella {name} è ora fuori da Immagini",
+    "en": "{name} kept out of Images"
+  },
+  "web.files.keep_out.parent_tip": {
+    "text": "Dentro {folder}, che è fuori da Immagini",
+    "en": "Inside {folder}, which is kept out of Images"
+  },
+  "web.files.keep_out.show": {
+    "text": "Mostra in Immagini",
+    "en": "Show in Images"
+  },
+  "web.files.keep_out.show_named": {
+    "text": "Mostra la cartella “{name}” in Immagini",
+    "en": "Show “{name}” in Images"
+  },
+  "web.files.keep_out.shown": {
+    "text": "La cartella {name} è di nuovo in Immagini",
+    "en": "{name} shown in Images"
+  },
+  "web.files.keep_out.state": {
+    "text": "Fuori da Immagini",
+    "en": "Kept out of Images"
+  },
+  "web.files.keep_out.switch": {
+    "text": "Escludi la cartella {name} da Immagini",
+    "en": "Keep {name} out of Images"
+  },
+  "web.files.keep_out.tip_off": {
+    "text": "Escludi da Immagini: le foto e i video qui non verranno etichettati, analizzati alla ricerca di volti né mostrati in Immagini",
+    "en": "Keep out of Images: photos and videos here won't be tagged, searched for faces or shown in Images"
+  },
+  "web.files.keep_out.tip_on": {
+    "text": "Fuori da Immagini: le foto e i video qui non vengono etichettati, analizzati alla ricerca di volti né mostrati in Immagini. Fai clic per mostrarli in Immagini.",
+    "en": "Kept out of Images: photos and videos here aren't tagged, searched for faces or shown in Images. Click to show them in Images."
+  },
+  "web.files.links.confirm_delete": {
+    "text": "Eliminare questo link? Le copie condivise vengono eliminate e il link smette di funzionare.",
+    "en": "Delete this link? The shared copies are deleted and the link stops working.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c71cdacc"
+  },
+  "web.files.links.delete_failed": {
+    "text": "Impossibile eliminarlo.",
+    "en": "Could not delete it."
+  },
+  "web.files.links.details": {
+    "text": "{size} · creato: {made} · scadenza: {until}",
+    "en": "{size} · made {made} · until {until}"
+  },
+  "web.files.links.details_files": {
+    "text": {
+      "one": "{count} file · {size} · creato: {made} · scadenza: {until}",
+      "other": "{count} file · {size} · creato: {made} · scadenza: {until}"
+    },
+    "en": {
+      "one": "{count} file · {size} · made {made} · until {until}",
+      "other": "{count} files · {size} · made {made} · until {until}"
+    }
+  },
+  "web.files.links.gallery": {
+    "text": "Galleria condivisa",
+    "en": "Shared gallery"
+  },
+  "web.files.links.hint": {
+    "text": "Gallerie e download che hai condiviso. I link stessi non vengono conservati sul dispositivo, quindi non si possono mostrare di nuovo, ma solo rimuovere.",
+    "en": "Galleries and downloads you shared. The links themselves aren't kept on the device, so they can't be shown again - only removed."
+  },
+  "web.files.links.load_failed": {
+    "text": "Impossibile caricare i link condivisi.",
+    "en": "Could not load the shared links."
+  },
+  "web.files.links.never_opened": {
+    "text": "Mai aperto",
+    "en": "Never opened"
+  },
+  "web.files.links.none": {
+    "text": "Non ci sono link condivisi.",
+    "en": "No shared links."
+  },
+  "web.files.links.opened": {
+    "text": {
+      "one": "Aperto {count} volta, ultima apertura: {date}",
+      "other": "Aperto {count} volte, ultima apertura: {date}"
+    },
+    "en": {
+      "one": "Opened {count} time, last {date}",
+      "other": "Opened {count} times, last {date}"
+    }
+  },
+  "web.files.links.title": {
+    "text": "Link condivisi",
+    "en": "Shared Links"
+  },
+  "web.files.links.total": {
+    "text": "In tutto occupano {size}.",
+    "en": "Together they take {size}."
+  },
+  "web.files.links.zip": {
+    "text": "File condivisi (zip)",
+    "en": "Shared files (zip)"
+  },
+  "web.files.list.contents": {
+    "text": "Contenuto di {folder}",
+    "en": "Contents of {folder}"
+  },
+  "web.files.list.empty": {
+    "text": "Questa cartella è vuota.",
+    "en": "This folder is empty."
+  },
+  "web.files.list.list_failed": {
+    "text": "Impossibile elencare il percorso",
+    "en": "Failed to list path"
+  },
+  "web.files.list.opening": {
+    "text": "Apertura…",
+    "en": "Opening…"
+  },
+  "web.files.list.select_item": {
+    "text": "Seleziona {name}",
+    "en": "Select {name}"
+  },
+  "web.files.list.tip": {
+    "text": "Suggerimento: trascina qui i file per caricarli in <code>{folder}</code>.",
+    "en": "Tip: Drag files here to upload to <code>{folder}</code>."
+  },
+  "web.files.list.total": {
+    "text": "File totali: <b>{count}</b>",
+    "en": "Total files: <b>{count}</b>"
+  },
+  "web.files.list.unexpected": {
+    "text": "Risposta inattesa",
+    "en": "Unexpected response"
+  },
+  "web.files.list.update_failed": {
+    "text": "Impossibile aggiornare la cartella.",
+    "en": "Could not update the folder."
+  },
+  "web.files.list.upload_only_refused": {
+    "text": "{name} si trova in una cartella in solo caricamento: non si può eliminare.",
+    "en": "{name} is in an upload-only folder and cannot be deleted."
+  },
+  "web.files.list.video": {
+    "text": "Video",
+    "en": "Video"
+  },
+  "web.files.lock.clear": {
+    "text": "Disattiva “Solo caricamento”",
+    "en": "Clear upload only"
+  },
+  "web.files.lock.file": {
+    "text": "In una cartella in solo caricamento: non si può eliminare",
+    "en": "In an upload-only folder: cannot be deleted"
+  },
+  "web.files.lock.make": {
+    "text": "Attiva “Solo caricamento”",
+    "en": "Make upload only"
+  },
+  "web.files.lock.off_tip": {
+    "text": "Attiva “Solo caricamento”: nulla in questa cartella potrà essere eliminato, e i nuovi caricamenti conservano la versione precedente",
+    "en": "Make upload only: nothing in this folder can be deleted, and re-uploads keep the old version"
+  },
+  "web.files.lock.on_tip": {
+    "text": "Solo caricamento: nulla in questa cartella può essere eliminato, e i nuovi caricamenti conservano la versione precedente. Fai clic per disattivarlo.",
+    "en": "Upload only: nothing in this folder can be deleted, and re-uploads keep the old version. Click to clear."
+  },
+  "web.files.lock.on_tip_short": {
+    "text": "Solo caricamento. Fai clic per disattivarlo.",
+    "en": "Upload only. Click to clear."
+  },
+  "web.files.results.back": {
+    "text": "Torna a {folder}",
+    "en": "Back to {folder}"
+  },
+  "web.files.results.back_files": {
+    "text": "Torna a File",
+    "en": "Back to Files"
+  },
+  "web.files.results.cant_search": {
+    "text": "Questo dispositivo non può ancora cercare tra i suoi file. Aggiornalo in Impostazioni.",
+    "en": "This device can't search its files yet. Update it in Settings."
+  },
+  "web.files.results.count": {
+    "text": {
+      "one": "{count} risultato",
+      "other": "{count} risultati"
+    },
+    "en": {
+      "one": "{count} result",
+      "other": "{count} results"
+    }
+  },
+  "web.files.results.file_kept_out": {
+    "text": "{name}, file nella cartella {folder}, fuori da Immagini",
+    "en": "{name}, file in {folder}, kept out of Images"
+  },
+  "web.files.results.first": {
+    "text": "Mostrati i primi {limit} risultati",
+    "en": "Showing the first {limit} results"
+  },
+  "web.files.results.folder_kept_out": {
+    "text": "{name}, cartella in {folder}, fuori da Immagini",
+    "en": "{name}, folder in {folder}, kept out of Images"
+  },
+  "web.files.results.list": {
+    "text": "File corrispondenti a {text}",
+    "en": "Files matching {text}"
+  },
+  "web.files.results.no_answer": {
+    "text": "Il dispositivo non ha risposto alla ricerca.",
+    "en": "The device didn't answer the search."
+  },
+  "web.files.results.none_for": {
+    "text": "Nessun file corrisponde a {text}",
+    "en": "No files match {text}"
+  },
+  "web.files.results.nothing": {
+    "text": "Nessun file corrisponde a “{text}”.",
+    "en": "No files match “{text}”."
+  },
+  "web.files.results.photo_kept_out": {
+    "text": "{name}, foto nella cartella {folder}, fuori da Immagini",
+    "en": "{name}, photo in {folder}, kept out of Images"
+  },
+  "web.files.results.searching": {
+    "text": "Ricerca…",
+    "en": "Searching…"
+  },
+  "web.files.results.searching_for": {
+    "text": "Ricerca di {text}",
+    "en": "Searching for {text}"
+  },
+  "web.files.results.title": {
+    "text": "File corrispondenti a “{text}”",
+    "en": "Files matching “{text}”"
+  },
+  "web.files.results.unreachable": {
+    "text": "La ricerca non ha raggiunto il dispositivo. Controlla la connessione e riprova.",
+    "en": "The search didn't reach the device. Check the connection and try again."
+  },
+  "web.files.results.video_kept_out": {
+    "text": "{name}, video nella cartella {folder}, fuori da Immagini",
+    "en": "{name}, video in {folder}, kept out of Images"
+  },
+  "web.files.selection.confirm_delete": {
+    "text": {
+      "one": "Eliminare {count} elemento? L’operazione non può essere annullata.",
+      "other": "Eliminare {count} elementi? L’operazione non può essere annullata."
+    },
+    "en": {
+      "one": "Delete {count} item? This cannot be undone.",
+      "other": "Delete {count} items? This cannot be undone."
+    },
+    "reviewed": "claude-backtranslation 2026-10-11 #ca2fdd12"
+  },
+  "web.files.selection.download_zip": {
+    "text": "Scarica ZIP",
+    "en": "Download ZIP"
+  },
+  "web.files.selection.link_copied": {
+    "text": "Link di condivisione copiato negli appunti",
+    "en": "Share link copied to clipboard"
+  },
+  "web.files.selection.preparing": {
+    "text": "Preparazione…",
+    "en": "Preparing…"
+  },
+  "web.files.selection.preparing_zip": {
+    "text": "Preparazione ZIP…",
+    "en": "Preparing ZIP…"
+  },
+  "web.files.selection.selected": {
+    "text": {
+      "one": "<b>{count}</b> selezionato",
+      "other": "<b>{count}</b> selezionati"
+    },
+    "en": {
+      "one": "<b>{count}</b> selected",
+      "other": "<b>{count}</b> selected"
+    }
+  },
+  "web.files.selection.share_gallery": {
+    "text": "Condividi come galleria",
+    "en": "Share as gallery"
+  },
+  "web.files.selection.share_gallery_tip": {
+    "text": "Condividi le foto e i video di questa cartella come galleria",
+    "en": "Share this folder's photos and videos as a gallery"
+  },
+  "web.files.selection.upload_only": {
+    "text": "La selezione include il contenuto di una cartella in solo caricamento, che non può essere eliminato",
+    "en": "The selection includes an upload-only folder's contents, which cannot be deleted"
+  },
+  "web.files.share.available_for": {
+    "text": "Disponibile per",
+    "en": "Available for"
+  },
+  "web.files.share.copied": {
+    "text": "Copiato",
+    "en": "Copied"
+  },
+  "web.files.share.copy": {
+    "text": "Copia",
+    "en": "Copy"
+  },
+  "web.files.share.copying": {
+    "text": "Copia {current} di {total} · {done} di {size}",
+    "en": "Copying {current} of {total} · {done} of {size}"
+  },
+  "web.files.share.days": {
+    "text": {
+      "one": "{count} giorno",
+      "other": "{count} giorni"
+    },
+    "en": {
+      "one": "{count} day",
+      "other": "{count} days"
+    }
+  },
+  "web.files.share.default_description": {
+    "text": "Contenuti condivisi {date}",
+    "en": "Shared Media {date}"
+  },
+  "web.files.share.description": {
+    "text": "Descrizione",
+    "en": "Description"
+  },
+  "web.files.share.link": {
+    "text": "Link della galleria",
+    "en": "Gallery link"
+  },
+  "web.files.share.looking": {
+    "text": "Verifica di cosa condividere…",
+    "en": "Looking at what to share…"
+  },
+  "web.files.share.lost": {
+    "text": "Impossibile seguire l’avanzamento della copia.",
+    "en": "Lost track of the copy."
+  },
+  "web.files.share.low_res": {
+    "text": "<b>Solo bassa risoluzione</b>: copie ridotte delle foto, non gli originali",
+    "en": "<b>Low resolution only</b> - small copies of the photos, not the originals"
+  },
+  "web.files.share.low_res_note": {
+    "text": "Vengono condivise solo copie ridotte delle foto (larghe circa 1000 pixel), crittografate di nuovo con una chiave propria che solo il link contiene; gli originali non lasciano mai il tuo dispositivo.",
+    "en": "Only small copies of the photos are shared (about 1000 pixels wide), re-encrypted with a key of their own that only the link carries; the originals never leave your device.",
+    "reviewed": "claude-backtranslation 2026-10-11 #e3337d0e"
+  },
+  "web.files.share.note": {
+    "text": "Vengono copiati e crittografati di nuovo con una chiave propria, che solo il link contiene. Chiunque abbia il link può vederli finché non scade; la copia occupa {size} sul dispositivo.",
+    "en": "They are copied and re-encrypted with a key of their own, which only the link carries. Anyone with the link can see them until it expires; the copy takes {size} on the device.",
+    "reviewed": "claude-backtranslation 2026-10-11 #3162f6ad"
+  },
+  "web.files.share.preview_failed": {
+    "text": "Impossibile verificare cosa condividere.",
+    "en": "Could not look at what to share."
+  },
+  "web.files.share.ready": {
+    "text": "La tua galleria è pronta. Questa è l’unica volta in cui il link viene mostrato: copialo ora. Il dispositivo non ne conserva una copia, quindi non potrà essere mostrato di nuovo.",
+    "en": "Your gallery is ready. This is the only time the link is shown: copy it now - the device keeps no copy of it, so it can't be shown again.",
+    "reviewed": "claude-backtranslation 2026-10-11 #db210cfb"
+  },
+  "web.files.share.skipped": {
+    "text": {
+      "one": "{count} altro file non è incluso",
+      "other": "{count} altri file non sono inclusi"
+    },
+    "en": {
+      "one": "{count} other file is not included",
+      "other": "{count} other files are not included"
+    }
+  },
+  "web.files.share.start_failed": {
+    "text": "Impossibile avviare la condivisione.",
+    "en": "Could not start sharing."
+  },
+  "web.files.share.summary": {
+    "text": {
+      "one": "<b>{count}</b> foto o video, <b>{size}</b>",
+      "other": "<b>{count}</b> foto e video, <b>{size}</b>"
+    },
+    "en": {
+      "one": "<b>{count}</b> photo or video, <b>{size}</b>",
+      "other": "<b>{count}</b> photos and videos, <b>{size}</b>"
+    }
+  },
+  "web.files.share.title": {
+    "text": "Condividi come galleria",
+    "en": "Share as a gallery"
+  },
+  "web.files.share.videos_left_out": {
+    "text": {
+      "one": "{count} video è escluso.",
+      "other": "{count} video sono esclusi."
+    },
+    "en": {
+      "one": "{count} video is left out.",
+      "other": "{count} videos are left out."
+    }
+  },
+  "web.files.size.b": {
+    "text": "{size} B",
+    "en": "{size} B"
+  },
+  "web.files.size.gb": {
+    "text": "{size} GB",
+    "en": "{size} GB"
+  },
+  "web.files.size.kb": {
+    "text": "{size} KB",
+    "en": "{size} KB"
+  },
+  "web.files.size.mb": {
+    "text": "{size} MB",
+    "en": "{size} MB"
+  },
+  "web.files.toolbar.grid": {
+    "text": "Griglia",
+    "en": "Grid"
+  },
+  "web.files.toolbar.list": {
+    "text": "Elenco",
+    "en": "List"
+  },
+  "web.files.toolbar.path": {
+    "text": "Percorso:",
+    "en": "Path:"
+  },
+  "web.files.toolbar.view": {
+    "text": "Vista",
+    "en": "View"
+  },
+  "web.files.upload.done": {
+    "text": "✓ Fatto",
+    "en": "✓ Done"
+  },
+  "web.files.upload.failed": {
+    "text": "✕ Non riuscito",
+    "en": "✕ Failed"
+  },
+  "web.files.upload.finished_failed": {
+    "text": "Caricamenti terminati ({done} riusciti, {failed} non riusciti)",
+    "en": "Uploads finished ({done} ok, {failed} failed)"
+  },
+  "web.files.upload.progress": {
+    "text": "Caricamento {done}/{total}…",
+    "en": "Uploading {done}/{total}…"
+  },
+  "web.files.upload.reading": {
+    "text": "Lettura…",
+    "en": "Reading…"
+  },
+  "web.files.upload.uploaded": {
+    "text": {
+      "one": "{count} file caricato",
+      "other": "{count} file caricati"
+    },
+    "en": {
+      "one": "Uploaded {count} file",
+      "other": "Uploaded {count} files"
+    }
+  },
+  "web.files.upload.uploading": {
+    "text": "Caricamento…",
+    "en": "Uploading…"
+  },
+  "web.files.versions.count": {
+    "text": {
+      "one": "{count} versione",
+      "other": "{count} versioni"
+    },
+    "en": {
+      "one": "{count} version",
+      "other": "{count} versions"
+    }
+  },
+  "web.files.versions.current": {
+    "text": "Attuale",
+    "en": "Current"
+  },
+  "web.files.versions.hint": {
+    "text": "Il file si trova in una cartella in solo caricamento, quindi ogni caricamento in questo percorso ha conservato la versione precedente.",
+    "en": "The file is in an upload-only folder, so each upload to this path kept the one before it."
+  },
+  "web.files.versions.replaced": {
+    "text": "Sostituita: {date}",
+    "en": "Replaced {date}"
+  },
+  "web.files.versions.tip": {
+    "text": "Versioni precedenti di questo file",
+    "en": "Older versions of this file"
+  },
+  "web.files.versions.title": {
+    "text": "Versioni del file {name}",
+    "en": "Versions of {name}"
+  }
+}

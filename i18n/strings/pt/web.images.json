@@ -1,0 +1,945 @@
+{
+  "web.images.collect.add_failed": {
+    "text": "Não foi possível adicionar à coleção «{name}». Tenta novamente.",
+    "en": "Couldn't add them to “{name}”. Try again."
+  },
+  "web.images.collect.added": {
+    "text": "Adicionado à coleção «{name}»",
+    "en": "Added to “{name}”"
+  },
+  "web.images.collect.create_failed": {
+    "text": "Não foi possível criar a coleção. Tenta novamente.",
+    "en": "Couldn't create the collection. Try again."
+  },
+  "web.images.collect.creating": {
+    "text": "A criar…",
+    "en": "Creating…"
+  },
+  "web.images.collect.list": {
+    "text": "Coleções",
+    "en": "Collections"
+  },
+  "web.images.collect.name_placeholder": {
+    "text": "Nome, como Verão 2026",
+    "en": "Name, like Summer 2026"
+  },
+  "web.images.collect.new": {
+    "text": "Nova coleção…",
+    "en": "New collection…"
+  },
+  "web.images.collect.new_label": {
+    "text": "Nova coleção",
+    "en": "New collection"
+  },
+  "web.images.collect.title": {
+    "text": "Adicionar a uma coleção",
+    "en": "Add to collection"
+  },
+  "web.images.collect.view": {
+    "text": "Ver",
+    "en": "View"
+  },
+  "web.images.collection.delete": {
+    "text": "Eliminar coleção",
+    "en": "Delete collection"
+  },
+  "web.images.collection.delete_failed": {
+    "text": "Não foi possível eliminar a coleção. Tenta novamente.",
+    "en": "Couldn't delete the collection. Try again."
+  },
+  "web.images.collection.delete_text": {
+    "text": "Eliminar a coleção «{name}»? As fotos em si são mantidas.",
+    "en": "Delete the collection “{name}”? The photos themselves are kept.",
+    "reviewed": "claude-backtranslation 2026-10-11 #6bd0e1d8"
+  },
+  "web.images.collection.delete_title": {
+    "text": "Eliminar a coleção?",
+    "en": "Delete collection?",
+    "reviewed": "claude-backtranslation 2026-10-11 #daa280a6"
+  },
+  "web.images.collection.name_field": {
+    "text": "Nome da coleção",
+    "en": "Collection name"
+  },
+  "web.images.collection.rename": {
+    "text": "Mudar o nome da coleção",
+    "en": "Rename collection"
+  },
+  "web.images.collection.rename_failed": {
+    "text": "Não foi possível mudar o nome da coleção. Tenta novamente.",
+    "en": "Couldn't rename the collection. Try again."
+  },
+  "web.images.collection.rename_unreachable": {
+    "text": "Não foi possível contactar o teu dispositivo para mudar o nome da coleção.",
+    "en": "Couldn't reach your device to rename the collection."
+  },
+  "web.images.collection.share": {
+    "text": "Partilhar como galeria",
+    "en": "Share as gallery"
+  },
+  "web.images.collection.span_full": {
+    "text": "{from_month} {from_year} – {to_month} {to_year}",
+    "en": "{from_month} {from_year} – {to_month} {to_year}"
+  },
+  "web.images.collection.span_month": {
+    "text": "{month} {year}",
+    "en": "{month} {year}"
+  },
+  "web.images.collection.span_months": {
+    "text": "{from} – {to} {year}",
+    "en": "{from} – {to} {year}"
+  },
+  "web.images.collection.span_years": {
+    "text": "{from} – {to}",
+    "en": "{from} – {to}"
+  },
+  "web.images.collections.card": {
+    "text": {
+      "one": "{name}, {count} item",
+      "other": "{name}, {count} itens"
+    },
+    "en": {
+      "one": "{name}, {count} item",
+      "other": "{name}, {count} items"
+    }
+  },
+  "web.images.collections.empty_text": {
+    "text": "Seleciona fotos em Imagens e escolhe <b>Adicionar a uma coleção</b>.",
+    "en": "Select photos in Images, then choose <b>Add to collection</b>."
+  },
+  "web.images.collections.empty_title": {
+    "text": "Ainda não há coleções",
+    "en": "No collections yet"
+  },
+  "web.images.collections.failed": {
+    "text": "Não foi possível carregar as tuas coleções",
+    "en": "Couldn't load your collections"
+  },
+  "web.images.collections.loading": {
+    "text": "A carregar coleções",
+    "en": "Loading collections"
+  },
+  "web.images.collections.slow": {
+    "text": "As tuas coleções estão a demorar mais do que o habitual a carregar.",
+    "en": "Your collections are taking longer than usual to load."
+  },
+  "web.images.collections.title": {
+    "text": "Coleções",
+    "en": "Collections"
+  },
+  "web.images.collections.untitled": {
+    "text": "Coleção sem nome",
+    "en": "Untitled collection"
+  },
+  "web.images.count.items": {
+    "text": {
+      "one": "{count} item",
+      "other": "{count} itens"
+    },
+    "en": {
+      "one": "{count} item",
+      "other": "{count} items"
+    }
+  },
+  "web.images.count.photos": {
+    "text": {
+      "one": "{count} foto",
+      "other": "{count} fotos"
+    },
+    "en": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    }
+  },
+  "web.images.count.photos_and_videos": {
+    "text": "{photos} e {videos}",
+    "en": "{photos} and {videos}"
+  },
+  "web.images.count.videos": {
+    "text": {
+      "one": "{count} vídeo",
+      "other": "{count} vídeos"
+    },
+    "en": {
+      "one": "{count} video",
+      "other": "{count} videos"
+    }
+  },
+  "web.images.crop.failed": {
+    "text": "Não foi possível preparar a foto.",
+    "en": "The picture could not be prepared."
+  },
+  "web.images.crop.hint": {
+    "text": "Arrasta a foto para centrares o teu rosto.",
+    "en": "Drag the photo to centre your face."
+  },
+  "web.images.crop.label": {
+    "text": "Recortar a tua foto de perfil",
+    "en": "Crop your profile picture"
+  },
+  "web.images.crop.title": {
+    "text": "Foto de perfil",
+    "en": "Profile picture"
+  },
+  "web.images.crop.unsupported": {
+    "text": "Não é possível abrir esta foto aqui: experimenta um JPEG ou PNG.",
+    "en": "This picture can't be opened here - try a JPEG or PNG."
+  },
+  "web.images.crop.use": {
+    "text": "Usar foto",
+    "en": "Use photo"
+  },
+  "web.images.crop.zoom": {
+    "text": "Zoom",
+    "en": "Zoom"
+  },
+  "web.images.delete.done": {
+    "text": "Eliminaste {what}",
+    "en": "Deleted {what}"
+  },
+  "web.images.delete.failed": {
+    "text": {
+      "one": "Não foi possível eliminar {count} item. Tenta novamente.",
+      "other": "Não foi possível eliminar {count} itens. Tenta novamente."
+    },
+    "en": {
+      "one": "{count} item couldn't be deleted. Try again.",
+      "other": "{count} items couldn't be deleted. Try again."
+    }
+  },
+  "web.images.delete.progress": {
+    "text": "A eliminar {done} de {total}…",
+    "en": "Deleting {done} of {total}…"
+  },
+  "web.images.delete.text": {
+    "text": "Os itens selecionados são eliminados do teu dispositivo para sempre. Esta ação não pode ser anulada.",
+    "en": "They're deleted from your device for good. This can't be undone.",
+    "reviewed": "claude-backtranslation 2026-10-11 #f62367bc"
+  },
+  "web.images.delete.text_collection": {
+    "text": "Os itens selecionados são eliminados do teu dispositivo, e não apenas desta coleção. Esta ação não pode ser anulada.",
+    "en": "They're deleted from your device, not just from this collection. This can't be undone.",
+    "reviewed": "claude-backtranslation 2026-10-11 #598c8975"
+  },
+  "web.images.delete.title": {
+    "text": "Eliminar {what}?",
+    "en": "Delete {what}?",
+    "reviewed": "claude-backtranslation 2026-10-11 #844d4b0c"
+  },
+  "web.images.delete.upload_only": {
+    "text": {
+      "one": "{count} item está numa pasta em apenas carregamento e não pode ser eliminado",
+      "other": "{count} itens estão numa pasta em apenas carregamento e não podem ser eliminados"
+    },
+    "en": {
+      "one": "{count} item is in an upload-only folder and can't be deleted",
+      "other": "{count} items are in an upload-only folder and can't be deleted"
+    }
+  },
+  "web.images.error.unreachable": {
+    "text": "Não foi possível contactar o teu dispositivo. Tenta novamente.",
+    "en": "Couldn't reach your device. Try again."
+  },
+  "web.images.grid.clear_search": {
+    "text": "Limpar pesquisa",
+    "en": "Clear search"
+  },
+  "web.images.grid.date": {
+    "text": "{day} de {month} de {year}",
+    "en": "{day} {month} {year}"
+  },
+  "web.images.grid.dismiss": {
+    "text": "Ignorar",
+    "en": "Dismiss"
+  },
+  "web.images.grid.empty_collection_text": {
+    "text": "Seleciona fotos em Imagens e escolhe «Adicionar a uma coleção».",
+    "en": "Select photos in Images, then choose Add to collection."
+  },
+  "web.images.grid.empty_collection_title": {
+    "text": "Esta coleção está vazia",
+    "en": "This collection is empty"
+  },
+  "web.images.grid.empty_text": {
+    "text": "As fotos das apps para telemóvel e computador aparecem aqui.",
+    "en": "Photos from the phone and computer apps appear here."
+  },
+  "web.images.grid.empty_title": {
+    "text": "Ainda não há fotos",
+    "en": "No photos yet"
+  },
+  "web.images.grid.go_to_images": {
+    "text": "Ir para Imagens",
+    "en": "Go to Images"
+  },
+  "web.images.grid.loading": {
+    "text": "A carregar fotos",
+    "en": "Loading photos"
+  },
+  "web.images.grid.month_short": {
+    "text": "{month} {year}",
+    "en": "{month} {year}"
+  },
+  "web.images.grid.month_title": {
+    "text": "{month} de {year}",
+    "en": "{month} {year}"
+  },
+  "web.images.grid.more_failed": {
+    "text": "Não foi possível carregar mais fotos.",
+    "en": "Couldn't load more photos."
+  },
+  "web.images.grid.no_match_in": {
+    "text": "Nada na coleção «{name}» corresponde a esta pesquisa.",
+    "en": "Nothing in “{name}” matches this search."
+  },
+  "web.images.grid.no_match_text": {
+    "text": "Experimenta outras palavras, ou menos palavras.",
+    "en": "Try other words, or fewer of them."
+  },
+  "web.images.grid.no_match_title": {
+    "text": "Nenhuma foto corresponde",
+    "en": "No photos match"
+  },
+  "web.images.grid.tile_photo": {
+    "text": "Foto",
+    "en": "Photo"
+  },
+  "web.images.grid.tile_photo_dated": {
+    "text": "Foto, {date}",
+    "en": "Photo, {date}"
+  },
+  "web.images.grid.tile_video": {
+    "text": "Vídeo",
+    "en": "Video"
+  },
+  "web.images.grid.tile_video_dated": {
+    "text": "Vídeo, {date}",
+    "en": "Video, {date}"
+  },
+  "web.images.grid.trying": {
+    "text": "A tentar…",
+    "en": "Trying…"
+  },
+  "web.images.grid.unreachable_text": {
+    "text": "As tuas fotos vão aparecer assim que ele responder.",
+    "en": "Your photos will appear as soon as it answers."
+  },
+  "web.images.grid.unreachable_title": {
+    "text": "Não é possível contactar o teu dispositivo",
+    "en": "Can't reach your device"
+  },
+  "web.images.load.check": {
+    "text": "Verifica se o teu dispositivo está online e tenta novamente.",
+    "en": "Check that your device is online, then try again."
+  },
+  "web.images.load.waiting": {
+    "text": "Ainda à espera do teu dispositivo",
+    "en": "Still waiting for your device"
+  },
+  "web.images.people.add_name": {
+    "text": "Adicionar um nome",
+    "en": "Add a name"
+  },
+  "web.images.people.count": {
+    "text": {
+      "one": "{count} selecionada",
+      "other": "{count} selecionadas"
+    },
+    "en": {
+      "one": "{count} selected",
+      "other": "{count} selected"
+    }
+  },
+  "web.images.people.delete_failed": {
+    "text": "Não foi possível eliminá-las. Tenta novamente.",
+    "en": "They couldn't be deleted. Try again."
+  },
+  "web.images.people.delete_failed_one": {
+    "text": "Não foi possível eliminar esta pessoa. Tenta novamente.",
+    "en": "This person couldn't be deleted. Try again."
+  },
+  "web.images.people.delete_many": {
+    "text": "Eliminar {number} pessoas?",
+    "en": "Delete {number} people?",
+    "reviewed": "claude-backtranslation 2026-10-11 #9a9e9f9d"
+  },
+  "web.images.people.delete_named": {
+    "text": "Eliminar {name}?",
+    "en": "Delete {name}?",
+    "reviewed": "claude-backtranslation 2026-10-11 #c642e777"
+  },
+  "web.images.people.delete_partial": {
+    "text": {
+      "one": "{count} de {total} pessoas não pôde ser eliminada e continua selecionada. Tenta novamente.",
+      "other": "{count} de {total} pessoas não puderam ser eliminadas e continuam selecionadas. Tenta novamente."
+    },
+    "en": {
+      "one": "{count} of {total} people couldn't be deleted and is still selected. Try again.",
+      "other": "{count} of {total} people couldn't be deleted and are still selected. Try again."
+    }
+  },
+  "web.images.people.delete_text": {
+    "text": "As fotos ficam; só são esquecidos os rostos associados. Esta ação não pode ser anulada, e quem for eliminado volta a aparecer como uma pessoa nova nas fotos adicionadas mais tarde.",
+    "en": "Their photos stay; only the faces matched to them are forgotten. This can't be undone, and they'll come back as new people in photos added later.",
+    "reviewed": "claude-backtranslation 2026-10-11 #479abf14"
+  },
+  "web.images.people.delete_this": {
+    "text": "Eliminar esta pessoa?",
+    "en": "Delete this person?",
+    "reviewed": "claude-backtranslation 2026-10-11 #d74c1acf"
+  },
+  "web.images.people.deleted": {
+    "text": {
+      "one": "{count} pessoa eliminada",
+      "other": "{count} pessoas eliminadas"
+    },
+    "en": {
+      "one": "Deleted {count} person",
+      "other": "Deleted {count} people"
+    }
+  },
+  "web.images.people.deleted_one": {
+    "text": "Pessoa eliminada",
+    "en": "Person deleted"
+  },
+  "web.images.people.deleting_label": {
+    "text": "A eliminar…",
+    "en": "Delete…"
+  },
+  "web.images.people.different_names": {
+    "text": "Têm nomes diferentes e só um pode ficar. Escolhe o rosto a manter.",
+    "en": "They have different names, and only one can stay. Pick the face to keep."
+  },
+  "web.images.people.dropped_many": {
+    "text": "Os nomes {names} vão ser descartados.",
+    "en": "The names {names} will be dropped."
+  },
+  "web.images.people.dropped_one": {
+    "text": "O nome {name} vai ser descartado.",
+    "en": "The name {name} will be dropped."
+  },
+  "web.images.people.empty_text": {
+    "text": "O reconhecimento facial é feito no dispositivo depois de as fotos serem carregadas. Podes ativá-lo em Definições.",
+    "en": "Face recognition runs on the device after photos are uploaded. You can switch it on in Settings.",
+    "reviewed": "claude-backtranslation 2026-10-11 #d4517d59"
+  },
+  "web.images.people.empty_title": {
+    "text": "Ainda não foram encontrados rostos",
+    "en": "No faces found yet"
+  },
+  "web.images.people.face_named": {
+    "text": {
+      "one": "{name}, {count} foto",
+      "other": "{name}, {count} fotos"
+    },
+    "en": {
+      "one": "{name}, {count} photo",
+      "other": "{name}, {count} photos"
+    }
+  },
+  "web.images.people.face_unnamed": {
+    "text": {
+      "one": "Pessoa sem nome, {count} foto",
+      "other": "Pessoa sem nome, {count} fotos"
+    },
+    "en": {
+      "one": "Unnamed person, {count} photo",
+      "other": "Unnamed person, {count} photos"
+    }
+  },
+  "web.images.people.failed": {
+    "text": "Não foi possível carregar as pessoas",
+    "en": "Couldn't load people"
+  },
+  "web.images.people.keep": {
+    "text": "Manter",
+    "en": "Keep"
+  },
+  "web.images.people.keep_group": {
+    "text": "Rosto a manter",
+    "en": "Face to keep"
+  },
+  "web.images.people.loading": {
+    "text": "A carregar pessoas",
+    "en": "Loading people"
+  },
+  "web.images.people.menu": {
+    "text": "Opções da pessoa",
+    "en": "Person options"
+  },
+  "web.images.people.merge": {
+    "text": "Juntar",
+    "en": "Merge"
+  },
+  "web.images.people.merge_failed": {
+    "text": "Não foi possível juntá-las. Tenta novamente.",
+    "en": "They couldn't be merged. Try again."
+  },
+  "web.images.people.merge_hint": {
+    "text": "Seleciona os rostos da mesma pessoa",
+    "en": "Select the faces of the same person"
+  },
+  "web.images.people.merge_name_failed": {
+    "text": "Não foi possível guardar o nome, por isso não se juntou nada. Tenta novamente.",
+    "en": "The name couldn't be saved, so nothing was merged. Try again."
+  },
+  "web.images.people.merge_needs_two": {
+    "text": "Seleciona 2 ou mais rostos para os juntares num só.",
+    "en": "Select 2 or more faces to merge them into one."
+  },
+  "web.images.people.merge_others": {
+    "text": "Juntar com outros…",
+    "en": "Merge with others…"
+  },
+  "web.images.people.merge_text": {
+    "text": "Escolhe o rosto a manter: mantém o nome e a foto e fica com as fotos dos outros. Esta ação não pode ser anulada.",
+    "en": "Pick the face to keep: it keeps its name and picture, and gets the photos of the others. This can't be undone.",
+    "reviewed": "claude-backtranslation 2026-10-11 #27088aa2"
+  },
+  "web.images.people.merge_title": {
+    "text": "Juntar {number} pessoas numa só?",
+    "en": "Merge {number} people into one?",
+    "reviewed": "claude-backtranslation 2026-10-11 #38d2fd16"
+  },
+  "web.images.people.merge_unavailable": {
+    "text": "Seleciona 2 ou mais para juntar",
+    "en": "Select 2 or more to merge"
+  },
+  "web.images.people.merge_unavailable_label": {
+    "text": "Juntar (seleciona 2 ou mais para juntar)",
+    "en": "Merge (select 2 or more to merge)"
+  },
+  "web.images.people.merged": {
+    "text": "Juntaste {number} rostos",
+    "en": "Merged {number} faces"
+  },
+  "web.images.people.merged_named": {
+    "text": "Juntaste {number} rostos em {name}",
+    "en": "Merged {number} into {name}"
+  },
+  "web.images.people.merging_label": {
+    "text": "A juntar…",
+    "en": "Merge…"
+  },
+  "web.images.people.more": {
+    "text": "Mais opções",
+    "en": "More options"
+  },
+  "web.images.people.more_named": {
+    "text": "Mais opções para {name}",
+    "en": "More options for {name}"
+  },
+  "web.images.people.more_unnamed": {
+    "text": "Mais opções para esta pessoa",
+    "en": "More options for this person"
+  },
+  "web.images.people.name_add_placeholder": {
+    "text": "Adicionar um nome",
+    "en": "Add a name"
+  },
+  "web.images.people.name_label": {
+    "text": "Nome <dim>(opcional)</dim>",
+    "en": "Name <dim>(optional)</dim>"
+  },
+  "web.images.people.name_placeholder": {
+    "text": "Nome",
+    "en": "Name"
+  },
+  "web.images.people.name_this": {
+    "text": "Dar um nome a esta pessoa",
+    "en": "Name this person"
+  },
+  "web.images.people.names_more": {
+    "text": "{first}, {rest}",
+    "en": "{first}, {rest}"
+  },
+  "web.images.people.names_two": {
+    "text": "{first} e {second}",
+    "en": "{first} and {second}"
+  },
+  "web.images.people.new_name": {
+    "text": "Novo nome",
+    "en": "New name"
+  },
+  "web.images.people.no_answer": {
+    "text": "O teu dispositivo não respondeu. Tenta novamente.",
+    "en": "Your device didn't answer. Try again."
+  },
+  "web.images.people.photos": {
+    "text": {
+      "one": "{count} foto",
+      "other": "{count} fotos"
+    },
+    "en": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    }
+  },
+  "web.images.people.progress": {
+    "text": "{done} de {total}",
+    "en": "{done} of {total}"
+  },
+  "web.images.people.save_failed": {
+    "text": "Não foi possível guardar o nome. Tenta novamente.",
+    "en": "The name couldn't be saved. Try again."
+  },
+  "web.images.people.select_named": {
+    "text": {
+      "one": "Selecionar {name}, {count} foto",
+      "other": "Selecionar {name}, {count} fotos"
+    },
+    "en": {
+      "one": "Select {name}, {count} photo",
+      "other": "Select {name}, {count} photos"
+    }
+  },
+  "web.images.people.select_unnamed": {
+    "text": {
+      "one": "Selecionar pessoa sem nome, {count} foto",
+      "other": "Selecionar pessoa sem nome, {count} fotos"
+    },
+    "en": {
+      "one": "Select Unnamed person, {count} photo",
+      "other": "Select Unnamed person, {count} photos"
+    }
+  },
+  "web.images.people.selected": {
+    "text": "Pessoas selecionadas",
+    "en": "Selected people"
+  },
+  "web.images.people.slow": {
+    "text": "As pessoas estão a demorar mais do que o habitual a carregar.",
+    "en": "People are taking longer than usual to load."
+  },
+  "web.images.people.title": {
+    "text": "Pessoas",
+    "en": "People"
+  },
+  "web.images.people.will_be_called": {
+    "text": "A pessoa resultante vai chamar-se <b>{name}</b>.",
+    "en": "The merged person will be called <b>{name}</b>."
+  },
+  "web.images.person.more": {
+    "text": {
+      "one": "{first}, {second} e mais {count} pessoa",
+      "other": "{first}, {second} e mais {count} pessoas"
+    },
+    "en": {
+      "one": "{first}, {second} & {count} other",
+      "other": "{first}, {second} & {count} others"
+    }
+  },
+  "web.images.person.two": {
+    "text": "{first} e {second}",
+    "en": "{first} & {second}"
+  },
+  "web.images.picker.all": {
+    "text": "Todas as fotos",
+    "en": "All photos"
+  },
+  "web.images.picker.empty": {
+    "text": "Ainda não há fotos aqui.",
+    "en": "No photos here yet."
+  },
+  "web.images.picker.failed": {
+    "text": "Não foi possível obter essa foto do dispositivo ({detail}).",
+    "en": "That photo could not be fetched from the device ({detail})."
+  },
+  "web.images.picker.label": {
+    "text": "Escolher uma foto do teu dispositivo",
+    "en": "Choose a photo from your device"
+  },
+  "web.images.picker.no_answer": {
+    "text": "Não foi possível obter essa foto do dispositivo (sem resposta).",
+    "en": "That photo could not be fetched from the device (no answer)."
+  },
+  "web.images.picker.opening": {
+    "text": "A abrir",
+    "en": "Opening"
+  },
+  "web.images.picker.title": {
+    "text": "Escolher uma foto",
+    "en": "Choose a photo"
+  },
+  "web.images.post.caption": {
+    "text": "Legenda",
+    "en": "Caption"
+  },
+  "web.images.post.caption_placeholder": {
+    "text": "Escreve algo sobre elas (opcional)",
+    "en": "Say something about them (optional)"
+  },
+  "web.images.post.earlier_photo": {
+    "text": "Mover a foto {number} para a posição anterior",
+    "en": "Move photo {number} earlier"
+  },
+  "web.images.post.earlier_video": {
+    "text": "Mover o vídeo {number} para a posição anterior",
+    "en": "Move video {number} earlier"
+  },
+  "web.images.post.empty": {
+    "text": "Já não há fotos nesta publicação.",
+    "en": "No photos left in this post."
+  },
+  "web.images.post.failed": {
+    "text": "Não foi possível fazer a publicação. Tenta novamente.",
+    "en": "Couldn't publish the post. Try again."
+  },
+  "web.images.post.later_photo": {
+    "text": "Mover a foto {number} para a posição seguinte",
+    "en": "Move photo {number} later"
+  },
+  "web.images.post.later_video": {
+    "text": "Mover o vídeo {number} para a posição seguinte",
+    "en": "Move video {number} later"
+  },
+  "web.images.post.photos": {
+    "text": "Fotos da publicação, por ordem",
+    "en": "Photos in the post, in order"
+  },
+  "web.images.post.posted": {
+    "text": "Publicado em Social",
+    "en": "Posted to Social"
+  },
+  "web.images.post.publish": {
+    "text": "Publicar",
+    "en": "Publish"
+  },
+  "web.images.post.publishing": {
+    "text": "A publicar…",
+    "en": "Publishing…"
+  },
+  "web.images.post.remove_photo": {
+    "text": "Remover a foto {number}",
+    "en": "Remove photo {number}"
+  },
+  "web.images.post.remove_video": {
+    "text": "Remover o vídeo {number}",
+    "en": "Remove video {number}"
+  },
+  "web.images.post.title": {
+    "text": "Nova publicação em Social",
+    "en": "New Social Post"
+  },
+  "web.images.post.unreachable": {
+    "text": "Não foi possível contactar o teu dispositivo. Verifica a ligação e tenta novamente.",
+    "en": "Couldn't reach your device. Check the connection and try again."
+  },
+  "web.images.select.clear": {
+    "text": "Limpar seleção",
+    "en": "Clear selection"
+  },
+  "web.images.select.collect": {
+    "text": "Adicionar a uma coleção",
+    "en": "Add to Collection"
+  },
+  "web.images.select.count": {
+    "text": {
+      "one": "{count} selecionada",
+      "other": "{count} selecionadas"
+    },
+    "en": {
+      "one": "{count} selected",
+      "other": "{count} selected"
+    }
+  },
+  "web.images.select.label": {
+    "text": "Fotos selecionadas",
+    "en": "Selected photos"
+  },
+  "web.images.select.post": {
+    "text": "Publicar em Social",
+    "en": "Social Post"
+  },
+  "web.images.share.copied": {
+    "text": "Ligação copiada",
+    "en": "Link copied"
+  },
+  "web.images.share.copy": {
+    "text": "Copiar",
+    "en": "Copy"
+  },
+  "web.images.share.copy_done": {
+    "text": "Copiado",
+    "en": "Copied"
+  },
+  "web.images.share.copy_link": {
+    "text": "Copiar ligação",
+    "en": "Copy link"
+  },
+  "web.images.share.copy_link_hint": {
+    "text": "Uma ligação para as transferir",
+    "en": "A link to download them",
+    "reviewed": "claude-backtranslation 2026-10-11 #36da8244"
+  },
+  "web.images.share.gallery": {
+    "text": "Partilhar como página de galeria",
+    "en": "Share as a gallery page"
+  },
+  "web.images.share.gallery_hint": {
+    "text": "Página visível para quem tiver a ligação",
+    "en": "A page anyone with the link can see",
+    "reviewed": "claude-backtranslation 2026-10-11 #482feb82"
+  },
+  "web.images.share.link_failed": {
+    "text": "Não foi possível criar a ligação. Tenta novamente.",
+    "en": "Couldn't make the link. Try again."
+  },
+  "web.images.share.link_field": {
+    "text": "Ligação",
+    "en": "Link"
+  },
+  "web.images.share.link_text": {
+    "text": "Qualquer pessoa com esta ligação pode transferir estes ficheiros.",
+    "en": "Anyone with this link can download these files.",
+    "reviewed": "claude-backtranslation 2026-10-11 #512f8ba3"
+  },
+  "web.images.share.link_title": {
+    "text": "A tua ligação está pronta",
+    "en": "Your link is ready"
+  },
+  "web.images.share.preparing_link": {
+    "text": "A preparar a ligação…",
+    "en": "Preparing the link…"
+  },
+  "web.images.share.preparing_zip": {
+    "text": "A preparar o ZIP…",
+    "en": "Preparing the ZIP…"
+  },
+  "web.images.share.zip": {
+    "text": "Transferir ZIP",
+    "en": "Download ZIP"
+  },
+  "web.images.share.zip_failed": {
+    "text": "Não foi possível criar o ZIP. Tenta novamente.",
+    "en": "Couldn't make the ZIP. Try again."
+  },
+  "web.images.share.zip_hint": {
+    "text": "Guardá-las neste computador ou telemóvel",
+    "en": "Save them on this device"
+  },
+  "web.images.share.zip_ready": {
+    "text": "O teu ZIP está pronto",
+    "en": "Your ZIP is ready"
+  },
+  "web.images.share.zip_tab": {
+    "text": "A preparar o ZIP… A transferência começa aqui quando estiver pronto.",
+    "en": "Preparing the ZIP… It downloads from here once it's ready."
+  },
+  "web.images.trim.end": {
+    "text": "Fim do corte",
+    "en": "End of the cut"
+  },
+  "web.images.trim.keeping": {
+    "text": "A manter <b>{kept}</b> de {total}",
+    "en": "Keeping <b>{kept}</b> of {total}"
+  },
+  "web.images.trim.play": {
+    "text": "Reproduzir corte",
+    "en": "Play cut"
+  },
+  "web.images.trim.reading": {
+    "text": "A ler o vídeo…",
+    "en": "Reading the clip…"
+  },
+  "web.images.trim.remove": {
+    "text": "Remover corte",
+    "en": "Remove trim"
+  },
+  "web.images.trim.start": {
+    "text": "Início do corte",
+    "en": "Start of the cut"
+  },
+  "web.images.trim.title": {
+    "text": "Cortar vídeo",
+    "en": "Trim video"
+  },
+  "web.images.trim.unopenable": {
+    "text": "Não foi possível abrir este vídeo para o cortar.",
+    "en": "This video could not be opened for trimming."
+  },
+  "web.images.trim.unreadable": {
+    "text": "Este navegador não conseguiu ler este vídeo, por isso não é possível cortá-lo aqui.",
+    "en": "This browser could not read this video, so it can't be trimmed here."
+  },
+  "web.images.viewer.aperture": {
+    "text": "Abertura",
+    "en": "Aperture"
+  },
+  "web.images.viewer.camera": {
+    "text": "Câmara",
+    "en": "Camera"
+  },
+  "web.images.viewer.codec": {
+    "text": "Este navegador não consegue reproduzir este vídeo.",
+    "en": "This browser can't play this video."
+  },
+  "web.images.viewer.codec_hint": {
+    "text": "Pode ter sido gravado em HEVC, que nem todos os navegadores conseguem descodificar: o Safari consegue, e as versões recentes do Chrome também, em hardware compatível.",
+    "en": "It may be recorded in HEVC, which not every browser can decode - Safari handles it, and recent Chrome does on hardware that supports it."
+  },
+  "web.images.viewer.dimensions": {
+    "text": "Dimensões",
+    "en": "Dimensions"
+  },
+  "web.images.viewer.download_it": {
+    "text": "Transferir o vídeo",
+    "en": "Download it"
+  },
+  "web.images.viewer.exposure": {
+    "text": "Exposição",
+    "en": "Exposure"
+  },
+  "web.images.viewer.focal_length": {
+    "text": "Distância focal",
+    "en": "Focal length"
+  },
+  "web.images.viewer.info": {
+    "text": "Info",
+    "en": "Info"
+  },
+  "web.images.viewer.iso": {
+    "text": "ISO",
+    "en": "ISO"
+  },
+  "web.images.viewer.location": {
+    "text": "Localização",
+    "en": "Location"
+  },
+  "web.images.viewer.map": {
+    "text": "Localização da foto",
+    "en": "Photo location"
+  },
+  "web.images.viewer.more_info": {
+    "text": "Mais informações",
+    "en": "More info"
+  },
+  "web.images.viewer.next": {
+    "text": "Seguinte",
+    "en": "Next"
+  },
+  "web.images.viewer.no_exif": {
+    "text": "Este ficheiro não tem metadados EXIF",
+    "en": "No EXIF metadata in this file"
+  },
+  "web.images.viewer.no_metadata": {
+    "text": "Não foram encontrados metadados",
+    "en": "No metadata found"
+  },
+  "web.images.viewer.previous": {
+    "text": "Anterior",
+    "en": "Previous"
+  },
+  "web.images.viewer.stalled": {
+    "text": "Este vídeo está a demorar demasiado a carregar.",
+    "en": "This video is taking too long to load."
+  },
+  "web.images.viewer.stalled_hint": {
+    "text": "Há algum tempo que não chega nada do teu dispositivo: pode estar ocupado ou difícil de contactar neste momento. Tentar novamente costuma resolver.",
+    "en": "Nothing has arrived from your device for a while - it may be busy or hard to reach right now. Trying again usually works."
+  },
+  "web.images.viewer.taken": {
+    "text": "Tirada em",
+    "en": "Taken"
+  }
+}
