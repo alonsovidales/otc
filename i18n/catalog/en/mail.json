@@ -1,0 +1,23 @@
+{
+  "mail.date.april": {"text": "April"},
+  "mail.date.august": {"text": "August"},
+  "mail.date.december": {"text": "December"},
+  "mail.date.february": {"text": "February"},
+  "mail.date.january": {"text": "January"},
+  "mail.date.july": {"text": "July"},
+  "mail.date.june": {"text": "June"},
+  "mail.date.long": {"text": "{day} {month} {year}", "args": [["day", "int"], ["month", "msg"], ["year", "text"]]},
+  "mail.date.march": {"text": "March"},
+  "mail.date.may": {"text": "May"},
+  "mail.date.november": {"text": "November"},
+  "mail.date.october": {"text": "October"},
+  "mail.date.september": {"text": "September"},
+  "mail.greeting.named": {"text": "Hello {name},", "args": [["name", "text"]]},
+  "mail.greeting.plain": {"text": "Hello,"},
+  "mail.inactivity.body": {"text": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, and no app or friend has reached your devices through the bridge.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or use your device through the bridge before then.", "args": [["email", "text"], ["date", "text"], ["link", "text"]]},
+  "mail.inactivity.subject": {"text": "Your Off The Cloud account will be removed on {date}", "args": [["date", "text"]]},
+  "mail.reset.body": {"text": "Someone - hopefully you - asked to reset the password of the Off The Cloud account for this email. To choose a new one, open this link:\n\n{link}\n\nThe link works for one hour, once. Setting a new password signs your account out everywhere else.\n\nIf you didn't ask for this, ignore this email: your password stays as it is.", "args": [["link", "text"]]},
+  "mail.reset.subject": {"text": "Reset your Off The Cloud password"},
+  "mail.verify.body": {"text": "Please confirm that this is your email address by opening this link:\n\n{link}\n\nThe link works for 48 hours. Once your email is confirmed you can register your devices on the bridge.\n\nIf you didn't create an Off The Cloud account, ignore this email: nothing is registered for this address without the confirmation.", "args": [["link", "text"]]},
+  "mail.verify.subject": {"text": "Confirm your email for Off The Cloud"}
+}

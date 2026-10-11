@@ -3,7 +3,6 @@
 package accounts
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/alonsovidales/otc/bridge/mailer"
@@ -63,16 +62,9 @@ func (a *Accounts) inactivityPass(now time.Time, send func(to, subject, body str
 		if err != nil || !claimed {
 			continue
 		}
-		when := now.Add(cWarnAhead).Format("2 January 2006")
-		greet := "Hello,"
-		if acc.Name != "" {
-			greet = "Hello " + acc.Name + ","
-		}
-		body := fmt.Sprintf("%s\n\nYour Off The Cloud bridge account (%s) hasn't been used for five months: no one has signed in to it, and no app or friend has reached your devices through the bridge.\n\n"+
-			"As our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on %s. Your devices keep working at home.\n\n"+
-			"To keep it, sign in at https://%s/account or use your device through the bridge before then.\n\n"+
-			"Off The Cloud\n", greet, acc.Email, when, a.tld)
-		if err := send(acc.Email, "Your Off The Cloud account will be removed on "+when, body); mailer.AddressRefused(err) {
+		// In the account's language (emails.go), never logged.
+		subject, body := a.inactivityEmail(acc.Lang, acc.Name, acc.Email, now.Add(cWarnAhead))
+		if err := send(acc.Email, subject, body); mailer.AddressRefused(err) {
 			// The mail server refuses the address itself: no later pass
 			// would get a warning through either, and releasing it would
 			// keep the account for ever. The attempt stands as the

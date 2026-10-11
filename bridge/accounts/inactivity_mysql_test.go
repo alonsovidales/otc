@@ -68,8 +68,17 @@ func TestInactivityPassMySQL(t *testing.T) {
 		}
 	}
 
+	// A language stored by a bridge carrying one this build doesn't: the
+	// warning is English, as is one for an account with none ("").
+	db.Exec("update `accounts` set `lang` = 'zz' where `id` = 'inact-5m'")
 	sent := map[string]int{}
-	send := func(to, subject, body string) error { sent[to]++; return nil }
+	send := func(to, subject, body string) error {
+		sent[to]++
+		if ws, wb := legacyInactivity("T", to, a.tld, now); subject != ws || body != wb {
+			t.Errorf("the warning to %s: %q %q, want %q %q", to, subject, body, ws, wb)
+		}
+		return nil
+	}
 	a.inactivityPass(now, send, nil)
 	if !warnedAt("inact-5m").Valid {
 		t.Error("a warning that went out was not recorded")

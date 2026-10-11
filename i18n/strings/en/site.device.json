@@ -1,0 +1,41 @@
+{
+  "site.device.disabled.heading": {
+    "text": "This account has been disabled",
+    "note": "Page the bridge shows at a family member's address when the device's owner has disabled that account: the heading.",
+    "max": 60
+  },
+  "site.device.disabled.text": {
+    "text": "The owner of this device has disabled this account. Contact them if you believe this is a mistake.",
+    "note": "Page the bridge shows at a family member's address when the device's owner has disabled that account: the text under the heading. Them: the device's owner."
+  },
+  "site.device.disabled.title": {
+    "text": "Account disabled",
+    "note": "Page the bridge shows at a family member's address (name.off-the.cloud) when the device's owner has disabled that account: the page title, in the browser tab.",
+    "max": 60
+  },
+  "site.device.unavailable.countdown": {
+    "text": "Checking again in {seconds}s",
+    "args": [["seconds", "int"]],
+    "note": "Page the bridge shows when a device doesn't answer: small line under the Try again button, counting down to the next automatic reload. {seconds} goes from 30 down to 1; the s after it is the abbreviation of seconds (write it as your language abbreviates seconds, with or without a space).",
+    "max": 40
+  },
+  "site.device.unavailable.heading": {
+    "text": "This device isn't available right now",
+    "note": "Page the bridge shows at a device's address when the device doesn't answer (switched off, offline or starting): the heading.",
+    "max": 60
+  },
+  "site.device.unavailable.retry": {
+    "text": "Try again",
+    "note": "Page the bridge shows when a device doesn't answer: button that reloads the page.",
+    "max": 24
+  },
+  "site.device.unavailable.text": {
+    "text": "It looks like it's switched off, offline, or still starting up. Nothing has been lost — everything stays on the device itself. Try again in a moment.",
+    "note": "Page the bridge shows at a device's address when the device doesn't answer: the text under the heading."
+  },
+  "site.device.unavailable.title": {
+    "text": "Device not available",
+    "note": "Page the bridge shows at a device's address (name.off-the.cloud) when the device doesn't answer: the page title, in the browser tab.",
+    "max": 60
+  }
+}

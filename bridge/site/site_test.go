@@ -1,0 +1,598 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package site
+
+import (
+	"bytes"
+	"encoding/json"
+	"html/template"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"regexp"
+	"slices"
+	"sort"
+	"strconv"
+	"strings"
+	"testing"
+	"text/template/parse"
+	"time"
+
+	"github.com/alonsovidales/otc/i18n"
+	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
+)
+
+var testOptions = Options{
+	Base:  "https://off-the.cloud",
+	Nonce: "bm9uY2Utbm9uY2Utbm9uY2U=",
+	Now:   time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC),
+}
+
+// englishEntry is what the tests read of an English site.* entry.
+type englishEntry struct {
+	Text json.RawMessage `json:"text"`
+	Args [][]string      `json:"args"`
+	Rich []string        `json:"rich"`
+}
+
+// siteEntries reads every English site.* entry from the catalog's source.
+func siteEntries(t *testing.T) map[string]englishEntry {
+	t.Helper()
+	return englishEntries(t, "site.*.json")
+}
+
+// englishEntries reads the English string files matching pattern.
+func englishEntries(t *testing.T, pattern string) map[string]englishEntry {
+	t.Helper()
+	files, err := filepath.Glob(filepath.Join("..", "..", "i18n", "strings", "en", pattern))
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no %s string files: %v", pattern, err)
+	}
+	out := map[string]englishEntry{}
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var m map[string]englishEntry
+		if err := json.Unmarshal(data, &m); err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		for k, v := range m {
+			out[k] = v
+		}
+	}
+	return out
+}
+
+// use is one key a page asks for: which function, and the argument names
+// it passes.
+type use struct {
+	fn, key string
+	args    []string
+}
+
+// pageUses walks the parsed pages for every call of the text functions.
+func pageUses(t *testing.T) []use {
+	t.Helper()
+	tmpl, err := templates(English())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var uses []use
+	var walk func(n parse.Node)
+	call := func(args []parse.Node) {
+		if len(args) == 0 {
+			return
+		}
+		id, ok := args[0].(*parse.IdentifierNode)
+		if !ok {
+			return
+		}
+		str := func(n parse.Node) string {
+			if s, ok := n.(*parse.StringNode); ok {
+				return s.Text
+			}
+			t.Errorf("%s: an argument that isn't a string literal: %s", id.Ident, n)
+			return ""
+		}
+		rest := args[1:]
+		switch id.Ident {
+		case "t", "rich":
+			if len(rest) == 0 {
+				t.Errorf("%s without a key", id.Ident)
+				return
+			}
+			u := use{fn: id.Ident, key: str(rest[0])}
+			for i := 1; i < len(rest); i += 2 {
+				u.args = append(u.args, str(rest[i]))
+			}
+			uses = append(uses, u)
+		case "lines":
+			uses = append(uses, use{fn: "t", key: str(rest[0])})
+		case "series":
+			uses = append(uses, use{fn: "t", key: str(rest[0]), args: []string{str(rest[1])}})
+		case "texts":
+			for i := 1; i < len(rest); i += 2 {
+				uses = append(uses, use{fn: "t", key: str(rest[i])})
+			}
+		}
+	}
+	walk = func(n parse.Node) {
+		switch n := n.(type) {
+		case *parse.ListNode:
+			if n == nil {
+				return
+			}
+			for _, c := range n.Nodes {
+				walk(c)
+			}
+		case *parse.ActionNode:
+			walk(n.Pipe)
+		case *parse.PipeNode:
+			if n == nil {
+				return
+			}
+			for _, c := range n.Cmds {
+				walk(c)
+			}
+		case *parse.CommandNode:
+			call(n.Args)
+			for _, a := range n.Args {
+				walk(a)
+			}
+		case *parse.IfNode:
+			walk(n.Pipe)
+			walk(n.List)
+			walk(n.ElseList)
+		case *parse.RangeNode:
+			walk(n.Pipe)
+			walk(n.List)
+			walk(n.ElseList)
+		case *parse.WithNode:
+			walk(n.Pipe)
+			walk(n.List)
+			walk(n.ElseList)
+		case *parse.TemplateNode:
+			walk(n.Pipe)
+		}
+	}
+	for _, name := range []string{Landing, Disabled, Unavailable} {
+		pt := tmpl.Lookup(name)
+		if pt == nil {
+			t.Fatalf("no page %s", name)
+		}
+		walk(pt.Tree.Root)
+	}
+	return uses
+}
+
+// Every key a page names exists with exactly the arguments the page
+// passes; t gets only plain keys and rich only rich ones; every tag of a
+// rich key is in the tags table; and every site.* key is used somewhere.
+// The contact form's errors are the API's own api.error.* keys, the texts
+// the endpoint answers with.
+func TestPageKeys(t *testing.T) {
+	entries := siteEntries(t)
+	known := englishEntries(t, "api.json")
+	for k, v := range entries {
+		known[k] = v
+	}
+	used := map[string]bool{}
+	for _, u := range pageUses(t) {
+		e, ok := known[u.key]
+		if !ok {
+			t.Errorf("%s %q: no such site.* or api.* key", u.fn, u.key)
+			continue
+		}
+		used[u.key] = true
+		var declared []string
+		for _, a := range e.Args {
+			declared = append(declared, a[0])
+		}
+		got := slices.Clone(u.args)
+		sort.Strings(got)
+		sort.Strings(declared)
+		if !slices.Equal(got, declared) {
+			t.Errorf("%s %q: the page passes %v, the key declares %v", u.fn, u.key, u.args, declared)
+		}
+		if rich := len(e.Rich) > 0; rich != (u.fn == "rich") {
+			t.Errorf("%s %q: rich key %v", u.fn, u.key, rich)
+		}
+		for _, tag := range e.Rich {
+			if _, ok := tags[tag]; !ok {
+				t.Errorf("%q: tag <%s> isn't in the tags table", u.key, tag)
+			}
+		}
+	}
+	for k := range entries {
+		if !used[k] {
+			t.Errorf("%s: no page shows it", k)
+		}
+	}
+}
+
+// Every page renders in every language the build carries, carrying the
+// nonce on each inline <style> and executable <script>, and its language.
+func TestRenderEveryLanguage(t *testing.T) {
+	for _, l := range i18n.Languages() {
+		for _, page := range []string{Landing, Disabled, Unavailable} {
+			out, err := Render(page, l.Code, testOptions)
+			if err != nil {
+				t.Fatalf("%s in %s: %v", page, l.Code, err)
+			}
+			s := string(out)
+			if !strings.Contains(s, `<html lang="`+l.Tag+`">`) {
+				t.Errorf("%s in %s: no <html lang=%q>", page, l.Code, l.Tag)
+			}
+			doc, err := html.Parse(bytes.NewReader(out))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for n := range doc.Descendants() {
+				if n.Type != html.ElementNode || (n.DataAtom != atom.Script && n.DataAtom != atom.Style) {
+					continue
+				}
+				if attr(n, "type") == "application/json" {
+					continue
+				}
+				if attr(n, "nonce") != testOptions.Nonce {
+					t.Errorf("%s in %s: a <%s> without the nonce", page, l.Code, n.Data)
+				}
+			}
+			if strings.Contains(s, "{{") || leftKey.MatchString(s) {
+				t.Errorf("%s in %s: a template action or a key left in the output", page, l.Code)
+			}
+		}
+	}
+}
+
+// leftKey is a key rendered as itself: what a key the catalog lacks
+// becomes.
+var leftKey = regexp.MustCompile(`\bsite\.[a-z0-9]+\.[a-z0-9_.]+`)
+
+func attr(n *html.Node, name string) string {
+	for _, a := range n.Attr {
+		if a.Key == name {
+			return a.Val
+		}
+	}
+	return ""
+}
+
+// An unknown language renders English; an unknown page is an error.
+func TestRenderFallbacks(t *testing.T) {
+	en, err := Render(Landing, English(), testOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, lang := range []string{"", "xx", "EN", "en-GB", "../en"} {
+		got, err := Render(Landing, lang, testOptions)
+		if err != nil || !bytes.Equal(got, en) {
+			t.Errorf("Render(%q) = %d bytes, %v; want the English page", lang, len(got), err)
+		}
+	}
+	if _, err := Render("privacy.html", English(), testOptions); err == nil {
+		t.Error("an unknown page rendered")
+	}
+}
+
+// The landing page names its address in every carried language (hreflang,
+// with x-default: /) and its canonical address; the language switcher
+// shows only once a second language ships.
+func TestLandingAlternates(t *testing.T) {
+	langs := i18n.Languages()
+	out, err := Render(Landing, English(), testOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(out)
+	if !strings.Contains(s, `<link rel="canonical" href="https://off-the.cloud/">`) {
+		t.Error("no canonical link to /")
+	}
+	for _, l := range langs {
+		want := `<link rel="alternate" hreflang="` + l.Tag + `" href="https://off-the.cloud` + Path(l.Code) + `">`
+		if !strings.Contains(s, want) {
+			t.Errorf("missing %s", want)
+		}
+	}
+	if !strings.Contains(s, `<link rel="alternate" hreflang="x-default" href="https://off-the.cloud/">`) {
+		t.Error("no x-default alternate")
+	}
+	if got := strings.Contains(s, `class="lang-switch"`); got != (len(langs) > 1) {
+		t.Errorf("language switcher shown %v with %d languages", got, len(langs))
+	}
+	if len(langs) > 1 {
+		// Each language by its own name, at /<code>/ (English too: / would
+		// redirect a browser that prefers another language), this one
+		// marked as the current page.
+		for _, l := range langs {
+			link := `<a href="/` + l.Code + `/" lang="` + l.Tag + `" hreflang="` + l.Tag + `"`
+			if l.Code == English() {
+				link += ` aria-current="page"`
+			}
+			if !strings.Contains(s, link+">"+template.HTMLEscapeString(l.Name)+"</a>") {
+				t.Errorf("switcher: no %s>%s</a>", link, l.Name)
+			}
+		}
+	}
+	if Path(English()) != "/" || Path("es") != "/es/" {
+		t.Errorf("Path: %q %q", Path(English()), Path("es"))
+	}
+}
+
+// What the pages' scripts write is English unchanged: the same words the
+// scripts held before they moved into the catalog.
+func TestScriptTextsUnchanged(t *testing.T) {
+	out, err := Render(Landing, English(), testOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var texts map[string]string
+	if err := json.Unmarshal([]byte(jsonBlock(t, out, "site-text")), &texts); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"copy":       "Copy",
+		"copied":     "Copied!",
+		"copyFailed": "Select & copy manually",
+		"send":       "Send message",
+		"sending":    "Sending…",
+		"sent":       "Thanks — we'll get back to you soon.",
+		"sendFailed": "Something went wrong sending your message.",
+	}
+	for k, v := range want {
+		if texts[k] != v {
+			t.Errorf("site-text %s = %q, want %q", k, texts[k], v)
+		}
+	}
+	if len(texts) != len(want) {
+		t.Errorf("site-text has %d texts, want %d", len(texts), len(want))
+	}
+
+	// The contact form showed the bridge's English text for each error;
+	// the page's table has the same words for each code the contact
+	// endpoint (and the origin check before it) answers with.
+	var errs map[string]string
+	if err := json.Unmarshal([]byte(jsonBlock(t, out, "contact-errors")), &errs); err != nil {
+		t.Fatal(err)
+	}
+	wantErrs := map[string]string{
+		"invalid_body":      "invalid request body",
+		"missing_fields":    "name, email and message are required",
+		"invalid_email":     "that doesn't look like a valid email address",
+		"field_too_long":    "one of the fields is too long",
+		"too_many_messages": "please wait a moment before sending another message",
+		"internal_error":    "internal error, please try again",
+		"cross_origin":      "not allowed from this page",
+	}
+	for k, v := range wantErrs {
+		if errs[k] != v {
+			t.Errorf("contact-errors %s = %q, want %q", k, errs[k], v)
+		}
+	}
+	if len(errs) != len(wantErrs) {
+		t.Errorf("contact-errors has %d texts, want %d", len(errs), len(wantErrs))
+	}
+
+	out, err = Render(Unavailable, English(), testOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lines []string
+	if err := json.Unmarshal([]byte(jsonBlock(t, out, "countdown-text")), &lines); err != nil {
+		t.Fatal(err)
+	}
+	// The page started at 30 and showed 'Checking again in ' + seconds + 's'.
+	if len(lines) != 31 {
+		t.Fatalf("%d countdown lines, want 31", len(lines))
+	}
+	for s := 1; s <= 30; s++ {
+		if want := "Checking again in " + strconv.Itoa(s) + "s"; lines[s] != want {
+			t.Errorf("countdown[%d] = %q, want %q", s, lines[s], want)
+		}
+	}
+}
+
+// jsonBlock returns the content of the <script type="application/json">
+// with the given id.
+func jsonBlock(t *testing.T, page []byte, id string) string {
+	t.Helper()
+	doc, err := html.Parse(bytes.NewReader(page))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for n := range doc.Descendants() {
+		if n.DataAtom == atom.Script && attr(n, "id") == id {
+			if attr(n, "type") != "application/json" {
+				t.Fatalf("#%s is %q, not a JSON block", id, attr(n, "type"))
+			}
+			if n.FirstChild == nil {
+				return ""
+			}
+			return n.FirstChild.Data
+		}
+	}
+	t.Fatalf("no #%s", id)
+	return ""
+}
+
+// The English pages read exactly as the static pages they replaced: their
+// text and text attributes, their links and images, line by line
+// (testdata/*.golden were extracted from bridge/static/landing.html,
+// disabled.html and unavailable.html before they moved into the binary,
+// with the year the footer's script filled in).
+func TestEnglishUnchanged(t *testing.T) {
+	for _, page := range []string{Landing, Disabled, Unavailable} {
+		out, err := Render(page, English(), testOptions)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, err := os.ReadFile(filepath.Join("testdata", strings.TrimSuffix(page, ".html")+".golden"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := visibleText(t, out)
+		if got != string(want) {
+			gl, wl := strings.Split(got, "\n"), strings.Split(string(want), "\n")
+			for i := 0; i < len(gl) || i < len(wl); i++ {
+				var g, w string
+				if i < len(gl) {
+					g = gl[i]
+				}
+				if i < len(wl) {
+					w = wl[i]
+				}
+				if g != w {
+					t.Errorf("%s line %d:\n  got  %q\n  want %q", page, i+1, g, w)
+					break
+				}
+			}
+		}
+	}
+}
+
+// inlineElems don't break a line of visibleText.
+var inlineElems = map[atom.Atom]bool{atom.A: true, atom.Strong: true, atom.Em: true, atom.Code: true,
+	atom.Span: true, atom.B: true, atom.I: true, atom.Br: true}
+
+var spaces = regexp.MustCompile(`\s+`)
+
+// visibleText is what a page shows and says: one line per block of text,
+// whitespace collapsed (as the browser renders it), then each text
+// attribute, link and image source. Scripts, styles, comments and the
+// head's links (canonical, hreflang: new) are left out; the footer's year
+// span is filled in as its script did.
+func visibleText(t *testing.T, page []byte) string {
+	t.Helper()
+	doc, err := html.Parse(bytes.NewReader(page))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lines []string
+	var cur strings.Builder
+	flush := func() {
+		if l := strings.TrimSpace(spaces.ReplaceAllString(cur.String(), " ")); l != "" {
+			lines = append(lines, l)
+		}
+		cur.Reset()
+	}
+	var walk func(n *html.Node)
+	walk = func(n *html.Node) {
+		switch n.Type {
+		case html.TextNode:
+			cur.WriteString(n.Data)
+			return
+		case html.CommentNode:
+			return
+		case html.ElementNode:
+			switch {
+			case n.DataAtom == atom.Script, n.DataAtom == atom.Style:
+				return
+			case n.DataAtom == atom.Nav && attr(n, "class") == "lang-switch":
+				return // new: the language switcher, once a second language ships
+			}
+			block := !inlineElems[n.DataAtom]
+			if block {
+				flush()
+			}
+			for _, a := range n.Attr {
+				switch {
+				case a.Key == "alt" || a.Key == "aria-label" || a.Key == "placeholder" || a.Key == "title" || a.Key == "lang":
+					lines = append(lines, "@"+n.Data+"."+a.Key+"="+a.Val)
+				case a.Key == "content" && attr(n, "name") == "description":
+					lines = append(lines, "@meta.description="+a.Val)
+				case a.Key == "href" && n.DataAtom == atom.A, a.Key == "src" && n.DataAtom == atom.Img:
+					lines = append(lines, "@"+n.Data+"."+a.Key+"="+a.Val)
+				case a.Key == "download" && n.DataAtom == atom.A:
+					lines = append(lines, "@a.download")
+				}
+			}
+			if n.DataAtom == atom.Span && attr(n, "id") == "y" && n.FirstChild == nil {
+				cur.WriteString(strconv.Itoa(testOptions.Now.Year()))
+			}
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				walk(c)
+			}
+			if block {
+				flush()
+			}
+			return
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(doc)
+	flush()
+	return strings.Join(lines, "\n") + "\n"
+}
+
+// The rendering contract: whatever a translation or an argument holds is
+// text, escaped for where it stands - never markup, and a link's address
+// never comes from the catalog.
+func TestHostileTextIsInert(t *testing.T) {
+	const hostile = `</script><img src=x onerror=alert(1)>{{.}}"'&<b>`
+	tmpl, err := template.New("spans").Funcs(funcs(English())).Parse(spansTemplate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl, err = tmpl.Parse(`{{define "page"}}<p title="{{.Attr}}">{{template "spans" .Spans}}</p>` +
+		`<p>{{t "site.landing.install.step_signin" "address" .Attr}}</p>` +
+		`<script type="application/json">{{.JSON}}</script>{{end}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b bytes.Buffer
+	err = tmpl.ExecuteTemplate(&b, "page", map[string]any{
+		"Attr":  hostile,
+		"Spans": []span{{Text: hostile}, {Text: hostile, El: "a", Href: tags["readme"].Href}, {Text: hostile, El: "strong"}},
+		"JSON":  map[string]string{"x": hostile},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	for _, bad := range []string{"<img", "</script><", "<b>", `"'&`} {
+		if strings.Contains(out, bad) {
+			t.Errorf("%q came out as markup:\n%s", bad, out)
+		}
+	}
+	doc, err := html.Parse(strings.NewReader(out))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var texts []string
+	for n := range doc.Descendants() {
+		if n.Type == html.TextNode && n.Parent.DataAtom != atom.Script {
+			texts = append(texts, n.Data)
+		}
+		if n.DataAtom == atom.Img {
+			t.Error("an <img> element came out of the text")
+		}
+	}
+	if !slices.Contains(texts, hostile) {
+		t.Errorf("the text doesn't read back as written: %q", texts)
+	}
+	var m map[string]string
+	start := strings.Index(out, `<script type="application/json">`) + len(`<script type="application/json">`)
+	end := strings.Index(out[start:], "</script>")
+	if err := json.Unmarshal([]byte(out[start:start+end]), &m); err != nil || m["x"] != hostile {
+		t.Errorf("the JSON block doesn't read back: %v %q", err, m["x"])
+	}
+}
+
+// Every tag's link is fixed here, and the pages exist where the bridge
+// looks for them.
+func TestTagsAndPages(t *testing.T) {
+	for name, s := range tags {
+		if s.El == "a" && s.Href == "" || s.El != "a" && (s.Href != "" || s.Download) {
+			t.Errorf("tag %s: %+v", name, s)
+		}
+	}
+	names, err := fs.Glob(pagesFS, "pages/*.html")
+	if err != nil || len(names) != 3 {
+		t.Errorf("embedded pages %v, %v", names, err)
+	}
+}

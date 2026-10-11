@@ -1,0 +1,104 @@
+{
+  "mail.date.april": {
+    "text": "April",
+    "note": "Name of the month, the {month} in mail.date.long (a date written in an email, such as \"2 April 2027\"). Write it as it reads inside a full date in your language."
+  },
+  "mail.date.august": {
+    "text": "August",
+    "note": "Name of the month, the {month} in mail.date.long (a date written in an email, such as \"2 August 2027\"). Write it as it reads inside a full date in your language."
+  },
+  "mail.date.december": {
+    "text": "December",
+    "note": "Name of the month, the {month} in mail.date.long (a date written in an email, such as \"2 December 2027\"). Write it as it reads inside a full date in your language."
+  },
+  "mail.date.february": {
+    "text": "February",
+    "note": "Name of the month, the {month} in mail.date.long (a date written in an email, such as \"2 February 2027\"). Write it as it reads inside a full date in your language."
+  },
+  "mail.date.january": {
+    "text": "January",
+    "note": "Name of the month, the {month} in mail.date.long (a date written in an email, such as \"2 January 2027\"). Write it as it reads inside a full date in your language."
+  },
+  "mail.date.july": {
+    "text": "July",
+    "note": "Name of the month, the {month} in mail.date.long (a date written in an email, such as \"2 July 2027\"). Write it as it reads inside a full date in your language."
+  },
+  "mail.date.june": {
+    "text": "June",
+    "note": "Name of the month, the {month} in mail.date.long (a date written in an email, such as \"2 June 2027\"). Write it as it reads inside a full date in your language."
+  },
+  "mail.date.long": {
+    "text": "{day} {month} {year}",
+    "args": [["day", "int"], ["month", "msg"], ["year", "text"]],
+    "note": "A date as the bridge's emails write it, such as \"2 January 2027\" (in the account-removal warning's subject and text). {day} is the day of the month (1 to 31), {month} the month's name (one of mail.date.january to mail.date.december), {year} the year (2027). Arrange them as your language writes a full date, adding its words or punctuation (\"2 de enero de 2027\", \"2. Januar 2027\")."
+  },
+  "mail.date.march": {
+    "text": "March",
+    "note": "Name of the month, the {month} in mail.date.long (a date written in an email, such as \"2 March 2027\"). Write it as it reads inside a full date in your language."
+  },
+  "mail.date.may": {
+    "text": "May",
+    "note": "Name of the month, the {month} in mail.date.long (a date written in an email, such as \"2 May 2027\"). Write it as it reads inside a full date in your language."
+  },
+  "mail.date.november": {
+    "text": "November",
+    "note": "Name of the month, the {month} in mail.date.long (a date written in an email, such as \"2 November 2027\"). Write it as it reads inside a full date in your language."
+  },
+  "mail.date.october": {
+    "text": "October",
+    "note": "Name of the month, the {month} in mail.date.long (a date written in an email, such as \"2 October 2027\"). Write it as it reads inside a full date in your language."
+  },
+  "mail.date.september": {
+    "text": "September",
+    "note": "Name of the month, the {month} in mail.date.long (a date written in an email, such as \"2 September 2027\"). Write it as it reads inside a full date in your language."
+  },
+  "mail.greeting.named": {
+    "text": "Hello {name},",
+    "args": [["name", "text"]],
+    "note": "First line of every email the bridge sends to an Off The Cloud account holder (confirming the email address, resetting the password, the account-removal warning), on its own line above the text. {name} is the person's first name as they gave it at sign-up. Plain-text email.",
+    "max": 60
+  },
+  "mail.greeting.plain": {
+    "text": "Hello,",
+    "note": "First line of every email the bridge sends to an Off The Cloud account holder whose name isn't known (an account made with Apple that shared no name), on its own line above the text. Plain-text email.",
+    "max": 30
+  },
+  "mail.inactivity.body": {
+    "text": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, and no app or friend has reached your devices through the bridge.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or use your device through the bridge before then.",
+    "args": [["email", "text"], ["date", "text"], ["link", "text"]],
+    "note": "Text of the email warning that an unused account will be removed in a month, as the terms of use say. Plain text: keep the empty lines between paragraphs. It follows the greeting (mail.greeting.*) and is signed \"Off The Cloud\" below. {email} is the account's email address, {date} the removal date (written by mail.date.long), {link} the account page's address (https://off-the.cloud/account). The bridge is the service that gives a device its address on the internet; device names are those addresses. The devices themselves, and their files, are not affected.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e20a43eb"
+  },
+  "mail.inactivity.subject": {
+    "text": "Your Off The Cloud account will be removed on {date}",
+    "args": [["date", "text"]],
+    "note": "Subject of the email warning that an unused account will be removed in a month (mail.inactivity.body). {date} is the removal date, written by mail.date.long (\"11 November 2026\").",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e09bca76"
+  },
+  "mail.reset.body": {
+    "text": "Someone - hopefully you - asked to reset the password of the Off The Cloud account for this email. To choose a new one, open this link:\n\n{link}\n\nThe link works for one hour, once. Setting a new password signs your account out everywhere else.\n\nIf you didn't ask for this, ignore this email: your password stays as it is.",
+    "args": [["link", "text"]],
+    "note": "Text of the email sent after Forgot password on the account page (off-the.cloud/account). Plain text: keep the empty lines, and {link} on a line of its own. It follows the greeting (mail.greeting.*) and is signed \"- Off The Cloud\" with the website's address below. {link} is the one-time link that opens the account page to choose a new password.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #8468a3ce"
+  },
+  "mail.reset.subject": {
+    "text": "Reset your Off The Cloud password",
+    "note": "Subject of the email sent after Forgot password on the account page, carrying a link to choose a new password (mail.reset.body).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #bef1f071"
+  },
+  "mail.verify.body": {
+    "text": "Please confirm that this is your email address by opening this link:\n\n{link}\n\nThe link works for 48 hours. Once your email is confirmed you can register your devices on the bridge.\n\nIf you didn't create an Off The Cloud account, ignore this email: nothing is registered for this address without the confirmation.",
+    "args": [["link", "text"]],
+    "note": "Text of the email sent after signing up for an Off The Cloud account with an email address, to confirm the address (and again when asked for). Plain text: keep the empty lines, and {link} on a line of its own. It follows the greeting (mail.greeting.*) and is signed \"- Off The Cloud\" with the website's address below. {link} is the confirmation link. Registering a device on the bridge gives it its address on the internet (name.off-the.cloud).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d0233fac"
+  },
+  "mail.verify.subject": {
+    "text": "Confirm your email for Off The Cloud",
+    "note": "Subject of the email sent after signing up for an Off The Cloud account with an email address, carrying the link that confirms the address (mail.verify.body)."
+  }
+}

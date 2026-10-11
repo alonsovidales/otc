@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{.Tag}}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex" />
-    <title>Device not available</title>
-    <style>
+    <title>{{t "site.device.unavailable.title"}}</title>
+    <style nonce="{{.Nonce}}">
       :root { color-scheme: dark; }
       body {
         margin: 0;
@@ -53,31 +53,33 @@
               stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
         <path d="M3 3l18 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
       </svg>
-      <h1>This device isn't available right now</h1>
+      <h1>{{t "site.device.unavailable.heading"}}</h1>
       <p>
-        It looks like it's switched off, offline, or still starting up. Nothing has been
-        lost — everything stays on the device itself. Try again in a moment.
+        {{t "site.device.unavailable.text"}}
       </p>
       <div class="retry">
-        <button type="button" id="retry">Try again</button>
+        <button type="button" id="retry">{{t "site.device.unavailable.retry"}}</button>
         <div class="countdown" id="countdown"></div>
       </div>
     </div>
-    <script>
+    <!-- The countdown's line for each second left (index = seconds), in the page's language. -->
+    <script type="application/json" id="countdown-text">{{series "site.device.unavailable.countdown" "seconds" 0 30}}</script>
+    <script nonce="{{.Nonce}}">
       // Checking back on its own matters more here than on most error
       // pages: a device that's simply rebooting (a `make pi` deploy, a
       // power blip) comes back within a minute, and whoever hit this
       // shouldn't have to sit there refreshing to find out.
-      var seconds = 30;
+      var checking = JSON.parse(document.getElementById('countdown-text').textContent);
+      var seconds = checking.length - 1;
       var countdown = document.getElementById('countdown');
       var retry = document.getElementById('retry');
       retry.addEventListener('click', function () { location.reload(); });
       setInterval(function () {
         seconds -= 1;
         if (seconds <= 0) { location.reload(); return; }
-        countdown.textContent = 'Checking again in ' + seconds + 's';
+        countdown.textContent = checking[seconds];
       }, 1000);
-      countdown.textContent = 'Checking again in ' + seconds + 's';
+      countdown.textContent = checking[seconds];
     </script>
   </body>
 </html>

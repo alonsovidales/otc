@@ -268,33 +268,33 @@ func parseRange(header string) (rangeSpec, error) {
 	}
 	spec, found := strings.CutPrefix(strings.TrimSpace(header), "bytes=")
 	if !found {
-		return rangeSpec{}, fmt.Errorf("unsupported range unit: %q", header)
+		return rangeSpec{}, fmt.Errorf("unsupported range unit: %q", header) // i18n-ignore: answered with a bare status, never sent
 	}
 	first, _, _ := strings.Cut(spec, ",")
 	startText, endText, ok := strings.Cut(strings.TrimSpace(first), "-")
 	if !ok {
-		return rangeSpec{}, fmt.Errorf("malformed range: %q", header)
+		return rangeSpec{}, fmt.Errorf("malformed range: %q", header) // i18n-ignore: answered with a bare status, never sent
 	}
 
 	if startText == "" {
 		lenText := strings.TrimPrefix(strings.TrimSpace(first), "-")
 		n, err := strconv.ParseInt(lenText, 10, 64)
 		if err != nil || n <= 0 {
-			return rangeSpec{}, fmt.Errorf("malformed suffix range: %q", header)
+			return rangeSpec{}, fmt.Errorf("malformed suffix range: %q", header) // i18n-ignore: answered with a bare status, never sent
 		}
 		return rangeSpec{present: true, suffixLen: n}, nil
 	}
 
 	start, err := strconv.ParseInt(startText, 10, 64)
 	if err != nil || start < 0 {
-		return rangeSpec{}, fmt.Errorf("malformed range start: %q", header)
+		return rangeSpec{}, fmt.Errorf("malformed range start: %q", header) // i18n-ignore: answered with a bare status, never sent
 	}
 
 	out := rangeSpec{present: true, start: start}
 	if endText = strings.TrimSpace(endText); endText != "" {
 		end, err := strconv.ParseInt(endText, 10, 64)
 		if err != nil || end < start {
-			return rangeSpec{}, fmt.Errorf("malformed range end: %q", header)
+			return rangeSpec{}, fmt.Errorf("malformed range end: %q", header) // i18n-ignore: answered with a bare status, never sent
 		}
 		out.end, out.hasEnd = end, true
 	}

@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -102,10 +103,14 @@ func TestContactCooldownIgnoresTheSourcePort(t *testing.T) {
 // a 503 (temporarily absent, try again) rather than a 502 (broken
 // upstream), so both a person and anything machine-read gets told the same
 // thing.
+//
+// The page comes from the binary (package site, in the visitor's language:
+// English here), never from a copy an earlier deploy left in the static
+// directory.
 func TestUnreachableDeviceGetsTheUnavailablePageNotABareGateway(t *testing.T) {
 	staticDir := t.TempDir() + "/"
 	const body = "<h1>This device isn't available right now</h1>"
-	if err := os.WriteFile(staticDir+"unavailable.html", []byte(body), 0644); err != nil {
+	if err := os.WriteFile(staticDir+"unavailable.html", []byte("<h1>a stale copy</h1>"), 0644); err != nil {
 		t.Fatalf("writing unavailable.html: %v", err)
 	}
 
@@ -127,7 +132,7 @@ func TestUnreachableDeviceGetsTheUnavailablePageNotABareGateway(t *testing.T) {
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusServiceUnavailable)
 	}
-	if got := rec.Body.String(); got != body {
+	if got := html.UnescapeString(rec.Body.String()); !strings.Contains(got, body) || strings.Contains(got, "stale") {
 		t.Errorf("body = %q, want the unavailable page", got)
 	}
 	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {

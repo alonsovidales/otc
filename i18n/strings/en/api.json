@@ -1,0 +1,349 @@
+{
+  "api.error.account_check_unavailable": {
+    "text": "could not check your account right now",
+    "note": "Error from the Off The Cloud bridge (code account_check_unavailable), shown on the account page (off-the.cloud/account) when deleting the account or adding a device name: the bridge could not read the account just then (its database failed). Worth trying again. Lower case, no final full stop, as every bridge error."
+  },
+  "api.error.claim_unavailable": {
+    "text": "could not reserve that name right now",
+    "note": "Error from the bridge (code claim_unavailable), shown by the device's setup wizard and by Settings > Bridge when the bridge failed to reserve the device's name (its database failed). Worth trying again. A name is the device's address on the bridge (name.off-the.cloud)."
+  },
+  "api.error.cross_origin": {
+    "text": "not allowed from this page",
+    "note": "Error from the bridge (code cross_origin): a request to change an account or a device name came from a page that isn't the bridge's own (off-the.cloud), and was refused for safety."
+  },
+  "api.error.delete_unavailable": {
+    "text": "could not delete the account right now",
+    "note": "Error from the bridge (code delete_unavailable), shown on the account page when Delete my account failed (the database failed): nothing was deleted. Worth trying again."
+  },
+  "api.error.domain_limit": {
+    "text": "an account can register up to {max_domains} domains - for more ({price_eur} euros a year each), write to {contact}",
+    "args": [["max_domains", "int"], ["price_eur", "int"], ["contact", "text"]],
+    "note": "Error from the bridge (code domain_limit), shown on the account page and by the setup wizard when the account already has the most device names (domains) the terms allow. {max_domains} is that limit (5), {price_eur} the yearly price in euros of each name beyond it (2), {contact} the email address to write to (info@off-the.cloud)."
+  },
+  "api.error.domains_unavailable": {
+    "text": "could not list your domains right now",
+    "note": "Error from the bridge (code domains_unavailable), shown on the account page when its list of the account's device names (domains) could not be read. Worth trying again."
+  },
+  "api.error.email_not_verified": {
+    "text": "confirm your email first - open the link we sent you, or ask for a new one above",
+    "note": "Error from the bridge (code email_not_verified), shown on the account page when getting a setup code or adding a device name before the account's email address is confirmed. The bridge emailed a confirmation link at sign-up; \"above\" is the account page's button to send a new one."
+  },
+  "api.error.email_not_verified_setup": {
+    "text": "Confirm your email first: we sent a link to {email}. Open it, then sign in here again to continue.",
+    "args": [["email", "text"]],
+    "note": "Error from the bridge (code email_not_verified), shown by the device's setup wizard when the person signs in to an account whose email address isn't confirmed yet. {email} is the account's email address, where the bridge has just sent a confirmation link; \"here\" is the wizard's sign-in."
+  },
+  "api.error.email_send_unavailable": {
+    "text": "could not send it right now",
+    "note": "Error from the bridge (code email_send_unavailable), shown on the account page after asking for a new confirmation email, when the bridge could not read the account to send it. \"it\" is that email. Worth trying again."
+  },
+  "api.error.email_send_unavailable_email": {
+    "text": "could not send the email right now",
+    "note": "Error from the bridge (code email_send_unavailable), shown on the account page after asking for a new confirmation email, when sending it failed. Worth trying again."
+  },
+  "api.error.email_taken": {
+    "text": "there is already an account with that email - sign in instead",
+    "note": "Error from the bridge (code email_taken), shown when signing up (account page or setup wizard) with an email address that already has an account."
+  },
+  "api.error.export_unavailable": {
+    "text": "could not export your data right now",
+    "note": "Error from the bridge (code export_unavailable), shown on the account page when Download my data failed. Worth trying again."
+  },
+  "api.error.field_too_long": {
+    "text": "one of the fields is too long",
+    "note": "Error from the bridge (code field_too_long), shown by the contact form on the website (off-the.cloud) when the name, email or message is longer than allowed."
+  },
+  "api.error.internal_error": {
+    "text": "internal error, please try again",
+    "note": "Error from the bridge (code internal_error), shown by the contact form on the website when the message could not be stored. Worth trying again."
+  },
+  "api.error.invalid_body": {
+    "text": "invalid request body",
+    "note": "Error from the bridge (code invalid_body): a request carried data the bridge couldn't read (not the form it expects). Only a broken or outdated page or app gets it."
+  },
+  "api.error.invalid_credentials": {
+    "text": "wrong email or password - if you signed up with Google or Apple, use that instead (on the account page, then a setup code)",
+    "note": "Error from the bridge (code invalid_credentials), shown when signing in with an email and password (account page, setup wizard, Settings > Bridge). The same answer whether the email has no account, the password is wrong or the account has no password, so it never tells whether an account exists: keep it that way. Accounts made with Google or Apple have no password: those sign in on the account page and get a setup code to type instead.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #2b7450a6"
+  },
+  "api.error.invalid_email": {
+    "text": "that email address doesn't look right",
+    "note": "Error from the bridge (code invalid_email), shown when signing up (account page or setup wizard) with something that isn't a valid email address."
+  },
+  "api.error.invalid_email_contact": {
+    "text": "that doesn't look like a valid email address",
+    "note": "Error from the bridge (code invalid_email), shown by the contact form on the website when the email field isn't a valid email address."
+  },
+  "api.error.invalid_language": {
+    "text": "that language is not available",
+    "note": "Error from the bridge (code invalid_language), shown on the account page when choosing a language for the account's emails that this bridge doesn't have."
+  },
+  "api.error.invalid_name": {
+    "text": "a name is lower-case letters, digits and hyphens, up to 63 characters",
+    "note": "Error from the bridge (code invalid_name), shown under the name field in the setup wizard (as the person types) and on the account page when adding a device name: what a valid name is. A name is the device's address on the bridge (name.off-the.cloud), one part of an internet address: only a-z, 0-9 and hyphens."
+  },
+  "api.error.invalid_name_claim": {
+    "text": "that name can't be used",
+    "note": "Error from the bridge (code invalid_name), shown by the setup wizard and Settings > Bridge when reserving a device name the bridge doesn't allow (reserved, or not a valid name)."
+  },
+  "api.error.invalid_name_short": {
+    "text": "invalid name",
+    "note": "Error from the bridge (code invalid_name) when the setup wizard asks whether a device is online under a name that isn't a valid one. The wizard checks names first, so people rarely see it."
+  },
+  "api.error.invalid_setup_code": {
+    "text": "that setup code is not valid or has expired",
+    "note": "Error from the bridge (code invalid_setup_code), shown by the setup wizard and Settings > Bridge when the typed setup code is unknown or too old. A setup code is the 8-character code the account page gives to set up a device; it works for 15 minutes."
+  },
+  "api.error.login_required": {
+    "text": "sign in to register a name",
+    "note": "Error from the bridge (code login_required), shown by the setup wizard when reserving a device name without being signed in to an Off The Cloud account."
+  },
+  "api.error.missing_fields": {
+    "text": "name, email and message are required",
+    "note": "Error from the bridge (code missing_fields), shown by the contact form on the website when one of the three fields is empty."
+  },
+  "api.error.name_check_unavailable": {
+    "text": "could not check that name right now",
+    "note": "Error from the bridge (code name_check_unavailable), shown under the name field in the setup wizard when the bridge could not check whether a device name is free. Worth trying again."
+  },
+  "api.error.name_held": {
+    "text": "that name was released recently and is held for its previous owner for 30 days",
+    "note": "Error from the bridge (code name_held), shown by the setup wizard and on the account page when the device name asked for was given up recently: for 30 days only its previous account can take it back."
+  },
+  "api.error.name_taken": {
+    "text": "that name is already taken",
+    "note": "Error from the bridge (code name_taken), shown by the setup wizard, Settings > Bridge and the account page when another account has that device name."
+  },
+  "api.error.not_signed_in": {
+    "text": "not signed in",
+    "note": "Error from the bridge (code not_signed_in), shown on the account page when its session has ended: the person has to sign in again."
+  },
+  "api.error.not_your_domain": {
+    "text": "that domain is not yours",
+    "note": "Error from the bridge (code not_your_domain), shown on the account page when re-issuing or releasing a device name (domain) that isn't this account's."
+  },
+  "api.error.password_too_short": {
+    "text": "the password needs at least {min_chars} characters",
+    "args": [["min_chars", "int"]],
+    "note": "Error from the bridge (code password_too_short), shown when signing up, changing the password or setting a new one from a reset link with a password that is too short. {min_chars} is the minimum length (8)."
+  },
+  "api.error.profile_incomplete": {
+    "text": "name, surname and country of residence are required",
+    "note": "Error from the bridge (code profile_incomplete), shown when signing up or completing the profile on the account page with one of these fields empty."
+  },
+  "api.error.recent_signin_required": {
+    "text": "sign in again to set a password",
+    "note": "Error from the bridge (code recent_signin_required), shown on the account page when setting a first password on an account made with Google or Apple without a recent sign-in: for safety, it needs one from the last 15 minutes.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #c105bcb1"
+  },
+  "api.error.recent_signin_required_delete": {
+    "text": "sign in again (with Google or Apple), then delete the account within 15 minutes",
+    "note": "Error from the bridge (code recent_signin_required), shown on the account page when deleting an account made with Google or Apple (it has no password to confirm with) without a recent sign-in: for safety, the deletion needs a sign-in from the last 15 minutes.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #00f1653f"
+  },
+  "api.error.recent_signin_required_provider": {
+    "text": "sign in again (with Google or Apple) to set a password",
+    "note": "Error from the bridge (code recent_signin_required), shown on the account page when setting a first password on an account made with Google or Apple whose sign-in is older than 15 minutes: for safety, it needs a fresh one.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #6082ccf6"
+  },
+  "api.error.register_unavailable": {
+    "text": "could not register that name right now",
+    "note": "Error from the bridge (code register_unavailable), shown on the account page when adding a device name failed (the database failed). Worth trying again."
+  },
+  "api.error.reissue_unavailable": {
+    "text": "could not re-issue that domain right now",
+    "note": "Error from the bridge (code reissue_unavailable), shown on the account page when re-issuing a device name (domain) failed. Re-issuing gives the name a new identity for a replacement device. Worth trying again."
+  },
+  "api.error.release_unavailable": {
+    "text": "could not release that domain right now",
+    "note": "Error from the bridge (code release_unavailable), shown on the account page when releasing (giving up) a device name (domain) failed. Worth trying again."
+  },
+  "api.error.reset_link_invalid": {
+    "text": "that link is not valid any more - ask for a new one",
+    "note": "Error from the bridge (code reset_link_invalid), shown on the account page when a password-reset link from an email is used, too old, or unknown. A new one is asked for with Forgot password."
+  },
+  "api.error.reset_unavailable": {
+    "text": "could not reset it right now",
+    "note": "Error from the bridge (code reset_unavailable), shown on the account page when setting a new password from a reset link failed. \"it\" is the password. Worth trying again."
+  },
+  "api.error.save_unavailable": {
+    "text": "could not save right now",
+    "note": "Error from the bridge (code save_unavailable), shown on the account page when saving the profile, the password, the accepted terms or the emails' language failed. Worth trying again."
+  },
+  "api.error.setup_code_check_unavailable": {
+    "text": "could not check that setup code right now",
+    "note": "Error from the bridge (code setup_code_check_unavailable), shown by the setup wizard when the bridge could not check a typed setup code. Worth trying again."
+  },
+  "api.error.setup_code_unavailable": {
+    "text": "could not make a setup code right now",
+    "note": "Error from the bridge (code setup_code_unavailable), shown on the account page when Get a setup code failed. A setup code is the 8-character code that lets a device's setup use this account. Worth trying again."
+  },
+  "api.error.setup_unavailable": {
+    "text": "could not start the setup",
+    "note": "Error from the bridge (code setup_unavailable), shown by the device's setup wizard after signing in, when the bridge could not hand the wizard what it needs to go on. Worth trying again."
+  },
+  "api.error.signin_check_unavailable": {
+    "text": "could not check your sign-in right now - try again",
+    "note": "Error from the bridge (code signin_check_unavailable), shown on the account page when the bridge could not check its session (the database failed): the person is not signed out."
+  },
+  "api.error.signin_expired": {
+    "text": "that sign-in has expired - try again",
+    "note": "Error from the bridge (code signin_expired), shown by the phone apps' Bluetooth setup after Continue with Google or Apple, when the sign-in took too long or was already used."
+  },
+  "api.error.signin_unavailable": {
+    "text": "could not sign in right now",
+    "note": "Error from the bridge (code signin_unavailable), shown when signing in with an email and password failed on the bridge's side (the database failed). Also the text of the plain page a browser shows when a Google or Apple sign-in couldn't be finished for that reason. Worth trying again."
+  },
+  "api.error.signin_unavailable_finish": {
+    "text": "could not finish the sign-in",
+    "note": "Error from the bridge (code signin_unavailable), shown by the phone apps' Bluetooth setup after Continue with Google or Apple, when the bridge could not finish it. Worth trying again."
+  },
+  "api.error.signout_unavailable": {
+    "text": "could not sign out right now",
+    "note": "Error from the bridge (code signout_unavailable), shown on the account page when Sign out everywhere failed. Worth trying again."
+  },
+  "api.error.signup_unavailable": {
+    "text": "could not sign up right now",
+    "note": "Error from the bridge (code signup_unavailable), shown when creating an account (account page or setup wizard) failed on the bridge's side. Worth trying again."
+  },
+  "api.error.terms_not_accepted": {
+    "text": "accept the terms of use above first",
+    "note": "Error from the bridge (code terms_not_accepted), shown on the account page when getting a setup code or adding a device name before accepting the current terms of use; \"above\" is where the page asks for them.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #aa4a72e4"
+  },
+  "api.error.terms_not_accepted_setup": {
+    "text": "accept the terms of use first: sign in at off-the.cloud/account and accept them there",
+    "note": "Error from the bridge (code terms_not_accepted), shown by the setup wizard when the account hasn't accepted the current terms of use yet. off-the.cloud/account is the account page's address; keep it as it is.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #2e1a58b1"
+  },
+  "api.error.terms_required": {
+    "text": "please accept the terms",
+    "note": "Error from the bridge (code terms_required), shown when signing up (account page or setup wizard) without ticking the box that accepts the terms of use.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #8353843d"
+  },
+  "api.error.terms_required_profile": {
+    "text": "please accept the terms of use",
+    "note": "Error from the bridge (code terms_required), shown on the account page when an account made with Google or Apple completes its profile without ticking the box that accepts the terms of use.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #69c24d35"
+  },
+  "api.error.too_many_attempts": {
+    "text": "too many failed attempts, try again later",
+    "note": "Error from the bridge (code too_many_attempts), shown when signing in after too many wrong passwords from this address: the bridge refuses for a few minutes."
+  },
+  "api.error.too_many_attempts_minutes": {
+    "text": "too many attempts - try again in a few minutes",
+    "note": "Error from the bridge (code too_many_attempts), shown on the account page when changing the password or deleting the account after too many wrong passwords from this address: the bridge refuses for a few minutes."
+  },
+  "api.error.too_many_claims": {
+    "text": "please wait a moment before trying another name",
+    "note": "Error from the bridge (code too_many_claims), shown by the setup wizard and Settings > Bridge when names are reserved too quickly one after another (one every 10 seconds)."
+  },
+  "api.error.too_many_emails": {
+    "text": "too many emails asked for from here, try again later",
+    "note": "Error from the bridge (code too_many_emails), shown on the account page after asking for too many confirmation or password-reset emails from this address within an hour."
+  },
+  "api.error.too_many_messages": {
+    "text": "please wait a moment before sending another message",
+    "note": "Error from the bridge (code too_many_messages), shown by the contact form on the website when messages are sent too quickly one after another (one a minute)."
+  },
+  "api.error.too_many_signups": {
+    "text": "too many sign-ups from this address, try again later",
+    "note": "Error from the bridge (code too_many_signups), shown when creating an account after too many sign-ups from this address within an hour."
+  },
+  "api.error.verify_link_invalid": {
+    "text": "that link is not valid any more - sign in and ask for a new one",
+    "note": "Error from the bridge (code verify_link_invalid), shown on the account page when an email confirmation link is used, too old, or unknown. Signed in, the account page can send a new one."
+  },
+  "api.error.verify_unavailable": {
+    "text": "could not confirm right now",
+    "note": "Error from the bridge (code verify_unavailable), shown on the account page when opening an email confirmation link failed on the bridge's side. Worth trying again."
+  },
+  "api.error.wrong_password": {
+    "text": "the password is not right",
+    "note": "Error from the bridge (code wrong_password), shown on the account page when deleting the account with a wrong password (it asks for the password to confirm the deletion).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #18598bd5"
+  },
+  "api.error.wrong_password_current": {
+    "text": "the current password is not right",
+    "note": "Error from the bridge (code wrong_password), shown on the account page when changing the password and the current password typed is wrong.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #54ee2c38"
+  },
+  "api.page.bad_callback": {
+    "text": "bad callback",
+    "note": "Plain error page the browser shows when Google or Apple sends it back to the bridge with an answer the bridge can't read (rare). \"callback\" is that return from the provider to the bridge."
+  },
+  "api.page.challenge_required": {
+    "text": "an app sign-in needs a valid challenge",
+    "note": "Plain error page shown in a phone app's sign-in sheet when the app starts Continue with Google or Apple without the security value it must send (a \"challenge\"). Only a broken or outdated app gets it."
+  },
+  "api.page.invalid_return": {
+    "text": "that return address is not allowed",
+    "note": "Plain error page the browser shows when a Google or Apple sign-in is asked to come back to an address the bridge doesn't allow: only the device's own setup page, on the home network, or the apps."
+  },
+  "api.page.not_navigation": {
+    "text": "a sign-in starts from a link, not from within another page",
+    "note": "Plain error page the browser shows when a Google or Apple sign-in was started from inside another page (a frame or a script) instead of by following a link or button."
+  },
+  "api.page.open_from_account": {
+    "text": "open this from your account page",
+    "note": "Plain error page the browser shows when the step that sends a person back to the device's setup, after completing the profile, was opened from another site instead of the account page (off-the.cloud/account)."
+  },
+  "api.page.provider_unknown": {
+    "text": "that sign-in provider is not configured on this bridge",
+    "note": "Plain error page the browser shows when a sign-in with Google or Apple is asked for and this bridge has not been set up for that provider."
+  },
+  "api.page.start_unavailable": {
+    "text": "could not start the sign-in",
+    "note": "Plain error page the browser shows when the bridge could not start a Google or Apple sign-in (its database failed). Worth trying again."
+  },
+  "api.page.too_many_starts": {
+    "text": "too many sign-in attempts from this address, try again in a minute",
+    "note": "Plain error page the browser shows when Google or Apple sign-ins are started too often from this address (30 a minute)."
+  },
+  "api.relay.account_disabled": {
+    "text": "This account has been disabled.",
+    "note": "Error the bridge sends an app or browser that connects to a device user (an extra user on someone's device) that the device's owner has disabled. The apps show their own text for it (code account_disabled); older ones show this."
+  },
+  "api.relay.device_unreachable": {
+    "text": "This device isn't reachable right now. It may be switched off or offline - please try again later.",
+    "note": "Error the bridge sends an app or browser trying to reach an Off The Cloud device that has no connection to the bridge right now. The apps show their own text for it (code device_unreachable); older ones show this."
+  },
+  "api.relay.domain_check_failed": {
+    "text": "error checking domain",
+    "note": "Error the bridge sends a device asking whether a name (domain) is free for a new user on it, when the bridge could not check (its database failed). The device may show it as the detail of a failed step."
+  },
+  "api.relay.internal_error": {
+    "text": "The bridge could not do this right now, try again later",
+    "note": "Error the bridge sends a device when its own database failed: when the device signs in to it, changes its secret, gives up its name or sends its logs. The device shows it as the detail of a failed action, for example after Send logs. No final full stop in English."
+  },
+  "api.relay.invalid_secret": {
+    "text": "Invalid Secret",
+    "note": "Error the bridge sends a device whose identity (its secret, a password the device keeps for the bridge) doesn't match the bridge's record. The device shows it as the detail of a failed action, such as Send logs, or in its log."
+  },
+  "api.relay.logs_no_email": {
+    "text": "the bridge can't send email right now",
+    "note": "Error after Settings > Logs > Send to us: the bridge, which emails the device's logs to the project, has no email set up right now."
+  },
+  "api.relay.logs_send_failed": {
+    "text": "the logs could not be sent right now",
+    "note": "Error after Settings > Logs > Send to us: the bridge failed to email the device's logs to the project. Worth trying again."
+  },
+  "api.relay.logs_too_big": {
+    "text": "the logs are too big to send",
+    "note": "Error after Settings > Logs > Send to us: the device's logs are larger than the bridge accepts."
+  },
+  "api.relay.logs_too_often": {
+    "text": "logs were sent from this device a few times already - try again in an hour",
+    "note": "Error after Settings > Logs > Send to us: this device already sent its logs 3 times within the hour."
+  }
+}

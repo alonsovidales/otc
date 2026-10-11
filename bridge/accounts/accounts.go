@@ -287,11 +287,11 @@ func (a *Accounts) RequireAuth(next func(w http.ResponseWriter, r *http.Request,
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok, err := a.AccountFromRequest(r)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "signin_check_unavailable", "could not check your sign-in right now - try again")
+			writeError(w, http.StatusInternalServerError, "signin_check_unavailable", errorText(i18n.ApiErrorSigninCheckUnavailable()))
 			return
 		}
 		if !ok {
-			writeError(w, http.StatusUnauthorized, "not_signed_in", "not signed in")
+			writeError(w, http.StatusUnauthorized, "not_signed_in", errorText(i18n.ApiErrorNotSignedIn()))
 			return
 		}
 		next(w, r, id)
@@ -490,12 +490,11 @@ func writeError(w http.ResponseWriter, status int, code, msg string) {
 	writeJSON(w, status, map[string]string{"code": code, "error": msg})
 }
 
-// The English of the two answers most handlers share: a body that isn't
-// the JSON asked for, and a write that failed.
-const (
-	cInvalidBody     = "invalid request body"
-	cSaveUnavailable = "could not save right now"
-)
+// errorText is the "error" of an answer: its text in the catalog
+// (api.error.*), in English for every request (docs/i18n.md) - the
+// clients from before codes show it as it is, and the account page and
+// the apps word an answer by its code, in the reader's language.
+func errorText(m i18n.Msg) string { return m.Render("en") }
 
 func accountJSON(acc *dao.Account) map[string]any {
 	return map[string]any{
@@ -530,12 +529,12 @@ func (a *Accounts) answerAccount(w http.ResponseWriter, r *http.Request, acc *da
 			// verify_email and waits for the link instead.
 			out["verify_email"] = true
 			out["code"] = "email_not_verified"
-			out["error"] = fmt.Sprintf("Confirm your email first: we sent a link to %s. Open it, then sign in here again to continue.", acc.Email)
+			out["error"] = errorText(i18n.ApiErrorEmailNotVerifiedSetup(acc.Email))
 			if status == http.StatusOK {
 				// A sign-in, not the sign-up that just sent one: send the
 				// link again in case the first one got lost.
 				status = http.StatusForbidden
-				if err := a.sendVerification(acc); err != nil {
+				if err := a.sendVerification(acc, acc.Lang); err != nil {
 					log.Error("could not send a verification email for", acc.ID, ":", err)
 				}
 			}
@@ -544,12 +543,12 @@ func (a *Accounts) answerAccount(w http.ResponseWriter, r *http.Request, acc *da
 		}
 		tok, err := a.IssueSetupToken(acc.ID)
 		if errors.Is(err, ErrTermsNotAccepted) {
-			writeError(w, http.StatusForbidden, "terms_not_accepted", cTermsMessage)
+			writeError(w, http.StatusForbidden, "terms_not_accepted", errorText(i18n.ApiErrorTermsNotAcceptedSetup()))
 			return
 		}
 		if err != nil {
 			log.Error("error issuing a setup token:", err)
-			writeError(w, http.StatusInternalServerError, "setup_unavailable", "could not start the setup")
+			writeError(w, http.StatusInternalServerError, "setup_unavailable", errorText(i18n.ApiErrorSetupUnavailable()))
 			return
 		}
 		out["setup_token"] = tok
@@ -562,7 +561,7 @@ func (a *Accounts) answerAccount(w http.ResponseWriter, r *http.Request, acc *da
 // optional, is the language of the page signing up (requestLanguage).
 func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 	if a.signups != nil && !a.signups.Allow(clientIP(r)) {
-		writeError(w, http.StatusTooManyRequests, "too_many_signups", "too many sign-ups from this address, try again later")
+		writeError(w, http.StatusTooManyRequests, "too_many_signups", errorText(i18n.ApiErrorTooManySignups()))
 		return
 	}
 	var body struct {
@@ -571,58 +570,61 @@ func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 		Lang                                    string `json:"lang"`
 	}
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_body", cInvalidBody)
+		writeError(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
 		return
 	}
 	email, ok := validEmail(body.Email)
 	if !ok {
-		writeError(w, http.StatusBadRequest, "invalid_email", "that email address doesn't look right")
+		writeError(w, http.StatusBadRequest, "invalid_email", errorText(i18n.ApiErrorInvalidEmail()))
 		return
 	}
 	if len(body.Password) < cMinPassword {
-		writeError(w, http.StatusBadRequest, "password_too_short", fmt.Sprintf("the password needs at least %d characters", cMinPassword))
+		writeError(w, http.StatusBadRequest, "password_too_short", errorText(i18n.ApiErrorPasswordTooShort(cMinPassword)))
 		return
 	}
 	name, ok1 := validName(body.Name)
 	surname, ok2 := validName(body.Surname)
 	country, ok3 := validCountry(body.Country)
 	if !ok1 || !ok2 || !ok3 {
-		writeError(w, http.StatusBadRequest, "profile_incomplete", "name, surname and country of residence are required")
+		writeError(w, http.StatusBadRequest, "profile_incomplete", errorText(i18n.ApiErrorProfileIncomplete()))
 		return
 	}
 	if !body.AcceptTerms {
-		writeError(w, http.StatusBadRequest, "terms_required", "please accept the terms")
+		writeError(w, http.StatusBadRequest, "terms_required", errorText(i18n.ApiErrorTermsRequired()))
 		return
 	}
 	if existing, err := a.dao.GetAccountByEmail(email); err != nil {
 		log.Error("error checking an email at sign-up:", err)
-		writeError(w, http.StatusInternalServerError, "signup_unavailable", "could not sign up right now")
+		writeError(w, http.StatusInternalServerError, "signup_unavailable", errorText(i18n.ApiErrorSignupUnavailable()))
 		return
 	} else if existing != nil {
-		writeError(w, http.StatusConflict, "email_taken", "there is already an account with that email - sign in instead")
+		writeError(w, http.StatusConflict, "email_taken", errorText(i18n.ApiErrorEmailTaken()))
 		return
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), limits.BcryptCost)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "signup_unavailable", "could not sign up right now")
+		writeError(w, http.StatusInternalServerError, "signup_unavailable", errorText(i18n.ApiErrorSignupUnavailable()))
 		return
 	}
 	now := time.Now()
+	// The language of its emails. Kept apart for the first one: the
+	// account can lose it (a database without the column yet).
+	lang := requestLanguage(body.Lang, r)
 	acc := dao.Account{
 		ID: uuid.New().String(), Email: email, Name: name, Surname: surname, Country: country,
 		PasswordHash: string(hash), Created: now, LastSeen: now, FreeUntil: now.AddDate(FreeYears, 0, 0),
-		TermsVersion: TermsVersion, TermsAcceptedAt: now, Lang: requestLanguage(body.Lang, r),
+		TermsVersion: TermsVersion, TermsAcceptedAt: now, Lang: lang,
 	}
 	if err := a.dao.CreateAccount(&acc); err != nil {
 		log.Error("error creating an account:", err)
-		writeError(w, http.StatusConflict, "email_taken", "there is already an account with that email - sign in instead")
+		writeError(w, http.StatusConflict, "email_taken", errorText(i18n.ApiErrorEmailTaken()))
 		return
 	}
 	// The account's id, never its email or the address it came from
 	// (issue #162: personal data kept in logs with no retention).
 	log.Info("account created:", acc.ID)
 	a.notifyNewAccount(acc.Email)
-	if err := a.sendVerification(&acc); err != nil {
+	if err := a.sendVerification(&acc, lang); err != nil {
 		log.Error("could not send the verification email for", acc.ID, ":", err)
 	}
 	a.signedIn(w, r, &acc, http.StatusCreated)
@@ -631,7 +633,7 @@ func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 // dummyHash is compared against when the email has no password, at the
 // same cost as a real one so the timing doesn't tell them apart.
 var dummyHash = func() string {
-	h, err := bcrypt.GenerateFromPassword([]byte("not a password"), limits.BcryptCost)
+	h, err := bcrypt.GenerateFromPassword([]byte("not a password"), limits.BcryptCost) // i18n-ignore: a dummy bcrypt input, never shown
 	if err != nil {
 		panic(err)
 	}
@@ -650,19 +652,19 @@ func (a *Accounts) Login(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	ip := clientIP(r)
 	if !a.loginAllowed(ip, now) {
-		writeError(w, http.StatusTooManyRequests, "too_many_attempts", "too many failed attempts, try again later")
+		writeError(w, http.StatusTooManyRequests, "too_many_attempts", errorText(i18n.ApiErrorTooManyAttempts()))
 		return
 	}
 	var body struct{ Email, Password string }
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_body", cInvalidBody)
+		writeError(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
 		return
 	}
 	email, _ := validEmail(body.Email)
 	acc, err := a.dao.GetAccountByEmail(email)
 	if err != nil {
 		log.Error("error looking up an account:", err)
-		writeError(w, http.StatusInternalServerError, "signin_unavailable", "could not sign in right now")
+		writeError(w, http.StatusInternalServerError, "signin_unavailable", errorText(i18n.ApiErrorSigninUnavailable()))
 		return
 	}
 	// bcrypt runs either way, so the timing says nothing about whether the
@@ -675,7 +677,7 @@ func (a *Accounts) Login(w http.ResponseWriter, r *http.Request) {
 		a.loginFailed(ip, now)
 		// The same answer whether or not the email has an account, or
 		// one without a password (issue #163).
-		writeError(w, http.StatusUnauthorized, "invalid_credentials", "wrong email or password - if you signed up with Google or Apple, use that instead (on the account page, then a setup code)")
+		writeError(w, http.StatusUnauthorized, "invalid_credentials", errorText(i18n.ApiErrorInvalidCredentials()))
 		return
 	}
 	a.loginSucceeded(ip)
@@ -701,7 +703,7 @@ func (a *Accounts) Me(w http.ResponseWriter, r *http.Request, accountID string) 
 	acc, err := a.dao.GetAccount(accountID)
 	if err != nil || acc == nil {
 		a.clearSession(w, r)
-		writeError(w, http.StatusUnauthorized, "not_signed_in", "not signed in")
+		writeError(w, http.StatusUnauthorized, "not_signed_in", errorText(i18n.ApiErrorNotSignedIn()))
 		return
 	}
 	_ = a.dao.TouchAccount(accountID)
@@ -718,24 +720,24 @@ func (a *Accounts) UpdateProfile(w http.ResponseWriter, r *http.Request, account
 		AcceptTerms            bool `json:"accept_terms"`
 	}
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_body", cInvalidBody)
+		writeError(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
 		return
 	}
 	// A Google/Apple account accepts the terms here, completing its
 	// profile (issue #175): nothing else is saved without it.
 	current, err := a.dao.GetAccount(accountID)
 	if err != nil || current == nil {
-		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
+		writeError(w, http.StatusInternalServerError, "save_unavailable", errorText(i18n.ApiErrorSaveUnavailable()))
 		return
 	}
 	if !TermsAccepted(current) {
 		if !body.AcceptTerms {
-			writeError(w, http.StatusBadRequest, "terms_required", "please accept the terms of use")
+			writeError(w, http.StatusBadRequest, "terms_required", errorText(i18n.ApiErrorTermsRequiredProfile()))
 			return
 		}
 		if err := a.dao.AcceptTerms(accountID, TermsVersion, time.Now()); err != nil {
 			log.Error("error recording the terms acceptance:", err)
-			writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
+			writeError(w, http.StatusInternalServerError, "save_unavailable", errorText(i18n.ApiErrorSaveUnavailable()))
 			return
 		}
 	}
@@ -743,17 +745,17 @@ func (a *Accounts) UpdateProfile(w http.ResponseWriter, r *http.Request, account
 	surname, ok2 := validName(body.Surname)
 	country, ok3 := validCountry(body.Country)
 	if !ok1 || !ok2 || !ok3 {
-		writeError(w, http.StatusBadRequest, "profile_incomplete", "name, surname and country of residence are required")
+		writeError(w, http.StatusBadRequest, "profile_incomplete", errorText(i18n.ApiErrorProfileIncomplete()))
 		return
 	}
 	if err := a.dao.UpdateAccountProfile(accountID, name, surname, country); err != nil {
 		log.Error("error updating a profile:", err)
-		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
+		writeError(w, http.StatusInternalServerError, "save_unavailable", errorText(i18n.ApiErrorSaveUnavailable()))
 		return
 	}
 	acc, err := a.dao.GetAccount(accountID)
 	if err != nil || acc == nil {
-		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
+		writeError(w, http.StatusInternalServerError, "save_unavailable", errorText(i18n.ApiErrorSaveUnavailable()))
 		return
 	}
 	// No new cookie: saving a profile is no sign-in, and a fresh cookie
@@ -767,7 +769,7 @@ func (a *Accounts) UpdateProfile(w http.ResponseWriter, r *http.Request, account
 func (a *Accounts) AcceptTerms(w http.ResponseWriter, r *http.Request, accountID string) {
 	if err := a.dao.AcceptTerms(accountID, TermsVersion, time.Now()); err != nil {
 		log.Error("error recording the terms acceptance:", err)
-		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
+		writeError(w, http.StatusInternalServerError, "save_unavailable", errorText(i18n.ApiErrorSaveUnavailable()))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
@@ -783,17 +785,17 @@ func (a *Accounts) SetLanguage(w http.ResponseWriter, r *http.Request, accountID
 		Lang *string `json:"lang"`
 	}
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil || body.Lang == nil {
-		writeError(w, http.StatusBadRequest, "invalid_body", cInvalidBody)
+		writeError(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
 		return
 	}
 	lang := i18n.Normalize(*body.Lang)
 	if lang == "" && *body.Lang != "" {
-		writeError(w, http.StatusBadRequest, "invalid_language", "that language is not available")
+		writeError(w, http.StatusBadRequest, "invalid_language", errorText(i18n.ApiErrorInvalidLanguage()))
 		return
 	}
 	if err := a.dao.SetAccountLang(accountID, lang); err != nil {
 		log.Error("error saving an account's language:", err)
-		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
+		writeError(w, http.StatusInternalServerError, "save_unavailable", errorText(i18n.ApiErrorSaveUnavailable()))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "lang": lang})
@@ -849,47 +851,47 @@ func acceptLanguage(header string) string {
 func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID string) {
 	var body struct{ Password, Current string }
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil || len(body.Password) < cMinPassword {
-		writeError(w, http.StatusBadRequest, "password_too_short", fmt.Sprintf("the password needs at least %d characters", cMinPassword))
+		writeError(w, http.StatusBadRequest, "password_too_short", errorText(i18n.ApiErrorPasswordTooShort(cMinPassword)))
 		return
 	}
 	acc, err := a.dao.GetAccount(accountID)
 	if err != nil || acc == nil {
-		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
+		writeError(w, http.StatusInternalServerError, "save_unavailable", errorText(i18n.ApiErrorSaveUnavailable()))
 		return
 	}
 	now := time.Now()
 	if acc.PasswordHash != "" {
 		ip := clientIP(r)
 		if !a.loginAllowed(ip, now) {
-			writeError(w, http.StatusTooManyRequests, "too_many_attempts", "too many attempts - try again in a few minutes")
+			writeError(w, http.StatusTooManyRequests, "too_many_attempts", errorText(i18n.ApiErrorTooManyAttemptsMinutes()))
 			return
 		}
 		if bcrypt.CompareHashAndPassword([]byte(acc.PasswordHash), []byte(body.Current)) != nil {
 			a.loginFailed(ip, now)
-			writeError(w, http.StatusUnauthorized, "wrong_password", "the current password is not right")
+			writeError(w, http.StatusUnauthorized, "wrong_password", errorText(i18n.ApiErrorWrongPasswordCurrent()))
 			return
 		}
 		a.loginSucceeded(ip)
 	} else if c, err := r.Cookie(cSessionCookie); err != nil {
-		writeError(w, http.StatusUnauthorized, "recent_signin_required", "sign in again to set a password")
+		writeError(w, http.StatusUnauthorized, "recent_signin_required", errorText(i18n.ApiErrorRecentSigninRequired()))
 		return
 	} else if _, issued, ok, err := a.session(c.Value, now); err != nil {
-		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
+		writeError(w, http.StatusInternalServerError, "save_unavailable", errorText(i18n.ApiErrorSaveUnavailable()))
 		return
 	} else if !ok || now.Sub(issued) > cFreshSignIn {
-		writeError(w, http.StatusUnauthorized, "recent_signin_required", "sign in again (with Google or Apple) to set a password")
+		writeError(w, http.StatusUnauthorized, "recent_signin_required", errorText(i18n.ApiErrorRecentSigninRequiredProvider()))
 		return
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), limits.BcryptCost)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
+		writeError(w, http.StatusInternalServerError, "save_unavailable", errorText(i18n.ApiErrorSaveUnavailable()))
 		return
 	}
 	// One statement: never a new password with the old sessions still on.
 	epoch, err := a.dao.SetAccountPasswordEndingSessions(accountID, string(hash))
 	if err != nil {
 		log.Error("error setting a password:", err)
-		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
+		writeError(w, http.StatusInternalServerError, "save_unavailable", errorText(i18n.ApiErrorSaveUnavailable()))
 		return
 	}
 	a.setSessionAt(w, accountID, epoch)
@@ -904,19 +906,19 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 func (a *Accounts) ConfirmOwner(w http.ResponseWriter, r *http.Request, accountID, password string) bool {
 	acc, err := a.dao.GetAccount(accountID)
 	if err != nil || acc == nil {
-		writeError(w, http.StatusInternalServerError, "account_check_unavailable", "could not check your account right now")
+		writeError(w, http.StatusInternalServerError, "account_check_unavailable", errorText(i18n.ApiErrorAccountCheckUnavailable()))
 		return false
 	}
 	now := time.Now()
 	if acc.PasswordHash != "" {
 		ip := clientIP(r)
 		if !a.loginAllowed(ip, now) {
-			writeError(w, http.StatusTooManyRequests, "too_many_attempts", "too many attempts - try again in a few minutes")
+			writeError(w, http.StatusTooManyRequests, "too_many_attempts", errorText(i18n.ApiErrorTooManyAttemptsMinutes()))
 			return false
 		}
 		if bcrypt.CompareHashAndPassword([]byte(acc.PasswordHash), []byte(password)) != nil {
 			a.loginFailed(ip, now)
-			writeError(w, http.StatusUnauthorized, "wrong_password", "the password is not right")
+			writeError(w, http.StatusUnauthorized, "wrong_password", errorText(i18n.ApiErrorWrongPassword()))
 			return false
 		}
 		a.loginSucceeded(ip)
@@ -924,16 +926,16 @@ func (a *Accounts) ConfirmOwner(w http.ResponseWriter, r *http.Request, accountI
 	}
 	c, err := r.Cookie(cSessionCookie)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "recent_signin_required", "sign in again (with Google or Apple), then delete the account within 15 minutes")
+		writeError(w, http.StatusUnauthorized, "recent_signin_required", errorText(i18n.ApiErrorRecentSigninRequiredDelete()))
 		return false
 	}
 	_, issued, ok, err := a.session(c.Value, now)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "signin_check_unavailable", "could not check your sign-in right now - try again")
+		writeError(w, http.StatusInternalServerError, "signin_check_unavailable", errorText(i18n.ApiErrorSigninCheckUnavailable()))
 		return false
 	}
 	if !ok || now.Sub(issued) > cFreshSignIn {
-		writeError(w, http.StatusUnauthorized, "recent_signin_required", "sign in again (with Google or Apple), then delete the account within 15 minutes")
+		writeError(w, http.StatusUnauthorized, "recent_signin_required", errorText(i18n.ApiErrorRecentSigninRequiredDelete()))
 		return false
 	}
 	return true
@@ -948,7 +950,7 @@ func (a *Accounts) EndSession(w http.ResponseWriter, r *http.Request) { a.clearS
 func (a *Accounts) Export(w http.ResponseWriter, r *http.Request, accountID string) {
 	out, err := a.dao.ExportAccount(accountID)
 	if err != nil || out == nil {
-		writeError(w, http.StatusInternalServerError, "export_unavailable", "could not export your data right now")
+		writeError(w, http.StatusInternalServerError, "export_unavailable", errorText(i18n.ApiErrorExportUnavailable()))
 		return
 	}
 	w.Header().Set("Content-Disposition", `attachment; filename="off-the-cloud-account.json"`)
@@ -962,7 +964,7 @@ func (a *Accounts) Export(w http.ResponseWriter, r *http.Request, accountID stri
 // (issue #164). POST /api/account/logout-everywhere.
 func (a *Accounts) LogoutEverywhere(w http.ResponseWriter, r *http.Request, accountID string) {
 	if _, err := a.dao.BumpAccountSessionEpoch(accountID); err != nil {
-		writeError(w, http.StatusInternalServerError, "signout_unavailable", "could not sign out right now")
+		writeError(w, http.StatusInternalServerError, "signout_unavailable", errorText(i18n.ApiErrorSignoutUnavailable()))
 		return
 	}
 	a.clearSession(w, r)
@@ -974,16 +976,16 @@ func (a *Accounts) LogoutEverywhere(w http.ResponseWriter, r *http.Request, acco
 func (a *Accounts) SetupToken(w http.ResponseWriter, r *http.Request, accountID string) {
 	tok, err := a.IssueSetupToken(accountID)
 	if errors.Is(err, ErrEmailNotVerified) {
-		writeError(w, http.StatusForbidden, "email_not_verified", "confirm your email first - open the link we sent you, or ask for a new one above")
+		writeError(w, http.StatusForbidden, "email_not_verified", errorText(i18n.ApiErrorEmailNotVerified()))
 		return
 	}
 	if errors.Is(err, ErrTermsNotAccepted) {
-		writeError(w, http.StatusForbidden, "terms_not_accepted", cTermsMessage)
+		writeError(w, http.StatusForbidden, "terms_not_accepted", errorText(i18n.ApiErrorTermsNotAcceptedSetup()))
 		return
 	}
 	if err != nil {
 		log.Error("error issuing a setup token:", err)
-		writeError(w, http.StatusInternalServerError, "setup_code_unavailable", "could not make a setup code right now")
+		writeError(w, http.StatusInternalServerError, "setup_code_unavailable", errorText(i18n.ApiErrorSetupCodeUnavailable()))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"setup_token": tok, "expires_in_seconds": int(cSetupTokenTTL.Seconds())})
@@ -994,20 +996,20 @@ func (a *Accounts) SetupToken(w http.ResponseWriter, r *http.Request, accountID 
 func (a *Accounts) SetupTokenInfo(w http.ResponseWriter, r *http.Request) {
 	id, ok, err := a.LookupSetupToken(r.URL.Query().Get("token"))
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "setup_code_check_unavailable", "could not check that setup code right now")
+		writeError(w, http.StatusInternalServerError, "setup_code_check_unavailable", errorText(i18n.ApiErrorSetupCodeCheckUnavailable()))
 		return
 	}
 	if !ok {
-		writeError(w, http.StatusNotFound, "invalid_setup_code", "that setup code is not valid or has expired")
+		writeError(w, http.StatusNotFound, "invalid_setup_code", errorText(i18n.ApiErrorInvalidSetupCode()))
 		return
 	}
 	acc, err := a.dao.GetAccount(id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "setup_code_check_unavailable", "could not check that setup code right now")
+		writeError(w, http.StatusInternalServerError, "setup_code_check_unavailable", errorText(i18n.ApiErrorSetupCodeCheckUnavailable()))
 		return
 	}
 	if acc == nil {
-		writeError(w, http.StatusNotFound, "invalid_setup_code", "that setup code is not valid or has expired")
+		writeError(w, http.StatusNotFound, "invalid_setup_code", errorText(i18n.ApiErrorInvalidSetupCode()))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"email": acc.Email, "name": acc.Name})
@@ -1125,22 +1127,17 @@ func (a *Accounts) ReturnAllowed(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": ok && r.URL.Query().Get("return") != ""})
 }
 
-// ErrInvalidReturn is what a sign-in start with a bad return URL fails with.
-var ErrInvalidReturn = errors.New("that return address is not allowed")
-
 // ---------------------------------------------------------------------
 // Email verification and password reset
 // ---------------------------------------------------------------------
 
 // ErrEmailNotVerified: the account hasn't proven its email, so it gets no
 // setup code and can't register a device name.
-var ErrEmailNotVerified = errors.New("the account's email is not verified")
+var ErrEmailNotVerified = errors.New("the account's email is not verified") // i18n-ignore: compared with errors.Is, never sent
 
 // ErrTermsNotAccepted: the account hasn't accepted the terms of use in
 // force (issue #175), so it gets no setup code.
-var ErrTermsNotAccepted = errors.New("the account has not accepted the terms of use")
-
-const cTermsMessage = "accept the terms of use first: sign in at off-the.cloud/account and accept them there"
+var ErrTermsNotAccepted = errors.New("the account has not accepted the terms of use") // i18n-ignore: compared with errors.Is, never sent
 
 const (
 	cPurposeVerify   = "verify"
@@ -1165,7 +1162,8 @@ func (a *Accounts) notifyNewAccount(email string) {
 		return
 	}
 	go func() {
-		if err := m.Send(m.Self(), "New account", email); err != nil {
+		if err := m.Send(m.Self(), "New account", email); err != nil { // i18n-ignore: an email to the project itself, read by its operators
+
 			log.Error("could not send the new-account email:", err)
 		}
 	}()
@@ -1226,33 +1224,20 @@ func (a *Accounts) sendEmailLink(send func(to, subject, body string) error, acc 
 	return nil
 }
 
-func greeting(acc *dao.Account) string {
-	if acc.Name != "" {
-		return "Hello " + acc.Name + ","
-	}
-	return "Hello,"
-}
-
-func (a *Accounts) sendVerification(acc *dao.Account) error {
+// sendVerification mails acc a link that confirms its email, in lang:
+// the account's language, or at sign-up the one chosen for it.
+func (a *Accounts) sendVerification(acc *dao.Account, lang string) error {
 	return a.emailLink(acc, cPurposeVerify, cVerifyTTL,
-		func(string) string { return "Confirm your email for Off The Cloud" },
-		func(link string) string {
-			return greeting(acc) + "\n\nPlease confirm that this is your email address by opening this link:\n\n" + link +
-				"\n\nThe link works for 48 hours. Once your email is confirmed you can register your devices on the bridge." +
-				"\n\nIf you didn't create an Off The Cloud account, ignore this email: nothing is registered for this address without the confirmation." +
-				"\n\n- Off The Cloud\nhttps://" + a.tld + "\n"
-		})
+		func(string) string { return verificationSubject(lang) },
+		func(link string) string { return a.verificationBody(lang, acc.Name, link) })
 }
 
+// sendReset mails acc a password-reset link, in the account's language -
+// never that of whoever asked for it (any address can be asked for).
 func (a *Accounts) sendReset(acc *dao.Account) error {
 	return a.emailLink(acc, cPurposeReset, cResetTTL,
-		func(string) string { return "Reset your Off The Cloud password" },
-		func(link string) string {
-			return greeting(acc) + "\n\nSomeone - hopefully you - asked to reset the password of the Off The Cloud account for this email. To choose a new one, open this link:\n\n" + link +
-				"\n\nThe link works for one hour, once. Setting a new password signs your account out everywhere else." +
-				"\n\nIf you didn't ask for this, ignore this email: your password stays as it is." +
-				"\n\n- Off The Cloud\nhttps://" + a.tld + "\n"
-		})
+		func(string) string { return resetSubject(acc.Lang) },
+		func(link string) string { return a.resetBody(acc.Lang, acc.Name, link) })
 }
 
 // Verify confirms an email with the link's token. POST /api/account/verify
@@ -1260,20 +1245,20 @@ func (a *Accounts) sendReset(acc *dao.Account) error {
 func (a *Accounts) Verify(w http.ResponseWriter, r *http.Request) {
 	var body struct{ Token string }
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil || body.Token == "" {
-		writeError(w, http.StatusBadRequest, "invalid_body", cInvalidBody)
+		writeError(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
 		return
 	}
 	id, ok, err := a.dao.ConsumeEmailToken(hashEmailToken(body.Token), cPurposeVerify)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "verify_unavailable", "could not confirm right now")
+		writeError(w, http.StatusInternalServerError, "verify_unavailable", errorText(i18n.ApiErrorVerifyUnavailable()))
 		return
 	}
 	if !ok {
-		writeError(w, http.StatusBadRequest, "verify_link_invalid", "that link is not valid any more - sign in and ask for a new one")
+		writeError(w, http.StatusBadRequest, "verify_link_invalid", errorText(i18n.ApiErrorVerifyLinkInvalid()))
 		return
 	}
 	if err := a.dao.SetEmailVerified(id); err != nil {
-		writeError(w, http.StatusInternalServerError, "verify_unavailable", "could not confirm right now")
+		writeError(w, http.StatusInternalServerError, "verify_unavailable", errorText(i18n.ApiErrorVerifyUnavailable()))
 		return
 	}
 	log.Info("email verified for account", id)
@@ -1284,21 +1269,21 @@ func (a *Accounts) Verify(w http.ResponseWriter, r *http.Request) {
 // account. POST /api/account/resend-verification.
 func (a *Accounts) ResendVerification(w http.ResponseWriter, r *http.Request, accountID string) {
 	if a.emailsPerAddr != nil && !a.emailsPerAddr.Allow(clientIP(r)) {
-		writeError(w, http.StatusTooManyRequests, "too_many_emails", "too many emails asked for from here, try again later")
+		writeError(w, http.StatusTooManyRequests, "too_many_emails", errorText(i18n.ApiErrorTooManyEmails()))
 		return
 	}
 	acc, err := a.dao.GetAccount(accountID)
 	if err != nil || acc == nil {
-		writeError(w, http.StatusInternalServerError, "email_send_unavailable", "could not send it right now")
+		writeError(w, http.StatusInternalServerError, "email_send_unavailable", errorText(i18n.ApiErrorEmailSendUnavailable()))
 		return
 	}
 	if acc.EmailVerified {
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 		return
 	}
-	if err := a.sendVerification(acc); err != nil {
+	if err := a.sendVerification(acc, acc.Lang); err != nil {
 		log.Error("could not send a verification email for", acc.ID, ":", err)
-		writeError(w, http.StatusInternalServerError, "email_send_unavailable", "could not send the email right now")
+		writeError(w, http.StatusInternalServerError, "email_send_unavailable", errorText(i18n.ApiErrorEmailSendUnavailableEmail()))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
@@ -1308,12 +1293,12 @@ func (a *Accounts) ResendVerification(w http.ResponseWriter, r *http.Request, ac
 // The answer is the same whether or not the email has an account.
 func (a *Accounts) Forgot(w http.ResponseWriter, r *http.Request) {
 	if a.emailsPerAddr != nil && !a.emailsPerAddr.Allow(clientIP(r)) {
-		writeError(w, http.StatusTooManyRequests, "too_many_emails", "too many emails asked for from here, try again later")
+		writeError(w, http.StatusTooManyRequests, "too_many_emails", errorText(i18n.ApiErrorTooManyEmails()))
 		return
 	}
 	var body struct{ Email string }
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_body", cInvalidBody)
+		writeError(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
 		return
 	}
 	if email, ok := validEmail(body.Email); ok {
@@ -1332,25 +1317,25 @@ func (a *Accounts) Forgot(w http.ResponseWriter, r *http.Request) {
 func (a *Accounts) Reset(w http.ResponseWriter, r *http.Request) {
 	var body struct{ Token, Password string }
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil || body.Token == "" {
-		writeError(w, http.StatusBadRequest, "invalid_body", cInvalidBody)
+		writeError(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
 		return
 	}
 	if len(body.Password) < cMinPassword {
-		writeError(w, http.StatusBadRequest, "password_too_short", fmt.Sprintf("the password needs at least %d characters", cMinPassword))
+		writeError(w, http.StatusBadRequest, "password_too_short", errorText(i18n.ApiErrorPasswordTooShort(cMinPassword)))
 		return
 	}
 	id, ok, err := a.dao.ConsumeEmailToken(hashEmailToken(body.Token), cPurposeReset)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "reset_unavailable", "could not reset it right now")
+		writeError(w, http.StatusInternalServerError, "reset_unavailable", errorText(i18n.ApiErrorResetUnavailable()))
 		return
 	}
 	if !ok {
-		writeError(w, http.StatusBadRequest, "reset_link_invalid", "that link is not valid any more - ask for a new one")
+		writeError(w, http.StatusBadRequest, "reset_link_invalid", errorText(i18n.ApiErrorResetLinkInvalid()))
 		return
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), limits.BcryptCost)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "reset_unavailable", "could not reset it right now")
+		writeError(w, http.StatusInternalServerError, "reset_unavailable", errorText(i18n.ApiErrorResetUnavailable()))
 		return
 	}
 	// One statement: a reset (often for a stolen session) never leaves
@@ -1358,7 +1343,7 @@ func (a *Accounts) Reset(w http.ResponseWriter, r *http.Request) {
 	epoch, err := a.dao.SetAccountPasswordEndingSessions(id, string(hash))
 	if err != nil {
 		log.Error("error resetting a password:", err)
-		writeError(w, http.StatusInternalServerError, "reset_unavailable", "could not reset it right now")
+		writeError(w, http.StatusInternalServerError, "reset_unavailable", errorText(i18n.ApiErrorResetUnavailable()))
 		return
 	}
 	_ = a.dao.SetEmailVerified(id)

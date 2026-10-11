@@ -14,6 +14,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/alonsovidales/otc/i18n"
 )
 
 // Issue #137 follow-up: "Continue with Apple/Google" inside the apps'
@@ -95,22 +97,22 @@ func (a *Accounts) AppExchange(w http.ResponseWriter, r *http.Request) {
 		Verifier string `json:"verifier"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_body", "invalid request body")
+		writeError(w, http.StatusBadRequest, "invalid_body", errorText(i18n.ApiErrorInvalidBody()))
 		return
 	}
 	// Single use, right or wrong.
 	accountID, challenge, created, ok, err := a.dao.ConsumeAppCode(codeHash(strings.TrimSpace(body.Code)))
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "signin_unavailable", "could not finish the sign-in")
+		writeError(w, http.StatusInternalServerError, "signin_unavailable", errorText(i18n.ApiErrorSigninUnavailableFinish()))
 		return
 	}
 	if !ok || time.Since(created) > cAppCodeTTL || !verifierMatches(body.Verifier, challenge) {
-		writeError(w, http.StatusUnauthorized, "signin_expired", "that sign-in has expired - try again")
+		writeError(w, http.StatusUnauthorized, "signin_expired", errorText(i18n.ApiErrorSigninExpired()))
 		return
 	}
 	tok, err := a.IssueSetupToken(accountID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "signin_unavailable", "could not finish the sign-in")
+		writeError(w, http.StatusInternalServerError, "signin_unavailable", errorText(i18n.ApiErrorSigninUnavailableFinish()))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"setup_token": tok})

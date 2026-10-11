@@ -1,0 +1,6 @@
+{
+  "site.common.language": {
+    "text": "Language",
+    "note": "Website (off-the.cloud): name screen readers give the list of links to the page in other languages, at the bottom of the page. Each link shows a language's own name (Español, Français...). Shown only once the site has more than one language."
+  }
+}

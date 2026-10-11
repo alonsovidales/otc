@@ -42,24 +42,30 @@ const (
 	// accumulate an unbounded number of idle connections here.
 	cDefaultMaxConnectionsPerDevice = 100
 
-	// cDeviceUnreachableMsg is what a client is told when a domain is
-	// registered here but its device currently has no connection to relay
-	// through (issue #56). Written for whoever is actually reading it -
-	// the old text was "No available connections in the pool for this
-	// device", which describes the bridge's internal bookkeeping rather
-	// than the only thing the reader can act on: the device is off or
-	// offline, and this is worth retrying. Clients key their "not
-	// reachable" UI off Ack.code (cCodeDeviceUnreachable below) rather
-	// than this prose, so the wording is free to change without breaking
-	// them.
-	cDeviceUnreachableMsg = "This device isn't reachable right now. It may be switched off or offline - please try again later."
-
 	// Ack.code values (issue #56) - the stable tags a client reacts to,
 	// as opposed to the human-readable text alongside them. See the
 	// `code` field's own comment in proto/messages.proto.
 	cCodeDeviceUnreachable = "device_unreachable"
 	cCodeAccountDisabled   = "account_disabled"
 )
+
+// cDeviceUnreachableMsg is what a client is told when a domain is
+// registered here but its device currently has no connection to relay
+// through (issue #56). Written for whoever is actually reading it - the
+// old text was "No available connections in the pool for this device",
+// which describes the bridge's internal bookkeeping rather than the only
+// thing the reader can act on: the device is off or offline, and this is
+// worth retrying. Clients key their "not reachable" UI off Ack.code
+// (cCodeDeviceUnreachable above) rather than this prose, so the wording
+// is free to change without breaking them.
+var cDeviceUnreachableMsg = relayText(i18n.ApiRelayDeviceUnreachable())
+
+// relayText is the text of a reply the bridge sends a device or a client
+// over the websocket, from the catalog (api.relay.*): always English, as
+// the bridge never reads a request's language (docs/i18n.md) - the apps
+// word device_unreachable and account_disabled by their codes, and a
+// device shows the rest as the detail of what failed.
+func relayText(m i18n.Msg) string { return m.Render("en") }
 
 // cOfflineAlertGrace is how long a device can have zero live bridge
 // connections before it's treated as genuinely offline and a push alert
@@ -545,7 +551,7 @@ func noRelease() {}
 func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([]byte, func(), error) {
 	id, err := envelopeID(frame)
 	if err != nil {
-		return nil, noRelease, fmt.Errorf("bad proto: %w", err)
+		return nil, noRelease, fmt.Errorf("bad proto: %w", err) // i18n-ignore: logged, never sent
 	}
 
 	ch := make(chan deviceReply, 1)
@@ -570,12 +576,12 @@ func (d *deviceRelay) forwardWithTimeout(frame []byte, timeout time.Duration) ([
 	select {
 	case resp, ok := <-ch:
 		if !ok {
-			return nil, noRelease, errors.New("device connection closed")
+			return nil, noRelease, errors.New("device connection closed") // i18n-ignore: logged, never sent
 		}
 		return resp.frame, resp.release, nil
 	case <-time.After(timeout):
 		d.abandon(id, ch)
-		return nil, noRelease, fmt.Errorf("timed out waiting for device response")
+		return nil, noRelease, fmt.Errorf("timed out waiting for device response") // i18n-ignore: logged, never sent
 	}
 }
 
@@ -1117,7 +1123,7 @@ func (mg *Manager) closeWithError(conn *gorilla.Conn, id int32, err error) {
 		Payload: &pb.RespEnvelope_RespAck{
 			RespAck: &pb.Ack{
 				Ok:       false,
-				ErrorMsg: fmt.Sprintf("Error: %s", err),
+				ErrorMsg: fmt.Sprintf("Error: %s", err), // i18n-ignore: a Go error as detail; closeWithError has no caller
 			},
 		},
 	}
@@ -1320,12 +1326,12 @@ func (mg *Manager) DropDomains(domains []string) {
 
 // cInternalErrorMsg is what a client is told when the bridge's own store
 // fails; the error itself is logged, never sent (issue #163).
-const cInternalErrorMsg = "The bridge could not do this right now, try again later"
+var cInternalErrorMsg = relayText(i18n.ApiRelayInternalError())
 
 // ErrDeviceBusy is ForwardOneOff's answer when the device already has
 // cOneOffConcurrent one-off requests in flight for longer than
 // cOneOffSlotWait.
-var ErrDeviceBusy = errors.New("the device is busy, try again shortly")
+var ErrDeviceBusy = errors.New("the device is busy, try again shortly") // i18n-ignore: the HTTP side logs it and answers a bare status
 
 func (mg *Manager) oneOffSlot(domain string) chan struct{} {
 	ch, _ := mg.oneOffSlots.LoadOrStore(domain, make(chan struct{}, cOneOffConcurrent))
@@ -1362,7 +1368,7 @@ func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte,
 	pool, ok := mg.bridges[domain]
 	mg.bridgesMu.RUnlock()
 	if !ok {
-		return nil, errors.New("device is offline")
+		return nil, errors.New("device is offline") // i18n-ignore: logged, never sent
 	}
 
 	slot := mg.oneOffSlot(domain)
@@ -1376,7 +1382,7 @@ func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte,
 	for attempt := 0; attempt < cOneOffMaxAttempts; attempt++ {
 		candidate := takeAvailable(pool, cOneOffConnWait)
 		if candidate == nil {
-			return nil, errors.New("no available connections in the pool for this device")
+			return nil, errors.New("no available connections in the pool for this device") // i18n-ignore: logged, never sent
 		}
 
 		var release func()
@@ -1394,7 +1400,7 @@ func (mg *Manager) ForwardOneOff(domain string, frame []byte) (respFrame []byte,
 		}
 		return respFrame, nil
 	}
-	return nil, fmt.Errorf("device did not answer after %d attempts", cOneOffMaxAttempts)
+	return nil, fmt.Errorf("device did not answer after %d attempts", cOneOffMaxAttempts) // i18n-ignore: logged, never sent
 }
 
 func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
@@ -1634,7 +1640,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					} else {
 						log.Error("rejected registration for", domain, "from", conn.RemoteAddr().String(), "- the domain is not registered to any account")
 						resp.Error = true
-						resp.ErrorMessage = "This domain is not registered: create an account at https://" + mg.baseHost() + "/account and add it there, or run the setup again signed in"
+						resp.ErrorMessage = "This domain is not registered: create an account at https://" + mg.baseHost() + "/account and add it there, or run the setup again signed in" // i18n-ignore: a registration reply, which reaches only the device's log
 						// Issue #182: a device whose name stays unknown here
 						// (its account deleted, the name released) goes on
 						// working locally.
@@ -1673,7 +1679,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					log.Error("rejected registration for", domain, "from", conn.RemoteAddr().String(),
 						"- owner/secret do not match the bridge's record (owner claimed:", p.ReqBridgeRegister.OwnerUuid, ")")
 					resp.Error = true
-					resp.ErrorMessage = "Invalid Secret"
+					resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
 					// Someone tried to register an already-claimed domain with
 					// the wrong owner_uuid/secret - could be a misconfigured
 					// device, or someone probing for a weak/leaked secret.
@@ -1689,7 +1695,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					// else) growing one device's pool unbounded.
 					log.Error("device at its connection cap, rejecting:", domain, size)
 					resp.Error = true
-					resp.ErrorMessage = "Device connection pool is full"
+					resp.ErrorMessage = "Device connection pool is full" // i18n-ignore: a registration reply, which reaches only the device's log
 				} else {
 					// The relay (and its read loop) is created right here,
 					// at registration time, rather than lazily once picked -
@@ -1789,7 +1795,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						log.Error("error logging auth event:", logErr)
 					}
 					resp.Error = true
-					resp.ErrorMessage = "Invalid Secret"
+					resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
 				} else {
 					resp.Payload = &pb.RespEnvelope_RespRotateBridgeSecretAck{
 						RespRotateBridgeSecretAck: &pb.RotateBridgeSecretAck{
@@ -1820,7 +1826,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						log.Error("error logging auth event:", logErr)
 					}
 					resp.Error = true
-					resp.ErrorMessage = "Invalid Secret"
+					resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
 				default:
 					log.Info("device released its domain:", req.Domain)
 					mg.DropDomains([]string{req.Domain})
@@ -1847,20 +1853,20 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					if logErr := mg.dao.LogAuthEvent(uuid.New().String(), req.Domain, req.OwnerUuid, conn.RemoteAddr().String(), "invalid_secret"); logErr != nil {
 						log.Error("error logging auth event:", logErr)
 					}
-					resp.Error, resp.ErrorMessage = true, "Invalid Secret"
+					resp.Error, resp.ErrorMessage = true, relayText(i18n.ApiRelayInvalidSecret())
 				case len(req.Logs) > cMaxLogsBytes:
-					resp.Error, resp.ErrorMessage = true, "the logs are too big to send"
+					resp.Error, resp.ErrorMessage = true, relayText(i18n.ApiRelayLogsTooBig())
 				case !mg.logsPerDomain.Allow(req.Domain):
-					resp.Error, resp.ErrorMessage = true, "logs were sent from this device a few times already - try again in an hour"
+					resp.Error, resp.ErrorMessage = true, relayText(i18n.ApiRelayLogsTooOften())
 				case mg.mailer == nil:
-					resp.Error, resp.ErrorMessage = true, "the bridge can't send email right now"
+					resp.Error, resp.ErrorMessage = true, relayText(i18n.ApiRelayLogsNoEmail())
 				default:
 					owner := mg.dao.AccountEmailForDomain(req.Domain)
-					body := fmt.Sprintf("Logs sent from %s for debugging.\nAccount: %s\n\nNote from the owner:\n%s\n", req.Domain, orNone(owner), orNone(strings.TrimSpace(req.Note)))
+					body := fmt.Sprintf("Logs sent from %s for debugging.\nAccount: %s\n\nNote from the owner:\n%s\n", req.Domain, orNone(owner), orNone(strings.TrimSpace(req.Note))) // i18n-ignore: an email to the project itself, read by its operators
 					att := &mailer.Attachment{Name: "otc-logs-" + req.Domain + ".txt.gz", ContentType: "application/gzip", Data: req.Logs}
-					if err := mg.mailer.SendWith(mg.mailer.Self(), owner, "Logs from "+req.Domain, body, att); err != nil {
+					if err := mg.mailer.SendWith(mg.mailer.Self(), owner, "Logs from "+req.Domain, body, att); err != nil { // i18n-ignore: an email to the project itself, read by its operators
 						log.Error("could not mail a device's logs:", err)
-						resp.Error, resp.ErrorMessage = true, "the logs could not be sent right now"
+						resp.Error, resp.ErrorMessage = true, relayText(i18n.ApiRelayLogsSendFailed())
 					} else {
 						log.Info("logs mailed for", req.Domain)
 						resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
@@ -1891,14 +1897,14 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				if err != nil && err != sql.ErrNoRows {
 					log.Error("error validating device for domain availability check:", err)
 					resp.Error = true
-					resp.ErrorMessage = "error checking domain"
+					resp.ErrorMessage = relayText(i18n.ApiRelayDomainCheckFailed())
 				} else if !defined || !validSecret {
 					resp.Error = true
-					resp.ErrorMessage = "Invalid Secret"
+					resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
 				} else if registered, err := mg.dao.IsDomainRegistered(req.CandidateDomain); err != nil {
 					log.Error("error checking whether", req.CandidateDomain, "is registered:", err)
 					resp.Error = true
-					resp.ErrorMessage = "error checking domain"
+					resp.ErrorMessage = relayText(i18n.ApiRelayDomainCheckFailed())
 				} else {
 					resp.Payload = &pb.RespEnvelope_RespDomainAvailable{
 						RespDomainAvailable: &pb.RespDomainAvailable{Available: !registered},
@@ -1929,7 +1935,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						log.Error("error logging auth event:", logErr)
 					}
 					resp.Error = true
-					resp.ErrorMessage = "Invalid Secret"
+					resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
 				} else if err := mg.dao.SetDeviceDisabled(req.Domain, req.Disabled); err != nil {
 					log.Error("error storing disabled-state update:", err)
 					resp.Error = true
@@ -1968,7 +1974,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						log.Error("error logging auth event:", logErr)
 					}
 					resp.Error = true
-					resp.ErrorMessage = "Invalid Secret"
+					resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
 				} else if ps, err := push.Init(&domainPushStorage{dao: mg.dao, domain: req.Domain}); err != nil {
 					log.Error("could not init push for relay:", req.Domain, err)
 					resp.Error = true
@@ -2008,7 +2014,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						log.Error("error logging auth event:", logErr)
 					}
 					resp.Error = true
-					resp.ErrorMessage = "Invalid Secret"
+					resp.ErrorMessage = relayText(i18n.ApiRelayInvalidSecret())
 				} else {
 					// The offline alert posts to these from the bridge itself.
 					apnsTokens, fcmTokens, webSubs, dropped := filterPushRegistrations(req)
@@ -2053,7 +2059,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					log.Error("error checking disabled state for", r.Host, ":", err)
 				} else if disabled {
 					resp.Error = true
-					resp.ErrorMessage = "This account has been disabled."
+					resp.ErrorMessage = relayText(i18n.ApiRelayAccountDisabled())
 					// Both clients' handshake code (web's encryptForConnection,
 					// iOS's connectAndAuth) only ever surfaces an error message
 					// out of a non-respPubKey reply when that reply's payload
@@ -2088,11 +2094,11 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					pairKey := pairingKey(clientAddr(r, conn), r.Host)
 					allowed := mg.reservePairing(pairKey)
 					if !allowed {
-						mg.logRefusal(pairKey, "too many open connections from one address to", r.Host)
+						mg.logRefusal(pairKey, "too many open connections from one address to", r.Host) // i18n-ignore: a log line
 					} else if mg.pairPerAddr != nil && !mg.pairPerAddr.Allow(pairKey) {
 						mg.releasePairing(pairKey)
 						allowed = false
-						mg.logRefusal(pairKey, "too many new connections from one address to", r.Host)
+						mg.logRefusal(pairKey, "too many new connections from one address to", r.Host) // i18n-ignore: a log line
 					}
 					for attempt := 0; allowed && picked == nil && attempt < cPairMaxAttempts; attempt++ {
 						// pool.lock is held only long enough to pop a
@@ -2124,7 +2130,7 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 						// of memory.
 						if pool.liveCount-len(pool.availableConns) >= maxPairedPerDevice() {
 							pool.lock.Unlock()
-							mg.logRefusal(r.Host, "device at its cap of connections in use:", r.Host)
+							mg.logRefusal(r.Host, "device at its cap of connections in use:", r.Host) // i18n-ignore: a log line
 							break
 						}
 						candidate := pool.availableConns[0]

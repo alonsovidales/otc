@@ -26,6 +26,7 @@ import (
 
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 )
 
@@ -63,7 +64,7 @@ func (a *Accounts) loadProviders() {
 		a.providers["google"] = &provider{
 			name: "google", authURL: "https://accounts.google.com/o/oauth2/v2/auth", tokenURL: "https://oauth2.googleapis.com/token",
 			jwksURL: "https://www.googleapis.com/oauth2/v3/certs", issuers: []string{"https://accounts.google.com", "accounts.google.com"},
-			scope: "openid email profile", clientID: id, clientSecret: cfg.GetStr("accounts", "google-client-secret"),
+			scope: "openid email profile", clientID: id, clientSecret: cfg.GetStr("accounts", "google-client-secret"), // i18n-ignore: OAuth scopes, protocol values
 		}
 		log.Info("sign in with Google configured")
 	}
@@ -71,7 +72,7 @@ func (a *Accounts) loadProviders() {
 		p := &provider{
 			name: "apple", authURL: "https://appleid.apple.com/auth/authorize", tokenURL: "https://appleid.apple.com/auth/token",
 			jwksURL: "https://appleid.apple.com/auth/keys", issuers: []string{"https://appleid.apple.com"},
-			scope: "name email", clientID: id, appleTeamID: cfg.GetStr("accounts", "apple-team-id"), appleKeyID: cfg.GetStr("accounts", "apple-key-id"),
+			scope: "name email", clientID: id, appleTeamID: cfg.GetStr("accounts", "apple-team-id"), appleKeyID: cfg.GetStr("accounts", "apple-key-id"), // i18n-ignore: OAuth scopes, protocol values
 			formPost: true,
 		}
 		pem, err := os.ReadFile(cfg.GetStr("accounts", "apple-private-key"))
@@ -116,41 +117,41 @@ func (p *provider) appleClientSecret() (string, error) {
 func (a *Accounts) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	p, ok := a.providers[r.PathValue("provider")]
 	if !ok {
-		http.Error(w, "that sign-in provider is not configured on this bridge", http.StatusNotFound)
+		pageError(w, r, i18n.ApiPageProviderUnknown(), http.StatusNotFound)
 		return
 	}
 	returnURL, ok := validReturnURL(r.URL.Query().Get("return"))
 	if !ok {
-		http.Error(w, ErrInvalidReturn.Error(), http.StatusBadRequest)
+		pageError(w, r, i18n.ApiPageInvalidReturn(), http.StatusBadRequest)
 		return
 	}
 	// An app's sign-in (appsignin.go): its address, always with a PKCE
 	// challenge.
 	if u, err := url.Parse(returnURL); err == nil && isAppReturn(u) {
 		if returnURL, ok = appReturnWithChallenge(r.URL.Query().Get("challenge")); !ok {
-			http.Error(w, "an app sign-in needs a valid challenge", http.StatusBadRequest)
+			pageError(w, r, i18n.ApiPageChallengeRequired(), http.StatusBadRequest)
 			return
 		}
 	}
 	if !pageNavigation(r) {
-		http.Error(w, "a sign-in starts from a link, not from within another page", http.StatusBadRequest)
+		pageError(w, r, i18n.ApiPageNotNavigation(), http.StatusBadRequest)
 		return
 	}
 	// Counted only for a start that writes a state: a bad provider or
 	// return address costs nothing.
 	if a.oauthStarts != nil && !a.oauthStarts.Allow(clientIP(r)) {
-		http.Error(w, "too many sign-in attempts from this address, try again in a minute", http.StatusTooManyRequests)
+		pageError(w, r, i18n.ApiPageTooManyStarts(), http.StatusTooManyRequests)
 		return
 	}
 	buf := make([]byte, cOAuthStateBytes)
 	if _, err := rand.Read(buf); err != nil {
-		http.Error(w, "could not start the sign-in", http.StatusInternalServerError)
+		pageError(w, r, i18n.ApiPageStartUnavailable(), http.StatusInternalServerError)
 		return
 	}
 	state := hex.EncodeToString(buf)
 	if err := a.dao.SaveOAuthState(state, returnURL); err != nil {
 		log.Error("error saving an oauth state:", err)
-		http.Error(w, "could not start the sign-in", http.StatusInternalServerError)
+		pageError(w, r, i18n.ApiPageStartUnavailable(), http.StatusInternalServerError)
 		return
 	}
 	setOAuthCookies(w, state, int(cOAuthStateTTL.Seconds()))
@@ -265,6 +266,14 @@ const (
 	cSignInNoEmail   = "no_email"  // no subject, or no email the provider verified
 )
 
+// pageError answers a sign-in step that went wrong with a plain-text page.
+// Only the browser shows it (or an app's sign-in sheet), and nothing reads
+// it, so unlike the API's JSON errors it is written in the browser's
+// language: the first in Accept-Language this build carries, else English.
+func pageError(w http.ResponseWriter, r *http.Request, m i18n.Msg, status int) {
+	http.Error(w, m.Render(acceptLanguage(r.Header.Get("Accept-Language"))), status)
+}
+
 // signInError sends the browser back to the account page with code.
 func signInError(w http.ResponseWriter, r *http.Request, code string) {
 	http.Redirect(w, r, "/account?error="+url.QueryEscape(code), http.StatusFound)
@@ -277,11 +286,11 @@ func signInError(w http.ResponseWriter, r *http.Request, code string) {
 func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	p, ok := a.providers[r.PathValue("provider")]
 	if !ok {
-		http.Error(w, "that sign-in provider is not configured on this bridge", http.StatusNotFound)
+		pageError(w, r, i18n.ApiPageProviderUnknown(), http.StatusNotFound)
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad callback", http.StatusBadRequest)
+		pageError(w, r, i18n.ApiPageBadCallback(), http.StatusBadRequest)
 		return
 	}
 	state, code := r.Form.Get("state"), r.Form.Get("code")
@@ -344,7 +353,7 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 
 	acc, err := a.dao.GetAccountByLogin(p.name, subject)
 	if err != nil {
-		http.Error(w, "could not sign in right now", http.StatusInternalServerError)
+		pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
 		return
 	}
 	if acc == nil {
@@ -352,7 +361,7 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		// provider) earlier: same person, link rather than duplicate.
 		acc, err = a.dao.GetAccountByEmail(email)
 		if err != nil {
-			http.Error(w, "could not sign in right now", http.StatusInternalServerError)
+			pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
 			return
 		}
 		if acc != nil && acc.PasswordHash != "" {
@@ -365,7 +374,7 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 			// the user can simply try again.
 			if err := a.dao.SetAccountPassword(acc.ID, ""); err != nil {
 				log.Error("could not clear the password of an account being linked:", err)
-				http.Error(w, "could not sign in right now", http.StatusInternalServerError)
+				pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
 				return
 			}
 			acc.PasswordHash = ""
@@ -379,7 +388,7 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 				Lang: requestLanguage("", r)}
 			if err := a.dao.CreateAccount(&created); err != nil {
 				log.Error("error creating an account from", p.name, ":", err)
-				http.Error(w, "could not sign in right now", http.StatusInternalServerError)
+				pageError(w, r, i18n.ApiErrorSigninUnavailable(), http.StatusInternalServerError)
 				return
 			}
 			acc = &created
@@ -453,12 +462,12 @@ func (a *Accounts) afterSignIn(accountID, returnURL string) string {
 func (a *Accounts) ContinueSetup(w http.ResponseWriter, r *http.Request, accountID string) {
 	if !a.sameOriginNavigation(r) {
 		log.Info("refused a cross-site /api/account/continue")
-		http.Error(w, "open this from your account page", http.StatusForbidden)
+		pageError(w, r, i18n.ApiPageOpenFromAccount(), http.StatusForbidden)
 		return
 	}
 	returnURL, ok := validReturnURL(r.URL.Query().Get("return"))
 	if !ok || returnURL == "" {
-		http.Error(w, ErrInvalidReturn.Error(), http.StatusBadRequest)
+		pageError(w, r, i18n.ApiPageInvalidReturn(), http.StatusBadRequest)
 		return
 	}
 	http.Redirect(w, r, a.afterSignIn(accountID, returnURL), http.StatusFound)
@@ -496,7 +505,7 @@ func (a *Accounts) exchange(p *provider, code string) (jwt.MapClaims, error) {
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("token endpoint answered %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return nil, fmt.Errorf("token endpoint answered %d: %s", resp.StatusCode, strings.TrimSpace(string(body))) // i18n-ignore: logged, never sent
 	}
 	var tok struct {
 		IDToken string `json:"id_token"`
@@ -534,7 +543,7 @@ func (a *Accounts) verifyIDToken(p *provider, raw string) (jwt.MapClaims, error)
 		}
 	}
 	if !issOK {
-		return nil, fmt.Errorf("unexpected issuer %q", iss)
+		return nil, fmt.Errorf("unexpected issuer %q", iss) // i18n-ignore: logged, never sent
 	}
 
 	return claims, nil
@@ -590,5 +599,5 @@ func (c *jwksCache) key(jwksURL, kid string) (*rsa.PublicKey, error) {
 		return k, nil
 	}
 
-	return nil, fmt.Errorf("no key %q at %s", kid, jwksURL)
+	return nil, fmt.Errorf("no key %q at %s", kid, jwksURL) // i18n-ignore: logged, never sent
 }

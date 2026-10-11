@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="{{.Tag}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{t "site.landing.meta.title"}}</title>
+  <meta name="description" content="{{t "site.landing.meta.description"}}" />
+  <link rel="canonical" href="{{.Canonical}}">
+  {{- range .Alternates}}
+  <link rel="alternate" hreflang="{{.Lang}}" href="{{.Href}}">
+  {{- end}}
+  <link rel="stylesheet" href="/fonts/fonts.css">
+  <style nonce="{{.Nonce}}">
+    :root{
+      --ink:#10231f;
+      --ink-2:#0b1815;
+      --ember:#ff6b4a;
+      --gold:#ffc857;
+      --mist:#eaf2ef;
+      --mist-dim:#b9c9c4;
+      --line:rgba(234,242,239,.12);
+      --panel:rgba(234,242,239,.04);
+      --leaf:#5fd39a;
+      --max:1360px;
+    }
+    *{box-sizing:border-box}
+    /* overflow-x here (not on body) is deliberate: setting overflow-x alone
+       on an element forces its overflow-y to compute as auto (CSS Overflow
+       spec), so putting this on body instead of html would silently turn
+       body into its own scroll container separate from the document's -
+       breaking window.scrollTo/scrollIntoView and #hash navigation. */
+    html{overflow-x:hidden}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font:17.5px/1.6 'Manrope', system-ui, -apple-system, sans-serif;
+      color:var(--mist);
+      background:var(--ink);
+    }
+    a{color:var(--gold)}
+    a:hover{opacity:.85}
+    img{max-width:100%;display:block}
+    .container{max-width:var(--max);margin:0 auto;padding:0 24px}
+    h1,h2,h3{font-family:'Unbounded',sans-serif;letter-spacing:-0.01em;text-wrap:balance}
+    .eyebrow{
+      font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:.14em;
+      text-transform:uppercase;color:var(--ember);
+    }
+
+    header{
+      position:sticky;top:0;z-index:30;
+      background:linear-gradient(to bottom, rgba(11,24,21,.92), rgba(11,24,21,.7) 70%, transparent);
+      backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--line);
+    }
+    .nav{display:flex;align-items:center;justify-content:space-between;padding:16px 0;gap:16px}
+    .nav > *{min-width:0}
+    .brand{display:flex;align-items:center;gap:10px;flex:none}
+    .brand img{width:40px;height:40px;border-radius:10px}
+    .brand span{font-family:'Unbounded',sans-serif;font-weight:700;font-size:17.5px}
+    .navlinks{display:flex;gap:26px;align-items:center}
+    .navlinks a{color:var(--mist-dim);font-size:15.5px;font-weight:600;text-decoration:none}
+    .navlinks a:hover{color:var(--mist)}
+    .btn{
+      appearance:none;border:0;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;
+      padding:12px 20px;border-radius:12px;font-weight:700;font-size:16px;
+      color:var(--ink);background:var(--gold);
+      transition:transform .08s ease, filter .15s ease;
+    }
+    .btn:hover{filter:brightness(1.08)}
+    .btn:active{transform:translateY(1px)}
+    .btn.secondary{background:transparent;color:var(--mist);border:1px solid var(--line)}
+    .btn.ember{background:var(--ember);color:#26100a}
+    @media (max-width:760px){ .navlinks{display:none} }
+    .nav-actions{display:flex;gap:10px;flex:none}
+    @media (max-width:480px){ .nav-actions .btn{padding:9px 12px;font-size:14.5px} .brand span{display:none} }
+
+    /* Hero */
+    .hero{padding:40px 24px 64px;display:grid;gap:22px;justify-items:center;text-align:center}
+    .hero > *{min-width:0}
+    .hero .pill{
+      display:inline-flex;align-items:center;gap:8px;width:fit-content;
+      font-size:14.5px;color:var(--mist-dim);border:1px solid var(--line);border-radius:999px;
+      padding:6px 14px;background:var(--panel);
+    }
+    .hero h1{font-size:clamp(37.5px,5.4vw,64px);line-height:1.06;margin:6px 0 4px}
+    .hero h1 em{font-style:normal;color:var(--ember)}
+    .hero p.lead{font-size:clamp(17.5px,1.9vw,21px);color:var(--mist-dim);max-width:1100px;margin:0 auto}
+    /* The install block is centred as a block; its steps read left-aligned. */
+    .hero-install{display:grid;gap:10px;margin-top:8px;width:100%;max-width:960px;text-align:left}
+    .hero-install-label{font-family:'Unbounded',sans-serif;font-weight:700;font-size:16.5px}
+    .hero-install-alt{font-size:15px;color:var(--mist-dim);text-decoration:none;width:fit-content}
+    .hero-install-alt:hover{color:var(--gold)}
+    .install-tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:12px}
+    .install-tab{appearance:none;background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;
+      padding:10px 14px;font:inherit;font-weight:700;font-size:15.5px;color:var(--mist-dim);cursor:pointer}
+    .install-tab:hover{color:var(--mist)}
+    .install-tab[aria-selected="true"]{color:var(--mist);border-bottom-color:var(--ember)}
+    .install-panel{display:none;gap:10px}
+    .install-panel.on{display:grid}
+    .install-panel p{margin:0;font-size:15.5px;color:var(--mist-dim)}
+    .install-panel ol{margin:0;padding-left:20px;font-size:15.5px;color:var(--mist-dim);display:grid;gap:6px}
+    .install-panel ol strong{color:var(--mist)}
+    .install-panel .btn{width:fit-content}
+    .install-req{font-size:14.5px;color:var(--mist-dim);border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--panel)}
+
+    section{padding:60px 0;border-top:1px solid var(--line)}
+    section:first-of-type{border-top:none}
+    .section-head{max-width:1000px;margin:0 auto 36px;text-align:center}
+    .section-head h2{font-size:clamp(26.5px,3.4vw,35px);margin:8px 0 10px}
+    .section-head p{color:var(--mist-dim);margin:0;font-size:17px}
+
+    /* What it is / value props */
+    .value-grid{display:grid;gap:16px;grid-template-columns:repeat(3,1fr)}
+    @media (max-width:980px){ .value-grid{grid-template-columns:repeat(2,1fr)} }
+    @media (max-width:620px){ .value-grid{grid-template-columns:1fr} }
+    .value-card{
+      background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;
+      display:grid;gap:8px;
+    }
+    .value-card .ico{font-size:24px}
+    .value-card h3{font-size:17.5px;margin:0}
+    .value-card p{margin:0;color:var(--mist-dim);font-size:16px;line-height:1.55}
+
+    /* Screenshots */
+    .shot-group{margin-bottom:40px}
+    .shot-group:last-child{margin-bottom:0}
+    .shot-group h3{font-size:16.5px;margin:0 0 14px;color:var(--mist-dim);font-family:'Manrope',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+    .shot-row{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+    .shot{
+      border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--ink-2);
+      height:180px;display:flex;align-items:center;justify-content:center;
+    }
+    .shot img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
+    .shot.wide{height:280px;max-width:520px;justify-self:start}
+    .shot img{cursor:zoom-in}
+    .shot:focus-within{outline:2px solid var(--gold);outline-offset:2px}
+    /* Screenshot lightbox */
+    .lb{position:fixed;inset:0;z-index:100;background:rgba(5,12,10,.92);display:none;align-items:center;justify-content:center;padding:56px 64px}
+    .lb.on{display:flex}
+    .lb img{max-width:100%;max-height:100%;object-fit:contain;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+    .lb button{position:absolute;appearance:none;border:0;background:rgba(234,242,239,.1);color:var(--mist);width:46px;height:46px;border-radius:50%;font-size:22px;cursor:pointer;display:grid;place-items:center}
+    .lb button:hover{background:rgba(234,242,239,.2)}
+    .lb button:focus-visible{outline:2px solid var(--gold)}
+    .lb .lb-close{top:14px;right:14px}
+    .lb .lb-prev{left:12px;top:50%;transform:translateY(-50%)}
+    .lb .lb-next{right:12px;top:50%;transform:translateY(-50%)}
+    .lb .lb-cap{position:absolute;bottom:14px;left:16px;right:16px;text-align:center;color:var(--mist-dim);font-size:14.5px}
+    @media (max-width:600px){ .lb{padding:56px 8px 48px} .lb .lb-prev,.lb .lb-next{top:auto;bottom:8px;transform:none} }
+
+    /* Get started */
+    .code-card{
+      max-width:100%;
+      background:var(--ink-2);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+      min-width:0;
+    }
+    .code-card .code-head{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:12px 16px;border-bottom:1px solid var(--line);font-size:14.5px;color:var(--mist-dim);
+    }
+    .code-card pre{
+      margin:0;padding:18px 16px;overflow-x:auto;font-family:'JetBrains Mono',monospace;
+      font-size:15px;line-height:1.6;color:var(--mist);
+    }
+    .code-card .comment{color:var(--mist-dim)}
+    .copy-btn{
+      appearance:none;border:1px solid var(--line);background:transparent;color:var(--mist-dim);
+      padding:5px 10px;border-radius:8px;font-size:13px;cursor:pointer;font-family:'Manrope',sans-serif;
+    }
+    .copy-btn:hover{color:var(--mist);border-color:var(--mist-dim)}
+    .steps{display:grid;gap:14px;max-width:960px;margin:0 auto}
+    .step{display:flex;gap:12px;align-items:flex-start}
+    .step .num{
+      flex:none;width:26px;height:26px;border-radius:999px;display:grid;place-items:center;
+      background:var(--gold);color:var(--ink);font-weight:800;font-size:14.5px;
+    }
+    .step p{margin:2px 0 0;color:var(--mist-dim);font-size:16px;line-height:1.5}
+    .step strong{color:var(--mist);font-size:16.5px}
+    .note{
+      background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;
+      color:var(--mist-dim);font-size:15.5px;line-height:1.6;margin:24px auto 0;max-width:960px;
+    }
+    .note strong{color:var(--mist)}
+
+    /* Desktop downloads */
+    .dl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:1040px;margin:0 auto}
+    @media (max-width:900px){ .dl-grid{grid-template-columns:1fr} }
+    .dl-grid.two{grid-template-columns:repeat(2,1fr);max-width:700px}
+    @media (max-width:900px){ .dl-grid.two{grid-template-columns:1fr} }
+    .dl-sub{margin-top:56px}
+    .dl-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:12px}
+    .dl-card.mine{border-color:var(--gold)}
+    .dl-card h3{margin:0;font-size:19px}
+    .dl-card .mine-tag{display:none;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
+    .dl-card.mine .mine-tag{display:block}
+    .dl-card p{margin:0;color:var(--mist-dim);font-size:15.5px;line-height:1.55}
+    .dl-card .btn{width:fit-content}
+    .dl-card .alt{font-size:14.5px;color:var(--mist-dim)}
+    .dl-card code{font-size:13.5px;word-break:break-all}
+
+    /* FAQ */
+    .faq{display:grid;gap:10px;max-width:1040px;margin:0 auto}
+    details{
+      background:var(--panel);border:1px solid var(--line);border-radius:12px;
+      padding:4px 18px;
+    }
+    details summary{
+      cursor:pointer;padding:16px 0;font-weight:700;font-size:17px;list-style:none;
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+    }
+    details summary::-webkit-details-marker{display:none}
+    details summary::after{content:'+';font-size:22px;color:var(--gold);flex:none}
+    details[open] summary::after{content:'−'}
+    details p{margin:0 0 16px;color:var(--mist-dim);font-size:16px;line-height:1.6}
+    details ul,details ol{margin:0 0 16px;padding-left:22px;color:var(--mist-dim);font-size:16px;line-height:1.6}
+    details li+li{margin-top:6px}
+    details strong{color:var(--mist)}
+    /* The status-light wiring diagram (FAQ). Colours come from the tokens
+       above, so the drawing follows the page's theme. */
+    .wiring{margin:0 0 16px;padding:12px 8px;background:var(--ink-2);border:1px solid var(--line);border-radius:12px}
+    .wiring svg{display:block;width:100%;max-width:440px;height:auto;margin:0 auto}
+    .wiring figcaption{margin-top:6px;font-size:14.5px;color:var(--mist-dim);text-align:center}
+    .wiring text{font-family:'Manrope',system-ui,sans-serif}
+    .wiring .hdr{fill:var(--panel);stroke:var(--mist-dim);stroke-opacity:.4}
+    .wiring .more{fill:none;stroke:var(--mist-dim);stroke-opacity:.4;stroke-dasharray:4 4}
+    .wiring .pin{fill:none;stroke:var(--mist-dim);stroke-opacity:.55;stroke-width:1.5}
+    .wiring .pin-n{fill:var(--mist-dim);font-size:10px;font-weight:700;text-anchor:middle}
+    .wiring .pin.r{fill:var(--ember);stroke:none}
+    .wiring .pin.g{fill:var(--leaf);stroke:none}
+    .wiring .pin.k{fill:var(--mist-dim);stroke:none;stroke-opacity:1}
+    .wiring .pin-n.on{fill:var(--ink)}
+    .wiring .w{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+    .wiring .wr{stroke:var(--ember)}
+    .wiring .wg{stroke:var(--leaf)}
+    .wiring .wk{stroke:var(--mist-dim)}
+    .wiring .res{fill:var(--ink);stroke:var(--mist);stroke-width:1.5}
+    .wiring .led-r{fill:var(--ember)}
+    .wiring .led-g{fill:var(--leaf)}
+    .wiring .tri{fill:var(--ink)}
+    .wiring .lbl{fill:var(--mist);font-size:12px}
+    .wiring .lbl.dim{fill:var(--mist-dim)}
+    .wiring .lbl.end{text-anchor:end}
+    .wiring .lbl.mid{text-anchor:middle}
+    .wiring .ttl{fill:var(--mist);font-size:12.5px;font-weight:700}
+    .wiring .pm{fill:var(--mist);font-size:12px;font-weight:700;text-anchor:middle}
+    @media (max-width:480px){ details{padding:4px 14px} .wiring{margin:0 -10px 16px;padding:10px 2px} }
+
+    /* Contact */
+    .contact-wrap{display:grid;gap:28px;grid-template-columns:1fr 1fr}
+    @media (max-width:860px){ .contact-wrap{grid-template-columns:1fr} }
+    form{display:grid;gap:14px}
+    .field{display:grid;gap:6px}
+    label{font-size:14.5px;font-weight:700;color:var(--mist-dim)}
+    input,textarea,select{
+      width:100%;padding:12px 14px;border-radius:10px;font-family:'Manrope',sans-serif;font-size:16px;
+      border:1px solid var(--line);background:var(--ink-2);color:var(--mist);outline:none;
+    }
+    input:focus,textarea:focus,select:focus{border-color:var(--gold)}
+    textarea{min-height:120px;resize:vertical}
+    .honeypot{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+    .form-msg{font-size:15.5px;padding:10px 14px;border-radius:10px;display:none}
+    .form-msg.ok{display:block;background:rgba(255,200,87,.12);color:var(--gold);border:1px solid rgba(255,200,87,.3)}
+    .form-msg.error{display:block;background:rgba(255,107,74,.12);color:var(--ember);border:1px solid rgba(255,107,74,.3)}
+    .contact-side{display:grid;gap:14px;align-content:start}
+    .contact-side .value-card h3{font-size:16.5px}
+
+    footer{border-top:1px solid var(--line);padding:32px 0;color:var(--mist-dim);font-size:15px}
+    .footer-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+    .footer-links{display:flex;flex-wrap:wrap;gap:8px 18px}
+    .footer-links a{color:var(--mist-dim);text-decoration:none;font-weight:600}
+    .footer-links a:hover{color:var(--mist)}
+    /* The language switcher (footer), shown once more than one language ships. */
+    .lang-switch{display:flex;flex-wrap:wrap;gap:8px 14px}
+    .lang-switch a{color:var(--mist-dim);text-decoration:none;font-weight:600}
+    .lang-switch a:hover,.lang-switch a[aria-current="page"]{color:var(--mist)}
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="container nav">
+      <div class="brand" aria-label="Off The Cloud">
+        <img src="/logo.png" alt="" width="40" height="40">
+        <span>Off The Cloud</span>
+      </div>
+      <nav class="navlinks">
+        <a href="#get-started">{{t "site.landing.nav.get_started"}}</a>
+        <a href="#download">{{t "site.landing.nav.download"}}</a>
+        <a href="#what">{{t "site.landing.nav.what"}}</a>
+        <a href="#screenshots">{{t "site.landing.nav.gallery"}}</a>
+        <a href="#faq">{{t "site.landing.nav.faq"}}</a>
+        <a href="https://github.com/alonsovidales/otc">GitHub</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="btn ember" href="/account">{{t "site.landing.nav.sign_in"}}</a>
+        <a class="btn" href="/account?signup=1">{{t "site.landing.nav.create_account"}}</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container hero">
+      <span class="pill">🔓 {{t "site.landing.hero.pill"}}</span>
+      <h1>{{t "site.landing.hero.title_1"}}<br>{{template "spans" (rich "site.landing.hero.title_2")}}</h1>
+      <p class="lead">
+        {{t "site.landing.hero.lead"}}
+      </p>
+      <div class="hero-install" id="install">
+        <span class="hero-install-label">{{t "site.landing.install.label"}}</span>
+        <div class="install-tabs" role="tablist">
+          <button class="install-tab" role="tab" id="tab-image" aria-selected="true" aria-controls="panel-image" type="button">{{t "site.landing.install.tab_image"}}</button>
+          <button class="install-tab" role="tab" id="tab-script" aria-selected="false" aria-controls="panel-script" type="button">{{t "site.landing.install.tab_script"}}</button>
+        </div>
+        <div class="install-panel on" id="panel-image" role="tabpanel" aria-labelledby="tab-image">
+          <div class="install-req">{{template "spans" (rich "site.landing.install.requirements")}}</div>
+          <a class="btn ember" href="https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz">⬇ {{t "site.landing.install.download"}}</a>
+          <ol>
+            <li>{{template "spans" (rich "site.landing.install.step_flash")}}</li>
+            <li>{{template "spans" (rich "site.landing.install.step_plug")}}</li>
+            <li>{{template "spans" (rich "site.landing.install.step_setup")}}</li>
+            <li>{{template "spans" (rich "site.landing.install.step_signin" "address" (printf "https://<%s>.off-the.cloud" (t "site.landing.example.name")))}}</li>
+          </ol>
+          <p>{{template "spans" (rich "site.landing.install.image_note")}}</p>
+        </div>
+        <div class="install-panel" id="panel-script" role="tabpanel" aria-labelledby="tab-script">
+          <p>{{t "site.landing.install.script_intro"}}</p>
+          <div class="code-card">
+            <div class="code-head">
+              <span>{{t "site.landing.install.terminal"}}</span>
+              <button class="copy-btn" id="copy-curl" type="button">{{t "site.landing.install.copy"}}</button>
+            </div>
+            <pre><span class="comment"># {{t "site.landing.install.command_comment"}}</span>
+curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/verified-install.sh \
+  | sudo bash -s -- &lt;subdomain&gt;</pre>
+          </div>
+          <p>{{template "spans" (rich "site.landing.install.script_note" "address" (printf "http://<%s>:8080/" (t "site.landing.example.device_ip")))}}</p>
+        </div>
+        <a class="hero-install-alt" href="/account?signup=1">{{t "site.landing.install.bridge_link"}}</a>
+      </div>
+    </div>
+
+    <section id="get-started">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">{{t "site.landing.started.eyebrow"}}</span>
+          <h2>{{t "site.landing.started.title"}}</h2>
+          <p>{{t "site.landing.started.lead"}}</p>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <div class="num">1</div>
+            <div><strong>{{t "site.landing.started.step1_title"}}</strong><p>{{template "spans" (rich "site.landing.started.step1_text" "address" (printf "http://<%s>:8080/" (t "site.landing.example.device_ip")))}}</p></div>
+          </div>
+          <div class="step">
+            <div class="num">2</div>
+            <div><strong>{{t "site.landing.started.step2_title"}}</strong><p>{{template "spans" (rich "site.landing.started.step2_text")}}</p></div>
+          </div>
+          <div class="step">
+            <div class="num">3</div>
+            <div><strong>{{t "site.landing.started.step3_title"}}</strong><p>{{t "site.landing.started.step3_text"}}</p></div>
+          </div>
+        </div>
+        <div class="note">
+          {{template "spans" (rich "site.landing.started.note")}}
+        </div>
+      </div>
+    </section>
+
+    <section id="download">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">{{t "site.landing.desktop.eyebrow"}}</span>
+          <h2>{{t "site.landing.desktop.title"}}</h2>
+          <p>{{t "site.landing.desktop.lead"}}</p>
+        </div>
+        <div class="dl-grid">
+          <div class="dl-card" data-os="windows">
+            <span class="mine-tag">{{t "site.landing.download.your_system"}}</span>
+            <h3>Windows</h3>
+            <p>{{t "site.landing.desktop.windows_text"}}</p>
+            <a class="btn ember" href="https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-windows-amd64.exe" download>{{t "site.landing.desktop.windows_button"}}</a>
+            <span class="alt">{{template "spans" (rich "site.landing.desktop.windows_alt")}}</span>
+          </div>
+          <div class="dl-card" data-os="linux">
+            <span class="mine-tag">{{t "site.landing.download.your_system"}}</span>
+            <h3>Linux</h3>
+            <p>{{t "site.landing.desktop.linux_text"}}</p>
+            <a class="btn ember" href="https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-linux-amd64" download>{{t "site.landing.desktop.linux_button"}}</a>
+            <span class="alt">{{template "spans" (rich "site.landing.desktop.linux_alt")}}<br><code>install -Dm755 otc-sync-linux-* ~/.local/bin/otc-sync &amp;&amp; otc-sync</code></span>
+          </div>
+          <div class="dl-card" data-os="mac">
+            <span class="mine-tag">{{t "site.landing.download.your_system"}}</span>
+            <h3>macOS</h3>
+            <p>{{t "site.landing.desktop.mac_text"}}</p>
+            <a class="btn ember" href="https://apps.apple.com/app/id6814658734">{{t "site.landing.desktop.mac_button"}}</a>
+          </div>
+        </div>
+        <div class="note">
+          {{template "spans" (rich "site.landing.desktop.signed_note")}}
+        </div>
+
+        <div class="section-head dl-sub">
+          <span class="eyebrow">{{t "site.landing.phone.eyebrow"}}</span>
+          <h2>{{t "site.landing.phone.title"}}</h2>
+          <p>{{t "site.landing.phone.lead"}}</p>
+        </div>
+        <div class="dl-grid two">
+          <div class="dl-card" data-os="ios">
+            <span class="mine-tag">{{t "site.landing.download.your_system"}}</span>
+            <h3>{{t "site.landing.phone.ios_title"}}</h3>
+            <p>{{t "site.landing.phone.ios_text"}}</p>
+            <!-- When the app is live: href="https://apps.apple.com/app/id<ID>", class "btn ember", "Get it on the App Store". -->
+            <span class="btn secondary" aria-disabled="true">{{t "site.landing.phone.ios_soon"}}</span>
+          </div>
+          <div class="dl-card" data-os="android">
+            <span class="mine-tag">{{t "site.landing.download.your_system"}}</span>
+            <h3>Android</h3>
+            <p>{{t "site.landing.phone.android_text"}}</p>
+            <!-- When the app is live: href="https://play.google.com/store/apps/details?id=cloud.offthe.otc", class "btn ember", "Get it on Google Play". -->
+            <span class="btn secondary" aria-disabled="true">{{t "site.landing.phone.android_soon"}}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="what">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">{{t "site.landing.what.eyebrow"}}</span>
+          <h2>{{t "site.landing.what.title"}}</h2>
+          <p>{{t "site.landing.what.lead"}}</p>
+        </div>
+        <div class="value-grid">
+          <div class="value-card">
+            <span class="ico">💾</span>
+            <h3>{{t "site.landing.what.device_title"}}</h3>
+            <p>{{t "site.landing.what.device_text"}}</p>
+          </div>
+          <div class="value-card">
+            <span class="ico">🖥️</span>
+            <h3>{{t "site.landing.what.desktop_title"}}</h3>
+            <p>{{t "site.landing.what.desktop_text"}}</p>
+          </div>
+          <div class="value-card">
+            <span class="ico">📱</span>
+            <h3>{{t "site.landing.what.mobile_title"}}</h3>
+            <p>{{t "site.landing.what.mobile_text"}}</p>
+          </div>
+          <div class="value-card">
+            <span class="ico">🌐</span>
+            <h3>{{t "site.landing.what.web_title"}}</h3>
+            <p>{{t "site.landing.what.web_text"}}</p>
+          </div>
+          <div class="value-card">
+            <span class="ico">🔍</span>
+            <h3>{{t "site.landing.what.search_title"}}</h3>
+            <p>{{t "site.landing.what.search_text"}}</p>
+          </div>
+          <div class="value-card">
+            <span class="ico">🚫</span>
+            <h3>{{t "site.landing.what.feed_title"}}</h3>
+            <p>{{t "site.landing.what.feed_text"}}</p>
+          </div>
+          <div class="value-card">
+            <span class="ico">👨‍👩‍👧</span>
+            <h3>{{t "site.landing.what.family_title"}}</h3>
+            <p>{{t "site.landing.what.family_text"}}</p>
+          </div>
+          <div class="value-card">
+            <span class="ico">🔗</span>
+            <h3>{{t "site.landing.what.share_title"}}</h3>
+            <p>{{t "site.landing.what.share_text"}}</p>
+          </div>
+          <div class="value-card">
+            <span class="ico">⚡</span>
+            <h3>{{t "site.landing.what.fast_title"}}</h3>
+            <p>{{t "site.landing.what.fast_text"}}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="screenshots">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">{{t "site.landing.shots.eyebrow"}}</span>
+          <h2>{{t "site.landing.shots.title"}}</h2>
+          <p>{{t "site.landing.shots.lead"}}</p>
+        </div>
+
+        <div class="shot-group">
+          <h3>{{t "site.landing.shots.device_group"}}</h3>
+          <div class="shot-row">
+            <div class="shot wide">
+              <img src="/img/device.jpg" alt="{{t "site.landing.shots.device_alt"}}" loading="lazy">
+            </div>
+          </div>
+        </div>
+
+        <div class="shot-group">
+          <h3>{{t "site.landing.shots.desktop_group"}}</h3>
+          <div class="shot-row">
+            <div class="shot wide">
+              <img src="/img/macos-sync.jpg" alt="{{t "site.landing.shots.macos_alt"}}" loading="lazy">
+            </div>
+          </div>
+        </div>
+
+        <div class="shot-group">
+          <h3>{{t "site.landing.shots.mobile_group"}}</h3>
+          <div class="shot-row">
+            <div class="shot"><img src="/img/mobile-1.jpg" alt="{{t "site.landing.shots.mobile_social_alt"}}" loading="lazy"></div>
+            <div class="shot"><img src="/img/mobile-2.jpg" alt="{{t "site.landing.shots.mobile_images_alt"}}" loading="lazy"></div>
+            <div class="shot"><img src="/img/mobile-3.jpg" alt="{{t "site.landing.shots.mobile_files_alt"}}" loading="lazy"></div>
+            <div class="shot"><img src="/img/mobile-4.jpg" alt="{{t "site.landing.shots.mobile_settings_alt"}}" loading="lazy"></div>
+            <div class="shot"><img src="/img/mobile-5.jpg" alt="{{t "site.landing.shots.mobile_photo_alt"}}" loading="lazy"></div>
+          </div>
+        </div>
+
+        <div class="shot-group">
+          <h3>{{t "site.landing.shots.web_group"}}</h3>
+          <div class="shot-row">
+            <div class="shot wide"><img src="/img/web-1.jpg" alt="{{t "site.landing.shots.web_social_alt"}}" loading="lazy"></div>
+            <div class="shot wide"><img src="/img/web-2.jpg" alt="{{t "site.landing.shots.web_images_alt"}}" loading="lazy"></div>
+            <div class="shot wide"><img src="/img/web-3.jpg" alt="{{t "site.landing.shots.web_files_alt"}}" loading="lazy"></div>
+            <div class="shot wide"><img src="/img/web-4.jpg" alt="{{t "site.landing.shots.web_settings_alt"}}" loading="lazy"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">{{t "site.landing.faq.eyebrow"}}</span>
+          <h2>{{t "site.landing.faq.title"}}</h2>
+        </div>
+        <div class="faq">
+          <details open>
+            <summary>{{t "site.landing.faq.hardware.q"}}</summary>
+            <p>{{t "site.landing.faq.hardware.a"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.image.q"}}</summary>
+            <p>{{template "spans" (rich "site.landing.faq.image.a")}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.other_hw.q"}}</summary>
+            <p>{{template "spans" (rich "site.landing.faq.other_hw.p1")}}</p>
+            <p>{{t "site.landing.faq.other_hw.p2"}}</p>
+            <ul>
+              <li>{{template "spans" (rich "site.landing.faq.other_hw.li1")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.other_hw.li2")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.other_hw.li3")}}</li>
+            </ul>
+            <p>{{template "spans" (rich "site.landing.faq.other_hw.p3")}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.lights.q"}}</summary>
+            <p>{{t "site.landing.faq.lights.p1"}}</p>
+            <figure class="wiring">
+              <svg viewBox="0 0 320 436" role="img" aria-labelledby="ledw-title ledw-desc">
+                <title id="ledw-title">{{t "site.landing.faq.lights.svg_title"}}</title>
+                <desc id="ledw-desc">{{t "site.landing.faq.lights.svg_desc"}}</desc>
+                <text class="ttl" x="180" y="22" text-anchor="middle">{{t "site.landing.faq.lights.svg_header"}}</text>
+                <rect class="hdr" x="150" y="34" width="60" height="228" rx="6"/>
+                <rect class="more" x="150" y="268" width="60" height="20" rx="6"/>
+                {{- range lines "site.landing.faq.lights.svg_more" 308 15}}
+                <text class="lbl dim mid" x="180" y="{{.Y}}">{{.Text}}</text>
+                {{- end}}
+                <!-- Header pins: odd numbers on the left, pin 1 square. -->
+                <rect class="pin" x="156" y="40" width="20" height="20" rx="2"/><text class="pin-n" x="166" y="53.5">1</text>
+                <circle class="pin" cx="194" cy="50" r="10"/><text class="pin-n" x="194" y="53.5">2</text>
+                <circle class="pin" cx="166" cy="78" r="10"/><text class="pin-n" x="166" y="81.5">3</text>
+                <circle class="pin" cx="194" cy="78" r="10"/><text class="pin-n" x="194" y="81.5">4</text>
+                <circle class="pin" cx="166" cy="106" r="10"/><text class="pin-n" x="166" y="109.5">5</text>
+                <circle class="pin" cx="194" cy="106" r="10"/><text class="pin-n" x="194" y="109.5">6</text>
+                <circle class="pin" cx="166" cy="134" r="10"/><text class="pin-n" x="166" y="137.5">7</text>
+                <circle class="pin" cx="194" cy="134" r="10"/><text class="pin-n" x="194" y="137.5">8</text>
+                <circle class="pin k" cx="166" cy="162" r="10"/><text class="pin-n on" x="166" y="165.5">9</text>
+                <circle class="pin" cx="194" cy="162" r="10"/><text class="pin-n" x="194" y="165.5">10</text>
+                <circle class="pin r" cx="166" cy="190" r="10"/><text class="pin-n on" x="166" y="193.5">11</text>
+                <circle class="pin" cx="194" cy="190" r="10"/><text class="pin-n" x="194" y="193.5">12</text>
+                <circle class="pin g" cx="166" cy="218" r="10"/><text class="pin-n on" x="166" y="221.5">13</text>
+                <circle class="pin k" cx="194" cy="218" r="10"/><text class="pin-n on" x="194" y="221.5">14</text>
+                <circle class="pin r" cx="166" cy="246" r="10"/><text class="pin-n on" x="166" y="249.5">15</text>
+                <circle class="pin g" cx="194" cy="246" r="10"/><text class="pin-n on" x="194" y="249.5">16</text>
+                <!-- Pin names. -->
+                <text class="lbl dim end" x="146" y="54">{{t "site.landing.faq.lights.svg_pin1"}}</text>
+                <text class="lbl dim" x="214" y="54">5V</text>
+                <text class="lbl end" x="146" y="157">GND</text>
+                <text class="lbl end" x="146" y="185">GPIO17</text> <!-- i18n-ignore: a pin's name, never translated -->
+                <text class="lbl end" x="146" y="213">GPIO27</text> <!-- i18n-ignore: a pin's name, never translated -->
+                <text class="lbl end" x="146" y="241">GPIO22</text> <!-- i18n-ignore: a pin's name, never translated -->
+                <text class="lbl" x="214" y="213">GND</text>
+                <text class="lbl" x="214" y="241">GPIO23</text> <!-- i18n-ignore: a pin's name, never translated -->
+                <!-- Light 1: pins 9, 11 and 13. -->
+                <text class="ttl" x="14" y="140">{{t "site.landing.faq.lights.svg_light" "number" 1}}</text>
+                <path class="w wk" d="M156 162 H14 V218"/>
+                <path class="w wr" d="M156 190 H98 M72 190 H54"/>
+                <rect class="res" x="72" y="185" width="26" height="10" rx="2"/>
+                <circle class="led-r" cx="46" cy="190" r="8"/>
+                <polygon class="tri" points="41,190 50,185.5 50,194.5"/><rect class="tri" x="39.4" y="185.5" width="1.8" height="9"/>
+                <path class="w wk" d="M38 190 H14"/>
+                <path class="w wg" d="M156 218 H98 M72 218 H54"/>
+                <rect class="res" x="72" y="213" width="26" height="10" rx="2"/>
+                <circle class="led-g" cx="46" cy="218" r="8"/>
+                <polygon class="tri" points="41,218 50,213.5 50,222.5"/><rect class="tri" x="39.4" y="213.5" width="1.8" height="9"/>
+                <path class="w wk" d="M38 218 H14"/>
+                <circle class="pin k" cx="14" cy="190" r="3"/>
+                <text class="pm" x="63" y="184">+</text><text class="pm" x="26" y="184">−</text>
+                <text class="pm" x="63" y="212">+</text><text class="pm" x="26" y="212">−</text>
+                <!-- Light 2: pins 14, 15 and 16. -->
+                <text class="ttl" x="180" y="358" text-anchor="middle">{{t "site.landing.faq.lights.svg_light" "number" 2}}</text>
+                <path class="w wr" d="M156 246 H96 V300 M96 328 V346"/>
+                <rect class="res" x="91" y="300" width="10" height="28" rx="2"/>
+                <circle class="led-r" cx="96" cy="354" r="8"/>
+                <polygon class="tri" points="96,359 91.5,350 100.5,350"/><rect class="tri" x="91.5" y="359.4" width="9" height="1.8"/>
+                <path class="w wg" d="M204 246 H262 V300 M262 328 V346"/>
+                <rect class="res" x="257" y="300" width="10" height="28" rx="2"/>
+                <circle class="led-g" cx="262" cy="354" r="8"/>
+                <polygon class="tri" points="262,359 257.5,350 266.5,350"/><rect class="tri" x="257.5" y="359.4" width="9" height="1.8"/>
+                <path class="w wk" d="M96 362 V392 H300 V218 H204 M262 362 V392"/>
+                <circle class="pin k" cx="262" cy="392" r="3"/>
+                <text class="pm" x="110" y="343">+</text><text class="pm" x="110" y="373">−</text>
+                <text class="pm" x="276" y="343">+</text><text class="pm" x="276" y="373">−</text>
+                <!-- Legend. -->
+                <text class="lbl dim mid" x="160" y="414">{{t "site.landing.faq.lights.svg_resistor"}}</text>
+                <text class="lbl dim mid" x="160" y="430">{{t "site.landing.faq.lights.svg_legs"}}</text>
+              </svg>
+              <figcaption>{{t "site.landing.faq.lights.caption"}}</figcaption>
+            </figure>
+            <p>{{t "site.landing.faq.lights.p2"}}</p>
+            <ul>
+              <li>{{template "spans" (rich "site.landing.faq.lights.wire1")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.lights.wire2")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.lights.wire3")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.lights.wire4")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.lights.wire5")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.lights.wire6")}}</li>
+            </ul>
+            <p>{{t "site.landing.faq.lights.p3"}}</p>
+            <ul>
+              <li>{{template "spans" (rich "site.landing.faq.lights.state1")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.lights.state2")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.lights.state3")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.lights.state4")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.lights.state5")}}</li>
+            </ul>
+            <p>{{t "site.landing.faq.lights.p4"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.family.q"}}</summary>
+            <p>{{t "site.landing.faq.family.p1"}}</p>
+            <p>{{t "site.landing.faq.family.p2"}}</p>
+            <p>{{template "spans" (rich "site.landing.faq.family.p3" "address" (printf "<%s>.off-the.cloud" (t "site.landing.example.user_name")))}}</p>
+            <p>{{t "site.landing.faq.family.p4"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.storage.q"}}</summary>
+            <p>{{t "site.landing.faq.storage.a"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.backup.q"}}</summary>
+            <p>{{t "site.landing.faq.backup.p1"}}</p>
+            <ol>
+              <li>{{t "site.landing.faq.backup.step1"}}</li>
+              <li>{{t "site.landing.faq.backup.step2"}}</li>
+              <li>{{t "site.landing.faq.backup.step3"}}</li>
+            </ol>
+            <p>{{t "site.landing.faq.backup.p2"}}</p>
+            <p>{{t "site.landing.faq.backup.p3"}}</p>
+            <p>{{t "site.landing.faq.backup.p4"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.password.q"}}</summary>
+            <p>{{t "site.landing.faq.password.p1"}}</p>
+            <p>{{t "site.landing.faq.password.p2"}}</p>
+            <ul>
+              <li>{{template "spans" (rich "site.landing.faq.password.li1")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.password.li2")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.password.li3")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.password.li4")}}</li>
+            </ul>
+            <p>{{t "site.landing.faq.password.p3"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.protect.q"}}</summary>
+            <p>{{t "site.landing.faq.protect.a"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.bridge.q"}}</summary>
+            <p>{{template "spans" (rich "site.landing.faq.bridge.p1")}}</p>
+            <p>{{template "spans" (rich "site.landing.faq.bridge.p2")}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.free.q"}}</summary>
+            <p>{{t "site.landing.faq.free.p1"}}</p>
+            <p>{{template "spans" (rich "site.landing.faq.free.p2")}}</p>
+            <p>{{t "site.landing.faq.free.p3"}}</p>
+            <ul>
+              <li>{{template "spans" (rich "site.landing.faq.free.li1")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.free.li2")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.free.li3")}}</li>
+            </ul>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.speed.q"}}</summary>
+            <p>{{t "site.landing.faq.speed.a"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.private.q"}}</summary>
+            <p>{{t "site.landing.faq.private.a"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.third_parties.q"}}</summary>
+            <p>{{t "site.landing.faq.third_parties.p1"}}</p>
+            <ul>
+              <li>{{template "spans" (rich "site.landing.faq.third_parties.bridge")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.third_parties.push")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.third_parties.proton")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.third_parties.signin")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.third_parties.github")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.third_parties.maps")}}</li>
+              <li>{{template "spans" (rich "site.landing.faq.third_parties.tailscale")}}</li>
+            </ul>
+            <p>{{template "spans" (rich "site.landing.faq.third_parties.p2")}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.ai.q"}}</summary>
+            <p>{{t "site.landing.faq.ai.p1"}}</p>
+            <p>{{t "site.landing.faq.ai.p2"}}</p>
+            <p>{{t "site.landing.faq.ai.p3"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.open_source.q"}}</summary>
+            <p>{{template "spans" (rich "site.landing.faq.open_source.a")}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.social.q"}}</summary>
+            <p>{{t "site.landing.faq.social.a"}}</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">{{t "site.landing.contact.eyebrow"}}</span>
+          <h2>{{t "site.landing.contact.title"}}</h2>
+          <p>{{t "site.landing.contact.lead"}}</p>
+        </div>
+        <div class="contact-wrap">
+          <form id="contact-form">
+            <div class="field">
+              <label for="c-name">{{t "site.landing.contact.name"}}</label>
+              <input id="c-name" name="name" type="text" required maxlength="150" placeholder="{{t "site.landing.contact.name_placeholder"}}">
+            </div>
+            <div class="field">
+              <label for="c-email">{{t "site.landing.contact.email"}}</label>
+              <input id="c-email" name="email" type="email" required maxlength="255" placeholder="you@example.com">
+            </div>
+            <div class="field">
+              <label for="c-reason">{{t "site.landing.contact.reason"}}</label>
+              <select id="c-reason" name="reason" required>
+                <option value="" disabled selected>{{t "site.landing.contact.reason_select"}}</option>
+                <option value="general">{{t "site.landing.contact.reason_general"}}</option>
+                <option value="help">{{t "site.landing.contact.reason_help"}}</option>
+                <option value="more-addresses">{{t "site.landing.contact.reason_addresses"}}</option>
+                <option value="press">{{t "site.landing.contact.reason_press"}}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="c-message">{{t "site.landing.contact.message"}}</label>
+              <textarea id="c-message" name="message" required maxlength="4000" placeholder="{{t "site.landing.contact.message_placeholder"}}"></textarea>
+            </div>
+            <div class="honeypot" aria-hidden="true">
+              <label for="c-website">Website</label> <!-- i18n-ignore: a trap for bots, hidden from people -->
+              <input id="c-website" name="website" type="text" tabindex="-1" autocomplete="off">
+            </div>
+            <div id="contact-msg" class="form-msg" role="status"></div>
+            <button class="btn ember" type="submit" id="contact-submit">{{t "site.landing.contact.send"}}</button>
+          </form>
+          <div class="contact-side">
+            <div class="value-card">
+              <span class="ico">🧑‍💻</span>
+              <h3>{{t "site.landing.contact.status_title"}}</h3>
+              <p>{{t "site.landing.contact.status_text"}}</p>
+            </div>
+            <div class="value-card">
+              <span class="ico">🌉</span>
+              <h3>{{t "site.landing.contact.bridge_title"}}</h3>
+              <p>{{template "spans" (rich "site.landing.contact.bridge_text")}}</p>
+            </div>
+            <div class="value-card">
+              <span class="ico">🛠️</span>
+              <h3>{{t "site.landing.contact.diy_title"}}</h3>
+              <p>{{template "spans" (rich "site.landing.contact.diy_text")}}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container footer-row">
+      <span>{{t "site.landing.footer.copyright" "year" .Year}}</span>
+      <div class="footer-links">
+        <a href="https://github.com/alonsovidales/otc">GitHub</a>
+        <a href="https://github.com/alonsovidales/otc#readme">{{t "site.landing.footer.docs"}}</a>
+        <a href="#contact">{{t "site.landing.footer.contact"}}</a>
+        <a href="/privacy">{{t "site.landing.footer.privacy"}}</a>
+        <a href="/terms">{{t "site.landing.footer.terms"}}</a>
+      </div>
+      {{- if .Switcher}}
+      <nav class="lang-switch" aria-label="{{t "site.common.language"}}">
+        {{- range .Switcher}}
+        <a href="{{.Href}}" lang="{{.Lang}}" hreflang="{{.Lang}}"{{if .Current}} aria-current="page"{{end}}>{{.Name}}</a>
+        {{- end}}
+      </nav>
+      {{- end}}
+    </div>
+  </footer>
+
+  <!-- What the scripts below write, in the page's language. -->
+  <script type="application/json" id="site-text">{{texts
+    "copy" "site.landing.install.copy"
+    "copied" "site.landing.install.copied"
+    "copyFailed" "site.landing.install.copy_failed"
+    "send" "site.landing.contact.send"
+    "sending" "site.landing.contact.sending"
+    "sent" "site.landing.contact.sent"
+    "sendFailed" "site.landing.contact.send_failed"}}</script>
+  <!-- The contact form's errors by the code the bridge answers with: its own text is English. -->
+  <script type="application/json" id="contact-errors">{{texts
+    "invalid_body" "api.error.invalid_body"
+    "missing_fields" "api.error.missing_fields"
+    "invalid_email" "api.error.invalid_email_contact"
+    "field_too_long" "api.error.field_too_long"
+    "too_many_messages" "api.error.too_many_messages"
+    "internal_error" "api.error.internal_error"
+    "cross_origin" "api.error.cross_origin"}}</script>
+  <script nonce="{{.Nonce}}">
+    const T = JSON.parse(document.getElementById('site-text').textContent);
+
+    // Smooth scrolling is applied only to in-page nav clicks, via JS, not
+    // as a global `scroll-behavior: smooth` - that CSS property is known to
+    // break Chrome's native jump to a URL's #hash on initial load (a fresh
+    // visit to e.g. off-the.cloud/#faq silently stays at the top), which
+    // matters here since every nav link, the header CTA, and the footer
+    // are all in-page hash links people may load or share directly.
+    document.querySelectorAll('a[href^="#"]').forEach((link) => {
+      link.addEventListener('click', (e) => {
+        const target = document.getElementById(link.getAttribute('href').slice(1));
+        if (!target) return;
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth' });
+        history.pushState(null, '', link.getAttribute('href'));
+      });
+    });
+
+    const tabs = document.querySelectorAll('.install-tab');
+    const selectTab = (id) => {
+      tabs.forEach(t => {
+        const on = t.id === id;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        document.getElementById(t.getAttribute('aria-controls')).classList.toggle('on', on);
+      });
+    };
+    tabs.forEach(t => t.addEventListener('click', () => selectTab(t.id)));
+    if (location.hash === '#script') selectTab('tab-script');
+
+    const copyBtn = document.getElementById('copy-curl');
+    copyBtn.addEventListener('click', async () => {
+      const cmd = 'curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/verified-install.sh | sudo bash -s -- <subdomain>';
+      try {
+        await navigator.clipboard.writeText(cmd);
+        copyBtn.textContent = T.copied;
+      } catch (e) {
+        copyBtn.textContent = T.copyFailed;
+      }
+      setTimeout(() => { copyBtn.textContent = T.copy; }, 2000);
+    });
+
+    // Downloads: highlight the visitor's system and list it first.
+    (() => {
+      const ua = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent;
+      const all = navigator.userAgent;
+      // iPadOS reports itself as a Mac: a touch screen tells them apart.
+      const os = /android/i.test(all) ? 'android'
+        : /iphone|ipad|ipod/i.test(all) || (/mac/i.test(ua) && navigator.maxTouchPoints > 1) ? 'ios'
+        : /win/i.test(ua) ? 'windows' : /mac/i.test(ua) ? 'mac' : /linux|x11|cros/i.test(ua) ? 'linux' : '';
+      const card = os && document.querySelector('.dl-card[data-os="' + os + '"]');
+      if (card) { card.classList.add('mine'); card.parentNode.prepend(card); }
+    })();
+
+    // An error the bridge sends is shown in the page's words for its code;
+    // its own (English) text and then our sentence are the fallbacks, for
+    // a code this page doesn't know.
+    const contactErrors = JSON.parse(document.getElementById('contact-errors').textContent);
+    const errorText = (data) => (data && typeof data.code === 'string' &&
+      Object.prototype.hasOwnProperty.call(contactErrors, data.code) && contactErrors[data.code]) ||
+      (data && data.error) || T.sendFailed;
+
+    const form = document.getElementById('contact-form');
+    const msgEl = document.getElementById('contact-msg');
+    const submitBtn = document.getElementById('contact-submit');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msgEl.className = 'form-msg';
+      msgEl.textContent = '';
+      submitBtn.disabled = true;
+      submitBtn.textContent = T.sending;
+
+      const fd = new FormData(form);
+      try {
+        const res = await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: fd.get('name'),
+            email: fd.get('email'),
+            reason: fd.get('reason'),
+            message: fd.get('message'),
+            website: fd.get('website'),
+          }),
+        });
+        let data = null;
+        try { data = await res.json(); } catch (err) {}
+        if (!res.ok) {
+          throw new Error(errorText(data));
+        }
+        msgEl.className = 'form-msg ok';
+        msgEl.textContent = T.sent;
+        form.reset();
+      } catch (err) {
+        msgEl.className = 'form-msg error';
+        msgEl.textContent = err.message || T.sendFailed;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = T.send;
+      }
+    });
+  </script>
+  <div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="{{t "site.landing.lightbox.label"}}">
+    <button class="lb-close" type="button" aria-label="{{t "site.landing.lightbox.close"}}">✕</button>
+    <button class="lb-prev" type="button" aria-label="{{t "site.landing.lightbox.previous"}}">‹</button>
+    <img alt="">
+    <button class="lb-next" type="button" aria-label="{{t "site.landing.lightbox.next"}}">›</button>
+    <div class="lb-cap"></div>
+  </div>
+  <script nonce="{{.Nonce}}">
+    // Screenshots open large, with arrows (and keys/swipes) through their group.
+    (() => {
+      const lb = document.getElementById('lb'), big = lb.querySelector('img'), cap = lb.querySelector('.lb-cap');
+      let list = [], i = 0, opener = null;
+      const show = () => { const im = list[i]; big.src = im.currentSrc || im.src; big.alt = im.alt; cap.textContent = im.alt;
+        lb.querySelector('.lb-prev').style.display = lb.querySelector('.lb-next').style.display = list.length > 1 ? '' : 'none'; };
+      const open = (im) => { list = [...im.closest('.shot-row').querySelectorAll('img')]; i = list.indexOf(im); opener = im;
+        show(); lb.classList.add('on'); document.body.style.overflow = 'hidden'; lb.querySelector('.lb-close').focus(); };
+      const close = () => { lb.classList.remove('on'); document.body.style.overflow = ''; big.src = ''; opener && opener.focus(); };
+      const step = (d) => { i = (i + d + list.length) % list.length; show(); };
+      document.querySelectorAll('.shot img').forEach(im => {
+        im.tabIndex = 0;
+        im.addEventListener('click', () => open(im));
+        im.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(im); } });
+      });
+      lb.querySelector('.lb-close').onclick = close;
+      lb.querySelector('.lb-prev').onclick = () => step(-1);
+      lb.querySelector('.lb-next').onclick = () => step(1);
+      lb.addEventListener('click', e => { if (e.target === lb) close(); });
+      document.addEventListener('keydown', e => { if (!lb.classList.contains('on')) return;
+        if (e.key === 'Escape') close(); else if (e.key === 'ArrowLeft') step(-1); else if (e.key === 'ArrowRight') step(1); });
+      let x0 = null;
+      lb.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
+      lb.addEventListener('touchend', e => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1); });
+    })();
+  </script>
+</body>
+</html>

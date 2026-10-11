@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{.Tag}}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex" />
-    <title>Account disabled</title>
-    <style>
+    <title>{{t "site.device.disabled.title"}}</title>
+    <style nonce="{{.Nonce}}">
       :root { color-scheme: dark; }
       body {
         margin: 0;
@@ -31,8 +31,8 @@
   </head>
   <body>
     <div class="card">
-      <h1>This account has been disabled</h1>
-      <p>The owner of this device has disabled this account. Contact them if you believe this is a mistake.</p>
+      <h1>{{t "site.device.disabled.heading"}}</h1>
+      <p>{{t "site.device.disabled.text"}}</p>
     </div>
   </body>
 </html>

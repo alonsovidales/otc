@@ -36,7 +36,7 @@ func redirectToHTTPS(health string, mux http.Handler) http.Handler {
 			host = h
 		}
 		if host == "" {
-			http.Error(w, "use https", http.StatusBadRequest)
+			http.Error(w, "use https", http.StatusBadRequest) // i18n-ignore: only a client sending no Host header gets it; browsers always send one
 			return
 		}
 		http.Redirect(w, r, "https://"+host+r.URL.RequestURI(), http.StatusMovedPermanently)

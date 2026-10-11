@@ -54,7 +54,7 @@ func denyNonPublic(_, address string, _ syscall.RawConn) error {
 		refused = refused || p.Contains(ip)
 	}
 	if refused {
-		return fmt.Errorf("web push to %s refused: not a public address", ip)
+		return fmt.Errorf("web push to %s refused: not a public address", ip) // i18n-ignore: logged, never sent
 	}
 	return nil
 }

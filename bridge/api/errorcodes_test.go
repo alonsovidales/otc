@@ -19,6 +19,8 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/bridge/accounts"
 	"github.com/alonsovidales/otc/bridge/dao"
+	"github.com/alonsovidales/otc/i18n"
+	"github.com/alonsovidales/otc/i18n/model"
 )
 
 // Every JSON error answers a stable code next to the English text the
@@ -125,8 +127,11 @@ func goErrors(t *testing.T) map[string][]string {
 		}
 	}
 	quoted := `"(?:[^"\\]|\\.)*"|` + "`[^`]*`"
-	calls := regexp.MustCompile(`(?:writeError|writeJSONErr)\(w, [^,]+, "([^"]*)", (` + quoted + `|\w+)`)
-	literals := regexp.MustCompile(`apiError\{"([^"]*)", (` + quoted + `|\w+)`)
+	// A text from the catalog: errorText(i18n.ApiErrorX(...)).
+	fromCatalog := `errorText\(i18n\.\w+\([^)]*\)\)`
+	calls := regexp.MustCompile(`(?:writeError|writeJSONErr)\(w, [^,]+, "([^"]*)", (` + quoted + `|` + fromCatalog + `|\w+)`)
+	literals := regexp.MustCompile(`apiError\{"([^"]*)", (` + quoted + `|` + fromCatalog + `|\w+)`)
+	english := catalogEnglish(t)
 	codeOnly := regexp.MustCompile(`\["code"\] = "([^"]*)"`)
 	consts := regexp.MustCompile(`(?m)^\s*(?:const\s+)?(c\w+)\s*=\s*(` + quoted + `)\s*$`)
 
@@ -152,7 +157,12 @@ func goErrors(t *testing.T) map[string][]string {
 			out[code] = nil
 		}
 		text, err := strconv.Unquote(expr)
-		if err != nil {
+		if m := catalogCall.FindStringSubmatch(expr); m != nil {
+			// A key without arguments; one with them is made at run time.
+			if text = english[m[1]]; text == "" {
+				t.Errorf("%s: no api.* key without arguments has this constructor", expr)
+			}
+		} else if err != nil {
 			text = named[expr] // a constant; "" for anything made at run time
 		}
 		if text != "" && !slices.Contains(out[code], text) {
@@ -170,6 +180,33 @@ func goErrors(t *testing.T) map[string][]string {
 	}
 	if len(out) < 40 {
 		t.Fatalf("found only %d codes in the sources: the patterns no longer match the code", len(out))
+	}
+	return out
+}
+
+// catalogCall is an error text from the catalog with no arguments:
+// errorText(i18n.ApiErrorNameTaken()).
+var catalogCall = regexp.MustCompile(`^errorText\(i18n\.(\w+)\(\)\)$`)
+
+// catalogEnglish is the English the Go side renders for each api.* key
+// without arguments, by the name of its constructor (ApiErrorNameTaken).
+func catalogEnglish(t *testing.T) map[string]string {
+	t.Helper()
+	b, err := os.ReadFile("../../i18n/strings/en/api.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var entries map[string]struct {
+		Args []json.RawMessage `json:"args"`
+	}
+	if err := json.Unmarshal(b, &entries); err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]string{}
+	for key, e := range entries {
+		if len(e.Args) == 0 {
+			out[model.GoName(key)] = i18n.T("en", key, nil)
+		}
 	}
 	return out
 }
