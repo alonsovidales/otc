@@ -293,6 +293,8 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 	// bridge round-trip.
 	ps.OnChange = mg.requestPushSync
 	ps.RelayMobile = mg.relayMobileToBridge
+	// Localization: the language pushes are written in (push.Lang).
+	ps.Language = st.PushLanguage
 	// Pushes leave the friend sync's path: about one sync page of events
 	// across a few friends fits before Notify falls back to sending inline.
 	ps.StartAsync(256)
@@ -819,32 +821,9 @@ func (mg *Manager) syncPushRegistrationsToBridge() {
 	if !bridgeConfigured() {
 		return
 	}
-	apnsTokens, err := mg.dao.ListApnsTokens()
-	if err != nil {
-		log.Error("error listing APNs tokens for bridge push-registrations sync:", err)
+	regs, ok := mg.pushRegistrations()
+	if !ok {
 		return
-	}
-	// Issue #125. Not fatal: a device whose schema doesn't have the table
-	// yet must still keep its iOS and web registrations in sync.
-	fcmTokens, err := mg.dao.ListFcmTokens()
-	if err != nil {
-		log.Error("error listing FCM tokens for bridge push-registrations sync:", err)
-		fcmTokens = nil
-	}
-	webPushSubs, err := mg.dao.ListWebPushSubscriptions()
-	if err != nil {
-		log.Error("error listing web push subscriptions for bridge push-registrations sync:", err)
-		return
-	}
-	vapidPub, vapidPriv, err := mg.dao.GetVapidKeys()
-	if err != nil {
-		log.Error("error loading VAPID keys for bridge push-registrations sync:", err)
-		return
-	}
-
-	pbSubs := make([]*pb.WebPushSub, len(webPushSubs))
-	for i, s := range webPushSubs {
-		pbSubs[i] = &pb.WebPushSub{Endpoint: s.Endpoint, P256Dh: s.P256dh, Auth: s.Auth}
 	}
 
 	u := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
@@ -857,22 +836,9 @@ func (mg *Manager) syncPushRegistrationsToBridge() {
 	}
 	defer c.Close()
 
-	// One read: never one identity's secret with another's domain (issue #171).
-	ownerUuid, domain, secret := mg.settings.Identity()
 	msg := &pb.ReqEnvelope{
-		Id: 1,
-		Payload: &pb.ReqEnvelope_ReqUpdatePushRegistrations{
-			ReqUpdatePushRegistrations: &pb.UpdatePushRegistrations{
-				OwnerUuid:       ownerUuid,
-				Domain:          domain,
-				Secret:          secret,
-				ApnsTokens:      apnsTokens,
-				FcmTokens:       fcmTokens,
-				WebPushSubs:     pbSubs,
-				VapidPublicKey:  vapidPub,
-				VapidPrivateKey: vapidPriv,
-			},
-		},
+		Id:      1,
+		Payload: &pb.ReqEnvelope_ReqUpdatePushRegistrations{ReqUpdatePushRegistrations: regs},
 	}
 	b, err := proto.Marshal(msg)
 	if err != nil {
@@ -897,6 +863,55 @@ func (mg *Manager) syncPushRegistrationsToBridge() {
 	if resp.Error {
 		log.Error("bridge rejected push-registrations sync:", resp.ErrorMessage)
 	}
+}
+
+// pushRegistrations is the whole set syncPushRegistrationsToBridge sends:
+// this device's identity, every registration, the VAPID keypair and the
+// push language. ok is false when it couldn't be read (logged).
+func (mg *Manager) pushRegistrations() (regs *pb.UpdatePushRegistrations, ok bool) {
+	apnsTokens, err := mg.dao.ListApnsTokens()
+	if err != nil {
+		log.Error("error listing APNs tokens for bridge push-registrations sync:", err)
+		return nil, false
+	}
+	// Issue #125. Not fatal: a device whose schema doesn't have the table
+	// yet must still keep its iOS and web registrations in sync.
+	fcmTokens, err := mg.dao.ListFcmTokens()
+	if err != nil {
+		log.Error("error listing FCM tokens for bridge push-registrations sync:", err)
+		fcmTokens = nil
+	}
+	webPushSubs, err := mg.dao.ListWebPushSubscriptions()
+	if err != nil {
+		log.Error("error listing web push subscriptions for bridge push-registrations sync:", err)
+		return nil, false
+	}
+	vapidPub, vapidPriv, err := mg.dao.GetVapidKeys()
+	if err != nil {
+		log.Error("error loading VAPID keys for bridge push-registrations sync:", err)
+		return nil, false
+	}
+
+	pbSubs := make([]*pb.WebPushSub, len(webPushSubs))
+	for i, s := range webPushSubs {
+		pbSubs[i] = &pb.WebPushSub{Endpoint: s.Endpoint, P256Dh: s.P256dh, Auth: s.Auth}
+	}
+
+	// One read: never one identity's secret with another's domain (issue #171).
+	ownerUuid, domain, secret := mg.settings.Identity()
+	return &pb.UpdatePushRegistrations{
+		OwnerUuid:       ownerUuid,
+		Domain:          domain,
+		Secret:          secret,
+		ApnsTokens:      apnsTokens,
+		FcmTokens:       fcmTokens,
+		WebPushSubs:     pbSubs,
+		VapidPublicKey:  vapidPub,
+		VapidPrivateKey: vapidPriv,
+		// Localization: what the bridge writes its own pushes for this
+		// device in (push.ResolveLanguage), read as the registrations are.
+		Language: mg.settings.PushLanguage(),
+	}, true
 }
 
 func (mg *Manager) Listen(w http.ResponseWriter, r *http.Request) {
@@ -1368,7 +1383,9 @@ func buildUpdateInfo() *pb.RespUpdateInfo {
 	return out
 }
 
-func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
+// lang, here and in the two handlers below, is the request's language
+// (requestLang): "" for today's English. Replies don't depend on it yet.
+func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (resp *pb.RespEnvelope, closeConn bool) {
 	resp = &pb.RespEnvelope{
 		Id: env.Id,
 	}
@@ -1846,7 +1863,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope) (resp *pb.Resp
 	return
 }
 
-func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
+func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope, lang string) (resp *pb.RespEnvelope, closeConn bool) {
 	resp = &pb.RespEnvelope{
 		Id: env.Id,
 	}
@@ -1972,7 +1989,7 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope) (resp *pb
 	return
 }
 
-func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
+func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (resp *pb.RespEnvelope, closeConn bool) {
 	resp = &pb.RespEnvelope{
 		Id: env.Id,
 	}
@@ -2686,6 +2703,10 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			if a := updater.CurrentAlert(); a != nil {
 				st.UpdateAlert = &pb.UpdateAlert{Level: a.Level, Version: a.Version, Summary: a.Summary}
 			}
+			// Localization: the user's language, so every app picks up a
+			// change made in another one ("" = Automatic; always set, so
+			// an app tells this device from one that predates it).
+			st.Language = proto.String(ch.mg.settings.Language())
 
 			resp.Payload = &pb.RespEnvelope_RespStatus{
 				RespStatus: st,
@@ -2806,7 +2827,20 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 				ImageTaggingEnabled:    ch.mg.settings.ImageTaggingEnabled(),
 				SocialStorageLimitMb:   int32(limitMB),
 				SocialStorageUsedBytes: used,
+				// Localization: always set ("" = Automatic).
+				Language: proto.String(ch.mg.settings.Language()),
 			},
+		}
+
+	// Localization: the user's language for every app (owner only).
+	case *pb.ReqEnvelope_ReqSetLanguage:
+		ack, err := ch.setLanguage(p.ReqSetLanguage)
+		if err != nil {
+			log.Error("error storing the language:", err)
+			resp.Error = true
+			resp.ErrorMessage = err.Error()
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: ack}
 		}
 
 	// Issue #153: the space friends' posts may take.
@@ -3420,6 +3454,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+			ch.noteUILanguage(lang)
 			// Issue #62: the bridge needs its own copy of this to be able
 			// to alert the owner if this device ever goes unreachable -
 			// see syncPushRegistrationsToBridge's own doc comment.
@@ -3459,6 +3494,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+			ch.noteUILanguage(lang)
 			ch.mg.requestPushSync()
 		}
 
@@ -3482,6 +3518,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope) (resp *pb.RespEnv
 			resp.ErrorMessage = err.Error()
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+			ch.noteUILanguage(lang)
 			ch.mg.requestPushSync()
 		}
 
@@ -3923,7 +3960,11 @@ func (ch *connHandler) processMessage(env *pb.ReqEnvelope) (resp *pb.RespEnvelop
 		}
 	}()
 
-	resp, closeConn = ch.processNonAuthRequest(env)
+	// Worked out once per request and passed down, never kept on ch:
+	// requests on a connection run concurrently.
+	lang := requestLang(env)
+
+	resp, closeConn = ch.processNonAuthRequest(env, lang)
 
 	// Read once rather than call ch.getSession()/ch.getFriendProfile()
 	// separately in each condition below — both would still be internally
@@ -3933,11 +3974,11 @@ func (ch *connHandler) processMessage(env *pb.ReqEnvelope) (resp *pb.RespEnvelop
 	friendProfile := ch.getFriendProfile()
 
 	if resp == nil && (ses != nil || friendProfile != nil) {
-		resp, closeConn = ch.processAuthAsFriendRequest(env)
+		resp, closeConn = ch.processAuthAsFriendRequest(env, lang)
 	}
 
 	if resp == nil && ses != nil {
-		resp, closeConn = ch.processAuthRequest(env)
+		resp, closeConn = ch.processAuthRequest(env, lang)
 	}
 
 	return

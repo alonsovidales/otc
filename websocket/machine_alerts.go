@@ -27,20 +27,7 @@ func startMachineAlerts(dao *dao.Dao, ps *push.Push, sup *supervisor.Supervisor)
 	// with the notification so once per release.
 	if sup != nil {
 		go updater.Watch(func(a *updater.Alert) {
-			title := fmt.Sprintf("Update %s is available", a.Version)
-			critical := a.Level == updater.KindCritical
-			if critical {
-				title = fmt.Sprintf("Critical update %s - please install it soon", a.Version)
-			}
-			body := a.Summary + " Install it from Settings."
-			added, err := dao.AddUpdateNotification(title, body)
-			if err != nil {
-				log.Error("could not add the update notification:", err)
-				return
-			}
-			if added && critical {
-				ps.Notify(title, body, push.Target{})
-			}
+			updateAlert(dao, ps.Notify, a)
 		})
 	}
 
@@ -63,5 +50,36 @@ func startMachineAlerts(dao *dao.Dao, ps *push.Push, sup *supervisor.Supervisor)
 	// - see wifiwatch. Machine-level, so main instance only.
 	if sup != nil {
 		go wifiwatch.Watch(dao.AddErrorNotification)
+	}
+}
+
+// updateTitles are the English titles of the alert for an update to
+// version: a major one's and a critical one's. Rows written before
+// release 118 have no update_version, only one of these, so these exact
+// strings stay in the match even if the English title is ever reworded.
+func updateTitles(version string) (major, critical string) {
+	return fmt.Sprintf("Update %s is available", version),
+		fmt.Sprintf("Critical update %s - please install it soon", version)
+}
+
+// updateAlert adds the alert for a, once per version
+// (dao.AddUpdateNotification: by update_version, and by both English
+// titles for the rows from before it), and for a critical update pushes
+// it with the alert, so once too.
+func updateAlert(d *dao.Dao, notify func(title, body string, t push.Target), a *updater.Alert) {
+	major, critical := updateTitles(a.Version)
+	title := major
+	isCritical := a.Level == updater.KindCritical
+	if isCritical {
+		title = critical
+	}
+	body := a.Summary + " Install it from Settings."
+	added, err := d.AddUpdateNotification(a.Version, title, body, []string{major, critical})
+	if err != nil {
+		log.Error("could not add the update notification:", err)
+		return
+	}
+	if added && isCritical {
+		notify(title, body, push.Target{})
 	}
 }

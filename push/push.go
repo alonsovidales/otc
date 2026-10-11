@@ -140,6 +140,11 @@ type Push struct {
 	// own Push instance has no further hop to sync to).
 	OnChange func()
 
+	// Language, if set, answers the language pushes are written in (see
+	// Lang). The device wires it to its settings (settings.PushLanguage);
+	// the bridge leaves it nil.
+	Language func() string
+
 	// queue, once StartAsync has run, takes Notify's deliveries off the
 	// caller; nil means Notify sends inline.
 	queue     chan notifyJob

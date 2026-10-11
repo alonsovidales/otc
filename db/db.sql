@@ -279,7 +279,16 @@ create table settings
   `image_tagging_enabled` tinyint(1) not null default 1,
   -- Issue #187: the one-off correction of sizes stored wrapped to an int
   -- before release 93 has run (files_manager/size_backfill.go).
-  `sizes_backfilled` tinyint(1) not null default 0
+  `sizes_backfilled` tinyint(1) not null default 0,
+  -- Localization (release 118, docs/i18n.md): the language the user chose
+  -- for every app - '' for Automatic (each app follows its own system
+  -- language), else a code of two or three lowercase letters, possibly one
+  -- this device has no text for yet. Set only by the owner (SetLanguage).
+  `language` varchar(16) not null default '',
+  -- The language of the app that last registered for pushes, written from
+  -- the owner's push registrations when it changes. Pushes are written in
+  -- `language`, else this, else English (push.ResolveLanguage).
+  `last_ui_language` varchar(16) not null default ''
 ) engine=InnoDB;
 
 create table profile
@@ -375,6 +384,19 @@ create table notifications
   `title` varchar(255) default null,
   `details` text default null,
   `occurrences` int not null default 1,
+  -- Release 118 (docs/i18n.md): the alert as a catalog key and its
+  -- arguments ({"<arg>": raw value}), rendered in each app's language;
+  -- title/details keep the English, shown when the key or its arguments
+  -- don't match what the device knows. msg_lines is an Error group's lines
+  -- the same way ([{"at": "<UTC RFC3339>", "key", "args", "detail"}]).
+  -- All null on rows written before, and on rows with no key.
+  `msg_key` varchar(96) null,
+  `msg_args` mediumtext null,
+  `msg_lines` mediumtext null,
+  -- An Update row's version: one alert per version (dao.
+  -- AddUpdateNotification, which also matches the English titles of the
+  -- rows written before it).
+  `update_version` varchar(16) null,
 
   unique(`uuid`),
   INDEX USING BTREE (`acknowledged`),

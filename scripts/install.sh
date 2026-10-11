@@ -811,6 +811,18 @@ SQL
       KEY (hash)
     ) ENGINE=InnoDB;
 SQL
+    # Release 118 (docs/i18n.md): the user's language for every app, the
+    # language of the app that last registered for pushes, and alerts as a
+    # catalog key next to their English (see updates/118.sh and db.sql).
+    # After the notifications block above, which may have just created it.
+    mysql "$db" <<'SQL'
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS `language` VARCHAR(16) NOT NULL DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS `last_ui_language` VARCHAR(16) NOT NULL DEFAULT '';
+    ALTER TABLE notifications ADD COLUMN IF NOT EXISTS `msg_key` VARCHAR(96) NULL;
+    ALTER TABLE notifications ADD COLUMN IF NOT EXISTS `msg_args` MEDIUMTEXT NULL;
+    ALTER TABLE notifications ADD COLUMN IF NOT EXISTS `msg_lines` MEDIUMTEXT NULL;
+    ALTER TABLE notifications ADD COLUMN IF NOT EXISTS `update_version` VARCHAR(16) NULL;
+SQL
 }
 
 apply_schema_migrations otc

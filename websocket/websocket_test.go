@@ -45,7 +45,7 @@ func TestProcessNonAuthRequestDefersUnhandledPayload(t *testing.T) {
 		Payload: &pb.ReqEnvelope_ReqGetStatus{ReqGetStatus: &pb.GetStatus{}},
 	}
 
-	resp, closeConn := ch.processNonAuthRequest(env)
+	resp, closeConn := ch.processNonAuthRequest(env, "")
 
 	if resp != nil {
 		t.Errorf("expected a nil response so the caller tries the next handler, got %+v", resp)
@@ -65,7 +65,7 @@ func TestProcessAuthAsFriendRequestDefersUnhandledPayload(t *testing.T) {
 		},
 	}
 
-	resp, closeConn := ch.processAuthAsFriendRequest(env)
+	resp, closeConn := ch.processAuthAsFriendRequest(env, "")
 
 	if resp != nil {
 		t.Errorf("expected a nil response so the caller tries the next handler, got %+v", resp)
@@ -88,7 +88,7 @@ func TestProcessAuthRequestAcksUnhandledPayload(t *testing.T) {
 		},
 	}
 
-	resp, closeConn := ch.processAuthRequest(env)
+	resp, closeConn := ch.processAuthRequest(env, "")
 
 	if resp == nil {
 		t.Fatal("expected a non-nil response echoing the request id, since this is the last handler in the chain")
@@ -129,7 +129,7 @@ func TestGetPubKeyGeneratesUsableKeypair(t *testing.T) {
 		Payload: &pb.ReqEnvelope_ReqGetPubKey{ReqGetPubKey: &pb.GetPubKey{}},
 	}
 
-	resp, closeConn := ch.processNonAuthRequest(env)
+	resp, closeConn := ch.processNonAuthRequest(env, "")
 
 	if resp == nil {
 		t.Fatal("expected a non-nil response")
@@ -162,7 +162,7 @@ func TestGetPubKeyGeneratesUsableKeypair(t *testing.T) {
 
 	// A second call must reuse the same keypair rather than rotating it
 	// mid-connection.
-	resp2, _ := ch.processNonAuthRequest(env)
+	resp2, _ := ch.processNonAuthRequest(env, "")
 	pubKeyResp2 := resp2.Payload.(*pb.RespEnvelope_RespPubKey)
 	if string(pubKeyResp2.RespPubKey.PublicKey) != string(pubKeyResp.RespPubKey.PublicKey) {
 		t.Error("expected repeated GetPubKey calls on the same connection to return the same key")
@@ -179,7 +179,7 @@ func TestDecryptSecretRoundTrip(t *testing.T) {
 
 	ch := &connHandler{mg: &Manager{dao: dao.NewWithDB(db)}}
 	env := &pb.ReqEnvelope{Id: 1, Payload: &pb.ReqEnvelope_ReqGetPubKey{ReqGetPubKey: &pb.GetPubKey{}}}
-	resp, _ := ch.processNonAuthRequest(env)
+	resp, _ := ch.processNonAuthRequest(env, "")
 	pubDER := resp.Payload.(*pb.RespEnvelope_RespPubKey).RespPubKey.PublicKey
 	pubAny, _ := x509.ParsePKIXPublicKey(pubDER)
 	pubKey := pubAny.(*rsa.PublicKey)
@@ -317,7 +317,7 @@ func TestDidSendFriendshipReqRejectsWhenNoFriendshipRecordExists(t *testing.T) {
 		},
 	}
 
-	resp, closeConn := ch.processNonAuthRequest(env)
+	resp, closeConn := ch.processNonAuthRequest(env, "")
 
 	if resp == nil {
 		t.Fatal("expected a non-nil response")
@@ -354,7 +354,7 @@ func TestDidSendFriendshipReqAcceptsWhenFriendshipRecordExists(t *testing.T) {
 		},
 	}
 
-	resp, closeConn := ch.processNonAuthRequest(env)
+	resp, closeConn := ch.processNonAuthRequest(env, "")
 
 	if resp == nil {
 		t.Fatal("expected a non-nil response")
@@ -389,7 +389,7 @@ func TestFriendshipsListLeavesOutTheSecret(t *testing.T) {
 	resp, _ := ch.processAuthRequest(&pb.ReqEnvelope{
 		Id:      1,
 		Payload: &pb.ReqEnvelope_ReqFriendshipsList{ReqFriendshipsList: &pb.FriendshipsList{}},
-	})
+	}, "")
 	list, ok := resp.Payload.(*pb.RespEnvelope_RespFriendships)
 	if !ok {
 		t.Fatalf("expected a RespFriendships payload, got %T (%s)", resp.Payload, resp.ErrorMessage)
@@ -426,7 +426,7 @@ func TestChangeKeyAcksAShortNewPassword(t *testing.T) {
 	resp, _ := ch.processAuthRequest(&pb.ReqEnvelope{
 		Id:      1,
 		Payload: &pb.ReqEnvelope_ReqChangeKey{ReqChangeKey: &pb.ChangeKey{OldKey: enc("test-password"), NewKey: enc("short")}},
-	})
+	}, "")
 	ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
 	if !ok {
 		t.Fatalf("expected a RespAck payload, got %T (%s)", resp.Payload, resp.ErrorMessage)
@@ -462,7 +462,7 @@ func TestAuthAcksAShortFirstPasswordWithoutCountingIt(t *testing.T) {
 		resp, _ := ch.processNonAuthRequest(&pb.ReqEnvelope{
 			Id:      int32(i + 1),
 			Payload: &pb.ReqEnvelope_ReqAuth{ReqAuth: &pb.Auth{Key: key, Create: true}},
-		})
+		}, "")
 		ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
 		if !ok {
 			t.Fatalf("expected a RespAck payload, got %T (%s)", resp.Payload, resp.ErrorMessage)
@@ -514,7 +514,7 @@ func TestIssueSessionTokenMintsATokenRedeemableOnAnotherConnection(t *testing.T)
 	resp, closeConn := ch.processAuthRequest(&pb.ReqEnvelope{
 		Id:      1,
 		Payload: &pb.ReqEnvelope_ReqIssueSessionToken{ReqIssueSessionToken: &pb.ReqIssueSessionToken{}},
-	})
+	}, "")
 	if closeConn {
 		t.Error("expected closeConn to be false")
 	}
@@ -536,7 +536,7 @@ func TestIssueSessionTokenMintsATokenRedeemableOnAnotherConnection(t *testing.T)
 	authResp, closeConn2 := ch2.processNonAuthRequest(&pb.ReqEnvelope{
 		Id:      2,
 		Payload: &pb.ReqEnvelope_ReqAuthWithToken{ReqAuthWithToken: &pb.ReqAuthWithToken{Token: token}},
-	})
+	}, "")
 	if closeConn2 {
 		t.Error("expected closeConn to be false on a successful token redemption")
 	}
@@ -560,7 +560,7 @@ func TestAuthWithTokenRejectsUnknownTokenWithoutClosingTheConnection(t *testing.
 	resp, closeConn := ch.processNonAuthRequest(&pb.ReqEnvelope{
 		Id:      1,
 		Payload: &pb.ReqEnvelope_ReqAuthWithToken{ReqAuthWithToken: &pb.ReqAuthWithToken{Token: "not-a-real-token"}},
-	})
+	}, "")
 	if closeConn {
 		t.Error("expected the connection to stay open so the client can fall back to signing in")
 	}
@@ -586,7 +586,7 @@ func TestAuthWithTokenIsSingleUse(t *testing.T) {
 	resp1, _ := ch1.processNonAuthRequest(&pb.ReqEnvelope{
 		Id:      1,
 		Payload: &pb.ReqEnvelope_ReqAuthWithToken{ReqAuthWithToken: &pb.ReqAuthWithToken{Token: token}},
-	})
+	}, "")
 	if ack := resp1.Payload.(*pb.RespEnvelope_RespAck); !ack.RespAck.Ok {
 		t.Fatalf("expected the first redemption to succeed, got: %s", ack.RespAck.ErrorMsg)
 	}
@@ -595,7 +595,7 @@ func TestAuthWithTokenIsSingleUse(t *testing.T) {
 	resp2, _ := ch2.processNonAuthRequest(&pb.ReqEnvelope{
 		Id:      2,
 		Payload: &pb.ReqEnvelope_ReqAuthWithToken{ReqAuthWithToken: &pb.ReqAuthWithToken{Token: token}},
-	})
+	}, "")
 	if ack := resp2.Payload.(*pb.RespEnvelope_RespAck); ack.RespAck.Ok {
 		t.Error("expected Ok=false on a repeated redemption of an already-used token")
 	}
@@ -616,7 +616,7 @@ func TestRevokeSessionTokenInvalidatesOutstandingTokens(t *testing.T) {
 	resp, closeConn := ch.processAuthRequest(&pb.ReqEnvelope{
 		Id:      1,
 		Payload: &pb.ReqEnvelope_ReqRevokeSessionToken{ReqRevokeSessionToken: &pb.ReqRevokeSessionToken{}},
-	})
+	}, "")
 	if closeConn {
 		t.Error("expected closeConn to be false")
 	}
@@ -628,7 +628,7 @@ func TestRevokeSessionTokenInvalidatesOutstandingTokens(t *testing.T) {
 	resp2, _ := ch2.processNonAuthRequest(&pb.ReqEnvelope{
 		Id:      2,
 		Payload: &pb.ReqEnvelope_ReqAuthWithToken{ReqAuthWithToken: &pb.ReqAuthWithToken{Token: token}},
-	})
+	}, "")
 	if ack := resp2.Payload.(*pb.RespEnvelope_RespAck); ack.RespAck.Ok {
 		t.Error("expected a revoked token to no longer redeem successfully")
 	}
@@ -663,7 +663,7 @@ func TestMachineLevelRPCsAreRefusedOnAChildInstance(t *testing.T) {
 		// supervisor package's doc comment).
 		ch := &connHandler{mg: &Manager{}}
 
-		resp, _ := ch.processAuthRequest(c.env)
+		resp, _ := ch.processAuthRequest(c.env, "")
 
 		if resp == nil {
 			t.Fatalf("%s: expected a response", c.name)
@@ -688,7 +688,7 @@ func TestMachineLevelRPCsAreNotRefusedOnThePrimary(t *testing.T) {
 	env := &pb.ReqEnvelope{Id: 1, Payload: &pb.ReqEnvelope_ReqListStorageDevices{
 		ReqListStorageDevices: &pb.ListStorageDevices{}}}
 
-	resp, _ := ch.processAuthRequest(env)
+	resp, _ := ch.processAuthRequest(env, "")
 
 	if resp != nil && resp.ErrorMessage == "not available on this instance" {
 		t.Error("the primary instance must not be refused its own storage/WiFi setup")
@@ -919,7 +919,7 @@ func TestOverlongFriendDomainIsAnsweredAsUnknown(t *testing.T) {
 	long := strings.Repeat("a", cMaxFriendDomain+1)
 	ack := func(env *pb.ReqEnvelope) (string, bool) {
 		t.Helper()
-		resp, closeConn := ch.processNonAuthRequest(env)
+		resp, closeConn := ch.processNonAuthRequest(env, "")
 		a, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
 		if !ok || a.RespAck.Ok {
 			t.Fatalf("%T: want a refusing Ack, got %v", env.Payload, resp.Payload)
@@ -928,7 +928,7 @@ func TestOverlongFriendDomainIsAnsweredAsUnknown(t *testing.T) {
 	}
 
 	resp, closeConn := ch.processNonAuthRequest(&pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqGetFriendshipStatus{
-		ReqGetFriendshipStatus: &pb.GetFriendshipStatus{Domain: long}}})
+		ReqGetFriendshipStatus: &pb.GetFriendshipStatus{Domain: long}}}, "")
 	if st := resp.GetRespFriendshipStatus(); st == nil || !st.NotFound || closeConn {
 		t.Fatalf("status: want not found, got %v", resp)
 	}

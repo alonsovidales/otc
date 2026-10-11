@@ -1181,7 +1181,10 @@ message SetImageTaggingEnabled {
 // Localization (docs/i18n.md): the user's language for every app. language
 // is "" (Automatic) or a lowercase language code; the device stores it only
 // while its current value equals `expected` (when set), so a change made
-// meanwhile from another app is not overwritten.
+// meanwhile from another app is not overwritten. Owner sessions only.
+// Answered with an Ack: ok, or ok=false with code "changed" (expected no
+// longer matches) or "invalid_language"; a device that predates it answers
+// unknown_payload.
 message SetLanguage {
   string language = 1;
   optional string expected = 2;

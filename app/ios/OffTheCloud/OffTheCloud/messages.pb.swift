@@ -2930,7 +2930,10 @@ public nonisolated struct Msg_SetImageTaggingEnabled: Sendable {
 /// Localization (docs/i18n.md): the user's language for every app. language
 /// is "" (Automatic) or a lowercase language code; the device stores it only
 /// while its current value equals `expected` (when set), so a change made
-/// meanwhile from another app is not overwritten.
+/// meanwhile from another app is not overwritten. Owner sessions only.
+/// Answered with an Ack: ok, or ok=false with code "changed" (expected no
+/// longer matches) or "invalid_language"; a device that predates it answers
+/// unknown_payload.
 public nonisolated struct Msg_SetLanguage: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for

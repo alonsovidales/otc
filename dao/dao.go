@@ -2001,16 +2001,42 @@ func (dao *Dao) strToNotificationType(s string) pb.NotificationType {
 }
 
 // AddUpdateNotification (issue #183) tells the owner about a major or
-// critical update, once: a notification with the same title (which names
-// the version) is not added again. added says whether this call added it,
-// so a push that goes with it is sent once too, across restarts.
-func (dao *Dao) AddUpdateNotification(title, detail string) (added bool, err error) {
+// critical update, once per version: a notification whose update_version
+// is version, or whose title is one of legacyTitles (the English titles
+// naming the version: all that rows written before release 118 carry), is
+// not added again. added says whether this call added it, so a push that
+// goes with it is sent once too, across restarts. On a database without
+// update_version (ErrSchemaBehind) it de-duplicates by the titles alone,
+// as before.
+func (dao *Dao) AddUpdateNotification(version, title, detail string, legacyTitles []string) (added bool, err error) {
+	if len(legacyTitles) == 0 {
+		legacyTitles = []string{title}
+	}
+	version = truncateUTF8(version, cUpdateVersionLen)
+	in := "?" + strings.Repeat(", ?", len(legacyTitles)-1)
+	args := []any{version}
+	for _, t := range legacyTitles {
+		args = append(args, t)
+	}
+	withVersion := true
 	var n int
-	if err := dao.db.QueryRow("select count(*) from `notifications` where `type` = 'Update' and `title` = ?", title).Scan(&n); err != nil {
+	err = dao.db.QueryRow("select count(*) from `notifications` where `type` = 'Update' and (`update_version` = ? or `title` in ("+in+"))", args...).Scan(&n)
+	if isUnknownColumn(err) {
+		withVersion = false
+		err = dao.db.QueryRow("select count(*) from `notifications` where `type` = 'Update' and `title` in ("+in+")", args[1:]...).Scan(&n)
+	}
+	if err != nil {
 		return false, err
 	}
 	if n > 0 {
 		return false, nil
+	}
+	if withVersion {
+		_, err = dao.db.Exec("insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`, `update_version`) values (?, now(), 'Update', 'This device', '', ?, ?, 1, ?)",
+			uuid.New(), title, detail, version)
+		if !isUnknownColumn(err) {
+			return err == nil, err
+		}
 	}
 	if _, err := dao.db.Exec("insert into `notifications` (`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`) values (?, now(), 'Update', 'This device', '', ?, ?, 1)",
 		uuid.New(), title, detail); err != nil {
@@ -2018,6 +2044,9 @@ func (dao *Dao) AddUpdateNotification(title, detail string) (added bool, err err
 	}
 	return true, nil
 }
+
+// cUpdateVersionLen is what notifications.update_version holds.
+const cUpdateVersionLen = 16
 
 // AddStorageNotification tells the owner a disk of the mirror stopped
 // working, or that the mirror is whole again (raidwatch): an Error row of
