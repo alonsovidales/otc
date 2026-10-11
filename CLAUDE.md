@@ -866,12 +866,24 @@ words as they come (already in the request's language) and keep their own text a
 `plainNumber` keep hand-written numbers byte-identical), Android `UiText` plus
 `ui/common/AppText.kt` (`now()`, `TextIOException`) and `.english()` in JVM tests
 (`test/.../i18n/English.kt`), Swift computed accessors and `LocalizedError`s, otc-sync `Msg()`
-errors. The setup wizard (`wiz.*`) takes `?lang=` from the apps (iOS `BLESetupLang`, Android
+errors. iOS model text is an enum worded when shown (`GalleryNotice`, `PeopleNote`, `FriendsToast`,
+`ComposerAlert`), Settings' `SettingsText` (`say`/`asIs`/`error`) or a private `@Published` `() ->
+String` behind a computed `String` (`FilesExplorerViewModel`); Android picks the device's words or
+ours with `deviceOr`/`Throwable.shownText()` (`ui/settings/SettingsViewModels.kt`) and puts a key's
+text inside another key as a nested `UiText.Res(id, listOf(nested))` (`PhotoMonths.kt`). Shared
+patterns (docs/i18n.md "Each platform"): a date written by hand is a key with `text` pieces
+("{month} {year}", "{day} {month} {year}"; month names from `Intl.DateTimeFormat(t.tag, {month})` on
+the web, `app.photos.months.*` on the phones); a sentence that would need two plurals takes its
+counted pieces, each its own plural key, as a `{what}` text argument; name lists are two recursive
+keys ("{first} and {second}", "{first}, {rest}"), never `Intl.ListFormat`; a typed confirmation
+sends the code constant (the account page shows and accepts `site.account.delete.word`, and
+`delete`, but always sends `{"confirm": "delete"}`; deleting a user in Settings asks for the
+username). The setup wizard (`wiz.*`) takes `?lang=` from the apps (iOS `BLESetupLang`, Android
 `withLang`, Mac `BLESetupTransport.withLanguage`) and words install.sh's steps from its
 `[otc-install] @step|@error <token>` marks, only when the key's English equals the line that
-follows. The bridge's landing, disabled and unavailable pages are templates in `bridge/site`
-(Frontend below); its emails follow `accounts.lang`, while its JSON `error` texts and websocket
-replies stay English and clients word them by `code`.
+follows. The bridge's landing, account, disabled and unavailable pages are templates in
+`bridge/site` (Frontend below); its emails follow `accounts.lang`, while its JSON `error` texts and
+websocket replies stay English (a fallback only) and clients word them by `code`.
 
 The stored choice (`docs/i18n.md`, "The stored choice"; every client follows the same rules):
 - Device (release 118, `scripts/updates/118.sh`): `settings.language` and `last_ui_language`.
@@ -883,10 +895,12 @@ The stored choice (`docs/i18n.md`, "The stored choice"; every client follows the
   than its schema gets `dao.ErrSchemaBehind` (MySQL 1054) and carries on with the defaults.
 - Bridge: migration `010-language.sql` (`accounts.lang`, `push_registrations.language`), tolerated
   when absent (`bridge/dao/language.go`); `PUT /api/account/language {"lang"}`; sign-up takes the
-  body's `lang` else `Accept-Language` (`""` when none matches); `/me` carries `lang`; the export
-  adds `account.language` and `domains[].push_language`; the offline alert's language comes from
-  `push_registrations.language` (`offlineAlertText`). Never log a language next to an account or
-  domain.
+  body's `lang` else `Accept-Language` (`""` when none matches); `/me` carries `lang`; the account
+  page sends its own language at sign-up from a non-English page and, on a non-English page,
+  PUTs it once for an account whose `lang` is `""` (never overwriting one, never sending `en`);
+  the export adds `account.language` and `domains[].push_language`; the offline alert's language
+  comes from `push_registrations.language` (`offlineAlertText`). Never log a language next to an
+  account or domain.
 - Apps: a local copy plus a pending change, sent with SetLanguage against the device value seen
   when it was made. Sign-out, Log Out, Disconnect or another device/password keeps the copy and
   drops the pending change. `unknown_payload` keeps it pending until the next connection. `lang`
@@ -899,7 +913,12 @@ The stored choice (`docs/i18n.md`, "The stored choice"; every client follows the
   ask only on a fresh create. `node web/scripts/i18n-test.mjs` tests the web runtime and choice.
 - New web text goes through `useT()` / `<Trans>` from `web/src/i18n` with an entry in
   `i18n/strings/en/web.<area>.json`; never keep translated text at module level or in state
-  (keep a key or a `UiText`).
+  (keep a key or a `UiText`). A `UiText` is a function, so never hand one bare to React:
+  `useState(() => say(…))`, `setX(() => text)`. Round a value that isn't whole with `toFixed`
+  before `unitText`/`percentText` (Intl rounds ties differently), write B/KB/MB/GB sizes with
+  `components/sizeText.ts`, and leave dates already written with `toLocaleString()` on it (the
+  browser's locale). The public `/shared` page shows the visitor's browser language (Automatic,
+  or that browser's own stored choice).
 
 ### Bridge (`bridge/`)
 
@@ -973,13 +992,15 @@ device over the same bridge tunnel every other request uses (`ReqGetStaticAsset`
 a separate bundle the bridge would otherwise need redeployed by hand on every web change — this is what
 lets a device running an older build still work correctly through the bridge. The bridge's *own*
 pages are deployed by `bridge/makefile` independently of a device's web build. The public landing
-page and the pages it shows for a disabled or unreachable device are html/template files in
-`bridge/site/pages/*.html`, embedded in the binary (package `bridge/site`) and served by
-`bridge/api/site.go` in the visitor's language: `/` (English, or a 302 by `Accept-Language`), `/en/`
-and `/<code>/`, hreflang plus x-default, a footer language switcher once a second language ships,
-and a CSP with a nonce per response (docs/i18n.md "bridge"). They are never read from `/var/www`,
-where older deploys left copies. `bridge/static/` holds the account page, privacy, terms, the
-admin panel and the assets, copied to `/var/www` by the deploy.
+page, the account page and the pages shown for a disabled or unreachable device are html/template
+files in `bridge/site/pages/*.html`, embedded in the binary (package `bridge/site`) and served by
+`bridge/api/site.go` in the visitor's language: `/` and `/account` (English, or a 302 to
+`/<code>/` / `/<code>/account` by `Accept-Language`, query kept), `/en/`, `/en/account`,
+`/<code>/` and `/<code>/account`, `/account.html` -> 301 `/account`, hreflang plus x-default, a
+footer language switcher once a second language ships, and a CSP with a nonce per response
+(docs/i18n.md "bridge"). They are never read from `/var/www`, where older deploys left copies (an
+old `account.html` there is never served). `bridge/static/` holds privacy, terms, the admin panel
+and the assets, copied to `/var/www` by the deploy.
 
 Web invariants: never call `URL.createObjectURL` during render. PhotoGallery and NewPostPicker use
 `useObjectURLs(items, make)` (`make` module-level and stable); other URLs are made in a memo or
@@ -1125,8 +1146,13 @@ body or `Authorization: Bearer`, refuses with `401 login_required` when there is
 identity (`dao.ReplaceDeviceIdentity` - how a lost device is replaced), and caps an account at
 `accounts.MaxDomains` (403 `domain_limit`). `websocket.go`'s `ReqBridgeRegister` no longer
 registers an unknown domain on dial-in unless open registration is on. The account page is
-`bridge/static/account.html` (plain JS over `/api/account/*`). The wizard's account step goes
-through the device (`/api/account` in `setup_wizard.py` proxies sign-in/sign-up with
+`bridge/site/pages/account.html`: embedded in the binary, served by `bridge/api/site.go` at
+`/account` and `/<code>/account` under the nonce CSP, plain JS over `/api/account/*` whose texts
+come as JSON blocks (`site.account.*`, and `api.error.*` for its error table by code) built by the
+`jstexts`/`jsform` template functions (`bridge/site/site.go`), filled in as text nodes only
+(docs/i18n.md "bridge"). Its links (the emails' `#verify=`/`#reset=`, the sign-ins' `?error=`
+and `?complete=1`, BridgePanel's `?delete=1`) all land on `/account`. The wizard's account step
+goes through the device (`/api/account` in `setup_wizard.py` proxies sign-in/sign-up with
 `?for=setup`, which returns a setup token; a typed code is checked with
 `/api/account/setup-token-info`) because the hotspot's captive DNS only lets the device reach
 the bridge - so Google/Apple users get a setup code from the account page on another device.
