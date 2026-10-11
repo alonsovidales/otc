@@ -192,6 +192,9 @@ to the text (in a translation, also to its `en`) no longer matches the fingerpri
 counts as stale until someone writes a new `"<who> <date>"`. A missing or stale review is a
 warning, and an error with `-release`.
 
+English moved into the catalog unchanged from a released app is marked `"reviewed": "shipped
+<date>"`: it was already live. A translation of it still needs a real review.
+
 ## What the checker refuses
 
 Always errors:
