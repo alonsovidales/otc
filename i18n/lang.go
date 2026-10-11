@@ -114,7 +114,25 @@ func (b *bundle) matchTag(t language.Tag) (string, bool) {
 	if want != got {
 		return "", false
 	}
+	if isPseudo(b.tags[i]) && t != b.tags[i] {
+		// The pseudo-locale (en-XA, DRAFT builds only) shares English's
+		// base, so the matcher offers it for en-GB or en-AU: only asking
+		// for it exactly gets it, anything else gets the real language.
+		for j, tag := range b.tags {
+			if base, _ := tag.Base(); base == want && !isPseudo(tag) {
+				return b.langs[j].Code, true
+			}
+		}
+		return "", false
+	}
 	return b.langs[i].Code, true
+}
+
+// isPseudo tells the pseudo-locale's tag: its region is XA, a private-use
+// code no real language has.
+func isPseudo(t language.Tag) bool {
+	r, conf := t.Region()
+	return conf == language.Exact && r.String() == "XA"
 }
 
 // posixTags reads POSIX locale names: "es_ES.UTF-8", "pt_BR@euro", and the

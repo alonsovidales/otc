@@ -6,6 +6,7 @@ import (
 	"bytes"
 	stdlog "log"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -430,6 +431,29 @@ func TestMatch(t *testing.T) {
 		{[]string{strings.Repeat("es,", 400)}, "en"},
 	} {
 		if got := fixture.match(tc.prefs); got != tc.want {
+			t.Errorf("match(%q) = %q, want %q", tc.prefs, got, tc.want)
+		}
+	}
+}
+
+// In a DRAFT build the pseudo-locale (en-XA) is carried too: it is
+// matched only when asked for exactly, never for another English.
+func TestMatchPseudoLocaleOnlyExactly(t *testing.T) {
+	draft := newBundle(append(slices.Clone(fixtureLangs), Language{Code: "qps", Tag: "en-XA", Name: "Pseudo"}), os.DirFS("testdata"))
+	for _, tc := range []struct {
+		prefs []string
+		want  string
+	}{
+		{[]string{"en-GB"}, "en"},
+		{[]string{"en-AU"}, "en"},
+		{[]string{"en-US"}, "en"},
+		{[]string{"en"}, "en"},
+		{[]string{"en_GB.UTF-8"}, "en"},
+		{[]string{"en-XA"}, "qps"},
+		{[]string{"es-MX"}, "es"},
+		{[]string{"ja"}, "en"},
+	} {
+		if got := draft.match(tc.prefs); got != tc.want {
 			t.Errorf("match(%q) = %q, want %q", tc.prefs, got, tc.want)
 		}
 	}

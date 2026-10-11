@@ -248,7 +248,7 @@ func TestTray(t *testing.T) {
 }
 
 func TestHTML(t *testing.T) {
-	const rel = "bridge/static/landing.html"
+	const rel = "bridge/site/pages/landing.html"
 	cases := []struct {
 		name, src string
 		want      []string
@@ -269,6 +269,10 @@ func TestHTML(t *testing.T) {
 		{"json block", `<script type="application/json">{"api": {"bad_body": "invalid request body"}}</script>`,
 			[]string{"json: invalid request body"}},
 		{"identifiers only", `<pre class="id">DEVICE_UUID=</pre><p>DEVICE_UUID={x} BRIDGE_SECRET={y}</p>`, nil},
+		{"template actions are placeholders", "<title>{{t \"site.landing.meta.title\"}}</title>\n" +
+			"<img alt=\"{{t \"site.landing.shots.device_alt\"}}\"><p title=\"{{t \"a.b\" \"x\" .Y}}\">Left in English</p>\n" +
+			"<p>{{template \"spans\" (rich\n \"site.landing.faq.free.p2\")}} and more words</p>",
+			[]string{"text: Left in English", "text: {} and more words"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

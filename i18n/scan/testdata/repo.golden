@@ -66,7 +66,9 @@ app/desktop/internal/tray/tray.go:13: sink:AddMenuItem: Quit the app
 app/desktop/internal/tray/tray.go:15: sink:Question: Remove this folder?
 app/desktop/internal/tray/tray.go:15: sink:OKLabel: Remove
 app/desktop/internal/tray/tray.go:15: sink:CancelLabel: Cancel
-# pages: 13 found, 1 ignored
+# pages: 15 found, 2 ignored
+bridge/site/pages/landing.html:11: text: A sentence left in English
+bridge/site/pages/landing.html:18: assign:textContent: Copied!
 bridge/static/account.html:5: text: Off The Cloud — your account
 bridge/static/account.html:6: attr:content: Sign in to see your domains.
 bridge/static/account.html:11: text: Your account

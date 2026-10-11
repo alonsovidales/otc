@@ -333,6 +333,9 @@ func (s *scanner) scanPage(rel string) error {
 	if err != nil {
 		return err
 	}
+	if strings.HasPrefix(rel, templatePages) {
+		src = blankActions(src)
+	}
 	s.scanHTML(rel, src, newLineIndex(src).line)
 	return nil
 }
@@ -345,13 +348,18 @@ func (s *scanner) scanHTML(rel string, src []byte, lineOf func(int) int) {
 
 // bridgePages are the pages people read. admin.html is the operator's,
 // privacy.html and terms.html stay English (legal text), index.html is a
-// stale copy of the web app's shell.
+// stale copy of the web app's shell. The landing, disabled and unavailable
+// pages are html/template files the bridge embeds (bridge/site/pages):
+// their text comes from site.* keys through template actions.
 var bridgePages = []string{
-	"bridge/static/landing.html",
+	"bridge/site/pages/landing.html",
 	"bridge/static/account.html",
-	"bridge/static/disabled.html",
-	"bridge/static/unavailable.html",
+	"bridge/site/pages/disabled.html",
+	"bridge/site/pages/unavailable.html",
 }
+
+// templatePages hold Go template actions.
+const templatePages = "bridge/site/pages/"
 
 func scanPages(s *scanner) error {
 	for _, rel := range bridgePages {
@@ -363,4 +371,26 @@ func scanPages(s *scanner) error {
 		}
 	}
 	return nil
+}
+
+// templateAction is a Go template action, which may span lines.
+var templateAction = regexp.MustCompile(`(?s)\{\{.*?\}\}`)
+
+// blankActions turns every template action of a page into a placeholder
+// ({{t "site.landing.nav.faq"}} reads as {}), padded to the action's length
+// with its line breaks kept, so the HTML around it and the lines of every
+// finding stay where they are. An action's quotes would otherwise end the
+// attribute it stands in.
+func blankActions(src []byte) []byte {
+	return templateAction.ReplaceAllFunc(src, func(a []byte) []byte {
+		out := []byte(hole)
+		for _, c := range a[len(hole):] {
+			if c == '\n' {
+				out = append(out, '\n')
+			} else {
+				out = append(out, ' ')
+			}
+		}
+		return out
+	})
 }

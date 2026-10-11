@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="{{.Tag}}">
+<head>
+  <title>{{t "site.landing.meta.title"}}</title>
+  <meta name="description" content="{{t "site.landing.meta.description"}}" />
+</head>
+<body>
+  <h2>{{t "site.landing.faq.title"}}</h2>
+  <p>{{template "spans" (rich "site.landing.install.step_signin" "address"
+    (printf "https://<%s>.off-the.cloud" (t "site.landing.example.name")))}}</p>
+  <p>A sentence left in English</p>
+  <img src="/img/x.jpg" alt="{{t "site.landing.shots.device_alt"}}">
+  <text x="1" y="2">GPIO17</text> <!-- i18n-ignore: fixture for a pin's name -->
+  <script type="application/json" id="site-text">{{texts "copy" "site.landing.install.copy"}}</script>
+  <script nonce="{{.Nonce}}">
+    const T = JSON.parse(document.getElementById('site-text').textContent);
+    el.textContent = T.copy;
+    el.textContent = 'Copied!';
+  </script>
+</body>
+</html>
