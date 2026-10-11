@@ -347,11 +347,18 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   `upload_only_folders` + `file_versions`, `out_of_images_folders` + `skipped_analysis`, `notifications`). Business logic in other packages should go
   through `dao`, not raw SQL. Issue #64: a device-side error the owner should know about (a
   photo that could not be processed, an upload that never reached the disk) goes into
-  `notifications` as type `Error` through `dao.AddErrorNotification` - grouped, so an error
+  `notifications` as type `Error` through `dao.AddErrorNotification(alerttext.Alert)` (the alert
+  writers are in `dao/notifications.go`) - grouped, so an error
   within five minutes of an open Error row joins it (`details` gains a line, `occurrences`
   goes up, the row is unread again) rather than adding a row - never a standalone row
   (`actor_domain` `(standalone)`: `UpsertErrorNotification`'s memory and set-aside Alerts);
-  `files_manager.alert` is the one call site helper. Not alerted, only logged (`files_manager/processing_alerts.go`): an image/*
+  `files_manager.alert(what, path, err)` is the one call site helper (`what` an
+  `i18n.DevAlertFile*` constructor, the error's own words the raw detail). Every alert is an
+  `alerttext.Alert` (`alerttext.New`/`WithRaw`, never a literal; a new one needs a `dev.alert.*`
+  key with `"stored": true` and a row in `everyAlertKey()`): `title`/`details` get the English as
+  before, `msg_key`/`msg_args`/`msg_lines` the keys, which `ListNotifications` renders in the
+  request's language (`dao.LocalizeNotifications`; docs/i18n.md "Alerts"). Not alerted, only
+  logged (`files_manager/processing_alerts.go`): an image/*
   file in a format the device makes no preview of that fails to decode (a `.cur`, a `.djvu`: no
   thumbnail, no analysis; "previewed" is `previewedMimes` - the Go decoders, HEIC/HEIF, and JPEG
   2000/Photoshop through ffmpeg - by a `.HEIC` name, the row's MIME or the sniffed content, so a
@@ -579,7 +586,9 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
 - `raidwatch` — a disk of the mirror (md0) that stops working: an Alert of its own
   (`dao.AddStorageNotification`, an ungrouped Error row) and a push naming the USB port it is in ("the
   disk in the top blue USB port"), once per failure (`<storage>/.raid-alerted`), and another once the
-  mirror is whole again; the status line names it too (`raidwatch.Missing`). Read from sysfs, no root:
+  mirror is whole again; the status line names it too (`raidwatch.Missing`). The alert and push go
+  out through `Notify.AlertText` (an `alerttext.Alert`) and `Notify.PushText` (a `push.Text`);
+  `Notify.Alert`/`Push` get the English when those are nil. Read from sysfs, no root:
   where each disk is plugged in is recorded while the array is healthy (`<storage>/.raid-members.json`),
   since a failed reader usually vanishes. Main instance only. The Pi 5 has one USB controller per blue
   port (`bluePort`: xhci-hcd.0/1 -> top/bottom); which is on top is still to be confirmed on hardware -
@@ -601,7 +610,9 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   episode (the owner's rule): phases armed -> restarting -> restarted -> armed (5 healthy minutes
   after a 2-minute settle) or gave_up (bad again: no second restart until 5 healthy minutes re-arm
   it). Persisted in `<working dir>/.wifi-watchdog.json` with any Alert not yet stored
-  (`pending_alert`). Alerts (`AddErrorNotification`) come after the restart, once judged: "The
+  (`pending_alert`, an `alerttext.Alert`; an older `{title, detail}` loads as English only) and
+  the speed before the restart (`slow_speed` `{rate, pct}` as numbers for the Alert's keys, next to
+  the English `slow`). Alerts (`AddErrorNotification`) come after the restart, once judged: "The
   Wi-Fi was restarted: sending data had slowed down: ... It is working normally again." (or, after
   an hour without enough traffic to judge, "...There hasn't been enough traffic since..."), "The
   Wi-Fi is still slow after a restart" (Restart button / Ethernet), "could not be restarted" (root
@@ -843,6 +854,25 @@ wiring) live in `websocket/machine_alerts.go`; `raidwatch.MissingPorts()` keeps 
 ports as data; update alerts are one per `notifications.update_version`, with the legacy English
 titles still matched (`updateTitles` keeps them even if the title is reworded).
 
+Moving text into the catalog (phase 2; docs/i18n.md "Text the device writes" and "Each
+platform"): a request without `lang`, with `en`, or in a language the build doesn't carry renders
+today's English byte for byte (`devtext.English`), and tests that compare English keep their
+expected strings. Device replies: packages return devtext errors (`devtext.New`/`Wrap`/
+`WithEnglish`), reply sites use `devtext.Text(lang, err)` or `websocket/replies.go`'s `errText`/
+`sayOr`, and a raw error the device can't translate goes after `dev.err.action_failed` in another
+language. Alerts: `alerttext` (dao paragraph above). The apps show the device's and the bridge's
+words as they come (already in the request's language) and keep their own text as keys or a
+`UiText` until shown: web `components/uiText.ts` (`say`, `asIs`; `percentText`/`unitText`/
+`plainNumber` keep hand-written numbers byte-identical), Android `UiText` plus
+`ui/common/AppText.kt` (`now()`, `TextIOException`) and `.english()` in JVM tests
+(`test/.../i18n/English.kt`), Swift computed accessors and `LocalizedError`s, otc-sync `Msg()`
+errors. The setup wizard (`wiz.*`) takes `?lang=` from the apps (iOS `BLESetupLang`, Android
+`withLang`, Mac `BLESetupTransport.withLanguage`) and words install.sh's steps from its
+`[otc-install] @step|@error <token>` marks, only when the key's English equals the line that
+follows. The bridge's landing, disabled and unavailable pages are templates in `bridge/site`
+(Frontend below); its emails follow `accounts.lang`, while its JSON `error` texts and websocket
+replies stay English and clients word them by `code`.
+
 The stored choice (`docs/i18n.md`, "The stored choice"; every client follows the same rules):
 - Device (release 118, `scripts/updates/118.sh`): `settings.language` and `last_ui_language`.
   SetLanguage is owner-only (`websocket/language.go`), compare-and-set under `settings.langMu`,
@@ -868,7 +898,8 @@ The stored choice (`docs/i18n.md`, "The stored choice"; every client follows the
   Activity on a change: state that must survive uses `rememberSaveable`, and launch-time prompts
   ask only on a fresh create. `node web/scripts/i18n-test.mjs` tests the web runtime and choice.
 - New web text goes through `useT()` / `<Trans>` from `web/src/i18n` with an entry in
-  `i18n/strings/en/web.<area>.json`; never keep translated text at module level or in state.
+  `i18n/strings/en/web.<area>.json`; never keep translated text at module level or in state
+  (keep a key or a `UiText`).
 
 ### Bridge (`bridge/`)
 
@@ -940,9 +971,15 @@ own static dir and the iOS app's bundled web assets. The bridge does **not** get
 device over the same bridge tunnel every other request uses (`ReqGetStaticAsset` /
 `staticassets.Resolve`, shared with the device's own direct HTTP static handler) rather than served from
 a separate bundle the bridge would otherwise need redeployed by hand on every web change — this is what
-lets a device running an older build still work correctly through the bridge. `bridge/static/` still
-holds the bridge's *own* pages (the public landing page, the admin panel), deployed by `bridge/makefile`
-independently of a device's web build.
+lets a device running an older build still work correctly through the bridge. The bridge's *own*
+pages are deployed by `bridge/makefile` independently of a device's web build. The public landing
+page and the pages it shows for a disabled or unreachable device are html/template files in
+`bridge/site/pages/*.html`, embedded in the binary (package `bridge/site`) and served by
+`bridge/api/site.go` in the visitor's language: `/` (English, or a 302 by `Accept-Language`), `/en/`
+and `/<code>/`, hreflang plus x-default, a footer language switcher once a second language ships,
+and a CSP with a nonce per response (docs/i18n.md "bridge"). They are never read from `/var/www`,
+where older deploys left copies. `bridge/static/` holds the account page, privacy, terms, the
+admin panel and the assets, copied to `/var/www` by the deploy.
 
 Web invariants: never call `URL.createObjectURL` during render. PhotoGallery and NewPostPicker use
 `useObjectURLs(items, make)` (`make` module-level and stable); other URLs are made in a memo or
@@ -960,7 +997,10 @@ as its owner password and its setup shows instead;
 call `useWS.passwordChanged(newKey)` after a ChangeKey; the bridge's `device_unreachable` is not a
 refused sign-in (`authOwed`); only a tab that has signed in (`hadSession`) redeems the stored token
 on reconnect. Sign Out also clears `otc_files_path`, `otc_photo_search_tags` and a pending
-language change (`otc_language_pending`; `otc_language` stays). `web/` has no test runner
+language change (`otc_language_pending`; `otc_language` stays). `net/`'s errors carry translated
+messages: test for a request with no answer with `err instanceof NoAnswer` (`net/ws.ts`), never
+by its text, and import `t` there from `../i18n/runtime`, never `../i18n` (a cycle through the
+provider and `useWS`). `web/` has no test runner
 (`node web/scripts/i18n-test.mjs` tests the i18n runtime and ws.ts's `lang` line through Vite's
 SSR loader); `npm run lint` already reports about 150 problems (mostly `no-explicit-any`), so
 compare counts before and after a change.
@@ -980,13 +1020,15 @@ back as `RespBridgeAccess.left_reason`) and restarts the device local-only at
 its home-network address; `RespBridgeAccess.local_address` (`localAddress()`: the source address of
 the route out, with `[otc-api] port`) is what the apps switch their endpoint to (`ws://<it>/ws`),
 since `.local` names don't resolve everywhere (Android) - `otc.local:8080` only when it is empty. The privacy
-notice is `bridge/static/privacy.html` (`/privacy`), linked from the landing footer, the account
-page, BridgePanel and the apps' sign-in and Settings; contact messages are pruned after a year.
+notice is `bridge/static/privacy.html` (`/privacy`, English in every language: legal text),
+linked from the landing page's footer (`bridge/site/pages/landing.html`), the account page,
+BridgePanel and the apps' sign-in and Settings; contact messages are pruned after a year.
 
 Terms of use (issue #175): `bridge/static/terms.html` at `/terms` (operator "Off The Cloud",
 info@off-the.cloud; free for two years then 9.99 € + VAT a year; the device, its data and its handling are
-the owner's responsibility and Off The Cloud is not liable for data loss; Dutch law). It is linked
-from the landing footer, the privacy notice, the account page and the setup wizard. Accounts
+the owner's responsibility and Off The Cloud is not liable for data loss; Dutch law; English in
+every language, like the privacy notice). It is linked from the landing page's footer, the
+privacy notice, the account page and the setup wizard. Accounts
 record `terms_version` + `terms_accepted_at` (migration 008; `accounts.TermsVersion`, bump it when
 the text changes in substance). Email sign-ups accept with the checkbox. Google/Apple accounts
 accept on the "complete your profile" page, where the OIDC callback sends them until they have
@@ -1063,7 +1105,9 @@ A database error in a sign-in or setup check is "try again" (500), never a refus
 `session` / `AccountFromRequest` return it (`RequireAuth` answers 500, a claim with a session
 too), `LookupSetupToken` tells "no such code" from an error (claims with a setup code, and
 name-available's `yours`/`online`), and `accountAddDomain` reads the account once. The setup
-wizard passes the bridge's own error answers through (`bridge_answer`), and a typed code is only
+wizard passes the bridge's own error answers through (`bridge_answer`; `bridge_error` keeps their
+`error`, `code` and `args`, and the page words known codes as `wiz.bridge.<code>`), and a typed
+code is only
 "not valid or has expired" when the bridge said so (a 5xx is a 502 "try again").
 
 Every domain registered on the bridge belongs to an account (`devices.account_id`). The package
@@ -1135,7 +1179,8 @@ desktop-publish`): it bumps `app/desktop/VERSION`, builds the four binaries with
 release key (`scripts/sign-file.sh`, the same key and Keychain passphrase as `release.sh`) into
 `desktop.json.sig`, uploads everything to the rolling GitHub release `desktop` (binaries first,
 manifest last), checks what was published and commits the version. The website's Downloads section
-(`bridge/static/landing.html#download`, highlights the visitor's OS) links to those stable URLs.
+(`/#download`, in `bridge/site/pages/landing.html`; it highlights the visitor's OS) links to
+those stable URLs.
 Self-update (`internal/selfupdate`): the tray checks 20 s after start and every 6 h, verifies the
 manifest with the embedded release key, and shows "⬆ Update otc-sync to X"; a click downloads the
 platform's file next to the executable, checks its SHA-256 and swaps it in (Windows renames the
