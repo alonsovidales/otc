@@ -437,6 +437,8 @@ func TestOriginGuard(t *testing.T) {
 		{"POST", "/api/claim", "https://mallory.off-the.cloud", true, http.StatusForbidden},
 		{"POST", "/api/account/login", "https://mallory.off-the.cloud", false, http.StatusForbidden},
 		{"DELETE", "/admin/api/devices/x", "https://mallory.off-the.cloud", true, http.StatusForbidden},
+		{"PUT", "/api/account/language", "https://mallory.off-the.cloud", true, http.StatusForbidden},
+		{"PUT", "/api/account/language", "", true, http.StatusForbidden},
 		{"POST", "/api/account/domains", "", true, http.StatusForbidden},                      // a cookie without an Origin
 		{"POST", "/api/account/domains", "https://off-the.cloud", true, http.StatusNoContent}, // the account page itself
 		{"POST", "/api/claim", "", false, http.StatusNoContent},                               // the setup wizard (token, no cookie)
@@ -464,8 +466,8 @@ func sessionCookie(sessionSecret []byte, accountID string) *http.Cookie {
 
 func accountRow(mock sqlmock.Sqlmock, verified bool, terms string) {
 	mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnRows(sqlmock.NewRows(
-		[]string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified", "terms_version", "terms_accepted_at"}).
-		AddRow("acc1", "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), verified, terms, time.Now()))
+		[]string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified", "terms_version", "terms_accepted_at", "lang"}).
+		AddRow("acc1", "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), verified, terms, time.Now(), ""))
 }
 
 // A claim with the account page's session follows the account page's

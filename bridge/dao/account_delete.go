@@ -110,6 +110,9 @@ type AccountExport struct {
 		LastSeen  time.Time `json:"last_seen"`
 		FreeUntil time.Time `json:"free_until"`
 		Password  bool      `json:"has_password"`
+		// The language the account's emails are written in; "" when not
+		// known (English).
+		Language string `json:"language"`
 	} `json:"account"`
 	SignIns []string              `json:"sign_in_providers"`
 	Domains []AccountExportDomain `json:"domains"`
@@ -121,6 +124,9 @@ type AccountExportDomain struct {
 	Disabled     bool       `json:"disabled"`
 	LastClientAt *time.Time `json:"last_client_at,omitempty"`
 	PushTokens   int        `json:"push_tokens"`
+	// The language the bridge's own pushes to these phones and browsers
+	// are written in, as the device reported it; "" when not known.
+	PushLanguage string `json:"push_language"`
 	// Relayed traffic over the last 90 days (requests and bytes), the
 	// counts the admin panel shows.
 	Requests int64 `json:"requests_90d"`
@@ -140,6 +146,7 @@ func (dao *Dao) ExportAccount(accountID string) (*AccountExport, error) {
 	a := &out.Account
 	a.ID, a.Email, a.Name, a.Surname, a.Country = acc.ID, acc.Email, acc.Name, acc.Surname, acc.Country
 	a.Created, a.LastSeen, a.FreeUntil, a.Password = acc.Created, acc.LastSeen, acc.FreeUntil, acc.PasswordHash != ""
+	a.Language = acc.Lang
 
 	if err := func() error {
 		rows, err := dao.db.Query("select `provider` from `account_logins` where `account_id` = ?", accountID)
@@ -197,6 +204,9 @@ func (dao *Dao) ExportAccount(accountID string) (*AccountExport, error) {
 			return nil, fmt.Errorf("export %s push: %w", d.Domain, err)
 		}
 		d.PushTokens = apns + fcm + web
+		if d.PushLanguage, err = dao.PushLanguageForDomain(d.Domain); err != nil {
+			return nil, fmt.Errorf("export %s push: %w", d.Domain, err)
+		}
 		if err := dao.db.QueryRow("select coalesce(sum(`requests`),0), coalesce(sum(`bytes_in`),0), coalesce(sum(`bytes_out`),0) from `device_metrics` where `domain` = ?",
 			d.Domain).Scan(&d.Requests, &d.BytesIn, &d.BytesOut); err != nil {
 			return nil, fmt.Errorf("export %s metrics: %w", d.Domain, err)

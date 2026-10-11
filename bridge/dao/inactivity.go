@@ -18,16 +18,33 @@ type InactiveAccount struct {
 	ID, Email, Name string
 	// WarnedAt is when it was told it will be removed; nil if not yet.
 	WarnedAt *time.Time
+	// Lang is the account's language for emails (Account.Lang).
+	Lang string
 }
 
 // cInactiveSince matches an account unused since ?: no sign-in, and no
 // device of it reached, from then on.
 const cInactiveSince = "a.`last_seen` < ? and not exists (select 1 from `devices` d where d.`account_id` = a.`id` and d.`last_client_at` >= ?)"
 
-// InactiveAccounts lists the accounts unused since before.
-func (dao *Dao) InactiveAccounts(before time.Time) ([]InactiveAccount, error) {
+// InactiveAccounts lists the accounts unused since before, each with its
+// Lang unless the database has no accounts.lang (language.go).
+func (dao *Dao) InactiveAccounts(before time.Time) (out []InactiveAccount, err error) {
 	b := before.UTC()
-	rows, err := dao.db.Query("select a.`id`, a.`email`, a.`name`, a.`inactivity_warned_at` from `accounts` a where "+cInactiveSince, b, b)
+	err = dao.accountLang.run("accounts", "lang", func() (err error) {
+		out, err = dao.inactiveAccounts(", a.`lang`", b)
+		return err
+	}, func() (err error) {
+		out, err = dao.inactiveAccounts("", b)
+		return err
+	})
+
+	return out, err
+}
+
+// inactiveAccounts is InactiveAccounts reading the columns plus extra
+// (", a.`lang`" or nothing).
+func (dao *Dao) inactiveAccounts(extra string, b time.Time) ([]InactiveAccount, error) {
+	rows, err := dao.db.Query("select a.`id`, a.`email`, a.`name`, a.`inactivity_warned_at`"+extra+" from `accounts` a where "+cInactiveSince, b, b)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +53,11 @@ func (dao *Dao) InactiveAccounts(before time.Time) ([]InactiveAccount, error) {
 	for rows.Next() {
 		var a InactiveAccount
 		var warned sql.NullTime
-		if err := rows.Scan(&a.ID, &a.Email, &a.Name, &warned); err != nil {
+		dest := []any{&a.ID, &a.Email, &a.Name, &warned}
+		if extra != "" {
+			dest = append(dest, &a.Lang)
+		}
+		if err := rows.Scan(dest...); err != nil {
 			return nil, err
 		}
 		if warned.Valid {

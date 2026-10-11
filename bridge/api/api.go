@@ -257,6 +257,8 @@ func (api *API) registerAPIs() {
 		api.muxHTTPServer.HandleFunc("POST /api/account/forgot", acc.Forgot)
 		api.muxHTTPServer.HandleFunc("POST /api/account/reset", acc.Reset)
 		api.muxHTTPServer.HandleFunc("PUT /api/account/password", acc.RequireAuth(acc.SetPassword))
+		// Localization: the language of the account's emails (docs/i18n.md).
+		api.muxHTTPServer.HandleFunc("PUT /api/account/language", acc.RequireAuth(acc.SetLanguage))
 		api.muxHTTPServer.HandleFunc("POST /api/account/logout-everywhere", acc.RequireAuth(acc.LogoutEverywhere))
 		api.muxHTTPServer.HandleFunc("GET /api/account/setup-token", acc.RequireAuth(acc.SetupToken))
 		api.muxHTTPServer.HandleFunc("GET /api/account/setup-token-info", acc.SetupTokenInfo)

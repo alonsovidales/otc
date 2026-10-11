@@ -345,9 +345,19 @@ func TestOfflineCountdownFiresAlertWhenStillDownAfterGrace(t *testing.T) {
 		WillReturnError(sql.ErrNoRows)
 	mock.ExpectExec("insert into `push_registrations`").
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	// Localization: the language the device last reported for the
+	// bridge's own pushes.
+	mock.ExpectQuery("select `language` from `push_registrations` where `domain` = \\?").
+		WithArgs("pit.otc").
+		WillReturnRows(sqlmock.NewRows([]string{"language"}).AddRow("EN"))
 	mock.ExpectQuery("select `endpoint`, `p256dh`, `auth` from `push_web_subs` where `domain` = \\?").
 		WithArgs("pit.otc").
 		WillReturnRows(sqlmock.NewRows([]string{"endpoint", "p256dh", "auth"}))
+	asked := make(chan string, 1)
+	setVar(t, &offlineAlertText, func(lang string) (string, string) {
+		asked <- lang
+		return "Off The Cloud", "Your device appears to have gone offline"
+	})
 
 	mg := &Manager{dao: dao.NewWithDB(db), bridges: make(map[string]*bridgePool)}
 	pool := &bridgePool{lock: new(sync.Mutex)}
@@ -369,6 +379,14 @@ func TestOfflineCountdownFiresAlertWhenStillDownAfterGrace(t *testing.T) {
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("expected the offline alert's push flow to have run once the grace period elapsed: %v", err)
+	}
+	select {
+	case lang := <-asked:
+		if lang != "en" {
+			t.Errorf("the alert was written for %q, want the stored language normalized (en)", lang)
+		}
+	default:
+		t.Error("the alert's text was never asked for")
 	}
 }
 

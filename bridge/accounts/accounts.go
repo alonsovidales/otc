@@ -38,7 +38,9 @@ import (
 	"github.com/alonsovidales/otc/bridge/dao"
 	"github.com/alonsovidales/otc/bridge/mailer"
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
+	"golang.org/x/text/language"
 )
 
 const (
@@ -488,6 +490,13 @@ func writeError(w http.ResponseWriter, status int, code, msg string) {
 	writeJSON(w, status, map[string]string{"code": code, "error": msg})
 }
 
+// The English of the two answers most handlers share: a body that isn't
+// the JSON asked for, and a write that failed.
+const (
+	cInvalidBody     = "invalid request body"
+	cSaveUnavailable = "could not save right now"
+)
+
 func accountJSON(acc *dao.Account) map[string]any {
 	return map[string]any{
 		"email": acc.Email, "name": acc.Name, "surname": acc.Surname, "country": acc.Country,
@@ -496,6 +505,8 @@ func accountJSON(acc *dao.Account) map[string]any {
 		"has_password":     acc.PasswordHash != "",
 		"email_verified":   acc.EmailVerified,
 		"terms_accepted":   TermsAccepted(acc),
+		// The language its emails are written in, "" for not known.
+		"lang": acc.Lang,
 	}
 }
 
@@ -547,7 +558,8 @@ func (a *Accounts) answerAccount(w http.ResponseWriter, r *http.Request, acc *da
 }
 
 // Signup creates an email+password account. POST /api/account/signup
-// {email, password, name, surname, country, accept_terms}.
+// {email, password, name, surname, country, accept_terms, lang}: lang,
+// optional, is the language of the page signing up (requestLanguage).
 func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 	if a.signups != nil && !a.signups.Allow(clientIP(r)) {
 		writeError(w, http.StatusTooManyRequests, "too_many_signups", "too many sign-ups from this address, try again later")
@@ -555,10 +567,11 @@ func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct {
 		Email, Password, Name, Surname, Country string
-		AcceptTerms                             bool `json:"accept_terms"`
+		AcceptTerms                             bool   `json:"accept_terms"`
+		Lang                                    string `json:"lang"`
 	}
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_body", "invalid request body")
+		writeError(w, http.StatusBadRequest, "invalid_body", cInvalidBody)
 		return
 	}
 	email, ok := validEmail(body.Email)
@@ -598,9 +611,9 @@ func (a *Accounts) Signup(w http.ResponseWriter, r *http.Request) {
 	acc := dao.Account{
 		ID: uuid.New().String(), Email: email, Name: name, Surname: surname, Country: country,
 		PasswordHash: string(hash), Created: now, LastSeen: now, FreeUntil: now.AddDate(FreeYears, 0, 0),
-		TermsVersion: TermsVersion, TermsAcceptedAt: now,
+		TermsVersion: TermsVersion, TermsAcceptedAt: now, Lang: requestLanguage(body.Lang, r),
 	}
-	if err := a.dao.CreateAccount(acc); err != nil {
+	if err := a.dao.CreateAccount(&acc); err != nil {
 		log.Error("error creating an account:", err)
 		writeError(w, http.StatusConflict, "email_taken", "there is already an account with that email - sign in instead")
 		return
@@ -642,7 +655,7 @@ func (a *Accounts) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct{ Email, Password string }
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_body", "invalid request body")
+		writeError(w, http.StatusBadRequest, "invalid_body", cInvalidBody)
 		return
 	}
 	email, _ := validEmail(body.Email)
@@ -705,14 +718,14 @@ func (a *Accounts) UpdateProfile(w http.ResponseWriter, r *http.Request, account
 		AcceptTerms            bool `json:"accept_terms"`
 	}
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_body", "invalid request body")
+		writeError(w, http.StatusBadRequest, "invalid_body", cInvalidBody)
 		return
 	}
 	// A Google/Apple account accepts the terms here, completing its
 	// profile (issue #175): nothing else is saved without it.
 	current, err := a.dao.GetAccount(accountID)
 	if err != nil || current == nil {
-		writeError(w, http.StatusInternalServerError, "save_unavailable", "could not save right now")
+		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
 		return
 	}
 	if !TermsAccepted(current) {
@@ -722,7 +735,7 @@ func (a *Accounts) UpdateProfile(w http.ResponseWriter, r *http.Request, account
 		}
 		if err := a.dao.AcceptTerms(accountID, TermsVersion, time.Now()); err != nil {
 			log.Error("error recording the terms acceptance:", err)
-			writeError(w, http.StatusInternalServerError, "save_unavailable", "could not save right now")
+			writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
 			return
 		}
 	}
@@ -735,12 +748,12 @@ func (a *Accounts) UpdateProfile(w http.ResponseWriter, r *http.Request, account
 	}
 	if err := a.dao.UpdateAccountProfile(accountID, name, surname, country); err != nil {
 		log.Error("error updating a profile:", err)
-		writeError(w, http.StatusInternalServerError, "save_unavailable", "could not save right now")
+		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
 		return
 	}
 	acc, err := a.dao.GetAccount(accountID)
 	if err != nil || acc == nil {
-		writeError(w, http.StatusInternalServerError, "save_unavailable", "could not save right now")
+		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
 		return
 	}
 	// No new cookie: saving a profile is no sign-in, and a fresh cookie
@@ -754,10 +767,75 @@ func (a *Accounts) UpdateProfile(w http.ResponseWriter, r *http.Request, account
 func (a *Accounts) AcceptTerms(w http.ResponseWriter, r *http.Request, accountID string) {
 	if err := a.dao.AcceptTerms(accountID, TermsVersion, time.Now()); err != nil {
 		log.Error("error recording the terms acceptance:", err)
-		writeError(w, http.StatusInternalServerError, "save_unavailable", "could not save right now")
+		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// SetLanguage sets the language the signed-in account's emails are
+// written in: PUT /api/account/language {"lang": "es"}, or "" for not
+// known (English). Only a language this build carries; a regional tag
+// ("es-ES") keeps its language. Answers {"ok": true, "lang": <stored>}.
+// Only the owner, signed in, changes it (docs/i18n.md); never logged.
+func (a *Accounts) SetLanguage(w http.ResponseWriter, r *http.Request, accountID string) {
+	var body struct {
+		Lang *string `json:"lang"`
+	}
+	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil || body.Lang == nil {
+		writeError(w, http.StatusBadRequest, "invalid_body", cInvalidBody)
+		return
+	}
+	lang := i18n.Normalize(*body.Lang)
+	if lang == "" && *body.Lang != "" {
+		writeError(w, http.StatusBadRequest, "invalid_language", "that language is not available")
+		return
+	}
+	if err := a.dao.SetAccountLang(accountID, lang); err != nil {
+		log.Error("error saving an account's language:", err)
+		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "lang": lang})
+}
+
+// requestLanguage is the language a new account's emails are written in
+// (accounts.lang, docs/i18n.md): the signing-up page's own when it says
+// (explicit, the sign-up's "lang"), else the first language of the
+// browser's Accept-Language that this build carries. "" when neither
+// names one: emails are then English, and the owner can pick one on the
+// account page. Never a language this build doesn't carry.
+func requestLanguage(explicit string, r *http.Request) string {
+	if lang := i18n.Normalize(explicit); lang != "" {
+		return lang
+	}
+	return acceptLanguage(r.Header.Get("Accept-Language"))
+}
+
+// cMaxAcceptLanguage bounds the header acceptLanguage parses, as
+// i18n.Match bounds a preference.
+const cMaxAcceptLanguage = 1024
+
+// acceptLanguage is the language of an Accept-Language header that this
+// build carries, or "". i18n.Match picks it (by base language: es-MX is
+// es, pt-BR pt), but answers English when nothing matches; a browser that
+// asks only for languages we don't carry yet has told us none, and gets
+// "", not English, so that a later bridge carrying its language can tell.
+func acceptLanguage(header string) string {
+	if header == "" || len(header) > cMaxAcceptLanguage {
+		return ""
+	}
+	tags, _, err := language.ParseAcceptLanguage(header)
+	if err != nil {
+		return ""
+	}
+	for _, t := range tags {
+		base, _ := t.Base()
+		if code := i18n.Match(t.String()); code == base.String() {
+			return code
+		}
+	}
+	return ""
 }
 
 // SetPassword sets or changes the password of the signed-in account (a
@@ -776,7 +854,7 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 	}
 	acc, err := a.dao.GetAccount(accountID)
 	if err != nil || acc == nil {
-		writeError(w, http.StatusInternalServerError, "save_unavailable", "could not save right now")
+		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
 		return
 	}
 	now := time.Now()
@@ -796,7 +874,7 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 		writeError(w, http.StatusUnauthorized, "recent_signin_required", "sign in again to set a password")
 		return
 	} else if _, issued, ok, err := a.session(c.Value, now); err != nil {
-		writeError(w, http.StatusInternalServerError, "save_unavailable", "could not save right now")
+		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
 		return
 	} else if !ok || now.Sub(issued) > cFreshSignIn {
 		writeError(w, http.StatusUnauthorized, "recent_signin_required", "sign in again (with Google or Apple) to set a password")
@@ -804,14 +882,14 @@ func (a *Accounts) SetPassword(w http.ResponseWriter, r *http.Request, accountID
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), limits.BcryptCost)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "save_unavailable", "could not save right now")
+		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
 		return
 	}
 	// One statement: never a new password with the old sessions still on.
 	epoch, err := a.dao.SetAccountPasswordEndingSessions(accountID, string(hash))
 	if err != nil {
 		log.Error("error setting a password:", err)
-		writeError(w, http.StatusInternalServerError, "save_unavailable", "could not save right now")
+		writeError(w, http.StatusInternalServerError, "save_unavailable", cSaveUnavailable)
 		return
 	}
 	a.setSessionAt(w, accountID, epoch)
@@ -1182,7 +1260,7 @@ func (a *Accounts) sendReset(acc *dao.Account) error {
 func (a *Accounts) Verify(w http.ResponseWriter, r *http.Request) {
 	var body struct{ Token string }
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil || body.Token == "" {
-		writeError(w, http.StatusBadRequest, "invalid_body", "invalid request body")
+		writeError(w, http.StatusBadRequest, "invalid_body", cInvalidBody)
 		return
 	}
 	id, ok, err := a.dao.ConsumeEmailToken(hashEmailToken(body.Token), cPurposeVerify)
@@ -1235,7 +1313,7 @@ func (a *Accounts) Forgot(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct{ Email string }
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_body", "invalid request body")
+		writeError(w, http.StatusBadRequest, "invalid_body", cInvalidBody)
 		return
 	}
 	if email, ok := validEmail(body.Email); ok {
@@ -1254,7 +1332,7 @@ func (a *Accounts) Forgot(w http.ResponseWriter, r *http.Request) {
 func (a *Accounts) Reset(w http.ResponseWriter, r *http.Request) {
 	var body struct{ Token, Password string }
 	if err := limits.DecodeJSON(w, r, &body, limits.MaxJSONBody); err != nil || body.Token == "" {
-		writeError(w, http.StatusBadRequest, "invalid_body", "invalid request body")
+		writeError(w, http.StatusBadRequest, "invalid_body", cInvalidBody)
 		return
 	}
 	if len(body.Password) < cMinPassword {

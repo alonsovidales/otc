@@ -67,6 +67,11 @@ create table accounts
   -- Issue #176: when the account was warned it will be removed for
   -- inactivity; NULL once it is used again.
   `inactivity_warned_at` datetime null,
+  -- Localization (docs/i18n.md): the language the account's emails are
+  -- written in - a code such as 'es', set at sign-up from the page or the
+  -- browser and changed only by the signed-in owner; '' = not known
+  -- (English). migrations/010-language.sql adds it to an existing bridge.
+  `lang` varchar(16) not null default '',
 
   primary key (`id`),
   unique (`email`)
@@ -220,6 +225,10 @@ create table push_registrations
   `domain`            varchar(150) not null,
   `vapid_public_key`  varchar(255) not null default '',
   `vapid_private_key` varchar(255) not null default '',
+  -- Localization: the language of the bridge's own pushes to this
+  -- device's phones and browsers (the device-offline alert), as the device
+  -- reports it with the rest; '' = not known (English).
+  `language`          varchar(16) not null default '',
 
   primary key (`domain`)
 ) engine=InnoDB;

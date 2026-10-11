@@ -67,10 +67,10 @@ func TestReleaseDeviceDomainChecksTheSecret(t *testing.T) {
 // The export (GDPR Art. 15/20) is all or nothing: a sign-in row that fails
 // to read, or a count that fails, fails it rather than leaving it short.
 func TestExportAccountFailsWhole(t *testing.T) {
-	accountCols := []string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified", "terms_version", "terms_accepted_at"}
+	accountCols := []string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified", "terms_version", "terms_accepted_at", "lang"}
 	expectAccount := func(mock sqlmock.Sqlmock) {
 		mock.ExpectQuery("from `accounts` where `id` = \\?").WillReturnRows(sqlmock.NewRows(accountCols).
-			AddRow("acc", "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), true, nil, nil))
+			AddRow("acc", "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), true, nil, nil, "en"))
 	}
 	expectDomain := func(mock sqlmock.Sqlmock) {
 		mock.ExpectQuery("from `devices` where `account_id` = \\?").WillReturnRows(sqlmock.NewRows([]string{"domain", "created", "disabled", "last_client_at"}).
@@ -105,10 +105,27 @@ func TestExportAccountFailsWhole(t *testing.T) {
 	for _, table := range []string{"push_apns_tokens", "push_fcm_tokens", "push_web_subs"} {
 		mock.ExpectQuery("from `" + table + "`").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 	}
+	mock.ExpectQuery("select `language` from `push_registrations`").WillReturnError(errors.New("connection lost"))
+	if _, err := d.ExportAccount("acc"); err == nil {
+		t.Error("an unreadable push language exported as none")
+	}
+
+	expectAccount(mock)
+	mock.ExpectQuery("select `provider` from `account_logins`").WillReturnRows(sqlmock.NewRows([]string{"provider"}).AddRow("google"))
+	expectDomain(mock)
+	for _, table := range []string{"push_apns_tokens", "push_fcm_tokens", "push_web_subs"} {
+		mock.ExpectQuery("from `" + table + "`").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
+	}
+	mock.ExpectQuery("select `language` from `push_registrations` where `domain` = \\?").WithArgs("cala.off-the.cloud").
+		WillReturnRows(sqlmock.NewRows([]string{"language"}).AddRow("en"))
 	mock.ExpectQuery("from `device_metrics`").WillReturnRows(sqlmock.NewRows([]string{"r", "i", "o"}).AddRow(5, 10, 20))
 	out, err := d.ExportAccount("acc")
 	if err != nil || len(out.SignIns) != 1 || len(out.Domains) != 1 || out.Domains[0].PushTokens != 3 || out.Domains[0].BytesOut != 20 {
 		t.Fatalf("export: %+v %v", out, err)
+	}
+	// Localization: both languages kept are in it (docs/gdpr).
+	if out.Account.Language != "en" || out.Domains[0].PushLanguage != "en" {
+		t.Errorf("export languages: account %q, push %q", out.Account.Language, out.Domains[0].PushLanguage)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

@@ -107,7 +107,7 @@ func expectStateConsumed(mock sqlmock.Sqlmock, state, returnURL string) {
 
 var errDBDown = errors.New("db down")
 
-var accountCols = []string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified", "terms_version", "terms_accepted_at"}
+var accountCols = []string{"id", "email", "name", "surname", "country", "password_hash", "created", "last_seen", "free_until", "email_verified", "terms_version", "terms_accepted_at", "lang"}
 
 // Someone signed up with the victim's email and kept the session; the
 // victim then signs in with Google, which links and verifies that account.
@@ -119,7 +119,7 @@ func TestProviderLinkEndsTheSquattersSessions(t *testing.T) {
 	expectStateConsumed(mock, state, "")
 	mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols))
 	mock.ExpectQuery("from `accounts` where `email` = \\?").WithArgs("a@b.c").WillReturnRows(sqlmock.NewRows(accountCols).
-		AddRow("acc1", "a@b.c", "A", "B", "ES", "$2a$12$squatter", time.Now(), time.Now(), time.Now(), false, TermsVersion, time.Now()))
+		AddRow("acc1", "a@b.c", "A", "B", "ES", "$2a$12$squatter", time.Now(), time.Now(), time.Now(), false, TermsVersion, time.Now(), ""))
 	mock.ExpectExec("update `accounts` set `password_hash`").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("insert ignore into `account_logins`").WithArgs("google", "google-sub", "acc1").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("update `accounts` set `email_verified` = 1").WithArgs("acc1").WillReturnResult(sqlmock.NewResult(0, 1))
@@ -150,7 +150,7 @@ func TestProviderLinkStopsWhenThePasswordStays(t *testing.T) {
 	expectStateConsumed(mock, state, "")
 	mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols))
 	mock.ExpectQuery("from `accounts` where `email` = \\?").WillReturnRows(sqlmock.NewRows(accountCols).
-		AddRow("acc1", "a@b.c", "A", "B", "ES", "$2a$12$squatter", time.Now(), time.Now(), time.Now(), false, TermsVersion, time.Now()))
+		AddRow("acc1", "a@b.c", "A", "B", "ES", "$2a$12$squatter", time.Now(), time.Now(), time.Now(), false, TermsVersion, time.Now(), ""))
 	mock.ExpectExec("update `accounts` set `password_hash`").WillReturnError(errDBDown)
 
 	w := httptest.NewRecorder()
@@ -291,7 +291,7 @@ func TestOAuthStateBelongsToTheBrowser(t *testing.T) {
 		newFakeIdP(t, a)
 		expectStateConsumed(mock, state, "")
 		mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols).
-			AddRow("acc1", "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now()))
+			AddRow("acc1", "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now(), ""))
 		epochRow(mock, 0)
 		mock.ExpectExec("update `accounts` set `last_seen`").WillReturnResult(sqlmock.NewResult(0, 1))
 		w := httptest.NewRecorder()
@@ -324,7 +324,7 @@ func TestOAuthStateFromAnOlderNode(t *testing.T) {
 	state := strings.Repeat("12", 24)
 	expectStateConsumed(mock, state, "")
 	mock.ExpectQuery("from `accounts` where `id` = \\(select `account_id` from `account_logins`").WillReturnRows(sqlmock.NewRows(accountCols).
-		AddRow("acc1", "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now()))
+		AddRow("acc1", "a@b.c", "A", "B", "ES", nil, time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now(), ""))
 	epochRow(mock, 0)
 	mock.ExpectExec("update `accounts` set `last_seen`").WillReturnResult(sqlmock.NewResult(0, 1))
 	w := httptest.NewRecorder()

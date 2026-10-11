@@ -41,9 +41,9 @@ func TestLoginAnswersOneCodeForAnyFailure(t *testing.T) {
 	byEmail := "from `accounts` where `email` = \\?"
 	mock.ExpectQuery(byEmail).WillReturnRows(sqlmock.NewRows(accountCols))
 	mock.ExpectQuery(byEmail).WillReturnRows(sqlmock.NewRows(accountCols).
-		AddRow("acc1", "a@b.c", "A", "B", "ES", string(hash), time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now()))
+		AddRow("acc1", "a@b.c", "A", "B", "ES", string(hash), time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now(), ""))
 	mock.ExpectQuery(byEmail).WillReturnRows(sqlmock.NewRows(accountCols).
-		AddRow("acc2", "c@d.e", "C", "D", "ES", nil, time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now()))
+		AddRow("acc2", "c@d.e", "C", "D", "ES", nil, time.Now(), time.Now(), time.Now(), true, TermsVersion, time.Now(), ""))
 	want := `{"code":"invalid_credentials","error":"wrong email or password - if you signed up with Google or Apple, use that instead (on the account page, then a setup code)"}` + "\n"
 	for _, body := range []string{
 		`{"email":"nobody@example.com","password":"right-password"}`,
@@ -89,7 +89,7 @@ func TestSetupSignInOfAnUnverifiedAccount(t *testing.T) {
 		t.Fatal(err)
 	}
 	mock.ExpectQuery("from `accounts` where `email` = \\?").WillReturnRows(sqlmock.NewRows(accountCols).
-		AddRow("acc1", "a@b.c", "A", "B", "ES", string(hash), time.Now(), time.Now(), time.Now(), false, TermsVersion, time.Now()))
+		AddRow("acc1", "a@b.c", "A", "B", "ES", string(hash), time.Now(), time.Now(), time.Now(), false, TermsVersion, time.Now(), ""))
 	epochRow(mock, 0)
 	mock.ExpectExec("update `accounts` set `last_seen`").WillReturnResult(sqlmock.NewResult(0, 1))
 	w := httptest.NewRecorder()

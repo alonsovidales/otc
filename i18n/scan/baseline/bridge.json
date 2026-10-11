@@ -1,8 +1,8 @@
 {
   "surface": "bridge",
-  "total": 194,
+  "total": 182,
   "files": {
-    "bridge/accounts/accounts.go": 78,
+    "bridge/accounts/accounts.go": 66,
     "bridge/accounts/appsignin.go": 4,
     "bridge/accounts/inactivity.go": 3,
     "bridge/accounts/oidc.go": 18,

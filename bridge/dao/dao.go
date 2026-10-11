@@ -89,6 +89,11 @@ type Dao struct {
 	// minute, not one per attempt.
 	authEventsMu  sync.Mutex
 	lastAuthEvent map[string]time.Time
+
+	// Localization: accounts.lang and push_registrations.language, which
+	// a database from before migration 010 lacks (language.go).
+	accountLang  optionalColumn
+	pushLanguage optionalColumn
 }
 
 // cAuthEventEvery is how often one address may add a row per reason.
@@ -611,17 +616,30 @@ func (dao *Dao) GetAuthEvents(domain, q string, limit, offset int) (events []Aut
 // db.sql for why this is delete-all-then-reinsert rather than a row-by-row
 // reconcile. All in one transaction so a client of ListWebPushSubscriptions-
 // ForDomain/ListApnsTokensForDomain never observes a half-replaced set.
-func (dao *Dao) SetPushRegistrations(domain, vapidPub, vapidPriv string, apnsTokens, fcmTokens []string, webSubs []push.WebPushSubscription) (err error) {
+//
+// language is the language the bridge writes its own pushes to this
+// device's phones in ("" for not known), validated by the caller; on a
+// database without the column (migration 010 not run) it is not kept.
+func (dao *Dao) SetPushRegistrations(domain, vapidPub, vapidPriv, language string, apnsTokens, fcmTokens []string, webSubs []push.WebPushSubscription) (err error) {
 	tx, err := dao.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	if _, err = tx.Exec(
-		"insert into `push_registrations` (`domain`, `vapid_public_key`, `vapid_private_key`) values (?, ?, ?) "+
-			"on duplicate key update `vapid_public_key` = values(`vapid_public_key`), `vapid_private_key` = values(`vapid_private_key`)",
-		domain, vapidPub, vapidPriv); err != nil {
+	if err = dao.pushLanguage.run("push_registrations", "language", func() error {
+		_, err := tx.Exec(
+			"insert into `push_registrations` (`domain`, `vapid_public_key`, `vapid_private_key`, `language`) values (?, ?, ?, ?) "+
+				"on duplicate key update `vapid_public_key` = values(`vapid_public_key`), `vapid_private_key` = values(`vapid_private_key`), `language` = values(`language`)",
+			domain, vapidPub, vapidPriv, language)
+		return err
+	}, func() error {
+		_, err := tx.Exec(
+			"insert into `push_registrations` (`domain`, `vapid_public_key`, `vapid_private_key`) values (?, ?, ?) "+
+				"on duplicate key update `vapid_public_key` = values(`vapid_public_key`), `vapid_private_key` = values(`vapid_private_key`)",
+			domain, vapidPub, vapidPriv)
+		return err
+	}); err != nil {
 		return fmt.Errorf("upserting vapid keys: %w", err)
 	}
 
@@ -782,6 +800,10 @@ type Account struct {
 	// an account from before they were recorded.
 	TermsVersion    string
 	TermsAcceptedAt time.Time
+	// Lang is the language the account's emails are written in (a code
+	// this build carried when it was stored), "" for not known: English
+	// (docs/i18n.md; language.go).
+	Lang string
 }
 
 // AccountDomain is one of an account's registered domains, as the account
@@ -792,20 +814,42 @@ type AccountDomain struct {
 	Disabled bool
 }
 
-func (dao *Dao) CreateAccount(a Account) error {
-	_, err := dao.db.Exec(
-		"insert into `accounts` (`id`, `email`, `name`, `surname`, `country`, `password_hash`, `created`, `last_seen`, `free_until`, `email_verified`, `terms_version`, `terms_accepted_at`) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		a.ID, a.Email, a.Name, a.Surname, a.Country, sql.NullString{String: a.PasswordHash, Valid: a.PasswordHash != ""}, a.Created, a.LastSeen, a.FreeUntil, a.EmailVerified,
-		sql.NullString{String: a.TermsVersion, Valid: a.TermsVersion != ""}, sql.NullTime{Time: a.TermsAcceptedAt, Valid: !a.TermsAcceptedAt.IsZero()})
+// CreateAccount stores a new account. Its Lang is left out on a database
+// without accounts.lang (language.go): the account is created either way,
+// and a.Lang is cleared to say so.
+func (dao *Dao) CreateAccount(a *Account) error {
+	const insert = "insert into `accounts` (`id`, `email`, `name`, `surname`, `country`, `password_hash`, `created`, `last_seen`, `free_until`, `email_verified`, `terms_version`, `terms_accepted_at`"
+	args := []any{a.ID, a.Email, a.Name, a.Surname, a.Country, sql.NullString{String: a.PasswordHash, Valid: a.PasswordHash != ""}, a.Created, a.LastSeen, a.FreeUntil, a.EmailVerified,
+		sql.NullString{String: a.TermsVersion, Valid: a.TermsVersion != ""}, sql.NullTime{Time: a.TermsAcceptedAt, Valid: !a.TermsAcceptedAt.IsZero()}}
+	withoutLang := func() error {
+		_, err := dao.db.Exec(insert+") values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", args...)
+		return err
+	}
+	if a.Lang == "" {
+		// The column's default.
+		return withoutLang()
+	}
 
-	return err
+	return dao.accountLang.run("accounts", "lang", func() error {
+		_, err := dao.db.Exec(insert+", `lang`) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", append(args, a.Lang)...)
+		return err
+	}, func() error {
+		a.Lang = ""
+		return withoutLang()
+	})
 }
 
-func (dao *Dao) scanAccount(row *sql.Row) (*Account, error) {
+// scanAccount reads one row of cAccountColumns, and `lang` after them
+// when withLang.
+func (dao *Dao) scanAccount(row *sql.Row, withLang bool) (*Account, error) {
 	a := &Account{}
 	var hash, termsVersion sql.NullString
 	var termsAt sql.NullTime
-	err := row.Scan(&a.ID, &a.Email, &a.Name, &a.Surname, &a.Country, &hash, &a.Created, &a.LastSeen, &a.FreeUntil, &a.EmailVerified, &termsVersion, &termsAt)
+	dest := []any{&a.ID, &a.Email, &a.Name, &a.Surname, &a.Country, &hash, &a.Created, &a.LastSeen, &a.FreeUntil, &a.EmailVerified, &termsVersion, &termsAt}
+	if withLang {
+		dest = append(dest, &a.Lang)
+	}
+	err := row.Scan(dest...)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -821,6 +865,21 @@ func (dao *Dao) scanAccount(row *sql.Row) (*Account, error) {
 
 const cAccountColumns = "`id`, `email`, `name`, `surname`, `country`, `password_hash`, `created`, `last_seen`, `free_until`, `email_verified`, `terms_version`, `terms_accepted_at`"
 
+// queryAccount is the account the condition where (on `accounts`, with
+// args) picks, nil, nil for none; with its Lang unless the database has no
+// accounts.lang.
+func (dao *Dao) queryAccount(where string, args ...any) (acc *Account, err error) {
+	err = dao.accountLang.run("accounts", "lang", func() (err error) {
+		acc, err = dao.scanAccount(dao.db.QueryRow("select "+cAccountColumns+", `lang` from `accounts` where "+where, args...), true)
+		return err
+	}, func() (err error) {
+		acc, err = dao.scanAccount(dao.db.QueryRow("select "+cAccountColumns+" from `accounts` where "+where, args...), false)
+		return err
+	})
+
+	return acc, err
+}
+
 // AcceptTerms records that the account accepted the terms of use version
 // (issue #175).
 func (dao *Dao) AcceptTerms(accountID, version string, at time.Time) error {
@@ -831,18 +890,18 @@ func (dao *Dao) AcceptTerms(accountID, version string, at time.Time) error {
 
 // GetAccount is nil, nil for an id nobody has.
 func (dao *Dao) GetAccount(id string) (*Account, error) {
-	return dao.scanAccount(dao.db.QueryRow("select "+cAccountColumns+" from `accounts` where `id` = ?", id))
+	return dao.queryAccount("`id` = ?", id)
 }
 
 // GetAccountByEmail is nil, nil for an email nobody has.
 func (dao *Dao) GetAccountByEmail(email string) (*Account, error) {
-	return dao.scanAccount(dao.db.QueryRow("select "+cAccountColumns+" from `accounts` where `email` = ?", email))
+	return dao.queryAccount("`email` = ?", email)
 }
 
 // GetAccountByLogin is the account a provider identity is linked to, or
 // nil, nil.
 func (dao *Dao) GetAccountByLogin(provider, subject string) (*Account, error) {
-	return dao.scanAccount(dao.db.QueryRow("select "+cAccountColumns+" from `accounts` where `id` = (select `account_id` from `account_logins` where `provider` = ? and `subject` = ?)", provider, subject))
+	return dao.queryAccount("`id` = (select `account_id` from `account_logins` where `provider` = ? and `subject` = ?)", provider, subject)
 }
 
 func (dao *Dao) LinkAccountLogin(provider, subject, accountID string) error {

@@ -15,6 +15,7 @@ import (
 	"github.com/alonsovidales/otc/bridge/limits"
 	"github.com/alonsovidales/otc/bridge/mailer"
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/push"
@@ -943,7 +944,32 @@ func (mg *Manager) sendOfflineAlert(domain string) {
 		return
 	}
 	ps.WebPushClient = bridgeWebPushClient
-	ps.Notify("Off The Cloud", "Your device appears to have gone offline", push.Target{})
+	title, body := offlineAlertText(mg.pushLanguage(domain))
+	ps.Notify(title, body, push.Target{})
+}
+
+// offlineAlertText is the offline alert's title and body in lang (a code
+// this build carries, or "" for not known). For now only the language is
+// chosen and every language gets the English; the next localization phase
+// renders a push.* key in it (docs/i18n.md: push keys use only {name},
+// {version} and {port}, since Apple and Google can read every push). A
+// variable so a test can see the language it is asked for.
+var offlineAlertText = func(lang string) (title, body string) {
+	return "Off The Cloud", "Your device appears to have gone offline"
+}
+
+// pushLanguage is the language of the bridge's own pushes to domain's
+// phones and browsers (docs/i18n.md): the one its device last reported in
+// UpdatePushRegistrations, if this build carries it, else "" (English).
+// Never logged, least of all next to the domain.
+func (mg *Manager) pushLanguage(domain string) string {
+	lang, err := mg.dao.PushLanguageForDomain(domain)
+	if err != nil {
+		// The alert goes out in English: it matters more than its language.
+		log.Error("could not read the language for an offline alert:", err)
+		return ""
+	}
+	return i18n.Normalize(lang)
 }
 
 // onDeviceConnectionRegistered records that domain just gained one more
@@ -1992,7 +2018,12 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 					if dropped > 0 {
 						log.Info("left out", dropped, "push registrations of", req.Domain, "(not https, too long, repeated or too many)")
 					}
-					if err := mg.dao.SetPushRegistrations(req.Domain, req.VapidPublicKey, req.VapidPrivateKey, apnsTokens, fcmTokens, webSubs); err != nil {
+					// The language the bridge's own pushes to these go out
+					// in (the user's choice on the device, else the app that
+					// last registered): one this build carries, else ""
+					// for not known. Never logged with the domain.
+					language := i18n.Normalize(req.Language)
+					if err := mg.dao.SetPushRegistrations(req.Domain, req.VapidPublicKey, req.VapidPrivateKey, language, apnsTokens, fcmTokens, webSubs); err != nil {
 						log.Error("error storing push registrations:", err)
 						resp.Error = true
 						resp.ErrorMessage = cInternalErrorMsg

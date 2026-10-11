@@ -373,8 +373,11 @@ func (a *Accounts) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		if acc == nil {
 			now := time.Now()
 			// Google and Apple verify the email themselves.
-			created := dao.Account{ID: uuid.New().String(), Email: email, Name: strings.TrimSpace(given), Surname: strings.TrimSpace(family), Created: now, LastSeen: now, FreeUntil: now.AddDate(FreeYears, 0, 0), EmailVerified: true}
-			if err := a.dao.CreateAccount(created); err != nil {
+			// The browser's language for its emails, as at an email sign-up
+			// (the callback is a top-level navigation, Apple's a form post).
+			created := dao.Account{ID: uuid.New().String(), Email: email, Name: strings.TrimSpace(given), Surname: strings.TrimSpace(family), Created: now, LastSeen: now, FreeUntil: now.AddDate(FreeYears, 0, 0), EmailVerified: true,
+				Lang: requestLanguage("", r)}
+			if err := a.dao.CreateAccount(&created); err != nil {
 				log.Error("error creating an account from", p.name, ":", err)
 				http.Error(w, "could not sign in right now", http.StatusInternalServerError)
 				return

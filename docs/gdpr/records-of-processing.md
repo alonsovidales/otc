@@ -2,7 +2,7 @@
 
 Off The Cloud, as controller, for the bridge service at off-the.cloud. Internal record, kept up to
 date with the privacy notice (`bridge/static/privacy.html`) and the code. Last reviewed:
-8 October 2026.
+11 October 2026.
 
 **Controller:** Off The Cloud (run by a private developer, not yet a registered business),
 info@off-the.cloud.
@@ -19,11 +19,11 @@ for it. The bridge relays connections to devices in memory and stores none of th
 
 | # | Activity | Personal data | Purpose | Legal basis | Retention | Where (code) |
 |---|---|---|---|---|---|---|
-| 1 | Accounts | email, name, surname, country, bcrypt password hash, linked Google/Apple identity, created and last-seen dates, terms version and acceptance date | Giving owners device names and letting them manage them | Contract, Art. 6(1)(b) | Until the account is deleted, or 6 months unused (no sign-in, no client reaching its devices; warned by email a month before, `accounts/inactivity.go`) | `accounts`, `account_logins` tables; `bridge/accounts` |
+| 1 | Accounts | email, name, surname, country, bcrypt password hash, linked Google/Apple identity, created and last-seen dates, terms version and acceptance date, language preference (a code such as `es`: from the sign-up page or the browser's `Accept-Language`, changed only by the signed-in owner) | Giving owners device names and letting them manage them; writing emails in the owner's language | Contract, Art. 6(1)(b) | Until the account is deleted, or 6 months unused (no sign-in, no client reaching its devices; warned by email a month before, `accounts/inactivity.go`) | `accounts` (`lang`), `account_logins` tables; `bridge/accounts` |
 | 2 | Device names | domain, device identity and secret, account, switched-off state, last time a client reached it | Routing connections to the right device, protecting the name | Contract | Until released or the account is deleted; released names reserved 30 days | `devices`, `released_domains` |
 | 3 | Traffic metrics | per device and hour: request and byte counts (no content) | Running the service, finding abuse | Legitimate interest, Art. 6(1)(f) | 90 days | `device_metrics` |
 | 4 | Security log | rejected device connections with IP address | Detecting attempts to take over a device name | Legitimate interest | 90 days | `auth_events` |
-| 5 | Push delivery | APNs/FCM tokens, Web Push subscriptions; notification text in transit only | Passing the device's notifications on to the owner's phones; the device-offline alert to phones and browsers | Contract | Until the device removes them or the name is released; text not stored | `push_registrations`, `push_apns_tokens`, `push_fcm_tokens`, `push_web_subs` |
+| 5 | Push delivery | APNs/FCM tokens, Web Push subscriptions, the language preference the device reports for the bridge's own notifications; notification text in transit only | Passing the device's notifications on to the owner's phones; the device-offline alert to phones and browsers, in the owner's language | Contract | Until the device removes them or the name is released (the language is replaced with every registration update); text not stored | `push_registrations` (`language`), `push_apns_tokens`, `push_fcm_tokens`, `push_web_subs` |
 | 6 | Setup and sign-in codes | short codes linking a device or app to an account | Device setup | Contract | 15 minutes, or until used | `account_tokens`, `app_signin_codes` |
 | 7 | Email links | SHA-256 of verification and reset links | Proving the email; account recovery | Contract | 48 h (verification), 1 h (reset), or until used | `account_email_tokens`; `bridge/mailer` |
 | 8 | Setup beacon | a device's LAN address during setup, under a random setup token; sent by every device set up from the image, with or without an account | Letting the setup page find the device again | Contract; legitimate interest for a setup without an account | 10 minutes | `setup_beacons` |
