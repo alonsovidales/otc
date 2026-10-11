@@ -406,13 +406,18 @@ func (c *Catalog) checkTranslation(l Language, t *Translation, add func(Diagnost
 			}
 		}
 		if g := c.glossary[l.Code]; g != nil {
+			enProse, trProse := glossaryProse(enForm), glossaryProse(f.Text)
+			// A plural whose English says the same in both forms ("{count}
+			// files could not be read") leaves the translation's one form
+			// free to be singular: its terms are checked in other only.
+			sameEnglish := e.Text.Plural && f.Name == "one" && e.Text.Form("one") == e.Text.Form("other")
 			for _, term := range g.Terms {
-				if term.Enforce && containsWordFold(enForm, term.EN) && !containsFold(f.Text, term.Text) {
+				if term.Enforce && !sameEnglish && !slices.Contains(term.Except, e.Key) && containsWordFold(enProse, term.EN) && !containsFold(trProse, term.Text) {
 					report(ClassGlossary, fmt.Sprintf("%sthe glossary translates %q as %q", label, term.EN, term.Text))
 				}
 			}
 			for _, fb := range g.Forbidden {
-				if containsWordFold(f.Text, fb.Text) {
+				if containsWordFold(trProse, fb.Text) {
 					msg := fmt.Sprintf("%sthe glossary says not to use %q", label, fb.Text)
 					if fb.Note != "" {
 						msg += " (" + fb.Note + ")"

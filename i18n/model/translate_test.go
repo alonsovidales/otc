@@ -289,6 +289,52 @@ func TestGlossary(t *testing.T) {
 	want(t, ds, Error, "", `glossary for "en"`)
 }
 
+// Placeholder names, tag names, links and paths glued to them are not
+// words a glossary can ask for or forbid; a plural whose English says the
+// same in both forms leaves the one form free.
+func TestGlossaryOnlyReadsWords(t *testing.T) {
+	files := map[string]string{
+		enFile("common"): entries(
+			"common.in", `{"text": "Saved in {folder}", "note": "n", "args": [["folder", "user"]]}`,
+			"common.page", `{"text": "Accept the terms at off-the.cloud/account or {bridge}/account", "note": "n", "args": [["bridge", "text"]]}`,
+			"common.tag", `{"text": "Open <account>your page</account>", "note": "n", "rich": ["account"]}`,
+			"common.word", `{"text": "Pick a folder", "note": "n"}`,
+			"common.crash", `{"text": {"one": "{count} files failed", "other": "{count} files failed"}, "note": "n", "args": [["count", "count"]]}`,
+			"common.left", `{"text": {"one": "{count} file left", "other": "{count} files left"}, "note": "n", "args": [["count", "count"]]}`,
+			"common.disks", `{"text": "choose 2 devices", "note": "devices are disks here"}`,
+			"common.boxes", `{"text": "2 devices", "note": "n"}`,
+		),
+		GlossaryDir + "/de.json": `{"code": "de",
+  "terms": [{"en": "folder", "text": "Ordner", "enforce": true},
+            {"en": "account", "text": "Konto", "enforce": true},
+            {"en": "files", "text": "Dateien", "enforce": true},
+            {"en": "devices", "text": "Geräte", "enforce": true, "except": ["common.disks"]}],
+  "forbidden": [{"text": "Account", "note": "we say Konto"}]}`,
+		trFile("de", "common"): `{
+  "common.in": {"text": "Gespeichert: {folder}", "en": "Saved in {folder}"},
+  "common.page": {"text": "Akzeptiere die Bedingungen unter off-the.cloud/account oder {bridge}/account", "en": "Accept the terms at off-the.cloud/account or {bridge}/account"},
+  "common.tag": {"text": "Öffne <account>deine Seite</account>", "en": "Open <account>your page</account>"},
+  "common.word": {"text": "Wähle etwas", "en": "Pick a folder"},
+  "common.crash": {"text": {"one": "{count} Datei fehlgeschlagen", "other": "{count} Dateien fehlgeschlagen"}, "en": {"one": "{count} files failed", "other": "{count} files failed"}},
+  "common.left": {"text": {"one": "{count} Datei übrig", "other": "{count} Datei übrig"}, "en": {"one": "{count} file left", "other": "{count} files left"}},
+  "common.disks": {"text": "wähle 2 Laufwerke", "en": "choose 2 devices"},
+  "common.boxes": {"text": "2 Kisten", "en": "2 devices"}
+}`,
+	}
+	ds := check(t, files, CheckOptions{})
+	wantNone(t, ds, Warning, "common.in", "glossary")
+	wantNone(t, ds, Warning, "common.page", "glossary")
+	wantNone(t, ds, Warning, "common.tag", "glossary")
+	want(t, ds, Warning, "common.word", `the glossary translates "folder" as "Ordner"`)
+	wantNone(t, ds, Warning, "common.crash", "glossary")
+	want(t, ds, Warning, "common.left", `the glossary translates "files" as "Dateien"`)
+	wantNone(t, ds, Warning, "common.disks", "glossary")
+	want(t, ds, Warning, "common.boxes", `the glossary translates "devices" as "Geräte"`)
+	if got := glossaryProse("Open <b>{name}</b>/x at https://a.example/p, then ({count})"); strings.Contains(got, "name") || strings.Contains(got, "example") || strings.Contains(got, "count") || !strings.Contains(got, "Open") {
+		t.Errorf("glossaryProse = %q", got)
+	}
+}
+
 func TestContainsWordFold(t *testing.T) {
 	for _, tc := range []struct {
 		s, w string

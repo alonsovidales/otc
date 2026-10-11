@@ -18,7 +18,7 @@
     {"en": "Settings", "text": "Einstellungen", "note": "Tab name; also the phone’s own Settings app. macOS: Systemeinstellungen.", "enforce": true},
     {"en": "Sharing", "text": "Teilen", "note": "Menu heading above Social and Friends.", "enforce": false},
     {"en": "device", "text": "Gerät", "note": "The Off The Cloud box (a Raspberry Pi with its disks) that holds everything; also the menu heading Device. Never server, NAS or box in app text. Neuter.", "enforce": true},
-    {"en": "devices", "text": "Geräte", "note": "Plural of device.", "enforce": true},
+    {"en": "devices", "text": "Geräte", "note": "Plural of device.", "enforce": true, "except": ["dev.device.storage_too_many"]},
     {"en": "bridge", "text": "Bridge", "note": "Our relay at off-the.cloud that connects the apps and friends to a device away from home. A common noun, lowercase inside a sentence, one fixed word per language. Feminine: die Bridge. Compounds with a hyphen: Bridge-Zugang.", "enforce": true},
     {"en": "bridge access", "text": "Bridge-Zugang", "note": "Being reachable through the bridge (a Settings section and the request a user account can carry).", "enforce": true},
     {"en": "Request bridge access", "text": "Bridge-Zugang anfordern", "note": "Checkbox label quoted in other texts.", "enforce": true},

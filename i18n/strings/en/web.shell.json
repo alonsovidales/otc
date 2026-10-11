@@ -188,7 +188,7 @@
   "web.shell.menu.settings": {
     "text": "Settings",
     "note": "Left menu item (and icon-rail label, 80 px) that opens the device's settings. Kept short: the rail cuts longer labels.",
-    "max": 12
+    "max": 13
   },
   "web.shell.menu.sharing": {
     "text": "Sharing",

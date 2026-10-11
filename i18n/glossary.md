@@ -22,6 +22,11 @@ and Dutch (nl). English is the source.
   reported the same way.
 - Terms with `"enforce": false` are not checked. They are still the words to use; `note` says
   why and how.
+- The check reads only a text's words: placeholder names (`{folder}`), tag names (`<account>`),
+  links, addresses, domains and paths glued to them (`{bridge}/account`) are left out. A plural
+  whose English says the same in both forms has its terms checked in `other` only.
+- `"except": ["<key>", ...]` on a term lists keys where the English word means something else
+  (dev.device.storage_too_many's "devices" are disks): the term isn't asked for there.
 
 A term is enforced only when every correct translation of every English text that contains it
 will contain the translated words, spelled exactly so. That is why verbs and words that decline

@@ -85,7 +85,7 @@
   "wiz.account.have_code": {
     "text": "I have a setup code",
     "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: tab that shows the setup code field (a code from the account page, for Google and Apple accounts).",
-    "max": 30
+    "max": 32
   },
   "wiz.account.heading": {
     "text": "3 · Your Off The Cloud account",

@@ -462,6 +462,10 @@ func TestMatchPseudoLocaleOnlyExactly(t *testing.T) {
 // The log names a missing key or a key with bad arguments, once, and
 // never an argument.
 func TestNeverLogsArguments(t *testing.T) {
+	// Other tests (TestEmbeddedCatalog renders every key without its
+	// arguments) may have used up the log's cap: start from nothing.
+	logged.Range(func(k, _ any) bool { logged.Delete(k); return true })
+	nLogged.Store(0)
 	var buf bytes.Buffer
 	stdlog.SetOutput(&buf)
 	defer stdlog.SetOutput(os.Stderr)

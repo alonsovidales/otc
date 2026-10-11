@@ -18,7 +18,7 @@
     {"en": "Settings", "text": "Ajustes", "note": "Tab name; also the phone’s own Settings app. As iOS and Android in Spain (Windows says Configuración). Never Configuración for this tab.", "enforce": true},
     {"en": "Sharing", "text": "Compartir", "note": "Menu heading above Social and Friends.", "enforce": false},
     {"en": "device", "text": "dispositivo", "note": "The Off The Cloud box (a Raspberry Pi with its disks) that holds everything; also the menu heading Device. Never server, NAS or box in app text. Masculine.", "enforce": true},
-    {"en": "devices", "text": "dispositivos", "note": "Plural of device.", "enforce": true},
+    {"en": "devices", "text": "dispositivos", "note": "Plural of device.", "enforce": true, "except": ["dev.device.storage_too_many"]},
     {"en": "bridge", "text": "puente", "note": "Our relay at off-the.cloud that connects the apps and friends to a device away from home. A common noun, lowercase inside a sentence, one fixed word per language. Masculine: el puente.", "enforce": true},
     {"en": "bridge access", "text": "acceso al puente", "note": "Being reachable through the bridge (a Settings section and the request a user account can carry).", "enforce": true},
     {"en": "Request bridge access", "text": "Solicitar acceso al puente", "note": "Checkbox label quoted in other texts.", "enforce": true},

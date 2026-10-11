@@ -6,7 +6,7 @@
   "app.shell.add_to_collection": {
     "text": "Add to collection",
     "note": "Item of the bar shown over Images while photos are selected (an icon with this label under it): adds the selected photos to a collection (our word for named groups of photos), or makes a new one. May wrap onto two lines.",
-    "max": 20
+    "max": 24
   },
   "app.shell.address_invalid": {
     "text": "The address \"{address}\" isn't valid.",
@@ -166,7 +166,7 @@
   "app.shell.keep_out_of_images": {
     "text": "Keep out of Images",
     "note": "Item of the bar shown over Files while one folder is selected: keeps that folder's photos and videos out of Images (not tagged, not searched for faces; the tags and faces already found are deleted, after a confirmation). Images is the photo section (app.shell.section_images). May wrap onto two lines.",
-    "max": 24,
+    "max": 26,
     "review": "required",
     "reviewed": "shipped 2026-10-11 #bcf2987f"
   },
@@ -461,7 +461,7 @@
   "app.shell.section_settings": {
     "text": "Settings",
     "note": "Tab of the bottom bar, and item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen: the device's and the app's settings. Kept short: the rail cuts longer labels.",
-    "max": 12
+    "max": 13
   },
   "app.shell.section_social": {
     "text": "Social",
@@ -552,7 +552,7 @@
   "app.shell.share_as_gallery": {
     "text": "Share as gallery",
     "note": "Item of the bar shown over Images (and over Files while one folder is selected): shares the selection as a gallery, a web page friends and others can open with a link. May wrap onto two lines.",
-    "max": 20
+    "max": 24
   },
   "app.shell.share_as_gallery_menu": {
     "text": "Share as Gallery",

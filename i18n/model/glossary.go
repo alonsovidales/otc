@@ -4,6 +4,7 @@ package model
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -14,7 +15,8 @@ import (
 //
 //	i18n/glossary/<code>.json:
 //	  {"code": "es",
-//	   "terms": [{"en": "Collections", "text": "Colecciones", "note": "...", "enforce": true}],
+//	   "terms": [{"en": "Collections", "text": "Colecciones", "note": "...", "enforce": true,
+//	              "except": ["<key where the English word means something else>"]}],
 //	   "forbidden": [{"text": "álbum", "note": "we say colecciones"}]}
 //
 //	i18n/glossary/never.json:
@@ -35,10 +37,12 @@ type Glossary struct {
 
 // Term is a glossary term. With Enforce, whenever an English form has EN
 // (case-insensitive, as a whole word) the translated form must contain
-// Text (case-insensitive).
+// Text (case-insensitive) - except in the keys listed in Except, where the
+// English word means something else (a note says what).
 type Term struct {
 	EN, Text, Note string
 	Enforce        bool
+	Except         []string
 	Line           int
 }
 
@@ -95,6 +99,18 @@ func parseGlossary(data []byte, file, code string) (*Glossary, []Diagnostic) {
 							bad(fm.line, "\"enforce\" must be true or false")
 						}
 						t.Enforce = fm.val.b
+					case fm.key == "except" && m.key == "terms":
+						if fm.val.kind != kindArray {
+							bad(fm.line, "\"except\" must be an array of keys")
+							continue
+						}
+						for _, k := range fm.val.arr {
+							if k.kind != kindString || k.str == "" {
+								bad(k.line, "each of \"except\" is a key")
+								continue
+							}
+							t.Except = append(t.Except, k.str)
+						}
 					case fm.key == "note", fm.key == "text", fm.key == "en" && m.key == "terms":
 						if fm.val.kind != kindString {
 							bad(fm.line, "%q must be a string", fm.key)
@@ -172,6 +188,39 @@ func parseNever(data []byte, file string) ([]string, []Diagnostic) {
 		}
 	}
 	return never, ds
+}
+
+// proseMark stands for a placeholder or a link while glossaryProse works.
+const proseMark = '\uFFFC'
+
+// attachedToMark is a run of non-space text holding a proseMark: the
+// placeholder or link with whatever is glued to it ("{bridge}/account",
+// "off-the.cloud/account", "({count})").
+var attachedToMark = regexp.MustCompile(`\S*\x{FFFC}\S*`)
+
+// glossaryProse is the part of a form the glossary applies to: its words,
+// without placeholder names ({folder}), tag names (<account>), links,
+// addresses and domains, or paths glued to them - none of those can be
+// translated, so a glossary word inside them is not the word.
+func glossaryProse(s string) string {
+	toks, err := Tokenize(s)
+	if err != nil {
+		return s
+	}
+	var b strings.Builder
+	for _, t := range toks {
+		switch t.Kind {
+		case Literal:
+			b.WriteString(t.Value)
+		case Placeholder:
+			b.WriteRune(proseMark)
+		}
+	}
+	out := b.String()
+	for _, re := range []*regexp.Regexp{urlPattern, emailPattern, domainPattern} {
+		out = re.ReplaceAllString(out, string(proseMark))
+	}
+	return attachedToMark.ReplaceAllString(out, " ")
 }
 
 // containsWordFold reports whether needle appears in s, ignoring case, with
