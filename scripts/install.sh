@@ -63,6 +63,26 @@ set -euo pipefail
 
 log() { echo "[otc-install] $*"; }
 die() { echo "[otc-install] ERROR: $*" >&2; exit 1; }
+# The setup wizard shows the install's progress in its owner's language
+# (docs/i18n.md, "Setup wizard"): a machine-readable line just before the
+# English one it stands for, which stays exactly as it is for older wizards
+# and the log - "@step <token> [<args>]" before a "[n/10]" line, "@error
+# <token> <args>" before an ERROR line, args a JSON object of strings. The
+# wizard shows wiz.install.step.<token> / wiz.install.error.<token> only
+# when that key's English with these args is the English line that follows.
+wiz_args() {
+    local out="" v
+    while [ "$#" -ge 2 ]; do
+        v="${2//\\/\\\\}"
+        v="${v//\"/\\\"}"
+        v="$(printf '%s' "$v" | tr -d '\000-\037')"
+        out="${out:+$out,}\"$1\":\"$v\""
+        shift 2
+    done
+    printf '{%s}' "$out"
+}
+wiz_step() { local t="$1"; shift; if [ "$#" -ge 2 ]; then echo "[otc-install] @step $t $(wiz_args "$@")"; else echo "[otc-install] @step $t"; fi; }
+wiz_error() { local t="$1"; shift; echo "[otc-install] @error $t $(wiz_args "$@")" >&2; }
 
 # ---------------------------------------------------------------------------
 # 0. Preflight
@@ -79,7 +99,7 @@ if [ -z "${OTC_VERIFIED_SRC:-}" ]; then
     log "Handing over to the verified installer: only a signed release is installed"
     hv="$(mktemp)"
     curl -fsSL --retry 3 --connect-timeout 30 --speed-limit 1 --speed-time 120 -o "$hv" "${OTC_REPO_RAW:-https://raw.githubusercontent.com/alonsovidales/otc/main}/scripts/verified-install.sh" \
-        || die "could not download the verified installer"
+        || { wiz_error download_installer; die "could not download the verified installer"; }
     exec bash "$hv" "$@"
 fi
 
@@ -97,9 +117,9 @@ fetch_pinned() {
     # install for good. Under 1 byte/s for two minutes has truly stopped
     # (exit 28, retried); a slow but live link is never cut off.
     curl -fL --retry 5 --retry-delay 2 --connect-timeout 30 --speed-limit 1 --speed-time 120 \
-        -o "$tmpf" "$url" || { rm -f "$tmpf"; die "could not download $url"; }
+        -o "$tmpf" "$url" || { rm -f "$tmpf"; wiz_error download url "$url"; die "could not download $url"; }
     if [ "$(sha256sum "$tmpf" | awk '{print $1}')" != "$want" ]; then
-        rm -f "$tmpf"; die "$url does not match its pinned hash"
+        rm -f "$tmpf"; wiz_error pinned_hash url "$url"; die "$url does not match its pinned hash"
     fi
     mv -f "$tmpf" "$dest"
 }
@@ -197,6 +217,7 @@ fi
 # ---------------------------------------------------------------------------
 # 1. OS packages
 # ---------------------------------------------------------------------------
+wiz_step packages
 log "[1/10] apt-get update + base packages"
 export DEBIAN_FRONTEND=noninteractive
 
@@ -301,6 +322,7 @@ SSHEOF
 chmod 644 /etc/ssh/sshd_config.d/01-otc-keys-only.conf
 if systemctl is-active --quiet ssh 2>/dev/null && sshd -t 2>/dev/null; then systemctl reload ssh; fi
 
+wiz_step account
 log "[2/10] otc service account"
 id otc >/dev/null 2>&1 || useradd -r -m -d /home/otc -s /usr/sbin/nologin otc
 for g in dialout video plugdev gpio i2c spi; do
@@ -310,6 +332,7 @@ done
 # ---------------------------------------------------------------------------
 # 2. RAID1 storage
 # ---------------------------------------------------------------------------
+wiz_step storage path "$MOUNT_POINT"
 log "[3/10] RAID1 storage ($MOUNT_POINT)"
 mkdir -p "$MOUNT_POINT"
 if [ "$SKIP_RAID" = "1" ]; then
@@ -353,11 +376,12 @@ else
         log "$RAID_DEV exists (existing array assembled) - skipping wipe."
         mountpoint -q "$MOUNT_POINT" || mount "$RAID_DEV" "$MOUNT_POINT" 2>/dev/null || true
     else
-        [ "$RECOVERY" = "1" ] && die "recovery was asked for, but no existing RAID1 array could be assembled from $DISK1/$DISK2 - nothing was wiped. Check both disks are connected and try again."
+        [ "$RECOVERY" = "1" ] && { wiz_error recovery_no_array disk1 "$DISK1" disk2 "$DISK2"; die "recovery was asked for, but no existing RAID1 array could be assembled from $DISK1/$DISK2 - nothing was wiped. Check both disks are connected and try again."; }
         # Last line of defence: a disk that still carries a RAID superblock
         # belongs to an array, and wiping it is never done implicitly.
         for d in "$DISK1" "$DISK2"; do
             if mdadm --examine "$d" >/dev/null 2>&1; then
+                wiz_error array_not_assembled disk "$d"
                 die "$d still holds a RAID array that could not be assembled - refusing to wipe it. To really start over, run: mdadm --zero-superblock $d"
             fi
         done
@@ -379,6 +403,7 @@ mkdir -p "$UNENC_PATH"
 # ---------------------------------------------------------------------------
 # 3. Toolchain + runtime deps
 # ---------------------------------------------------------------------------
+wiz_step go version "$GO_VERSION" arch "$ARCH"
 log "[4/10] Go $GO_VERSION ($ARCH)"
 if ! /usr/local/go/bin/go version 2>/dev/null | grep -q "go$GO_VERSION "; then
     tmp=$(mktemp -d)
@@ -388,6 +413,7 @@ if ! /usr/local/go/bin/go version 2>/dev/null | grep -q "go$GO_VERSION "; then
     rm -rf "$tmp"
 fi
 
+wiz_step onnx version "$ONNXRUNTIME_VERSION" arch "$ORT_ARCH"
 log "[5/10] ONNX Runtime $ONNXRUNTIME_VERSION ($ORT_ARCH)"
 if [ ! -f /opt/onnxruntime/lib/libonnxruntime.so ]; then
     tmp=$(mktemp -d)
@@ -398,6 +424,7 @@ if [ ! -f /opt/onnxruntime/lib/libonnxruntime.so ]; then
     rm -rf "$tmp"
 fi
 
+wiz_step tagging_model
 log "[6/10] RAM++ tagging model (~870MB, only downloaded once)"
 mkdir -p "$MODEL_DIR"
 # Each file is checked on its own: fetch_pinned only moves a file into place
@@ -414,10 +441,11 @@ if [ ! -f "$MODEL_TAGS" ]; then
     # The tag list ships in the verified release itself. Through a
     # temporary file, so a half-written list is never left in place.
     gunzip < "$OTC_VERIFIED_SRC/models/models/tag_list_4585.txt.gz" > "$MODEL_TAGS.tmp" \
-        || { rm -f "$MODEL_TAGS.tmp"; die "could not unpack the tag list"; }
+        || { rm -f "$MODEL_TAGS.tmp"; wiz_error tag_list; die "could not unpack the tag list"; }
     mv -f "$MODEL_TAGS.tmp" "$MODEL_TAGS"
 fi
 
+wiz_step face_models
 log "[6/10] Face recognition models (issue #52, ~10MB total, only downloaded once)"
 if [ ! -f "$FACE_DETECTOR_ONNX" ]; then
     fetch_pinned "$OPENCV_ZOO_RAW/face_detection_yunet/face_detection_yunet_2023mar.onnx" "$FACE_DETECTOR_ONNX" 8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4
@@ -430,12 +458,14 @@ chown -R otc:otc "$MODEL_DIR"
 # ---------------------------------------------------------------------------
 # 4. Fetch source, build the binary, install the web bundle
 # ---------------------------------------------------------------------------
+wiz_step source version "${OTC_RELEASE_VERSION:-?}"
 log "[7/10] Source of release ${OTC_RELEASE_VERSION:-?} (verified)"
 # The signed release's own source (verified-install.sh), not a clone of
 # the branch - the same way updates stage it.
 mkdir -p "$SRC_DIR"
-rsync -a --delete --exclude '.git' "$OTC_VERIFIED_SRC/" "$SRC_DIR/" || die "could not stage the source"
+rsync -a --delete --exclude '.git' "$OTC_VERIFIED_SRC/" "$SRC_DIR/" || { wiz_error stage_source; die "could not stage the source"; }
 
+wiz_step proto
 log "[8/10] Generate proto/generated (protoc + protoc-gen-go)"
 # proto/generated/*.go is `make pb`'s protoc output, gitignored (not
 # hand-edited, not committed). Generated here from the exact
@@ -469,6 +499,7 @@ PATH="/usr/local/bin:$PATH" protoc -I="$SRC_DIR/proto" \
     --go_out="$SRC_DIR/proto/generated" --go_opt=paths=source_relative \
     "$SRC_DIR/proto/messages.proto"
 
+wiz_step build
 log "[8/10] Build the otc binary"
 (
     cd "$SRC_DIR"
@@ -478,17 +509,19 @@ log "[8/10] Build the otc binary"
     /usr/local/go/bin/go build -o /usr/bin/otc ./bin/otc.go
 )
 
+wiz_step web version "${OTC_RELEASE_VERSION:-?}"
 log "[9/10] Web app (release ${OTC_RELEASE_VERSION:-?}, verified)"
 # The release's own prebuilt bundle, checked against the signed manifest
 # by verified-install.sh - the same one updates install. No Node or npm on
 # the device (issue #160: they were fetched with a piped installer).
 mkdir -p /var/www
 rm -rf "$SRC_DIR/.web-dist" && mkdir -p "$SRC_DIR/.web-dist"
-tar -xzf "$OTC_VERIFIED_WEB" -C "$SRC_DIR/.web-dist" || die "could not unpack the web app"
-rsync -a --delete "$SRC_DIR/.web-dist/" /var/www/ || die "could not install the web app"
+tar -xzf "$OTC_VERIFIED_WEB" -C "$SRC_DIR/.web-dist" || { wiz_error unpack_web; die "could not unpack the web app"; }
+rsync -a --delete "$SRC_DIR/.web-dist/" /var/www/ || { wiz_error install_web; die "could not install the web app"; }
 rm -rf "$SRC_DIR/.web-dist"
 chown -R otc:otc /var/www
 
+wiz_step directories
 log "[9/10] Runtime directories"
 # /var/lib/otc/users: issue #82's per-user config/identity directories -
 # under StateDirectory=otc (still writable under ProtectSystem=full,
@@ -524,6 +557,7 @@ if command -v iw >/dev/null 2>&1; then
     done
 fi
 
+wiz_step service
 log "[10/10] Database, config, and the systemd service"
 # Point MariaDB's datadir at the RAID array (mirrors Makefile.pi's `mariadb`
 # target) before touching it any further below - a recovered array already
@@ -548,7 +582,7 @@ fi
 systemctl enable --now mariadb
 for i in $(seq 1 60); do
     mysqladmin ping >/dev/null 2>&1 && break
-    if [ "$i" -eq 60 ]; then die "mariadb did not come up within 60s — check 'systemctl status mariadb'"; fi
+    if [ "$i" -eq 60 ]; then wiz_error mariadb; die "mariadb did not come up within 60s — check 'systemctl status mariadb'"; fi
     sleep 1
 done
 
@@ -1076,6 +1110,7 @@ if [ -n "${OTC_OWNER_PASSWORD_FILE:-}" ] && [ -f "$OTC_OWNER_PASSWORD_FILE" ]; t
     log "Setting the owner password chosen in the setup wizard"
     if ! runuser -u otc -- /usr/bin/otc "$ENVIRONMENT" init-owner-password < "$OTC_OWNER_PASSWORD_FILE"; then
         shred -u "$OTC_OWNER_PASSWORD_FILE" 2>/dev/null || rm -f "$OTC_OWNER_PASSWORD_FILE"
+        wiz_error owner_password
         die "could not set the owner password"
     fi
     shred -u "$OTC_OWNER_PASSWORD_FILE" 2>/dev/null || rm -f "$OTC_OWNER_PASSWORD_FILE"

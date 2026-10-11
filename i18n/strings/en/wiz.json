@@ -1,0 +1,1073 @@
+{
+  "wiz.account.accept_terms": {
+    "text": "I accept the <terms>terms of use</terms> and have read the <privacy>privacy notice</privacy>.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: checkbox in the sign-up form. <terms> links to the terms of use, <privacy> to the privacy notice. Consent text.",
+    "rich": ["terms", "privacy"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e5d8bb36"
+  },
+  "wiz.account.checking": {
+    "text": "Checking…",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: with a spinner after I've confirmed it - continue is pressed.",
+    "max": 24
+  },
+  "wiz.account.choose_country": {
+    "text": "Choose…",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: first entry of the country list, before one is chosen.",
+    "max": 24
+  },
+  "wiz.account.code_hint": {
+    "text": "On any device, open <b>{bridge}/account</b>, sign in (with your password, Google or Apple) and tap <b>Get a setup code</b>.",
+    "args": [["bridge", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: hint under the setup code field. {bridge}/account is the account page's address, in bold. Get a setup code is a button on that page: use its translation.",
+    "rich": ["b"]
+  },
+  "wiz.account.code_label": {
+    "text": "Setup code",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: label of the setup code field.",
+    "max": 24
+  },
+  "wiz.account.code_placeholder": {
+    "text": "e.g. K7PX2M4Q",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: placeholder in the setup code field: an example code. Keep K7PX2M4Q; translate only \"e.g.\".",
+    "max": 24
+  },
+  "wiz.account.confirm_hint": {
+    "text": "We sent a link to <b>{email}</b>. Open it - on this phone or any other device - to confirm the address is yours, then come back and continue. Can't find it? Look in the spam folder.",
+    "args": [["email", "user"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: explanation while the email address isn't confirmed. {email} is the address, in bold.",
+    "rich": ["b"]
+  },
+  "wiz.account.confirm_title": {
+    "text": "3 · Confirm your email",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: heading after signing up, until the email address is confirmed. The number and the middle dot (\"1 · \") are the step's number; keep them.",
+    "max": 50
+  },
+  "wiz.account.confirmed": {
+    "text": "I've confirmed it - continue",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: button pressed after opening the confirmation link; signs in again.",
+    "max": 36
+  },
+  "wiz.account.continue_apple": {
+    "text": "Continue with Apple",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: button in the app that signs in with Apple. Use the wording Apple's guidelines give for the language.",
+    "max": 30
+  },
+  "wiz.account.continue_email": {
+    "text": "Continue with Email",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: button in the app that opens the email sign-in forms, next to Continue with Apple and Continue with Google.",
+    "max": 30
+  },
+  "wiz.account.continue_google": {
+    "text": "Continue with Google",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: button in the app that signs in with Google. Use the wording Google's guidelines give for the language.",
+    "max": 30
+  },
+  "wiz.account.countries_failed": {
+    "text": "Could not load the country list - check the device is online",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: error when the country list of the sign-up form could not be loaded."
+  },
+  "wiz.account.country": {
+    "text": "Country of residence",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: label of the country list in the sign-up form.",
+    "max": 36
+  },
+  "wiz.account.create": {
+    "text": "Create account",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: tab that shows the sign-up form, and that form's button.",
+    "max": 24
+  },
+  "wiz.account.email": {
+    "text": "Email",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: label of the email address field.",
+    "max": 24
+  },
+  "wiz.account.have_code": {
+    "text": "I have a setup code",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: tab that shows the setup code field (a code from the account page, for Google and Apple accounts).",
+    "max": 30
+  },
+  "wiz.account.heading": {
+    "text": "3 · Your Off The Cloud account",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: heading before signing in. The number and the middle dot (\"1 · \") are the step's number; keep them.",
+    "max": 50
+  },
+  "wiz.account.intro": {
+    "text": "An account links this device's name to you, so you can reach it from anywhere, share with friends and replace it if it is ever lost.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: explanation under the heading."
+  },
+  "wiz.account.name": {
+    "text": "Name",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: label of the first-name field in the sign-up form.",
+    "max": 24
+  },
+  "wiz.account.not_confirmed": {
+    "text": "Not confirmed yet - open the link in the email (we have just sent it again).",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: error when the address still isn't confirmed; a new link has been sent."
+  },
+  "wiz.account.one_moment": {
+    "text": "One moment…",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: with a spinner while signing in, signing up or checking a setup code.",
+    "max": 24
+  },
+  "wiz.account.or_email": {
+    "text": "or with your email",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: divider between the Apple/Google buttons and the email sign-in forms.",
+    "max": 30
+  },
+  "wiz.account.password_min": {
+    "text": "Password (8 characters or more)",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: label of the password field in the sign-up form.",
+    "max": 40
+  },
+  "wiz.account.provider_hint": {
+    "text": "Signed up with Google or Apple? Open <b>{bridge}/account</b> on another device, get a setup code and choose \"I have a setup code\".",
+    "args": [["bridge", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: hint under the sign-in form. {bridge}/account is the account page's address (off-the.cloud/account), in bold. \"I have a setup code\" is the tab's name: use its translation, in quotes.",
+    "rich": ["b"]
+  },
+  "wiz.account.sign_in": {
+    "text": "Sign in",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: tab that shows the sign-in form, and that form's button.",
+    "max": 24
+  },
+  "wiz.account.signed_in_as": {
+    "text": "Signed in as <b>{email}</b>. The device's name will be registered to this account.",
+    "args": [["email", "user"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: line once signed in. {email} is the account's address, in bold.",
+    "rich": ["b"]
+  },
+  "wiz.account.signin_cancelled": {
+    "text": "Sign-in cancelled",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: error when signing in with Apple or Google in the app ended without an answer."
+  },
+  "wiz.account.signin_failed": {
+    "text": "Could not sign in",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: error when signing in failed and nothing more was said."
+  },
+  "wiz.account.skip": {
+    "text": "Continue without an account",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: a folded section's title and the button inside it that goes on without an account.",
+    "max": 36
+  },
+  "wiz.account.skip_hint": {
+    "text": "Without an account the device does not use the bridge. It still works as a NAS on your home network: files, photo backup from the apps and the sync clients while at home, the photo gallery, tags and people. What needs the bridge: reaching the device from outside your home, the social features (friends, posts, comments), share links that work from anywhere, and push notifications. You can join the bridge later, from Settings in the web app.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: explanation in the Continue without an account section."
+  },
+  "wiz.account.surname": {
+    "text": "Surname",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: label of the surname field in the sign-up form.",
+    "max": 24
+  },
+  "wiz.account.terms_bridge": {
+    "text": "Creating an account is only necessary to use our bridge: you will get up to <b>5 domains</b> like <i>name</i>.{bridge} to connect to your device and also connect with the devices of your friends and family. If you only want to use this device in your local network as a NAS or with Tailscale Funnel, skip the creation of the account.",
+    "args": [["bridge", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: first paragraph of the box in the sign-up form. {bridge} is the bridge's address (off-the.cloud); \"name\" in italics stands for the device's name in an address like name.off-the.cloud.",
+    "rich": ["b", "i"]
+  },
+  "wiz.account.terms_price": {
+    "text": "An account for up to 5 domains is <b>free for the first two years</b>, and after this period will cost 9.99 euros + VAT a year (we will e-mail you before the period ends). If you need more domains, please contact us at <b>info@off-the.cloud</b>.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: second paragraph of the box in the sign-up form: the price, part of the terms. Keep every number and the email address as they are.",
+    "rich": ["b"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #3353c6d3"
+  },
+  "wiz.account.title": {
+    "text": "3 · Your account",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: heading once signed in. The number and the middle dot (\"1 · \") are the step's number; keep them.",
+    "max": 40
+  },
+  "wiz.account.use_another": {
+    "text": "Use another account",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: button that signs in with a different account.",
+    "max": 30
+  },
+  "wiz.account.use_code": {
+    "text": "Use this code",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 3, the Off The Cloud account the device's name is registered to: button that checks the setup code.",
+    "max": 24
+  },
+  "wiz.action.continue": {
+    "text": "Continue",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): button that goes on to the next step (after joining Wi-Fi, after signing in, after choosing the device's name).",
+    "max": 24
+  },
+  "wiz.action.continue_failed": {
+    "text": "Could not continue",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error under a step's buttons when going on failed and the device said nothing more (continuing without an account, or with no bridge)."
+  },
+  "wiz.bridge.account_check_unavailable": {
+    "text": "could not check your account right now",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case)."
+  },
+  "wiz.bridge.claim_unavailable": {
+    "text": "could not reserve that name right now",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case)."
+  },
+  "wiz.bridge.domain_limit": {
+    "text": "an account can register up to 5 domains - for more (2 euros a year each), write to info@off-the.cloud",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case). The account already has as many device names as it may have. Keep the numbers and the email address as they are."
+  },
+  "wiz.bridge.email_taken": {
+    "text": "there is already an account with that email - sign in instead",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case)."
+  },
+  "wiz.bridge.invalid_credentials": {
+    "text": "wrong email or password - if you signed up with Google or Apple, use that instead (on the account page, then a setup code)",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case). The account page is off-the.cloud/account; a setup code is what it gives for the setup."
+  },
+  "wiz.bridge.invalid_email": {
+    "text": "that email address doesn't look right",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case)."
+  },
+  "wiz.bridge.invalid_name": {
+    "text": "that name can't be used",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case). The device's name is reserved or not allowed."
+  },
+  "wiz.bridge.login_required": {
+    "text": "sign in to register a name",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case). The sign-in has expired (setup codes last 15 minutes)."
+  },
+  "wiz.bridge.name_check_unavailable": {
+    "text": "could not check that name right now",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case)."
+  },
+  "wiz.bridge.name_held": {
+    "text": "that name was released recently and is held for its previous owner for 30 days",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case)."
+  },
+  "wiz.bridge.name_taken": {
+    "text": "that name is already taken",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case)."
+  },
+  "wiz.bridge.password_too_short": {
+    "text": "the password needs at least 8 characters",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case). The account's password is too short."
+  },
+  "wiz.bridge.profile_incomplete": {
+    "text": "name, surname and country of residence are required",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case)."
+  },
+  "wiz.bridge.setup_code_check_unavailable": {
+    "text": "could not check that setup code right now",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case)."
+  },
+  "wiz.bridge.setup_unavailable": {
+    "text": "could not start the setup",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case)."
+  },
+  "wiz.bridge.signin_unavailable": {
+    "text": "could not sign in right now",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case)."
+  },
+  "wiz.bridge.signup_unavailable": {
+    "text": "could not sign up right now",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case)."
+  },
+  "wiz.bridge.terms_not_accepted": {
+    "text": "accept the terms of use first: sign in at off-the.cloud/account and accept them there",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case). The account hasn't accepted the current terms of use. off-the.cloud/account is the account page's address; keep it.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #2e1a58b1"
+  },
+  "wiz.bridge.terms_required": {
+    "text": "please accept the terms",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case). Create account was pressed without ticking the terms of use. Consent.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #8353843d"
+  },
+  "wiz.bridge.too_many_attempts": {
+    "text": "too many failed attempts, try again later",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case). Signing in failed too many times."
+  },
+  "wiz.bridge.too_many_claims": {
+    "text": "please wait a moment before trying another name",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case)."
+  },
+  "wiz.bridge.too_many_signups": {
+    "text": "too many sign-ups from this address, try again later",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error from the bridge (off-the.cloud), shown on the page as the bridge words it in English (lower case). \"this address\" is the internet address the sign-up came from."
+  },
+  "wiz.disks.continue_without": {
+    "text": "Continue without extra disks",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: button when no disk is picked: everything stays on the SD card.",
+    "max": 36
+  },
+  "wiz.disks.found": {
+    "text": "Found an existing Off The Cloud storage",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: bold title of the box shown when the disks already hold a device's storage (a device whose card was re-flashed).",
+    "max": 60
+  },
+  "wiz.disks.looking": {
+    "text": "Looking at the attached disks…",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: line with a spinner while the disks are read."
+  },
+  "wiz.disks.mounted": {
+    "text": "currently mounted",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: in a disk's details in the list (\"/dev/sda · usb · currently mounted\"): the disk is in use.",
+    "max": 30
+  },
+  "wiz.disks.none": {
+    "text": "No extra disks found. Plug them in and tap Rescan, or continue without.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: the disk list while it is empty. Rescan is the button's name."
+  },
+  "wiz.disks.pick_hint": {
+    "text": "Pick <b>two</b> disks to mirror them as RAID1 - one can fail without losing anything. Pick none to keep everything on the SD card for now.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: hint above the disk list. \"two\" is in bold. RAID1 is the mirror's name; SD card is the Raspberry Pi's memory card.",
+    "rich": ["b"]
+  },
+  "wiz.disks.pick_second": {
+    "text": "Pick a second disk for RAID1, or none.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: hint in red while only one disk is picked."
+  },
+  "wiz.disks.recover": {
+    "text": "Recover this device",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: button that installs the device on its existing storage, keeping everything.",
+    "max": 30
+  },
+  "wiz.disks.recover_hint": {
+    "text": "If this Pi is replacing one that died, recover it: everything on these disks - photos, files, its name and its bridge identity - comes back as it was, and no new name is needed.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: explanation in the existing-storage box. The Pi is the Raspberry Pi the device is made of."
+  },
+  "wiz.disks.rescan": {
+    "text": "Rescan",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: button that looks at the attached disks again.",
+    "max": 20
+  },
+  "wiz.disks.start_failed": {
+    "text": "Could not start",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: error when recovering could not start and the device said nothing more."
+  },
+  "wiz.disks.start_fresh": {
+    "text": "Start fresh instead",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: button that ignores the existing storage (the next screen offers to wipe it).",
+    "max": 30
+  },
+  "wiz.disks.title": {
+    "text": "2 · Storage",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: the step's heading. The number and the middle dot (\"1 · \") are the step's number; keep them.",
+    "max": 40
+  },
+  "wiz.disks.wipe_continue": {
+    "text": "Wipe both and continue",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: button once two disks are picked: erases both disks. Destructive.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #7377d4ca"
+  },
+  "wiz.disks.wipe_warning": {
+    "text": "⚠ Both disks will be wiped.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: warning in red once two disks are picked. Destructive: everything on them is erased.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #8ae038e0"
+  },
+  "wiz.disks.wipe_warning_storage": {
+    "text": "⚠ Both disks will be wiped - including the existing Off The Cloud storage on them.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: warning in red once two disks are picked and they hold an existing device's storage. Destructive: everything on them is erased.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #fbda0b50"
+  },
+  "wiz.disks.with_database": {
+    "text": "with its database",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 2, the disks the device keeps everything on: in the existing storage's details (\"/dev/sda + /dev/sdb · 1000 GB · with its database\"): the storage holds the device's database.",
+    "max": 30
+  },
+  "wiz.done.hint": {
+    "text": "This device has finished its setup.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): line under the heading Already set up."
+  },
+  "wiz.done.open": {
+    "text": "Open {domain}",
+    "args": [["domain", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): link to the finished device. {domain} is its internet address, for example casa.off-the.cloud."
+  },
+  "wiz.done.open_app": {
+    "text": "Open the app",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): link to the finished device when it has no internet address (the web app at off-the.cloud).",
+    "max": 40
+  },
+  "wiz.done.title": {
+    "text": "Already set up",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): heading shown when this device has already finished its setup.",
+    "max": 40
+  },
+  "wiz.error.account_chosen": {
+    "text": "an account was chosen",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). The no-account install was asked for after signing in to an account."
+  },
+  "wiz.error.already_set_up": {
+    "text": "this device is already set up",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it)."
+  },
+  "wiz.error.choose_network": {
+    "text": "choose a network",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). Connect was pressed with no Wi-Fi network picked."
+  },
+  "wiz.error.claim_failed": {
+    "text": "could not reserve that name",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). Reserving the device's name failed."
+  },
+  "wiz.error.confirm_wipe": {
+    "text": "those disks hold an existing array - confirm wiping it",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). The disks picked hold a device's storage. Destructive: confirming erases it.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #efd6d3ee"
+  },
+  "wiz.error.disks_choice": {
+    "text": "choose two disks for RAID1, or none",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it)."
+  },
+  "wiz.error.invalid_setup_code": {
+    "text": "that setup code is not valid or has expired",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). The setup code typed is wrong or more than 15 minutes old."
+  },
+  "wiz.error.login_required": {
+    "text": "sign in to your Off The Cloud account first",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). The name step was reached without signing in."
+  },
+  "wiz.error.name_check_failed": {
+    "text": "could not check that name right now - try again",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). The name could not be checked (the bridge didn't answer)."
+  },
+  "wiz.error.name_first": {
+    "text": "choose the device's name first",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it)."
+  },
+  "wiz.error.name_rule": {
+    "text": "lower-case letters, digits and hyphens only",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). The device's name has characters it can't have."
+  },
+  "wiz.error.needs_password": {
+    "text": "{ssid} needs a password",
+    "args": [["ssid", "user"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). {ssid} is the Wi-Fi network's name."
+  },
+  "wiz.error.no_array": {
+    "text": "no existing array to recover",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). Recover was pressed but the disks hold no device's storage any more."
+  },
+  "wiz.error.not_found": {
+    "text": "not found",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). A request for something the device doesn't have (never sent by this page)."
+  },
+  "wiz.error.offline": {
+    "text": "no internet connection - {bridge} is not reachable",
+    "args": [["bridge", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). {bridge} is the bridge's address (off-the.cloud)."
+  },
+  "wiz.error.only_5ghz": {
+    "text": "{ssid} is a 5 GHz network: the hotspot can't follow it there. Set the device up with the app's \"Set up a new device\" (Bluetooth) instead, or pick a 2.4 GHz network.",
+    "args": [["ssid", "user"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). {ssid} is the Wi-Fi network's name. \"Set up a new device\" is the apps' button: use its translation, in quotes."
+  },
+  "wiz.error.password_too_short": {
+    "text": "the password must have 8 characters or more",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). The device password is too short."
+  },
+  "wiz.error.password_unreadable": {
+    "text": "the password could not be read - reload the page and try again",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). The encrypted device password couldn't be decrypted."
+  },
+  "wiz.error.picture_unusable": {
+    "text": "the profile picture could not be used - choose another one",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it)."
+  },
+  "wiz.error.rebind_failed": {
+    "text": "could not update the device's settings: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). Giving a recovered device its new name failed. {detail} is the database's reason, in English."
+  },
+  "wiz.error.setup_code_unavailable": {
+    "text": "could not check that setup code right now - try again",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). The setup code could not be checked (the bridge didn't answer)."
+  },
+  "wiz.error.signin_failed": {
+    "text": "could not sign in",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). Signing in failed and the bridge said nothing more."
+  },
+  "wiz.error.unknown_action": {
+    "text": "unknown action",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). A request the device doesn't know (never sent by this page)."
+  },
+  "wiz.error.unreachable": {
+    "text": "could not reach {bridge}: {detail}",
+    "args": [["bridge", "text"], ["detail", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): error shown on the page when the device refuses a step (lower case, as the device writes it). {bridge} is the bridge's address (off-the.cloud); {detail} is the system's reason, in English."
+  },
+  "wiz.install.almost": {
+    "text": "5 · Almost there",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: heading while waiting for the installed device to connect to the bridge. The number and the middle dot (\"1 · \") are the step's number; keep them.",
+    "max": 40
+  },
+  "wiz.install.app_box": {
+    "text": "The installation takes about 20 minutes. <b>Keep this screen open</b> and the phone next to the device to follow it here; when it is done the app offers to connect to <b>{domain}</b>. Closed it? Open <b>Set up a new device</b> again and the progress comes back.",
+    "args": [["domain", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: box in the app while installing. {domain} is the device's address. Set up a new device is the apps' button: use its translation.",
+    "rich": ["b"]
+  },
+  "wiz.install.browser_box": {
+    "text": "<b>You can close this window and disconnect now.</b> The installation takes about 20 minutes. When it is complete, open <b>https://{domain}</b> from any network. To check the progress meanwhile, connect to the \"Off The Cloud\" WiFi again and this page comes back.",
+    "args": [["domain", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: box in a browser while installing. {domain} is the device's address. \"Off The Cloud\" is the device's own Wi-Fi hotspot; keep the name.",
+    "rich": ["b"]
+  },
+  "wiz.install.check_again": {
+    "text": "Check again",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: button that waits for the device to connect again.",
+    "max": 24
+  },
+  "wiz.install.checking_with": {
+    "text": "Checking with {bridge}",
+    "args": [["bridge", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: line with a spinner while waiting. {bridge} is the bridge's address (off-the.cloud)."
+  },
+  "wiz.install.error.array_not_assembled": {
+    "text": "{disk} still holds a RAID array that could not be assembled - refusing to wipe it. To really start over, run: mdadm --zero-superblock {disk}",
+    "args": [["disk", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. {disk} is a disk's device name, for example /dev/sda. The end is a command; keep it as it is. Destructive: the command erases the disk's array.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ad55f64b"
+  },
+  "wiz.install.error.download": {
+    "text": "could not download {url}",
+    "args": [["url", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. {url} is the address of the file."
+  },
+  "wiz.install.error.download_installer": {
+    "text": "could not download the verified installer",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. The installer that checks the release's signature could not be downloaded."
+  },
+  "wiz.install.error.exit_code": {
+    "text": "the installer exited with code {code}",
+    "args": [["code", "int"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. {code} is the installer's exit code, a number."
+  },
+  "wiz.install.error.install_web": {
+    "text": "could not install the web app",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar."
+  },
+  "wiz.install.error.log_failed": {
+    "text": "could not open the install log: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. {detail} is the system's reason, in English."
+  },
+  "wiz.install.error.mariadb": {
+    "text": "mariadb did not come up within 60s — check 'systemctl status mariadb'",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. The database (mariadb) did not start within 60 seconds. The quoted part is a command; keep it as it is."
+  },
+  "wiz.install.error.owner_password": {
+    "text": "could not set the owner password",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. The password chosen for the device could not be set."
+  },
+  "wiz.install.error.pinned_hash": {
+    "text": "{url} does not match its pinned hash",
+    "args": [["url", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. A downloaded file isn't the one expected (its SHA-256 differs), so it was refused. {url} is its address. Security text.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #164181fd"
+  },
+  "wiz.install.error.recovery_no_array": {
+    "text": "recovery was asked for, but no existing RAID1 array could be assembled from {disk1}/{disk2} - nothing was wiped. Check both disks are connected and try again.",
+    "args": [["disk1", "text"], ["disk2", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. {disk1} and {disk2} are the disks' device names, for example /dev/sda."
+  },
+  "wiz.install.error.stage_source": {
+    "text": "could not stage the source",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. The release's source code could not be put in place."
+  },
+  "wiz.install.error.start_failed": {
+    "text": "could not start the installer: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. {detail} is the system's reason, in English."
+  },
+  "wiz.install.error.tag_list": {
+    "text": "could not unpack the tag list",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. The list of photo tags shipped with the release could not be unpacked."
+  },
+  "wiz.install.error.unpack_web": {
+    "text": "could not unpack the web app",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar."
+  },
+  "wiz.install.failed": {
+    "text": "Failed",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the progress bar's label when the install failed; the reason follows under it.",
+    "max": 30
+  },
+  "wiz.install.hint": {
+    "text": "Downloading and setting everything up. This takes a while on a Raspberry Pi - keep the device powered.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: explanation under the heading."
+  },
+  "wiz.install.log": {
+    "text": "Log",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: title of the folded section that shows the installer's output (technical, in English).",
+    "max": 20
+  },
+  "wiz.install.offline_hint": {
+    "text": "The install finished, but {bridge} doesn't see <b>{domain}</b> connected. Usually this just needs a moment more.",
+    "args": [["bridge", "text"], ["domain", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: explanation under that heading. {bridge} is the bridge's address; {domain} is the device's address, in bold.",
+    "rich": ["b"]
+  },
+  "wiz.install.offline_title": {
+    "text": "5 · Installed, but not reachable yet",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: heading when the installed device hasn't connected to the bridge in two minutes. The number and the middle dot (\"1 · \") are the step's number; keep them.",
+    "max": 50
+  },
+  "wiz.install.open_anyway": {
+    "text": "Open it anyway",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: button that opens the device's address without waiting.",
+    "max": 24
+  },
+  "wiz.install.starting": {
+    "text": "Starting…",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the progress bar's label before the installer's first step.",
+    "max": 40
+  },
+  "wiz.install.step.account": {
+    "text": "otc service account",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the step the installer is at, under the progress bar (\"3/10\" follows). Technical; keep commands and product names as they are. otc is the name of the device's own system user, being created."
+  },
+  "wiz.install.step.build": {
+    "text": "Build the otc binary",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the step the installer is at, under the progress bar (\"3/10\" follows). Technical; keep commands and product names as they are. the device's program (otc) is being built."
+  },
+  "wiz.install.step.directories": {
+    "text": "Runtime directories",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the step the installer is at, under the progress bar (\"3/10\" follows). Technical; keep commands and product names as they are. the device's working folders are being made."
+  },
+  "wiz.install.step.face_models": {
+    "text": "Face recognition models (issue #52, ~10MB total, only downloaded once)",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the step the installer is at, under the progress bar (\"3/10\" follows). Technical; keep commands and product names as they are. the face recognition models are being downloaded. Keep \"issue #52\"."
+  },
+  "wiz.install.step.go": {
+    "text": "Go {version} ({arch})",
+    "args": [["version", "text"], ["arch", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the step the installer is at, under the progress bar (\"3/10\" follows). Technical; keep commands and product names as they are. the Go programming language is being installed. {version} is its version; {arch} the processor type, for example arm64."
+  },
+  "wiz.install.step.installed": {
+    "text": "Installed",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the step the installer is at, under the progress bar (\"3/10\" follows). Technical; keep commands and product names as they are. shown once the installer has finished."
+  },
+  "wiz.install.step.onnx": {
+    "text": "ONNX Runtime {version} ({arch})",
+    "args": [["version", "text"], ["arch", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the step the installer is at, under the progress bar (\"3/10\" follows). Technical; keep commands and product names as they are. ONNX Runtime (a library, keep the name) is being installed. {version} is its version; {arch} the processor type."
+  },
+  "wiz.install.step.packages": {
+    "text": "apt-get update + base packages",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the step the installer is at, under the progress bar (\"3/10\" follows). Technical; keep commands and product names as they are. apt-get is a command: the system's packages are being installed."
+  },
+  "wiz.install.step.proto": {
+    "text": "Generate proto/generated (protoc + protoc-gen-go)",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the step the installer is at, under the progress bar (\"3/10\" follows). Technical; keep commands and product names as they are. code is being generated; proto/generated, protoc and protoc-gen-go are names: keep them."
+  },
+  "wiz.install.step.service": {
+    "text": "Database, config, and the systemd service",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the step the installer is at, under the progress bar (\"3/10\" follows). Technical; keep commands and product names as they are. the database, the settings and the device's service (systemd: keep it) are being set up."
+  },
+  "wiz.install.step.source": {
+    "text": "Source of release {version} (verified)",
+    "args": [["version", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the step the installer is at, under the progress bar (\"3/10\" follows). Technical; keep commands and product names as they are. the release's source code is being put in place. {version} is the release number."
+  },
+  "wiz.install.step.storage": {
+    "text": "RAID1 storage ({path})",
+    "args": [["path", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the step the installer is at, under the progress bar (\"3/10\" follows). Technical; keep commands and product names as they are. the disks' mirror (RAID1) is being set up. {path} is where it is mounted, for example /mnt/storage."
+  },
+  "wiz.install.step.tagging_model": {
+    "text": "RAM++ tagging model (~870MB, only downloaded once)",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the step the installer is at, under the progress bar (\"3/10\" follows). Technical; keep commands and product names as they are. the model that tags photos (RAM++, keep the name) is being downloaded."
+  },
+  "wiz.install.step.web": {
+    "text": "Web app (release {version}, verified)",
+    "args": [["version", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the step the installer is at, under the progress bar (\"3/10\" follows). Technical; keep commands and product names as they are. the web app is being installed. {version} is the release number."
+  },
+  "wiz.install.title_installing": {
+    "text": "5 · Installing",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: heading while the device is being installed. The number and the middle dot (\"1 · \") are the step's number; keep them.",
+    "max": 40
+  },
+  "wiz.install.title_recovering": {
+    "text": "5 · Recovering",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: heading while a recovered device is being installed. The number and the middle dot (\"1 · \") are the step's number; keep them.",
+    "max": 40
+  },
+  "wiz.install.waiting": {
+    "text": "Installed. Waiting for the device to connect to the bridge…",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: line while waiting for the device to connect to the bridge (no address known)."
+  },
+  "wiz.install.waiting_as": {
+    "text": "Installed. Waiting for the device to connect to the bridge as <b>{domain}</b>…",
+    "args": [["domain", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: line while waiting for the device to connect to the bridge. {domain} is its address, in bold.",
+    "rich": ["b"]
+  },
+  "wiz.name.available": {
+    "text": "{domain} is available",
+    "args": [["domain", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: in green under the name field. {domain} is the full address, for example casa.off-the.cloud."
+  },
+  "wiz.name.check_failed": {
+    "text": "Could not check that name",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: error when checking the name failed and nothing more was said."
+  },
+  "wiz.name.hint": {
+    "text": "This becomes its address on the internet, for you and for friends. Letters, digits and hyphens.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: explanation above the name field."
+  },
+  "wiz.name.install": {
+    "text": "Install",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: button that starts installing the device (without an account).",
+    "max": 24
+  },
+  "wiz.name.install_failed": {
+    "text": "Could not start the install",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: error when the install could not start and the device said nothing more."
+  },
+  "wiz.name.label": {
+    "text": "Device name",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: label of the name field (followed by .off-the.cloud).",
+    "max": 24
+  },
+  "wiz.name.local_hint": {
+    "text": "You chose to continue without an account, so the device gets no internet address. On your home network it answers as <b>otc.local</b>.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: explanation without an account. otc.local is the device's name on the home network, in bold; keep it.",
+    "rich": ["b"]
+  },
+  "wiz.name.local_title": {
+    "text": "4 · No bridge",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: heading when the owner went on without an account. The number and the middle dot (\"1 · \") are the step's number; keep them.",
+    "max": 40
+  },
+  "wiz.name.placeholder": {
+    "text": "e.g. casa",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: placeholder in the name field: an example name. Keep casa (a word in lower-case letters); translate only \"e.g.\".",
+    "max": 24
+  },
+  "wiz.name.rebind_hint": {
+    "text": "The device is back, but it isn't reaching the bridge as <b>{domain}</b> - that name may have been released. Choose a name to register it again; everything else is already recovered.",
+    "args": [["domain", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: explanation for a recovered device. {domain} is its old address, in bold.",
+    "rich": ["b"]
+  },
+  "wiz.name.rebind_hint_old": {
+    "text": "The device is back, but it isn't reaching the bridge as <b>its old name</b> - that name may have been released. Choose a name to register it again; everything else is already recovered.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: explanation for a recovered device whose old address isn't known; \"its old name\" is in bold.",
+    "rich": ["b"]
+  },
+  "wiz.name.rebind_title": {
+    "text": "Name your recovered device",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: heading when a recovered device no longer answers under its old name and needs a new one.",
+    "max": 50
+  },
+  "wiz.name.register": {
+    "text": "Register",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: button that registers the new name of a recovered device.",
+    "max": 24
+  },
+  "wiz.name.reserve_failed": {
+    "text": "Could not reserve that name",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: error when reserving the name failed and nothing more was said."
+  },
+  "wiz.name.reserving": {
+    "text": "Reserving…",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: with a spinner while the name is reserved.",
+    "max": 24
+  },
+  "wiz.name.someone_else": {
+    "text": "{domain} belongs to someone else - choose another name",
+    "args": [["domain", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: in red under the name field. {domain} is the full address."
+  },
+  "wiz.name.taken": {
+    "text": "{domain} is already taken. If it is one of your devices, continuing removes that device from this address and gives it to this one.",
+    "args": [["domain", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: warning under the name field when the address is taken and it isn't known whose it is. {domain} is the full address. Destructive: one of the owner's devices would lose the address.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #3d6ffd1d"
+  },
+  "wiz.name.title": {
+    "text": "4 · Name your device",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: the step's heading. The number and the middle dot (\"1 · \") are the step's number; keep them.",
+    "max": 50
+  },
+  "wiz.name.yours_offline": {
+    "text": "{domain} belongs to one of your devices (offline now). If you continue, that device is removed from this address and this one takes it.",
+    "args": [["domain", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: warning under the name field when the address belongs to another of the owner's devices, offline now. {domain} is the full address. Destructive: the other device loses the address.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #f952236b"
+  },
+  "wiz.name.yours_online": {
+    "text": "{domain} is in use by one of your devices, online right now. If you continue, that device is removed from this address (it keeps working at home) and this one takes it.",
+    "args": [["domain", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 4, the device's name (its internet address) and password: warning under the name field when the address belongs to another of the owner's devices, online now. {domain} is the full address. Destructive: the other device loses the address.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #38b89409"
+  },
+  "wiz.owner.hint": {
+    "text": "8 characters or more. It encrypts everything on the device and can't be recovered - keep it somewhere safe. You sign in to the device with it.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's password fields: hint under the fields. A security warning: \"can't be recovered\" keeps its full force.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #452b983c"
+  },
+  "wiz.owner.mismatch": {
+    "text": "The two passwords don't match.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's password fields: error under the fields while the two passwords differ."
+  },
+  "wiz.owner.password_label": {
+    "text": "Device password",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's password fields: label of the field for the password the owner will sign in to the device with.",
+    "max": 30
+  },
+  "wiz.owner.repeat_label": {
+    "text": "Repeat the password",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's password fields: label of the second field, to type the same password again.",
+    "max": 30
+  },
+  "wiz.owner.too_short": {
+    "text": "8 characters or more.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's password fields: hint under the fields, in red, while the password is shorter than 8 characters."
+  },
+  "wiz.page.blink": {
+    "text": "Blink its light",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): link after \"This is device 1A2B.\" that flashes the device's green light for 15 seconds, to tell which box is which.",
+    "max": 40
+  },
+  "wiz.page.blinking": {
+    "text": "Blinking - look for the flashing green light",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the Blink its light link's text for the 15 seconds the device's green activity light flashes.",
+    "max": 60
+  },
+  "wiz.page.device_id": {
+    "text": "This is device <b>{id}</b>.",
+    "args": [["id", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): after the top line, once the device is known: which device this page belongs to (several can be set up at once). {id} is its four-character ID, for example 1A2B, in bold. Followed by the link Blink its light.",
+    "rich": ["b"]
+  },
+  "wiz.page.lead": {
+    "text": "Let's set up your device.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the line under the Off The Cloud heading, at the top of every step."
+  },
+  "wiz.page.title": {
+    "text": "Off The Cloud setup",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the page's title (a browser tab's name)."
+  },
+  "wiz.profile.about_label": {
+    "text": "About you",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's optional \"Your profile\" section: label of the field for a line about the owner.",
+    "max": 30
+  },
+  "wiz.profile.about_placeholder": {
+    "text": "A line about you",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's optional \"Your profile\" section: placeholder in the About you field.",
+    "max": 40
+  },
+  "wiz.profile.drag_hint": {
+    "text": "Drag the photo to centre your face.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's optional \"Your profile\" section: hint under the zoom slider: the picture can be dragged inside the round crop."
+  },
+  "wiz.profile.faces_hint": {
+    "text": "Groups the same people across your photos so you can search by person. It runs only on this device, but it looks at everyone in your photos, not just you. Off unless you tick it.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's optional \"Your profile\" section: explanation under the face recognition checkbox. Consent text: keep every fact (only on this device, everyone in the photos, off unless ticked).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #3bdfc3eb"
+  },
+  "wiz.profile.faces_label": {
+    "text": "Recognise faces in my photos",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's optional \"Your profile\" section: checkbox that turns face recognition on (off unless ticked). Consent to processing biometric data.",
+    "max": 50,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #4883eb62"
+  },
+  "wiz.profile.name_label": {
+    "text": "Your name",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's optional \"Your profile\" section: label of the field for the owner's name, as friends see it.",
+    "max": 30
+  },
+  "wiz.profile.name_placeholder": {
+    "text": "How your friends see you",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's optional \"Your profile\" section: placeholder in the Your name field.",
+    "max": 40
+  },
+  "wiz.profile.optional": {
+    "text": "(optional)",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's optional \"Your profile\" section: in grey after the heading Your profile.",
+    "max": 20
+  },
+  "wiz.profile.optional_hint": {
+    "text": "All of this is optional - you can set it later in Settings.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's optional \"Your profile\" section: last line of the section. Settings is the device's Settings section in the apps."
+  },
+  "wiz.profile.picture_label": {
+    "text": "Profile picture",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's optional \"Your profile\" section: label of the profile picture picker (a file button and a round crop preview).",
+    "max": 30
+  },
+  "wiz.profile.title": {
+    "text": "Your profile",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's optional \"Your profile\" section: its heading. Followed by \"(optional)\" in grey.",
+    "max": 30
+  },
+  "wiz.profile.zoom": {
+    "text": "Zoom",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the device-name step's optional \"Your profile\" section: label of the slider that zooms the profile picture in its crop.",
+    "max": 20
+  },
+  "wiz.ready.back": {
+    "text": "Your device is back, with everything it had.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the last screen, once installed: first line after recovering a device."
+  },
+  "wiz.ready.choose_password": {
+    "text": "Choose its password below - the app then opens it straight away.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the last screen, once installed: in the app, after installing: the app's password field follows."
+  },
+  "wiz.ready.enter_password": {
+    "text": "Enter its password below to open it in the app.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the last screen, once installed: in the app, after recovering: the app's password field follows."
+  },
+  "wiz.ready.from_now": {
+    "text": "From now on it lives at",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the last screen, once installed: in a browser, after the first line; the device's address follows on a line of its own."
+  },
+  "wiz.ready.hotspot_off": {
+    "text": "The \"Off The Cloud\" hotspot switches off in a minute.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the last screen, once installed: last line: the device's own Wi-Fi hotspot (named \"Off The Cloud\"; keep the name) goes away."
+  },
+  "wiz.ready.installed": {
+    "text": "Everything is installed.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the last screen, once installed: first line after installing."
+  },
+  "wiz.ready.lives_at": {
+    "text": "It lives at <b>{domain}</b>.",
+    "args": [["domain", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the last screen, once installed: in the app, after the first line. {domain} is the device's internet address, in bold.",
+    "rich": ["b"]
+  },
+  "wiz.ready.local_hint": {
+    "text": "Everything is installed. On your home network the device answers at",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the last screen, once installed: line for a device without an account; the address (http://otc.local:8080) follows on a line of its own."
+  },
+  "wiz.ready.local_open": {
+    "text": "Open that address from any device at home - it will ask you to choose the owner password first. Want it reachable from anywhere later? Create an account at {bridge} and run the setup again.",
+    "args": [["bridge", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the last screen, once installed: line under the address of a device without an account. {bridge} is the bridge's address (off-the.cloud)."
+  },
+  "wiz.ready.open_address": {
+    "text": "Open that address in your browser - remember it, it is how you reach your device from anywhere.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the last screen, once installed: in a browser, under the device's address."
+  },
+  "wiz.ready.owner_password": {
+    "text": "It will ask you to choose the owner password first.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the last screen, once installed: in a browser, after installing, following \"Open that address in your browser…\"."
+  },
+  "wiz.ready.title": {
+    "text": "Ready 🎉",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): the last screen, once installed: its heading. Keep the emoji.",
+    "max": 30
+  },
+  "wiz.wifi.bands_signal": {
+    "text": "{bands} GHz · {signal}%",
+    "args": [["bands", "text"], ["signal", "int"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: small text at the right of each network in the list. {bands} are its bands, for example \"2.4 · 5\"; {signal} is its signal strength in percent.",
+    "max": 30
+  },
+  "wiz.wifi.choose_app": {
+    "text": "Choose the network the device should use - 2.4 or 5 GHz.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: hint in the apps' Bluetooth setup, where any band works."
+  },
+  "wiz.wifi.choose_hotspot": {
+    "text": "Choose the network the device should use. Over this hotspot it joins on 2.4 GHz and moves to 5 GHz once set up; a network that is only 5 GHz needs the app's \"Set up a new device\" (Bluetooth).",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: hint over the device's own Wi-Fi hotspot, where only 2.4 GHz networks can be joined. \"Set up a new device\" is the apps' button: use its translation, in quotes."
+  },
+  "wiz.wifi.enter_password": {
+    "text": "Enter the password for {ssid}",
+    "args": [["ssid", "user"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: error when Connect is pressed for a secured network with no password. {ssid} is the network's name."
+  },
+  "wiz.wifi.failed": {
+    "text": "Failed",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: error when the join request failed and the device said nothing more.",
+    "max": 30
+  },
+  "wiz.wifi.hotspot_back": {
+    "text": "The hotspot is back - reconnect to it.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: follows a join error over the device's own Wi-Fi hotspot: the phone has to rejoin it."
+  },
+  "wiz.wifi.join_failed": {
+    "text": "Could not join that network - check the password.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: error under the buttons when joining the network failed."
+  },
+  "wiz.wifi.join_rejected": {
+    "text": "Could not join that network - check the password and try again.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: error under the buttons when the device could not join the network (the device's own words, shown as they come in English until translated)."
+  },
+  "wiz.wifi.joining_title": {
+    "text": "1 · Joining {ssid}",
+    "args": [["ssid", "user"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: heading while the device joins the network. {ssid} is the network's name. The number and the middle dot (\"1 · \") are the step's number; keep them."
+  },
+  "wiz.wifi.joining_wait": {
+    "text": "Connecting and waiting for the internet - up to a minute.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: line with a spinner while the device joins the network."
+  },
+  "wiz.wifi.keep_open": {
+    "text": "Keep this page open - it continues on its own once the device is online.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: hint while the device joins the network."
+  },
+  "wiz.wifi.none": {
+    "text": "No networks yet - tap Scan.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: the network list while it is empty. Scan is the Scan again button."
+  },
+  "wiz.wifi.online": {
+    "text": "The device is online. You can continue, or join a different network.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: hint when the device is already online (over a cable, so no Wi-Fi network to name)."
+  },
+  "wiz.wifi.online_via": {
+    "text": "The device is online via <b>{ssid}</b>. You can continue, or join a different network.",
+    "args": [["ssid", "user"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: hint when the device is already online. {ssid} is the Wi-Fi network's name, in bold.",
+    "rich": ["b"]
+  },
+  "wiz.wifi.only_5ghz": {
+    "text": "5 GHz only - use the app to join it",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: small line under a network in the list that only exists on 5 GHz, which this hotspot can't join.",
+    "max": 60
+  },
+  "wiz.wifi.password_for": {
+    "text": "Password for {ssid}",
+    "args": [["ssid", "user"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: placeholder in the password field once a network is picked. {ssid} is the network's name."
+  },
+  "wiz.wifi.pick_first": {
+    "text": "Pick a network first",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: placeholder in the (disabled) password field before a network is picked.",
+    "max": 40
+  },
+  "wiz.wifi.reconnect": {
+    "text": "<b>If you get disconnected, reconnect to the \"Off The Cloud\" WiFi.</b> The hotspot restarts for a few seconds to switch to your network's channel; most phones rejoin it by themselves, but if yours doesn't, pick \"Off The Cloud\" again in your WiFi settings and come back to this page.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: box shown while the device joins the network, over its own hotspot (\"Off The Cloud\" is the hotspot's Wi-Fi name; keep it). The first sentence is in bold.",
+    "rich": ["b"]
+  },
+  "wiz.wifi.scan_again": {
+    "text": "Scan again",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: button that looks for Wi-Fi networks again.",
+    "max": 24
+  },
+  "wiz.wifi.scanning": {
+    "text": "Scanning…",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: next to Scan again, with a spinner, while networks are being looked for.",
+    "max": 24
+  },
+  "wiz.wifi.title": {
+    "text": "1 · Connect to your WiFi",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: the step's heading. The number and the middle dot (\"1 · \") are the step's number; keep them.",
+    "max": 50
+  },
+  "wiz.wifi.wrong_password": {
+    "text": "A wrong password shows up here as an error; just try again.",
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 1, joining the device to a Wi-Fi network: hint while the device joins the network."
+  }
+}
