@@ -36,6 +36,8 @@ import (
 	"time"
 
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 )
 
@@ -84,10 +86,15 @@ const (
 	// cRunLock is held, shared, by every scripts/update.sh for as long as
 	// it runs - inside cUpdateUnit or started by hand outside it.
 	cRunLock = "/run/otc-update.lock"
-	// cInterrupted is what a run reads as once its unit is gone while the
-	// file still says "running" - the same words otc-update-stopped writes.
-	cInterrupted = "The update was interrupted - press Update to try again"
+	// cInterruptedCode is the status code (dev.update.interrupted) of a
+	// run read as interrupted: once its unit is gone while the file still
+	// says "running" - the same code otc-update-stopped writes.
+	cInterruptedCode = "interrupted"
 )
+
+// cInterrupted is that run's message, in English as the status file keeps
+// it - the same words otc-update-stopped writes.
+var cInterrupted = i18n.DevUpdateInterrupted().Render("en")
 
 // repoRaw is the base every update artefact is fetched from.
 func repoRaw() string {
@@ -127,10 +134,30 @@ type Release struct {
 // Status is what the Settings screen shows. Read from the file the runner
 // writes, so it survives the restart the runner performs.
 type Status struct {
-	State   string `json:"state"`
-	Message string `json:"message"`
-	Version string `json:"version"`
-	Updated string `json:"updated"`
+	State string `json:"state"`
+	// Message is the English the runner wrote (what older devices show);
+	// Text renders it in a request's language from Code and Args.
+	Message string  `json:"message"`
+	Code    string  `json:"code"`
+	Args    rawArgs `json:"args"`
+	Version string  `json:"version"`
+	Updated string  `json:"updated"`
+}
+
+// Text is the status message in lang, the request's language: the
+// runner's code and arguments rendered, or Message as written (English, a
+// runner from before codes, a code this build doesn't know).
+func (s Status) Text(lang string) string {
+	return devtext.UpdateStatus(lang, s.Code, []byte(s.Args), s.Message)
+}
+
+// rawArgs is the status file's "args" object kept as its JSON, in a string
+// so that Status stays comparable (reconcileStatus compares two reads).
+type rawArgs string
+
+func (a *rawArgs) UnmarshalJSON(b []byte) error {
+	*a = rawArgs(b)
+	return nil
 }
 
 // Info answers "is there anything to install, and what happened last
@@ -203,7 +230,7 @@ func reconcileStatus(read func() Status, unitGone func() bool) Status {
 		return now
 	}
 
-	return Status{State: "failed", Message: cInterrupted, Version: status.Version, Updated: status.Updated}
+	return Status{State: "failed", Message: cInterrupted, Code: cInterruptedCode, Version: status.Version, Updated: status.Updated}
 }
 
 // unitActiveState asks systemd for the update unit's ActiveState. `show`
@@ -306,7 +333,7 @@ func Check() (*Info, error) {
 // not understand the newest manifest.
 func Apply() error {
 	if status := CurrentStatus(); status.State == "running" {
-		return fmt.Errorf("an update is already running")
+		return devtext.New(i18n.DevUpdateAlreadyRunning())
 	}
 
 	// The normal path: hand the run to systemd. The trigger carries no
@@ -316,7 +343,7 @@ func Apply() error {
 	if _, err := os.Stat(cRootRunner); err == nil {
 		stamp := time.Now().UTC().Format(time.RFC3339) + "\n"
 		if err := os.WriteFile(cRequestPath, []byte(stamp), 0o644); err != nil { // perms: rw-r--r--
-			return fmt.Errorf("requesting the update: %w", err)
+			return devtext.Wrap(i18n.DevUpdateRequestFailed(err.Error()), err)
 		}
 		log.Info("device update requested")
 
@@ -326,10 +353,10 @@ func Apply() error {
 	// Legacy path, for a device set up by hand before the path unit
 	// existed: run the script ourselves under sudo.
 	if err := download(updateScriptURL(), cRunnerPath); err != nil {
-		return fmt.Errorf("downloading the updater: %w", err)
+		return devtext.Wrap(i18n.DevUpdateRunnerDownloadFailed(err.Error()), err)
 	}
 	if err := os.Chmod(cRunnerPath, 0o755); err != nil { // perms: rwxr-xr-x
-		return fmt.Errorf("making the updater executable: %w", err)
+		return devtext.Wrap(i18n.DevUpdateRunnerChmodFailed(err.Error()), err)
 	}
 
 	// setsid detaches it from this process's group, which is what lets it
@@ -350,7 +377,7 @@ func Apply() error {
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("starting the updater: %w", err)
+		return devtext.Wrap(i18n.DevUpdateRunnerStartFailed(err.Error()), err)
 	}
 	// Released rather than waited on - this process may well be killed
 	// before it finishes.
@@ -386,7 +413,7 @@ func fetchManifest() ([]Release, error) {
 				return cached, nil
 			}
 		}
-		return nil, fmt.Errorf("fetching the release manifest: %w", err)
+		return nil, fmt.Errorf("fetching the release manifest: %w", err) // i18n-ignore: check_error, which the apps only test for, never show
 	}
 	releases, err := parseManifest(bytes.NewReader(body))
 	if err != nil {
@@ -431,7 +458,7 @@ func parseManifest(r io.Reader) ([]Release, error) {
 		releases = append(releases, Release{Version: version, Description: description})
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("reading the release manifest: %w", err)
+		return nil, fmt.Errorf("reading the release manifest: %w", err) // i18n-ignore: check_error, which the apps only test for, never show
 	}
 
 	return releases, nil

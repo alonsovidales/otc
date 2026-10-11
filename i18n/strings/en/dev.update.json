@@ -1,0 +1,226 @@
+{
+  "dev.update.already_running": {
+    "text": "an update is already running",
+    "note": "Error shown in Settings > Device version when Update is pressed while the device is already updating itself."
+  },
+  "dev.update.applying": {
+    "text": "Applying release {release}",
+    "args": [["release", "text"]],
+    "note": "Progress line in Settings > Device version while the device updates itself: it is applying the changes of one release. {release} is the release's number, such as 118."
+  },
+  "dev.update.binary_install_failed": {
+    "text": "could not install the new binary",
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The device built its new program but could not put it in place; nothing was changed."
+  },
+  "dev.update.build_failed": {
+    "text": "the build failed - see {path}",
+    "args": [["path", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The device builds its own program from source and that failed. {path} is the update log's path (also in Settings > Logs > Updates)."
+  },
+  "dev.update.building": {
+    "text": "Building",
+    "note": "Progress line in Settings > Device version while the device builds its new program from source (it takes a few minutes)."
+  },
+  "dev.update.checking": {
+    "text": "Checking for updates",
+    "note": "Progress line in Settings > Device version as an update starts: the device is reading the list of releases."
+  },
+  "dev.update.checking_signature": {
+    "text": "Checking the release signature",
+    "note": "Progress line in Settings > Device version as an update starts: the device checks that the list of releases is signed by the project."
+  },
+  "dev.update.downloading": {
+    "text": "Downloading release {release}",
+    "args": [["release", "text"]],
+    "note": "Progress line in Settings > Device version while the device downloads a release's source code. {release} is the release's number, such as 118."
+  },
+  "dev.update.generating_protobuf": {
+    "text": "Generating protobuf code",
+    "note": "Progress line in Settings > Device version during a build step. protobuf is the name of the message format the apps and the device speak; keep it as it is."
+  },
+  "dev.update.installing_web": {
+    "text": "Installing the web app",
+    "note": "Progress line in Settings > Device version while the device downloads the release's web app."
+  },
+  "dev.update.interrupted": {
+    "text": "The update was interrupted - press Update to try again",
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The update stopped before it finished (a power cut, a restart). Update is the name of the button that starts an update."
+  },
+  "dev.update.manifest_download_failed": {
+    "text": "could not download the release manifest",
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The list of releases (the manifest) could not be downloaded."
+  },
+  "dev.update.manifest_fetch_failed": {
+    "text": "could not fetch the release manifest",
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The list of releases (the manifest) could not be downloaded."
+  },
+  "dev.update.manifest_not_signed": {
+    "text": "the release manifest is not signed with this project's release key - nothing was installed",
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The list of releases (the manifest) is not signed by the project, so the device refused it as possibly altered and installed nothing.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #3135e483"
+  },
+  "dev.update.no_release_key": {
+    "text": "this device has no release signing key ({path}) - reinstall or update by hand",
+    "args": [["path", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The device lacks the project's public key that checks releases, so it can't update itself. {path} is where that key should be, /etc/otc/release-signing.pub.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #1c14faab"
+  },
+  "dev.update.no_room": {
+    "text": "no room to stage the update",
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The device had no space to unpack the update."
+  },
+  "dev.update.no_source_archive": {
+    "text": "release {release} has no signed source archive",
+    "args": [["release", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The signed list of releases names no source code for that release, so it can't be installed. {release} is the release's number, such as 118.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #a02f0573"
+  },
+  "dev.update.no_source_dir": {
+    "text": "no source directory at {path}",
+    "args": [["path", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The folder the source code is staged in is missing. {path} is that folder, /opt/otc-src."
+  },
+  "dev.update.protobuf_version_missing": {
+    "text": "couldn't find google.golang.org/protobuf's version in go.mod",
+    "note": "Why an update failed, after Update failed: in Settings > Device version. A build step could not find a library's version. google.golang.org/protobuf (a library) and go.mod (a file) are names: keep them as they are."
+  },
+  "dev.update.protoc_download_failed": {
+    "text": "could not download protoc {version}",
+    "args": [["version", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. A build tool, protoc (its name), could not be downloaded. {version} is its version, such as 29.3."
+  },
+  "dev.update.protoc_failed": {
+    "text": "protoc failed",
+    "note": "Why an update failed, after Update failed: in Settings > Device version. A build tool, protoc (its name), failed."
+  },
+  "dev.update.protoc_gen_go_failed": {
+    "text": "could not install protoc-gen-go {version}",
+    "args": [["version", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. A build tool, protoc-gen-go (its name), could not be installed. {version} is its version, such as v1.36.6."
+  },
+  "dev.update.protoc_hash_mismatch": {
+    "text": "protoc {version} does not match its pinned hash",
+    "args": [["version", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. A downloaded build tool, protoc (its name), is not the file it should be (its checksum differs), so it was refused. {version} is its version, such as 29.3.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #029879d0"
+  },
+  "dev.update.protoc_unpack_failed": {
+    "text": "could not unpack protoc",
+    "note": "Why an update failed, after Update failed: in Settings > Device version. A downloaded build tool, protoc (its name), could not be unpacked."
+  },
+  "dev.update.repo_not_https": {
+    "text": "refusing a non-HTTPS update repository: {url}",
+    "args": [["url", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The device's configuration names a place to update from that isn't a secure (HTTPS) address, so the device refused it. {url} is that address.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #74fe4dc8"
+  },
+  "dev.update.request_failed": {
+    "text": "requesting the update: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error shown in Settings > Device version when Update was pressed but the device could not ask its root helper to start the update. {detail} is the system's own error, in English, such as permission denied."
+  },
+  "dev.update.restarting": {
+    "text": "Restarting",
+    "note": "Progress line in Settings > Device version at the end of an update: the device installs its new program and restarts, which drops the connection for a moment."
+  },
+  "dev.update.runner_chmod_failed": {
+    "text": "making the updater executable: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error shown in Settings > Device version when Update was pressed on a device set up by hand: the downloaded update script could not be made runnable. {detail} is the system's own error, in English."
+  },
+  "dev.update.runner_download_failed": {
+    "text": "downloading the updater: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error shown in Settings > Device version when Update was pressed on a device set up by hand: the update script could not be downloaded. {detail} is the system's own error, in English."
+  },
+  "dev.update.runner_start_failed": {
+    "text": "starting the updater: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error shown in Settings > Device version when Update was pressed on a device set up by hand: the update script could not be started. {detail} is the system's own error, in English."
+  },
+  "dev.update.script_checksum": {
+    "text": "release {release} failed its checksum (expected {expected}, got {actual})",
+    "args": [["release", "text"], ["expected", "text"], ["actual", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. A release's migration script is not the file the signed list of releases says (its checksum differs), so it was not run. {release} is the release's number; {expected} and {actual} are the two checksums (long hexadecimal strings).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #493d6684"
+  },
+  "dev.update.script_failed": {
+    "text": "release {release} failed to apply",
+    "args": [["release", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. A release's migration script (database or system changes) failed; the update can be tried again. {release} is the release's number, such as 118."
+  },
+  "dev.update.script_missing": {
+    "text": "release {release}'s script is not in the verified source",
+    "args": [["release", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. A release's migration script is missing from the downloaded, checked source code. {release} is the release's number, such as 118."
+  },
+  "dev.update.source_download_failed": {
+    "text": "could not download the source of release {release}",
+    "args": [["release", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The release's source code could not be downloaded. {release} is the release's number, such as 118."
+  },
+  "dev.update.source_hash_mismatch": {
+    "text": "the source of release {release} does not match its signed hash",
+    "args": [["release", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The downloaded source code is not what the signed list of releases says (its checksum differs), so it was refused as possibly altered. {release} is the release's number, such as 118.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #74ae3b58"
+  },
+  "dev.update.source_unpack_failed": {
+    "text": "could not unpack release {release}",
+    "args": [["release", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The release's downloaded source code could not be unpacked. {release} is the release's number, such as 118."
+  },
+  "dev.update.stage_failed": {
+    "text": "could not stage the new source",
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The new source code could not be copied into place for the build."
+  },
+  "dev.update.staging": {
+    "text": "Staging the source",
+    "note": "Progress line in Settings > Device version while the device copies the new release's source code into place for the build."
+  },
+  "dev.update.unsupported_arch": {
+    "text": "unsupported architecture {arch}",
+    "args": [["arch", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The device's processor type is not one the update can build for. {arch} is that type as the system names it, such as armv7l."
+  },
+  "dev.update.updated": {
+    "text": "Updated to version {version}",
+    "args": [["version", "text"]],
+    "note": "Shown in Settings > Device version once an update finished. {version} is the release number the device is now on, such as 118."
+  },
+  "dev.update.uptodate": {
+    "text": "Already up to date",
+    "note": "Shown in Settings > Device version when Update found nothing to install: the device already runs the newest release."
+  },
+  "dev.update.verified_manifest_missing": {
+    "text": "the verified manifest is missing",
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The checked list of releases (the manifest) that the update started from has disappeared."
+  },
+  "dev.update.web_checksum": {
+    "text": "the web assets failed their checksum (expected {expected}, got {actual})",
+    "args": [["expected", "text"], ["actual", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The downloaded web app is not the file the signed list of releases says (its checksum differs), so it was refused. {expected} and {actual} are the two checksums (long hexadecimal strings).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #6468525f"
+  },
+  "dev.update.web_download_failed": {
+    "text": "could not download the web app for release {release} - try the update again",
+    "args": [["release", "text"]],
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The release's web app could not be downloaded; nothing was installed and pressing Update again retries. {release} is the release's number, such as 118."
+  },
+  "dev.update.web_install_failed": {
+    "text": "could not install the web assets",
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The new web app could not be put in place."
+  },
+  "dev.update.web_unpack_failed": {
+    "text": "could not unpack the web assets",
+    "note": "Why an update failed, after Update failed: in Settings > Device version. The downloaded web app could not be unpacked."
+  }
+}

@@ -36,12 +36,34 @@ rm -f "$REQUEST"
 # any name already there (a planted symlink included), and umask 022 gives
 # it its final mode, so there is no chmod for a symlink swapped in later
 # to redirect. mv replaces a symlink rather than following it.
+#
+# status <state> <message> [<code> [<args>]]: message is the English that
+# devices from before codes show; code names the same text in the
+# device's catalog (dev.status.bridge.<code>, devtext's table), and args, from
+# args() below, its arguments - so a newer device shows it in its owner's
+# language (docs/i18n.md, "Text written before any request").
 status() {
-    local tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM"
-    printf '{"state":"%s","message":"%s","updated":"%s"}\n' \
-        "$1" "${2//\"/\\\"}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    local tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM" code="${3:-}" code_args="${4:-}"
+    [ -n "$code_args" ] || code_args='{}'
+    printf '{"state":"%s","message":"%s","code":"%s","args":%s,"updated":"%s"}\n' \
+        "$1" "${2//\"/\\\"}" "$code" "$code_args" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         | (umask 022; dd of="$tmp" conv=excl status=none 2>/dev/null) || { rm -f "$tmp"; return 1; }
     mv -Tf "$tmp" "$STATUS_FILE"
+}
+
+# args <name> <value>...: a status code's arguments as a JSON object of
+# strings. Backslashes and quotes are escaped and control characters
+# dropped, so no value can leave its string.
+args() {
+    local out="" v
+    while [ "$#" -ge 2 ]; do
+        v="${2//\\/\\\\}"
+        v="${v//\"/\\\"}"
+        v="$(printf '%s' "$v" | tr -d '\000-\037')"
+        out="${out:+$out,}\"$1\":\"$v\""
+        shift 2
+    done
+    printf '{%s}' "$out"
 }
 
 ini_value() {
@@ -56,7 +78,7 @@ ini_value() {
 env_name="$(systemctl show -p ExecStart --value otc.service 2>/dev/null \
     | sed -n 's/.*argv\[\]=\/usr\/bin\/otc \([^ ;]*\).*/\1/p' | head -1)"
 ini="/etc/otc_${env_name:-dev}.ini"
-[ -f "$ini" ] || { status failed "the device's config ($ini) is missing"; exit 1; }
+[ -f "$ini" ] || { status failed "the device's config ($ini) is missing" config_missing "$(args path "$ini")"; exit 1; }
 
 # set_bridge_addr writes [otc] bridge-addr=$1 in place (install.sh always
 # writes the line, empty on a local-only device); a config without the
@@ -87,8 +109,8 @@ case "$request" in
             status off "$reason"
             exit 0
         fi
-        status running "Switching the bridge off"
-        set_bridge_addr "" || { status failed "could not update $ini"; exit 1; }
+        status running "Switching the bridge off" switching_off
+        set_bridge_addr "" || { status failed "could not update $ini" config_update_failed "$(args path "$ini")"; exit 1; }
         # bridge-default stays: Settings can join the bridge again later.
         status off "$reason"
         echo "bridge switched off ($reason)"
@@ -98,18 +120,18 @@ case "$request" in
 esac
 
 if [ -n "$(ini_value "$ini" bridge-addr)" ]; then
-    status done "the device is already on the bridge"
+    status done "the device is already on the bridge" already_on
     exit 0
 fi
 
 bridge="$(ini_value "$ini" bridge-default)"
 bridge="${bridge:-$DEFAULT_BRIDGE}"
 if ! [[ "$bridge" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ ]]; then
-    status failed "the configured bridge ($bridge) is not a host name"
+    status failed "the configured bridge ($bridge) is not a host name" not_host_name "$(args bridge "$bridge")"
     exit 1
 fi
 
-status running "Switching the bridge on"
+status running "Switching the bridge on" switching_on
 
 # The primary instance's database, as root over the socket (install.sh
 # leaves MariaDB's root on socket auth).
@@ -119,11 +141,11 @@ read -r subdomain device_uuid secret < <(mysql -N -B otc \
 # the otc user can write that database.
 name="${subdomain%.$bridge}"
 if [ "$name" = "$subdomain" ] || ! [[ "$name" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]]; then
-    status failed "no name on $bridge has been reserved for this device"
+    status failed "no name on $bridge has been reserved for this device" no_name "$(args bridge "$bridge")"
     exit 1
 fi
 
-set_bridge_addr "$bridge" || { status failed "could not update $ini"; exit 1; }
+set_bridge_addr "$bridge" || { status failed "could not update $ini" config_update_failed "$(args path "$ini")"; exit 1; }
 
 # The install identity follows the database, so re-running the installer
 # later presents the same identity (its OTC_DB_PASS is left alone).
@@ -132,7 +154,7 @@ if [ -f "$ENV_FILE" ] && [[ "$device_uuid" =~ ^[0-9a-fA-F-]{16,64}$ ]] && [[ "$s
            -e "s/^BRIDGE_SECRET=.*/BRIDGE_SECRET=$secret/" "$ENV_FILE"
 fi
 
-status done "The device is on the bridge as $subdomain"
+status done "The device is on the bridge as $subdomain" on_bridge "$(args domain "$subdomain")"
 echo "bridge switched on: $subdomain"
 
 # Last: this is what the device waits for.

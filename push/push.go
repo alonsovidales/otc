@@ -36,6 +36,7 @@ import (
 
 	"github.com/SherClockHolmes/webpush-go"
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	"github.com/sideshow/apns2"
 	"github.com/sideshow/apns2/payload"
@@ -157,8 +158,8 @@ type Push struct {
 }
 
 type notifyJob struct {
-	title, body string
-	t           Target
+	text Text
+	t    Target
 }
 
 // StartAsync makes Notify hand its deliveries to one background worker,
@@ -173,7 +174,7 @@ func (p *Push) StartAsync(size int) {
 		q := make(chan notifyJob, size)
 		go func() {
 			for j := range q {
-				p.deliver(j.title, j.body, j.t)
+				p.deliver(j.text, j.t)
 			}
 		}()
 		p.queue = q
@@ -220,10 +221,10 @@ func (p *Push) loadOrGenerateVapidKeys() (err error) {
 	log.Info("Generating this device's VAPID keypair for Web Push (first use)")
 	priv, pub, err = webpush.GenerateVAPIDKeys()
 	if err != nil {
-		return fmt.Errorf("generating VAPID keys: %w", err)
+		return fmt.Errorf("generating VAPID keys: %w", err) // i18n-ignore: an Init error, logged, never shown to a person
 	}
 	if err = p.storage.SetVapidKeys(pub, priv); err != nil {
-		return fmt.Errorf("persisting VAPID keys: %w", err)
+		return fmt.Errorf("persisting VAPID keys: %w", err) // i18n-ignore: an Init error, logged, never shown to a person
 	}
 	p.vapidPublicKey, p.vapidPrivateKey = pub, priv
 	return nil
@@ -317,7 +318,7 @@ func (p *Push) VapidPublicKey() string { return p.vapidPublicKey }
 // read even in principle, and one rule to keep instead of two different
 // ones per channel.
 func (p *Push) NotifyNewPost(friendName, pubUUID string) {
-	p.Notify(friendName, "posted something new", Target{Kind: TargetPost, PubUUID: pubUUID})
+	p.NotifyText(FromFriend(friendName, i18n.PushPostNew()), Target{Kind: TargetPost, PubUUID: pubUUID})
 }
 
 // NotifyFriendshipRequest tells every registered device that fromName sent
@@ -325,7 +326,7 @@ func (p *Push) NotifyNewPost(friendName, pubUUID string) {
 // Social.ExternalFriendshipRequest, right after the inbound request is
 // verified and persisted.
 func (p *Push) NotifyFriendshipRequest(fromName string) {
-	p.Notify(fromName, "sent you a friend request", Target{Kind: TargetFriends})
+	p.NotifyText(FromFriend(fromName, i18n.PushFriendRequest()), Target{Kind: TargetFriends})
 }
 
 // NotifyFriendshipAccepted tells every registered device that friendName
@@ -333,30 +334,44 @@ func (p *Push) NotifyFriendshipRequest(fromName string) {
 // friendship.updateFriendshipStatus, exactly on the Pending -> Accepted
 // transition (never on every sync poll after that).
 func (p *Push) NotifyFriendshipAccepted(friendName string) {
-	p.Notify(friendName, "accepted your friend request", Target{Kind: TargetFriends})
+	p.NotifyText(FromFriend(friendName, i18n.PushFriendAccepted()), Target{Kind: TargetFriends})
 }
 
-// Notify fans a title/body out to every registered device - the generic
-// entry point for social-interaction notifications (post liked/commented,
-// comment liked - issue #43 follow-up) that don't need their own named
-// wrapper. Best-effort per-device: one failing subscription/token doesn't
-// stop the others, and errors are logged rather than returned - every
-// caller runs from the background friend-sync loop
-// (social.SyncWithFriends), which has nowhere useful to surface a
-// push-delivery failure to.
+// Notify fans a title/body already written out to every registered
+// device: what the bridge sends (its offline alert, and the phone half of
+// a device's notification, which that device rendered). A device's own
+// notifications go through NotifyText, so that they come out in the
+// push language. Best-effort per-device: one failing subscription/token
+// doesn't stop the others, and errors are logged rather than returned -
+// every caller runs from the background friend-sync loop
+// (social.SyncWithFriends), a watcher or one bridge request, none with
+// anywhere useful to surface a push-delivery failure to.
 func (p *Push) Notify(title, body string, t Target) {
+	p.NotifyText(Literal(title, body), t)
+}
+
+// NotifyText is Notify for a Text: rendered in Lang() when it is
+// delivered - the generic entry point for social-interaction
+// notifications (post liked/commented, comment liked - issue #43
+// follow-up) that don't need their own named wrapper, and the machine
+// alerts' pushes (CriticalUpdate, StorageDiskStopped).
+func (p *Push) NotifyText(text Text, t Target) {
 	if p.queue != nil {
 		select {
-		case p.queue <- notifyJob{title: title, body: body, t: t}:
+		case p.queue <- notifyJob{text: text, t: t}:
 			return
 		default:
 			log.Error("push queue full, sending inline")
 		}
 	}
-	p.deliver(title, body, t)
+	p.deliver(text, t)
 }
 
-func (p *Push) deliver(title, body string, t Target) {
+// deliver renders text in the push language as it stands now - a change
+// made while the push waited in the queue is the one it goes out in -
+// and sends it on every channel.
+func (p *Push) deliver(text Text, t Target) {
+	title, body := text(p.Lang())
 	p.sendWebPush(title, body, t)
 	p.sendMobile(title, body, t)
 }

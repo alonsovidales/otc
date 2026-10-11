@@ -48,10 +48,16 @@ log() { echo "[otc-wifi-restart] $*"; }
 # "> $STATUS_FILE" as root would follow a symlink put there. dd's
 # conv=excl (O_CREAT|O_EXCL) refuses a name planted ahead of it, umask 022
 # leaves no chmod to redirect, and mv replaces a symlink, never follows it.
+#
+# status <state> <message> [<code>]: message is the English that
+# devices from before codes show; code names the same text in the
+# device's catalog (dev.status.wifi.<code>, devtext's table), none of
+# which takes arguments - so a newer device shows it in its owner's
+# language (docs/i18n.md, "Text written before any request").
 status() {
-    local tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM"
-    printf '{"state":"%s","message":"%s","updated":"%s"}\n' \
-        "$1" "${2//\"/\\\"}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    local tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM" code="${3:-}"
+    printf '{"state":"%s","message":"%s","code":"%s","args":{},"updated":"%s"}\n' \
+        "$1" "${2//\"/\\\"}" "$code" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         | (umask 022; dd of="$tmp" conv=excl status=none 2>/dev/null) || { rm -f "$tmp"; return 1; }
     mv -Tf "$tmp" "$STATUS_FILE"
 }
@@ -94,19 +100,19 @@ last=""
 [ -f "$LAST" ] && last="$(tr -dc '0-9' < "$LAST" | head -c 12)"
 if [ -n "$last" ] && [ $(( now - last )) -lt "$MIN_INTERVAL" ]; then
     log "refused: the Wi-Fi was restarted $(( now - last )) s ago"
-    status failed "the Wi-Fi was restarted less than 30 minutes ago"
+    status failed "the Wi-Fi was restarted less than 30 minutes ago" too_soon
     exit 0
 fi
 
 iface="$(default_iface)"
 if [ -z "$iface" ] || ! [[ "$iface" =~ ^[A-Za-z0-9_.:-]{1,15}$ ]] || [ "$iface" = "." ] || [ "$iface" = ".." ]; then
     log "refused: no default route"
-    status failed "the device has no network connection to restart"
+    status failed "the device has no network connection to restart" no_connection
     exit 0
 fi
 if ! is_wireless "$iface"; then
     log "refused: the default route goes through $iface, which isn't Wi-Fi"
-    status failed "the device isn't connected over Wi-Fi"
+    status failed "the device isn't connected over Wi-Fi" not_wifi
     exit 0
 fi
 
@@ -151,7 +157,7 @@ fi
 hostname="${host##*/}"
 [[ "$hostname" =~ ^[A-Za-z0-9_.:-]+$ ]] || { host=""; hostname=""; }
 
-status running "Restarting the Wi-Fi"
+status running "Restarting the Wi-Fi" restarting
 log "restarting $iface (driver ${mod:-built in}, controller ${hostname:-not reset}, connection ${conn:-unknown})"
 
 # 1. The driver out, the modules that use it first.
@@ -214,11 +220,11 @@ fi
 if wait_connected "$CONNECT_WAIT"; then
     command -v iw >/dev/null 2>&1 && iw dev "$iface" set power_save off 2>/dev/null
     log "done: connected again"
-    status done "The Wi-Fi was restarted"
+    status done "The Wi-Fi was restarted" restarted
     exit 0
 fi
 
 log "the Wi-Fi did not come back; restarting the device"
-status rebooted "The Wi-Fi did not reconnect after its restart, so the device restarted"
+status rebooted "The Wi-Fi did not reconnect after its restart, so the device restarted" rebooted
 sync
 systemctl reboot

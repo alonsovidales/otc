@@ -31,6 +31,7 @@ import (
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/devicerestart"
+	"github.com/alonsovidales/otc/devtext"
 	facerecognition "github.com/alonsovidales/otc/face_recognition"
 	filesmanager "github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/lantls"
@@ -465,13 +466,13 @@ func bridgeConfigured() bool {
 // bridgeAccess is issue #145's status answer. withProviders asks the
 // bridge which account sign-ins it offers - only worth the round trip when
 // the device isn't on it yet.
-func (mg *Manager) bridgeAccess(withProviders bool) *pb.RespBridgeAccess {
+func (mg *Manager) bridgeAccess(withProviders bool, lang string) *pb.RespBridgeAccess {
 	out := &pb.RespBridgeAccess{Enabled: bridgeaccess.Enabled(), Bridge: bridgeaccess.Bridge(), LocalAddress: localAddress()}
 	if out.Enabled {
 		out.Domain = mg.settings.Domain()
 		return out
 	}
-	out.Pending, out.Error = bridgeaccess.Status()
+	out.Pending, out.Error = bridgeaccess.Status(lang)
 	out.LeftReason = bridgeaccess.LeftReason()
 	if withProviders && !out.Pending {
 		out.Providers = bridgeaccess.Providers()
@@ -1352,12 +1353,12 @@ func tailscaleStatusResponse(state tailscalefunnel.State, errMessage string) *pb
 // as an RPC error: the device's own installed version and the outcome of
 // any previous update are still worth showing, and "GitHub was
 // unreachable just now" is a different thing from "this failed".
-func buildUpdateInfo() *pb.RespUpdateInfo {
+func buildUpdateInfo(lang string) *pb.RespUpdateInfo {
 	status := updater.CurrentStatus()
 	out := &pb.RespUpdateInfo{
 		CurrentVersion: int32(updater.InstalledVersion()),
 		State:          status.State,
-		Message:        status.Message,
+		Message:        status.Text(lang),
 		LastUpdated:    status.Updated,
 	}
 
@@ -2690,7 +2691,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 
 	case *pb.ReqEnvelope_ReqGetStatus:
 		log.Debug("Requested status")
-		st, err := status.GetStatus()
+		st, err := status.GetStatus(lang)
 
 		if err != nil {
 			log.Error("error trying to retrive status:", err)
@@ -3136,7 +3137,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		errMessage := ""
 		if err != nil {
 			log.Error("error configuring tailscale funnel:", err)
-			errMessage = err.Error()
+			errMessage = devtext.Text(lang, err)
 		}
 		resp.Payload = &pb.RespEnvelope_RespTailscaleStatus{
 			RespTailscaleStatus: tailscaleStatusResponse(state, errMessage),
@@ -3150,7 +3151,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.ErrorMessage = "not available on this instance"
 			break
 		}
-		resp.Payload = &pb.RespEnvelope_RespBridgeAccess{RespBridgeAccess: ch.mg.bridgeAccess(true)}
+		resp.Payload = &pb.RespEnvelope_RespBridgeAccess{RespBridgeAccess: ch.mg.bridgeAccess(true, lang)}
 
 	case *pb.ReqEnvelope_ReqBridgeSignIn:
 		if ch.mg.sup == nil {
@@ -3169,7 +3170,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		}
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = devtext.Text(lang, err)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespBridgeSignedIn{
@@ -3264,13 +3265,13 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		// finish the switch doesn't take a name it won't use.
 		if err := bridgeaccess.CanSwitchOn(); err != nil {
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = devtext.Text(lang, err)
 			break
 		}
 		id, err := bridgeaccess.Claim(p.ReqEnableBridge.Name, p.ReqEnableBridge.SetupToken)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = devtext.Text(lang, err)
 			break
 		}
 		if err := ch.mg.dao.SetBridgeIdentity(id.DeviceUuid, id.Domain, id.Secret); err != nil {
@@ -3282,11 +3283,11 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		ch.mg.settings.SetIdentity(id.DeviceUuid, id.Domain, id.Secret)
 		if err := bridgeaccess.RequestSwitchOn(); err != nil {
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = devtext.Text(lang, err)
 			break
 		}
 		log.Info("bridge access requested as", id.Domain)
-		resp.Payload = &pb.RespEnvelope_RespBridgeAccess{RespBridgeAccess: ch.mg.bridgeAccess(false)}
+		resp.Payload = &pb.RespEnvelope_RespBridgeAccess{RespBridgeAccess: ch.mg.bridgeAccess(false, lang)}
 
 	case *pb.ReqEnvelope_ReqCheckUpdate:
 		// Issue #94: machine-level, so primary-only for the same reason
@@ -3298,7 +3299,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.ErrorMessage = "not available on this instance"
 			break
 		}
-		resp.Payload = &pb.RespEnvelope_RespUpdateInfo{RespUpdateInfo: buildUpdateInfo()}
+		resp.Payload = &pb.RespEnvelope_RespUpdateInfo{RespUpdateInfo: buildUpdateInfo(lang)}
 
 	case *pb.ReqEnvelope_ReqApplyUpdate:
 		if ch.mg.sup == nil {
@@ -3309,7 +3310,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err := updater.Apply(); err != nil {
 			log.Error("error starting the device update:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = devtext.Text(lang, err)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}

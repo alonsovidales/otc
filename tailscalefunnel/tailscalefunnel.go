@@ -30,7 +30,6 @@ package tailscalefunnel
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -38,6 +37,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 )
 
@@ -150,7 +151,7 @@ func Status() State {
 // so the caller shows it rather than pretending the setup finished.
 func Enable(authKey string) (State, error) {
 	if !Available() {
-		return State{}, fmt.Errorf("tailscale is not installed on this device")
+		return State{}, devtext.New(i18n.DevStatusTailscaleCliMissing())
 	}
 
 	if !daemonUp() {
@@ -182,7 +183,7 @@ func Enable(authKey string) (State, error) {
 		fmt.Sprintf("--https=%d", cPublicPort),
 		fmt.Sprintf("localhost:%d", cLocalPort),
 	); err != nil {
-		return state, fmt.Errorf("could not enable Funnel: %w", err)
+		return state, devtext.Wrap(i18n.DevStatusTailscaleEnableFailed(err.Error()), err)
 	}
 
 	log.Info("tailscale funnel enabled on port", cLocalPort)
@@ -195,11 +196,11 @@ func Enable(authKey string) (State, error) {
 // checkbox here should decide.
 func Disable() error {
 	if !Available() {
-		return fmt.Errorf("tailscale is not installed on this device")
+		return devtext.New(i18n.DevStatusTailscaleCliMissing())
 	}
 	if daemonUp() {
 		if _, err := run("tailscale", "funnel", "reset"); err != nil {
-			return fmt.Errorf("could not disable Funnel: %w", err)
+			return devtext.Wrap(i18n.DevStatusTailscaleDisableFailed(err.Error()), err)
 		}
 	}
 	// Nothing else on the device uses Tailscale: the daemon stops until
@@ -222,7 +223,10 @@ func daemonUp() bool {
 func switchDaemon(want string) error {
 	_ = os.Remove(cDaemonStatus)
 	if err := os.WriteFile(cDaemonRequest, []byte(want), 0o644); err != nil { // perms: rw-r--r--
-		return fmt.Errorf("could not ask for Tailscale to be switched %s: %w", want, err)
+		if want == "on" {
+			return devtext.Wrap(i18n.DevStatusTailscaleRequestOnFailed(err.Error()), err)
+		}
+		return devtext.Wrap(i18n.DevStatusTailscaleRequestOffFailed(err.Error()), err)
 	}
 	deadline := time.Now().Add(cDaemonWait)
 	for time.Now().Before(deadline) {
@@ -232,8 +236,10 @@ func switchDaemon(want string) error {
 			continue
 		}
 		var st struct {
-			State   string `json:"state"`
-			Message string `json:"message"`
+			State   string          `json:"state"`
+			Message string          `json:"message"`
+			Code    string          `json:"code"`
+			Args    json.RawMessage `json:"args"`
 		}
 		if json.Unmarshal(raw, &st) != nil {
 			continue
@@ -243,10 +249,13 @@ func switchDaemon(want string) error {
 			log.Info("tailscaled switched", want)
 			return nil
 		case "failed":
-			return errors.New(st.Message)
+			return devtext.TailscaleError(st.Code, st.Args, st.Message)
 		}
 	}
-	return fmt.Errorf("Tailscale did not switch %s in time - try again", want)
+	if want == "on" {
+		return devtext.New(i18n.DevStatusTailscaleTimeoutOn())
+	}
+	return devtext.New(i18n.DevStatusTailscaleTimeoutOff())
 }
 
 // joinTailnet runs `tailscale up`, returning a login URL when a human
@@ -280,7 +289,7 @@ func joinTailnet(authKey string) (string, error) {
 	}
 
 	if err != nil {
-		return "", fmt.Errorf("could not join the tailnet: %w", err)
+		return "", devtext.Wrap(i18n.DevStatusTailscaleJoinFailed(err.Error()), err)
 	}
 
 	return "", nil
@@ -306,6 +315,6 @@ func run(name string, args ...string) (string, error) {
 		if cmd.Process != nil {
 			_ = cmd.Process.Kill()
 		}
-		return "", fmt.Errorf("%s timed out", name)
+		return "", fmt.Errorf("%s timed out", name) // i18n-ignore: a command's failure, the detail after a translated sentence
 	}
 }

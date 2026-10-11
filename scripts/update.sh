@@ -48,25 +48,47 @@ CURL_STALL=(--connect-timeout 30 --speed-limit 1 --speed-time 120)
 
 mkdir -p "$(dirname "$STATUS_FILE")" "$(dirname "$LOG_FILE")" /etc/otc
 
-# status <state> <message> - what the Settings screen reads back. Written
-# to a file, not held in memory, because the service is restarted partway
-# through and has to be able to report on an update it did not start.
+# status <state> <message> [<code> [<args>]] - what the Settings screen
+# reads back. Written to a file, not held in memory, because the service is
+# restarted partway through and has to be able to report on an update it
+# did not start. message is the English that devices from before codes
+# show; code names the same text in the device's catalog
+# (dev.update.<code>, devtext's table) and args, from args() below, its
+# arguments - so a newer device shows it in its owner's language
+# (docs/i18n.md, "Text written before any request").
 # The directory is the otc user's, so root never opens or chmods a name
 # it could have planted: dd's conv=excl creates the temp file with
 # O_CREAT|O_EXCL (refusing a symlink already there), umask 022 gives it
 # its final mode, and mv replaces a symlink rather than following it.
 status() {
-    local state="$1" message="$2" tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM"
-    printf '{"state":%s,"message":%s,"version":%s,"updated":%s}\n' \
-        "\"$state\"" "\"${message//\"/\\\"}\"" "\"$(cat "$VERSION_FILE" 2>/dev/null || echo unknown)\"" \
+    local state="$1" message="$2" code="${3:-}" code_args="${4:-}" tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM"
+    [ -n "$code_args" ] || code_args='{}'
+    printf '{"state":%s,"message":%s,"code":%s,"args":%s,"version":%s,"updated":%s}\n' \
+        "\"$state\"" "\"${message//\"/\\\"}\"" "\"$code\"" "$code_args" "\"$(cat "$VERSION_FILE" 2>/dev/null || echo unknown)\"" \
         "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" \
         | (umask 022; dd of="$tmp" conv=excl status=none 2>/dev/null) || { rm -f "$tmp"; return 1; }
     mv -Tf "$tmp" "$STATUS_FILE"
 }
 
+# args <name> <value>...: a status code's arguments as a JSON object of
+# strings. Backslashes and quotes are escaped and control characters
+# dropped, so no value can leave its string.
+args() {
+    local out="" v
+    while [ "$#" -ge 2 ]; do
+        v="${2//\\/\\\\}"
+        v="${v//\"/\\\"}"
+        v="$(printf '%s' "$v" | tr -d '\000-\037')"
+        out="${out:+$out,}\"$1\":\"$v\""
+        shift 2
+    done
+    printf '{%s}' "$out"
+}
+
+# fail <message> [<code> [<args>]]: as status.
 fail() {
     echo "ERROR: $1" >&2
-    status failed "$1"
+    status failed "$1" "${2:-}" "${3:-}"
     exit 1
 }
 
@@ -104,7 +126,7 @@ if ! [ /proc/self/fd/9 -ef "$RUN_LOCK" ]; then
 fi
 flock -s -w 10 9 2>/dev/null || true
 
-status running "Checking for updates"
+status running "Checking for updates" checking
 
 # The verified release this run came from, staged by the runner in /run
 # (tmpfs, so RAM) or by the bootstrap below in /root: nothing reads it once
@@ -135,32 +157,32 @@ RELEASE_KEY='-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAtVgLIKBzcqMNM2nUnK9xfgpqWrLTuZsk8ylhyI0BK9g=
 -----END PUBLIC KEY-----'
 if [ -z "${OTC_VERIFIED_SRC:-}" ] || [ -z "${OTC_VERIFIED_MANIFEST:-}" ]; then
-    stage="$(mktemp -d /root/otc-update.XXXXXX)" || fail "no room to stage the update"
+    stage="$(mktemp -d /root/otc-update.XXXXXX)" || fail "no room to stage the update" no_room
     printf '%s\n' "$RELEASE_KEY" > "$stage/key.pub"
     curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$stage/VERSIONS" "$REPO_RAW/scripts/updates/VERSIONS" \
         && curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$stage/VERSIONS.sig.b64" "$REPO_RAW/scripts/updates/VERSIONS.sig" \
-        || fail "could not fetch the release manifest"
+        || fail "could not fetch the release manifest" manifest_fetch_failed
     base64 -d < "$stage/VERSIONS.sig.b64" > "$stage/VERSIONS.sig" 2>/dev/null \
         && openssl pkeyutl -verify -pubin -inkey "$stage/key.pub" -rawin -in "$stage/VERSIONS" -sigfile "$stage/VERSIONS.sig" >/dev/null 2>&1 \
-        || fail "the release manifest is not signed with this project's release key - nothing was installed"
+        || fail "the release manifest is not signed with this project's release key - nothing was installed" manifest_not_signed
     boot_target=""; boot_src=""
     while IFS=$'\t' read -r version _s _a _d src; do
         case "$version" in ''|\#*) continue ;; esac
         boot_target="$version"; boot_src="$src"
     done < "$stage/VERSIONS"
-    case "$boot_src" in [0-9a-f]*) ;; *) fail "release $boot_target has no signed source archive" ;; esac
+    case "$boot_src" in [0-9a-f]*) ;; *) fail "release $boot_target has no signed source archive" no_source_archive "$(args release "$boot_target")" ;; esac
     curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$stage/src.tar.gz" "$REPO_GH/releases/download/v$boot_target/src.tar.gz" \
-        || fail "could not download the source of release $boot_target"
+        || fail "could not download the source of release $boot_target" source_download_failed "$(args release "$boot_target")"
     [ "$(sha256sum "$stage/src.tar.gz" | awk '{print $1}')" = "$boot_src" ] \
-        || fail "the source of release $boot_target does not match its signed hash"
+        || fail "the source of release $boot_target does not match its signed hash" source_hash_mismatch "$(args release "$boot_target")"
     mkdir -p "$stage/src" && tar -xzf "$stage/src.tar.gz" -C "$stage/src" --strip-components=1 \
-        || fail "could not unpack release $boot_target"
+        || fail "could not unpack release $boot_target" source_unpack_failed "$(args release "$boot_target")"
     export OTC_VERIFIED_MANIFEST="$stage/VERSIONS" OTC_VERIFIED_SRC="$stage/src"
     echo "verified release $boot_target (signature and source); continuing with its own updater"
     exec /bin/bash "$stage/src/scripts/update.sh"
 fi
 
-cp "$OTC_VERIFIED_MANIFEST" "$tmp/VERSIONS" || fail "the verified manifest is missing"
+cp "$OTC_VERIFIED_MANIFEST" "$tmp/VERSIONS" || fail "the verified manifest is missing" verified_manifest_missing
 
 installed="$(cat "$VERSION_FILE" 2>/dev/null || echo 0)"
 migrated="$(cat "$MIGRATED_FILE" 2>/dev/null || echo 0)"
@@ -185,7 +207,7 @@ done < "$tmp/VERSIONS"
 
 if [ "${#pending[@]}" -eq 0 ]; then
     echo "already up to date"
-    status uptodate "Already up to date"
+    status uptodate "Already up to date" uptodate
     exit 0
 fi
 
@@ -194,7 +216,7 @@ echo "pending releases: ${#pending[@]}"
 for entry in "${pending[@]}"; do
     version="${entry%%$'\t'*}"
     sha="${entry##*$'\t'}"
-    status running "Applying release $version"
+    status running "Applying release $version" applying "$(args release "$version")"
     echo "--- release $version ---"
 
     # Already run by an update that then failed later on (the build, the
@@ -214,14 +236,14 @@ for entry in "${pending[@]}"; do
     # From the verified source (every release keeps the earlier scripts),
     # and checked against the signed manifest before it runs as root.
     cp "$OTC_VERIFIED_SRC/scripts/updates/$version.sh" "$tmp/$version.sh" 2>/dev/null \
-        || fail "release $version's script is not in the verified source"
+        || fail "release $version's script is not in the verified source" script_missing "$(args release "$version")"
 
     actual="$(sha256sum "$tmp/$version.sh" | awk '{print $1}')"
     if [ "$actual" != "$sha" ]; then
-        fail "release $version failed its checksum (expected $sha, got $actual)"
+        fail "release $version failed its checksum (expected $sha, got $actual)" script_checksum "$(args release "$version" expected "$sha" actual "$actual")"
     fi
 
-    bash "$tmp/$version.sh" || fail "release $version failed to apply"
+    bash "$tmp/$version.sh" || fail "release $version failed to apply" script_failed "$(args release "$version")"
 
     # Written per release: an interrupted run then resumes after the last
     # script that actually completed.
@@ -235,11 +257,11 @@ done
 # now, so what gets built is exactly what this version is.
 # The release's own source archive, already checked against the signed
 # manifest by whoever started this script (see the top).
-status running "Staging the source"
+status running "Staging the source" staging
 mkdir -p "$SRC_DIR"
-rsync -a --delete --exclude '.git' "$OTC_VERIFIED_SRC/" "$SRC_DIR/" || fail "could not stage the new source"
+rsync -a --delete --exclude '.git' "$OTC_VERIFIED_SRC/" "$SRC_DIR/" || fail "could not stage the new source" stage_failed
 
-cd "$SRC_DIR" || fail "no source directory at $SRC_DIR"
+cd "$SRC_DIR" || fail "no source directory at $SRC_DIR" no_source_dir "$(args path "$SRC_DIR")"
 export PATH="/usr/local/bin:$PATH:/usr/local/go/bin"
 
 # proto/generated is gitignored, so it is neither in the archive above nor
@@ -248,12 +270,12 @@ export PATH="/usr/local/bin:$PATH:/usr/local/go/bin"
 # with this very release - the first thing `go build` would otherwise hit
 # is "undefined: pb.X". protoc-gen-go is pinned to go.mod's protobuf
 # runtime so plugin and library stay compatible.
-status running "Generating protobuf code"
+status running "Generating protobuf code" generating_protobuf
 PROTOC_VERSION=29.3
 case "$(uname -m)" in
     aarch64|arm64) PROTOC_ARCH=aarch_64 ;;
     x86_64)        PROTOC_ARCH=x86_64 ;;
-    *)             fail "unsupported architecture $(uname -m)" ;;
+    *)             arch="$(uname -m)"; fail "unsupported architecture $arch" unsupported_arch "$(args arch "$arch")" ;;
 esac
 # Pinned by hash (issue #160), like every download that ends up running.
 case "$PROTOC_ARCH" in
@@ -263,21 +285,21 @@ esac
 if ! command -v protoc >/dev/null 2>&1 || ! protoc --version | grep -q " ${PROTOC_VERSION}$"; then
     curl -fsSL --retry 3 --retry-delay 2 "${CURL_STALL[@]}" -o "$tmp/protoc.zip" \
         "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip" \
-        || fail "could not download protoc ${PROTOC_VERSION}"
-    [ "$(sha256sum "$tmp/protoc.zip" | awk '{print $1}')" = "$PROTOC_SHA" ] || fail "protoc ${PROTOC_VERSION} does not match its pinned hash"
+        || fail "could not download protoc ${PROTOC_VERSION}" protoc_download_failed "$(args version "$PROTOC_VERSION")"
+    [ "$(sha256sum "$tmp/protoc.zip" | awk '{print $1}')" = "$PROTOC_SHA" ] || fail "protoc ${PROTOC_VERSION} does not match its pinned hash" protoc_hash_mismatch "$(args version "$PROTOC_VERSION")"
     rm -rf /opt/protoc && mkdir -p /opt/protoc
-    (cd /opt/protoc && unzip -q "$tmp/protoc.zip") || fail "could not unpack protoc"
+    (cd /opt/protoc && unzip -q "$tmp/protoc.zip") || fail "could not unpack protoc" protoc_unpack_failed
     ln -sf /opt/protoc/bin/protoc /usr/local/bin/protoc
 fi
 PROTOC_GEN_GO_VERSION="$(awk '/google.golang.org\/protobuf /{print $2}' go.mod)"
-[ -n "$PROTOC_GEN_GO_VERSION" ] || fail "couldn't find google.golang.org/protobuf's version in go.mod"
+[ -n "$PROTOC_GEN_GO_VERSION" ] || fail "couldn't find google.golang.org/protobuf's version in go.mod" protobuf_version_missing
 GOBIN=/usr/local/bin go install "google.golang.org/protobuf/cmd/protoc-gen-go@${PROTOC_GEN_GO_VERSION}" \
-    || fail "could not install protoc-gen-go ${PROTOC_GEN_GO_VERSION}"
+    || fail "could not install protoc-gen-go ${PROTOC_GEN_GO_VERSION}" protoc_gen_go_failed "$(args version "$PROTOC_GEN_GO_VERSION")"
 mkdir -p proto/generated
 protoc -I=proto --go_out=proto/generated --go_opt=paths=source_relative proto/messages.proto \
-    || fail "protoc failed"
+    || fail "protoc failed" protoc_failed
 
-status running "Building"
+status running "Building" building
 # Same build environment as install.sh: CGO for gocv/ONNX Runtime, with
 # the runtime's headers and library where install.sh put them.
 export CGO_ENABLED=1
@@ -297,7 +319,7 @@ if [ -n "$mem_kb" ] && [ "$mem_kb" -lt $((6 * 1024 * 1024)) ]; then
     echo "less than 6 GB of memory: building one package at a time"
 fi
 # shellcheck disable=SC2086 # build_jobs is empty or two words on purpose
-go build $build_jobs -o "$tmp/otc" ./bin/otc.go || fail "the build failed - see $LOG_FILE"
+go build $build_jobs -o "$tmp/otc" ./bin/otc.go || fail "the build failed - see $LOG_FILE" build_failed "$(args path "$LOG_FILE")"
 
 # The web app ships prebuilt, attached to the release. Devices have no
 # Node - the bundle is built once, by whoever cuts the release, rather
@@ -309,33 +331,33 @@ go build $build_jobs -o "$tmp/otc" ./bin/otc.go || fail "the build failed - see 
 # old web app and the old recorded version.
 web_staged=""
 if [ "$target_assets_sha" != "-" ] && [ -n "$target_assets_sha" ]; then
-    status running "Installing the web app"
+    status running "Installing the web app" installing_web
     # Retried for a while: GitHub answers 500 now and then (release 88 on
     # Pit got four in a row).
     if curl -fsSL --retry 8 --retry-delay 5 --retry-all-errors "${CURL_STALL[@]}" -o "$tmp/web-dist.tar.gz" \
         "$REPO_GH/releases/download/v$target/web-dist.tar.gz"; then
         actual="$(sha256sum "$tmp/web-dist.tar.gz" | awk '{print $1}')"
         if [ "$actual" != "$target_assets_sha" ]; then
-            fail "the web assets failed their checksum (expected $target_assets_sha, got $actual)"
+            fail "the web assets failed their checksum (expected $target_assets_sha, got $actual)" web_checksum "$(args expected "$target_assets_sha" actual "$actual")"
         fi
         # Unpacked to one side and swapped in, so a half-extracted
         # archive can never be what the device is serving.
         rm -rf "$tmp/web-dist" && mkdir -p "$tmp/web-dist"
-        tar -xzf "$tmp/web-dist.tar.gz" -C "$tmp/web-dist" || fail "could not unpack the web assets"
+        tar -xzf "$tmp/web-dist.tar.gz" -C "$tmp/web-dist" || fail "could not unpack the web assets" web_unpack_failed
         web_staged=1
     else
         # The release has a web app (its hash is in the signed manifest),
         # it just couldn't be downloaded: fail, so the version stays where
         # it is and the next run tries again. Carrying on used to leave the
         # device on the new version with the old web app, for good.
-        fail "could not download the web app for release $target - try the update again"
+        fail "could not download the web app for release $target - try the update again" web_download_failed "$(args release "$target")"
     fi
 else
     echo "release $target ships no web assets, keeping the installed web app"
 fi
 
-status running "Restarting"
-install_atomic 0755 "$tmp/otc" /usr/bin/otc || fail "could not install the new binary"
+status running "Restarting" restarting
+install_atomic 0755 "$tmp/otc" /usr/bin/otc || fail "could not install the new binary" binary_install_failed
 
 # The other root-side scripts, which only install.sh used to put in place -
 # so fixes to them (the symlink-safe status writes, the disk checks before a
@@ -391,7 +413,7 @@ if [ -f "$SRC_DIR/scripts/device-runner/otc-wifi-restart-runner.sh" ]; then
 fi
 
 if [ -n "$web_staged" ]; then
-    rsync -a --delete "$tmp/web-dist/" /var/www/ || fail "could not install the web assets"
+    rsync -a --delete "$tmp/web-dist/" /var/www/ || fail "could not install the web assets" web_install_failed
     # This runs as root, so the files land root-owned; hand them to the
     # service user, or a development `make web` (scp as otc) is refused
     # by the very files the previous release installed.
@@ -401,7 +423,8 @@ fi
 
 # Everything worked: only now is this the version the device is on.
 write_atomic "$VERSION_FILE" "$target"
-status done "Updated to version $(cat "$VERSION_FILE")"
+updated="$(cat "$VERSION_FILE")"
+status done "Updated to version $updated" updated "$(args version "$updated")"
 echo "=== update complete, restarting service ==="
 # On disk before the restart: the binary, the web app, the units and the
 # version files, so a power cut right after can't undo half of them.

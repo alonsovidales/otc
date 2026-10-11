@@ -57,7 +57,7 @@ func releaseKey() (ed25519.PublicKey, error) {
 func parseReleaseKey(raw []byte) (ed25519.PublicKey, error) {
 	block, _ := pem.Decode(raw)
 	if block == nil {
-		return nil, errors.New("no PEM key")
+		return nil, errors.New("no PEM key") // i18n-ignore: check_error, which the apps only test for, never show
 	}
 	k, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
@@ -65,7 +65,7 @@ func parseReleaseKey(raw []byte) (ed25519.PublicKey, error) {
 	}
 	pub, ok := k.(ed25519.PublicKey)
 	if !ok {
-		return nil, errors.New("the release key is not Ed25519")
+		return nil, errors.New("the release key is not Ed25519") // i18n-ignore: check_error, which the apps only test for, never show
 	}
 	return pub, nil
 }
@@ -88,7 +88,7 @@ func fetchBody(url string) ([]byte, error) {
 		return nil, err
 	}
 	if len(body) > cMaxBody {
-		return nil, fmt.Errorf("%s: larger than %d bytes", url, cMaxBody)
+		return nil, fmt.Errorf("%s: larger than %d bytes", url, cMaxBody) // i18n-ignore: check_error, which the apps only test for, never show
 	}
 	return body, nil
 }
@@ -96,13 +96,13 @@ func fetchBody(url string) ([]byte, error) {
 // errNotSigned: the file came, but not with a valid release-key signature
 // (an altered file - or, for a few minutes after a release, the CDN serving
 // a new file next to its old signature).
-var errNotSigned = errors.New("not signed with the release key")
+var errNotSigned = errors.New("not signed with the release key") // i18n-ignore: a sentinel inside check_error, never shown
 
 // verifySigned checks body against a base64 Ed25519 signature.
 func verifySigned(pub ed25519.PublicKey, body, sigB64 []byte) error {
 	sig, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(sigB64)))
 	if err != nil {
-		return fmt.Errorf("%w (malformed signature: %v)", errNotSigned, err)
+		return fmt.Errorf("%w (malformed signature: %v)", errNotSigned, err) // i18n-ignore: check_error, which the apps only test for, never show
 	}
 	if !ed25519.Verify(pub, body, sig) {
 		return errNotSigned

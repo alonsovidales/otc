@@ -39,7 +39,7 @@ const (
 )
 
 // errFcmTokenGone is a token FCM says will never work again.
-var errFcmTokenGone = errors.New("fcm token is no longer registered")
+var errFcmTokenGone = errors.New("fcm token is no longer registered") // i18n-ignore: a sentinel, compared and logged, never shown
 
 type fcmSender struct {
 	projectID   string
@@ -102,7 +102,7 @@ func newFcmSender(path, projectID string) (*fcmSender, error) {
 		return nil, err
 	}
 	if sa.Type != "service_account" || sa.PrivateKey == "" || sa.ClientEmail == "" {
-		return nil, errors.New("not a service account key (Project settings → Service accounts → Generate new private key)")
+		return nil, errors.New("not a service account key (Project settings → Service accounts → Generate new private key)") // i18n-ignore: the bridge operator's config error, logged
 	}
 	key, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(sa.PrivateKey))
 	if err != nil {
@@ -112,7 +112,7 @@ func newFcmSender(path, projectID string) (*fcmSender, error) {
 		projectID = sa.ProjectID
 	}
 	if projectID == "" {
-		return nil, errors.New("no project id")
+		return nil, errors.New("no project id") // i18n-ignore: the bridge operator's config error, logged
 	}
 	if sa.TokenURI == "" {
 		sa.TokenURI = cGoogleToken
@@ -159,7 +159,7 @@ func (f *fcmSender) token() (string, error) {
 	_ = json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&out)
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<16)) // so the connection is reused
 	if resp.StatusCode != http.StatusOK || out.AccessToken == "" {
-		return "", fmt.Errorf("google token endpoint: %d %s", resp.StatusCode, out.Error)
+		return "", fmt.Errorf("google token endpoint: %d %s", resp.StatusCode, out.Error) // i18n-ignore: logged on the bridge, never shown
 	}
 	if out.ExpiresIn <= 0 {
 		out.ExpiresIn = 3600

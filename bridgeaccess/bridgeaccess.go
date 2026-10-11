@@ -32,6 +32,8 @@ import (
 	"time"
 
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/google/uuid"
 )
 
@@ -73,8 +75,10 @@ func Bridge() string {
 
 // Status is where a switch-on stands: pending while the root side hasn't
 // finished it (the device restarts at the end, so a finished one is simply
-// Enabled), and the root side's error if it gave up.
-func Status() (pending bool, failure string) {
+// Enabled), and the root side's error if it gave up, in lang (the
+// request's language, "" for English; the runner writes a code next to
+// its English).
+func Status(lang string) (pending bool, failure string) {
 	if _, err := os.Stat(cRequestPath); err == nil {
 		return true, ""
 	}
@@ -82,7 +86,10 @@ func Status() (pending bool, failure string) {
 	if err != nil {
 		return false, ""
 	}
-	var st struct{ State, Message string }
+	var st struct {
+		State, Message, Code string
+		Args                 json.RawMessage
+	}
 	if json.Unmarshal(raw, &st) != nil {
 		return false, ""
 	}
@@ -90,7 +97,7 @@ func Status() (pending bool, failure string) {
 	case "running":
 		return true, ""
 	case "failed":
-		return false, st.Message
+		return false, devtext.BridgeStatus(lang, st.Code, st.Args, st.Message)
 	}
 
 	return false, ""
@@ -120,6 +127,7 @@ func SignIn(email, password string) (token, accountEmail string, err error) {
 	var out struct {
 		SetupToken string `json:"setup_token"`
 		Error      string `json:"error"`
+		Code       string `json:"code"`
 		Account    struct {
 			Email string `json:"email"`
 		} `json:"account"`
@@ -130,7 +138,7 @@ func SignIn(email, password string) (token, accountEmail string, err error) {
 		return "", "", err
 	}
 	if status != http.StatusOK || out.SetupToken == "" {
-		return "", "", errors.New(orDefault(out.Error, "could not sign in"))
+		return "", "", bridgeRefusal(signInCodes, out.Code, out.Error, out.Account.Email, i18n.DevStatusBridgeSigninFailed())
 	}
 
 	return out.SetupToken, orDefault(out.Account.Email, email), nil
@@ -147,7 +155,7 @@ func CodeOwner(code string) (string, error) {
 		return "", err
 	}
 	if status != http.StatusOK {
-		return "", errors.New("that setup code is not valid or has expired")
+		return "", devtext.New(i18n.DevStatusBridgeInvalidSetupCode())
 	}
 
 	return out.Email, nil
@@ -166,10 +174,10 @@ type Identity struct {
 func Claim(name, setupToken string) (Identity, error) {
 	name = strings.ToLower(strings.TrimSpace(name))
 	if !nameRE.MatchString(name) {
-		return Identity{}, errors.New("lower-case letters, digits and hyphens only")
+		return Identity{}, devtext.New(i18n.DevStatusBridgeNameRule())
 	}
 	if setupToken == "" {
-		return Identity{}, errors.New("sign in to your Off The Cloud account first")
+		return Identity{}, devtext.New(i18n.DevStatusBridgeSigninFirst())
 	}
 	secret := make([]byte, 24)
 	if _, err := rand.Read(secret); err != nil {
@@ -179,6 +187,7 @@ func Claim(name, setupToken string) (Identity, error) {
 	var out struct {
 		Domain string `json:"domain"`
 		Error  string `json:"error"`
+		Code   string `json:"code"`
 	}
 	status, err := call(http.MethodPost, "/api/claim", map[string]string{
 		"name": name, "owner_uuid": id.DeviceUuid, "secret": id.Secret, "setup_token": setupToken,
@@ -187,7 +196,7 @@ func Claim(name, setupToken string) (Identity, error) {
 		return Identity{}, err
 	}
 	if status != http.StatusCreated {
-		return Identity{}, errors.New(orDefault(out.Error, "could not reserve that name"))
+		return Identity{}, bridgeRefusal(claimCodes, out.Code, out.Error, "", i18n.DevStatusBridgeClaimFailed())
 	}
 	id.Domain = orDefault(out.Domain, name+"."+Bridge())
 
@@ -198,7 +207,7 @@ func Claim(name, setupToken string) (Identity, error) {
 // one set up before this feature gets it with its next update.
 func CanSwitchOn() error {
 	if _, err := os.Stat(cRootRunner); err != nil {
-		return errors.New("this device needs updating before it can join the bridge: Settings → Update")
+		return devtext.New(i18n.DevStatusBridgeNeedsUpdate())
 	}
 
 	return nil
@@ -212,7 +221,7 @@ func RequestSwitchOn() error {
 	}
 	stamp := time.Now().UTC().Format(time.RFC3339) + "\n"
 	if err := os.WriteFile(cRequestPath, []byte(stamp), 0o644); err != nil { // perms: rw-r--r--
-		return fmt.Errorf("switching the bridge on: %w", err)
+		return devtext.Wrap(i18n.DevStatusBridgeSwitchOnFailed(err.Error()), err)
 	}
 
 	return nil
@@ -236,10 +245,10 @@ func RequestSwitchOff(reason string) error {
 		return err
 	}
 	if reason != LeftByOwner && reason != LeftReleased {
-		return fmt.Errorf("unknown reason %q", reason)
+		return fmt.Errorf("unknown reason %q", reason) // i18n-ignore: a programming error, callers pass the two constants
 	}
 	if err := os.WriteFile(cRequestPath, []byte("off "+reason+"\n"), 0o644); err != nil { // perms: rw-r--r--
-		return fmt.Errorf("switching the bridge off: %w", err)
+		return devtext.Wrap(i18n.DevStatusBridgeSwitchOffFailed(err.Error()), err)
 	}
 	return nil
 }
@@ -280,13 +289,60 @@ func call(method, path string, body any, out any) (int, error) {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return 0, fmt.Errorf("could not reach %s: %w", Bridge(), err)
+		return 0, devtext.Wrap(i18n.DevStatusBridgeUnreachable(Bridge(), err.Error()), err)
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	_ = json.Unmarshal(raw, out)
 
 	return resp.StatusCode, nil
+}
+
+// The bridge's error answers carry a stable code next to their English
+// (bridge/accounts writeError, bridge/api writeJSONErr). The bridge never
+// knows who reads them, so it always writes English: the device shows
+// that English as it always did, and its own text for the code in any
+// other language. Per endpoint, since one code can have other words
+// elsewhere; only the codes this device's requests can get.
+var (
+	signInCodes = map[string]func(email string) (i18n.Msg, bool){
+		"email_not_verified": func(email string) (i18n.Msg, bool) {
+			return i18n.DevStatusBridgeEmailNotVerified(email), email != ""
+		},
+		"invalid_credentials": fixed(i18n.DevStatusBridgeInvalidCredentials()),
+		"setup_unavailable":   fixed(i18n.DevStatusBridgeSetupUnavailable()),
+		"signin_unavailable":  fixed(i18n.DevStatusBridgeSigninUnavailable()),
+		"terms_not_accepted":  fixed(i18n.DevStatusBridgeTermsNotAccepted()),
+		"too_many_attempts":   fixed(i18n.DevStatusBridgeTooManyAttempts()),
+	}
+	claimCodes = map[string]func(email string) (i18n.Msg, bool){
+		"claim_unavailable": fixed(i18n.DevStatusBridgeClaimUnavailable()),
+		"invalid_name":      fixed(i18n.DevStatusBridgeInvalidName()),
+		"login_required":    fixed(i18n.DevStatusBridgeLoginRequired()),
+		"name_held":         fixed(i18n.DevStatusBridgeNameHeld()),
+		"name_taken":        fixed(i18n.DevStatusBridgeNameTaken()),
+		"too_many_claims":   fixed(i18n.DevStatusBridgeTooManyClaims()),
+	}
+)
+
+func fixed(m i18n.Msg) func(string) (i18n.Msg, bool) {
+	return func(string) (i18n.Msg, bool) { return m, true }
+}
+
+// bridgeRefusal is a refusal from the bridge as the error the apps show:
+// the bridge's English as it is, translated through codes when the code
+// is one of them (email is the account's, for the one text naming it),
+// and fallback when the bridge said nothing.
+func bridgeRefusal(codes map[string]func(string) (i18n.Msg, bool), code, english, email string, fallback i18n.Msg) error {
+	if english == "" {
+		return devtext.New(fallback)
+	}
+	if text, ok := codes[code]; ok {
+		if m, ok := text(email); ok {
+			return devtext.WithEnglish(english, m)
+		}
+	}
+	return errors.New(english)
 }
 
 func orDefault(v, def string) string {

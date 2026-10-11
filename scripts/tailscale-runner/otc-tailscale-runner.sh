@@ -27,23 +27,29 @@ rm -f "$REQUEST"
 # "> $STATUS_FILE" as root would follow a symlink put there. dd's
 # conv=excl (O_CREAT|O_EXCL) refuses a name planted ahead of it, umask 022
 # leaves no chmod to redirect, and mv replaces a symlink, never follows it.
+#
+# status <state> <message> [<code>]: message is the English that
+# devices from before codes show; code names the same text in the
+# device's catalog (dev.status.tailscale.<code>, devtext's table), none
+# of which takes arguments - so a newer device shows it in its owner's
+# language (docs/i18n.md, "Text written before any request").
 status() {
-    local tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM"
-    printf '{"state":"%s","message":"%s","updated":"%s"}\n' \
-        "$1" "${2//\"/\\\"}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    local tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM" code="${3:-}"
+    printf '{"state":"%s","message":"%s","code":"%s","args":{},"updated":"%s"}\n' \
+        "$1" "${2//\"/\\\"}" "$code" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         | (umask 022; dd of="$tmp" conv=excl status=none 2>/dev/null) || { rm -f "$tmp"; return 1; }
     mv -Tf "$tmp" "$STATUS_FILE"
 }
 
 if ! command -v tailscale >/dev/null 2>&1; then
-    status failed "Tailscale is not installed on this device"
+    status failed "Tailscale is not installed on this device" not_installed
     exit 1
 fi
 
 case "$want" in
 on)
     if ! systemctl enable --now tailscaled >/dev/null 2>&1; then
-        status failed "tailscaled could not be started"
+        status failed "tailscaled could not be started" start_failed
         exit 1
     fi
     # The daemon takes a moment before it answers.
@@ -52,7 +58,7 @@ on)
         sleep 1
     done
     if ! tailscale set --operator=otc >/dev/null 2>&1; then
-        status failed "tailscaled started, but the device could not be made its operator"
+        status failed "tailscaled started, but the device could not be made its operator" operator_failed
         exit 1
     fi
     status done "on"
@@ -62,7 +68,7 @@ off)
     status done "off"
     ;;
 *)
-    status failed "unknown request"
+    status failed "unknown request" unknown_request
     exit 1
     ;;
 esac

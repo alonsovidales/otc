@@ -1,0 +1,84 @@
+{
+  "push.comment.liked": {
+    "text": "liked your comment",
+    "note": "Body of a push notification on the phone or in the browser. Its title, shown above this text and not part of it, is the name of the friend who did it: the friend liked a comment you wrote on a post. Write it as what the friend did, the friend being the subject.",
+    "max": 100
+  },
+  "push.friend.accepted": {
+    "text": "accepted your friend request",
+    "note": "Body of a push notification. Its title, shown above this text and not part of it, is the name of the friend who did it: they accepted the friend request you sent them. Write it as what the friend did, the friend being the subject.",
+    "max": 100
+  },
+  "push.friend.request": {
+    "text": "sent you a friend request",
+    "note": "Body of a push notification. Its title, shown above this text and not part of it, is the name of the person who did it: they asked to be your friend on Off The Cloud. Write it as what that person did, the person being the subject.",
+    "max": 100
+  },
+  "push.offline.body": {
+    "text": "Your device appears to have gone offline",
+    "note": "Body of the push notification the bridge sends when the owner's Off The Cloud device has had no connection to it for a minute. Its title is the product name, Off The Cloud. No final full stop in English.",
+    "max": 120
+  },
+  "push.post.commented": {
+    "text": "commented on your post",
+    "note": "Body of a push notification. Its title, shown above this text and not part of it, is the name of the friend who did it: the friend wrote a comment on one of your posts. Write it as what the friend did, the friend being the subject.",
+    "max": 100
+  },
+  "push.post.liked": {
+    "text": "liked your post",
+    "note": "Body of a push notification. Its title, shown above this text and not part of it, is the name of the friend who did it: the friend liked one of your posts. Write it as what the friend did, the friend being the subject.",
+    "max": 100
+  },
+  "push.post.new": {
+    "text": "posted something new",
+    "note": "Body of a push notification. Its title, shown above this text and not part of it, is the name of the friend who did it: the friend shared a new post. Write it as what the friend did, the friend being the subject. Never more specific: a push may not say what was posted.",
+    "max": 100
+  },
+  "push.raid.stopped_bottom": {
+    "text": "The disk in the bottom blue USB port failed. Your files are safe on the other one: replace it soon.",
+    "note": "Body of the push notification sent when one of the device's two storage disks (a mirror: each holds a copy of every file) stops working. The device has two blue USB ports, one above the other; this disk is in the bottom one. The title is push.raid.stopped_title.",
+    "max": 180,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e6645190"
+  },
+  "push.raid.stopped_title": {
+    "text": "Storage disk stopped working",
+    "note": "Title of the push notification sent when one of the device's two storage disks (a mirror: each holds a copy of every file) stops working.",
+    "max": 60
+  },
+  "push.raid.stopped_top": {
+    "text": "The disk in the top blue USB port failed. Your files are safe on the other one: replace it soon.",
+    "note": "Body of the push notification sent when one of the device's two storage disks (a mirror: each holds a copy of every file) stops working. The device has two blue USB ports, one above the other; this disk is in the top one. The title is push.raid.stopped_title.",
+    "max": 180,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #48334991"
+  },
+  "push.raid.stopped_unknown": {
+    "text": "One of the two storage disks failed. Your files are safe on the other one: replace it soon.",
+    "note": "Body of the push notification sent when one of the device's two storage disks (a mirror: each holds a copy of every file) stops working and the device can't tell which USB port it is in. The title is push.raid.stopped_title.",
+    "max": 180,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #fc2a15e7"
+  },
+  "push.raid.working_body": {
+    "text": "The mirror is complete: every file is on both disks again.",
+    "note": "Body of the push notification sent when both storage disks work again after one had stopped: each disk holds a copy of every file again. The title is push.raid.working_title.",
+    "max": 150
+  },
+  "push.raid.working_title": {
+    "text": "Storage disks working again",
+    "note": "Title of the push notification sent when both of the device's storage disks work again after one had stopped.",
+    "max": 60
+  },
+  "push.update.critical_body": {
+    "text": "Install it from Settings.",
+    "note": "Body of the push notification for a critical update to the device's software, under push.update.critical_title. Settings is the Settings screen of the Off The Cloud apps, where the update is installed. In English the release's own summary comes before this sentence; other languages show only this sentence (release summaries stay English).",
+    "max": 120
+  },
+  "push.update.critical_title": {
+    "text": "Critical update {version} - please install it soon",
+    "args": [["version", "text"]],
+    "note": "Title of the push notification sent when a critical update (a security fix, or one the apps need to keep working) is available for the device's software. {version} is the release's version label, such as 2.4.",
+    "max": 80
+  }
+}

@@ -37,13 +37,35 @@ rm -f "$REQUEST"
 # any name already there (a planted symlink included), and umask 022 gives
 # it its final mode, so there is no chmod for a symlink swapped in later
 # to redirect. mv replaces a symlink rather than following it.
+#
+# status <state> <message> [<code> [<args>]]: message is the English that
+# devices from before codes show; code names the same text in the
+# device's catalog (dev.update.<code>, devtext's table) and args, from
+# args() below, its arguments - so a newer device shows it in its owner's
+# language (docs/i18n.md, "Text written before any request").
 status() {
-    local tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM"
-    printf '{"state":%s,"message":%s,"version":%s,"updated":%s}\n' \
-        "\"$1\"" "\"${2//\"/\\\"}\"" "\"$(cat /etc/otc/version 2>/dev/null || echo unknown)\"" \
+    local tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM" code="${3:-}" code_args="${4:-}"
+    [ -n "$code_args" ] || code_args='{}'
+    printf '{"state":%s,"message":%s,"code":%s,"args":%s,"version":%s,"updated":%s}\n' \
+        "\"$1\"" "\"${2//\"/\\\"}\"" "\"$code\"" "$code_args" "\"$(cat /etc/otc/version 2>/dev/null || echo unknown)\"" \
         "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" \
         | (umask 022; dd of="$tmp" conv=excl status=none 2>/dev/null) || { rm -f "$tmp"; return 1; }
     mv -Tf "$tmp" "$STATUS_FILE"
+}
+
+# args <name> <value>...: a status code's arguments as a JSON object of
+# strings. Backslashes and quotes are escaped and control characters
+# dropped, so no value (a configured URL, say) can leave its string.
+args() {
+    local out="" v
+    while [ "$#" -ge 2 ]; do
+        v="${2//\\/\\\\}"
+        v="${v//\"/\\\"}"
+        v="$(printf '%s' "$v" | tr -d '\000-\037')"
+        out="${out:+$out,}\"$1\":\"$v\""
+        shift 2
+    done
+    printf '{%s}' "$out"
 }
 
 # The service's own config decides the repository, the same way the
@@ -66,7 +88,7 @@ export OTC_REPO_RAW="${raw:-$DEFAULT_RAW}"
 export OTC_REPO_GH="${gh:-$DEFAULT_GH}"
 OTC_REPO_RAW="${OTC_REPO_RAW%/}"
 OTC_REPO_GH="${OTC_REPO_GH%/}"
-case "$OTC_REPO_RAW" in https://*) ;; *) status failed "refusing a non-HTTPS update repository: $OTC_REPO_RAW"; exit 1 ;; esac
+case "$OTC_REPO_RAW" in https://*) ;; *) status failed "refusing a non-HTTPS update repository: $OTC_REPO_RAW" repo_not_https "$(args url "$OTC_REPO_RAW")"; exit 1 ;; esac
 
 # Issue #160: nothing from the repository is run unverified. The release
 # manifest is signed with the project's release key (Ed25519, kept off
@@ -75,9 +97,9 @@ case "$OTC_REPO_RAW" in https://*) ;; *) status failed "refusing a non-HTTPS upd
 # release's own source archive, and the updater that runs is the one in
 # that verified archive - never a file fetched from a branch.
 KEY=/etc/otc/release-signing.pub
-[ -f "$KEY" ] || { status failed "this device has no release signing key ($KEY) - reinstall or update by hand"; exit 1; }
+[ -f "$KEY" ] || { status failed "this device has no release signing key ($KEY) - reinstall or update by hand" no_release_key "$(args path "$KEY")"; exit 1; }
 
-status running "Checking the release signature"
+status running "Checking the release signature" checking_signature
 rm -rf "$RUN_DIR" && mkdir -p "$RUN_DIR" && chmod 700 "$RUN_DIR"
 # /run is tmpfs (RAM): nothing staged here outlives the run. exec drops
 # this trap, and update.sh then cleans up after itself (cleanup_stage).
@@ -88,10 +110,10 @@ trap 'rm -rf "$RUN_DIR"' EXIT
 fetch() { curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 30 --speed-limit 1 --speed-time 120 -o "$2" "$1"; }
 fetch "$OTC_REPO_RAW/scripts/updates/VERSIONS" "$RUN_DIR/VERSIONS" \
     && fetch "$OTC_REPO_RAW/scripts/updates/VERSIONS.sig" "$RUN_DIR/VERSIONS.sig.b64" \
-    || { status failed "could not download the release manifest"; exit 1; }
+    || { status failed "could not download the release manifest" manifest_download_failed; exit 1; }
 base64 -d < "$RUN_DIR/VERSIONS.sig.b64" > "$RUN_DIR/VERSIONS.sig" 2>/dev/null \
     && openssl pkeyutl -verify -pubin -inkey "$KEY" -rawin -in "$RUN_DIR/VERSIONS" -sigfile "$RUN_DIR/VERSIONS.sig" >/dev/null 2>&1 \
-    || { status failed "the release manifest is not signed with this project's release key - nothing was installed"; exit 1; }
+    || { status failed "the release manifest is not signed with this project's release key - nothing was installed" manifest_not_signed; exit 1; }
 
 installed="$(cat /etc/otc/version 2>/dev/null || echo 0)"
 target=""; src_sha=""
@@ -100,18 +122,18 @@ while IFS=$'\t' read -r version _script _assets _summary src; do
     if [ "$version" -gt "$installed" ] 2>/dev/null; then target="$version"; src_sha="$src"; fi
 done < "$RUN_DIR/VERSIONS"
 if [ -z "$target" ]; then
-    status uptodate "Already up to date"
+    status uptodate "Already up to date" uptodate
     exit 0
 fi
-case "$src_sha" in [0-9a-f]*) ;; *) status failed "release $target has no signed source archive"; exit 1 ;; esac
+case "$src_sha" in [0-9a-f]*) ;; *) status failed "release $target has no signed source archive" no_source_archive "$(args release "$target")"; exit 1 ;; esac
 
-status running "Downloading release $target"
+status running "Downloading release $target" downloading "$(args release "$target")"
 fetch "$OTC_REPO_GH/releases/download/v$target/src.tar.gz" "$RUN_DIR/src.tar.gz" \
-    || { status failed "could not download the source of release $target"; exit 1; }
+    || { status failed "could not download the source of release $target" source_download_failed "$(args release "$target")"; exit 1; }
 actual="$(sha256sum "$RUN_DIR/src.tar.gz" | awk '{print $1}')"
-[ "$actual" = "$src_sha" ] || { status failed "the source of release $target does not match its signed hash"; exit 1; }
+[ "$actual" = "$src_sha" ] || { status failed "the source of release $target does not match its signed hash" source_hash_mismatch "$(args release "$target")"; exit 1; }
 mkdir -p "$RUN_DIR/src" && tar -xzf "$RUN_DIR/src.tar.gz" -C "$RUN_DIR/src" --strip-components=1 \
-    || { status failed "could not unpack release $target"; exit 1; }
+    || { status failed "could not unpack release $target" source_unpack_failed "$(args release "$target")"; exit 1; }
 # Checked and unpacked: nothing reads it again, and it holds RAM through
 # the build.
 rm -f "$RUN_DIR/src.tar.gz"

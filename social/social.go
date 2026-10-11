@@ -20,6 +20,7 @@ import (
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
 	filesmanager "github.com/alonsovidales/otc/files_manager"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/profile"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -1127,7 +1128,9 @@ func (fr *friendship) socialHashInUse(hash string) bool {
 // doc comments), the in-app bell isn't. commentUuid is only set for a new-
 // comment notification (so the client can additionally highlight that
 // specific comment once the post is open); pass "" for a plain like.
-func (fr *friendship) notifyIfOwnPublication(pubUuid, commentUuid, action string, notifType pb.NotificationType) {
+// action is the push's body under the friend's name (a push.* key, so it
+// goes out in the push language).
+func (fr *friendship) notifyIfOwnPublication(pubUuid, commentUuid string, action i18n.Msg, notifType pb.NotificationType) {
 	own, err := fr.dao.IsOwnPublication(pubUuid)
 	if err != nil {
 		log.Error("could not check publication ownership for a notification:", err)
@@ -1144,7 +1147,7 @@ func (fr *friendship) notifyIfOwnPublication(pubUuid, commentUuid, action string
 		log.Error("could not record notification:", err)
 	}
 	if fr.sc.push != nil {
-		fr.sc.push.Notify(friendName, action, push.Target{Kind: push.TargetPost, PubUUID: pubUuid, CommentUUID: commentUuid})
+		fr.sc.push.NotifyText(push.FromFriend(friendName, action), push.Target{Kind: push.TargetPost, PubUUID: pubUuid, CommentUUID: commentUuid})
 	}
 }
 
@@ -1153,7 +1156,7 @@ func (fr *friendship) notifyIfOwnPublication(pubUuid, commentUuid, action string
 // about. Resolves the comment's own publication too (dao.GetCommentPubUuid)
 // so a click on this notification can always land on "the post", not just
 // know which comment was liked.
-func (fr *friendship) notifyIfOwnComment(commentUuid, action string, notifType pb.NotificationType) {
+func (fr *friendship) notifyIfOwnComment(commentUuid string, action i18n.Msg, notifType pb.NotificationType) {
 	own, err := fr.dao.IsOwnComment(commentUuid)
 	if err != nil {
 		log.Error("could not check comment ownership for a notification:", err)
@@ -1174,7 +1177,7 @@ func (fr *friendship) notifyIfOwnComment(commentUuid, action string, notifType p
 		log.Error("could not record notification:", err)
 	}
 	if fr.sc.push != nil {
-		fr.sc.push.Notify(friendName, action, push.Target{Kind: push.TargetPost, PubUUID: pubUuid, CommentUUID: commentUuid})
+		fr.sc.push.NotifyText(push.FromFriend(friendName, action), push.Target{Kind: push.TargetPost, PubUUID: pubUuid, CommentUUID: commentUuid})
 	}
 }
 
@@ -1368,7 +1371,7 @@ event_loop:
 			// Issue #174: the author is the device this came from, never
 			// who the event says wrote it.
 			if err := fr.dao.NewComment(comment.Uuid, comment.PublisherName, comment.PubUUID, comment.Comment, fr.data.OriginProfile.Domain, false, eventTime(comment.Dt, event)); err == nil && !catchingUp {
-				fr.notifyIfOwnPublication(comment.PubUUID, comment.Uuid, "commented on your post", pb.NotificationType_NotificationNewComment)
+				fr.notifyIfOwnPublication(comment.PubUUID, comment.Uuid, i18n.PushPostCommented(), pb.NotificationType_NotificationNewComment)
 			}
 
 		case DelPublicationEvent:
@@ -1496,7 +1499,7 @@ func (fr *friendship) applyLike(event *pb.Event, catchingUp bool) {
 		return
 	}
 	if inserted, err := fr.dao.NewLikePublication(like.Uuid, like.PubUUID, fr.data.OriginProfile.Domain, eventTime(like.Dt, event)); err == nil && inserted && !catchingUp {
-		fr.notifyIfOwnPublication(like.PubUUID, "", "liked your post", pb.NotificationType_NotificationLikePublication)
+		fr.notifyIfOwnPublication(like.PubUUID, "", i18n.PushPostLiked(), pb.NotificationType_NotificationLikePublication)
 	}
 }
 
@@ -1511,7 +1514,7 @@ func (fr *friendship) applyCommentLike(event *pb.Event, catchingUp bool) {
 		return
 	}
 	if inserted, err := fr.dao.NewLikePublicationComment(like.Uuid, like.CommentUUID, fr.data.OriginProfile.Domain, eventTime(like.Dt, event)); err == nil && inserted && !catchingUp {
-		fr.notifyIfOwnComment(like.CommentUUID, "liked your comment", pb.NotificationType_NotificationLikeComment)
+		fr.notifyIfOwnComment(like.CommentUUID, i18n.PushCommentLiked(), pb.NotificationType_NotificationLikeComment)
 	}
 }
 

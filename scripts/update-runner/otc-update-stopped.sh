@@ -27,15 +27,17 @@ if [ -e "$RUN_LOCK" ] && ! flock -n -x "$RUN_LOCK" true 2>/dev/null; then
 fi
 
 # Same write as otc-update-runner.sh's status(): O_EXCL temp file with its
-# final mode, renamed into place.
+# final mode, renamed into place. status <state> <message> [<code>]: the
+# code names the English message's text in the device's catalog
+# (dev.update.<code>), for a device that shows it in another language.
 status() {
-    local tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM"
-    printf '{"state":%s,"message":%s,"version":%s,"updated":%s}\n' \
-        "\"$1\"" "\"${2//\"/\\\"}\"" "\"$(cat /etc/otc/version 2>/dev/null || echo unknown)\"" \
+    local tmp="$STATUS_FILE.tmp.$$.$RANDOM$RANDOM" code="${3:-}"
+    printf '{"state":%s,"message":%s,"code":%s,"args":{},"version":%s,"updated":%s}\n' \
+        "\"$1\"" "\"${2//\"/\\\"}\"" "\"$code\"" "\"$(cat /etc/otc/version 2>/dev/null || echo unknown)\"" \
         "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" \
         | (umask 022; dd of="$tmp" conv=excl status=none 2>/dev/null) || { rm -f "$tmp"; return 1; }
     mv -Tf "$tmp" "$STATUS_FILE"
 }
 
-status failed "The update was interrupted - press Update to try again"
+status failed "The update was interrupted - press Update to try again" interrupted
 exit 0

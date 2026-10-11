@@ -949,14 +949,11 @@ func (mg *Manager) sendOfflineAlert(domain string) {
 }
 
 // offlineAlertText is the offline alert's title and body in lang (a code
-// this build carries, or "" for not known). For now only the language is
-// chosen and every language gets the English; the next localization phase
-// renders a push.* key in it (docs/i18n.md: push keys use only {name},
-// {version} and {port}, since Apple and Google can read every push). A
-// variable so a test can see the language it is asked for.
-var offlineAlertText = func(lang string) (title, body string) {
-	return "Off The Cloud", "Your device appears to have gone offline"
-}
+// this build carries, or "" for not known): push.offline.body, English
+// when lang is "" or not translated (docs/i18n.md: push keys use only
+// {name}, {version} and {port}, since Apple and Google can read every
+// push). A variable so a test can see the language it is asked for.
+var offlineAlertText = push.OfflineAlert
 
 // pushLanguage is the language of the bridge's own pushes to domain's
 // phones and browsers (docs/i18n.md): the one its device last reported in

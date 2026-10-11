@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/raidwatch"
@@ -131,7 +133,9 @@ func diskUsage(path string) (all, used, free uint64, err error) {
 	return
 }
 
-func GetStatus() (st *pb.Status, err error) {
+// GetStatus reports this device's health, its text (Status.errors) in
+// lang, the request's language ("" for today's English).
+func GetStatus(lang string) (st *pb.Status, err error) {
 	sizeDisk, usedDisk, _, err := diskUsage("/")
 	if err != nil {
 		log.Error("error reading disk stats:", err)
@@ -163,7 +167,7 @@ func GetStatus() (st *pb.Status, err error) {
 		// a parallel notification path just for this one case.
 		statusErrors = append(statusErrors, &pb.StatusErrors{
 			StatusErrorCode: pb.StatusErrorCode_MissingDisk,
-			Message:         degradedMessage(raid),
+			Message:         degradedMessage(lang, raid),
 		})
 	}
 
@@ -187,12 +191,35 @@ func GetStatus() (st *pb.Status, err error) {
 	return
 }
 
-// degradedMessage names the disk that stopped working when raidwatch
-// knows where it was plugged in.
-func degradedMessage(raid raidInfo) string {
-	msg := "RAID array degraded: only " + strconv.Itoa(int(raid.devicesActive)) + " of " + strconv.Itoa(int(raid.devicesTotal)) + " disks active"
-	if what := raidwatch.Missing(); what != "" {
-		msg += " - " + what + " stopped working"
+// degradedMessage is the degraded mirror's status line in lang, naming
+// the disk that stopped working when raidwatch knows where it was plugged
+// in (raidwatch.MissingPorts: the ports as data, raidwatch.Missing: the
+// same in English).
+func degradedMessage(lang string, raid raidInfo) string {
+	return degradedText(lang, int(raid.devicesActive), int(raid.devicesTotal), raidwatch.MissingPorts(), raidwatch.Missing())
+}
+
+// degradedText is degradedMessage for the disks missing at ports, label
+// being raidwatch's English for them.
+func degradedText(lang string, active, total int, ports []raidwatch.Port, label string) string {
+	switch {
+	case len(ports) == 0:
+		return i18n.DevStatusRaidDegraded(active, total).Render(lang)
+	case len(ports) == 1:
+		switch ports[0] {
+		case raidwatch.PortTop:
+			return i18n.DevStatusRaidDegradedTop(active, total).Render(lang)
+		case raidwatch.PortBottom:
+			return i18n.DevStatusRaidDegradedBottom(active, total).Render(lang)
+		}
+		return i18n.DevStatusRaidDegradedUnknown(active, total).Render(lang)
+	}
+	// Several disks missing, which a two-disk mirror that still runs
+	// can't have: named in English as they always were, left out in other
+	// languages rather than joined from pieces.
+	msg := i18n.DevStatusRaidDegraded(active, total).Render(lang)
+	if label != "" && devtext.English(lang) {
+		msg += " - " + label + " stopped working" // i18n-ignore: English only, for several missing disks, which no key names
 	}
 	return msg
 }
