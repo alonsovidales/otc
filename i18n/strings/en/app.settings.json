@@ -1,0 +1,26 @@
+{
+  "app.settings.language": {
+    "text": "Language",
+    "note": "Row in Settings that opens the Language screen, and that screen's title.",
+    "max": 30
+  },
+  "app.settings.language_automatic": {
+    "text": "Automatic",
+    "note": "Value of the Language row in Settings when no language is chosen: the app follows the language the phone is set to.",
+    "max": 30
+  },
+  "app.settings.language_automatic_named": {
+    "text": "Automatic ({language})",
+    "args": [["language", "text"]],
+    "note": "First choice on the Language screen: follow the language the phone is set to. {language} is the language that gives, written in that language (Español, Deutsch).",
+    "max": 45
+  },
+  "app.settings.language_footer": {
+    "text": "Saved on your device, so every app signed in to it uses the same language. Automatic follows the language this phone is set to.",
+    "note": "Explanation under the list of languages on the Language screen."
+  },
+  "app.settings.language_this_phone": {
+    "text": "Your device needs a software update to share this choice with your other apps. Until then it applies to this phone only.",
+    "note": "Shown under the list of languages on the Language screen when the device's software is too old to keep the language."
+  }
+}

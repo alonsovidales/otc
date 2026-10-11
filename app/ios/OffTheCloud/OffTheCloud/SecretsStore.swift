@@ -136,7 +136,9 @@ final class SecretsStore: ObservableObject {
     /// defaults, the sync history, the caches - and start over with a fresh
     /// device id, so the next sign-in looks like a first install. Nothing
     /// on the device itself is touched. Clearing endpoint/password is what
-    /// flips RootView back to onboarding.
+    /// flips RootView back to onboarding. The language choice is kept: it
+    /// lives in defaults of its own (LanguageSettings.suiteName), which the
+    /// removal of the app's domain below doesn't reach.
     func logOut() {
         Keychain.delete(key: "endpoint")
         Keychain.delete(key: "password")

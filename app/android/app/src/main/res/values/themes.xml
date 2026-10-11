@@ -1,3 +1,5 @@
 <resources>
-    <style name="Theme.OffTheCloud" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- AppCompat, which MainActivity (an AppCompatActivity, for the per-app
+         language) needs; Compose draws everything, so nothing looks different. -->
+    <style name="Theme.OffTheCloud" parent="Theme.AppCompat.Light.NoActionBar" />
 </resources>

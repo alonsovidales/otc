@@ -9,6 +9,7 @@ import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.data.UploadModel
+import cloud.offthe.otc.i18n.LanguageSettings
 import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.push.FCMPush
@@ -72,6 +73,9 @@ fun logOut(
             secrets.logOut()
             ThumbStore.logOut()
             if (keepDevice) SecretsStore.saveLastDevice(last.first, last.second) else SecretsStore.clearLastDevice()
+            // The language stays as chosen (otc_language isn't wiped); only
+            // what belonged to this device goes.
+            LanguageSettings.loggedOut()
         }
         val activity = context as? Activity ?: return@launch
         activity.startActivity(Intent(activity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))

@@ -55,6 +55,8 @@ final class FaceRecognition: ObservableObject {
                 guard let self, !Task.isCancelled else { return }
                 if case .respSettings(let s)? = resp?.payload {
                     self.set(s.faceRecognitionEnabled)
+                    // Asked at sign-in and back in front: the language too.
+                    LanguageSettings.shared.deviceSaid(settings: s)
                     break
                 }
                 try? await Task.sleep(nanoseconds: wait * 1_000_000_000)

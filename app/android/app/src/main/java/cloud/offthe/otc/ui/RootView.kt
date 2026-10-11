@@ -13,6 +13,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
@@ -43,8 +44,12 @@ fun RootView() {
     val askPermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         if (PhotoSync.hasPermission()) PhotoSync.runForegroundAsync()
     }
+    // Once per launch: a change of language recreates the Activity
+    // (LanguageSettings), and the prompt must not come back with it.
+    var askedPermissions by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(configured) {
-        if (!configured || PhotoSync.hasPermission()) return@LaunchedEffect
+        if (!configured || PhotoSync.hasPermission() || askedPermissions) return@LaunchedEffect
+        askedPermissions = true
         val perms = mediaPermissions().toMutableList()
         if (Build.VERSION.SDK_INT >= 33) perms += Manifest.permission.POST_NOTIFICATIONS
         askPermissions.launch(perms.toTypedArray())

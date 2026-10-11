@@ -28,8 +28,9 @@
         android:usesCleartextTraffic="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        tools:targetApi="31"
-        android:theme="@style/Theme.OffTheCloud">
+        tools:targetApi="33"
+        android:theme="@style/Theme.OffTheCloud"
+        android:localeConfig="@xml/locales_config">
         <activity
             android:name=".MainActivity"
             android:exported="true"

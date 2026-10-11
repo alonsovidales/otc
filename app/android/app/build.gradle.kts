@@ -73,6 +73,18 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
+    // Localization (docs/i18n.md, spike S2): only our languages' resources, so
+    // Android matches the system's languages as the app does ([ca-ES, es-ES]
+    // is Spanish, not English: the libraries ship 87 locales, Catalan among
+    // them). The seven of i18n/languages.json, and the pseudo-locale while a
+    // make i18n DRAFT=1 output (never committed) is there.
+    androidResources {
+        localeFilters += listOf("en", "es", "fr", "de", "it", "pt", "nl")
+        if (file("src/main/res/values-b+en+Qaaa").exists()) localeFilters += "b+en+Qaaa"
+    }
+    // Every language in every install: the language is switched inside the
+    // app, and a split for it wouldn't be on the phone.
+    bundle { language { enableSplit = false } }
     sourceSets {
         // `make pb` writes the protobuf-generated Kotlin/Java here, next to
         // the Swift output for iOS - see the pb target in the root makefile.
@@ -92,6 +104,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.3")
     implementation("androidx.core:core-ktx:1.17.0")
+    // Per-app language (AppCompatDelegate.setApplicationLocales), back to API 29.
+    implementation("androidx.appcompat:appcompat:1.7.1")
     // Something transitive still brings Fragment 1.0, which breaks the
     // ActivityResult APIs (release lint: InvalidFragmentVersionForActivityResult).
     implementation("androidx.fragment:fragment-ktx:1.8.9")

@@ -594,6 +594,8 @@ final class OTCConnection: ObservableObject {
         homeNetwork = home != nil ? NetworkWatch.shared.localNetwork : nil
         route = home != nil ? .home : .remote(host: URL(string: endpoint)?.host ?? "")
         registerPushToken()
+        // A language chosen while the device couldn't take it goes now.
+        LanguageSettings.shared.connected()
         // Back after a drop: what failed meanwhile is asked for again now.
         wake()
     }
@@ -765,6 +767,14 @@ final class OTCConnection: ObservableObject {
                 req.payload = .reqRegisterApnsToken(reg)
             }
         }
+    }
+
+    /// The language the app shows changed (LanguageSettings): the device
+    /// writes this phone's pushes in the language of the app that last
+    /// registered (docs/i18n.md), so the token goes again, with it.
+    func languageChanged() {
+        guard authenticated else { return }
+        registerPushToken()
     }
 
     /// What the auth gate compares: a hash, so no second plaintext copy of

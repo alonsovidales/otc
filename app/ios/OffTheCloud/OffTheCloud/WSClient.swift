@@ -434,6 +434,10 @@ actor WSClient {
         // fixes every call site at once, rather than relying on dozens of
         // them to each preserve it correctly on their own.
         env.id = id
+        // Localization (docs/i18n.md): the language the app shows, on every
+        // request - set here alone, after build() for the same reason as the
+        // id. The device writes its replies in it.
+        env.lang = L10n.shared.code
 
         //print("Sending request: \(env)")
 

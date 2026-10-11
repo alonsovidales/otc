@@ -160,6 +160,7 @@ final class DeviceSettingsViewModel: ObservableObject {
                 imageTaggingEnabled = s.imageTaggingEnabled
                 // People shows only while it is on (FaceRecognition.swift).
                 FaceRecognition.shared.set(s.faceRecognitionEnabled)
+                LanguageSettings.shared.deviceSaid(settings: s)
             }
         } catch { /* leave blank - the rest of the screen still works */ }
     }
@@ -289,6 +290,7 @@ final class StatusViewModel: ObservableObject {
             } else if case .respStatus(let s) = resp.payload {
                 status = s
                 errorText = nil
+                LanguageSettings.shared.deviceSaid(status: s)
             }
         } catch {
             errorText = error.localizedDescription
@@ -304,6 +306,8 @@ struct SettingsView: View {
     @StateObject private var status = StatusViewModel()
     // Issue #190: the route line under Connection.
     @ObservedObject private var connection = OTCConnection.shared
+    // The Language row's value.
+    @ObservedObject private var language = LanguageSettings.shared
     @State private var confirmLogout = false
 
     var body: some View {
@@ -316,6 +320,18 @@ struct SettingsView: View {
                 // friend management on its own tab (which used to be the
                 // only place this was reachable at all).
                 ProfileEditorSection()
+
+                // The language of every app signed in to the device
+                // (LanguageView); only while this build has more than one.
+                if language.pickerShown {
+                    Section {
+                        NavigationLink {
+                            LanguageView()
+                        } label: {
+                            LabeledContent(S.appSettingsLanguage, value: language.currentName)
+                        }
+                    }
+                }
 
                 Section(header: Text("Status")) {
                     StatusSectionContent(vm: status)
@@ -644,6 +660,9 @@ enum AppLogOut {
             ThumbDiskCache.shared.forget()
             GridThumbCache.removeAll()
             secrets.logOut()
+            // The language stays as chosen (its own defaults survive the
+            // wipe); only what belonged to this device goes.
+            LanguageSettings.shared.loggedOut()
             // Its size went with the defaults: back to 1 GB.
             ThumbDiskCache.shared.limitBytes = ThumbCacheLimit.stored()
             if keepDevice {

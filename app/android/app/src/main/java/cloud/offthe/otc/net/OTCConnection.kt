@@ -513,6 +513,8 @@ object OTCConnection {
         // device set up (or reinstalled) while the app was running would
         // otherwise never learn this phone's token.
         cloud.offthe.otc.push.FCMPush.registerKnown(cloud.offthe.otc.OTCApp.instance)
+        // A language chosen while the device couldn't take it goes now.
+        cloud.offthe.otc.i18n.LanguageSettings.connected()
         // Back after a drop: what failed meanwhile is asked for again now.
         Wake.fire()
     }

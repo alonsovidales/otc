@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.net
 
+import cloud.offthe.otc.i18n.LanguageSettings
 import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.RespEnvelope
 import kotlinx.coroutines.CancellationException
@@ -215,6 +216,10 @@ class WSClient(private val client: OkHttpClient = defaultClient) {
         // #77): a call site that replaces the whole envelope would send
         // id 0 and collide with every other in-flight request.
         b.id = id
+        // Localization (docs/i18n.md): the language the app shows, on every
+        // request - set here alone, after build() for the same reason. The
+        // device writes its replies in it.
+        b.lang = LanguageSettings.wireCode
         val bytes = b.build().toByteArray().toByteString()
         val answer = CompletableDeferred<RespEnvelope>()
         val s = synchronized(waiters) {

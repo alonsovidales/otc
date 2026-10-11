@@ -60,6 +60,8 @@ struct RootView: View {
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
+            // Automatic follows a system language changed while away.
+            if newPhase == .active { LanguageSettings.shared.cameToForeground() }
             guard secrets.isConfigured else { return }
             switch newPhase {
             case .active:

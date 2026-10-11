@@ -1,0 +1,11 @@
+{
+  "android.notification_channel": {
+    "text": "Friends and posts",
+    "note": "Name of the notification channel for pushes, shown in Android's notification settings for the app.",
+    "max": 40
+  },
+  "android.notification_channel_description": {
+    "text": "Friend requests, new posts, likes and comments",
+    "note": "Description of that notification channel, shown under its name in Android's notification settings."
+  }
+}

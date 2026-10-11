@@ -38,6 +38,10 @@ final class L10n: Observable, Sendable {
         /// The language's canonical tag: it picks the plural form and formats
         /// the numbers in its texts.
         let locale: Locale
+        /// What formatters take (L10n.locale): the system's own locale when
+        /// its language is this one, so dates and numbers keep the region's
+        /// conventions; else the canonical tag.
+        let formatting: Locale
         /// The language's .lproj, or English's when the build has none.
         let bundle: Bundle
         let english: Bundle
@@ -50,8 +54,8 @@ final class L10n: Observable, Sendable {
     private let registrar = ObservationRegistrar()
     private let state: Mutex<Snapshot>
 
-    // Until the stored choice (phase 1 of docs/i18n.md) the app follows the
-    // system language.
+    // The system language until the app sets the user's choice, at launch
+    // and before its first view (docs/i18n.md, "The stored choice").
     private init() { state = Mutex(L10n.snapshot(for: L10n.systemLanguage())) }
 
     private static func lproj(_ name: String) -> Bundle? {
@@ -62,7 +66,21 @@ final class L10n: Observable, Sendable {
         let language = L10nLanguage.all.first { $0.code == code } ?? L10nLanguage.english
         let english = lproj(L10nLanguage.english.apple) ?? resourceRoot()
         return Snapshot(language: language, locale: Locale(identifier: language.tag),
+                        formatting: formattingLocale(for: language.tag),
                         bundle: lproj(language.apple) ?? english, english: english)
+    }
+
+    /// The locale formatters take for a language (docs/i18n.md, Languages):
+    /// the system's own when its base language is the language's ("en_NL"
+    /// keeps its dates and numbers in English), else the language's
+    /// canonical tag. The system's locale already speaks the app's language
+    /// when the app has no .lproj for the system's: a Spanish phone runs an
+    /// English-only build as en_ES.
+    static func formattingLocale(for tag: String, system: Locale = .autoupdatingCurrent) -> Locale {
+        let canonical = Locale(identifier: tag)
+        guard let base = canonical.language.languageCode,
+              system.language.languageCode == base else { return canonical }
+        return system
     }
 
     /// The current snapshot; reading it registers an Observation dependency.
@@ -73,8 +91,10 @@ final class L10n: Observable, Sendable {
 
     /// The language's code ("pt"): what goes on the wire.
     var code: String { current.language.code }
-    /// The locale every formatter that returns text for the user takes.
-    var locale: Locale { current.locale }
+    /// The locale every formatter that returns text for the user takes, and
+    /// the one each scene's root view puts in the environment: the system's
+    /// when it speaks this language, else the language's tag (formattingLocale).
+    var locale: Locale { current.formatting }
 
     /// Switches the language; a code this build doesn't have means English.
     /// SwiftUI draws the views again from the mutation.
@@ -84,11 +104,13 @@ final class L10n: Observable, Sendable {
         registrar.withMutation(of: self, keyPath: \.current) { state.withLock { $0 = next } }
     }
 
-    /// The system's language among this build's: the whole preference list
-    /// counts ([ca-ES, es-ES] gives es, pt-BR gives pt, ja gives en). On iOS
-    /// the list starts with the language picked for the app in Settings.
-    static func systemLanguage(_ preferences: [String] = Locale.preferredLanguages) -> String {
-        let languages = L10nLanguage.all.filter { !$0.pseudo }
+    /// The system's language among this build's (or `languages`): the whole
+    /// preference list counts ([ca-ES, es-ES] gives es, pt-BR gives pt, ja
+    /// gives en), and the pseudo-locale never matches. On iOS the list starts
+    /// with the language picked for the app in Settings.
+    static func systemLanguage(_ preferences: [String] = Locale.preferredLanguages,
+                               among languages: [L10nLanguage] = L10nLanguage.all) -> String {
+        let languages = languages.filter { !$0.pseudo }
         let best = Bundle.preferredLocalizations(from: languages.map(\.apple), forPreferences: preferences).first
         return languages.first { $0.apple == best }?.code ?? L10nLanguage.english.code
     }

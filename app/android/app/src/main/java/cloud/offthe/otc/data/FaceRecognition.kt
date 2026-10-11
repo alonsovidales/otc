@@ -60,6 +60,8 @@ object FaceRecognition {
                 val resp = OTCConnection.request { it.setReqGetSettings(GetSettings.getDefaultInstance()) }
                 if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_SETTINGS) {
                     set(resp.respSettings.faceRecognitionEnabled)
+                    // Asked once signed in: the language too.
+                    cloud.offthe.otc.i18n.LanguageSettings.deviceSaid(resp.respSettings)
                     return
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {

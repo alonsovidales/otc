@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
@@ -87,8 +88,12 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import cloud.offthe.otc.MainActivity
+import cloud.offthe.otc.i18n.LanguageSettings
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.appSettingsLanguage
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.sync.AssetSyncCache
@@ -140,6 +145,10 @@ fun SettingsView(secrets: SecretsStore) {
     var showSharedLinks by remember { mutableStateOf(false) }
     // Settings > Logs (LogsView.kt), primary instance only like Tailscale and Users.
     var showLogs by remember { mutableStateOf(false) }
+    // Settings > Language (LanguageView.kt): saveable, since picking one
+    // recreates the Activity and the screen stays open through it.
+    var showLanguage by rememberSaveable { mutableStateOf(false) }
+    val language by LanguageSettings.choice.collectAsState()
     var isPrimary by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -154,6 +163,20 @@ fun SettingsView(secrets: SecretsStore) {
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
             ProfileEditorSection()
+
+            // The language of every app signed in to the device; only while
+            // this build has more than one.
+            if (LanguageSettings.pickerShown) {
+                Section(S.appSettingsLanguage().resolve()) {
+                    Row(
+                        Modifier.fillMaxWidth().clickable(role = Role.Button) { showLanguage = true }.padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(LanguageSettings.currentName(language.language).resolve(), Modifier.weight(1f))
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
 
             Section("Status") { StatusSectionContent(status) }
 
@@ -271,6 +294,7 @@ fun SettingsView(secrets: SecretsStore) {
         Toast(dst.toast, Modifier.align(Alignment.TopCenter))
     }
 
+    if (showLanguage) LanguageView(onClose = { showLanguage = false })
     if (showSharedLinks) SharedLinksView(onClose = { showSharedLinks = false })
     if (showLogs) LogsView(onClose = { showLogs = false })
     if (confirmLogout) {

@@ -1,6 +1,6 @@
 {
   "surface": "android",
-  "total": 748,
+  "total": 747,
   "files": {
     "app/android/app/src/main/java/cloud/offthe/otc/net/BLESetupTransport.kt": 7,
     "app/android/app/src/main/java/cloud/offthe/otc/net/ChunkedDownload.kt": 4,
@@ -8,7 +8,6 @@
     "app/android/app/src/main/java/cloud/offthe/otc/net/HomeNetwork.kt": 2,
     "app/android/app/src/main/java/cloud/offthe/otc/net/OTCConnection.kt": 8,
     "app/android/app/src/main/java/cloud/offthe/otc/net/WSClient.kt": 4,
-    "app/android/app/src/main/java/cloud/offthe/otc/push/FCMPush.kt": 1,
     "app/android/app/src/main/java/cloud/offthe/otc/sync/PhotoSync.kt": 1,
     "app/android/app/src/main/java/cloud/offthe/otc/ui/BluetoothSetupView.kt": 22,
     "app/android/app/src/main/java/cloud/offthe/otc/ui/ConnectionProblemView.kt": 18,

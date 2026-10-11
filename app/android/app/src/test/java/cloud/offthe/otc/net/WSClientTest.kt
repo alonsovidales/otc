@@ -144,6 +144,31 @@ class WSClientTest {
         assertTrue("waited ${a.waitedMs} ms", a.waitedMs in 150..3_000)
     }
 
+    @Test fun aBuildThatReplacesTheEnvelopeStillSendsLang() = runBlocking {
+        // Localization: the app's language goes on every request, set after
+        // build() - so a build that clears the envelope, or brings its own
+        // lang, can't drop it.
+        val got = CopyOnWriteArrayList<ReqEnvelope>()
+        val server = Device { req, reply -> got += req; reply(ack(req.id, "ok")) }.also { closeables += it }
+        val c = WSClient().also { closeables += AutoCloseable { it.close() } }
+        val before = cloud.offthe.otc.i18n.LanguageSettings.wireCode
+        cloud.offthe.otc.i18n.LanguageSettings.wireCode = "es"
+        try {
+            c.connect(server.url)
+            c.request(timeoutMs = 5_000) {
+                it.clear()
+                it.mergeFrom(ReqEnvelope.newBuilder().setLang("zz").setReqGetTags(cloud.offthe.otc.proto.GetTags.getDefaultInstance()).build())
+            }
+            c.request(timeoutMs = 5_000) { it.setReqGetStatus(cloud.offthe.otc.proto.GetStatus.getDefaultInstance()) }
+        } finally {
+            cloud.offthe.otc.i18n.LanguageSettings.wireCode = before
+        }
+        assertEquals(2, got.size)
+        assertEquals(listOf("es", "es"), got.map { it.lang })
+        assertEquals(listOf(1, 2), got.map { it.id })
+        assertTrue(got[0].hasReqGetTags())
+    }
+
     /**
      * A stand-in device: plain ws://, a bare WebSocket upgrade, then every
      * binary message read as a ReqEnvelope and handed to [answer] with a way

@@ -52,6 +52,9 @@ final class UpdateAlertModel: ObservableObject {
         guard let resp = try? await ws.request({ $0.payload = .reqGetStatus(Msg_GetStatus()) }),
               case .respStatus(let s) = resp.payload else { return }
         critical = s.hasUpdateAlert && s.updateAlert.level == "critical" ? s.updateAlert : nil
+        // The language chosen in another app reaches this one through the
+        // same poll - also right after coming back to the front.
+        LanguageSettings.shared.deviceSaid(status: s)
     }
 }
 

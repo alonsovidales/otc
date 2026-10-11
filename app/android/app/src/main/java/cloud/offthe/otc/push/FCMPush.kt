@@ -5,6 +5,10 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.util.Log
+import cloud.offthe.otc.i18n.LanguageSettings
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.androidNotificationChannel
+import cloud.offthe.otc.i18n.androidNotificationChannelDescription
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.RegisterFcmToken
 import cloud.offthe.otc.proto.UnregisterFcmToken
@@ -43,12 +47,19 @@ object FCMPush {
 
     fun available(context: Context): Boolean = FirebaseApp.getApps(context).isNotEmpty()
 
-    /** The channel pushes are shown in - created once, at app start. */
+    /**
+     * The channel pushes are shown in - created at app start, and again when
+     * the app's language changes (OTCApp.onConfigurationChanged,
+     * LanguageSettings): creating it again only renames it. Its name and
+     * description come from a context in the app's language, which the
+     * Application's own isn't below API 33.
+     */
     fun createChannel(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
+        val local = LanguageSettings.localizedContext(context)
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Friends and posts", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "Friend requests, new posts, likes and comments"
+            NotificationChannel(CHANNEL_ID, S.androidNotificationChannel().resolve(local), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = S.androidNotificationChannelDescription().resolve(local)
             },
         )
     }

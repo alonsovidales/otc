@@ -228,6 +228,9 @@ fun MainView(secrets: SecretsStore) {
                     val resp = OTCConnection.request { it.setReqGetStatus(GetStatus.getDefaultInstance()) }
                     if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_STATUS) {
                         updateAlert = if (resp.respStatus.hasUpdateAlert()) resp.respStatus.updateAlert else null
+                        // The language chosen in another app reaches this one
+                        // through the same poll, at every return to the front.
+                        cloud.offthe.otc.i18n.LanguageSettings.deviceSaid(resp.respStatus)
                     }
                 } catch (_: Exception) {}
                 delay(5 * 60_000L)

@@ -158,6 +158,7 @@ class DeviceSettingsViewModel : ViewModel() {
                 state.update { it.copy(faceRecognitionEnabled = resp.respSettings.faceRecognitionEnabled, imageTaggingEnabled = resp.respSettings.imageTaggingEnabled) }
                 // The one place the rest of the app reads it from (People in the search).
                 FaceRecognition.set(resp.respSettings.faceRecognitionEnabled)
+                cloud.offthe.otc.i18n.LanguageSettings.deviceSaid(resp.respSettings)
             }
         } catch (_: Exception) {}
     }
@@ -243,7 +244,10 @@ class StatusViewModel : ViewModel() {
         try {
             val resp = OTCConnection.request { it.setReqGetStatus(GetStatus.getDefaultInstance()) }
             if (resp.error) state.update { it.copy(errorText = resp.errorMessage, status = null) }
-            else if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_STATUS) state.update { it.copy(status = resp.respStatus, errorText = null) }
+            else if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_STATUS) {
+                state.update { it.copy(status = resp.respStatus, errorText = null) }
+                cloud.offthe.otc.i18n.LanguageSettings.deviceSaid(resp.respStatus)
+            }
         } catch (e: Exception) { state.update { it.copy(errorText = e.message) } }
     }
 }

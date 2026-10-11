@@ -15,6 +15,9 @@ struct OTCApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
+        // The language the user chose (or the system's), before anything
+        // shows or asks the device (LanguageSettings).
+        LanguageSettings.shared.start()
         BGTaskScheduler.shared.register(forTaskWithIdentifier: "cloud.off-the.OffTheCloud.sync", using: nil) { task in
             guard let task = task as? BGProcessingTask else { return }
             SyncScheduler.handle(task: task)
@@ -65,7 +68,11 @@ struct OTCApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            // The app's locale for the whole scene, following a change of
+            // language live (L10nRoot).
+            L10nRoot {
+                RootView()
+            }
         }
     }
 }
