@@ -1,5 +1,8 @@
 .friends-wrap {
   display: grid;
+  /* A card never wider than the page: a row a few pixels too wide for a
+     phone (longer button labels) runs into the card's padding instead. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   max-width: 900px;
   margin: 0 auto;
@@ -22,7 +25,9 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; color: var(--mist); }
    used selector (a friend's own avatar placeholder, scoped under
    .avatar). */
 
-.add-friend { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+/* The field may shrink below its natural width, so a longer button label
+   ("Anfrage senden") never pushes the row past a phone's edge. */
+.add-friend { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 /* Issue #142: one field - the name, then the fixed .off-the.cloud. */
 .friend-domain-field {
   display: flex; align-items: center; min-width: 0;

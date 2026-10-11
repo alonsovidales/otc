@@ -18,7 +18,7 @@ import MediaViewer, { type ViewerItem } from "./MediaViewer";
 import { reloadAfterImagesChanged } from "./libraryStore";
 import "./FilesExplorer.css";
 import Spinner from "./Spinner";
-import { Trans, useT, type TFunction } from "../i18n";
+import { Trans, dateTimeFields, fmtDate, useT, type TFunction } from "../i18n";
 import { asIs, percentText, say, type UiText } from "./uiText";
 import { sizeText } from "./sizeText";
 
@@ -1300,7 +1300,7 @@ export default function FilesExplorer({
                         </button>
                       </div>
                       <div className="c c-size" id={meta}>{r.isDir ? "—" : fmtBytes(t, r.size)}</div>
-                      <div className="c c-modified" id={metaDate}>{r.file.modified ? r.file.modified.toLocaleString() : "—"}</div>
+                      <div className="c c-modified" id={metaDate}>{r.file.modified ? fmtDate(t.lang, r.file.modified, dateTimeFields) : "—"}</div>
                     </li>
                   );
                 })}
@@ -1446,8 +1446,8 @@ export default function FilesExplorer({
                 )}
               </div>
               <div className="c c-size">{r.isDir ? "—" : fmtBytes(t, r.size)}</div>
-              <div className="c c-created">{r.created ? r.created.toLocaleString() : "—"}</div>
-              <div className="c c-modified">{r.modified ? r.modified.toLocaleString() : "—"}</div>
+              <div className="c c-created">{r.created ? fmtDate(t.lang, r.created, dateTimeFields) : "—"}</div>
+              <div className="c c-modified">{r.modified ? fmtDate(t.lang, r.modified, dateTimeFields) : "—"}</div>
             </div>
           ))}
         </div>
@@ -1485,7 +1485,7 @@ export default function FilesExplorer({
                 </li>
                 {versionsOf.versions.map((v) => (
                   <li key={v.hash} className="fb-versions-item">
-                    <span className="fb-versions-when">{t("web.files.versions.replaced", { date: v.modified ? v.modified.toLocaleString() : "—" })}</span>
+                    <span className="fb-versions-when">{t("web.files.versions.replaced", { date: v.modified ? fmtDate(t.lang, v.modified, dateTimeFields) : "—" })}</span>
                     <span className="fb-versions-size">{fmtBytes(t, fileSize(v))}</span>
                     <button className="btn" onClick={() => void downloadVersion(versionsOf.path, v.hash, versionsOf.name, v.mime)}>{t("common.download")}</button>
                   </li>

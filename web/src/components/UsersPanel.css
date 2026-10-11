@@ -8,15 +8,19 @@
   border-radius: 8px;
   overflow: hidden;
 }
+/* When the buttons leave the name and address under 48px (a phone, and a
+   longer language), they go to a line of their own instead of squeezing
+   them to a few letters a line. */
 .up-item {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--line);
 }
 .up-item:last-child { border-bottom: 0; }
-.up-item-main { flex: 1; min-width: 0; }
+.up-item-main { flex: 1 1 48px; min-width: 0; }
 .up-item-name { color: var(--mist); font-weight: 600; display: flex; align-items: center; gap: 6px; }
 .up-item-sub { font-size: 12px; color: var(--mist-dim); margin-top: 2px; }
 .up-badge {
@@ -31,7 +35,7 @@
 }
 .up-badge-muted { background: var(--line); color: var(--mist-dim); }
 .up-item-metrics { flex: none; white-space: nowrap; }
-.up-item-actions { flex: none; display: flex; gap: 6px; }
+.up-item-actions { flex: none; display: flex; gap: 6px; margin-left: auto; }
 .up-add-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .up-add-row .sf-input { flex: 1 1 140px; min-width: 0; }
 .up-port-input { max-width: 140px; flex: none !important; }

@@ -13,7 +13,7 @@ import type { ReqEnvelope, RespEnvelope, SharedGallery, SharedGalleryItem } from
 import { GetSharedGalleryItem_Part } from "../proto/messages";
 import Spinner from "./Spinner";
 import "./SharedGalleryView.css";
-import { useT, type TFunction } from "../i18n";
+import { fmtDate, useT, type TFunction } from "../i18n";
 import { asIs, percentText, say, type PlainKey, type UiText } from "./uiText";
 import { sizeText } from "./sizeText";
 
@@ -234,7 +234,7 @@ export default function SharedGalleryView() {
               ? t("web.files.gallery.meta_until", {
                 count: items.length,
                 size: fmtBytes(t, totalBytes),
-                date: gallery.expires.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }),
+                date: fmtDate(t.lang, gallery.expires, { day: "numeric", month: "long", year: "numeric" }),
               })
               : t("web.files.gallery.meta", { count: items.length, size: fmtBytes(t, totalBytes) })}
           </p>

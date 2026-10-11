@@ -35,7 +35,7 @@
   "desk.main.explain_title": {"text": "Een map toevoegen"},
   "desk.main.explain_upload_only": {"text": "Alleen uploaden (een optie voor een map die vanaf deze computer wordt gesynchroniseerd; staat altijd aan bij een reservekopie)\nHet apparaat bewaart elke oudere versie van een bestand, en niets in de map kan op het apparaat worden verwijderd. Bestanden die je op deze computer verwijdert, blijven op het apparaat staan en worden niet opnieuw gedownload; bestanden die op het apparaat worden toegevoegd of gewijzigd, komen nog steeds hierheen. Je kunt de optie later uitschakelen in de webapp of de telefoonapp (het slotje op de map in Bestanden); de bestanden die je op deze computer hebt verwijderd terwijl de optie aanstond, komen dan hier terug."},
   "desk.main.files_unreadable": {"text": "Onleesbare bestanden: {files}"},
-  "desk.main.folder_backed_up": {"text": "Reservekopie gemaakt"},
+  "desk.main.folder_backed_up": {"text": "Veiliggesteld"},
   "desk.main.folder_offline": {"text": "Apparaat offline – gaat later verder"},
   "desk.main.folder_synced": {"text": "Gesynchroniseerd"},
   "desk.main.images_add_caption": {"text": "Foto’s en video’s erin krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond. Bestanden toont ze nog wel. Tags en gezichten die er al in zijn gevonden, worden verwijderd."},

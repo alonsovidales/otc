@@ -2028,7 +2028,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dateien auf dem Gerät nicht abrufbar"
+            "value" : "Dateien nicht abrufbar"
           }
         },
         "en" : {
@@ -2040,31 +2040,31 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No se han podido listar los archivos remotos"
+            "value" : "Error al listar los archivos"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Impossible de lister les fichiers distants"
+            "value" : "Liste des fichiers indisponible"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Impossibile elencare i file remoti"
+            "value" : "Impossibile elencare i file"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kan externe bestanden niet weergeven"
+            "value" : "Kan bestanden niet tonen"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Não foi possível listar os ficheiros remotos"
+            "value" : "Erro ao listar os ficheiros"
           }
         }
       }
@@ -2487,7 +2487,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Elementos de início de sessão…"
+            "value" : "Abrir Elementos de início de sessão…"
           }
         }
       }
@@ -3109,7 +3109,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Erneut versuchen"
+            "value" : "Wiederholen"
           }
         },
         "en" : {
@@ -3139,13 +3139,13 @@
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opnieuw proberen"
+            "value" : "Opnieuw"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tentar novamente"
+            "value" : "Repetir"
           }
         }
       }

@@ -6,7 +6,7 @@
 // video streamed from the device, swiping or arrows between items, the
 // Info panel (issue #41), Download. The apps do the same with ImageModal.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useT } from "../i18n";
+import { dateTimeFields, fmtDate, useT } from "../i18n";
 import { useWS } from "../net/useWS";
 import { requestStreamURL, canStream } from "../net/media";
 import type { ReqEnvelope, RespEnvelope, FileExifInfo } from "../proto/messages";
@@ -515,7 +515,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
                 {infoData.takenAt && (
                   <div className="pg-info-row">
                     <span className="pg-info-label">{t("web.images.viewer.taken")}</span>
-                    <span>{infoData.takenAt.toLocaleString()}</span>
+                    <span>{fmtDate(t.lang, infoData.takenAt, dateTimeFields)}</span>
                   </div>
                 )}
                 {!!(infoData.width && infoData.height) && (

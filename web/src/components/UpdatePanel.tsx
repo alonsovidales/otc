@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import { isDeviceStatusCode } from "../net/deviceStatus";
 import type { RespEnvelope } from "../proto/messages";
-import { Trans, useT, type TFunction } from "../i18n";
+import { Trans, dateTimeFields, fmtDate, useT, type TFunction } from "../i18n";
 import Spinner from "./Spinner";
 import { asIs, say, type UiText } from "./uiText";
 import "./UpdatePanel.css";
@@ -48,12 +48,12 @@ function versionText(t: TFunction, label: string, build: number) {
 // back up once it reconnects.
 const cPollMs = 5000;
 
-// The runner writes an ISO timestamp; show it in the reader's own terms,
-// and fall back to the raw value rather than printing "Invalid Date". Like
-// the other dates the web app shows, it follows the browser's own locale.
-const formatWhen = (iso: string) => {
+// The runner writes an ISO timestamp; show it in the page's language (the
+// browser's own format when it is that language), and fall back to the raw
+// value rather than printing "Invalid Date".
+const formatWhen = (t: TFunction, iso: string) => {
   const when = new Date(iso);
-  return isNaN(when.getTime()) ? iso : when.toLocaleString();
+  return isNaN(when.getTime()) ? iso : fmtDate(t.lang, when, dateTimeFields);
 };
 
 // Settings > Restart device. "asking" until the device answers, then
@@ -279,7 +279,7 @@ export default function UpdatePanel() {
             // otherwise read as something that just happened.
             <p className="up-error">
               {info.lastUpdated
-                ? t("web.settings.update.failed_on", { date: formatWhen(info.lastUpdated), reason: info.message(t) })
+                ? t("web.settings.update.failed_on", { date: formatWhen(t, info.lastUpdated), reason: info.message(t) })
                 : t("web.settings.update.failed", { reason: info.message(t) })}
             </p>
           )}

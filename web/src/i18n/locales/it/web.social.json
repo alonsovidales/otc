@@ -32,7 +32,7 @@
   "web.social.composer.tag_filter": "Filtra per etichetta…",
   "web.social.composer.this_computer": "Questo computer",
   "web.social.composer.title": "Nuovo post",
-  "web.social.composer.trim": "✂ Taglia",
+  "web.social.composer.trim": "✂",
   "web.social.composer.trim_item": "Taglia \u2068{name}\u2069",
   "web.social.composer.trim_load_failed": "Impossibile caricare quel video per tagliarlo.",
   "web.social.composer.upload_none": "Impossibile caricare nessuno dei file selezionati.",

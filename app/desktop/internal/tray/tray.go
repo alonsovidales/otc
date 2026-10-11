@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -648,7 +649,10 @@ func (u *ui) settingsDialog() {
 	if current == "" {
 		current = cfg.Domain
 	}
-	entered, err := zenity.Entry(i18n.DeskMainSettingsHint().Render(l), zenity.Title(i18n.DeskMainSettingsTitle().Render(l)), zenity.EntryText(current))
+	// The buttons' words too: Windows' own dialog says OK and Cancel in
+	// English otherwise.
+	entered, err := zenity.Entry(i18n.DeskMainSettingsHint().Render(l), zenity.Title(i18n.DeskMainSettingsTitle().Render(l)), zenity.EntryText(current),
+		zenity.OKLabel(i18n.CommonOk().Render(l)), zenity.CancelLabel(i18n.CommonCancel().Render(l)))
 	if err != nil {
 		return
 	}
@@ -666,7 +670,7 @@ func (u *ui) settingsDialog() {
 	// reconnects once with the new pair - not once with the new device and
 	// the old password, which would spend one of the device's five
 	// password attempts per minute for nothing.
-	_, pw, err := zenity.Password(zenity.Title(i18n.DeskMainPasswordTitle(cfg.Domain).Render(l)))
+	pw, err := askPassword(l, i18n.DeskMainPasswordTitle(cfg.Domain).Render(l))
 	if err != nil {
 		return
 	}
@@ -946,4 +950,16 @@ func (u *ui) installUpdate() {
 	}
 	u.c.Quit()
 	systray.Quit()
+}
+
+// askPassword asks for the device's password in a dialog titled title.
+// zenity's Windows password dialog labels its field "Password:" in English,
+// so there an entry with hidden text carries the label in l instead.
+func askPassword(l, title string) (string, error) {
+	opts := []zenity.Option{zenity.Title(title), zenity.OKLabel(i18n.CommonOk().Render(l)), zenity.CancelLabel(i18n.CommonCancel().Render(l))}
+	if runtime.GOOS == "windows" {
+		return zenity.Entry(i18n.CommonPassword().Render(l), append(opts, zenity.HideText())...)
+	}
+	_, pw, err := zenity.Password(opts...)
+	return pw, err
 }

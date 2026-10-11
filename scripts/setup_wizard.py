@@ -1028,7 +1028,7 @@ I18N = {
         "wiz.bridge.too_many_attempts": "trop de tentatives échouées, réessayez plus tard",
         "wiz.bridge.too_many_claims": "veuillez patienter un instant avant d’essayer un autre nom",
         "wiz.bridge.too_many_signups": "trop d’inscriptions depuis cette adresse, réessayez plus tard",
-        "wiz.disks.continue_without": "Continuer sans disque supplémentaire",
+        "wiz.disks.continue_without": "Continuer sans autre disque",
         "wiz.disks.found": "Stockage Off The Cloud existant détecté",
         "wiz.disks.looking": "Examen des disques branchés…",
         "wiz.disks.mounted": "actuellement monté",
@@ -3300,7 +3300,7 @@ button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line
 .prof+.row{margin-top:32px;padding-top:20px;border-top:1px solid var(--line)}
 ul.list{list-style:none;padding:0;margin:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;max-height:300px;overflow-y:auto}
 ul.list li{padding:11px 12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;cursor:pointer}
-ul.list li:last-child{border-bottom:0}ul.list li.sel{background:rgba(240,122,90,.15)}ul.list li small{color:var(--dim)}
+ul.list li:last-child{border-bottom:0}ul.list li>small:last-child:not(:first-child){flex:none;white-space:nowrap;margin-left:6px}ul.list li.sel{background:rgba(240,122,90,.15)}ul.list li small{color:var(--dim)}
 .msg{margin-top:12px;font-size:.95rem}.msg.bad{color:var(--bad)}.msg.ok{color:var(--ok)}
 .recover{border:1px solid var(--ok);border-radius:10px;padding:12px;margin:0 0 14px}
 .bar{height:12px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:14px}.bar>div{height:100%;background:var(--ember);width:0;transition:width .6s}
@@ -3335,6 +3335,9 @@ const has=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
 // address): isolated, so a right-to-left value can't reorder the sentence
 // around it.
 const USER_ARGS=['ssid','email'];
+// The decimal sign of the page's language, for the bands' "2.4" (2,4 in
+// the other languages); English keeps the point.
+const DEC=(()=>{try{if(L.lang!=='en'&&window.Intl)return(new Intl.NumberFormat(L.lang).formatToParts(1.5).find(p=>p.type==='decimal')||{}).value||'.'}catch(e){}return '.'})();
 function fill(s,a,iso){return s.replace(/\{([a-z][a-z0-9_]*)\}/g,(m,k)=>{if(!a||!has(a,k)||a[k]==null)return '';const v=String(a[k]);return iso&&USER_ARGS.includes(k)?'⁨'+v.replace(/[‪-‮⁦-⁩]/g,'')+'⁩':v})}
 // A key's text in the page's language, else in English - with the plural
 // rules of the language it is in (one is 1, and 0 too in French); the
@@ -3458,7 +3461,7 @@ function renderWifi(){const online=state&&state.online;const cur=state&&state.ss
   h('p',{class:'hint'},t('wiz.wifi.keep_open')),
   h('p',{class:'hint'},t('wiz.wifi.wrong_password')));if(!window.otcApp)pollBridge();return}
  const nets=wifi.list.map(n=>{const b=n.bands||['2.4'];const only5=b.length===1&&b[0]==='5';const off=only5&&!window.otcApp;
-  return h('li',{'data-ssid':off?null:n.ssid,class:wifi.sel===n.ssid?'sel':'',style:off?'opacity:.5;cursor:default':null},h('span',{},n.ssid,n.secured?' 🔒':'',off?[h('br'),h('small',{},t('wiz.wifi.only_5ghz'))]:''),h('small',{},t('wiz.wifi.bands_signal',{bands:b.join(' · '),signal:n.signal})))});
+  return h('li',{'data-ssid':off?null:n.ssid,class:wifi.sel===n.ssid?'sel':'',style:off?'opacity:.5;cursor:default':null},h('span',{},n.ssid,n.secured?' 🔒':'',off?[h('br'),h('small',{},t('wiz.wifi.only_5ghz'))]:''),h('small',{},t('wiz.wifi.bands_signal',{bands:b.map(x=>String(x).replace('.',DEC)).join(' · '),signal:n.signal})))});
  paint(h('h2',{},t('wiz.wifi.title')),h('p',{class:'hint'},online?(cur?rich('wiz.wifi.online_via',{ssid:cur}):t('wiz.wifi.online')):t(window.otcApp?'wiz.wifi.choose_app':'wiz.wifi.choose_hotspot')),
   h('div',{class:'row'},h('button',{class:'ghost',id:'rescan',style:'margin-top:0'},t('wiz.wifi.scan_again')),h('span',{id:'scanmsg',class:'detail'})),
   h('ul',{class:'list',id:'nets'},nets.length?nets:h('li',{},h('small',{},t('wiz.wifi.none')))),

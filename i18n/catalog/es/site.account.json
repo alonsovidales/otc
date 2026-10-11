@@ -36,7 +36,7 @@
   "site.account.footer.privacy": {"text": "Privacidad"},
   "site.account.forgot.email_label": {"text": "El correo electrónico de tu cuenta"},
   "site.account.forgot.open": {"text": "¿Has olvidado tu contraseña?"},
-  "site.account.forgot.send": {"text": "Enviarme un enlace para restablecerla"},
+  "site.account.forgot.send": {"text": "Enviar enlace para restablecerla"},
   "site.account.forgot.sent": {"text": "Si hay una cuenta con ese correo electrónico, ya va de camino un enlace para restablecer su contraseña. Es válido durante una hora."},
   "site.account.header.sign_out": {"text": "Cerrar sesión"},
   "site.account.home.hello": {"text": "Hola, {name}"},

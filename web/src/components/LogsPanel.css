@@ -5,6 +5,11 @@
 .lg-head h3 { margin: 0; }
 .lg-tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .lg-tabs button { padding: 6px 14px; border: 0; border-radius: 0; background: transparent; color: var(--mist-dim); font-weight: 600; }
+/* On a phone a longer language's two tabs stack, so the title and the
+   close button stay on screen; where they fit, nothing changes. */
+.lg-dialog { min-width: 0; }
+.lg-tabs { flex-wrap: wrap; }
+.lg-tabs button { flex: 1 0 auto; }
 .lg-tabs button.on { background: var(--panel); color: var(--mist); }
 .lg-close { margin-left: auto; padding: 0 8px; border: 0; background: transparent; color: var(--mist); font-size: 26px; line-height: 1; }
 .lg-warning { margin: 0; padding: 8px 12px; border-radius: 8px; background: rgba(255,200,87,.08); border: 1px solid rgba(255,200,87,.35); color: var(--mist); font-size: 13px; }

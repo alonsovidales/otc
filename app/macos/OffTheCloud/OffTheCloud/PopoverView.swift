@@ -71,30 +71,12 @@ struct PopoverView: View {
 
     private var mainContent: some View {
         VStack(spacing: 12) {
-            HStack {
-                Text(S.deskMainTitle)
-                    .font(.headline)
-                Spacer()
-                // Issue #193: the device's own web app, in the browser -
-                // the address only; the web app asks for the password.
-                // otc-sync's tray has the same item at the top.
-                if settings.ready, let web = SettingsStore.webAppURL(fromDomain: settings.domain) {
-                    Button {
-                        NSWorkspace.shared.open(web)
-                    } label: {
-                        Label(S.deskMainOpenWebApp, systemImage: "globe")
-                            .foregroundStyle(Color.accentColor)
-                    }
-                    .buttonStyle(.borderless)
-                    .help(S.deskMainOpenWebAppTip(address: web.absoluteString))
-                }
-                // Settings inline inside the popover
-                Button {
-                    showSettings.toggle()
-                } label: {
-                    Image(systemName: "gearshape.fill")
-                }
-                .buttonStyle(.plain)
+            // The heading on one line: where it and the web app's label
+            // don't fit side by side (a longer word for "Sync"), the button
+            // keeps only its globe - its tooltip says where it goes.
+            ViewThatFits(in: .horizontal) {
+                header(webTitle: true)
+                header(webTitle: false)
             }
 
             // Connection status
@@ -212,6 +194,43 @@ struct PopoverView: View {
                 // A change made in System Settings > Login Items.
                 login.refresh()
             }
+        }
+    }
+
+    /// The heading, the web app's button and the gear; `webTitle` false
+    /// leaves the button its globe alone.
+    private func header(webTitle: Bool) -> some View {
+        HStack {
+            Text(S.deskMainTitle)
+                .font(.headline)
+                .fixedSize(horizontal: webTitle, vertical: false)
+            Spacer()
+            // Issue #193: the device's own web app, in the browser -
+            // the address only; the web app asks for the password.
+            // otc-sync's tray has the same item at the top.
+            if settings.ready, let web = SettingsStore.webAppURL(fromDomain: settings.domain) {
+                Button {
+                    NSWorkspace.shared.open(web)
+                } label: {
+                    if webTitle {
+                        Label(S.deskMainOpenWebApp, systemImage: "globe")
+                            .foregroundStyle(Color.accentColor)
+                    } else {
+                        Label(S.deskMainOpenWebApp, systemImage: "globe")
+                            .labelStyle(.iconOnly)
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+                .buttonStyle(.borderless)
+                .help(S.deskMainOpenWebAppTip(address: web.absoluteString))
+            }
+            // Settings inline inside the popover
+            Button {
+                showSettings.toggle()
+            } label: {
+                Image(systemName: "gearshape.fill")
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -585,6 +604,9 @@ struct FolderStateView: View {
             Text(watchingLabel)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                // In full: a longer word ("Gesynchroniseerd") takes its room
+                // from the folder's name, which is shortened first.
+                .layoutPriority(1)
         case .error(let problem):
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
@@ -592,6 +614,8 @@ struct FolderStateView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+                // The whole text, when the row cuts it short.
+                .help(problem.text)
         }
     }
 
@@ -878,11 +902,15 @@ struct AddFolderChooser: View {
                         Image(systemName: icon)
                             .font(.title3)
                             .foregroundStyle(tint)
+                        // Wrapped, never cut: an open (i) below made the row
+                        // offer them one line (German, Dutch).
                         VStack(alignment: .leading, spacing: 1) {
                             Text(title)
+                                .fixedSize(horizontal: false, vertical: true)
                             Text(subtitle)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 0)
                         // There is a next step: its options, or the
@@ -925,9 +953,11 @@ struct AddFolderChooser: View {
                     .foregroundStyle(k == .backup ? Color.orange : Color.blue)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(k == .backup ? Self.backupTitle : Self.localTitle).font(.headline)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(k == .backup ? Self.backupSubtitle : Self.localSubtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             if k == .backup {

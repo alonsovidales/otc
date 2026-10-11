@@ -32,7 +32,7 @@
   "web.social.composer.tag_filter": "Filtrer par étiquette…",
   "web.social.composer.this_computer": "Cet ordinateur",
   "web.social.composer.title": "Nouvelle publication",
-  "web.social.composer.trim": "✂ Découper",
+  "web.social.composer.trim": "✂",
   "web.social.composer.trim_item": "Découper \u2068{name}\u2069",
   "web.social.composer.trim_load_failed": "Impossible de charger cette vidéo pour la découper.",
   "web.social.composer.upload_none": "Aucun des fichiers sélectionnés n’a pu être envoyé.",

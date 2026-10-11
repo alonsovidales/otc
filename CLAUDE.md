@@ -916,8 +916,9 @@ The stored choice (`docs/i18n.md`, "The stored choice"; every client follows the
   (keep a key or a `UiText`). A `UiText` is a function, so never hand one bare to React:
   `useState(() => say(…))`, `setX(() => text)`. Round a value that isn't whole with `toFixed`
   before `unitText`/`percentText` (Intl rounds ties differently), write B/KB/MB/GB sizes with
-  `components/sizeText.ts`, and leave dates already written with `toLocaleString()` on it (the
-  browser's locale). The public `/shared` page shows the visitor's browser language (Automatic,
+  `components/sizeText.ts`, and format dates with `fmtDate(t.lang, d, options)` (`dateTimeFields`
+  for `toLocaleString()`'s fields), never `toLocaleString()`: the page's language, in the
+  browser's own format when it is that language. The public `/shared` page shows the visitor's browser language (Automatic,
   or that browser's own stored choice).
 
 ### Bridge (`bridge/`)

@@ -4,7 +4,7 @@
   "web.images.collect.create_failed": "Die Sammlung konnte nicht erstellt werden. Versuche es erneut.",
   "web.images.collect.creating": "Wird erstellt…",
   "web.images.collect.list": "Sammlungen",
-  "web.images.collect.name_placeholder": "Name, zum Beispiel Sommer 2026",
+  "web.images.collect.name_placeholder": "Name, wie Sommer 2026",
   "web.images.collect.new": "Neue Sammlung…",
   "web.images.collect.new_label": "Neue Sammlung",
   "web.images.collect.title": "Zur Sammlung hinzufügen",
@@ -97,7 +97,7 @@
   "web.images.grid.unreachable_title": "Dein Gerät ist nicht erreichbar",
   "web.images.load.check": "Prüfe, ob dein Gerät online ist, und versuche es dann erneut.",
   "web.images.load.waiting": "Noch keine Antwort von deinem Gerät",
-  "web.images.people.add_name": "Namen hinzufügen",
+  "web.images.people.add_name": "Name eingeben",
   "web.images.people.count": {
     "one": "{count} ausgewählt",
     "other": "{count} ausgewählt",

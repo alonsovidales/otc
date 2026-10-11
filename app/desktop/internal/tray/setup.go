@@ -38,7 +38,10 @@ func (u *ui) setupDevice() {
 	}
 
 	// 1. Download.
-	dlg, err := zenity.Progress(append(opts, zenity.MaxValue(100))...)
+	// The buttons' words too: Windows' own dialogs say OK and Cancel in
+	// English otherwise.
+	buttons := []zenity.Option{zenity.OKLabel(i18n.CommonOk().Render(l)), zenity.CancelLabel(i18n.CommonCancel().Render(l))}
+	dlg, err := zenity.Progress(append(append(opts, buttons...), zenity.MaxValue(100))...)
 	if err != nil {
 		u.setupError(l, err)
 		return
@@ -89,7 +92,8 @@ func (u *ui) setupDevice() {
 			labels[i] = d.LabelIn(l)
 		}
 		choice, err := zenity.List(listText(i18n.DeskFoldersSetupChooseCard().Render(l)), labels,
-			append(opts, zenity.OKLabel(i18n.CommonNext().Render(l)), zenity.ExtraButton(i18n.CommonRefresh().Render(l)), zenity.DisallowEmpty())...)
+			append(opts, zenity.OKLabel(i18n.CommonNext().Render(l)), zenity.ExtraButton(i18n.CommonRefresh().Render(l)),
+				zenity.CancelLabel(i18n.CommonCancel().Render(l)), zenity.DisallowEmpty())...)
 		if errors.Is(err, zenity.ErrExtraButton) {
 			continue
 		}
@@ -115,7 +119,7 @@ func (u *ui) setupDevice() {
 	}
 
 	// 3. Write, as administrator.
-	wdlg, err := zenity.Progress(append(opts, zenity.MaxValue(100), zenity.NoCancel())...)
+	wdlg, err := zenity.Progress(append(append(opts, buttons...), zenity.MaxValue(100), zenity.NoCancel())...)
 	if err != nil {
 		u.setupError(l, err)
 		return

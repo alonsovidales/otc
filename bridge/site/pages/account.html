@@ -24,6 +24,12 @@
     .brand{display:flex;align-items:center;gap:10px;color:var(--mist);text-decoration:none;font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px}
     .brand img{width:32px;height:32px;border-radius:8px}
     .nav .who{color:var(--mist-dim);font-size:14px;display:flex;gap:14px;align-items:center}
+    /* A long email address beside "Sign out": on a phone the header goes
+       onto two lines instead of widening the page. */
+    .nav{flex-wrap:wrap;row-gap:8px}
+    .nav .brand{flex:none}
+    .nav .who{min-width:0;flex-wrap:wrap;justify-content:flex-end;row-gap:6px;margin-left:auto}
+    .nav .who > span{min-width:0;overflow-wrap:anywhere;text-align:right}
     main{max-width:960px;margin:0 auto;padding:28px 20px 60px}
     h1{font-family:'Unbounded',sans-serif;font-size:1.5rem;margin:0 0 6px;letter-spacing:-.01em}
     h2{font-family:'Unbounded',sans-serif;font-size:1.05rem;margin:0 0 10px}
@@ -37,7 +43,7 @@
     input:focus,select:focus{outline:2px solid var(--ember);border-color:transparent}
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     .row > *{flex:1}
-    .btn{font:inherit;font-weight:700;padding:10px 16px;border-radius:10px;border:1px solid transparent;background:var(--ember);color:var(--ink-2);cursor:pointer;margin-top:14px}
+    .btn{font:inherit;font-weight:700;padding:10px 16px;border-radius:10px;border:1px solid transparent;background:var(--ember);color:var(--ink-2);cursor:pointer;margin-top:14px;text-wrap:balance}
     .btn.ghost{background:transparent;color:var(--mist);border-color:var(--line)}
     .btn.danger{background:transparent;color:var(--bad);border-color:rgba(242,139,130,.5)}
     .btn.small{padding:6px 12px;font-size:13px;margin-top:0;flex:none}

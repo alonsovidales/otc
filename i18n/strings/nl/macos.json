@@ -172,7 +172,7 @@
     "en": "Checking {done} of {total}"
   },
   "macos.folders.could_not_list": {
-    "text": "Kan externe bestanden niet weergeven",
+    "text": "Kan bestanden niet tonen",
     "en": "Could not list remote files"
   },
   "macos.folders.count": {
@@ -266,7 +266,7 @@
     "reviewed": "claude-backtranslation 2026-10-11 #d4b8da0d"
   },
   "macos.settings.retry": {
-    "text": "Opnieuw proberen",
+    "text": "Opnieuw",
     "en": "Retry"
   },
   "macos.setup.bad_hash": {

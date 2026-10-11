@@ -66,12 +66,19 @@
       padding:12px 20px;border-radius:12px;font-weight:700;font-size:16px;
       color:var(--ink);background:var(--gold);
       transition:transform .08s ease, filter .15s ease;
+      /* A label longer than its line (some languages) wraps in two even
+         lines, never leaving a word or a name's last part alone. */
+      text-wrap:balance;
     }
     .btn:hover{filter:brightness(1.08)}
     .btn:active{transform:translateY(1px)}
     .btn.secondary{background:transparent;color:var(--mist);border:1px solid var(--line)}
     .btn.ember{background:var(--ember);color:#26100a}
-    @media (max-width:760px){ .navlinks{display:none} }
+    /* The links and buttons need ~1006px side by side in English and up to
+       ~1110px in the other languages (Spanish); below that they would wrap
+       under the buttons, so the header keeps the brand and the buttons. */
+    @media (max-width:1005px){ .navlinks{display:none} }
+    @media (max-width:1119px){ html:not([lang="en"]) .navlinks{display:none} }
     .nav-actions{display:flex;gap:10px;flex:none}
     @media (max-width:480px){ .nav-actions .btn{padding:9px 12px;font-size:14.5px} .brand span{display:none} }
 
@@ -93,7 +100,7 @@
     .hero-install-alt:hover{color:var(--gold)}
     .install-tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:12px}
     .install-tab{appearance:none;background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;
-      padding:10px 14px;font:inherit;font-weight:700;font-size:15.5px;color:var(--mist-dim);cursor:pointer}
+      padding:10px 14px;font:inherit;font-weight:700;font-size:15.5px;color:var(--mist-dim);cursor:pointer;text-wrap:balance}
     .install-tab:hover{color:var(--mist)}
     .install-tab[aria-selected="true"]{color:var(--mist);border-bottom-color:var(--ember)}
     .install-panel{display:none;gap:10px}

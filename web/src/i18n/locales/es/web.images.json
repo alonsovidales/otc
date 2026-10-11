@@ -97,7 +97,7 @@
   "web.images.grid.unreachable_title": "No se puede contactar con tu dispositivo",
   "web.images.load.check": "Comprueba que tu dispositivo está en línea y vuelve a intentarlo.",
   "web.images.load.waiting": "Seguimos esperando a tu dispositivo",
-  "web.images.people.add_name": "Añadir un nombre",
+  "web.images.people.add_name": "Añadir nombre",
   "web.images.people.count": {
     "one": "Selección: {count}",
     "other": "Selección: {count}",

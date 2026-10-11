@@ -17,7 +17,7 @@ import LowResBadge from "./LowResBadge";
 import Spinner from "./Spinner";
 import { startDownload, pubMediaKey, extensionForMime, leafName, useDownloadState, useDownloadFailure, useDownloadHost, useDownloadToldByHost } from "./mediaDownload";
 import { DownloadButton, DownloadNote } from "./DownloadButton";
-import { useT, type TFunction } from "../i18n";
+import { fmtDate, useT, type TFunction } from "../i18n";
 
 // When the post was published, shown in the feed. Relative for anything
 // recent (the timescale people actually care about scrolling a feed),
@@ -33,7 +33,7 @@ function formatPostDate(t: TFunction, d?: Date): string {
   if (hours < 24) return t("web.social.time.hours_ago", { hours });
   const days = Math.floor(hours / 24);
   if (days < 7) return t("web.social.time.days_ago", { days });
-  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  return fmtDate(t.lang, d, { year: "numeric", month: "short", day: "numeric" });
 }
 
 // A post is memoised and re-renders only when its own data changes, so

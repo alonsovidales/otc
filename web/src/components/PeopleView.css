@@ -675,7 +675,9 @@
   line-height: 18px;
   font-weight: 600;
 }
-.pv-keep-name.pv-unnamed { font-weight: 400; }
+/* "Unnamed" is our own word, not a name: on a narrow phone a longer
+   language's ("Ohne Namen") wraps rather than losing its end. */
+.pv-keep-name.pv-unnamed { font-weight: 400; white-space: normal; text-align: center; }
 .pv-keep-count {
   font-size: 12px;
   line-height: 16px;

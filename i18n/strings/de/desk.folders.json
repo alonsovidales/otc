@@ -1,6 +1,6 @@
 {
   "desk.folders.add_prompt": {
-    "text": "Wähle, welche Art von Ordner du hinzufügen möchtest:",
+    "text": "Wähle die Art des Ordners:",
     "en": "Choose what kind of folder to add:"
   },
   "desk.folders.add_title": {
@@ -243,7 +243,7 @@
     "en": "({option} is always on for a backup.)"
   },
   "desk.folders.remote_title": {
-    "text": "Ordner auf dem Gerät auswählen",
+    "text": "Geräteordner auswählen",
     "en": "Choose a Remote Folder"
   },
   "desk.folders.setup_card_ready_title": {

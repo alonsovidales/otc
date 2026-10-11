@@ -32,7 +32,7 @@
   "web.social.composer.tag_filter": "Filteren op tag…",
   "web.social.composer.this_computer": "Deze computer",
   "web.social.composer.title": "Nieuw bericht",
-  "web.social.composer.trim": "✂ Inkorten",
+  "web.social.composer.trim": "✂",
   "web.social.composer.trim_item": "\u2068{name}\u2069 inkorten",
   "web.social.composer.trim_load_failed": "Kan die video niet laden om hem in te korten.",
   "web.social.composer.upload_none": "Kan geen van de geselecteerde bestanden uploaden.",

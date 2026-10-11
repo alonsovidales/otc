@@ -172,7 +172,7 @@
     "en": "Checking {done} of {total}"
   },
   "macos.folders.could_not_list": {
-    "text": "Não foi possível listar os ficheiros remotos",
+    "text": "Erro ao listar os ficheiros",
     "en": "Could not list remote files"
   },
   "macos.folders.count": {
@@ -209,7 +209,7 @@
     "en": "Start at login is switched off in System Settings."
   },
   "macos.login.open_login_items": {
-    "text": "Elementos de início de sessão…",
+    "text": "Abrir Elementos de início de sessão…",
     "en": "Open Login Items…"
   },
   "macos.picker.no_subfolders": {
@@ -266,7 +266,7 @@
     "reviewed": "claude-backtranslation 2026-10-11 #f671fa9a"
   },
   "macos.settings.retry": {
-    "text": "Tentar novamente",
+    "text": "Repetir",
     "en": "Retry"
   },
   "macos.setup.bad_hash": {

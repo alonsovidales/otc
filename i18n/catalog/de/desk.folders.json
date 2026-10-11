@@ -1,5 +1,5 @@
 {
-  "desk.folders.add_prompt": {"text": "Wähle, welche Art von Ordner du hinzufügen möchtest:"},
+  "desk.folders.add_prompt": {"text": "Wähle die Art des Ordners:"},
   "desk.folders.add_title": {"text": "Ordner hinzufügen"},
   "desk.folders.ask_keep_out": {"text": "Den Ordner in „Bilder“ ausblenden?"},
   "desk.folders.ask_upload_only": {"text": "Den Ordner auf „Nur hochladen“ stellen?"},
@@ -58,7 +58,7 @@
   "desk.folders.picker_prompt_windows": {"text": "Ordner auf dem Gerät: {path}\nDoppelklicke auf einen Ordner, um ihn zu öffnen; die Schaltfläche hält „{name}“ mit einem Ordner hier synchron."},
   "desk.folders.picker_up": {"text": "‹ Nach oben"},
   "desk.folders.question_backup_note": {"text": "({option} ist bei einem Backup immer aktiv.)"},
-  "desk.folders.remote_title": {"text": "Ordner auf dem Gerät auswählen"},
+  "desk.folders.remote_title": {"text": "Geräteordner auswählen"},
   "desk.folders.setup_card_ready_title": {"text": "Deine SD-Karte ist bereit"},
   "desk.folders.setup_card_too_small": {"text": "{disk} ist zu klein: Das Gerät braucht eine Karte mit mindestens 8 GB."},
   "desk.folders.setup_choose_card": {"text": "Wähle die SD-Karte:"},

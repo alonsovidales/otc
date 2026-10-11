@@ -172,7 +172,7 @@
     "en": "Checking {done} of {total}"
   },
   "macos.folders.could_not_list": {
-    "text": "Impossible de lister les fichiers distants",
+    "text": "Liste des fichiers indisponible",
     "en": "Could not list remote files"
   },
   "macos.folders.count": {

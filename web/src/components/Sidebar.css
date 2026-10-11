@@ -290,6 +290,10 @@
 
 /* Storage at the foot of the whole menu. */
 .sb-storage { border-top: 1px solid var(--line); padding-top: 8px; }
+/* A long word (Spanish Almacenamiento) keeps all its letters when the
+   attention dot shows: the dot and the chevron move into the row's end
+   padding instead. English never needs it. */
+.sb-storage-head .sb-label { min-width: max-content; }
 .sb-chevron { display: inline-flex; flex: none; color: var(--mist-dim); transition: transform .2s ease; }
 .sb-storage-head[aria-expanded="true"] .sb-chevron { transform: rotate(180deg); }
 .sb-meter { margin: 4px 16px 8px; height: 4px; border-radius: 999px; background: var(--ink-3); overflow: hidden; }

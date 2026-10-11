@@ -58,7 +58,7 @@
   "web.shell.search.close_collection": "Fermer la collection \u2068{name}\u2069",
   "web.shell.search.collection": "la collection \u2068{name}\u2069",
   "web.shell.search.documents": "Rechercher « \u003cmark\u003e\u2068{text}\u2069\u003c/mark\u003e » dans les documents",
-  "web.shell.search.field": "Rechercher des photos et des fichiers",
+  "web.shell.search.field": "Chercher photos, fichiers",
   "web.shell.search.file_in": "\u2068{name}\u2069, fichier dans le dossier \u2068{folder}\u2069",
   "web.shell.search.files": "Fichiers",
   "web.shell.search.folder_in": "\u2068{name}\u2069, dossier dans le dossier \u2068{folder}\u2069",

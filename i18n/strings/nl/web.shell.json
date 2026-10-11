@@ -230,7 +230,7 @@
     "en": "Search documents for “<mark>{text}</mark>”"
   },
   "web.shell.search.field": {
-    "text": "Zoeken in foto’s en bestanden",
+    "text": "Zoek foto’s en bestanden",
     "en": "Search photos and files"
   },
   "web.shell.search.file_in": {

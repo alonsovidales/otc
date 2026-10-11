@@ -260,7 +260,7 @@
     "en": "{files} files had disappeared from the device - restored them from this computer instead of deleting them here"
   },
   "desk.main.set_up_device": {
-    "text": "Configurer un nouvel appareil…",
+    "text": "Configurer un appareil…",
     "en": "Set Up a New Device…"
   },
   "desk.main.set_up_device_tip": {

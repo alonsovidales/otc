@@ -61,7 +61,7 @@
   "desk.main.password_title": {"text": "Off The Cloud — Mot de passe de l’appareil {device}"},
   "desk.main.remove_tip": {"text": "Arrêter de synchroniser ce dossier (rien n’est supprimé)"},
   "desk.main.restored_files": {"text": "{files} fichiers avaient disparu de l’appareil : ils ont été restaurés depuis cet ordinateur au lieu d’être supprimés ici"},
-  "desk.main.set_up_device": {"text": "Configurer un nouvel appareil…"},
+  "desk.main.set_up_device": {"text": "Configurer un appareil…"},
   "desk.main.set_up_device_tip": {"text": "Préparer la carte SD d’un nouvel appareil Raspberry Pi"},
   "desk.main.settings_hint": {"text": "Nom de l’appareil (tel qu’il figure sur la passerelle, par exemple « cala »), ou adresse complète pour un appareil situé ailleurs (wss://host/ws, ws://192.168.1.10:8080/ws)."},
   "desk.main.settings_title": {"text": "Off The Cloud — Paramètres"},

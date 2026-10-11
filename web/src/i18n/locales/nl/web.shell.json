@@ -58,7 +58,7 @@
   "web.shell.search.close_collection": "Collectie \u2068{name}\u2069 sluiten",
   "web.shell.search.collection": "de collectie \u2068{name}\u2069",
   "web.shell.search.documents": "Documenten doorzoeken op “\u003cmark\u003e\u2068{text}\u2069\u003c/mark\u003e”",
-  "web.shell.search.field": "Zoeken in foto’s en bestanden",
+  "web.shell.search.field": "Zoek foto’s en bestanden",
   "web.shell.search.file_in": "\u2068{name}\u2069, bestand in de map \u2068{folder}\u2069",
   "web.shell.search.files": "Bestanden",
   "web.shell.search.folder_in": "\u2068{name}\u2069, map in \u2068{folder}\u2069",

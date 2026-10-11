@@ -45,9 +45,24 @@ var (
 	pGetModuleHandleW   = kernel32.NewProc("GetModuleHandleW")
 	pSetProcessDPIAware = user32.NewProc("SetProcessDPIAware")
 	pAdjustWindowRectEx = user32.NewProc("AdjustWindowRectEx")
+	pGetDC              = user32.NewProc("GetDC")
+	pReleaseDC          = user32.NewProc("ReleaseDC")
+	pMoveWindow         = user32.NewProc("MoveWindow")
+	pSelectObject       = gdi32.NewProc("SelectObject")
+	pGetTextExtent      = gdi32.NewProc("GetTextExtentPoint32W")
 )
 
 type rect struct{ left, top, right, bottom int32 }
+
+type size struct{ cx, cy int32 }
+
+// The window's client area, and the Choose button's least width (it grows
+// leftwards, towards the list's left edge, for longer words: fitChoose).
+const (
+	pickerW, pickerH = 480, 520
+	chooseMinW       = 150
+	cancelW          = 100
+)
 
 const (
 	wsOverlapped      = 0x00000000
@@ -176,7 +191,7 @@ func pickRemoteFolder(list func(string) ([]engine.RemoteEntry, error)) (string, 
 
 	// w/h are the client area; the frame and title bar are added on top so
 	// the controls laid out below actually fit.
-	const w, h = 480, 520
+	const w, h = pickerW, pickerH
 	const style = wsOverlapped | wsCaption | wsSysMenu
 	const exStyle = wsExDlgModalFrame | wsExTopmost
 	rc := rect{0, 0, w, h}
@@ -204,10 +219,12 @@ func pickRemoteFolder(list func(string) ([]engine.RemoteEntry, error)) (string, 
 
 		return windows.HWND(hw)
 	}
-	p.hLabel = child("STATIC", "", ssLeft, idLabel, 14, 12, w-28, 44)
-	p.hList = child("LISTBOX", "", wsBorder|wsVScroll|wsTabStop|lbsNotify|lbsNoIntegral, idList, 14, 62, w-28, h-62-58)
-	p.hChoose = child("BUTTON", i18n.CommonChoose().Render(p.lang), wsTabStop|bsDefPushButton, idChoose, w-14-150-8-100, h-44, 150, 30)
-	child("BUTTON", i18n.CommonCancel().Render(p.lang), wsTabStop, idCancel, w-14-100, h-44, 100, 30)
+	// Three lines: the folder, then what to do, which wraps once at this
+	// width in English and in every translation.
+	p.hLabel = child("STATIC", "", ssLeft, idLabel, 14, 12, w-28, 66)
+	p.hList = child("LISTBOX", "", wsBorder|wsVScroll|wsTabStop|lbsNotify|lbsNoIntegral, idList, 14, 84, w-28, h-84-58)
+	p.hChoose = child("BUTTON", i18n.CommonChoose().Render(p.lang), wsTabStop|bsDefPushButton, idChoose, w-14-chooseMinW-8-cancelW, h-44, chooseMinW, 30)
+	child("BUTTON", i18n.CommonCancel().Render(p.lang), wsTabStop, idCancel, w-14-cancelW, h-44, cancelW, 30)
 
 	p.load()
 	_, _, _ = pShowWindow.Call(hwnd, swShow)
@@ -239,7 +256,9 @@ func (p *picker) load() {
 	// A static control breaks lines at CR LF; the catalog writes LF.
 	prompt := strings.ReplaceAll(i18n.DeskFoldersPickerPromptWindows(p.current, label).Render(p.lang), "\n", "\r\n")
 	_, _, _ = pSetWindowTextW.Call(uintptr(p.hLabel), uintptr(unsafe.Pointer(utf16(prompt))))
-	_, _, _ = pSetWindowTextW.Call(uintptr(p.hChoose), uintptr(unsafe.Pointer(utf16(i18n.DeskFoldersChooseNamed(label).Render(p.lang)))))
+	choose := i18n.DeskFoldersChooseNamed(label).Render(p.lang)
+	_, _, _ = pSetWindowTextW.Call(uintptr(p.hChoose), uintptr(unsafe.Pointer(utf16(choose))))
+	p.fitChoose(choose)
 	_, _, _ = pSendMessageW.Call(uintptr(p.hList), lbResetContent, 0, 0)
 	p.rows = nil
 	entries, err := p.list(p.current)
@@ -261,6 +280,39 @@ func (p *picker) load() {
 		p.addRow(i18n.DeskFoldersPickerEmpty().Render(p.lang), "")
 	}
 	_, _, _ = pSendMessageW.Call(uintptr(p.hList), lbSetCurSel, ^uintptr(0), 0)
+}
+
+// fitChoose sizes the Choose button to its words: 150 px, wider (towards
+// the left, Cancel staying where it is) when a translation or the folder's
+// name needs more, up to the list's left edge.
+func (p *picker) fitChoose(text string) {
+	cw := chooseMinW
+	if tw := p.textWidth(text); tw > 0 {
+		cw = min(max(cw, tw+24), pickerW-14-8-cancelW-14)
+	}
+	_, _, _ = pMoveWindow.Call(uintptr(p.hChoose), uintptr(pickerW-14-cancelW-8-cw), uintptr(pickerH-44), uintptr(cw), 30, 1)
+}
+
+// textWidth is how many pixels text takes in the window's font; 0 when it
+// can't be measured.
+func (p *picker) textWidth(text string) int {
+	u, err := windows.UTF16FromString(text)
+	if err != nil || len(u) < 2 {
+		return 0
+	}
+	dc, _, _ := pGetDC.Call(uintptr(p.hChoose))
+	if dc == 0 {
+		return 0
+	}
+	defer func() { _, _, _ = pReleaseDC.Call(uintptr(p.hChoose), dc) }()
+	old, _, _ := pSelectObject.Call(dc, uintptr(p.font))
+	defer func() { _, _, _ = pSelectObject.Call(dc, old) }()
+	var sz size
+	if r, _, _ := pGetTextExtent.Call(dc, uintptr(unsafe.Pointer(&u[0])), uintptr(len(u)-1), uintptr(unsafe.Pointer(&sz))); r == 0 {
+		return 0
+	}
+
+	return int(sz.cx)
 }
 
 func (p *picker) addRow(text, target string) {

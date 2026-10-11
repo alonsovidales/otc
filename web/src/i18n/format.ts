@@ -69,6 +69,9 @@ export function fmtBytes(lang: string, bytes: number | bigint, options: BytesOpt
 }
 
 /** A date or time: fmtDate(t.lang, d, { dateStyle: "medium" }) (the default). */
+/** toLocaleString()'s own fields: the date and the time, numeric. */
+export const dateTimeFields: Intl.DateTimeFormatOptions = { year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric" };
+
 export function fmtDate(lang: string, value: Date | number, options: Intl.DateTimeFormatOptions = { dateStyle: "medium" }): string {
   return cached("d", localeOf(lang), options, (l) => new Intl.DateTimeFormat(l, options)).format(value);
 }

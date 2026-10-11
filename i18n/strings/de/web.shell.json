@@ -230,7 +230,7 @@
     "en": "Search documents for “<mark>{text}</mark>”"
   },
   "web.shell.search.field": {
-    "text": "Fotos und Dateien durchsuchen",
+    "text": "Fotos und Dateien suchen",
     "en": "Search photos and files"
   },
   "web.shell.search.file_in": {
@@ -398,7 +398,7 @@
     "en": "Setting up…"
   },
   "web.shell.setup.skip": {
-    "text": "Überspringen – ich bin schon verbunden",
+    "text": "Überspringen – schon verbunden",
     "en": "Skip — I'm already connected"
   },
   "web.shell.setup.storage": {

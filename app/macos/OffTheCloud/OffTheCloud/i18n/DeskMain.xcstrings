@@ -1729,7 +1729,7 @@
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reservekopie gemaakt"
+            "value" : "Veiliggesteld"
           }
         },
         "pt-PT" : {
@@ -2939,7 +2939,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Configurer un nouvel appareil…"
+            "value" : "Configurer un appareil…"
           }
         },
         "it" : {

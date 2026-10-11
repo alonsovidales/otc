@@ -68,7 +68,7 @@
   "site.account.profile.lead_edit": {"text": "Aktualisiere die Angaben in deinem Konto."},
   "site.account.profile.lead_new": {"text": "Wir brauchen deinen Namen und dein Wohnsitzland, um das Konto fertig zu erstellen."},
   "site.account.profile.save": {"text": "Speichern"},
-  "site.account.profile.save_continue": {"text": "Speichern und Einrichtung fortsetzen"},
+  "site.account.profile.save_continue": {"text": "Speichern und weiter einrichten"},
   "site.account.profile.save_failed": {"text": "Speichern fehlgeschlagen"},
   "site.account.profile.title_edit": {"text": "Deine Angaben"},
   "site.account.profile.title_new": {"text": "Fast geschafft"},

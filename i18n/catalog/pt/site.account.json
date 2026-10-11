@@ -36,7 +36,7 @@
   "site.account.footer.privacy": {"text": "Privacidade"},
   "site.account.forgot.email_label": {"text": "O email da tua conta"},
   "site.account.forgot.open": {"text": "Esqueceste-te da palavra-passe?"},
-  "site.account.forgot.send": {"text": "Enviar ligação de reposição por email"},
+  "site.account.forgot.send": {"text": "Enviar ligação de reposição"},
   "site.account.forgot.sent": {"text": "Se existir uma conta com esse email, está a caminho uma ligação para repor a palavra-passe. Funciona durante uma hora."},
   "site.account.header.sign_out": {"text": "Terminar sessão"},
   "site.account.home.hello": {"text": "Olá, {name}"},

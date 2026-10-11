@@ -4,7 +4,7 @@
   "web.images.collect.create_failed": "Impossibile creare la raccolta. Riprova.",
   "web.images.collect.creating": "Creazione…",
   "web.images.collect.list": "Raccolte",
-  "web.images.collect.name_placeholder": "Nome, ad esempio Estate 2026",
+  "web.images.collect.name_placeholder": "Nome, come Estate 2026",
   "web.images.collect.new": "Nuova raccolta…",
   "web.images.collect.new_label": "Nuova raccolta",
   "web.images.collect.title": "Aggiungi a una raccolta",
@@ -97,7 +97,7 @@
   "web.images.grid.unreachable_title": "Impossibile raggiungere il tuo dispositivo",
   "web.images.load.check": "Controlla che il tuo dispositivo sia online, poi riprova.",
   "web.images.load.waiting": "Ancora in attesa del tuo dispositivo",
-  "web.images.people.add_name": "Aggiungi un nome",
+  "web.images.people.add_name": "Aggiungi nome",
   "web.images.people.count": {
     "one": "{count} selezionata",
     "other": "{count} selezionate",

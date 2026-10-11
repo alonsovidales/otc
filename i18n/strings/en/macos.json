@@ -252,7 +252,7 @@
   "macos.login.open_login_items": {
     "text": "Open Login Items…",
     "note": "Mac app: link next to that note, opening System Settings at Login Items (use macOS's own name for Login Items).",
-    "max": 30
+    "max": 40
   },
   "macos.picker.no_subfolders": {
     "text": "No subfolders here.",

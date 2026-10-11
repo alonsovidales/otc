@@ -248,7 +248,7 @@
     "en": "too many sign-ups from this address, try again later"
   },
   "wiz.disks.continue_without": {
-    "text": "Continuer sans disque supplémentaire",
+    "text": "Continuer sans autre disque",
     "en": "Continue without extra disks"
   },
   "wiz.disks.found": {

@@ -20,7 +20,7 @@ export { default as I18nProvider } from "./I18nProvider";
 export { default as Trans, type RichParts, type TransProps } from "./Trans";
 export { useI18n, useLanguage, useT } from "./hooks";
 export { t, type I18nSnapshot, type TFunction } from "./runtime";
-export { fmtBytes, fmtDate, fmtList, fmtNumber, fmtRelative, monthName, type BytesOptions, type RelativeOptions } from "./format";
+export { dateTimeFields, fmtBytes, fmtDate, fmtList, fmtNumber, fmtRelative, monthName, type BytesOptions, type RelativeOptions } from "./format";
 export { type ChoiceSnapshot, type ChooseOutcome } from "./choice";
 export { languages, type ArgsOf, type Language, type LanguageCode, type MessageKey, type RichKey } from "./messages";
 

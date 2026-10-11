@@ -20,7 +20,7 @@
     "en": "Collections"
   },
   "web.images.collect.name_placeholder": {
-    "text": "Nome, ad esempio Estate 2026",
+    "text": "Nome, come Estate 2026",
     "en": "Name, like Summer 2026"
   },
   "web.images.collect.new": {
@@ -337,7 +337,7 @@
     "en": "Still waiting for your device"
   },
   "web.images.people.add_name": {
-    "text": "Aggiungi un nome",
+    "text": "Aggiungi nome",
     "en": "Add a name"
   },
   "web.images.people.count": {

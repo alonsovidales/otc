@@ -8,14 +8,14 @@ import { useCallback, useEffect, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope, SharedLinkInfo } from "../proto/messages";
 import "./SharedGalleryShare.css";
-import { useT, type TFunction } from "../i18n";
+import { fmtDate, useT, type TFunction } from "../i18n";
 import { asIs, say, type UiText } from "./uiText";
 import { sizeText } from "./sizeText";
 
-// Sizes: whole KB, MB with one digit, GB with two. Dates in the browser's
-// own format.
+// Sizes: whole KB, MB with one digit, GB with two. Dates in the page's
+// language (the browser's own format when it is that language).
 const fmtBytes = (t: TFunction, n: number) => sizeText(t, n, [0, 1, 2]);
-const fmtDate = (d?: Date) => (d ? d.toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
+const fmtWhen = (t: TFunction, d?: Date) => (d ? fmtDate(t.lang, d, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
 
 export default function SharedLinksPanel() {
   const t = useT();
@@ -66,10 +66,10 @@ export default function SharedLinksPanel() {
                 <strong>{l.description || (l.kind === "archive" ? t("web.files.links.zip") : t("web.files.links.gallery"))}</strong>
                 <span className="sl-dim">
                   {l.files > 0
-                    ? t("web.files.links.details_files", { count: l.files, size: fmtBytes(t, Number(l.bytes)), made: fmtDate(l.created), until: fmtDate(l.expires) })
-                    : t("web.files.links.details", { size: fmtBytes(t, Number(l.bytes)), made: fmtDate(l.created), until: fmtDate(l.expires) })}
+                    ? t("web.files.links.details_files", { count: l.files, size: fmtBytes(t, Number(l.bytes)), made: fmtWhen(t, l.created), until: fmtWhen(t, l.expires) })
+                    : t("web.files.links.details", { size: fmtBytes(t, Number(l.bytes)), made: fmtWhen(t, l.created), until: fmtWhen(t, l.expires) })}
                 </span>
-                <span className="sl-dim">{l.opens > 0 ? t("web.files.links.opened", { count: l.opens, date: fmtDate(l.lastOpened) }) : t("web.files.links.never_opened")}</span>
+                <span className="sl-dim">{l.opens > 0 ? t("web.files.links.opened", { count: l.opens, date: fmtWhen(t, l.lastOpened) }) : t("web.files.links.never_opened")}</span>
               </div>
               <button className="sf-btn small danger" disabled={deleting === l.uuid} onClick={() => void del(l)}>{deleting === l.uuid ? t("common.deleting") : t("common.delete")}</button>
             </li>

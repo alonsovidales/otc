@@ -11,7 +11,7 @@ import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope, Notification as PbNotification } from "../proto/messages";
 import { FriendShipStatus, NotificationType } from "../proto/messages";
 import "./NotificationsPage.css";
-import { Trans, useT, type RichKey, type TFunction } from "../i18n";
+import { Trans, fmtDate, useT, type RichKey, type TFunction } from "../i18n";
 
 const POLL_MS = 5000;
 
@@ -30,7 +30,7 @@ function formatWhen(t: TFunction, d?: Date): string {
   if (hours < 24) return t("web.social.time.hours", { hours });
   const days = Math.floor(hours / 24);
   if (days < 7) return t("web.social.time.days", { days });
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return fmtDate(t.lang, d, { month: "short", day: "numeric" });
 }
 
 // A fixed sentence per type, actor name filled in - same "generic body,

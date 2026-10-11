@@ -172,7 +172,7 @@
     "en": "Checking {done} of {total}"
   },
   "macos.folders.could_not_list": {
-    "text": "Impossibile elencare i file remoti",
+    "text": "Impossibile elencare i file",
     "en": "Could not list remote files"
   },
   "macos.folders.count": {

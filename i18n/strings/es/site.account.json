@@ -159,7 +159,7 @@
     "en": "Forgot your password?"
   },
   "site.account.forgot.send": {
-    "text": "Enviarme un enlace para restablecerla",
+    "text": "Enviar enlace para restablecerla",
     "en": "Email me a reset link"
   },
   "site.account.forgot.sent": {

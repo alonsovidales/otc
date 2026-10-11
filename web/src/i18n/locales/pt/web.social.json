@@ -32,7 +32,7 @@
   "web.social.composer.tag_filter": "Filtrar por etiqueta…",
   "web.social.composer.this_computer": "Este computador",
   "web.social.composer.title": "Nova publicação",
-  "web.social.composer.trim": "✂ Cortar",
+  "web.social.composer.trim": "✂",
   "web.social.composer.trim_item": "Cortar \u2068{name}\u2069",
   "web.social.composer.trim_load_failed": "Não foi possível carregar esse vídeo para o cortar.",
   "web.social.composer.upload_none": "Não foi possível carregar nenhum dos ficheiros selecionados.",

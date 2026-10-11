@@ -172,7 +172,7 @@
     "en": "Checking {done} of {total}"
   },
   "macos.folders.could_not_list": {
-    "text": "No se han podido listar los archivos remotos",
+    "text": "Error al listar los archivos",
     "en": "Could not list remote files"
   },
   "macos.folders.count": {
