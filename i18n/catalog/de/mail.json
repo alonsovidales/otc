@@ -1,0 +1,23 @@
+{
+  "mail.date.april": {"text": "April"},
+  "mail.date.august": {"text": "August"},
+  "mail.date.december": {"text": "Dezember"},
+  "mail.date.february": {"text": "Februar"},
+  "mail.date.january": {"text": "Januar"},
+  "mail.date.july": {"text": "Juli"},
+  "mail.date.june": {"text": "Juni"},
+  "mail.date.long": {"text": "{day}. {month} {year}"},
+  "mail.date.march": {"text": "März"},
+  "mail.date.may": {"text": "Mai"},
+  "mail.date.november": {"text": "November"},
+  "mail.date.october": {"text": "Oktober"},
+  "mail.date.september": {"text": "September"},
+  "mail.greeting.named": {"text": "Hallo {name},"},
+  "mail.greeting.plain": {"text": "Hallo,"},
+  "mail.inactivity.body": {"text": "dein Bridge-Konto bei Off The Cloud ({email}) wurde seit fünf Monaten nicht genutzt: Niemand hat sich angemeldet, und weder eine App noch Freunde haben deine Geräte über die Bridge erreicht.\n\nWie in unseren Nutzungsbedingungen festgelegt, wird ein Konto entfernt, das sechs Monate lang nicht genutzt wird. Wenn sich nichts ändert, werden dieses Konto und seine Gerätenamen am {date} entfernt. Deine Geräte funktionieren zu Hause weiter.\n\nUm es zu behalten, melde dich vorher unter {link} an oder nutze dein Gerät über die Bridge."},
+  "mail.inactivity.subject": {"text": "Dein Konto bei Off The Cloud wird am {date} entfernt"},
+  "mail.reset.body": {"text": "jemand – hoffentlich du – hat angefordert, das Passwort des Kontos bei Off The Cloud für diese E-Mail-Adresse zurückzusetzen. Um ein neues zu wählen, öffne diesen Link:\n\n{link}\n\nDer Link funktioniert eine Stunde lang und nur einmal. Wenn du ein neues Passwort festlegst, wird dein Konto überall sonst abgemeldet.\n\nWenn du das nicht angefordert hast, ignoriere diese E-Mail: Dein Passwort bleibt unverändert."},
+  "mail.reset.subject": {"text": "Passwort für Off The Cloud zurücksetzen"},
+  "mail.verify.body": {"text": "bitte bestätige, dass dies deine E-Mail-Adresse ist, indem du diesen Link öffnest:\n\n{link}\n\nDer Link funktioniert 48 Stunden lang. Sobald deine E-Mail-Adresse bestätigt ist, kannst du deine Geräte auf der Bridge registrieren.\n\nWenn du kein Konto bei Off The Cloud erstellt hast, ignoriere diese E-Mail: Ohne die Bestätigung wird für diese Adresse nichts registriert."},
+  "mail.verify.subject": {"text": "Bestätige deine E-Mail-Adresse für Off The Cloud"}
+}

@@ -1,0 +1,23 @@
+{
+  "dev.device.already_on_bridge": {"text": "questo dispositivo è già sul bridge"},
+  "dev.device.bridge_dial_failed": {"text": "connessione al bridge: {detail}"},
+  "dev.device.bridge_read_failed": {"text": "lettura dal bridge: {detail}"},
+  "dev.device.bridge_secret_managed": {"text": "il segreto del bridge è gestito dal dispositivo"},
+  "dev.device.bridge_write_failed": {"text": "scrittura sul bridge: {detail}"},
+  "dev.device.identity_store_failed": {"text": "impossibile salvare la nuova identità del dispositivo"},
+  "dev.device.local_addresses_failed": {"text": "impossibile elencare gli indirizzi di questo dispositivo"},
+  "dev.device.local_no_address": {"text": "questo dispositivo non ha un indirizzo sulla rete domestica"},
+  "dev.device.local_no_listener": {"text": "questo dispositivo non accetta connessioni sulla rete domestica"},
+  "dev.device.local_starting": {"text": "questo dispositivo sta ancora avviando l’ascolto sulla rete domestica"},
+  "dev.device.logs_console_only": {"text": "questo dispositivo scrive i log solo sulla console"},
+  "dev.device.logs_need_bridge": {"text": "questo dispositivo non è sul bridge, quindi non può inviare i suoi log: usa invece Copia"},
+  "dev.device.not_on_bridge": {"text": "questo dispositivo non è sul bridge"},
+  "dev.device.release_failed": {"text": "Impossibile raggiungere il bridge, quindi il nome è ancora registrato: rilascialo nella pagina dell’account."},
+  "dev.device.restart_needs_update": {"text": "questo dispositivo non può essere riavviato da qui finché non viene aggiornato"},
+  "dev.device.restart_request_failed": {"text": "impossibile richiedere il riavvio: {detail}"},
+  "dev.device.restart_too_soon": {"text": "il dispositivo si è appena avviato; riprova tra un minuto"},
+  "dev.device.social_limit_too_low": {"text": "il limite deve essere di almeno 0,1 GB"},
+  "dev.device.storage_too_many": {"text": "scegli al massimo 2 dispositivi di archiviazione, ne sono stati scelti {chosen}"},
+  "dev.device.unknown_log": {"text": "log sconosciuto “{source}”"},
+  "dev.device.wifi_no_ssid": {"text": "l’SSID non può essere vuoto"}
+}

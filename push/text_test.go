@@ -53,7 +53,7 @@ func newRelayPush(t *testing.T, lang string) (*Push, *relayed) {
 // language while English is the only one shipping (a language this build
 // has no text for renders English).
 func TestFriendPushesEnglishUnchanged(t *testing.T) {
-	for _, lang := range []string{"", "en", "es", "fr", "qq"} {
+	for _, lang := range []string{"", "en", "ja", "qq"} { // languages no build carries get the English
 		p, r := newRelayPush(t, lang)
 		check := func(what, wantBody string) {
 			t.Helper()

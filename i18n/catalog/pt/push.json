@@ -1,0 +1,17 @@
+{
+  "push.comment.liked": {"text": "gostou do teu comentário"},
+  "push.friend.accepted": {"text": "aceitou o teu pedido de amizade"},
+  "push.friend.request": {"text": "enviou-te um pedido de amizade"},
+  "push.offline.body": {"text": "O teu dispositivo parece ter ficado sem ligação"},
+  "push.post.commented": {"text": "comentou a tua publicação"},
+  "push.post.liked": {"text": "gostou da tua publicação"},
+  "push.post.new": {"text": "publicou algo novo"},
+  "push.raid.stopped_bottom": {"text": "O disco da porta USB azul de baixo avariou. Os teus ficheiros estão seguros no outro: substitui-o em breve."},
+  "push.raid.stopped_title": {"text": "Um disco de armazenamento deixou de funcionar"},
+  "push.raid.stopped_top": {"text": "O disco da porta USB azul de cima avariou. Os teus ficheiros estão seguros no outro: substitui-o em breve."},
+  "push.raid.stopped_unknown": {"text": "Um dos dois discos de armazenamento avariou. Os teus ficheiros estão seguros no outro: substitui-o em breve."},
+  "push.raid.working_body": {"text": "O espelho está completo: todos os ficheiros voltaram a estar nos dois discos."},
+  "push.raid.working_title": {"text": "Os discos de armazenamento voltaram a funcionar"},
+  "push.update.critical_body": {"text": "Instala-a em Definições."},
+  "push.update.critical_title": {"text": "Atualização crítica {version}: instala-a em breve"}
+}

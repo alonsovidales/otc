@@ -1,0 +1,12 @@
+{
+  "dev.auth.decrypt_failed": {"text": "kan het sleutelmateriaal niet ontsleutelen"},
+  "dev.auth.device_state_failed": {"text": "fout bij het controleren van de apparaatstatus"},
+  "dev.auth.invalid_session": {"text": "Ongeldige sessie"},
+  "dev.auth.keypair_failed": {"text": "fout bij het aanmaken van het sleutelpaar"},
+  "dev.auth.no_public_key": {"text": "er is geen openbare sleutel aangevraagd voor deze verbinding"},
+  "dev.auth.password_too_short": {"text": "het wachtwoord moet minstens 8 tekens lang zijn"},
+  "dev.auth.public_key_failed": {"text": "fout bij het coderen van de openbare sleutel"},
+  "dev.auth.session_expired": {"text": "Sessie verlopen of ongeldig. Log opnieuw in."},
+  "dev.auth.token_failed": {"text": "fout bij het aanmaken van het sessietoken"},
+  "dev.auth.too_many_attempts": {"text": "Te veel pogingen. Probeer het over {seconds} seconden opnieuw."}
+}

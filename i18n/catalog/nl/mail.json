@@ -1,0 +1,23 @@
+{
+  "mail.date.april": {"text": "april"},
+  "mail.date.august": {"text": "augustus"},
+  "mail.date.december": {"text": "december"},
+  "mail.date.february": {"text": "februari"},
+  "mail.date.january": {"text": "januari"},
+  "mail.date.july": {"text": "juli"},
+  "mail.date.june": {"text": "juni"},
+  "mail.date.long": {"text": "{day} {month} {year}"},
+  "mail.date.march": {"text": "maart"},
+  "mail.date.may": {"text": "mei"},
+  "mail.date.november": {"text": "november"},
+  "mail.date.october": {"text": "oktober"},
+  "mail.date.september": {"text": "september"},
+  "mail.greeting.named": {"text": "Hallo {name},"},
+  "mail.greeting.plain": {"text": "Hallo,"},
+  "mail.inactivity.body": {"text": "Je account voor de bridge van Off The Cloud ({email}) is al vijf maanden niet gebruikt: niemand heeft erop ingelogd, en geen enkele app of vriend heeft je apparaten via de bridge bereikt.\n\nVolgens onze voorwaarden wordt een account dat zes maanden niet is gebruikt verwijderd. Als er niets verandert, worden dit account en de bijbehorende apparaatnamen op {date} verwijderd. Je apparaten blijven thuis gewoon werken.\n\nWil je het account houden? Log dan vóór die datum in op {link}, of gebruik je apparaat via de bridge."},
+  "mail.inactivity.subject": {"text": "Je Off The Cloud-account wordt op {date} verwijderd"},
+  "mail.reset.body": {"text": "Iemand – hopelijk jij – heeft gevraagd om het wachtwoord van het Off The Cloud-account voor dit e-mailadres opnieuw in te stellen. Open deze link om een nieuw wachtwoord te kiezen:\n\n{link}\n\nDe link werkt één uur lang, en maar één keer. Als je een nieuw wachtwoord instelt, wordt je account overal elders uitgelogd.\n\nHeb je hier niet om gevraagd? Negeer deze e-mail dan: je wachtwoord blijft zoals het is."},
+  "mail.reset.subject": {"text": "Stel je Off The Cloud-wachtwoord opnieuw in"},
+  "mail.verify.body": {"text": "Bevestig dat dit jouw e-mailadres is door deze link te openen:\n\n{link}\n\nDe link werkt 48 uur. Zodra je e-mailadres is bevestigd, kun je je apparaten registreren op de bridge.\n\nHeb je geen Off The Cloud-account aangemaakt? Negeer deze e-mail dan: zonder de bevestiging wordt er niets geregistreerd voor dit adres."},
+  "mail.verify.subject": {"text": "Bevestig je e-mailadres voor Off The Cloud"}
+}

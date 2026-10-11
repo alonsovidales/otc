@@ -1,0 +1,10 @@
+{
+  "site.device.disabled.heading": {"text": "Esta conta foi desativada"},
+  "site.device.disabled.text": {"text": "O proprietário deste dispositivo desativou esta conta. Se achas que se trata de um erro, contacta-o."},
+  "site.device.disabled.title": {"text": "Conta desativada"},
+  "site.device.unavailable.countdown": {"text": "Nova verificação em {seconds} s"},
+  "site.device.unavailable.heading": {"text": "Este dispositivo não está disponível de momento"},
+  "site.device.unavailable.retry": {"text": "Tentar novamente"},
+  "site.device.unavailable.text": {"text": "Parece estar desligado, sem ligação ou ainda a arrancar. Nada se perdeu: tudo continua guardado no próprio dispositivo. Tenta novamente daqui a pouco."},
+  "site.device.unavailable.title": {"text": "Dispositivo indisponível"}
+}

@@ -1,0 +1,17 @@
+{
+  "push.comment.liked": {"text": "vindt je reactie leuk"},
+  "push.friend.accepted": {"text": "heeft je vriendschapsverzoek geaccepteerd"},
+  "push.friend.request": {"text": "heeft je een vriendschapsverzoek gestuurd"},
+  "push.offline.body": {"text": "Je apparaat lijkt offline te zijn gegaan"},
+  "push.post.commented": {"text": "heeft gereageerd op je bericht"},
+  "push.post.liked": {"text": "vindt je bericht leuk"},
+  "push.post.new": {"text": "heeft iets nieuws geplaatst"},
+  "push.raid.stopped_bottom": {"text": "De schijf in de onderste blauwe USB-poort is uitgevallen. Je bestanden staan veilig op de andere schijf: vervang de uitgevallen schijf binnenkort."},
+  "push.raid.stopped_title": {"text": "Opslagschijf werkt niet meer"},
+  "push.raid.stopped_top": {"text": "De schijf in de bovenste blauwe USB-poort is uitgevallen. Je bestanden staan veilig op de andere schijf: vervang de uitgevallen schijf binnenkort."},
+  "push.raid.stopped_unknown": {"text": "Een van de twee opslagschijven is uitgevallen. Je bestanden staan veilig op de andere schijf: vervang de uitgevallen schijf binnenkort."},
+  "push.raid.working_body": {"text": "De spiegel is compleet: elk bestand staat weer op beide schijven."},
+  "push.raid.working_title": {"text": "Opslagschijven werken weer"},
+  "push.update.critical_body": {"text": "Installeer de update via Instellingen."},
+  "push.update.critical_title": {"text": "Kritieke update {version}: installeer deze binnenkort"}
+}

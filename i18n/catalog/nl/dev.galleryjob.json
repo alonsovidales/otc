@@ -1,0 +1,5 @@
+{
+  "dev.galleryjob.copy_crashed": {"text": "het kopiëren is gestopt: een bestand liet de verwerking vastlopen"},
+  "dev.galleryjob.copy_failed": {"text": "kan het bestand {name} niet kopiëren: {detail}"},
+  "dev.galleryjob.no_small_copy": {"text": "kan geen kleine kopie maken van de foto {name}"}
+}

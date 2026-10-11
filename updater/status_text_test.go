@@ -29,7 +29,7 @@ func TestStatusFileWithCodes(t *testing.T) {
 		if st.State != "running" || st.Message != "Downloading release 118" || st.Version != "117" {
 			t.Errorf("%s read as %+v", f, st)
 		}
-		for _, lang := range []string{"", "en", "es"} {
+		for _, lang := range []string{"", "en", "ja"} { // "ja": a language no build carries
 			if got := st.Text(lang); got != "Downloading release 118" {
 				t.Errorf("%s in %q: %q", f, lang, got)
 			}

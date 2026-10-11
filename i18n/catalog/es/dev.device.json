@@ -1,0 +1,23 @@
+{
+  "dev.device.already_on_bridge": {"text": "este dispositivo ya está en el puente"},
+  "dev.device.bridge_dial_failed": {"text": "al conectar con el puente: {detail}"},
+  "dev.device.bridge_read_failed": {"text": "al leer del puente: {detail}"},
+  "dev.device.bridge_secret_managed": {"text": "el secreto del puente lo gestiona el dispositivo"},
+  "dev.device.bridge_write_failed": {"text": "al escribir en el puente: {detail}"},
+  "dev.device.identity_store_failed": {"text": "no se ha podido guardar la nueva identidad del dispositivo"},
+  "dev.device.local_addresses_failed": {"text": "no se han podido listar las direcciones de este dispositivo"},
+  "dev.device.local_no_address": {"text": "este dispositivo no tiene dirección en la red doméstica"},
+  "dev.device.local_no_listener": {"text": "este dispositivo no acepta conexiones directas en la red doméstica"},
+  "dev.device.local_starting": {"text": "este dispositivo aún está preparando las conexiones directas en la red doméstica"},
+  "dev.device.logs_console_only": {"text": "este dispositivo solo escribe sus registros en la consola"},
+  "dev.device.logs_need_bridge": {"text": "este dispositivo no está en el puente, así que no puede enviar sus registros: usa Copiar en su lugar"},
+  "dev.device.not_on_bridge": {"text": "este dispositivo no está en el puente"},
+  "dev.device.release_failed": {"text": "No se ha podido contactar con el puente, así que el nombre sigue registrado: libéralo en la página de la cuenta."},
+  "dev.device.restart_needs_update": {"text": "este dispositivo no se puede reiniciar desde aquí hasta que se actualice"},
+  "dev.device.restart_request_failed": {"text": "no se ha podido solicitar el reinicio: {detail}"},
+  "dev.device.restart_too_soon": {"text": "el dispositivo se acaba de iniciar; vuelve a intentarlo dentro de un minuto"},
+  "dev.device.social_limit_too_low": {"text": "el límite debe ser de al menos 0,1 GB"},
+  "dev.device.storage_too_many": {"text": "elige 2 discos como máximo; se han elegido {chosen}"},
+  "dev.device.unknown_log": {"text": "registro desconocido “{source}”"},
+  "dev.device.wifi_no_ssid": {"text": "el ssid no puede estar vacío"}
+}

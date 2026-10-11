@@ -4,7 +4,43 @@
     "CFBundleName" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OffTheCloud"
+          }
+        },
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OffTheCloud"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OffTheCloud"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OffTheCloud"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OffTheCloud"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OffTheCloud"
+          }
+        },
+        "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "OffTheCloud"
@@ -15,10 +51,46 @@
     "NSBluetoothAlwaysUsageDescription" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird verwendet, um ein neues Gerät von Off The Cloud in deiner Nähe einzurichten, bevor es mit deinem WLAN verbunden ist."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Used to set up a new Off The Cloud device next to you, before it has joined your WiFi."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se usa para configurar un dispositivo Off The Cloud nuevo que está a tu lado, antes de que se haya conectado a tu red Wi-Fi."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permet de configurer un nouvel appareil Off The Cloud près de vous, avant qu’il ne rejoigne votre Wi-Fi."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serve per configurare un nuovo dispositivo Off The Cloud vicino a te, prima che si sia collegato al tuo Wi-Fi."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wordt gebruikt om een nieuw Off The Cloud-apparaat bij je in de buurt in te stellen, voordat het verbinding heeft gemaakt met je wifi."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serve para configurar um novo dispositivo Off The Cloud perto de ti, antes de ele se ligar ao teu Wi-Fi."
           }
         }
       }
@@ -26,10 +98,46 @@
     "NSCameraUsageDescription" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird verwendet, um ein Foto oder Video für deinen Feed aufzunehmen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Used to take a photo or video to post to your feed"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se usa para hacer una foto o grabar un vídeo y publicarlo en tu feed"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permet de prendre une photo ou une vidéo à publier dans votre fil"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serve per scattare una foto o registrare un video da pubblicare nel tuo feed"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wordt gebruikt om een foto of video te maken voor je feed"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serve para tirares uma foto ou gravares um vídeo para publicar no teu feed"
           }
         }
       }
@@ -37,10 +145,46 @@
     "NSLocalNetworkUsageDescription" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud verbindet sich in deinem Heimnetz mit deinem eigenen Gerät, um Fotos und Dateien zu synchronisieren."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Off The Cloud connects to your own device on your home network to sync photos and files."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud se conecta a tu propio dispositivo en tu red doméstica para sincronizar fotos y archivos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud se connecte à votre propre appareil sur votre réseau domestique pour synchroniser les photos et les fichiers."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud si connette al tuo dispositivo sulla tua rete domestica per sincronizzare foto e file."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud maakt verbinding met je eigen apparaat op je thuisnetwerk om foto’s en bestanden te synchroniseren."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Off The Cloud liga-se ao teu próprio dispositivo na tua rede doméstica para sincronizar fotos e ficheiros."
           }
         }
       }
@@ -48,10 +192,46 @@
     "NSMicrophoneUsageDescription" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird verwendet, um Ton für Videos aufzunehmen, die du in deinem Feed postest"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Used to record sound with videos you post to your feed"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se usa para grabar el sonido de los vídeos que publicas en tu feed"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permet d’enregistrer le son des vidéos que vous publiez dans votre fil"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serve per registrare l’audio dei video che pubblichi nel tuo feed"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wordt gebruikt om geluid op te nemen bij video’s die je in je feed plaatst"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serve para gravar som nos vídeos que publicas no teu feed"
           }
         }
       }
@@ -59,10 +239,46 @@
     "NSPhotoLibraryAddUsageDescription" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird verwendet, um Fotos aus der Galerieansicht sowie Fotos und Videos, die du zum Posten aufnimmst, in deiner Fotomediathek zu speichern"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Used to save photos from the gallery viewer, and photos and videos you take to post, to your Photos library"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se usa para guardar en tu fototeca las fotos del visor de la galería y las fotos y vídeos que haces para publicar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permet d’enregistrer dans votre photothèque les photos ouvertes dans la visionneuse, ainsi que les photos et vidéos que vous prenez pour les publier"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serve per salvare nella tua libreria di Foto le foto del visualizzatore della galleria e le foto e i video che scatti per pubblicarli"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wordt gebruikt om foto’s uit de galerijweergave, en foto’s en video’s die je maakt om te plaatsen, op te slaan in je fotobibliotheek"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serve para guardar na tua biblioteca de Fotografias as fotos do visualizador da galeria e as fotos e vídeos que tiras para publicar"
           }
         }
       }
@@ -70,10 +286,46 @@
     "NSPhotoLibraryUsageDescription" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese App braucht Zugriff auf deine Fotos, um sie zu sichern"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "This app needs access to your Photos to back them up"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta app necesita acceder a tu fototeca para hacer una copia de seguridad de las fotos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette app a besoin d’accéder à vos photos pour les sauvegarder"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questa app ha bisogno di accedere alle tue foto per farne il backup"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze app heeft toegang tot je foto’s nodig om er een reservekopie van te maken"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta app precisa de acesso às tuas Fotografias para fazer uma cópia de segurança delas"
           }
         }
       }

@@ -1,0 +1,23 @@
+{
+  "mail.date.april": {"text": "abril"},
+  "mail.date.august": {"text": "agosto"},
+  "mail.date.december": {"text": "dezembro"},
+  "mail.date.february": {"text": "fevereiro"},
+  "mail.date.january": {"text": "janeiro"},
+  "mail.date.july": {"text": "julho"},
+  "mail.date.june": {"text": "junho"},
+  "mail.date.long": {"text": "{day} de {month} de {year}"},
+  "mail.date.march": {"text": "março"},
+  "mail.date.may": {"text": "maio"},
+  "mail.date.november": {"text": "novembro"},
+  "mail.date.october": {"text": "outubro"},
+  "mail.date.september": {"text": "setembro"},
+  "mail.greeting.named": {"text": "Olá, {name},"},
+  "mail.greeting.plain": {"text": "Olá,"},
+  "mail.inactivity.body": {"text": "A tua conta da ponte Off The Cloud ({email}) não é usada há cinco meses: ninguém iniciou sessão nela e nenhuma app ou amigo acedeu aos teus dispositivos através da ponte.\n\nComo dizem os nossos termos, uma conta sem utilização durante seis meses é removida. Se nada mudar, esta conta e os respetivos nomes de dispositivo serão removidos a {date}. Os teus dispositivos continuam a funcionar em casa.\n\nPara a manteres, inicia sessão em {link} ou usa o teu dispositivo através da ponte antes dessa data."},
+  "mail.inactivity.subject": {"text": "A tua conta Off The Cloud será removida a {date}"},
+  "mail.reset.body": {"text": "Alguém (esperamos que tu) pediu para repor a palavra-passe da conta Off The Cloud associada a este email. Para escolheres uma nova, abre esta ligação:\n\n{link}\n\nA ligação funciona durante uma hora e só uma vez. Definir uma nova palavra-passe termina a sessão da tua conta em todos os outros locais.\n\nSe não pediste isto, ignora este email: a tua palavra-passe mantém-se igual."},
+  "mail.reset.subject": {"text": "Repõe a tua palavra-passe do Off The Cloud"},
+  "mail.verify.body": {"text": "Para confirmares que este é o teu endereço de email, abre esta ligação:\n\n{link}\n\nA ligação funciona durante 48 horas. Depois de confirmares o teu email, podes registar os teus dispositivos na ponte.\n\nSe não criaste uma conta Off The Cloud, ignora este email: nada é registado para este endereço sem a confirmação."},
+  "mail.verify.subject": {"text": "Confirma o teu email para o Off The Cloud"}
+}

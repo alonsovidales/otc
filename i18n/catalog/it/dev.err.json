@@ -1,0 +1,8 @@
+{
+  "dev.err.action_failed": {"text": "Il dispositivo non è riuscito a eseguire l’operazione: {detail}"},
+  "dev.err.error_detail": {"text": "Errore: {detail}"},
+  "dev.err.internal": {"text": "errore interno"},
+  "dev.err.not_authenticated": {"text": "non autenticato"},
+  "dev.err.not_on_this_instance": {"text": "non disponibile su questa istanza"},
+  "dev.err.unknown_request": {"text": "Questo dispositivo non capisce questa richiesta: il suo software è più vecchio dell’app. Controlla gli aggiornamenti in Impostazioni."}
+}

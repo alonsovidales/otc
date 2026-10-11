@@ -1,0 +1,17 @@
+{
+  "push.comment.liked": {"text": "a aimé votre commentaire"},
+  "push.friend.accepted": {"text": "a accepté votre demande d’ami"},
+  "push.friend.request": {"text": "vous a envoyé une demande d’ami"},
+  "push.offline.body": {"text": "Votre appareil semble être hors ligne"},
+  "push.post.commented": {"text": "a commenté votre publication"},
+  "push.post.liked": {"text": "a aimé votre publication"},
+  "push.post.new": {"text": "a publié quelque chose de nouveau"},
+  "push.raid.stopped_bottom": {"text": "Le disque du port USB bleu du bas est tombé en panne. Remplacez-le bientôt : vos fichiers sont en sécurité sur l’autre."},
+  "push.raid.stopped_title": {"text": "Un disque de stockage ne fonctionne plus"},
+  "push.raid.stopped_top": {"text": "Le disque du port USB bleu du haut est tombé en panne. Remplacez-le bientôt : vos fichiers sont en sécurité sur l’autre."},
+  "push.raid.stopped_unknown": {"text": "L’un des deux disques de stockage est tombé en panne. Remplacez-le bientôt : vos fichiers sont en sécurité sur l’autre."},
+  "push.raid.working_body": {"text": "Le miroir est complet : chaque fichier est de nouveau sur les deux disques."},
+  "push.raid.working_title": {"text": "Les disques de stockage fonctionnent de nouveau"},
+  "push.update.critical_body": {"text": "Installez-la depuis les Paramètres."},
+  "push.update.critical_title": {"text": "Mise à jour critique {version} : veuillez l’installer rapidement"}
+}

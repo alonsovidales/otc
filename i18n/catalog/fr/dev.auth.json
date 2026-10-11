@@ -1,0 +1,12 @@
+{
+  "dev.auth.decrypt_failed": {"text": "impossible de déchiffrer les éléments de clé"},
+  "dev.auth.device_state_failed": {"text": "erreur lors de la vérification de l’état de l’appareil"},
+  "dev.auth.invalid_session": {"text": "Session non valide"},
+  "dev.auth.keypair_failed": {"text": "erreur lors de la génération de la paire de clés"},
+  "dev.auth.no_public_key": {"text": "aucune clé publique n’a été demandée pour cette connexion"},
+  "dev.auth.password_too_short": {"text": "le mot de passe doit comporter au moins 8 caractères"},
+  "dev.auth.public_key_failed": {"text": "erreur lors de l’encodage de la clé publique"},
+  "dev.auth.session_expired": {"text": "Session expirée ou non valide, veuillez vous reconnecter."},
+  "dev.auth.token_failed": {"text": "erreur lors de l’émission du jeton de session"},
+  "dev.auth.too_many_attempts": {"text": "Trop de tentatives. Réessayez dans {seconds} secondes."}
+}

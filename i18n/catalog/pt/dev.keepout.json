@@ -1,0 +1,8 @@
+{
+  "dev.keepout.inside_kept_out": {"text": "A pasta {name} está dentro de {parent}, que está fora de Imagens: mostra {parent} em Imagens para mostrar {name}"},
+  "dev.keepout.inside_kept_out_own": {"text": "A pasta {name} está dentro de {parent}, que está fora de Imagens: mostra primeiro {parent} em Imagens e depois {name}"},
+  "dev.keepout.not_full_path": {"text": "a pasta tem de ser um caminho completo"},
+  "dev.keepout.path_invalid": {"text": "o caminho da pasta não é válido"},
+  "dev.keepout.path_too_long": {"text": "o caminho da pasta é demasiado longo"},
+  "dev.keepout.whole_library": {"text": "não é possível manter toda a biblioteca fora de Imagens"}
+}

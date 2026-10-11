@@ -1,0 +1,23 @@
+{
+  "mail.date.april": {"text": "aprile"},
+  "mail.date.august": {"text": "agosto"},
+  "mail.date.december": {"text": "dicembre"},
+  "mail.date.february": {"text": "febbraio"},
+  "mail.date.january": {"text": "gennaio"},
+  "mail.date.july": {"text": "luglio"},
+  "mail.date.june": {"text": "giugno"},
+  "mail.date.long": {"text": "{day} {month} {year}"},
+  "mail.date.march": {"text": "marzo"},
+  "mail.date.may": {"text": "maggio"},
+  "mail.date.november": {"text": "novembre"},
+  "mail.date.october": {"text": "ottobre"},
+  "mail.date.september": {"text": "settembre"},
+  "mail.greeting.named": {"text": "Ciao {name},"},
+  "mail.greeting.plain": {"text": "Ciao,"},
+  "mail.inactivity.body": {"text": "Il tuo account del bridge di Off The Cloud ({email}) non viene usato da cinque mesi: nessuno vi ha effettuato l’accesso e nessuna app o amico ha raggiunto i tuoi dispositivi tramite il bridge.\n\nCome indicano le nostre condizioni, un account inutilizzato per sei mesi viene rimosso. Se nulla cambia, questo account e i nomi dei suoi dispositivi verranno rimossi in data {date}. I tuoi dispositivi continuano a funzionare a casa.\n\nPer conservarlo, accedi su {link} oppure usa il tuo dispositivo tramite il bridge prima di quella data."},
+  "mail.inactivity.subject": {"text": "Il tuo account Off The Cloud verrà rimosso in data {date}"},
+  "mail.reset.body": {"text": "Qualcuno, speriamo tu, ha chiesto di reimpostare la password dell’account Off The Cloud associato a questa email. Per sceglierne una nuova, apri questo link:\n\n{link}\n\nIl link funziona per un’ora, una sola volta. Impostare una nuova password chiude tutte le altre sessioni del tuo account.\n\nSe non l’hai chiesto tu, ignora questa email: la tua password resta invariata."},
+  "mail.reset.subject": {"text": "Reimposta la password di Off The Cloud"},
+  "mail.verify.body": {"text": "Conferma che questo è il tuo indirizzo email aprendo questo link:\n\n{link}\n\nIl link funziona per 48 ore. Dopo aver confermato l’email potrai registrare i tuoi dispositivi sul bridge.\n\nSe non hai creato un account Off The Cloud, ignora questa email: senza la conferma non viene registrato nulla per questo indirizzo."},
+  "mail.verify.subject": {"text": "Conferma la tua email per Off The Cloud"}
+}

@@ -1,0 +1,10 @@
+{
+  "site.device.disabled.heading": {"text": "Ce compte a été désactivé"},
+  "site.device.disabled.text": {"text": "Le propriétaire de cet appareil a désactivé ce compte. Contactez-le si vous pensez qu’il s’agit d’une erreur."},
+  "site.device.disabled.title": {"text": "Compte désactivé"},
+  "site.device.unavailable.countdown": {"text": "Nouvelle vérification dans {seconds} s"},
+  "site.device.unavailable.heading": {"text": "Cet appareil n’est pas disponible pour le moment"},
+  "site.device.unavailable.retry": {"text": "Réessayer"},
+  "site.device.unavailable.text": {"text": "Il semble éteint, hors ligne ou encore en cours de démarrage. Rien n’a été perdu : tout reste sur l’appareil lui-même. Réessayez dans un instant."},
+  "site.device.unavailable.title": {"text": "Appareil indisponible"}
+}

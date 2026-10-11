@@ -1,0 +1,12 @@
+{
+  "dev.auth.decrypt_failed": {"text": "no se ha podido descifrar el material de la clave"},
+  "dev.auth.device_state_failed": {"text": "error al comprobar el estado del dispositivo"},
+  "dev.auth.invalid_session": {"text": "Sesión no válida"},
+  "dev.auth.keypair_failed": {"text": "error al generar el par de claves"},
+  "dev.auth.no_public_key": {"text": "no se ha solicitado ninguna clave pública para esta conexión"},
+  "dev.auth.password_too_short": {"text": "la contraseña debe tener 8 caracteres o más"},
+  "dev.auth.public_key_failed": {"text": "error al codificar la clave pública"},
+  "dev.auth.session_expired": {"text": "La sesión ha caducado o no es válida; vuelve a iniciar sesión."},
+  "dev.auth.token_failed": {"text": "error al emitir el token de sesión"},
+  "dev.auth.too_many_attempts": {"text": "Demasiados intentos. Vuelve a intentarlo dentro de {seconds} segundos."}
+}

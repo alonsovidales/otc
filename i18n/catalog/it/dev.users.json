@@ -1,0 +1,10 @@
+{
+  "dev.users.bad_username": {"text": "il nome utente deve contenere solo lettere minuscole, cifre o trattini"},
+  "dev.users.bridge_check_failed": {"text": "impossibile raggiungere il bridge per verificare {domain}, quindi questo utente non è stato creato: riprova tra poco, oppure deseleziona “Richiedi l’accesso al bridge” per creare un account solo locale: {detail}"},
+  "dev.users.confirm_mismatch": {"text": "il nome utente di conferma non corrisponde"},
+  "dev.users.name_taken_on_bridge": {"text": "{domain} è già in uso sul bridge: scegli un altro nome utente, oppure deseleziona “Richiedi l’accesso al bridge” per creare questo utente solo per la tua rete"},
+  "dev.users.port_in_use": {"text": "la porta {port} è già usata da un altro utente"},
+  "dev.users.stop_failed": {"text": "impossibile arrestare il processo di {username}: {detail}"},
+  "dev.users.storage_dir_failed": {"text": "creazione della cartella di archiviazione: {detail}"},
+  "dev.users.username_taken": {"text": "nome utente già in uso"}
+}

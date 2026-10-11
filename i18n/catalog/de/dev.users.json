@@ -1,0 +1,10 @@
+{
+  "dev.users.bad_username": {"text": "der Benutzername darf nur Kleinbuchstaben, Ziffern oder Bindestriche enthalten"},
+  "dev.users.bridge_check_failed": {"text": "die Bridge war nicht erreichbar, um {domain} zu prüfen, daher wurde dieser Benutzer nicht erstellt – versuche es gleich noch einmal oder entferne das Häkchen bei „Bridge-Zugang anfordern“, um ein rein lokales Konto zu erstellen: {detail}"},
+  "dev.users.confirm_mismatch": {"text": "der zur Bestätigung eingegebene Benutzername stimmt nicht überein"},
+  "dev.users.name_taken_on_bridge": {"text": "{domain} ist auf der Bridge bereits vergeben – wähle einen anderen Benutzernamen oder entferne das Häkchen bei „Bridge-Zugang anfordern“, um diesen Benutzer nur für dein eigenes Netzwerk zu erstellen"},
+  "dev.users.port_in_use": {"text": "Port {port} wird bereits von einem anderen Benutzer verwendet"},
+  "dev.users.stop_failed": {"text": "der Prozess von {username} konnte nicht beendet werden: {detail}"},
+  "dev.users.storage_dir_failed": {"text": "beim Anlegen des Speicherordners: {detail}"},
+  "dev.users.username_taken": {"text": "Benutzername bereits vergeben"}
+}

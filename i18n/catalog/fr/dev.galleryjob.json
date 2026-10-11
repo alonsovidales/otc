@@ -1,0 +1,5 @@
+{
+  "dev.galleryjob.copy_crashed": {"text": "la copie s’est arrêtée : un fichier a fait planter le traitement"},
+  "dev.galleryjob.copy_failed": {"text": "impossible de copier {name} : {detail}"},
+  "dev.galleryjob.no_small_copy": {"text": "impossible de créer une copie réduite de {name}"}
+}

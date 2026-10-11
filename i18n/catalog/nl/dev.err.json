@@ -1,0 +1,8 @@
+{
+  "dev.err.action_failed": {"text": "Het apparaat kon dat niet doen: {detail}"},
+  "dev.err.error_detail": {"text": "Fout: {detail}"},
+  "dev.err.internal": {"text": "interne fout"},
+  "dev.err.not_authenticated": {"text": "niet geverifieerd"},
+  "dev.err.not_on_this_instance": {"text": "niet beschikbaar op deze instantie"},
+  "dev.err.unknown_request": {"text": "Dit apparaat begrijpt dat verzoek niet: de software is ouder dan de app. Zoek naar updates in Instellingen."}
+}

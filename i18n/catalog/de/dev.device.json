@@ -1,0 +1,23 @@
+{
+  "dev.device.already_on_bridge": {"text": "dieses Gerät nutzt die Bridge bereits"},
+  "dev.device.bridge_dial_failed": {"text": "beim Verbinden mit der Bridge: {detail}"},
+  "dev.device.bridge_read_failed": {"text": "beim Lesen von der Bridge: {detail}"},
+  "dev.device.bridge_secret_managed": {"text": "das Bridge-Geheimnis wird vom Gerät verwaltet"},
+  "dev.device.bridge_write_failed": {"text": "beim Schreiben an die Bridge: {detail}"},
+  "dev.device.identity_store_failed": {"text": "die neue Identität des Geräts konnte nicht gespeichert werden"},
+  "dev.device.local_addresses_failed": {"text": "die Adressen dieses Geräts konnten nicht ermittelt werden"},
+  "dev.device.local_no_address": {"text": "dieses Gerät hat keine Adresse im Heimnetz"},
+  "dev.device.local_no_listener": {"text": "dieses Gerät nimmt im Heimnetz keine direkten Verbindungen an"},
+  "dev.device.local_starting": {"text": "dieses Gerät richtet die direkten Verbindungen im Heimnetz noch ein"},
+  "dev.device.logs_console_only": {"text": "dieses Gerät schreibt seine Protokolle nur auf seine Konsole"},
+  "dev.device.logs_need_bridge": {"text": "dieses Gerät nutzt die Bridge nicht und kann seine Protokolle daher nicht senden – verwende stattdessen „Kopieren“"},
+  "dev.device.not_on_bridge": {"text": "dieses Gerät nutzt die Bridge nicht"},
+  "dev.device.release_failed": {"text": "Die Bridge war nicht erreichbar, daher ist der Name weiterhin registriert: Gib ihn auf der Kontoseite frei."},
+  "dev.device.restart_needs_update": {"text": "dieses Gerät kann erst nach einem Update von hier aus neu gestartet werden"},
+  "dev.device.restart_request_failed": {"text": "der Neustart konnte nicht angefordert werden: {detail}"},
+  "dev.device.restart_too_soon": {"text": "das Gerät wurde gerade erst gestartet; versuche es in einer Minute erneut"},
+  "dev.device.social_limit_too_low": {"text": "das Limit muss mindestens 0,1 GB betragen"},
+  "dev.device.storage_too_many": {"text": "wähle höchstens 2 Laufwerke, gewählt: {chosen}"},
+  "dev.device.unknown_log": {"text": "unbekanntes Protokoll „{source}“"},
+  "dev.device.wifi_no_ssid": {"text": "die SSID darf nicht leer sein"}
+}

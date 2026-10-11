@@ -1,0 +1,5 @@
+{
+  "dev.galleryjob.copy_crashed": {"text": "a cópia parou: um ficheiro fez falhar o processamento"},
+  "dev.galleryjob.copy_failed": {"text": "não foi possível copiar o ficheiro {name}: {detail}"},
+  "dev.galleryjob.no_small_copy": {"text": "não foi possível criar uma cópia pequena da foto {name}"}
+}

@@ -1,0 +1,5 @@
+{
+  "dev.galleryjob.copy_crashed": {"text": "la copia se ha detenido: un archivo ha bloqueado el procesamiento"},
+  "dev.galleryjob.copy_failed": {"text": "no se ha podido copiar el archivo {name}: {detail}"},
+  "dev.galleryjob.no_small_copy": {"text": "no se ha podido hacer una copia pequeña de la foto {name}"}
+}

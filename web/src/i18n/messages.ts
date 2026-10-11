@@ -25,7 +25,13 @@ export interface Language {
 }
 
 export type LanguageCode =
-  | "en";
+  | "en"
+  | "es"
+  | "fr"
+  | "de"
+  | "it"
+  | "pt"
+  | "nl";
 
 /** English: the source, and the text of anything not translated. */
 export const sourceLanguage: LanguageCode = "en";
@@ -33,6 +39,12 @@ export const sourceLanguage: LanguageCode = "en";
 /** The languages, English first. */
 export const languages: readonly Language[] = [
   { code: "en", tag: "en", name: "English", status: "shipping" },
+  { code: "es", tag: "es", name: "Español", status: "shipping" },
+  { code: "fr", tag: "fr", name: "Français", status: "shipping" },
+  { code: "de", tag: "de", name: "Deutsch", status: "shipping" },
+  { code: "it", tag: "it", name: "Italiano", status: "shipping" },
+  { code: "pt", tag: "pt-PT", name: "Português", status: "shipping" },
+  { code: "nl", tag: "nl", name: "Nederlands", status: "shipping" },
 ];
 
 /** A text with a count: one form per plural category, other as the fallback. */

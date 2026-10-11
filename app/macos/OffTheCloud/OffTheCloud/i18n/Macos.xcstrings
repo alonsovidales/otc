@@ -4,10 +4,46 @@
     "macos.add.backup_info" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neue und geänderte Dateien werden auf das Gerät kopiert. Dort wird nie etwas gelöscht: Dateien, die du auf diesem Mac löschst, bleiben auf dem Gerät, und wenn sich eine Datei ändert, behält das Gerät auch ihre ältere Version. Nichts, was auf dem Gerät geschieht – von einem Handy, einem anderen Computer oder im Web aus –, ändert oder löscht jemals etwas in diesem Ordner auf dem Mac. Gut für Fotoarchive und Backups."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "New and changed files are copied to the device. Nothing is ever deleted there: files you delete on this Mac stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder on the Mac. Good for photo archives and backups."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los archivos nuevos y modificados se copian en el dispositivo. Allí nunca se elimina nada: los archivos que eliminas en este Mac siguen en el dispositivo y, cuando un archivo cambia, el dispositivo también conserva su versión anterior. Nada de lo que se haga en el dispositivo (desde un teléfono, otro ordenador o la web) cambia ni elimina nunca nada de esta carpeta en el Mac. Ideal para archivar fotos y para copias de seguridad."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les fichiers nouveaux et modifiés sont copiés sur l’appareil. Rien n’y est jamais supprimé : les fichiers que vous supprimez sur ce Mac restent sur l’appareil, et quand un fichier change, l’appareil conserve aussi son ancienne version. Rien de ce qui est fait sur l’appareil – depuis un téléphone, un autre ordinateur ou le Web – ne modifie ni ne supprime quoi que ce soit dans ce dossier sur le Mac. Idéal pour les archives de photos et les sauvegardes."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I file nuovi e modificati vengono copiati sul dispositivo. Lì non viene mai eliminato nulla: i file che elimini su questo Mac restano sul dispositivo, e quando un file cambia il dispositivo ne conserva anche la versione precedente. Niente di ciò che fai sul dispositivo – da un telefono, da un altro computer o dal web – modifica o elimina mai qualcosa in questa cartella sul Mac. Ideale per archivi di foto e backup."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nieuwe en gewijzigde bestanden worden naar het apparaat gekopieerd. Daar wordt nooit iets verwijderd: bestanden die je op deze Mac verwijdert, blijven op het apparaat staan, en als een bestand verandert, bewaart het apparaat ook de oudere versie. Niets wat op het apparaat gebeurt – vanaf een telefoon, een andere computer of het web – wijzigt of verwijdert ooit iets in deze map op de Mac. Handig voor fotoarchieven en reservekopieën."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os ficheiros novos e alterados são copiados para o dispositivo. Lá, nada é eliminado: os ficheiros que eliminares neste Mac ficam no dispositivo e, quando um ficheiro muda, o dispositivo guarda também a versão anterior. Nada do que for feito no dispositivo (a partir de um telemóvel, de outro computador ou da web) altera ou elimina alguma coisa nesta pasta do Mac. Ideal para acervos de fotos e cópias de segurança."
           }
         }
       }
@@ -15,10 +51,46 @@
     "macos.add.backup_subtitle" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Richtung: Mac → Gerät (nur hochladen, löscht nie)"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "One way: this Mac → device (upload only, no deletes)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este Mac → dispositivo (solo subida, sin eliminar)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac → appareil (envoi uniquement, sans suppression)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac → dispositivo: solo caricamento, mai eliminazioni"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze Mac → apparaat (alleen uploaden, wist niets)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este Mac → dispositivo (apenas carregamento)"
           }
         }
       }
@@ -26,10 +98,46 @@
     "macos.add.backup_title" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordner von diesem Mac sichern"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Back up a folder from this Mac"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copia de seguridad de carpeta del Mac"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sauvegarder un dossier de ce Mac"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backup di una cartella da questo Mac"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reservekopie van een map op deze Mac"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fazer cópia de segurança de uma pasta do Mac"
           }
         }
       }
@@ -37,10 +145,46 @@
     "macos.add.device_info" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle einen Ordner, der schon auf dem Gerät ist, und einen Ort auf diesem Mac: Er wird dorthin heruntergeladen und ab dann an beiden Orten gleich gehalten, Änderungen und Löschungen eingeschlossen, wie bei der Option oben. Praktisch, um einen Ordner auf einen zweiten Computer zu bringen. Was auf dem Gerät für ihn eingestellt ist (nur hochladen, in „Bilder“ ausgeblendet), bleibt unverändert."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pick a folder that is already on the device and a place on this Mac: it is downloaded there and kept the same in both places from then on, changes and deletions included, like the option above. Handy for getting a folder onto a second computer. What is set for it on the device (upload only, kept out of Images) stays as it is."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige una carpeta que ya esté en el dispositivo y un lugar de este Mac: se descarga allí y, a partir de entonces, se mantiene igual en los dos sitios, cambios y eliminaciones incluidos, como en la opción anterior. Útil para tener una carpeta en un segundo ordenador. Lo que tenga configurado en el dispositivo (solo subida, fuera de Imágenes) se queda como está."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez un dossier déjà présent sur l’appareil et un emplacement sur ce Mac : il y est téléchargé, puis maintenu identique aux deux endroits, modifications et suppressions comprises, comme avec l’option ci-dessus. Pratique pour copier un dossier sur un deuxième ordinateur. Ce qui est défini pour lui sur l’appareil (envoi uniquement, hors d’Images) reste tel quel."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scegli una cartella già presente sul dispositivo e una posizione su questo Mac: viene scaricata lì e da quel momento resta uguale nei due posti, modifiche ed eliminazioni comprese, come con l’opzione qui sopra. Utile per avere una cartella su un secondo computer. Le impostazioni che ha sul dispositivo (solo caricamento, fuori da Immagini) restano come sono."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kies een map die al op het apparaat staat en een plek op deze Mac: de map wordt daar gedownload en blijft vanaf dan op beide plekken hetzelfde, inclusief wijzigingen en verwijderingen, net als bij de optie hierboven. Handig om een map op een tweede computer te krijgen. Wat er op het apparaat voor is ingesteld (“Alleen uploaden”, “Buiten Afbeeldingen”) blijft zoals het is."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolhe uma pasta que já esteja no dispositivo e um local neste Mac: a pasta é transferida para lá e, a partir daí, mantida igual nos dois locais, incluindo alterações e eliminações, como na opção acima. Prático para pôr uma pasta num segundo computador. O que estiver definido para ela no dispositivo (apenas carregamento, fora de Imagens) mantém-se."
           }
         }
       }
@@ -48,10 +192,46 @@
     "macos.add.local_info" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Ordner wird auf das Gerät kopiert und ab dann an beiden Orten gleich gehalten: Dateien, die auf dem Gerät hinzugefügt, geändert oder gelöscht werden (von einem Handy, einem anderen Computer oder im Web aus), ändern auch diesen Ordner, und umgekehrt. Gelöschte Dateien landen auf dem Mac im Papierkorb. Die erste Synchronisierung fügt nur hinzu – sie löscht nie."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device (from a phone, another computer or the web) change this folder too, and the other way round. Deleted files go to the Trash on the Mac. The first sync only adds - it never deletes."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La carpeta se copia en el dispositivo y, a partir de entonces, se mantiene igual en los dos sitios: los archivos que se añaden, cambian o eliminan en el dispositivo (desde un teléfono, otro ordenador o la web) también cambian esta carpeta, y al revés. Los archivos eliminados van a la Papelera del Mac. La primera sincronización solo añade, nunca elimina."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le dossier est copié sur l’appareil, puis maintenu identique aux deux endroits : les fichiers ajoutés, modifiés ou supprimés sur l’appareil (depuis un téléphone, un autre ordinateur ou le Web) modifient aussi ce dossier, et inversement. Sur le Mac, les fichiers supprimés vont dans la Corbeille. La première synchronisation ne fait qu’ajouter : elle ne supprime jamais rien."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La cartella viene copiata sul dispositivo e da quel momento resta uguale nei due posti: i file aggiunti, modificati o eliminati sul dispositivo (da un telefono, da un altro computer o dal web) cambiano anche questa cartella, e viceversa. Sul Mac i file eliminati finiscono nel Cestino. La prima sincronizzazione aggiunge soltanto: non elimina mai nulla."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De map wordt naar het apparaat gekopieerd en blijft vanaf dan op beide plekken hetzelfde: bestanden die op het apparaat worden toegevoegd, gewijzigd of verwijderd (vanaf een telefoon, een andere computer of het web), veranderen ook deze map, en omgekeerd. Verwijderde bestanden gaan op de Mac naar de Prullenmand. De eerste synchronisatie voegt alleen toe en verwijdert nooit iets."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A pasta é copiada para o dispositivo e, a partir daí, mantida igual nos dois locais: os ficheiros adicionados, alterados ou eliminados no dispositivo (a partir de um telemóvel, de outro computador ou da web) também mudam esta pasta, e vice-versa. Os ficheiros eliminados vão para o Lixo do Mac. A primeira sincronização só adiciona, nunca elimina."
           }
         }
       }
@@ -59,10 +239,46 @@
     "macos.add.local_subtitle" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beide Richtungen: beginnt mit diesem Mac"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Two ways: starts from this Mac"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En dos sentidos: empieza desde este Mac"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bidirectionnel, à partir de ce Mac"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bidirezionale: parte da questo Mac"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In twee richtingen: begint bij deze Mac"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nos dois sentidos: começa por este Mac"
           }
         }
       }
@@ -70,10 +286,46 @@
     "macos.add.local_title" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordner von diesem Mac synchronisieren"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sync a folder from this Mac"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizar una carpeta de este Mac"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchroniser un dossier de ce Mac"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizza una cartella da questo Mac"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een map op deze Mac synchroniseren"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizar uma pasta deste Mac"
           }
         }
       }
@@ -81,10 +333,46 @@
     "macos.add.title" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordner hinzufügen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Add a folder"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir una carpeta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter un dossier"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiungi una cartella"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een map toevoegen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adicionar uma pasta"
           }
         }
       }
@@ -92,10 +380,46 @@
     "macos.add.what_this_does" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was das bewirkt"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "What this does"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué hace esto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À quoi cela sert"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A cosa serve"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wat dit doet"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O que isto faz"
           }
         }
       }
@@ -103,10 +427,46 @@
     "macos.bluetooth.bad_answer" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gerät hat eine Antwort gesendet, die diese App nicht lesen konnte"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The device sent an answer this app could not read"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El dispositivo ha enviado una respuesta que esta app no puede leer"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’appareil a envoyé une réponse que cette app n’a pas pu lire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il dispositivo ha inviato una risposta che questa app non riesce a leggere"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het apparaat stuurde een antwoord dat deze app niet kon lezen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O dispositivo enviou uma resposta que esta app não conseguiu ler"
           }
         }
       }
@@ -114,10 +474,46 @@
     "macos.bluetooth.closed" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Einrichtung wurde geschlossen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Setup was closed"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se ha cerrado la configuración"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La configuration a été fermée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La configurazione è stata chiusa"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De configuratie is gesloten"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A configuração foi fechada"
           }
         }
       }
@@ -125,10 +521,46 @@
     "macos.bluetooth.device_id" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerät %1$@"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Device %1$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dispositivo %1$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appareil %1$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dispositivo %1$@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apparaat %1$@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dispositivo %1$@"
           }
         }
       }
@@ -136,10 +568,46 @@
     "macos.bluetooth.device_older" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerät (älteres Image)"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Device (older image)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dispositivo (imagen antigua)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appareil (image plus ancienne)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dispositivo (immagine meno recente)"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apparaat (oudere image)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dispositivo (imagem antiga)"
           }
         }
       }
@@ -147,10 +615,46 @@
     "macos.bluetooth.enter_password" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib das Passwort des Geräts ein"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter the device's password"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduce la contraseña del dispositivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisissez le mot de passe de l’appareil"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserisci la password del dispositivo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voer het wachtwoord van het apparaat in"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduz a palavra-passe do dispositivo"
           }
         }
       }
@@ -158,10 +662,46 @@
     "macos.bluetooth.looking" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suche nach einem Gerät zum Einrichten…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Looking for a device to set up…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscando un dispositivo para configurar…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recherche d’un appareil à configurer…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ricerca di un dispositivo da configurare…"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoeken naar een apparaat om in te stellen…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A procurar um dispositivo para configurar…"
           }
         }
       }
@@ -169,10 +709,46 @@
     "macos.bluetooth.looking_detail" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schalte das Gerät mit angeschlossenen Laufwerken ein. Bis es eingerichtet ist, ist es über Bluetooth sichtbar; halte diesen Mac in seiner Nähe."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep this Mac near it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enciende el dispositivo con sus discos conectados. Hasta que esté configurado, se anuncia por Bluetooth; mantén este Mac cerca."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allumez l’appareil avec ses disques branchés. Tant qu’il n’est pas configuré, il se signale par Bluetooth ; gardez ce Mac près de lui."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accendi il dispositivo con i dischi collegati. Finché non è configurato si annuncia tramite Bluetooth: tieni questo Mac vicino al dispositivo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zet het apparaat aan met de schijven aangesloten. Zolang het niet is ingesteld, maakt het zich via Bluetooth bekend; houd deze Mac er vlakbij."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liga o dispositivo com os discos instalados. Até estar configurado, anuncia-se por Bluetooth; mantém este Mac perto dele."
           }
         }
       }
@@ -180,10 +756,46 @@
     "macos.bluetooth.not_connected" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht mit dem Gerät verbunden"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not connected to the device"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay conexión con el dispositivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non connecté à l’appareil"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non connesso al dispositivo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niet verbonden met het apparaat"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem ligação ao dispositivo"
           }
         }
       }
@@ -191,10 +803,46 @@
     "macos.bluetooth.off" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bluetooth ist ausgeschaltet"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bluetooth is off"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El Bluetooth está desactivado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le Bluetooth est désactivé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il Bluetooth è disattivato"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bluetooth staat uit"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Bluetooth está desligado"
           }
         }
       }
@@ -202,10 +850,46 @@
     "macos.bluetooth.off_detail" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schalte Bluetooth im Kontrollzentrum ein, um das Gerät zu finden."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Turn Bluetooth on in Control Centre to find the device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activa el Bluetooth en el Centro de control para encontrar el dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activez le Bluetooth dans le Centre de contrôle pour trouver l’appareil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva il Bluetooth in Centro di Controllo per trovare il dispositivo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schakel Bluetooth in via het Bedieningspaneel om het apparaat te vinden."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ativa o Bluetooth na Central de controlo para encontrar o dispositivo."
           }
         }
       }
@@ -213,10 +897,46 @@
     "macos.bluetooth.password_known" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Mac meldet sich mit dem Passwort an, das du bei der Einrichtung gewählt hast."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "This Mac signs in with the password you chose in the setup."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este Mac inicia sesión con la contraseña que elegiste en la configuración."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce Mac se connecte avec le mot de passe choisi pendant la configuration."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo Mac accede con la password che hai scelto durante la configurazione."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze Mac logt in met het wachtwoord dat je bij de configuratie hebt gekozen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este Mac inicia sessão com a palavra-passe que escolheste na configuração."
           }
         }
       }
@@ -224,10 +944,46 @@
     "macos.bluetooth.ready_as" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gerät ist unter %1$@ bereit."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The device is ready as %1$@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El dispositivo está listo como %1$@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’appareil est prêt à l’adresse %1$@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il dispositivo è pronto all’indirizzo %1$@."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het apparaat is klaar als %1$@."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O dispositivo está pronto com o endereço %1$@."
           }
         }
       }
@@ -235,10 +991,46 @@
     "macos.bluetooth.ready_home" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gerät ist in deinem Heimnetz bereit."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The device is ready on your home network."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El dispositivo está listo en tu red doméstica."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’appareil est prêt sur votre réseau domestique."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il dispositivo è pronto sulla tua rete domestica."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het apparaat is klaar op je thuisnetwerk."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O dispositivo está pronto na tua rede doméstica."
           }
         }
       }
@@ -246,10 +1038,46 @@
     "macos.bluetooth.ready_maybe" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn die Installation des Geräts abgeschlossen ist, antwortet es nicht mehr über Bluetooth – du kannst es jetzt verwenden."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "If the device has finished installing it no longer answers over Bluetooth - you can use it now."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si el dispositivo ha terminado de instalarse, ya no responde por Bluetooth: puedes usarlo ya."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si l’appareil a fini de s’installer, il ne répond plus par Bluetooth : vous pouvez l’utiliser dès maintenant."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se il dispositivo ha finito l’installazione non risponde più tramite Bluetooth: puoi usarlo subito."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Als het apparaat klaar is met installeren, reageert het niet meer via Bluetooth: je kunt het nu gebruiken."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se o dispositivo já terminou a instalação, deixa de responder por Bluetooth: já o podes usar."
           }
         }
       }
@@ -257,10 +1085,46 @@
     "macos.bluetooth.reconnecting" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbindung zum Gerät unterbrochen – wird wiederhergestellt. Halte diesen Mac in seiner Nähe."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connection to the device lost - reconnecting. Keep this Mac near it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se ha perdido la conexión con el dispositivo: reconectando. Mantén este Mac cerca."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connexion à l’appareil perdue : reconnexion en cours. Gardez ce Mac près de lui."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connessione al dispositivo persa: riconnessione in corso. Tieni questo Mac vicino al dispositivo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinding met het apparaat verbroken. Er wordt opnieuw verbinding gemaakt. Houd deze Mac er vlakbij."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ligação ao dispositivo perdida: a restabelecer. Mantém este Mac perto dele."
           }
         }
       }
@@ -268,10 +1132,46 @@
     "macos.bluetooth.sign_in_cancelled" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anmeldung abgebrochen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign-in cancelled"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicio de sesión cancelado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connexion annulée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accesso annullato"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inloggen geannuleerd"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Início de sessão cancelado"
           }
         }
       }
@@ -279,10 +1179,46 @@
     "macos.bluetooth.sign_in_failed" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Anmeldung konnte nicht abgeschlossen werden"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could not finish the sign-in"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se ha podido completar el inicio de sesión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de terminer la connexion"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile completare l’accesso"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan het inloggen niet voltooien"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível concluir o início de sessão"
           }
         }
       }
@@ -290,10 +1226,46 @@
     "macos.bluetooth.sign_in_unfinished" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Anmeldung wurde nicht abgeschlossen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The sign-in did not finish"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El inicio de sesión no ha terminado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La connexion n’a pas abouti"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’accesso non è stato completato"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het inloggen is niet voltooid"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O início de sessão não foi concluído"
           }
         }
       }
@@ -301,10 +1273,46 @@
     "macos.bluetooth.timed_out" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gerät hat nicht rechtzeitig geantwortet"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The device did not answer in time"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El dispositivo no ha respondido a tiempo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’appareil n’a pas répondu à temps"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il dispositivo non ha risposto in tempo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het apparaat heeft niet op tijd geantwoord"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O dispositivo não respondeu a tempo"
           }
         }
       }
@@ -312,10 +1320,46 @@
     "macos.bluetooth.unauthorized" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bluetooth-Zugriff erforderlich"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bluetooth access is needed"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se necesita acceso a Bluetooth"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’accès au Bluetooth est nécessaire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serve l’accesso al Bluetooth"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toegang tot Bluetooth is nodig"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "É necessário acesso ao Bluetooth"
           }
         }
       }
@@ -323,10 +1367,46 @@
     "macos.bluetooth.unauthorized_detail" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erlaube Bluetooth für Off The Cloud unter Systemeinstellungen > Datenschutz & Sicherheit > Bluetooth, um ein Gerät auf diese Weise einzurichten."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Allow Bluetooth for Off The Cloud in System Settings > Privacy & Security > Bluetooth to set a device up this way."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permite el Bluetooth para Off The Cloud en Ajustes del Sistema > Privacidad y seguridad > Bluetooth para configurar un dispositivo de esta forma."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autorisez le Bluetooth pour Off The Cloud dans Réglages Système > Confidentialité et sécurité > Bluetooth pour configurer un appareil de cette façon."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consenti il Bluetooth per Off The Cloud in Impostazioni di Sistema > Privacy e sicurezza > Bluetooth per configurare un dispositivo in questo modo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sta Bluetooth toe voor Off The Cloud in Systeeminstellingen > Privacy en beveiliging > Bluetooth om een apparaat op deze manier in te stellen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permite o Bluetooth para o Off The Cloud em Definições do Sistema > Privacidade e segurança > Bluetooth para configurares um dispositivo desta forma."
           }
         }
       }
@@ -334,10 +1414,46 @@
     "macos.bluetooth.unknown_provider" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unbekannter Anmeldeanbieter"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Unknown sign-in provider"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proveedor de inicio de sesión desconocido"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fournisseur de connexion inconnu"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provider di accesso sconosciuto"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onbekende inlogprovider"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fornecedor de início de sessão desconhecido"
           }
         }
       }
@@ -345,10 +1461,46 @@
     "macos.bluetooth.use_device" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diesen Mac mit dem Gerät synchronisieren"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sync this Mac with my device"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizar este Mac con mi dispositivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchroniser ce Mac avec mon appareil"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizza il Mac col mio dispositivo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac synchroniseren met mijn apparaat"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizar este Mac com o dispositivo"
           }
         }
       }
@@ -356,10 +1508,46 @@
     "macos.bluetooth.which" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welches Gerät?"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Which device?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Qué dispositivo?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quel appareil ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quale dispositivo?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welk apparaat?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Que dispositivo?"
           }
         }
       }
@@ -367,10 +1555,46 @@
     "macos.bluetooth.which_detail" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mehrere Geräte warten auf die Einrichtung. Die ID jedes Geräts steht auf seiner Einrichtungsseite, wo „Licht blinken lassen“ zeigt, welches Gerät es ist. Das stärkste Signal ist meist das nächstgelegene."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Several devices are waiting to be set up. Each one's ID is on its setup page, where \"Blink its light\" shows which box it is. The strongest signal is usually the closest."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hay varios dispositivos esperando a que los configures. El ID de cada uno está en su página de configuración, donde “Hacer parpadear la luz” muestra cuál es. La señal más fuerte suele ser la del más cercano."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plusieurs appareils attendent d’être configurés. L’identifiant de chacun figure sur sa page de configuration, où « Faire clignoter le voyant » indique de quel appareil il s’agit. Le signal le plus fort est généralement celui du plus proche."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ci sono diversi dispositivi in attesa di configurazione. L’ID di ciascuno è sulla sua pagina di configurazione, dove “Fai lampeggiare la luce” mostra di quale dispositivo si tratta. Il segnale più forte di solito è quello del più vicino."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Er wachten meerdere apparaten om te worden ingesteld. De ID van elk apparaat staat op de configuratiepagina ervan, waar je met “Lampje laten knipperen” ziet welk apparaat het is. Het sterkste signaal is meestal het dichtstbijzijnde."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Há vários dispositivos à espera de configuração. O ID de cada um está na respetiva página de configuração, onde «Fazer piscar a luz» mostra qual é qual. O sinal mais forte costuma ser o mais próximo."
           }
         }
       }
@@ -378,10 +1602,46 @@
     "macos.connection.cancelled" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abgebrochen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cancelled"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annulé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annullato"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geannuleerd"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelado"
           }
         }
       }
@@ -389,10 +1649,46 @@
     "macos.connection.closed" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbindung geschlossen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Closed"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conexión cerrada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiuso"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gesloten"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ligação fechada"
           }
         }
       }
@@ -400,10 +1696,46 @@
     "macos.connection.no_public_key" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffentlicher Schlüssel der Verbindung nicht abrufbar"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Unable to fetch the connection's public key"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se ha podido obtener la clave pública de la conexión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d’obtenir la clé publique de la connexion"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile ottenere la chiave pubblica della connessione"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan de openbare sleutel van de verbinding niet ophalen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível obter a chave pública da ligação"
           }
         }
       }
@@ -411,10 +1743,46 @@
     "macos.connection.not_connected" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht verbunden"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not connected"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay conexión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non connecté"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non connesso"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niet verbonden"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem ligação"
           }
         }
       }
@@ -422,10 +1790,46 @@
     "macos.connection.password_rejected" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gerät hat das Passwort abgelehnt"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The device rejected the password"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El dispositivo ha rechazado la contraseña"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’appareil a refusé le mot de passe"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il dispositivo ha rifiutato la password"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het apparaat heeft het wachtwoord geweigerd"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O dispositivo recusou a palavra-passe"
           }
         }
       }
@@ -433,10 +1837,46 @@
     "macos.connection.timed_out" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gerät hat nicht rechtzeitig geantwortet"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The device did not answer in time"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El dispositivo no ha respondido a tiempo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’appareil n’a pas répondu à temps"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il dispositivo non ha risposto in tempo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het apparaat heeft niet op tijd geantwoord"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O dispositivo não respondeu a tempo"
           }
         }
       }
@@ -444,10 +1884,46 @@
     "macos.folders.backup_line" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backup · dieser Mac → Gerät, nur hochladen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Backup · this Mac → device, upload only"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copia de seguridad: Mac → dispositivo, solo subida"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sauvegarde · ce Mac → appareil, envoi uniquement"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backup · Mac → dispositivo, solo caricamento"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reservekopie · Mac → apparaat, alleen uploaden"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cópia: este Mac → dispositivo, apenas carregamento"
           }
         }
       }
@@ -455,10 +1931,46 @@
     "macos.folders.cant_read" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordner auf diesem Mac nicht lesbar"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Can't read the folder on this Mac"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se puede leer la carpeta en este Mac"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de lire le dossier sur ce Mac"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile leggere la cartella su questo Mac"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan de map op deze Mac niet lezen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não é possível ler a pasta neste Mac"
           }
         }
       }
@@ -466,10 +1978,46 @@
     "macos.folders.checking_count" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird geprüft: %1$@ von %2$@"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Checking %1$@ of %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comprobando %1$@ de %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vérification %1$@ sur %2$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controllo %1$@ di %2$@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controleren: %1$@ van %2$@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A verificar %1$@ de %2$@"
           }
         }
       }
@@ -477,10 +2025,46 @@
     "macos.folders.could_not_list" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dateien auf dem Gerät nicht abrufbar"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could not list remote files"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se han podido listar los archivos remotos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de lister les fichiers distants"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile elencare i file remoti"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan externe bestanden niet weergeven"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível listar os ficheiros remotos"
           }
         }
       }
@@ -488,10 +2072,46 @@
     "macos.folders.count" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ von %2$@"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ of %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ de %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ sur %2$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ di %2$@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ van %2$@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ de %2$@"
           }
         }
       }
@@ -499,10 +2119,46 @@
     "macos.folders.restored_files" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ Dateien waren vom Gerät verschwunden – sie wurden von diesem Mac aus wiederhergestellt, statt hier gelöscht zu werden"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ files had disappeared from the device - restored them from this Mac instead of deleting them here"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ archivos habían desaparecido del dispositivo: se han restaurado desde este Mac en lugar de eliminarlos aquí"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ fichiers avaient disparu de l’appareil : ils ont été restaurés depuis ce Mac au lieu d’être supprimés ici"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ file erano spariti dal dispositivo: sono stati ripristinati da questo Mac anziché essere eliminati qui"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ bestanden waren van het apparaat verdwenen – ze zijn vanaf deze Mac hersteld in plaats van hier te worden verwijderd"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ ficheiros tinham desaparecido do dispositivo: foram restaurados a partir deste Mac em vez de serem eliminados aqui"
           }
         }
       }
@@ -510,10 +2166,46 @@
     "macos.images.add_info" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du kannst das später mit dem Augensymbol in der Zeile des Ordners ändern. Ein später umbenannter Ordner ist auf dem Gerät ein neuer Ordner: Blende ihn dann erneut in „Bilder“ aus."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "You can change it later with the eye button on the folder's row. A folder renamed later is a new folder on the device: keep it out of Images again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puedes cambiarlo más adelante con el botón del ojo en la fila de la carpeta. Una carpeta a la que se cambie el nombre más adelante es una carpeta nueva en el dispositivo: vuelve a excluirla de Imágenes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous pourrez changer cela plus tard avec le bouton en forme d’œil sur la ligne du dossier. Un dossier renommé par la suite devient un nouveau dossier sur l’appareil : excluez-le de nouveau d’Images."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puoi cambiare questa scelta in seguito con il pulsante a forma di occhio nella riga della cartella. Una cartella rinominata in seguito è una nuova cartella sul dispositivo: escludila di nuovo da Immagini."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je kunt dit later wijzigen met de oogknop in de rij van de map. Een map die later een andere naam krijgt, is een nieuwe map op het apparaat: houd die opnieuw buiten Afbeeldingen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podes alterar isto mais tarde com o botão do olho na linha da pasta. Uma pasta a que mudes o nome mais tarde passa a ser uma pasta nova no dispositivo: volta a mantê-la fora de Imagens."
           }
         }
       }
@@ -521,7 +2213,43 @@
     "macos.load.cpu" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU"
+          }
+        },
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Processeur"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU"
+          }
+        },
+        "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "CPU"
@@ -532,10 +2260,46 @@
     "macos.load.memory" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAM"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Memory"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memoria"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mémoire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memoria"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geheugen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memória"
           }
         }
       }
@@ -543,10 +2307,46 @@
     "macos.load.storage" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speicher"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Storage"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Almacenamiento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stockage"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archiviazione"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opslag"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Armazenamento"
           }
         }
       }
@@ -554,10 +2354,46 @@
     "macos.login.message" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Ordner werden nach einem Neustart deines Macs im Hintergrund weiter synchronisiert. Du kannst das in den Einstellungen ändern."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your folders keep syncing in the background after you restart your Mac. You can change this in Settings."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus carpetas siguen sincronizándose en segundo plano después de reiniciar el Mac. Puedes cambiarlo en Ajustes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos dossiers continuent de se synchroniser en arrière-plan après le redémarrage de votre Mac. Vous pouvez modifier ce choix dans les Paramètres."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le tue cartelle continuano a sincronizzarsi in background dopo il riavvio del Mac. Puoi cambiare questa scelta in Impostazioni."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je mappen blijven op de achtergrond synchroniseren nadat je je Mac opnieuw hebt opgestart. Je kunt dit wijzigen in Instellingen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As tuas pastas continuam a sincronizar em segundo plano depois de reiniciares o Mac. Podes alterar isto em Definições."
           }
         }
       }
@@ -565,10 +2401,46 @@
     "macos.login.off_in_system_settings" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„Bei der Anmeldung öffnen“ ist in den Systemeinstellungen ausgeschaltet."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Start at login is switched off in System Settings."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“Abrir al iniciar sesión” está desactivado en Ajustes del Sistema."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "« Ouvrir avec la session » est désactivé dans Réglages Système."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“Apri al login” è disattivato in Impostazioni di Sistema."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“Openen bij inloggen” is uitgeschakeld in Systeeminstellingen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Abrir ao iniciar sessão» está desativado nas Definições do Sistema."
           }
         }
       }
@@ -576,10 +2448,46 @@
     "macos.login.open_login_items" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anmeldeobjekte öffnen…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open Login Items…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir Ítems de inicio…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir Éléments d’ouverture…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri Elementi login…"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inlogonderdelen openen…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elementos de início de sessão…"
           }
         }
       }
@@ -587,10 +2495,46 @@
     "macos.picker.no_subfolders" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hier gibt es keine Unterordner."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "No subfolders here."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aquí no hay subcarpetas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun sous-dossier ici."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessuna sottocartella qui."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen submappen hier."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não há subpastas aqui."
           }
         }
       }
@@ -598,10 +2542,46 @@
     "macos.popover.back_up" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sichern"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Back Up"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hacer copia"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sauvegarder"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esegui backup"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reservekopie maken"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fazer cópia"
           }
         }
       }
@@ -609,10 +2589,46 @@
     "macos.popover.choose_backup" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle einen Ordner, der auf dem Gerät gesichert werden soll. Dieser Mac behält das Original."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choose a folder to back up to the device. This Mac stays the original."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige una carpeta para hacer una copia de seguridad en el dispositivo. Este Mac conserva el original."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez un dossier à sauvegarder sur l’appareil. Ce Mac conserve l’original."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scegli una cartella di cui fare il backup sul dispositivo. L’originale resta su questo Mac."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kies een map om een reservekopie van te maken op het apparaat. Deze Mac blijft het origineel."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolhe uma pasta para fazer uma cópia de segurança no dispositivo. Este Mac mantém o original."
           }
         }
       }
@@ -620,10 +2636,46 @@
     "macos.popover.choose_download" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle, wohin „%1$@“ heruntergeladen und synchron gehalten werden soll."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choose where to download “%1$@” and keep it in sync."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige dónde descargar la carpeta “%1$@” y mantenerla sincronizada."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez où télécharger « %1$@ » et le garder synchronisé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scegli dove scaricare la cartella “%1$@” e mantenerla sincronizzata."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kies waar je “%1$@” wilt downloaden en gesynchroniseerd wilt houden."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolhe onde transferir a pasta «%1$@» e mantê-la sincronizada."
           }
         }
       }
@@ -631,10 +2683,46 @@
     "macos.popover.quit" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud beenden"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Quit Off The Cloud"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salir de Off The Cloud"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitter Off The Cloud"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esci da Off The Cloud"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Off The Cloud"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sair de Off The Cloud"
           }
         }
       }
@@ -642,10 +2730,46 @@
     "macos.popover.quit_tip" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud beenden – Ordner werden erst wieder synchronisiert, wenn die App erneut geöffnet wird"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Quit Off The Cloud - folders stop syncing until it is opened again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salir de Off The Cloud: las carpetas dejan de sincronizarse hasta que se vuelva a abrir"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitter Off The Cloud : les dossiers ne se synchronisent plus jusqu’à sa prochaine ouverture"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esci da Off The Cloud: le cartelle smettono di sincronizzarsi finché non lo riapri"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Off The Cloud – mappen worden pas weer gesynchroniseerd als de app opnieuw wordt geopend"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sair de Off The Cloud: as pastas deixam de sincronizar até a app ser aberta novamente"
           }
         }
       }
@@ -653,10 +2777,46 @@
     "macos.settings.address_placeholder" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse (wss://host/ws oder host)"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Address (wss://host/ws or host)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dirección (wss://host/ws o host)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse (wss://host/ws ou host)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indirizzo (wss://host/ws o host)"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adres (wss://host/ws of host)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endereço (wss://host/ws ou host)"
           }
         }
       }
@@ -664,10 +2824,46 @@
     "macos.settings.connect_hint" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib dein Gerät und sein Passwort ein."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter your device and its password."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduce tu dispositivo y su contraseña."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indiquez votre appareil et son mot de passe."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserisci il dispositivo e la sua password."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voer je apparaat en het wachtwoord in."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduz o dispositivo e a palavra-passe."
           }
         }
       }
@@ -675,10 +2871,46 @@
     "macos.settings.custom_address" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigene Adresse"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Custom address"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dirección personalizada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse personnalisée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indirizzo personalizzato"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aangepast adres"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endereço personalizado"
           }
         }
       }
@@ -686,10 +2918,46 @@
     "macos.settings.custom_address_hint" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für ein Gerät, das nicht die Bridge von Off The Cloud nutzt – deine eigene Bridge, Tailscale Funnel oder das lokale Netzwerk (ws://192.168.…:8080/ws)."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "For a device not on the Off The Cloud bridge - your own bridge, Tailscale Funnel, or the local network (ws://192.168.…:8080/ws)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para un dispositivo que no está en el puente de Off The Cloud: tu propio puente, Tailscale Funnel o la red local (ws://192.168.…:8080/ws)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pour un appareil qui n’est pas sur la passerelle Off The Cloud : votre propre passerelle, Tailscale Funnel ou le réseau local (ws://192.168.…:8080/ws)."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per un dispositivo non collegato al bridge di Off The Cloud: il tuo bridge, Tailscale Funnel o la rete locale (ws://192.168.…:8080/ws)."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voor een apparaat dat niet via de Off The Cloud-bridge werkt: je eigen bridge, Tailscale Funnel of het lokale netwerk (ws://192.168.…:8080/ws)."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para um dispositivo que não está na ponte Off The Cloud: a tua própria ponte, o Tailscale Funnel ou a rede local (ws://192.168.…:8080/ws)."
           }
         }
       }
@@ -697,10 +2965,46 @@
     "macos.settings.device_name_placeholder" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerätename"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Device name"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nombre del dispositivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom de l’appareil"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nome del dispositivo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apparaatnaam"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nome do dispositivo"
           }
         }
       }
@@ -708,10 +3012,46 @@
     "macos.settings.disconnect_button" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trennen…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Disconnect…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desconectar…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déconnecter…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnetti…"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loskoppelen…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desligar…"
           }
         }
       }
@@ -719,10 +3059,46 @@
     "macos.settings.disconnect_message" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle deine synchronisierten Ordner werden aus dieser App entfernt, damit keiner davon versehentlich mit einem anderen Gerät synchronisiert wird. Die Dateien selbst bleiben auf diesem Mac und auf dem Gerät. Du kannst die Ordner nach dem Verbinden wieder hinzufügen."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "All your synced folders are removed from this app, so none of them starts syncing with a different device by mistake. The files themselves stay on this Mac and on the device. You can add the folders again after connecting."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todas tus carpetas sincronizadas se quitan de esta app, para que ninguna empiece a sincronizarse con otro dispositivo por error. Los archivos siguen en este Mac y en el dispositivo. Puedes volver a añadir las carpetas después de conectarte."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tous vos dossiers synchronisés sont retirés de cette app, pour qu’aucun d’eux ne se mette par erreur à se synchroniser avec un autre appareil. Les fichiers eux-mêmes restent sur ce Mac et sur l’appareil. Vous pourrez ajouter de nouveau les dossiers une fois la connexion établie."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tutte le tue cartelle sincronizzate vengono rimosse da questa app, così nessuna inizia per errore a sincronizzarsi con un altro dispositivo. I file restano su questo Mac e sul dispositivo. Puoi aggiungere di nuovo le cartelle dopo la connessione."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Al je gesynchroniseerde mappen worden uit deze app verwijderd, zodat geen enkele map per ongeluk met een ander apparaat gaat synchroniseren. De bestanden zelf blijven op deze Mac en op het apparaat staan. Je kunt de mappen opnieuw toevoegen nadat je verbinding hebt gemaakt."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todas as tuas pastas sincronizadas são removidas desta app, para que nenhuma comece a sincronizar com outro dispositivo por engano. Os próprios ficheiros ficam neste Mac e no dispositivo. Podes voltar a adicionar as pastas depois de te ligares."
           }
         }
       }
@@ -730,10 +3106,46 @@
     "macos.settings.retry" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erneut versuchen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Retry"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reintentar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réessayer"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Riprova"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opnieuw proberen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tentar novamente"
           }
         }
       }
@@ -741,10 +3153,46 @@
     "macos.setup.bad_hash" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das heruntergeladene Image stimmt nicht mit seiner signierten Prüfsumme überein und wurde daher gelöscht. Versuche es erneut."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The downloaded image does not match its signed checksum, so it was deleted. Try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La imagen descargada no coincide con su suma de comprobación firmada, así que se ha eliminado. Vuelve a intentarlo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’image téléchargée ne correspond pas à sa somme de contrôle signée : elle a donc été supprimée. Réessayez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’immagine scaricata non corrisponde al suo checksum firmato, quindi è stata eliminata. Riprova."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De gedownloade image komt niet overeen met de ondertekende controlesom en is daarom verwijderd. Probeer het opnieuw."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A imagem transferida não corresponde à soma de verificação assinada, por isso foi eliminada. Tenta novamente."
           }
         }
       }
@@ -752,10 +3200,46 @@
     "macos.setup.bad_signature" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Prüfsumme des Images ist nicht mit dem Release-Schlüssel von Off The Cloud signiert. Es wurde nichts behalten."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The image's checksum is not signed with the Off The Cloud release key. Nothing was kept."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La suma de comprobación de la imagen no está firmada con la clave de firma de versiones de Off The Cloud. No se ha conservado nada."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La somme de contrôle de l’image n’est pas signée avec la clé de publication d’Off The Cloud. Rien n’a été conservé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il checksum dell’immagine non è firmato con la chiave di rilascio di Off The Cloud. Non è stato conservato nulla."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De controlesom van de image is niet ondertekend met de releasesleutel van Off The Cloud. Er is niets bewaard."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A soma de verificação da imagem não está assinada com a chave de assinatura de versões do Off The Cloud. Não foi guardado nada."
           }
         }
       }
@@ -763,10 +3247,46 @@
     "macos.setup.card_written" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Karte ist beschrieben"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "I've Written the Card"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya he escrito la tarjeta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "J’ai écrit la carte"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ho scritto la scheda"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ik heb de kaart beschreven"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Já escrevi o cartão"
           }
         }
       }
@@ -774,10 +3294,46 @@
     "macos.setup.check_again" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erneut prüfen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Check Again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a comprobar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vérifier à nouveau"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controlla di nuovo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opnieuw controleren"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verificar novamente"
           }
         }
       }
@@ -785,10 +3341,46 @@
     "macos.setup.checking_release" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neuestes Image wird geprüft…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Checking the latest image…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comprobando la imagen más reciente…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vérification de la dernière image…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verifica dell’immagine più recente…"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De nieuwste image controleren…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A verificar a imagem mais recente…"
           }
         }
       }
@@ -796,10 +3388,46 @@
     "macos.setup.come_back" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn Imager meldet, dass die Karte beschrieben ist, komm hierher zurück."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "When Imager says the card is written, come back here."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuando Imager indique que la tarjeta está escrita, vuelve aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quand Imager indique que la carte est écrite, revenez ici."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quando Imager dice che la scheda è stata scritta, torna qui."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kom hier terug wanneer Imager meldt dat de kaart is beschreven."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quando o Imager disser que o cartão foi escrito, volta aqui."
           }
         }
       }
@@ -807,10 +3435,46 @@
     "macos.setup.done_subtitle" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Mac synchronisiert jetzt mit dem Gerät %1$@."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "This Mac now syncs with %1$@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este Mac ya se sincroniza con el dispositivo %1$@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce Mac se synchronise désormais avec l’appareil %1$@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo Mac ora si sincronizza con il dispositivo %1$@."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze Mac synchroniseert nu met het apparaat %1$@."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este Mac sincroniza agora com o dispositivo %1$@."
           }
         }
       }
@@ -818,10 +3482,46 @@
     "macos.setup.done_text" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Füge über das Symbol von Off The Cloud in der Menüleiste Ordner hinzu, die gesichert oder synchron gehalten werden sollen. Die eigene Seite des Geräts im Browser enthält deine Fotos, Dateien und Einstellungen."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Add folders to back up or keep in sync from the Off The Cloud menu bar icon. The device's own page, in a browser, has your photos, files and settings."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añade carpetas para hacer copias de seguridad o mantenerlas sincronizadas desde el icono de Off The Cloud de la barra de menús. La propia página del dispositivo, en un navegador, tiene tus fotos, archivos y ajustes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajoutez des dossiers à sauvegarder ou à garder synchronisés depuis l’icône Off The Cloud de la barre des menus. La page de l’appareil, dans un navigateur, contient vos photos, vos fichiers et vos paramètres."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiungi le cartelle di cui fare il backup o da mantenere sincronizzate dall’icona di Off The Cloud nella barra dei menu. La pagina del dispositivo, in un browser, contiene le tue foto, i tuoi file e le impostazioni."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voeg via het Off The Cloud-symbool in de menubalk mappen toe om een reservekopie van te maken of gesynchroniseerd te houden. De eigen pagina van het apparaat, in een browser, bevat je foto’s, bestanden en instellingen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adiciona pastas para fazer cópias de segurança ou manter sincronizadas a partir do ícone do Off The Cloud na barra de menus. A página do próprio dispositivo, num navegador, tem as tuas fotos, os teus ficheiros e as tuas definições."
           }
         }
       }
@@ -829,10 +3529,46 @@
     "macos.setup.done_title" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gerät ist bereit"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your device is ready"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu dispositivo está listo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre appareil est prêt"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo dispositivo è pronto"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je apparaat is klaar"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu dispositivo está pronto"
           }
         }
       }
@@ -840,10 +3576,46 @@
     "macos.setup.download_button" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image herunterladen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Download the Image"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descargar la imagen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Télécharger l’image"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scarica l’immagine"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image downloaden"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transferir a imagem"
           }
         }
       }
@@ -851,10 +3623,46 @@
     "macos.setup.download_progress" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ von %2$@"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ of %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ de %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ sur %2$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ di %2$@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ van %2$@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ de %2$@"
           }
         }
       }
@@ -862,10 +3670,46 @@
     "macos.setup.download_subtitle" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In deinen Downloads-Ordner."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Into your Downloads folder."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En tu carpeta Descargas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans votre dossier Téléchargements."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nella cartella Download."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Naar je map Downloads."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para a tua pasta Transferências."
           }
         }
       }
@@ -873,10 +3717,46 @@
     "macos.setup.download_title" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image wird heruntergeladen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Downloading the image"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descargando la imagen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Téléchargement de l’image"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download dell’immagine"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De image downloaden"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A transferir a imagem"
           }
         }
       }
@@ -884,10 +3764,46 @@
     "macos.setup.downloaded" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heruntergeladen: %1$@"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Downloaded: %1$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descargada: %1$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Téléchargé : %1$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scaricato: %1$@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gedownload: %1$@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transferido: %1$@"
           }
         }
       }
@@ -895,10 +3811,46 @@
     "macos.setup.finish_prompt" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schließe dann die Einrichtung ab – WLAN, Name des Geräts, seine Laufwerke und dein Passwort:"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Then finish the setup - WiFi, the device's name, its disks and your password:"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Después, termina la configuración (Wi-Fi, nombre del dispositivo, discos y tu contraseña):"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminez ensuite la configuration (Wi-Fi, nom de l’appareil, disques et votre mot de passe) :"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poi completa la configurazione (Wi-Fi, nome del dispositivo, dischi e la tua password):"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voltooi daarna de configuratie – wifi, de naam van het apparaat, de schijven en je wachtwoord:"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Depois, conclui a configuração (Wi-Fi, o nome do dispositivo, os discos e a tua palavra-passe):"
           }
         }
       }
@@ -906,10 +3858,46 @@
     "macos.setup.get_imager" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raspberry Pi Imager laden"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Get Raspberry Pi Imager"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obtener Raspberry Pi Imager"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obtenir Raspberry Pi Imager"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scarica Raspberry Pi Imager"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raspberry Pi Imager downloaden"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obter o Raspberry Pi Imager"
           }
         }
       }
@@ -917,10 +3905,46 @@
     "macos.setup.http_failed" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Download ist fehlgeschlagen (HTTP %1$@). Versuche es gleich noch einmal."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The download failed (HTTP %1$@). Try again in a moment."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La descarga ha fallado (HTTP %1$@). Vuelve a intentarlo en un momento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le téléchargement a échoué (HTTP %1$@). Réessayez dans un instant."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download non riuscito (HTTP %1$@). Riprova tra poco."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het downloaden is mislukt (HTTP %1$@). Probeer het zo opnieuw."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A transferência falhou (HTTP %1$@). Tenta novamente daqui a pouco."
           }
         }
       }
@@ -928,10 +3952,46 @@
     "macos.setup.image_deleted" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das heruntergeladene Image wurde aus deinem Downloads-Ordner gelöscht."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The downloaded image was deleted from your Downloads folder."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La imagen descargada se ha eliminado de tu carpeta Descargas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’image téléchargée a été supprimée de votre dossier Téléchargements."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’immagine scaricata è stata eliminata dalla cartella Download."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De gedownloade image is verwijderd uit je map Downloads."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A imagem transferida foi eliminada da tua pasta Transferências."
           }
         }
       }
@@ -939,10 +3999,46 @@
     "macos.setup.imager_missing" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raspberry Pi Imager ist nicht installiert. Es ist kostenlos und stammt von der Raspberry Pi Foundation."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Raspberry Pi Imager isn't installed. It's free, from the Raspberry Pi Foundation."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raspberry Pi Imager no está instalado. Es gratuito, de la Raspberry Pi Foundation."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raspberry Pi Imager n’est pas installé. Il est gratuit et proposé par la fondation Raspberry Pi."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raspberry Pi Imager non è installato. È gratuito, offerto dalla Raspberry Pi Foundation."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raspberry Pi Imager is niet geïnstalleerd. Het programma is gratis, van de Raspberry Pi Foundation."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Raspberry Pi Imager não está instalado. É gratuito e vem da Raspberry Pi Foundation."
           }
         }
       }
@@ -950,10 +4046,46 @@
     "macos.setup.intro_note" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Download wird gelöscht, sobald die Karte beschrieben ist."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The download is deleted once the card is written."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La descarga se elimina cuando la tarjeta está escrita."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le téléchargement est supprimé une fois la carte écrite."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il download viene eliminato dopo la scrittura della scheda."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De download wordt verwijderd zodra de kaart is beschreven."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A transferência é eliminada depois de o cartão ser escrito."
           }
         }
       }
@@ -961,10 +4093,46 @@
     "macos.setup.intro_step1" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Image von Off The Cloud herunterladen (etwa 550 MB)."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Download the Off The Cloud image (about 550 MB)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descarga la imagen de Off The Cloud (unos 550 MB)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Téléchargez l’image Off The Cloud (environ 550 Mo)."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scarica l’immagine di Off The Cloud (circa 550 MB)."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download de Off The Cloud-image (ongeveer 550 MB)."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transferir a imagem Off The Cloud (cerca de 550 MB)."
           }
         }
       }
@@ -972,10 +4140,46 @@
     "macos.setup.intro_step2" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es mit Raspberry Pi Imager auf die microSD-Karte schreiben."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Write it to the microSD card with Raspberry Pi Imager."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escríbela en la tarjeta microSD con Raspberry Pi Imager."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Écrivez-la sur la carte microSD avec Raspberry Pi Imager."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scrivila sulla scheda microSD con Raspberry Pi Imager."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schrijf de image naar de microSD-kaart met Raspberry Pi Imager."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escrevê-la no cartão microSD com o Raspberry Pi Imager."
           }
         }
       }
@@ -983,10 +4187,46 @@
     "macos.setup.intro_step3" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Karte in den Pi stecken, die Laufwerke anschließen, ihn einschalten und die Einrichtung hier über Bluetooth oder auf deinem Handy abschließen."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Put the card in the Pi, connect the disks, power it on and finish the setup here over Bluetooth, or on your phone."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pon la tarjeta en la Pi, conecta los discos, enciéndela y termina la configuración aquí por Bluetooth o en tu teléfono."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insérez la carte dans le Pi, branchez les disques, allumez-le et terminez la configuration ici par Bluetooth, ou sur votre téléphone."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserisci la scheda nel Pi, collega i dischi, accendilo e completa la configurazione qui tramite Bluetooth, oppure sul telefono."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plaats de kaart in de Pi, sluit de schijven aan, zet hem aan en voltooi de configuratie hier via Bluetooth, of op je telefoon."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Colocar o cartão no Pi, encaixar os discos, ligá-lo e concluir a configuração aqui, por Bluetooth, ou no teu telemóvel."
           }
         }
       }
@@ -994,10 +4234,46 @@
     "macos.setup.intro_subtitle" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Raspberry Pi 5 (8 GB) mit einer microSD-Karte und zwei USB-Laufwerken wird zu deinem Gerät von Off The Cloud."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "A Raspberry Pi 5 (8 GB) with a microSD card and two USB disks becomes your Off The Cloud device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una Raspberry Pi 5 (8 GB) con una tarjeta microSD y dos discos USB se convierte en tu dispositivo Off The Cloud."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un Raspberry Pi 5 (8 Go) avec une carte microSD et deux disques USB devient votre appareil Off The Cloud."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un Raspberry Pi 5 (8 GB) con una scheda microSD e due dischi USB diventa il tuo dispositivo Off The Cloud."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een Raspberry Pi 5 (8 GB) met een microSD-kaart en twee USB-schijven wordt je Off The Cloud-apparaat."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um Raspberry Pi 5 (8 GB) com um cartão microSD e dois discos USB torna-se o teu dispositivo Off The Cloud."
           }
         }
       }
@@ -1005,10 +4281,46 @@
     "macos.setup.intro_title" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neues Gerät einrichten"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Set up a new device"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configurar dispositivo nuevo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configurer un nouvel appareil"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configura un nuovo dispositivo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nieuw apparaat instellen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configurar um novo dispositivo"
           }
         }
       }
@@ -1016,10 +4328,46 @@
     "macos.setup.on_my_phone" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf meinem Handy"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "On my phone"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En mi teléfono"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sur mon téléphone"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sul mio telefono"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Op mijn telefoon"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No meu telemóvel"
           }
         }
       }
@@ -1027,10 +4375,46 @@
     "macos.setup.on_my_phone_detail" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In der App Off The Cloud für iPhone oder Android."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "In the Off The Cloud app for iPhone or Android."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En la app Off The Cloud para iPhone o Android."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans l’app Off The Cloud pour iPhone ou Android."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nell’app Off The Cloud per iPhone o Android."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In de Off The Cloud-app voor iPhone of Android."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na app Off The Cloud para iPhone ou Android."
           }
         }
       }
@@ -1038,10 +4422,46 @@
     "macos.setup.on_this_mac" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf diesem Mac"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "On this Mac"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En este Mac"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sur ce Mac"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Su questo Mac"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Op deze Mac"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neste Mac"
           }
         }
       }
@@ -1049,10 +4469,46 @@
     "macos.setup.on_this_mac_detail" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Über Bluetooth, mit diesem Mac in der Nähe des Geräts."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Over Bluetooth, with this Mac near the device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por Bluetooth, con este Mac cerca del dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par Bluetooth, avec ce Mac près de l’appareil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tramite Bluetooth, con questo Mac vicino al dispositivo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Via Bluetooth, met deze Mac in de buurt van het apparaat."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por Bluetooth, com este Mac perto do dispositivo."
           }
         }
       }
@@ -1060,10 +4516,46 @@
     "macos.setup.open_imager" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raspberry Pi Imager öffnen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open Raspberry Pi Imager"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir Raspberry Pi Imager"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir Raspberry Pi Imager"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri Raspberry Pi Imager"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raspberry Pi Imager openen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir o Raspberry Pi Imager"
           }
         }
       }
@@ -1071,10 +4563,46 @@
     "macos.setup.phone_step" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe in der App Off The Cloud für iPhone oder Android auf „Neues Gerät einrichten“. Die App findet das Gerät über Bluetooth und zeigt seine Einrichtung."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "In the Off The Cloud app for iPhone or Android, tap Set up a new device. The app finds the device over Bluetooth and shows its setup."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En la app Off The Cloud para iPhone o Android, toca “Configurar dispositivo nuevo”. La app encuentra el dispositivo por Bluetooth y muestra su configuración."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans l’app Off The Cloud pour iPhone ou Android, touchez « Configurer un nouvel appareil ». L’app trouve l’appareil par Bluetooth et affiche sa configuration."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nell’app Off The Cloud per iPhone o Android, tocca “Configura un nuovo dispositivo”. L’app trova il dispositivo tramite Bluetooth e ne mostra la configurazione."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tik in de Off The Cloud-app voor iPhone of Android op “Nieuw apparaat instellen”. De app vindt het apparaat via Bluetooth en toont de configuratie ervan."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na app Off The Cloud para iPhone ou Android, toca em «Configurar um novo dispositivo». A app encontra o dispositivo por Bluetooth e mostra a configuração dele."
           }
         }
       }
@@ -1082,10 +4610,46 @@
     "macos.setup.phone_subtitle" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halte das Handy in der Nähe des Geräts."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Keep the phone near the device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantén el teléfono cerca del dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gardez le téléphone près de l’appareil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tieni il telefono vicino al dispositivo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Houd de telefoon in de buurt van het apparaat."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantém o telemóvel perto do dispositivo."
           }
         }
       }
@@ -1093,10 +4657,46 @@
     "macos.setup.phone_then" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Füge das Gerät nach der Installation über die Menüleiste zu diesem Mac hinzu: Einstellungen, dann seinen Namen und sein Passwort."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Once it is installed, add the device to this Mac from the menu bar: Settings, then its name and password."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuando esté instalado, añade el dispositivo a este Mac desde la barra de menús: Ajustes y, después, su nombre y su contraseña."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une fois l’installation terminée, ajoutez l’appareil à ce Mac depuis la barre des menus : Paramètres, puis son nom et son mot de passe."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Al termine dell’installazione, aggiungi il dispositivo a questo Mac dalla barra dei menu: Impostazioni, poi il suo nome e la password."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voeg het apparaat na de installatie via de menubalk toe aan deze Mac: Instellingen, en daarna de naam en het wachtwoord."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Depois de instalado, adiciona o dispositivo a este Mac a partir da barra de menus: Definições e depois o nome e a palavra-passe dele."
           }
         }
       }
@@ -1104,10 +4704,46 @@
     "macos.setup.phone_title" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf deinem Handy fortfahren"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Continue on your phone"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuar en tu teléfono"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuer sur votre téléphone"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continua sul telefono"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ga verder op je telefoon"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuar no telemóvel"
           }
         }
       }
@@ -1115,10 +4751,46 @@
     "macos.setup.show_in_finder" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Finder anzeigen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show in Finder"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar en Finder"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher dans le Finder"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra nel Finder"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toon in Finder"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar no Finder"
           }
         }
       }
@@ -1126,10 +4798,46 @@
     "macos.setup.start_subtitle" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stecke die Karte in den Pi, schließe die beiden USB-Laufwerke an und schalte ihn ein. Das Starten dauert ein, zwei Minuten."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Put the card in the Pi, connect the two USB disks, and power it on. It takes a minute or two to start."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pon la tarjeta en la Pi, conecta los dos discos USB y enciéndela. Tarda uno o dos minutos en arrancar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insérez la carte dans le Pi, branchez les deux disques USB et allumez-le. Le démarrage prend une minute ou deux."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserisci la scheda nel Pi, collega i due dischi USB e accendilo. L’avvio richiede un minuto o due."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plaats de kaart in de Pi, sluit de twee USB-schijven aan en zet hem aan. Het opstarten duurt een minuut of twee."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coloca o cartão no Pi, encaixa os dois discos USB e liga-o. Demora um ou dois minutos a arrancar."
           }
         }
       }
@@ -1137,10 +4845,46 @@
     "macos.setup.start_title" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerät starten"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Start the device"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encender el dispositivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Démarrer l’appareil"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avvia il dispositivo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het apparaat starten"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ligar o dispositivo"
           }
         }
       }
@@ -1148,10 +4892,46 @@
     "macos.setup.switch_button" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wechseln"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Switch"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cambiar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basculer"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passa"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overschakelen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mudar"
           }
         }
       }
@@ -1159,10 +4939,46 @@
     "macos.setup.switch_message" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Mac ist mit %1$@ verbunden. Beim Wechseln werden alle deine synchronisierten Ordner aus dieser App entfernt, damit keiner davon versehentlich mit dem neuen Gerät synchronisiert wird. Die Dateien selbst bleiben auf diesem Mac und auf dem alten Gerät."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "This Mac is connected to %1$@. Switching removes all your synced folders from this app, so none of them starts syncing with the new device by mistake. The files themselves stay on this Mac and on the old device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este Mac está conectado a %1$@. Al cambiar, se quitan todas tus carpetas sincronizadas de esta app, para que ninguna empiece a sincronizarse con el dispositivo nuevo por error. Los archivos siguen en este Mac y en el dispositivo anterior."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce Mac est connecté à l’appareil %1$@. Basculer retire tous vos dossiers synchronisés de cette app, pour qu’aucun d’eux ne se mette par erreur à se synchroniser avec le nouvel appareil. Les fichiers eux-mêmes restent sur ce Mac et sur l’ancien appareil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo Mac è connesso a %1$@. Passando al nuovo dispositivo, tutte le tue cartelle sincronizzate vengono rimosse da questa app, così nessuna inizia per errore a sincronizzarsi con il nuovo dispositivo. I file restano su questo Mac e sul vecchio dispositivo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze Mac is verbonden met %1$@. Als je overschakelt, worden al je gesynchroniseerde mappen uit deze app verwijderd, zodat geen enkele map per ongeluk met het nieuwe apparaat gaat synchroniseren. De bestanden zelf blijven op deze Mac en op het oude apparaat staan."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este Mac está ligado a %1$@. Mudar remove todas as tuas pastas sincronizadas desta app, para que nenhuma comece a sincronizar com o novo dispositivo por engano. Os próprios ficheiros ficam neste Mac e no dispositivo antigo."
           }
         }
       }
@@ -1170,10 +4986,46 @@
     "macos.setup.switch_title" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit diesem Mac zum neuen Gerät wechseln?"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Switch this Mac to the new device?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Cambiar este Mac al dispositivo nuevo?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basculer ce Mac sur le nouvel appareil ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passare questo Mac al nuovo dispositivo?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze Mac overschakelen naar het nieuwe apparaat?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mudar este Mac para o novo dispositivo?"
           }
         }
       }
@@ -1181,10 +5033,46 @@
     "macos.setup.verifying" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download wird geprüft…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Checking the download…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comprobando la descarga…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vérification du téléchargement…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verifica del download…"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De download controleren…"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A verificar a transferência…"
           }
         }
       }
@@ -1192,10 +5080,46 @@
     "macos.setup.write_step1" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stecke die microSD-Karte ein und klicke unten auf „%1$@“."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Insert the microSD card and click %1$@ below."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserta la tarjeta microSD y haz clic en %1$@ abajo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insérez la carte microSD et cliquez sur %1$@ ci-dessous."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserisci la scheda microSD e fai clic su %1$@ qui sotto."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plaats de microSD-kaart en klik hieronder op %1$@."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insere o cartão microSD e clica em %1$@ abaixo."
           }
         }
       }
@@ -1203,10 +5127,46 @@
     "macos.setup.write_step2" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„Modell wählen“: Raspberry Pi 5."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choose Device: Raspberry Pi 5."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elegir dispositivo: Raspberry Pi 5."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir l’appareil : Raspberry Pi 5."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scegli dispositivo: Raspberry Pi 5."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kies apparaat: Raspberry Pi 5."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolher dispositivo: Raspberry Pi 5."
           }
         }
       }
@@ -1214,10 +5174,46 @@
     "macos.setup.write_step3" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„OS wählen“: Scrolle nach unten zu „Eigenes Image“ und wähle %1$@ in deinem Downloads-Ordner (es ist im Finder ausgewählt) – es sei denn, Imager zeigt es bereits an."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choose OS: scroll down to Use custom and pick %1$@ in your Downloads folder (it is selected in Finder) - unless Imager already shows it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elegir SO: desplázate hacia abajo hasta “Usar personalizado” y elige %1$@ en tu carpeta Descargas (está seleccionado en Finder), a menos que Imager ya lo muestre."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir l’OS : faites défiler jusqu’à « Utiliser une image personnalisée » et choisissez %1$@ dans votre dossier Téléchargements (il est sélectionné dans le Finder), sauf si Imager l’affiche déjà."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scegli S.O.: scorri fino a “Usa immagine personalizzata” e scegli %1$@ nella cartella Download (è selezionato nel Finder), a meno che Imager non lo mostri già."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kies OS: scrol omlaag naar “Eigen image gebruiken” en kies %1$@ in je map Downloads (het bestand is geselecteerd in de Finder), tenzij Imager het al toont."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolher SO: desce até Usar personalizado e escolhe %1$@ na tua pasta Transferências (está selecionado no Finder), a não ser que o Imager já o mostre."
           }
         }
       }
@@ -1225,10 +5221,46 @@
     "macos.setup.write_step4" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„SD-Karte wählen“: deine SD-Karte. Alles darauf wird gelöscht."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choose Storage: your SD card. Everything on it is erased."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elegir almacenamiento: tu tarjeta SD. Se borra todo lo que contiene."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir le stockage : votre carte SD. Tout son contenu est effacé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scegli scheda SD: la tua scheda SD. Tutto il suo contenuto viene cancellato."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kies opslagapparaat: je SD-kaart. Alles op de kaart wordt gewist."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolher armazenamento: o teu cartão SD. Tudo o que estiver nele é apagado."
           }
         }
       }
@@ -1236,10 +5268,46 @@
     "macos.setup.write_step5" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klicke auf „Weiter“ und antworte mit „Nein“, wenn Imager fragt, ob die OS-Anpassungen angewendet werden sollen: Das Gerät wird von diesem Mac oder deinem Handy aus eingerichtet."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Click Next and answer No to \"apply OS customisation settings\": the device is set up from this Mac or your phone."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Haz clic en Siguiente y responde No a “aplicar ajustes de personalización del SO”: el dispositivo se configura desde este Mac o desde tu teléfono."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cliquez sur Suivant et répondez Non à « appliquer les paramètres de personnalisation de l’OS » : l’appareil se configure depuis ce Mac ou votre téléphone."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fai clic su Avanti e, quando ti chiede se applicare le impostazioni di personalizzazione del sistema operativo, rispondi No: il dispositivo si configura da questo Mac o dal telefono."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klik op Volgende en antwoord Nee op “OS-aanpassingsinstellingen toepassen”: het apparaat wordt ingesteld vanaf deze Mac of je telefoon."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clica em Seguinte e responde Não a «aplicar definições de personalização do SO»: o dispositivo é configurado a partir deste Mac ou do teu telemóvel."
           }
         }
       }
@@ -1247,10 +5315,46 @@
     "macos.setup.write_subtitle" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS erlaubt nur Apps außerhalb des App Store, SD-Karten zu beschreiben, deshalb übernimmt Raspberry Pi Imager diesen Schritt."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "macOS only lets apps outside the App Store write SD cards, so Raspberry Pi Imager does this step."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS solo permite escribir tarjetas SD a las apps de fuera del App Store, así que Raspberry Pi Imager hace este paso."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS n’autorise que les apps distribuées hors de l’App Store à écrire sur des cartes SD : c’est donc Raspberry Pi Imager qui se charge de cette étape."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS consente di scrivere schede SD solo alle app esterne all’App Store, quindi questo passaggio lo esegue Raspberry Pi Imager."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS laat alleen apps van buiten de App Store SD-kaarten beschrijven, dus Raspberry Pi Imager doet deze stap."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O macOS só deixa que apps de fora da App Store escrevam cartões SD, por isso o Raspberry Pi Imager faz este passo."
           }
         }
       }
@@ -1258,10 +5362,46 @@
     "macos.setup.write_title" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Karte beschreiben"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Write the card"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribir la tarjeta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Écrire la carte"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scrivi la scheda"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De kaart beschrijven"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escrever o cartão"
           }
         }
       }
@@ -1269,10 +5409,46 @@
     "macos.upload_only.add_info" : {
       "extractionState" : "manual",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dateien, die du auf diesem Mac löschst, bleiben auf dem Gerät und werden nicht wieder heruntergeladen; auf dem Gerät hinzugefügte oder geänderte Dateien kommen weiterhin herunter. Du kannst die Option später in der Web-App oder der Handy-App ausschalten (das Schloss am Ordner in Dateien); die Dateien, die du währenddessen auf diesem Mac gelöscht hast, kommen dann hierher zurück."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Files you delete on this Mac stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this Mac while it was on then come back here."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los archivos que eliminas en este Mac siguen en el dispositivo y no se vuelven a descargar; los archivos añadidos o modificados en el dispositivo sí se descargan. Puedes desactivarla más adelante desde la app web o la app del teléfono (el candado de la carpeta en Archivos); los archivos que eliminaste en este Mac mientras estaba activada vuelven entonces aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les fichiers que vous supprimez sur ce Mac restent sur l’appareil et ne sont pas téléchargés de nouveau ; les fichiers ajoutés ou modifiés sur l’appareil continuent d’arriver ici. Vous pourrez désactiver cette option plus tard depuis l’app web ou l’app pour téléphone (le cadenas sur le dossier dans Fichiers) ; les fichiers supprimés sur ce Mac pendant qu’elle était activée reviennent alors ici."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I file che elimini su questo Mac restano sul dispositivo e non vengono scaricati di nuovo; i file aggiunti o modificati sul dispositivo vengono comunque scaricati. Puoi disattivarla in seguito dall’app web o dall’app per telefono (il lucchetto sulla cartella in File); i file che hai eliminato su questo Mac mentre era attiva tornano allora qui."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bestanden die je op deze Mac verwijdert, blijven op het apparaat staan en worden niet opnieuw gedownload; bestanden die op het apparaat worden toegevoegd of gewijzigd, komen nog steeds hierheen. Je kunt de optie later uitschakelen in de webapp of de telefoonapp (het slotje op de map in Bestanden); de bestanden die je op deze Mac hebt verwijderd terwijl de optie aanstond, komen dan hier terug."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os ficheiros que eliminares neste Mac ficam no dispositivo e não voltam a ser transferidos; os ficheiros adicionados ou alterados no dispositivo continuam a chegar. Podes desativá-la mais tarde na app web ou na app do telemóvel (o cadeado na pasta, em Ficheiros); os ficheiros que eliminaste neste Mac enquanto estava ativa voltam então para aqui."
           }
         }
       }

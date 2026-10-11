@@ -1,0 +1,8 @@
+{
+  "dev.keepout.inside_kept_out": {"text": "de map {name} staat in de map {parent}, die buiten Afbeeldingen wordt gehouden: toon {parent} in Afbeeldingen om {name} te tonen"},
+  "dev.keepout.inside_kept_out_own": {"text": "de map {name} staat in de map {parent}, die buiten Afbeeldingen wordt gehouden: toon eerst {parent} in Afbeeldingen en daarna {name}"},
+  "dev.keepout.not_full_path": {"text": "de map moet een volledig pad zijn"},
+  "dev.keepout.path_invalid": {"text": "het pad van de map is ongeldig"},
+  "dev.keepout.path_too_long": {"text": "het pad van de map is te lang"},
+  "dev.keepout.whole_library": {"text": "de hele bibliotheek kan niet buiten Afbeeldingen worden gehouden"}
+}

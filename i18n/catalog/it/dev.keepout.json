@@ -1,0 +1,8 @@
+{
+  "dev.keepout.inside_kept_out": {"text": "La cartella {name} si trova dentro {parent}, che è fuori da Immagini: mostra {parent} in Immagini per mostrare {name}"},
+  "dev.keepout.inside_kept_out_own": {"text": "La cartella {name} si trova dentro {parent}, che è fuori da Immagini: mostra prima {parent} in Immagini, poi {name}"},
+  "dev.keepout.not_full_path": {"text": "la cartella deve essere un percorso completo"},
+  "dev.keepout.path_invalid": {"text": "il percorso della cartella non è valido"},
+  "dev.keepout.path_too_long": {"text": "il percorso della cartella è troppo lungo"},
+  "dev.keepout.whole_library": {"text": "non si può tenere fuori da Immagini l’intera libreria"}
+}

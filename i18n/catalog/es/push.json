@@ -1,0 +1,17 @@
+{
+  "push.comment.liked": {"text": "ha indicado que le gusta tu comentario"},
+  "push.friend.accepted": {"text": "ha aceptado tu solicitud de amistad"},
+  "push.friend.request": {"text": "te ha enviado una solicitud de amistad"},
+  "push.offline.body": {"text": "Parece que tu dispositivo se ha quedado sin conexión"},
+  "push.post.commented": {"text": "ha comentado tu publicación"},
+  "push.post.liked": {"text": "ha indicado que le gusta tu publicación"},
+  "push.post.new": {"text": "ha publicado algo nuevo"},
+  "push.raid.stopped_bottom": {"text": "El disco del puerto USB azul inferior ha fallado. Tus archivos están a salvo en el otro: sustitúyelo pronto."},
+  "push.raid.stopped_title": {"text": "Un disco de almacenamiento ha dejado de funcionar"},
+  "push.raid.stopped_top": {"text": "El disco del puerto USB azul superior ha fallado. Tus archivos están a salvo en el otro: sustitúyelo pronto."},
+  "push.raid.stopped_unknown": {"text": "Uno de los dos discos de almacenamiento ha fallado. Tus archivos están a salvo en el otro: sustitúyelo pronto."},
+  "push.raid.working_body": {"text": "El espejo está completo: todos los archivos vuelven a estar en los dos discos."},
+  "push.raid.working_title": {"text": "Los discos de almacenamiento vuelven a funcionar"},
+  "push.update.critical_body": {"text": "Instálala desde Ajustes."},
+  "push.update.critical_title": {"text": "Actualización crítica {version}: instálala pronto"}
+}

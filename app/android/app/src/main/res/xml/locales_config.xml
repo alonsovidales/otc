@@ -3,4 +3,10 @@
      The languages the app's resources hold, for android:localeConfig. -->
 <locale-config xmlns:android="http://schemas.android.com/apk/res/android">
     <locale android:name="en" />
+    <locale android:name="es" />
+    <locale android:name="fr" />
+    <locale android:name="de" />
+    <locale android:name="it" />
+    <locale android:name="pt-PT" />
+    <locale android:name="nl" />
 </locale-config>

@@ -32,7 +32,7 @@ func TestErrorsEnglishUnchanged(t *testing.T) {
 		{devtext.TailscaleError("", nil, "an older runner's words"), "an older runner's words"},
 	}
 	for _, c := range cases {
-		for _, lang := range []string{"", "en", "it"} {
+		for _, lang := range []string{"", "en", "ja"} { // "ja": a language no build carries
 			if got := devtext.Text(lang, c.err); got != c.want || c.err.Error() != c.want {
 				t.Errorf("in %q: got %q (Error %q), want %q", lang, got, c.err.Error(), c.want)
 			}

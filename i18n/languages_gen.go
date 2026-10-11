@@ -8,4 +8,10 @@ package i18n
 // shipping ones (make i18n DRAFT=1 adds the drafts and the pseudo-locale).
 var languages = []Language{
 	{Code: "en", Tag: "en", Name: "English"},
+	{Code: "es", Tag: "es", Name: "Español"},
+	{Code: "fr", Tag: "fr", Name: "Français"},
+	{Code: "de", Tag: "de", Name: "Deutsch"},
+	{Code: "it", Tag: "it", Name: "Italiano"},
+	{Code: "pt", Tag: "pt-PT", Name: "Português"},
+	{Code: "nl", Tag: "nl", Name: "Nederlands"},
 }

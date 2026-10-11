@@ -1,0 +1,12 @@
+{
+  "dev.auth.decrypt_failed": {"text": "não foi possível desencriptar os dados da chave"},
+  "dev.auth.device_state_failed": {"text": "erro ao verificar o estado do dispositivo"},
+  "dev.auth.invalid_session": {"text": "Sessão inválida"},
+  "dev.auth.keypair_failed": {"text": "erro ao gerar o par de chaves"},
+  "dev.auth.no_public_key": {"text": "não foi pedida nenhuma chave pública para esta ligação"},
+  "dev.auth.password_too_short": {"text": "a palavra-passe tem de ter 8 caracteres ou mais"},
+  "dev.auth.public_key_failed": {"text": "erro ao codificar a chave pública"},
+  "dev.auth.session_expired": {"text": "Sessão expirada ou inválida. Inicia sessão novamente."},
+  "dev.auth.token_failed": {"text": "erro ao emitir o token de sessão"},
+  "dev.auth.too_many_attempts": {"text": "Demasiadas tentativas. Tenta novamente dentro de {seconds} segundos."}
+}

@@ -29,6 +29,12 @@ object Languages {
 
     val all: List<Language> = listOf(
         Language(code = "en", tag = "en", name = "English"),
+        Language(code = "es", tag = "es", name = "Español"),
+        Language(code = "fr", tag = "fr", name = "Français"),
+        Language(code = "de", tag = "de", name = "Deutsch"),
+        Language(code = "it", tag = "it", name = "Italiano"),
+        Language(code = "pt", tag = "pt-PT", name = "Português"),
+        Language(code = "nl", tag = "nl", name = "Nederlands"),
     )
 
     /** The language with this code, or null. */

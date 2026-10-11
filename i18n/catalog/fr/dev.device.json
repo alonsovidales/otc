@@ -1,0 +1,23 @@
+{
+  "dev.device.already_on_bridge": {"text": "cet appareil est déjà sur la passerelle"},
+  "dev.device.bridge_dial_failed": {"text": "connexion à la passerelle : {detail}"},
+  "dev.device.bridge_read_failed": {"text": "lecture depuis la passerelle : {detail}"},
+  "dev.device.bridge_secret_managed": {"text": "le secret de la passerelle est géré par l’appareil"},
+  "dev.device.bridge_write_failed": {"text": "écriture vers la passerelle : {detail}"},
+  "dev.device.identity_store_failed": {"text": "impossible d’enregistrer la nouvelle identité de l’appareil"},
+  "dev.device.local_addresses_failed": {"text": "impossible de lister les adresses de cet appareil"},
+  "dev.device.local_no_address": {"text": "cet appareil n’a pas d’adresse sur le réseau domestique"},
+  "dev.device.local_no_listener": {"text": "cet appareil n’accepte pas de connexions directes sur le réseau domestique"},
+  "dev.device.local_starting": {"text": "cet appareil est encore en train de démarrer l’écoute sur le réseau domestique"},
+  "dev.device.logs_console_only": {"text": "cet appareil n’écrit ses journaux que dans sa console"},
+  "dev.device.logs_need_bridge": {"text": "cet appareil n’est pas sur la passerelle et ne peut donc pas envoyer ses journaux : utilisez plutôt Copier"},
+  "dev.device.not_on_bridge": {"text": "cet appareil n’est pas sur la passerelle"},
+  "dev.device.release_failed": {"text": "La passerelle n’a pas pu être jointe, le nom est donc toujours enregistré : libérez-le sur la page du compte."},
+  "dev.device.restart_needs_update": {"text": "cet appareil ne peut pas être redémarré d’ici tant qu’il n’a pas été mis à jour"},
+  "dev.device.restart_request_failed": {"text": "impossible de demander le redémarrage : {detail}"},
+  "dev.device.restart_too_soon": {"text": "l’appareil vient tout juste de démarrer ; réessayez dans une minute"},
+  "dev.device.social_limit_too_low": {"text": "la limite doit être d’au moins 0,1 Go"},
+  "dev.device.storage_too_many": {"text": "choisissez au plus 2 disques ({chosen} choisis)"},
+  "dev.device.unknown_log": {"text": "journal inconnu « {source} »"},
+  "dev.device.wifi_no_ssid": {"text": "le SSID ne peut pas être vide"}
+}

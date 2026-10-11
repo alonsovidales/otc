@@ -1,0 +1,17 @@
+{
+  "push.comment.liked": {"text": "ha messo Mi piace al tuo commento"},
+  "push.friend.accepted": {"text": "ha accettato la tua richiesta di amicizia"},
+  "push.friend.request": {"text": "ti ha inviato una richiesta di amicizia"},
+  "push.offline.body": {"text": "Sembra che il tuo dispositivo sia offline"},
+  "push.post.commented": {"text": "ha commentato il tuo post"},
+  "push.post.liked": {"text": "ha messo Mi piace al tuo post"},
+  "push.post.new": {"text": "ha pubblicato qualcosa di nuovo"},
+  "push.raid.stopped_bottom": {"text": "Il disco nella porta USB blu inferiore si è guastato. I tuoi file sono al sicuro sull’altro: sostituiscilo presto."},
+  "push.raid.stopped_title": {"text": "Un disco di archiviazione ha smesso di funzionare"},
+  "push.raid.stopped_top": {"text": "Il disco nella porta USB blu superiore si è guastato. I tuoi file sono al sicuro sull’altro: sostituiscilo presto."},
+  "push.raid.stopped_unknown": {"text": "Uno dei due dischi di archiviazione si è guastato. I tuoi file sono al sicuro sull’altro: sostituiscilo presto."},
+  "push.raid.working_body": {"text": "Il mirror è completo: ogni file è di nuovo su entrambi i dischi."},
+  "push.raid.working_title": {"text": "I dischi di archiviazione funzionano di nuovo"},
+  "push.update.critical_body": {"text": "Installalo da Impostazioni."},
+  "push.update.critical_title": {"text": "Aggiornamento critico {version}: installalo al più presto"}
+}

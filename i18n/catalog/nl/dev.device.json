@@ -1,0 +1,23 @@
+{
+  "dev.device.already_on_bridge": {"text": "dit apparaat is al verbonden met de bridge"},
+  "dev.device.bridge_dial_failed": {"text": "kan geen verbinding maken met de bridge: {detail}"},
+  "dev.device.bridge_read_failed": {"text": "kan het antwoord van de bridge niet lezen: {detail}"},
+  "dev.device.bridge_secret_managed": {"text": "het geheim voor de bridge wordt door het apparaat zelf beheerd"},
+  "dev.device.bridge_write_failed": {"text": "kan niet naar de bridge schrijven: {detail}"},
+  "dev.device.identity_store_failed": {"text": "kan de nieuwe identiteit van het apparaat niet opslaan"},
+  "dev.device.local_addresses_failed": {"text": "kan de adressen van dit apparaat niet opvragen"},
+  "dev.device.local_no_address": {"text": "dit apparaat heeft geen adres op het thuisnetwerk"},
+  "dev.device.local_no_listener": {"text": "dit apparaat accepteert geen directe verbindingen op het thuisnetwerk"},
+  "dev.device.local_starting": {"text": "dit apparaat is nog bezig de directe verbindingen op het thuisnetwerk te starten"},
+  "dev.device.logs_console_only": {"text": "dit apparaat schrijft zijn logboeken alleen naar de console"},
+  "dev.device.logs_need_bridge": {"text": "dit apparaat is niet verbonden met de bridge en kan zijn logboeken dus niet versturen: gebruik in plaats daarvan Kopiëren"},
+  "dev.device.not_on_bridge": {"text": "dit apparaat is niet verbonden met de bridge"},
+  "dev.device.release_failed": {"text": "De bridge kon niet worden bereikt, dus de naam is nog geregistreerd: geef hem vrij op de accountpagina."},
+  "dev.device.restart_needs_update": {"text": "dit apparaat kan hier pas worden herstart als het is bijgewerkt"},
+  "dev.device.restart_request_failed": {"text": "kan de herstart niet aanvragen: {detail}"},
+  "dev.device.restart_too_soon": {"text": "het apparaat is net opgestart; probeer het over een minuut opnieuw"},
+  "dev.device.social_limit_too_low": {"text": "de limiet moet minstens 0,1 GB zijn"},
+  "dev.device.storage_too_many": {"text": "kies maximaal 2 schijven, gekozen: {chosen}"},
+  "dev.device.unknown_log": {"text": "onbekend logboek “{source}”"},
+  "dev.device.wifi_no_ssid": {"text": "ssid mag niet leeg zijn"}
+}

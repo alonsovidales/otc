@@ -1,0 +1,10 @@
+{
+  "site.device.disabled.heading": {"text": "Questo account è stato disattivato"},
+  "site.device.disabled.text": {"text": "Il proprietario di questo dispositivo ha disattivato questo account. Contattalo se pensi che si tratti di un errore."},
+  "site.device.disabled.title": {"text": "Account disattivato"},
+  "site.device.unavailable.countdown": {"text": "Nuovo controllo tra {seconds} s"},
+  "site.device.unavailable.heading": {"text": "Questo dispositivo non è disponibile al momento"},
+  "site.device.unavailable.retry": {"text": "Riprova"},
+  "site.device.unavailable.text": {"text": "Sembra che sia spento, offline o ancora in fase di avvio. Non è andato perso nulla: tutto resta sul dispositivo. Riprova tra un momento."},
+  "site.device.unavailable.title": {"text": "Dispositivo non disponibile"}
+}

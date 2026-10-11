@@ -1,0 +1,8 @@
+{
+  "dev.keepout.inside_kept_out": {"text": "{name} liegt im Ordner {parent}, der in „Bilder“ ausgeblendet ist – zeige {parent} in „Bilder“ an, um {name} anzuzeigen"},
+  "dev.keepout.inside_kept_out_own": {"text": "{name} liegt im Ordner {parent}, der in „Bilder“ ausgeblendet ist – zeige zuerst {parent} in „Bilder“ an, dann {name}"},
+  "dev.keepout.not_full_path": {"text": "der Ordner muss ein vollständiger Pfad sein"},
+  "dev.keepout.path_invalid": {"text": "der Pfad des Ordners ist ungültig"},
+  "dev.keepout.path_too_long": {"text": "der Pfad des Ordners ist zu lang"},
+  "dev.keepout.whole_library": {"text": "die gesamte Mediathek kann nicht in „Bilder“ ausgeblendet werden"}
+}

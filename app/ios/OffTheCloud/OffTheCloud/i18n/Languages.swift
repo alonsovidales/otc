@@ -23,6 +23,12 @@ extension L10nLanguage {
     /// Every language of this build, in the picker's order, English first.
     static let all: [L10nLanguage] = [
         L10nLanguage(code: "en", tag: "en", apple: "en", name: "English", pseudo: false),
+        L10nLanguage(code: "es", tag: "es", apple: "es", name: "Español", pseudo: false),
+        L10nLanguage(code: "fr", tag: "fr", apple: "fr", name: "Français", pseudo: false),
+        L10nLanguage(code: "de", tag: "de", apple: "de", name: "Deutsch", pseudo: false),
+        L10nLanguage(code: "it", tag: "it", apple: "it", name: "Italiano", pseudo: false),
+        L10nLanguage(code: "pt", tag: "pt-PT", apple: "pt-PT", name: "Português", pseudo: false),
+        L10nLanguage(code: "nl", tag: "nl", apple: "nl", name: "Nederlands", pseudo: false),
     ]
 
     /// English: the source text, and the fallback for anything missing.
