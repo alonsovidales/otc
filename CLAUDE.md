@@ -830,8 +830,12 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
 
 ### Localization (`docs/i18n.md`, `i18n/`)
 
-Being added across every surface (2026-10): English plus es, fr, de, it, pt (pt-PT) and nl. The
-design is `docs/i18n.md`; the contributor guide is `i18n/README.md`. The user's language is
+Every surface ships in English plus es, fr, de, it, pt (pt-PT) and nl since 2026-10-11 (device
+release 119, otc-sync 0.16.0, macOS 2.2, the bridge's site, account page and emails; the iOS and
+Android builds follow once their store reviews clear). Translations were made and reviewed by
+back-translation (`"reviewed": "claude-backtranslation …"`); a new or changed English text needs
+all six before `I18N_RELEASE=1` passes. The design is `docs/i18n.md`; the contributor guide is
+`i18n/README.md`. The user's language is
 stored on the device per user (`Settings.language` / `Status.language`, `optional`: absent =
 device predates it, `""` = Automatic, `SetLanguage` = 138), and every app sends its effective
 language as `ReqEnvelope.lang` (= 2); a request without it gets today's English, byte for byte.
