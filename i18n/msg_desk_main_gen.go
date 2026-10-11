@@ -4,6 +4,261 @@
 
 package i18n
 
+// DeskMainAddFolder is desk.main.add_folder: "Add Folder…".
+func DeskMainAddFolder() Msg {
+	return Msg{Key: "desk.main.add_folder"}
+}
+
+// DeskMainAddFolderTip is desk.main.add_folder_tip: "Back up or sync a folder from this computer, or sync one from the device".
+func DeskMainAddFolderTip() Msg {
+	return Msg{Key: "desk.main.add_folder_tip"}
+}
+
+// DeskMainAppUpdate is desk.main.app_update: "Update otc-sync to {version}".
+func DeskMainAppUpdate(version string) Msg {
+	return Msg{Key: "desk.main.app_update", Args: map[string]any{"version": version}}
+}
+
+// DeskMainAppUpdateFailed is desk.main.app_update_failed: "The update could not be installed:\n\n{detail}".
+func DeskMainAppUpdateFailed(detail string) Msg {
+	return Msg{Key: "desk.main.app_update_failed", Args: map[string]any{"detail": detail}}
+}
+
+// DeskMainAppUpdating is desk.main.app_updating: "Updating to {version}…".
+func DeskMainAppUpdating(version string) Msg {
+	return Msg{Key: "desk.main.app_updating", Args: map[string]any{"version": version}}
+}
+
+// DeskMainAutostartMessage is desk.main.autostart_message: "Your folders keep syncing in the background after you restart your computer. You…".
+func DeskMainAutostartMessage() Msg {
+	return Msg{Key: "desk.main.autostart_message"}
+}
+
+// DeskMainAutostartNo is desk.main.autostart_no: "Not Now".
+func DeskMainAutostartNo() Msg {
+	return Msg{Key: "desk.main.autostart_no"}
+}
+
+// DeskMainAutostartTitle is desk.main.autostart_title: "Start Off The Cloud when you log in?".
+func DeskMainAutostartTitle() Msg {
+	return Msg{Key: "desk.main.autostart_title"}
+}
+
+// DeskMainAutostartToggle is desk.main.autostart_toggle: "Start at login".
+func DeskMainAutostartToggle() Msg {
+	return Msg{Key: "desk.main.autostart_toggle"}
+}
+
+// DeskMainAutostartToggleTip is desk.main.autostart_toggle_tip: "Start Off The Cloud when you log in, so your folders keep syncing after a restar…".
+func DeskMainAutostartToggleTip() Msg {
+	return Msg{Key: "desk.main.autostart_toggle_tip"}
+}
+
+// DeskMainAutostartYes is desk.main.autostart_yes: "Start at Login".
+func DeskMainAutostartYes() Msg {
+	return Msg{Key: "desk.main.autostart_yes"}
+}
+
+// DeskMainBrowserFailed is desk.main.browser_failed: "The browser could not be opened:\n\n{detail}\n\nThe web app is at {address}".
+func DeskMainBrowserFailed(detail string, address string) Msg {
+	return Msg{Key: "desk.main.browser_failed", Args: map[string]any{"detail": detail, "address": address}}
+}
+
+// DeskMainCannotWatch is desk.main.cannot_watch: "cannot watch: {detail}".
+func DeskMainCannotWatch(detail string) Msg {
+	return Msg{Key: "desk.main.cannot_watch", Args: map[string]any{"detail": detail}}
+}
+
+// DeskMainChecking is desk.main.checking: "Checking…".
+func DeskMainChecking() Msg {
+	return Msg{Key: "desk.main.checking"}
+}
+
+// DeskMainCheckingFile is desk.main.checking_file: "Checking {done}/{total} · {name}".
+func DeskMainCheckingFile(done string, total string, name string) Msg {
+	return Msg{Key: "desk.main.checking_file", Args: map[string]any{"done": done, "total": total, "name": name}}
+}
+
+// DeskMainChooseDownload is desk.main.choose_download: "Choose where to download “{path}” and keep it in sync".
+func DeskMainChooseDownload(path string) Msg {
+	return Msg{Key: "desk.main.choose_download", Args: map[string]any{"path": path}}
+}
+
+// DeskMainChooseFolder is desk.main.choose_folder: "Choose Folder…".
+func DeskMainChooseFolder() Msg {
+	return Msg{Key: "desk.main.choose_folder"}
+}
+
+// DeskMainConfigInvalid is desk.main.config_invalid: "config.json is not valid: {detail}".
+func DeskMainConfigInvalid(detail string) Msg {
+	return Msg{Key: "desk.main.config_invalid", Args: map[string]any{"detail": detail}}
+}
+
+// DeskMainConnectMenu is desk.main.connect_menu: "Connect to a Device…".
+func DeskMainConnectMenu() Msg {
+	return Msg{Key: "desk.main.connect_menu"}
+}
+
+// DeskMainConnectedHome is desk.main.connected_home: "Connected over your home network".
+func DeskMainConnectedHome() Msg {
+	return Msg{Key: "desk.main.connected_home"}
+}
+
+// DeskMainConnectedThrough is desk.main.connected_through: "Connected through {host}".
+func DeskMainConnectedThrough(host string) Msg {
+	return Msg{Key: "desk.main.connected_through", Args: map[string]any{"host": host}}
+}
+
+// DeskMainConnectedThroughConfigured is desk.main.connected_through_configured: "Connected through the configured address".
+func DeskMainConnectedThroughConfigured() Msg {
+	return Msg{Key: "desk.main.connected_through_configured"}
+}
+
+// DeskMainCouldNotList is desk.main.could_not_list: "could not list remote files".
+func DeskMainCouldNotList() Msg {
+	return Msg{Key: "desk.main.could_not_list"}
+}
+
+// DeskMainCpuLine is desk.main.cpu_line: "CPU: {percent}%".
+func DeskMainCpuLine(percent int) Msg {
+	return Msg{Key: "desk.main.cpu_line", Args: map[string]any{"percent": int64(percent)}}
+}
+
+// DeskMainDisconnectMenu is desk.main.disconnect_menu: "Disconnect from {device}…".
+func DeskMainDisconnectMenu(device string) Msg {
+	return Msg{Key: "desk.main.disconnect_menu", Args: map[string]any{"device": device}}
+}
+
+// DeskMainDisconnectMessage is desk.main.disconnect_message: "All your synced folders are removed from this app, so none of them starts syncin…".
+func DeskMainDisconnectMessage() Msg {
+	return Msg{Key: "desk.main.disconnect_message"}
+}
+
+// DeskMainDisconnectTitle is desk.main.disconnect_title: "Disconnect from {device}?".
+func DeskMainDisconnectTitle(device string) Msg {
+	return Msg{Key: "desk.main.disconnect_title", Args: map[string]any{"device": device}}
+}
+
+// DeskMainExplain is desk.main.explain: "What Do These Do?".
+func DeskMainExplain() Msg {
+	return Msg{Key: "desk.main.explain"}
+}
+
+// DeskMainExplainBackup is desk.main.explain_backup: "Back up a folder from this computer - one way: this computer → device (upload on…".
+func DeskMainExplainBackup() Msg {
+	return Msg{Key: "desk.main.explain_backup"}
+}
+
+// DeskMainExplainDevice is desk.main.explain_device: "Sync a folder from the device - two ways\nPick a folder already on the device and…".
+func DeskMainExplainDevice() Msg {
+	return Msg{Key: "desk.main.explain_device"}
+}
+
+// DeskMainExplainImages is desk.main.explain_images: "Keep out of Images (an option for a folder from this computer)\nPhotos and videos…".
+func DeskMainExplainImages() Msg {
+	return Msg{Key: "desk.main.explain_images"}
+}
+
+// DeskMainExplainLocal is desk.main.explain_local: "Sync a folder from this computer - two ways\nThe folder is copied to the device, …".
+func DeskMainExplainLocal() Msg {
+	return Msg{Key: "desk.main.explain_local"}
+}
+
+// DeskMainExplainTip is desk.main.explain_tip: "The kinds of folder, and their options".
+func DeskMainExplainTip() Msg {
+	return Msg{Key: "desk.main.explain_tip"}
+}
+
+// DeskMainExplainTitle is desk.main.explain_title: "Adding a folder".
+func DeskMainExplainTitle() Msg {
+	return Msg{Key: "desk.main.explain_title"}
+}
+
+// DeskMainExplainUploadOnly is desk.main.explain_upload_only: "Upload only (an option for a folder synced from this computer; always on for a b…".
+func DeskMainExplainUploadOnly() Msg {
+	return Msg{Key: "desk.main.explain_upload_only"}
+}
+
+// DeskMainFilesUnreadable is desk.main.files_unreadable: "{files} file(s) could not be read".
+func DeskMainFilesUnreadable(files int) Msg {
+	return Msg{Key: "desk.main.files_unreadable", Args: map[string]any{"files": int64(files)}}
+}
+
+// DeskMainFolderBackedUp is desk.main.folder_backed_up: "Backed up".
+func DeskMainFolderBackedUp() Msg {
+	return Msg{Key: "desk.main.folder_backed_up"}
+}
+
+// DeskMainFolderOffline is desk.main.folder_offline: "Device offline - will resume".
+func DeskMainFolderOffline() Msg {
+	return Msg{Key: "desk.main.folder_offline"}
+}
+
+// DeskMainFolderSynced is desk.main.folder_synced: "Synced".
+func DeskMainFolderSynced() Msg {
+	return Msg{Key: "desk.main.folder_synced"}
+}
+
+// DeskMainImagesAddCaption is desk.main.images_add_caption: "Photos and videos in it aren't tagged, searched for faces or shown in Images. Fi…".
+func DeskMainImagesAddCaption() Msg {
+	return Msg{Key: "desk.main.images_add_caption"}
+}
+
+// DeskMainImagesByParent is desk.main.images_by_parent: "Inside {parent}, which is kept out of Images".
+func DeskMainImagesByParent(parent string) Msg {
+	return Msg{Key: "desk.main.images_by_parent", Args: map[string]any{"parent": parent}}
+}
+
+// DeskMainImagesKeepButton is desk.main.images_keep_button: "Keep Out of Images".
+func DeskMainImagesKeepButton() Msg {
+	return Msg{Key: "desk.main.images_keep_button"}
+}
+
+// DeskMainImagesKeepMessage is desk.main.images_keep_message: "Its photos and videos won't be tagged, searched for faces or shown in Images, an…".
+func DeskMainImagesKeepMessage() Msg {
+	return Msg{Key: "desk.main.images_keep_message"}
+}
+
+// DeskMainImagesKeepOut is desk.main.images_keep_out: "Keep out of Images".
+func DeskMainImagesKeepOut() Msg {
+	return Msg{Key: "desk.main.images_keep_out"}
+}
+
+// DeskMainImagesKeepTitle is desk.main.images_keep_title: "Keep “{name}” out of Images?".
+func DeskMainImagesKeepTitle(name string) Msg {
+	return Msg{Key: "desk.main.images_keep_title", Args: map[string]any{"name": name}}
+}
+
+// DeskMainImagesNeedsUpdate is desk.main.images_needs_update: "Your device needs an update to keep folders out of Images.".
+func DeskMainImagesNeedsUpdate() Msg {
+	return Msg{Key: "desk.main.images_needs_update"}
+}
+
+// DeskMainImagesShowButton is desk.main.images_show_button: "Show in Images".
+func DeskMainImagesShowButton() Msg {
+	return Msg{Key: "desk.main.images_show_button"}
+}
+
+// DeskMainImagesShowMessage is desk.main.images_show_message: "Its photos and videos go back to Images, and are tagged - and searched for faces…".
+func DeskMainImagesShowMessage() Msg {
+	return Msg{Key: "desk.main.images_show_message"}
+}
+
+// DeskMainImagesShowTitle is desk.main.images_show_title: "Show “{name}” in Images?".
+func DeskMainImagesShowTitle(name string) Msg {
+	return Msg{Key: "desk.main.images_show_title", Args: map[string]any{"name": name}}
+}
+
+// DeskMainKindDevice is desk.main.kind_device: "Sync a folder from the device".
+func DeskMainKindDevice() Msg {
+	return Msg{Key: "desk.main.kind_device"}
+}
+
+// DeskMainKindDeviceSubtitle is desk.main.kind_device_subtitle: "Two ways: starts from the device".
+func DeskMainKindDeviceSubtitle() Msg {
+	return Msg{Key: "desk.main.kind_device_subtitle"}
+}
+
 // DeskMainLanguage is desk.main.language: "Language".
 func DeskMainLanguage() Msg {
 	return Msg{Key: "desk.main.language"}
@@ -12,4 +267,234 @@ func DeskMainLanguage() Msg {
 // DeskMainLanguageAutomatic is desk.main.language_automatic: "Automatic ({language})".
 func DeskMainLanguageAutomatic(language string) Msg {
 	return Msg{Key: "desk.main.language_automatic", Args: map[string]any{"language": language}}
+}
+
+// DeskMainMemoryLine is desk.main.memory_line: "Memory: {amount}".
+func DeskMainMemoryLine(amount string) Msg {
+	return Msg{Key: "desk.main.memory_line", Args: map[string]any{"amount": amount}}
+}
+
+// DeskMainNoFolders is desk.main.no_folders: "No folders yet — add one below.".
+func DeskMainNoFolders() Msg {
+	return Msg{Key: "desk.main.no_folders"}
+}
+
+// DeskMainNotConnectedError is desk.main.not_connected_error: "not connected".
+func DeskMainNotConnectedError() Msg {
+	return Msg{Key: "desk.main.not_connected_error"}
+}
+
+// DeskMainNotSigned is desk.main.not_signed: "{url} is not signed with the release key".
+func DeskMainNotSigned(url string) Msg {
+	return Msg{Key: "desk.main.not_signed", Args: map[string]any{"url": url}}
+}
+
+// DeskMainOpenWebApp is desk.main.open_web_app: "Open Web App".
+func DeskMainOpenWebApp() Msg {
+	return Msg{Key: "desk.main.open_web_app"}
+}
+
+// DeskMainOpenWebAppTip is desk.main.open_web_app_tip: "Open {address} in your browser".
+func DeskMainOpenWebAppTip(address string) Msg {
+	return Msg{Key: "desk.main.open_web_app_tip", Args: map[string]any{"address": address}}
+}
+
+// DeskMainPasswordTitle is desk.main.password_title: "Off The Cloud — Password for {device}".
+func DeskMainPasswordTitle(device string) Msg {
+	return Msg{Key: "desk.main.password_title", Args: map[string]any{"device": device}}
+}
+
+// DeskMainRemoveTip is desk.main.remove_tip: "Stop syncing this folder (nothing is deleted)".
+func DeskMainRemoveTip() Msg {
+	return Msg{Key: "desk.main.remove_tip"}
+}
+
+// DeskMainRestoredFiles is desk.main.restored_files: "{files} files had disappeared from the device - restored them from this computer…".
+func DeskMainRestoredFiles(files int) Msg {
+	return Msg{Key: "desk.main.restored_files", Args: map[string]any{"files": int64(files)}}
+}
+
+// DeskMainSetUpDevice is desk.main.set_up_device: "Set Up a New Device…".
+func DeskMainSetUpDevice() Msg {
+	return Msg{Key: "desk.main.set_up_device"}
+}
+
+// DeskMainSetUpDeviceTip is desk.main.set_up_device_tip: "Prepare the SD card for a new Raspberry Pi device".
+func DeskMainSetUpDeviceTip() Msg {
+	return Msg{Key: "desk.main.set_up_device_tip"}
+}
+
+// DeskMainSettingsHint is desk.main.settings_hint: "Device name (as on the bridge, e.g. “cala”), or a full address for a device else…".
+func DeskMainSettingsHint() Msg {
+	return Msg{Key: "desk.main.settings_hint"}
+}
+
+// DeskMainSettingsTitle is desk.main.settings_title: "Off The Cloud — Settings".
+func DeskMainSettingsTitle() Msg {
+	return Msg{Key: "desk.main.settings_title"}
+}
+
+// DeskMainSignatureMalformed is desk.main.signature_malformed: "the signature of {url} is malformed: {detail}".
+func DeskMainSignatureMalformed(url string, detail string) Msg {
+	return Msg{Key: "desk.main.signature_malformed", Args: map[string]any{"url": url, "detail": detail}}
+}
+
+// DeskMainStatusConnected is desk.main.status_connected: "Connected".
+func DeskMainStatusConnected() Msg {
+	return Msg{Key: "desk.main.status_connected"}
+}
+
+// DeskMainStatusDisconnected is desk.main.status_disconnected: "Disconnected".
+func DeskMainStatusDisconnected() Msg {
+	return Msg{Key: "desk.main.status_disconnected"}
+}
+
+// DeskMainStatusMissingSettings is desk.main.status_missing_settings: "Missing domain/password".
+func DeskMainStatusMissingSettings() Msg {
+	return Msg{Key: "desk.main.status_missing_settings"}
+}
+
+// DeskMainStatusNotConnected is desk.main.status_not_connected: "Not connected".
+func DeskMainStatusNotConnected() Msg {
+	return Msg{Key: "desk.main.status_not_connected"}
+}
+
+// DeskMainStatusOffline is desk.main.status_offline: "Device offline - retrying".
+func DeskMainStatusOffline() Msg {
+	return Msg{Key: "desk.main.status_offline"}
+}
+
+// DeskMainStatusSyncNotRunning is desk.main.status_sync_not_running: "Sync not running".
+func DeskMainStatusSyncNotRunning() Msg {
+	return Msg{Key: "desk.main.status_sync_not_running"}
+}
+
+// DeskMainStatusTooManyAttempts is desk.main.status_too_many_attempts: "Too many attempts - retrying in {seconds}s".
+func DeskMainStatusTooManyAttempts(seconds int) Msg {
+	return Msg{Key: "desk.main.status_too_many_attempts", Args: map[string]any{"seconds": int64(seconds)}}
+}
+
+// DeskMainStatusWrongPassword is desk.main.status_wrong_password: "Wrong password".
+func DeskMainStatusWrongPassword() Msg {
+	return Msg{Key: "desk.main.status_wrong_password"}
+}
+
+// DeskMainStorageDegraded is desk.main.storage_degraded: "A drive is down - the RAID is degraded".
+func DeskMainStorageDegraded() Msg {
+	return Msg{Key: "desk.main.storage_degraded"}
+}
+
+// DeskMainStorageFailed is desk.main.storage_failed: "The RAID has failed".
+func DeskMainStorageFailed() Msg {
+	return Msg{Key: "desk.main.storage_failed"}
+}
+
+// DeskMainStorageHealthy is desk.main.storage_healthy: "Storage healthy".
+func DeskMainStorageHealthy() Msg {
+	return Msg{Key: "desk.main.storage_healthy"}
+}
+
+// DeskMainStorageLine is desk.main.storage_line: "Storage: {amount}".
+func DeskMainStorageLine(amount string) Msg {
+	return Msg{Key: "desk.main.storage_line", Args: map[string]any{"amount": amount}}
+}
+
+// DeskMainStorageUnknown is desk.main.storage_unknown: "Storage status unknown".
+func DeskMainStorageUnknown() Msg {
+	return Msg{Key: "desk.main.storage_unknown"}
+}
+
+// DeskMainStorageUsed is desk.main.storage_used: "{percent}% used".
+func DeskMainStorageUsed(percent int) Msg {
+	return Msg{Key: "desk.main.storage_used", Args: map[string]any{"percent": int64(percent)}}
+}
+
+// DeskMainTitle is desk.main.title: "Off The Cloud — Sync".
+func DeskMainTitle() Msg {
+	return Msg{Key: "desk.main.title"}
+}
+
+// DeskMainTrayTip is desk.main.tray_tip: "Off The Cloud — {status}".
+func DeskMainTrayTip(status string) Msg {
+	return Msg{Key: "desk.main.tray_tip", Args: map[string]any{"status": status}}
+}
+
+// DeskMainUpdateAvailable is desk.main.update_available: "Device update {version} available".
+func DeskMainUpdateAvailable(version string) Msg {
+	return Msg{Key: "desk.main.update_available", Args: map[string]any{"version": version}}
+}
+
+// DeskMainUpdateCantReplace is desk.main.update_cant_replace: "can't replace {path} ({detail}) - run `sudo otc-sync update`, or install otc-syn…".
+func DeskMainUpdateCantReplace(path string, detail string) Msg {
+	return Msg{Key: "desk.main.update_cant_replace", Args: map[string]any{"path": path, "detail": detail}}
+}
+
+// DeskMainUpdateCantWrite is desk.main.update_cant_write: "can't write next to {path} - download the new version from off-the.cloud instead…".
+func DeskMainUpdateCantWrite(path string, detail string) Msg {
+	return Msg{Key: "desk.main.update_cant_write", Args: map[string]any{"path": path, "detail": detail}}
+}
+
+// DeskMainUpdateCritical is desk.main.update_critical: "Critical device update {version} - install it from the device's Settings as soon…".
+func DeskMainUpdateCritical(version string) Msg {
+	return Msg{Key: "desk.main.update_critical", Args: map[string]any{"version": version}}
+}
+
+// DeskMainUpdateDownloadFailed is desk.main.update_download_failed: "downloading {version}: {status}".
+func DeskMainUpdateDownloadFailed(version string, status string) Msg {
+	return Msg{Key: "desk.main.update_download_failed", Args: map[string]any{"version": version, "status": status}}
+}
+
+// DeskMainUpdateHashMismatch is desk.main.update_hash_mismatch: "the download of {version} does not match its signed hash".
+func DeskMainUpdateHashMismatch(version string) Msg {
+	return Msg{Key: "desk.main.update_hash_mismatch", Args: map[string]any{"version": version}}
+}
+
+// DeskMainUploadOnly is desk.main.upload_only: "Upload only".
+func DeskMainUploadOnly() Msg {
+	return Msg{Key: "desk.main.upload_only"}
+}
+
+// DeskMainUploadOnlyBackup is desk.main.upload_only_backup: "Always on for a backup.".
+func DeskMainUploadOnlyBackup() Msg {
+	return Msg{Key: "desk.main.upload_only_backup"}
+}
+
+// DeskMainUploadOnlyCaption is desk.main.upload_only_caption: "The device keeps every older version of a file, and nothing in the folder can be…".
+func DeskMainUploadOnlyCaption() Msg {
+	return Msg{Key: "desk.main.upload_only_caption"}
+}
+
+// DeskMainUploadOnlyLifting is desk.main.upload_only_lifting: "Turning upload only off…".
+func DeskMainUploadOnlyLifting() Msg {
+	return Msg{Key: "desk.main.upload_only_lifting"}
+}
+
+// DeskMainUploadOnlyMaking is desk.main.upload_only_making: "Making it upload only…".
+func DeskMainUploadOnlyMaking() Msg {
+	return Msg{Key: "desk.main.upload_only_making"}
+}
+
+// DeskMainUploadOnlyNeedsUpdate is desk.main.upload_only_needs_update: "Your device needs an update to make folders upload only.".
+func DeskMainUploadOnlyNeedsUpdate() Msg {
+	return Msg{Key: "desk.main.upload_only_needs_update"}
+}
+
+// DeskMainUsedGbOfTotalTb is desk.main.used_gb_of_total_tb: "{used} GB of {total} TB".
+func DeskMainUsedGbOfTotalTb(used string, total string) Msg {
+	return Msg{Key: "desk.main.used_gb_of_total_tb", Args: map[string]any{"used": used, "total": total}}
+}
+
+// DeskMainUsedOfTotalGb is desk.main.used_of_total_gb: "{used} of {total} GB".
+func DeskMainUsedOfTotalGb(used string, total string) Msg {
+	return Msg{Key: "desk.main.used_of_total_gb", Args: map[string]any{"used": used, "total": total}}
+}
+
+// DeskMainUsedOfTotalTb is desk.main.used_of_total_tb: "{used} of {total} TB".
+func DeskMainUsedOfTotalTb(used string, total string) Msg {
+	return Msg{Key: "desk.main.used_of_total_tb", Args: map[string]any{"used": used, "total": total}}
+}
+
+// DeskMainUsedTbOfTotalGb is desk.main.used_tb_of_total_gb: "{used} TB of {total} GB".
+func DeskMainUsedTbOfTotalGb(used string, total string) Msg {
+	return Msg{Key: "desk.main.used_tb_of_total_gb", Args: map[string]any{"used": used, "total": total}}
 }

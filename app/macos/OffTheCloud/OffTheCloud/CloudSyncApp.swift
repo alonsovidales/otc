@@ -41,7 +41,7 @@ struct CloudSyncApp: App {
 
         // Issue #184: the new-device wizard, opened from the popover. Never
         // at launch - this is a menu bar app.
-        Window("Set Up a New Device", id: "setup") {
+        Window("Set Up a New Device", id: "setup") { // i18n-ignore: never shown - SetupWizardView's navigationTitle names the window (spike S1)
             L10nRoot { SetupWizardView() }
         }
         .windowResizability(.contentSize)

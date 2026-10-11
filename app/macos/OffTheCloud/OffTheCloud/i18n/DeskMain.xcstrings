@@ -1,6 +1,567 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "desk.main.add_folder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Folder…"
+          }
+        }
+      }
+    },
+    "desk.main.add_folder_tip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back up or sync a folder from this computer, or sync one from the device"
+          }
+        }
+      }
+    },
+    "desk.main.app_update" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update otc-sync to %1$@"
+          }
+        }
+      }
+    },
+    "desk.main.app_update_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The update could not be installed:\n\n%1$@"
+          }
+        }
+      }
+    },
+    "desk.main.app_updating" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updating to %1$@…"
+          }
+        }
+      }
+    },
+    "desk.main.autostart_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your folders keep syncing in the background after you restart your computer. You can change this with “Start at login” in the menu."
+          }
+        }
+      }
+    },
+    "desk.main.autostart_no" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Now"
+          }
+        }
+      }
+    },
+    "desk.main.autostart_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start Off The Cloud when you log in?"
+          }
+        }
+      }
+    },
+    "desk.main.autostart_toggle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start at login"
+          }
+        }
+      }
+    },
+    "desk.main.autostart_toggle_tip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start Off The Cloud when you log in, so your folders keep syncing after a restart"
+          }
+        }
+      }
+    },
+    "desk.main.autostart_yes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start at Login"
+          }
+        }
+      }
+    },
+    "desk.main.browser_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The browser could not be opened:\n\n%1$@\n\nThe web app is at %2$@"
+          }
+        }
+      }
+    },
+    "desk.main.cannot_watch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cannot watch: %1$@"
+          }
+        }
+      }
+    },
+    "desk.main.checking" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking…"
+          }
+        }
+      }
+    },
+    "desk.main.checking_file" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking %1$@/%2$@ · %3$@"
+          }
+        }
+      }
+    },
+    "desk.main.choose_download" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose where to download “%1$@” and keep it in sync"
+          }
+        }
+      }
+    },
+    "desk.main.choose_folder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Folder…"
+          }
+        }
+      }
+    },
+    "desk.main.config_invalid" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "config.json is not valid: %1$@"
+          }
+        }
+      }
+    },
+    "desk.main.connect_menu" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to a Device…"
+          }
+        }
+      }
+    },
+    "desk.main.connected_home" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected over your home network"
+          }
+        }
+      }
+    },
+    "desk.main.connected_through" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected through %1$@"
+          }
+        }
+      }
+    },
+    "desk.main.connected_through_configured" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected through the configured address"
+          }
+        }
+      }
+    },
+    "desk.main.could_not_list" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "could not list remote files"
+          }
+        }
+      }
+    },
+    "desk.main.cpu_line" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU: %1$lld%%"
+          }
+        }
+      }
+    },
+    "desk.main.disconnect_menu" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnect from %1$@…"
+          }
+        }
+      }
+    },
+    "desk.main.disconnect_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All your synced folders are removed from this app, so none of them starts syncing with a different device by mistake. The files themselves stay on this computer and on the device. You can add the folders again after connecting."
+          }
+        }
+      }
+    },
+    "desk.main.disconnect_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnect from %1$@?"
+          }
+        }
+      }
+    },
+    "desk.main.explain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What Do These Do?"
+          }
+        }
+      }
+    },
+    "desk.main.explain_backup" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back up a folder from this computer - one way: this computer → device (upload only, no deletes)\nNew and changed files are copied to the device. Nothing is ever deleted there: files you delete here stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder here."
+          }
+        }
+      }
+    },
+    "desk.main.explain_device" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync a folder from the device - two ways\nPick a folder already on the device and a place on this computer: it is downloaded there and kept the same in both places from then on, changes and deletions included. What is set for it on the device (upload only, kept out of Images) stays as it is."
+          }
+        }
+      }
+    },
+    "desk.main.explain_images" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep out of Images (an option for a folder from this computer)\nPhotos and videos in a folder kept out of Images aren't tagged, searched for faces or shown in Images. Files still shows them. Any tags and faces already found in them are deleted. You can change this later from the folder's menu. A folder renamed later is a new folder on the device: keep it out of Images again."
+          }
+        }
+      }
+    },
+    "desk.main.explain_local" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync a folder from this computer - two ways\nThe folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device change this folder too, and the other way round. The first sync only adds, it never deletes."
+          }
+        }
+      }
+    },
+    "desk.main.explain_tip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The kinds of folder, and their options"
+          }
+        }
+      }
+    },
+    "desk.main.explain_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adding a folder"
+          }
+        }
+      }
+    },
+    "desk.main.explain_upload_only" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upload only (an option for a folder synced from this computer; always on for a backup)\nThe device keeps every older version of a file, and nothing in the folder can be deleted on the device. Files you delete on this computer stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this computer while it was on then come back here."
+          }
+        }
+      }
+    },
+    "desk.main.files_unreadable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld file(s) could not be read"
+          }
+        }
+      }
+    },
+    "desk.main.folder_backed_up" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backed up"
+          }
+        }
+      }
+    },
+    "desk.main.folder_offline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device offline - will resume"
+          }
+        }
+      }
+    },
+    "desk.main.folder_synced" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synced"
+          }
+        }
+      }
+    },
+    "desk.main.images_add_caption" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos and videos in it aren't tagged, searched for faces or shown in Images. Files still has them. Any tags and faces already found in them are deleted."
+          }
+        }
+      }
+    },
+    "desk.main.images_by_parent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inside %1$@, which is kept out of Images"
+          }
+        }
+      }
+    },
+    "desk.main.images_keep_button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep Out of Images"
+          }
+        }
+      }
+    },
+    "desk.main.images_keep_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them."
+          }
+        }
+      }
+    },
+    "desk.main.images_keep_out" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep out of Images"
+          }
+        }
+      }
+    },
+    "desk.main.images_keep_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep “%1$@” out of Images?"
+          }
+        }
+      }
+    },
+    "desk.main.images_needs_update" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your device needs an update to keep folders out of Images."
+          }
+        }
+      }
+    },
+    "desk.main.images_show_button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show in Images"
+          }
+        }
+      }
+    },
+    "desk.main.images_show_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background."
+          }
+        }
+      }
+    },
+    "desk.main.images_show_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show “%1$@” in Images?"
+          }
+        }
+      }
+    },
+    "desk.main.kind_device" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync a folder from the device"
+          }
+        }
+      }
+    },
+    "desk.main.kind_device_subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Two ways: starts from the device"
+          }
+        }
+      }
+    },
     "desk.main.language" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -19,6 +580,512 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Automatic (%1$@)"
+          }
+        }
+      }
+    },
+    "desk.main.memory_line" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memory: %1$@"
+          }
+        }
+      }
+    },
+    "desk.main.no_folders" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No folders yet — add one below."
+          }
+        }
+      }
+    },
+    "desk.main.not_connected_error" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "not connected"
+          }
+        }
+      }
+    },
+    "desk.main.not_signed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ is not signed with the release key"
+          }
+        }
+      }
+    },
+    "desk.main.open_web_app" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Web App"
+          }
+        }
+      }
+    },
+    "desk.main.open_web_app_tip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open %1$@ in your browser"
+          }
+        }
+      }
+    },
+    "desk.main.password_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud — Password for %1$@"
+          }
+        }
+      }
+    },
+    "desk.main.remove_tip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop syncing this folder (nothing is deleted)"
+          }
+        }
+      }
+    },
+    "desk.main.restored_files" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld files had disappeared from the device - restored them from this computer instead of deleting them here"
+          }
+        }
+      }
+    },
+    "desk.main.set_up_device" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set Up a New Device…"
+          }
+        }
+      }
+    },
+    "desk.main.set_up_device_tip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prepare the SD card for a new Raspberry Pi device"
+          }
+        }
+      }
+    },
+    "desk.main.settings_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device name (as on the bridge, e.g. “cala”), or a full address for a device elsewhere (wss://host/ws, ws://192.168.1.10:8080/ws)."
+          }
+        }
+      }
+    },
+    "desk.main.settings_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud — Settings"
+          }
+        }
+      }
+    },
+    "desk.main.signature_malformed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the signature of %1$@ is malformed: %2$@"
+          }
+        }
+      }
+    },
+    "desk.main.status_connected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected"
+          }
+        }
+      }
+    },
+    "desk.main.status_disconnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnected"
+          }
+        }
+      }
+    },
+    "desk.main.status_missing_settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Missing domain/password"
+          }
+        }
+      }
+    },
+    "desk.main.status_not_connected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not connected"
+          }
+        }
+      }
+    },
+    "desk.main.status_offline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device offline - retrying"
+          }
+        }
+      }
+    },
+    "desk.main.status_sync_not_running" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync not running"
+          }
+        }
+      }
+    },
+    "desk.main.status_too_many_attempts" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many attempts - retrying in %1$llds"
+          }
+        }
+      }
+    },
+    "desk.main.status_wrong_password" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wrong password"
+          }
+        }
+      }
+    },
+    "desk.main.storage_degraded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A drive is down - the RAID is degraded"
+          }
+        }
+      }
+    },
+    "desk.main.storage_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The RAID has failed"
+          }
+        }
+      }
+    },
+    "desk.main.storage_healthy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Storage healthy"
+          }
+        }
+      }
+    },
+    "desk.main.storage_line" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Storage: %1$@"
+          }
+        }
+      }
+    },
+    "desk.main.storage_unknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Storage status unknown"
+          }
+        }
+      }
+    },
+    "desk.main.storage_used" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld%% used"
+          }
+        }
+      }
+    },
+    "desk.main.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud — Sync"
+          }
+        }
+      }
+    },
+    "desk.main.tray_tip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off The Cloud — %1$@"
+          }
+        }
+      }
+    },
+    "desk.main.update_available" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device update %1$@ available"
+          }
+        }
+      }
+    },
+    "desk.main.update_cant_replace" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "can't replace %1$@ (%2$@) - run `sudo otc-sync update`, or install otc-sync in ~/.local/bin so it can update itself"
+          }
+        }
+      }
+    },
+    "desk.main.update_cant_write" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "can't write next to %1$@ - download the new version from off-the.cloud instead: %2$@"
+          }
+        }
+      }
+    },
+    "desk.main.update_critical" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Critical device update %1$@ - install it from the device's Settings as soon as possible"
+          }
+        }
+      }
+    },
+    "desk.main.update_download_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "downloading %1$@: %2$@"
+          }
+        }
+      }
+    },
+    "desk.main.update_hash_mismatch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the download of %1$@ does not match its signed hash"
+          }
+        }
+      }
+    },
+    "desk.main.upload_only" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upload only"
+          }
+        }
+      }
+    },
+    "desk.main.upload_only_backup" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Always on for a backup."
+          }
+        }
+      }
+    },
+    "desk.main.upload_only_caption" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The device keeps every older version of a file, and nothing in the folder can be deleted on the device."
+          }
+        }
+      }
+    },
+    "desk.main.upload_only_lifting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turning upload only off…"
+          }
+        }
+      }
+    },
+    "desk.main.upload_only_making" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Making it upload only…"
+          }
+        }
+      }
+    },
+    "desk.main.upload_only_needs_update" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your device needs an update to make folders upload only."
+          }
+        }
+      }
+    },
+    "desk.main.used_gb_of_total_tb" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ GB of %2$@ TB"
+          }
+        }
+      }
+    },
+    "desk.main.used_of_total_gb" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ of %2$@ GB"
+          }
+        }
+      }
+    },
+    "desk.main.used_of_total_tb" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ of %2$@ TB"
+          }
+        }
+      }
+    },
+    "desk.main.used_tb_of_total_gb" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ TB of %2$@ GB"
           }
         }
       }

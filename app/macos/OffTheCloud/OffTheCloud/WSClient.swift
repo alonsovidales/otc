@@ -39,7 +39,8 @@ final class WSClient {
     /// password that won't work.
     /// retryAfter is set when the device refused to even check the
     /// password because this address made too many attempts (issue #117).
-    var onAuthFailed: ((String, _ retryAfter: Int?) -> Void)?
+    /// The message is the device's reason, nil when it gave none.
+    var onAuthFailed: ((String?, _ retryAfter: Int?) -> Void)?
     var onPush: ((Resp) -> Void)? // unsolicited server messages
     /// The bridge could not reach the device (switched off, offline) - not
     /// a wrong password: the client keeps retrying with backoff and signs
@@ -232,8 +233,7 @@ final class WSClient {
             // sign-in. No onDisconnect: "Connecting…" stays on screen.
             isOpen = false; signedIn = false
             partial = Data()
-            flushAndFail(NSError(domain: "ws", code: -999,
-                                 userInfo: [NSLocalizedDescriptionKey: "Cancelled"]))
+            flushAndFail(RequestFailure.cancelled)
         }
 
         // Issue #190: the home network first, when the device told us
@@ -331,8 +331,7 @@ final class WSClient {
 
             case .cancelled:
                 self.isOpen = false; self.signedIn = false
-                self.flushAndFail(NSError(domain: "ws", code: -999,
-                                          userInfo: [NSLocalizedDescriptionKey: "Cancelled"]))
+                self.flushAndFail(RequestFailure.cancelled)
                 self.onDisconnect?(nil)
                 self.scheduleReconnect()
 
@@ -360,9 +359,7 @@ final class WSClient {
             self.isOpen = false; self.signedIn = false
             self.localRace?.cancel()
             self.localRace = nil
-            let err = NSError(domain: "ws", code: -999,
-                              userInfo: [NSLocalizedDescriptionKey: "Closed"])
-            self.flushAndFail(err)
+            self.flushAndFail(RequestFailure.closed)
             self.conn?.cancel()
             self.conn = nil
         }
@@ -386,8 +383,7 @@ final class WSClient {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Resp, Error>) in
             queue.async { [weak self] in
                 guard let self = self, let conn = self.conn, self.isOpen, expected == nil || expected === conn else {
-                    cont.resume(throwing: NSError(domain: "ws", code: -1,
-                                                  userInfo: [NSLocalizedDescriptionKey: "Not connected"]))
+                    cont.resume(throwing: RequestFailure.notConnected)
                     return
                 }
 
@@ -402,8 +398,7 @@ final class WSClient {
                     let id = req.id
                     self.queue.asyncAfter(deadline: .now() + (timeout ?? self.requestTimeout)) { [weak self] in
                         guard let self, let c = self.waiters.removeValue(forKey: id) else { return }
-                        c.resume(throwing: NSError(domain: "ws", code: -2,
-                                                   userInfo: [NSLocalizedDescriptionKey: "The device did not answer in time"]))
+                        c.resume(throwing: RequestFailure.timedOut)
                     }
 
                     // Binary WS frame
@@ -458,7 +453,7 @@ final class WSClient {
             if case .respAck(let ack) = pubKeyResp.payload, ack.code == "device_unreachable" || ack.code == "device_disabled" {
                 throw UnreachableError(message: ack.errorMsg)
             }
-            throw NSError(domain: "auth", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to fetch the connection's public key"])
+            throw RequestFailure.noPublicKey
         }
         let encryptedKey = try PwCrypto.encryptPassword(key, pubKeyDER: pubKey.publicKey)
 
@@ -470,7 +465,7 @@ final class WSClient {
         }
         if case .respAck(let ack) = resp.payload {
             if ack.ok { return true }
-            throw AuthError(message: ack.errorMsg.isEmpty ? "The device rejected the password" : ack.errorMsg,
+            throw AuthError(message: ack.errorMsg.isEmpty ? nil : ack.errorMsg,
                             retryAfter: ack.code == "too_many_attempts" ? Int(ack.retryAfterSeconds) : nil)
         }
         return false
@@ -481,7 +476,8 @@ final class WSClient {
     }
 
     struct AuthError: Error {
-        let message: String
+        /// The device's reason, nil when it gave none.
+        let message: String?
         let retryAfter: Int?
     }
 
@@ -586,7 +582,7 @@ final class WSClient {
                         self.onConnect?(route)
                     }
                 } else {
-                    self.failAuth("The device rejected the password", retryAfter: nil, on: conn)
+                    self.failAuth(nil, retryAfter: nil, on: conn)
                 }
             } catch let err as UnreachableError {
                 // Close and let the .cancelled handler reconnect with a
@@ -605,7 +601,7 @@ final class WSClient {
                 // folder's upload filling the link). Treating it as a
                 // wrong password stopped the app for good; close and let
                 // the .cancelled handler reconnect with a growing delay.
-                print("WSClient: sign-in did not complete (\(error.localizedDescription)) - reconnecting")
+                print("WSClient: sign-in did not complete (\(RequestFailure.logText(error))) - reconnecting")
                 self.queue.async {
                     guard self.conn === conn else { return }
                     if route == .home { self.skipHomeOnce = true }
@@ -676,12 +672,12 @@ final class WSClient {
         }
     }
 
-    private func failAuth(_ message: String, retryAfter: Int?, on conn: NWConnection) {
+    private func failAuth(_ message: String?, retryAfter: Int?, on conn: NWConnection) {
         queue.async { [weak self] in
             guard let self, self.conn === conn else { return }
             self.autoReconnect = false
             self.isOpen = false; self.signedIn = false
-            self.flushAndFail(NSError(domain: "auth", code: 2, userInfo: [NSLocalizedDescriptionKey: message]))
+            self.flushAndFail(RequestFailure.passwordRejected(message))
             self.conn?.cancel()
             self.conn = nil
             self.onAuthFailed?(message, retryAfter)
@@ -711,5 +707,37 @@ final class WSClient {
                 self.connect()
             }
         }
+    }
+}
+
+/// Why a request got no answer from the device. A folder's row and the
+/// device folder picker show it, in the language in effect when they read
+/// it (errorDescription); a log has the case (logText).
+enum RequestFailure: LocalizedError, Equatable {
+    case notConnected
+    case timedOut
+    /// The connection was replaced (a route switch, a reconnect).
+    case cancelled
+    /// The app closed the connection.
+    case closed
+    case noPublicKey
+    /// The device refused the password: its reason, nil when it gave none.
+    case passwordRejected(String?)
+
+    var errorDescription: String? {
+        switch self {
+        case .notConnected: return S.macosConnectionNotConnected
+        case .timedOut: return S.macosConnectionTimedOut
+        case .cancelled: return S.macosConnectionCancelled
+        case .closed: return S.macosConnectionClosed
+        case .noPublicKey: return S.macosConnectionNoPublicKey
+        case .passwordRejected(let message): return message ?? S.macosConnectionPasswordRejected
+        }
+    }
+
+    /// A thrown error as a log has it: a RequestFailure by its case (logs
+    /// stay English, docs/i18n.md), anything else in its own words.
+    static func logText(_ error: Error) -> String {
+        error is RequestFailure ? String(describing: error) : error.localizedDescription
     }
 }

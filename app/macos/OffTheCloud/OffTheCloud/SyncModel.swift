@@ -22,13 +22,23 @@ final class SyncModel: ObservableObject {
     static let shared = SyncModel()
 
     enum FolderState: Equatable {
-        // currentFile is shown alongside the percentage so a folder
-        // dominated by a couple of huge files (e.g. drone video) doesn't
-        // look stuck at "0%" for the minutes it can genuinely take to
-        // transfer just the first one — issue #37's original complaint.
-        case scanning(progress: Double, currentFile: String? = nil)
+        // file is shown alongside the percentage so a folder dominated by
+        // a couple of huge files (e.g. drone video) doesn't look stuck at
+        // "0%" for the minutes it can genuinely take to transfer just the
+        // first one — issue #37's original complaint.
+        case scanning(progress: Double, file: FileProgress? = nil)
         case watching
-        case error(String)
+        case error(FolderProblem)
+    }
+
+    /// The file a pass is on: being checked against the device (issue
+    /// #138) or sent, its place among the folder's files (from 1), and its
+    /// name. FolderStateView words it ("Checking 12 of 340").
+    struct FileProgress: Equatable {
+        let checking: Bool
+        let index: Int
+        let total: Int
+        let name: String
     }
 
     struct TrackedFolder: Identifiable, Hashable {
@@ -138,7 +148,7 @@ final class SyncModel: ObservableObject {
 
     @Published var folders: [TrackedFolder] = []
     @Published var remoteFolders: [RemoteFolder] = []
-    @Published var overallStatus: String = "Not connected"
+    @Published var overallStatus: ConnectionStatus = .notConnected
     /// Issue #190: how the app reached the device, while connected.
     @Published var route: ConnectionRoute?
 
@@ -548,7 +558,7 @@ final class SyncModel: ObservableObject {
         ws.onConnect = { [weak self] route in
             Task { @MainActor in
                 guard let self else { return }
-                self.overallStatus = "Connected"
+                self.overallStatus = .connected
                 self.route = route
                 // The one-time "Start at login?" offer waits for this.
                 LoginItemSettings.shared.deviceConnected()
@@ -580,8 +590,8 @@ final class SyncModel: ObservableObject {
             Task { @MainActor in
                 // A rejected password is its own state; a plain drop
                 // must not overwrite it with "Disconnected".
-                if self?.overallStatus != "Wrong password", self?.overallStatus != "Device offline - retrying" {
-                    self?.overallStatus = "Disconnected"
+                if self?.overallStatus != .wrongPassword, self?.overallStatus != .offline {
+                    self?.overallStatus = .disconnected
                 }
                 self?.route = nil
                 self?.stopRaidPolling()
@@ -589,7 +599,7 @@ final class SyncModel: ObservableObject {
         }
         ws.onUnreachable = { [weak self] _ in
             Task { @MainActor in
-                self?.overallStatus = "Device offline - retrying"
+                self?.overallStatus = .offline
                 self?.route = nil
                 self?.stopRaidPolling()
             }
@@ -605,16 +615,16 @@ final class SyncModel: ObservableObject {
                 if let retryAfter {
                     // Locked out for guessing, not necessarily wrong: say
                     // so, and try once more when the lock lifts.
-                    self.overallStatus = "Too many attempts - retrying in \(retryAfter)s"
+                    self.overallStatus = .tooManyAttempts(retryAfter: retryAfter)
                     self.authRetryTask?.cancel()
                     self.authRetryTask = Task { [weak self] in
                         try? await Task.sleep(for: .seconds(retryAfter + 1))
                         guard !Task.isCancelled, let self, self.settings?.ready == true else { return }
-                        self.overallStatus = "Connecting…"
+                        self.overallStatus = .connecting
                         self.ws.connect()
                     }
                 } else {
-                    self.overallStatus = "Wrong password"
+                    self.overallStatus = .wrongPassword
                 }
             }
         }
@@ -704,12 +714,12 @@ final class SyncModel: ObservableObject {
     /// once the device has answered there, so away from home the bridge
     /// connection isn't touched and "Connecting…" never shows.
     private func probeHomeThenSwitch() {
-        guard settings?.ready == true, overallStatus == "Connected", route == .bridge,
+        guard settings?.ready == true, overallStatus == .connected, route == .bridge,
               !syncInFlight, ws.hasLocalEndpoint else { return }
         lastHomeProbe = .now
         Task { [weak self] in
             guard let self, await self.ws.probeHome() else { return }
-            guard self.overallStatus == "Connected", self.route == .bridge else { return }
+            guard self.overallStatus == .connected, self.route == .bridge else { return }
             syncLog.info("the device answers on the home network: connecting there")
             self.switchRouteIfIdle()
         }
@@ -725,7 +735,7 @@ final class SyncModel: ObservableObject {
             return
         }
         if ws.reconnectForRoute() {
-            overallStatus = "Connecting…"
+            overallStatus = .connecting
         }
     }
 
@@ -738,9 +748,10 @@ final class SyncModel: ObservableObject {
             || listingsInFlight > 0
     }
 
-    /// Settings' status line: once connected, which way (issue #190).
+    /// Settings' status line: once connected, which way (issue #190). In
+    /// the language in effect: read it in a view's body.
     var connectionStatus: String {
-        guard overallStatus == "Connected", let route, let domain = settings?.domain else { return overallStatus }
+        guard overallStatus == .connected, let route, let domain = settings?.domain else { return overallStatus.text }
         return ConnectionRoute.label(route, domain: domain)
     }
 
@@ -783,7 +794,7 @@ final class SyncModel: ObservableObject {
                     // kept).
                     LanguageSettings.shared.forgetDevice()
                     if settings.ready {
-                        self.overallStatus = "Connecting…"
+                        self.overallStatus = .connecting
                         self.ws.configure(domain: domain, key: key)
                         self.ws.connect()
                         self.startSync()
@@ -792,7 +803,7 @@ final class SyncModel: ObservableObject {
                         // address.
                         self.ws.forgetLocalEndpoint()
                         self.ws.disconnect()
-                        self.overallStatus = "Missing domain/password"
+                        self.overallStatus = .missingSettings
                     }
                 }
             }
@@ -809,7 +820,7 @@ final class SyncModel: ObservableObject {
     func reconnectNow() {
         guard let settings, settings.ready else { return }
         authRetryTask?.cancel()
-        overallStatus = "Connecting…"
+        overallStatus = .connecting
         ws.configure(domain: settings.domain, key: settings.password)
         ws.connect()
         startSync()
@@ -896,8 +907,8 @@ final class SyncModel: ObservableObject {
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
-        panel.prompt = "Back Up"
-        panel.message = "Choose a folder to back up to the device. This Mac stays the original."
+        panel.prompt = S.macosPopoverBackUp
+        panel.message = S.macosPopoverChooseBackup
         if runFolderPanel(panel) == .OK, let url = panel.url {
             do {
                 let bookmark = try url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
@@ -977,7 +988,7 @@ final class SyncModel: ObservableObject {
             req.payload = .reqListFiles(lf)
         }
         if resp.error {
-            throw NSError(domain: "sync.listRemote", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "Could not list remote files" : resp.errorMessage])
+            throw NSError(domain: "sync.listRemote", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? S.macosFoldersCouldNotList : resp.errorMessage])
         }
         guard case .respListOfFiles(let lof) = resp.payload else { return [] }
         return lof.files
@@ -1253,7 +1264,7 @@ final class SyncModel: ObservableObject {
             // response. Treating it the same as "empty folder" here would
             // make every file look new and re-upload the whole tree.
             if resp.error {
-                updateState(folder.id, .error(resp.errorMessage.isEmpty ? "Could not list remote files" : resp.errorMessage))
+                updateState(folder.id, .error(resp.errorMessage.isEmpty ? .couldNotList : .message(resp.errorMessage)))
                 // Retried on the short schedule like a thrown error, not
                 // left until the 10-minute safety net - this is the path
                 // a "not authenticated" reply used to sit on.
@@ -1296,7 +1307,7 @@ final class SyncModel: ObservableObject {
             await loadHashCacheIfNeeded(folder.id)
             let checks = await Task.detached(priority: .utility) { [cache = localHashCache[folder.id] ?? [:]] in
                 await Self.checkAgainstCache(localFiles, cache: cache) { i, url in
-                    await self.updateState(folder.id, .scanning(progress: 0, currentFile: "Checking \(i + 1)/\(localFiles.count) · \(url.lastPathComponent)"))
+                    await self.updateState(folder.id, .scanning(progress: 0, file: FileProgress(checking: true, index: i + 1, total: localFiles.count, name: url.lastPathComponent)))
                 }
             }.value
             for (i, check) in checks.enumerated() {
@@ -1316,7 +1327,7 @@ final class SyncModel: ObservableObject {
                 } else {
                     if Date().timeIntervalSince(lastShown) > 0.3 {
                         lastShown = Date()
-                        updateState(folder.id, .scanning(progress: 0, currentFile: "Checking \(i + 1)/\(localFiles.count) · \(fileURL.lastPathComponent)"))
+                        updateState(folder.id, .scanning(progress: 0, file: FileProgress(checking: true, index: i + 1, total: localFiles.count, name: fileURL.lastPathComponent)))
                     }
                     localHash = try? await cachedHash(for: fileURL, folderId: folder.id)
                 }
@@ -1348,7 +1359,7 @@ final class SyncModel: ObservableObject {
                     // nothing sent. The folder resumes when the app signs
                     // in again (onConnect retries errored folders).
                     guard ws.isConnected() else {
-                        updateState(folder.id, .error("Device offline - will resume"))
+                        updateState(folder.id, .error(.offline))
                         saveHashCache(folder.id)
                         return
                     }
@@ -1357,7 +1368,7 @@ final class SyncModel: ObservableObject {
                     // without this the UI just sits on the previous
                     // file's number the whole time, which is exactly what
                     // looked like "stuck" before (issue #37).
-                    updateState(folder.id, .scanning(progress: Double(bytesDone) / Double(totalBytes), currentFile: "\(alreadyThere + k + 1)/\(localFiles.count) · \(item.url.lastPathComponent)"))
+                    updateState(folder.id, .scanning(progress: Double(bytesDone) / Double(totalBytes), file: FileProgress(checking: false, index: alreadyThere + k + 1, total: localFiles.count, name: item.url.lastPathComponent)))
 
                     do {
                         // A new file is hashed here rather than inside
@@ -1386,7 +1397,7 @@ final class SyncModel: ObservableObject {
             remoteHashesByFolder[folder.id] = remoteMap
             updateState(folder.id, .watching)
         } catch {
-            updateState(folder.id, .error(error.localizedDescription))
+            updateState(folder.id, .error(FolderProblem(error)))
             scheduleErrorRetry(for: folder)
         }
         saveHashCache(folder.id)
@@ -1547,7 +1558,7 @@ final class SyncModel: ObservableObject {
             }
             if resp.error {
                 syncLog.error("two-way \(folder.remotePath, privacy: .public): listing refused: \(resp.errorMessage, privacy: .public)")
-                updateRemoteState(folder.id, .error(resp.errorMessage.isEmpty ? "Could not list remote files" : resp.errorMessage))
+                updateRemoteState(folder.id, .error(resp.errorMessage.isEmpty ? .couldNotList : .message(resp.errorMessage)))
                 scheduleRemoteErrorRetry(for: folder)
                 return
             }
@@ -1591,7 +1602,7 @@ final class SyncModel: ObservableObject {
             // looks empty: every synced file would have been deleted from
             // the device.
             guard scan.rootReadable else {
-                throw NSError(domain: "sync.scan", code: 1, userInfo: [NSLocalizedDescriptionKey: "Can't read the folder on this Mac"])
+                throw FolderProblem.unreadable
             }
             if scan.complete { await pruneHashCache(folder.id, keeping: present) }
 
@@ -1624,7 +1635,7 @@ final class SyncModel: ObservableObject {
             let checks = await Task.detached(priority: .utility) { [cache = localHashCache[folder.id] ?? [:]] () -> [(relative: String, check: CacheCheck)] in
                 let files = Array(localByRelative)
                 let checks = await Self.checkAgainstCache(files.map(\.value), cache: cache) { i, url in
-                    await self.updateRemoteState(folder.id, .scanning(progress: 0, currentFile: "Checking \(i + 1)/\(total) · \(url.lastPathComponent)"))
+                    await self.updateRemoteState(folder.id, .scanning(progress: 0, file: FileProgress(checking: true, index: i + 1, total: total, name: url.lastPathComponent)))
                 }
                 return zip(files, checks).map { ($0.key, $1) }
             }.value
@@ -1645,7 +1656,7 @@ final class SyncModel: ObservableObject {
                 // Issue #138: which file is being checked, see reconcile().
                 if Date().timeIntervalSince(lastShown) > 0.3 {
                     lastShown = Date()
-                    updateRemoteState(folder.id, .scanning(progress: 0, currentFile: "Checking \(i + 1)/\(total) · \(url.lastPathComponent)"))
+                    updateRemoteState(folder.id, .scanning(progress: 0, file: FileProgress(checking: true, index: i + 1, total: total, name: url.lastPathComponent)))
                 }
                 do {
                     let entry = try await cachedHashEntry(for: url, folderId: folder.id)
@@ -1805,7 +1816,7 @@ final class SyncModel: ObservableObject {
             // the folder, the device is taken to have lost them instead:
             // they are sent back to it, and nothing here is touched.
             let localDeletes = actions.filter { $0.kind == .deleteLocal }.count
-            var guardNote: String?
+            var guardNote: FolderProblem?
             if localDeletes > Self.massDeleteMin && localDeletes * 4 > max(localByRelative.count, 1) {
                 syncLog.error("two-way \(folder.remotePath, privacy: .public): \(localDeletes) files gone from the device at once - restoring them instead of deleting them here")
                 actions = actions.map { a in
@@ -1813,7 +1824,7 @@ final class SyncModel: ObservableObject {
                     newSynced.removeValue(forKey: a.relative)
                     return (a.relative, .upload, 0, nil)
                 }
-                guardNote = "\(localDeletes) files had disappeared from the device - restored them from this Mac instead of deleting them here"
+                guardNote = .restored(localDeletes)
             }
             // Local deletes first: a rename on another client that only
             // changes case ("Photo.jpg" -> "photo.jpg") then trashes the
@@ -1849,11 +1860,11 @@ final class SyncModel: ObservableObject {
                         SyncPaths.removeEmptiedFolders(emptiedFolders, root: folder.localURL.standardizedFileURL.path)
                         if newSynced != storedSynced || syncedUnsaved.contains(folder.id) { saveSynced(folder.id, newSynced) }
                         lastSyncedByRemoteFolder[folder.id] = newSynced
-                        updateRemoteState(folder.id, .error("Device offline - will resume"))
+                        updateRemoteState(folder.id, .error(.offline))
                         saveHashCache(folder.id)
                         return
                     }
-                    updateRemoteState(folder.id, .scanning(progress: Double(max(bytesDone, 0)) / Double(totalBytes), currentFile: "\(alreadyAgree + i + 1)/\(folderCount) · " + (action.relative as NSString).lastPathComponent))
+                    updateRemoteState(folder.id, .scanning(progress: Double(max(bytesDone, 0)) / Double(totalBytes), file: FileProgress(checking: false, index: alreadyAgree + i + 1, total: folderCount, name: (action.relative as NSString).lastPathComponent)))
                     defer { bytesDone += bytes(action.relative) }
                     let localURL = folder.localURL.appendingPathComponent(action.relative)
                     // Second line behind safeRelative: nothing a pass does
@@ -1883,7 +1894,7 @@ final class SyncModel: ObservableObject {
                             // Overwriting it, and then deleting the other name,
                             // lost the file. Left alone; the next pass decides.
                             if localByRelative[action.relative] == nil, FileManager.default.fileExists(atPath: localURL.path) {
-                                throw NSError(domain: "sync.download", code: 6, userInfo: [NSLocalizedDescriptionKey: "another file is already at this name here - left alone"])
+                                throw NSError(domain: "sync.download", code: 6, userInfo: [NSLocalizedDescriptionKey: "another file is already at this name here - left alone"]) // i18n-ignore: a file's error, only logged
                             }
                             try await download(remotePath, to: localURL, expectedHash: action.hash, expectLocal: localStamps[action.relative] ?? .absent, folderId: folder.id)
                         case .downloadKeepLocal:
@@ -1911,7 +1922,7 @@ final class SyncModel: ObservableObject {
                         // the device was a mistake.
                         case .deleteLocal:
                             guard Self.localMatches(localURL, localStamps[action.relative] ?? .absent) else {
-                                throw NSError(domain: "sync.delete", code: 2, userInfo: [NSLocalizedDescriptionKey: "changed here during the pass - not deleted"])
+                                throw NSError(domain: "sync.delete", code: 2, userInfo: [NSLocalizedDescriptionKey: "changed here during the pass - not deleted"]) // i18n-ignore: a file's error, only logged
                             }
                             try FileManager.default.trashItem(at: localURL, resultingItemURL: nil)
                             emptiedFolders.insert(localURL.deletingLastPathComponent().standardizedFileURL.path)
@@ -1940,8 +1951,8 @@ final class SyncModel: ObservableObject {
             // the owner learns the device had lost those files.
             updateRemoteState(folder.id, guardNote.map { .error($0) } ?? .watching)
         } catch {
-            syncLog.error("two-way \(folder.remotePath, privacy: .public): failed: \(error.localizedDescription, privacy: .public)")
-            updateRemoteState(folder.id, .error(error.localizedDescription))
+            syncLog.error("two-way \(folder.remotePath, privacy: .public): failed: \(Self.logText(error), privacy: .public)")
+            updateRemoteState(folder.id, .error(FolderProblem(error)))
             scheduleRemoteErrorRetry(for: folder)
         }
         saveHashCache(folder.id)
@@ -2053,10 +2064,10 @@ final class SyncModel: ObservableObject {
             // was already written belongs to another version. Stop here;
             // the next pass starts over with the new listing.
             if let expectedHash, !expectedHash.isEmpty, chunk.hash != expectedHash {
-                throw NSError(domain: "sync.download", code: 4, userInfo: [NSLocalizedDescriptionKey: "the file changed on the device during the download - not written"])
+                throw NSError(domain: "sync.download", code: 4, userInfo: [NSLocalizedDescriptionKey: "the file changed on the device during the download - not written"]) // i18n-ignore: a file's error, only logged
             }
             if chunk.offset != offset || (chunk.data.isEmpty && offset < chunk.size) || offset + Int64(chunk.data.count) > chunk.size {
-                throw NSError(domain: "sync.download", code: 5, userInfo: [NSLocalizedDescriptionKey: "the device sent a chunk that doesn't fit the file - not written"])
+                throw NSError(domain: "sync.download", code: 5, userInfo: [NSLocalizedDescriptionKey: "the device sent a chunk that doesn't fit the file - not written"]) // i18n-ignore: a file's error, only logged
             }
             let data = chunk.data
             try await Task.detached(priority: .utility) { try sink.write(data) }.value
@@ -2069,12 +2080,12 @@ final class SyncModel: ObservableObject {
         let written = try await Task.detached(priority: .utility) { () -> HashEntry? in
             let got = sink.finish()
             if let expectedHash, !expectedHash.isEmpty, got != expectedHash {
-                throw NSError(domain: "sync.download", code: 3, userInfo: [NSLocalizedDescriptionKey: "the device sent \(file.size) bytes that don't match the file's hash - not written"])
+                throw NSError(domain: "sync.download", code: 3, userInfo: [NSLocalizedDescriptionKey: "the device sent \(file.size) bytes that don't match the file's hash - not written"]) // i18n-ignore: a file's error, only logged
             }
             // Checked last, right before the rename: the pass leaves the
             // path for the next one, which sees the edit and decides again.
             if let expectLocal, !Self.localMatches(dest, expectLocal) {
-                throw NSError(domain: "sync.download", code: 7, userInfo: [NSLocalizedDescriptionKey: "changed here during the pass - not overwritten"])
+                throw NSError(domain: "sync.download", code: 7, userInfo: [NSLocalizedDescriptionKey: "changed here during the pass - not overwritten"]) // i18n-ignore: a file's error, only logged
             }
             if FileManager.default.fileExists(atPath: dest.path) {
                 _ = try FileManager.default.replaceItemAt(dest, withItemAt: part)
@@ -2203,7 +2214,7 @@ final class SyncModel: ObservableObject {
             // would get no longer matches the hash, so let the next pass
             // start over with the file as it is then.
             if data.isEmpty {
-                throw NSError(domain: "sync.upload", code: 3, userInfo: [NSLocalizedDescriptionKey: "the file changed while uploading"])
+                throw NSError(domain: "sync.upload", code: 3, userInfo: [NSLocalizedDescriptionKey: "the file changed while uploading"]) // i18n-ignore: a file's error, only logged
             }
             let chunkOffset = offset
             let resp = try await ws.request { req in
@@ -2219,7 +2230,7 @@ final class SyncModel: ObservableObject {
             try Self.throwIfRejected(resp)
             offset += Int64(data.count)
             if case .respUploadProgress(let p) = resp.payload, p.received != offset {
-                throw NSError(domain: "sync.upload", code: 4, userInfo: [NSLocalizedDescriptionKey: "the device received \(p.received) bytes, expected \(offset)"])
+                throw NSError(domain: "sync.upload", code: 4, userInfo: [NSLocalizedDescriptionKey: "the device received \(p.received) bytes, expected \(offset)"]) // i18n-ignore: a file's error, only logged
             }
         }
 
@@ -2259,9 +2270,9 @@ final class SyncModel: ObservableObject {
                 uploadOnlyErrors[folder.id] = nil
                 return
             }
-            problem = "upload only refused: \(resp.errorMessage)"
+            problem = "upload only refused: \(resp.errorMessage)" // i18n-ignore: only logged
         } catch {
-            problem = "could not make it upload only: \(error.localizedDescription)"
+            problem = "could not make it upload only: \(Self.logText(error))" // i18n-ignore: only logged
         }
         // A device on a release before #132 refuses it on every pass.
         guard uploadOnlyErrors[folder.id] != problem else { return }
@@ -2320,8 +2331,8 @@ final class SyncModel: ObservableObject {
         supported: \.outOfImagesSupported, tasks: \.outOfImagesTasks,
         stored: \.outOfImages, storedRemote: \.outOfImages,
         byParentCode: "out_of_images_by_parent", skipsRoot: true, images: true,
-        failure: { "keep \($0) out of Images, or show it there" },
-        unsupportedLog: "the device can't keep folders out of Images yet (it needs an update)",
+        failure: { "keep \($0) out of Images, or show it there" }, // i18n-ignore: log text
+        unsupportedLog: "the device can't keep folders out of Images yet (it needs an update)", // i18n-ignore: log text
         build: { path, on in
             var m = Msg_SetOutOfImages()
             m.path = path
@@ -2335,8 +2346,8 @@ final class SyncModel: ObservableObject {
         stored: nil, storedRemote: \.uploadOnly,
         // Only lifting it is refused that way (issue #186); never asked here.
         byParentCode: "locked_by_parent", skipsRoot: false, images: false,
-        failure: { "make \($0) upload only" },
-        unsupportedLog: "the device can't make folders upload only yet (it needs an update)",
+        failure: { "make \($0) upload only" }, // i18n-ignore: log text
+        unsupportedLog: "the device can't make folders upload only yet (it needs an update)", // i18n-ignore: log text
         build: { path, on in
             var m = Msg_SetUploadOnly()
             m.path = path
@@ -2448,7 +2459,7 @@ final class SyncModel: ObservableObject {
                 answer = try await ws.request { req in req.payload = kind.build(path, want) }
             } catch {
                 answer = nil
-                failure = error.localizedDescription
+                failure = Self.logText(error) // only logged
             }
             // Removed, or another device, meanwhile: the answer isn't
             // about it.
@@ -2459,7 +2470,7 @@ final class SyncModel: ObservableObject {
                 continue
             }
             if Self.isUnknownPayload(answer) {
-                syncLog.notice("\(kind.unsupportedLog, privacy: .public): \(path, privacy: .public) stays pending")
+                syncLog.notice("\(kind.unsupportedLog, privacy: .public): \(path, privacy: .public) stays pending") // i18n-ignore: a log line
                 self[keyPath: kind.supported] = false
                 if kind.images { outOfImagesFolders = nil }
                 return
@@ -2571,6 +2582,12 @@ final class SyncModel: ObservableObject {
     /// What a delete on the device came to.
     private enum DeleteOutcome { case deleted, keptOnDevice }
 
+    /// A thrown error as the log has it: ours by their case (logs stay
+    /// English, docs/i18n.md), the system's in its own words.
+    nonisolated static func logText(_ error: Error) -> String {
+        error is FolderProblem ? String(describing: error) : RequestFailure.logText(error)
+    }
+
     @discardableResult
     private func delete(_ remotePath: String) async throws -> DeleteOutcome {
         let resp = try await ws.request { req in
@@ -2584,7 +2601,7 @@ final class SyncModel: ObservableObject {
             // the folder working as intended, not a failure to retry:
             // keptOnDevice. As otc-sync's errKeptOnDevice.
             if resp.errorCode == "upload_only" {
-                syncLog.notice("delete of \(remotePath, privacy: .public) skipped: the folder is upload only - kept on the device")
+                syncLog.notice("delete of \(remotePath, privacy: .public) skipped: the folder is upload only - kept on the device") // i18n-ignore: a log line
                 return .keptOnDevice
             }
             throw NSError(domain: "sync.delete", code: 1, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "delete rejected" : resp.errorMessage])
@@ -2832,12 +2849,84 @@ enum RaidHealth: Equatable {
         }
     }
 
+    /// In the language in effect: read it in a view's body.
     var summary: String {
         switch self {
-        case .ok:       return "Storage healthy"
-        case .degraded: return "A drive is down - the RAID is degraded"
-        case .failed:   return "The RAID has failed"
-        case .unknown:  return "Storage status unknown"
+        case .ok:       return S.deskMainStorageHealthy
+        case .degraded: return S.deskMainStorageDegraded
+        case .failed:   return S.deskMainStorageFailed
+        case .unknown:  return S.deskMainStorageUnknown
+        }
+    }
+}
+
+/// The connection's state as SyncModel keeps it; its words are made when a
+/// view shows them, in the language in effect (docs/i18n.md: models keep
+/// state, views make text). otc-sync's engine keeps the same states as
+/// codes in state.json.
+enum ConnectionStatus: Equatable {
+    case notConnected
+    case connecting
+    case connected
+    /// The connection dropped; it comes back by itself.
+    case disconnected
+    /// The bridge can't reach the device: retried with a growing delay.
+    case offline
+    case wrongPassword
+    /// Locked out for guessing: tried once more after this many seconds.
+    case tooManyAttempts(retryAfter: Int)
+    /// No address or no password yet.
+    case missingSettings
+
+    var text: String {
+        switch self {
+        case .notConnected: return S.deskMainStatusNotConnected
+        case .connecting: return S.commonConnecting
+        case .connected: return S.deskMainStatusConnected
+        case .disconnected: return S.deskMainStatusDisconnected
+        case .offline: return S.deskMainStatusOffline
+        case .wrongPassword: return S.deskMainStatusWrongPassword
+        case .tooManyAttempts(let seconds): return S.deskMainStatusTooManyAttempts(seconds: seconds)
+        case .missingSettings: return S.deskMainStatusMissingSettings
+        }
+    }
+}
+
+/// What stopped a folder's pass, as data: FolderStateView words it when it
+/// is shown, in the language in effect - a language change doesn't wait
+/// for the next pass.
+enum FolderProblem: Error, Equatable {
+    /// The device's own words (in the language the request asked for), or
+    /// the system's: shown as they came.
+    case message(String)
+    /// The device refused the listing without saying why.
+    case couldNotList
+    /// The connection dropped during the pass; it resumes once it is back.
+    case offline
+    /// The folder on this Mac can't be read (permission, a volume gone).
+    case unreadable
+    /// The mass-deletion guard put back this many files the device lost.
+    case restored(Int)
+    /// A request got no answer (WSClient).
+    case request(RequestFailure)
+
+    init(_ error: Error) {
+        switch error {
+        case let problem as FolderProblem: self = problem
+        case let failure as RequestFailure: self = .request(failure)
+        default: self = .message(error.localizedDescription)
+        }
+    }
+
+    var text: String {
+        switch self {
+        case .message(let message): return message
+        case .couldNotList: return S.macosFoldersCouldNotList
+        case .offline: return S.deskMainFolderOffline
+        case .unreadable: return S.macosFoldersCantRead
+        // As digits, as before ("1234 files", not "1,234").
+        case .restored(let files): return S.macosFoldersRestoredFiles(files: String(files))
+        case .request(let failure): return failure.errorDescription ?? ""
         }
     }
 }

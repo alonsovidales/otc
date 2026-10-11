@@ -19,11 +19,11 @@ import (
 func EncryptPassword(password string, pubKeyDER []byte) ([]byte, error) {
 	parsed, err := x509.ParsePKIXPublicKey(pubKeyDER)
 	if err != nil {
-		return nil, fmt.Errorf("malformed public key: %w", err)
+		return nil, fmt.Errorf("malformed public key: %w", err) // i18n-ignore: a sign-in failure: the tray shows Disconnected
 	}
 	pub, ok := parsed.(*rsa.PublicKey)
 	if !ok {
-		return nil, fmt.Errorf("the connection's public key is not RSA")
+		return nil, fmt.Errorf("the connection's public key is not RSA") // i18n-ignore: a sign-in failure: the tray shows Disconnected
 	}
 
 	return rsa.EncryptOAEP(sha256.New(), rand.Reader, pub, []byte(password), nil)

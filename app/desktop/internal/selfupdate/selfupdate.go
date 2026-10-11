@@ -27,7 +27,24 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/alonsovidales/otc/i18n"
 )
+
+// msgError is a failure of ours, which the tray words in the user's
+// language (Msg, rendered when shown); Error is its English, for the
+// command line. err is the system's error under it, if any.
+type msgError struct {
+	m   i18n.Msg
+	err error
+}
+
+func (e *msgError) Error() string { return e.m.Render("") }
+
+// Msg is the message, for the tray to render in its language.
+func (e *msgError) Msg() i18n.Msg { return e.m }
+
+func (e *msgError) Unwrap() error { return e.err }
 
 // ManifestURL is the signed desktop manifest; DESKTOP_MANIFEST overrides it
 // (tests, forks).
@@ -77,7 +94,7 @@ func get(url string, limit int64) ([]byte, error) {
 func publicKey() (ed25519.PublicKey, error) {
 	block, _ := pem.Decode([]byte(releaseKey))
 	if block == nil {
-		return nil, errors.New("no release key")
+		return nil, errors.New("no release key") // i18n-ignore: a build error - the key is embedded at build time
 	}
 	k, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
@@ -85,7 +102,7 @@ func publicKey() (ed25519.PublicKey, error) {
 	}
 	pub, ok := k.(ed25519.PublicKey)
 	if !ok {
-		return nil, errors.New("the release key is not Ed25519")
+		return nil, errors.New("the release key is not Ed25519") // i18n-ignore: a build error - the key is embedded at build time
 	}
 	return pub, nil
 }
@@ -105,14 +122,14 @@ func FetchSigned(url string, max int64) ([]byte, error) {
 	}
 	sig, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(sigB64)))
 	if err != nil {
-		return nil, fmt.Errorf("the signature of %s is malformed: %w", url, err)
+		return nil, &msgError{m: i18n.DeskMainSignatureMalformed(url, err.Error()), err: err}
 	}
 	pub, err := publicKey()
 	if err != nil {
 		return nil, err
 	}
 	if !ed25519.Verify(pub, body, sig) {
-		return nil, fmt.Errorf("%s is not signed with the release key", url)
+		return nil, &msgError{m: i18n.DeskMainNotSigned(url)}
 	}
 	return body, nil
 }
@@ -208,9 +225,9 @@ func Apply(u *Update) error {
 	if err != nil {
 		if runtime.GOOS != "windows" {
 			// Installed system-wide (/usr/local/bin): only root may replace it.
-			return fmt.Errorf("can't replace %s (%w) - run `sudo otc-sync update`, or install otc-sync in ~/.local/bin so it can update itself", exe, err)
+			return &msgError{m: i18n.DeskMainUpdateCantReplace(exe, err.Error()), err: err}
 		}
-		return fmt.Errorf("can't write next to %s - download the new version from off-the.cloud instead: %w", exe, err)
+		return &msgError{m: i18n.DeskMainUpdateCantWrite(exe, err.Error()), err: err}
 	}
 	defer os.Remove(tmp.Name())
 	resp, err := (&http.Client{Timeout: 15 * time.Minute}).Get(u.File.URL)
@@ -221,7 +238,7 @@ func Apply(u *Update) error {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		tmp.Close()
-		return fmt.Errorf("downloading %s: %s", u.Version, resp.Status)
+		return &msgError{m: i18n.DeskMainUpdateDownloadFailed(u.Version, resp.Status)}
 	}
 	h := sha256.New()
 	if _, err := io.Copy(io.MultiWriter(tmp, h), io.LimitReader(resp.Body, 512<<20)); err != nil {
@@ -232,7 +249,7 @@ func Apply(u *Update) error {
 		return err
 	}
 	if got := hex.EncodeToString(h.Sum(nil)); !strings.EqualFold(got, u.File.SHA256) {
-		return fmt.Errorf("the download of %s does not match its signed hash", u.Version)
+		return &msgError{m: i18n.DeskMainUpdateHashMismatch(u.Version)}
 	}
 	if err := os.Chmod(tmp.Name(), 0o755); err != nil {
 		return err

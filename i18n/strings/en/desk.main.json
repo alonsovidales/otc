@@ -1,4 +1,274 @@
 {
+  "desk.main.add_folder": {
+    "text": "Add Folder…",
+    "note": "Both apps: button in the Mac panel and tray menu item that starts adding a folder to back up or sync. Title Case.",
+    "max": 24
+  },
+  "desk.main.add_folder_tip": {
+    "text": "Back up or sync a folder from this computer, or sync one from the device",
+    "note": "otc-sync (Windows and Linux): tooltip of the tray's Add Folder… item."
+  },
+  "desk.main.app_update": {
+    "text": "Update otc-sync to {version}",
+    "args": [["version", "text"]],
+    "note": "otc-sync: tray menu item, after an up arrow, that installs a newer version of otc-sync (the program's name, never translated). {version} is the new version number.",
+    "max": 40
+  },
+  "desk.main.app_update_failed": {
+    "text": "The update could not be installed:\n\n{detail}",
+    "args": [["detail", "text"]],
+    "note": "otc-sync: error dialog when installing a newer otc-sync failed. {detail} is the reason (for example a download error). Keep the blank line."
+  },
+  "desk.main.app_updating": {
+    "text": "Updating to {version}…",
+    "args": [["version", "text"]],
+    "note": "otc-sync: the update menu item while the new version downloads and installs. {version} is the new version number.",
+    "max": 40
+  },
+  "desk.main.autostart_message": {
+    "text": "Your folders keep syncing in the background after you restart your computer. You can change this with “Start at login” in the menu.",
+    "note": "otc-sync: text of the start-at-login question. “Start at login” is the tray menu's checkbox (desk.main.autostart_toggle): use the same words.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d82b6589"
+  },
+  "desk.main.autostart_no": {
+    "text": "Not Now",
+    "note": "Both apps: button of the start-at-login question that declines. Title Case.",
+    "max": 24,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #efcc9290"
+  },
+  "desk.main.autostart_title": {
+    "text": "Start Off The Cloud when you log in?",
+    "note": "Both apps: the one-time question asked after the first connection (inline in the Mac panel, a dialog in otc-sync): consent to start the app at login.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #9222188f"
+  },
+  "desk.main.autostart_toggle": {
+    "text": "Start at login",
+    "note": "Both apps: checkbox in the Mac app's Settings and the tray menu that starts the app when the user logs in. Sentence case.",
+    "max": 30
+  },
+  "desk.main.autostart_toggle_tip": {
+    "text": "Start Off The Cloud when you log in, so your folders keep syncing after a restart",
+    "note": "otc-sync: tooltip of the tray menu's Start at login checkbox."
+  },
+  "desk.main.autostart_yes": {
+    "text": "Start at Login",
+    "note": "Both apps: button of the start-at-login question that consents. Title Case.",
+    "max": 24,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #77e02ba0"
+  },
+  "desk.main.browser_failed": {
+    "text": "The browser could not be opened:\n\n{detail}\n\nThe web app is at {address}",
+    "args": [["detail", "text"], ["address", "text"]],
+    "note": "otc-sync: error dialog when Open Web App can't start the browser. {detail} is the system's own reason, in English; {address} is the web app's address, for the user to open by hand. Keep the blank lines."
+  },
+  "desk.main.cannot_watch": {
+    "text": "cannot watch: {detail}",
+    "args": [["detail", "text"]],
+    "note": "otc-sync: a folder's state in the tray menu when the app can't watch the folder for changes. {detail} is the system's own reason, in English. Lowercase, as it follows a warning sign."
+  },
+  "desk.main.checking": {
+    "text": "Checking…",
+    "note": "Both apps: a folder's state while the app compares it with the device, before it knows which file it is on.",
+    "max": 20
+  },
+  "desk.main.checking_file": {
+    "text": "Checking {done}/{total} · {name}",
+    "args": [["done", "text"], ["total", "text"], ["name", "user"]],
+    "note": "otc-sync: a folder's state in the tray menu while the app compares its files with the device: {done} files checked of {total} (numbers, as digits), then {name}, the file being checked.",
+    "max": 80
+  },
+  "desk.main.choose_download": {
+    "text": "Choose where to download “{path}” and keep it in sync",
+    "args": [["path", "user"]],
+    "note": "otc-sync: title of the folder chooser that picks where a folder from the device goes on this computer. {path} is the folder's path on the device (for example /Photos/2024)."
+  },
+  "desk.main.choose_folder": {
+    "text": "Choose Folder…",
+    "note": "Both apps: button at the end of the add-folder options that opens the folder chooser. Title Case.",
+    "max": 24
+  },
+  "desk.main.config_invalid": {
+    "text": "config.json is not valid: {detail}",
+    "args": [["detail", "text"]],
+    "note": "otc-sync: error dialog when its settings file can't be read. config.json is the file's name, never translated; {detail} is the system's own reason, in English."
+  },
+  "desk.main.connect_menu": {
+    "text": "Connect to a Device…",
+    "note": "otc-sync: tray menu item shown while no device is set; opens the dialogs that ask for the device and its password. Title Case.",
+    "max": 30
+  },
+  "desk.main.connected_home": {
+    "text": "Connected over your home network",
+    "note": "Both apps: connection status once connected straight to the device over the home network (not through the internet relay).",
+    "max": 50
+  },
+  "desk.main.connected_through": {
+    "text": "Connected through {host}",
+    "args": [["host", "text"]],
+    "note": "Both apps: connection status once connected through the internet. {host} is off-the.cloud (the relay) or the host name or IP address of the address the user configured; never translated.",
+    "max": 60
+  },
+  "desk.main.connected_through_configured": {
+    "text": "Connected through the configured address",
+    "note": "Both apps: connection status once connected through an address the user typed whose host can't be shown.",
+    "max": 50
+  },
+  "desk.main.could_not_list": {
+    "text": "could not list remote files",
+    "note": "otc-sync: a folder's state in the tray menu when the device refused to list the folder without saying why. Lowercase, as it follows a warning sign.",
+    "max": 50
+  },
+  "desk.main.cpu_line": {
+    "text": "CPU: {percent}%",
+    "args": [["percent", "int"]],
+    "note": "otc-sync: line of the storage line's submenu in the tray menu: how busy the device's processor is. {percent} is a whole number.",
+    "max": 30
+  },
+  "desk.main.disconnect_menu": {
+    "text": "Disconnect from {device}…",
+    "args": [["device", "text"]],
+    "note": "otc-sync: tray menu item shown once a device is set; asks before forgetting the device. {device} is the device's address (for example cala.off-the.cloud).",
+    "max": 60
+  },
+  "desk.main.disconnect_message": {
+    "text": "All your synced folders are removed from this app, so none of them starts syncing with a different device by mistake. The files themselves stay on this computer and on the device. You can add the folders again after connecting.",
+    "note": "otc-sync: text of the Disconnect confirmation dialog. Disconnecting removes every folder from the app; no file is deleted.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #fcb58d0e"
+  },
+  "desk.main.disconnect_title": {
+    "text": "Disconnect from {device}?",
+    "args": [["device", "text"]],
+    "note": "Both apps: title of the confirmation shown before disconnecting (the Mac's inline warning in Settings, otc-sync's dialog). {device} is the device's address (for example cala.off-the.cloud).",
+    "max": 60,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #93e39cab"
+  },
+  "desk.main.explain": {
+    "text": "What Do These Do?",
+    "note": "otc-sync: tray menu item under Add Folder… that opens a dialog explaining the kinds of folder and their options. Title Case.",
+    "max": 30
+  },
+  "desk.main.explain_backup": {
+    "text": "Back up a folder from this computer - one way: this computer → device (upload only, no deletes)\nNew and changed files are copied to the device. Nothing is ever deleted there: files you delete here stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder here.",
+    "note": "otc-sync: first paragraph of the What Do These Do? dialog: a heading line (the kind of folder), a line break, then what it does. Keep the line break."
+  },
+  "desk.main.explain_device": {
+    "text": "Sync a folder from the device - two ways\nPick a folder already on the device and a place on this computer: it is downloaded there and kept the same in both places from then on, changes and deletions included. What is set for it on the device (upload only, kept out of Images) stays as it is.",
+    "note": "otc-sync: third paragraph of the What Do These Do? dialog: a heading line (the kind of folder), a line break, then what it does. \"Images\" is the app's photo section. Keep the line break."
+  },
+  "desk.main.explain_images": {
+    "text": "Keep out of Images (an option for a folder from this computer)\nPhotos and videos in a folder kept out of Images aren't tagged, searched for faces or shown in Images. Files still shows them. Any tags and faces already found in them are deleted. You can change this later from the folder's menu. A folder renamed later is a new folder on the device: keep it out of Images again.",
+    "note": "otc-sync: last paragraph of the What Do These Do? dialog: a heading line (the Keep out of Images option), a line break, then what it does. \"Images\" and \"Files\" are sections of the app. Keep the line break.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #1de0ce68"
+  },
+  "desk.main.explain_local": {
+    "text": "Sync a folder from this computer - two ways\nThe folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device change this folder too, and the other way round. The first sync only adds, it never deletes.",
+    "note": "otc-sync: second paragraph of the What Do These Do? dialog: a heading line (the kind of folder), a line break, then what it does. Keep the line break."
+  },
+  "desk.main.explain_tip": {
+    "text": "The kinds of folder, and their options",
+    "note": "otc-sync: tooltip of the tray's What Do These Do? item."
+  },
+  "desk.main.explain_title": {
+    "text": "Adding a folder",
+    "note": "otc-sync: title of the What Do These Do? dialog.",
+    "max": 40
+  },
+  "desk.main.explain_upload_only": {
+    "text": "Upload only (an option for a folder synced from this computer; always on for a backup)\nThe device keeps every older version of a file, and nothing in the folder can be deleted on the device. Files you delete on this computer stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this computer while it was on then come back here.",
+    "note": "otc-sync: fourth paragraph of the What Do These Do? dialog: a heading line (the Upload only option), a line break, then what it means. \"Files\" is the app's file browser section. Keep the line break."
+  },
+  "desk.main.files_unreadable": {
+    "text": "{files} file(s) could not be read",
+    "args": [["files", "int"]],
+    "note": "otc-sync: a two-way folder's state in the tray menu when some files in it couldn't be read on this computer. {files} is how many.",
+    "max": 50
+  },
+  "desk.main.folder_backed_up": {
+    "text": "Backed up",
+    "note": "Both apps: a backup folder's state once everything in it is on the device.",
+    "max": 20
+  },
+  "desk.main.folder_offline": {
+    "text": "Device offline - will resume",
+    "note": "Both apps: a folder's state when the connection dropped during a pass; it carries on once the device is back.",
+    "max": 40
+  },
+  "desk.main.folder_synced": {
+    "text": "Synced",
+    "note": "Both apps: a two-way folder's state once it is the same on both sides (next to a check mark on the Mac, after the folder's name in the tray).",
+    "max": 20
+  },
+  "desk.main.images_add_caption": {
+    "text": "Photos and videos in it aren't tagged, searched for faces or shown in Images. Files still has them. Any tags and faces already found in them are deleted.",
+    "note": "Both apps: the Keep out of Images option's caption when adding a folder (the folder may already be on the device). \"Files\" is the app's file browser section.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #c80b1569"
+  },
+  "desk.main.images_by_parent": {
+    "text": "Inside {parent}, which is kept out of Images",
+    "args": [["parent", "user"]],
+    "note": "Both apps: tooltip of a folder kept out of Images because a folder above it is. {parent} is that folder's path on the device (for example /Photos)."
+  },
+  "desk.main.images_keep_button": {
+    "text": "Keep Out of Images",
+    "note": "Both apps: button that confirms keeping a folder out of Images, and the Mac's eye button tooltip on a folder shown in Images. Title Case.",
+    "max": 30
+  },
+  "desk.main.images_keep_message": {
+    "text": "Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them.",
+    "note": "Both apps: text of the confirmation before keeping a folder out of Images. \"Files\" is the app's file browser section.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #4637a85f"
+  },
+  "desk.main.images_keep_out": {
+    "text": "Keep out of Images",
+    "note": "Both apps: name of a folder option (a checkbox when adding a folder): its photos and videos aren't shown in Images, the app's photo section. Sentence case.",
+    "max": 30
+  },
+  "desk.main.images_keep_title": {
+    "text": "Keep “{name}” out of Images?",
+    "args": [["name", "user"]],
+    "note": "Both apps: title of the confirmation before keeping a folder out of Images. {name} is the folder's name.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #3c742881"
+  },
+  "desk.main.images_needs_update": {
+    "text": "Your device needs an update to keep folders out of Images.",
+    "note": "Both apps: the Keep out of Images option's caption when the device's software is too old for it."
+  },
+  "desk.main.images_show_button": {
+    "text": "Show in Images",
+    "note": "Both apps: button that confirms showing a folder in Images again. Title Case.",
+    "max": 30
+  },
+  "desk.main.images_show_message": {
+    "text": "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background.",
+    "note": "Both apps: text of the confirmation before showing a folder in Images again.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #f2c39b4c"
+  },
+  "desk.main.images_show_title": {
+    "text": "Show “{name}” in Images?",
+    "args": [["name", "user"]],
+    "note": "Both apps: title of the confirmation before showing a folder in Images again. {name} is the folder's name."
+  },
+  "desk.main.kind_device": {
+    "text": "Sync a folder from the device",
+    "note": "Both apps: one of the kinds of folder offered when adding a folder (a row's title): a folder already on the device, downloaded to this computer and kept in sync.",
+    "max": 45
+  },
+  "desk.main.kind_device_subtitle": {
+    "text": "Two ways: starts from the device",
+    "note": "Both apps: subtitle of the kind Sync a folder from the device: changes go both ways, and the first copy comes from the device.",
+    "max": 45
+  },
   "desk.main.language": {
     "text": "Language",
     "note": "Label of the language picker in the Mac app's Settings, and title of the Language submenu in otc-sync's tray menu (Windows and Linux). The choice applies to every Off The Cloud app.",
@@ -9,5 +279,245 @@
     "args": [["language", "text"]],
     "note": "First choice of the language picker: follow the computer's own language. {language} is the language that gives, written by its own name (for example Español); language names are never translated.",
     "max": 40
+  },
+  "desk.main.memory_line": {
+    "text": "Memory: {amount}",
+    "args": [["amount", "text"]],
+    "note": "otc-sync: line of the storage line's submenu in the tray menu: the device's memory in use. {amount} is how much is used of the total, already worded (\"2.1 of 8.2 GB\").",
+    "max": 40
+  },
+  "desk.main.no_folders": {
+    "text": "No folders yet — add one below.",
+    "note": "Both apps: shown in place of the folder list while no folder is synced; Add Folder… is the button (or menu item) below it.",
+    "max": 60
+  },
+  "desk.main.not_connected_error": {
+    "text": "not connected",
+    "note": "otc-sync: reason shown on a folder's line of the tray menu when a request couldn't be sent because the connection to the device was down. Lowercase, as it follows the folder's name and a warning sign.",
+    "max": 40
+  },
+  "desk.main.not_signed": {
+    "text": "{url} is not signed with the release key",
+    "args": [["url", "text"]],
+    "note": "otc-sync: reason a download was refused: {url} (a web address) isn't signed by Off The Cloud's release key, so it isn't trusted.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #f337f034"
+  },
+  "desk.main.open_web_app": {
+    "text": "Open Web App",
+    "note": "Both apps: button in the Mac panel's header, and tray menu item, that opens the device's own web app in the browser. Title Case like the other Mac buttons.",
+    "max": 24
+  },
+  "desk.main.open_web_app_tip": {
+    "text": "Open {address} in your browser",
+    "args": [["address", "text"]],
+    "note": "Both apps: tooltip of Open Web App. {address} is the web app's address (for example https://cala.off-the.cloud/), never translated."
+  },
+  "desk.main.password_title": {
+    "text": "Off The Cloud — Password for {device}",
+    "args": [["device", "text"]],
+    "note": "otc-sync: title of the dialog that asks for the device's password. {device} is the device's address (for example cala.off-the.cloud)."
+  },
+  "desk.main.remove_tip": {
+    "text": "Stop syncing this folder (nothing is deleted)",
+    "note": "otc-sync: tooltip of Remove in a folder's submenu of the tray menu."
+  },
+  "desk.main.restored_files": {
+    "text": "{files} files had disappeared from the device - restored them from this computer instead of deleting them here",
+    "args": [["files", "int"]],
+    "note": "otc-sync: a two-way folder's state after many of its files vanished from the device at once: the app uploaded them again instead of deleting them on this computer. {files} is how many (always more than 20)."
+  },
+  "desk.main.set_up_device": {
+    "text": "Set Up a New Device…",
+    "note": "Both apps: small button in the Mac app's Settings and tray menu item that opens the wizard preparing the SD card of a new device. Title Case.",
+    "max": 30
+  },
+  "desk.main.set_up_device_tip": {
+    "text": "Prepare the SD card for a new Raspberry Pi device",
+    "note": "otc-sync: tooltip of the tray's Set Up a New Device… item."
+  },
+  "desk.main.settings_hint": {
+    "text": "Device name (as on the bridge, e.g. “cala”), or a full address for a device elsewhere (wss://host/ws, ws://192.168.1.10:8080/ws).",
+    "note": "otc-sync: prompt of the dialog that asks which device to connect to. \"cala\" is an example device name and the addresses are examples: keep them as they are. \"Bridge\" is the off-the.cloud relay service."
+  },
+  "desk.main.settings_title": {
+    "text": "Off The Cloud — Settings",
+    "note": "otc-sync: title of the dialog that asks which device to connect to.",
+    "max": 40
+  },
+  "desk.main.signature_malformed": {
+    "text": "the signature of {url} is malformed: {detail}",
+    "args": [["url", "text"], ["detail", "text"]],
+    "note": "otc-sync: reason a download was refused: the signature published with {url} (a web address) can't be read. {detail} is the technical reason, in English.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d1c19912"
+  },
+  "desk.main.status_connected": {
+    "text": "Connected",
+    "note": "Both apps: connection status once signed in to the device.",
+    "max": 40
+  },
+  "desk.main.status_disconnected": {
+    "text": "Disconnected",
+    "note": "Both apps: connection status after the connection to the device dropped; the app tries again by itself.",
+    "max": 40
+  },
+  "desk.main.status_missing_settings": {
+    "text": "Missing domain/password",
+    "note": "Both apps: connection status while the device's address or its password isn't set.",
+    "max": 40
+  },
+  "desk.main.status_not_connected": {
+    "text": "Not connected",
+    "note": "Both apps: connection status before the app has tried to connect (the Mac panel's status line, the tray's status line).",
+    "max": 40
+  },
+  "desk.main.status_offline": {
+    "text": "Device offline - retrying",
+    "note": "Both apps: connection status when the relay can't reach the device (it is off or has no internet); the app keeps trying.",
+    "max": 40
+  },
+  "desk.main.status_sync_not_running": {
+    "text": "Sync not running",
+    "note": "otc-sync: status line of a tray menu opened while the background sync service isn't running.",
+    "max": 40
+  },
+  "desk.main.status_too_many_attempts": {
+    "text": "Too many attempts - retrying in {seconds}s",
+    "args": [["seconds", "int"]],
+    "note": "Both apps: connection status when the device locked this computer out for a while after too many password attempts. {seconds} is the number of seconds until the app tries again; \"s\" is the abbreviation for seconds.",
+    "max": 50
+  },
+  "desk.main.status_wrong_password": {
+    "text": "Wrong password",
+    "note": "Both apps: connection status when the device refused the password; the app stops trying until the password is changed or Retry is pressed.",
+    "max": 40
+  },
+  "desk.main.storage_degraded": {
+    "text": "A drive is down - the RAID is degraded",
+    "note": "Both apps: the device's storage line when one of the two disks of its mirror (RAID) stopped working.",
+    "max": 50
+  },
+  "desk.main.storage_failed": {
+    "text": "The RAID has failed",
+    "note": "Both apps: the device's storage line when its disk mirror (RAID) failed.",
+    "max": 40
+  },
+  "desk.main.storage_healthy": {
+    "text": "Storage healthy",
+    "note": "Both apps: the device's storage line (both disks of the mirror working), next to the connection status; also the menu bar icon's description.",
+    "max": 40
+  },
+  "desk.main.storage_line": {
+    "text": "Storage: {amount}",
+    "args": [["amount", "text"]],
+    "note": "otc-sync: first line of the storage line's submenu in the tray menu. {amount} is how much is used of the total, already worded (\"39.6 of 474 GB\").",
+    "max": 40
+  },
+  "desk.main.storage_unknown": {
+    "text": "Storage status unknown",
+    "note": "Both apps: the device's storage line before the device has reported it.",
+    "max": 40
+  },
+  "desk.main.storage_used": {
+    "text": "{percent}% used",
+    "args": [["percent", "int"]],
+    "note": "Both apps: how full the device's storage is, after the storage line (\"Storage healthy · 15% used\"). {percent} is a whole number from 0 to 100.",
+    "max": 20
+  },
+  "desk.main.title": {
+    "text": "Off The Cloud — Sync",
+    "note": "Both apps: the heading at the top of the Mac app's menu bar panel, the first (greyed) line of otc-sync's tray menu and the tray icon's tooltip before it connects. \"Off The Cloud\" is the product name; \"Sync\" names this app, the sync client.",
+    "max": 40
+  },
+  "desk.main.tray_tip": {
+    "text": "Off The Cloud — {status}",
+    "args": [["status", "text"]],
+    "note": "otc-sync: the tray icon's tooltip. {status} is the connection status, already worded (for example \"Connected over your home network\")."
+  },
+  "desk.main.update_available": {
+    "text": "Device update {version} available",
+    "args": [["version", "text"]],
+    "note": "Both apps: line under the storage line when the device has a major software update waiting. {version} is the update's version number (for example 2.4).",
+    "max": 50
+  },
+  "desk.main.update_cant_replace": {
+    "text": "can't replace {path} ({detail}) - run `sudo otc-sync update`, or install otc-sync in ~/.local/bin so it can update itself",
+    "args": [["path", "text"], ["detail", "text"]],
+    "note": "otc-sync (Linux): reason an update failed, after \"The update could not be installed:\". {path} is the program's file; {detail} the system's reason, in English. `sudo otc-sync update` is a command and ~/.local/bin a folder: keep them as they are."
+  },
+  "desk.main.update_cant_write": {
+    "text": "can't write next to {path} - download the new version from off-the.cloud instead: {detail}",
+    "args": [["path", "text"], ["detail", "text"]],
+    "note": "otc-sync (Windows): reason an update failed, after \"The update could not be installed:\". {path} is the program's file; {detail} the system's reason, in English. off-the.cloud is the website."
+  },
+  "desk.main.update_critical": {
+    "text": "Critical device update {version} - install it from the device's Settings as soon as possible",
+    "args": [["version", "text"]],
+    "note": "Both apps: warning line under the storage line when the device has a critical software update waiting. {version} is the update's version number (for example 2.4). \"Settings\" is the Settings section of the device's web or phone app."
+  },
+  "desk.main.update_download_failed": {
+    "text": "downloading {version}: {status}",
+    "args": [["version", "text"], ["status", "text"]],
+    "note": "otc-sync: reason an update failed, after \"The update could not be installed:\": the download of version {version} was refused; {status} is the web server's answer (for example \"404 Not Found\"), in English."
+  },
+  "desk.main.update_hash_mismatch": {
+    "text": "the download of {version} does not match its signed hash",
+    "args": [["version", "text"]],
+    "note": "otc-sync: reason an update was refused, after \"The update could not be installed:\": the downloaded file isn't the signed release (corrupted or tampered with), so nothing was installed. {version} is the version number.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #148a15d2"
+  },
+  "desk.main.upload_only": {
+    "text": "Upload only",
+    "note": "Both apps: name of a folder option (a checkbox): the device keeps every older version and refuses deletes in the folder. Sentence case.",
+    "max": 30
+  },
+  "desk.main.upload_only_backup": {
+    "text": "Always on for a backup.",
+    "note": "Both apps: shown before the Upload only caption for a backup folder, where the option is ticked and can't be changed.",
+    "max": 40
+  },
+  "desk.main.upload_only_caption": {
+    "text": "The device keeps every older version of a file, and nothing in the folder can be deleted on the device.",
+    "note": "Both apps: the Upload only option's caption, under its checkbox."
+  },
+  "desk.main.upload_only_lifting": {
+    "text": "Turning upload only off…",
+    "note": "Both apps: tooltip of the lock on a folder's row (Mac) or text after its name (tray) while the request to turn upload only off is on its way to the device.",
+    "max": 40
+  },
+  "desk.main.upload_only_making": {
+    "text": "Making it upload only…",
+    "note": "Both apps: tooltip of the lock on a folder's row (Mac) or text after its name (tray) while the request to make it upload only is on its way to the device.",
+    "max": 40
+  },
+  "desk.main.upload_only_needs_update": {
+    "text": "Your device needs an update to make folders upload only.",
+    "note": "Both apps: the Upload only option's caption, and a folder's tooltip, when the device's software is too old for it."
+  },
+  "desk.main.used_gb_of_total_tb": {
+    "text": "{used} GB of {total} TB",
+    "args": [["used", "text"], ["total", "text"]],
+    "note": "Both apps: storage used, in gigabytes, out of a total in terabytes (\"39.6 GB of 3.6 TB\"). {used} and {total} are numbers, already formatted.",
+    "max": 30
+  },
+  "desk.main.used_of_total_gb": {
+    "text": "{used} of {total} GB",
+    "args": [["used", "text"], ["total", "text"]],
+    "note": "Both apps: an amount of storage or memory used out of the total, in gigabytes (\"39.6 of 474 GB\"). {used} and {total} are numbers, already formatted. Use the language's abbreviation for gigabyte.",
+    "max": 30
+  },
+  "desk.main.used_of_total_tb": {
+    "text": "{used} of {total} TB",
+    "args": [["used", "text"], ["total", "text"]],
+    "note": "Both apps: an amount of storage used out of the total, in terabytes (\"1.2 of 3.6 TB\"). {used} and {total} are numbers, already formatted. Use the language's abbreviation for terabyte.",
+    "max": 30
+  },
+  "desk.main.used_tb_of_total_gb": {
+    "text": "{used} TB of {total} GB",
+    "args": [["used", "text"], ["total", "text"]],
+    "note": "Both apps: storage used, in terabytes, out of a total in gigabytes - only when the device reports more used than its size. {used} and {total} are numbers, already formatted.",
+    "max": 30
   }
 }

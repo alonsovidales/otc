@@ -140,7 +140,7 @@ func (ep *LocalEndpoint) urls() []string {
 	return out
 }
 
-var errPinMismatch = errors.New("not the device's certificate")
+var errPinMismatch = errors.New("not the device's certificate") // i18n-ignore: logged; the bridge is used instead
 
 // verifyPin accepts only a leaf certificate whose DER hashes to pin. It
 // runs inside the TLS handshake, so a server that fails it never gets the
@@ -212,7 +212,7 @@ func dialLocal(ctx context.Context, ep *LocalEndpoint) (*websocket.Conn, string,
 		return r.conn, r.url, nil
 	}
 	if len(errs) == 0 {
-		return nil, "", errors.New("no home-network address")
+		return nil, "", errors.New("no home-network address") // i18n-ignore: logged; the bridge is used instead
 	}
 
 	return nil, "", errors.Join(errs...)

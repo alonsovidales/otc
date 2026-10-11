@@ -168,14 +168,15 @@ final class LoginItemSettings: ObservableObject {
 }
 
 /// The words, the same as otc-sync's tray question (tray/autostart.go).
+/// Computed: a view that reads them shows the language in effect.
 enum LoginItemText {
-    static let title = "Start Off The Cloud when you log in?"
-    static let message = "Your folders keep syncing in the background after you restart your Mac. You can change this in Settings."
-    static let yes = "Start at Login"
-    static let no = "Not Now"
-    static let toggle = "Start at login"
-    static let offInSystemSettings = "Start at login is switched off in System Settings."
-    static let openLoginItems = "Open Login Items…"
+    static var title: String { S.deskMainAutostartTitle }
+    static var message: String { S.macosLoginMessage }
+    static var yes: String { S.deskMainAutostartYes }
+    static var no: String { S.deskMainAutostartNo }
+    static var toggle: String { S.deskMainAutostartToggle }
+    static var offInSystemSettings: String { S.macosLoginOffInSystemSettings }
+    static var openLoginItems: String { S.macosLoginOpenLoginItems }
 }
 
 /// The one-time offer, inline in the popover (and on the setup wizard's

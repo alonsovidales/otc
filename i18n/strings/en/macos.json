@@ -1,0 +1,222 @@
+{
+  "macos.add.backup_info": {
+    "text": "New and changed files are copied to the device. Nothing is ever deleted there: files you delete on this Mac stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder on the Mac. Good for photo archives and backups.",
+    "note": "Mac app: the (i) explanation of the kind Back up a folder from this Mac."
+  },
+  "macos.add.backup_subtitle": {
+    "text": "One way: this Mac → device (upload only, no deletes)",
+    "note": "Mac app: subtitle of the kind Back up a folder from this Mac.",
+    "max": 55
+  },
+  "macos.add.backup_title": {
+    "text": "Back up a folder from this Mac",
+    "note": "Mac app: one of the kinds of folder offered when adding a folder (a row's title).",
+    "max": 45
+  },
+  "macos.add.device_info": {
+    "text": "Pick a folder that is already on the device and a place on this Mac: it is downloaded there and kept the same in both places from then on, changes and deletions included, like the option above. Handy for getting a folder onto a second computer. What is set for it on the device (upload only, kept out of Images) stays as it is.",
+    "note": "Mac app: the (i) explanation of the kind Sync a folder from the device."
+  },
+  "macos.add.local_info": {
+    "text": "The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device (from a phone, another computer or the web) change this folder too, and the other way round. Deleted files go to the Trash on the Mac. The first sync only adds - it never deletes.",
+    "note": "Mac app: the (i) explanation of the kind Sync a folder from this Mac. \"Trash\" is the Mac's Trash."
+  },
+  "macos.add.local_subtitle": {
+    "text": "Two ways: starts from this Mac",
+    "note": "Mac app: subtitle of the kind Sync a folder from this Mac: changes go both ways, and the first copy comes from this Mac.",
+    "max": 45
+  },
+  "macos.add.local_title": {
+    "text": "Sync a folder from this Mac",
+    "note": "Mac app: one of the kinds of folder offered when adding a folder (a row's title): a folder on this Mac, kept the same on the device.",
+    "max": 45
+  },
+  "macos.add.title": {
+    "text": "Add a folder",
+    "note": "Mac app: heading of the panel's first add-folder step, which lists the kinds of folder.",
+    "max": 30
+  },
+  "macos.add.what_this_does": {
+    "text": "What this does",
+    "note": "Mac app: tooltip of the (i) button next to each kind of folder and option when adding a folder.",
+    "max": 30
+  },
+  "macos.connection.cancelled": {
+    "text": "Cancelled",
+    "note": "Mac app: a folder's error when a request was dropped because the connection to the device was replaced (for example by a faster route).",
+    "max": 30
+  },
+  "macos.connection.closed": {
+    "text": "Closed",
+    "note": "Mac app: a folder's error when a request was dropped because the app closed the connection (Disconnect, quitting).",
+    "max": 30
+  },
+  "macos.connection.no_public_key": {
+    "text": "Unable to fetch the connection's public key",
+    "note": "Mac app: error when signing in failed because the device didn't send the key the password is encrypted with.",
+    "max": 60
+  },
+  "macos.connection.not_connected": {
+    "text": "Not connected",
+    "note": "Mac app: a folder's error, or the device folder picker's, when a request couldn't be sent because the connection to the device was down.",
+    "max": 40
+  },
+  "macos.connection.password_rejected": {
+    "text": "The device rejected the password",
+    "note": "Mac app: error for requests that were waiting when the device refused the password.",
+    "max": 50
+  },
+  "macos.connection.timed_out": {
+    "text": "The device did not answer in time",
+    "note": "Mac app: a folder's error, or the device folder picker's, when the device didn't answer a request in time.",
+    "max": 50
+  },
+  "macos.folders.backup_line": {
+    "text": "Backup · this Mac → device, upload only",
+    "note": "Mac app: the line under a backup folder's name in the panel: one way, from this Mac to the device, nothing deleted there.",
+    "max": 50
+  },
+  "macos.folders.cant_read": {
+    "text": "Can't read the folder on this Mac",
+    "note": "Mac app: a two-way folder's error when the folder on this Mac can't be read (no permission, or its disk went away).",
+    "max": 50
+  },
+  "macos.folders.checking_count": {
+    "text": "Checking {done} of {total}",
+    "args": [["done", "text"], ["total", "text"]],
+    "note": "Mac app: a folder's progress while the app compares its files with the device, before the file's name: {done} files checked of {total}. Both are numbers, already formatted.",
+    "max": 40
+  },
+  "macos.folders.could_not_list": {
+    "text": "Could not list remote files",
+    "note": "Mac app: a folder's error when the device refused to list the folder without saying why; also shown in the device folder picker.",
+    "max": 50
+  },
+  "macos.folders.count": {
+    "text": "{done} of {total}",
+    "args": [["done", "text"], ["total", "text"]],
+    "note": "Mac app: a folder's progress while it sends or receives files, before the file's name: the file {done} of {total}. Both are numbers, already formatted.",
+    "max": 30
+  },
+  "macos.folders.restored_files": {
+    "text": "{files} files had disappeared from the device - restored them from this Mac instead of deleting them here",
+    "args": [["files", "text"]],
+    "note": "Mac app: a two-way folder's note after many of its files vanished from the device at once: the app uploaded them again instead of deleting them on this Mac. {files} is how many (always more than 20), written as plain digits."
+  },
+  "macos.images.add_info": {
+    "text": "You can change it later with the eye button on the folder's row. A folder renamed later is a new folder on the device: keep it out of Images again.",
+    "note": "Mac app: the (i) explanation of the Keep out of Images option when adding a folder."
+  },
+  "macos.images.keeping": {
+    "text": "Keeping out of Images…",
+    "note": "Mac app: tooltip of the eye on a folder's row while the request to keep it out of Images is on its way to the device.",
+    "max": 40
+  },
+  "macos.images.showing": {
+    "text": "Showing in Images…",
+    "note": "Mac app: tooltip of the eye on a folder's row while the request to show it in Images again is on its way to the device.",
+    "max": 40
+  },
+  "macos.images.state": {
+    "text": "Kept out of Images",
+    "note": "Mac app: tooltip of the crossed-out eye on a folder's row: the folder is kept out of Images, the app's photo section.",
+    "max": 40
+  },
+  "macos.load.cpu": {
+    "text": "CPU",
+    "note": "Mac app: label of a row in the pop-up over the storage line: how busy the device's processor is.",
+    "max": 16
+  },
+  "macos.load.memory": {
+    "text": "Memory",
+    "note": "Mac app: label of a row in the pop-up over the storage line: the device's memory in use.",
+    "max": 16
+  },
+  "macos.load.storage": {
+    "text": "Storage",
+    "note": "Mac app: label of a row in the pop-up over the storage line: the device's storage, with a bar and the amount used.",
+    "max": 16
+  },
+  "macos.login.message": {
+    "text": "Your folders keep syncing in the background after you restart your Mac. You can change this in Settings.",
+    "note": "Mac app: text of the one-time start-at-login question in the panel (and on the setup wizard's last page). \"Settings\" is the panel's Settings.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #233f7eb8"
+  },
+  "macos.login.off_in_system_settings": {
+    "text": "Start at login is switched off in System Settings.",
+    "note": "Mac app: note under Settings' Start at login checkbox when the user said yes but switched the login item off in macOS System Settings (use macOS's own name for System Settings)."
+  },
+  "macos.login.open_login_items": {
+    "text": "Open Login Items…",
+    "note": "Mac app: link next to that note, opening System Settings at Login Items (use macOS's own name for Login Items).",
+    "max": 30
+  },
+  "macos.popover.back_up": {
+    "text": "Back Up",
+    "note": "Mac app: the button of the folder chooser that picks a folder to back up. Title Case.",
+    "max": 20
+  },
+  "macos.popover.choose_backup": {
+    "text": "Choose a folder to back up to the device. This Mac stays the original.",
+    "note": "Mac app: message at the top of the folder chooser that picks a folder to back up."
+  },
+  "macos.popover.choose_download": {
+    "text": "Choose where to download “{path}” and keep it in sync.",
+    "args": [["path", "user"]],
+    "note": "Mac app: message at the top of the folder chooser that picks where a folder from the device goes on this Mac. {path} is the folder's path on the device (for example /Photos/2024)."
+  },
+  "macos.popover.quit": {
+    "text": "Quit Off The Cloud",
+    "note": "Mac app: button at the bottom right of the menu bar panel that quits the app.",
+    "max": 30
+  },
+  "macos.popover.quit_tip": {
+    "text": "Quit Off The Cloud - folders stop syncing until it is opened again",
+    "note": "Mac app: tooltip of the Quit Off The Cloud button."
+  },
+  "macos.settings.address_placeholder": {
+    "text": "Address (wss://host/ws or host)",
+    "note": "Mac app: placeholder of the address field in Settings once Custom address is ticked. \"wss://host/ws\" and \"host\" show the forms an address takes: keep them as they are.",
+    "max": 45
+  },
+  "macos.settings.connect_hint": {
+    "text": "Enter your device and its password.",
+    "note": "Mac app: hint next to the Connect button in Settings, under the device and password fields.",
+    "max": 45
+  },
+  "macos.settings.custom_address": {
+    "text": "Custom address",
+    "note": "Mac app: checkbox in Settings that swaps the device name field for a full address field.",
+    "max": 30
+  },
+  "macos.settings.custom_address_hint": {
+    "text": "For a device not on the Off The Cloud bridge - your own bridge, Tailscale Funnel, or the local network (ws://192.168.…:8080/ws).",
+    "note": "Mac app: note under the address field once Custom address is ticked. The bridge is Off The Cloud's relay service; Tailscale Funnel is a product name; the address is an example: keep it as it is."
+  },
+  "macos.settings.device_name_placeholder": {
+    "text": "Device name",
+    "note": "Mac app: placeholder of the field in Settings for the device's name on off-the.cloud (shown before \".off-the.cloud\").",
+    "max": 30
+  },
+  "macos.settings.disconnect_button": {
+    "text": "Disconnect…",
+    "note": "Mac app: small button in Settings that asks before disconnecting from the device.",
+    "max": 20
+  },
+  "macos.settings.disconnect_message": {
+    "text": "All your synced folders are removed from this app, so none of them starts syncing with a different device by mistake. The files themselves stay on this Mac and on the device. You can add the folders again after connecting.",
+    "note": "Mac app: text of the inline Disconnect confirmation in Settings. Disconnecting removes every folder from the app; no file is deleted.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ea3b159f"
+  },
+  "macos.settings.retry": {
+    "text": "Retry",
+    "note": "Mac app: small button in Settings, shown while not connected, that tries to connect again now.",
+    "max": 16
+  },
+  "macos.upload_only.add_info": {
+    "text": "Files you delete on this Mac stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this Mac while it was on then come back here.",
+    "note": "Mac app: the (i) explanation of the Upload only option when adding a two-way folder. \"Files\" is the app's file browser section."
+  }
+}

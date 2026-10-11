@@ -14,7 +14,7 @@ import (
 func Open(addr string) error {
 	u, err := url.Parse(addr)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return fmt.Errorf("not a web address: %q", addr)
+		return fmt.Errorf("not a web address: %q", addr) // i18n-ignore: the command line's: the tray only opens the http(s) address it made
 	}
 
 	return open(u.String())

@@ -13,6 +13,7 @@ import (
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
 	"github.com/alonsovidales/otc/app/desktop/internal/wsclient"
+	"github.com/alonsovidales/otc/i18n"
 )
 
 // Issue #190: the device on the home network. The client tries it first
@@ -49,7 +50,11 @@ func (e *Engine) keepLocalEndpoint(domain string, ep *wsclient.LocalEndpoint) {
 		return
 	}
 	if ep == nil {
-		log.Printf("the device can't be reached on the home network: connecting through %s", viaName(domain))
+		via := viaName(domain)
+		if via == "" {
+			via = "the configured address" // i18n-ignore: log text
+		}
+		log.Printf("the device can't be reached on the home network: connecting through %s", via)
 		if err := config.ClearLocalEndpoint(); err != nil {
 			log.Printf("could not forget the home-network endpoint: %v", err)
 		}
@@ -66,29 +71,73 @@ func (e *Engine) keepLocalEndpoint(domain string, ep *wsclient.LocalEndpoint) {
 }
 
 // RouteLine is a connected client's status line: which way it reaches
-// the device, in the words every app uses.
-func RouteLine(route, domain string) string {
+// the device, in the words every app uses - in English, for the command
+// line.
+func RouteLine(route, domain string) string { return RouteMsg(route, domain).Render("") }
+
+// RouteMsg is RouteLine as a catalog message, for the tray.
+func RouteMsg(route, domain string) i18n.Msg {
 	switch wsclient.Route(route) {
 	case wsclient.RouteLocal:
-		return "Connected over your home network"
+		return i18n.DeskMainConnectedHome()
 	case wsclient.RouteRemote:
-		return "Connected through " + viaName(domain)
+		if via := viaName(domain); via != "" {
+			return i18n.DeskMainConnectedThrough(via)
+		}
+
+		return i18n.DeskMainConnectedThroughConfigured()
 	}
 
-	return "Connected"
+	return i18n.DeskMainStatusConnected()
 }
 
-// StatusLine is the status, with the route once connected.
-func StatusLine(st config.State, domain string) string {
-	if st.Status == "Connected" && st.Route != "" {
-		return RouteLine(st.Route, domain)
+// StatusLine is the status, with the route once connected, in English: the
+// command line.
+func StatusLine(st config.State, domain string) string { return StatusText("", st, domain) }
+
+// StatusText is the status line in lang (the tray's): the status's code
+// worded, with the route once connected. A code this build doesn't know -
+// a newer service's - shows as it is.
+func StatusText(lang string, st config.State, domain string) string {
+	if st.Status == StatusConnected && st.Route != "" {
+		return RouteMsg(st.Route, domain).Render(lang)
+	}
+	if m, ok := statusMsg(st.Status); ok {
+		return m.Render(lang)
 	}
 
 	return st.Status
 }
 
+// statusMsg is a status code's words.
+func statusMsg(status string) (i18n.Msg, bool) {
+	switch status {
+	case StatusNotConnected:
+		return i18n.DeskMainStatusNotConnected(), true
+	case StatusConnecting:
+		return i18n.CommonConnecting(), true
+	case StatusConnected:
+		return i18n.DeskMainStatusConnected(), true
+	case StatusDisconnected:
+		return i18n.DeskMainStatusDisconnected(), true
+	case StatusOffline:
+		return i18n.DeskMainStatusOffline(), true
+	case StatusWrongPassword:
+		return i18n.DeskMainStatusWrongPassword(), true
+	case StatusMissingSettings:
+		return i18n.DeskMainStatusMissingSettings(), true
+	case StatusSyncNotRunning:
+		return i18n.DeskMainStatusSyncNotRunning(), true
+	}
+	if s, ok := TooManyAttempts(status); ok {
+		return i18n.DeskMainStatusTooManyAttempts(s), true
+	}
+
+	return i18n.Msg{}, false
+}
+
 // viaName is "off-the.cloud" for a device on the bridge, else the host of
-// the custom address.
+// the custom address; "" when it has none.
 func viaName(domain string) string {
 	if config.BridgeName(domain) != "" {
 		return config.BridgeDomain
@@ -104,10 +153,6 @@ func viaName(domain string) string {
 	if h := strings.ToLower(host); h == config.BridgeDomain || strings.HasSuffix(h, "."+config.BridgeDomain) {
 		return config.BridgeDomain
 	}
-	if host == "" {
-		return "the configured address"
-	}
-
 	return host
 }
 

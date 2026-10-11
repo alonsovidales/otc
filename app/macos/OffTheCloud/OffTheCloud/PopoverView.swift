@@ -72,7 +72,7 @@ struct PopoverView: View {
     private var mainContent: some View {
         VStack(spacing: 12) {
             HStack {
-                Text("Off The Cloud — Sync")
+                Text(S.deskMainTitle)
                     .font(.headline)
                 Spacer()
                 // Issue #193: the device's own web app, in the browser -
@@ -82,11 +82,11 @@ struct PopoverView: View {
                     Button {
                         NSWorkspace.shared.open(web)
                     } label: {
-                        Label("Open Web App", systemImage: "globe")
+                        Label(S.deskMainOpenWebApp, systemImage: "globe")
                             .foregroundStyle(Color.accentColor)
                     }
                     .buttonStyle(.borderless)
-                    .help("Open \(web.absoluteString) in your browser")
+                    .help(S.deskMainOpenWebAppTip(address: web.absoluteString))
                 }
                 // Settings inline inside the popover
                 Button {
@@ -102,7 +102,7 @@ struct PopoverView: View {
                 Circle()
                     .fill(statusColor)
                     .frame(width: 8, height: 8)
-                Text(sync.overallStatus)
+                Text(sync.overallStatus.text)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -131,7 +131,7 @@ struct PopoverView: View {
             // scrolling" behavior happen.
             VStack(spacing: 8) {
                 if sync.folders.isEmpty && sync.remoteFolders.isEmpty {
-                    Text("No folders yet — add one below.")
+                    Text(S.deskMainNoFolders)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .padding(.top, 24)
@@ -173,7 +173,7 @@ struct PopoverView: View {
                 Button {
                     showAddChooser = true
                 } label: {
-                    Label("Add Folder…", systemImage: "plus.circle.fill")
+                    Label(S.deskMainAddFolder, systemImage: "plus.circle.fill")
                 }
                 .buttonStyle(.borderless)
                 .fixedSize()
@@ -185,11 +185,11 @@ struct PopoverView: View {
                 Button {
                     NSApplication.shared.terminate(nil)
                 } label: {
-                    Label("Quit Off The Cloud", systemImage: "power")
+                    Label(S.macosPopoverQuit, systemImage: "power")
                 }
                 .buttonStyle(.borderless)
                 .keyboardShortcut("q", modifiers: .command)
-                .help("Quit Off The Cloud - folders stop syncing until it is opened again")
+                .help(S.macosPopoverQuitTip)
             }
         }
         .padding(12)
@@ -229,8 +229,8 @@ struct PopoverView: View {
         panel.canCreateDirectories = true
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
-        panel.prompt = "Choose"
-        panel.message = "Choose where to download “\(remotePath)” and keep it in sync."
+        panel.prompt = S.commonChoose
+        panel.message = S.macosPopoverChooseDownload(path: remotePath)
         if runFolderPanel(panel) == .OK, let url = panel.url {
             sync.addRemoteFolder(remotePath: remotePath, localURL: url)
         }
@@ -238,10 +238,10 @@ struct PopoverView: View {
 
     private var statusColor: Color {
         switch sync.overallStatus {
-        case "Connected": return .green
-        case "Disconnected", "Connecting…": return .yellow
-        case "Missing domain/password", "Wrong password": return .red
-        default: return sync.overallStatus.hasPrefix("Too many attempts") ? .red : .gray
+        case .connected: return .green
+        case .disconnected, .connecting: return .yellow
+        case .missingSettings, .wrongPassword, .tooManyAttempts: return .red
+        case .notConnected, .offline: return .gray
         }
     }
 }
@@ -273,13 +273,13 @@ struct FolderRow: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(folder.url.lastPathComponent)
                         .lineLimit(1)
-                    Text("Backup · this Mac → device, upload only")
+                    Text(S.macosFoldersBackupLine)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
                 Spacer()
-                FolderStateView(state: folder.state, watchingLabel: "Backed up")
+                FolderStateView(state: folder.state, watchingLabel: S.deskMainFolderBackedUp)
                 OutOfImagesButton(state: images, note: imagesNote) { confirmImages = true }
                 Button(role: .destructive) {
                     remove()
@@ -340,7 +340,7 @@ struct RemoteFolderRow: View {
                         .help(folder.remotePath)
                 }
                 Spacer()
-                FolderStateView(state: folder.state, watchingLabel: "Synced")
+                FolderStateView(state: folder.state, watchingLabel: S.deskMainFolderSynced)
                 UploadOnlyBadge(state: uploadOnly, note: uploadOnlyNote)
                 OutOfImagesButton(state: images, note: imagesNote) { confirmImages = true }
                 Button(role: .destructive) {
@@ -363,38 +363,39 @@ struct RemoteFolderRow: View {
 /// Issue #192's words, the same on every client (otc-sync's tray/images.go,
 /// iOS and Android's OutOfImagesText). Buttons are Title Case here, as the
 /// Mac's other buttons; the checkbox is sentence case, as "Start at login".
+/// Computed: a view that reads them shows the language in effect.
 enum OutOfImagesText {
-    static let toggle = "Keep out of Images"
-    static let keep = "Keep Out of Images"
-    static let show = "Show in Images"
-    static let state = "Kept out of Images"
+    static var toggle: String { S.deskMainImagesKeepOut }
+    static var keep: String { S.deskMainImagesKeepButton }
+    static var show: String { S.deskMainImagesShowButton }
+    static var state: String { S.macosImagesState }
     /// The add flow's: the folder may be on the device already (one synced
     /// from it, or added again), and keeping it out deletes the tags and
     /// faces found there (otc-sync's engine.OutOfImagesAddCaption).
-    static let addCaption = "Photos and videos in it aren't tagged, searched for faces or shown in Images. Files still has them. Any tags and faces already found in them are deleted."
-    static let addInfo = "You can change it later with the eye button on the folder's row. A folder renamed later is a new folder on the device: keep it out of Images again."
-    static let keepMessage = "Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them."
-    static let showMessage = "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background."
-    static let needsUpdate = "Your device needs an update to keep folders out of Images."
-    static func keepTitle(_ name: String) -> String { "Keep “\(name)” out of Images?" }
-    static func showTitle(_ name: String) -> String { "Show “\(name)” in Images?" }
-    static func byParent(_ parent: String) -> String { "Inside \(parent), which is kept out of Images" }
+    static var addCaption: String { S.deskMainImagesAddCaption }
+    static var addInfo: String { S.macosImagesAddInfo }
+    static var keepMessage: String { S.deskMainImagesKeepMessage }
+    static var showMessage: String { S.deskMainImagesShowMessage }
+    static var needsUpdate: String { S.deskMainImagesNeedsUpdate }
+    static func keepTitle(_ name: String) -> String { S.deskMainImagesKeepTitle(name: name) }
+    static func showTitle(_ name: String) -> String { S.deskMainImagesShowTitle(name: name) }
+    static func byParent(_ parent: String) -> String { S.deskMainImagesByParent(parent: parent) }
 }
 
 /// Issue #132's words, the same on every client (otc-sync's
 /// engine/upload_only.go, with "this computer" for "this Mac").
 enum UploadOnlyText {
-    static let toggle = "Upload only"
-    static let caption = "The device keeps every older version of a file, and nothing in the folder can be deleted on the device."
+    static var toggle: String { S.deskMainUploadOnly }
+    static var caption: String { S.deskMainUploadOnlyCaption }
     /// What it means for a two-way folder, in one sentence, and how it is
     /// undone, which brings back what was deleted here meanwhile
     /// (SyncPaths.baselines) - the add flow's (i).
-    static let addInfo = "Files you delete on this Mac stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this Mac while it was on then come back here."
+    static var addInfo: String { S.macosUploadOnlyAddInfo }
     /// The backup's fixed line: always on.
-    static let backup = "Always on for a backup."
-    static let needsUpdate = "Your device needs an update to make folders upload only."
-    static let making = "Making it upload only…"
-    static let lifting = "Turning upload only off…"
+    static var backup: String { S.deskMainUploadOnlyBackup }
+    static var needsUpdate: String { S.deskMainUploadOnlyNeedsUpdate }
+    static var making: String { S.deskMainUploadOnlyMaking }
+    static var lifting: String { S.deskMainUploadOnlyLifting }
 }
 
 /// A two-way folder's upload-only request on its way, on its row: a lock
@@ -461,8 +462,8 @@ struct OutOfImagesButton: View {
         switch state {
         case .keptOutBy(let parent): return note ?? OutOfImagesText.byParent(parent)
         case .keptOut: return OutOfImagesText.state
-        case .keeping: return "Keeping out of Images…"
-        case .showing: return "Showing in Images…"
+        case .keeping: return S.macosImagesKeeping
+        case .showing: return S.macosImagesShowing
         default: return OutOfImagesText.keep
         }
     }
@@ -489,7 +490,7 @@ struct OutOfImagesConfirmation: View {
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
                 Spacer()
-                Button("Cancel", action: onCancel)
+                Button(S.commonCancel, action: onCancel)
                 Button(keepOut ? OutOfImagesText.keep : OutOfImagesText.show) { onConfirm(keepOut) }
                     .buttonStyle(.borderedProminent)
             }
@@ -508,19 +509,19 @@ struct FolderStateView: View {
     let state: SyncModel.FolderState
     let watchingLabel: String
 
-    /// "165/6420 · IMG_4513.jpg" as "165 of 6,420" in full and the file
-    /// name shortened in the middle: shortening the whole string cut the
-    /// count and the name alike ("165/6…513.jpg").
+    /// The file a pass is on: "Checking 12 of 340" or "165 of 6,420" in
+    /// full, and the file name shortened in the middle - shortening the
+    /// whole string cut the count and the name alike ("165/6…513.jpg").
+    /// "Checking…" before the pass knows which file it is on.
     @ViewBuilder
-    private func fileLabel(_ text: String, font: Font) -> some View {
-        let parts = text.components(separatedBy: " · ")
+    private func fileLabel(_ file: SyncModel.FileProgress?, font: Font) -> some View {
         HStack(spacing: 4) {
-            if parts.count == 2 {
-                Text(Self.countText(parts[0]))
+            if let file {
+                Text(Self.countText(file))
                     .monospacedDigit()
                     .fixedSize()
             }
-            Text(parts.count == 2 ? parts[1] : text)
+            Text(file?.name ?? S.deskMainChecking)
                 .lineLimit(1)
                 .truncationMode(.middle)
         }
@@ -528,24 +529,17 @@ struct FolderStateView: View {
         .foregroundStyle(.secondary)
     }
 
-    /// "Checking 12/340" -> "Checking 12 of 340"; "165/6420" -> "165 of 6,420".
-    private static func countText(_ raw: String) -> String {
-        var prefix = ""
-        var nums = raw
-        if let sp = raw.lastIndex(of: " ") {
-            prefix = String(raw[...sp])
-            nums = String(raw[raw.index(after: sp)...])
-        }
-        let bits = nums.split(separator: "/")
-        guard bits.count == 2, let n = Int(bits[0]), let total = Int(bits[1]) else { return raw }
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        return prefix + "\(f.string(from: n as NSNumber) ?? "\(n)") of \(f.string(from: total as NSNumber) ?? "\(total)")"
+    /// "Checking 12 of 340", "165 of 6,420": the numbers in the app's locale.
+    private static func countText(_ file: SyncModel.FileProgress) -> String {
+        let done = file.index.formatted(.number.locale(L10n.shared.locale))
+        let total = file.total.formatted(.number.locale(L10n.shared.locale))
+        return file.checking ? S.macosFoldersCheckingCount(done: done, total: total)
+            : S.macosFoldersCount(done: done, total: total)
     }
 
     var body: some View {
         switch state {
-        case .scanning(let progress, let currentFile) where progress == 0:
+        case .scanning(let progress, let file) where progress == 0:
             // A flat 0% bar right as a folder starts (or on the very
             // first pass over it) reads as stalled/broken, not "working" —
             // an indeterminate spinner says "something's happening" without
@@ -554,10 +548,10 @@ struct FolderStateView: View {
             HStack(spacing: 6) {
                 ProgressView()
                     .controlSize(.small)
-                fileLabel(currentFile ?? "Checking…", font: .caption)
+                fileLabel(file, font: .caption)
                     .frame(maxWidth: 170, alignment: .trailing)
             }
-        case .scanning(let progress, let currentFile):
+        case .scanning(let progress, let file):
             VStack(alignment: .trailing, spacing: 2) {
                 HStack(spacing: 6) {
                     ProgressView(value: progress)
@@ -576,11 +570,11 @@ struct FolderStateView: View {
                 // itself can't move *during* that one file's transfer (no
                 // per-byte upload progress over the wire), so the spinner
                 // is what actually says "still alive" in the meantime.
-                if let currentFile {
+                if let file {
                     HStack(spacing: 4) {
                         ProgressView()
                             .controlSize(.mini)
-                        fileLabel(currentFile, font: .caption2)
+                        fileLabel(file, font: .caption2)
                     }
                     .frame(maxWidth: 170, alignment: .trailing)
                 }
@@ -591,10 +585,10 @@ struct FolderStateView: View {
             Text(watchingLabel)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-        case .error(let message):
+        case .error(let problem):
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
-            Text(message)
+            Text(problem.text)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -634,7 +628,7 @@ struct SettingsInlineView: View {
     var body: some View {
         VStack(spacing: 8) {
             HStack {
-                Text("Settings").font(.subheadline.bold())
+                Text(S.commonSettings).font(.subheadline.bold())
                 Spacer()
             }
             if settings.ready && confirmDisconnect {
@@ -651,7 +645,7 @@ struct SettingsInlineView: View {
                 // The real state; a change records the owner's choice.
                 StartAtLoginToggle(login: login)
                 Spacer()
-                Button("Set Up a New Device…", action: onSetUpDevice)
+                Button(S.deskMainSetUpDevice, action: onSetUpDevice)
                     .controlSize(.small)
             }
             StartAtLoginNote(login: login)
@@ -666,18 +660,18 @@ struct SettingsInlineView: View {
     // and takes the alert with it (same quirk as the remote folder picker).
     private var disconnectConfirmation: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Disconnect from \(deviceLabel)?", systemImage: "exclamationmark.triangle.fill")
+            Label(S.deskMainDisconnectTitle(device: deviceLabel), systemImage: "exclamationmark.triangle.fill")
                 .font(.callout.bold())
                 .foregroundStyle(.orange)
-            Text("All your synced folders are removed from this app, so none of them starts syncing with a different device by mistake. The files themselves stay on this Mac and on the device. You can add the folders again after connecting.")
+            Text(S.macosSettingsDisconnectMessage)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
                 Spacer()
-                Button("Cancel") { confirmDisconnect = false }
+                Button(S.commonCancel) { confirmDisconnect = false }
                     .keyboardShortcut(.cancelAction)
-                Button("Disconnect", role: .destructive) {
+                Button(S.commonDisconnect, role: .destructive) {
                     confirmDisconnect = false
                     domain = ""
                     password = ""
@@ -701,12 +695,12 @@ struct SettingsInlineView: View {
                 Text(sync.connectionStatus).font(.footnote).foregroundStyle(.secondary)
             }
             Spacer()
-            if sync.overallStatus != "Connected" {
+            if sync.overallStatus != .connected {
                 // After "Wrong password" nothing else would try again.
-                Button("Retry") { sync.reconnectNow() }
+                Button(S.macosSettingsRetry) { sync.reconnectNow() }
                     .controlSize(.small)
             }
-            Button("Disconnect…") { confirmDisconnect = true }
+            Button(S.macosSettingsDisconnectButton) { confirmDisconnect = true }
                 .controlSize(.small)
         }
     }
@@ -716,15 +710,15 @@ struct SettingsInlineView: View {
             // Issue #121: the device's name is all the bridge needs; a
             // custom address is behind the toggle.
             DeviceAddressFields(domain: $domain)
-            SecureField("Password", text: $password)
+            SecureField(S.commonPassword, text: $password)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit { if canConnect { connect() } }
             HStack {
-                Text("Enter your device and its password.")
+                Text(S.macosSettingsConnectHint)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button("Connect") { connect() }
+                Button(S.commonConnect) { connect() }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                     .disabled(!canConnect)
@@ -754,12 +748,12 @@ struct DeviceAddressFields: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             if customAddress {
-                TextField("Address (wss://host/ws or host)", text: $domain)
+                TextField(S.macosSettingsAddressPlaceholder, text: $domain)
                     .textFieldStyle(.roundedBorder)
                     .disableAutocorrection(true)
             } else {
                 HStack(spacing: 4) {
-                    TextField("Device name", text: $deviceName)
+                    TextField(S.macosSettingsDeviceNamePlaceholder, text: $deviceName)
                         .textFieldStyle(.roundedBorder)
                         .disableAutocorrection(true)
                         .onChange(of: deviceName) { _, name in
@@ -771,7 +765,7 @@ struct DeviceAddressFields: View {
                         .fixedSize()
                 }
             }
-            Toggle("Custom address", isOn: $customAddress)
+            Toggle(S.macosSettingsCustomAddress, isOn: $customAddress)
                 .toggleStyle(.checkbox)
                 .font(.footnote)
                 .onChange(of: customAddress) { _, custom in
@@ -781,7 +775,7 @@ struct DeviceAddressFields: View {
                     }
                 }
             if customAddress {
-                Text("For a device not on the Off The Cloud bridge - your own bridge, Tailscale Funnel, or the local network (ws://192.168.…:8080/ws).")
+                Text(S.macosSettingsCustomAddressHint)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -830,10 +824,10 @@ struct AddFolderChooser: View {
     private var canUploadOnly: Bool { uploadOnlySupported != false }
 
     // The kinds' words (the tray's, with "this Mac" for "this computer").
-    static let backupTitle = "Back up a folder from this Mac"
-    static let backupSubtitle = "One way: this Mac → device (upload only, no deletes)"
-    static let localTitle = "Sync a folder from this Mac"
-    static let localSubtitle = "Two ways: starts from this Mac"
+    static var backupTitle: String { S.macosAddBackupTitle }
+    static var backupSubtitle: String { S.macosAddBackupSubtitle }
+    static var localTitle: String { S.macosAddLocalTitle }
+    static var localSubtitle: String { S.macosAddLocalSubtitle }
 
     var body: some View {
         if let kind {
@@ -848,22 +842,22 @@ struct AddFolderChooser: View {
     private var kindStep: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Add a folder").font(.headline)
+                Text(S.macosAddTitle).font(.headline)
                 Spacer()
-                Button("Cancel", action: onCancel).buttonStyle(.borderless)
+                Button(S.commonCancel, action: onCancel).buttonStyle(.borderless)
             }
             kindRow("backup", icon: "arrow.up.circle.fill", tint: .orange,
                     title: Self.backupTitle, subtitle: Self.backupSubtitle,
-                    info: "New and changed files are copied to the device. Nothing is ever deleted there: files you delete on this Mac stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder on the Mac. Good for photo archives and backups.",
+                    info: S.macosAddBackupInfo,
                     action: { choose(.backup) })
             kindRow("local", icon: "arrow.triangle.2.circlepath.circle.fill", tint: .blue,
                     title: Self.localTitle, subtitle: Self.localSubtitle,
-                    info: "The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device (from a phone, another computer or the web) change this folder too, and the other way round. Deleted files go to the Trash on the Mac. The first sync only adds - it never deletes.",
+                    info: S.macosAddLocalInfo,
                     action: { choose(.local) })
             kindRow("device", icon: "arrow.down.circle.fill", tint: .green,
-                    title: "Sync a folder from the device",
-                    subtitle: "Two ways: starts from the device",
-                    info: "Pick a folder that is already on the device and a place on this Mac: it is downloaded there and kept the same in both places from then on, changes and deletions included, like the option above. Handy for getting a folder onto a second computer. What is set for it on the device (upload only, kept out of Images) stays as it is.",
+                    title: S.deskMainKindDevice,
+                    subtitle: S.deskMainKindDeviceSubtitle,
+                    info: S.macosAddDeviceInfo,
                     action: onSyncDevice)
         }
     }
@@ -919,11 +913,11 @@ struct AddFolderChooser: View {
                     open = nil
                     kind = nil
                 } label: {
-                    Label("Back", systemImage: "chevron.left")
+                    Label(S.commonBack, systemImage: "chevron.left")
                 }
                 .buttonStyle(.borderless)
                 Spacer()
-                Button("Cancel", action: onCancel).buttonStyle(.borderless)
+                Button(S.commonCancel, action: onCancel).buttonStyle(.borderless)
             }
             HStack(spacing: 10) {
                 Image(systemName: k == .backup ? "arrow.up.circle.fill" : "arrow.triangle.2.circlepath.circle.fill")
@@ -950,7 +944,7 @@ struct AddFolderChooser: View {
                    info: OutOfImagesText.addInfo, enabled: canKeepOut)
             HStack {
                 Spacer()
-                Button("Choose Folder…") {
+                Button(S.deskMainChooseFolder) {
                     switch k {
                     case .backup: onBackup(keepOut && canKeepOut)
                     case .local: onSyncLocal(uploadOnly && canUploadOnly, keepOut && canKeepOut)
@@ -998,7 +992,7 @@ struct AddFolderChooser: View {
                 .foregroundStyle(.secondary)
         }
         .buttonStyle(.borderless)
-        .help("What this does")
+        .help(S.macosAddWhatThisDoes)
     }
 
     private func infoText(_ text: String, leading: CGFloat) -> some View {
@@ -1024,7 +1018,7 @@ private struct StorageStatusView: View {
                 .foregroundStyle(health == .ok ? Color.secondary : Color.red)
             if let s = status?.storageUse {
                 let frac = s.fraction
-                Text(" · \(Int((frac * 100).rounded()))% used")
+                Text(" · " + S.deskMainStorageUsed(percent: Int((frac * 100).rounded())))
                     .foregroundStyle(fullnessColor(frac) ?? Color.secondary)
                     .monospacedDigit()
             }
@@ -1050,11 +1044,11 @@ private struct UpdateAlertView: View {
     var body: some View {
         Group {
             if alert.level == "critical" {
-                Label("Critical device update \(alert.version) - install it from the device's Settings as soon as possible",
+                Label(S.deskMainUpdateCritical(version: alert.version),
                       systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(Color.red)
             } else {
-                Text("Device update \(alert.version) available")
+                Text(S.deskMainUpdateAvailable(version: alert.version))
                     .foregroundStyle(.secondary)
             }
         }
@@ -1083,21 +1077,27 @@ private func fullnessColor(_ fraction: Double) -> Color? {
 
 /// An amount in the status's units (1.024 MB), as otc-sync's `sizeText`
 /// writes it: one decimal under 100 GB ("8.5"), whole GB from 100 GB
-/// ("474"), TB with one decimal from 1000 GB ("3.6").
-private func sizeText(_ units: Int32) -> (number: String, unit: String) {
+/// ("474"), TB with one decimal from 1000 GB ("3.6"). The number is
+/// written for the app's language (its canonical tag, as the texts' own
+/// numbers: "8.5" in English whatever the region, "8,5" in Spanish).
+private func sizeText(_ units: Int32) -> (number: String, tb: Bool) {
     let gb = Double(units) * 1.024 / 1000
-    if gb < 99.95 { return (String(format: "%.1f", gb), "GB") }
-    if gb < 999.5 { return (String(format: "%.0f", gb), "GB") }
-    return (String(format: "%.1f", gb / 1000), "TB")
+    let locale = L10n.shared.current.locale
+    if gb < 99.95 { return (String(format: "%.1f", locale: locale, gb), false) }
+    if gb < 999.5 { return (String(format: "%.0f", locale: locale, gb), false) }
+    return (String(format: "%.1f", locale: locale, gb / 1000), true)
 }
 
 /// "39.6 of 474 GB", "1.2 of 3.6 TB", or "39.6 GB of 3.6 TB" when the two
 /// need different units - otc-sync's `usedOfTotal`.
 private func usedOfTotal(_ used: Int32, _ size: Int32) -> String {
     let u = sizeText(used), s = sizeText(size)
-    return u.unit == s.unit
-        ? "\(u.number) of \(s.number) \(s.unit)"
-        : "\(u.number) \(u.unit) of \(s.number) \(s.unit)"
+    switch (u.tb, s.tb) {
+    case (false, false): return S.deskMainUsedOfTotalGb(used: u.number, total: s.number)
+    case (true, true): return S.deskMainUsedOfTotalTb(used: u.number, total: s.number)
+    case (false, true): return S.deskMainUsedGbOfTotalTb(used: u.number, total: s.number)
+    case (true, false): return S.deskMainUsedTbOfTotalGb(used: u.number, total: s.number)
+    }
 }
 
 /// The pop-up: storage first, as it details the line it opens from,
@@ -1111,7 +1111,7 @@ private struct DeviceLoadView: View {
         Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
             if let s = status.storageUse {
                 GridRow {
-                    Text("Storage").font(.caption)
+                    Text(S.macosLoadStorage).font(.caption)
                     ProgressView(value: s.fraction).frame(width: 90)
                         .tint(fullnessColor(s.fraction))
                     Text(usedOfTotal(s.used, s.size))
@@ -1119,13 +1119,13 @@ private struct DeviceLoadView: View {
                 }
             }
             GridRow {
-                Text("CPU").font(.caption)
+                Text(S.macosLoadCpu).font(.caption)
                 ProgressView(value: min(max(cpu, 0), 1)).frame(width: 90)
                 Text("\(Int((cpu * 100).rounded()))%")
                     .font(.caption).monospacedDigit()
             }
             GridRow {
-                Text("Memory").font(.caption)
+                Text(S.macosLoadMemory).font(.caption)
                 ProgressView(value: min(max(mem, 0), 1)).frame(width: 90)
                 Text(usedOfTotal(status.memUsage, status.memSize))
                     .font(.caption).monospacedDigit()

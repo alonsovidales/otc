@@ -8,14 +8,17 @@
 package tray
 
 import (
+	"errors"
 	"fmt"
 	"github.com/alonsovidales/otc/app/desktop/internal/selfupdate"
 	"github.com/alonsovidales/otc/app/desktop/internal/service"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"fyne.io/systray"
@@ -25,7 +28,42 @@ import (
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
 	"github.com/alonsovidales/otc/app/desktop/internal/engine"
 	"github.com/alonsovidales/otc/app/desktop/internal/icons"
+	"github.com/alonsovidales/otc/app/desktop/internal/oslang"
+	"github.com/alonsovidales/otc/i18n"
 )
+
+// shown is the language the menu and its dialogs speak (docs/i18n.md):
+// the choice in config.json, else the computer's. apply sets it from the
+// config it reads before it writes any text, and writes every item again
+// when it changes; until the first apply - and in the tests - it is "",
+// English.
+var shown atomic.Value // string
+
+// lang is the language the menu speaks now.
+func lang() string {
+	s, _ := shown.Load().(string)
+
+	return s
+}
+
+func setLang(cfg *config.Config) string {
+	l := oslang.Effective(cfg.Language)
+	shown.Store(l)
+
+	return l
+}
+
+// errorText is err for a dialog in lang: worded by the catalog when it is
+// one of ours (config.InvalidError, selfupdate's), as it comes otherwise
+// (the system's own words).
+func errorText(lang string, err error) string {
+	var m interface{ Msg() i18n.Msg }
+	if errors.As(err, &m) {
+		return m.Msg().Render(lang)
+	}
+
+	return err.Error()
+}
 
 // Controller is what the menu acts on: the running app, whether it owns
 // the sync engine or is only a viewer next to the service.
@@ -67,6 +105,7 @@ type folderItem struct {
 type ui struct {
 	c         Controller
 	mu        sync.Mutex
+	title     *systray.MenuItem
 	status    *systray.MenuItem
 	raid      *systray.MenuItem
 	store     *systray.MenuItem // the storage line's submenu: its storage in
@@ -116,8 +155,9 @@ func Refresh() {
 }
 
 func (u *ui) onReady() {
+	l := setLang(u.c.Config())
 	systray.SetTitle("")
-	systray.SetTooltip("Off The Cloud — Sync")
+	systray.SetTooltip(i18n.DeskMainTitle().Render(l))
 	u.build(nil)
 	u.apply()
 	go u.watchUpdates()
@@ -220,11 +260,14 @@ func (u *ui) build(folders []config.FolderStatus) {
 	// Every item is new: the first apply writes them all, as before.
 	u.titles, u.tips = map[*systray.MenuItem]string{}, map[*systray.MenuItem]string{}
 	u.shown, u.checked, u.enabled = map[*systray.MenuItem]bool{}, map[*systray.MenuItem]bool{}, map[*systray.MenuItem]bool{}
-	title := systray.AddMenuItem("Off The Cloud — Sync", "")
+	// The texts are the menu's language now; apply writes them again
+	// (applyTexts), in the language then in effect.
+	l := lang()
+	u.title = systray.AddMenuItem(i18n.DeskMainTitle().Render(l), "")
 	u.appUpdate = systray.AddMenuItem("", "")
 	u.appUpdate.Hide()
-	title.Disable()
-	u.status = systray.AddMenuItem("Not connected", "")
+	u.title.Disable()
+	u.status = systray.AddMenuItem(i18n.DeskMainStatusNotConnected().Render(l), "")
 	u.status.Disable()
 	// Enabled, unlike the other status lines, or its submenu - the
 	// device's storage in GB, CPU and memory - would never open; clicking
@@ -243,17 +286,17 @@ func (u *ui) build(folders []config.FolderStatus) {
 	u.update.Hide()
 	// Issue #193: at the top, like the Mac's button beside the gear; shown
 	// once a device is set (apply).
-	u.web = systray.AddMenuItem("Open Web App", "")
+	u.web = systray.AddMenuItem(i18n.DeskMainOpenWebApp().Render(l), "")
 	u.web.Hide()
 	systray.AddSeparator()
-	u.empty = systray.AddMenuItem("No folders yet — add one below.", "")
+	u.empty = systray.AddMenuItem(i18n.DeskMainNoFolders().Render(l), "")
 	u.empty.Disable()
 	u.folders = nil
 	for _, f := range folders {
 		mi := systray.AddMenuItem(folderTitle(f), "")
 		img, info := addImagesItems(mi)
 		upInfo := addUploadOnlyInfo(mi)
-		rm := mi.AddSubMenuItem("Remove", "Stop syncing this folder (nothing is deleted)")
+		rm := mi.AddSubMenuItem(i18n.CommonRemove().Render(l), i18n.DeskMainRemoveTip().Render(l))
 		u.folders = append(u.folders, &folderItem{item: mi, remove: rm, images: img, imagesInfo: info, uploadInfo: upInfo, id: f.ID, remote: f.RemotePath != ""})
 	}
 	if len(folders) > 0 {
@@ -263,16 +306,16 @@ func (u *ui) build(folders []config.FolderStatus) {
 	// The macOS app's "Add Folder…" (AddFolderChooser): the kind, its
 	// options, then the folder (addfolder.go). A dialog has no (i) buttons,
 	// so "What Do These Do?" explains the kinds and options.
-	u.add = systray.AddMenuItem("Add Folder…", "Back up or sync a folder from this computer, or sync one from the device")
-	u.explain = systray.AddMenuItem("What Do These Do?", "The kinds of folder, and their options")
+	u.add = systray.AddMenuItem(i18n.DeskMainAddFolder().Render(l), i18n.DeskMainAddFolderTip().Render(l))
+	u.explain = systray.AddMenuItem(i18n.DeskMainExplain().Render(l), i18n.DeskMainExplainTip().Render(l))
 	// Connected: the device and Disconnect; not: the device and password.
 	u.settings = systray.AddMenuItem(u.settingsTitle(), "")
-	u.autost = systray.AddMenuItemCheckbox(autostartToggle, autostartToggleTip, u.c.AutostartEnabled())
+	u.autost = systray.AddMenuItemCheckbox(autostartToggle(l), autostartToggleTip(l), u.c.AutostartEnabled())
 	u.language = addLanguageMenu(u.c.Config())
 	systray.AddSeparator()
-	u.setup = systray.AddMenuItem("Set Up a New Device…", "Prepare the SD card for a new Raspberry Pi device")
+	u.setup = systray.AddMenuItem(i18n.DeskMainSetUpDevice().Render(l), i18n.DeskMainSetUpDeviceTip().Render(l))
 	systray.AddSeparator()
-	u.quit = systray.AddMenuItem("Quit", "")
+	u.quit = systray.AddMenuItem(i18n.CommonQuit().Render(l), "")
 
 	stop := make(chan struct{})
 	u.stopLoop = stop
@@ -334,6 +377,11 @@ func (u *ui) apply() {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	defer u.showUpdate() // the menu may have just been rebuilt
+	// config.json read once per apply (it used to be twice), and never
+	// cached: in viewer mode reading it is how the menu sees a device the
+	// service or the CLI changed - and the language picked in another app.
+	cfg := u.c.Config()
+	l := setLang(cfg)
 	st := u.c.Snapshot()
 	want := make([]config.FolderStatus, 0, len(st.Folders)+len(st.RemoteFolders))
 	want = append(want, st.Folders...)
@@ -351,18 +399,15 @@ func (u *ui) apply() {
 	if !same {
 		u.build(want)
 	}
-	// config.json read once per apply (it used to be twice), and never
-	// cached: in viewer mode reading it is how the menu sees a device the
-	// service or the CLI changed.
-	cfg := u.c.Config()
+	u.applyTexts(l)
 	// Issue #190: once connected, which way - the home network or the
 	// bridge - in the line that says it is.
-	line := engine.StatusLine(st, cfg.Domain)
+	line := engine.StatusText(l, st, cfg.Domain)
 	u.setTitle(u.status, statusDot(st.Status)+" "+line)
 	configured := cfg.Domain != "" && u.c.Password() != ""
 	u.setTitle(u.settings, settingsTitleFor(cfg, configured))
 	if addr := config.WebURL(cfg.Domain); configured && addr != "" {
-		u.setTip(u.web, "Open "+addr+" in your browser")
+		u.setTip(u.web, i18n.DeskMainOpenWebAppTip(addr).Render(l))
 		u.setShown(u.web, true)
 	} else {
 		u.setShown(u.web, false)
@@ -393,7 +438,7 @@ func (u *ui) apply() {
 		systray.SetIcon(icons.For(st.Raid))
 		u.lastIcon = st.Raid
 	}
-	if t := "Off The Cloud — " + line; t != u.lastTrayTip {
+	if t := i18n.DeskMainTrayTip(line).Render(l); t != u.lastTrayTip {
 		systray.SetTooltip(t)
 		u.lastTrayTip = t
 	}
@@ -407,17 +452,40 @@ func (u *ui) apply() {
 	u.setChecked(u.autost, u.c.AutostartEnabled())
 	u.applyLanguage(cfg)
 	// Once connected, start at login is asked about, once.
-	if st.Status == "Connected" && !u.autostartAsked {
+	if st.Status == engine.StatusConnected && !u.autostartAsked {
 		u.autostartAsked = true
 		go u.askAutostart()
 	}
 }
 
+// applyTexts writes the items whose words don't change with the state,
+// in lang: a language picked here, in another app or by the CLI shows at
+// the next apply, without a restart (only an item whose words changed is
+// written).
+func (u *ui) applyTexts(l string) {
+	u.setTitle(u.title, i18n.DeskMainTitle().Render(l))
+	u.setTitle(u.web, i18n.DeskMainOpenWebApp().Render(l))
+	u.setTitle(u.empty, i18n.DeskMainNoFolders().Render(l))
+	u.setTitle(u.add, i18n.DeskMainAddFolder().Render(l))
+	u.setTip(u.add, i18n.DeskMainAddFolderTip().Render(l))
+	u.setTitle(u.explain, i18n.DeskMainExplain().Render(l))
+	u.setTip(u.explain, i18n.DeskMainExplainTip().Render(l))
+	u.setTitle(u.autost, autostartToggle(l))
+	u.setTip(u.autost, autostartToggleTip(l))
+	u.setTitle(u.setup, i18n.DeskMainSetUpDevice().Render(l))
+	u.setTip(u.setup, i18n.DeskMainSetUpDeviceTip().Render(l))
+	u.setTitle(u.quit, i18n.CommonQuit().Render(l))
+	for _, fi := range u.folders {
+		u.setTitle(fi.remove, i18n.CommonRemove().Render(l))
+		u.setTip(fi.remove, i18n.DeskMainRemoveTip().Render(l))
+	}
+}
+
 func statusDot(s string) string {
 	switch s {
-	case "Connected":
+	case engine.StatusConnected:
 		return "●"
-	case "Disconnected", "Sync not running", "Connecting…":
+	case engine.StatusDisconnected, engine.StatusSyncNotRunning, engine.StatusConnecting:
 		return "◐"
 	default:
 		return "○"
@@ -430,16 +498,17 @@ func folderTitle(f config.FolderStatus) string {
 		arrow = "⇅"
 	}
 	name := filepath.Base(f.Path)
+	l := lang()
 	var state string
 	switch f.State {
 	case string(engine.StateWatching):
 		if f.RemotePath != "" {
-			state = "Synced"
+			state = i18n.DeskMainFolderSynced().Render(l)
 		} else {
-			state = "Backed up"
+			state = i18n.DeskMainFolderBackedUp().Render(l)
 		}
 	case string(engine.StateError):
-		state = "⚠ " + f.Error
+		state = "⚠ " + i18n.RenderStored(l, f.MsgKey, f.MsgArgs, f.Error)
 	default:
 		switch {
 		case f.CurrentFile != "" && f.Progress > 0:
@@ -447,9 +516,9 @@ func folderTitle(f config.FolderStatus) string {
 		case f.CurrentFile != "":
 			// Issue #138: "Checking 12/300 · name" while hashing - no
 			// percentage, that is not a transfer.
-			state = f.CurrentFile
+			state = i18n.RenderStored(l, f.MsgKey, f.MsgArgs, f.CurrentFile)
 		default:
-			state = "Checking…"
+			state = i18n.DeskMainChecking().Render(l)
 		}
 	}
 
@@ -461,7 +530,7 @@ func folderTitle(f config.FolderStatus) string {
 func (u *ui) editConfig() *config.Config {
 	cfg, err := u.c.LoadConfig()
 	if err != nil {
-		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+		_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
 
 		return nil
 	}
@@ -492,31 +561,33 @@ func (u *ui) removeFolder(fi *folderItem) {
 		cfg.Folders = kept
 	}
 	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+		_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
 	}
 	Refresh()
 }
 
 // explainKinds is the tray's (i): the macOS chooser's three explanations.
 func (u *ui) explainKinds() {
-	_ = zenity.Info(explainKindsText, zenity.Title("Adding a folder"), zenity.Width(520))
+	l := lang()
+	_ = zenity.Info(explainText(l), zenity.Title(i18n.DeskMainExplainTitle().Render(l)), zenity.Width(520))
 }
 
-// explainKindsText is "What Do These Do?": the Mac chooser's (i)s - the
-// three kinds, then the options a folder from this computer has.
-var explainKindsText = `Back up a folder from this computer - one way: this computer → device (upload only, no deletes)
-New and changed files are copied to the device. Nothing is ever deleted there: files you delete here stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder here.
+// explainText is "What Do These Do?" in lang: the Mac chooser's (i)s - the
+// three kinds, then the options a folder from this computer has - one
+// paragraph each.
+func explainText(lang string) string {
+	return strings.Join([]string{
+		i18n.DeskMainExplainBackup().Render(lang),
+		i18n.DeskMainExplainLocal().Render(lang),
+		i18n.DeskMainExplainDevice().Render(lang),
+		i18n.DeskMainExplainUploadOnly().Render(lang),
+		i18n.DeskMainExplainImages().Render(lang),
+	}, "\n\n")
+}
 
-Sync a folder from this computer - two ways
-The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device change this folder too, and the other way round. The first sync only adds, it never deletes.
-
-Sync a folder from the device - two ways
-Pick a folder already on the device and a place on this computer: it is downloaded there and kept the same in both places from then on, changes and deletions included. What is set for it on the device (upload only, kept out of Images) stays as it is.
-
-Upload only (an option for a folder synced from this computer; always on for a backup)
-` + engine.UploadOnlyCaption + " " + engine.UploadOnlyTwoWay + " " + engine.UploadOnlyLater + `
-
-` + imagesExplainKinds
+// explainKindsText is the dialog's English, which the tests read; the
+// dialog itself is made when it opens, in the menu's language.
+var explainKindsText = explainText("")
 
 // addRemote is RemoteFolderPickerView: browse the device's tree (a native
 // window on Windows, the desktop's list dialog on Linux - see picker_*.go),
@@ -530,7 +601,7 @@ func (u *ui) addRemote() {
 	if !ok {
 		return
 	}
-	dir, err := zenity.SelectFile(zenity.Directory(), zenity.Title("Choose where to download “"+remote+"” and keep it in sync"))
+	dir, err := zenity.SelectFile(zenity.Directory(), zenity.Title(i18n.DeskMainChooseDownload(remote).Render(lang())))
 	if err != nil || dir == "" {
 		return
 	}
@@ -540,7 +611,7 @@ func (u *ui) addRemote() {
 	}
 	cfg.RemoteFolders = append(cfg.RemoteFolders, config.RemoteFolder{ID: config.NewID(), RemotePath: remote, LocalPath: dir})
 	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+		_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
 	}
 	Refresh()
 }
@@ -573,11 +644,11 @@ func (u *ui) settingsDialog() {
 		return
 	}
 	current := config.BridgeName(cfg.Domain)
-	hint := "Device name (as on the bridge, e.g. “cala”), or a full address for a device elsewhere (wss://host/ws, ws://192.168.1.10:8080/ws)."
+	l := lang()
 	if current == "" {
 		current = cfg.Domain
 	}
-	entered, err := zenity.Entry(hint, zenity.Title("Off The Cloud — Settings"), zenity.EntryText(current))
+	entered, err := zenity.Entry(i18n.DeskMainSettingsHint().Render(l), zenity.Title(i18n.DeskMainSettingsTitle().Render(l)), zenity.EntryText(current))
 	if err != nil {
 		return
 	}
@@ -595,13 +666,13 @@ func (u *ui) settingsDialog() {
 	// reconnects once with the new pair - not once with the new device and
 	// the old password, which would spend one of the device's five
 	// password attempts per minute for nothing.
-	_, pw, err := zenity.Password(zenity.Title("Off The Cloud — Password for " + cfg.Domain))
+	_, pw, err := zenity.Password(zenity.Title(i18n.DeskMainPasswordTitle(cfg.Domain).Render(l)))
 	if err != nil {
 		return
 	}
 	if pw != "" {
 		if err := u.c.SetPassword(pw); err != nil {
-			_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+			_ = zenity.Error(errorText(l, err), zenity.Title("Off The Cloud"))
 
 			return
 		}
@@ -610,7 +681,7 @@ func (u *ui) settingsDialog() {
 		_ = config.ClearLocalEndpoint() // the old device's (issue #190)
 	}
 	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+		_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
 	}
 	Refresh()
 }
@@ -634,9 +705,9 @@ func (u *ui) settingsTitle() string {
 
 func settingsTitleFor(cfg *config.Config, configured bool) string {
 	if configured {
-		return "Disconnect from " + deviceLabel(cfg.Domain) + "…"
+		return i18n.DeskMainDisconnectMenu(deviceLabel(cfg.Domain)).Render(lang())
 	}
-	return "Connect to a Device…"
+	return i18n.DeskMainConnectMenu().Render(lang())
 }
 
 // disconnectDialog forgets the device: every folder is removed (the files
@@ -650,21 +721,22 @@ func (u *ui) disconnectDialog() {
 	if cfg == nil {
 		return
 	}
-	if zenity.Question("All your synced folders are removed from this app, so none of them starts syncing with a different device by mistake. "+
-		"The files themselves stay on this computer and on the device. You can add the folders again after connecting.",
-		zenity.Title("Disconnect from "+deviceLabel(cfg.Domain)+"?"), zenity.OKLabel("Disconnect"), zenity.WarningIcon) != nil {
+	l := lang()
+	if zenity.Question(i18n.DeskMainDisconnectMessage().Render(l),
+		zenity.Title(i18n.DeskMainDisconnectTitle(deviceLabel(cfg.Domain)).Render(l)),
+		zenity.OKLabel(i18n.CommonDisconnect().Render(l)), zenity.WarningIcon) != nil {
 		return
 	}
 	cfg.Folders = nil
 	cfg.RemoteFolders = nil
 	cfg.Domain = ""
 	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+		_ = zenity.Error(errorText(l, err), zenity.Title("Off The Cloud"))
 		return
 	}
 	_ = config.ClearLocalEndpoint() // and its home-network endpoint (issue #190)
 	if err := u.c.SetPassword(""); err != nil {
-		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+		_ = zenity.Error(errorText(l, err), zenity.Title("Off The Cloud"))
 	}
 	Refresh()
 	u.settingsDialog()
@@ -679,7 +751,7 @@ func (u *ui) openWebApp() {
 		return
 	}
 	if err := browser.Open(addr); err != nil {
-		_ = zenity.Error("The browser could not be opened:\n\n"+err.Error()+"\n\nThe web app is at "+addr,
+		_ = zenity.Error(i18n.DeskMainBrowserFailed(err.Error(), addr).Render(lang()),
 			zenity.Title("Off The Cloud"))
 	}
 }
@@ -687,9 +759,19 @@ func (u *ui) openWebApp() {
 func (u *ui) toggleAutostart() {
 	enable := !u.c.AutostartEnabled()
 	if err := u.c.SetAutostart(enable); err != nil {
-		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+		_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
 	}
 	Refresh()
+}
+
+// raidSummary is the storage line's health in the menu's language: from
+// the health's code, or as state.json words it when there is none.
+func raidSummary(st config.State) string {
+	if st.Raid == "" {
+		return st.RaidSummary
+	}
+
+	return engine.RaidHealth(st.Raid).Msg().Render(lang())
 }
 
 // storageTitle is the storage line: its health and, once the device has
@@ -697,14 +779,16 @@ func (u *ui) toggleAutostart() {
 // drawn in characters.
 func storageTitle(st config.State) string {
 	if st.StorageSize <= 0 {
-		return st.RaidSummary
+		return raidSummary(st)
 	}
 	frac := float64(st.StorageUsed) / float64(st.StorageSize)
 	frac = max(0, min(frac, 1))
 	const cells = 10
 	full := int(frac*cells + 0.5)
-	return fmt.Sprintf("%s  %s%s %.0f%% used", st.RaidSummary,
-		strings.Repeat("■", full), strings.Repeat("□", cells-full), frac*100)
+	// %.0f rounds half to even, as RoundToEven.
+	used := i18n.DeskMainStorageUsed(int(math.RoundToEven(frac * 100))).Render(lang())
+	return fmt.Sprintf("%s  %s%s %s", raidSummary(st),
+		strings.Repeat("■", full), strings.Repeat("□", cells-full), used)
 }
 
 // updateTitle is the device-update line (issue #183) and its tooltip, the
@@ -717,10 +801,9 @@ func updateTitle(a *config.UpdateAlert) (title, tooltip string) {
 	}
 	switch a.Level {
 	case "critical":
-		return "⚠ Critical device update " + a.Version +
-			" - install it from the device's Settings as soon as possible", a.Summary
+		return "⚠ " + i18n.DeskMainUpdateCritical(a.Version).Render(lang()), a.Summary
 	case "major":
-		return "Device update " + a.Version + " available", a.Summary
+		return i18n.DeskMainUpdateAvailable(a.Version).Render(lang()), a.Summary
 	}
 	return "", ""
 }
@@ -731,17 +814,18 @@ func storageUseTitle(st config.State) string {
 	if st.StorageSize <= 0 {
 		return ""
 	}
-	return "Storage: " + usedOfTotal(st.StorageUsed, st.StorageSize)
+	return i18n.DeskMainStorageLine(usedOfTotal(st.StorageUsed, st.StorageSize)).Render(lang())
 }
 
 // cpuTitle: "CPU: 12%".
 func cpuTitle(st config.State) string {
-	return fmt.Sprintf("CPU: %.0f%%", st.CPUPercent)
+	// %.0f rounds half to even, as RoundToEven.
+	return i18n.DeskMainCpuLine(int(math.RoundToEven(st.CPUPercent))).Render(lang())
 }
 
 // memoryTitle: "Memory: 2.1 of 8.2 GB".
 func memoryTitle(st config.State) string {
-	return "Memory: " + usedOfTotal(st.MemUsed, st.MemSize)
+	return i18n.DeskMainMemoryLine(usedOfTotal(st.MemUsed, st.MemSize)).Render(lang())
 }
 
 // loadTip is the storage line's tooltip: its submenu on one line.
@@ -755,27 +839,37 @@ func loadTip(st config.State) string {
 
 // sizeText writes an amount in the status's units (1.024 MB): one decimal
 // under 100 GB ("8.5"), whole GB from 100 GB ("474"), TB with one decimal
-// from 1000 GB ("3.6"). The macOS pop-up's sizeText is the same.
-func sizeText(units int64) (number, unit string) {
+// from 1000 GB ("3.6"). The macOS pop-up's sizeText is the same. The
+// number has a dot whatever the language: the Go runtime has no decimal
+// formatter yet.
+func sizeText(units int64) (number string, tb bool) {
 	gb := float64(units) * 1.024 / 1000
 	switch {
 	case gb < 99.95:
-		return fmt.Sprintf("%.1f", gb), "GB"
+		return fmt.Sprintf("%.1f", gb), false
 	case gb < 999.5:
-		return fmt.Sprintf("%.0f", gb), "GB"
+		return fmt.Sprintf("%.0f", gb), false
 	}
-	return fmt.Sprintf("%.1f", gb/1000), "TB"
+	return fmt.Sprintf("%.1f", gb/1000), true
 }
 
 // usedOfTotal: "39.6 of 474 GB", "1.2 of 3.6 TB", or "39.6 GB of 3.6 TB"
 // when the two need different units.
 func usedOfTotal(used, size int64) string {
-	u, uu := sizeText(used)
-	s, su := sizeText(size)
-	if uu == su {
-		return u + " of " + s + " " + su
+	u, utb := sizeText(used)
+	s, stb := sizeText(size)
+	var m i18n.Msg
+	switch {
+	case !utb && !stb:
+		m = i18n.DeskMainUsedOfTotalGb(u, s)
+	case utb && stb:
+		m = i18n.DeskMainUsedOfTotalTb(u, s)
+	case !utb:
+		m = i18n.DeskMainUsedGbOfTotalTb(u, s)
+	default:
+		m = i18n.DeskMainUsedTbOfTotalGb(u, s)
 	}
-	return u + " " + uu + " of " + s + " " + su
+	return m.Render(lang())
 }
 
 // Version is this build's version, set by main (for the self-update).
@@ -817,7 +911,7 @@ func (u *ui) showUpdate() {
 		u.setShown(u.appUpdate, false)
 		return
 	}
-	u.setTitle(u.appUpdate, "⬆ Update otc-sync to "+up.Version)
+	u.setTitle(u.appUpdate, "⬆ "+i18n.DeskMainAppUpdate(up.Version).Render(lang()))
 	u.setTip(u.appUpdate, up.Notes)
 	u.setEnabled(u.appUpdate, true)
 	u.setShown(u.appUpdate, true)
@@ -833,14 +927,15 @@ func (u *ui) installUpdate() {
 	if up == nil {
 		return
 	}
-	u.appUpdate.SetTitle("Updating to " + up.Version + "…")
+	l := lang()
+	u.appUpdate.SetTitle(i18n.DeskMainAppUpdating(up.Version).Render(l))
 	u.appUpdate.Disable()
 	u.forget(u.appUpdate) // written directly: the next apply writes it again, as it always did
 	if err := selfupdate.Apply(up); err != nil {
-		u.appUpdate.SetTitle("⬆ Update otc-sync to " + up.Version)
+		u.appUpdate.SetTitle("⬆ " + i18n.DeskMainAppUpdate(up.Version).Render(l))
 		u.appUpdate.Enable()
 		u.forget(u.appUpdate)
-		_ = zenity.Error("The update could not be installed:\n\n"+err.Error(), zenity.Title("Off The Cloud"))
+		_ = zenity.Error(i18n.DeskMainAppUpdateFailed(errorText(l, err)).Render(l), zenity.Title("Off The Cloud"))
 		return
 	}
 	service.RestartIfActive()

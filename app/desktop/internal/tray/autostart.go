@@ -6,6 +6,8 @@ import (
 	"errors"
 
 	"github.com/ncruces/zenity"
+
+	"github.com/alonsovidales/otc/i18n"
 )
 
 // Start at login, only when the user asks for it - the macOS app's rule
@@ -14,14 +16,11 @@ import (
 // tray asks; the menu's "Start at login" checkbox and `otc-sync autostart
 // on|off` change it any time. The words are the Mac's (LoginItemText), with
 // "computer" for "Mac" and the menu for its Settings.
-const (
-	autostartTitle     = "Start Off The Cloud when you log in?"
-	autostartMessage   = "Your folders keep syncing in the background after you restart your computer. You can change this with “Start at login” in the menu."
-	autostartYes       = "Start at Login"
-	autostartNo        = "Not Now"
-	autostartToggle    = "Start at login"
-	autostartToggleTip = "Start Off The Cloud when you log in, so your folders keep syncing after a restart"
-)
+
+// autostartToggle is the menu's checkbox, in lang.
+func autostartToggle(lang string) string { return i18n.DeskMainAutostartToggle().Render(lang) }
+
+func autostartToggleTip(lang string) string { return i18n.DeskMainAutostartToggleTip().Render(lang) }
 
 // askAutostart is the one-time question. Either answer is recorded, so it
 // is never asked again (config.json's "autostart").
@@ -32,24 +31,27 @@ func (u *ui) askAutostart() {
 	// It pops up unasked, so "Not Now" has the focus: Enter or Space -
 	// typed into the window it covered - answers no. Consent is a click on
 	// "Start at Login", as on the Mac (LoginItemOffer has no shortcut).
-	err := zenity.Question(autostartTitle+"\n\n"+autostartMessage, autostartOptions()...)
+	l := lang()
+	err := zenity.Question(i18n.DeskMainAutostartTitle().Render(l)+"\n\n"+i18n.DeskMainAutostartMessage().Render(l), autostartOptions()...)
 	on, answered := autostartAnswer(err)
 	if !answered {
 		return
 	}
 	if err := u.c.SetAutostart(on); err != nil {
-		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+		_ = zenity.Error(errorText(l, err), zenity.Title("Off The Cloud"))
 	}
 	Refresh()
 }
 
-// autostartOptions are the question's dialog options, DefaultCancel
-// among them (a test holds it there).
+// autostartOptions are the question's dialog options, its buttons in the
+// menu's language, DefaultCancel among them (a test holds it there).
 func autostartOptions() []zenity.Option {
+	l := lang()
+
 	return []zenity.Option{
 		zenity.Title("Off The Cloud"),
-		zenity.OKLabel(autostartYes),
-		zenity.CancelLabel(autostartNo),
+		zenity.OKLabel(i18n.DeskMainAutostartYes().Render(l)),
+		zenity.CancelLabel(i18n.DeskMainAutostartNo().Render(l)),
 		zenity.DefaultCancel(),
 	}
 }

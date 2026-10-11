@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,6 +29,7 @@ import (
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
 	"github.com/alonsovidales/otc/app/desktop/internal/wsclient"
+	"github.com/alonsovidales/otc/i18n"
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
 
@@ -55,12 +57,82 @@ const (
 	StateError    StateKind = "error"
 )
 
-// FolderState is SyncModel.FolderState.
+// FolderState is SyncModel.FolderState. CurrentFile and Message are the
+// English that state.json keeps and the command line prints; Msg, when
+// set, is the one of them shown (Message for an error, CurrentFile while
+// checking) as a catalog message, which the tray renders in the user's
+// language. The device's own words and the system's errors have none. A
+// pointer, so that states still compare.
 type FolderState struct {
 	Kind        StateKind
 	Progress    float64
 	CurrentFile string
 	Message     string
+	Msg         *i18n.Msg
+}
+
+// errorState is the error state for err: worded for the tray when it is
+// one of ours (wsclient.MsgError), as it comes otherwise.
+func errorState(err error) FolderState {
+	var m interface{ Msg() i18n.Msg }
+	if errors.As(err, &m) {
+		msg := m.Msg()
+
+		return FolderState{Kind: StateError, Message: err.Error(), Msg: &msg}
+	}
+
+	return FolderState{Kind: StateError, Message: err.Error()}
+}
+
+// msgState is the error state m words; its English is m's.
+func msgState(m i18n.Msg) FolderState {
+	return FolderState{Kind: StateError, Message: m.Render(""), Msg: &m}
+}
+
+// checkingState is a folder's state while its files are checked against
+// the device (issue #138): file i of n.
+func checkingState(i, n int, name string) FolderState {
+	m := i18n.DeskMainCheckingFile(strconv.Itoa(i), strconv.Itoa(n), name)
+
+	return FolderState{
+		Kind:        StateScanning,
+		CurrentFile: fmt.Sprintf("Checking %d/%d · %s", i, n, name), // i18n-ignore: state.json's English, for the command line; Msg is the tray's
+		Msg:         &m,
+	}
+}
+
+// noteState is an error state whose English is its own (a number the
+// English writes as digits), worded for the tray by m.
+func noteState(english string, m i18n.Msg) FolderState {
+	return FolderState{Kind: StateError, Message: english, Msg: &m}
+}
+
+// The connection's states as state.json keeps them (config.State.Status):
+// codes the command line prints as they are and the tray words in the
+// user's language (StatusText). Never translated.
+const (
+	StatusNotConnected    = "Not connected"             // i18n-ignore: a status code in state.json
+	StatusConnecting      = "Connecting…"               // i18n-ignore: a status code in state.json
+	StatusConnected       = "Connected"                 // i18n-ignore: a status code in state.json
+	StatusDisconnected    = "Disconnected"              // i18n-ignore: a status code in state.json
+	StatusOffline         = "Device offline - retrying" // i18n-ignore: a status code in state.json
+	StatusWrongPassword   = "Wrong password"            // i18n-ignore: a status code in state.json
+	StatusMissingSettings = "Missing domain/password"   // i18n-ignore: a status code in state.json
+	// StatusSyncNotRunning is what cmd/otc-sync writes for a viewer with no
+	// engine to ask.
+	StatusSyncNotRunning = "Sync not running" // i18n-ignore: a status code
+	// statusTooManyAttempts takes the seconds until the next try
+	// (TooManyAttempts reads them back).
+	statusTooManyAttempts = "Too many attempts - retrying in %ds" // i18n-ignore: a status code in state.json
+)
+
+// TooManyAttempts reads the seconds back from a locked-out status.
+func TooManyAttempts(status string) (seconds int, ok bool) {
+	if _, err := fmt.Sscanf(status, statusTooManyAttempts, &seconds); err != nil {
+		return 0, false
+	}
+
+	return seconds, true
 }
 
 // RaidHealth is what the tray icon says about the device's storage.
@@ -73,17 +145,21 @@ const (
 	RaidUnknown  RaidHealth = "unknown"
 )
 
-// Summary is RaidHealth.summary on macOS.
-func (r RaidHealth) Summary() string {
+// Summary is RaidHealth.summary on macOS, in English: state.json and the
+// command line. The tray words Msg in the user's language.
+func (r RaidHealth) Summary() string { return r.Msg().Render("") }
+
+// Msg is the storage line for r.
+func (r RaidHealth) Msg() i18n.Msg {
 	switch r {
 	case RaidOK:
-		return "Storage healthy"
+		return i18n.DeskMainStorageHealthy()
 	case RaidDegraded:
-		return "A drive is down - the RAID is degraded"
+		return i18n.DeskMainStorageDegraded()
 	case RaidFailed:
-		return "The RAID has failed"
+		return i18n.DeskMainStorageFailed()
 	default:
-		return "Storage status unknown"
+		return i18n.DeskMainStorageUnknown()
 	}
 }
 
@@ -197,7 +273,7 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		ws:            wsclient.New(),
 		cfg:           cfg,
 		password:      password,
-		status:        "Not connected",
+		status:        StatusNotConnected,
 		raid:          RaidUnknown,
 		folderStates:  map[string]FolderState{},
 		remoteStates:  map[string]FolderState{},
@@ -237,7 +313,7 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		e.remoteStates[f.ID] = FolderState{Kind: StateScanning}
 	}
 	e.ws.OnConnect = func() {
-		e.setStatus("Connected")
+		e.setStatus(StatusConnected)
 		// Before the status poll: a pending change is under way by the
 		// time the device's value comes back.
 		e.languageAtConnect()
@@ -251,34 +327,35 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 	e.ws.OnDisconnect = func(err error) {
 		if errors.Is(err, wsclient.ErrReconnecting) {
 			// A network change (networkChanged): on its way back.
-			e.setStatus("Connecting…")
+			e.setStatus(StatusConnecting)
 			e.stopRaidPolling()
 
 			return
 		}
 		e.mu.Lock()
-		wrongPassword := e.status == "Wrong password" || strings.HasPrefix(e.status, "Too many attempts") || e.status == "Device offline - retrying"
+		_, lockedOut := TooManyAttempts(e.status)
+		wrongPassword := e.status == StatusWrongPassword || lockedOut || e.status == StatusOffline
 		e.mu.Unlock()
 		if !wrongPassword {
-			e.setStatus("Disconnected")
+			e.setStatus(StatusDisconnected)
 		}
 		e.stopRaidPolling()
 	}
 	e.ws.OnLocalEndpoint = e.keepLocalEndpoint
 	e.ws.OnUnreachable = func(msg string) {
 		log.Printf("device unreachable: %s", msg)
-		e.setStatus("Device offline - retrying")
+		e.setStatus(StatusOffline)
 	}
 	e.ws.OnAuthFailed = func(msg string, retryAfter int) {
 		log.Printf("authentication failed: %s", msg)
 		if retryAfter <= 0 {
-			e.setStatus("Wrong password")
+			e.setStatus(StatusWrongPassword)
 
 			return
 		}
 		// Locked out for guessing, not necessarily wrong: say so, and try
 		// once more when the lock lifts.
-		e.setStatus(fmt.Sprintf("Too many attempts - retrying in %ds", retryAfter))
+		e.setStatus(fmt.Sprintf(statusTooManyAttempts, retryAfter))
 		e.mu.Lock()
 		if e.authRetry != nil {
 			e.authRetry.Stop()
@@ -288,7 +365,7 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 			ready := config.Ready(e.cfg, e.password) && !e.stopped
 			e.mu.Unlock()
 			if ready {
-				e.setStatus("Connecting…")
+				e.setStatus(StatusConnecting)
 				e.ws.Connect()
 			}
 		})
@@ -477,13 +554,13 @@ func (e *Engine) applySettings() {
 	cfg, pw := e.cfg, e.password
 	e.mu.Unlock()
 	if config.Ready(cfg, pw) {
-		e.setStatus("Connecting…")
+		e.setStatus(StatusConnecting)
 		e.ws.Configure(cfg.Domain, cfg.ClientID, pw)
 		e.ws.SetLocalEndpoint(LocalEndpointFor(cfg.Domain))
 		e.ws.Connect()
 	} else {
 		e.ws.Disconnect()
-		e.setStatus("Missing domain/password")
+		e.setStatus(StatusMissingSettings)
 	}
 }
 
@@ -508,7 +585,7 @@ func (e *Engine) Snapshot() config.State {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	st := config.State{Status: e.status, Raid: string(e.raid), RaidSummary: e.raid.Summary()}
-	if st.Status == "Connected" {
+	if st.Status == StatusConnected {
 		st.Route = string(route)
 	}
 	if d := e.devStatus; d != nil {
@@ -546,6 +623,11 @@ func toStatus(id, path, remote string, s FolderState) config.FolderStatus {
 	fs := config.FolderStatus{ID: id, Path: path, RemotePath: remote, State: string(s.Kind), Progress: s.Progress, CurrentFile: s.CurrentFile, Error: s.Message}
 	if fs.State == "" {
 		fs.State = string(StateScanning)
+	}
+	if s.Msg != nil {
+		if args, err := s.Msg.MarshalArgs(); err == nil {
+			fs.MsgKey, fs.MsgArgs = s.Msg.Key, args
+		}
 	}
 
 	return fs
@@ -698,7 +780,7 @@ func ListRemoteDirectory(ws *wsclient.Client, path string) ([]RemoteEntry, error
 	if err != nil {
 		return nil, err
 	}
-	if err := wsclient.RespError(resp, "could not list remote files"); err != nil {
+	if err := wsclient.RespErrorMsg(resp, i18n.DeskMainCouldNotList()); err != nil {
 		return nil, err
 	}
 	lof, ok := resp.Payload.(*pb.RespEnvelope_RespListOfFiles)
@@ -869,7 +951,7 @@ func (e *Engine) startWatcher(f config.Folder) {
 		e.debounceChange(path, f)
 	})
 	if err != nil {
-		e.setFolderState(f.ID, FolderState{Kind: StateError, Message: "cannot watch: " + err.Error()})
+		e.setFolderState(f.ID, msgState(i18n.DeskMainCannotWatch(err.Error())))
 
 		return
 	}
@@ -1039,13 +1121,13 @@ func (e *Engine) reconcile(f config.Folder) {
 		r.Payload = &pb.ReqEnvelope_ReqListFiles{ReqListFiles: &pb.ListFiles{Path: remotePrefix, Recursive: true}}
 	})
 	if err != nil {
-		e.setFolderState(f.ID, FolderState{Kind: StateError, Message: err.Error()})
+		e.setFolderState(f.ID, errorState(err))
 		e.scheduleErrorRetry(f)
 
 		return
 	}
-	if err := wsclient.RespError(resp, "could not list remote files"); err != nil {
-		e.setFolderState(f.ID, FolderState{Kind: StateError, Message: err.Error()})
+	if err := wsclient.RespErrorMsg(resp, i18n.DeskMainCouldNotList()); err != nil {
+		e.setFolderState(f.ID, errorState(err))
 		e.scheduleErrorRetry(f)
 
 		return
@@ -1061,7 +1143,7 @@ func (e *Engine) reconcile(f config.Folder) {
 	// never deletes on the device.
 	local, failedDirs, err := enumerateFiles(f.Path)
 	if err != nil {
-		e.setFolderState(f.ID, FolderState{Kind: StateError, Message: err.Error()})
+		e.setFolderState(f.ID, errorState(err))
 		e.scheduleErrorRetry(f)
 
 		return
@@ -1080,7 +1162,7 @@ func (e *Engine) reconcile(f config.Folder) {
 				return
 			}
 			lastShown = time.Now()
-			e.setFolderState(f.ID, FolderState{Kind: StateScanning, CurrentFile: fmt.Sprintf("Checking %d/%d · %s", i+1, len(local), filepath.Base(p))})
+			e.setFolderState(f.ID, checkingState(i+1, len(local), filepath.Base(p)))
 		}
 		rp := e.remotePathFor(p)
 		localRemote[rp] = true
@@ -1126,7 +1208,7 @@ func (e *Engine) reconcile(f config.Folder) {
 			// in a second each, racing the bar to 100% with nothing sent
 			// (as SyncModel.reconcile); OnConnect's startSync resumes it.
 			if !e.ws.IsConnected() {
-				e.setFolderState(f.ID, FolderState{Kind: StateError, Message: "Device offline - will resume"})
+				e.setFolderState(f.ID, msgState(i18n.DeskMainFolderOffline()))
 
 				return
 			}
@@ -1286,13 +1368,13 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		r.Payload = &pb.ReqEnvelope_ReqListFiles{ReqListFiles: &pb.ListFiles{Path: remotePrefix, Recursive: true}}
 	})
 	if err != nil {
-		e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: err.Error()})
+		e.setRemoteState(f.ID, errorState(err))
 		e.scheduleRemoteRetry(f)
 
 		return
 	}
-	if err := wsclient.RespError(resp, "could not list remote files"); err != nil {
-		e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: err.Error()})
+	if err := wsclient.RespErrorMsg(resp, i18n.DeskMainCouldNotList()); err != nil {
+		e.setRemoteState(f.ID, errorState(err))
 		e.scheduleRemoteRetry(f)
 
 		return
@@ -1324,7 +1406,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 
 	local, failedDirs, err := enumerateFiles(f.LocalPath)
 	if err != nil {
-		e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: err.Error()})
+		e.setRemoteState(f.ID, errorState(err))
 		e.scheduleRemoteRetry(f)
 
 		return
@@ -1361,7 +1443,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 		// Issue #138: which file is being checked, see reconcile().
 		if time.Since(lastShown) > time.Second {
 			lastShown = time.Now()
-			e.setRemoteState(f.ID, FolderState{Kind: StateScanning, CurrentFile: fmt.Sprintf("Checking %d/%d · %s", i+1, len(local), filepath.Base(p))})
+			e.setRemoteState(f.ID, checkingState(i+1, len(local), filepath.Base(p)))
 		}
 		if _, onDevice := remoteByRel[rel]; !onDevice {
 			if _, synced := last[rel]; !synced {
@@ -1531,7 +1613,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			localDeletes++
 		}
 	}
-	guardNote := ""
+	var guardNote FolderState // an error state to end the pass with
 	if localDeletes > massDeleteMin && localDeletes*4 > max(len(localByRel), 1) {
 		log.Printf("%d files gone from the device at once - restoring them instead of deleting them here", localDeletes)
 		for i, a := range actions {
@@ -1542,7 +1624,9 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 				}
 			}
 		}
-		guardNote = fmt.Sprintf("%d files had disappeared from the device - restored them from this computer instead of deleting them here", localDeletes)
+		guardNote = noteState(
+			fmt.Sprintf("%d files had disappeared from the device - restored them from this computer instead of deleting them here", localDeletes), // i18n-ignore: state.json's English, for the command line; Msg is the tray's
+			i18n.DeskMainRestoredFiles(localDeletes))
 	}
 
 	// Local deletes first: on a disk that ignores case (Windows, macOS) a
@@ -1663,7 +1747,7 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 			e.lastSynced[f.ID] = newSynced
 			e.mu.Unlock()
 			e.saveSynced(f.ID, newSynced)
-			e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: "Device offline - will resume"})
+			e.setRemoteState(f.ID, msgState(i18n.DeskMainFolderOffline()))
 
 			return
 		}
@@ -1774,12 +1858,14 @@ func (e *Engine) reconcileRemoteFolder(f config.RemoteFolder) {
 	// at a drive's - is only logged (enumerateFiles), as on the Mac: it
 	// would otherwise hold the folder in an error for good.
 	if len(unreadable) > 0 {
-		e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: fmt.Sprintf("%d file(s) could not be read", len(unreadable))})
+		e.setRemoteState(f.ID, noteState(
+			fmt.Sprintf("%d file(s) could not be read", len(unreadable)), // i18n-ignore: state.json's English, for the command line; Msg is the tray's
+			i18n.DeskMainFilesUnreadable(len(unreadable))))
 
 		return
 	}
-	if guardNote != "" {
-		e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: guardNote})
+	if guardNote.Kind != "" {
+		e.setRemoteState(f.ID, guardNote)
 
 		return
 	}
@@ -1815,7 +1901,7 @@ func (e *Engine) noteHeldDeletes(f config.RemoteFolder, held int) {
 
 // errChangedHere: a planned overwrite or delete found the local file no
 // longer as the pass saw it (see stillAsScanned).
-var errChangedHere = errors.New("changed on this computer during the pass - left for the next pass")
+var errChangedHere = errors.New("changed on this computer during the pass - left for the next pass") // i18n-ignore: a file's error, only logged
 
 // massDeleteMin: two-way folders - more local deletions than this in one
 // pass (and a quarter of the folder) mean the device lost the files.
@@ -1853,7 +1939,7 @@ func (e *Engine) startRemoteWatcher(f config.RemoteFolder) {
 		e.mu.Unlock()
 	})
 	if err != nil {
-		e.setRemoteState(f.ID, FolderState{Kind: StateError, Message: "cannot watch: " + err.Error()})
+		e.setRemoteState(f.ID, msgState(i18n.DeskMainCannotWatch(err.Error())))
 
 		return
 	}
@@ -1935,7 +2021,7 @@ func (e *Engine) upload(path, remotePath, hash string, fi os.FileInfo) error {
 			return err
 		}
 
-		return wsclient.RespError(resp, "link rejected")
+		return wsclient.RespError(resp, "link rejected") // i18n-ignore: a file's error, only logged
 	}
 	return e.uploadChunked(path, remotePath, hash, created, modified)
 }
@@ -1967,12 +2053,12 @@ func (e *Engine) uploadChunked(path, remotePath, hash string, created, modified 
 	if err != nil {
 		return err
 	}
-	if err := wsclient.RespError(resp, "upload rejected"); err != nil {
+	if err := wsclient.RespError(resp, "upload rejected"); err != nil { // i18n-ignore: a file's error, only logged
 		return err
 	}
 	started, ok := resp.Payload.(*pb.RespEnvelope_RespUploadStarted)
 	if !ok {
-		return errors.New("unexpected response to BeginUpload")
+		return errors.New("unexpected response to BeginUpload") // i18n-ignore: a file's error, only logged
 	}
 	id := started.RespUploadStarted.UploadId
 
@@ -1984,7 +2070,7 @@ func (e *Engine) uploadChunked(path, remotePath, hash string, created, modified 
 			return err
 		}
 		if n == 0 {
-			return fmt.Errorf("%s shrank while it was being sent", path)
+			return fmt.Errorf("%s shrank while it was being sent", path) // i18n-ignore: a file's error, only logged
 		}
 		chunk := buf[:n]
 		at := offset
@@ -1994,7 +2080,7 @@ func (e *Engine) uploadChunked(path, remotePath, hash string, created, modified 
 		if err != nil {
 			return err
 		}
-		if err := wsclient.RespError(resp, "upload rejected"); err != nil {
+		if err := wsclient.RespError(resp, "upload rejected"); err != nil { // i18n-ignore: a file's error, only logged
 			return err
 		}
 		offset += int64(n)
@@ -2006,7 +2092,7 @@ func (e *Engine) uploadChunked(path, remotePath, hash string, created, modified 
 		return err
 	}
 
-	return wsclient.RespError(resp, "upload rejected")
+	return wsclient.RespError(resp, "upload rejected") // i18n-ignore: a file's error, only logged
 }
 
 // expectedHash is the hash the listing gave for this path: the content
@@ -2055,20 +2141,20 @@ func (e *Engine) downloadIf(remotePath, dest, expectedHash, folderID string, rea
 		if err != nil {
 			return err
 		}
-		if err := wsclient.RespError(resp, "download rejected"); err != nil {
+		if err := wsclient.RespError(resp, "download rejected"); err != nil { // i18n-ignore: a file's error, only logged
 			return err
 		}
 		c, ok := resp.Payload.(*pb.RespEnvelope_RespFileChunk)
 		if !ok {
-			return errors.New("unexpected response")
+			return errors.New("unexpected response") // i18n-ignore: a file's error, only logged
 		}
 		last = c.RespFileChunk
 		if expectedHash != "" && last.Hash != "" && last.Hash != expectedHash {
-			return errors.New("the file changed on the device while downloading - will retry")
+			return errors.New("the file changed on the device while downloading - will retry") // i18n-ignore: a file's error, only logged
 		}
 		size = last.Size
 		if len(last.Data) == 0 && offset < size {
-			return errors.New("the device sent an empty piece of the file")
+			return errors.New("the device sent an empty piece of the file") // i18n-ignore: a file's error, only logged
 		}
 		if _, err := out.Write(last.Data); err != nil {
 			return err
@@ -2081,7 +2167,7 @@ func (e *Engine) downloadIf(remotePath, dest, expectedHash, folderID string, rea
 	// file that made went back up over the device's row on the next pass).
 	got := hex.EncodeToString(h.Sum(nil))
 	if expectedHash != "" && got != expectedHash {
-		return fmt.Errorf("the device sent %d bytes that don't match the file's hash - not written", offset)
+		return fmt.Errorf("the device sent %d bytes that don't match the file's hash - not written", offset) // i18n-ignore: a file's error, only logged
 	}
 	if err := out.Close(); err != nil {
 		return err
@@ -2144,7 +2230,7 @@ func (e *Engine) markUploadOnly(f config.Folder) {
 		r.Payload = &pb.ReqEnvelope_ReqSetUploadOnly{ReqSetUploadOnly: &pb.SetUploadOnly{Path: e.remotePathFor(f.Path) + "/", UploadOnly: true}}
 	})
 	if err == nil {
-		err = wsclient.RespError(resp, "upload only refused")
+		err = wsclient.RespError(resp, "upload only refused") // i18n-ignore: only logged
 	}
 	e.mu.Lock()
 	logIt := false
@@ -2198,12 +2284,12 @@ func (e *Engine) deleteRemote(remotePath string) error {
 		return errKeptOnDevice
 	}
 
-	return wsclient.RespError(resp, "delete rejected")
+	return wsclient.RespError(resp, "delete rejected") // i18n-ignore: a file's error, only logged
 }
 
 // errKeptOnDevice: the device refused a delete because the folder is
 // upload only there (error_code "upload_only").
-var errKeptOnDevice = errors.New("kept on the device: the folder is upload only")
+var errKeptOnDevice = errors.New("kept on the device: the folder is upload only") // i18n-ignore: an outcome the pass records, never shown
 
 // remotePathFor is SyncModel.remotePathFor: "/mac/<host><path>" there;
 // "/linux/<host><path>" and "/windows/<host>/C/Users/..." here, so a device
@@ -2379,7 +2465,7 @@ func (e *Engine) cachedHash(folderID, p string) (string, error) {
 // caller, moments before.
 func (e *Engine) cachedHashInfo(folderID, p string, fi os.FileInfo) (string, error) {
 	if fi == nil {
-		return "", fmt.Errorf("cannot read %s", filepath.Base(p))
+		return "", fmt.Errorf("cannot read %s", filepath.Base(p)) // i18n-ignore: a file's error, only logged
 	}
 	e.mu.Lock()
 	e.loadHashCacheLocked(folderID)
@@ -2450,7 +2536,7 @@ func conflictPath(path, from string, at time.Time) string {
 	}
 	label := "conflict " + at.Format("2006-01-02 15.04")
 	if from != "" {
-		label = "conflict from " + from + " " + at.Format("2006-01-02 15.04")
+		label = "conflict from " + from + " " + at.Format("2006-01-02 15.04") // i18n-ignore: a file name the app writes, never translated
 	}
 	candidate := filepath.Join(dir, fmt.Sprintf("%s (%s)%s", stem, label, ext))
 	for i := 2; ; i++ {
@@ -2465,7 +2551,7 @@ func conflictPath(path, from string, at time.Time) string {
 func hostLabel() string {
 	h, err := os.Hostname()
 	if err != nil || h == "" {
-		return "this computer"
+		return "this computer" // i18n-ignore: part of a conflict copy's file name, never translated
 	}
 	return strings.TrimSuffix(h, ".local")
 }

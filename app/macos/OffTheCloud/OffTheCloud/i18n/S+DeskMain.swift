@@ -6,6 +6,304 @@
 import Foundation
 
 extension S {
+    /// Add Folder…
+    ///
+    /// Both apps: button in the Mac panel and tray menu item that starts adding a folder to back up or sync. Title Case.
+    static var deskMainAddFolder: String { L("desk.main.add_folder", table: "DeskMain") }
+
+    /// Back up or sync a folder from this computer, or sync one from the device
+    ///
+    /// otc-sync (Windows and Linux): tooltip of the tray's Add Folder… item.
+    static var deskMainAddFolderTip: String { L("desk.main.add_folder_tip", table: "DeskMain") }
+
+    /// Update otc-sync to {version}
+    ///
+    /// otc-sync: tray menu item, after an up arrow, that installs a newer version of otc-sync (the program's name, never translated). {version} is the new version number.
+    static func deskMainAppUpdate(version: String) -> String {
+        L("desk.main.app_update", table: "DeskMain", version)
+    }
+
+    /// The update could not be installed:
+    ///
+    /// {detail}
+    ///
+    /// otc-sync: error dialog when installing a newer otc-sync failed. {detail} is the reason (for example a download error). Keep the blank line.
+    static func deskMainAppUpdateFailed(detail: String) -> String {
+        L("desk.main.app_update_failed", table: "DeskMain", detail)
+    }
+
+    /// Updating to {version}…
+    ///
+    /// otc-sync: the update menu item while the new version downloads and installs. {version} is the new version number.
+    static func deskMainAppUpdating(version: String) -> String {
+        L("desk.main.app_updating", table: "DeskMain", version)
+    }
+
+    /// Your folders keep syncing in the background after you restart your computer. You can change this with “Start at login” in the menu.
+    ///
+    /// otc-sync: text of the start-at-login question. “Start at login” is the tray menu's checkbox (desk.main.autostart_toggle): use the same words.
+    static var deskMainAutostartMessage: String { L("desk.main.autostart_message", table: "DeskMain") }
+
+    /// Not Now
+    ///
+    /// Both apps: button of the start-at-login question that declines. Title Case.
+    static var deskMainAutostartNo: String { L("desk.main.autostart_no", table: "DeskMain") }
+
+    /// Start Off The Cloud when you log in?
+    ///
+    /// Both apps: the one-time question asked after the first connection (inline in the Mac panel, a dialog in otc-sync): consent to start the app at login.
+    static var deskMainAutostartTitle: String { L("desk.main.autostart_title", table: "DeskMain") }
+
+    /// Start at login
+    ///
+    /// Both apps: checkbox in the Mac app's Settings and the tray menu that starts the app when the user logs in. Sentence case.
+    static var deskMainAutostartToggle: String { L("desk.main.autostart_toggle", table: "DeskMain") }
+
+    /// Start Off The Cloud when you log in, so your folders keep syncing after a restart
+    ///
+    /// otc-sync: tooltip of the tray menu's Start at login checkbox.
+    static var deskMainAutostartToggleTip: String { L("desk.main.autostart_toggle_tip", table: "DeskMain") }
+
+    /// Start at Login
+    ///
+    /// Both apps: button of the start-at-login question that consents. Title Case.
+    static var deskMainAutostartYes: String { L("desk.main.autostart_yes", table: "DeskMain") }
+
+    /// The browser could not be opened:
+    ///
+    /// {detail}
+    ///
+    /// The web app is at {address}
+    ///
+    /// otc-sync: error dialog when Open Web App can't start the browser. {detail} is the system's own reason, in English; {address} is the web app's address, for the user to open by hand. Keep the blank lines.
+    static func deskMainBrowserFailed(detail: String, address: String) -> String {
+        L("desk.main.browser_failed", table: "DeskMain", detail, address)
+    }
+
+    /// cannot watch: {detail}
+    ///
+    /// otc-sync: a folder's state in the tray menu when the app can't watch the folder for changes. {detail} is the system's own reason, in English. Lowercase, as it follows a warning sign.
+    static func deskMainCannotWatch(detail: String) -> String {
+        L("desk.main.cannot_watch", table: "DeskMain", detail)
+    }
+
+    /// Checking…
+    ///
+    /// Both apps: a folder's state while the app compares it with the device, before it knows which file it is on.
+    static var deskMainChecking: String { L("desk.main.checking", table: "DeskMain") }
+
+    /// Checking {done}/{total} · {name}
+    ///
+    /// otc-sync: a folder's state in the tray menu while the app compares its files with the device: {done} files checked of {total} (numbers, as digits), then {name}, the file being checked.
+    static func deskMainCheckingFile(done: String, total: String, name: String) -> String {
+        L("desk.main.checking_file", table: "DeskMain", done, total, L10n.isolate(name))
+    }
+
+    /// Choose where to download “{path}” and keep it in sync
+    ///
+    /// otc-sync: title of the folder chooser that picks where a folder from the device goes on this computer. {path} is the folder's path on the device (for example /Photos/2024).
+    static func deskMainChooseDownload(path: String) -> String {
+        L("desk.main.choose_download", table: "DeskMain", L10n.isolate(path))
+    }
+
+    /// Choose Folder…
+    ///
+    /// Both apps: button at the end of the add-folder options that opens the folder chooser. Title Case.
+    static var deskMainChooseFolder: String { L("desk.main.choose_folder", table: "DeskMain") }
+
+    /// config.json is not valid: {detail}
+    ///
+    /// otc-sync: error dialog when its settings file can't be read. config.json is the file's name, never translated; {detail} is the system's own reason, in English.
+    static func deskMainConfigInvalid(detail: String) -> String {
+        L("desk.main.config_invalid", table: "DeskMain", detail)
+    }
+
+    /// Connect to a Device…
+    ///
+    /// otc-sync: tray menu item shown while no device is set; opens the dialogs that ask for the device and its password. Title Case.
+    static var deskMainConnectMenu: String { L("desk.main.connect_menu", table: "DeskMain") }
+
+    /// Connected over your home network
+    ///
+    /// Both apps: connection status once connected straight to the device over the home network (not through the internet relay).
+    static var deskMainConnectedHome: String { L("desk.main.connected_home", table: "DeskMain") }
+
+    /// Connected through {host}
+    ///
+    /// Both apps: connection status once connected through the internet. {host} is off-the.cloud (the relay) or the host name or IP address of the address the user configured; never translated.
+    static func deskMainConnectedThrough(host: String) -> String {
+        L("desk.main.connected_through", table: "DeskMain", host)
+    }
+
+    /// Connected through the configured address
+    ///
+    /// Both apps: connection status once connected through an address the user typed whose host can't be shown.
+    static var deskMainConnectedThroughConfigured: String { L("desk.main.connected_through_configured", table: "DeskMain") }
+
+    /// could not list remote files
+    ///
+    /// otc-sync: a folder's state in the tray menu when the device refused to list the folder without saying why. Lowercase, as it follows a warning sign.
+    static var deskMainCouldNotList: String { L("desk.main.could_not_list", table: "DeskMain") }
+
+    /// CPU: {percent}%
+    ///
+    /// otc-sync: line of the storage line's submenu in the tray menu: how busy the device's processor is. {percent} is a whole number.
+    static func deskMainCpuLine(percent: Int) -> String {
+        L("desk.main.cpu_line", table: "DeskMain", percent)
+    }
+
+    /// Disconnect from {device}…
+    ///
+    /// otc-sync: tray menu item shown once a device is set; asks before forgetting the device. {device} is the device's address (for example cala.off-the.cloud).
+    static func deskMainDisconnectMenu(device: String) -> String {
+        L("desk.main.disconnect_menu", table: "DeskMain", device)
+    }
+
+    /// All your synced folders are removed from this app, so none of them starts syncing with a different device by mistake. The files themselves stay on this computer and on the device. You can add the folders again after connecting.
+    ///
+    /// otc-sync: text of the Disconnect confirmation dialog. Disconnecting removes every folder from the app; no file is deleted.
+    static var deskMainDisconnectMessage: String { L("desk.main.disconnect_message", table: "DeskMain") }
+
+    /// Disconnect from {device}?
+    ///
+    /// Both apps: title of the confirmation shown before disconnecting (the Mac's inline warning in Settings, otc-sync's dialog). {device} is the device's address (for example cala.off-the.cloud).
+    static func deskMainDisconnectTitle(device: String) -> String {
+        L("desk.main.disconnect_title", table: "DeskMain", device)
+    }
+
+    /// What Do These Do?
+    ///
+    /// otc-sync: tray menu item under Add Folder… that opens a dialog explaining the kinds of folder and their options. Title Case.
+    static var deskMainExplain: String { L("desk.main.explain", table: "DeskMain") }
+
+    /// Back up a folder from this computer - one way: this computer → device (upload only, no deletes)
+    /// New and changed files are copied to the device. Nothing is ever deleted there: files you delete here stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder here.
+    ///
+    /// otc-sync: first paragraph of the What Do These Do? dialog: a heading line (the kind of folder), a line break, then what it does. Keep the line break.
+    static var deskMainExplainBackup: String { L("desk.main.explain_backup", table: "DeskMain") }
+
+    /// Sync a folder from the device - two ways
+    /// Pick a folder already on the device and a place on this computer: it is downloaded there and kept the same in both places from then on, changes and deletions included. What is set for it on the device (upload only, kept out of Images) stays as it is.
+    ///
+    /// otc-sync: third paragraph of the What Do These Do? dialog: a heading line (the kind of folder), a line break, then what it does. "Images" is the app's photo section. Keep the line break.
+    static var deskMainExplainDevice: String { L("desk.main.explain_device", table: "DeskMain") }
+
+    /// Keep out of Images (an option for a folder from this computer)
+    /// Photos and videos in a folder kept out of Images aren't tagged, searched for faces or shown in Images. Files still shows them. Any tags and faces already found in them are deleted. You can change this later from the folder's menu. A folder renamed later is a new folder on the device: keep it out of Images again.
+    ///
+    /// otc-sync: last paragraph of the What Do These Do? dialog: a heading line (the Keep out of Images option), a line break, then what it does. "Images" and "Files" are sections of the app. Keep the line break.
+    static var deskMainExplainImages: String { L("desk.main.explain_images", table: "DeskMain") }
+
+    /// Sync a folder from this computer - two ways
+    /// The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device change this folder too, and the other way round. The first sync only adds, it never deletes.
+    ///
+    /// otc-sync: second paragraph of the What Do These Do? dialog: a heading line (the kind of folder), a line break, then what it does. Keep the line break.
+    static var deskMainExplainLocal: String { L("desk.main.explain_local", table: "DeskMain") }
+
+    /// The kinds of folder, and their options
+    ///
+    /// otc-sync: tooltip of the tray's What Do These Do? item.
+    static var deskMainExplainTip: String { L("desk.main.explain_tip", table: "DeskMain") }
+
+    /// Adding a folder
+    ///
+    /// otc-sync: title of the What Do These Do? dialog.
+    static var deskMainExplainTitle: String { L("desk.main.explain_title", table: "DeskMain") }
+
+    /// Upload only (an option for a folder synced from this computer; always on for a backup)
+    /// The device keeps every older version of a file, and nothing in the folder can be deleted on the device. Files you delete on this computer stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this computer while it was on then come back here.
+    ///
+    /// otc-sync: fourth paragraph of the What Do These Do? dialog: a heading line (the Upload only option), a line break, then what it means. "Files" is the app's file browser section. Keep the line break.
+    static var deskMainExplainUploadOnly: String { L("desk.main.explain_upload_only", table: "DeskMain") }
+
+    /// {files} file(s) could not be read
+    ///
+    /// otc-sync: a two-way folder's state in the tray menu when some files in it couldn't be read on this computer. {files} is how many.
+    static func deskMainFilesUnreadable(files: Int) -> String {
+        L("desk.main.files_unreadable", table: "DeskMain", files)
+    }
+
+    /// Backed up
+    ///
+    /// Both apps: a backup folder's state once everything in it is on the device.
+    static var deskMainFolderBackedUp: String { L("desk.main.folder_backed_up", table: "DeskMain") }
+
+    /// Device offline - will resume
+    ///
+    /// Both apps: a folder's state when the connection dropped during a pass; it carries on once the device is back.
+    static var deskMainFolderOffline: String { L("desk.main.folder_offline", table: "DeskMain") }
+
+    /// Synced
+    ///
+    /// Both apps: a two-way folder's state once it is the same on both sides (next to a check mark on the Mac, after the folder's name in the tray).
+    static var deskMainFolderSynced: String { L("desk.main.folder_synced", table: "DeskMain") }
+
+    /// Photos and videos in it aren't tagged, searched for faces or shown in Images. Files still has them. Any tags and faces already found in them are deleted.
+    ///
+    /// Both apps: the Keep out of Images option's caption when adding a folder (the folder may already be on the device). "Files" is the app's file browser section.
+    static var deskMainImagesAddCaption: String { L("desk.main.images_add_caption", table: "DeskMain") }
+
+    /// Inside {parent}, which is kept out of Images
+    ///
+    /// Both apps: tooltip of a folder kept out of Images because a folder above it is. {parent} is that folder's path on the device (for example /Photos).
+    static func deskMainImagesByParent(parent: String) -> String {
+        L("desk.main.images_by_parent", table: "DeskMain", L10n.isolate(parent))
+    }
+
+    /// Keep Out of Images
+    ///
+    /// Both apps: button that confirms keeping a folder out of Images, and the Mac's eye button tooltip on a folder shown in Images. Title Case.
+    static var deskMainImagesKeepButton: String { L("desk.main.images_keep_button", table: "DeskMain") }
+
+    /// Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them.
+    ///
+    /// Both apps: text of the confirmation before keeping a folder out of Images. "Files" is the app's file browser section.
+    static var deskMainImagesKeepMessage: String { L("desk.main.images_keep_message", table: "DeskMain") }
+
+    /// Keep out of Images
+    ///
+    /// Both apps: name of a folder option (a checkbox when adding a folder): its photos and videos aren't shown in Images, the app's photo section. Sentence case.
+    static var deskMainImagesKeepOut: String { L("desk.main.images_keep_out", table: "DeskMain") }
+
+    /// Keep “{name}” out of Images?
+    ///
+    /// Both apps: title of the confirmation before keeping a folder out of Images. {name} is the folder's name.
+    static func deskMainImagesKeepTitle(name: String) -> String {
+        L("desk.main.images_keep_title", table: "DeskMain", L10n.isolate(name))
+    }
+
+    /// Your device needs an update to keep folders out of Images.
+    ///
+    /// Both apps: the Keep out of Images option's caption when the device's software is too old for it.
+    static var deskMainImagesNeedsUpdate: String { L("desk.main.images_needs_update", table: "DeskMain") }
+
+    /// Show in Images
+    ///
+    /// Both apps: button that confirms showing a folder in Images again. Title Case.
+    static var deskMainImagesShowButton: String { L("desk.main.images_show_button", table: "DeskMain") }
+
+    /// Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background.
+    ///
+    /// Both apps: text of the confirmation before showing a folder in Images again.
+    static var deskMainImagesShowMessage: String { L("desk.main.images_show_message", table: "DeskMain") }
+
+    /// Show “{name}” in Images?
+    ///
+    /// Both apps: title of the confirmation before showing a folder in Images again. {name} is the folder's name.
+    static func deskMainImagesShowTitle(name: String) -> String {
+        L("desk.main.images_show_title", table: "DeskMain", L10n.isolate(name))
+    }
+
+    /// Sync a folder from the device
+    ///
+    /// Both apps: one of the kinds of folder offered when adding a folder (a row's title): a folder already on the device, downloaded to this computer and kept in sync.
+    static var deskMainKindDevice: String { L("desk.main.kind_device", table: "DeskMain") }
+
+    /// Two ways: starts from the device
+    ///
+    /// Both apps: subtitle of the kind Sync a folder from the device: changes go both ways, and the first copy comes from the device.
+    static var deskMainKindDeviceSubtitle: String { L("desk.main.kind_device_subtitle", table: "DeskMain") }
+
     /// Language
     ///
     /// Label of the language picker in the Mac app's Settings, and title of the Language submenu in otc-sync's tray menu (Windows and Linux). The choice applies to every Off The Cloud app.
@@ -16,5 +314,275 @@ extension S {
     /// First choice of the language picker: follow the computer's own language. {language} is the language that gives, written by its own name (for example Español); language names are never translated.
     static func deskMainLanguageAutomatic(language: String) -> String {
         L("desk.main.language_automatic", table: "DeskMain", language)
+    }
+
+    /// Memory: {amount}
+    ///
+    /// otc-sync: line of the storage line's submenu in the tray menu: the device's memory in use. {amount} is how much is used of the total, already worded ("2.1 of 8.2 GB").
+    static func deskMainMemoryLine(amount: String) -> String {
+        L("desk.main.memory_line", table: "DeskMain", amount)
+    }
+
+    /// No folders yet — add one below.
+    ///
+    /// Both apps: shown in place of the folder list while no folder is synced; Add Folder… is the button (or menu item) below it.
+    static var deskMainNoFolders: String { L("desk.main.no_folders", table: "DeskMain") }
+
+    /// not connected
+    ///
+    /// otc-sync: reason shown on a folder's line of the tray menu when a request couldn't be sent because the connection to the device was down. Lowercase, as it follows the folder's name and a warning sign.
+    static var deskMainNotConnectedError: String { L("desk.main.not_connected_error", table: "DeskMain") }
+
+    /// {url} is not signed with the release key
+    ///
+    /// otc-sync: reason a download was refused: {url} (a web address) isn't signed by Off The Cloud's release key, so it isn't trusted.
+    static func deskMainNotSigned(url: String) -> String {
+        L("desk.main.not_signed", table: "DeskMain", url)
+    }
+
+    /// Open Web App
+    ///
+    /// Both apps: button in the Mac panel's header, and tray menu item, that opens the device's own web app in the browser. Title Case like the other Mac buttons.
+    static var deskMainOpenWebApp: String { L("desk.main.open_web_app", table: "DeskMain") }
+
+    /// Open {address} in your browser
+    ///
+    /// Both apps: tooltip of Open Web App. {address} is the web app's address (for example https://cala.off-the.cloud/), never translated.
+    static func deskMainOpenWebAppTip(address: String) -> String {
+        L("desk.main.open_web_app_tip", table: "DeskMain", address)
+    }
+
+    /// Off The Cloud — Password for {device}
+    ///
+    /// otc-sync: title of the dialog that asks for the device's password. {device} is the device's address (for example cala.off-the.cloud).
+    static func deskMainPasswordTitle(device: String) -> String {
+        L("desk.main.password_title", table: "DeskMain", device)
+    }
+
+    /// Stop syncing this folder (nothing is deleted)
+    ///
+    /// otc-sync: tooltip of Remove in a folder's submenu of the tray menu.
+    static var deskMainRemoveTip: String { L("desk.main.remove_tip", table: "DeskMain") }
+
+    /// {files} files had disappeared from the device - restored them from this computer instead of deleting them here
+    ///
+    /// otc-sync: a two-way folder's state after many of its files vanished from the device at once: the app uploaded them again instead of deleting them on this computer. {files} is how many (always more than 20).
+    static func deskMainRestoredFiles(files: Int) -> String {
+        L("desk.main.restored_files", table: "DeskMain", files)
+    }
+
+    /// Set Up a New Device…
+    ///
+    /// Both apps: small button in the Mac app's Settings and tray menu item that opens the wizard preparing the SD card of a new device. Title Case.
+    static var deskMainSetUpDevice: String { L("desk.main.set_up_device", table: "DeskMain") }
+
+    /// Prepare the SD card for a new Raspberry Pi device
+    ///
+    /// otc-sync: tooltip of the tray's Set Up a New Device… item.
+    static var deskMainSetUpDeviceTip: String { L("desk.main.set_up_device_tip", table: "DeskMain") }
+
+    /// Device name (as on the bridge, e.g. “cala”), or a full address for a device elsewhere (wss://host/ws, ws://192.168.1.10:8080/ws).
+    ///
+    /// otc-sync: prompt of the dialog that asks which device to connect to. "cala" is an example device name and the addresses are examples: keep them as they are. "Bridge" is the off-the.cloud relay service.
+    static var deskMainSettingsHint: String { L("desk.main.settings_hint", table: "DeskMain") }
+
+    /// Off The Cloud — Settings
+    ///
+    /// otc-sync: title of the dialog that asks which device to connect to.
+    static var deskMainSettingsTitle: String { L("desk.main.settings_title", table: "DeskMain") }
+
+    /// the signature of {url} is malformed: {detail}
+    ///
+    /// otc-sync: reason a download was refused: the signature published with {url} (a web address) can't be read. {detail} is the technical reason, in English.
+    static func deskMainSignatureMalformed(url: String, detail: String) -> String {
+        L("desk.main.signature_malformed", table: "DeskMain", url, detail)
+    }
+
+    /// Connected
+    ///
+    /// Both apps: connection status once signed in to the device.
+    static var deskMainStatusConnected: String { L("desk.main.status_connected", table: "DeskMain") }
+
+    /// Disconnected
+    ///
+    /// Both apps: connection status after the connection to the device dropped; the app tries again by itself.
+    static var deskMainStatusDisconnected: String { L("desk.main.status_disconnected", table: "DeskMain") }
+
+    /// Missing domain/password
+    ///
+    /// Both apps: connection status while the device's address or its password isn't set.
+    static var deskMainStatusMissingSettings: String { L("desk.main.status_missing_settings", table: "DeskMain") }
+
+    /// Not connected
+    ///
+    /// Both apps: connection status before the app has tried to connect (the Mac panel's status line, the tray's status line).
+    static var deskMainStatusNotConnected: String { L("desk.main.status_not_connected", table: "DeskMain") }
+
+    /// Device offline - retrying
+    ///
+    /// Both apps: connection status when the relay can't reach the device (it is off or has no internet); the app keeps trying.
+    static var deskMainStatusOffline: String { L("desk.main.status_offline", table: "DeskMain") }
+
+    /// Sync not running
+    ///
+    /// otc-sync: status line of a tray menu opened while the background sync service isn't running.
+    static var deskMainStatusSyncNotRunning: String { L("desk.main.status_sync_not_running", table: "DeskMain") }
+
+    /// Too many attempts - retrying in {seconds}s
+    ///
+    /// Both apps: connection status when the device locked this computer out for a while after too many password attempts. {seconds} is the number of seconds until the app tries again; "s" is the abbreviation for seconds.
+    static func deskMainStatusTooManyAttempts(seconds: Int) -> String {
+        L("desk.main.status_too_many_attempts", table: "DeskMain", seconds)
+    }
+
+    /// Wrong password
+    ///
+    /// Both apps: connection status when the device refused the password; the app stops trying until the password is changed or Retry is pressed.
+    static var deskMainStatusWrongPassword: String { L("desk.main.status_wrong_password", table: "DeskMain") }
+
+    /// A drive is down - the RAID is degraded
+    ///
+    /// Both apps: the device's storage line when one of the two disks of its mirror (RAID) stopped working.
+    static var deskMainStorageDegraded: String { L("desk.main.storage_degraded", table: "DeskMain") }
+
+    /// The RAID has failed
+    ///
+    /// Both apps: the device's storage line when its disk mirror (RAID) failed.
+    static var deskMainStorageFailed: String { L("desk.main.storage_failed", table: "DeskMain") }
+
+    /// Storage healthy
+    ///
+    /// Both apps: the device's storage line (both disks of the mirror working), next to the connection status; also the menu bar icon's description.
+    static var deskMainStorageHealthy: String { L("desk.main.storage_healthy", table: "DeskMain") }
+
+    /// Storage: {amount}
+    ///
+    /// otc-sync: first line of the storage line's submenu in the tray menu. {amount} is how much is used of the total, already worded ("39.6 of 474 GB").
+    static func deskMainStorageLine(amount: String) -> String {
+        L("desk.main.storage_line", table: "DeskMain", amount)
+    }
+
+    /// Storage status unknown
+    ///
+    /// Both apps: the device's storage line before the device has reported it.
+    static var deskMainStorageUnknown: String { L("desk.main.storage_unknown", table: "DeskMain") }
+
+    /// {percent}% used
+    ///
+    /// Both apps: how full the device's storage is, after the storage line ("Storage healthy · 15% used"). {percent} is a whole number from 0 to 100.
+    static func deskMainStorageUsed(percent: Int) -> String {
+        L("desk.main.storage_used", table: "DeskMain", percent)
+    }
+
+    /// Off The Cloud — Sync
+    ///
+    /// Both apps: the heading at the top of the Mac app's menu bar panel, the first (greyed) line of otc-sync's tray menu and the tray icon's tooltip before it connects. "Off The Cloud" is the product name; "Sync" names this app, the sync client.
+    static var deskMainTitle: String { L("desk.main.title", table: "DeskMain") }
+
+    /// Off The Cloud — {status}
+    ///
+    /// otc-sync: the tray icon's tooltip. {status} is the connection status, already worded (for example "Connected over your home network").
+    static func deskMainTrayTip(status: String) -> String {
+        L("desk.main.tray_tip", table: "DeskMain", status)
+    }
+
+    /// Device update {version} available
+    ///
+    /// Both apps: line under the storage line when the device has a major software update waiting. {version} is the update's version number (for example 2.4).
+    static func deskMainUpdateAvailable(version: String) -> String {
+        L("desk.main.update_available", table: "DeskMain", version)
+    }
+
+    /// can't replace {path} ({detail}) - run `sudo otc-sync update`, or install otc-sync in ~/.local/bin so it can update itself
+    ///
+    /// otc-sync (Linux): reason an update failed, after "The update could not be installed:". {path} is the program's file; {detail} the system's reason, in English. `sudo otc-sync update` is a command and ~/.local/bin a folder: keep them as they are.
+    static func deskMainUpdateCantReplace(path: String, detail: String) -> String {
+        L("desk.main.update_cant_replace", table: "DeskMain", path, detail)
+    }
+
+    /// can't write next to {path} - download the new version from off-the.cloud instead: {detail}
+    ///
+    /// otc-sync (Windows): reason an update failed, after "The update could not be installed:". {path} is the program's file; {detail} the system's reason, in English. off-the.cloud is the website.
+    static func deskMainUpdateCantWrite(path: String, detail: String) -> String {
+        L("desk.main.update_cant_write", table: "DeskMain", path, detail)
+    }
+
+    /// Critical device update {version} - install it from the device's Settings as soon as possible
+    ///
+    /// Both apps: warning line under the storage line when the device has a critical software update waiting. {version} is the update's version number (for example 2.4). "Settings" is the Settings section of the device's web or phone app.
+    static func deskMainUpdateCritical(version: String) -> String {
+        L("desk.main.update_critical", table: "DeskMain", version)
+    }
+
+    /// downloading {version}: {status}
+    ///
+    /// otc-sync: reason an update failed, after "The update could not be installed:": the download of version {version} was refused; {status} is the web server's answer (for example "404 Not Found"), in English.
+    static func deskMainUpdateDownloadFailed(version: String, status: String) -> String {
+        L("desk.main.update_download_failed", table: "DeskMain", version, status)
+    }
+
+    /// the download of {version} does not match its signed hash
+    ///
+    /// otc-sync: reason an update was refused, after "The update could not be installed:": the downloaded file isn't the signed release (corrupted or tampered with), so nothing was installed. {version} is the version number.
+    static func deskMainUpdateHashMismatch(version: String) -> String {
+        L("desk.main.update_hash_mismatch", table: "DeskMain", version)
+    }
+
+    /// Upload only
+    ///
+    /// Both apps: name of a folder option (a checkbox): the device keeps every older version and refuses deletes in the folder. Sentence case.
+    static var deskMainUploadOnly: String { L("desk.main.upload_only", table: "DeskMain") }
+
+    /// Always on for a backup.
+    ///
+    /// Both apps: shown before the Upload only caption for a backup folder, where the option is ticked and can't be changed.
+    static var deskMainUploadOnlyBackup: String { L("desk.main.upload_only_backup", table: "DeskMain") }
+
+    /// The device keeps every older version of a file, and nothing in the folder can be deleted on the device.
+    ///
+    /// Both apps: the Upload only option's caption, under its checkbox.
+    static var deskMainUploadOnlyCaption: String { L("desk.main.upload_only_caption", table: "DeskMain") }
+
+    /// Turning upload only off…
+    ///
+    /// Both apps: tooltip of the lock on a folder's row (Mac) or text after its name (tray) while the request to turn upload only off is on its way to the device.
+    static var deskMainUploadOnlyLifting: String { L("desk.main.upload_only_lifting", table: "DeskMain") }
+
+    /// Making it upload only…
+    ///
+    /// Both apps: tooltip of the lock on a folder's row (Mac) or text after its name (tray) while the request to make it upload only is on its way to the device.
+    static var deskMainUploadOnlyMaking: String { L("desk.main.upload_only_making", table: "DeskMain") }
+
+    /// Your device needs an update to make folders upload only.
+    ///
+    /// Both apps: the Upload only option's caption, and a folder's tooltip, when the device's software is too old for it.
+    static var deskMainUploadOnlyNeedsUpdate: String { L("desk.main.upload_only_needs_update", table: "DeskMain") }
+
+    /// {used} GB of {total} TB
+    ///
+    /// Both apps: storage used, in gigabytes, out of a total in terabytes ("39.6 GB of 3.6 TB"). {used} and {total} are numbers, already formatted.
+    static func deskMainUsedGbOfTotalTb(used: String, total: String) -> String {
+        L("desk.main.used_gb_of_total_tb", table: "DeskMain", used, total)
+    }
+
+    /// {used} of {total} GB
+    ///
+    /// Both apps: an amount of storage or memory used out of the total, in gigabytes ("39.6 of 474 GB"). {used} and {total} are numbers, already formatted. Use the language's abbreviation for gigabyte.
+    static func deskMainUsedOfTotalGb(used: String, total: String) -> String {
+        L("desk.main.used_of_total_gb", table: "DeskMain", used, total)
+    }
+
+    /// {used} of {total} TB
+    ///
+    /// Both apps: an amount of storage used out of the total, in terabytes ("1.2 of 3.6 TB"). {used} and {total} are numbers, already formatted. Use the language's abbreviation for terabyte.
+    static func deskMainUsedOfTotalTb(used: String, total: String) -> String {
+        L("desk.main.used_of_total_tb", table: "DeskMain", used, total)
+    }
+
+    /// {used} TB of {total} GB
+    ///
+    /// Both apps: storage used, in terabytes, out of a total in gigabytes - only when the device reports more used than its size. {used} and {total} are numbers, already formatted.
+    static func deskMainUsedTbOfTotalGb(used: String, total: String) -> String {
+        L("desk.main.used_tb_of_total_gb", table: "DeskMain", used, total)
     }
 }

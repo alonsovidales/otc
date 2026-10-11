@@ -22,11 +22,12 @@ enum ConnectionRoute: Equatable {
     /// The configured address: the bridge, or whatever was typed.
     case bridge
 
-    /// Settings' status line once connected; worded as in the other apps.
+    /// Settings' status line once connected; worded as in the other apps,
+    /// in the language in effect.
     static func label(_ route: ConnectionRoute, domain: String) -> String {
         switch route {
         case .home:
-            return "Connected over your home network"
+            return S.deskMainConnectedHome
         case .bridge:
             // A bare address is a host, maybe with a port, as configure() reads it.
             let trimmed = domain.trimmingCharacters(in: .whitespaces)
@@ -34,9 +35,9 @@ enum ConnectionRoute: Equatable {
             // SettingsStore.bridgeDomain, which is main-actor bound.
             let bridge = "off-the.cloud"
             if host.lowercased() == bridge || host.lowercased().hasSuffix("." + bridge) {
-                return "Connected through \(bridge)"
+                return S.deskMainConnectedThrough(host: bridge)
             }
-            return "Connected through \(host.isEmpty ? "the configured address" : host)"
+            return host.isEmpty ? S.deskMainConnectedThroughConfigured : S.deskMainConnectedThrough(host: host)
         }
     }
 }

@@ -20,6 +20,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/oslang"
+	"github.com/alonsovidales/otc/i18n"
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
 
@@ -33,8 +34,21 @@ const (
 // handshakeTO is how long a dial may take (a var for the tests).
 var handshakeTO = 20 * time.Second
 
-// ErrNotConnected is what a request gets while the socket is down.
-var ErrNotConnected = errors.New("not connected")
+// ErrNotConnected is what a request gets while the socket is down. A
+// folder's line in the tray says so in the user's language (MsgError).
+var ErrNotConnected error = &MsgError{M: i18n.DeskMainNotConnectedError()}
+
+// MsgError is an error of ours that the tray words in the user's language
+// (docs/i18n.md): Msg is the catalog's message, rendered when it is shown;
+// Error is its English, for the command line and the log. Only for keys
+// whose arguments are text or numbers below 1000, whose English rendering
+// is the plain text (a user argument would come with isolation marks).
+type MsgError struct{ M i18n.Msg }
+
+func (e *MsgError) Error() string { return e.M.Render("") }
+
+// Msg is the message, for the tray to render in its language.
+func (e *MsgError) Msg() i18n.Msg { return e.M }
 
 // Client is safe to use from any goroutine.
 type Client struct {
@@ -208,7 +222,7 @@ func (c *Client) dial(gen int64) {
 	parsed, err := url.Parse(u)
 	if err != nil {
 		if c.OnDisconnect != nil && c.current(gen, nil) {
-			c.OnDisconnect(fmt.Errorf("bad address %q: %w", u, err))
+			c.OnDisconnect(fmt.Errorf("bad address %q: %w", u, err)) // i18n-ignore: the tray shows Disconnected; the command line prints it
 		}
 
 		return
@@ -363,7 +377,7 @@ func (c *Client) moveLocal(gen int64, conn, lconn *websocket.Conn, lu string) {
 }
 
 // errSuperseded ends a sign-in whose attempt is no longer the client's.
-var errSuperseded = errors.New("connection replaced")
+var errSuperseded = errors.New("connection replaced") // i18n-ignore: an attempt the client dropped, never shown
 
 func (c *Client) auth(ctx context.Context, gen int64, conn *websocket.Conn) error {
 	pk, err := c.Request(ctx, func(r *pb.ReqEnvelope) {
@@ -377,7 +391,7 @@ func (c *Client) auth(ctx context.Context, gen int64, conn *websocket.Conn) erro
 		if ack := pk.GetRespAck(); ack != nil && (ack.Code == "device_unreachable" || ack.Code == "device_disabled") {
 			return &UnreachableError{Message: ack.ErrorMsg}
 		}
-		return errors.New("unable to fetch the connection's public key")
+		return errors.New("unable to fetch the connection's public key") // i18n-ignore: the tray shows Disconnected; the command line prints it
 	}
 	// Requests go on whichever socket is current: a superseded attempt's
 	// Auth, encrypted for the old socket's key, would be rejected on the
@@ -400,7 +414,7 @@ func (c *Client) auth(ctx context.Context, gen int64, conn *websocket.Conn) erro
 	}
 	ack, ok := resp.Payload.(*pb.RespEnvelope_RespAck)
 	if !ok || !ack.RespAck.Ok {
-		ae := &AuthError{Message: "authentication rejected"}
+		ae := &AuthError{Message: "authentication rejected"} // i18n-ignore: the tray shows Wrong password; the command line prints it
 		if ok {
 			if ack.RespAck.ErrorMsg != "" {
 				ae.Message = ack.RespAck.ErrorMsg
@@ -559,6 +573,19 @@ func (c *Client) dropWaiter(id int32) {
 	c.mu.Lock()
 	delete(c.waiters, id)
 	c.mu.Unlock()
+}
+
+// RespErrorMsg is RespError whose fallback, for a refusal without the
+// device's words, the tray shows in the user's language (MsgError).
+func RespErrorMsg(resp *pb.RespEnvelope, fallback i18n.Msg) error {
+	if resp != nil && resp.Error && resp.ErrorMessage != "" {
+		return errors.New(resp.ErrorMessage)
+	}
+	if resp == nil || resp.Error {
+		return &MsgError{M: fallback}
+	}
+
+	return nil
 }
 
 // RespError is the device's own rejection of a request, which still comes

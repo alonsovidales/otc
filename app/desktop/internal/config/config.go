@@ -19,7 +19,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -27,6 +26,8 @@ import (
 	"time"
 
 	"github.com/zalando/go-keyring"
+
+	"github.com/alonsovidales/otc/i18n"
 )
 
 const (
@@ -304,11 +305,23 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	if err := json.Unmarshal(raw, cfg); err != nil {
-		return nil, fmt.Errorf("config.json is not valid: %w", err)
+		return nil, &InvalidError{Err: err}
 	}
 
 	return cfg, nil
 }
+
+// InvalidError is a config.json that isn't valid JSON: Error is the
+// English (the command line, the log), Msg words it for the tray in the
+// user's language.
+type InvalidError struct{ Err error }
+
+func (e *InvalidError) Error() string { return e.Msg().Render("") }
+
+// Msg is the message, for the tray to render in its language.
+func (e *InvalidError) Msg() i18n.Msg { return i18n.DeskMainConfigInvalid(e.Err.Error()) }
+
+func (e *InvalidError) Unwrap() error { return e.Err }
 
 // Save writes config.json atomically, so a daemon watching it never reads
 // a half-written file.
@@ -441,6 +454,14 @@ type FolderStatus struct {
 	Progress    float64 `json:"progress"`
 	CurrentFile string  `json:"current_file,omitempty"`
 	Error       string  `json:"error,omitempty"`
+	// MsgKey and MsgArgs are the one of CurrentFile and Error shown (Error
+	// in the error state, CurrentFile while scanning) as a catalog message,
+	// a key and its arguments as i18n.ParseStored reads them: the tray
+	// renders it in the user's language, and shows the English above when
+	// the key is absent (the device's own words, a system error) or
+	// unknown to it (a newer service's).
+	MsgKey  string          `json:"msg_key,omitempty"`
+	MsgArgs json.RawMessage `json:"msg_args,omitempty"`
 	// Issue #192: how the folder stands with Images on the device -
 	// engine.ImagesState ("" while unknown: nothing is shown). OutOfImagesBy
 	// is the folder above it that keeps it out (by_parent), and
