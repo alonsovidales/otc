@@ -1,0 +1,91 @@
+{
+  "mail.date.april": {
+    "text": "april",
+    "en": "April"
+  },
+  "mail.date.august": {
+    "text": "augustus",
+    "en": "August"
+  },
+  "mail.date.december": {
+    "text": "december",
+    "en": "December"
+  },
+  "mail.date.february": {
+    "text": "februari",
+    "en": "February"
+  },
+  "mail.date.january": {
+    "text": "januari",
+    "en": "January"
+  },
+  "mail.date.july": {
+    "text": "juli",
+    "en": "July"
+  },
+  "mail.date.june": {
+    "text": "juni",
+    "en": "June"
+  },
+  "mail.date.long": {
+    "text": "{day} {month} {year}",
+    "en": "{day} {month} {year}"
+  },
+  "mail.date.march": {
+    "text": "maart",
+    "en": "March"
+  },
+  "mail.date.may": {
+    "text": "mei",
+    "en": "May"
+  },
+  "mail.date.november": {
+    "text": "november",
+    "en": "November"
+  },
+  "mail.date.october": {
+    "text": "oktober",
+    "en": "October"
+  },
+  "mail.date.september": {
+    "text": "september",
+    "en": "September"
+  },
+  "mail.greeting.named": {
+    "text": "Hallo {name},",
+    "en": "Hello {name},"
+  },
+  "mail.greeting.plain": {
+    "text": "Hallo,",
+    "en": "Hello,"
+  },
+  "mail.inactivity.body": {
+    "text": "Je account voor de bridge van Off The Cloud ({email}) is al vijf maanden niet gebruikt: niemand heeft erop ingelogd, en geen enkele app of vriend heeft je apparaten via de bridge bereikt.\n\nVolgens onze voorwaarden wordt een account dat zes maanden niet is gebruikt verwijderd. Als er niets verandert, worden dit account en de bijbehorende apparaatnamen op {date} verwijderd. Je apparaten blijven thuis gewoon werken.\n\nWil je het account houden? Log dan vóór die datum in op {link}, of gebruik je apparaat via de bridge.",
+    "en": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, and no app or friend has reached your devices through the bridge.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or use your device through the bridge before then.",
+    "reviewed": "claude-backtranslation 2026-10-11 #ba3ca7ce"
+  },
+  "mail.inactivity.subject": {
+    "text": "Je Off The Cloud-account wordt op {date} verwijderd",
+    "en": "Your Off The Cloud account will be removed on {date}",
+    "reviewed": "claude-backtranslation 2026-10-11 #f8e79edb"
+  },
+  "mail.reset.body": {
+    "text": "Iemand – hopelijk jij – heeft gevraagd om het wachtwoord van het Off The Cloud-account voor dit e-mailadres opnieuw in te stellen. Open deze link om een nieuw wachtwoord te kiezen:\n\n{link}\n\nDe link werkt één uur lang, en maar één keer. Als je een nieuw wachtwoord instelt, wordt je account overal elders uitgelogd.\n\nHeb je hier niet om gevraagd? Negeer deze e-mail dan: je wachtwoord blijft zoals het is.",
+    "en": "Someone - hopefully you - asked to reset the password of the Off The Cloud account for this email. To choose a new one, open this link:\n\n{link}\n\nThe link works for one hour, once. Setting a new password signs your account out everywhere else.\n\nIf you didn't ask for this, ignore this email: your password stays as it is.",
+    "reviewed": "claude-backtranslation 2026-10-11 #b048ce03"
+  },
+  "mail.reset.subject": {
+    "text": "Stel je Off The Cloud-wachtwoord opnieuw in",
+    "en": "Reset your Off The Cloud password",
+    "reviewed": "claude-backtranslation 2026-10-11 #37738e3c"
+  },
+  "mail.verify.body": {
+    "text": "Bevestig dat dit jouw e-mailadres is door deze link te openen:\n\n{link}\n\nDe link werkt 48 uur. Zodra je e-mailadres is bevestigd, kun je je apparaten registreren op de bridge.\n\nHeb je geen Off The Cloud-account aangemaakt? Negeer deze e-mail dan: zonder de bevestiging wordt er niets geregistreerd voor dit adres.",
+    "en": "Please confirm that this is your email address by opening this link:\n\n{link}\n\nThe link works for 48 hours. Once your email is confirmed you can register your devices on the bridge.\n\nIf you didn't create an Off The Cloud account, ignore this email: nothing is registered for this address without the confirmation.",
+    "reviewed": "claude-backtranslation 2026-10-11 #6a18a1c5"
+  },
+  "mail.verify.subject": {
+    "text": "Bevestig je e-mailadres voor Off The Cloud",
+    "en": "Confirm your email for Off The Cloud"
+  }
+}

@@ -1,0 +1,207 @@
+{
+  "dev.status.bridge.already_on": {
+    "text": "het apparaat is al verbonden met de bridge",
+    "en": "the device is already on the bridge"
+  },
+  "dev.status.bridge.claim_failed": {
+    "text": "kan die naam niet reserveren",
+    "en": "could not reserve that name"
+  },
+  "dev.status.bridge.claim_unavailable": {
+    "text": "kan die naam nu niet reserveren",
+    "en": "could not reserve that name right now"
+  },
+  "dev.status.bridge.config_missing": {
+    "text": "de configuratie van het apparaat ({path}) ontbreekt",
+    "en": "the device's config ({path}) is missing"
+  },
+  "dev.status.bridge.config_update_failed": {
+    "text": "kan {path} niet bijwerken",
+    "en": "could not update {path}"
+  },
+  "dev.status.bridge.email_not_verified": {
+    "text": "Bevestig eerst je e-mailadres: we hebben een link gestuurd naar {email}. Open die link en log hier daarna opnieuw in om verder te gaan.",
+    "en": "Confirm your email first: we sent a link to {email}. Open it, then sign in here again to continue."
+  },
+  "dev.status.bridge.invalid_credentials": {
+    "text": "onjuist e-mailadres of wachtwoord – als je je met Google of Apple hebt geregistreerd, gebruik dat dan (via de accountpagina, en daarna een configuratiecode)",
+    "en": "wrong email or password - if you signed up with Google or Apple, use that instead (on the account page, then a setup code)"
+  },
+  "dev.status.bridge.invalid_name": {
+    "text": "die naam kan niet worden gebruikt",
+    "en": "that name can't be used"
+  },
+  "dev.status.bridge.invalid_setup_code": {
+    "text": "die configuratiecode is ongeldig of verlopen",
+    "en": "that setup code is not valid or has expired"
+  },
+  "dev.status.bridge.login_required": {
+    "text": "log in om een naam te registreren",
+    "en": "sign in to register a name"
+  },
+  "dev.status.bridge.name_held": {
+    "text": "die naam is onlangs vrijgegeven en blijft 30 dagen gereserveerd voor de vorige eigenaar",
+    "en": "that name was released recently and is held for its previous owner for 30 days"
+  },
+  "dev.status.bridge.name_rule": {
+    "text": "alleen kleine letters, cijfers en koppeltekens",
+    "en": "lower-case letters, digits and hyphens only"
+  },
+  "dev.status.bridge.name_taken": {
+    "text": "die naam is al in gebruik",
+    "en": "that name is already taken"
+  },
+  "dev.status.bridge.needs_update": {
+    "text": "dit apparaat moet worden bijgewerkt voordat het verbinding kan maken met de bridge: Instellingen → Bijwerken",
+    "en": "this device needs updating before it can join the bridge: Settings → Update"
+  },
+  "dev.status.bridge.no_name": {
+    "text": "er is voor dit apparaat geen naam op {bridge} gereserveerd",
+    "en": "no name on {bridge} has been reserved for this device"
+  },
+  "dev.status.bridge.not_host_name": {
+    "text": "de ingestelde bridge ({bridge}) is geen hostnaam",
+    "en": "the configured bridge ({bridge}) is not a host name"
+  },
+  "dev.status.bridge.on_bridge": {
+    "text": "Het apparaat is verbonden met de bridge als {domain}",
+    "en": "The device is on the bridge as {domain}"
+  },
+  "dev.status.bridge.setup_unavailable": {
+    "text": "kan de configuratie niet starten",
+    "en": "could not start the setup"
+  },
+  "dev.status.bridge.signin_failed": {
+    "text": "kan niet inloggen",
+    "en": "could not sign in"
+  },
+  "dev.status.bridge.signin_first": {
+    "text": "log eerst in met je Off The Cloud-account",
+    "en": "sign in to your Off The Cloud account first"
+  },
+  "dev.status.bridge.signin_unavailable": {
+    "text": "kan nu niet inloggen",
+    "en": "could not sign in right now"
+  },
+  "dev.status.bridge.switch_off_failed": {
+    "text": "fout bij het uitschakelen van de bridge: {detail}",
+    "en": "switching the bridge off: {detail}"
+  },
+  "dev.status.bridge.switch_on_failed": {
+    "text": "fout bij het inschakelen van de bridge: {detail}",
+    "en": "switching the bridge on: {detail}"
+  },
+  "dev.status.bridge.switching_off": {
+    "text": "De bridge wordt uitgeschakeld",
+    "en": "Switching the bridge off"
+  },
+  "dev.status.bridge.switching_on": {
+    "text": "De bridge wordt ingeschakeld",
+    "en": "Switching the bridge on"
+  },
+  "dev.status.bridge.terms_not_accepted": {
+    "text": "accepteer eerst de gebruiksvoorwaarden: log in op off-the.cloud/account en accepteer ze daar",
+    "en": "accept the terms of use first: sign in at off-the.cloud/account and accept them there",
+    "reviewed": "claude-backtranslation 2026-10-11 #ab2eb07b"
+  },
+  "dev.status.bridge.too_many_attempts": {
+    "text": "te veel mislukte pogingen, probeer het later opnieuw",
+    "en": "too many failed attempts, try again later"
+  },
+  "dev.status.bridge.too_many_claims": {
+    "text": "wacht even voordat je een andere naam probeert",
+    "en": "please wait a moment before trying another name"
+  },
+  "dev.status.bridge.unreachable": {
+    "text": "kan {bridge} niet bereiken: {detail}",
+    "en": "could not reach {bridge}: {detail}"
+  },
+  "dev.status.raid.degraded": {
+    "text": "RAID-array gedegradeerd: maar {active} van de {total} schijven actief",
+    "en": "RAID array degraded: only {active} of {total} disks active"
+  },
+  "dev.status.raid.degraded_bottom": {
+    "text": "RAID-array gedegradeerd: maar {active} van de {total} schijven actief – de schijf in de onderste blauwe USB-poort werkt niet meer",
+    "en": "RAID array degraded: only {active} of {total} disks active - the disk in the bottom blue USB port stopped working"
+  },
+  "dev.status.raid.degraded_top": {
+    "text": "RAID-array gedegradeerd: maar {active} van de {total} schijven actief – de schijf in de bovenste blauwe USB-poort werkt niet meer",
+    "en": "RAID array degraded: only {active} of {total} disks active - the disk in the top blue USB port stopped working"
+  },
+  "dev.status.raid.degraded_unknown": {
+    "text": "RAID-array gedegradeerd: maar {active} van de {total} schijven actief – een van de twee opslagschijven werkt niet meer",
+    "en": "RAID array degraded: only {active} of {total} disks active - one of the two storage disks stopped working"
+  },
+  "dev.status.tailscale.cli_missing": {
+    "text": "tailscale is niet geïnstalleerd op dit apparaat",
+    "en": "tailscale is not installed on this device"
+  },
+  "dev.status.tailscale.disable_failed": {
+    "text": "kan Funnel niet uitschakelen: {detail}",
+    "en": "could not disable Funnel: {detail}"
+  },
+  "dev.status.tailscale.enable_failed": {
+    "text": "kan Funnel niet inschakelen: {detail}",
+    "en": "could not enable Funnel: {detail}"
+  },
+  "dev.status.tailscale.join_failed": {
+    "text": "kan niet toetreden tot het tailnet: {detail}",
+    "en": "could not join the tailnet: {detail}"
+  },
+  "dev.status.tailscale.not_installed": {
+    "text": "Tailscale is niet geïnstalleerd op dit apparaat",
+    "en": "Tailscale is not installed on this device"
+  },
+  "dev.status.tailscale.operator_failed": {
+    "text": "tailscaled is gestart, maar het apparaat kon niet als operator worden ingesteld",
+    "en": "tailscaled started, but the device could not be made its operator"
+  },
+  "dev.status.tailscale.request_off_failed": {
+    "text": "kan niet vragen om Tailscale uit te schakelen: {detail}",
+    "en": "could not ask for Tailscale to be switched off: {detail}"
+  },
+  "dev.status.tailscale.request_on_failed": {
+    "text": "kan niet vragen om Tailscale in te schakelen: {detail}",
+    "en": "could not ask for Tailscale to be switched on: {detail}"
+  },
+  "dev.status.tailscale.start_failed": {
+    "text": "tailscaled kan niet worden gestart",
+    "en": "tailscaled could not be started"
+  },
+  "dev.status.tailscale.timeout_off": {
+    "text": "Tailscale is niet op tijd uitgeschakeld: probeer het opnieuw",
+    "en": "Tailscale did not switch off in time - try again"
+  },
+  "dev.status.tailscale.timeout_on": {
+    "text": "Tailscale is niet op tijd ingeschakeld: probeer het opnieuw",
+    "en": "Tailscale did not switch on in time - try again"
+  },
+  "dev.status.tailscale.unknown_request": {
+    "text": "onbekend verzoek",
+    "en": "unknown request"
+  },
+  "dev.status.wifi.no_connection": {
+    "text": "het apparaat heeft geen netwerkverbinding om te herstarten",
+    "en": "the device has no network connection to restart"
+  },
+  "dev.status.wifi.not_wifi": {
+    "text": "het apparaat is niet via wifi verbonden",
+    "en": "the device isn't connected over Wi-Fi"
+  },
+  "dev.status.wifi.rebooted": {
+    "text": "De wifi maakte na de herstart geen verbinding, dus het apparaat is herstart",
+    "en": "The Wi-Fi did not reconnect after its restart, so the device restarted"
+  },
+  "dev.status.wifi.restarted": {
+    "text": "De wifi is herstart",
+    "en": "The Wi-Fi was restarted"
+  },
+  "dev.status.wifi.restarting": {
+    "text": "De wifi wordt herstart",
+    "en": "Restarting the Wi-Fi"
+  },
+  "dev.status.wifi.too_soon": {
+    "text": "de wifi is minder dan 30 minuten geleden herstart",
+    "en": "the Wi-Fi was restarted less than 30 minutes ago"
+  }
+}

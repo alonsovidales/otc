@@ -1,0 +1,329 @@
+{
+  "desk.folders.add_prompt": {
+    "text": "Choisissez le type de dossier à ajouter :",
+    "en": "Choose what kind of folder to add:"
+  },
+  "desk.folders.add_title": {
+    "text": "Ajouter un dossier",
+    "en": "Add a Folder"
+  },
+  "desk.folders.ask_keep_out": {
+    "text": "Exclure le dossier d’Images ?",
+    "en": "Keep the folder out of Images?",
+    "reviewed": "claude-backtranslation 2026-10-11 #275ff032"
+  },
+  "desk.folders.ask_upload_only": {
+    "text": "Mettre le dossier en envoi uniquement ?",
+    "en": "Make the folder upload only?"
+  },
+  "desk.folders.choose_backup_folder": {
+    "text": "Choisissez un dossier à sauvegarder sur l’appareil",
+    "en": "Choose a folder to back up to the device"
+  },
+  "desk.folders.choose_named": {
+    "text": "Choisir « {name} »",
+    "en": "Choose “{name}”"
+  },
+  "desk.folders.choose_sync_folder": {
+    "text": "Choisissez un dossier à garder synchronisé",
+    "en": "Choose a folder to keep in sync"
+  },
+  "desk.folders.flash_card_in_use": {
+    "text": "la carte est utilisée ({mount}) : fermez toute fenêtre ou tout programme qui l’utilise et réessayez",
+    "en": "the card is in use ({mount}): close any window or program using it and try again"
+  },
+  "desk.folders.flash_card_too_small": {
+    "text": "la carte est trop petite ({size}) : il faut au moins 8 Go",
+    "en": "the card is too small ({size}) - it needs 8 GB or more"
+  },
+  "desk.folders.flash_checksum_malformed": {
+    "text": "le fichier de somme de contrôle de l’image est mal formé",
+    "en": "the image's checksum file is malformed",
+    "reviewed": "claude-backtranslation 2026-10-11 #91d5b58f"
+  },
+  "desk.folders.flash_decompress_failed": {
+    "text": "décompression de l’image : {detail}",
+    "en": "decompressing the image: {detail}"
+  },
+  "desk.folders.flash_disk_changed": {
+    "text": "le disque {disk} a changé après avoir été choisi (désormais {now}) : rien n’a été écrit ; choisissez de nouveau la carte",
+    "en": "the disk {disk} changed after it was chosen (now {now}) - nothing was written; choose the card again",
+    "reviewed": "claude-backtranslation 2026-10-11 #5ded88d4"
+  },
+  "desk.folders.flash_disk_number": {
+    "text": "disque {number}",
+    "en": "disk {number}"
+  },
+  "desk.folders.flash_diskpart_failed": {
+    "text": "préparation de la carte (diskpart) : {detail} : {output}",
+    "en": "preparing the card (diskpart): {detail}: {output}"
+  },
+  "desk.folders.flash_download_failed": {
+    "text": "téléchargement de l’image : {status}",
+    "en": "downloading the image: {status}"
+  },
+  "desk.folders.flash_download_mismatch": {
+    "text": "l’image téléchargée ne correspond pas à sa somme de contrôle signée : réessayez",
+    "en": "the downloaded image does not match its signed checksum - try again",
+    "reviewed": "claude-backtranslation 2026-10-11 #963ef58e"
+  },
+  "desk.folders.flash_exit_code": {
+    "text": "code de sortie {code}",
+    "en": "exit code {code}"
+  },
+  "desk.folders.flash_image_changed": {
+    "text": "l’image a changé pendant son écriture : téléchargez-la de nouveau",
+    "en": "the image changed while it was written - download it again",
+    "reviewed": "claude-backtranslation 2026-10-11 #1d1b19a1"
+  },
+  "desk.folders.flash_image_mismatch": {
+    "text": "l’image ne correspond pas à sa somme de contrôle signée : téléchargez-la de nouveau",
+    "en": "the image does not match its signed checksum - download it again",
+    "reviewed": "claude-backtranslation 2026-10-11 #dafa15ba"
+  },
+  "desk.folders.flash_image_too_large": {
+    "text": "l’image est plus grande que la carte",
+    "en": "the image is larger than the card"
+  },
+  "desk.folders.flash_listing_failed": {
+    "text": "lecture de la liste des disques : {detail}",
+    "en": "listing the disks: {detail}"
+  },
+  "desk.folders.flash_next_steps": {
+    "text": "La carte est prête. Insérez-la dans le Raspberry Pi 5, branchez les deux disques USB et allumez-le.\n\nEnsuite, dans l’app Off The Cloud sur votre téléphone (iOS ou Android), touchez « Configurer un nouvel appareil » : elle trouve le Pi par Bluetooth et vous guide pour la suite.",
+    "en": "The card is ready. Put it in the Raspberry Pi 5, plug in the two USB disks and power it on.\n\nThen, in the Off The Cloud app on your phone (iOS or Android), tap \"Set up a new device\": it finds the Pi over Bluetooth and walks you through the rest."
+  },
+  "desk.folders.flash_no_pkexec": {
+    "text": "pkexec n’est pas installé : exécutez plutôt `sudo otc-sync flash` dans un terminal",
+    "en": "pkexec is not installed - run `sudo otc-sync flash` in a terminal instead"
+  },
+  "desk.folders.flash_not_removable": {
+    "text": "le disque {disk} n’est pas amovible (ou n’est plus connecté)",
+    "en": "{disk} is not a removable disk (or is no longer connected)",
+    "reviewed": "claude-backtranslation 2026-10-11 #415f5511"
+  },
+  "desk.folders.flash_open_failed": {
+    "text": "ouverture de {disk} : {detail}",
+    "en": "opening {disk}: {detail}"
+  },
+  "desk.folders.flash_read_back_failed": {
+    "text": "relecture de la carte : {detail}",
+    "en": "reading the card back: {detail}"
+  },
+  "desk.folders.flash_step_check": {
+    "text": "Vérification de l’image…",
+    "en": "Checking the image…"
+  },
+  "desk.folders.flash_step_done": {
+    "text": "Terminé.",
+    "en": "Done."
+  },
+  "desk.folders.flash_step_eject": {
+    "text": "Éjection de la carte…",
+    "en": "Ejecting the card…"
+  },
+  "desk.folders.flash_step_prepare": {
+    "text": "Préparation de la carte…",
+    "en": "Preparing the card…"
+  },
+  "desk.folders.flash_step_verify": {
+    "text": "Vérification des données écrites…",
+    "en": "Checking what was written…"
+  },
+  "desk.folders.flash_step_write": {
+    "text": "Écriture de la carte…",
+    "en": "Writing the card…"
+  },
+  "desk.folders.flash_unnamed_disk": {
+    "text": "Disque sans nom",
+    "en": "Unnamed disk"
+  },
+  "desk.folders.flash_verify_failed": {
+    "text": "la relecture de la carte ne correspond pas à ce qui a été écrit : elle est peut-être défectueuse ; essayez une autre carte",
+    "en": "the card does not read back what was written - it may be faulty; try another card"
+  },
+  "desk.folders.flash_write_failed": {
+    "text": "écriture de la carte : {detail}",
+    "en": "writing the card: {detail}"
+  },
+  "desk.folders.flash_writer_not_started": {
+    "text": "le programme d’écriture de la carte n’a pas démarré",
+    "en": "the card writer did not start"
+  },
+  "desk.folders.flash_writer_stopped": {
+    "text": "le programme d’écriture de la carte s’est arrêté : {detail}",
+    "en": "the card writer stopped: {detail}"
+  },
+  "desk.folders.flash_writer_stopped_early": {
+    "text": "le programme d’écriture de la carte s’est arrêté avant la fin",
+    "en": "the card writer stopped before it finished"
+  },
+  "desk.folders.images_add_later": {
+    "text": "Vous pourrez changer cela plus tard depuis le menu du dossier. Un dossier renommé par la suite devient un nouveau dossier sur l’appareil : excluez-le de nouveau d’Images.",
+    "en": "You can change it later from the folder's menu. A folder renamed later is a new folder on the device: keep it out of Images again."
+  },
+  "desk.folders.images_checkbox": {
+    "text": "Hors d’Images",
+    "en": "Kept Out of Images"
+  },
+  "desk.folders.images_explain": {
+    "text": "Les photos et vidéos de ce dossier ne sont ni étiquetées, ni analysées pour y rechercher des visages, ni affichées dans Images. Fichiers les affiche toujours.",
+    "en": "Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them."
+  },
+  "desk.folders.images_keeping": {
+    "text": "Exclusion d’Images…",
+    "en": "Keeping out of Images…"
+  },
+  "desk.folders.images_kept_out": {
+    "text": "Hors d’Images",
+    "en": "Kept out of Images"
+  },
+  "desk.folders.images_showing": {
+    "text": "Affichage dans Images…",
+    "en": "Showing in Images…"
+  },
+  "desk.folders.kind_backup": {
+    "text": "Sauvegarder un dossier de cet ordinateur",
+    "en": "Back up a folder from this computer"
+  },
+  "desk.folders.kind_backup_subtitle": {
+    "text": "Ordinateur → appareil (envoi uniquement, sans suppression)",
+    "en": "One way: this computer → device (upload only, no deletes)"
+  },
+  "desk.folders.kind_local": {
+    "text": "Synchroniser un dossier de cet ordinateur",
+    "en": "Sync a folder from this computer"
+  },
+  "desk.folders.kind_local_subtitle": {
+    "text": "Bidirectionnel, à partir de cet ordinateur",
+    "en": "Two ways: starts from this computer"
+  },
+  "desk.folders.kind_row": {
+    "text": "{kind} — {details}",
+    "en": "{kind} — {details}"
+  },
+  "desk.folders.no": {
+    "text": "Non",
+    "en": "No"
+  },
+  "desk.folders.options_backup_line": {
+    "text": "{option} : toujours activée pour une sauvegarde. {caption}",
+    "en": "{option}: always on for a backup. {caption}"
+  },
+  "desk.folders.options_intro": {
+    "text": "{kind}. {details}.\n\nCochez ce que vous voulez, puis choisissez le dossier.",
+    "en": "{kind}. {details}.\n\nTick what you want, then choose the folder."
+  },
+  "desk.folders.options_line": {
+    "text": "{option} : {explain}",
+    "en": "{option}: {explain}"
+  },
+  "desk.folders.picker_empty": {
+    "text": "(aucun sous-dossier ici)",
+    "en": "(no subfolders here)"
+  },
+  "desk.folders.picker_list_failed": {
+    "text": "Impossible de lister les dossiers de l’appareil : {detail}",
+    "en": "Could not list the device's folders: {detail}"
+  },
+  "desk.folders.picker_prompt": {
+    "text": "Dossier distant : {path} – double-cliquez sur un dossier pour l’ouvrir, ou choisissez « {name} » pour le garder synchronisé avec un dossier de cet ordinateur.",
+    "en": "Remote folder: {path} — double-click a folder to open it, or choose “{name}” to keep it in sync with a folder on this computer."
+  },
+  "desk.folders.picker_prompt_windows": {
+    "text": "Dossier distant : {path}\nDouble-cliquez sur un dossier pour l’ouvrir ; le bouton garde « {name} » synchronisé avec un dossier de cet ordinateur.",
+    "en": "Remote folder: {path}\nDouble-click a folder to open it; the button keeps “{name}” in sync with a folder here."
+  },
+  "desk.folders.picker_up": {
+    "text": "‹ Remonter",
+    "en": "‹ Up"
+  },
+  "desk.folders.question_backup_note": {
+    "text": "(L’option {option} est toujours activée pour une sauvegarde.)",
+    "en": "({option} is always on for a backup.)"
+  },
+  "desk.folders.remote_title": {
+    "text": "Choisir un dossier distant",
+    "en": "Choose a Remote Folder"
+  },
+  "desk.folders.setup_card_ready_title": {
+    "text": "Votre carte SD est prête",
+    "en": "Your SD Card Is Ready"
+  },
+  "desk.folders.setup_card_too_small": {
+    "text": "Le disque {disk} est trop petit : l’appareil a besoin d’une carte d’au moins 8 Go.",
+    "en": "{disk} is too small: the device needs a card of 8 GB or more."
+  },
+  "desk.folders.setup_choose_card": {
+    "text": "Choisissez la carte SD :",
+    "en": "Choose the SD card:"
+  },
+  "desk.folders.setup_downloading": {
+    "text": "Téléchargement… {done} sur {total} Mo",
+    "en": "Downloading… {done} of {total} MB"
+  },
+  "desk.folders.setup_erase": {
+    "text": "Effacer",
+    "en": "Erase",
+    "reviewed": "claude-backtranslation 2026-10-11 #346284c6"
+  },
+  "desk.folders.setup_erase_question": {
+    "text": "Tout le contenu de ce disque sera effacé :\n\n{disk}\n\nY écrire l’image Off The Cloud ?",
+    "en": "Everything on this disk will be erased:\n\n{disk}\n\nWrite the Off The Cloud image to it?",
+    "reviewed": "claude-backtranslation 2026-10-11 #4351cf34"
+  },
+  "desk.folders.setup_insert_card": {
+    "text": "Insérez la carte SD (dans le lecteur de cartes de l’ordinateur ou un lecteur de cartes USB), puis réessayez.",
+    "en": "Insert the SD card (in the computer's card slot or a USB card reader), then try again."
+  },
+  "desk.folders.setup_intro": {
+    "text": "Cet assistant prépare la carte SD d’un nouvel appareil Off The Cloud :\n\n1. Télécharger l’image de l’appareil (environ 560 Mo).\n2. L’écrire sur une carte SD d’au moins 8 Go : tout le contenu de la carte est effacé.\n3. Supprimer le téléchargement.\n\nIl vous faut un Raspberry Pi 5 avec 8 Go de RAM, la carte SD et deux disques USB.",
+    "en": "This prepares the SD card for a new Off The Cloud device:\n\n1. Download the device image (about 560 MB).\n2. Write it to an SD card of 8 GB or more - everything on the card is erased.\n3. Delete the download.\n\nYou need a Raspberry Pi 5 with 8 GB of RAM, the SD card and two USB disks.",
+    "reviewed": "claude-backtranslation 2026-10-11 #ecf053b6"
+  },
+  "desk.folders.setup_not_written": {
+    "text": "La carte n’a pas été écrite : l’écriture d’une carte SD nécessite l’autorisation d’un administrateur. Choisissez de nouveau {item} quand vous le souhaitez (le téléchargement est conservé).",
+    "en": "The card was not written: writing an SD card needs administrator permission. Choose {item} again when you are ready (the download is kept)."
+  },
+  "desk.folders.setup_preparing_download": {
+    "text": "Préparation du téléchargement…",
+    "en": "Preparing the download…"
+  },
+  "desk.folders.setup_start": {
+    "text": "Démarrer",
+    "en": "Start"
+  },
+  "desk.folders.setup_stopped": {
+    "text": "La configuration s’est arrêtée :\n\n{detail}",
+    "en": "The setup stopped:\n\n{detail}"
+  },
+  "desk.folders.setup_title": {
+    "text": "Configurer un nouvel appareil",
+    "en": "Set Up a New Device"
+  },
+  "desk.folders.setup_waiting_permission": {
+    "text": "En attente de l’autorisation…",
+    "en": "Waiting for permission…"
+  },
+  "desk.folders.setup_windows_format": {
+    "text": "Si Windows propose de formater la carte, choisissez Annuler : Windows ne peut pas lire la partition Linux de l’appareil, et c’est normal.",
+    "en": "If Windows offers to format the card, choose Cancel: Windows can't read the device's Linux partition, and that is expected.",
+    "reviewed": "claude-backtranslation 2026-10-11 #6bf5ac06"
+  },
+  "desk.folders.try_again": {
+    "text": "Réessayer",
+    "en": "Try Again"
+  },
+  "desk.folders.upload_only_later": {
+    "text": "Vous pourrez désactiver cette option plus tard depuis l’app web ou l’app pour téléphone (le cadenas sur le dossier dans Fichiers) ; les fichiers supprimés sur cet ordinateur pendant qu’elle était activée reviennent alors ici.",
+    "en": "You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this computer while it was on then come back here."
+  },
+  "desk.folders.upload_only_two_way": {
+    "text": "Les fichiers que vous supprimez sur cet ordinateur restent sur l’appareil et ne sont pas téléchargés de nouveau ; les fichiers ajoutés ou modifiés sur l’appareil continuent d’arriver ici.",
+    "en": "Files you delete on this computer stay on the device and aren't downloaded again; files added or changed on the device still come down."
+  },
+  "desk.folders.yes": {
+    "text": "Oui",
+    "en": "Yes"
+  }
+}

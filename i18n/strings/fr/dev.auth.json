@@ -1,0 +1,52 @@
+{
+  "dev.auth.decrypt_failed": {
+    "text": "impossible de déchiffrer les éléments de clé",
+    "en": "unable to decrypt key material",
+    "reviewed": "claude-backtranslation 2026-10-11 #cd2a1d74"
+  },
+  "dev.auth.device_state_failed": {
+    "text": "erreur lors de la vérification de l’état de l’appareil",
+    "en": "error checking device state",
+    "reviewed": "claude-backtranslation 2026-10-11 #b9eb5924"
+  },
+  "dev.auth.invalid_session": {
+    "text": "Session non valide",
+    "en": "Invalid session",
+    "reviewed": "claude-backtranslation 2026-10-11 #50b61640"
+  },
+  "dev.auth.keypair_failed": {
+    "text": "erreur lors de la génération de la paire de clés",
+    "en": "error generating keypair",
+    "reviewed": "claude-backtranslation 2026-10-11 #682690da"
+  },
+  "dev.auth.no_public_key": {
+    "text": "aucune clé publique n’a été demandée pour cette connexion",
+    "en": "no public key was requested for this connection",
+    "reviewed": "claude-backtranslation 2026-10-11 #64e4208f"
+  },
+  "dev.auth.password_too_short": {
+    "text": "le mot de passe doit comporter au moins 8 caractères",
+    "en": "the password must have 8 characters or more",
+    "reviewed": "claude-backtranslation 2026-10-11 #0e40ed0a"
+  },
+  "dev.auth.public_key_failed": {
+    "text": "erreur lors de l’encodage de la clé publique",
+    "en": "error marshaling public key",
+    "reviewed": "claude-backtranslation 2026-10-11 #024f4d30"
+  },
+  "dev.auth.session_expired": {
+    "text": "Session expirée ou non valide, veuillez vous reconnecter.",
+    "en": "Session expired or invalid, please sign in again.",
+    "reviewed": "claude-backtranslation 2026-10-11 #3e301058"
+  },
+  "dev.auth.token_failed": {
+    "text": "erreur lors de l’émission du jeton de session",
+    "en": "error issuing session token",
+    "reviewed": "claude-backtranslation 2026-10-11 #97ac7a46"
+  },
+  "dev.auth.too_many_attempts": {
+    "text": "Trop de tentatives. Réessayez dans {seconds} secondes.",
+    "en": "Too many attempts. Try again in {seconds} seconds.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c8df1baf"
+  }
+}

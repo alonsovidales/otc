@@ -1,0 +1,52 @@
+{
+  "dev.auth.decrypt_failed": {
+    "text": "kan het sleutelmateriaal niet ontsleutelen",
+    "en": "unable to decrypt key material",
+    "reviewed": "claude-backtranslation 2026-10-11 #f551a44c"
+  },
+  "dev.auth.device_state_failed": {
+    "text": "fout bij het controleren van de apparaatstatus",
+    "en": "error checking device state",
+    "reviewed": "claude-backtranslation 2026-10-11 #9619cd4e"
+  },
+  "dev.auth.invalid_session": {
+    "text": "Ongeldige sessie",
+    "en": "Invalid session",
+    "reviewed": "claude-backtranslation 2026-10-11 #61a395a8"
+  },
+  "dev.auth.keypair_failed": {
+    "text": "fout bij het aanmaken van het sleutelpaar",
+    "en": "error generating keypair",
+    "reviewed": "claude-backtranslation 2026-10-11 #b6c60a70"
+  },
+  "dev.auth.no_public_key": {
+    "text": "er is geen openbare sleutel aangevraagd voor deze verbinding",
+    "en": "no public key was requested for this connection",
+    "reviewed": "claude-backtranslation 2026-10-11 #34820bb4"
+  },
+  "dev.auth.password_too_short": {
+    "text": "het wachtwoord moet minstens 8 tekens lang zijn",
+    "en": "the password must have 8 characters or more",
+    "reviewed": "claude-backtranslation 2026-10-11 #3199b87b"
+  },
+  "dev.auth.public_key_failed": {
+    "text": "fout bij het coderen van de openbare sleutel",
+    "en": "error marshaling public key",
+    "reviewed": "claude-backtranslation 2026-10-11 #710cc9d4"
+  },
+  "dev.auth.session_expired": {
+    "text": "Sessie verlopen of ongeldig. Log opnieuw in.",
+    "en": "Session expired or invalid, please sign in again.",
+    "reviewed": "claude-backtranslation 2026-10-11 #b6d46aa7"
+  },
+  "dev.auth.token_failed": {
+    "text": "fout bij het aanmaken van het sessietoken",
+    "en": "error issuing session token",
+    "reviewed": "claude-backtranslation 2026-10-11 #af625e45"
+  },
+  "dev.auth.too_many_attempts": {
+    "text": "Te veel pogingen. Probeer het over {seconds} seconden opnieuw.",
+    "en": "Too many attempts. Try again in {seconds} seconds.",
+    "reviewed": "claude-backtranslation 2026-10-11 #44c140d9"
+  }
+}

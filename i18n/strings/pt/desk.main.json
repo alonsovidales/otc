@@ -1,0 +1,412 @@
+{
+  "desk.main.add_folder": {
+    "text": "Adicionar pasta…",
+    "en": "Add Folder…"
+  },
+  "desk.main.add_folder_tip": {
+    "text": "Fazer uma cópia de segurança ou sincronizar uma pasta deste computador, ou sincronizar uma pasta do dispositivo",
+    "en": "Back up or sync a folder from this computer, or sync one from the device"
+  },
+  "desk.main.app_update": {
+    "text": "Atualizar o otc-sync para {version}",
+    "en": "Update otc-sync to {version}"
+  },
+  "desk.main.app_update_failed": {
+    "text": "Não foi possível instalar a atualização:\n\n{detail}",
+    "en": "The update could not be installed:\n\n{detail}"
+  },
+  "desk.main.app_updating": {
+    "text": "A atualizar para {version}…",
+    "en": "Updating to {version}…"
+  },
+  "desk.main.autostart_message": {
+    "text": "As tuas pastas continuam a sincronizar em segundo plano depois de reiniciares o computador. Podes alterar isto com «Abrir ao iniciar sessão» no menu.",
+    "en": "Your folders keep syncing in the background after you restart your computer. You can change this with “Start at login” in the menu.",
+    "reviewed": "claude-backtranslation 2026-10-11 #81f15169"
+  },
+  "desk.main.autostart_no": {
+    "text": "Agora não",
+    "en": "Not Now",
+    "reviewed": "claude-backtranslation 2026-10-11 #5c4ba935"
+  },
+  "desk.main.autostart_title": {
+    "text": "Abrir o Off The Cloud quando iniciares sessão?",
+    "en": "Start Off The Cloud when you log in?",
+    "reviewed": "claude-backtranslation 2026-10-11 #d0718cf3"
+  },
+  "desk.main.autostart_toggle": {
+    "text": "Abrir ao iniciar sessão",
+    "en": "Start at login"
+  },
+  "desk.main.autostart_toggle_tip": {
+    "text": "Abrir o Off The Cloud quando iniciares sessão, para que as tuas pastas continuem a sincronizar depois de um reinício",
+    "en": "Start Off The Cloud when you log in, so your folders keep syncing after a restart"
+  },
+  "desk.main.autostart_yes": {
+    "text": "Abrir ao iniciar sessão",
+    "en": "Start at Login",
+    "reviewed": "claude-backtranslation 2026-10-11 #0d2f7a41"
+  },
+  "desk.main.browser_failed": {
+    "text": "Não foi possível abrir o navegador:\n\n{detail}\n\nA app web está em {address}",
+    "en": "The browser could not be opened:\n\n{detail}\n\nThe web app is at {address}"
+  },
+  "desk.main.cannot_watch": {
+    "text": "não é possível monitorizar: {detail}",
+    "en": "cannot watch: {detail}"
+  },
+  "desk.main.checking": {
+    "text": "A verificar…",
+    "en": "Checking…"
+  },
+  "desk.main.checking_file": {
+    "text": "A verificar {done}/{total} · {name}",
+    "en": "Checking {done}/{total} · {name}"
+  },
+  "desk.main.choose_download": {
+    "text": "Escolhe onde transferir a pasta «{path}» e mantê-la sincronizada",
+    "en": "Choose where to download “{path}” and keep it in sync"
+  },
+  "desk.main.choose_folder": {
+    "text": "Escolher pasta…",
+    "en": "Choose Folder…"
+  },
+  "desk.main.config_invalid": {
+    "text": "O config.json não é válido: {detail}",
+    "en": "config.json is not valid: {detail}"
+  },
+  "desk.main.connect_menu": {
+    "text": "Ligar a um dispositivo…",
+    "en": "Connect to a Device…"
+  },
+  "desk.main.connected_home": {
+    "text": "Ligado através da tua rede doméstica",
+    "en": "Connected over your home network"
+  },
+  "desk.main.connected_through": {
+    "text": "Ligado através de {host}",
+    "en": "Connected through {host}"
+  },
+  "desk.main.connected_through_configured": {
+    "text": "Ligado através do endereço configurado",
+    "en": "Connected through the configured address"
+  },
+  "desk.main.could_not_list": {
+    "text": "não foi possível listar os ficheiros remotos",
+    "en": "could not list remote files"
+  },
+  "desk.main.cpu_line": {
+    "text": "CPU: {percent}%",
+    "en": "CPU: {percent}%"
+  },
+  "desk.main.disconnect_menu": {
+    "text": "Desligar do dispositivo {device}…",
+    "en": "Disconnect from {device}…"
+  },
+  "desk.main.disconnect_message": {
+    "text": "Todas as tuas pastas sincronizadas são removidas desta app, para que nenhuma comece a sincronizar com outro dispositivo por engano. Os próprios ficheiros ficam neste computador e no dispositivo. Podes voltar a adicionar as pastas depois de te ligares.",
+    "en": "All your synced folders are removed from this app, so none of them starts syncing with a different device by mistake. The files themselves stay on this computer and on the device. You can add the folders again after connecting.",
+    "reviewed": "claude-backtranslation 2026-10-11 #34a54ebb"
+  },
+  "desk.main.disconnect_title": {
+    "text": "Desligar do dispositivo {device}?",
+    "en": "Disconnect from {device}?",
+    "reviewed": "claude-backtranslation 2026-10-11 #2da4a4f3"
+  },
+  "desk.main.explain": {
+    "text": "O que fazem estas opções?",
+    "en": "What Do These Do?"
+  },
+  "desk.main.explain_backup": {
+    "text": "Fazer cópia de segurança de uma pasta deste computador – num só sentido: este computador → dispositivo (apenas carregamento, sem eliminações)\nOs ficheiros novos e alterados são copiados para o dispositivo. Lá, nada é eliminado: os ficheiros que eliminares aqui ficam no dispositivo e, quando um ficheiro muda, o dispositivo guarda também a versão anterior. Nada do que for feito no dispositivo (a partir de um telemóvel, de outro computador ou da web) altera ou elimina alguma coisa nesta pasta aqui.",
+    "en": "Back up a folder from this computer - one way: this computer → device (upload only, no deletes)\nNew and changed files are copied to the device. Nothing is ever deleted there: files you delete here stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder here."
+  },
+  "desk.main.explain_device": {
+    "text": "Sincronizar uma pasta do dispositivo – nos dois sentidos\nEscolhe uma pasta que já esteja no dispositivo e um local neste computador: a pasta é transferida para lá e, a partir daí, mantida igual nos dois locais, incluindo alterações e eliminações. O que estiver definido para ela no dispositivo (apenas carregamento, fora de Imagens) mantém-se.",
+    "en": "Sync a folder from the device - two ways\nPick a folder already on the device and a place on this computer: it is downloaded there and kept the same in both places from then on, changes and deletions included. What is set for it on the device (upload only, kept out of Images) stays as it is."
+  },
+  "desk.main.explain_images": {
+    "text": "Manter fora de Imagens (uma opção para uma pasta deste computador)\nAs fotos e os vídeos de uma pasta fora de Imagens não são etiquetados, não são analisados para encontrar rostos nem aparecem em Imagens. Ficheiros continua a mostrá-los. As etiquetas e os rostos já encontrados neles são eliminados. Podes alterar isto mais tarde no menu da pasta. Uma pasta a que mudes o nome mais tarde passa a ser uma pasta nova no dispositivo: volta a mantê-la fora de Imagens.",
+    "en": "Keep out of Images (an option for a folder from this computer)\nPhotos and videos in a folder kept out of Images aren't tagged, searched for faces or shown in Images. Files still shows them. Any tags and faces already found in them are deleted. You can change this later from the folder's menu. A folder renamed later is a new folder on the device: keep it out of Images again.",
+    "reviewed": "claude-backtranslation 2026-10-11 #3bd29ae9"
+  },
+  "desk.main.explain_local": {
+    "text": "Sincronizar uma pasta deste computador – nos dois sentidos\nA pasta é copiada para o dispositivo e, a partir daí, mantida igual nos dois locais: os ficheiros adicionados, alterados ou eliminados no dispositivo também mudam esta pasta, e vice-versa. A primeira sincronização só adiciona, nunca elimina.",
+    "en": "Sync a folder from this computer - two ways\nThe folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device change this folder too, and the other way round. The first sync only adds, it never deletes."
+  },
+  "desk.main.explain_tip": {
+    "text": "Os tipos de pasta e as respetivas opções",
+    "en": "The kinds of folder, and their options"
+  },
+  "desk.main.explain_title": {
+    "text": "Adicionar uma pasta",
+    "en": "Adding a folder"
+  },
+  "desk.main.explain_upload_only": {
+    "text": "Apenas carregamento (uma opção para uma pasta sincronizada a partir deste computador; sempre ativa numa cópia de segurança)\nO dispositivo guarda todas as versões anteriores de um ficheiro, e nada na pasta pode ser eliminado no dispositivo. Os ficheiros que eliminares neste computador ficam no dispositivo e não voltam a ser transferidos; os ficheiros adicionados ou alterados no dispositivo continuam a chegar. Podes desativá-la mais tarde na app web ou na app do telemóvel (o cadeado na pasta, em Ficheiros); os ficheiros que eliminaste neste computador enquanto estava ativa voltam então para aqui.",
+    "en": "Upload only (an option for a folder synced from this computer; always on for a backup)\nThe device keeps every older version of a file, and nothing in the folder can be deleted on the device. Files you delete on this computer stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this computer while it was on then come back here."
+  },
+  "desk.main.files_unreadable": {
+    "text": "Ficheiros ilegíveis: {files}",
+    "en": "{files} file(s) could not be read"
+  },
+  "desk.main.folder_backed_up": {
+    "text": "Cópia concluída",
+    "en": "Backed up"
+  },
+  "desk.main.folder_offline": {
+    "text": "Dispositivo offline: vai retomar",
+    "en": "Device offline - will resume"
+  },
+  "desk.main.folder_synced": {
+    "text": "Sincronizada",
+    "en": "Synced"
+  },
+  "desk.main.images_add_caption": {
+    "text": "As fotos e os vídeos desta pasta não são etiquetados, não são analisados para encontrar rostos nem aparecem em Imagens. Ficheiros continua a tê-los. As etiquetas e os rostos já encontrados neles são eliminados.",
+    "en": "Photos and videos in it aren't tagged, searched for faces or shown in Images. Files still has them. Any tags and faces already found in them are deleted.",
+    "reviewed": "claude-backtranslation 2026-10-11 #0934bdce"
+  },
+  "desk.main.images_by_parent": {
+    "text": "Dentro de {parent}, que está fora de Imagens",
+    "en": "Inside {parent}, which is kept out of Images"
+  },
+  "desk.main.images_keep_button": {
+    "text": "Manter fora de Imagens",
+    "en": "Keep Out of Images"
+  },
+  "desk.main.images_keep_message": {
+    "text": "As fotos e os vídeos dela não vão ser etiquetados, analisados para encontrar rostos nem mostrados em Imagens, e as etiquetas e os rostos já encontrados neles são eliminados. Ficheiros continua a mostrá-los.",
+    "en": "Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them.",
+    "reviewed": "claude-backtranslation 2026-10-11 #d812468d"
+  },
+  "desk.main.images_keep_out": {
+    "text": "Manter fora de Imagens",
+    "en": "Keep out of Images"
+  },
+  "desk.main.images_keep_title": {
+    "text": "Manter a pasta «{name}» fora de Imagens?",
+    "en": "Keep “{name}” out of Images?",
+    "reviewed": "claude-backtranslation 2026-10-11 #39105c21"
+  },
+  "desk.main.images_needs_update": {
+    "text": "O teu dispositivo precisa de uma atualização para manter pastas fora de Imagens.",
+    "en": "Your device needs an update to keep folders out of Images."
+  },
+  "desk.main.images_show_button": {
+    "text": "Mostrar em Imagens",
+    "en": "Show in Images"
+  },
+  "desk.main.images_show_message": {
+    "text": "As fotos e os vídeos dela voltam a Imagens e são etiquetados (e analisados para encontrar rostos, se o reconhecimento facial estiver ativo) em segundo plano.",
+    "en": "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background.",
+    "reviewed": "claude-backtranslation 2026-10-11 #263d69f3"
+  },
+  "desk.main.images_show_title": {
+    "text": "Mostrar a pasta «{name}» em Imagens?",
+    "en": "Show “{name}” in Images?"
+  },
+  "desk.main.kind_device": {
+    "text": "Sincronizar uma pasta do dispositivo",
+    "en": "Sync a folder from the device"
+  },
+  "desk.main.kind_device_subtitle": {
+    "text": "Nos dois sentidos: começa pelo dispositivo",
+    "en": "Two ways: starts from the device"
+  },
+  "desk.main.language": {
+    "text": "Idioma",
+    "en": "Language"
+  },
+  "desk.main.language_automatic": {
+    "text": "Automático ({language})",
+    "en": "Automatic ({language})"
+  },
+  "desk.main.memory_line": {
+    "text": "Memória: {amount}",
+    "en": "Memory: {amount}"
+  },
+  "desk.main.no_folders": {
+    "text": "Ainda não há pastas: adiciona uma abaixo.",
+    "en": "No folders yet — add one below."
+  },
+  "desk.main.not_connected_error": {
+    "text": "sem ligação",
+    "en": "not connected"
+  },
+  "desk.main.not_signed": {
+    "text": "{url} não está assinado com a chave de assinatura de versões",
+    "en": "{url} is not signed with the release key",
+    "reviewed": "claude-backtranslation 2026-10-11 #3f6e6ff6"
+  },
+  "desk.main.open_web_app": {
+    "text": "Abrir app web",
+    "en": "Open Web App"
+  },
+  "desk.main.open_web_app_tip": {
+    "text": "Abrir {address} no teu navegador",
+    "en": "Open {address} in your browser"
+  },
+  "desk.main.password_title": {
+    "text": "Off The Cloud — Palavra-passe do dispositivo {device}",
+    "en": "Off The Cloud — Password for {device}"
+  },
+  "desk.main.remove_tip": {
+    "text": "Deixar de sincronizar esta pasta (nada é eliminado)",
+    "en": "Stop syncing this folder (nothing is deleted)"
+  },
+  "desk.main.restored_files": {
+    "text": "{files} ficheiros tinham desaparecido do dispositivo: foram restaurados a partir deste computador em vez de serem eliminados aqui",
+    "en": "{files} files had disappeared from the device - restored them from this computer instead of deleting them here"
+  },
+  "desk.main.set_up_device": {
+    "text": "Configurar novo dispositivo…",
+    "en": "Set Up a New Device…"
+  },
+  "desk.main.set_up_device_tip": {
+    "text": "Preparar o cartão SD para um novo dispositivo Raspberry Pi",
+    "en": "Prepare the SD card for a new Raspberry Pi device"
+  },
+  "desk.main.settings_hint": {
+    "text": "Nome do dispositivo (como na ponte, p. ex. «cala») ou um endereço completo para um dispositivo noutro local (wss://host/ws, ws://192.168.1.10:8080/ws).",
+    "en": "Device name (as on the bridge, e.g. “cala”), or a full address for a device elsewhere (wss://host/ws, ws://192.168.1.10:8080/ws)."
+  },
+  "desk.main.settings_title": {
+    "text": "Off The Cloud — Definições",
+    "en": "Off The Cloud — Settings"
+  },
+  "desk.main.signature_malformed": {
+    "text": "a assinatura de {url} está malformada: {detail}",
+    "en": "the signature of {url} is malformed: {detail}",
+    "reviewed": "claude-backtranslation 2026-10-11 #2e22cb35"
+  },
+  "desk.main.status_connected": {
+    "text": "Ligado",
+    "en": "Connected"
+  },
+  "desk.main.status_disconnected": {
+    "text": "Desligado",
+    "en": "Disconnected"
+  },
+  "desk.main.status_missing_settings": {
+    "text": "Falta o domínio ou a palavra-passe",
+    "en": "Missing domain/password"
+  },
+  "desk.main.status_not_connected": {
+    "text": "Não ligado",
+    "en": "Not connected"
+  },
+  "desk.main.status_offline": {
+    "text": "Dispositivo offline: a tentar novamente",
+    "en": "Device offline - retrying"
+  },
+  "desk.main.status_sync_not_running": {
+    "text": "A sincronização não está ativa",
+    "en": "Sync not running"
+  },
+  "desk.main.status_too_many_attempts": {
+    "text": "Demasiadas tentativas (de novo em {seconds} s)",
+    "en": "Too many attempts - retrying in {seconds}s"
+  },
+  "desk.main.status_wrong_password": {
+    "text": "Palavra-passe incorreta",
+    "en": "Wrong password"
+  },
+  "desk.main.storage_degraded": {
+    "text": "Um disco avariou: o RAID está degradado",
+    "en": "A drive is down - the RAID is degraded"
+  },
+  "desk.main.storage_failed": {
+    "text": "O RAID falhou",
+    "en": "The RAID has failed"
+  },
+  "desk.main.storage_healthy": {
+    "text": "Armazenamento em bom estado",
+    "en": "Storage healthy"
+  },
+  "desk.main.storage_line": {
+    "text": "Armazenamento: {amount}",
+    "en": "Storage: {amount}"
+  },
+  "desk.main.storage_unknown": {
+    "text": "Estado do armazenamento desconhecido",
+    "en": "Storage status unknown"
+  },
+  "desk.main.storage_used": {
+    "text": "{percent}% usado",
+    "en": "{percent}% used"
+  },
+  "desk.main.title": {
+    "text": "Off The Cloud — Sincronização",
+    "en": "Off The Cloud — Sync"
+  },
+  "desk.main.tray_tip": {
+    "text": "Off The Cloud — {status}",
+    "en": "Off The Cloud — {status}"
+  },
+  "desk.main.update_available": {
+    "text": "Atualização do dispositivo {version} disponível",
+    "en": "Device update {version} available"
+  },
+  "desk.main.update_cant_replace": {
+    "text": "não é possível substituir {path} ({detail}): executa `sudo otc-sync update` ou instala o otc-sync em ~/.local/bin para que se possa atualizar sozinho",
+    "en": "can't replace {path} ({detail}) - run `sudo otc-sync update`, or install otc-sync in ~/.local/bin so it can update itself"
+  },
+  "desk.main.update_cant_write": {
+    "text": "não é possível escrever junto de {path}; transfere antes a nova versão em off-the.cloud: {detail}",
+    "en": "can't write next to {path} - download the new version from off-the.cloud instead: {detail}"
+  },
+  "desk.main.update_critical": {
+    "text": "Atualização crítica do dispositivo {version}: instala-a o mais depressa possível nas Definições do dispositivo",
+    "en": "Critical device update {version} - install it from the device's Settings as soon as possible"
+  },
+  "desk.main.update_download_failed": {
+    "text": "erro ao transferir {version}: {status}",
+    "en": "downloading {version}: {status}"
+  },
+  "desk.main.update_hash_mismatch": {
+    "text": "a transferência de {version} não corresponde ao hash assinado",
+    "en": "the download of {version} does not match its signed hash",
+    "reviewed": "claude-backtranslation 2026-10-11 #d0e849ca"
+  },
+  "desk.main.upload_only": {
+    "text": "Apenas carregamento",
+    "en": "Upload only"
+  },
+  "desk.main.upload_only_backup": {
+    "text": "Sempre ativa numa cópia de segurança.",
+    "en": "Always on for a backup."
+  },
+  "desk.main.upload_only_caption": {
+    "text": "O dispositivo guarda todas as versões anteriores de um ficheiro, e nada na pasta pode ser eliminado no dispositivo.",
+    "en": "The device keeps every older version of a file, and nothing in the folder can be deleted on the device."
+  },
+  "desk.main.upload_only_lifting": {
+    "text": "A desativar apenas carregamento…",
+    "en": "Turning upload only off…"
+  },
+  "desk.main.upload_only_making": {
+    "text": "A ativar apenas carregamento…",
+    "en": "Making it upload only…"
+  },
+  "desk.main.upload_only_needs_update": {
+    "text": "O teu dispositivo precisa de uma atualização para pôr pastas em apenas carregamento.",
+    "en": "Your device needs an update to make folders upload only."
+  },
+  "desk.main.used_gb_of_total_tb": {
+    "text": "{used} GB de {total} TB",
+    "en": "{used} GB of {total} TB"
+  },
+  "desk.main.used_of_total_gb": {
+    "text": "{used} de {total} GB",
+    "en": "{used} of {total} GB"
+  },
+  "desk.main.used_of_total_tb": {
+    "text": "{used} de {total} TB",
+    "en": "{used} of {total} TB"
+  },
+  "desk.main.used_tb_of_total_gb": {
+    "text": "{used} TB de {total} GB",
+    "en": "{used} TB of {total} GB"
+  }
+}

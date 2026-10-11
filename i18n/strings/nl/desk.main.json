@@ -1,0 +1,412 @@
+{
+  "desk.main.add_folder": {
+    "text": "Map toevoegen…",
+    "en": "Add Folder…"
+  },
+  "desk.main.add_folder_tip": {
+    "text": "Maak een reservekopie van een map op deze computer of synchroniseer er een, of synchroniseer een map vanaf het apparaat",
+    "en": "Back up or sync a folder from this computer, or sync one from the device"
+  },
+  "desk.main.app_update": {
+    "text": "otc-sync bijwerken naar {version}",
+    "en": "Update otc-sync to {version}"
+  },
+  "desk.main.app_update_failed": {
+    "text": "De update kon niet worden geïnstalleerd:\n\n{detail}",
+    "en": "The update could not be installed:\n\n{detail}"
+  },
+  "desk.main.app_updating": {
+    "text": "Bijwerken naar {version}…",
+    "en": "Updating to {version}…"
+  },
+  "desk.main.autostart_message": {
+    "text": "Je mappen blijven op de achtergrond synchroniseren nadat je je computer opnieuw hebt opgestart. Je kunt dit wijzigen met “Openen bij inloggen” in het menu.",
+    "en": "Your folders keep syncing in the background after you restart your computer. You can change this with “Start at login” in the menu.",
+    "reviewed": "claude-backtranslation 2026-10-11 #8fc58381"
+  },
+  "desk.main.autostart_no": {
+    "text": "Niet nu",
+    "en": "Not Now",
+    "reviewed": "claude-backtranslation 2026-10-11 #0ed10da5"
+  },
+  "desk.main.autostart_title": {
+    "text": "Off The Cloud openen wanneer je inlogt?",
+    "en": "Start Off The Cloud when you log in?",
+    "reviewed": "claude-backtranslation 2026-10-11 #4316d84d"
+  },
+  "desk.main.autostart_toggle": {
+    "text": "Openen bij inloggen",
+    "en": "Start at login"
+  },
+  "desk.main.autostart_toggle_tip": {
+    "text": "Open Off The Cloud wanneer je inlogt, zodat je mappen na een herstart blijven synchroniseren",
+    "en": "Start Off The Cloud when you log in, so your folders keep syncing after a restart"
+  },
+  "desk.main.autostart_yes": {
+    "text": "Openen bij inloggen",
+    "en": "Start at Login",
+    "reviewed": "claude-backtranslation 2026-10-11 #f1cdf1bc"
+  },
+  "desk.main.browser_failed": {
+    "text": "De browser kon niet worden geopend:\n\n{detail}\n\nDe webapp staat op {address}",
+    "en": "The browser could not be opened:\n\n{detail}\n\nThe web app is at {address}"
+  },
+  "desk.main.cannot_watch": {
+    "text": "kan wijzigingen niet volgen: {detail}",
+    "en": "cannot watch: {detail}"
+  },
+  "desk.main.checking": {
+    "text": "Controleren…",
+    "en": "Checking…"
+  },
+  "desk.main.checking_file": {
+    "text": "Controleren {done}/{total} · {name}",
+    "en": "Checking {done}/{total} · {name}"
+  },
+  "desk.main.choose_download": {
+    "text": "Kies waar je “{path}” wilt downloaden en gesynchroniseerd wilt houden",
+    "en": "Choose where to download “{path}” and keep it in sync"
+  },
+  "desk.main.choose_folder": {
+    "text": "Map kiezen…",
+    "en": "Choose Folder…"
+  },
+  "desk.main.config_invalid": {
+    "text": "config.json is ongeldig: {detail}",
+    "en": "config.json is not valid: {detail}"
+  },
+  "desk.main.connect_menu": {
+    "text": "Verbinden met een apparaat…",
+    "en": "Connect to a Device…"
+  },
+  "desk.main.connected_home": {
+    "text": "Verbonden via je thuisnetwerk",
+    "en": "Connected over your home network"
+  },
+  "desk.main.connected_through": {
+    "text": "Verbonden via {host}",
+    "en": "Connected through {host}"
+  },
+  "desk.main.connected_through_configured": {
+    "text": "Verbonden via het ingestelde adres",
+    "en": "Connected through the configured address"
+  },
+  "desk.main.could_not_list": {
+    "text": "kan externe bestanden niet weergeven",
+    "en": "could not list remote files"
+  },
+  "desk.main.cpu_line": {
+    "text": "CPU: {percent}%",
+    "en": "CPU: {percent}%"
+  },
+  "desk.main.disconnect_menu": {
+    "text": "Apparaat {device} loskoppelen…",
+    "en": "Disconnect from {device}…"
+  },
+  "desk.main.disconnect_message": {
+    "text": "Al je gesynchroniseerde mappen worden uit deze app verwijderd, zodat geen enkele map per ongeluk met een ander apparaat gaat synchroniseren. De bestanden zelf blijven op deze computer en op het apparaat staan. Je kunt de mappen opnieuw toevoegen nadat je verbinding hebt gemaakt.",
+    "en": "All your synced folders are removed from this app, so none of them starts syncing with a different device by mistake. The files themselves stay on this computer and on the device. You can add the folders again after connecting.",
+    "reviewed": "claude-backtranslation 2026-10-11 #301a2b46"
+  },
+  "desk.main.disconnect_title": {
+    "text": "Apparaat {device} loskoppelen?",
+    "en": "Disconnect from {device}?",
+    "reviewed": "claude-backtranslation 2026-10-11 #8ff47157"
+  },
+  "desk.main.explain": {
+    "text": "Wat doen deze opties?",
+    "en": "What Do These Do?"
+  },
+  "desk.main.explain_backup": {
+    "text": "Reservekopie van een map op deze computer – één richting: deze computer → apparaat (alleen uploaden, niets verwijderen)\nNieuwe en gewijzigde bestanden worden naar het apparaat gekopieerd. Daar wordt nooit iets verwijderd: bestanden die je hier verwijdert, blijven op het apparaat staan, en als een bestand verandert, bewaart het apparaat ook de oudere versie. Niets wat op het apparaat gebeurt – vanaf een telefoon, een andere computer of het web – wijzigt of verwijdert ooit iets in deze map hier.",
+    "en": "Back up a folder from this computer - one way: this computer → device (upload only, no deletes)\nNew and changed files are copied to the device. Nothing is ever deleted there: files you delete here stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder here."
+  },
+  "desk.main.explain_device": {
+    "text": "Een map vanaf het apparaat synchroniseren – in twee richtingen\nKies een map die al op het apparaat staat en een plek op deze computer: de map wordt daar gedownload en blijft vanaf dan op beide plekken hetzelfde, inclusief wijzigingen en verwijderingen. Wat er op het apparaat voor is ingesteld (“Alleen uploaden”, “Buiten Afbeeldingen”) blijft zoals het is.",
+    "en": "Sync a folder from the device - two ways\nPick a folder already on the device and a place on this computer: it is downloaded there and kept the same in both places from then on, changes and deletions included. What is set for it on the device (upload only, kept out of Images) stays as it is."
+  },
+  "desk.main.explain_images": {
+    "text": "Buiten Afbeeldingen houden (een optie voor een map op deze computer)\nFoto’s en video’s in een map die buiten Afbeeldingen wordt gehouden, krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond. Bestanden toont ze nog wel. Tags en gezichten die er al in zijn gevonden, worden verwijderd. Je kunt dit later wijzigen via het menu van de map. Een map die later een andere naam krijgt, is een nieuwe map op het apparaat: houd die opnieuw buiten Afbeeldingen.",
+    "en": "Keep out of Images (an option for a folder from this computer)\nPhotos and videos in a folder kept out of Images aren't tagged, searched for faces or shown in Images. Files still shows them. Any tags and faces already found in them are deleted. You can change this later from the folder's menu. A folder renamed later is a new folder on the device: keep it out of Images again.",
+    "reviewed": "claude-backtranslation 2026-10-11 #e060c83a"
+  },
+  "desk.main.explain_local": {
+    "text": "Een map op deze computer synchroniseren – in twee richtingen\nDe map wordt naar het apparaat gekopieerd en blijft vanaf dan op beide plekken hetzelfde: bestanden die op het apparaat worden toegevoegd, gewijzigd of verwijderd, veranderen ook deze map, en omgekeerd. De eerste synchronisatie voegt alleen toe en verwijdert nooit iets.",
+    "en": "Sync a folder from this computer - two ways\nThe folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device change this folder too, and the other way round. The first sync only adds, it never deletes."
+  },
+  "desk.main.explain_tip": {
+    "text": "De soorten mappen en hun opties",
+    "en": "The kinds of folder, and their options"
+  },
+  "desk.main.explain_title": {
+    "text": "Een map toevoegen",
+    "en": "Adding a folder"
+  },
+  "desk.main.explain_upload_only": {
+    "text": "Alleen uploaden (een optie voor een map die vanaf deze computer wordt gesynchroniseerd; staat altijd aan bij een reservekopie)\nHet apparaat bewaart elke oudere versie van een bestand, en niets in de map kan op het apparaat worden verwijderd. Bestanden die je op deze computer verwijdert, blijven op het apparaat staan en worden niet opnieuw gedownload; bestanden die op het apparaat worden toegevoegd of gewijzigd, komen nog steeds hierheen. Je kunt de optie later uitschakelen in de webapp of de telefoonapp (het slotje op de map in Bestanden); de bestanden die je op deze computer hebt verwijderd terwijl de optie aanstond, komen dan hier terug.",
+    "en": "Upload only (an option for a folder synced from this computer; always on for a backup)\nThe device keeps every older version of a file, and nothing in the folder can be deleted on the device. Files you delete on this computer stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this computer while it was on then come back here."
+  },
+  "desk.main.files_unreadable": {
+    "text": "Onleesbare bestanden: {files}",
+    "en": "{files} file(s) could not be read"
+  },
+  "desk.main.folder_backed_up": {
+    "text": "Reservekopie gemaakt",
+    "en": "Backed up"
+  },
+  "desk.main.folder_offline": {
+    "text": "Apparaat offline – gaat later verder",
+    "en": "Device offline - will resume"
+  },
+  "desk.main.folder_synced": {
+    "text": "Gesynchroniseerd",
+    "en": "Synced"
+  },
+  "desk.main.images_add_caption": {
+    "text": "Foto’s en video’s erin krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond. Bestanden toont ze nog wel. Tags en gezichten die er al in zijn gevonden, worden verwijderd.",
+    "en": "Photos and videos in it aren't tagged, searched for faces or shown in Images. Files still has them. Any tags and faces already found in them are deleted.",
+    "reviewed": "claude-backtranslation 2026-10-11 #4bb0146d"
+  },
+  "desk.main.images_by_parent": {
+    "text": "In de map {parent}, die buiten Afbeeldingen wordt gehouden",
+    "en": "Inside {parent}, which is kept out of Images"
+  },
+  "desk.main.images_keep_button": {
+    "text": "Buiten Afbeeldingen houden",
+    "en": "Keep Out of Images"
+  },
+  "desk.main.images_keep_message": {
+    "text": "De foto’s en video’s erin krijgen geen tags meer, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond, en de tags en gezichten die er al in zijn gevonden, worden verwijderd. Bestanden toont ze nog wel.",
+    "en": "Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them.",
+    "reviewed": "claude-backtranslation 2026-10-11 #0932b062"
+  },
+  "desk.main.images_keep_out": {
+    "text": "Buiten Afbeeldingen houden",
+    "en": "Keep out of Images"
+  },
+  "desk.main.images_keep_title": {
+    "text": "De map “{name}” buiten Afbeeldingen houden?",
+    "en": "Keep “{name}” out of Images?",
+    "reviewed": "claude-backtranslation 2026-10-11 #61aecd34"
+  },
+  "desk.main.images_needs_update": {
+    "text": "Je apparaat heeft een update nodig om mappen buiten Afbeeldingen te houden.",
+    "en": "Your device needs an update to keep folders out of Images."
+  },
+  "desk.main.images_show_button": {
+    "text": "In Afbeeldingen tonen",
+    "en": "Show in Images"
+  },
+  "desk.main.images_show_message": {
+    "text": "De foto’s en video’s erin komen terug in Afbeeldingen en krijgen op de achtergrond tags (en worden doorzocht op gezichten, als gezichtsherkenning aanstaat).",
+    "en": "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c6970c9e"
+  },
+  "desk.main.images_show_title": {
+    "text": "De map “{name}” in Afbeeldingen tonen?",
+    "en": "Show “{name}” in Images?"
+  },
+  "desk.main.kind_device": {
+    "text": "Een map vanaf het apparaat synchroniseren",
+    "en": "Sync a folder from the device"
+  },
+  "desk.main.kind_device_subtitle": {
+    "text": "In twee richtingen: begint bij het apparaat",
+    "en": "Two ways: starts from the device"
+  },
+  "desk.main.language": {
+    "text": "Taal",
+    "en": "Language"
+  },
+  "desk.main.language_automatic": {
+    "text": "Automatisch ({language})",
+    "en": "Automatic ({language})"
+  },
+  "desk.main.memory_line": {
+    "text": "Geheugen: {amount}",
+    "en": "Memory: {amount}"
+  },
+  "desk.main.no_folders": {
+    "text": "Nog geen mappen – voeg er hieronder een toe.",
+    "en": "No folders yet — add one below."
+  },
+  "desk.main.not_connected_error": {
+    "text": "niet verbonden",
+    "en": "not connected"
+  },
+  "desk.main.not_signed": {
+    "text": "{url} is niet ondertekend met de releasesleutel",
+    "en": "{url} is not signed with the release key",
+    "reviewed": "claude-backtranslation 2026-10-11 #2db15ff7"
+  },
+  "desk.main.open_web_app": {
+    "text": "Webapp openen",
+    "en": "Open Web App"
+  },
+  "desk.main.open_web_app_tip": {
+    "text": "{address} openen in je browser",
+    "en": "Open {address} in your browser"
+  },
+  "desk.main.password_title": {
+    "text": "Off The Cloud — Wachtwoord van apparaat {device}",
+    "en": "Off The Cloud — Password for {device}"
+  },
+  "desk.main.remove_tip": {
+    "text": "Stoppen met het synchroniseren van deze map (er wordt niets verwijderd)",
+    "en": "Stop syncing this folder (nothing is deleted)"
+  },
+  "desk.main.restored_files": {
+    "text": "{files} bestanden waren van het apparaat verdwenen – ze zijn vanaf deze computer hersteld in plaats van hier te worden verwijderd",
+    "en": "{files} files had disappeared from the device - restored them from this computer instead of deleting them here"
+  },
+  "desk.main.set_up_device": {
+    "text": "Nieuw apparaat instellen…",
+    "en": "Set Up a New Device…"
+  },
+  "desk.main.set_up_device_tip": {
+    "text": "De SD-kaart voorbereiden voor een nieuw Raspberry Pi-apparaat",
+    "en": "Prepare the SD card for a new Raspberry Pi device"
+  },
+  "desk.main.settings_hint": {
+    "text": "Apparaatnaam (zoals op de bridge, bijv. “cala”), of een volledig adres voor een apparaat elders (wss://host/ws, ws://192.168.1.10:8080/ws).",
+    "en": "Device name (as on the bridge, e.g. “cala”), or a full address for a device elsewhere (wss://host/ws, ws://192.168.1.10:8080/ws)."
+  },
+  "desk.main.settings_title": {
+    "text": "Off The Cloud — Instellingen",
+    "en": "Off The Cloud — Settings"
+  },
+  "desk.main.signature_malformed": {
+    "text": "de handtekening van {url} is ongeldig: {detail}",
+    "en": "the signature of {url} is malformed: {detail}",
+    "reviewed": "claude-backtranslation 2026-10-11 #f1ad23d2"
+  },
+  "desk.main.status_connected": {
+    "text": "Verbonden",
+    "en": "Connected"
+  },
+  "desk.main.status_disconnected": {
+    "text": "Verbinding verbroken",
+    "en": "Disconnected"
+  },
+  "desk.main.status_missing_settings": {
+    "text": "Domein/wachtwoord ontbreekt",
+    "en": "Missing domain/password"
+  },
+  "desk.main.status_not_connected": {
+    "text": "Niet verbonden",
+    "en": "Not connected"
+  },
+  "desk.main.status_offline": {
+    "text": "Apparaat offline – opnieuw proberen",
+    "en": "Device offline - retrying"
+  },
+  "desk.main.status_sync_not_running": {
+    "text": "Synchronisatie draait niet",
+    "en": "Sync not running"
+  },
+  "desk.main.status_too_many_attempts": {
+    "text": "Te veel pogingen – nieuwe poging over {seconds} s",
+    "en": "Too many attempts - retrying in {seconds}s"
+  },
+  "desk.main.status_wrong_password": {
+    "text": "Onjuist wachtwoord",
+    "en": "Wrong password"
+  },
+  "desk.main.storage_degraded": {
+    "text": "Schijf uitgevallen – RAID gedegradeerd",
+    "en": "A drive is down - the RAID is degraded"
+  },
+  "desk.main.storage_failed": {
+    "text": "De RAID is uitgevallen",
+    "en": "The RAID has failed"
+  },
+  "desk.main.storage_healthy": {
+    "text": "Opslag in orde",
+    "en": "Storage healthy"
+  },
+  "desk.main.storage_line": {
+    "text": "Opslag: {amount}",
+    "en": "Storage: {amount}"
+  },
+  "desk.main.storage_unknown": {
+    "text": "Opslagstatus onbekend",
+    "en": "Storage status unknown"
+  },
+  "desk.main.storage_used": {
+    "text": "{percent}% gebruikt",
+    "en": "{percent}% used"
+  },
+  "desk.main.title": {
+    "text": "Off The Cloud — Synchronisatie",
+    "en": "Off The Cloud — Sync"
+  },
+  "desk.main.tray_tip": {
+    "text": "Off The Cloud — {status}",
+    "en": "Off The Cloud — {status}"
+  },
+  "desk.main.update_available": {
+    "text": "Apparaatupdate {version} beschikbaar",
+    "en": "Device update {version} available"
+  },
+  "desk.main.update_cant_replace": {
+    "text": "kan {path} niet vervangen ({detail}) – voer `sudo otc-sync update` uit, of installeer otc-sync in ~/.local/bin zodat het zichzelf kan bijwerken",
+    "en": "can't replace {path} ({detail}) - run `sudo otc-sync update`, or install otc-sync in ~/.local/bin so it can update itself"
+  },
+  "desk.main.update_cant_write": {
+    "text": "kan niet schrijven naast {path} – download in plaats daarvan de nieuwe versie van off-the.cloud: {detail}",
+    "en": "can't write next to {path} - download the new version from off-the.cloud instead: {detail}"
+  },
+  "desk.main.update_critical": {
+    "text": "Kritieke apparaatupdate {version} – installeer deze zo snel mogelijk via de Instellingen van het apparaat",
+    "en": "Critical device update {version} - install it from the device's Settings as soon as possible"
+  },
+  "desk.main.update_download_failed": {
+    "text": "{version} downloaden: {status}",
+    "en": "downloading {version}: {status}"
+  },
+  "desk.main.update_hash_mismatch": {
+    "text": "de download van {version} komt niet overeen met de ondertekende hash",
+    "en": "the download of {version} does not match its signed hash",
+    "reviewed": "claude-backtranslation 2026-10-11 #4e0f993a"
+  },
+  "desk.main.upload_only": {
+    "text": "Alleen uploaden",
+    "en": "Upload only"
+  },
+  "desk.main.upload_only_backup": {
+    "text": "Staat altijd aan bij een reservekopie.",
+    "en": "Always on for a backup."
+  },
+  "desk.main.upload_only_caption": {
+    "text": "Het apparaat bewaart elke oudere versie van een bestand, en niets in de map kan op het apparaat worden verwijderd.",
+    "en": "The device keeps every older version of a file, and nothing in the folder can be deleted on the device."
+  },
+  "desk.main.upload_only_lifting": {
+    "text": "“Alleen uploaden” uitschakelen…",
+    "en": "Turning upload only off…"
+  },
+  "desk.main.upload_only_making": {
+    "text": "“Alleen uploaden” inschakelen…",
+    "en": "Making it upload only…"
+  },
+  "desk.main.upload_only_needs_update": {
+    "text": "Je apparaat heeft een update nodig om mappen op “Alleen uploaden” te zetten.",
+    "en": "Your device needs an update to make folders upload only."
+  },
+  "desk.main.used_gb_of_total_tb": {
+    "text": "{used} GB van {total} TB",
+    "en": "{used} GB of {total} TB"
+  },
+  "desk.main.used_of_total_gb": {
+    "text": "{used} van {total} GB",
+    "en": "{used} of {total} GB"
+  },
+  "desk.main.used_of_total_tb": {
+    "text": "{used} van {total} TB",
+    "en": "{used} of {total} TB"
+  },
+  "desk.main.used_tb_of_total_gb": {
+    "text": "{used} TB van {total} GB",
+    "en": "{used} TB of {total} GB"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "dev.err.action_failed": {
+    "text": "O dispositivo não conseguiu fazer isso: {detail}",
+    "en": "The device couldn't do that: {detail}"
+  },
+  "dev.err.error_detail": {
+    "text": "Erro: {detail}",
+    "en": "Error: {detail}"
+  },
+  "dev.err.internal": {
+    "text": "erro interno",
+    "en": "internal error"
+  },
+  "dev.err.not_authenticated": {
+    "text": "não autenticado",
+    "en": "not authenticated",
+    "reviewed": "claude-backtranslation 2026-10-11 #c62852ea"
+  },
+  "dev.err.not_on_this_instance": {
+    "text": "não disponível nesta instância",
+    "en": "not available on this instance"
+  },
+  "dev.err.unknown_request": {
+    "text": "Este dispositivo não compreende esse pedido: o software dele é mais antigo do que a app. Verifica se há atualizações em Definições.",
+    "en": "This device does not understand that request: its software is older than the app. Check for updates in Settings."
+  }
+}

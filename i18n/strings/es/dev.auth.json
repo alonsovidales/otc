@@ -1,0 +1,52 @@
+{
+  "dev.auth.decrypt_failed": {
+    "text": "no se ha podido descifrar el material de la clave",
+    "en": "unable to decrypt key material",
+    "reviewed": "claude-backtranslation 2026-10-11 #caf36ef2"
+  },
+  "dev.auth.device_state_failed": {
+    "text": "error al comprobar el estado del dispositivo",
+    "en": "error checking device state",
+    "reviewed": "claude-backtranslation 2026-10-11 #fd7e934a"
+  },
+  "dev.auth.invalid_session": {
+    "text": "Sesión no válida",
+    "en": "Invalid session",
+    "reviewed": "claude-backtranslation 2026-10-11 #b2b540a8"
+  },
+  "dev.auth.keypair_failed": {
+    "text": "error al generar el par de claves",
+    "en": "error generating keypair",
+    "reviewed": "claude-backtranslation 2026-10-11 #64c88483"
+  },
+  "dev.auth.no_public_key": {
+    "text": "no se ha solicitado ninguna clave pública para esta conexión",
+    "en": "no public key was requested for this connection",
+    "reviewed": "claude-backtranslation 2026-10-11 #b1b48ab2"
+  },
+  "dev.auth.password_too_short": {
+    "text": "la contraseña debe tener 8 caracteres o más",
+    "en": "the password must have 8 characters or more",
+    "reviewed": "claude-backtranslation 2026-10-11 #73963f41"
+  },
+  "dev.auth.public_key_failed": {
+    "text": "error al codificar la clave pública",
+    "en": "error marshaling public key",
+    "reviewed": "claude-backtranslation 2026-10-11 #19a140c6"
+  },
+  "dev.auth.session_expired": {
+    "text": "La sesión ha caducado o no es válida; vuelve a iniciar sesión.",
+    "en": "Session expired or invalid, please sign in again.",
+    "reviewed": "claude-backtranslation 2026-10-11 #2858db30"
+  },
+  "dev.auth.token_failed": {
+    "text": "error al emitir el token de sesión",
+    "en": "error issuing session token",
+    "reviewed": "claude-backtranslation 2026-10-11 #ab7dd90d"
+  },
+  "dev.auth.too_many_attempts": {
+    "text": "Demasiados intentos. Vuelve a intentarlo dentro de {seconds} segundos.",
+    "en": "Too many attempts. Try again in {seconds} seconds.",
+    "reviewed": "claude-backtranslation 2026-10-11 #61d5d5f1"
+  }
+}

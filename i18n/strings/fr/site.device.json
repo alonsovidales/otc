@@ -1,0 +1,34 @@
+{
+  "site.device.disabled.heading": {
+    "text": "Ce compte a été désactivé",
+    "en": "This account has been disabled"
+  },
+  "site.device.disabled.text": {
+    "text": "Le propriétaire de cet appareil a désactivé ce compte. Contactez-le si vous pensez qu’il s’agit d’une erreur.",
+    "en": "The owner of this device has disabled this account. Contact them if you believe this is a mistake."
+  },
+  "site.device.disabled.title": {
+    "text": "Compte désactivé",
+    "en": "Account disabled"
+  },
+  "site.device.unavailable.countdown": {
+    "text": "Nouvelle vérification dans {seconds} s",
+    "en": "Checking again in {seconds}s"
+  },
+  "site.device.unavailable.heading": {
+    "text": "Cet appareil n’est pas disponible pour le moment",
+    "en": "This device isn't available right now"
+  },
+  "site.device.unavailable.retry": {
+    "text": "Réessayer",
+    "en": "Try again"
+  },
+  "site.device.unavailable.text": {
+    "text": "Il semble éteint, hors ligne ou encore en cours de démarrage. Rien n’a été perdu : tout reste sur l’appareil lui-même. Réessayez dans un instant.",
+    "en": "It looks like it's switched off, offline, or still starting up. Nothing has been lost — everything stays on the device itself. Try again in a moment."
+  },
+  "site.device.unavailable.title": {
+    "text": "Appareil indisponible",
+    "en": "Device not available"
+  }
+}

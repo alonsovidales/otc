@@ -1,0 +1,52 @@
+{
+  "dev.auth.decrypt_failed": {
+    "text": "Schlüsselmaterial konnte nicht entschlüsselt werden",
+    "en": "unable to decrypt key material",
+    "reviewed": "claude-backtranslation 2026-10-11 #24cea4e9"
+  },
+  "dev.auth.device_state_failed": {
+    "text": "Fehler beim Prüfen des Gerätestatus",
+    "en": "error checking device state",
+    "reviewed": "claude-backtranslation 2026-10-11 #8bea09ac"
+  },
+  "dev.auth.invalid_session": {
+    "text": "Ungültige Sitzung",
+    "en": "Invalid session",
+    "reviewed": "claude-backtranslation 2026-10-11 #88ab8017"
+  },
+  "dev.auth.keypair_failed": {
+    "text": "Fehler beim Erzeugen des Schlüsselpaars",
+    "en": "error generating keypair",
+    "reviewed": "claude-backtranslation 2026-10-11 #47ef21fd"
+  },
+  "dev.auth.no_public_key": {
+    "text": "für diese Verbindung wurde kein öffentlicher Schlüssel angefordert",
+    "en": "no public key was requested for this connection",
+    "reviewed": "claude-backtranslation 2026-10-11 #90d09e24"
+  },
+  "dev.auth.password_too_short": {
+    "text": "das Passwort muss mindestens 8 Zeichen haben",
+    "en": "the password must have 8 characters or more",
+    "reviewed": "claude-backtranslation 2026-10-11 #c08b7f4c"
+  },
+  "dev.auth.public_key_failed": {
+    "text": "Fehler beim Codieren des öffentlichen Schlüssels",
+    "en": "error marshaling public key",
+    "reviewed": "claude-backtranslation 2026-10-11 #e84e91d2"
+  },
+  "dev.auth.session_expired": {
+    "text": "Sitzung abgelaufen oder ungültig, bitte melde dich erneut an.",
+    "en": "Session expired or invalid, please sign in again.",
+    "reviewed": "claude-backtranslation 2026-10-11 #87d308f1"
+  },
+  "dev.auth.token_failed": {
+    "text": "Fehler beim Ausstellen des Sitzungstokens",
+    "en": "error issuing session token",
+    "reviewed": "claude-backtranslation 2026-10-11 #763bea6c"
+  },
+  "dev.auth.too_many_attempts": {
+    "text": "Zu viele Versuche. Versuche es in {seconds} Sekunden erneut.",
+    "en": "Too many attempts. Try again in {seconds} seconds.",
+    "reviewed": "claude-backtranslation 2026-10-11 #df884b3b"
+  }
+}

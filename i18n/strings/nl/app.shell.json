@@ -1,0 +1,596 @@
+{
+  "app.shell.account_disabled": {
+    "text": "Dit account is uitgeschakeld",
+    "en": "This account has been disabled"
+  },
+  "app.shell.add_to_collection": {
+    "text": "Toevoegen aan collectie",
+    "en": "Add to collection"
+  },
+  "app.shell.address_invalid": {
+    "text": "Het adres “{address}” is ongeldig.",
+    "en": "The address \"{address}\" isn't valid."
+  },
+  "app.shell.auth_failed": {
+    "text": "Verificatie mislukt",
+    "en": "Authentication failed",
+    "reviewed": "claude-backtranslation 2026-10-11 #cc3d4441"
+  },
+  "app.shell.ble_bad_answer": {
+    "text": "Het apparaat stuurde een antwoord dat deze app niet kon lezen",
+    "en": "The device sent an answer this app could not read"
+  },
+  "app.shell.ble_closed": {
+    "text": "De configuratie is gesloten",
+    "en": "Setup was closed"
+  },
+  "app.shell.ble_link_lost": {
+    "text": "Verbinding met het apparaat verbroken. Er wordt opnieuw verbinding gemaakt. Houd de telefoon er vlakbij.",
+    "en": "Connection to the device lost - reconnecting. Keep the phone next to it."
+  },
+  "app.shell.ble_not_connected": {
+    "text": "Niet verbonden met het apparaat",
+    "en": "Not connected to the device"
+  },
+  "app.shell.ble_timeout": {
+    "text": "Het apparaat heeft niet op tijd geantwoord",
+    "en": "The device did not answer in time"
+  },
+  "app.shell.bluetooth_needed": {
+    "text": "Toegang tot Bluetooth is nodig",
+    "en": "Bluetooth access is needed"
+  },
+  "app.shell.bluetooth_off": {
+    "text": "Bluetooth staat uit",
+    "en": "Bluetooth is off"
+  },
+  "app.shell.cant_connect": {
+    "text": "Kan geen verbinding maken met je apparaat",
+    "en": "Can't connect to your device"
+  },
+  "app.shell.close_and_leave": {
+    "text": "Sluiten en dit apparaat verlaten",
+    "en": "Close and leave this device"
+  },
+  "app.shell.collection_card": {
+    "text": {
+      "one": "{name}, {count} item",
+      "other": "{name}, {count} items"
+    },
+    "en": {
+      "one": "{name}, {count} item",
+      "other": "{name}, {count} items"
+    }
+  },
+  "app.shell.collection_items": {
+    "text": {
+      "one": "{count} item",
+      "other": "{count} items"
+    },
+    "en": {
+      "one": "{count} item",
+      "other": "{count} items"
+    }
+  },
+  "app.shell.collection_untitled": {
+    "text": "Naamloze collectie",
+    "en": "Untitled collection"
+  },
+  "app.shell.collections_empty_text": {
+    "text": "Selecteer foto’s in Afbeeldingen en kies <b>Toevoegen aan collectie</b>.",
+    "en": "Select photos in Images, then choose <b>Add to collection</b>."
+  },
+  "app.shell.collections_empty_title": {
+    "text": "Nog geen collecties",
+    "en": "No collections yet"
+  },
+  "app.shell.collections_failed_text": {
+    "text": "Controleer of je apparaat online is en probeer het opnieuw.",
+    "en": "Check that your device is online, then try again."
+  },
+  "app.shell.collections_failed_title": {
+    "text": "Kan je collecties niet laden",
+    "en": "Couldn't load your collections"
+  },
+  "app.shell.collections_go_to_images": {
+    "text": "Naar Afbeeldingen",
+    "en": "Go to Images"
+  },
+  "app.shell.collections_loading": {
+    "text": "Collecties laden",
+    "en": "Loading collections"
+  },
+  "app.shell.collections_slow_text": {
+    "text": "Het laden van je collecties duurt langer dan normaal.",
+    "en": "Your collections are taking longer than usual to load."
+  },
+  "app.shell.collections_slow_title": {
+    "text": "Nog steeds wachten op je apparaat",
+    "en": "Still waiting for your device"
+  },
+  "app.shell.connect_title": {
+    "text": "Verbinden met Off The Cloud",
+    "en": "Connect to Off The Cloud"
+  },
+  "app.shell.connection_heading": {
+    "text": "Verbinding",
+    "en": "Connection"
+  },
+  "app.shell.critical_update": {
+    "text": "Kritieke update {version} beschikbaar. Installeer deze zo snel mogelijk.",
+    "en": "Critical update {version} available. Install it as soon as possible.",
+    "reviewed": "claude-backtranslation 2026-10-11 #1c520652"
+  },
+  "app.shell.critical_update_summary": {
+    "text": "Kritieke update {version} beschikbaar. {summary} Installeer deze zo snel mogelijk.",
+    "en": "Critical update {version} available. {summary} Install it as soon as possible.",
+    "reviewed": "claude-backtranslation 2026-10-11 #26fb572f"
+  },
+  "app.shell.device_unavailable": {
+    "text": "Dit apparaat is nu niet beschikbaar",
+    "en": "This device isn't available right now"
+  },
+  "app.shell.endpoint_address": {
+    "text": "Adres (wss://host/ws)",
+    "en": "Address (wss://host/ws)"
+  },
+  "app.shell.endpoint_custom": {
+    "text": "Aangepast adres",
+    "en": "Custom address"
+  },
+  "app.shell.endpoint_custom_note": {
+    "text": "Voor een apparaat dat niet via de Off The Cloud-bridge werkt: je eigen bridge, Tailscale Funnel of het lokale netwerk (ws://192.168.…:8080/ws).",
+    "en": "For a device not on the Off The Cloud bridge - your own bridge, Tailscale Funnel, or the local network (ws://192.168.…:8080/ws)."
+  },
+  "app.shell.endpoint_device_name": {
+    "text": "Apparaatnaam",
+    "en": "Device name"
+  },
+  "app.shell.host_not_found": {
+    "text": "Dat adres kan niet worden gevonden. Controleer de apparaatnaam of het adres.",
+    "en": "That address can't be found. Check the device name or address."
+  },
+  "app.shell.insecure": {
+    "text": "Kan geen beveiligde verbinding met dat adres maken.",
+    "en": "Couldn't make a secure connection to that address.",
+    "reviewed": "claude-backtranslation 2026-10-11 #8872fd4c"
+  },
+  "app.shell.keep_out_of_images": {
+    "text": "Buiten Afbeeldingen houden",
+    "en": "Keep out of Images",
+    "reviewed": "claude-backtranslation 2026-10-11 #258d773f"
+  },
+  "app.shell.leave": {
+    "text": "Verlaten",
+    "en": "Leave",
+    "reviewed": "claude-backtranslation 2026-10-11 #8dbd3e9f"
+  },
+  "app.shell.leave_button": {
+    "text": "Een ander apparaat instellen of verbinden",
+    "en": "Set up or connect a different device"
+  },
+  "app.shell.leave_message_connection": {
+    "text": "Je gaat terug naar het verbindingsscherm om verbinding te maken met een apparaat of een nieuw apparaat in te stellen. Er wordt niets op het apparaat verwijderd, en het adres en wachtwoord blijven daar ingevuld, zodat je later opnieuw verbinding kunt maken.",
+    "en": "You'll go back to the connection screen, to connect to a device or set up a new one. Nothing on the device is deleted, and its address and password stay filled in there, to connect to it again later.",
+    "reviewed": "claude-backtranslation 2026-10-11 #cd806e8b"
+  },
+  "app.shell.leave_message_start": {
+    "text": "Je gaat terug naar het begin om een nieuw apparaat in te stellen of verbinding te maken met een ander apparaat. Er wordt niets op het apparaat verwijderd, en het adres en wachtwoord blijven daar ingevuld, zodat je later opnieuw verbinding kunt maken.",
+    "en": "You'll go back to the start, to set up a new device or connect to another one. Nothing on the device is deleted, and its address and password stay filled in there, to connect to it again later.",
+    "reviewed": "claude-backtranslation 2026-10-11 #e6738579"
+  },
+  "app.shell.leave_title": {
+    "text": "Dit apparaat verlaten?",
+    "en": "Leave this device?",
+    "reviewed": "claude-backtranslation 2026-10-11 #88731077"
+  },
+  "app.shell.menu_device": {
+    "text": "Apparaat",
+    "en": "Device"
+  },
+  "app.shell.menu_hide": {
+    "text": "Menu verbergen",
+    "en": "Hide menu"
+  },
+  "app.shell.menu_sharing": {
+    "text": "Delen",
+    "en": "Sharing"
+  },
+  "app.shell.menu_show": {
+    "text": "Menu tonen",
+    "en": "Show menu"
+  },
+  "app.shell.mirror_degraded": {
+    "text": "Spiegel gedegradeerd",
+    "en": "Mirror degraded"
+  },
+  "app.shell.mirror_in_sync": {
+    "text": "Spiegel gesynchroniseerd",
+    "en": "Mirror in sync"
+  },
+  "app.shell.mirror_none": {
+    "text": "Geen spiegel",
+    "en": "No mirror"
+  },
+  "app.shell.mirror_syncing": {
+    "text": "Spiegel opbouwen ({percent}%)",
+    "en": "Mirror syncing ({percent}%)"
+  },
+  "app.shell.mirror_unknown": {
+    "text": "Spiegelstatus onbekend",
+    "en": "Mirror state unknown"
+  },
+  "app.shell.new_post": {
+    "text": "Nieuw bericht",
+    "en": "New post"
+  },
+  "app.shell.no_answer_address": {
+    "text": "Het apparaat reageert niet. Misschien staat het uit, of is het adres onjuist.",
+    "en": "The device isn't answering. It may be off, or the address may be wrong."
+  },
+  "app.shell.no_public_key": {
+    "text": "Kan de openbare sleutel van de verbinding niet ophalen",
+    "en": "Unable to fetch the connection's public key",
+    "reviewed": "claude-backtranslation 2026-10-11 #bd7df214"
+  },
+  "app.shell.not_connected": {
+    "text": "Niet verbonden",
+    "en": "Not connected"
+  },
+  "app.shell.not_otc": {
+    "text": "Het adres reageerde, maar niet als een Off The Cloud-apparaat. Controleer of het eindigt op /ws en naar je apparaat of de bridgenaam ervan verwijst.",
+    "en": "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name."
+  },
+  "app.shell.offline": {
+    "text": "Deze telefoon is offline. Maak verbinding met wifi of mobiele data.",
+    "en": "This phone is offline. Connect to Wi-Fi or mobile data."
+  },
+  "app.shell.onboarding_last_device": {
+    "text": "Ingevuld vanuit het apparaat dat je hebt verlaten. Tik op “Opslaan en doorgaan” om er opnieuw verbinding mee te maken, of wijzig de gegevens om een ander apparaat te gebruiken.",
+    "en": "Filled in from the device you left. Tap Save & Continue to connect to it again, or change it to use another one."
+  },
+  "app.shell.onboarding_pending": {
+    "text": "Ingevuld vanuit het apparaat dat je met deze telefoon hebt ingesteld. Tik op “Opslaan en doorgaan” zodra de installatie klaar is (na ongeveer 20 minuten).",
+    "en": "Filled in from the device you set up with this phone. Once its install has finished (about 20 minutes), tap Save & Continue."
+  },
+  "app.shell.onboarding_setup_footer": {
+    "text": "Voor een apparaat dat net uit de doos komt: de configuratie loopt via Bluetooth, en deze app wordt de app van het apparaat. Log eerst uit als je overstapt van een ander apparaat.",
+    "en": "For a device fresh out of the box: it runs the setup over Bluetooth, and this app becomes its app. Log out first if you are switching from another device."
+  },
+  "app.shell.percent": {
+    "text": "{percent}%",
+    "en": "{percent}%"
+  },
+  "app.shell.privacy": {
+    "text": "Privacy",
+    "en": "Privacy",
+    "reviewed": "claude-backtranslation 2026-10-11 #100b2fcc"
+  },
+  "app.shell.problem_files_failed": {
+    "text": "De bestanden verschijnen zodra je apparaat antwoordt.",
+    "en": "The files will appear as soon as your device answers."
+  },
+  "app.shell.problem_files_offline": {
+    "text": "Deze telefoon is offline. De bestanden verschijnen zodra hij weer online is.",
+    "en": "This phone is offline. The files will appear once it's back online."
+  },
+  "app.shell.problem_files_slow": {
+    "text": "Je apparaat deed er te lang over om te antwoorden. De bestanden verschijnen zodra het antwoordt.",
+    "en": "Your device took too long to answer. The files will appear as soon as it does."
+  },
+  "app.shell.problem_files_unreachable": {
+    "text": "Je apparaat is nu niet bereikbaar. De bestanden verschijnen zodra het antwoordt.",
+    "en": "Your device isn't reachable right now. The files will appear as soon as it answers."
+  },
+  "app.shell.problem_more_photos": {
+    "text": "Kan de volgende foto’s niet laden.",
+    "en": "Couldn't load more photos."
+  },
+  "app.shell.problem_more_posts": {
+    "text": "Kan de volgende berichten niet laden.",
+    "en": "Couldn't load more posts."
+  },
+  "app.shell.problem_photos_failed": {
+    "text": "Je foto’s verschijnen zodra je apparaat antwoordt.",
+    "en": "Your photos will appear as soon as your device answers."
+  },
+  "app.shell.problem_photos_loading": {
+    "text": "Foto’s laden",
+    "en": "Loading photos"
+  },
+  "app.shell.problem_photos_offline": {
+    "text": "Deze telefoon is offline. Je foto’s verschijnen zodra hij weer online is.",
+    "en": "This phone is offline. Your photos will appear once it's back online."
+  },
+  "app.shell.problem_photos_slow": {
+    "text": "Je apparaat deed er te lang over om te antwoorden. Je foto’s verschijnen zodra het antwoordt.",
+    "en": "Your device took too long to answer. Your photos will appear as soon as it does."
+  },
+  "app.shell.problem_photos_title": {
+    "text": "Kan je foto’s niet laden",
+    "en": "Couldn't load your photos"
+  },
+  "app.shell.problem_photos_unreachable": {
+    "text": "Je apparaat is nu niet bereikbaar. Je foto’s verschijnen zodra het antwoordt.",
+    "en": "Your device isn't reachable right now. Your photos will appear as soon as it answers."
+  },
+  "app.shell.problem_posts_failed": {
+    "text": "De berichten verschijnen zodra je apparaat antwoordt.",
+    "en": "The posts will appear as soon as your device answers."
+  },
+  "app.shell.problem_posts_offline": {
+    "text": "Deze telefoon is offline. De berichten verschijnen zodra hij weer online is.",
+    "en": "This phone is offline. The posts will appear once it's back online."
+  },
+  "app.shell.problem_posts_slow": {
+    "text": "Je apparaat deed er te lang over om te antwoorden. De berichten verschijnen zodra het antwoordt.",
+    "en": "Your device took too long to answer. The posts will appear as soon as it does."
+  },
+  "app.shell.problem_posts_unreachable": {
+    "text": "Je apparaat is nu niet bereikbaar. De berichten verschijnen zodra het antwoordt.",
+    "en": "Your device isn't reachable right now. The posts will appear as soon as it answers."
+  },
+  "app.shell.problem_trying": {
+    "text": "Proberen…",
+    "en": "Trying…"
+  },
+  "app.shell.problem_video": {
+    "text": "Kan deze video niet afspelen.",
+    "en": "Couldn't play this video."
+  },
+  "app.shell.problem_waiting": {
+    "text": "Nog steeds wachten op je apparaat…",
+    "en": "Still waiting for your device…"
+  },
+  "app.shell.route_configured": {
+    "text": "Verbonden via het ingestelde adres",
+    "en": "Connected through the configured address"
+  },
+  "app.shell.route_home": {
+    "text": "Verbonden via je thuisnetwerk",
+    "en": "Connected over your home network"
+  },
+  "app.shell.route_through": {
+    "text": "Verbonden via {host}",
+    "en": "Connected through {host}"
+  },
+  "app.shell.save_continue": {
+    "text": "Opslaan en doorgaan",
+    "en": "Save & Continue"
+  },
+  "app.shell.save_retry": {
+    "text": "Opslaan en opnieuw proberen",
+    "en": "Save & Retry"
+  },
+  "app.shell.search_clear": {
+    "text": "Zoekopdracht wissen",
+    "en": "Clear search"
+  },
+  "app.shell.search_close_collection": {
+    "text": "Collectie {name} sluiten",
+    "en": "Close the collection {name}"
+  },
+  "app.shell.search_field": {
+    "text": "Zoeken in foto’s en bestanden",
+    "en": "Search photos and files"
+  },
+  "app.shell.search_person": {
+    "text": "Persoon",
+    "en": "Person"
+  },
+  "app.shell.search_remove": {
+    "text": "{name} verwijderen",
+    "en": "Remove {name}"
+  },
+  "app.shell.search_remove_person": {
+    "text": "Deze persoon verwijderen",
+    "en": "Remove this person"
+  },
+  "app.shell.search_unnamed": {
+    "text": "Zonder naam",
+    "en": "Unnamed"
+  },
+  "app.shell.section_alerts": {
+    "text": "Meldingen",
+    "en": "Alerts"
+  },
+  "app.shell.section_collections": {
+    "text": "Collecties",
+    "en": "Collections"
+  },
+  "app.shell.section_files": {
+    "text": "Bestanden",
+    "en": "Files"
+  },
+  "app.shell.section_friends": {
+    "text": "Vrienden",
+    "en": "Friends"
+  },
+  "app.shell.section_images": {
+    "text": "Afbeeldingen",
+    "en": "Images"
+  },
+  "app.shell.section_people": {
+    "text": "Personen",
+    "en": "People"
+  },
+  "app.shell.section_settings": {
+    "text": "Instellingen",
+    "en": "Settings"
+  },
+  "app.shell.section_social": {
+    "text": "Social",
+    "en": "Social"
+  },
+  "app.shell.section_unread": {
+    "text": {
+      "one": "{section}, {count} ongelezen",
+      "other": "{section}, {count} ongelezen"
+    },
+    "en": {
+      "one": "{section}, {count} unread",
+      "other": "{section}, {count} unread"
+    }
+  },
+  "app.shell.selected": {
+    "text": {
+      "one": "{count} geselecteerd",
+      "other": "{count} geselecteerd"
+    },
+    "en": {
+      "one": "{count} selected",
+      "other": "{count} selected"
+    }
+  },
+  "app.shell.setup_device": {
+    "text": "Apparaat {id}",
+    "en": "Device {id}"
+  },
+  "app.shell.setup_device_older": {
+    "text": "Apparaat (oudere image)",
+    "en": "Device (older image)"
+  },
+  "app.shell.setup_enter_password": {
+    "text": "Voer het wachtwoord van het apparaat in",
+    "en": "Enter the device's password"
+  },
+  "app.shell.setup_looking": {
+    "text": "Zoeken naar een apparaat om in te stellen…",
+    "en": "Looking for a device to set up…"
+  },
+  "app.shell.setup_new_device": {
+    "text": "Nieuw apparaat instellen",
+    "en": "Set up a new device"
+  },
+  "app.shell.setup_open_device": {
+    "text": "Mijn apparaat openen",
+    "en": "Open my device"
+  },
+  "app.shell.setup_power_on": {
+    "text": "Zet het apparaat aan met de schijven aangesloten. Zolang het niet is ingesteld, maakt het zich via Bluetooth bekend; houd de telefoon er vlakbij.",
+    "en": "Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep the phone next to it."
+  },
+  "app.shell.setup_ready_as": {
+    "text": "Het apparaat is klaar als {domain}.",
+    "en": "The device is ready as {domain}."
+  },
+  "app.shell.setup_ready_home": {
+    "text": "Het apparaat is klaar op je thuisnetwerk.",
+    "en": "The device is ready on your home network."
+  },
+  "app.shell.setup_several": {
+    "text": "Er wachten meerdere apparaten om te worden ingesteld. De ID van elk apparaat staat op de configuratiepagina ervan, waar je met “Lampje laten knipperen” ziet welk apparaat het is. Het sterkste signaal is meestal het dichtstbijzijnde.",
+    "en": "Several devices are waiting to be set up. Each one's ID is on its setup page, where \"Blink its light\" shows which box it is. The strongest signal is usually the closest."
+  },
+  "app.shell.setup_signin_failed": {
+    "text": "Kan het inloggen niet voltooien",
+    "en": "Could not finish the sign-in"
+  },
+  "app.shell.setup_signin_unfinished": {
+    "text": "Het inloggen is niet voltooid",
+    "en": "The sign-in did not finish"
+  },
+  "app.shell.setup_signing_in": {
+    "text": "Inloggen met het wachtwoord dat je bij de configuratie hebt gekozen.",
+    "en": "Signing in with the password you chose in the setup."
+  },
+  "app.shell.setup_unknown_provider": {
+    "text": "Onbekende inlogprovider",
+    "en": "Unknown sign-in provider"
+  },
+  "app.shell.setup_which": {
+    "text": "Welk apparaat?",
+    "en": "Which device?"
+  },
+  "app.shell.share_as_gallery": {
+    "text": "Delen als galerij",
+    "en": "Share as gallery"
+  },
+  "app.shell.share_as_gallery_menu": {
+    "text": "Delen als galerij",
+    "en": "Share as Gallery"
+  },
+  "app.shell.show_in_images": {
+    "text": "In Afbeeldingen tonen",
+    "en": "Show in Images"
+  },
+  "app.shell.still_trying": {
+    "text": "Nog steeds aan het proberen…",
+    "en": "Still trying…"
+  },
+  "app.shell.storage": {
+    "text": "Opslag",
+    "en": "Storage"
+  },
+  "app.shell.storage_cpu": {
+    "text": "CPU",
+    "en": "CPU"
+  },
+  "app.shell.storage_disks": {
+    "text": "Schijven",
+    "en": "Disks"
+  },
+  "app.shell.storage_free": {
+    "text": "Vrij",
+    "en": "Free"
+  },
+  "app.shell.storage_memory": {
+    "text": "Geheugen",
+    "en": "Memory"
+  },
+  "app.shell.storage_of": {
+    "text": "{used} van {total}",
+    "en": "{used} of {total}"
+  },
+  "app.shell.storage_reading": {
+    "text": "Lezen…",
+    "en": "Reading…"
+  },
+  "app.shell.storage_system_card": {
+    "text": "Systeemkaart",
+    "en": "System card"
+  },
+  "app.shell.storage_unavailable": {
+    "text": "Opslag nu niet beschikbaar",
+    "en": "Storage unavailable right now"
+  },
+  "app.shell.storage_used": {
+    "text": "{used} van {total} gebruikt",
+    "en": "{used} of {total} used"
+  },
+  "app.shell.terms": {
+    "text": "Voorwaarden",
+    "en": "Terms",
+    "reviewed": "claude-backtranslation 2026-10-11 #173f3e00"
+  },
+  "app.shell.thumb_cache_usage": {
+    "text": "{used} van {limit} in gebruik",
+    "en": "Using {used} of {limit}"
+  },
+  "app.shell.upload_left": {
+    "text": {
+      "one": "Nog {count}",
+      "other": "Nog {count}"
+    },
+    "en": {
+      "one": "{count} left",
+      "other": "{count} left"
+    }
+  },
+  "app.shell.upload_paused": {
+    "text": "Gepauzeerd",
+    "en": "Paused"
+  },
+  "app.shell.upload_queue": {
+    "text": "Uploadwachtrij",
+    "en": "Upload queue"
+  },
+  "app.shell.upload_uploading": {
+    "text": "Uploaden…",
+    "en": "Uploading…"
+  },
+  "app.shell.welcome": {
+    "text": "Welkom",
+    "en": "Welcome"
+  }
+}

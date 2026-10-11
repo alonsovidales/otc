@@ -1,0 +1,65 @@
+{
+  "push.comment.liked": {
+    "text": "gefällt dein Kommentar",
+    "en": "liked your comment"
+  },
+  "push.friend.accepted": {
+    "text": "hat deine Freundschaftsanfrage angenommen",
+    "en": "accepted your friend request"
+  },
+  "push.friend.request": {
+    "text": "hat dir eine Freundschaftsanfrage gesendet",
+    "en": "sent you a friend request"
+  },
+  "push.offline.body": {
+    "text": "Dein Gerät scheint offline zu sein",
+    "en": "Your device appears to have gone offline"
+  },
+  "push.post.commented": {
+    "text": "hat deinen Beitrag kommentiert",
+    "en": "commented on your post"
+  },
+  "push.post.liked": {
+    "text": "gefällt dein Beitrag",
+    "en": "liked your post"
+  },
+  "push.post.new": {
+    "text": "hat etwas Neues gepostet",
+    "en": "posted something new"
+  },
+  "push.raid.stopped_bottom": {
+    "text": "Das Laufwerk im unteren blauen USB-Anschluss ist ausgefallen. Deine Dateien sind auf dem anderen sicher: Ersetze das ausgefallene bald.",
+    "en": "The disk in the bottom blue USB port failed. Your files are safe on the other one: replace it soon.",
+    "reviewed": "claude-backtranslation 2026-10-11 #244ba712"
+  },
+  "push.raid.stopped_title": {
+    "text": "Speicherlaufwerk funktioniert nicht mehr",
+    "en": "Storage disk stopped working"
+  },
+  "push.raid.stopped_top": {
+    "text": "Das Laufwerk im oberen blauen USB-Anschluss ist ausgefallen. Deine Dateien sind auf dem anderen sicher: Ersetze das ausgefallene bald.",
+    "en": "The disk in the top blue USB port failed. Your files are safe on the other one: replace it soon.",
+    "reviewed": "claude-backtranslation 2026-10-11 #0fd150a8"
+  },
+  "push.raid.stopped_unknown": {
+    "text": "Eines der beiden Speicherlaufwerke ist ausgefallen. Deine Dateien sind auf dem anderen sicher: Ersetze das ausgefallene bald.",
+    "en": "One of the two storage disks failed. Your files are safe on the other one: replace it soon.",
+    "reviewed": "claude-backtranslation 2026-10-11 #71d6b63b"
+  },
+  "push.raid.working_body": {
+    "text": "Die Spiegelung ist vollständig: Jede Datei ist wieder auf beiden Laufwerken.",
+    "en": "The mirror is complete: every file is on both disks again."
+  },
+  "push.raid.working_title": {
+    "text": "Speicherlaufwerke funktionieren wieder",
+    "en": "Storage disks working again"
+  },
+  "push.update.critical_body": {
+    "text": "Installiere es in den Einstellungen.",
+    "en": "Install it from Settings."
+  },
+  "push.update.critical_title": {
+    "text": "Kritisches Update {version} – bitte bald installieren",
+    "en": "Critical update {version} - please install it soon"
+  }
+}

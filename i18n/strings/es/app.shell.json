@@ -1,0 +1,596 @@
+{
+  "app.shell.account_disabled": {
+    "text": "Esta cuenta se ha desactivado",
+    "en": "This account has been disabled"
+  },
+  "app.shell.add_to_collection": {
+    "text": "Añadir a una colección",
+    "en": "Add to collection"
+  },
+  "app.shell.address_invalid": {
+    "text": "La dirección “{address}” no es válida.",
+    "en": "The address \"{address}\" isn't valid."
+  },
+  "app.shell.auth_failed": {
+    "text": "Error de autenticación",
+    "en": "Authentication failed",
+    "reviewed": "claude-backtranslation 2026-10-11 #7249a78a"
+  },
+  "app.shell.ble_bad_answer": {
+    "text": "El dispositivo ha enviado una respuesta que esta app no puede leer",
+    "en": "The device sent an answer this app could not read"
+  },
+  "app.shell.ble_closed": {
+    "text": "Se ha cerrado la configuración",
+    "en": "Setup was closed"
+  },
+  "app.shell.ble_link_lost": {
+    "text": "Se ha perdido la conexión con el dispositivo: reconectando. Mantén el teléfono a su lado.",
+    "en": "Connection to the device lost - reconnecting. Keep the phone next to it."
+  },
+  "app.shell.ble_not_connected": {
+    "text": "No hay conexión con el dispositivo",
+    "en": "Not connected to the device"
+  },
+  "app.shell.ble_timeout": {
+    "text": "El dispositivo no ha respondido a tiempo",
+    "en": "The device did not answer in time"
+  },
+  "app.shell.bluetooth_needed": {
+    "text": "Se necesita acceso a Bluetooth",
+    "en": "Bluetooth access is needed"
+  },
+  "app.shell.bluetooth_off": {
+    "text": "El Bluetooth está desactivado",
+    "en": "Bluetooth is off"
+  },
+  "app.shell.cant_connect": {
+    "text": "No se puede conectar con tu dispositivo",
+    "en": "Can't connect to your device"
+  },
+  "app.shell.close_and_leave": {
+    "text": "Cerrar y dejar este dispositivo",
+    "en": "Close and leave this device"
+  },
+  "app.shell.collection_card": {
+    "text": {
+      "one": "{name}, {count} elemento",
+      "other": "{name}, {count} elementos"
+    },
+    "en": {
+      "one": "{name}, {count} item",
+      "other": "{name}, {count} items"
+    }
+  },
+  "app.shell.collection_items": {
+    "text": {
+      "one": "{count} elemento",
+      "other": "{count} elementos"
+    },
+    "en": {
+      "one": "{count} item",
+      "other": "{count} items"
+    }
+  },
+  "app.shell.collection_untitled": {
+    "text": "Colección sin nombre",
+    "en": "Untitled collection"
+  },
+  "app.shell.collections_empty_text": {
+    "text": "Selecciona fotos en Imágenes y luego elige <b>Añadir a una colección</b>.",
+    "en": "Select photos in Images, then choose <b>Add to collection</b>."
+  },
+  "app.shell.collections_empty_title": {
+    "text": "Aún no hay colecciones",
+    "en": "No collections yet"
+  },
+  "app.shell.collections_failed_text": {
+    "text": "Comprueba que tu dispositivo está en línea y vuelve a intentarlo.",
+    "en": "Check that your device is online, then try again."
+  },
+  "app.shell.collections_failed_title": {
+    "text": "No se han podido cargar tus colecciones",
+    "en": "Couldn't load your collections"
+  },
+  "app.shell.collections_go_to_images": {
+    "text": "Ir a Imágenes",
+    "en": "Go to Images"
+  },
+  "app.shell.collections_loading": {
+    "text": "Cargando colecciones",
+    "en": "Loading collections"
+  },
+  "app.shell.collections_slow_text": {
+    "text": "Tus colecciones están tardando más de lo habitual en cargarse.",
+    "en": "Your collections are taking longer than usual to load."
+  },
+  "app.shell.collections_slow_title": {
+    "text": "Seguimos esperando a tu dispositivo",
+    "en": "Still waiting for your device"
+  },
+  "app.shell.connect_title": {
+    "text": "Conectar con Off The Cloud",
+    "en": "Connect to Off The Cloud"
+  },
+  "app.shell.connection_heading": {
+    "text": "Conexión",
+    "en": "Connection"
+  },
+  "app.shell.critical_update": {
+    "text": "Actualización crítica {version} disponible. Instálala lo antes posible.",
+    "en": "Critical update {version} available. Install it as soon as possible.",
+    "reviewed": "claude-backtranslation 2026-10-11 #634ab939"
+  },
+  "app.shell.critical_update_summary": {
+    "text": "Actualización crítica {version} disponible. {summary} Instálala lo antes posible.",
+    "en": "Critical update {version} available. {summary} Install it as soon as possible.",
+    "reviewed": "claude-backtranslation 2026-10-11 #3ee9ec50"
+  },
+  "app.shell.device_unavailable": {
+    "text": "Este dispositivo no está disponible ahora mismo",
+    "en": "This device isn't available right now"
+  },
+  "app.shell.endpoint_address": {
+    "text": "Dirección (wss://host/ws)",
+    "en": "Address (wss://host/ws)"
+  },
+  "app.shell.endpoint_custom": {
+    "text": "Dirección personalizada",
+    "en": "Custom address"
+  },
+  "app.shell.endpoint_custom_note": {
+    "text": "Para un dispositivo que no está en el puente de Off The Cloud: tu propio puente, Tailscale Funnel o la red local (ws://192.168.…:8080/ws).",
+    "en": "For a device not on the Off The Cloud bridge - your own bridge, Tailscale Funnel, or the local network (ws://192.168.…:8080/ws)."
+  },
+  "app.shell.endpoint_device_name": {
+    "text": "Nombre del dispositivo",
+    "en": "Device name"
+  },
+  "app.shell.host_not_found": {
+    "text": "No se encuentra esa dirección. Comprueba el nombre o la dirección del dispositivo.",
+    "en": "That address can't be found. Check the device name or address."
+  },
+  "app.shell.insecure": {
+    "text": "No se ha podido establecer una conexión segura con esa dirección.",
+    "en": "Couldn't make a secure connection to that address.",
+    "reviewed": "claude-backtranslation 2026-10-11 #7906da2e"
+  },
+  "app.shell.keep_out_of_images": {
+    "text": "Excluir de Imágenes",
+    "en": "Keep out of Images",
+    "reviewed": "claude-backtranslation 2026-10-11 #71ef7b35"
+  },
+  "app.shell.leave": {
+    "text": "Dejar",
+    "en": "Leave",
+    "reviewed": "claude-backtranslation 2026-10-11 #610907d6"
+  },
+  "app.shell.leave_button": {
+    "text": "Configurar o conectar otro dispositivo",
+    "en": "Set up or connect a different device"
+  },
+  "app.shell.leave_message_connection": {
+    "text": "Volverás a la pantalla de conexión para conectarte a un dispositivo o configurar uno nuevo. No se elimina nada del dispositivo, y su dirección y su contraseña seguirán rellenadas allí para volver a conectarte más adelante.",
+    "en": "You'll go back to the connection screen, to connect to a device or set up a new one. Nothing on the device is deleted, and its address and password stay filled in there, to connect to it again later.",
+    "reviewed": "claude-backtranslation 2026-10-11 #1c0bec84"
+  },
+  "app.shell.leave_message_start": {
+    "text": "Volverás al inicio para configurar un dispositivo nuevo o conectarte a otro. No se elimina nada del dispositivo, y su dirección y su contraseña seguirán rellenadas allí para volver a conectarte más adelante.",
+    "en": "You'll go back to the start, to set up a new device or connect to another one. Nothing on the device is deleted, and its address and password stay filled in there, to connect to it again later.",
+    "reviewed": "claude-backtranslation 2026-10-11 #69a27b45"
+  },
+  "app.shell.leave_title": {
+    "text": "¿Dejar este dispositivo?",
+    "en": "Leave this device?",
+    "reviewed": "claude-backtranslation 2026-10-11 #6ca4d19a"
+  },
+  "app.shell.menu_device": {
+    "text": "Dispositivo",
+    "en": "Device"
+  },
+  "app.shell.menu_hide": {
+    "text": "Ocultar menú",
+    "en": "Hide menu"
+  },
+  "app.shell.menu_sharing": {
+    "text": "Compartir",
+    "en": "Sharing"
+  },
+  "app.shell.menu_show": {
+    "text": "Mostrar menú",
+    "en": "Show menu"
+  },
+  "app.shell.mirror_degraded": {
+    "text": "Espejo degradado",
+    "en": "Mirror degraded"
+  },
+  "app.shell.mirror_in_sync": {
+    "text": "Espejo sincronizado",
+    "en": "Mirror in sync"
+  },
+  "app.shell.mirror_none": {
+    "text": "Sin espejo",
+    "en": "No mirror"
+  },
+  "app.shell.mirror_syncing": {
+    "text": "Sincronizando espejo ({percent} %)",
+    "en": "Mirror syncing ({percent}%)"
+  },
+  "app.shell.mirror_unknown": {
+    "text": "Estado del espejo desconocido",
+    "en": "Mirror state unknown"
+  },
+  "app.shell.new_post": {
+    "text": "Nueva publicación",
+    "en": "New post"
+  },
+  "app.shell.no_answer_address": {
+    "text": "El dispositivo no responde. Puede que esté apagado o que la dirección sea incorrecta.",
+    "en": "The device isn't answering. It may be off, or the address may be wrong."
+  },
+  "app.shell.no_public_key": {
+    "text": "No se ha podido obtener la clave pública de la conexión",
+    "en": "Unable to fetch the connection's public key",
+    "reviewed": "claude-backtranslation 2026-10-11 #ccc1b7ce"
+  },
+  "app.shell.not_connected": {
+    "text": "No hay conexión",
+    "en": "Not connected"
+  },
+  "app.shell.not_otc": {
+    "text": "La dirección ha respondido, pero no como un dispositivo Off The Cloud. Comprueba que termina en /ws y que apunta a tu dispositivo o a su nombre en el puente.",
+    "en": "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name."
+  },
+  "app.shell.offline": {
+    "text": "Este teléfono no tiene conexión. Conéctate a una red Wi-Fi o a los datos móviles.",
+    "en": "This phone is offline. Connect to Wi-Fi or mobile data."
+  },
+  "app.shell.onboarding_last_device": {
+    "text": "Se han rellenado con los datos del dispositivo que dejaste. Toca “Guardar y continuar” para volver a conectarte a él, o cámbialos para usar otro.",
+    "en": "Filled in from the device you left. Tap Save & Continue to connect to it again, or change it to use another one."
+  },
+  "app.shell.onboarding_pending": {
+    "text": "Se han rellenado con los datos del dispositivo que configuraste con este teléfono. Cuando termine su instalación (unos 20 minutos), toca “Guardar y continuar”.",
+    "en": "Filled in from the device you set up with this phone. Once its install has finished (about 20 minutes), tap Save & Continue."
+  },
+  "app.shell.onboarding_setup_footer": {
+    "text": "Para un dispositivo recién sacado de la caja: hace la configuración por Bluetooth y esta app pasa a ser su app. Si vienes de otro dispositivo, cierra sesión primero.",
+    "en": "For a device fresh out of the box: it runs the setup over Bluetooth, and this app becomes its app. Log out first if you are switching from another device."
+  },
+  "app.shell.percent": {
+    "text": "{percent} %",
+    "en": "{percent}%"
+  },
+  "app.shell.privacy": {
+    "text": "Privacidad",
+    "en": "Privacy",
+    "reviewed": "claude-backtranslation 2026-10-11 #ba42b0ce"
+  },
+  "app.shell.problem_files_failed": {
+    "text": "Los archivos aparecerán en cuanto tu dispositivo responda.",
+    "en": "The files will appear as soon as your device answers."
+  },
+  "app.shell.problem_files_offline": {
+    "text": "Este teléfono no tiene conexión. Los archivos aparecerán cuando vuelva a estar en línea.",
+    "en": "This phone is offline. The files will appear once it's back online."
+  },
+  "app.shell.problem_files_slow": {
+    "text": "Tu dispositivo ha tardado demasiado en responder. Los archivos aparecerán en cuanto lo haga.",
+    "en": "Your device took too long to answer. The files will appear as soon as it does."
+  },
+  "app.shell.problem_files_unreachable": {
+    "text": "Ahora mismo no se puede contactar con tu dispositivo. Los archivos aparecerán en cuanto responda.",
+    "en": "Your device isn't reachable right now. The files will appear as soon as it answers."
+  },
+  "app.shell.problem_more_photos": {
+    "text": "No se han podido cargar más fotos.",
+    "en": "Couldn't load more photos."
+  },
+  "app.shell.problem_more_posts": {
+    "text": "No se han podido cargar más publicaciones.",
+    "en": "Couldn't load more posts."
+  },
+  "app.shell.problem_photos_failed": {
+    "text": "Tus fotos aparecerán en cuanto tu dispositivo responda.",
+    "en": "Your photos will appear as soon as your device answers."
+  },
+  "app.shell.problem_photos_loading": {
+    "text": "Cargando fotos",
+    "en": "Loading photos"
+  },
+  "app.shell.problem_photos_offline": {
+    "text": "Este teléfono no tiene conexión. Tus fotos aparecerán cuando vuelva a estar en línea.",
+    "en": "This phone is offline. Your photos will appear once it's back online."
+  },
+  "app.shell.problem_photos_slow": {
+    "text": "Tu dispositivo ha tardado demasiado en responder. Tus fotos aparecerán en cuanto lo haga.",
+    "en": "Your device took too long to answer. Your photos will appear as soon as it does."
+  },
+  "app.shell.problem_photos_title": {
+    "text": "No se han podido cargar tus fotos",
+    "en": "Couldn't load your photos"
+  },
+  "app.shell.problem_photos_unreachable": {
+    "text": "Ahora mismo no se puede contactar con tu dispositivo. Tus fotos aparecerán en cuanto responda.",
+    "en": "Your device isn't reachable right now. Your photos will appear as soon as it answers."
+  },
+  "app.shell.problem_posts_failed": {
+    "text": "Las publicaciones aparecerán en cuanto tu dispositivo responda.",
+    "en": "The posts will appear as soon as your device answers."
+  },
+  "app.shell.problem_posts_offline": {
+    "text": "Este teléfono no tiene conexión. Las publicaciones aparecerán cuando vuelva a estar en línea.",
+    "en": "This phone is offline. The posts will appear once it's back online."
+  },
+  "app.shell.problem_posts_slow": {
+    "text": "Tu dispositivo ha tardado demasiado en responder. Las publicaciones aparecerán en cuanto lo haga.",
+    "en": "Your device took too long to answer. The posts will appear as soon as it does."
+  },
+  "app.shell.problem_posts_unreachable": {
+    "text": "Ahora mismo no se puede contactar con tu dispositivo. Las publicaciones aparecerán en cuanto responda.",
+    "en": "Your device isn't reachable right now. The posts will appear as soon as it answers."
+  },
+  "app.shell.problem_trying": {
+    "text": "Reintentando…",
+    "en": "Trying…"
+  },
+  "app.shell.problem_video": {
+    "text": "No se ha podido reproducir este vídeo.",
+    "en": "Couldn't play this video."
+  },
+  "app.shell.problem_waiting": {
+    "text": "Seguimos esperando a tu dispositivo…",
+    "en": "Still waiting for your device…"
+  },
+  "app.shell.route_configured": {
+    "text": "Conectado a través de la dirección configurada",
+    "en": "Connected through the configured address"
+  },
+  "app.shell.route_home": {
+    "text": "Conectado a través de tu red doméstica",
+    "en": "Connected over your home network"
+  },
+  "app.shell.route_through": {
+    "text": "Conectado a través de {host}",
+    "en": "Connected through {host}"
+  },
+  "app.shell.save_continue": {
+    "text": "Guardar y continuar",
+    "en": "Save & Continue"
+  },
+  "app.shell.save_retry": {
+    "text": "Guardar y reintentar",
+    "en": "Save & Retry"
+  },
+  "app.shell.search_clear": {
+    "text": "Borrar búsqueda",
+    "en": "Clear search"
+  },
+  "app.shell.search_close_collection": {
+    "text": "Cerrar la colección {name}",
+    "en": "Close the collection {name}"
+  },
+  "app.shell.search_field": {
+    "text": "Buscar fotos y archivos",
+    "en": "Search photos and files"
+  },
+  "app.shell.search_person": {
+    "text": "Persona",
+    "en": "Person"
+  },
+  "app.shell.search_remove": {
+    "text": "Quitar {name}",
+    "en": "Remove {name}"
+  },
+  "app.shell.search_remove_person": {
+    "text": "Quitar a esta persona",
+    "en": "Remove this person"
+  },
+  "app.shell.search_unnamed": {
+    "text": "Sin nombre",
+    "en": "Unnamed"
+  },
+  "app.shell.section_alerts": {
+    "text": "Alertas",
+    "en": "Alerts"
+  },
+  "app.shell.section_collections": {
+    "text": "Colecciones",
+    "en": "Collections"
+  },
+  "app.shell.section_files": {
+    "text": "Archivos",
+    "en": "Files"
+  },
+  "app.shell.section_friends": {
+    "text": "Amigos",
+    "en": "Friends"
+  },
+  "app.shell.section_images": {
+    "text": "Imágenes",
+    "en": "Images"
+  },
+  "app.shell.section_people": {
+    "text": "Personas",
+    "en": "People"
+  },
+  "app.shell.section_settings": {
+    "text": "Ajustes",
+    "en": "Settings"
+  },
+  "app.shell.section_social": {
+    "text": "Social",
+    "en": "Social"
+  },
+  "app.shell.section_unread": {
+    "text": {
+      "one": "{section}, {count} sin leer",
+      "other": "{section}, {count} sin leer"
+    },
+    "en": {
+      "one": "{section}, {count} unread",
+      "other": "{section}, {count} unread"
+    }
+  },
+  "app.shell.selected": {
+    "text": {
+      "one": "{count} seleccionado",
+      "other": "{count} seleccionados"
+    },
+    "en": {
+      "one": "{count} selected",
+      "other": "{count} selected"
+    }
+  },
+  "app.shell.setup_device": {
+    "text": "Dispositivo {id}",
+    "en": "Device {id}"
+  },
+  "app.shell.setup_device_older": {
+    "text": "Dispositivo (imagen antigua)",
+    "en": "Device (older image)"
+  },
+  "app.shell.setup_enter_password": {
+    "text": "Introduce la contraseña del dispositivo",
+    "en": "Enter the device's password"
+  },
+  "app.shell.setup_looking": {
+    "text": "Buscando un dispositivo para configurar…",
+    "en": "Looking for a device to set up…"
+  },
+  "app.shell.setup_new_device": {
+    "text": "Configurar dispositivo nuevo",
+    "en": "Set up a new device"
+  },
+  "app.shell.setup_open_device": {
+    "text": "Abrir mi dispositivo",
+    "en": "Open my device"
+  },
+  "app.shell.setup_power_on": {
+    "text": "Enciende el dispositivo con sus discos conectados. Hasta que esté configurado, se anuncia por Bluetooth; mantén el teléfono a su lado.",
+    "en": "Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep the phone next to it."
+  },
+  "app.shell.setup_ready_as": {
+    "text": "El dispositivo está listo como {domain}.",
+    "en": "The device is ready as {domain}."
+  },
+  "app.shell.setup_ready_home": {
+    "text": "El dispositivo está listo en tu red doméstica.",
+    "en": "The device is ready on your home network."
+  },
+  "app.shell.setup_several": {
+    "text": "Hay varios dispositivos esperando a que los configures. El ID de cada uno está en su página de configuración, donde “Hacer parpadear la luz” muestra cuál es. La señal más fuerte suele ser la del más cercano.",
+    "en": "Several devices are waiting to be set up. Each one's ID is on its setup page, where \"Blink its light\" shows which box it is. The strongest signal is usually the closest."
+  },
+  "app.shell.setup_signin_failed": {
+    "text": "No se ha podido completar el inicio de sesión",
+    "en": "Could not finish the sign-in"
+  },
+  "app.shell.setup_signin_unfinished": {
+    "text": "El inicio de sesión no ha terminado",
+    "en": "The sign-in did not finish"
+  },
+  "app.shell.setup_signing_in": {
+    "text": "Iniciando sesión con la contraseña que elegiste en la configuración.",
+    "en": "Signing in with the password you chose in the setup."
+  },
+  "app.shell.setup_unknown_provider": {
+    "text": "Proveedor de inicio de sesión desconocido",
+    "en": "Unknown sign-in provider"
+  },
+  "app.shell.setup_which": {
+    "text": "¿Qué dispositivo?",
+    "en": "Which device?"
+  },
+  "app.shell.share_as_gallery": {
+    "text": "Compartir como galería",
+    "en": "Share as gallery"
+  },
+  "app.shell.share_as_gallery_menu": {
+    "text": "Compartir como galería",
+    "en": "Share as Gallery"
+  },
+  "app.shell.show_in_images": {
+    "text": "Mostrar en Imágenes",
+    "en": "Show in Images"
+  },
+  "app.shell.still_trying": {
+    "text": "Seguimos intentándolo…",
+    "en": "Still trying…"
+  },
+  "app.shell.storage": {
+    "text": "Almacenamiento",
+    "en": "Storage"
+  },
+  "app.shell.storage_cpu": {
+    "text": "CPU",
+    "en": "CPU"
+  },
+  "app.shell.storage_disks": {
+    "text": "Discos",
+    "en": "Disks"
+  },
+  "app.shell.storage_free": {
+    "text": "Libre",
+    "en": "Free"
+  },
+  "app.shell.storage_memory": {
+    "text": "Memoria",
+    "en": "Memory"
+  },
+  "app.shell.storage_of": {
+    "text": "{used} de {total}",
+    "en": "{used} of {total}"
+  },
+  "app.shell.storage_reading": {
+    "text": "Leyendo…",
+    "en": "Reading…"
+  },
+  "app.shell.storage_system_card": {
+    "text": "Tarjeta SD",
+    "en": "System card"
+  },
+  "app.shell.storage_unavailable": {
+    "text": "Almacenamiento no disponible",
+    "en": "Storage unavailable right now"
+  },
+  "app.shell.storage_used": {
+    "text": "{used} de {total} en uso",
+    "en": "{used} of {total} used"
+  },
+  "app.shell.terms": {
+    "text": "Condiciones",
+    "en": "Terms",
+    "reviewed": "claude-backtranslation 2026-10-11 #1424a865"
+  },
+  "app.shell.thumb_cache_usage": {
+    "text": "En uso: {used} de {limit}",
+    "en": "Using {used} of {limit}"
+  },
+  "app.shell.upload_left": {
+    "text": {
+      "one": "Queda {count}",
+      "other": "Quedan {count}"
+    },
+    "en": {
+      "one": "{count} left",
+      "other": "{count} left"
+    }
+  },
+  "app.shell.upload_paused": {
+    "text": "En pausa",
+    "en": "Paused"
+  },
+  "app.shell.upload_queue": {
+    "text": "Cola de subida",
+    "en": "Upload queue"
+  },
+  "app.shell.upload_uploading": {
+    "text": "Subiendo…",
+    "en": "Uploading…"
+  },
+  "app.shell.welcome": {
+    "text": "Te damos la bienvenida",
+    "en": "Welcome"
+  }
+}

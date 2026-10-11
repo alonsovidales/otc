@@ -1,0 +1,35 @@
+{
+  "dev.users.bad_username": {
+    "text": "der Benutzername darf nur Kleinbuchstaben, Ziffern oder Bindestriche enthalten",
+    "en": "username must be lowercase letters, digits, or hyphens"
+  },
+  "dev.users.bridge_check_failed": {
+    "text": "die Bridge war nicht erreichbar, um {domain} zu prüfen, daher wurde dieser Benutzer nicht erstellt – versuche es gleich noch einmal oder entferne das Häkchen bei „Bridge-Zugang anfordern“, um ein rein lokales Konto zu erstellen: {detail}",
+    "en": "could not reach the bridge to check {domain}, so this user was not created - try again in a moment, or uncheck \"request bridge access\" to create a local-only account: {detail}"
+  },
+  "dev.users.confirm_mismatch": {
+    "text": "der zur Bestätigung eingegebene Benutzername stimmt nicht überein",
+    "en": "confirmation username does not match",
+    "reviewed": "claude-backtranslation 2026-10-11 #b102c526"
+  },
+  "dev.users.name_taken_on_bridge": {
+    "text": "{domain} ist auf der Bridge bereits vergeben – wähle einen anderen Benutzernamen oder entferne das Häkchen bei „Bridge-Zugang anfordern“, um diesen Benutzer nur für dein eigenes Netzwerk zu erstellen",
+    "en": "{domain} is already taken on the bridge - pick a different username, or uncheck \"request bridge access\" to create this user for your own network only"
+  },
+  "dev.users.port_in_use": {
+    "text": "Port {port} wird bereits von einem anderen Benutzer verwendet",
+    "en": "port {port} is already in use by another user"
+  },
+  "dev.users.stop_failed": {
+    "text": "der Prozess von {username} konnte nicht beendet werden: {detail}",
+    "en": "could not stop {username}'s process: {detail}"
+  },
+  "dev.users.storage_dir_failed": {
+    "text": "beim Anlegen des Speicherordners: {detail}",
+    "en": "creating storage directory: {detail}"
+  },
+  "dev.users.username_taken": {
+    "text": "Benutzername bereits vergeben",
+    "en": "username already taken"
+  }
+}

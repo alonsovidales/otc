@@ -1,0 +1,14 @@
+{
+  "dev.galleryjob.copy_crashed": {
+    "text": "a cópia parou: um ficheiro fez falhar o processamento",
+    "en": "the copy stopped: a file crashed the processing"
+  },
+  "dev.galleryjob.copy_failed": {
+    "text": "não foi possível copiar o ficheiro {name}: {detail}",
+    "en": "could not copy {name}: {detail}"
+  },
+  "dev.galleryjob.no_small_copy": {
+    "text": "não foi possível criar uma cópia pequena da foto {name}",
+    "en": "could not make a small copy of {name}"
+  }
+}

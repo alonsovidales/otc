@@ -1,0 +1,35 @@
+{
+  "dev.users.bad_username": {
+    "text": "el nombre de usuario solo puede tener letras minúsculas, números o guiones",
+    "en": "username must be lowercase letters, digits, or hyphens"
+  },
+  "dev.users.bridge_check_failed": {
+    "text": "no se ha podido contactar con el puente para comprobar {domain}, así que no se ha creado este usuario: vuelve a intentarlo en un momento o desmarca “Solicitar acceso al puente” para crear una cuenta solo local: {detail}",
+    "en": "could not reach the bridge to check {domain}, so this user was not created - try again in a moment, or uncheck \"request bridge access\" to create a local-only account: {detail}"
+  },
+  "dev.users.confirm_mismatch": {
+    "text": "el nombre de usuario de confirmación no coincide",
+    "en": "confirmation username does not match",
+    "reviewed": "claude-backtranslation 2026-10-11 #826c6bcf"
+  },
+  "dev.users.name_taken_on_bridge": {
+    "text": "{domain} ya está ocupado en el puente: elige otro nombre de usuario o desmarca “Solicitar acceso al puente” para crear este usuario solo para tu propia red",
+    "en": "{domain} is already taken on the bridge - pick a different username, or uncheck \"request bridge access\" to create this user for your own network only"
+  },
+  "dev.users.port_in_use": {
+    "text": "otro usuario ya usa el puerto {port}",
+    "en": "port {port} is already in use by another user"
+  },
+  "dev.users.stop_failed": {
+    "text": "no se ha podido detener el proceso de {username}: {detail}",
+    "en": "could not stop {username}'s process: {detail}"
+  },
+  "dev.users.storage_dir_failed": {
+    "text": "al crear la carpeta de almacenamiento: {detail}",
+    "en": "creating storage directory: {detail}"
+  },
+  "dev.users.username_taken": {
+    "text": "ese nombre de usuario ya existe",
+    "en": "username already taken"
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "dev.social.bad_domain": {
+    "text": "il dominio “{domain}” non è un indirizzo {tld}",
+    "en": "domain \"{domain}\" is not a {tld} address"
+  },
+  "dev.social.blocked": {
+    "text": "hai bloccato questo dispositivo: sbloccalo prima di inviare una richiesta",
+    "en": "you blocked this device - unblock it before sending a request"
+  },
+  "dev.social.change_status_failed": {
+    "text": "Errore durante la modifica dello stato dell’amicizia: {detail}",
+    "en": "Error trying to change friend status: {detail}"
+  },
+  "dev.social.comment_failed": {
+    "text": "errore durante la pubblicazione del commento: {detail}",
+    "en": "error publishing comment: {detail}"
+  },
+  "dev.social.comment_likers_failed": {
+    "text": "errore durante il recupero di chi ha messo Mi piace al commento: {detail}",
+    "en": "error getting comment likers: {detail}"
+  },
+  "dev.social.delete_comment_failed": {
+    "text": "errore durante l’eliminazione del commento: {detail}",
+    "en": "error deleting comment: {detail}"
+  },
+  "dev.social.delete_friendship_failed": {
+    "text": "Errore durante l’eliminazione dell’amicizia: {detail}",
+    "en": "Error trying to delete the friendship: {detail}"
+  },
+  "dev.social.delete_post_failed": {
+    "text": "errore durante l’eliminazione del post: {detail}",
+    "en": "error deleting publication: {detail}"
+  },
+  "dev.social.events_failed": {
+    "text": "errore durante il recupero degli eventi: {detail}",
+    "en": "error trying to retrieve events: {detail}"
+  },
+  "dev.social.friendship_lookup_failed": {
+    "text": "errore durante il recupero dell’amicizia: {detail}",
+    "en": "error retreiving friendship: {detail}"
+  },
+  "dev.social.friendships_failed": {
+    "text": "Errore durante la lettura delle amicizie: {detail}",
+    "en": "Error reading friendships: {detail}"
+  },
+  "dev.social.like_comment_failed": {
+    "text": "errore durante l’aggiunta del Mi piace al commento: {detail}",
+    "en": "error liking publication comment: {detail}"
+  },
+  "dev.social.like_post_failed": {
+    "text": "errore durante l’aggiunta del Mi piace al post: {detail}",
+    "en": "error liking publication: {detail}"
+  },
+  "dev.social.load_file_failed": {
+    "text": "errore durante la lettura del file “{path}”: {detail}",
+    "en": "error loading file \"{path}\": {detail}"
+  },
+  "dev.social.media_not_available": {
+    "text": "contenuto multimediale non disponibile",
+    "en": "media not available"
+  },
+  "dev.social.no_friendship_with": {
+    "text": "nessuna amicizia con {domain}",
+    "en": "no friendship with {domain}"
+  },
+  "dev.social.no_longer_friends": {
+    "text": "non siete più amici",
+    "en": "no longer friends"
+  },
+  "dev.social.no_such_comment": {
+    "text": "commento inesistente",
+    "en": "no such comment"
+  },
+  "dev.social.no_such_post": {
+    "text": "post inesistente",
+    "en": "no such publication"
+  },
+  "dev.social.not_accepted": {
+    "text": "Amicizia non accettata",
+    "en": "Friendship not accepted"
+  },
+  "dev.social.not_found": {
+    "text": "Amicizia non trovata",
+    "en": "Friendship not found"
+  },
+  "dev.social.not_found_error": {
+    "text": "Errore: amicizia non trovata",
+    "en": "Error: Friendship not found"
+  },
+  "dev.social.not_your_comment": {
+    "text": "non è un tuo commento, né un commento a uno dei tuoi post",
+    "en": "not your comment, nor a comment on one of your posts"
+  },
+  "dev.social.not_your_post": {
+    "text": "non è un tuo post",
+    "en": "not your publication"
+  },
+  "dev.social.post_failed": {
+    "text": "errore durante la creazione del post: {detail}",
+    "en": "error trying to create publication: {detail}"
+  },
+  "dev.social.post_likers_failed": {
+    "text": "errore durante il recupero di chi ha messo Mi piace al post: {detail}",
+    "en": "error getting publication likers: {detail}"
+  },
+  "dev.social.posts_failed": {
+    "text": "errore durante il recupero dei post: {detail}",
+    "en": "error trying to collect publications: {detail}"
+  },
+  "dev.social.request_failed": {
+    "text": "Impossibile inviare la richiesta: {detail}",
+    "en": "Could not send the request: {detail}"
+  },
+  "dev.social.request_refused": {
+    "text": "richiesta di amicizia rifiutata",
+    "en": "friendship request refused"
+  },
+  "dev.social.request_refused_error": {
+    "text": "Errore: richiesta di amicizia rifiutata",
+    "en": "Error: friendship request refused"
+  },
+  "dev.social.video_thumbnail_failed": {
+    "text": "creazione della miniatura per il video compresso “{path}”: {detail}",
+    "en": "generating thumbnail for compressed video \"{path}\": {detail}"
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "dev.device.already_on_bridge": {
+    "text": "dit apparaat is al verbonden met de bridge",
+    "en": "this device is already on the bridge"
+  },
+  "dev.device.bridge_dial_failed": {
+    "text": "kan geen verbinding maken met de bridge: {detail}",
+    "en": "dialing bridge: {detail}"
+  },
+  "dev.device.bridge_read_failed": {
+    "text": "kan het antwoord van de bridge niet lezen: {detail}",
+    "en": "reading from bridge: {detail}"
+  },
+  "dev.device.bridge_secret_managed": {
+    "text": "het geheim voor de bridge wordt door het apparaat zelf beheerd",
+    "en": "the bridge secret is managed by the device"
+  },
+  "dev.device.bridge_write_failed": {
+    "text": "kan niet naar de bridge schrijven: {detail}",
+    "en": "writing to bridge: {detail}"
+  },
+  "dev.device.identity_store_failed": {
+    "text": "kan de nieuwe identiteit van het apparaat niet opslaan",
+    "en": "could not store the device's new identity"
+  },
+  "dev.device.local_addresses_failed": {
+    "text": "kan de adressen van dit apparaat niet opvragen",
+    "en": "could not list this device's addresses"
+  },
+  "dev.device.local_no_address": {
+    "text": "dit apparaat heeft geen adres op het thuisnetwerk",
+    "en": "this device has no home-network address"
+  },
+  "dev.device.local_no_listener": {
+    "text": "dit apparaat accepteert geen directe verbindingen op het thuisnetwerk",
+    "en": "this device has no home-network listener"
+  },
+  "dev.device.local_starting": {
+    "text": "dit apparaat is nog bezig de directe verbindingen op het thuisnetwerk te starten",
+    "en": "this device is still starting its home-network listener"
+  },
+  "dev.device.logs_console_only": {
+    "text": "dit apparaat schrijft zijn logboeken alleen naar de console",
+    "en": "this device logs to its console only"
+  },
+  "dev.device.logs_need_bridge": {
+    "text": "dit apparaat is niet verbonden met de bridge en kan zijn logboeken dus niet versturen: gebruik in plaats daarvan Kopiëren",
+    "en": "this device isn't on the bridge, so it can't send its logs - use Copy instead",
+    "reviewed": "claude-backtranslation 2026-10-11 #192793d7"
+  },
+  "dev.device.not_on_bridge": {
+    "text": "dit apparaat is niet verbonden met de bridge",
+    "en": "this device is not on the bridge"
+  },
+  "dev.device.release_failed": {
+    "text": "De bridge kon niet worden bereikt, dus de naam is nog geregistreerd: geef hem vrij op de accountpagina.",
+    "en": "The bridge could not be reached, so the name is still registered: release it on the account page.",
+    "reviewed": "claude-backtranslation 2026-10-11 #3e8ec2b9"
+  },
+  "dev.device.restart_needs_update": {
+    "text": "dit apparaat kan hier pas worden herstart als het is bijgewerkt",
+    "en": "this device can't be restarted from here until it is updated"
+  },
+  "dev.device.restart_request_failed": {
+    "text": "kan de herstart niet aanvragen: {detail}",
+    "en": "could not ask for the restart: {detail}"
+  },
+  "dev.device.restart_too_soon": {
+    "text": "het apparaat is net opgestart; probeer het over een minuut opnieuw",
+    "en": "the device has only just started; try again in a minute"
+  },
+  "dev.device.social_limit_too_low": {
+    "text": "de limiet moet minstens 0,1 GB zijn",
+    "en": "the limit must be at least 0.1 GB"
+  },
+  "dev.device.storage_too_many": {
+    "text": "kies maximaal 2 schijven, gekozen: {chosen}",
+    "en": "choose at most 2 devices, got {chosen}",
+    "reviewed": "claude-backtranslation 2026-10-11 #dd31fd30"
+  },
+  "dev.device.unknown_log": {
+    "text": "onbekend logboek “{source}”",
+    "en": "unknown log \"{source}\""
+  },
+  "dev.device.wifi_no_ssid": {
+    "text": "ssid mag niet leeg zijn",
+    "en": "ssid cannot be empty"
+  }
+}

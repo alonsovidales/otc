@@ -1,0 +1,194 @@
+{
+  "dev.update.already_running": {
+    "text": "er wordt al een update uitgevoerd",
+    "en": "an update is already running"
+  },
+  "dev.update.applying": {
+    "text": "Release {release} toepassen",
+    "en": "Applying release {release}"
+  },
+  "dev.update.binary_install_failed": {
+    "text": "kan het nieuwe programma niet installeren",
+    "en": "could not install the new binary"
+  },
+  "dev.update.build_failed": {
+    "text": "het bouwen is mislukt: zie {path}",
+    "en": "the build failed - see {path}"
+  },
+  "dev.update.building": {
+    "text": "Bouwen",
+    "en": "Building"
+  },
+  "dev.update.checking": {
+    "text": "Controleren op updates",
+    "en": "Checking for updates"
+  },
+  "dev.update.checking_signature": {
+    "text": "Handtekening van de release controleren",
+    "en": "Checking the release signature"
+  },
+  "dev.update.downloading": {
+    "text": "Release {release} downloaden",
+    "en": "Downloading release {release}"
+  },
+  "dev.update.generating_protobuf": {
+    "text": "Code voor protobuf genereren",
+    "en": "Generating protobuf code"
+  },
+  "dev.update.installing_web": {
+    "text": "Webapp installeren",
+    "en": "Installing the web app"
+  },
+  "dev.update.interrupted": {
+    "text": "De update is onderbroken: druk op Bijwerken om het opnieuw te proberen",
+    "en": "The update was interrupted - press Update to try again"
+  },
+  "dev.update.manifest_download_failed": {
+    "text": "kan het releasemanifest niet downloaden",
+    "en": "could not download the release manifest"
+  },
+  "dev.update.manifest_fetch_failed": {
+    "text": "kan het releasemanifest niet ophalen",
+    "en": "could not fetch the release manifest"
+  },
+  "dev.update.manifest_not_signed": {
+    "text": "het releasemanifest is niet ondertekend met de releasesleutel van dit project: er is niets geïnstalleerd",
+    "en": "the release manifest is not signed with this project's release key - nothing was installed",
+    "reviewed": "claude-backtranslation 2026-10-11 #d96e091f"
+  },
+  "dev.update.no_release_key": {
+    "text": "dit apparaat heeft geen sleutel om releases te controleren ({path}): installeer opnieuw of werk handmatig bij",
+    "en": "this device has no release signing key ({path}) - reinstall or update by hand",
+    "reviewed": "claude-backtranslation 2026-10-11 #93c0ba59"
+  },
+  "dev.update.no_room": {
+    "text": "geen ruimte om de update klaar te zetten",
+    "en": "no room to stage the update"
+  },
+  "dev.update.no_source_archive": {
+    "text": "release {release} heeft geen ondertekend bronarchief",
+    "en": "release {release} has no signed source archive",
+    "reviewed": "claude-backtranslation 2026-10-11 #4256c237"
+  },
+  "dev.update.no_source_dir": {
+    "text": "geen bronmap in {path}",
+    "en": "no source directory at {path}"
+  },
+  "dev.update.protobuf_version_missing": {
+    "text": "kan de versie van google.golang.org/protobuf niet vinden in go.mod",
+    "en": "couldn't find google.golang.org/protobuf's version in go.mod"
+  },
+  "dev.update.protoc_download_failed": {
+    "text": "kan protoc {version} niet downloaden",
+    "en": "could not download protoc {version}"
+  },
+  "dev.update.protoc_failed": {
+    "text": "protoc is mislukt",
+    "en": "protoc failed"
+  },
+  "dev.update.protoc_gen_go_failed": {
+    "text": "kan protoc-gen-go {version} niet installeren",
+    "en": "could not install protoc-gen-go {version}"
+  },
+  "dev.update.protoc_hash_mismatch": {
+    "text": "protoc {version} komt niet overeen met de vastgelegde hash",
+    "en": "protoc {version} does not match its pinned hash",
+    "reviewed": "claude-backtranslation 2026-10-11 #c49e07b2"
+  },
+  "dev.update.protoc_unpack_failed": {
+    "text": "kan protoc niet uitpakken",
+    "en": "could not unpack protoc"
+  },
+  "dev.update.repo_not_https": {
+    "text": "update-repository zonder HTTPS geweigerd: {url}",
+    "en": "refusing a non-HTTPS update repository: {url}",
+    "reviewed": "claude-backtranslation 2026-10-11 #8ccb4106"
+  },
+  "dev.update.request_failed": {
+    "text": "fout bij het aanvragen van de update: {detail}",
+    "en": "requesting the update: {detail}"
+  },
+  "dev.update.restarting": {
+    "text": "Herstarten",
+    "en": "Restarting"
+  },
+  "dev.update.runner_chmod_failed": {
+    "text": "fout bij het uitvoerbaar maken van het updateprogramma: {detail}",
+    "en": "making the updater executable: {detail}"
+  },
+  "dev.update.runner_download_failed": {
+    "text": "fout bij het downloaden van het updateprogramma: {detail}",
+    "en": "downloading the updater: {detail}"
+  },
+  "dev.update.runner_start_failed": {
+    "text": "fout bij het starten van het updateprogramma: {detail}",
+    "en": "starting the updater: {detail}"
+  },
+  "dev.update.script_checksum": {
+    "text": "release {release} heeft de controlesom niet doorstaan (verwacht {expected}, ontvangen {actual})",
+    "en": "release {release} failed its checksum (expected {expected}, got {actual})",
+    "reviewed": "claude-backtranslation 2026-10-11 #ca964724"
+  },
+  "dev.update.script_failed": {
+    "text": "release {release} kon niet worden toegepast",
+    "en": "release {release} failed to apply"
+  },
+  "dev.update.script_missing": {
+    "text": "het script van release {release} staat niet in de geverifieerde broncode",
+    "en": "release {release}'s script is not in the verified source"
+  },
+  "dev.update.source_download_failed": {
+    "text": "kan de broncode van release {release} niet downloaden",
+    "en": "could not download the source of release {release}"
+  },
+  "dev.update.source_hash_mismatch": {
+    "text": "de broncode van release {release} komt niet overeen met de ondertekende hash",
+    "en": "the source of release {release} does not match its signed hash",
+    "reviewed": "claude-backtranslation 2026-10-11 #ba24aeee"
+  },
+  "dev.update.source_unpack_failed": {
+    "text": "kan release {release} niet uitpakken",
+    "en": "could not unpack release {release}"
+  },
+  "dev.update.stage_failed": {
+    "text": "kan de nieuwe broncode niet klaarzetten",
+    "en": "could not stage the new source"
+  },
+  "dev.update.staging": {
+    "text": "Broncode klaarzetten",
+    "en": "Staging the source"
+  },
+  "dev.update.unsupported_arch": {
+    "text": "niet-ondersteunde architectuur {arch}",
+    "en": "unsupported architecture {arch}"
+  },
+  "dev.update.updated": {
+    "text": "Bijgewerkt naar versie {version}",
+    "en": "Updated to version {version}"
+  },
+  "dev.update.uptodate": {
+    "text": "Al up-to-date",
+    "en": "Already up to date"
+  },
+  "dev.update.verified_manifest_missing": {
+    "text": "het geverifieerde manifest ontbreekt",
+    "en": "the verified manifest is missing"
+  },
+  "dev.update.web_checksum": {
+    "text": "de bestanden van de webapp hebben de controlesom niet doorstaan (verwacht {expected}, ontvangen {actual})",
+    "en": "the web assets failed their checksum (expected {expected}, got {actual})",
+    "reviewed": "claude-backtranslation 2026-10-11 #2fafc63f"
+  },
+  "dev.update.web_download_failed": {
+    "text": "kan de webapp voor release {release} niet downloaden: probeer de update opnieuw",
+    "en": "could not download the web app for release {release} - try the update again"
+  },
+  "dev.update.web_install_failed": {
+    "text": "kan de bestanden van de webapp niet installeren",
+    "en": "could not install the web assets"
+  },
+  "dev.update.web_unpack_failed": {
+    "text": "kan de bestanden van de webapp niet uitpakken",
+    "en": "could not unpack the web assets"
+  }
+}

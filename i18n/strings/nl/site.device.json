@@ -1,0 +1,34 @@
+{
+  "site.device.disabled.heading": {
+    "text": "Dit account is uitgeschakeld",
+    "en": "This account has been disabled"
+  },
+  "site.device.disabled.text": {
+    "text": "De eigenaar van dit apparaat heeft dit account uitgeschakeld. Neem contact op met de eigenaar als je denkt dat dit een vergissing is.",
+    "en": "The owner of this device has disabled this account. Contact them if you believe this is a mistake."
+  },
+  "site.device.disabled.title": {
+    "text": "Account uitgeschakeld",
+    "en": "Account disabled"
+  },
+  "site.device.unavailable.countdown": {
+    "text": "Opnieuw controleren over {seconds} s",
+    "en": "Checking again in {seconds}s"
+  },
+  "site.device.unavailable.heading": {
+    "text": "Dit apparaat is nu niet beschikbaar",
+    "en": "This device isn't available right now"
+  },
+  "site.device.unavailable.retry": {
+    "text": "Opnieuw proberen",
+    "en": "Try again"
+  },
+  "site.device.unavailable.text": {
+    "text": "Het lijkt erop dat het apparaat uitgeschakeld of offline is, of nog aan het opstarten is. Er is niets verloren gegaan: alles blijft op het apparaat zelf staan. Probeer het zo opnieuw.",
+    "en": "It looks like it's switched off, offline, or still starting up. Nothing has been lost — everything stays on the device itself. Try again in a moment."
+  },
+  "site.device.unavailable.title": {
+    "text": "Apparaat niet beschikbaar",
+    "en": "Device not available"
+  }
+}

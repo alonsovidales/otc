@@ -1,0 +1,126 @@
+{
+  "dev.social.bad_domain": {
+    "text": "het domein “{domain}” is geen adres op {tld}",
+    "en": "domain \"{domain}\" is not a {tld} address"
+  },
+  "dev.social.blocked": {
+    "text": "je hebt dit apparaat geblokkeerd: deblokkeer het voordat je een verzoek stuurt",
+    "en": "you blocked this device - unblock it before sending a request"
+  },
+  "dev.social.change_status_failed": {
+    "text": "Fout bij het wijzigen van de vriendschapsstatus: {detail}",
+    "en": "Error trying to change friend status: {detail}"
+  },
+  "dev.social.comment_failed": {
+    "text": "fout bij het plaatsen van de reactie: {detail}",
+    "en": "error publishing comment: {detail}"
+  },
+  "dev.social.comment_likers_failed": {
+    "text": "fout bij het ophalen van wie de reactie leuk vindt: {detail}",
+    "en": "error getting comment likers: {detail}"
+  },
+  "dev.social.delete_comment_failed": {
+    "text": "fout bij het verwijderen van de reactie: {detail}",
+    "en": "error deleting comment: {detail}"
+  },
+  "dev.social.delete_friendship_failed": {
+    "text": "Fout bij het verwijderen van de vriendschap: {detail}",
+    "en": "Error trying to delete the friendship: {detail}"
+  },
+  "dev.social.delete_post_failed": {
+    "text": "fout bij het verwijderen van het bericht: {detail}",
+    "en": "error deleting publication: {detail}"
+  },
+  "dev.social.events_failed": {
+    "text": "fout bij het ophalen van de gebeurtenissen: {detail}",
+    "en": "error trying to retrieve events: {detail}"
+  },
+  "dev.social.friendship_lookup_failed": {
+    "text": "fout bij het ophalen van de vriendschap: {detail}",
+    "en": "error retreiving friendship: {detail}"
+  },
+  "dev.social.friendships_failed": {
+    "text": "Fout bij het lezen van de vriendschappen: {detail}",
+    "en": "Error reading friendships: {detail}"
+  },
+  "dev.social.like_comment_failed": {
+    "text": "fout bij het leuk vinden van de reactie: {detail}",
+    "en": "error liking publication comment: {detail}"
+  },
+  "dev.social.like_post_failed": {
+    "text": "fout bij het leuk vinden van het bericht: {detail}",
+    "en": "error liking publication: {detail}"
+  },
+  "dev.social.load_file_failed": {
+    "text": "fout bij het laden van het bestand “{path}”: {detail}",
+    "en": "error loading file \"{path}\": {detail}"
+  },
+  "dev.social.media_not_available": {
+    "text": "media niet beschikbaar",
+    "en": "media not available"
+  },
+  "dev.social.no_friendship_with": {
+    "text": "geen vriendschap met {domain}",
+    "en": "no friendship with {domain}"
+  },
+  "dev.social.no_longer_friends": {
+    "text": "niet langer vrienden",
+    "en": "no longer friends"
+  },
+  "dev.social.no_such_comment": {
+    "text": "deze reactie bestaat niet",
+    "en": "no such comment"
+  },
+  "dev.social.no_such_post": {
+    "text": "dit bericht bestaat niet",
+    "en": "no such publication"
+  },
+  "dev.social.not_accepted": {
+    "text": "Vriendschap niet geaccepteerd",
+    "en": "Friendship not accepted"
+  },
+  "dev.social.not_found": {
+    "text": "Vriendschap niet gevonden",
+    "en": "Friendship not found"
+  },
+  "dev.social.not_found_error": {
+    "text": "Fout: vriendschap niet gevonden",
+    "en": "Error: Friendship not found"
+  },
+  "dev.social.not_your_comment": {
+    "text": "niet jouw reactie, en ook geen reactie op een van je berichten",
+    "en": "not your comment, nor a comment on one of your posts"
+  },
+  "dev.social.not_your_post": {
+    "text": "niet jouw bericht",
+    "en": "not your publication"
+  },
+  "dev.social.post_failed": {
+    "text": "fout bij het maken van het bericht: {detail}",
+    "en": "error trying to create publication: {detail}"
+  },
+  "dev.social.post_likers_failed": {
+    "text": "fout bij het ophalen van wie het bericht leuk vindt: {detail}",
+    "en": "error getting publication likers: {detail}"
+  },
+  "dev.social.posts_failed": {
+    "text": "fout bij het ophalen van de berichten: {detail}",
+    "en": "error trying to collect publications: {detail}"
+  },
+  "dev.social.request_failed": {
+    "text": "Kan het verzoek niet versturen: {detail}",
+    "en": "Could not send the request: {detail}"
+  },
+  "dev.social.request_refused": {
+    "text": "vriendschapsverzoek geweigerd",
+    "en": "friendship request refused"
+  },
+  "dev.social.request_refused_error": {
+    "text": "Fout: vriendschapsverzoek geweigerd",
+    "en": "Error: friendship request refused"
+  },
+  "dev.social.video_thumbnail_failed": {
+    "text": "fout bij het maken van de miniatuur voor de gecomprimeerde video “{path}”: {detail}",
+    "en": "generating thumbnail for compressed video \"{path}\": {detail}"
+  }
+}

@@ -1,0 +1,474 @@
+{
+  "macos.add.backup_info": {
+    "text": "Nieuwe en gewijzigde bestanden worden naar het apparaat gekopieerd. Daar wordt nooit iets verwijderd: bestanden die je op deze Mac verwijdert, blijven op het apparaat staan, en als een bestand verandert, bewaart het apparaat ook de oudere versie. Niets wat op het apparaat gebeurt – vanaf een telefoon, een andere computer of het web – wijzigt of verwijdert ooit iets in deze map op de Mac. Handig voor fotoarchieven en reservekopieën.",
+    "en": "New and changed files are copied to the device. Nothing is ever deleted there: files you delete on this Mac stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder on the Mac. Good for photo archives and backups."
+  },
+  "macos.add.backup_subtitle": {
+    "text": "Deze Mac → apparaat (alleen uploaden, wist niets)",
+    "en": "One way: this Mac → device (upload only, no deletes)"
+  },
+  "macos.add.backup_title": {
+    "text": "Reservekopie van een map op deze Mac",
+    "en": "Back up a folder from this Mac"
+  },
+  "macos.add.device_info": {
+    "text": "Kies een map die al op het apparaat staat en een plek op deze Mac: de map wordt daar gedownload en blijft vanaf dan op beide plekken hetzelfde, inclusief wijzigingen en verwijderingen, net als bij de optie hierboven. Handig om een map op een tweede computer te krijgen. Wat er op het apparaat voor is ingesteld (“Alleen uploaden”, “Buiten Afbeeldingen”) blijft zoals het is.",
+    "en": "Pick a folder that is already on the device and a place on this Mac: it is downloaded there and kept the same in both places from then on, changes and deletions included, like the option above. Handy for getting a folder onto a second computer. What is set for it on the device (upload only, kept out of Images) stays as it is."
+  },
+  "macos.add.local_info": {
+    "text": "De map wordt naar het apparaat gekopieerd en blijft vanaf dan op beide plekken hetzelfde: bestanden die op het apparaat worden toegevoegd, gewijzigd of verwijderd (vanaf een telefoon, een andere computer of het web), veranderen ook deze map, en omgekeerd. Verwijderde bestanden gaan op de Mac naar de Prullenmand. De eerste synchronisatie voegt alleen toe en verwijdert nooit iets.",
+    "en": "The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device (from a phone, another computer or the web) change this folder too, and the other way round. Deleted files go to the Trash on the Mac. The first sync only adds - it never deletes."
+  },
+  "macos.add.local_subtitle": {
+    "text": "In twee richtingen: begint bij deze Mac",
+    "en": "Two ways: starts from this Mac"
+  },
+  "macos.add.local_title": {
+    "text": "Een map op deze Mac synchroniseren",
+    "en": "Sync a folder from this Mac"
+  },
+  "macos.add.title": {
+    "text": "Een map toevoegen",
+    "en": "Add a folder"
+  },
+  "macos.add.what_this_does": {
+    "text": "Wat dit doet",
+    "en": "What this does"
+  },
+  "macos.bluetooth.bad_answer": {
+    "text": "Het apparaat stuurde een antwoord dat deze app niet kon lezen",
+    "en": "The device sent an answer this app could not read"
+  },
+  "macos.bluetooth.closed": {
+    "text": "De configuratie is gesloten",
+    "en": "Setup was closed"
+  },
+  "macos.bluetooth.device_id": {
+    "text": "Apparaat {id}",
+    "en": "Device {id}"
+  },
+  "macos.bluetooth.device_older": {
+    "text": "Apparaat (oudere image)",
+    "en": "Device (older image)"
+  },
+  "macos.bluetooth.enter_password": {
+    "text": "Voer het wachtwoord van het apparaat in",
+    "en": "Enter the device's password"
+  },
+  "macos.bluetooth.looking": {
+    "text": "Zoeken naar een apparaat om in te stellen…",
+    "en": "Looking for a device to set up…"
+  },
+  "macos.bluetooth.looking_detail": {
+    "text": "Zet het apparaat aan met de schijven aangesloten. Zolang het niet is ingesteld, maakt het zich via Bluetooth bekend; houd deze Mac er vlakbij.",
+    "en": "Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep this Mac near it."
+  },
+  "macos.bluetooth.not_connected": {
+    "text": "Niet verbonden met het apparaat",
+    "en": "Not connected to the device"
+  },
+  "macos.bluetooth.off": {
+    "text": "Bluetooth staat uit",
+    "en": "Bluetooth is off"
+  },
+  "macos.bluetooth.off_detail": {
+    "text": "Schakel Bluetooth in via het Bedieningspaneel om het apparaat te vinden.",
+    "en": "Turn Bluetooth on in Control Centre to find the device."
+  },
+  "macos.bluetooth.password_known": {
+    "text": "Deze Mac logt in met het wachtwoord dat je bij de configuratie hebt gekozen.",
+    "en": "This Mac signs in with the password you chose in the setup."
+  },
+  "macos.bluetooth.ready_as": {
+    "text": "Het apparaat is klaar als {device}.",
+    "en": "The device is ready as {device}."
+  },
+  "macos.bluetooth.ready_home": {
+    "text": "Het apparaat is klaar op je thuisnetwerk.",
+    "en": "The device is ready on your home network."
+  },
+  "macos.bluetooth.ready_maybe": {
+    "text": "Als het apparaat klaar is met installeren, reageert het niet meer via Bluetooth: je kunt het nu gebruiken.",
+    "en": "If the device has finished installing it no longer answers over Bluetooth - you can use it now."
+  },
+  "macos.bluetooth.reconnecting": {
+    "text": "Verbinding met het apparaat verbroken. Er wordt opnieuw verbinding gemaakt. Houd deze Mac er vlakbij.",
+    "en": "Connection to the device lost - reconnecting. Keep this Mac near it."
+  },
+  "macos.bluetooth.sign_in_cancelled": {
+    "text": "Inloggen geannuleerd",
+    "en": "Sign-in cancelled"
+  },
+  "macos.bluetooth.sign_in_failed": {
+    "text": "Kan het inloggen niet voltooien",
+    "en": "Could not finish the sign-in"
+  },
+  "macos.bluetooth.sign_in_unfinished": {
+    "text": "Het inloggen is niet voltooid",
+    "en": "The sign-in did not finish"
+  },
+  "macos.bluetooth.timed_out": {
+    "text": "Het apparaat heeft niet op tijd geantwoord",
+    "en": "The device did not answer in time"
+  },
+  "macos.bluetooth.unauthorized": {
+    "text": "Toegang tot Bluetooth is nodig",
+    "en": "Bluetooth access is needed"
+  },
+  "macos.bluetooth.unauthorized_detail": {
+    "text": "Sta Bluetooth toe voor Off The Cloud in Systeeminstellingen > Privacy en beveiliging > Bluetooth om een apparaat op deze manier in te stellen.",
+    "en": "Allow Bluetooth for Off The Cloud in System Settings > Privacy & Security > Bluetooth to set a device up this way."
+  },
+  "macos.bluetooth.unknown_provider": {
+    "text": "Onbekende inlogprovider",
+    "en": "Unknown sign-in provider"
+  },
+  "macos.bluetooth.use_device": {
+    "text": "Mac synchroniseren met mijn apparaat",
+    "en": "Sync this Mac with my device"
+  },
+  "macos.bluetooth.which": {
+    "text": "Welk apparaat?",
+    "en": "Which device?"
+  },
+  "macos.bluetooth.which_detail": {
+    "text": "Er wachten meerdere apparaten om te worden ingesteld. De ID van elk apparaat staat op de configuratiepagina ervan, waar je met “Lampje laten knipperen” ziet welk apparaat het is. Het sterkste signaal is meestal het dichtstbijzijnde.",
+    "en": "Several devices are waiting to be set up. Each one's ID is on its setup page, where \"Blink its light\" shows which box it is. The strongest signal is usually the closest."
+  },
+  "macos.connection.cancelled": {
+    "text": "Geannuleerd",
+    "en": "Cancelled"
+  },
+  "macos.connection.closed": {
+    "text": "Gesloten",
+    "en": "Closed"
+  },
+  "macos.connection.no_public_key": {
+    "text": "Kan de openbare sleutel van de verbinding niet ophalen",
+    "en": "Unable to fetch the connection's public key"
+  },
+  "macos.connection.not_connected": {
+    "text": "Niet verbonden",
+    "en": "Not connected"
+  },
+  "macos.connection.password_rejected": {
+    "text": "Het apparaat heeft het wachtwoord geweigerd",
+    "en": "The device rejected the password"
+  },
+  "macos.connection.timed_out": {
+    "text": "Het apparaat heeft niet op tijd geantwoord",
+    "en": "The device did not answer in time"
+  },
+  "macos.folders.backup_line": {
+    "text": "Reservekopie · Mac → apparaat, alleen uploaden",
+    "en": "Backup · this Mac → device, upload only"
+  },
+  "macos.folders.cant_read": {
+    "text": "Kan de map op deze Mac niet lezen",
+    "en": "Can't read the folder on this Mac"
+  },
+  "macos.folders.checking_count": {
+    "text": "Controleren: {done} van {total}",
+    "en": "Checking {done} of {total}"
+  },
+  "macos.folders.could_not_list": {
+    "text": "Kan externe bestanden niet weergeven",
+    "en": "Could not list remote files"
+  },
+  "macos.folders.count": {
+    "text": "{done} van {total}",
+    "en": "{done} of {total}"
+  },
+  "macos.folders.restored_files": {
+    "text": "{files} bestanden waren van het apparaat verdwenen – ze zijn vanaf deze Mac hersteld in plaats van hier te worden verwijderd",
+    "en": "{files} files had disappeared from the device - restored them from this Mac instead of deleting them here"
+  },
+  "macos.images.add_info": {
+    "text": "Je kunt dit later wijzigen met de oogknop in de rij van de map. Een map die later een andere naam krijgt, is een nieuwe map op het apparaat: houd die opnieuw buiten Afbeeldingen.",
+    "en": "You can change it later with the eye button on the folder's row. A folder renamed later is a new folder on the device: keep it out of Images again."
+  },
+  "macos.load.cpu": {
+    "text": "CPU",
+    "en": "CPU"
+  },
+  "macos.load.memory": {
+    "text": "Geheugen",
+    "en": "Memory"
+  },
+  "macos.load.storage": {
+    "text": "Opslag",
+    "en": "Storage"
+  },
+  "macos.login.message": {
+    "text": "Je mappen blijven op de achtergrond synchroniseren nadat je je Mac opnieuw hebt opgestart. Je kunt dit wijzigen in Instellingen.",
+    "en": "Your folders keep syncing in the background after you restart your Mac. You can change this in Settings.",
+    "reviewed": "claude-backtranslation 2026-10-11 #164fe291"
+  },
+  "macos.login.off_in_system_settings": {
+    "text": "“Openen bij inloggen” is uitgeschakeld in Systeeminstellingen.",
+    "en": "Start at login is switched off in System Settings."
+  },
+  "macos.login.open_login_items": {
+    "text": "Inlogonderdelen openen…",
+    "en": "Open Login Items…"
+  },
+  "macos.picker.no_subfolders": {
+    "text": "Geen submappen hier.",
+    "en": "No subfolders here."
+  },
+  "macos.popover.back_up": {
+    "text": "Reservekopie maken",
+    "en": "Back Up"
+  },
+  "macos.popover.choose_backup": {
+    "text": "Kies een map om een reservekopie van te maken op het apparaat. Deze Mac blijft het origineel.",
+    "en": "Choose a folder to back up to the device. This Mac stays the original."
+  },
+  "macos.popover.choose_download": {
+    "text": "Kies waar je “{path}” wilt downloaden en gesynchroniseerd wilt houden.",
+    "en": "Choose where to download “{path}” and keep it in sync."
+  },
+  "macos.popover.quit": {
+    "text": "Stop Off The Cloud",
+    "en": "Quit Off The Cloud"
+  },
+  "macos.popover.quit_tip": {
+    "text": "Stop Off The Cloud – mappen worden pas weer gesynchroniseerd als de app opnieuw wordt geopend",
+    "en": "Quit Off The Cloud - folders stop syncing until it is opened again"
+  },
+  "macos.settings.address_placeholder": {
+    "text": "Adres (wss://host/ws of host)",
+    "en": "Address (wss://host/ws or host)"
+  },
+  "macos.settings.connect_hint": {
+    "text": "Voer je apparaat en het wachtwoord in.",
+    "en": "Enter your device and its password."
+  },
+  "macos.settings.custom_address": {
+    "text": "Aangepast adres",
+    "en": "Custom address"
+  },
+  "macos.settings.custom_address_hint": {
+    "text": "Voor een apparaat dat niet via de Off The Cloud-bridge werkt: je eigen bridge, Tailscale Funnel of het lokale netwerk (ws://192.168.…:8080/ws).",
+    "en": "For a device not on the Off The Cloud bridge - your own bridge, Tailscale Funnel, or the local network (ws://192.168.…:8080/ws)."
+  },
+  "macos.settings.device_name_placeholder": {
+    "text": "Apparaatnaam",
+    "en": "Device name"
+  },
+  "macos.settings.disconnect_button": {
+    "text": "Loskoppelen…",
+    "en": "Disconnect…"
+  },
+  "macos.settings.disconnect_message": {
+    "text": "Al je gesynchroniseerde mappen worden uit deze app verwijderd, zodat geen enkele map per ongeluk met een ander apparaat gaat synchroniseren. De bestanden zelf blijven op deze Mac en op het apparaat staan. Je kunt de mappen opnieuw toevoegen nadat je verbinding hebt gemaakt.",
+    "en": "All your synced folders are removed from this app, so none of them starts syncing with a different device by mistake. The files themselves stay on this Mac and on the device. You can add the folders again after connecting.",
+    "reviewed": "claude-backtranslation 2026-10-11 #d4b8da0d"
+  },
+  "macos.settings.retry": {
+    "text": "Opnieuw proberen",
+    "en": "Retry"
+  },
+  "macos.setup.bad_hash": {
+    "text": "De gedownloade image komt niet overeen met de ondertekende controlesom en is daarom verwijderd. Probeer het opnieuw.",
+    "en": "The downloaded image does not match its signed checksum, so it was deleted. Try again.",
+    "reviewed": "claude-backtranslation 2026-10-11 #ae54744a"
+  },
+  "macos.setup.bad_signature": {
+    "text": "De controlesom van de image is niet ondertekend met de releasesleutel van Off The Cloud. Er is niets bewaard.",
+    "en": "The image's checksum is not signed with the Off The Cloud release key. Nothing was kept.",
+    "reviewed": "claude-backtranslation 2026-10-11 #481ed42a"
+  },
+  "macos.setup.card_written": {
+    "text": "Ik heb de kaart beschreven",
+    "en": "I've Written the Card"
+  },
+  "macos.setup.check_again": {
+    "text": "Opnieuw controleren",
+    "en": "Check Again"
+  },
+  "macos.setup.checking_release": {
+    "text": "De nieuwste image controleren…",
+    "en": "Checking the latest image…"
+  },
+  "macos.setup.come_back": {
+    "text": "Kom hier terug wanneer Imager meldt dat de kaart is beschreven.",
+    "en": "When Imager says the card is written, come back here."
+  },
+  "macos.setup.done_subtitle": {
+    "text": "Deze Mac synchroniseert nu met het apparaat {device}.",
+    "en": "This Mac now syncs with {device}."
+  },
+  "macos.setup.done_text": {
+    "text": "Voeg via het Off The Cloud-symbool in de menubalk mappen toe om een reservekopie van te maken of gesynchroniseerd te houden. De eigen pagina van het apparaat, in een browser, bevat je foto’s, bestanden en instellingen.",
+    "en": "Add folders to back up or keep in sync from the Off The Cloud menu bar icon. The device's own page, in a browser, has your photos, files and settings."
+  },
+  "macos.setup.done_title": {
+    "text": "Je apparaat is klaar",
+    "en": "Your device is ready"
+  },
+  "macos.setup.download_button": {
+    "text": "Image downloaden",
+    "en": "Download the Image"
+  },
+  "macos.setup.download_progress": {
+    "text": "{done} van {total}",
+    "en": "{done} of {total}"
+  },
+  "macos.setup.download_subtitle": {
+    "text": "Naar je map Downloads.",
+    "en": "Into your Downloads folder."
+  },
+  "macos.setup.download_title": {
+    "text": "De image downloaden",
+    "en": "Downloading the image"
+  },
+  "macos.setup.downloaded": {
+    "text": "Gedownload: {file}",
+    "en": "Downloaded: {file}"
+  },
+  "macos.setup.finish_prompt": {
+    "text": "Voltooi daarna de configuratie – wifi, de naam van het apparaat, de schijven en je wachtwoord:",
+    "en": "Then finish the setup - WiFi, the device's name, its disks and your password:"
+  },
+  "macos.setup.get_imager": {
+    "text": "Raspberry Pi Imager downloaden",
+    "en": "Get Raspberry Pi Imager"
+  },
+  "macos.setup.http_failed": {
+    "text": "Het downloaden is mislukt (HTTP {code}). Probeer het zo opnieuw.",
+    "en": "The download failed (HTTP {code}). Try again in a moment."
+  },
+  "macos.setup.image_deleted": {
+    "text": "De gedownloade image is verwijderd uit je map Downloads.",
+    "en": "The downloaded image was deleted from your Downloads folder."
+  },
+  "macos.setup.imager_missing": {
+    "text": "Raspberry Pi Imager is niet geïnstalleerd. Het programma is gratis, van de Raspberry Pi Foundation.",
+    "en": "Raspberry Pi Imager isn't installed. It's free, from the Raspberry Pi Foundation."
+  },
+  "macos.setup.intro_note": {
+    "text": "De download wordt verwijderd zodra de kaart is beschreven.",
+    "en": "The download is deleted once the card is written."
+  },
+  "macos.setup.intro_step1": {
+    "text": "Download de Off The Cloud-image (ongeveer 550 MB).",
+    "en": "Download the Off The Cloud image (about 550 MB)."
+  },
+  "macos.setup.intro_step2": {
+    "text": "Schrijf de image naar de microSD-kaart met Raspberry Pi Imager.",
+    "en": "Write it to the microSD card with Raspberry Pi Imager."
+  },
+  "macos.setup.intro_step3": {
+    "text": "Plaats de kaart in de Pi, sluit de schijven aan, zet hem aan en voltooi de configuratie hier via Bluetooth, of op je telefoon.",
+    "en": "Put the card in the Pi, connect the disks, power it on and finish the setup here over Bluetooth, or on your phone."
+  },
+  "macos.setup.intro_subtitle": {
+    "text": "Een Raspberry Pi 5 (8 GB) met een microSD-kaart en twee USB-schijven wordt je Off The Cloud-apparaat.",
+    "en": "A Raspberry Pi 5 (8 GB) with a microSD card and two USB disks becomes your Off The Cloud device."
+  },
+  "macos.setup.intro_title": {
+    "text": "Nieuw apparaat instellen",
+    "en": "Set up a new device"
+  },
+  "macos.setup.on_my_phone": {
+    "text": "Op mijn telefoon",
+    "en": "On my phone"
+  },
+  "macos.setup.on_my_phone_detail": {
+    "text": "In de Off The Cloud-app voor iPhone of Android.",
+    "en": "In the Off The Cloud app for iPhone or Android."
+  },
+  "macos.setup.on_this_mac": {
+    "text": "Op deze Mac",
+    "en": "On this Mac"
+  },
+  "macos.setup.on_this_mac_detail": {
+    "text": "Via Bluetooth, met deze Mac in de buurt van het apparaat.",
+    "en": "Over Bluetooth, with this Mac near the device."
+  },
+  "macos.setup.open_imager": {
+    "text": "Raspberry Pi Imager openen",
+    "en": "Open Raspberry Pi Imager"
+  },
+  "macos.setup.phone_step": {
+    "text": "Tik in de Off The Cloud-app voor iPhone of Android op “Nieuw apparaat instellen”. De app vindt het apparaat via Bluetooth en toont de configuratie ervan.",
+    "en": "In the Off The Cloud app for iPhone or Android, tap Set up a new device. The app finds the device over Bluetooth and shows its setup."
+  },
+  "macos.setup.phone_subtitle": {
+    "text": "Houd de telefoon in de buurt van het apparaat.",
+    "en": "Keep the phone near the device."
+  },
+  "macos.setup.phone_then": {
+    "text": "Voeg het apparaat na de installatie via de menubalk toe aan deze Mac: Instellingen, en daarna de naam en het wachtwoord.",
+    "en": "Once it is installed, add the device to this Mac from the menu bar: Settings, then its name and password."
+  },
+  "macos.setup.phone_title": {
+    "text": "Ga verder op je telefoon",
+    "en": "Continue on your phone"
+  },
+  "macos.setup.show_in_finder": {
+    "text": "Toon in Finder",
+    "en": "Show in Finder"
+  },
+  "macos.setup.start_subtitle": {
+    "text": "Plaats de kaart in de Pi, sluit de twee USB-schijven aan en zet hem aan. Het opstarten duurt een minuut of twee.",
+    "en": "Put the card in the Pi, connect the two USB disks, and power it on. It takes a minute or two to start."
+  },
+  "macos.setup.start_title": {
+    "text": "Het apparaat starten",
+    "en": "Start the device"
+  },
+  "macos.setup.switch_button": {
+    "text": "Overschakelen",
+    "en": "Switch",
+    "reviewed": "claude-backtranslation 2026-10-11 #c9435bd4"
+  },
+  "macos.setup.switch_message": {
+    "text": "Deze Mac is verbonden met {device}. Als je overschakelt, worden al je gesynchroniseerde mappen uit deze app verwijderd, zodat geen enkele map per ongeluk met het nieuwe apparaat gaat synchroniseren. De bestanden zelf blijven op deze Mac en op het oude apparaat staan.",
+    "en": "This Mac is connected to {device}. Switching removes all your synced folders from this app, so none of them starts syncing with the new device by mistake. The files themselves stay on this Mac and on the old device.",
+    "reviewed": "claude-backtranslation 2026-10-11 #6207d36d"
+  },
+  "macos.setup.switch_title": {
+    "text": "Deze Mac overschakelen naar het nieuwe apparaat?",
+    "en": "Switch this Mac to the new device?",
+    "reviewed": "claude-backtranslation 2026-10-11 #af54320b"
+  },
+  "macos.setup.verifying": {
+    "text": "De download controleren…",
+    "en": "Checking the download…"
+  },
+  "macos.setup.write_step1": {
+    "text": "Plaats de microSD-kaart en klik hieronder op {button}.",
+    "en": "Insert the microSD card and click {button} below."
+  },
+  "macos.setup.write_step2": {
+    "text": "Kies apparaat: Raspberry Pi 5.",
+    "en": "Choose Device: Raspberry Pi 5."
+  },
+  "macos.setup.write_step3": {
+    "text": "Kies OS: scrol omlaag naar “Eigen image gebruiken” en kies {file} in je map Downloads (het bestand is geselecteerd in de Finder), tenzij Imager het al toont.",
+    "en": "Choose OS: scroll down to Use custom and pick {file} in your Downloads folder (it is selected in Finder) - unless Imager already shows it."
+  },
+  "macos.setup.write_step4": {
+    "text": "Kies opslagapparaat: je SD-kaart. Alles op de kaart wordt gewist.",
+    "en": "Choose Storage: your SD card. Everything on it is erased.",
+    "reviewed": "claude-backtranslation 2026-10-11 #5278455a"
+  },
+  "macos.setup.write_step5": {
+    "text": "Klik op Volgende en antwoord Nee op “OS-aanpassingsinstellingen toepassen”: het apparaat wordt ingesteld vanaf deze Mac of je telefoon.",
+    "en": "Click Next and answer No to \"apply OS customisation settings\": the device is set up from this Mac or your phone."
+  },
+  "macos.setup.write_subtitle": {
+    "text": "macOS laat alleen apps van buiten de App Store SD-kaarten beschrijven, dus Raspberry Pi Imager doet deze stap.",
+    "en": "macOS only lets apps outside the App Store write SD cards, so Raspberry Pi Imager does this step."
+  },
+  "macos.setup.write_title": {
+    "text": "De kaart beschrijven",
+    "en": "Write the card"
+  },
+  "macos.upload_only.add_info": {
+    "text": "Bestanden die je op deze Mac verwijdert, blijven op het apparaat staan en worden niet opnieuw gedownload; bestanden die op het apparaat worden toegevoegd of gewijzigd, komen nog steeds hierheen. Je kunt de optie later uitschakelen in de webapp of de telefoonapp (het slotje op de map in Bestanden); de bestanden die je op deze Mac hebt verwijderd terwijl de optie aanstond, komen dan hier terug.",
+    "en": "Files you delete on this Mac stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this Mac while it was on then come back here."
+  }
+}

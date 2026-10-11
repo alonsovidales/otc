@@ -1,0 +1,154 @@
+{
+  "common.accept": {
+    "text": "Accepter",
+    "en": "Accept"
+  },
+  "common.add": {
+    "text": "Ajouter",
+    "en": "Add"
+  },
+  "common.apply": {
+    "text": "Appliquer",
+    "en": "Apply"
+  },
+  "common.back": {
+    "text": "Retour",
+    "en": "Back"
+  },
+  "common.cancel": {
+    "text": "Annuler",
+    "en": "Cancel"
+  },
+  "common.choose": {
+    "text": "Choisir",
+    "en": "Choose"
+  },
+  "common.close": {
+    "text": "Fermer",
+    "en": "Close"
+  },
+  "common.connect": {
+    "text": "Se connecter",
+    "en": "Connect"
+  },
+  "common.connecting": {
+    "text": "Connexion…",
+    "en": "Connecting…"
+  },
+  "common.create": {
+    "text": "Créer",
+    "en": "Create"
+  },
+  "common.decline": {
+    "text": "Refuser",
+    "en": "Decline"
+  },
+  "common.delete": {
+    "text": "Supprimer",
+    "en": "Delete"
+  },
+  "common.deleting": {
+    "text": "Suppression…",
+    "en": "Deleting…"
+  },
+  "common.deselect": {
+    "text": "Désélectionner",
+    "en": "Deselect"
+  },
+  "common.disconnect": {
+    "text": "Déconnecter",
+    "en": "Disconnect"
+  },
+  "common.done": {
+    "text": "OK",
+    "en": "Done"
+  },
+  "common.download": {
+    "text": "Télécharger",
+    "en": "Download"
+  },
+  "common.loading": {
+    "text": "Chargement…",
+    "en": "Loading…"
+  },
+  "common.next": {
+    "text": "Suivant",
+    "en": "Next"
+  },
+  "common.ok": {
+    "text": "OK",
+    "en": "OK"
+  },
+  "common.open": {
+    "text": "Ouvrir",
+    "en": "Open"
+  },
+  "common.password": {
+    "text": "Mot de passe",
+    "en": "Password"
+  },
+  "common.pause": {
+    "text": "Pause",
+    "en": "Pause"
+  },
+  "common.quit": {
+    "text": "Quitter",
+    "en": "Quit"
+  },
+  "common.refresh": {
+    "text": "Actualiser",
+    "en": "Refresh"
+  },
+  "common.remove": {
+    "text": "Retirer",
+    "en": "Remove"
+  },
+  "common.rename": {
+    "text": "Renommer",
+    "en": "Rename"
+  },
+  "common.resume": {
+    "text": "Reprendre",
+    "en": "Resume"
+  },
+  "common.save": {
+    "text": "Enregistrer",
+    "en": "Save"
+  },
+  "common.search": {
+    "text": "Rechercher",
+    "en": "Search"
+  },
+  "common.select": {
+    "text": "Sélectionner",
+    "en": "Select"
+  },
+  "common.send": {
+    "text": "Envoyer",
+    "en": "Send"
+  },
+  "common.settings": {
+    "text": "Paramètres",
+    "en": "Settings"
+  },
+  "common.share": {
+    "text": "Partager",
+    "en": "Share"
+  },
+  "common.try_again": {
+    "text": "Réessayer",
+    "en": "Try again"
+  },
+  "common.update": {
+    "text": "Mettre à jour",
+    "en": "Update"
+  },
+  "common.updating": {
+    "text": "Mise à jour…",
+    "en": "Updating…"
+  },
+  "common.upload": {
+    "text": "Envoyer",
+    "en": "Upload"
+  }
+}

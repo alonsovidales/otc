@@ -1,0 +1,14 @@
+{
+  "dev.galleryjob.copy_crashed": {
+    "text": "la copia si è interrotta: un file ha fatto bloccare l’elaborazione",
+    "en": "the copy stopped: a file crashed the processing"
+  },
+  "dev.galleryjob.copy_failed": {
+    "text": "impossibile copiare il file {name}: {detail}",
+    "en": "could not copy {name}: {detail}"
+  },
+  "dev.galleryjob.no_small_copy": {
+    "text": "impossibile creare una copia ridotta della foto {name}",
+    "en": "could not make a small copy of {name}"
+  }
+}

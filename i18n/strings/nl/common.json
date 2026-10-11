@@ -1,0 +1,154 @@
+{
+  "common.accept": {
+    "text": "Accepteren",
+    "en": "Accept"
+  },
+  "common.add": {
+    "text": "Toevoegen",
+    "en": "Add"
+  },
+  "common.apply": {
+    "text": "Toepassen",
+    "en": "Apply"
+  },
+  "common.back": {
+    "text": "Terug",
+    "en": "Back"
+  },
+  "common.cancel": {
+    "text": "Annuleren",
+    "en": "Cancel"
+  },
+  "common.choose": {
+    "text": "Kiezen",
+    "en": "Choose"
+  },
+  "common.close": {
+    "text": "Sluiten",
+    "en": "Close"
+  },
+  "common.connect": {
+    "text": "Verbinden",
+    "en": "Connect"
+  },
+  "common.connecting": {
+    "text": "Verbinden…",
+    "en": "Connecting…"
+  },
+  "common.create": {
+    "text": "Maken",
+    "en": "Create"
+  },
+  "common.decline": {
+    "text": "Weigeren",
+    "en": "Decline"
+  },
+  "common.delete": {
+    "text": "Verwijderen",
+    "en": "Delete"
+  },
+  "common.deleting": {
+    "text": "Verwijderen…",
+    "en": "Deleting…"
+  },
+  "common.deselect": {
+    "text": "Deselecteren",
+    "en": "Deselect"
+  },
+  "common.disconnect": {
+    "text": "Loskoppelen",
+    "en": "Disconnect"
+  },
+  "common.done": {
+    "text": "Klaar",
+    "en": "Done"
+  },
+  "common.download": {
+    "text": "Downloaden",
+    "en": "Download"
+  },
+  "common.loading": {
+    "text": "Laden…",
+    "en": "Loading…"
+  },
+  "common.next": {
+    "text": "Volgende",
+    "en": "Next"
+  },
+  "common.ok": {
+    "text": "OK",
+    "en": "OK"
+  },
+  "common.open": {
+    "text": "Openen",
+    "en": "Open"
+  },
+  "common.password": {
+    "text": "Wachtwoord",
+    "en": "Password"
+  },
+  "common.pause": {
+    "text": "Pauzeren",
+    "en": "Pause"
+  },
+  "common.quit": {
+    "text": "Stop",
+    "en": "Quit"
+  },
+  "common.refresh": {
+    "text": "Vernieuwen",
+    "en": "Refresh"
+  },
+  "common.remove": {
+    "text": "Verwijderen",
+    "en": "Remove"
+  },
+  "common.rename": {
+    "text": "Naam wijzigen",
+    "en": "Rename"
+  },
+  "common.resume": {
+    "text": "Hervatten",
+    "en": "Resume"
+  },
+  "common.save": {
+    "text": "Opslaan",
+    "en": "Save"
+  },
+  "common.search": {
+    "text": "Zoeken",
+    "en": "Search"
+  },
+  "common.select": {
+    "text": "Selecteren",
+    "en": "Select"
+  },
+  "common.send": {
+    "text": "Versturen",
+    "en": "Send"
+  },
+  "common.settings": {
+    "text": "Instellingen",
+    "en": "Settings"
+  },
+  "common.share": {
+    "text": "Delen",
+    "en": "Share"
+  },
+  "common.try_again": {
+    "text": "Opnieuw proberen",
+    "en": "Try again"
+  },
+  "common.update": {
+    "text": "Bijwerken",
+    "en": "Update"
+  },
+  "common.updating": {
+    "text": "Bijwerken…",
+    "en": "Updating…"
+  },
+  "common.upload": {
+    "text": "Uploaden",
+    "en": "Upload"
+  }
+}

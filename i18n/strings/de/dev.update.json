@@ -1,0 +1,194 @@
+{
+  "dev.update.already_running": {
+    "text": "es läuft bereits ein Update",
+    "en": "an update is already running"
+  },
+  "dev.update.applying": {
+    "text": "Release {release} wird angewendet",
+    "en": "Applying release {release}"
+  },
+  "dev.update.binary_install_failed": {
+    "text": "die neue Binärdatei konnte nicht installiert werden",
+    "en": "could not install the new binary"
+  },
+  "dev.update.build_failed": {
+    "text": "der Build ist fehlgeschlagen – siehe {path}",
+    "en": "the build failed - see {path}"
+  },
+  "dev.update.building": {
+    "text": "Wird kompiliert",
+    "en": "Building"
+  },
+  "dev.update.checking": {
+    "text": "Suche nach Updates",
+    "en": "Checking for updates"
+  },
+  "dev.update.checking_signature": {
+    "text": "Signatur der Releases wird geprüft",
+    "en": "Checking the release signature"
+  },
+  "dev.update.downloading": {
+    "text": "Release {release} wird heruntergeladen",
+    "en": "Downloading release {release}"
+  },
+  "dev.update.generating_protobuf": {
+    "text": "protobuf-Code wird generiert",
+    "en": "Generating protobuf code"
+  },
+  "dev.update.installing_web": {
+    "text": "Web-App wird installiert",
+    "en": "Installing the web app"
+  },
+  "dev.update.interrupted": {
+    "text": "Das Update wurde unterbrochen – wähle „Aktualisieren“, um es erneut zu versuchen",
+    "en": "The update was interrupted - press Update to try again"
+  },
+  "dev.update.manifest_download_failed": {
+    "text": "das Release-Manifest konnte nicht heruntergeladen werden",
+    "en": "could not download the release manifest"
+  },
+  "dev.update.manifest_fetch_failed": {
+    "text": "das Release-Manifest konnte nicht abgerufen werden",
+    "en": "could not fetch the release manifest"
+  },
+  "dev.update.manifest_not_signed": {
+    "text": "das Release-Manifest ist nicht mit dem Release-Schlüssel dieses Projekts signiert – es wurde nichts installiert",
+    "en": "the release manifest is not signed with this project's release key - nothing was installed",
+    "reviewed": "claude-backtranslation 2026-10-11 #e808477b"
+  },
+  "dev.update.no_release_key": {
+    "text": "dieses Gerät hat keinen Schlüssel zum Prüfen der Releases ({path}) – installiere es neu oder aktualisiere es von Hand",
+    "en": "this device has no release signing key ({path}) - reinstall or update by hand",
+    "reviewed": "claude-backtranslation 2026-10-11 #5fc80847"
+  },
+  "dev.update.no_room": {
+    "text": "kein Platz zum Bereitstellen des Updates",
+    "en": "no room to stage the update"
+  },
+  "dev.update.no_source_archive": {
+    "text": "Release {release} hat kein signiertes Quellarchiv",
+    "en": "release {release} has no signed source archive",
+    "reviewed": "claude-backtranslation 2026-10-11 #d4a9f595"
+  },
+  "dev.update.no_source_dir": {
+    "text": "kein Quellverzeichnis unter {path}",
+    "en": "no source directory at {path}"
+  },
+  "dev.update.protobuf_version_missing": {
+    "text": "die Version von google.golang.org/protobuf wurde in go.mod nicht gefunden",
+    "en": "couldn't find google.golang.org/protobuf's version in go.mod"
+  },
+  "dev.update.protoc_download_failed": {
+    "text": "protoc {version} konnte nicht heruntergeladen werden",
+    "en": "could not download protoc {version}"
+  },
+  "dev.update.protoc_failed": {
+    "text": "protoc ist fehlgeschlagen",
+    "en": "protoc failed"
+  },
+  "dev.update.protoc_gen_go_failed": {
+    "text": "protoc-gen-go {version} konnte nicht installiert werden",
+    "en": "could not install protoc-gen-go {version}"
+  },
+  "dev.update.protoc_hash_mismatch": {
+    "text": "protoc {version} stimmt nicht mit seinem festgelegten Hash überein",
+    "en": "protoc {version} does not match its pinned hash",
+    "reviewed": "claude-backtranslation 2026-10-11 #7809f1f6"
+  },
+  "dev.update.protoc_unpack_failed": {
+    "text": "protoc konnte nicht entpackt werden",
+    "en": "could not unpack protoc"
+  },
+  "dev.update.repo_not_https": {
+    "text": "Update-Repository ohne HTTPS wird abgelehnt: {url}",
+    "en": "refusing a non-HTTPS update repository: {url}",
+    "reviewed": "claude-backtranslation 2026-10-11 #18f436c0"
+  },
+  "dev.update.request_failed": {
+    "text": "beim Anfordern des Updates: {detail}",
+    "en": "requesting the update: {detail}"
+  },
+  "dev.update.restarting": {
+    "text": "Wird neu gestartet",
+    "en": "Restarting"
+  },
+  "dev.update.runner_chmod_failed": {
+    "text": "beim Ausführbarmachen des Updaters: {detail}",
+    "en": "making the updater executable: {detail}"
+  },
+  "dev.update.runner_download_failed": {
+    "text": "beim Herunterladen des Updaters: {detail}",
+    "en": "downloading the updater: {detail}"
+  },
+  "dev.update.runner_start_failed": {
+    "text": "beim Starten des Updaters: {detail}",
+    "en": "starting the updater: {detail}"
+  },
+  "dev.update.script_checksum": {
+    "text": "Release {release} hat die Prüfsummenprüfung nicht bestanden (erwartet {expected}, erhalten {actual})",
+    "en": "release {release} failed its checksum (expected {expected}, got {actual})",
+    "reviewed": "claude-backtranslation 2026-10-11 #ae04c9b5"
+  },
+  "dev.update.script_failed": {
+    "text": "Release {release} konnte nicht angewendet werden",
+    "en": "release {release} failed to apply"
+  },
+  "dev.update.script_missing": {
+    "text": "das Skript von Release {release} ist nicht in der geprüften Quelle",
+    "en": "release {release}'s script is not in the verified source"
+  },
+  "dev.update.source_download_failed": {
+    "text": "die Quelle von Release {release} konnte nicht heruntergeladen werden",
+    "en": "could not download the source of release {release}"
+  },
+  "dev.update.source_hash_mismatch": {
+    "text": "die Quelle von Release {release} stimmt nicht mit ihrem signierten Hash überein",
+    "en": "the source of release {release} does not match its signed hash",
+    "reviewed": "claude-backtranslation 2026-10-11 #64425c1d"
+  },
+  "dev.update.source_unpack_failed": {
+    "text": "Release {release} konnte nicht entpackt werden",
+    "en": "could not unpack release {release}"
+  },
+  "dev.update.stage_failed": {
+    "text": "die neue Quelle konnte nicht bereitgestellt werden",
+    "en": "could not stage the new source"
+  },
+  "dev.update.staging": {
+    "text": "Quelle wird bereitgestellt",
+    "en": "Staging the source"
+  },
+  "dev.update.unsupported_arch": {
+    "text": "nicht unterstützte Architektur {arch}",
+    "en": "unsupported architecture {arch}"
+  },
+  "dev.update.updated": {
+    "text": "Auf Version {version} aktualisiert",
+    "en": "Updated to version {version}"
+  },
+  "dev.update.uptodate": {
+    "text": "Bereits auf dem neuesten Stand",
+    "en": "Already up to date"
+  },
+  "dev.update.verified_manifest_missing": {
+    "text": "das geprüfte Manifest fehlt",
+    "en": "the verified manifest is missing"
+  },
+  "dev.update.web_checksum": {
+    "text": "die Dateien der Web-App haben die Prüfsummenprüfung nicht bestanden (erwartet {expected}, erhalten {actual})",
+    "en": "the web assets failed their checksum (expected {expected}, got {actual})",
+    "reviewed": "claude-backtranslation 2026-10-11 #cbdcb54c"
+  },
+  "dev.update.web_download_failed": {
+    "text": "die Web-App für Release {release} konnte nicht heruntergeladen werden – versuche das Update erneut",
+    "en": "could not download the web app for release {release} - try the update again"
+  },
+  "dev.update.web_install_failed": {
+    "text": "die Dateien der Web-App konnten nicht installiert werden",
+    "en": "could not install the web assets"
+  },
+  "dev.update.web_unpack_failed": {
+    "text": "die Dateien der Web-App konnten nicht entpackt werden",
+    "en": "could not unpack the web assets"
+  }
+}

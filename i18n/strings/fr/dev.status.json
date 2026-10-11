@@ -1,0 +1,207 @@
+{
+  "dev.status.bridge.already_on": {
+    "text": "l’appareil est déjà sur la passerelle",
+    "en": "the device is already on the bridge"
+  },
+  "dev.status.bridge.claim_failed": {
+    "text": "impossible de réserver ce nom",
+    "en": "could not reserve that name"
+  },
+  "dev.status.bridge.claim_unavailable": {
+    "text": "impossible de réserver ce nom pour le moment",
+    "en": "could not reserve that name right now"
+  },
+  "dev.status.bridge.config_missing": {
+    "text": "la configuration de l’appareil ({path}) est introuvable",
+    "en": "the device's config ({path}) is missing"
+  },
+  "dev.status.bridge.config_update_failed": {
+    "text": "impossible de mettre à jour {path}",
+    "en": "could not update {path}"
+  },
+  "dev.status.bridge.email_not_verified": {
+    "text": "Confirmez d’abord votre adresse e-mail : nous avons envoyé un lien à {email}. Ouvrez-le, puis reconnectez-vous ici pour continuer.",
+    "en": "Confirm your email first: we sent a link to {email}. Open it, then sign in here again to continue."
+  },
+  "dev.status.bridge.invalid_credentials": {
+    "text": "e-mail ou mot de passe incorrect : si votre compte a été créé avec Google ou Apple, utilisez plutôt ce moyen (sur la page du compte, puis avec un code de configuration)",
+    "en": "wrong email or password - if you signed up with Google or Apple, use that instead (on the account page, then a setup code)"
+  },
+  "dev.status.bridge.invalid_name": {
+    "text": "ce nom ne peut pas être utilisé",
+    "en": "that name can't be used"
+  },
+  "dev.status.bridge.invalid_setup_code": {
+    "text": "ce code de configuration n’est pas valide ou a expiré",
+    "en": "that setup code is not valid or has expired"
+  },
+  "dev.status.bridge.login_required": {
+    "text": "connectez-vous pour enregistrer un nom",
+    "en": "sign in to register a name"
+  },
+  "dev.status.bridge.name_held": {
+    "text": "ce nom a été libéré récemment et reste réservé à son ancien propriétaire pendant 30 jours",
+    "en": "that name was released recently and is held for its previous owner for 30 days"
+  },
+  "dev.status.bridge.name_rule": {
+    "text": "lettres minuscules, chiffres et traits d’union uniquement",
+    "en": "lower-case letters, digits and hyphens only"
+  },
+  "dev.status.bridge.name_taken": {
+    "text": "ce nom est déjà pris",
+    "en": "that name is already taken"
+  },
+  "dev.status.bridge.needs_update": {
+    "text": "cet appareil doit être mis à jour avant de pouvoir rejoindre la passerelle : Paramètres → Mettre à jour",
+    "en": "this device needs updating before it can join the bridge: Settings → Update"
+  },
+  "dev.status.bridge.no_name": {
+    "text": "aucun nom n’a été réservé pour cet appareil sur la passerelle {bridge}",
+    "en": "no name on {bridge} has been reserved for this device"
+  },
+  "dev.status.bridge.not_host_name": {
+    "text": "la passerelle configurée ({bridge}) n’est pas un nom d’hôte",
+    "en": "the configured bridge ({bridge}) is not a host name"
+  },
+  "dev.status.bridge.on_bridge": {
+    "text": "L’appareil est sur la passerelle à l’adresse {domain}",
+    "en": "The device is on the bridge as {domain}"
+  },
+  "dev.status.bridge.setup_unavailable": {
+    "text": "impossible de démarrer la configuration",
+    "en": "could not start the setup"
+  },
+  "dev.status.bridge.signin_failed": {
+    "text": "impossible de se connecter",
+    "en": "could not sign in"
+  },
+  "dev.status.bridge.signin_first": {
+    "text": "connectez-vous d’abord à votre compte Off The Cloud",
+    "en": "sign in to your Off The Cloud account first"
+  },
+  "dev.status.bridge.signin_unavailable": {
+    "text": "impossible de se connecter pour le moment",
+    "en": "could not sign in right now"
+  },
+  "dev.status.bridge.switch_off_failed": {
+    "text": "désactivation de la passerelle : {detail}",
+    "en": "switching the bridge off: {detail}"
+  },
+  "dev.status.bridge.switch_on_failed": {
+    "text": "activation de la passerelle : {detail}",
+    "en": "switching the bridge on: {detail}"
+  },
+  "dev.status.bridge.switching_off": {
+    "text": "Désactivation de la passerelle",
+    "en": "Switching the bridge off"
+  },
+  "dev.status.bridge.switching_on": {
+    "text": "Activation de la passerelle",
+    "en": "Switching the bridge on"
+  },
+  "dev.status.bridge.terms_not_accepted": {
+    "text": "acceptez d’abord les conditions d’utilisation : connectez-vous à votre compte sur off-the.cloud/account et acceptez-les sur cette page",
+    "en": "accept the terms of use first: sign in at off-the.cloud/account and accept them there",
+    "reviewed": "claude-backtranslation 2026-10-11 #95e4cbcd"
+  },
+  "dev.status.bridge.too_many_attempts": {
+    "text": "trop de tentatives échouées, réessayez plus tard",
+    "en": "too many failed attempts, try again later"
+  },
+  "dev.status.bridge.too_many_claims": {
+    "text": "veuillez patienter un instant avant d’essayer un autre nom",
+    "en": "please wait a moment before trying another name"
+  },
+  "dev.status.bridge.unreachable": {
+    "text": "impossible de joindre la passerelle {bridge} : {detail}",
+    "en": "could not reach {bridge}: {detail}"
+  },
+  "dev.status.raid.degraded": {
+    "text": "Volume RAID dégradé (disques actifs : seulement {active} sur {total})",
+    "en": "RAID array degraded: only {active} of {total} disks active"
+  },
+  "dev.status.raid.degraded_bottom": {
+    "text": "Volume RAID dégradé (disques actifs : seulement {active} sur {total}) : le disque du port USB bleu du bas ne fonctionne plus",
+    "en": "RAID array degraded: only {active} of {total} disks active - the disk in the bottom blue USB port stopped working"
+  },
+  "dev.status.raid.degraded_top": {
+    "text": "Volume RAID dégradé (disques actifs : seulement {active} sur {total}) : le disque du port USB bleu du haut ne fonctionne plus",
+    "en": "RAID array degraded: only {active} of {total} disks active - the disk in the top blue USB port stopped working"
+  },
+  "dev.status.raid.degraded_unknown": {
+    "text": "Volume RAID dégradé (disques actifs : seulement {active} sur {total}) : l’un des deux disques de stockage ne fonctionne plus",
+    "en": "RAID array degraded: only {active} of {total} disks active - one of the two storage disks stopped working"
+  },
+  "dev.status.tailscale.cli_missing": {
+    "text": "tailscale n’est pas installé sur cet appareil",
+    "en": "tailscale is not installed on this device"
+  },
+  "dev.status.tailscale.disable_failed": {
+    "text": "impossible de désactiver Funnel : {detail}",
+    "en": "could not disable Funnel: {detail}"
+  },
+  "dev.status.tailscale.enable_failed": {
+    "text": "impossible d’activer Funnel : {detail}",
+    "en": "could not enable Funnel: {detail}"
+  },
+  "dev.status.tailscale.join_failed": {
+    "text": "impossible de rejoindre le tailnet : {detail}",
+    "en": "could not join the tailnet: {detail}"
+  },
+  "dev.status.tailscale.not_installed": {
+    "text": "Tailscale n’est pas installé sur cet appareil",
+    "en": "Tailscale is not installed on this device"
+  },
+  "dev.status.tailscale.operator_failed": {
+    "text": "tailscaled a démarré, mais l’appareil n’a pas pu en devenir l’opérateur",
+    "en": "tailscaled started, but the device could not be made its operator"
+  },
+  "dev.status.tailscale.request_off_failed": {
+    "text": "impossible de demander l’arrêt de Tailscale : {detail}",
+    "en": "could not ask for Tailscale to be switched off: {detail}"
+  },
+  "dev.status.tailscale.request_on_failed": {
+    "text": "impossible de demander le démarrage de Tailscale : {detail}",
+    "en": "could not ask for Tailscale to be switched on: {detail}"
+  },
+  "dev.status.tailscale.start_failed": {
+    "text": "tailscaled n’a pas pu être démarré",
+    "en": "tailscaled could not be started"
+  },
+  "dev.status.tailscale.timeout_off": {
+    "text": "Tailscale ne s’est pas arrêté à temps : réessayez",
+    "en": "Tailscale did not switch off in time - try again"
+  },
+  "dev.status.tailscale.timeout_on": {
+    "text": "Tailscale n’a pas démarré à temps : réessayez",
+    "en": "Tailscale did not switch on in time - try again"
+  },
+  "dev.status.tailscale.unknown_request": {
+    "text": "demande inconnue",
+    "en": "unknown request"
+  },
+  "dev.status.wifi.no_connection": {
+    "text": "l’appareil n’a aucune connexion réseau à redémarrer",
+    "en": "the device has no network connection to restart"
+  },
+  "dev.status.wifi.not_wifi": {
+    "text": "l’appareil n’est pas connecté en Wi-Fi",
+    "en": "the device isn't connected over Wi-Fi"
+  },
+  "dev.status.wifi.rebooted": {
+    "text": "Le Wi-Fi ne s’est pas reconnecté après son redémarrage, l’appareil a donc redémarré",
+    "en": "The Wi-Fi did not reconnect after its restart, so the device restarted"
+  },
+  "dev.status.wifi.restarted": {
+    "text": "Le Wi-Fi a été redémarré",
+    "en": "The Wi-Fi was restarted"
+  },
+  "dev.status.wifi.restarting": {
+    "text": "Redémarrage du Wi-Fi",
+    "en": "Restarting the Wi-Fi"
+  },
+  "dev.status.wifi.too_soon": {
+    "text": "le Wi-Fi a été redémarré il y a moins de 30 minutes",
+    "en": "the Wi-Fi was restarted less than 30 minutes ago"
+  }
+}

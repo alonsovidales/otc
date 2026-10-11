@@ -1,0 +1,336 @@
+{
+  "api.error.account_check_unavailable": {
+    "text": "kan je account nu niet controleren",
+    "en": "could not check your account right now"
+  },
+  "api.error.claim_unavailable": {
+    "text": "kan die naam nu niet reserveren",
+    "en": "could not reserve that name right now"
+  },
+  "api.error.cross_origin": {
+    "text": "niet toegestaan vanaf deze pagina",
+    "en": "not allowed from this page"
+  },
+  "api.error.delete_unavailable": {
+    "text": "kan het account nu niet verwijderen",
+    "en": "could not delete the account right now"
+  },
+  "api.error.domain_limit": {
+    "text": "een account kan maximaal {max_domains} domeinen registreren – voor meer ({price_eur} euro per jaar per domein) schrijf je naar {contact}",
+    "en": "an account can register up to {max_domains} domains - for more ({price_eur} euros a year each), write to {contact}"
+  },
+  "api.error.domains_unavailable": {
+    "text": "kan je domeinen nu niet weergeven",
+    "en": "could not list your domains right now"
+  },
+  "api.error.email_not_verified": {
+    "text": "bevestig eerst je e-mailadres – open de link die we je hebben gestuurd, of vraag hierboven een nieuwe aan",
+    "en": "confirm your email first - open the link we sent you, or ask for a new one above"
+  },
+  "api.error.email_not_verified_setup": {
+    "text": "Bevestig eerst je e-mailadres: we hebben een link gestuurd naar {email}. Open die link en log hier daarna opnieuw in om verder te gaan.",
+    "en": "Confirm your email first: we sent a link to {email}. Open it, then sign in here again to continue."
+  },
+  "api.error.email_send_unavailable": {
+    "text": "kan de e-mail nu niet versturen",
+    "en": "could not send it right now"
+  },
+  "api.error.email_send_unavailable_email": {
+    "text": "kan de e-mail nu niet versturen",
+    "en": "could not send the email right now"
+  },
+  "api.error.email_taken": {
+    "text": "er is al een account met dat e-mailadres – log daarmee in",
+    "en": "there is already an account with that email - sign in instead"
+  },
+  "api.error.export_unavailable": {
+    "text": "kan je gegevens nu niet exporteren",
+    "en": "could not export your data right now"
+  },
+  "api.error.field_too_long": {
+    "text": "een van de velden is te lang",
+    "en": "one of the fields is too long"
+  },
+  "api.error.internal_error": {
+    "text": "interne fout, probeer het opnieuw",
+    "en": "internal error, please try again"
+  },
+  "api.error.invalid_body": {
+    "text": "ongeldige inhoud van het verzoek",
+    "en": "invalid request body"
+  },
+  "api.error.invalid_credentials": {
+    "text": "onjuist e-mailadres of wachtwoord – als je je met Google of Apple hebt geregistreerd, gebruik dat dan (via de accountpagina, en daarna een configuratiecode)",
+    "en": "wrong email or password - if you signed up with Google or Apple, use that instead (on the account page, then a setup code)",
+    "reviewed": "claude-backtranslation 2026-10-11 #64f24175"
+  },
+  "api.error.invalid_email": {
+    "text": "dat e-mailadres lijkt niet te kloppen",
+    "en": "that email address doesn't look right"
+  },
+  "api.error.invalid_email_contact": {
+    "text": "dat lijkt geen geldig e-mailadres",
+    "en": "that doesn't look like a valid email address"
+  },
+  "api.error.invalid_language": {
+    "text": "die taal is niet beschikbaar",
+    "en": "that language is not available"
+  },
+  "api.error.invalid_name": {
+    "text": "een naam bestaat uit kleine letters, cijfers en koppeltekens, maximaal 63 tekens",
+    "en": "a name is lower-case letters, digits and hyphens, up to 63 characters"
+  },
+  "api.error.invalid_name_claim": {
+    "text": "die naam kan niet worden gebruikt",
+    "en": "that name can't be used"
+  },
+  "api.error.invalid_name_short": {
+    "text": "ongeldige naam",
+    "en": "invalid name"
+  },
+  "api.error.invalid_setup_code": {
+    "text": "die configuratiecode is ongeldig of verlopen",
+    "en": "that setup code is not valid or has expired"
+  },
+  "api.error.login_required": {
+    "text": "log in om een naam te registreren",
+    "en": "sign in to register a name"
+  },
+  "api.error.missing_fields": {
+    "text": "naam, e-mailadres en bericht zijn verplicht",
+    "en": "name, email and message are required"
+  },
+  "api.error.name_check_unavailable": {
+    "text": "kan die naam nu niet controleren",
+    "en": "could not check that name right now"
+  },
+  "api.error.name_held": {
+    "text": "die naam is onlangs vrijgegeven en blijft 30 dagen gereserveerd voor de vorige eigenaar",
+    "en": "that name was released recently and is held for its previous owner for 30 days"
+  },
+  "api.error.name_taken": {
+    "text": "die naam is al in gebruik",
+    "en": "that name is already taken"
+  },
+  "api.error.not_signed_in": {
+    "text": "niet ingelogd",
+    "en": "not signed in"
+  },
+  "api.error.not_your_domain": {
+    "text": "dat domein is niet van jou",
+    "en": "that domain is not yours"
+  },
+  "api.error.password_too_short": {
+    "text": "het wachtwoord moet minstens {min_chars} tekens hebben",
+    "en": "the password needs at least {min_chars} characters"
+  },
+  "api.error.profile_incomplete": {
+    "text": "voornaam, achternaam en woonland zijn verplicht",
+    "en": "name, surname and country of residence are required"
+  },
+  "api.error.recent_signin_required": {
+    "text": "log opnieuw in om een wachtwoord in te stellen",
+    "en": "sign in again to set a password",
+    "reviewed": "claude-backtranslation 2026-10-11 #6b46ee16"
+  },
+  "api.error.recent_signin_required_delete": {
+    "text": "log opnieuw in (met Google of Apple) en verwijder het account daarna binnen 15 minuten",
+    "en": "sign in again (with Google or Apple), then delete the account within 15 minutes",
+    "reviewed": "claude-backtranslation 2026-10-11 #93ecff86"
+  },
+  "api.error.recent_signin_required_provider": {
+    "text": "log opnieuw in (met Google of Apple) om een wachtwoord in te stellen",
+    "en": "sign in again (with Google or Apple) to set a password",
+    "reviewed": "claude-backtranslation 2026-10-11 #385f5ebf"
+  },
+  "api.error.register_unavailable": {
+    "text": "kan die naam nu niet registreren",
+    "en": "could not register that name right now"
+  },
+  "api.error.reissue_unavailable": {
+    "text": "kan dat domein nu niet opnieuw uitgeven",
+    "en": "could not re-issue that domain right now"
+  },
+  "api.error.release_unavailable": {
+    "text": "kan dat domein nu niet vrijgeven",
+    "en": "could not release that domain right now"
+  },
+  "api.error.reset_link_invalid": {
+    "text": "die link is niet meer geldig – vraag een nieuwe aan",
+    "en": "that link is not valid any more - ask for a new one"
+  },
+  "api.error.reset_unavailable": {
+    "text": "kan het wachtwoord nu niet opnieuw instellen",
+    "en": "could not reset it right now"
+  },
+  "api.error.save_unavailable": {
+    "text": "kan nu niet opslaan",
+    "en": "could not save right now"
+  },
+  "api.error.setup_code_check_unavailable": {
+    "text": "kan die configuratiecode nu niet controleren",
+    "en": "could not check that setup code right now"
+  },
+  "api.error.setup_code_unavailable": {
+    "text": "kan nu geen configuratiecode maken",
+    "en": "could not make a setup code right now"
+  },
+  "api.error.setup_unavailable": {
+    "text": "kan de configuratie niet starten",
+    "en": "could not start the setup"
+  },
+  "api.error.signin_check_unavailable": {
+    "text": "kan je inlogstatus nu niet controleren – probeer het opnieuw",
+    "en": "could not check your sign-in right now - try again"
+  },
+  "api.error.signin_expired": {
+    "text": "die inlogpoging is verlopen – probeer het opnieuw",
+    "en": "that sign-in has expired - try again"
+  },
+  "api.error.signin_unavailable": {
+    "text": "kan nu niet inloggen",
+    "en": "could not sign in right now"
+  },
+  "api.error.signin_unavailable_finish": {
+    "text": "kan het inloggen niet voltooien",
+    "en": "could not finish the sign-in"
+  },
+  "api.error.signout_unavailable": {
+    "text": "kan nu niet uitloggen",
+    "en": "could not sign out right now"
+  },
+  "api.error.signup_unavailable": {
+    "text": "kan het account nu niet aanmaken",
+    "en": "could not sign up right now"
+  },
+  "api.error.terms_not_accepted": {
+    "text": "accepteer eerst hierboven de gebruiksvoorwaarden",
+    "en": "accept the terms of use above first",
+    "reviewed": "claude-backtranslation 2026-10-11 #99246d53"
+  },
+  "api.error.terms_not_accepted_setup": {
+    "text": "accepteer eerst de gebruiksvoorwaarden: log in op off-the.cloud/account en accepteer ze daar",
+    "en": "accept the terms of use first: sign in at off-the.cloud/account and accept them there",
+    "reviewed": "claude-backtranslation 2026-10-11 #ab2eb07b"
+  },
+  "api.error.terms_required": {
+    "text": "accepteer de voorwaarden",
+    "en": "please accept the terms",
+    "reviewed": "claude-backtranslation 2026-10-11 #93814c4b"
+  },
+  "api.error.terms_required_profile": {
+    "text": "accepteer de gebruiksvoorwaarden",
+    "en": "please accept the terms of use",
+    "reviewed": "claude-backtranslation 2026-10-11 #f88542a9"
+  },
+  "api.error.too_many_attempts": {
+    "text": "te veel mislukte pogingen, probeer het later opnieuw",
+    "en": "too many failed attempts, try again later"
+  },
+  "api.error.too_many_attempts_minutes": {
+    "text": "te veel pogingen – probeer het over een paar minuten opnieuw",
+    "en": "too many attempts - try again in a few minutes"
+  },
+  "api.error.too_many_claims": {
+    "text": "wacht even voordat je een andere naam probeert",
+    "en": "please wait a moment before trying another name"
+  },
+  "api.error.too_many_emails": {
+    "text": "vanaf hier zijn te veel e-mails aangevraagd, probeer het later opnieuw",
+    "en": "too many emails asked for from here, try again later"
+  },
+  "api.error.too_many_messages": {
+    "text": "wacht even voordat je nog een bericht stuurt",
+    "en": "please wait a moment before sending another message"
+  },
+  "api.error.too_many_signups": {
+    "text": "te veel registraties vanaf dit adres, probeer het later opnieuw",
+    "en": "too many sign-ups from this address, try again later"
+  },
+  "api.error.verify_link_invalid": {
+    "text": "die link is niet meer geldig – log in en vraag een nieuwe aan",
+    "en": "that link is not valid any more - sign in and ask for a new one"
+  },
+  "api.error.verify_unavailable": {
+    "text": "kan nu niet bevestigen",
+    "en": "could not confirm right now"
+  },
+  "api.error.wrong_password": {
+    "text": "het wachtwoord klopt niet",
+    "en": "the password is not right",
+    "reviewed": "claude-backtranslation 2026-10-11 #16a9e994"
+  },
+  "api.error.wrong_password_current": {
+    "text": "het huidige wachtwoord klopt niet",
+    "en": "the current password is not right",
+    "reviewed": "claude-backtranslation 2026-10-11 #a86def1f"
+  },
+  "api.page.bad_callback": {
+    "text": "ongeldige callback",
+    "en": "bad callback"
+  },
+  "api.page.challenge_required": {
+    "text": "inloggen vanuit een app vereist een geldige challenge",
+    "en": "an app sign-in needs a valid challenge"
+  },
+  "api.page.invalid_return": {
+    "text": "dat terugkeeradres is niet toegestaan",
+    "en": "that return address is not allowed"
+  },
+  "api.page.not_navigation": {
+    "text": "inloggen begint via een link, niet vanuit een andere pagina",
+    "en": "a sign-in starts from a link, not from within another page"
+  },
+  "api.page.open_from_account": {
+    "text": "open dit vanaf je accountpagina",
+    "en": "open this from your account page"
+  },
+  "api.page.provider_unknown": {
+    "text": "die inlogprovider is niet ingesteld op deze bridge",
+    "en": "that sign-in provider is not configured on this bridge"
+  },
+  "api.page.start_unavailable": {
+    "text": "kan het inloggen niet starten",
+    "en": "could not start the sign-in"
+  },
+  "api.page.too_many_starts": {
+    "text": "te veel inlogpogingen vanaf dit adres, probeer het over een minuut opnieuw",
+    "en": "too many sign-in attempts from this address, try again in a minute"
+  },
+  "api.relay.account_disabled": {
+    "text": "Dit account is uitgeschakeld.",
+    "en": "This account has been disabled."
+  },
+  "api.relay.device_unreachable": {
+    "text": "Dit apparaat is nu niet bereikbaar. Het staat misschien uit of is offline. Probeer het later opnieuw.",
+    "en": "This device isn't reachable right now. It may be switched off or offline - please try again later."
+  },
+  "api.relay.domain_check_failed": {
+    "text": "fout bij het controleren van het domein",
+    "en": "error checking domain"
+  },
+  "api.relay.internal_error": {
+    "text": "De bridge kan dit nu niet doen, probeer het later opnieuw",
+    "en": "The bridge could not do this right now, try again later"
+  },
+  "api.relay.invalid_secret": {
+    "text": "Ongeldig geheim",
+    "en": "Invalid Secret"
+  },
+  "api.relay.logs_no_email": {
+    "text": "de bridge kan nu geen e-mail versturen",
+    "en": "the bridge can't send email right now"
+  },
+  "api.relay.logs_send_failed": {
+    "text": "de logboeken konden nu niet worden verstuurd",
+    "en": "the logs could not be sent right now"
+  },
+  "api.relay.logs_too_big": {
+    "text": "de logboeken zijn te groot om te versturen",
+    "en": "the logs are too big to send"
+  },
+  "api.relay.logs_too_often": {
+    "text": "er zijn al een paar keer logboeken vanaf dit apparaat verstuurd – probeer het over een uur opnieuw",
+    "en": "logs were sent from this device a few times already - try again in an hour"
+  }
+}

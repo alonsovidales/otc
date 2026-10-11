@@ -1,0 +1,27 @@
+{
+  "dev.err.action_failed": {
+    "text": "Het apparaat kon dat niet doen: {detail}",
+    "en": "The device couldn't do that: {detail}"
+  },
+  "dev.err.error_detail": {
+    "text": "Fout: {detail}",
+    "en": "Error: {detail}"
+  },
+  "dev.err.internal": {
+    "text": "interne fout",
+    "en": "internal error"
+  },
+  "dev.err.not_authenticated": {
+    "text": "niet geverifieerd",
+    "en": "not authenticated",
+    "reviewed": "claude-backtranslation 2026-10-11 #78d76a23"
+  },
+  "dev.err.not_on_this_instance": {
+    "text": "niet beschikbaar op deze instantie",
+    "en": "not available on this instance"
+  },
+  "dev.err.unknown_request": {
+    "text": "Dit apparaat begrijpt dat verzoek niet: de software is ouder dan de app. Zoek naar updates in Instellingen.",
+    "en": "This device does not understand that request: its software is older than the app. Check for updates in Settings."
+  }
+}

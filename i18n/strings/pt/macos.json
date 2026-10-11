@@ -1,0 +1,474 @@
+{
+  "macos.add.backup_info": {
+    "text": "Os ficheiros novos e alterados são copiados para o dispositivo. Lá, nada é eliminado: os ficheiros que eliminares neste Mac ficam no dispositivo e, quando um ficheiro muda, o dispositivo guarda também a versão anterior. Nada do que for feito no dispositivo (a partir de um telemóvel, de outro computador ou da web) altera ou elimina alguma coisa nesta pasta do Mac. Ideal para acervos de fotos e cópias de segurança.",
+    "en": "New and changed files are copied to the device. Nothing is ever deleted there: files you delete on this Mac stay on the device, and when a file changes the device keeps its older version too. Nothing done on the device - from a phone, another computer or the web - ever changes or deletes anything in this folder on the Mac. Good for photo archives and backups."
+  },
+  "macos.add.backup_subtitle": {
+    "text": "Este Mac → dispositivo (apenas carregamento)",
+    "en": "One way: this Mac → device (upload only, no deletes)"
+  },
+  "macos.add.backup_title": {
+    "text": "Fazer cópia de segurança de uma pasta do Mac",
+    "en": "Back up a folder from this Mac"
+  },
+  "macos.add.device_info": {
+    "text": "Escolhe uma pasta que já esteja no dispositivo e um local neste Mac: a pasta é transferida para lá e, a partir daí, mantida igual nos dois locais, incluindo alterações e eliminações, como na opção acima. Prático para pôr uma pasta num segundo computador. O que estiver definido para ela no dispositivo (apenas carregamento, fora de Imagens) mantém-se.",
+    "en": "Pick a folder that is already on the device and a place on this Mac: it is downloaded there and kept the same in both places from then on, changes and deletions included, like the option above. Handy for getting a folder onto a second computer. What is set for it on the device (upload only, kept out of Images) stays as it is."
+  },
+  "macos.add.local_info": {
+    "text": "A pasta é copiada para o dispositivo e, a partir daí, mantida igual nos dois locais: os ficheiros adicionados, alterados ou eliminados no dispositivo (a partir de um telemóvel, de outro computador ou da web) também mudam esta pasta, e vice-versa. Os ficheiros eliminados vão para o Lixo do Mac. A primeira sincronização só adiciona, nunca elimina.",
+    "en": "The folder is copied to the device, and from then on it is kept the same in both places: files added, changed or deleted on the device (from a phone, another computer or the web) change this folder too, and the other way round. Deleted files go to the Trash on the Mac. The first sync only adds - it never deletes."
+  },
+  "macos.add.local_subtitle": {
+    "text": "Nos dois sentidos: começa por este Mac",
+    "en": "Two ways: starts from this Mac"
+  },
+  "macos.add.local_title": {
+    "text": "Sincronizar uma pasta deste Mac",
+    "en": "Sync a folder from this Mac"
+  },
+  "macos.add.title": {
+    "text": "Adicionar uma pasta",
+    "en": "Add a folder"
+  },
+  "macos.add.what_this_does": {
+    "text": "O que isto faz",
+    "en": "What this does"
+  },
+  "macos.bluetooth.bad_answer": {
+    "text": "O dispositivo enviou uma resposta que esta app não conseguiu ler",
+    "en": "The device sent an answer this app could not read"
+  },
+  "macos.bluetooth.closed": {
+    "text": "A configuração foi fechada",
+    "en": "Setup was closed"
+  },
+  "macos.bluetooth.device_id": {
+    "text": "Dispositivo {id}",
+    "en": "Device {id}"
+  },
+  "macos.bluetooth.device_older": {
+    "text": "Dispositivo (imagem antiga)",
+    "en": "Device (older image)"
+  },
+  "macos.bluetooth.enter_password": {
+    "text": "Introduz a palavra-passe do dispositivo",
+    "en": "Enter the device's password"
+  },
+  "macos.bluetooth.looking": {
+    "text": "A procurar um dispositivo para configurar…",
+    "en": "Looking for a device to set up…"
+  },
+  "macos.bluetooth.looking_detail": {
+    "text": "Liga o dispositivo com os discos instalados. Até estar configurado, anuncia-se por Bluetooth; mantém este Mac perto dele.",
+    "en": "Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep this Mac near it."
+  },
+  "macos.bluetooth.not_connected": {
+    "text": "Sem ligação ao dispositivo",
+    "en": "Not connected to the device"
+  },
+  "macos.bluetooth.off": {
+    "text": "O Bluetooth está desligado",
+    "en": "Bluetooth is off"
+  },
+  "macos.bluetooth.off_detail": {
+    "text": "Ativa o Bluetooth na Central de controlo para encontrar o dispositivo.",
+    "en": "Turn Bluetooth on in Control Centre to find the device."
+  },
+  "macos.bluetooth.password_known": {
+    "text": "Este Mac inicia sessão com a palavra-passe que escolheste na configuração.",
+    "en": "This Mac signs in with the password you chose in the setup."
+  },
+  "macos.bluetooth.ready_as": {
+    "text": "O dispositivo está pronto com o endereço {device}.",
+    "en": "The device is ready as {device}."
+  },
+  "macos.bluetooth.ready_home": {
+    "text": "O dispositivo está pronto na tua rede doméstica.",
+    "en": "The device is ready on your home network."
+  },
+  "macos.bluetooth.ready_maybe": {
+    "text": "Se o dispositivo já terminou a instalação, deixa de responder por Bluetooth: já o podes usar.",
+    "en": "If the device has finished installing it no longer answers over Bluetooth - you can use it now."
+  },
+  "macos.bluetooth.reconnecting": {
+    "text": "Ligação ao dispositivo perdida: a restabelecer. Mantém este Mac perto dele.",
+    "en": "Connection to the device lost - reconnecting. Keep this Mac near it."
+  },
+  "macos.bluetooth.sign_in_cancelled": {
+    "text": "Início de sessão cancelado",
+    "en": "Sign-in cancelled"
+  },
+  "macos.bluetooth.sign_in_failed": {
+    "text": "Não foi possível concluir o início de sessão",
+    "en": "Could not finish the sign-in"
+  },
+  "macos.bluetooth.sign_in_unfinished": {
+    "text": "O início de sessão não foi concluído",
+    "en": "The sign-in did not finish"
+  },
+  "macos.bluetooth.timed_out": {
+    "text": "O dispositivo não respondeu a tempo",
+    "en": "The device did not answer in time"
+  },
+  "macos.bluetooth.unauthorized": {
+    "text": "É necessário acesso ao Bluetooth",
+    "en": "Bluetooth access is needed"
+  },
+  "macos.bluetooth.unauthorized_detail": {
+    "text": "Permite o Bluetooth para o Off The Cloud em Definições do Sistema > Privacidade e segurança > Bluetooth para configurares um dispositivo desta forma.",
+    "en": "Allow Bluetooth for Off The Cloud in System Settings > Privacy & Security > Bluetooth to set a device up this way."
+  },
+  "macos.bluetooth.unknown_provider": {
+    "text": "Fornecedor de início de sessão desconhecido",
+    "en": "Unknown sign-in provider"
+  },
+  "macos.bluetooth.use_device": {
+    "text": "Sincronizar este Mac com o dispositivo",
+    "en": "Sync this Mac with my device"
+  },
+  "macos.bluetooth.which": {
+    "text": "Que dispositivo?",
+    "en": "Which device?"
+  },
+  "macos.bluetooth.which_detail": {
+    "text": "Há vários dispositivos à espera de configuração. O ID de cada um está na respetiva página de configuração, onde «Fazer piscar a luz» mostra qual é qual. O sinal mais forte costuma ser o mais próximo.",
+    "en": "Several devices are waiting to be set up. Each one's ID is on its setup page, where \"Blink its light\" shows which box it is. The strongest signal is usually the closest."
+  },
+  "macos.connection.cancelled": {
+    "text": "Cancelado",
+    "en": "Cancelled"
+  },
+  "macos.connection.closed": {
+    "text": "Ligação fechada",
+    "en": "Closed"
+  },
+  "macos.connection.no_public_key": {
+    "text": "Não foi possível obter a chave pública da ligação",
+    "en": "Unable to fetch the connection's public key"
+  },
+  "macos.connection.not_connected": {
+    "text": "Sem ligação",
+    "en": "Not connected"
+  },
+  "macos.connection.password_rejected": {
+    "text": "O dispositivo recusou a palavra-passe",
+    "en": "The device rejected the password"
+  },
+  "macos.connection.timed_out": {
+    "text": "O dispositivo não respondeu a tempo",
+    "en": "The device did not answer in time"
+  },
+  "macos.folders.backup_line": {
+    "text": "Cópia: este Mac → dispositivo, apenas carregamento",
+    "en": "Backup · this Mac → device, upload only"
+  },
+  "macos.folders.cant_read": {
+    "text": "Não é possível ler a pasta neste Mac",
+    "en": "Can't read the folder on this Mac"
+  },
+  "macos.folders.checking_count": {
+    "text": "A verificar {done} de {total}",
+    "en": "Checking {done} of {total}"
+  },
+  "macos.folders.could_not_list": {
+    "text": "Não foi possível listar os ficheiros remotos",
+    "en": "Could not list remote files"
+  },
+  "macos.folders.count": {
+    "text": "{done} de {total}",
+    "en": "{done} of {total}"
+  },
+  "macos.folders.restored_files": {
+    "text": "{files} ficheiros tinham desaparecido do dispositivo: foram restaurados a partir deste Mac em vez de serem eliminados aqui",
+    "en": "{files} files had disappeared from the device - restored them from this Mac instead of deleting them here"
+  },
+  "macos.images.add_info": {
+    "text": "Podes alterar isto mais tarde com o botão do olho na linha da pasta. Uma pasta a que mudes o nome mais tarde passa a ser uma pasta nova no dispositivo: volta a mantê-la fora de Imagens.",
+    "en": "You can change it later with the eye button on the folder's row. A folder renamed later is a new folder on the device: keep it out of Images again."
+  },
+  "macos.load.cpu": {
+    "text": "CPU",
+    "en": "CPU"
+  },
+  "macos.load.memory": {
+    "text": "Memória",
+    "en": "Memory"
+  },
+  "macos.load.storage": {
+    "text": "Armazenamento",
+    "en": "Storage"
+  },
+  "macos.login.message": {
+    "text": "As tuas pastas continuam a sincronizar em segundo plano depois de reiniciares o Mac. Podes alterar isto em Definições.",
+    "en": "Your folders keep syncing in the background after you restart your Mac. You can change this in Settings.",
+    "reviewed": "claude-backtranslation 2026-10-11 #a1480e7c"
+  },
+  "macos.login.off_in_system_settings": {
+    "text": "«Abrir ao iniciar sessão» está desativado nas Definições do Sistema.",
+    "en": "Start at login is switched off in System Settings."
+  },
+  "macos.login.open_login_items": {
+    "text": "Elementos de início de sessão…",
+    "en": "Open Login Items…"
+  },
+  "macos.picker.no_subfolders": {
+    "text": "Não há subpastas aqui.",
+    "en": "No subfolders here."
+  },
+  "macos.popover.back_up": {
+    "text": "Fazer cópia",
+    "en": "Back Up"
+  },
+  "macos.popover.choose_backup": {
+    "text": "Escolhe uma pasta para fazer uma cópia de segurança no dispositivo. Este Mac mantém o original.",
+    "en": "Choose a folder to back up to the device. This Mac stays the original."
+  },
+  "macos.popover.choose_download": {
+    "text": "Escolhe onde transferir a pasta «{path}» e mantê-la sincronizada.",
+    "en": "Choose where to download “{path}” and keep it in sync."
+  },
+  "macos.popover.quit": {
+    "text": "Sair de Off The Cloud",
+    "en": "Quit Off The Cloud"
+  },
+  "macos.popover.quit_tip": {
+    "text": "Sair de Off The Cloud: as pastas deixam de sincronizar até a app ser aberta novamente",
+    "en": "Quit Off The Cloud - folders stop syncing until it is opened again"
+  },
+  "macos.settings.address_placeholder": {
+    "text": "Endereço (wss://host/ws ou host)",
+    "en": "Address (wss://host/ws or host)"
+  },
+  "macos.settings.connect_hint": {
+    "text": "Introduz o dispositivo e a palavra-passe.",
+    "en": "Enter your device and its password."
+  },
+  "macos.settings.custom_address": {
+    "text": "Endereço personalizado",
+    "en": "Custom address"
+  },
+  "macos.settings.custom_address_hint": {
+    "text": "Para um dispositivo que não está na ponte Off The Cloud: a tua própria ponte, o Tailscale Funnel ou a rede local (ws://192.168.…:8080/ws).",
+    "en": "For a device not on the Off The Cloud bridge - your own bridge, Tailscale Funnel, or the local network (ws://192.168.…:8080/ws)."
+  },
+  "macos.settings.device_name_placeholder": {
+    "text": "Nome do dispositivo",
+    "en": "Device name"
+  },
+  "macos.settings.disconnect_button": {
+    "text": "Desligar…",
+    "en": "Disconnect…"
+  },
+  "macos.settings.disconnect_message": {
+    "text": "Todas as tuas pastas sincronizadas são removidas desta app, para que nenhuma comece a sincronizar com outro dispositivo por engano. Os próprios ficheiros ficam neste Mac e no dispositivo. Podes voltar a adicionar as pastas depois de te ligares.",
+    "en": "All your synced folders are removed from this app, so none of them starts syncing with a different device by mistake. The files themselves stay on this Mac and on the device. You can add the folders again after connecting.",
+    "reviewed": "claude-backtranslation 2026-10-11 #f671fa9a"
+  },
+  "macos.settings.retry": {
+    "text": "Tentar novamente",
+    "en": "Retry"
+  },
+  "macos.setup.bad_hash": {
+    "text": "A imagem transferida não corresponde à soma de verificação assinada, por isso foi eliminada. Tenta novamente.",
+    "en": "The downloaded image does not match its signed checksum, so it was deleted. Try again.",
+    "reviewed": "claude-backtranslation 2026-10-11 #eb23e678"
+  },
+  "macos.setup.bad_signature": {
+    "text": "A soma de verificação da imagem não está assinada com a chave de assinatura de versões do Off The Cloud. Não foi guardado nada.",
+    "en": "The image's checksum is not signed with the Off The Cloud release key. Nothing was kept.",
+    "reviewed": "claude-backtranslation 2026-10-11 #924af03b"
+  },
+  "macos.setup.card_written": {
+    "text": "Já escrevi o cartão",
+    "en": "I've Written the Card"
+  },
+  "macos.setup.check_again": {
+    "text": "Verificar novamente",
+    "en": "Check Again"
+  },
+  "macos.setup.checking_release": {
+    "text": "A verificar a imagem mais recente…",
+    "en": "Checking the latest image…"
+  },
+  "macos.setup.come_back": {
+    "text": "Quando o Imager disser que o cartão foi escrito, volta aqui.",
+    "en": "When Imager says the card is written, come back here."
+  },
+  "macos.setup.done_subtitle": {
+    "text": "Este Mac sincroniza agora com o dispositivo {device}.",
+    "en": "This Mac now syncs with {device}."
+  },
+  "macos.setup.done_text": {
+    "text": "Adiciona pastas para fazer cópias de segurança ou manter sincronizadas a partir do ícone do Off The Cloud na barra de menus. A página do próprio dispositivo, num navegador, tem as tuas fotos, os teus ficheiros e as tuas definições.",
+    "en": "Add folders to back up or keep in sync from the Off The Cloud menu bar icon. The device's own page, in a browser, has your photos, files and settings."
+  },
+  "macos.setup.done_title": {
+    "text": "O teu dispositivo está pronto",
+    "en": "Your device is ready"
+  },
+  "macos.setup.download_button": {
+    "text": "Transferir a imagem",
+    "en": "Download the Image"
+  },
+  "macos.setup.download_progress": {
+    "text": "{done} de {total}",
+    "en": "{done} of {total}"
+  },
+  "macos.setup.download_subtitle": {
+    "text": "Para a tua pasta Transferências.",
+    "en": "Into your Downloads folder."
+  },
+  "macos.setup.download_title": {
+    "text": "A transferir a imagem",
+    "en": "Downloading the image"
+  },
+  "macos.setup.downloaded": {
+    "text": "Transferido: {file}",
+    "en": "Downloaded: {file}"
+  },
+  "macos.setup.finish_prompt": {
+    "text": "Depois, conclui a configuração (Wi-Fi, o nome do dispositivo, os discos e a tua palavra-passe):",
+    "en": "Then finish the setup - WiFi, the device's name, its disks and your password:"
+  },
+  "macos.setup.get_imager": {
+    "text": "Obter o Raspberry Pi Imager",
+    "en": "Get Raspberry Pi Imager"
+  },
+  "macos.setup.http_failed": {
+    "text": "A transferência falhou (HTTP {code}). Tenta novamente daqui a pouco.",
+    "en": "The download failed (HTTP {code}). Try again in a moment."
+  },
+  "macos.setup.image_deleted": {
+    "text": "A imagem transferida foi eliminada da tua pasta Transferências.",
+    "en": "The downloaded image was deleted from your Downloads folder."
+  },
+  "macos.setup.imager_missing": {
+    "text": "O Raspberry Pi Imager não está instalado. É gratuito e vem da Raspberry Pi Foundation.",
+    "en": "Raspberry Pi Imager isn't installed. It's free, from the Raspberry Pi Foundation."
+  },
+  "macos.setup.intro_note": {
+    "text": "A transferência é eliminada depois de o cartão ser escrito.",
+    "en": "The download is deleted once the card is written."
+  },
+  "macos.setup.intro_step1": {
+    "text": "Transferir a imagem Off The Cloud (cerca de 550 MB).",
+    "en": "Download the Off The Cloud image (about 550 MB)."
+  },
+  "macos.setup.intro_step2": {
+    "text": "Escrevê-la no cartão microSD com o Raspberry Pi Imager.",
+    "en": "Write it to the microSD card with Raspberry Pi Imager."
+  },
+  "macos.setup.intro_step3": {
+    "text": "Colocar o cartão no Pi, encaixar os discos, ligá-lo e concluir a configuração aqui, por Bluetooth, ou no teu telemóvel.",
+    "en": "Put the card in the Pi, connect the disks, power it on and finish the setup here over Bluetooth, or on your phone."
+  },
+  "macos.setup.intro_subtitle": {
+    "text": "Um Raspberry Pi 5 (8 GB) com um cartão microSD e dois discos USB torna-se o teu dispositivo Off The Cloud.",
+    "en": "A Raspberry Pi 5 (8 GB) with a microSD card and two USB disks becomes your Off The Cloud device."
+  },
+  "macos.setup.intro_title": {
+    "text": "Configurar um novo dispositivo",
+    "en": "Set up a new device"
+  },
+  "macos.setup.on_my_phone": {
+    "text": "No meu telemóvel",
+    "en": "On my phone"
+  },
+  "macos.setup.on_my_phone_detail": {
+    "text": "Na app Off The Cloud para iPhone ou Android.",
+    "en": "In the Off The Cloud app for iPhone or Android."
+  },
+  "macos.setup.on_this_mac": {
+    "text": "Neste Mac",
+    "en": "On this Mac"
+  },
+  "macos.setup.on_this_mac_detail": {
+    "text": "Por Bluetooth, com este Mac perto do dispositivo.",
+    "en": "Over Bluetooth, with this Mac near the device."
+  },
+  "macos.setup.open_imager": {
+    "text": "Abrir o Raspberry Pi Imager",
+    "en": "Open Raspberry Pi Imager"
+  },
+  "macos.setup.phone_step": {
+    "text": "Na app Off The Cloud para iPhone ou Android, toca em «Configurar um novo dispositivo». A app encontra o dispositivo por Bluetooth e mostra a configuração dele.",
+    "en": "In the Off The Cloud app for iPhone or Android, tap Set up a new device. The app finds the device over Bluetooth and shows its setup."
+  },
+  "macos.setup.phone_subtitle": {
+    "text": "Mantém o telemóvel perto do dispositivo.",
+    "en": "Keep the phone near the device."
+  },
+  "macos.setup.phone_then": {
+    "text": "Depois de instalado, adiciona o dispositivo a este Mac a partir da barra de menus: Definições e depois o nome e a palavra-passe dele.",
+    "en": "Once it is installed, add the device to this Mac from the menu bar: Settings, then its name and password."
+  },
+  "macos.setup.phone_title": {
+    "text": "Continuar no telemóvel",
+    "en": "Continue on your phone"
+  },
+  "macos.setup.show_in_finder": {
+    "text": "Mostrar no Finder",
+    "en": "Show in Finder"
+  },
+  "macos.setup.start_subtitle": {
+    "text": "Coloca o cartão no Pi, encaixa os dois discos USB e liga-o. Demora um ou dois minutos a arrancar.",
+    "en": "Put the card in the Pi, connect the two USB disks, and power it on. It takes a minute or two to start."
+  },
+  "macos.setup.start_title": {
+    "text": "Ligar o dispositivo",
+    "en": "Start the device"
+  },
+  "macos.setup.switch_button": {
+    "text": "Mudar",
+    "en": "Switch",
+    "reviewed": "claude-backtranslation 2026-10-11 #943366a8"
+  },
+  "macos.setup.switch_message": {
+    "text": "Este Mac está ligado a {device}. Mudar remove todas as tuas pastas sincronizadas desta app, para que nenhuma comece a sincronizar com o novo dispositivo por engano. Os próprios ficheiros ficam neste Mac e no dispositivo antigo.",
+    "en": "This Mac is connected to {device}. Switching removes all your synced folders from this app, so none of them starts syncing with the new device by mistake. The files themselves stay on this Mac and on the old device.",
+    "reviewed": "claude-backtranslation 2026-10-11 #00bce5d5"
+  },
+  "macos.setup.switch_title": {
+    "text": "Mudar este Mac para o novo dispositivo?",
+    "en": "Switch this Mac to the new device?",
+    "reviewed": "claude-backtranslation 2026-10-11 #2a3f93a2"
+  },
+  "macos.setup.verifying": {
+    "text": "A verificar a transferência…",
+    "en": "Checking the download…"
+  },
+  "macos.setup.write_step1": {
+    "text": "Insere o cartão microSD e clica em {button} abaixo.",
+    "en": "Insert the microSD card and click {button} below."
+  },
+  "macos.setup.write_step2": {
+    "text": "Escolher dispositivo: Raspberry Pi 5.",
+    "en": "Choose Device: Raspberry Pi 5."
+  },
+  "macos.setup.write_step3": {
+    "text": "Escolher SO: desce até Usar personalizado e escolhe {file} na tua pasta Transferências (está selecionado no Finder), a não ser que o Imager já o mostre.",
+    "en": "Choose OS: scroll down to Use custom and pick {file} in your Downloads folder (it is selected in Finder) - unless Imager already shows it."
+  },
+  "macos.setup.write_step4": {
+    "text": "Escolher armazenamento: o teu cartão SD. Tudo o que estiver nele é apagado.",
+    "en": "Choose Storage: your SD card. Everything on it is erased.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c691d022"
+  },
+  "macos.setup.write_step5": {
+    "text": "Clica em Seguinte e responde Não a «aplicar definições de personalização do SO»: o dispositivo é configurado a partir deste Mac ou do teu telemóvel.",
+    "en": "Click Next and answer No to \"apply OS customisation settings\": the device is set up from this Mac or your phone."
+  },
+  "macos.setup.write_subtitle": {
+    "text": "O macOS só deixa que apps de fora da App Store escrevam cartões SD, por isso o Raspberry Pi Imager faz este passo.",
+    "en": "macOS only lets apps outside the App Store write SD cards, so Raspberry Pi Imager does this step."
+  },
+  "macos.setup.write_title": {
+    "text": "Escrever o cartão",
+    "en": "Write the card"
+  },
+  "macos.upload_only.add_info": {
+    "text": "Os ficheiros que eliminares neste Mac ficam no dispositivo e não voltam a ser transferidos; os ficheiros adicionados ou alterados no dispositivo continuam a chegar. Podes desativá-la mais tarde na app web ou na app do telemóvel (o cadeado na pasta, em Ficheiros); os ficheiros que eliminaste neste Mac enquanto estava ativa voltam então para aqui.",
+    "en": "Files you delete on this Mac stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this Mac while it was on then come back here."
+  }
+}

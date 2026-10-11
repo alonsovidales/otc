@@ -1,0 +1,89 @@
+{
+  "dev.device.already_on_bridge": {
+    "text": "questo dispositivo è già sul bridge",
+    "en": "this device is already on the bridge"
+  },
+  "dev.device.bridge_dial_failed": {
+    "text": "connessione al bridge: {detail}",
+    "en": "dialing bridge: {detail}"
+  },
+  "dev.device.bridge_read_failed": {
+    "text": "lettura dal bridge: {detail}",
+    "en": "reading from bridge: {detail}"
+  },
+  "dev.device.bridge_secret_managed": {
+    "text": "il segreto del bridge è gestito dal dispositivo",
+    "en": "the bridge secret is managed by the device"
+  },
+  "dev.device.bridge_write_failed": {
+    "text": "scrittura sul bridge: {detail}",
+    "en": "writing to bridge: {detail}"
+  },
+  "dev.device.identity_store_failed": {
+    "text": "impossibile salvare la nuova identità del dispositivo",
+    "en": "could not store the device's new identity"
+  },
+  "dev.device.local_addresses_failed": {
+    "text": "impossibile elencare gli indirizzi di questo dispositivo",
+    "en": "could not list this device's addresses"
+  },
+  "dev.device.local_no_address": {
+    "text": "questo dispositivo non ha un indirizzo sulla rete domestica",
+    "en": "this device has no home-network address"
+  },
+  "dev.device.local_no_listener": {
+    "text": "questo dispositivo non accetta connessioni sulla rete domestica",
+    "en": "this device has no home-network listener"
+  },
+  "dev.device.local_starting": {
+    "text": "questo dispositivo sta ancora avviando l’ascolto sulla rete domestica",
+    "en": "this device is still starting its home-network listener"
+  },
+  "dev.device.logs_console_only": {
+    "text": "questo dispositivo scrive i log solo sulla console",
+    "en": "this device logs to its console only"
+  },
+  "dev.device.logs_need_bridge": {
+    "text": "questo dispositivo non è sul bridge, quindi non può inviare i suoi log: usa invece Copia",
+    "en": "this device isn't on the bridge, so it can't send its logs - use Copy instead",
+    "reviewed": "claude-backtranslation 2026-10-11 #e77fc439"
+  },
+  "dev.device.not_on_bridge": {
+    "text": "questo dispositivo non è sul bridge",
+    "en": "this device is not on the bridge"
+  },
+  "dev.device.release_failed": {
+    "text": "Impossibile raggiungere il bridge, quindi il nome è ancora registrato: rilascialo nella pagina dell’account.",
+    "en": "The bridge could not be reached, so the name is still registered: release it on the account page.",
+    "reviewed": "claude-backtranslation 2026-10-11 #31a658cf"
+  },
+  "dev.device.restart_needs_update": {
+    "text": "questo dispositivo non può essere riavviato da qui finché non viene aggiornato",
+    "en": "this device can't be restarted from here until it is updated"
+  },
+  "dev.device.restart_request_failed": {
+    "text": "impossibile richiedere il riavvio: {detail}",
+    "en": "could not ask for the restart: {detail}"
+  },
+  "dev.device.restart_too_soon": {
+    "text": "il dispositivo si è appena avviato; riprova tra un minuto",
+    "en": "the device has only just started; try again in a minute"
+  },
+  "dev.device.social_limit_too_low": {
+    "text": "il limite deve essere di almeno 0,1 GB",
+    "en": "the limit must be at least 0.1 GB"
+  },
+  "dev.device.storage_too_many": {
+    "text": "scegli al massimo 2 dispositivi di archiviazione, ne sono stati scelti {chosen}",
+    "en": "choose at most 2 devices, got {chosen}",
+    "reviewed": "claude-backtranslation 2026-10-11 #4b6bf01a"
+  },
+  "dev.device.unknown_log": {
+    "text": "log sconosciuto “{source}”",
+    "en": "unknown log \"{source}\""
+  },
+  "dev.device.wifi_no_ssid": {
+    "text": "l’SSID non può essere vuoto",
+    "en": "ssid cannot be empty"
+  }
+}

@@ -1,0 +1,336 @@
+{
+  "api.error.account_check_unavailable": {
+    "text": "impossible de vérifier votre compte pour le moment",
+    "en": "could not check your account right now"
+  },
+  "api.error.claim_unavailable": {
+    "text": "impossible de réserver ce nom pour le moment",
+    "en": "could not reserve that name right now"
+  },
+  "api.error.cross_origin": {
+    "text": "non autorisé depuis cette page",
+    "en": "not allowed from this page"
+  },
+  "api.error.delete_unavailable": {
+    "text": "impossible de supprimer le compte pour le moment",
+    "en": "could not delete the account right now"
+  },
+  "api.error.domain_limit": {
+    "text": "un compte peut enregistrer jusqu’à {max_domains} domaines : pour en avoir plus ({price_eur} euros par an chacun), écrivez à {contact}",
+    "en": "an account can register up to {max_domains} domains - for more ({price_eur} euros a year each), write to {contact}"
+  },
+  "api.error.domains_unavailable": {
+    "text": "impossible de lister vos domaines pour le moment",
+    "en": "could not list your domains right now"
+  },
+  "api.error.email_not_verified": {
+    "text": "confirmez d’abord votre adresse e-mail : ouvrez le lien que nous vous avons envoyé, ou demandez-en un nouveau ci-dessus",
+    "en": "confirm your email first - open the link we sent you, or ask for a new one above"
+  },
+  "api.error.email_not_verified_setup": {
+    "text": "Confirmez d’abord votre adresse e-mail : nous avons envoyé un lien à {email}. Ouvrez-le, puis reconnectez-vous ici pour continuer.",
+    "en": "Confirm your email first: we sent a link to {email}. Open it, then sign in here again to continue."
+  },
+  "api.error.email_send_unavailable": {
+    "text": "impossible de l’envoyer pour le moment",
+    "en": "could not send it right now"
+  },
+  "api.error.email_send_unavailable_email": {
+    "text": "impossible d’envoyer l’e-mail pour le moment",
+    "en": "could not send the email right now"
+  },
+  "api.error.email_taken": {
+    "text": "un compte existe déjà avec cette adresse e-mail : connectez-vous plutôt",
+    "en": "there is already an account with that email - sign in instead"
+  },
+  "api.error.export_unavailable": {
+    "text": "impossible d’exporter vos données pour le moment",
+    "en": "could not export your data right now"
+  },
+  "api.error.field_too_long": {
+    "text": "l’un des champs est trop long",
+    "en": "one of the fields is too long"
+  },
+  "api.error.internal_error": {
+    "text": "erreur interne, veuillez réessayer",
+    "en": "internal error, please try again"
+  },
+  "api.error.invalid_body": {
+    "text": "corps de requête non valide",
+    "en": "invalid request body"
+  },
+  "api.error.invalid_credentials": {
+    "text": "e-mail ou mot de passe incorrect : si votre compte a été créé avec Google ou Apple, utilisez plutôt ce moyen (sur la page du compte, puis avec un code de configuration)",
+    "en": "wrong email or password - if you signed up with Google or Apple, use that instead (on the account page, then a setup code)",
+    "reviewed": "claude-backtranslation 2026-10-11 #422ffe83"
+  },
+  "api.error.invalid_email": {
+    "text": "cette adresse e-mail ne semble pas correcte",
+    "en": "that email address doesn't look right"
+  },
+  "api.error.invalid_email_contact": {
+    "text": "cette adresse e-mail ne semble pas valide",
+    "en": "that doesn't look like a valid email address"
+  },
+  "api.error.invalid_language": {
+    "text": "cette langue n’est pas disponible",
+    "en": "that language is not available"
+  },
+  "api.error.invalid_name": {
+    "text": "un nom se compose de lettres minuscules, de chiffres et de traits d’union, 63 caractères au maximum",
+    "en": "a name is lower-case letters, digits and hyphens, up to 63 characters"
+  },
+  "api.error.invalid_name_claim": {
+    "text": "ce nom ne peut pas être utilisé",
+    "en": "that name can't be used"
+  },
+  "api.error.invalid_name_short": {
+    "text": "nom non valide",
+    "en": "invalid name"
+  },
+  "api.error.invalid_setup_code": {
+    "text": "ce code de configuration n’est pas valide ou a expiré",
+    "en": "that setup code is not valid or has expired"
+  },
+  "api.error.login_required": {
+    "text": "connectez-vous pour enregistrer un nom",
+    "en": "sign in to register a name"
+  },
+  "api.error.missing_fields": {
+    "text": "le nom, l’adresse e-mail et le message sont obligatoires",
+    "en": "name, email and message are required"
+  },
+  "api.error.name_check_unavailable": {
+    "text": "impossible de vérifier ce nom pour le moment",
+    "en": "could not check that name right now"
+  },
+  "api.error.name_held": {
+    "text": "ce nom a été libéré récemment et reste réservé à son ancien propriétaire pendant 30 jours",
+    "en": "that name was released recently and is held for its previous owner for 30 days"
+  },
+  "api.error.name_taken": {
+    "text": "ce nom est déjà pris",
+    "en": "that name is already taken"
+  },
+  "api.error.not_signed_in": {
+    "text": "non connecté",
+    "en": "not signed in"
+  },
+  "api.error.not_your_domain": {
+    "text": "ce domaine ne vous appartient pas",
+    "en": "that domain is not yours"
+  },
+  "api.error.password_too_short": {
+    "text": "le mot de passe doit comporter au moins {min_chars} caractères",
+    "en": "the password needs at least {min_chars} characters"
+  },
+  "api.error.profile_incomplete": {
+    "text": "le prénom, le nom et le pays de résidence sont obligatoires",
+    "en": "name, surname and country of residence are required"
+  },
+  "api.error.recent_signin_required": {
+    "text": "reconnectez-vous pour définir un mot de passe",
+    "en": "sign in again to set a password",
+    "reviewed": "claude-backtranslation 2026-10-11 #c1e4ecb1"
+  },
+  "api.error.recent_signin_required_delete": {
+    "text": "reconnectez-vous (avec Google ou Apple), puis supprimez le compte dans les 15 minutes",
+    "en": "sign in again (with Google or Apple), then delete the account within 15 minutes",
+    "reviewed": "claude-backtranslation 2026-10-11 #3cfc1789"
+  },
+  "api.error.recent_signin_required_provider": {
+    "text": "reconnectez-vous (avec Google ou Apple) pour définir un mot de passe",
+    "en": "sign in again (with Google or Apple) to set a password",
+    "reviewed": "claude-backtranslation 2026-10-11 #5b5b5509"
+  },
+  "api.error.register_unavailable": {
+    "text": "impossible d’enregistrer ce nom pour le moment",
+    "en": "could not register that name right now"
+  },
+  "api.error.reissue_unavailable": {
+    "text": "impossible de réattribuer ce domaine pour le moment",
+    "en": "could not re-issue that domain right now"
+  },
+  "api.error.release_unavailable": {
+    "text": "impossible de libérer ce domaine pour le moment",
+    "en": "could not release that domain right now"
+  },
+  "api.error.reset_link_invalid": {
+    "text": "ce lien n’est plus valide : demandez-en un nouveau",
+    "en": "that link is not valid any more - ask for a new one"
+  },
+  "api.error.reset_unavailable": {
+    "text": "impossible de le réinitialiser pour le moment",
+    "en": "could not reset it right now"
+  },
+  "api.error.save_unavailable": {
+    "text": "impossible d’enregistrer pour le moment",
+    "en": "could not save right now"
+  },
+  "api.error.setup_code_check_unavailable": {
+    "text": "impossible de vérifier ce code de configuration pour le moment",
+    "en": "could not check that setup code right now"
+  },
+  "api.error.setup_code_unavailable": {
+    "text": "impossible de créer un code de configuration pour le moment",
+    "en": "could not make a setup code right now"
+  },
+  "api.error.setup_unavailable": {
+    "text": "impossible de démarrer la configuration",
+    "en": "could not start the setup"
+  },
+  "api.error.signin_check_unavailable": {
+    "text": "impossible de vérifier votre connexion pour le moment : réessayez",
+    "en": "could not check your sign-in right now - try again"
+  },
+  "api.error.signin_expired": {
+    "text": "cette connexion a expiré : réessayez",
+    "en": "that sign-in has expired - try again"
+  },
+  "api.error.signin_unavailable": {
+    "text": "impossible de se connecter pour le moment",
+    "en": "could not sign in right now"
+  },
+  "api.error.signin_unavailable_finish": {
+    "text": "impossible de terminer la connexion",
+    "en": "could not finish the sign-in"
+  },
+  "api.error.signout_unavailable": {
+    "text": "impossible de se déconnecter pour le moment",
+    "en": "could not sign out right now"
+  },
+  "api.error.signup_unavailable": {
+    "text": "impossible de s’inscrire pour le moment",
+    "en": "could not sign up right now"
+  },
+  "api.error.terms_not_accepted": {
+    "text": "acceptez d’abord les conditions d’utilisation ci-dessus",
+    "en": "accept the terms of use above first",
+    "reviewed": "claude-backtranslation 2026-10-11 #a173db64"
+  },
+  "api.error.terms_not_accepted_setup": {
+    "text": "acceptez d’abord les conditions d’utilisation : connectez-vous à votre compte sur off-the.cloud/account et acceptez-les sur cette page",
+    "en": "accept the terms of use first: sign in at off-the.cloud/account and accept them there",
+    "reviewed": "claude-backtranslation 2026-10-11 #95e4cbcd"
+  },
+  "api.error.terms_required": {
+    "text": "veuillez accepter les conditions",
+    "en": "please accept the terms",
+    "reviewed": "claude-backtranslation 2026-10-11 #4f21efd5"
+  },
+  "api.error.terms_required_profile": {
+    "text": "veuillez accepter les conditions d’utilisation",
+    "en": "please accept the terms of use",
+    "reviewed": "claude-backtranslation 2026-10-11 #08440ba3"
+  },
+  "api.error.too_many_attempts": {
+    "text": "trop de tentatives échouées, réessayez plus tard",
+    "en": "too many failed attempts, try again later"
+  },
+  "api.error.too_many_attempts_minutes": {
+    "text": "trop de tentatives : réessayez dans quelques minutes",
+    "en": "too many attempts - try again in a few minutes"
+  },
+  "api.error.too_many_claims": {
+    "text": "veuillez patienter un instant avant d’essayer un autre nom",
+    "en": "please wait a moment before trying another name"
+  },
+  "api.error.too_many_emails": {
+    "text": "trop d’e-mails ont été demandés d’ici, réessayez plus tard",
+    "en": "too many emails asked for from here, try again later"
+  },
+  "api.error.too_many_messages": {
+    "text": "veuillez patienter un instant avant d’envoyer un autre message",
+    "en": "please wait a moment before sending another message"
+  },
+  "api.error.too_many_signups": {
+    "text": "trop d’inscriptions depuis cette adresse, réessayez plus tard",
+    "en": "too many sign-ups from this address, try again later"
+  },
+  "api.error.verify_link_invalid": {
+    "text": "ce lien n’est plus valide : connectez-vous et demandez-en un nouveau",
+    "en": "that link is not valid any more - sign in and ask for a new one"
+  },
+  "api.error.verify_unavailable": {
+    "text": "impossible de confirmer pour le moment",
+    "en": "could not confirm right now"
+  },
+  "api.error.wrong_password": {
+    "text": "le mot de passe est incorrect",
+    "en": "the password is not right",
+    "reviewed": "claude-backtranslation 2026-10-11 #1d4391ea"
+  },
+  "api.error.wrong_password_current": {
+    "text": "le mot de passe actuel est incorrect",
+    "en": "the current password is not right",
+    "reviewed": "claude-backtranslation 2026-10-11 #87369e4f"
+  },
+  "api.page.bad_callback": {
+    "text": "retour du fournisseur non valide",
+    "en": "bad callback"
+  },
+  "api.page.challenge_required": {
+    "text": "une connexion depuis une app nécessite un défi valide",
+    "en": "an app sign-in needs a valid challenge"
+  },
+  "api.page.invalid_return": {
+    "text": "cette adresse de retour n’est pas autorisée",
+    "en": "that return address is not allowed"
+  },
+  "api.page.not_navigation": {
+    "text": "une connexion démarre depuis un lien, pas depuis l’intérieur d’une autre page",
+    "en": "a sign-in starts from a link, not from within another page"
+  },
+  "api.page.open_from_account": {
+    "text": "ouvrez ceci depuis la page de votre compte",
+    "en": "open this from your account page"
+  },
+  "api.page.provider_unknown": {
+    "text": "ce fournisseur de connexion n’est pas configuré sur cette passerelle",
+    "en": "that sign-in provider is not configured on this bridge"
+  },
+  "api.page.start_unavailable": {
+    "text": "impossible de démarrer la connexion",
+    "en": "could not start the sign-in"
+  },
+  "api.page.too_many_starts": {
+    "text": "trop de tentatives de connexion depuis cette adresse, réessayez dans une minute",
+    "en": "too many sign-in attempts from this address, try again in a minute"
+  },
+  "api.relay.account_disabled": {
+    "text": "Ce compte a été désactivé.",
+    "en": "This account has been disabled."
+  },
+  "api.relay.device_unreachable": {
+    "text": "Cet appareil est injoignable pour le moment. Il est peut-être éteint ou hors ligne : veuillez réessayer plus tard.",
+    "en": "This device isn't reachable right now. It may be switched off or offline - please try again later."
+  },
+  "api.relay.domain_check_failed": {
+    "text": "erreur lors de la vérification du domaine",
+    "en": "error checking domain"
+  },
+  "api.relay.internal_error": {
+    "text": "La passerelle ne peut pas effectuer cette action pour le moment, réessayez plus tard",
+    "en": "The bridge could not do this right now, try again later"
+  },
+  "api.relay.invalid_secret": {
+    "text": "Secret non valide",
+    "en": "Invalid Secret"
+  },
+  "api.relay.logs_no_email": {
+    "text": "la passerelle ne peut pas envoyer d’e-mail pour le moment",
+    "en": "the bridge can't send email right now"
+  },
+  "api.relay.logs_send_failed": {
+    "text": "les journaux n’ont pas pu être envoyés pour le moment",
+    "en": "the logs could not be sent right now"
+  },
+  "api.relay.logs_too_big": {
+    "text": "les journaux sont trop volumineux pour être envoyés",
+    "en": "the logs are too big to send"
+  },
+  "api.relay.logs_too_often": {
+    "text": "les journaux de cet appareil ont déjà été envoyés plusieurs fois : réessayez dans une heure",
+    "en": "logs were sent from this device a few times already - try again in an hour"
+  }
+}

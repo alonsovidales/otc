@@ -1,0 +1,26 @@
+{
+  "dev.keepout.inside_kept_out": {
+    "text": "la carpeta {name} está dentro de {parent}, que está fuera de Imágenes: muestra {parent} en Imágenes para mostrar {name}",
+    "en": "{name} is inside {parent}, which is kept out of Images - show {parent} in Images to show {name}"
+  },
+  "dev.keepout.inside_kept_out_own": {
+    "text": "la carpeta {name} está dentro de {parent}, que está fuera de Imágenes: muestra primero {parent} en Imágenes y luego {name}",
+    "en": "{name} is inside {parent}, which is kept out of Images - show {parent} in Images first, then {name}"
+  },
+  "dev.keepout.not_full_path": {
+    "text": "la carpeta debe ser una ruta completa",
+    "en": "the folder must be a full path"
+  },
+  "dev.keepout.path_invalid": {
+    "text": "la ruta de la carpeta no es válida",
+    "en": "the folder's path is not valid"
+  },
+  "dev.keepout.path_too_long": {
+    "text": "la ruta de la carpeta es demasiado larga",
+    "en": "the folder's path is too long"
+  },
+  "dev.keepout.whole_library": {
+    "text": "la biblioteca entera no puede quedar fuera de Imágenes",
+    "en": "the whole library can't be kept out of Images"
+  }
+}

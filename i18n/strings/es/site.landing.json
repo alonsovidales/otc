@@ -1,0 +1,969 @@
+{
+  "site.landing.contact.bridge_text": {
+    "text": "¿Quieres acceder a tu dispositivo, y a tus amigos, desde fuera de tu red doméstica? Crea una cuenta en la <signup>página de la cuenta</signup> o durante la configuración de tu dispositivo, y elige tu propia dirección. ¿Necesitas más de cinco direcciones? Escríbenos con este formulario.",
+    "en": "Want to reach your device, and your friends, from outside your home network? Create an account on the <signup>account page</signup> or in your device's setup, and choose your address yourself. Need more than five addresses? Write to us with this form."
+  },
+  "site.landing.contact.bridge_title": {
+    "text": "Acceso al puente",
+    "en": "Bridge access"
+  },
+  "site.landing.contact.diy_text": {
+    "text": "Todo está documentado en el <readme>README</readme>: la arquitectura, la configuración y todas las formas de instalarlo.",
+    "en": "Everything is documented in the <readme>README</readme> — architecture, config, and every install path."
+  },
+  "site.landing.contact.diy_title": {
+    "text": "¿Prefieres investigarlo por tu cuenta?",
+    "en": "Prefer to dig in yourself?"
+  },
+  "site.landing.contact.email": {
+    "text": "Correo electrónico",
+    "en": "Email"
+  },
+  "site.landing.contact.eyebrow": {
+    "text": "Contacto",
+    "en": "Get in touch"
+  },
+  "site.landing.contact.lead": {
+    "text": "Envíanos un mensaje, ya sea una pregunta general, ayuda para poner en marcha tu dispositivo o más direcciones para tu cuenta del puente.",
+    "en": "Send a message — whether it's a general question, help getting your device running, or more addresses for your bridge account."
+  },
+  "site.landing.contact.message": {
+    "text": "Mensaje",
+    "en": "Message"
+  },
+  "site.landing.contact.message_placeholder": {
+    "text": "Cuéntanos un poco qué necesitas",
+    "en": "Tell us a bit about what you need"
+  },
+  "site.landing.contact.name": {
+    "text": "Nombre",
+    "en": "Name"
+  },
+  "site.landing.contact.name_placeholder": {
+    "text": "Tu nombre",
+    "en": "Your name"
+  },
+  "site.landing.contact.reason": {
+    "text": "Asunto",
+    "en": "What's this about"
+  },
+  "site.landing.contact.reason_addresses": {
+    "text": "Más direcciones para mi cuenta del puente",
+    "en": "More addresses for my bridge account"
+  },
+  "site.landing.contact.reason_general": {
+    "text": "Pregunta general",
+    "en": "General question"
+  },
+  "site.landing.contact.reason_help": {
+    "text": "Ayuda para poner en marcha mi dispositivo",
+    "en": "Help getting my device running"
+  },
+  "site.landing.contact.reason_press": {
+    "text": "Prensa / colaboraciones",
+    "en": "Press / partnership"
+  },
+  "site.landing.contact.reason_select": {
+    "text": "Elige una opción",
+    "en": "Select one"
+  },
+  "site.landing.contact.send": {
+    "text": "Enviar mensaje",
+    "en": "Send message"
+  },
+  "site.landing.contact.send_failed": {
+    "text": "Se ha producido un error al enviar tu mensaje.",
+    "en": "Something went wrong sending your message."
+  },
+  "site.landing.contact.sending": {
+    "text": "Enviando…",
+    "en": "Sending…"
+  },
+  "site.landing.contact.sent": {
+    "text": "Gracias, te responderemos pronto.",
+    "en": "Thanks — we'll get back to you soon."
+  },
+  "site.landing.contact.status_text": {
+    "text": "El dispositivo, el puente y la app web ya funcionan, y también las apps: iPhone y Android, la app para Mac y otc-sync para Windows y Linux.",
+    "en": "The device, the bridge and the web app work today, and so do the apps: iPhone and Android, the Mac app, and otc-sync for Windows and Linux."
+  },
+  "site.landing.contact.status_title": {
+    "text": "Estado actual",
+    "en": "Where it stands"
+  },
+  "site.landing.contact.title": {
+    "text": "¿Tienes preguntas o necesitas ayuda?",
+    "en": "Questions, or need a hand?"
+  },
+  "site.landing.desktop.eyebrow": {
+    "text": "Apps para ordenador",
+    "en": "Computer apps"
+  },
+  "site.landing.desktop.lead": {
+    "text": "Haz copias de seguridad de las carpetas de tu ordenador o mantenlas iguales en ambos lados. Las apps se quedan en la barra de menús o en la bandeja del sistema y se actualizan solas: cuando sale una versión nueva, se instala con un clic.",
+    "en": "Back up folders from your computer, or keep them the same on both sides. The apps sit in the menu bar or tray and update themselves: when a new version is out, one click installs it."
+  },
+  "site.landing.desktop.linux_alt": {
+    "text": "¿ARM (p. ej., una Raspberry Pi)? <linuxarm>Linux ARM64</linuxarm>. Después:",
+    "en": "ARM (e.g. a Raspberry Pi)? <linuxarm>Linux ARM64</linuxarm>. Then:"
+  },
+  "site.landing.desktop.linux_button": {
+    "text": "Descargar para Linux",
+    "en": "Download for Linux"
+  },
+  "site.landing.desktop.linux_text": {
+    "text": "Una app en la bandeja del sistema en un escritorio, o una línea de comandos y un servicio en un servidor o una Pi.",
+    "en": "A tray app on a desktop, or a command line and a service on a server or a Pi."
+  },
+  "site.landing.desktop.mac_button": {
+    "text": "Descárgalo en el Mac App Store",
+    "en": "Get it on the Mac App Store"
+  },
+  "site.landing.desktop.mac_text": {
+    "text": "Una app en la barra de menús con las mismas carpetas y reglas de sincronización, en el Mac App Store, que la mantiene actualizada por ti.",
+    "en": "A menu bar app with the same folders and sync rules, on the Mac App Store, which keeps it up to date for you."
+  },
+  "site.landing.desktop.signed_note": {
+    "text": "<b>Todas las actualizaciones están firmadas.</b> Las apps solo instalan una versión nueva después de comprobar su firma con la clave de firma de versiones del proyecto, la misma que firma las actualizaciones del dispositivo. El código fuente está en <github>GitHub</github> y todos los archivos aparecen en la <release>versión para ordenador</release>.",
+    "en": "<b>Every update is signed.</b> The apps only install a new version after checking its signature against the project's release key, the same key that signs the device updates. The source is on <github>GitHub</github>, and every file is listed on the <release>desktop release</release>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #30ff4edf"
+  },
+  "site.landing.desktop.title": {
+    "text": "Mantén tus carpetas sincronizadas",
+    "en": "Keep your folders in sync"
+  },
+  "site.landing.desktop.windows_alt": {
+    "text": "¿PC con ARM? <winarm>Windows en ARM</winarm>. La app aún no tiene firma de código, así que Windows puede mostrarte una advertencia: elige <em>Más información → Ejecutar de todas formas</em>.",
+    "en": "ARM PC? <winarm>Windows on ARM</winarm>. The app isn't code-signed yet, so Windows may warn you: choose <em>More info → Run anyway</em>."
+  },
+  "site.landing.desktop.windows_button": {
+    "text": "Descargar para Windows",
+    "en": "Download for Windows"
+  },
+  "site.landing.desktop.windows_text": {
+    "text": "Windows 10 u 11. Guarda el archivo en un lugar permanente (no en Descargas) y ejecútalo: aparece en la bandeja del sistema y se abre al iniciar sesión.",
+    "en": "Windows 10 or 11. Put the file somewhere permanent (not Downloads) and run it: it appears in the tray and starts at login."
+  },
+  "site.landing.download.your_system": {
+    "text": "Tu sistema",
+    "en": "Your system"
+  },
+  "site.landing.example.device_ip": {
+    "text": "ip-del-dispositivo",
+    "en": "device-ip"
+  },
+  "site.landing.example.name": {
+    "text": "nombre",
+    "en": "name"
+  },
+  "site.landing.example.user_name": {
+    "text": "nombre de usuario",
+    "en": "user name"
+  },
+  "site.landing.faq.ai.p1": {
+    "text": "En tu dispositivo. El modelo de etiquetado y los modelos de caras se descargan una vez, al instalar el software, y se ejecutan en el propio procesador del dispositivo; con varias cuentas familiares, la principal los ejecuta para todas. Ninguna foto se envía a ningún sitio para etiquetarla o reconocerla, y los nombres de lugares salen de una lista de ciudades guardada en el dispositivo, así que la ubicación de tus fotos tampoco se envía a ningún sitio.",
+    "en": "On your device. The tagging model and the face models are downloaded once, when the software is installed, and run on the device's own processor; with several family accounts, the main one runs them for everyone. No photo is sent anywhere to be tagged or recognised, and place names come from a list of cities stored on the device, so your photos' locations aren't sent anywhere either.",
+    "reviewed": "claude-backtranslation 2026-10-11 #901e92fb"
+  },
+  "site.landing.faq.ai.p2": {
+    "text": "El reconocimiento facial está desactivado salvo que lo actives, en la configuración o en Ajustes, porque las caras son datos personales sensibles. Analiza las fotos que se añaden mientras está activado, y los datos faciales que guarda se cifran con tu contraseña, como tus archivos; los nombres que pones a las personas, no. El etiquetado está activado desde el principio y se puede desactivar en Ajustes.",
+    "en": "Face recognition is off unless you turn it on, in the setup or in Settings, because faces are sensitive personal data. It looks at the photos added while it's on, and the face data it keeps is encrypted with your password like your files; the names you give people aren't. Tagging is on from the start and can be turned off in Settings.",
+    "reviewed": "claude-backtranslation 2026-10-11 #494c2511"
+  },
+  "site.landing.faq.ai.p3": {
+    "text": "Tus fotos solo salen del dispositivo cuando tú decides: cuando las publicas para tus amigos, envías un enlace para compartir o las abres desde tus apps fuera de casa, a través del puente.",
+    "en": "Your photos leave the device only when you choose: when you post them for your friends, send a share link, or open them from your apps away from home, through the bridge.",
+    "reviewed": "claude-backtranslation 2026-10-11 #84dec4cb"
+  },
+  "site.landing.faq.ai.q": {
+    "text": "¿Dónde se hacen el etiquetado de imágenes y el reconocimiento facial?",
+    "en": "Where are photo tagging and face recognition done?",
+    "reviewed": "claude-backtranslation 2026-10-11 #f63a8774"
+  },
+  "site.landing.faq.backup.p1": {
+    "text": "Los dos discos en espejo ya guardan dos copias de todo, pero los dos están en el mismo dispositivo: te protegen de que falle un disco, no de un robo, un incendio, que fallen los dos discos o un archivo eliminado por error. Para tener una copia guardada en otro sitio, puedes ir rotando uno de los discos:",
+    "en": "The two mirrored disks already keep two copies of everything, but both are in the same box: they protect you from one disk failing, not from theft, fire, both disks failing or a file deleted by mistake. For a copy you keep somewhere else, you can rotate one of the disks:"
+  },
+  "site.landing.faq.backup.p2": {
+    "text": "Hasta que no termine una copia, tus archivos están en un solo disco, así que nunca saques el otro disco antes. Mientras falta un disco, el dispositivo toma como sustituto cualquier disco que conectes y que sea lo bastante grande, y lo borra, así que no conectes otras unidades mientras tanto.",
+    "en": "Until a copy has finished, your files are on one disk only, so never take out the other disk before then. While a disk is missing, the device takes any disk you plug in that is big enough as the replacement and erases it, so don't plug in other drives meanwhile.",
+    "reviewed": "claude-backtranslation 2026-10-11 #79bd1210"
+  },
+  "site.landing.faq.backup.p3": {
+    "text": "El disco que guardas es una copia completa del dispositivo tal como estaba cuando lo sacaste: tus archivos, su base de datos, sus ajustes y su dirección. Un ordenador no puede leerlo directamente. Para recuperarlo, configura una Raspberry Pi con la imagen, conecta ese disco y elige “Recuperar este dispositivo” en la configuración: todo vuelve tal como estaba y, cuando añadas un segundo disco, el dispositivo lo volverá a llenar. Necesitas la contraseña del dispositivo tal como era cuando sacaste el disco, porque los archivos que contiene están cifrados con ella. Úsalo solo en lugar del dispositivo original, nunca a la vez, ya que los dos responderían en la misma dirección. Los archivos que contiene están cifrados, pero sus nombres, sus etiquetas y tus publicaciones no, así que guárdalo con el mismo cuidado que el propio dispositivo.",
+    "en": "The disk you keep is a full copy of the device as it was when you took it out: your files, its database, its settings and its address. A computer can't read it directly. To bring it back, set up a Raspberry Pi with the image, attach that disk and choose \"Recover this device\" in the setup: everything comes back as it was, and once you add a second disk the device fills it again. You need the device password as it was when the disk came out, because the files on it are encrypted with it. Use it only in place of the original device, never at the same time, since both would answer to the same address. The files on it are encrypted, but their names, tags and your posts aren't, so keep it as safe as you would the device itself.",
+    "reviewed": "claude-backtranslation 2026-10-11 #5165b8e9"
+  },
+  "site.landing.faq.backup.p4": {
+    "text": "Tus teléfonos y ordenadores también guardan sus propias copias: las apps copian tus fotos y carpetas en el dispositivo, no las mueven. Para guardar en un ordenador una copia de algo que está en el dispositivo, selecciónalo en Archivos en la app web y elige “Descargar ZIP”, o añade una de las carpetas del dispositivo a la app para Mac, Windows o Linux. Eso es una sincronización, no una copia de seguridad, así que un archivo eliminado en un lado se elimina en el otro.",
+    "en": "Your phones and computers also keep their own copies: the apps copy your photos and folders to the device, they don't move them. To keep a copy of something on the device on a computer, select it in Files in the web app and choose Download ZIP, or add one of the device's folders to the Mac, Windows or Linux app. That is a sync, not a backup, so a file deleted on one side is deleted on the other.",
+    "reviewed": "claude-backtranslation 2026-10-11 #8717ec40"
+  },
+  "site.landing.faq.backup.q": {
+    "text": "¿Cómo hago una copia de seguridad de mi dispositivo?",
+    "en": "How do I back up my device?"
+  },
+  "site.landing.faq.backup.step1": {
+    "text": "Con el dispositivo en marcha y sin nada subiéndose, saca uno de los dos discos. El dispositivo sigue funcionando con el otro y recibirás una alerta de que un disco ha dejado de funcionar, algo esperado en este caso.",
+    "en": "While the device is running and nothing is uploading, take out one of the two disks. The device carries on with the other one, and you get an alert that a disk stopped working, which is expected here."
+  },
+  "site.landing.faq.backup.step2": {
+    "text": "Pon en su lugar un disco de repuesto, al menos igual de grande que el que has sacado. El dispositivo lo borra y lo copia todo en él automáticamente. Cuando termine, recibirás otra alerta, “Los dos discos de almacenamiento vuelven a funcionar”; puede tardar unas horas.",
+    "en": "Put a spare disk in its place, at least as large as the one you took out. The device erases it and copies everything onto it by itself. When it's done you get another alert, \"Both storage disks are working again\"; that can take a few hours.",
+    "reviewed": "claude-backtranslation 2026-10-11 #bd81f98b"
+  },
+  "site.landing.faq.backup.step3": {
+    "text": "Guarda el disco que has sacado en un lugar seguro, lejos del dispositivo. Para actualizar tu copia más adelante, repite el proceso: el disco que sale es tu nueva copia, y el que entra se borra y se vuelve a llenar.",
+    "en": "Keep the disk you took out somewhere safe, away from the device. To bring your copy up to date later, do the same again: the disk that comes out is your new copy, and the one going in is erased and refilled.",
+    "reviewed": "claude-backtranslation 2026-10-11 #743a742a"
+  },
+  "site.landing.faq.bridge.p1": {
+    "text": "Tu dispositivo está detrás del router de casa, así que internet no puede llegar a él por sí solo. El puente es nuestro servicio de retransmisión en off-the.cloud: da a tu dispositivo una dirección como <code>casa.off-the.cloud</code> y le hace llegar las conexiones de tus apps y de los dispositivos de tus amigos. Lo necesitas para acceder a tu dispositivo fuera de casa, para los amigos y las publicaciones, para los enlaces para compartir que funcionan desde cualquier lugar y para las notificaciones en tu teléfono. En casa no lo necesitas: los archivos, la copia de seguridad de fotos desde tus teléfonos y ordenadores, la galería, las etiquetas y las personas funcionan a través de tu propia red.",
+    "en": "Your device sits behind your home router, so the internet can't reach it on its own. The bridge is our relay at off-the.cloud: it gives your device an address like <code>casa.off-the.cloud</code> and passes connections from your apps and your friends' devices to it. You need it to reach your device away from home, for friends and posts, for share links that work from anywhere and for notifications on your phone. You don't need it at home: files, photo backup from your phones and computers, the gallery, tags and people all work over your own network."
+  },
+  "site.landing.faq.bridge.p2": {
+    "text": "Para usarlo, <signup>crea una cuenta</signup>; la configuración del dispositivo te pide una, aunque también puedes omitirla y unirte más adelante desde Ajustes. Sin el puente, puedes seguir accediendo a tu dispositivo desde fuera de casa con Tailscale Funnel o con un puente propio (consulta la siguiente pregunta).",
+    "en": "To use it, <signup>create an account</signup>; the device's setup asks for one, and you can also skip it and join later from Settings. Without the bridge, you can still reach your device from outside your home with Tailscale Funnel or a bridge of your own (see the next question)."
+  },
+  "site.landing.faq.bridge.q": {
+    "text": "¿Qué es “el puente” y lo necesito?",
+    "en": "What is \"the Bridge\", and do I need it?"
+  },
+  "site.landing.faq.eyebrow": {
+    "text": "Preguntas frecuentes",
+    "en": "FAQ"
+  },
+  "site.landing.faq.family.p1": {
+    "text": "Basta con un dispositivo. Desde tu cuenta de propietario, añades una cuenta para cada persona en Ajustes › Usuarios (en la app web, la app para iPhone o la app para Android), y cada una elige su propia contraseña la primera vez que inicia sesión. Cada cuenta tiene su propia copia de seguridad de fotos y su propia biblioteca, y sus fotos y archivos se cifran con la contraseña de esa persona, así que no puedes abrirlos desde tu cuenta. Todos comparten el mismo dispositivo y sus dos discos en espejo; la pantalla Usuarios muestra cuánto espacio ocupa cada cuenta, y puedes pausar una cuenta, o eliminarla junto con sus archivos, en cualquier momento.",
+    "en": "One device is enough. As its owner, you add an account for each person in Settings › Users (in the web app, the iPhone app or the Android app), and they choose their own password the first time they sign in. Each account has its own photo backup and library, and its photos and files are encrypted with that person's password, so you can't open them from your account. Everyone shares the same device and its two mirrored disks; the Users screen shows how much space each account takes, and you can pause an account, or remove it together with its files, at any time."
+  },
+  "site.landing.faq.family.p2": {
+    "text": "No hay un límite fijo de cuentas, pero cada una ejecuta su propia copia del software del dispositivo y ocupa memoria, así que cuantas más haya, más lento irá el dispositivo. Recomendamos no pasar de cinco en un mismo dispositivo.",
+    "en": "There's no fixed limit on the number of accounts, but each one runs its own copy of the device's software and takes memory, so the more there are, the slower the device gets. We recommend no more than five on one device."
+  },
+  "site.landing.faq.family.p3": {
+    "text": "Para usar su cuenta fuera de casa, un familiar necesita su propia dirección de off-the.cloud, igual que un dispositivo. Se la das al añadir su cuenta en la app web: en Ajustes › Usuarios, deja marcada la casilla <b>Solicitar acceso al puente</b> y obtendrá <code>{address}</code> (si esa dirección está ocupada, elige otro nombre de usuario). Decídelo al añadir la cuenta, porque no hay ninguna opción para dar más adelante una dirección a una cuenta existente. Las apps para iPhone y Android aún no ofrecen esto: las cuentas añadidas desde ellas solo funcionan en tu red doméstica.",
+    "en": "To use their account away from home, a family member needs an off-the.cloud address of their own, just as a device does. You give them one when you add their account in the web app: in Settings › Users, leave <b>Request bridge access</b> ticked, and they get <code>{address}</code> (if that address is taken, choose another user name). Decide when you add the account, because there's no switch to give an existing account an address later. The iPhone and Android apps don't offer this yet: accounts added there work on your home network only."
+  },
+  "site.landing.faq.family.p4": {
+    "text": "El dispositivo registra estas direcciones por sí mismo, fuera de tu cuenta del puente, así que no cuentan para sus cinco direcciones ni aparecen en la página de tu cuenta. Con una, un familiar accede a su cuenta desde cualquier lugar, y podéis haceros amigos en el feed privado y compartir fotos allí.",
+    "en": "The device registers these addresses by itself, outside your bridge account, so they don't count toward its five addresses and don't appear on your account page. With one, a family member reaches their account from anywhere, and you can become friends in the private feed and share photos there."
+  },
+  "site.landing.faq.family.q": {
+    "text": "¿Pueden mi familia y mis amigos usar el mismo dispositivo, o necesito más Raspberry Pi?",
+    "en": "Can my family and friends use the same device, or do I need more Raspberry Pis?"
+  },
+  "site.landing.faq.free.li1": {
+    "text": "<b>Tailscale Funnel</b>, integrado (Ajustes › Tailscale Funnel), publica tu dispositivo en una dirección propia en <code>ts.net</code>. Necesitas una cuenta de Tailscale, Tailscale limita cuánto tráfico puede pasar, y los amigos, las publicaciones y las cuentas familiares no funcionan ahí: es adecuado para un dispositivo que usas como almacenamiento privado.",
+    "en": "<b>Tailscale Funnel</b>, built in (Settings › Tailscale Funnel), publishes your device at an address of your own on <code>ts.net</code>. You need a Tailscale account, Tailscale limits how much can pass through, and friends, posts and family accounts don't work there: it suits a device used as your own private storage."
+  },
+  "site.landing.faq.free.li2": {
+    "text": "<b>Un puente propio:</b> el puente también es de código abierto, así que puedes ejecutarlo en tu propio servidor y dominio. En ese caso, tus amigos tienen que usar el mismo puente.",
+    "en": "<b>A bridge of your own:</b> the bridge is open source too, so you can run it on your own server and domain. Friends then need to use the same bridge."
+  },
+  "site.landing.faq.free.li3": {
+    "text": "<b>Tu propia VPN</b> hacia tu red doméstica: así las apps acceden al dispositivo como si estuvieras en casa.",
+    "en": "<b>Your own VPN</b> into your home network: the apps then reach the device as if you were at home."
+  },
+  "site.landing.faq.free.p1": {
+    "text": "Sí. Todo Off The Cloud es software libre y de código abierto con la licencia GNU AGPL: el dispositivo, las apps y el puente. Usado en casa, no cuesta nada más allá de tu hardware.",
+    "en": "Yes. All of Off The Cloud is free, open-source software under the GNU AGPL licence: the device, the apps and the bridge. Used at home it costs nothing beyond your hardware.",
+    "reviewed": "claude-backtranslation 2026-10-11 #77c9a973"
+  },
+  "site.landing.faq.free.p2": {
+    "text": "El puente es la única parte de pago, y es opcional. Tu cuenta es gratuita durante sus dos primeros años; después cuesta 9,99 € + IVA al año con hasta cinco direcciones de off-the.cloud incluidas, y te enviamos un correo electrónico antes de que termine el periodo gratuito. Cada dirección adicional a esas cinco cuesta 2 € al año: la página de tu cuenta registra hasta cinco, así que, para más, escríbenos a <mail>info@off-the.cloud</mail> o con el <contact>formulario de abajo</contact>. Si dejas de pagar, tus direcciones se liberan y tu dispositivo sigue funcionando en casa.",
+    "en": "The bridge is the only paid part, and it's optional. Your account is free for its first two years; after that it costs €9.99 + VAT a year with up to five off-the.cloud addresses included, and we email you before the free period ends. Each address beyond those five costs €2 a year: your account page registers up to five, so for more, write to us at <mail>info@off-the.cloud</mail> or with the <contact>form below</contact>. If you stop paying, your addresses are released and your device keeps working at home.",
+    "reviewed": "claude-backtranslation 2026-10-11 #29db0ee4"
+  },
+  "site.landing.faq.free.p3": {
+    "text": "Para acceder a tu dispositivo desde fuera de casa sin el puente:",
+    "en": "To reach your device from outside your home without the bridge:"
+  },
+  "site.landing.faq.free.q": {
+    "text": "¿Puedo usar Off The Cloud gratis?",
+    "en": "Can I use Off The Cloud for free?"
+  },
+  "site.landing.faq.hardware.a": {
+    "text": "Una Raspberry Pi 5 (8 GB) con una tarjeta microSD para el sistema y dos más para el almacenamiento, en espejo para que cada una guarde una copia completa de tus archivos. Las dos tarjetas de almacenamiento van en lectores de tarjetas USB conectados a los dos puertos USB azules de la Pi (los rápidos; así el dispositivo te dice cuál sustituir si alguna tarjeta falla). Añade una fuente de alimentación y un disipador activo: todo son piezas estándar, unos 250 € en total por 1 TB de almacenamiento protegido. Consulta el README para ver la lista exacta de piezas recomendadas. Una Pi 5 con 4 GB también puede servir, con el etiquetado de imágenes y el reconocimiento facial desactivados.",
+    "en": "A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two more for storage, mirrored so that each holds a full copy of your files. The two storage cards go in USB card readers plugged into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a card ever fails). Add a power supply and an active cooler: all off-the-shelf, roughly €250 all in for 1TB of protected storage. See the README for the exact recommended parts list. A Pi 5 with 4 GB can work too, with photo tagging and face recognition turned off."
+  },
+  "site.landing.faq.hardware.q": {
+    "text": "¿Tengo que comprar hardware especial?",
+    "en": "Do I need to buy special hardware?"
+  },
+  "site.landing.faq.image.a": {
+    "text": "Sí, para una Raspberry Pi 5 con al menos 8 GB de RAM (una de 4 GB solo funciona con el etiquetado de imágenes y el reconocimiento facial desactivados en Ajustes): consulta la pestaña <install>Imagen para Raspberry Pi 5</install> de arriba. Grábala, enciende la Pi y configúrala desde tu teléfono: toca “Configurar dispositivo nuevo” en la app para iOS o Android, que encuentra la Pi por Bluetooth y te guía en el resto. Para cualquier otra máquina Debian/Ubuntu, usa el script de instalación.",
+    "en": "Yes — for a Raspberry Pi 5 with at least 8 GB of RAM (a 4 GB one works only with Image Tagging and Face Recognition turned off in Settings): see the <install>Raspberry Pi 5 image</install> tab at the top. Flash it, power the Pi on and set it up from your phone: tap \"Set up a new device\" in the iOS or Android app, which finds the Pi over Bluetooth and walks you through the rest. For any other Debian/Ubuntu machine, use the install script."
+  },
+  "site.landing.faq.image.q": {
+    "text": "¿Hay una imagen ya preparada que pueda grabar directamente?",
+    "en": "Is there a pre-built image I can just flash?"
+  },
+  "site.landing.faq.lights.caption": {
+    "text": "El pin 1 es el cuadrado, en el extremo del conector más alejado de los puertos USB.",
+    "en": "Pin 1 is the square one, at the end of the header farthest from the USB ports."
+  },
+  "site.landing.faq.lights.p1": {
+    "text": "Las luces son opcionales: una por disco de almacenamiento, verde cuando todo va bien y roja cuando necesita tu atención. Cada luz es un LED rojo y un LED verde uno al lado del otro (o un LED bicolor de tres patas), y cada color se conecta a un pin de la Raspberry Pi a través de una resistencia de 330 Ω. Conéctalas con la Pi apagada. El dispositivo las enciende por sí solo; no hay nada que configurar.",
+    "en": "The lights are optional: one per storage disk, green when it's fine and red when it needs you. Each light is a red LED and a green LED side by side (or one two-colour LED with three legs), and each colour connects to one pin of the Raspberry Pi through a 330 Ω resistor. Wire them with the Pi switched off. The device lights them by itself; there's nothing to set up."
+  },
+  "site.landing.faq.lights.p2": {
+    "text": "Las mismas conexiones, en palabras:",
+    "en": "The same connections, in words:"
+  },
+  "site.landing.faq.lights.p3": {
+    "text": "Con un LED bicolor, la pata común (normalmente la del medio) va a GND; tiene que ser del tipo con la pata negativa compartida, llamado de cátodo común. Lo que indican las luces:",
+    "en": "With a two-colour LED, the shared leg (usually the middle one) goes to GND; it must be the kind with a shared negative leg, called common cathode. What the lights say:"
+  },
+  "site.landing.faq.lights.p4": {
+    "text": "Cada luz sigue a uno de los dos discos del espejo, no a un puerto USB, así que mira la alerta en la app para saber qué disco sacar.",
+    "en": "Each light follows one of the two disks of the mirror, not a USB port, so check the alert in the app to know which disk to pull."
+  },
+  "site.landing.faq.lights.q": {
+    "text": "¿Cómo conecto las luces de estado?",
+    "en": "How do I wire the status lights?"
+  },
+  "site.landing.faq.lights.state1": {
+    "text": "<b>Las dos en verde:</b> los dos discos funcionan y guardan los mismos archivos.",
+    "en": "<b>Both green:</b> both disks are working and hold the same files."
+  },
+  "site.landing.faq.lights.state2": {
+    "text": "<b>Una en rojo y otra en verde:</b> el disco en rojo ha dejado de funcionar o se ha sacado. Tus archivos están a salvo en el otro: sustituye pronto el rojo.",
+    "en": "<b>One red, one green:</b> the disk on red has stopped working or was taken out. Your files are safe on the other one: replace the red one soon."
+  },
+  "site.landing.faq.lights.state3": {
+    "text": "<b>Una en rojo intermitente y otra en verde:</b> se está llenando un disco nuevo con una copia de tus archivos. No saques el verde hasta que los dos vuelvan a estar en verde.",
+    "en": "<b>One flashing red, one green:</b> a new disk is being filled with a copy of your files. Don't take out the green one until both are green again.",
+    "reviewed": "claude-backtranslation 2026-10-11 #3afd6d80"
+  },
+  "site.landing.faq.lights.state4": {
+    "text": "<b>Las dos en rojo:</b> no hay ningún espejo en marcha: el dispositivo se configuró sin dos discos o ninguno de los discos funciona.",
+    "en": "<b>Both red:</b> no mirror is running: the device was set up without two disks, or neither disk is working."
+  },
+  "site.landing.faq.lights.state5": {
+    "text": "<b>Las dos apagadas:</b> el dispositivo está apagado o todavía arrancando.",
+    "en": "<b>Both off:</b> the device is off, or still starting."
+  },
+  "site.landing.faq.lights.svg_desc": {
+    "text": "Pines 1 a 16 del conector de 40 pines de la Raspberry Pi 5, con el pin 1 (3,3 voltios, cuadrado) arriba y los pines 17 a 40 continuando hacia los puertos USB. Luz 1: pin 11 (GPIO17) a través de una resistencia de 330 ohmios a la pata larga del LED rojo, y pin 13 (GPIO27) a través de una resistencia de 330 ohmios a la pata larga del LED verde; las dos patas cortas van al pin 9 (tierra). Luz 2: pin 15 (GPIO22) a través de una resistencia de 330 ohmios al LED rojo, y pin 16 (GPIO23) a través de una resistencia de 330 ohmios al LED verde; las dos patas cortas van al pin 14 (tierra). Las mismas conexiones aparecen debajo del dibujo.",
+    "en": "Pins 1 to 16 of the Raspberry Pi 5's 40-pin header, with pin 1 (3.3 volts, square) at the top and pins 17 to 40 continuing towards the USB ports. Light 1: pin 11 (GPIO17) through a 330 ohm resistor to the long leg of the red LED, and pin 13 (GPIO27) through a 330 ohm resistor to the long leg of the green LED; both short legs go to pin 9 (ground). Light 2: pin 15 (GPIO22) through a 330 ohm resistor to the red LED, and pin 16 (GPIO23) through a 330 ohm resistor to the green LED; both short legs go to pin 14 (ground). The same connections are listed below the drawing."
+  },
+  "site.landing.faq.lights.svg_header": {
+    "text": "Pines de la Raspberry Pi 5",
+    "en": "Raspberry Pi 5 pin header"
+  },
+  "site.landing.faq.lights.svg_legs": {
+    "text": "+ pata larga del LED · − pata corta",
+    "en": "+ long leg of the LED · − short leg"
+  },
+  "site.landing.faq.lights.svg_light": {
+    "text": "Luz {number}",
+    "en": "Light {number}"
+  },
+  "site.landing.faq.lights.svg_more": {
+    "text": "Los pines 17–40 siguen\nhacia los puertos USB",
+    "en": "Pins 17–40 continue\ntowards the USB ports"
+  },
+  "site.landing.faq.lights.svg_pin1": {
+    "text": "3V3 · pin 1",
+    "en": "3V3 · pin 1"
+  },
+  "site.landing.faq.lights.svg_resistor": {
+    "text": "Cada recuadro es una resistencia de 330 Ω",
+    "en": "Each small box is a 330 Ω resistor"
+  },
+  "site.landing.faq.lights.svg_title": {
+    "text": "Conexión de las dos luces de estado a la Raspberry Pi 5",
+    "en": "Wiring the two status lights to the Raspberry Pi 5"
+  },
+  "site.landing.faq.lights.wire1": {
+    "text": "<b>Luz 1, rojo:</b> pin 11 (GPIO17), a través de una resistencia de 330 Ω, a la pata larga del LED rojo.",
+    "en": "<b>Light 1, red:</b> pin 11 (GPIO17), through a 330 Ω resistor, to the long leg of the red LED."
+  },
+  "site.landing.faq.lights.wire2": {
+    "text": "<b>Luz 1, verde:</b> pin 13 (GPIO27), a través de una resistencia de 330 Ω, a la pata larga del LED verde.",
+    "en": "<b>Light 1, green:</b> pin 13 (GPIO27), through a 330 Ω resistor, to the long leg of the green LED."
+  },
+  "site.landing.faq.lights.wire3": {
+    "text": "<b>Luz 1, las dos patas cortas:</b> pin 9 (GND).",
+    "en": "<b>Light 1, both short legs:</b> pin 9 (GND)."
+  },
+  "site.landing.faq.lights.wire4": {
+    "text": "<b>Luz 2, rojo:</b> pin 15 (GPIO22), a través de una resistencia de 330 Ω, a la pata larga del LED rojo.",
+    "en": "<b>Light 2, red:</b> pin 15 (GPIO22), through a 330 Ω resistor, to the long leg of the red LED."
+  },
+  "site.landing.faq.lights.wire5": {
+    "text": "<b>Luz 2, verde:</b> pin 16 (GPIO23), a través de una resistencia de 330 Ω, a la pata larga del LED verde.",
+    "en": "<b>Light 2, green:</b> pin 16 (GPIO23), through a 330 Ω resistor, to the long leg of the green LED."
+  },
+  "site.landing.faq.lights.wire6": {
+    "text": "<b>Luz 2, las dos patas cortas:</b> pin 14 (GND).",
+    "en": "<b>Light 2, both short legs:</b> pin 14 (GND)."
+  },
+  "site.landing.faq.open_source.a": {
+    "text": "Sí: el dispositivo, el puente y todos los clientes son de código abierto en <github>GitHub</github>. Puedes auditarlo, alojar tu propio puente o compilar tu propia imagen del dispositivo a partir del código fuente.",
+    "en": "Yes — the device, bridge, and every client are all open source on <github>GitHub</github>. You can audit it, self-host the bridge yourself, or build your own device image from source."
+  },
+  "site.landing.faq.open_source.q": {
+    "text": "¿De verdad es de código abierto?",
+    "en": "Is it really open source?"
+  },
+  "site.landing.faq.other_hw.li1": {
+    "text": "<b>La imagen ya preparada y la configuración desde el teléfono por Bluetooth.</b> En otros equipos se ejecuta un comando en un terminal, y la primera contraseña que se escriba en el dispositivo pasa a ser su contraseña, así que ábrelo y elige una enseguida.",
+    "en": "<b>The ready-made image and setup from your phone over Bluetooth.</b> Elsewhere you run one command in a terminal, and the first password typed into the device becomes its password, so open it and choose one straight away.",
+    "reviewed": "claude-backtranslation 2026-10-11 #49e9c216"
+  },
+  "site.landing.faq.other_hw.li2": {
+    "text": "<b>Saber qué disco sustituir.</b> En una Pi, la alerta indica el puerto USB en el que está el disco que ha fallado; en otros equipos dice “uno de los dos discos de almacenamiento” e indica el nombre del disco en el sistema y su número de serie.",
+    "en": "<b>Knowing which disk to replace.</b> On a Pi the alert names the USB port the failed disk is in; elsewhere it says \"one of the two storage disks\" and gives the disk's system name and serial number."
+  },
+  "site.landing.faq.other_hw.li3": {
+    "text": "<b>Las luces de estado</b>, que se conectan a los pines de la propia Pi (ver más abajo).",
+    "en": "<b>The status lights</b>, which are wired to the Pi's own pins (see below)."
+  },
+  "site.landing.faq.other_hw.p1": {
+    "text": "Sí. El <install>script de instalación</install> funciona en cualquier máquina de 64 bits, Intel/AMD o ARM, con Ubuntu, Debian u otro Linux basado en Debian: un PC o portátil antiguo, un mini PC o una placa como una Orange Pi con una imagen de Debian o Ubuntu. Compila el software en la propia máquina, así que tienes la misma app: copia de seguridad de fotos, sincronización de carpetas, etiquetado de imágenes, reconocimiento facial, amigos, compartir y actualizaciones desde Ajustes. Dale 8 GB de memoria, como la Raspberry Pi 5 para la que se diseñó.",
+    "en": "Yes. The <install>install script</install> works on any 64-bit machine, Intel/AMD or ARM, running Ubuntu, Debian or another Debian-based Linux: an old PC or laptop, a mini PC, or a board such as an Orange Pi with a Debian or Ubuntu image. It builds the software on the machine itself, so you get the same app: photo backup, folder sync, photo tagging, face recognition, friends, sharing and updates from Settings. Give it 8 GB of memory, like the Raspberry Pi 5 it was designed for."
+  },
+  "site.landing.faq.other_hw.p2": {
+    "text": "Algunas cosas que solo tiene la Raspberry Pi 5:",
+    "en": "A few things only the Raspberry Pi 5 has:"
+  },
+  "site.landing.faq.other_hw.p3": {
+    "text": "El script también puede poner dos discos en espejo en otras máquinas, pero solo si se lo pides, porque borra los dos. Si no encuentra discos para el espejo, se detiene y te explica cómo instalar en un solo disco. Para dar a la máquina una dirección de off-the.cloud, añade primero el nombre en la <account>página de tu cuenta</account> y copia en la máquina la identidad que muestra antes de ejecutar el script.",
+    "en": "The script can mirror two disks on other machines too, but only when you ask it to, because it erases both. If it finds no disks to mirror, it stops and tells you how to install on a single disk. To give the machine an off-the.cloud address, add the name on your <account>account page</account> first and copy the identity it shows into the machine before running the script.",
+    "reviewed": "claude-backtranslation 2026-10-11 #91e60766"
+  },
+  "site.landing.faq.other_hw.q": {
+    "text": "¿Puedo usar algo que no sea una Raspberry Pi, como una Orange Pi o un PC antiguo?",
+    "en": "Can I use something other than a Raspberry Pi, like an Orange Pi or an old PC?"
+  },
+  "site.landing.faq.password.li1": {
+    "text": "<b>¿Alguna de tus apps sigue con la sesión iniciada?</b> Entonces aún puede abrirlo todo, porque guarda la contraseña. No cierres sesión en ella y úsala para copiar lo que necesites antes de seguir.",
+    "en": "<b>Is one of your apps still signed in?</b> Then it can still open everything, because it keeps the password. Don't sign out of it, and use it to copy what you need before going further.",
+    "reviewed": "claude-backtranslation 2026-10-11 #ad42e7f6"
+  },
+  "site.landing.faq.password.li2": {
+    "text": "<b>Busca tus originales.</b> Las apps copian las fotos y carpetas en el dispositivo sin eliminarlas, así que puede que la mayor parte de lo que hay en él siga en tus teléfonos y ordenadores.",
+    "en": "<b>Look for your originals.</b> The apps copy photos and folders to the device without removing them, so most of what's on it may still be on your phones and computers."
+  },
+  "site.landing.faq.password.li3": {
+    "text": "<b>Empieza de nuevo.</b> Graba una tarjeta nueva y vuelve a configurar el dispositivo eligiendo “Empezar de cero” (esto borra los dos discos), elige una contraseña nueva y deja que tus apps vuelvan a copiarlo todo.",
+    "en": "<b>Start again.</b> Flash a new card and set the device up again, choosing \"Start fresh instead\" (this erases both disks), pick a new password and let your apps back everything up again.",
+    "reviewed": "claude-backtranslation 2026-10-11 #6d7de7c0"
+  },
+  "site.landing.faq.password.li4": {
+    "text": "<b>¿Un familiar ha olvidado la suya?</b> El propietario tampoco puede restablecerla. La única forma es eliminar su cuenta, y con ella sus archivos, y volver a crearla.",
+    "en": "<b>A family member forgot theirs?</b> The owner can't reset it either. The only way is to remove their account, which deletes its files, and create it again.",
+    "reviewed": "claude-backtranslation 2026-10-11 #db6a09bf"
+  },
+  "site.landing.faq.password.p1": {
+    "text": "Lo sentimos, pero no. La contraseña de tu dispositivo es lo único que desbloquea la clave con la que se cifran tus archivos. El dispositivo no la guarda, nosotros tampoco, y no hay forma de restablecerla ni puerta trasera: sin ella, nadie puede abrir las fotos, los vídeos y los archivos guardados con ella, ni tú, ni nadie más del dispositivo, ni nosotros. Eso es lo que los mantiene a salvo si alguna vez te roban el dispositivo.",
+    "en": "We're sorry: no. Your device password is the only thing that unlocks the key your files are encrypted with. The device doesn't keep it, neither do we, and there is no reset and no back door: without it, nobody can open the photos, videos and files stored under it, not you, not anyone else on the device and not us. That is what keeps them safe if the device is ever stolen.",
+    "reviewed": "claude-backtranslation 2026-10-11 #ce184b08"
+  },
+  "site.landing.faq.password.p2": {
+    "text": "Lo que puedes hacer:",
+    "en": "What you can do:"
+  },
+  "site.landing.faq.password.p3": {
+    "text": "La contraseña de tu cuenta de off-the.cloud es otra distinta: si la olvidas, la página de la cuenta te envía por correo electrónico un enlace para restablecerla, y eso no afecta a tu dispositivo ni a tus archivos. Para evitar todo esto, guarda la contraseña de tu dispositivo en un gestor de contraseñas o apuntada en un lugar seguro. Puedes cambiarla en Ajustes en cualquier momento, siempre que sepas la actual, y tus archivos seguirán como están.",
+    "en": "Your off-the.cloud account password is a different one: if you forget that, the account page emails you a link to reset it, and your device and files aren't affected. To avoid all this, keep your device password in a password manager or written down somewhere safe. You can change it in Settings at any time, as long as you know the current one, and your files stay as they are.",
+    "reviewed": "claude-backtranslation 2026-10-11 #f851491f"
+  },
+  "site.landing.faq.password.q": {
+    "text": "He olvidado mi contraseña. ¿Puedo recuperar mis archivos?",
+    "en": "I forgot my password. Can I get my files back?",
+    "reviewed": "claude-backtranslation 2026-10-11 #83720078"
+  },
+  "site.landing.faq.private.a": {
+    "text": "Tus archivos se cifran en reposo con una clave que solo tu contraseña desbloquea, y la propia contraseña nunca se guarda en el dispositivo. Las fotos y los vídeos que publicas, y las publicaciones que tus amigos comparten contigo, son la excepción: se guardan sin cifrar para que los dispositivos de tus amigos puedan obtenerlos en cualquier momento. Los nombres de los archivos y las etiquetas también se guardan legibles para que funcione la búsqueda. No se vende nada, no se usa nada para entrenar modelos de IA ni se muestra a nadie con quien no hayas decidido compartirlo. Las dos preguntas siguientes explican qué ven el puente y otros servicios, y dónde se analizan tus fotos.",
+    "en": "Your files are encrypted at rest with a key that only your password unlocks, and the password itself is never stored on the device. Photos and videos you post, and the posts your friends share with you, are the exception: they're kept unencrypted so your friends' devices can fetch them at any time. File names and tags are also kept readable so search works. Nothing is sold, used to train AI models, or shown to anyone you haven't chosen to share it with. The next two questions explain what the bridge and other services see, and where your photos are analysed.",
+    "reviewed": "claude-backtranslation 2026-10-11 #50199db0"
+  },
+  "site.landing.faq.private.q": {
+    "text": "¿Mis datos son realmente privados?",
+    "en": "Is my data actually private?"
+  },
+  "site.landing.faq.protect.a": {
+    "text": "Sí: hazla de solo subida con el candado junto a la carpeta en Archivos (en la app web, la app para iPhone o la app para Android). A partir de entonces no se puede eliminar nada de esa carpeta, ni desde un teléfono, ni desde un ordenador ni desde la web, y cuando se vuelve a subir un archivo con el mismo nombre, el dispositivo también conserva la versión anterior, así que una edición nunca sobrescribe tu original. Las apps de sincronización para Mac y Windows/Linux lo hacen automáticamente con una carpeta de la que eliges hacer una copia de seguridad. Puedes quitarlo con el mismo candado; las versiones guardadas hasta entonces se conservan.",
+    "en": "Yes: make it upload only, with the lock next to the folder in Files (in the web app, the iPhone app or the Android app). From then on nothing in that folder can be deleted, whether from a phone, a computer or the web, and when a file is uploaded again under the same name the device keeps the older version too, so an edit never overwrites your original. The Mac and Windows/Linux sync apps do this by themselves for a folder you choose to back up. You can clear it again from the same lock; the versions kept so far stay."
+  },
+  "site.landing.faq.protect.q": {
+    "text": "¿Puedo proteger una carpeta para que no se elimine por error?",
+    "en": "Can I protect a folder from being deleted by mistake?"
+  },
+  "site.landing.faq.social.a": {
+    "text": "Es totalmente opcional. Usa OTC solo como NAS para copias de seguridad y sincronización de archivos si eso es todo lo que quieres: el feed social solo muestra contenido de amigos que hayas aceptado expresamente.",
+    "en": "It's entirely optional. Use OTC purely as a NAS for backup and file sync if that's all you want — the social feed only shows content from friends you've explicitly accepted."
+  },
+  "site.landing.faq.social.q": {
+    "text": "¿Y si no quiero la parte de red social?",
+    "en": "What if I don't want the social network part?"
+  },
+  "site.landing.faq.speed.a": {
+    "text": "En casa suele ser mucho más rápido. Las apps para iPhone, Android, Mac y Windows/Linux se conectan directamente a tu dispositivo a través de tu propia red, Wi-Fi o por cable, así que las copias de seguridad, las subidas grandes y los vídeos van a la velocidad de la red local. Un servicio en la nube tiene que enviar cada archivo a través de la conexión a internet de tu casa, cuya velocidad de subida suele ser una pequeña fracción de la de tu red Wi-Fi. Fuera de casa, las apps pasan por el puente como siempre. La conexión en casa está cifrada y se comprueba con la propia clave de tu dispositivo, así que nunca se envía nada a una máquina que se haga pasar por la tuya.",
+    "en": "At home it's usually much faster. The iPhone, Android, Mac and Windows/Linux apps connect straight to your device over your own Wi-Fi or network, so backups, big uploads and videos move at local-network speed. A cloud service has to push every file through your home internet connection, whose upload speed is often a small fraction of your Wi-Fi's. Away from home, the apps go through the Bridge as usual. The home connection is encrypted and checked against your device's own key, so nothing is ever sent to a machine pretending to be yours.",
+    "reviewed": "claude-backtranslation 2026-10-11 #96eee3e0"
+  },
+  "site.landing.faq.speed.q": {
+    "text": "¿Es tan rápido como un servicio en la nube?",
+    "en": "Is it as fast as a cloud service?"
+  },
+  "site.landing.faq.storage.a": {
+    "text": "Cambia las dos tarjetas por otras más grandes, una cada vez, mientras el dispositivo sigue funcionando. Saca una tarjeta y pon una más grande, al menos igual de grande que la que has sacado: el dispositivo lo copia todo en ella automáticamente (lo que ya hubiera en la tarjeta nueva se borra). Recibirás una alerta de que un disco ha dejado de funcionar, algo esperado en este caso, y otra, “Los dos discos de almacenamiento vuelven a funcionar”, cuando termine la copia; con una tarjeta grande puede tardar unas horas. Solo entonces haz lo mismo con la otra tarjeta. Cuando las dos tarjetas sean más grandes, el dispositivo amplía su almacenamiento automáticamente hasta el tamaño de la más pequeña, en unos diez minutos y sin detenerse. Tus archivos siguen disponibles todo el tiempo, pero mientras se hace una copia están en una sola tarjeta, así que nunca saques la segunda tarjeta antes de que termine la primera copia.",
+    "en": "Swap the two cards for bigger ones, one at a time, while the device keeps running. Take out one card and put in a bigger one, at least as large as the one you took out: the device copies everything onto it by itself (anything already on the new card is erased). You get an alert that a disk stopped working, which is expected here, and another, \"Both storage disks are working again\", when the copy is done; that can take a few hours for a large card. Only then do the same with the other card. Once both cards are bigger, the device grows its storage to the size of the smaller one by itself, within about ten minutes, without stopping. Your files stay available the whole time, but while a copy runs they are on one card only, so never take out the second card before the first copy has finished.",
+    "reviewed": "claude-backtranslation 2026-10-11 #b9730854"
+  },
+  "site.landing.faq.storage.q": {
+    "text": "¿Cómo consigo más almacenamiento?",
+    "en": "How do I get more storage?"
+  },
+  "site.landing.faq.third_parties.bridge": {
+    "text": "<b>El puente</b> (gestionado por nosotros, en servidores de OVH en Francia), si lo usas: tu cuenta (correo electrónico, nombre, apellidos y país), los nombres de tus dispositivos (como casa.off-the.cloud), cuándo accedió una app por última vez a cada dispositivo, los totales de tráfico por hora (nunca el contenido) y, durante 90 días, la dirección de internet de los intentos fallidos de conectarse como tu dispositivo. Las conexiones con él están cifradas, pero el puente las descifra y las vuelve a cifrar al pasar, así que no tienen cifrado de extremo a extremo; no se guarda nada de lo que pasa por él. Un dispositivo sin el puente solo contacta con él durante la configuración.",
+    "en": "<b>The bridge</b> (run by us, on OVH servers in France), if you use it: your account (email, name, surname and country), your devices' names (such as casa.off-the.cloud), when an app last reached each device, hourly traffic totals (never the content) and, for 90 days, the internet address of failed attempts to connect as your device. Connections to it are encrypted, but the bridge decrypts and re-encrypts them as they pass through, so they are not end-to-end encrypted; nothing that passes through is stored. A device without the bridge only contacts it during setup.",
+    "reviewed": "claude-backtranslation 2026-10-11 #e1eb7428"
+  },
+  "site.landing.faq.third_parties.github": {
+    "text": "<b>GitHub</b> sirve el software del dispositivo y sus actualizaciones; al instalar o actualizar, el dispositivo también descarga componentes del servidor espejo del lenguaje Go, gestionado por Google, paquetes de los repositorios de su sistema operativo y de Tailscale y, la primera vez, sus modelos de IA desde Hugging Face y GitHub. Como en cualquier descarga, estos servicios ven la dirección de internet de tu casa.",
+    "en": "<b>GitHub</b> serves the device's software and its updates; while installing or updating, the device also downloads building blocks from the Go language's mirror, run by Google, packages from its operating system's and Tailscale's repositories and, the first time, its AI models from Hugging Face and GitHub. Like any download, these see your home's internet address.",
+    "reviewed": "claude-backtranslation 2026-10-11 #067002bf"
+  },
+  "site.landing.faq.third_parties.maps": {
+    "text": "<b>Mapas:</b> cuando abres los detalles de una foto, su mapa viene de OpenStreetMap (app web y Android) o de Apple Maps (iPhone), que ven el lugar que se muestra.",
+    "en": "<b>Maps:</b> when you open a photo's details, its map comes from OpenStreetMap (web app and Android) or Apple Maps (iPhone), which see the place being shown.",
+    "reviewed": "claude-backtranslation 2026-10-11 #13b5d742"
+  },
+  "site.landing.faq.third_parties.p1": {
+    "text": "Tus fotos, vídeos y archivos se quedan en tu dispositivo. No se vende nada, no se usa nada para publicidad ni para entrenar IA, y ninguna de las apps incluye analíticas, publicidad ni informes de fallos. Intervienen unos pocos servicios, y esto es lo que recibe cada uno:",
+    "en": "Your photos, videos and files stay on your device. Nothing is sold, used for advertising or used to train AI, and none of the apps contain analytics, advertising or crash reporting. A few services are involved, and this is what each one gets:",
+    "reviewed": "claude-backtranslation 2026-10-11 #41e31ca8"
+  },
+  "site.landing.faq.third_parties.p2": {
+    "text": "Todavía no hay ningún proveedor de pagos. Los detalles están en nuestro <privacy>aviso de privacidad</privacy>.",
+    "en": "There's no payment provider yet. The details are in our <privacy>privacy notice</privacy>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #1b45d1fe"
+  },
+  "site.landing.faq.third_parties.proton": {
+    "text": "<b>Proton</b> envía nuestros correos (la confirmación de tu correo electrónico, el restablecimiento de contraseñas y el aviso antes de eliminar una cuenta sin usar) y entrega los registros del dispositivo que decidas enviarnos.",
+    "en": "<b>Proton</b> sends our emails (confirming your email, password resets, the warning before an unused account is removed) and delivers the device logs you choose to send us.",
+    "reviewed": "claude-backtranslation 2026-10-11 #b2d5b662"
+  },
+  "site.landing.faq.third_parties.push": {
+    "text": "<b>Apple y Google</b> entregan las notificaciones en iPhone y teléfonos Android. Una notificación solo dice quién ha hecho qué (“A Lucía le ha gustado tu publicación”) o que le ha pasado algo a tu dispositivo (un disco ha dejado de funcionar, se ha quedado sin conexión), nunca lo que dice una publicación o un comentario, y nunca una foto. La app para Android usa Firebase de Google para esto y para nada más. Las notificaciones en un navegador pasan, cifradas, por el servicio push del fabricante de tu navegador.",
+    "en": "<b>Apple and Google</b> deliver notifications to iPhones and Android phones. A notification only says who did what (\"Anna liked your post\") or that something happened to your device (a disk stopped working, it went offline), never what a post or comment says, and never a photo. The Android app uses Google's Firebase for this and nothing else. Notifications in a browser go through your browser maker's push service, encrypted.",
+    "reviewed": "claude-backtranslation 2026-10-11 #949a9ecf"
+  },
+  "site.landing.faq.third_parties.q": {
+    "text": "¿Se envía alguno de mis datos a terceros?",
+    "en": "Is any of my information sent to third parties?",
+    "reviewed": "claude-backtranslation 2026-10-11 #28cdcc34"
+  },
+  "site.landing.faq.third_parties.signin": {
+    "text": "<b>El inicio de sesión con Apple o Google</b>, si lo usas, nos comunica tu correo electrónico y tu nombre.",
+    "en": "<b>Apple or Google sign-in</b>, if you use it, tells us your email and name.",
+    "reviewed": "claude-backtranslation 2026-10-11 #b259d673"
+  },
+  "site.landing.faq.third_parties.tailscale": {
+    "text": "<b>Tailscale</b>, solo si activas Tailscale Funnel (su software está instalado, pero desactivado hasta entonces).",
+    "en": "<b>Tailscale</b>, only if you turn on Tailscale Funnel (its software is installed, but stays off until then).",
+    "reviewed": "claude-backtranslation 2026-10-11 #75f4bd10"
+  },
+  "site.landing.faq.title": {
+    "text": "Las preguntas que de verdad se hacen",
+    "en": "Questions people actually ask"
+  },
+  "site.landing.footer.contact": {
+    "text": "Contacto",
+    "en": "Contact"
+  },
+  "site.landing.footer.copyright": {
+    "text": "© {year} Off The Cloud · código abierto, autoalojado y tuyo.",
+    "en": "© {year} Off The Cloud · open source, self-hosted, yours."
+  },
+  "site.landing.footer.docs": {
+    "text": "Documentación",
+    "en": "Documentation"
+  },
+  "site.landing.footer.privacy": {
+    "text": "Privacidad",
+    "en": "Privacy",
+    "reviewed": "claude-backtranslation 2026-10-11 #ba42b0ce"
+  },
+  "site.landing.footer.terms": {
+    "text": "Condiciones",
+    "en": "Terms",
+    "reviewed": "claude-backtranslation 2026-10-11 #1424a865"
+  },
+  "site.landing.hero.lead": {
+    "text": "Off The Cloud es un NAS y una red social en una pequeña caja que es totalmente tuya: tus fotos, vídeos y documentos se guardan a resolución completa, se etiquetan con IA para encontrarlos al instante y quedan protegidos en discos RAID-1, con un feed social ético y opcional para compartir recuerdos con las personas que de verdad importan, sin anuncios, sin algoritmos y sin scroll infinito.",
+    "en": "Off The Cloud is a NAS and a social network in one small box you own outright: your photos, videos, and documents back up in full resolution, get AI-tagged for instant search, and stay behind RAID-1 protected disks — with an optional, ethical social feed for sharing memories with the people who actually matter, free of ads, algorithms, and doomscrolling."
+  },
+  "site.landing.hero.pill": {
+    "text": "100 % código abierto · autoalojado en tu propia Raspberry Pi",
+    "en": "100% open source · self-hosted on your own Raspberry Pi"
+  },
+  "site.landing.hero.title_1": {
+    "text": "Tus fotos, tus normas.",
+    "en": "Your photos, your rules."
+  },
+  "site.landing.hero.title_2": {
+    "text": "<em>Fuera de la nube</em>, para siempre.",
+    "en": "<em>Off the cloud</em>, for good."
+  },
+  "site.landing.install.bridge_link": {
+    "text": "¿Quieres acceder desde fuera de tu red doméstica? Crea una cuenta para el puente →",
+    "en": "Want to reach it from outside your home network? Create an account for the bridge →"
+  },
+  "site.landing.install.command_comment": {
+    "text": "inicia sesión en la máquina y después:",
+    "en": "log into the machine, then:"
+  },
+  "site.landing.install.copied": {
+    "text": "¡Copiado!",
+    "en": "Copied!"
+  },
+  "site.landing.install.copy": {
+    "text": "Copiar",
+    "en": "Copy"
+  },
+  "site.landing.install.copy_failed": {
+    "text": "Selecciona y copia a mano",
+    "en": "Select & copy manually"
+  },
+  "site.landing.install.download": {
+    "text": "Descargar la imagen (≈ 530 MB)",
+    "en": "Download the image (≈ 530 MB)"
+  },
+  "site.landing.install.image_note": {
+    "text": "La imagen solo lleva el asistente de configuración: instala la versión actual, así que nunca se queda desactualizada. Suma de comprobación: <sha>.sha256</sha>.",
+    "en": "The image only carries the setup wizard: it installs the current release, so it never goes out of date. Checksum: <sha>.sha256</sha>."
+  },
+  "site.landing.install.label": {
+    "text": "Pon en marcha tu dispositivo",
+    "en": "Get your device running"
+  },
+  "site.landing.install.requirements": {
+    "text": "Para una <b>Raspberry Pi 5 con al menos 8 GB de RAM</b>, una tarjeta microSD para el sistema y, opcionalmente, dos discos USB para RAID-1, conectados a los <b>dos puertos USB azules</b> de la Pi. Usa la <b>fuente de alimentación USB-C oficial de Raspberry Pi de 27 W</b> (o una mejor): con una más débil, la Pi puede reiniciarse por bajo voltaje mientras procesa tus fotos. No hace falta teclado, monitor ni saber Linux. <b>¿Solo tienes una Pi de 4 GB?</b> Puede funcionar, pero solo con <b>Etiquetado de imágenes</b> y <b>Reconocimiento facial</b> desactivados en Ajustes antes de hacer la copia de seguridad de tus fotos: esos modelos necesitan más memoria de la que dejan 4 GB.",
+    "en": "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a MicroSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It can run, but only with <b>Image Tagging</b> and <b>Face Recognition</b> turned off in Settings, before you back up your photos: those models need more memory than 4 GB leaves."
+  },
+  "site.landing.install.script_intro": {
+    "text": "Un solo comando en cualquier máquina en la que ya puedas iniciar sesión: Ubuntu, Debian, Raspberry Pi OS y otras distribuciones basadas en Debian (64 bits).",
+    "en": "One command on any machine you can already log into: Ubuntu, Debian, Raspberry Pi OS and other Debian-based distros (64-bit)."
+  },
+  "site.landing.install.script_note": {
+    "text": "Lo instala todo y compila el software desde el código fuente, y después inicia el servicio en <code>{address}</code>. Puedes volver a ejecutarlo sin riesgo para actualizar. Tus archivos van en dos discos en espejo como RAID-1: reutiliza un espejo que encuentre y solo borra dos discos nuevos para crear uno cuando lo confirmas, y también instala las luces de estado. Un solo disco también funciona (consulta el <readme>README</readme>). La configuración del Wi-Fi no forma parte de esta vía: para una Raspberry Pi desde cero, usa la imagen.",
+    "en": "It installs everything and builds the software from source, then starts the service at <code>{address}</code>. Safe to re-run to update. Your files go on two disks mirrored as RAID-1: it reuses a mirror it finds and only erases two new disks to build one when you confirm it, and it installs the status lights too. A single disk works as well (see the <readme>README</readme>). The WiFi setup isn't part of this path — see the image for a from-scratch Raspberry Pi.",
+    "reviewed": "claude-backtranslation 2026-10-11 #13ad7cb7"
+  },
+  "site.landing.install.step_flash": {
+    "text": "<b>Grábala</b> en la tarjeta microSD con <imager>Raspberry Pi Imager</imager>: “Usar personalizado”, elige el archivo y escribe. Omite el paso de personalización del propio Imager.",
+    "en": "<b>Flash it</b> to the MicroSD card with <imager>Raspberry Pi Imager</imager>: \"Use custom\", pick the file, write. Skip Imager's own customisation step."
+  },
+  "site.landing.install.step_plug": {
+    "text": "<b>Conecta</b> los discos (a los dos puertos USB azules), inserta la tarjeta y enciende la Pi. Al cabo de un minuto se anuncia por Bluetooth.",
+    "en": "<b>Plug in</b> the disks (into the two blue USB ports), insert the card and power the Pi on. After a minute it announces itself over Bluetooth."
+  },
+  "site.landing.install.step_setup": {
+    "text": "<b>Configúrala desde tu teléfono</b> con la app (iOS o Android): en la pantalla de bienvenida, toca <b>Configurar dispositivo nuevo</b>. Encuentra la Pi por Bluetooth y hace la configuración ahí mismo; tu teléfono sigue en su propia red Wi-Fi. Te pide tu red Wi-Fi, un nombre y una contraseña para el dispositivo y cómo usar los discos, y luego instala el software: unos 20 minutos.",
+    "en": "<b>Set it up from your phone</b> with the app (iOS or Android): on the welcome screen tap <b>Set up a new device</b>. It finds the Pi over Bluetooth and runs the setup right there - your phone stays on its own WiFi. It asks for your WiFi, a name and password for the device and how to use the disks, then installs the software - about 20 minutes."
+  },
+  "site.landing.install.step_signin": {
+    "text": "<b>Inicia sesión</b> cuando termine: la app se conecta sola al nuevo dispositivo con la contraseña que elegiste, o abre <code>{address}</code> en un navegador.",
+    "en": "<b>Sign in</b> when it's done: the app connects to the new device by itself with the password you chose, or open <code>{address}</code> in a browser."
+  },
+  "site.landing.install.tab_image": {
+    "text": "Imagen para Raspberry Pi 5",
+    "en": "Raspberry Pi 5 image"
+  },
+  "site.landing.install.tab_script": {
+    "text": "Script de instalación",
+    "en": "Install script"
+  },
+  "site.landing.install.terminal": {
+    "text": "Terminal",
+    "en": "Terminal"
+  },
+  "site.landing.lightbox.close": {
+    "text": "Cerrar",
+    "en": "Close"
+  },
+  "site.landing.lightbox.label": {
+    "text": "Captura de pantalla",
+    "en": "Screenshot"
+  },
+  "site.landing.lightbox.next": {
+    "text": "Siguiente captura",
+    "en": "Next screenshot"
+  },
+  "site.landing.lightbox.previous": {
+    "text": "Captura anterior",
+    "en": "Previous screenshot"
+  },
+  "site.landing.meta.description": {
+    "text": "Un NAS privado para toda la familia y una red social ética que son totalmente tuyos. Conecta una Raspberry Pi, vincula la app y tus fotos quedarán guardadas, etiquetadas y listas para compartir solo con quien elijas.",
+    "en": "A private, family-friendly NAS and ethical social network you own outright. Plug in a Raspberry Pi, pair the app, and your photos are backed up, tagged, and shareable with only the people you choose."
+  },
+  "site.landing.meta.title": {
+    "text": "Off The Cloud — tus recuerdos, en tus manos",
+    "en": "Off The Cloud — own your memories"
+  },
+  "site.landing.nav.create_account": {
+    "text": "Crear una cuenta",
+    "en": "Create an account"
+  },
+  "site.landing.nav.download": {
+    "text": "Descargar",
+    "en": "Download"
+  },
+  "site.landing.nav.faq": {
+    "text": "Preguntas",
+    "en": "FAQ"
+  },
+  "site.landing.nav.gallery": {
+    "text": "Galería",
+    "en": "Gallery"
+  },
+  "site.landing.nav.get_started": {
+    "text": "Primeros pasos",
+    "en": "Get started"
+  },
+  "site.landing.nav.sign_in": {
+    "text": "Iniciar sesión",
+    "en": "Sign in"
+  },
+  "site.landing.nav.what": {
+    "text": "Qué es",
+    "en": "What it is"
+  },
+  "site.landing.phone.android_soon": {
+    "text": "Muy pronto en Google Play",
+    "en": "Coming soon to Google Play"
+  },
+  "site.landing.phone.android_text": {
+    "text": "La misma app para teléfonos y tabletas Android: copia de seguridad de fotos, los archivos y las fotos de tu dispositivo, y las publicaciones de tus amigos.",
+    "en": "The same app for Android phones and tablets: photo backup, your device's files and photos, and friends' posts."
+  },
+  "site.landing.phone.eyebrow": {
+    "text": "Apps para el teléfono",
+    "en": "Phone apps"
+  },
+  "site.landing.phone.ios_soon": {
+    "text": "Muy pronto en el App Store",
+    "en": "Coming soon to the App Store"
+  },
+  "site.landing.phone.ios_text": {
+    "text": "Hace una copia de seguridad de tu fototeca, incluidas las fotos de iCloud, y muestra las fotos y los archivos de tu dispositivo y las publicaciones de tus amigos.",
+    "en": "Backs up your photo library, iCloud photos included, and shows your device's photos, files and friends' posts."
+  },
+  "site.landing.phone.ios_title": {
+    "text": "iPhone y iPad",
+    "en": "iPhone and iPad"
+  },
+  "site.landing.phone.lead": {
+    "text": "Haz una copia de seguridad de tus fotos y vídeos nada más hacerlos, explora todo lo que hay en tu dispositivo, comparte con tus amigos y configura un dispositivo nuevo por Bluetooth.",
+    "en": "Back up your photos and videos as you take them, browse everything on your device, share with friends, and set up a new device over Bluetooth."
+  },
+  "site.landing.phone.title": {
+    "text": "Tus fotos, a salvo desde tu teléfono",
+    "en": "Your photos, backed up from your phone"
+  },
+  "site.landing.shots.desktop_group": {
+    "text": "Cliente para macOS / Windows",
+    "en": "macOS / Windows client"
+  },
+  "site.landing.shots.device_alt": {
+    "text": "El dispositivo Off The Cloud: una Raspberry Pi con dos tarjetas microSD y LED de estado del RAID",
+    "en": "The Off The Cloud device: a Raspberry Pi with two micro-SD cards and RAID status LEDs"
+  },
+  "site.landing.shots.device_group": {
+    "text": "El dispositivo",
+    "en": "The device"
+  },
+  "site.landing.shots.eyebrow": {
+    "text": "Míralo en marcha",
+    "en": "See it running"
+  },
+  "site.landing.shots.lead": {
+    "text": "El dispositivo físico y las cuatro apps que se comunican con él.",
+    "en": "The physical device, and the four apps that talk to it."
+  },
+  "site.landing.shots.macos_alt": {
+    "text": "La app de la barra de menús del Mac: conectada, almacenamiento en buen estado, dos carpetas sincronizadas y una subiendo archivos",
+    "en": "The Mac menu bar app: connected, storage healthy, two folders synced and one uploading"
+  },
+  "site.landing.shots.mobile_files_alt": {
+    "text": "Archivos: una carpeta sincronizada mostrada como cuadrícula",
+    "en": "Files: a synced folder shown as a grid"
+  },
+  "site.landing.shots.mobile_group": {
+    "text": "App para iOS / Android",
+    "en": "iOS / Android app"
+  },
+  "site.landing.shots.mobile_images_alt": {
+    "text": "Imágenes: la biblioteca de fotos, con las personas encontradas en ella en la parte superior",
+    "en": "Images: the photo library, with the people found in it across the top"
+  },
+  "site.landing.shots.mobile_photo_alt": {
+    "text": "Una foto abierta a pantalla completa",
+    "en": "A photo opened full screen"
+  },
+  "site.landing.shots.mobile_settings_alt": {
+    "text": "Ajustes: perfil, usuarios, reconocimiento facial y etiquetado de imágenes",
+    "en": "Settings: profile, users, face recognition and image tagging"
+  },
+  "site.landing.shots.mobile_social_alt": {
+    "text": "Social: publicaciones y comentarios compartidos solo con los dispositivos de tus amigos",
+    "en": "Social: posts and comments shared only with friends' devices"
+  },
+  "site.landing.shots.title": {
+    "text": "Todas las partes del sistema, en un solo lugar",
+    "en": "Every part of the system, in one place"
+  },
+  "site.landing.shots.web_files_alt": {
+    "text": "Archivos en la app web, como cuadrícula",
+    "en": "Files in the web app, as a grid"
+  },
+  "site.landing.shots.web_group": {
+    "text": "App web",
+    "en": "Web app"
+  },
+  "site.landing.shots.web_images_alt": {
+    "text": "Imágenes en la app web",
+    "en": "Images in the web app"
+  },
+  "site.landing.shots.web_settings_alt": {
+    "text": "Ajustes en la app web",
+    "en": "Settings in the web app"
+  },
+  "site.landing.shots.web_social_alt": {
+    "text": "Social en la app web",
+    "en": "Social in the web app"
+  },
+  "site.landing.started.eyebrow": {
+    "text": "Primeros pasos",
+    "en": "Get started"
+  },
+  "site.landing.started.lead": {
+    "text": "Las dos vías llevan al mismo sitio: la imagen simplemente ejecuta el script de instalación por ti, después de pedirte desde un teléfono tu red Wi-Fi, un nombre y tus discos.",
+    "en": "Both paths end in the same place: the image just runs the install script for you, after asking for your WiFi, a name and your disks from a phone."
+  },
+  "site.landing.started.note": {
+    "text": "<b>¿Empiezas desde cero con una Raspberry Pi 5?</b> Usa la <install>imagen para Raspberry Pi 5</install>: borra dos discos USB y los pone en espejo durante la configuración, y si alguna vez se estropea una Pi, grabas una tarjeta nueva, conectas los mismos discos y el asistente te ofrece recuperarlo todo. Los LED de estado y todas las opciones de configuración están en el <readme>README</readme>.",
+    "en": "<b>Starting from scratch on a Raspberry Pi 5?</b> Use the <install>Raspberry Pi 5 image</install>: it wipes and mirrors two USB disks during setup, and if a Pi ever dies you flash a new card, attach the same disks and the wizard offers to recover everything. The status LEDs and every configuration option are in the <readme>README</readme>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #af7d8aed"
+  },
+  "site.landing.started.step1_text": {
+    "text": "Instala MariaDB, Go, ONNX Runtime y el modelo de etiquetado; después compila e inicia el servicio <code>otc</code>, accesible al momento en <code>{address}</code> desde tu red local. Puedes volver a ejecutarlo cuando quieras para aplicar actualizaciones.",
+    "en": "It installs MariaDB, Go, ONNX Runtime and the tagging model, then builds and starts the <code>otc</code> service, reachable straight away at <code>{address}</code> on your local network — safe to re-run any time to pick up updates."
+  },
+  "site.landing.started.step1_title": {
+    "text": "Ejecuta el script",
+    "en": "Run the script"
+  },
+  "site.landing.started.step2_text": {
+    "text": "Así se le da nombre al dispositivo, p. ej., <code>pit</code> para <code>pit.off-the.cloud</code>: la dirección que usan tus apps y tus amigos para acceder a él desde fuera de tu red doméstica, en lugar de la dirección local <code>:8080</code>. Registra primero el nombre en la <account>página de tu cuenta</account> para que pertenezca a tu cuenta del puente (la configuración de la imagen lo hace por ti).",
+    "en": "This names the device, e.g. <code>pit</code> for <code>pit.off-the.cloud</code> — the address your apps and friends use to reach it from outside your home network, instead of the local <code>:8080</code> address. Register the name on your <account>account page</account> first, so it belongs to your bridge account (the image's setup does this for you)."
+  },
+  "site.landing.started.step2_title": {
+    "text": "Elige un subdominio",
+    "en": "Pick a subdomain"
+  },
+  "site.landing.started.step3_text": {
+    "text": "Abre la app (web, iOS, Android, macOS, Windows o Linux), configúrala con tu subdominio y empieza a hacer copias de seguridad.",
+    "en": "Open the web, iOS, Android, macOS, Windows or Linux client, point it at your subdomain, and start backing up."
+  },
+  "site.landing.started.step3_title": {
+    "text": "Vincula una app",
+    "en": "Pair an app"
+  },
+  "site.landing.started.title": {
+    "text": "Qué pasa por dentro",
+    "en": "What happens under the hood"
+  },
+  "site.landing.what.desktop_text": {
+    "text": "Apps para macOS, Windows y Linux que mantienen las carpetas que elijas de tu ordenador sincronizadas en ambos sentidos con el dispositivo, automáticamente.",
+    "en": "macOS, Windows and Linux apps that keep chosen folders on your computer in two-way sync with the device, automatically."
+  },
+  "site.landing.what.desktop_title": {
+    "text": "App para ordenador",
+    "en": "Desktop client"
+  },
+  "site.landing.what.device_text": {
+    "text": "Una Raspberry Pi 5 con una tarjeta para el sistema y dos tarjetas de almacenamiento en espejo RAID-1, que guarda tus originales sin procesar ni comprimir, cifrados en reposo con una clave que solo tu contraseña desbloquea.",
+    "en": "A Raspberry Pi 5 with a card for the system and two storage cards mirrored in RAID-1, storing your originals unprocessed and uncompressed — encrypted at rest, with a key that only your password unlocks."
+  },
+  "site.landing.what.device_title": {
+    "text": "El dispositivo",
+    "en": "The device"
+  },
+  "site.landing.what.eyebrow": {
+    "text": "Qué es",
+    "en": "What it is"
+  },
+  "site.landing.what.family_text": {
+    "text": "Da a cada persona de tu casa su propia cuenta en el mismo dispositivo, con su propia copia de seguridad de fotos, biblioteca y contraseña, cada una cifrada con su propia clave. Tú gestionas las cuentas, pero no puedes abrir las fotos ni los archivos que contienen.",
+    "en": "Give everyone at home their own account on the same device — their own photo backup, library and password, each encrypted with its own key. You manage the accounts, but you can't open the photos and files in them.",
+    "reviewed": "claude-backtranslation 2026-10-11 #05879e35"
+  },
+  "site.landing.what.family_title": {
+    "text": "Un dispositivo para toda la familia",
+    "en": "One device, the whole family"
+  },
+  "site.landing.what.fast_text": {
+    "text": "En casa, las apps se comunican directamente con el dispositivo a través de tu propia red, así que las fotos de todas unas vacaciones se copian a la velocidad de tu Wi-Fi en lugar de arrastrarse por internet.",
+    "en": "At home the apps talk straight to the device over your own network, so a whole holiday's photos back up at Wi-Fi speed instead of crawling over the internet."
+  },
+  "site.landing.what.fast_title": {
+    "text": "Rápido en casa",
+    "en": "Fast at home"
+  },
+  "site.landing.what.feed_text": {
+    "text": "La parte social no tiene anuncios, ni influencers, ni algoritmos de interacción: solo publicaciones de personas que de verdad has aceptado como amigos.",
+    "en": "The social side has no ads, no influencers, no engagement algorithm — just posts from people you've actually approved as friends."
+  },
+  "site.landing.what.feed_title": {
+    "text": "Sin feed tóxico",
+    "en": "No toxic feed"
+  },
+  "site.landing.what.lead": {
+    "text": "Una Raspberry Pi en tu casa lo guarda todo; las apps nativas para cada plataforma lo mantienen sincronizado y te permiten explorarlo, buscar en ello y compartirlo.",
+    "en": "A Raspberry Pi in your home stores everything; native apps on every platform keep it in sync and let you browse, search, and share it."
+  },
+  "site.landing.what.mobile_text": {
+    "text": "Apps para iOS y Android que hacen copia de seguridad del carrete en segundo plano, a resolución completa, y que además son el feed social.",
+    "en": "iOS and Android apps that back up your camera roll in the background, in full resolution, and double as the social feed."
+  },
+  "site.landing.what.mobile_title": {
+    "text": "App para el teléfono",
+    "en": "Mobile app"
+  },
+  "site.landing.what.search_text": {
+    "text": "Cada foto se etiqueta automáticamente en el propio dispositivo, así que puedes buscar “playa” o “perro” al instante; no se envía nada a terceros para hacerlo.",
+    "en": "Every photo is auto-tagged locally on the device, so you can search \"beach\" or \"dog\" instantly — nothing is sent to a third party to do it."
+  },
+  "site.landing.what.search_title": {
+    "text": "Búsqueda con IA, en privado",
+    "en": "AI search, kept private"
+  },
+  "site.landing.what.share_text": {
+    "text": "Envía una colección de fotos a quien quieras como un enlace que caduca. Lo abren en su navegador, sin cuenta ni app, y pueden descargar los originales.",
+    "en": "Send a collection of photos to anyone as a link that expires. They open it in their browser, with no account or app, and can download the originals."
+  },
+  "site.landing.what.share_title": {
+    "text": "Comparte colecciones con un enlace",
+    "en": "Share collections with a link"
+  },
+  "site.landing.what.title": {
+    "text": "Un dispositivo, cuatro formas de acceder a él",
+    "en": "One device, four ways to reach it"
+  },
+  "site.landing.what.web_text": {
+    "text": "Todo lo anterior, desde cualquier navegador: inicia sesión solo con tu contraseña, sin instalar ninguna app.",
+    "en": "Everything above, from any browser — sign in with just your password, no app install required."
+  },
+  "site.landing.what.web_title": {
+    "text": "App web",
+    "en": "Web app"
+  }
+}

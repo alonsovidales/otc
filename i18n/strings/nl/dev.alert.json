@@ -1,0 +1,294 @@
+{
+  "dev.alert.bridge.left": {
+    "text": "Dit apparaat heeft de bridge verlaten",
+    "en": "This device left the bridge"
+  },
+  "dev.alert.bridge.left_detail": {
+    "text": "De bridge kent {domain} niet meer: het account is verwijderd of de naam is vrijgegeven. Het apparaat blijft thuis werken, op {address}: stel de apps in op dat adres, of maak in Instellingen opnieuw verbinding met de bridge.",
+    "en": "The bridge no longer knows {domain}: its account was deleted or the name released. The device goes on working at home, at {address} - set the apps to that address, or join the bridge again in Settings.",
+    "reviewed": "claude-backtranslation 2026-10-11 #dfc68e71"
+  },
+  "dev.alert.file.crashed": {
+    "text": "Het bestand {name} kon niet worden verwerkt (de verwerking liep erop vast)",
+    "en": "{name} could not be processed (it crashed the processing)"
+  },
+  "dev.alert.file.not_converted": {
+    "text": "Het bestand {name} kon niet vanuit HEIC worden geconverteerd",
+    "en": "{name} could not be converted from HEIC"
+  },
+  "dev.alert.file.not_decrypted": {
+    "text": "Het bestand {name} kon niet worden ontsleuteld",
+    "en": "{name} could not be decrypted"
+  },
+  "dev.alert.file.not_processed": {
+    "text": "Het bestand {name} kon niet worden verwerkt",
+    "en": "{name} could not be processed"
+  },
+  "dev.alert.file.not_read": {
+    "text": "Het bestand {name} kon niet worden gelezen",
+    "en": "{name} could not be read"
+  },
+  "dev.alert.file.not_read_back": {
+    "text": "Het bestand {name} kon niet worden teruggelezen voor verwerking",
+    "en": "{name} could not be read back for processing"
+  },
+  "dev.alert.file.not_saved": {
+    "text": "Het bestand {name} kon niet op de schijf worden opgeslagen",
+    "en": "{name} could not be saved to disk"
+  },
+  "dev.alert.file.not_tagged": {
+    "text": "Voor het bestand {name} konden geen tags worden bepaald",
+    "en": "{name} could not be tagged"
+  },
+  "dev.alert.file.small_thumbnail_not_written": {
+    "text": "Het bestand {name} heeft geen kleine miniatuur (die kon niet worden weggeschreven)",
+    "en": "{name} has no small thumbnail (it could not be written)"
+  },
+  "dev.alert.file.thumbnail_not_encoded": {
+    "text": "Het bestand {name} heeft geen miniatuur (die kon niet worden gecodeerd)",
+    "en": "{name} has no thumbnail (it could not be encoded)"
+  },
+  "dev.alert.file.thumbnail_not_written": {
+    "text": "Het bestand {name} heeft geen miniatuur (die kon niet worden weggeschreven)",
+    "en": "{name} has no thumbnail (it could not be written)"
+  },
+  "dev.alert.gallery.crashed": {
+    "text": {
+      "one": "{count} bestand kon niet worden verwerkt (de verwerking liep erop vast)",
+      "other": "{count} bestanden konden niet worden verwerkt (de verwerking liep erop vast)"
+    },
+    "en": {
+      "one": "{count} files could not be processed (it crashed the processing)",
+      "other": "{count} files could not be processed (it crashed the processing)"
+    }
+  },
+  "dev.alert.integrity.detail": {
+    "text": "{paths}. Upload ze opnieuw vanaf de plek waar ze vandaan kwamen – “Alles synchroniseren” op een telefoon, of de map van de desktopapp – en ze worden hersteld.",
+    "en": "{paths}. Upload them again from where they came from - Sync All on a phone, or the desktop app's folder - and they are restored.",
+    "reviewed": "claude-backtranslation 2026-10-11 #f89f05bd"
+  },
+  "dev.alert.integrity.detail_more": {
+    "text": {
+      "one": "{paths}; en nog {count}. Upload ze opnieuw vanaf de plek waar ze vandaan kwamen – “Alles synchroniseren” op een telefoon, of de map van de desktopapp – en ze worden hersteld.",
+      "other": "{paths}; en nog {count}. Upload ze opnieuw vanaf de plek waar ze vandaan kwamen – “Alles synchroniseren” op een telefoon, of de map van de desktopapp – en ze worden hersteld."
+    },
+    "en": {
+      "one": "{paths}; and {count} more. Upload them again from where they came from - Sync All on a phone, or the desktop app's folder - and they are restored.",
+      "other": "{paths}; and {count} more. Upload them again from where they came from - Sync All on a phone, or the desktop app's folder - and they are restored."
+    },
+    "reviewed": "claude-backtranslation 2026-10-11 #aeb7b5b3"
+  },
+  "dev.alert.integrity.lost": {
+    "text": {
+      "one": "{count} bestand heeft zijn inhoud verloren",
+      "other": "{count} bestanden hebben hun inhoud verloren"
+    },
+    "en": {
+      "one": "{count} file has lost its content",
+      "other": "{count} files have lost their content"
+    },
+    "reviewed": "claude-backtranslation 2026-10-11 #7c2665c1"
+  },
+  "dev.alert.line.detail": {
+    "text": "{clock} {title}: {detail}",
+    "en": "{clock} {title}: {detail}"
+  },
+  "dev.alert.line.plain": {
+    "text": "{clock} {title}",
+    "en": "{clock} {title}"
+  },
+  "dev.alert.memory.hint": {
+    "text": "Dit apparaat heeft {gb} GB geheugen. Na een herstart verwerkt het een uur lang één bestand tegelijk. Als dit blijft gebeuren, stuur dan de logboeken via Instellingen > Logboeken.",
+    "en": "This device has {gb} GB of memory. After a restart it goes on processing one file at a time for an hour. If this keeps happening, send the logs from Settings > Logs."
+  },
+  "dev.alert.memory.hint_low": {
+    "text": "Dit apparaat heeft {gb} GB geheugen: het verwerkt één foto tegelijk (modus voor weinig geheugen), en na een herstart wacht het even voordat het verdergaat. Als dit blijft gebeuren, stuur dan de logboeken via Instellingen > Logboeken.",
+    "en": "This device has {gb} GB of memory: it processes one photo at a time (low-memory mode), and after a restart it waits a while before it goes on. If this keeps happening, send the logs from Settings > Logs."
+  },
+  "dev.alert.memory.hint_low_small": {
+    "text": "Dit apparaat heeft {gb} GB geheugen, minder dan de aanbevolen 8 GB: het verwerkt één foto tegelijk om met het geheugen uit te komen (modus voor weinig geheugen), en na een herstart wacht het even voordat het verdergaat. Als dit blijft gebeuren, stuur dan de logboeken via Instellingen > Logboeken.",
+    "en": "This device has {gb} GB of memory, less than the 8 GB recommended: it processes one photo at a time to fit (low-memory mode), and after a restart it waits a while before it goes on. If this keeps happening, send the logs from Settings > Logs."
+  },
+  "dev.alert.memory.hint_low_unknown": {
+    "text": "Dit apparaat: het verwerkt één foto tegelijk (modus voor weinig geheugen), en na een herstart wacht het even voordat het verdergaat. Als dit blijft gebeuren, stuur dan de logboeken via Instellingen > Logboeken.",
+    "en": "This device: it processes one photo at a time (low-memory mode), and after a restart it waits a while before it goes on. If this keeps happening, send the logs from Settings > Logs."
+  },
+  "dev.alert.memory.hint_unknown": {
+    "text": "Dit apparaat. Na een herstart verwerkt het een uur lang één bestand tegelijk. Als dit blijft gebeuren, stuur dan de logboeken via Instellingen > Logboeken.",
+    "en": "This device. After a restart it goes on processing one file at a time for an hour. If this keeps happening, send the logs from Settings > Logs."
+  },
+  "dev.alert.memory.restarted": {
+    "text": "Je apparaat had te weinig geheugen en is herstart",
+    "en": "Your device ran out of memory and restarted"
+  },
+  "dev.alert.memory.restarted_times": {
+    "text": {
+      "one": "Je apparaat had te weinig geheugen en is {count} keer herstart sinds {clock}",
+      "other": "Je apparaat had te weinig geheugen en is {count} keer herstart sinds {clock}"
+    },
+    "en": {
+      "one": "Your device ran out of memory and restarted {count} time since {clock}",
+      "other": "Your device ran out of memory and restarted {count} times since {clock}"
+    }
+  },
+  "dev.alert.memory.restarted_times_day": {
+    "text": {
+      "one": "Je apparaat had te weinig geheugen en is {count} keer herstart sinds {day} {month} {clock}",
+      "other": "Je apparaat had te weinig geheugen en is {count} keer herstart sinds {day} {month} {clock}"
+    },
+    "en": {
+      "one": "Your device ran out of memory and restarted {count} time since {day} {month} {clock}",
+      "other": "Your device ran out of memory and restarted {count} times since {day} {month} {clock}"
+    }
+  },
+  "dev.alert.month.apr": {
+    "text": "apr.",
+    "en": "Apr"
+  },
+  "dev.alert.month.aug": {
+    "text": "aug.",
+    "en": "Aug"
+  },
+  "dev.alert.month.dec": {
+    "text": "dec.",
+    "en": "Dec"
+  },
+  "dev.alert.month.feb": {
+    "text": "feb.",
+    "en": "Feb"
+  },
+  "dev.alert.month.jan": {
+    "text": "jan.",
+    "en": "Jan"
+  },
+  "dev.alert.month.jul": {
+    "text": "jul.",
+    "en": "Jul"
+  },
+  "dev.alert.month.jun": {
+    "text": "jun.",
+    "en": "Jun"
+  },
+  "dev.alert.month.mar": {
+    "text": "mrt.",
+    "en": "Mar"
+  },
+  "dev.alert.month.may": {
+    "text": "mei",
+    "en": "May"
+  },
+  "dev.alert.month.nov": {
+    "text": "nov.",
+    "en": "Nov"
+  },
+  "dev.alert.month.oct": {
+    "text": "okt.",
+    "en": "Oct"
+  },
+  "dev.alert.month.sep": {
+    "text": "sep.",
+    "en": "Sep"
+  },
+  "dev.alert.raid.stopped_bottom": {
+    "text": "De schijf in de onderste blauwe USB-poort werkt niet meer",
+    "en": "The disk in the bottom blue USB port stopped working"
+  },
+  "dev.alert.raid.stopped_detail": {
+    "text": "Je bestanden staan veilig op de andere schijf, maar worden niet meer gespiegeld. Vervang de uitgevallen schijf door een kaart die minstens even groot is: het apparaat voegt die toe en kopieert er zelf alles naartoe, waarbij alles wat op de nieuwe kaart stond wordt gewist.",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card.",
+    "reviewed": "claude-backtranslation 2026-10-11 #24b632d4"
+  },
+  "dev.alert.raid.stopped_detail_disk": {
+    "text": "Je bestanden staan veilig op de andere schijf, maar worden niet meer gespiegeld. Vervang de uitgevallen schijf door een kaart die minstens even groot is: het apparaat voegt die toe en kopieert er zelf alles naartoe, waarbij alles wat op de nieuwe kaart stond wordt gewist. ({disk})",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-11 #44c5c76f"
+  },
+  "dev.alert.raid.stopped_top": {
+    "text": "De schijf in de bovenste blauwe USB-poort werkt niet meer",
+    "en": "The disk in the top blue USB port stopped working"
+  },
+  "dev.alert.raid.stopped_unknown": {
+    "text": "Een van de twee opslagschijven werkt niet meer",
+    "en": "One of the two storage disks stopped working"
+  },
+  "dev.alert.raid.working_detail": {
+    "text": "De spiegel is compleet: elk bestand staat weer op beide schijven.",
+    "en": "The mirror is complete: every file is on both disks again."
+  },
+  "dev.alert.raid.working_title": {
+    "text": "Beide opslagschijven werken weer",
+    "en": "Both storage disks are working again"
+  },
+  "dev.alert.setaside.detail": {
+    "text": "het apparaat liep twee keer vast tijdens het verwerken ervan. Het bestand blijft zoals het is, zonder de miniatuur, tags of gezichten die nog ontbraken, en wordt na de volgende update opnieuw geprobeerd.",
+    "en": "the device stopped twice while processing it. It is kept as it is, without the thumbnail, tags or faces it was missing, and tried again after the next update."
+  },
+  "dev.alert.setaside.title": {
+    "text": "Het bestand {name} is apart gezet",
+    "en": "{name} was set aside"
+  },
+  "dev.alert.update.critical": {
+    "text": "Kritieke update {version}: installeer deze binnenkort",
+    "en": "Critical update {version} - please install it soon"
+  },
+  "dev.alert.update.detail": {
+    "text": "{summary} Installeer de update via Instellingen.",
+    "en": "{summary} Install it from Settings."
+  },
+  "dev.alert.update.major": {
+    "text": "Update {version} is beschikbaar",
+    "en": "Update {version} is available"
+  },
+  "dev.alert.wifi.no_answer": {
+    "text": "het verzenden van gegevens was vertraagd tot ongeveer {speed}, waarbij {pct}% twee keer werd verzonden, en de herstart van de wifi gaf nooit antwoord. Herstart het apparaat via Instellingen, of sluit het met een ethernetkabel aan op je router.",
+    "en": "sending data had slowed down to about {speed}, with {pct}% of it sent twice, and the Wi-Fi restart never answered. Restart the device from Settings, or connect it to your router with an Ethernet cable."
+  },
+  "dev.alert.wifi.no_runner": {
+    "text": "het verzenden van gegevens is vertraagd tot ongeveer {speed}, waarbij {pct}% twee keer wordt verzonden. Dit apparaat kan zijn wifi pas zelf herstarten als het is bijgewerkt. Herstart het apparaat via Instellingen, of sluit het met een ethernetkabel aan op je router.",
+    "en": "sending data has slowed down to about {speed}, with {pct}% of it sent twice. This device can't restart its Wi-Fi by itself until it is updated. Restart the device from Settings, or connect it to your router with an Ethernet cable."
+  },
+  "dev.alert.wifi.not_restarted": {
+    "text": "De wifi kon niet worden herstart",
+    "en": "The Wi-Fi could not be restarted"
+  },
+  "dev.alert.wifi.recovered": {
+    "text": "het verzenden van gegevens was vertraagd tot ongeveer {speed}, waarbij {pct}% twee keer werd verzonden. De wifi werkt weer normaal.",
+    "en": "sending data had slowed down to about {speed}, with {pct}% of it sent twice. It is working normally again."
+  },
+  "dev.alert.wifi.recovered_rebooted": {
+    "text": "het verzenden van gegevens was vertraagd tot ongeveer {speed}, waarbij {pct}% twee keer werd verzonden. De wifi maakte na de herstart geen verbinding, dus het apparaat is herstart. Alles werkt weer normaal.",
+    "en": "sending data had slowed down to about {speed}, with {pct}% of it sent twice. It didn't reconnect after the restart, so the device restarted. It is working normally again."
+  },
+  "dev.alert.wifi.restart_failed": {
+    "text": "het verzenden van gegevens was vertraagd tot ongeveer {speed}, waarbij {pct}% twee keer werd verzonden, en het herstarten van de wifi is mislukt ({reason}). Herstart het apparaat via Instellingen, of sluit het met een ethernetkabel aan op je router.",
+    "en": "sending data had slowed down to about {speed}, with {pct}% of it sent twice, and restarting the Wi-Fi failed ({reason}). Restart the device from Settings, or connect it to your router with an Ethernet cable."
+  },
+  "dev.alert.wifi.restart_failed_other": {
+    "text": "het verzenden van gegevens was vertraagd tot ongeveer {speed}, waarbij {pct}% twee keer werd verzonden, en het herstarten van de wifi is mislukt ({reason}). Herstart het apparaat via Instellingen, of sluit het met een ethernetkabel aan op je router.",
+    "en": "sending data had slowed down to about {speed}, with {pct}% of it sent twice, and restarting the Wi-Fi failed ({reason}). Restart the device from Settings, or connect it to your router with an Ethernet cable."
+  },
+  "dev.alert.wifi.restarted": {
+    "text": "De wifi is herstart",
+    "en": "The Wi-Fi was restarted"
+  },
+  "dev.alert.wifi.still_slow": {
+    "text": "De wifi is na een herstart nog steeds traag",
+    "en": "The Wi-Fi is still slow after a restart"
+  },
+  "dev.alert.wifi.still_slow_detail": {
+    "text": "het verzenden van gegevens is nog steeds traag (ongeveer {speed}, waarbij {pct}% twee keer wordt verzonden). De wifi wordt pas opnieuw herstart als die een tijdje normaal heeft gewerkt. Herstart het apparaat via Instellingen, of sluit het met een ethernetkabel aan op je router.",
+    "en": "sending data is still slow (about {speed}, with {pct}% of it sent twice). The Wi-Fi won't be restarted again until it has worked normally for a while. Restart the device from Settings, or connect it to your router with an Ethernet cable."
+  },
+  "dev.alert.wifi.unjudged": {
+    "text": "het verzenden van gegevens was vertraagd tot ongeveer {speed}, waarbij {pct}% twee keer werd verzonden. Sindsdien is er te weinig verkeer geweest om te zien of de wifi weer normaal werkt.",
+    "en": "sending data had slowed down to about {speed}, with {pct}% of it sent twice. There hasn't been enough traffic since to tell whether it is working normally again."
+  },
+  "dev.alert.wifi.unjudged_rebooted": {
+    "text": "het verzenden van gegevens was vertraagd tot ongeveer {speed}, waarbij {pct}% twee keer werd verzonden. De wifi maakte na de herstart geen verbinding, dus het apparaat is herstart. Sindsdien is er te weinig verkeer geweest om te zien of de wifi weer normaal werkt.",
+    "en": "sending data had slowed down to about {speed}, with {pct}% of it sent twice. It didn't reconnect after the restart, so the device restarted. There hasn't been enough traffic since to tell whether it is working normally again."
+  },
+  "dev.alert.wifi.very_slow": {
+    "text": "De wifi verzendt gegevens erg traag",
+    "en": "The Wi-Fi is sending data very slowly"
+  }
+}

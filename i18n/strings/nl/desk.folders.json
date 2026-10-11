@@ -1,0 +1,329 @@
+{
+  "desk.folders.add_prompt": {
+    "text": "Kies wat voor map je wilt toevoegen:",
+    "en": "Choose what kind of folder to add:"
+  },
+  "desk.folders.add_title": {
+    "text": "Map toevoegen",
+    "en": "Add a Folder"
+  },
+  "desk.folders.ask_keep_out": {
+    "text": "De map buiten Afbeeldingen houden?",
+    "en": "Keep the folder out of Images?",
+    "reviewed": "claude-backtranslation 2026-10-11 #355ce5da"
+  },
+  "desk.folders.ask_upload_only": {
+    "text": "De map op “Alleen uploaden” zetten?",
+    "en": "Make the folder upload only?"
+  },
+  "desk.folders.choose_backup_folder": {
+    "text": "Kies een map om een reservekopie van te maken op het apparaat",
+    "en": "Choose a folder to back up to the device"
+  },
+  "desk.folders.choose_named": {
+    "text": "“{name}” kiezen",
+    "en": "Choose “{name}”"
+  },
+  "desk.folders.choose_sync_folder": {
+    "text": "Kies een map om gesynchroniseerd te houden",
+    "en": "Choose a folder to keep in sync"
+  },
+  "desk.folders.flash_card_in_use": {
+    "text": "de kaart is in gebruik ({mount}): sluit alle vensters en programma’s die de kaart gebruiken en probeer het opnieuw",
+    "en": "the card is in use ({mount}): close any window or program using it and try again"
+  },
+  "desk.folders.flash_card_too_small": {
+    "text": "de kaart is te klein ({size}): er is 8 GB of meer nodig",
+    "en": "the card is too small ({size}) - it needs 8 GB or more"
+  },
+  "desk.folders.flash_checksum_malformed": {
+    "text": "het bestand met de controlesom van de image is ongeldig",
+    "en": "the image's checksum file is malformed",
+    "reviewed": "claude-backtranslation 2026-10-11 #d5b74b88"
+  },
+  "desk.folders.flash_decompress_failed": {
+    "text": "fout bij het uitpakken van de image: {detail}",
+    "en": "decompressing the image: {detail}"
+  },
+  "desk.folders.flash_disk_changed": {
+    "text": "de schijf {disk} is veranderd nadat die was gekozen (nu {now}): er is niets geschreven; kies de kaart opnieuw",
+    "en": "the disk {disk} changed after it was chosen (now {now}) - nothing was written; choose the card again",
+    "reviewed": "claude-backtranslation 2026-10-11 #91aa1707"
+  },
+  "desk.folders.flash_disk_number": {
+    "text": "schijf {number}",
+    "en": "disk {number}"
+  },
+  "desk.folders.flash_diskpart_failed": {
+    "text": "fout bij het voorbereiden van de kaart (diskpart): {detail}: {output}",
+    "en": "preparing the card (diskpart): {detail}: {output}"
+  },
+  "desk.folders.flash_download_failed": {
+    "text": "fout bij het downloaden van de image: {status}",
+    "en": "downloading the image: {status}"
+  },
+  "desk.folders.flash_download_mismatch": {
+    "text": "de gedownloade image komt niet overeen met de ondertekende controlesom: probeer het opnieuw",
+    "en": "the downloaded image does not match its signed checksum - try again",
+    "reviewed": "claude-backtranslation 2026-10-11 #80e825cb"
+  },
+  "desk.folders.flash_exit_code": {
+    "text": "afsluitcode {code}",
+    "en": "exit code {code}"
+  },
+  "desk.folders.flash_image_changed": {
+    "text": "de image is gewijzigd tijdens het schrijven: download de image opnieuw",
+    "en": "the image changed while it was written - download it again",
+    "reviewed": "claude-backtranslation 2026-10-11 #6355555c"
+  },
+  "desk.folders.flash_image_mismatch": {
+    "text": "de image komt niet overeen met de ondertekende controlesom: download de image opnieuw",
+    "en": "the image does not match its signed checksum - download it again",
+    "reviewed": "claude-backtranslation 2026-10-11 #81db412f"
+  },
+  "desk.folders.flash_image_too_large": {
+    "text": "de image is groter dan de kaart",
+    "en": "the image is larger than the card"
+  },
+  "desk.folders.flash_listing_failed": {
+    "text": "fout bij het weergeven van de schijven: {detail}",
+    "en": "listing the disks: {detail}"
+  },
+  "desk.folders.flash_next_steps": {
+    "text": "De kaart is klaar. Plaats hem in de Raspberry Pi 5, sluit de twee USB-schijven aan en zet hem aan.\n\nTik daarna in de Off The Cloud-app op je telefoon (iOS of Android) op “Nieuw apparaat instellen”: de app vindt de Pi via Bluetooth en helpt je met de rest.",
+    "en": "The card is ready. Put it in the Raspberry Pi 5, plug in the two USB disks and power it on.\n\nThen, in the Off The Cloud app on your phone (iOS or Android), tap \"Set up a new device\": it finds the Pi over Bluetooth and walks you through the rest."
+  },
+  "desk.folders.flash_no_pkexec": {
+    "text": "pkexec is niet geïnstalleerd: voer in plaats daarvan `sudo otc-sync flash` uit in een terminal",
+    "en": "pkexec is not installed - run `sudo otc-sync flash` in a terminal instead"
+  },
+  "desk.folders.flash_not_removable": {
+    "text": "{disk} is geen verwisselbare schijf (of is niet meer aangesloten)",
+    "en": "{disk} is not a removable disk (or is no longer connected)",
+    "reviewed": "claude-backtranslation 2026-10-11 #643758d5"
+  },
+  "desk.folders.flash_open_failed": {
+    "text": "fout bij het openen van {disk}: {detail}",
+    "en": "opening {disk}: {detail}"
+  },
+  "desk.folders.flash_read_back_failed": {
+    "text": "fout bij het teruglezen van de kaart: {detail}",
+    "en": "reading the card back: {detail}"
+  },
+  "desk.folders.flash_step_check": {
+    "text": "De image controleren…",
+    "en": "Checking the image…"
+  },
+  "desk.folders.flash_step_done": {
+    "text": "Klaar.",
+    "en": "Done."
+  },
+  "desk.folders.flash_step_eject": {
+    "text": "De kaart uitwerpen…",
+    "en": "Ejecting the card…"
+  },
+  "desk.folders.flash_step_prepare": {
+    "text": "De kaart voorbereiden…",
+    "en": "Preparing the card…"
+  },
+  "desk.folders.flash_step_verify": {
+    "text": "Controleren wat er is geschreven…",
+    "en": "Checking what was written…"
+  },
+  "desk.folders.flash_step_write": {
+    "text": "De kaart beschrijven…",
+    "en": "Writing the card…"
+  },
+  "desk.folders.flash_unnamed_disk": {
+    "text": "Naamloze schijf",
+    "en": "Unnamed disk"
+  },
+  "desk.folders.flash_verify_failed": {
+    "text": "de kaart geeft bij het teruglezen niet terug wat er is geschreven: de kaart is mogelijk defect; probeer een andere kaart",
+    "en": "the card does not read back what was written - it may be faulty; try another card"
+  },
+  "desk.folders.flash_write_failed": {
+    "text": "fout bij het beschrijven van de kaart: {detail}",
+    "en": "writing the card: {detail}"
+  },
+  "desk.folders.flash_writer_not_started": {
+    "text": "het programma dat de kaart beschrijft, is niet gestart",
+    "en": "the card writer did not start"
+  },
+  "desk.folders.flash_writer_stopped": {
+    "text": "het programma dat de kaart beschrijft, is gestopt: {detail}",
+    "en": "the card writer stopped: {detail}"
+  },
+  "desk.folders.flash_writer_stopped_early": {
+    "text": "het programma dat de kaart beschrijft, is gestopt voordat het klaar was",
+    "en": "the card writer stopped before it finished"
+  },
+  "desk.folders.images_add_later": {
+    "text": "Je kunt dit later wijzigen via het menu van de map. Een map die later een andere naam krijgt, is een nieuwe map op het apparaat: houd die opnieuw buiten Afbeeldingen.",
+    "en": "You can change it later from the folder's menu. A folder renamed later is a new folder on the device: keep it out of Images again."
+  },
+  "desk.folders.images_checkbox": {
+    "text": "Buiten Afbeeldingen",
+    "en": "Kept Out of Images"
+  },
+  "desk.folders.images_explain": {
+    "text": "Foto’s en video’s hier krijgen geen tags, worden niet doorzocht op gezichten en worden niet in Afbeeldingen getoond. Bestanden toont ze nog wel.",
+    "en": "Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them."
+  },
+  "desk.folders.images_keeping": {
+    "text": "Buiten Afbeeldingen houden…",
+    "en": "Keeping out of Images…"
+  },
+  "desk.folders.images_kept_out": {
+    "text": "Buiten Afbeeldingen",
+    "en": "Kept out of Images"
+  },
+  "desk.folders.images_showing": {
+    "text": "In Afbeeldingen tonen…",
+    "en": "Showing in Images…"
+  },
+  "desk.folders.kind_backup": {
+    "text": "Reservekopie van een map op deze computer",
+    "en": "Back up a folder from this computer"
+  },
+  "desk.folders.kind_backup_subtitle": {
+    "text": "Deze computer → apparaat (alleen uploaden, wist niets)",
+    "en": "One way: this computer → device (upload only, no deletes)"
+  },
+  "desk.folders.kind_local": {
+    "text": "Een map op deze computer synchroniseren",
+    "en": "Sync a folder from this computer"
+  },
+  "desk.folders.kind_local_subtitle": {
+    "text": "In twee richtingen: begint bij deze computer",
+    "en": "Two ways: starts from this computer"
+  },
+  "desk.folders.kind_row": {
+    "text": "{kind} — {details}",
+    "en": "{kind} — {details}"
+  },
+  "desk.folders.no": {
+    "text": "Nee",
+    "en": "No"
+  },
+  "desk.folders.options_backup_line": {
+    "text": "{option}: staat altijd aan bij een reservekopie. {caption}",
+    "en": "{option}: always on for a backup. {caption}"
+  },
+  "desk.folders.options_intro": {
+    "text": "{kind}. {details}.\n\nVink aan wat je wilt en kies daarna de map.",
+    "en": "{kind}. {details}.\n\nTick what you want, then choose the folder."
+  },
+  "desk.folders.options_line": {
+    "text": "{option}: {explain}",
+    "en": "{option}: {explain}"
+  },
+  "desk.folders.picker_empty": {
+    "text": "(geen submappen hier)",
+    "en": "(no subfolders here)"
+  },
+  "desk.folders.picker_list_failed": {
+    "text": "Kan de mappen van het apparaat niet weergeven: {detail}",
+    "en": "Could not list the device's folders: {detail}"
+  },
+  "desk.folders.picker_prompt": {
+    "text": "Externe map: {path} – dubbelklik op een map om die te openen, of kies “{name}” om die gesynchroniseerd te houden met een map op deze computer.",
+    "en": "Remote folder: {path} — double-click a folder to open it, or choose “{name}” to keep it in sync with a folder on this computer."
+  },
+  "desk.folders.picker_prompt_windows": {
+    "text": "Externe map: {path}\nDubbelklik op een map om die te openen; de knop houdt “{name}” gesynchroniseerd met een map hier.",
+    "en": "Remote folder: {path}\nDouble-click a folder to open it; the button keeps “{name}” in sync with a folder here."
+  },
+  "desk.folders.picker_up": {
+    "text": "‹ Omhoog",
+    "en": "‹ Up"
+  },
+  "desk.folders.question_backup_note": {
+    "text": "({option} staat altijd aan bij een reservekopie.)",
+    "en": "({option} is always on for a backup.)"
+  },
+  "desk.folders.remote_title": {
+    "text": "Externe map kiezen",
+    "en": "Choose a Remote Folder"
+  },
+  "desk.folders.setup_card_ready_title": {
+    "text": "Je SD-kaart is klaar",
+    "en": "Your SD Card Is Ready"
+  },
+  "desk.folders.setup_card_too_small": {
+    "text": "{disk} is te klein: het apparaat heeft een kaart van 8 GB of meer nodig.",
+    "en": "{disk} is too small: the device needs a card of 8 GB or more."
+  },
+  "desk.folders.setup_choose_card": {
+    "text": "Kies de SD-kaart:",
+    "en": "Choose the SD card:"
+  },
+  "desk.folders.setup_downloading": {
+    "text": "Downloaden… {done} van {total} MB",
+    "en": "Downloading… {done} of {total} MB"
+  },
+  "desk.folders.setup_erase": {
+    "text": "Wissen",
+    "en": "Erase",
+    "reviewed": "claude-backtranslation 2026-10-11 #70e339e6"
+  },
+  "desk.folders.setup_erase_question": {
+    "text": "Alles op deze schijf wordt gewist:\n\n{disk}\n\nDe Off The Cloud-image ernaar schrijven?",
+    "en": "Everything on this disk will be erased:\n\n{disk}\n\nWrite the Off The Cloud image to it?",
+    "reviewed": "claude-backtranslation 2026-10-11 #6b03d13b"
+  },
+  "desk.folders.setup_insert_card": {
+    "text": "Plaats de SD-kaart (in de kaartsleuf van de computer of in een USB-kaartlezer) en probeer het opnieuw.",
+    "en": "Insert the SD card (in the computer's card slot or a USB card reader), then try again."
+  },
+  "desk.folders.setup_intro": {
+    "text": "Hiermee bereid je de SD-kaart voor op een nieuw Off The Cloud-apparaat:\n\n1. Download de image van het apparaat (ongeveer 560 MB).\n2. Schrijf de image naar een SD-kaart van 8 GB of meer – alles op de kaart wordt gewist.\n3. Verwijder de download.\n\nJe hebt een Raspberry Pi 5 met 8 GB RAM nodig, plus de SD-kaart en twee USB-schijven.",
+    "en": "This prepares the SD card for a new Off The Cloud device:\n\n1. Download the device image (about 560 MB).\n2. Write it to an SD card of 8 GB or more - everything on the card is erased.\n3. Delete the download.\n\nYou need a Raspberry Pi 5 with 8 GB of RAM, the SD card and two USB disks.",
+    "reviewed": "claude-backtranslation 2026-10-11 #631b11bd"
+  },
+  "desk.folders.setup_not_written": {
+    "text": "De kaart is niet beschreven: voor het beschrijven van een SD-kaart zijn beheerdersrechten nodig. Kies opnieuw {item} wanneer je klaar bent (de download blijft bewaard).",
+    "en": "The card was not written: writing an SD card needs administrator permission. Choose {item} again when you are ready (the download is kept)."
+  },
+  "desk.folders.setup_preparing_download": {
+    "text": "De download voorbereiden…",
+    "en": "Preparing the download…"
+  },
+  "desk.folders.setup_start": {
+    "text": "Starten",
+    "en": "Start"
+  },
+  "desk.folders.setup_stopped": {
+    "text": "De configuratie is gestopt:\n\n{detail}",
+    "en": "The setup stopped:\n\n{detail}"
+  },
+  "desk.folders.setup_title": {
+    "text": "Nieuw apparaat instellen",
+    "en": "Set Up a New Device"
+  },
+  "desk.folders.setup_waiting_permission": {
+    "text": "Wachten op toestemming…",
+    "en": "Waiting for permission…"
+  },
+  "desk.folders.setup_windows_format": {
+    "text": "Als Windows aanbiedt de kaart te formatteren, kies dan Annuleren: Windows kan de Linux-partitie van het apparaat niet lezen, en dat is normaal.",
+    "en": "If Windows offers to format the card, choose Cancel: Windows can't read the device's Linux partition, and that is expected.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c31ddece"
+  },
+  "desk.folders.try_again": {
+    "text": "Opnieuw proberen",
+    "en": "Try Again"
+  },
+  "desk.folders.upload_only_later": {
+    "text": "Je kunt de optie later uitschakelen in de webapp of de telefoonapp (het slotje op de map in Bestanden); de bestanden die je op deze computer hebt verwijderd terwijl de optie aanstond, komen dan hier terug.",
+    "en": "You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this computer while it was on then come back here."
+  },
+  "desk.folders.upload_only_two_way": {
+    "text": "Bestanden die je op deze computer verwijdert, blijven op het apparaat staan en worden niet opnieuw gedownload; bestanden die op het apparaat worden toegevoegd of gewijzigd, komen nog steeds hierheen.",
+    "en": "Files you delete on this computer stay on the device and aren't downloaded again; files added or changed on the device still come down."
+  },
+  "desk.folders.yes": {
+    "text": "Ja",
+    "en": "Yes"
+  }
+}

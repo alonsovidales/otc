@@ -1,0 +1,922 @@
+{
+  "wiz.account.accept_terms": {
+    "text": "Ik accepteer de <terms>gebruiksvoorwaarden</terms> en heb de <privacy>privacyverklaring</privacy> gelezen.",
+    "en": "I accept the <terms>terms of use</terms> and have read the <privacy>privacy notice</privacy>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #a7b888a4"
+  },
+  "wiz.account.checking": {
+    "text": "Controleren…",
+    "en": "Checking…"
+  },
+  "wiz.account.choose_country": {
+    "text": "Kies…",
+    "en": "Choose…"
+  },
+  "wiz.account.code_hint": {
+    "text": "Open op een willekeurig apparaat <b>{bridge}/account</b>, log in (met je wachtwoord, Google of Apple) en tik op <b>Configuratiecode aanvragen</b>.",
+    "en": "On any device, open <b>{bridge}/account</b>, sign in (with your password, Google or Apple) and tap <b>Get a setup code</b>."
+  },
+  "wiz.account.code_label": {
+    "text": "Configuratiecode",
+    "en": "Setup code"
+  },
+  "wiz.account.code_placeholder": {
+    "text": "bijv. K7PX2M4Q",
+    "en": "e.g. K7PX2M4Q"
+  },
+  "wiz.account.confirm_hint": {
+    "text": "We hebben een link gestuurd naar <b>{email}</b>. Open die – op deze telefoon of op een ander apparaat – om te bevestigen dat het adres van jou is, en kom dan terug om verder te gaan. Kun je de e-mail niet vinden? Kijk dan in je spammap.",
+    "en": "We sent a link to <b>{email}</b>. Open it - on this phone or any other device - to confirm the address is yours, then come back and continue. Can't find it? Look in the spam folder."
+  },
+  "wiz.account.confirm_title": {
+    "text": "3 · Bevestig je e-mailadres",
+    "en": "3 · Confirm your email"
+  },
+  "wiz.account.confirmed": {
+    "text": "Ik heb het bevestigd, doorgaan",
+    "en": "I've confirmed it - continue"
+  },
+  "wiz.account.continue_apple": {
+    "text": "Doorgaan met Apple",
+    "en": "Continue with Apple"
+  },
+  "wiz.account.continue_email": {
+    "text": "Doorgaan met e-mail",
+    "en": "Continue with Email"
+  },
+  "wiz.account.continue_google": {
+    "text": "Doorgaan met Google",
+    "en": "Continue with Google"
+  },
+  "wiz.account.countries_failed": {
+    "text": "Kan de landenlijst niet laden – controleer of het apparaat online is",
+    "en": "Could not load the country list - check the device is online"
+  },
+  "wiz.account.country": {
+    "text": "Woonland",
+    "en": "Country of residence"
+  },
+  "wiz.account.create": {
+    "text": "Account aanmaken",
+    "en": "Create account"
+  },
+  "wiz.account.email": {
+    "text": "E-mailadres",
+    "en": "Email"
+  },
+  "wiz.account.have_code": {
+    "text": "Ik heb een configuratiecode",
+    "en": "I have a setup code"
+  },
+  "wiz.account.heading": {
+    "text": "3 · Je Off The Cloud-account",
+    "en": "3 · Your Off The Cloud account"
+  },
+  "wiz.account.intro": {
+    "text": "Een account koppelt de naam van dit apparaat aan jou, zodat je het overal kunt bereiken, met vrienden kunt delen en het kunt vervangen als het ooit verloren gaat.",
+    "en": "An account links this device's name to you, so you can reach it from anywhere, share with friends and replace it if it is ever lost."
+  },
+  "wiz.account.name": {
+    "text": "Voornaam",
+    "en": "Name"
+  },
+  "wiz.account.not_confirmed": {
+    "text": "Nog niet bevestigd – open de link in de e-mail (we hebben hem net opnieuw gestuurd).",
+    "en": "Not confirmed yet - open the link in the email (we have just sent it again)."
+  },
+  "wiz.account.one_moment": {
+    "text": "Een moment…",
+    "en": "One moment…"
+  },
+  "wiz.account.or_email": {
+    "text": "of met je e-mailadres",
+    "en": "or with your email"
+  },
+  "wiz.account.password_min": {
+    "text": "Wachtwoord (minstens 8 tekens)",
+    "en": "Password (8 characters or more)"
+  },
+  "wiz.account.provider_hint": {
+    "text": "Geregistreerd met Google of Apple? Open <b>{bridge}/account</b> op een ander apparaat, vraag een configuratiecode aan en kies “Ik heb een configuratiecode”.",
+    "en": "Signed up with Google or Apple? Open <b>{bridge}/account</b> on another device, get a setup code and choose \"I have a setup code\"."
+  },
+  "wiz.account.sign_in": {
+    "text": "Inloggen",
+    "en": "Sign in"
+  },
+  "wiz.account.signed_in_as": {
+    "text": "Ingelogd als <b>{email}</b>. De naam van het apparaat wordt op dit account geregistreerd.",
+    "en": "Signed in as <b>{email}</b>. The device's name will be registered to this account."
+  },
+  "wiz.account.signin_cancelled": {
+    "text": "Inloggen geannuleerd",
+    "en": "Sign-in cancelled"
+  },
+  "wiz.account.signin_failed": {
+    "text": "Kan niet inloggen",
+    "en": "Could not sign in"
+  },
+  "wiz.account.skip": {
+    "text": "Doorgaan zonder account",
+    "en": "Continue without an account"
+  },
+  "wiz.account.skip_hint": {
+    "text": "Zonder account gebruikt het apparaat de bridge niet. Het werkt nog steeds als NAS op je thuisnetwerk: bestanden, reservekopieën van foto’s vanuit de apps en de synchronisatieprogramma’s als je thuis bent, de fotogalerij, tags en personen. Waarvoor de bridge nodig is: het apparaat buiten je huis bereiken, de sociale functies (vrienden, berichten, reacties), deellinks die overal werken en pushmeldingen. Je kunt later verbinding maken met de bridge, via Instellingen in de webapp.",
+    "en": "Without an account the device does not use the bridge. It still works as a NAS on your home network: files, photo backup from the apps and the sync clients while at home, the photo gallery, tags and people. What needs the bridge: reaching the device from outside your home, the social features (friends, posts, comments), share links that work from anywhere, and push notifications. You can join the bridge later, from Settings in the web app."
+  },
+  "wiz.account.surname": {
+    "text": "Achternaam",
+    "en": "Surname"
+  },
+  "wiz.account.terms_bridge": {
+    "text": "Een account is alleen nodig om onze bridge te gebruiken: je krijgt maximaal <b>5 domeinen</b> zoals <i>naam</i>.{bridge} om verbinding te maken met je apparaat en ook met de apparaten van je vrienden en familie. Wil je dit apparaat alleen in je lokale netwerk gebruiken als NAS of met Tailscale Funnel? Sla het aanmaken van een account dan over.",
+    "en": "Creating an account is only necessary to use our bridge: you will get up to <b>5 domains</b> like <i>name</i>.{bridge} to connect to your device and also connect with the devices of your friends and family. If you only want to use this device in your local network as a NAS or with Tailscale Funnel, skip the creation of the account."
+  },
+  "wiz.account.terms_price": {
+    "text": "Een account voor maximaal 5 domeinen is <b>de eerste twee jaar gratis</b> en kost daarna € 9,99 + btw per jaar (we sturen je een e-mail voordat die periode afloopt). Heb je meer domeinen nodig? Neem dan contact met ons op via <b>info@off-the.cloud</b>.",
+    "en": "An account for up to 5 domains is <b>free for the first two years</b>, and after this period will cost 9.99 euros + VAT a year (we will e-mail you before the period ends). If you need more domains, please contact us at <b>info@off-the.cloud</b>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #eff98729"
+  },
+  "wiz.account.title": {
+    "text": "3 · Je account",
+    "en": "3 · Your account"
+  },
+  "wiz.account.use_another": {
+    "text": "Ander account gebruiken",
+    "en": "Use another account"
+  },
+  "wiz.account.use_code": {
+    "text": "Deze code gebruiken",
+    "en": "Use this code"
+  },
+  "wiz.action.continue": {
+    "text": "Doorgaan",
+    "en": "Continue"
+  },
+  "wiz.action.continue_failed": {
+    "text": "Kan niet doorgaan",
+    "en": "Could not continue"
+  },
+  "wiz.bridge.account_check_unavailable": {
+    "text": "kan je account nu niet controleren",
+    "en": "could not check your account right now"
+  },
+  "wiz.bridge.claim_unavailable": {
+    "text": "kan die naam nu niet reserveren",
+    "en": "could not reserve that name right now"
+  },
+  "wiz.bridge.domain_limit": {
+    "text": "een account kan maximaal 5 domeinen registreren – voor meer (2 euro per jaar per domein) schrijf je naar info@off-the.cloud",
+    "en": "an account can register up to 5 domains - for more (2 euros a year each), write to info@off-the.cloud"
+  },
+  "wiz.bridge.email_taken": {
+    "text": "er is al een account met dat e-mailadres – log daarmee in",
+    "en": "there is already an account with that email - sign in instead"
+  },
+  "wiz.bridge.invalid_credentials": {
+    "text": "onjuist e-mailadres of wachtwoord – als je je met Google of Apple hebt geregistreerd, gebruik dat dan (via de accountpagina, en daarna een configuratiecode)",
+    "en": "wrong email or password - if you signed up with Google or Apple, use that instead (on the account page, then a setup code)"
+  },
+  "wiz.bridge.invalid_email": {
+    "text": "dat e-mailadres lijkt niet te kloppen",
+    "en": "that email address doesn't look right"
+  },
+  "wiz.bridge.invalid_name": {
+    "text": "die naam kan niet worden gebruikt",
+    "en": "that name can't be used"
+  },
+  "wiz.bridge.login_required": {
+    "text": "log in om een naam te registreren",
+    "en": "sign in to register a name"
+  },
+  "wiz.bridge.name_check_unavailable": {
+    "text": "kan die naam nu niet controleren",
+    "en": "could not check that name right now"
+  },
+  "wiz.bridge.name_held": {
+    "text": "die naam is onlangs vrijgegeven en blijft 30 dagen gereserveerd voor de vorige eigenaar",
+    "en": "that name was released recently and is held for its previous owner for 30 days"
+  },
+  "wiz.bridge.name_taken": {
+    "text": "die naam is al in gebruik",
+    "en": "that name is already taken"
+  },
+  "wiz.bridge.password_too_short": {
+    "text": "het wachtwoord moet minstens 8 tekens hebben",
+    "en": "the password needs at least 8 characters"
+  },
+  "wiz.bridge.profile_incomplete": {
+    "text": "voornaam, achternaam en woonland zijn verplicht",
+    "en": "name, surname and country of residence are required"
+  },
+  "wiz.bridge.setup_code_check_unavailable": {
+    "text": "kan die configuratiecode nu niet controleren",
+    "en": "could not check that setup code right now"
+  },
+  "wiz.bridge.setup_unavailable": {
+    "text": "kan de configuratie niet starten",
+    "en": "could not start the setup"
+  },
+  "wiz.bridge.signin_unavailable": {
+    "text": "kan nu niet inloggen",
+    "en": "could not sign in right now"
+  },
+  "wiz.bridge.signup_unavailable": {
+    "text": "kan het account nu niet aanmaken",
+    "en": "could not sign up right now"
+  },
+  "wiz.bridge.terms_not_accepted": {
+    "text": "accepteer eerst de gebruiksvoorwaarden: log in op off-the.cloud/account en accepteer ze daar",
+    "en": "accept the terms of use first: sign in at off-the.cloud/account and accept them there",
+    "reviewed": "claude-backtranslation 2026-10-11 #ab2eb07b"
+  },
+  "wiz.bridge.terms_required": {
+    "text": "accepteer de voorwaarden",
+    "en": "please accept the terms",
+    "reviewed": "claude-backtranslation 2026-10-11 #93814c4b"
+  },
+  "wiz.bridge.too_many_attempts": {
+    "text": "te veel mislukte pogingen, probeer het later opnieuw",
+    "en": "too many failed attempts, try again later"
+  },
+  "wiz.bridge.too_many_claims": {
+    "text": "wacht even voordat je een andere naam probeert",
+    "en": "please wait a moment before trying another name"
+  },
+  "wiz.bridge.too_many_signups": {
+    "text": "te veel registraties vanaf dit adres, probeer het later opnieuw",
+    "en": "too many sign-ups from this address, try again later"
+  },
+  "wiz.disks.continue_without": {
+    "text": "Doorgaan zonder extra schijven",
+    "en": "Continue without extra disks"
+  },
+  "wiz.disks.found": {
+    "text": "Bestaande Off The Cloud-opslag gevonden",
+    "en": "Found an existing Off The Cloud storage"
+  },
+  "wiz.disks.looking": {
+    "text": "De aangesloten schijven bekijken…",
+    "en": "Looking at the attached disks…"
+  },
+  "wiz.disks.mounted": {
+    "text": "momenteel gekoppeld",
+    "en": "currently mounted"
+  },
+  "wiz.disks.none": {
+    "text": "Geen extra schijven gevonden. Sluit ze aan en tik op Opnieuw zoeken, of ga verder zonder.",
+    "en": "No extra disks found. Plug them in and tap Rescan, or continue without."
+  },
+  "wiz.disks.pick_hint": {
+    "text": "Kies <b>twee</b> schijven om ze te spiegelen als RAID1: er kan er één uitvallen zonder dat je iets kwijtraakt. Kies er geen om alles voorlopig op de SD-kaart te houden.",
+    "en": "Pick <b>two</b> disks to mirror them as RAID1 - one can fail without losing anything. Pick none to keep everything on the SD card for now."
+  },
+  "wiz.disks.pick_second": {
+    "text": "Kies een tweede schijf voor RAID1, of geen.",
+    "en": "Pick a second disk for RAID1, or none."
+  },
+  "wiz.disks.recover": {
+    "text": "Dit apparaat herstellen",
+    "en": "Recover this device"
+  },
+  "wiz.disks.recover_hint": {
+    "text": "Vervangt deze Pi er een die kapot is gegaan? Herstel hem dan: alles op deze schijven – foto’s, bestanden, de naam en de bridge-identiteit – komt terug zoals het was, en er is geen nieuwe naam nodig.",
+    "en": "If this Pi is replacing one that died, recover it: everything on these disks - photos, files, its name and its bridge identity - comes back as it was, and no new name is needed."
+  },
+  "wiz.disks.rescan": {
+    "text": "Opnieuw zoeken",
+    "en": "Rescan"
+  },
+  "wiz.disks.start_failed": {
+    "text": "Kan niet starten",
+    "en": "Could not start"
+  },
+  "wiz.disks.start_fresh": {
+    "text": "Opnieuw beginnen",
+    "en": "Start fresh instead"
+  },
+  "wiz.disks.title": {
+    "text": "2 · Opslag",
+    "en": "2 · Storage"
+  },
+  "wiz.disks.wipe_continue": {
+    "text": "Beide wissen en doorgaan",
+    "en": "Wipe both and continue",
+    "reviewed": "claude-backtranslation 2026-10-11 #610db96b"
+  },
+  "wiz.disks.wipe_warning": {
+    "text": "⚠ Beide schijven worden gewist.",
+    "en": "⚠ Both disks will be wiped.",
+    "reviewed": "claude-backtranslation 2026-10-11 #cb9906c1"
+  },
+  "wiz.disks.wipe_warning_storage": {
+    "text": "⚠ Beide schijven worden gewist, inclusief de bestaande Off The Cloud-opslag erop.",
+    "en": "⚠ Both disks will be wiped - including the existing Off The Cloud storage on them.",
+    "reviewed": "claude-backtranslation 2026-10-11 #d8412e06"
+  },
+  "wiz.disks.with_database": {
+    "text": "met de database",
+    "en": "with its database"
+  },
+  "wiz.done.hint": {
+    "text": "Dit apparaat heeft de configuratie voltooid.",
+    "en": "This device has finished its setup."
+  },
+  "wiz.done.open": {
+    "text": "{domain} openen",
+    "en": "Open {domain}"
+  },
+  "wiz.done.open_app": {
+    "text": "De app openen",
+    "en": "Open the app"
+  },
+  "wiz.done.title": {
+    "text": "Al ingesteld",
+    "en": "Already set up"
+  },
+  "wiz.error.account_chosen": {
+    "text": "er is een account gekozen",
+    "en": "an account was chosen"
+  },
+  "wiz.error.already_set_up": {
+    "text": "dit apparaat is al ingesteld",
+    "en": "this device is already set up"
+  },
+  "wiz.error.choose_network": {
+    "text": "kies een netwerk",
+    "en": "choose a network"
+  },
+  "wiz.error.claim_failed": {
+    "text": "kan die naam niet reserveren",
+    "en": "could not reserve that name"
+  },
+  "wiz.error.confirm_wipe": {
+    "text": "die schijven bevatten een bestaande array – bevestig dat die moet worden gewist",
+    "en": "those disks hold an existing array - confirm wiping it",
+    "reviewed": "claude-backtranslation 2026-10-11 #885e36b0"
+  },
+  "wiz.error.disks_choice": {
+    "text": "kies twee schijven voor RAID1, of geen",
+    "en": "choose two disks for RAID1, or none"
+  },
+  "wiz.error.invalid_setup_code": {
+    "text": "die configuratiecode is ongeldig of verlopen",
+    "en": "that setup code is not valid or has expired"
+  },
+  "wiz.error.login_required": {
+    "text": "log eerst in met je Off The Cloud-account",
+    "en": "sign in to your Off The Cloud account first"
+  },
+  "wiz.error.name_check_failed": {
+    "text": "kan die naam nu niet controleren – probeer het opnieuw",
+    "en": "could not check that name right now - try again"
+  },
+  "wiz.error.name_first": {
+    "text": "kies eerst de naam van het apparaat",
+    "en": "choose the device's name first"
+  },
+  "wiz.error.name_rule": {
+    "text": "alleen kleine letters, cijfers en koppeltekens",
+    "en": "lower-case letters, digits and hyphens only"
+  },
+  "wiz.error.needs_password": {
+    "text": "voor het netwerk {ssid} is een wachtwoord nodig",
+    "en": "{ssid} needs a password"
+  },
+  "wiz.error.no_array": {
+    "text": "geen bestaande array om te herstellen",
+    "en": "no existing array to recover"
+  },
+  "wiz.error.not_found": {
+    "text": "niet gevonden",
+    "en": "not found"
+  },
+  "wiz.error.offline": {
+    "text": "geen internetverbinding – {bridge} is niet bereikbaar",
+    "en": "no internet connection - {bridge} is not reachable"
+  },
+  "wiz.error.only_5ghz": {
+    "text": "het netwerk {ssid} is een 5 GHz-netwerk: de hotspot kan het daar niet volgen. Stel het apparaat in plaats daarvan in met “Nieuw apparaat instellen” (Bluetooth) in de app, of kies een 2,4 GHz-netwerk.",
+    "en": "{ssid} is a 5 GHz network: the hotspot can't follow it there. Set the device up with the app's \"Set up a new device\" (Bluetooth) instead, or pick a 2.4 GHz network."
+  },
+  "wiz.error.password_too_short": {
+    "text": "het wachtwoord moet minstens 8 tekens lang zijn",
+    "en": "the password must have 8 characters or more"
+  },
+  "wiz.error.password_unreadable": {
+    "text": "het wachtwoord kan niet worden gelezen – laad de pagina opnieuw en probeer het nog eens",
+    "en": "the password could not be read - reload the page and try again"
+  },
+  "wiz.error.picture_unusable": {
+    "text": "de profielfoto kan niet worden gebruikt – kies een andere",
+    "en": "the profile picture could not be used - choose another one"
+  },
+  "wiz.error.rebind_failed": {
+    "text": "kan de instellingen van het apparaat niet bijwerken: {detail}",
+    "en": "could not update the device's settings: {detail}"
+  },
+  "wiz.error.setup_code_unavailable": {
+    "text": "kan die configuratiecode nu niet controleren – probeer het opnieuw",
+    "en": "could not check that setup code right now - try again"
+  },
+  "wiz.error.signin_failed": {
+    "text": "kan niet inloggen",
+    "en": "could not sign in"
+  },
+  "wiz.error.unknown_action": {
+    "text": "onbekende actie",
+    "en": "unknown action"
+  },
+  "wiz.error.unreachable": {
+    "text": "kan {bridge} niet bereiken: {detail}",
+    "en": "could not reach {bridge}: {detail}"
+  },
+  "wiz.install.almost": {
+    "text": "5 · Bijna klaar",
+    "en": "5 · Almost there"
+  },
+  "wiz.install.app_box": {
+    "text": "De installatie duurt ongeveer 20 minuten. <b>Houd dit scherm open</b> en de telefoon bij het apparaat om de voortgang hier te volgen; als de installatie klaar is, biedt de app aan om verbinding te maken met <b>{domain}</b>. Heb je het scherm gesloten? Open <b>Nieuw apparaat instellen</b> opnieuw en de voortgang verschijnt weer.",
+    "en": "The installation takes about 20 minutes. <b>Keep this screen open</b> and the phone next to the device to follow it here; when it is done the app offers to connect to <b>{domain}</b>. Closed it? Open <b>Set up a new device</b> again and the progress comes back."
+  },
+  "wiz.install.browser_box": {
+    "text": "<b>Je kunt dit venster nu sluiten en de verbinding verbreken.</b> De installatie duurt ongeveer 20 minuten. Open daarna <b>https://{domain}</b> vanaf elk netwerk. Wil je intussen de voortgang bekijken? Maak dan opnieuw verbinding met de wifi “Off The Cloud” en deze pagina komt terug.",
+    "en": "<b>You can close this window and disconnect now.</b> The installation takes about 20 minutes. When it is complete, open <b>https://{domain}</b> from any network. To check the progress meanwhile, connect to the \"Off The Cloud\" WiFi again and this page comes back."
+  },
+  "wiz.install.check_again": {
+    "text": "Opnieuw controleren",
+    "en": "Check again"
+  },
+  "wiz.install.checking_with": {
+    "text": "Controleren bij {bridge}",
+    "en": "Checking with {bridge}"
+  },
+  "wiz.install.error.array_not_assembled": {
+    "text": "{disk} bevat nog een RAID-array die niet kon worden samengesteld – wissen geweigerd. Wil je echt opnieuw beginnen, voer dan uit: mdadm --zero-superblock {disk}",
+    "en": "{disk} still holds a RAID array that could not be assembled - refusing to wipe it. To really start over, run: mdadm --zero-superblock {disk}",
+    "reviewed": "claude-backtranslation 2026-10-11 #9f7fb108"
+  },
+  "wiz.install.error.download": {
+    "text": "kan {url} niet downloaden",
+    "en": "could not download {url}"
+  },
+  "wiz.install.error.download_installer": {
+    "text": "kan het geverifieerde installatieprogramma niet downloaden",
+    "en": "could not download the verified installer"
+  },
+  "wiz.install.error.exit_code": {
+    "text": "het installatieprogramma is gestopt met code {code}",
+    "en": "the installer exited with code {code}"
+  },
+  "wiz.install.error.install_web": {
+    "text": "kan de webapp niet installeren",
+    "en": "could not install the web app"
+  },
+  "wiz.install.error.log_failed": {
+    "text": "kan het installatielogboek niet openen: {detail}",
+    "en": "could not open the install log: {detail}"
+  },
+  "wiz.install.error.mariadb": {
+    "text": "mariadb is niet binnen 60 s gestart: controleer “systemctl status mariadb”",
+    "en": "mariadb did not come up within 60s — check 'systemctl status mariadb'"
+  },
+  "wiz.install.error.owner_password": {
+    "text": "kan het wachtwoord van de eigenaar niet instellen",
+    "en": "could not set the owner password"
+  },
+  "wiz.install.error.pinned_hash": {
+    "text": "{url} komt niet overeen met de vastgelegde hash",
+    "en": "{url} does not match its pinned hash",
+    "reviewed": "claude-backtranslation 2026-10-11 #cdf76729"
+  },
+  "wiz.install.error.recovery_no_array": {
+    "text": "er is om herstel gevraagd, maar er kon geen bestaande RAID1-array worden samengesteld uit {disk1}/{disk2}: er is niets gewist. Controleer of beide schijven zijn aangesloten en probeer het opnieuw.",
+    "en": "recovery was asked for, but no existing RAID1 array could be assembled from {disk1}/{disk2} - nothing was wiped. Check both disks are connected and try again."
+  },
+  "wiz.install.error.stage_source": {
+    "text": "kan de broncode niet klaarzetten",
+    "en": "could not stage the source"
+  },
+  "wiz.install.error.start_failed": {
+    "text": "kan het installatieprogramma niet starten: {detail}",
+    "en": "could not start the installer: {detail}"
+  },
+  "wiz.install.error.tag_list": {
+    "text": "kan de lijst met tags niet uitpakken",
+    "en": "could not unpack the tag list"
+  },
+  "wiz.install.error.unpack_web": {
+    "text": "kan de webapp niet uitpakken",
+    "en": "could not unpack the web app"
+  },
+  "wiz.install.failed": {
+    "text": "Mislukt",
+    "en": "Failed"
+  },
+  "wiz.install.hint": {
+    "text": "Alles wordt gedownload en ingesteld. Dit duurt even op een Raspberry Pi – houd het apparaat aan de stroom.",
+    "en": "Downloading and setting everything up. This takes a while on a Raspberry Pi - keep the device powered."
+  },
+  "wiz.install.log": {
+    "text": "Logboek",
+    "en": "Log"
+  },
+  "wiz.install.offline_hint": {
+    "text": "De installatie is voltooid, maar {bridge} ziet <b>{domain}</b> nog niet verbonden. Meestal duurt dit gewoon nog even.",
+    "en": "The install finished, but {bridge} doesn't see <b>{domain}</b> connected. Usually this just needs a moment more."
+  },
+  "wiz.install.offline_title": {
+    "text": "5 · Geïnstalleerd, maar nog niet bereikbaar",
+    "en": "5 · Installed, but not reachable yet"
+  },
+  "wiz.install.open_anyway": {
+    "text": "Toch openen",
+    "en": "Open it anyway"
+  },
+  "wiz.install.starting": {
+    "text": "Starten…",
+    "en": "Starting…"
+  },
+  "wiz.install.step.account": {
+    "text": "otc-serviceaccount",
+    "en": "otc service account"
+  },
+  "wiz.install.step.build": {
+    "text": "otc-binary bouwen",
+    "en": "Build the otc binary"
+  },
+  "wiz.install.step.directories": {
+    "text": "Werkmappen",
+    "en": "Runtime directories"
+  },
+  "wiz.install.step.face_models": {
+    "text": "Modellen voor gezichtsherkenning (issue #52, ~10 MB totaal, maar één keer gedownload)",
+    "en": "Face recognition models (issue #52, ~10MB total, only downloaded once)"
+  },
+  "wiz.install.step.go": {
+    "text": "Go {version} ({arch})",
+    "en": "Go {version} ({arch})"
+  },
+  "wiz.install.step.installed": {
+    "text": "Geïnstalleerd",
+    "en": "Installed"
+  },
+  "wiz.install.step.onnx": {
+    "text": "ONNX Runtime {version} ({arch})",
+    "en": "ONNX Runtime {version} ({arch})"
+  },
+  "wiz.install.step.packages": {
+    "text": "apt-get update + basispakketten",
+    "en": "apt-get update + base packages"
+  },
+  "wiz.install.step.proto": {
+    "text": "proto/generated genereren (protoc + protoc-gen-go)",
+    "en": "Generate proto/generated (protoc + protoc-gen-go)"
+  },
+  "wiz.install.step.service": {
+    "text": "Database, configuratie en de systemd-service",
+    "en": "Database, config, and the systemd service"
+  },
+  "wiz.install.step.source": {
+    "text": "Broncode van release {version} (geverifieerd)",
+    "en": "Source of release {version} (verified)"
+  },
+  "wiz.install.step.storage": {
+    "text": "RAID1-opslag ({path})",
+    "en": "RAID1 storage ({path})"
+  },
+  "wiz.install.step.tagging_model": {
+    "text": "RAM++-model voor beeldherkenning (~870 MB, maar één keer gedownload)",
+    "en": "RAM++ tagging model (~870MB, only downloaded once)"
+  },
+  "wiz.install.step.web": {
+    "text": "Webapp (release {version}, geverifieerd)",
+    "en": "Web app (release {version}, verified)"
+  },
+  "wiz.install.title_installing": {
+    "text": "5 · Installeren",
+    "en": "5 · Installing"
+  },
+  "wiz.install.title_recovering": {
+    "text": "5 · Herstellen",
+    "en": "5 · Recovering"
+  },
+  "wiz.install.waiting": {
+    "text": "Geïnstalleerd. Wachten tot het apparaat verbinding maakt met de bridge…",
+    "en": "Installed. Waiting for the device to connect to the bridge…"
+  },
+  "wiz.install.waiting_as": {
+    "text": "Geïnstalleerd. Wachten tot het apparaat als <b>{domain}</b> verbinding maakt met de bridge…",
+    "en": "Installed. Waiting for the device to connect to the bridge as <b>{domain}</b>…"
+  },
+  "wiz.name.available": {
+    "text": "{domain} is beschikbaar",
+    "en": "{domain} is available"
+  },
+  "wiz.name.check_failed": {
+    "text": "Kan die naam niet controleren",
+    "en": "Could not check that name"
+  },
+  "wiz.name.hint": {
+    "text": "Dit wordt het adres op internet, voor jou en voor vrienden. Letters, cijfers en koppeltekens.",
+    "en": "This becomes its address on the internet, for you and for friends. Letters, digits and hyphens."
+  },
+  "wiz.name.install": {
+    "text": "Installeren",
+    "en": "Install"
+  },
+  "wiz.name.install_failed": {
+    "text": "Kan de installatie niet starten",
+    "en": "Could not start the install"
+  },
+  "wiz.name.label": {
+    "text": "Apparaatnaam",
+    "en": "Device name"
+  },
+  "wiz.name.local_hint": {
+    "text": "Je hebt ervoor gekozen om zonder account verder te gaan, dus het apparaat krijgt geen internetadres. Op je thuisnetwerk is het bereikbaar als <b>otc.local</b>.",
+    "en": "You chose to continue without an account, so the device gets no internet address. On your home network it answers as <b>otc.local</b>."
+  },
+  "wiz.name.local_title": {
+    "text": "4 · Geen bridge",
+    "en": "4 · No bridge"
+  },
+  "wiz.name.placeholder": {
+    "text": "bijv. casa",
+    "en": "e.g. casa"
+  },
+  "wiz.name.rebind_hint": {
+    "text": "Het apparaat is terug, maar het bereikt de bridge niet als <b>{domain}</b>: die naam is misschien vrijgegeven. Kies een naam om het opnieuw te registreren; al het andere is al hersteld.",
+    "en": "The device is back, but it isn't reaching the bridge as <b>{domain}</b> - that name may have been released. Choose a name to register it again; everything else is already recovered."
+  },
+  "wiz.name.rebind_hint_old": {
+    "text": "Het apparaat is terug, maar het bereikt de bridge niet onder <b>zijn oude naam</b>: die naam is misschien vrijgegeven. Kies een naam om het opnieuw te registreren; al het andere is al hersteld.",
+    "en": "The device is back, but it isn't reaching the bridge as <b>its old name</b> - that name may have been released. Choose a name to register it again; everything else is already recovered."
+  },
+  "wiz.name.rebind_title": {
+    "text": "Geef je herstelde apparaat een naam",
+    "en": "Name your recovered device"
+  },
+  "wiz.name.register": {
+    "text": "Registreren",
+    "en": "Register"
+  },
+  "wiz.name.reserve_failed": {
+    "text": "Kan die naam niet reserveren",
+    "en": "Could not reserve that name"
+  },
+  "wiz.name.reserving": {
+    "text": "Reserveren…",
+    "en": "Reserving…"
+  },
+  "wiz.name.someone_else": {
+    "text": "{domain} is van iemand anders – kies een andere naam",
+    "en": "{domain} belongs to someone else - choose another name"
+  },
+  "wiz.name.taken": {
+    "text": "{domain} is al in gebruik. Als het een van je apparaten is, wordt dat apparaat van dit adres verwijderd als je doorgaat, en krijgt dit apparaat het adres.",
+    "en": "{domain} is already taken. If it is one of your devices, continuing removes that device from this address and gives it to this one.",
+    "reviewed": "claude-backtranslation 2026-10-11 #0c5b3630"
+  },
+  "wiz.name.title": {
+    "text": "4 · Geef je apparaat een naam",
+    "en": "4 · Name your device"
+  },
+  "wiz.name.yours_offline": {
+    "text": "{domain} is van een van je apparaten (nu offline). Als je doorgaat, wordt dat apparaat van dit adres verwijderd en neemt dit apparaat het over.",
+    "en": "{domain} belongs to one of your devices (offline now). If you continue, that device is removed from this address and this one takes it.",
+    "reviewed": "claude-backtranslation 2026-10-11 #aa96306e"
+  },
+  "wiz.name.yours_online": {
+    "text": "{domain} is in gebruik door een van je apparaten, dat nu online is. Als je doorgaat, wordt dat apparaat van dit adres verwijderd (thuis blijft het werken) en neemt dit apparaat het over.",
+    "en": "{domain} is in use by one of your devices, online right now. If you continue, that device is removed from this address (it keeps working at home) and this one takes it.",
+    "reviewed": "claude-backtranslation 2026-10-11 #709a38c7"
+  },
+  "wiz.owner.hint": {
+    "text": "8 tekens of meer. Het versleutelt alles op het apparaat en kan niet worden hersteld – bewaar het op een veilige plek. Je logt ermee in op het apparaat.",
+    "en": "8 characters or more. It encrypts everything on the device and can't be recovered - keep it somewhere safe. You sign in to the device with it.",
+    "reviewed": "claude-backtranslation 2026-10-11 #9774fca2"
+  },
+  "wiz.owner.mismatch": {
+    "text": "De twee wachtwoorden komen niet overeen.",
+    "en": "The two passwords don't match."
+  },
+  "wiz.owner.password_label": {
+    "text": "Apparaatwachtwoord",
+    "en": "Device password"
+  },
+  "wiz.owner.repeat_label": {
+    "text": "Wachtwoord herhalen",
+    "en": "Repeat the password"
+  },
+  "wiz.owner.too_short": {
+    "text": "8 tekens of meer.",
+    "en": "8 characters or more."
+  },
+  "wiz.page.blink": {
+    "text": "Lampje laten knipperen",
+    "en": "Blink its light"
+  },
+  "wiz.page.blinking": {
+    "text": "Knippert – zoek het knipperende groene lampje",
+    "en": "Blinking - look for the flashing green light"
+  },
+  "wiz.page.device_id": {
+    "text": "Dit is apparaat <b>{id}</b>.",
+    "en": "This is device <b>{id}</b>."
+  },
+  "wiz.page.lead": {
+    "text": "Laten we je apparaat instellen.",
+    "en": "Let's set up your device."
+  },
+  "wiz.page.title": {
+    "text": "Off The Cloud instellen",
+    "en": "Off The Cloud setup"
+  },
+  "wiz.profile.about_label": {
+    "text": "Over jou",
+    "en": "About you"
+  },
+  "wiz.profile.about_placeholder": {
+    "text": "Een regel over jezelf",
+    "en": "A line about you"
+  },
+  "wiz.profile.drag_hint": {
+    "text": "Sleep de foto om je gezicht in het midden te zetten.",
+    "en": "Drag the photo to centre your face."
+  },
+  "wiz.profile.faces_hint": {
+    "text": "Groepeert dezelfde personen in je foto’s, zodat je op persoon kunt zoeken. Het werkt alleen op dit apparaat, maar bekijkt iedereen op je foto’s, niet alleen jou. Staat uit, tenzij je het aanvinkt.",
+    "en": "Groups the same people across your photos so you can search by person. It runs only on this device, but it looks at everyone in your photos, not just you. Off unless you tick it.",
+    "reviewed": "claude-backtranslation 2026-10-11 #8d3a99dc"
+  },
+  "wiz.profile.faces_label": {
+    "text": "Gezichten herkennen in mijn foto’s",
+    "en": "Recognise faces in my photos",
+    "reviewed": "claude-backtranslation 2026-10-11 #87b1d4b4"
+  },
+  "wiz.profile.name_label": {
+    "text": "Je naam",
+    "en": "Your name"
+  },
+  "wiz.profile.name_placeholder": {
+    "text": "Hoe je vrienden je zien",
+    "en": "How your friends see you"
+  },
+  "wiz.profile.optional": {
+    "text": "(optioneel)",
+    "en": "(optional)"
+  },
+  "wiz.profile.optional_hint": {
+    "text": "Dit is allemaal optioneel – je kunt het later instellen in Instellingen.",
+    "en": "All of this is optional - you can set it later in Settings."
+  },
+  "wiz.profile.picture_label": {
+    "text": "Profielfoto",
+    "en": "Profile picture"
+  },
+  "wiz.profile.title": {
+    "text": "Je profiel",
+    "en": "Your profile"
+  },
+  "wiz.profile.zoom": {
+    "text": "Zoomen",
+    "en": "Zoom"
+  },
+  "wiz.ready.back": {
+    "text": "Je apparaat is terug, met alles wat het had.",
+    "en": "Your device is back, with everything it had."
+  },
+  "wiz.ready.choose_password": {
+    "text": "Kies hieronder het wachtwoord – de app opent het apparaat daarna meteen.",
+    "en": "Choose its password below - the app then opens it straight away."
+  },
+  "wiz.ready.enter_password": {
+    "text": "Voer hieronder het wachtwoord in om het apparaat in de app te openen.",
+    "en": "Enter its password below to open it in the app."
+  },
+  "wiz.ready.from_now": {
+    "text": "Vanaf nu staat het op",
+    "en": "From now on it lives at"
+  },
+  "wiz.ready.hotspot_off": {
+    "text": "De hotspot “Off The Cloud” wordt over een minuut uitgeschakeld.",
+    "en": "The \"Off The Cloud\" hotspot switches off in a minute."
+  },
+  "wiz.ready.installed": {
+    "text": "Alles is geïnstalleerd.",
+    "en": "Everything is installed."
+  },
+  "wiz.ready.lives_at": {
+    "text": "Het staat op <b>{domain}</b>.",
+    "en": "It lives at <b>{domain}</b>."
+  },
+  "wiz.ready.local_hint": {
+    "text": "Alles is geïnstalleerd. Op je thuisnetwerk is het apparaat bereikbaar op",
+    "en": "Everything is installed. On your home network the device answers at"
+  },
+  "wiz.ready.local_open": {
+    "text": "Open dat adres vanaf elk apparaat thuis – je wordt eerst gevraagd het wachtwoord van de eigenaar te kiezen. Wil je het later overal kunnen bereiken? Maak een account aan op {bridge} en doorloop de configuratie opnieuw.",
+    "en": "Open that address from any device at home - it will ask you to choose the owner password first. Want it reachable from anywhere later? Create an account at {bridge} and run the setup again."
+  },
+  "wiz.ready.open_address": {
+    "text": "Open dat adres in je browser – onthoud het, want zo bereik je je apparaat overal.",
+    "en": "Open that address in your browser - remember it, it is how you reach your device from anywhere."
+  },
+  "wiz.ready.owner_password": {
+    "text": "Je wordt eerst gevraagd het wachtwoord van de eigenaar te kiezen.",
+    "en": "It will ask you to choose the owner password first."
+  },
+  "wiz.ready.title": {
+    "text": "Klaar 🎉",
+    "en": "Ready 🎉"
+  },
+  "wiz.wifi.bands_signal": {
+    "text": "{bands} GHz · {signal}%",
+    "en": "{bands} GHz · {signal}%"
+  },
+  "wiz.wifi.choose_app": {
+    "text": "Kies het netwerk dat het apparaat moet gebruiken: 2,4 of 5 GHz.",
+    "en": "Choose the network the device should use - 2.4 or 5 GHz."
+  },
+  "wiz.wifi.choose_hotspot": {
+    "text": "Kies het netwerk dat het apparaat moet gebruiken. Via deze hotspot maakt het verbinding op 2,4 GHz en stapt het na de configuratie over op 5 GHz; voor een netwerk dat alleen 5 GHz is, heb je “Nieuw apparaat instellen” (Bluetooth) in de app nodig.",
+    "en": "Choose the network the device should use. Over this hotspot it joins on 2.4 GHz and moves to 5 GHz once set up; a network that is only 5 GHz needs the app's \"Set up a new device\" (Bluetooth)."
+  },
+  "wiz.wifi.enter_password": {
+    "text": "Voer het wachtwoord voor {ssid} in",
+    "en": "Enter the password for {ssid}"
+  },
+  "wiz.wifi.failed": {
+    "text": "Mislukt",
+    "en": "Failed"
+  },
+  "wiz.wifi.hotspot_back": {
+    "text": "De hotspot is terug – maak er opnieuw verbinding mee.",
+    "en": "The hotspot is back - reconnect to it."
+  },
+  "wiz.wifi.join_failed": {
+    "text": "Kan geen verbinding maken met dat netwerk – controleer het wachtwoord.",
+    "en": "Could not join that network - check the password."
+  },
+  "wiz.wifi.join_rejected": {
+    "text": "Kan geen verbinding maken met dat netwerk – controleer het wachtwoord en probeer het opnieuw.",
+    "en": "Could not join that network - check the password and try again."
+  },
+  "wiz.wifi.joining_title": {
+    "text": "1 · Verbinden met {ssid}",
+    "en": "1 · Joining {ssid}"
+  },
+  "wiz.wifi.joining_wait": {
+    "text": "Verbinden en wachten op internet – dit kan een minuut duren.",
+    "en": "Connecting and waiting for the internet - up to a minute."
+  },
+  "wiz.wifi.keep_open": {
+    "text": "Houd deze pagina open – hij gaat vanzelf verder zodra het apparaat online is.",
+    "en": "Keep this page open - it continues on its own once the device is online."
+  },
+  "wiz.wifi.none": {
+    "text": "Nog geen netwerken – tik op Opnieuw zoeken.",
+    "en": "No networks yet - tap Scan."
+  },
+  "wiz.wifi.online": {
+    "text": "Het apparaat is online. Je kunt doorgaan of verbinding maken met een ander netwerk.",
+    "en": "The device is online. You can continue, or join a different network."
+  },
+  "wiz.wifi.online_via": {
+    "text": "Het apparaat is online via <b>{ssid}</b>. Je kunt doorgaan of verbinding maken met een ander netwerk.",
+    "en": "The device is online via <b>{ssid}</b>. You can continue, or join a different network."
+  },
+  "wiz.wifi.only_5ghz": {
+    "text": "Alleen 5 GHz – gebruik de app om verbinding te maken",
+    "en": "5 GHz only - use the app to join it"
+  },
+  "wiz.wifi.password_for": {
+    "text": "Wachtwoord voor {ssid}",
+    "en": "Password for {ssid}"
+  },
+  "wiz.wifi.pick_first": {
+    "text": "Kies eerst een netwerk",
+    "en": "Pick a network first"
+  },
+  "wiz.wifi.reconnect": {
+    "text": "<b>Verlies je de verbinding, maak dan opnieuw verbinding met de wifi “Off The Cloud”.</b> De hotspot start een paar seconden opnieuw om naar het kanaal van je netwerk over te schakelen; de meeste telefoons maken vanzelf weer verbinding, maar als de jouwe dat niet doet, kies dan opnieuw “Off The Cloud” in je wifi-instellingen en kom terug naar deze pagina.",
+    "en": "<b>If you get disconnected, reconnect to the \"Off The Cloud\" WiFi.</b> The hotspot restarts for a few seconds to switch to your network's channel; most phones rejoin it by themselves, but if yours doesn't, pick \"Off The Cloud\" again in your WiFi settings and come back to this page."
+  },
+  "wiz.wifi.scan_again": {
+    "text": "Opnieuw zoeken",
+    "en": "Scan again"
+  },
+  "wiz.wifi.scanning": {
+    "text": "Zoeken…",
+    "en": "Scanning…"
+  },
+  "wiz.wifi.title": {
+    "text": "1 · Maak verbinding met je wifi",
+    "en": "1 · Connect to your WiFi"
+  },
+  "wiz.wifi.wrong_password": {
+    "text": "Een onjuist wachtwoord verschijnt hier als fout; probeer het dan gewoon opnieuw.",
+    "en": "A wrong password shows up here as an error; just try again."
+  }
+}

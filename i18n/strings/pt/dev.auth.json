@@ -1,0 +1,52 @@
+{
+  "dev.auth.decrypt_failed": {
+    "text": "não foi possível desencriptar os dados da chave",
+    "en": "unable to decrypt key material",
+    "reviewed": "claude-backtranslation 2026-10-11 #dc90a9c1"
+  },
+  "dev.auth.device_state_failed": {
+    "text": "erro ao verificar o estado do dispositivo",
+    "en": "error checking device state",
+    "reviewed": "claude-backtranslation 2026-10-11 #e2449160"
+  },
+  "dev.auth.invalid_session": {
+    "text": "Sessão inválida",
+    "en": "Invalid session",
+    "reviewed": "claude-backtranslation 2026-10-11 #372d62d9"
+  },
+  "dev.auth.keypair_failed": {
+    "text": "erro ao gerar o par de chaves",
+    "en": "error generating keypair",
+    "reviewed": "claude-backtranslation 2026-10-11 #f232ccf9"
+  },
+  "dev.auth.no_public_key": {
+    "text": "não foi pedida nenhuma chave pública para esta ligação",
+    "en": "no public key was requested for this connection",
+    "reviewed": "claude-backtranslation 2026-10-11 #cee76f38"
+  },
+  "dev.auth.password_too_short": {
+    "text": "a palavra-passe tem de ter 8 caracteres ou mais",
+    "en": "the password must have 8 characters or more",
+    "reviewed": "claude-backtranslation 2026-10-11 #50b3de50"
+  },
+  "dev.auth.public_key_failed": {
+    "text": "erro ao codificar a chave pública",
+    "en": "error marshaling public key",
+    "reviewed": "claude-backtranslation 2026-10-11 #f819bf4e"
+  },
+  "dev.auth.session_expired": {
+    "text": "Sessão expirada ou inválida. Inicia sessão novamente.",
+    "en": "Session expired or invalid, please sign in again.",
+    "reviewed": "claude-backtranslation 2026-10-11 #596cfa1b"
+  },
+  "dev.auth.token_failed": {
+    "text": "erro ao emitir o token de sessão",
+    "en": "error issuing session token",
+    "reviewed": "claude-backtranslation 2026-10-11 #84e0bb82"
+  },
+  "dev.auth.too_many_attempts": {
+    "text": "Demasiadas tentativas. Tenta novamente dentro de {seconds} segundos.",
+    "en": "Too many attempts. Try again in {seconds} seconds.",
+    "reviewed": "claude-backtranslation 2026-10-11 #cf961e9d"
+  }
+}

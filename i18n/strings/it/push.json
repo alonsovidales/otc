@@ -1,0 +1,65 @@
+{
+  "push.comment.liked": {
+    "text": "ha messo Mi piace al tuo commento",
+    "en": "liked your comment"
+  },
+  "push.friend.accepted": {
+    "text": "ha accettato la tua richiesta di amicizia",
+    "en": "accepted your friend request"
+  },
+  "push.friend.request": {
+    "text": "ti ha inviato una richiesta di amicizia",
+    "en": "sent you a friend request"
+  },
+  "push.offline.body": {
+    "text": "Sembra che il tuo dispositivo sia offline",
+    "en": "Your device appears to have gone offline"
+  },
+  "push.post.commented": {
+    "text": "ha commentato il tuo post",
+    "en": "commented on your post"
+  },
+  "push.post.liked": {
+    "text": "ha messo Mi piace al tuo post",
+    "en": "liked your post"
+  },
+  "push.post.new": {
+    "text": "ha pubblicato qualcosa di nuovo",
+    "en": "posted something new"
+  },
+  "push.raid.stopped_bottom": {
+    "text": "Il disco nella porta USB blu inferiore si è guastato. I tuoi file sono al sicuro sull’altro: sostituiscilo presto.",
+    "en": "The disk in the bottom blue USB port failed. Your files are safe on the other one: replace it soon.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c60dd7cb"
+  },
+  "push.raid.stopped_title": {
+    "text": "Un disco di archiviazione ha smesso di funzionare",
+    "en": "Storage disk stopped working"
+  },
+  "push.raid.stopped_top": {
+    "text": "Il disco nella porta USB blu superiore si è guastato. I tuoi file sono al sicuro sull’altro: sostituiscilo presto.",
+    "en": "The disk in the top blue USB port failed. Your files are safe on the other one: replace it soon.",
+    "reviewed": "claude-backtranslation 2026-10-11 #6b5e3204"
+  },
+  "push.raid.stopped_unknown": {
+    "text": "Uno dei due dischi di archiviazione si è guastato. I tuoi file sono al sicuro sull’altro: sostituiscilo presto.",
+    "en": "One of the two storage disks failed. Your files are safe on the other one: replace it soon.",
+    "reviewed": "claude-backtranslation 2026-10-11 #7b011f0a"
+  },
+  "push.raid.working_body": {
+    "text": "Il mirror è completo: ogni file è di nuovo su entrambi i dischi.",
+    "en": "The mirror is complete: every file is on both disks again."
+  },
+  "push.raid.working_title": {
+    "text": "I dischi di archiviazione funzionano di nuovo",
+    "en": "Storage disks working again"
+  },
+  "push.update.critical_body": {
+    "text": "Installalo da Impostazioni.",
+    "en": "Install it from Settings."
+  },
+  "push.update.critical_title": {
+    "text": "Aggiornamento critico {version}: installalo al più presto",
+    "en": "Critical update {version} - please install it soon"
+  }
+}

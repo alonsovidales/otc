@@ -1,0 +1,255 @@
+{
+  "dev.files.archive_offset": {
+    "text": "positie {offset} valt buiten het archief",
+    "en": "offset {offset} outside the archive"
+  },
+  "dev.files.archive_too_big": {
+    "text": "het archief is {size} bytes: download het in delen",
+    "en": "the archive is {size} bytes: download it in parts"
+  },
+  "dev.files.asset_not_found": {
+    "text": "onderdeel van de webapp niet gevonden",
+    "en": "asset not found"
+  },
+  "dev.files.bad_size": {
+    "text": "ongeldige grootte",
+    "en": "bad size"
+  },
+  "dev.files.chunk_too_big": {
+    "text": "deel groter dan {limit} bytes",
+    "en": "chunk over {limit} bytes"
+  },
+  "dev.files.cloud_ids_failed": {
+    "text": "fout bij het controleren van de cloud-ID’s: {detail}",
+    "en": "error checking cloud ids: {detail}"
+  },
+  "dev.files.collection_needs_name": {
+    "text": "een collectie moet een naam hebben",
+    "en": "a collection needs a name"
+  },
+  "dev.files.content_missing": {
+    "text": "de inhoud van {path} ontbreekt op dit apparaat",
+    "en": "the content of {path} is missing on this device"
+  },
+  "dev.files.content_unavailable": {
+    "text": "de inhoud van {path} ontbreekt of is onleesbaar op dit apparaat",
+    "en": "the content of {path} is missing or unreadable on this device"
+  },
+  "dev.files.content_unreadable": {
+    "text": "de inhoud van {path} is onleesbaar op dit apparaat",
+    "en": "the content of {path} is unreadable on this device"
+  },
+  "dev.files.delete_failed": {
+    "text": "fout bij het verwijderen van het bestand: {detail}",
+    "en": "error trying to delete file: {detail}"
+  },
+  "dev.files.download_failed": {
+    "text": "fout bij het downloaden van het bestand: {detail}",
+    "en": "error trying to download file: {detail}"
+  },
+  "dev.files.exif_unsupported": {
+    "text": "niet-ondersteund MIME-type voor EXIF: {mime}",
+    "en": "unsupported mime type for EXIF: {mime}"
+  },
+  "dev.files.file_not_found": {
+    "text": "bestand niet gevonden",
+    "en": "file not found"
+  },
+  "dev.files.file_offset": {
+    "text": "positie {offset} valt buiten het bestand",
+    "en": "offset {offset} outside the file"
+  },
+  "dev.files.folder_update_failed": {
+    "text": "fout bij het bijwerken van de map: {detail}",
+    "en": "error updating the folder: {detail}"
+  },
+  "dev.files.gallery_not_found": {
+    "text": "deze link bestaat niet of is verlopen",
+    "en": "this link doesn't exist or has expired"
+  },
+  "dev.files.hash_check_failed": {
+    "text": "fout bij het controleren van de bestandshash: {detail}",
+    "en": "error checking file hash: {detail}"
+  },
+  "dev.files.hash_content_missing": {
+    "text": "de inhoud voor die hash ontbreekt op dit apparaat: upload het bestand in plaats daarvan",
+    "en": "the content for that hash is missing on this device: upload it instead"
+  },
+  "dev.files.image_grid_mismatch": {
+    "text": "de afbeelding geeft {width}x{height} op, groter dan het raster van {grid_width}x{grid_height}",
+    "en": "the image says it is {width}x{height}, larger than its {grid_width}x{grid_height} grid"
+  },
+  "dev.files.image_too_large": {
+    "text": "de afbeelding is {width}x{height}, te groot om te verwerken (meer dan {limit} megapixels)",
+    "en": "the image is {width}x{height}, too large to process (over {limit} megapixels)"
+  },
+  "dev.files.info_failed": {
+    "text": "fout bij het ophalen van de bestandsinformatie: {detail}",
+    "en": "error trying to retrieve file info: {detail}"
+  },
+  "dev.files.link_expired": {
+    "text": "de gedeelde link is verlopen",
+    "en": "shared link has expired"
+  },
+  "dev.files.link_failed": {
+    "text": "fout bij het koppelen van het bestand: {detail}",
+    "en": "error trying to link file: {detail}"
+  },
+  "dev.files.locked_by_parent": {
+    "text": "de map {name} staat in de map {parent} met “Alleen uploaden”: ontgrendel {parent} om deze map te ontgrendelen",
+    "en": "{name} is inside the upload-only folder {parent} - unlock {parent} to unlock it"
+  },
+  "dev.files.locked_by_parent_own": {
+    "text": "de map {name} staat in de map {parent} met “Alleen uploaden”: ontgrendel eerst {parent} en daarna {name}",
+    "en": "{name} is inside the upload-only folder {parent} - unlock {parent} first, then {name}"
+  },
+  "dev.files.media_not_found": {
+    "text": "media niet gevonden",
+    "en": "media not found"
+  },
+  "dev.files.no_low_res_photos": {
+    "text": "er zijn daar geen foto’s om in lage resolutie te delen",
+    "en": "there are no photos to share in low resolution there"
+  },
+  "dev.files.no_media_to_share": {
+    "text": "er zijn daar geen foto’s of video’s om te delen",
+    "en": "there are no photos or videos to share there"
+  },
+  "dev.files.no_path": {
+    "text": "geen pad",
+    "en": "no path"
+  },
+  "dev.files.no_such_hash": {
+    "text": "geen bestand met die hash op dit apparaat",
+    "en": "no file with that hash on this device"
+  },
+  "dev.files.no_such_job": {
+    "text": "onbekende taak",
+    "en": "no such job"
+  },
+  "dev.files.no_such_link": {
+    "text": "deze link bestaat niet",
+    "en": "no such link"
+  },
+  "dev.files.no_such_path": {
+    "text": "bestand of map bestaat niet: {path}",
+    "en": "no such file or directory: {path}"
+  },
+  "dev.files.not_on_device": {
+    "text": "{path} staat niet op dit apparaat",
+    "en": "{path} is not on this device"
+  },
+  "dev.files.nothing_to_share": {
+    "text": "niets om te delen",
+    "en": "nothing to share"
+  },
+  "dev.files.nothing_to_stream": {
+    "text": "niets om af te spelen",
+    "en": "nothing to stream"
+  },
+  "dev.files.out_of_images_list_failed": {
+    "text": "fout bij het ophalen van de mappen die buiten Afbeeldingen worden gehouden: {detail}",
+    "en": "error listing the folders kept out of Images: {detail}"
+  },
+  "dev.files.post_content_unavailable": {
+    "text": "de inhoud van {hash} ontbreekt of is onleesbaar: {detail}",
+    "en": "the content of {hash} is missing or unreadable: {detail}"
+  },
+  "dev.files.read_failed": {
+    "text": "fout bij het lezen van het bestand: {detail}",
+    "en": "error reading file: {detail}"
+  },
+  "dev.files.reprocess_count_failed": {
+    "text": "fout bij het tellen van de media om opnieuw te verwerken: {detail}",
+    "en": "counting media for reprocess: {detail}"
+  },
+  "dev.files.reprocess_read_failed": {
+    "text": "fout bij het lezen van de voortgang van het opnieuw verwerken: {detail}",
+    "en": "reading reprocess state: {detail}"
+  },
+  "dev.files.reprocess_resume_failed": {
+    "text": "fout bij het hervatten van het opnieuw verwerken: {detail}",
+    "en": "resuming reprocess: {detail}"
+  },
+  "dev.files.reprocess_start_failed": {
+    "text": "fout bij het starten van het opnieuw verwerken: {detail}",
+    "en": "starting reprocess: {detail}"
+  },
+  "dev.files.reprocess_wipe_failed": {
+    "text": "fout bij het wissen van tags/gezichten voor het opnieuw verwerken: {detail}",
+    "en": "wiping tags/faces before reprocess: {detail}"
+  },
+  "dev.files.retrieve_failed": {
+    "text": "fout bij het ophalen van het bestand: {detail}",
+    "en": "error trying to retrieve file: {detail}"
+  },
+  "dev.files.share_link_failed": {
+    "text": "fout bij het maken van de deellink voor de bestanden: {detail}",
+    "en": "error creating files share link: {detail}"
+  },
+  "dev.files.stream_failed": {
+    "text": "kan de stream niet voorbereiden",
+    "en": "could not prepare the stream"
+  },
+  "dev.files.upload_bad_hash": {
+    "text": "de inhoud van de upload komt niet overeen met de hash",
+    "en": "the upload's content doesn't match its hash"
+  },
+  "dev.files.upload_failed": {
+    "text": "fout bij het uploaden van het bestand: {detail}",
+    "en": "error trying to upload file: {detail}"
+  },
+  "dev.files.upload_finish_failed": {
+    "text": "fout bij het afronden van de upload: {detail}",
+    "en": "error finishing the upload: {detail}"
+  },
+  "dev.files.upload_incomplete": {
+    "text": "upload onvolledig: {received} van {size} bytes",
+    "en": "upload incomplete: {received} of {size} bytes"
+  },
+  "dev.files.upload_only": {
+    "text": "deze map staat op “Alleen uploaden”: er kan niets uit worden verwijderd",
+    "en": "this folder is upload only: nothing in it can be deleted",
+    "reviewed": "claude-backtranslation 2026-10-11 #2b5e3b19"
+  },
+  "dev.files.upload_out_of_order": {
+    "text": "uploaddeel in de verkeerde volgorde",
+    "en": "upload chunk out of order"
+  },
+  "dev.files.upload_receive_failed": {
+    "text": "fout bij het ontvangen van de upload: {detail}",
+    "en": "error receiving the upload: {detail}"
+  },
+  "dev.files.upload_removed": {
+    "text": "de inhoud van de upload is verwijderd voordat die werd vastgelegd: verstuur het bestand opnieuw",
+    "en": "the upload's content was removed before it was recorded - send it again"
+  },
+  "dev.files.upload_start_failed": {
+    "text": "fout bij het starten van de upload: {detail}",
+    "en": "error starting the upload: {detail}"
+  },
+  "dev.files.upload_too_much": {
+    "text": "meer gegevens dan de grootte van de upload",
+    "en": "more data than the upload's size"
+  },
+  "dev.files.upload_unknown": {
+    "text": "onbekende of verlopen upload",
+    "en": "unknown or expired upload"
+  },
+  "dev.files.versions_failed": {
+    "text": "fout bij het ophalen van de versies: {detail}",
+    "en": "error listing the versions: {detail}"
+  },
+  "dev.files.video_no_duration": {
+    "text": "de video heeft geen bruikbare duur",
+    "en": "video has no usable duration"
+  },
+  "dev.files.video_no_frames": {
+    "text": "kan geen beelden uit de video halen",
+    "en": "could not extract any frames from video"
+  },
+  "dev.files.video_no_frames_extracted": {
+    "text": "geen beelden uit de video gehaald",
+    "en": "no frames extracted from video"
+  }
+}

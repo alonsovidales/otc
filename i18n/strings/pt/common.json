@@ -1,0 +1,154 @@
+{
+  "common.accept": {
+    "text": "Aceitar",
+    "en": "Accept"
+  },
+  "common.add": {
+    "text": "Adicionar",
+    "en": "Add"
+  },
+  "common.apply": {
+    "text": "Aplicar",
+    "en": "Apply"
+  },
+  "common.back": {
+    "text": "Voltar",
+    "en": "Back"
+  },
+  "common.cancel": {
+    "text": "Cancelar",
+    "en": "Cancel"
+  },
+  "common.choose": {
+    "text": "Escolher",
+    "en": "Choose"
+  },
+  "common.close": {
+    "text": "Fechar",
+    "en": "Close"
+  },
+  "common.connect": {
+    "text": "Ligar",
+    "en": "Connect"
+  },
+  "common.connecting": {
+    "text": "A ligar…",
+    "en": "Connecting…"
+  },
+  "common.create": {
+    "text": "Criar",
+    "en": "Create"
+  },
+  "common.decline": {
+    "text": "Recusar",
+    "en": "Decline"
+  },
+  "common.delete": {
+    "text": "Eliminar",
+    "en": "Delete"
+  },
+  "common.deleting": {
+    "text": "A eliminar…",
+    "en": "Deleting…"
+  },
+  "common.deselect": {
+    "text": "Desmarcar",
+    "en": "Deselect"
+  },
+  "common.disconnect": {
+    "text": "Desligar",
+    "en": "Disconnect"
+  },
+  "common.done": {
+    "text": "Concluído",
+    "en": "Done"
+  },
+  "common.download": {
+    "text": "Transferir",
+    "en": "Download"
+  },
+  "common.loading": {
+    "text": "A carregar…",
+    "en": "Loading…"
+  },
+  "common.next": {
+    "text": "Seguinte",
+    "en": "Next"
+  },
+  "common.ok": {
+    "text": "OK",
+    "en": "OK"
+  },
+  "common.open": {
+    "text": "Abrir",
+    "en": "Open"
+  },
+  "common.password": {
+    "text": "Palavra-passe",
+    "en": "Password"
+  },
+  "common.pause": {
+    "text": "Pausar",
+    "en": "Pause"
+  },
+  "common.quit": {
+    "text": "Sair",
+    "en": "Quit"
+  },
+  "common.refresh": {
+    "text": "Atualizar",
+    "en": "Refresh"
+  },
+  "common.remove": {
+    "text": "Remover",
+    "en": "Remove"
+  },
+  "common.rename": {
+    "text": "Mudar o nome",
+    "en": "Rename"
+  },
+  "common.resume": {
+    "text": "Retomar",
+    "en": "Resume"
+  },
+  "common.save": {
+    "text": "Guardar",
+    "en": "Save"
+  },
+  "common.search": {
+    "text": "Pesquisar",
+    "en": "Search"
+  },
+  "common.select": {
+    "text": "Selecionar",
+    "en": "Select"
+  },
+  "common.send": {
+    "text": "Enviar",
+    "en": "Send"
+  },
+  "common.settings": {
+    "text": "Definições",
+    "en": "Settings"
+  },
+  "common.share": {
+    "text": "Partilhar",
+    "en": "Share"
+  },
+  "common.try_again": {
+    "text": "Tentar novamente",
+    "en": "Try again"
+  },
+  "common.update": {
+    "text": "Atualizar",
+    "en": "Update"
+  },
+  "common.updating": {
+    "text": "A atualizar…",
+    "en": "Updating…"
+  },
+  "common.upload": {
+    "text": "Carregar",
+    "en": "Upload"
+  }
+}

@@ -1,0 +1,294 @@
+{
+  "dev.alert.bridge.left": {
+    "text": "Questo dispositivo ha lasciato il bridge",
+    "en": "This device left the bridge"
+  },
+  "dev.alert.bridge.left_detail": {
+    "text": "Il bridge non conosce più {domain}: il suo account è stato eliminato o il nome è stato rilasciato. Il dispositivo continua a funzionare a casa, all’indirizzo {address}: imposta le app su quell’indirizzo, oppure ricollegati al bridge in Impostazioni.",
+    "en": "The bridge no longer knows {domain}: its account was deleted or the name released. The device goes on working at home, at {address} - set the apps to that address, or join the bridge again in Settings.",
+    "reviewed": "claude-backtranslation 2026-10-11 #b63a7521"
+  },
+  "dev.alert.file.crashed": {
+    "text": "Impossibile elaborare il file {name} (ha fatto bloccare l’elaborazione)",
+    "en": "{name} could not be processed (it crashed the processing)"
+  },
+  "dev.alert.file.not_converted": {
+    "text": "Impossibile convertire il file {name} da HEIC",
+    "en": "{name} could not be converted from HEIC"
+  },
+  "dev.alert.file.not_decrypted": {
+    "text": "Impossibile decrittografare il file {name}",
+    "en": "{name} could not be decrypted"
+  },
+  "dev.alert.file.not_processed": {
+    "text": "Impossibile elaborare il file {name}",
+    "en": "{name} could not be processed"
+  },
+  "dev.alert.file.not_read": {
+    "text": "Impossibile leggere il file {name}",
+    "en": "{name} could not be read"
+  },
+  "dev.alert.file.not_read_back": {
+    "text": "Impossibile rileggere il file {name} per l’elaborazione",
+    "en": "{name} could not be read back for processing"
+  },
+  "dev.alert.file.not_saved": {
+    "text": "Impossibile salvare il file {name} sul disco",
+    "en": "{name} could not be saved to disk"
+  },
+  "dev.alert.file.not_tagged": {
+    "text": "Impossibile etichettare il file {name}",
+    "en": "{name} could not be tagged"
+  },
+  "dev.alert.file.small_thumbnail_not_written": {
+    "text": "Il file {name} non ha una miniatura piccola (impossibile scriverla)",
+    "en": "{name} has no small thumbnail (it could not be written)"
+  },
+  "dev.alert.file.thumbnail_not_encoded": {
+    "text": "Il file {name} non ha una miniatura (impossibile codificarla)",
+    "en": "{name} has no thumbnail (it could not be encoded)"
+  },
+  "dev.alert.file.thumbnail_not_written": {
+    "text": "Il file {name} non ha una miniatura (impossibile scriverla)",
+    "en": "{name} has no thumbnail (it could not be written)"
+  },
+  "dev.alert.gallery.crashed": {
+    "text": {
+      "one": "Impossibile elaborare {count} file (ha fatto bloccare l’elaborazione)",
+      "other": "Impossibile elaborare {count} file (ha fatto bloccare l’elaborazione)"
+    },
+    "en": {
+      "one": "{count} files could not be processed (it crashed the processing)",
+      "other": "{count} files could not be processed (it crashed the processing)"
+    }
+  },
+  "dev.alert.integrity.detail": {
+    "text": "{paths}. Caricali di nuovo dalla loro origine (“Sincronizza tutto” su un telefono, o la cartella dell’app desktop) e verranno ripristinati.",
+    "en": "{paths}. Upload them again from where they came from - Sync All on a phone, or the desktop app's folder - and they are restored.",
+    "reviewed": "claude-backtranslation 2026-10-11 #b9384d74"
+  },
+  "dev.alert.integrity.detail_more": {
+    "text": {
+      "one": "{paths}; e {count} altro file. Caricali di nuovo dalla loro origine (“Sincronizza tutto” su un telefono, o la cartella dell’app desktop) e verranno ripristinati.",
+      "other": "{paths}; e altri {count} file. Caricali di nuovo dalla loro origine (“Sincronizza tutto” su un telefono, o la cartella dell’app desktop) e verranno ripristinati."
+    },
+    "en": {
+      "one": "{paths}; and {count} more. Upload them again from where they came from - Sync All on a phone, or the desktop app's folder - and they are restored.",
+      "other": "{paths}; and {count} more. Upload them again from where they came from - Sync All on a phone, or the desktop app's folder - and they are restored."
+    },
+    "reviewed": "claude-backtranslation 2026-10-11 #87bee90b"
+  },
+  "dev.alert.integrity.lost": {
+    "text": {
+      "one": "{count} file ha perso il suo contenuto",
+      "other": "{count} file hanno perso il loro contenuto"
+    },
+    "en": {
+      "one": "{count} file has lost its content",
+      "other": "{count} files have lost their content"
+    },
+    "reviewed": "claude-backtranslation 2026-10-11 #88a98072"
+  },
+  "dev.alert.line.detail": {
+    "text": "{clock} {title}: {detail}",
+    "en": "{clock} {title}: {detail}"
+  },
+  "dev.alert.line.plain": {
+    "text": "{clock} {title}",
+    "en": "{clock} {title}"
+  },
+  "dev.alert.memory.hint": {
+    "text": "Questo dispositivo ha {gb} GB di memoria. Dopo un riavvio continua a elaborare un file alla volta per un’ora. Se succede ancora, invia i log da Impostazioni > Log.",
+    "en": "This device has {gb} GB of memory. After a restart it goes on processing one file at a time for an hour. If this keeps happening, send the logs from Settings > Logs."
+  },
+  "dev.alert.memory.hint_low": {
+    "text": "Questo dispositivo ha {gb} GB di memoria: elabora una foto alla volta (modalità memoria ridotta), e dopo un riavvio aspetta un po’ prima di riprendere. Se succede ancora, invia i log da Impostazioni > Log.",
+    "en": "This device has {gb} GB of memory: it processes one photo at a time (low-memory mode), and after a restart it waits a while before it goes on. If this keeps happening, send the logs from Settings > Logs."
+  },
+  "dev.alert.memory.hint_low_small": {
+    "text": "Questo dispositivo ha {gb} GB di memoria, meno degli 8 GB consigliati: elabora una foto alla volta per non superarla (modalità memoria ridotta), e dopo un riavvio aspetta un po’ prima di riprendere. Se succede ancora, invia i log da Impostazioni > Log.",
+    "en": "This device has {gb} GB of memory, less than the 8 GB recommended: it processes one photo at a time to fit (low-memory mode), and after a restart it waits a while before it goes on. If this keeps happening, send the logs from Settings > Logs."
+  },
+  "dev.alert.memory.hint_low_unknown": {
+    "text": "Questo dispositivo: elabora una foto alla volta (modalità memoria ridotta), e dopo un riavvio aspetta un po’ prima di riprendere. Se succede ancora, invia i log da Impostazioni > Log.",
+    "en": "This device: it processes one photo at a time (low-memory mode), and after a restart it waits a while before it goes on. If this keeps happening, send the logs from Settings > Logs."
+  },
+  "dev.alert.memory.hint_unknown": {
+    "text": "Questo dispositivo. Dopo un riavvio continua a elaborare un file alla volta per un’ora. Se succede ancora, invia i log da Impostazioni > Log.",
+    "en": "This device. After a restart it goes on processing one file at a time for an hour. If this keeps happening, send the logs from Settings > Logs."
+  },
+  "dev.alert.memory.restarted": {
+    "text": "Il tuo dispositivo ha esaurito la memoria e si è riavviato",
+    "en": "Your device ran out of memory and restarted"
+  },
+  "dev.alert.memory.restarted_times": {
+    "text": {
+      "one": "Il tuo dispositivo ha esaurito la memoria e si è riavviato {count} volta dalle {clock}",
+      "other": "Il tuo dispositivo ha esaurito la memoria e si è riavviato {count} volte dalle {clock}"
+    },
+    "en": {
+      "one": "Your device ran out of memory and restarted {count} time since {clock}",
+      "other": "Your device ran out of memory and restarted {count} times since {clock}"
+    }
+  },
+  "dev.alert.memory.restarted_times_day": {
+    "text": {
+      "one": "Il tuo dispositivo ha esaurito la memoria e si è riavviato {count} volta dal giorno {day} {month} alle {clock}",
+      "other": "Il tuo dispositivo ha esaurito la memoria e si è riavviato {count} volte dal giorno {day} {month} alle {clock}"
+    },
+    "en": {
+      "one": "Your device ran out of memory and restarted {count} time since {day} {month} {clock}",
+      "other": "Your device ran out of memory and restarted {count} times since {day} {month} {clock}"
+    }
+  },
+  "dev.alert.month.apr": {
+    "text": "apr",
+    "en": "Apr"
+  },
+  "dev.alert.month.aug": {
+    "text": "ago",
+    "en": "Aug"
+  },
+  "dev.alert.month.dec": {
+    "text": "dic",
+    "en": "Dec"
+  },
+  "dev.alert.month.feb": {
+    "text": "feb",
+    "en": "Feb"
+  },
+  "dev.alert.month.jan": {
+    "text": "gen",
+    "en": "Jan"
+  },
+  "dev.alert.month.jul": {
+    "text": "lug",
+    "en": "Jul"
+  },
+  "dev.alert.month.jun": {
+    "text": "giu",
+    "en": "Jun"
+  },
+  "dev.alert.month.mar": {
+    "text": "mar",
+    "en": "Mar"
+  },
+  "dev.alert.month.may": {
+    "text": "mag",
+    "en": "May"
+  },
+  "dev.alert.month.nov": {
+    "text": "nov",
+    "en": "Nov"
+  },
+  "dev.alert.month.oct": {
+    "text": "ott",
+    "en": "Oct"
+  },
+  "dev.alert.month.sep": {
+    "text": "set",
+    "en": "Sep"
+  },
+  "dev.alert.raid.stopped_bottom": {
+    "text": "Il disco nella porta USB blu inferiore ha smesso di funzionare",
+    "en": "The disk in the bottom blue USB port stopped working"
+  },
+  "dev.alert.raid.stopped_detail": {
+    "text": "I tuoi file sono al sicuro sull’altro disco, ma non sono più in mirror. Sostituiscilo con una scheda di capacità almeno uguale: il dispositivo la aggiunge e ci copia tutto da solo, cancellando qualsiasi cosa ci fosse sulla nuova scheda.",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card.",
+    "reviewed": "claude-backtranslation 2026-10-11 #2b5d36ea"
+  },
+  "dev.alert.raid.stopped_detail_disk": {
+    "text": "I tuoi file sono al sicuro sull’altro disco, ma non sono più in mirror. Sostituiscilo con una scheda di capacità almeno uguale: il dispositivo la aggiunge e ci copia tutto da solo, cancellando qualsiasi cosa ci fosse sulla nuova scheda. ({disk})",
+    "en": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card. ({disk})",
+    "reviewed": "claude-backtranslation 2026-10-11 #39f1e45a"
+  },
+  "dev.alert.raid.stopped_top": {
+    "text": "Il disco nella porta USB blu superiore ha smesso di funzionare",
+    "en": "The disk in the top blue USB port stopped working"
+  },
+  "dev.alert.raid.stopped_unknown": {
+    "text": "Uno dei due dischi di archiviazione ha smesso di funzionare",
+    "en": "One of the two storage disks stopped working"
+  },
+  "dev.alert.raid.working_detail": {
+    "text": "Il mirror è completo: ogni file è di nuovo su entrambi i dischi.",
+    "en": "The mirror is complete: every file is on both disks again."
+  },
+  "dev.alert.raid.working_title": {
+    "text": "Entrambi i dischi di archiviazione funzionano di nuovo",
+    "en": "Both storage disks are working again"
+  },
+  "dev.alert.setaside.detail": {
+    "text": "il dispositivo si è interrotto due volte durante l’elaborazione. Viene conservato così com’è, senza la miniatura, le etichette o i volti che mancavano, e verrà riprovato dopo il prossimo aggiornamento.",
+    "en": "the device stopped twice while processing it. It is kept as it is, without the thumbnail, tags or faces it was missing, and tried again after the next update."
+  },
+  "dev.alert.setaside.title": {
+    "text": "Il file {name} è stato messo da parte",
+    "en": "{name} was set aside"
+  },
+  "dev.alert.update.critical": {
+    "text": "Aggiornamento critico {version}: installalo al più presto",
+    "en": "Critical update {version} - please install it soon"
+  },
+  "dev.alert.update.detail": {
+    "text": "{summary} Installalo da Impostazioni.",
+    "en": "{summary} Install it from Settings."
+  },
+  "dev.alert.update.major": {
+    "text": "È disponibile l’aggiornamento {version}",
+    "en": "Update {version} is available"
+  },
+  "dev.alert.wifi.no_answer": {
+    "text": "l’invio dei dati era rallentato a circa {speed} (dati inviati due volte: {pct}%), e il riavvio del Wi-Fi non ha mai risposto. Riavvia il dispositivo da Impostazioni, oppure collegalo al router con un cavo Ethernet.",
+    "en": "sending data had slowed down to about {speed}, with {pct}% of it sent twice, and the Wi-Fi restart never answered. Restart the device from Settings, or connect it to your router with an Ethernet cable."
+  },
+  "dev.alert.wifi.no_runner": {
+    "text": "l’invio dei dati è rallentato a circa {speed} (dati inviati due volte: {pct}%). Questo dispositivo non può riavviare da solo il Wi-Fi finché non viene aggiornato. Riavvia il dispositivo da Impostazioni, oppure collegalo al router con un cavo Ethernet.",
+    "en": "sending data has slowed down to about {speed}, with {pct}% of it sent twice. This device can't restart its Wi-Fi by itself until it is updated. Restart the device from Settings, or connect it to your router with an Ethernet cable."
+  },
+  "dev.alert.wifi.not_restarted": {
+    "text": "Impossibile riavviare il Wi-Fi",
+    "en": "The Wi-Fi could not be restarted"
+  },
+  "dev.alert.wifi.recovered": {
+    "text": "l’invio dei dati era rallentato a circa {speed} (dati inviati due volte: {pct}%). Ora funziona di nuovo normalmente.",
+    "en": "sending data had slowed down to about {speed}, with {pct}% of it sent twice. It is working normally again."
+  },
+  "dev.alert.wifi.recovered_rebooted": {
+    "text": "l’invio dei dati era rallentato a circa {speed} (dati inviati due volte: {pct}%). Il Wi-Fi non si è riconnesso dopo il riavvio, quindi il dispositivo si è riavviato. Ora funziona di nuovo normalmente.",
+    "en": "sending data had slowed down to about {speed}, with {pct}% of it sent twice. It didn't reconnect after the restart, so the device restarted. It is working normally again."
+  },
+  "dev.alert.wifi.restart_failed": {
+    "text": "l’invio dei dati era rallentato a circa {speed} (dati inviati due volte: {pct}%), e il riavvio del Wi-Fi non è riuscito ({reason}). Riavvia il dispositivo da Impostazioni, oppure collegalo al router con un cavo Ethernet.",
+    "en": "sending data had slowed down to about {speed}, with {pct}% of it sent twice, and restarting the Wi-Fi failed ({reason}). Restart the device from Settings, or connect it to your router with an Ethernet cable."
+  },
+  "dev.alert.wifi.restart_failed_other": {
+    "text": "l’invio dei dati era rallentato a circa {speed} (dati inviati due volte: {pct}%), e il riavvio del Wi-Fi non è riuscito ({reason}). Riavvia il dispositivo da Impostazioni, oppure collegalo al router con un cavo Ethernet.",
+    "en": "sending data had slowed down to about {speed}, with {pct}% of it sent twice, and restarting the Wi-Fi failed ({reason}). Restart the device from Settings, or connect it to your router with an Ethernet cable."
+  },
+  "dev.alert.wifi.restarted": {
+    "text": "Il Wi-Fi è stato riavviato",
+    "en": "The Wi-Fi was restarted"
+  },
+  "dev.alert.wifi.still_slow": {
+    "text": "Il Wi-Fi è ancora lento dopo un riavvio",
+    "en": "The Wi-Fi is still slow after a restart"
+  },
+  "dev.alert.wifi.still_slow_detail": {
+    "text": "l’invio dei dati è ancora lento (circa {speed}, dati inviati due volte: {pct}%). Il Wi-Fi non verrà riavviato di nuovo finché non avrà funzionato normalmente per un po’. Riavvia il dispositivo da Impostazioni, oppure collegalo al router con un cavo Ethernet.",
+    "en": "sending data is still slow (about {speed}, with {pct}% of it sent twice). The Wi-Fi won't be restarted again until it has worked normally for a while. Restart the device from Settings, or connect it to your router with an Ethernet cable."
+  },
+  "dev.alert.wifi.unjudged": {
+    "text": "l’invio dei dati era rallentato a circa {speed} (dati inviati due volte: {pct}%). Da allora non c’è stato abbastanza traffico per capire se funziona di nuovo normalmente.",
+    "en": "sending data had slowed down to about {speed}, with {pct}% of it sent twice. There hasn't been enough traffic since to tell whether it is working normally again."
+  },
+  "dev.alert.wifi.unjudged_rebooted": {
+    "text": "l’invio dei dati era rallentato a circa {speed} (dati inviati due volte: {pct}%). Il Wi-Fi non si è riconnesso dopo il riavvio, quindi il dispositivo si è riavviato. Da allora non c’è stato abbastanza traffico per capire se funziona di nuovo normalmente.",
+    "en": "sending data had slowed down to about {speed}, with {pct}% of it sent twice. It didn't reconnect after the restart, so the device restarted. There hasn't been enough traffic since to tell whether it is working normally again."
+  },
+  "dev.alert.wifi.very_slow": {
+    "text": "Il Wi-Fi invia dati molto lentamente",
+    "en": "The Wi-Fi is sending data very slowly"
+  }
+}

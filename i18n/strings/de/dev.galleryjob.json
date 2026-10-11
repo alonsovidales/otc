@@ -1,0 +1,14 @@
+{
+  "dev.galleryjob.copy_crashed": {
+    "text": "das Kopieren wurde abgebrochen: Eine Datei hat die Verarbeitung zum Absturz gebracht",
+    "en": "the copy stopped: a file crashed the processing"
+  },
+  "dev.galleryjob.copy_failed": {
+    "text": "{name} konnte nicht kopiert werden: {detail}",
+    "en": "could not copy {name}: {detail}"
+  },
+  "dev.galleryjob.no_small_copy": {
+    "text": "von {name} konnte keine kleine Kopie erstellt werden",
+    "en": "could not make a small copy of {name}"
+  }
+}

@@ -1,0 +1,922 @@
+{
+  "wiz.account.accept_terms": {
+    "text": "Accetto le <terms>condizioni d’uso</terms> e ho letto l’<privacy>informativa sulla privacy</privacy>.",
+    "en": "I accept the <terms>terms of use</terms> and have read the <privacy>privacy notice</privacy>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c7028da4"
+  },
+  "wiz.account.checking": {
+    "text": "Verifica…",
+    "en": "Checking…"
+  },
+  "wiz.account.choose_country": {
+    "text": "Scegli…",
+    "en": "Choose…"
+  },
+  "wiz.account.code_hint": {
+    "text": "Su qualsiasi dispositivo, apri <b>{bridge}/account</b>, accedi (con la tua password, Google o Apple) e tocca <b>Ottieni un codice di configurazione</b>.",
+    "en": "On any device, open <b>{bridge}/account</b>, sign in (with your password, Google or Apple) and tap <b>Get a setup code</b>."
+  },
+  "wiz.account.code_label": {
+    "text": "Codice di configurazione",
+    "en": "Setup code"
+  },
+  "wiz.account.code_placeholder": {
+    "text": "es. K7PX2M4Q",
+    "en": "e.g. K7PX2M4Q"
+  },
+  "wiz.account.confirm_hint": {
+    "text": "Abbiamo inviato un link a <b>{email}</b>. Aprilo, su questo telefono o su qualsiasi altro dispositivo, per confermare che l’indirizzo è tuo, poi torna qui e continua. Non lo trovi? Controlla nella cartella spam.",
+    "en": "We sent a link to <b>{email}</b>. Open it - on this phone or any other device - to confirm the address is yours, then come back and continue. Can't find it? Look in the spam folder."
+  },
+  "wiz.account.confirm_title": {
+    "text": "3 · Conferma la tua email",
+    "en": "3 · Confirm your email"
+  },
+  "wiz.account.confirmed": {
+    "text": "L’ho confermata, continua",
+    "en": "I've confirmed it - continue"
+  },
+  "wiz.account.continue_apple": {
+    "text": "Continua con Apple",
+    "en": "Continue with Apple"
+  },
+  "wiz.account.continue_email": {
+    "text": "Continua con l’email",
+    "en": "Continue with Email"
+  },
+  "wiz.account.continue_google": {
+    "text": "Continua con Google",
+    "en": "Continue with Google"
+  },
+  "wiz.account.countries_failed": {
+    "text": "Impossibile caricare l’elenco dei paesi: controlla che il dispositivo sia online",
+    "en": "Could not load the country list - check the device is online"
+  },
+  "wiz.account.country": {
+    "text": "Paese di residenza",
+    "en": "Country of residence"
+  },
+  "wiz.account.create": {
+    "text": "Crea account",
+    "en": "Create account"
+  },
+  "wiz.account.email": {
+    "text": "Email",
+    "en": "Email"
+  },
+  "wiz.account.have_code": {
+    "text": "Ho un codice di configurazione",
+    "en": "I have a setup code"
+  },
+  "wiz.account.heading": {
+    "text": "3 · Il tuo account Off The Cloud",
+    "en": "3 · Your Off The Cloud account"
+  },
+  "wiz.account.intro": {
+    "text": "Un account collega a te il nome di questo dispositivo, così puoi raggiungerlo da qualsiasi luogo, condividere con gli amici e sostituirlo se dovessi perderlo.",
+    "en": "An account links this device's name to you, so you can reach it from anywhere, share with friends and replace it if it is ever lost."
+  },
+  "wiz.account.name": {
+    "text": "Nome",
+    "en": "Name"
+  },
+  "wiz.account.not_confirmed": {
+    "text": "Non ancora confermato: apri il link nell’email (l’abbiamo appena inviato di nuovo).",
+    "en": "Not confirmed yet - open the link in the email (we have just sent it again)."
+  },
+  "wiz.account.one_moment": {
+    "text": "Un momento…",
+    "en": "One moment…"
+  },
+  "wiz.account.or_email": {
+    "text": "oppure con la tua email",
+    "en": "or with your email"
+  },
+  "wiz.account.password_min": {
+    "text": "Password (almeno 8 caratteri)",
+    "en": "Password (8 characters or more)"
+  },
+  "wiz.account.provider_hint": {
+    "text": "Hai creato l’account con Google o Apple? Apri <b>{bridge}/account</b> su un altro dispositivo, ottieni un codice di configurazione e scegli “Ho un codice di configurazione”.",
+    "en": "Signed up with Google or Apple? Open <b>{bridge}/account</b> on another device, get a setup code and choose \"I have a setup code\"."
+  },
+  "wiz.account.sign_in": {
+    "text": "Accedi",
+    "en": "Sign in"
+  },
+  "wiz.account.signed_in_as": {
+    "text": "Accesso effettuato come <b>{email}</b>. Il nome del dispositivo verrà registrato su questo account.",
+    "en": "Signed in as <b>{email}</b>. The device's name will be registered to this account."
+  },
+  "wiz.account.signin_cancelled": {
+    "text": "Accesso annullato",
+    "en": "Sign-in cancelled"
+  },
+  "wiz.account.signin_failed": {
+    "text": "Impossibile accedere",
+    "en": "Could not sign in"
+  },
+  "wiz.account.skip": {
+    "text": "Continua senza account",
+    "en": "Continue without an account"
+  },
+  "wiz.account.skip_hint": {
+    "text": "Senza un account il dispositivo non usa il bridge. Funziona comunque come NAS sulla tua rete domestica: file, backup delle foto dalle app e dai client di sincronizzazione quando sei a casa, la galleria di foto, le etichette e le persone. Cosa richiede il bridge: raggiungere il dispositivo da fuori casa, le funzioni social (amici, post, commenti), i link di condivisione che funzionano ovunque e le notifiche push. Puoi unirti al bridge più tardi, da Impostazioni nell’app web.",
+    "en": "Without an account the device does not use the bridge. It still works as a NAS on your home network: files, photo backup from the apps and the sync clients while at home, the photo gallery, tags and people. What needs the bridge: reaching the device from outside your home, the social features (friends, posts, comments), share links that work from anywhere, and push notifications. You can join the bridge later, from Settings in the web app."
+  },
+  "wiz.account.surname": {
+    "text": "Cognome",
+    "en": "Surname"
+  },
+  "wiz.account.terms_bridge": {
+    "text": "Creare un account serve solo per usare il nostro bridge: avrai fino a <b>5 domini</b> come <i>nome</i>.{bridge} per connetterti al tuo dispositivo e anche ai dispositivi dei tuoi amici e familiari. Se vuoi usare questo dispositivo solo nella tua rete locale come NAS o con Tailscale Funnel, salta la creazione dell’account.",
+    "en": "Creating an account is only necessary to use our bridge: you will get up to <b>5 domains</b> like <i>name</i>.{bridge} to connect to your device and also connect with the devices of your friends and family. If you only want to use this device in your local network as a NAS or with Tailscale Funnel, skip the creation of the account."
+  },
+  "wiz.account.terms_price": {
+    "text": "Un account per un massimo di 5 domini è <b>gratuito per i primi due anni</b>, e dopo questo periodo costerà 9,99 euro + IVA all’anno (ti scriveremo un’email prima della fine del periodo). Se ti servono più domini, contattaci all’indirizzo <b>info@off-the.cloud</b>.",
+    "en": "An account for up to 5 domains is <b>free for the first two years</b>, and after this period will cost 9.99 euros + VAT a year (we will e-mail you before the period ends). If you need more domains, please contact us at <b>info@off-the.cloud</b>.",
+    "reviewed": "claude-backtranslation 2026-10-11 #0bfb227c"
+  },
+  "wiz.account.title": {
+    "text": "3 · Il tuo account",
+    "en": "3 · Your account"
+  },
+  "wiz.account.use_another": {
+    "text": "Usa un altro account",
+    "en": "Use another account"
+  },
+  "wiz.account.use_code": {
+    "text": "Usa questo codice",
+    "en": "Use this code"
+  },
+  "wiz.action.continue": {
+    "text": "Continua",
+    "en": "Continue"
+  },
+  "wiz.action.continue_failed": {
+    "text": "Impossibile continuare",
+    "en": "Could not continue"
+  },
+  "wiz.bridge.account_check_unavailable": {
+    "text": "impossibile verificare il tuo account in questo momento",
+    "en": "could not check your account right now"
+  },
+  "wiz.bridge.claim_unavailable": {
+    "text": "impossibile riservare quel nome in questo momento",
+    "en": "could not reserve that name right now"
+  },
+  "wiz.bridge.domain_limit": {
+    "text": "un account può registrare fino a 5 domini: per averne di più (2 euro all’anno ciascuno), scrivi a info@off-the.cloud",
+    "en": "an account can register up to 5 domains - for more (2 euros a year each), write to info@off-the.cloud"
+  },
+  "wiz.bridge.email_taken": {
+    "text": "esiste già un account con questa email: accedi invece di registrarti",
+    "en": "there is already an account with that email - sign in instead"
+  },
+  "wiz.bridge.invalid_credentials": {
+    "text": "email o password errata: se hai creato l’account con Google o Apple, usa invece quel metodo (nella pagina dell’account, poi un codice di configurazione)",
+    "en": "wrong email or password - if you signed up with Google or Apple, use that instead (on the account page, then a setup code)"
+  },
+  "wiz.bridge.invalid_email": {
+    "text": "questo indirizzo email non sembra corretto",
+    "en": "that email address doesn't look right"
+  },
+  "wiz.bridge.invalid_name": {
+    "text": "quel nome non può essere usato",
+    "en": "that name can't be used"
+  },
+  "wiz.bridge.login_required": {
+    "text": "accedi per registrare un nome",
+    "en": "sign in to register a name"
+  },
+  "wiz.bridge.name_check_unavailable": {
+    "text": "impossibile verificare quel nome in questo momento",
+    "en": "could not check that name right now"
+  },
+  "wiz.bridge.name_held": {
+    "text": "quel nome è stato rilasciato di recente ed è riservato al suo precedente proprietario per 30 giorni",
+    "en": "that name was released recently and is held for its previous owner for 30 days"
+  },
+  "wiz.bridge.name_taken": {
+    "text": "quel nome è già in uso",
+    "en": "that name is already taken"
+  },
+  "wiz.bridge.password_too_short": {
+    "text": "la password deve avere almeno 8 caratteri",
+    "en": "the password needs at least 8 characters"
+  },
+  "wiz.bridge.profile_incomplete": {
+    "text": "nome, cognome e paese di residenza sono obbligatori",
+    "en": "name, surname and country of residence are required"
+  },
+  "wiz.bridge.setup_code_check_unavailable": {
+    "text": "impossibile verificare quel codice di configurazione in questo momento",
+    "en": "could not check that setup code right now"
+  },
+  "wiz.bridge.setup_unavailable": {
+    "text": "impossibile avviare la configurazione",
+    "en": "could not start the setup"
+  },
+  "wiz.bridge.signin_unavailable": {
+    "text": "impossibile accedere in questo momento",
+    "en": "could not sign in right now"
+  },
+  "wiz.bridge.signup_unavailable": {
+    "text": "impossibile registrarsi in questo momento",
+    "en": "could not sign up right now"
+  },
+  "wiz.bridge.terms_not_accepted": {
+    "text": "prima accetta le condizioni d’uso: accedi su off-the.cloud/account e accettale lì",
+    "en": "accept the terms of use first: sign in at off-the.cloud/account and accept them there",
+    "reviewed": "claude-backtranslation 2026-10-11 #04bd337d"
+  },
+  "wiz.bridge.terms_required": {
+    "text": "accetta le condizioni",
+    "en": "please accept the terms",
+    "reviewed": "claude-backtranslation 2026-10-11 #d823e4b8"
+  },
+  "wiz.bridge.too_many_attempts": {
+    "text": "troppi tentativi non riusciti, riprova più tardi",
+    "en": "too many failed attempts, try again later"
+  },
+  "wiz.bridge.too_many_claims": {
+    "text": "attendi un momento prima di provare un altro nome",
+    "en": "please wait a moment before trying another name"
+  },
+  "wiz.bridge.too_many_signups": {
+    "text": "troppe registrazioni da questo indirizzo, riprova più tardi",
+    "en": "too many sign-ups from this address, try again later"
+  },
+  "wiz.disks.continue_without": {
+    "text": "Continua senza dischi aggiuntivi",
+    "en": "Continue without extra disks"
+  },
+  "wiz.disks.found": {
+    "text": "Trovato un archivio Off The Cloud esistente",
+    "en": "Found an existing Off The Cloud storage"
+  },
+  "wiz.disks.looking": {
+    "text": "Analisi dei dischi collegati…",
+    "en": "Looking at the attached disks…"
+  },
+  "wiz.disks.mounted": {
+    "text": "attualmente montato",
+    "en": "currently mounted"
+  },
+  "wiz.disks.none": {
+    "text": "Nessun disco aggiuntivo trovato. Collegali e tocca “Ripeti ricerca”, oppure continua senza.",
+    "en": "No extra disks found. Plug them in and tap Rescan, or continue without."
+  },
+  "wiz.disks.pick_hint": {
+    "text": "Scegli <b>due</b> dischi per metterli in mirror come RAID1: uno può guastarsi senza perdere nulla. Non sceglierne nessuno per tenere tutto sulla scheda SD per ora.",
+    "en": "Pick <b>two</b> disks to mirror them as RAID1 - one can fail without losing anything. Pick none to keep everything on the SD card for now."
+  },
+  "wiz.disks.pick_second": {
+    "text": "Scegli un secondo disco per il RAID1, oppure nessuno.",
+    "en": "Pick a second disk for RAID1, or none."
+  },
+  "wiz.disks.recover": {
+    "text": "Recupera questo dispositivo",
+    "en": "Recover this device"
+  },
+  "wiz.disks.recover_hint": {
+    "text": "Se questo Pi sostituisce uno che si è guastato, recuperalo: tutto ciò che è su questi dischi (foto, file, il suo nome e la sua identità sul bridge) torna com’era, e non serve un nuovo nome.",
+    "en": "If this Pi is replacing one that died, recover it: everything on these disks - photos, files, its name and its bridge identity - comes back as it was, and no new name is needed."
+  },
+  "wiz.disks.rescan": {
+    "text": "Ripeti ricerca",
+    "en": "Rescan"
+  },
+  "wiz.disks.start_failed": {
+    "text": "Impossibile avviare",
+    "en": "Could not start"
+  },
+  "wiz.disks.start_fresh": {
+    "text": "Ricomincia da zero",
+    "en": "Start fresh instead"
+  },
+  "wiz.disks.title": {
+    "text": "2 · Archiviazione",
+    "en": "2 · Storage"
+  },
+  "wiz.disks.wipe_continue": {
+    "text": "Cancella entrambi e continua",
+    "en": "Wipe both and continue",
+    "reviewed": "claude-backtranslation 2026-10-11 #2d3ae121"
+  },
+  "wiz.disks.wipe_warning": {
+    "text": "⚠ Entrambi i dischi verranno cancellati.",
+    "en": "⚠ Both disks will be wiped.",
+    "reviewed": "claude-backtranslation 2026-10-11 #3541b25f"
+  },
+  "wiz.disks.wipe_warning_storage": {
+    "text": "⚠ Entrambi i dischi verranno cancellati, compreso l’archivio Off The Cloud esistente che contengono.",
+    "en": "⚠ Both disks will be wiped - including the existing Off The Cloud storage on them.",
+    "reviewed": "claude-backtranslation 2026-10-11 #5bcc6728"
+  },
+  "wiz.disks.with_database": {
+    "text": "con il suo database",
+    "en": "with its database"
+  },
+  "wiz.done.hint": {
+    "text": "Questo dispositivo ha completato la configurazione.",
+    "en": "This device has finished its setup."
+  },
+  "wiz.done.open": {
+    "text": "Apri {domain}",
+    "en": "Open {domain}"
+  },
+  "wiz.done.open_app": {
+    "text": "Apri l’app",
+    "en": "Open the app"
+  },
+  "wiz.done.title": {
+    "text": "Già configurato",
+    "en": "Already set up"
+  },
+  "wiz.error.account_chosen": {
+    "text": "è stato scelto un account",
+    "en": "an account was chosen"
+  },
+  "wiz.error.already_set_up": {
+    "text": "questo dispositivo è già configurato",
+    "en": "this device is already set up"
+  },
+  "wiz.error.choose_network": {
+    "text": "scegli una rete",
+    "en": "choose a network"
+  },
+  "wiz.error.claim_failed": {
+    "text": "impossibile riservare quel nome",
+    "en": "could not reserve that name"
+  },
+  "wiz.error.confirm_wipe": {
+    "text": "quei dischi contengono un array esistente: conferma di volerlo cancellare",
+    "en": "those disks hold an existing array - confirm wiping it",
+    "reviewed": "claude-backtranslation 2026-10-11 #9de34ffd"
+  },
+  "wiz.error.disks_choice": {
+    "text": "scegli due dischi per il RAID1, oppure nessuno",
+    "en": "choose two disks for RAID1, or none"
+  },
+  "wiz.error.invalid_setup_code": {
+    "text": "il codice di configurazione non è valido o è scaduto",
+    "en": "that setup code is not valid or has expired"
+  },
+  "wiz.error.login_required": {
+    "text": "prima accedi al tuo account Off The Cloud",
+    "en": "sign in to your Off The Cloud account first"
+  },
+  "wiz.error.name_check_failed": {
+    "text": "impossibile verificare quel nome in questo momento: riprova",
+    "en": "could not check that name right now - try again"
+  },
+  "wiz.error.name_first": {
+    "text": "prima scegli il nome del dispositivo",
+    "en": "choose the device's name first"
+  },
+  "wiz.error.name_rule": {
+    "text": "solo lettere minuscole, cifre e trattini",
+    "en": "lower-case letters, digits and hyphens only"
+  },
+  "wiz.error.needs_password": {
+    "text": "la rete {ssid} richiede una password",
+    "en": "{ssid} needs a password"
+  },
+  "wiz.error.no_array": {
+    "text": "nessun array esistente da recuperare",
+    "en": "no existing array to recover"
+  },
+  "wiz.error.not_found": {
+    "text": "non trovato",
+    "en": "not found"
+  },
+  "wiz.error.offline": {
+    "text": "nessuna connessione a internet: {bridge} non è raggiungibile",
+    "en": "no internet connection - {bridge} is not reachable"
+  },
+  "wiz.error.only_5ghz": {
+    "text": "La rete {ssid} è a 5 GHz: l’hotspot non può seguirla su quella banda. Configura invece il dispositivo con “Configura un nuovo dispositivo” dell’app (Bluetooth), oppure scegli una rete a 2,4 GHz.",
+    "en": "{ssid} is a 5 GHz network: the hotspot can't follow it there. Set the device up with the app's \"Set up a new device\" (Bluetooth) instead, or pick a 2.4 GHz network."
+  },
+  "wiz.error.password_too_short": {
+    "text": "la password deve avere almeno 8 caratteri",
+    "en": "the password must have 8 characters or more"
+  },
+  "wiz.error.password_unreadable": {
+    "text": "impossibile leggere la password: ricarica la pagina e riprova",
+    "en": "the password could not be read - reload the page and try again"
+  },
+  "wiz.error.picture_unusable": {
+    "text": "impossibile usare la foto del profilo: scegline un’altra",
+    "en": "the profile picture could not be used - choose another one"
+  },
+  "wiz.error.rebind_failed": {
+    "text": "impossibile aggiornare le impostazioni del dispositivo: {detail}",
+    "en": "could not update the device's settings: {detail}"
+  },
+  "wiz.error.setup_code_unavailable": {
+    "text": "impossibile verificare quel codice di configurazione in questo momento: riprova",
+    "en": "could not check that setup code right now - try again"
+  },
+  "wiz.error.signin_failed": {
+    "text": "impossibile accedere",
+    "en": "could not sign in"
+  },
+  "wiz.error.unknown_action": {
+    "text": "azione sconosciuta",
+    "en": "unknown action"
+  },
+  "wiz.error.unreachable": {
+    "text": "impossibile raggiungere {bridge}: {detail}",
+    "en": "could not reach {bridge}: {detail}"
+  },
+  "wiz.install.almost": {
+    "text": "5 · Ci siamo quasi",
+    "en": "5 · Almost there"
+  },
+  "wiz.install.app_box": {
+    "text": "L’installazione richiede circa 20 minuti. <b>Tieni aperta questa schermata</b> e il telefono vicino al dispositivo per seguirla qui; al termine l’app propone di connettersi a <b>{domain}</b>. L’hai chiusa? Apri di nuovo <b>Configura un nuovo dispositivo</b> e l’avanzamento ricompare.",
+    "en": "The installation takes about 20 minutes. <b>Keep this screen open</b> and the phone next to the device to follow it here; when it is done the app offers to connect to <b>{domain}</b>. Closed it? Open <b>Set up a new device</b> again and the progress comes back."
+  },
+  "wiz.install.browser_box": {
+    "text": "<b>Ora puoi chiudere questa finestra e disconnetterti.</b> L’installazione richiede circa 20 minuti. Al termine, apri <b>https://{domain}</b> da qualsiasi rete. Per controllare l’avanzamento nel frattempo, connettiti di nuovo alla rete Wi-Fi “Off The Cloud” e questa pagina ricompare.",
+    "en": "<b>You can close this window and disconnect now.</b> The installation takes about 20 minutes. When it is complete, open <b>https://{domain}</b> from any network. To check the progress meanwhile, connect to the \"Off The Cloud\" WiFi again and this page comes back."
+  },
+  "wiz.install.check_again": {
+    "text": "Controlla di nuovo",
+    "en": "Check again"
+  },
+  "wiz.install.checking_with": {
+    "text": "Verifica con {bridge}",
+    "en": "Checking with {bridge}"
+  },
+  "wiz.install.error.array_not_assembled": {
+    "text": "{disk} contiene ancora un array RAID che non è stato possibile assemblare: l’installazione si rifiuta di cancellarlo. Per ricominciare davvero da zero, esegui: mdadm --zero-superblock {disk}",
+    "en": "{disk} still holds a RAID array that could not be assembled - refusing to wipe it. To really start over, run: mdadm --zero-superblock {disk}",
+    "reviewed": "claude-backtranslation 2026-10-11 #bbb5e3b3"
+  },
+  "wiz.install.error.download": {
+    "text": "impossibile scaricare {url}",
+    "en": "could not download {url}"
+  },
+  "wiz.install.error.download_installer": {
+    "text": "impossibile scaricare il programma di installazione verificato",
+    "en": "could not download the verified installer"
+  },
+  "wiz.install.error.exit_code": {
+    "text": "il programma di installazione è terminato con il codice {code}",
+    "en": "the installer exited with code {code}"
+  },
+  "wiz.install.error.install_web": {
+    "text": "impossibile installare l’app web",
+    "en": "could not install the web app"
+  },
+  "wiz.install.error.log_failed": {
+    "text": "impossibile aprire il log di installazione: {detail}",
+    "en": "could not open the install log: {detail}"
+  },
+  "wiz.install.error.mariadb": {
+    "text": "mariadb non si è avviato entro 60 s: controlla “systemctl status mariadb”",
+    "en": "mariadb did not come up within 60s — check 'systemctl status mariadb'"
+  },
+  "wiz.install.error.owner_password": {
+    "text": "impossibile impostare la password del proprietario",
+    "en": "could not set the owner password"
+  },
+  "wiz.install.error.pinned_hash": {
+    "text": "{url} non corrisponde al suo hash prefissato",
+    "en": "{url} does not match its pinned hash",
+    "reviewed": "claude-backtranslation 2026-10-11 #df1e90c3"
+  },
+  "wiz.install.error.recovery_no_array": {
+    "text": "è stato richiesto il recupero, ma non è stato possibile assemblare alcun array RAID1 esistente da {disk1}/{disk2}: non è stato cancellato nulla. Controlla che entrambi i dischi siano collegati e riprova.",
+    "en": "recovery was asked for, but no existing RAID1 array could be assembled from {disk1}/{disk2} - nothing was wiped. Check both disks are connected and try again."
+  },
+  "wiz.install.error.stage_source": {
+    "text": "impossibile preparare i sorgenti",
+    "en": "could not stage the source"
+  },
+  "wiz.install.error.start_failed": {
+    "text": "impossibile avviare il programma di installazione: {detail}",
+    "en": "could not start the installer: {detail}"
+  },
+  "wiz.install.error.tag_list": {
+    "text": "impossibile decomprimere l’elenco delle etichette",
+    "en": "could not unpack the tag list"
+  },
+  "wiz.install.error.unpack_web": {
+    "text": "impossibile decomprimere l’app web",
+    "en": "could not unpack the web app"
+  },
+  "wiz.install.failed": {
+    "text": "Installazione non riuscita",
+    "en": "Failed"
+  },
+  "wiz.install.hint": {
+    "text": "Download e configurazione di tutto in corso. Su un Raspberry Pi richiede un po’ di tempo: tieni il dispositivo acceso.",
+    "en": "Downloading and setting everything up. This takes a while on a Raspberry Pi - keep the device powered."
+  },
+  "wiz.install.log": {
+    "text": "Log",
+    "en": "Log"
+  },
+  "wiz.install.offline_hint": {
+    "text": "L’installazione è terminata, ma {bridge} non vede <b>{domain}</b> connesso. Di solito basta aspettare ancora un momento.",
+    "en": "The install finished, but {bridge} doesn't see <b>{domain}</b> connected. Usually this just needs a moment more."
+  },
+  "wiz.install.offline_title": {
+    "text": "5 · Installato, ma non ancora raggiungibile",
+    "en": "5 · Installed, but not reachable yet"
+  },
+  "wiz.install.open_anyway": {
+    "text": "Aprilo comunque",
+    "en": "Open it anyway"
+  },
+  "wiz.install.starting": {
+    "text": "Avvio…",
+    "en": "Starting…"
+  },
+  "wiz.install.step.account": {
+    "text": "Account di servizio otc",
+    "en": "otc service account"
+  },
+  "wiz.install.step.build": {
+    "text": "Compilazione dell’eseguibile otc",
+    "en": "Build the otc binary"
+  },
+  "wiz.install.step.directories": {
+    "text": "Cartelle di runtime",
+    "en": "Runtime directories"
+  },
+  "wiz.install.step.face_models": {
+    "text": "Modelli di riconoscimento facciale (issue #52, ~10 MB in totale, scaricati una sola volta)",
+    "en": "Face recognition models (issue #52, ~10MB total, only downloaded once)"
+  },
+  "wiz.install.step.go": {
+    "text": "Go {version} ({arch})",
+    "en": "Go {version} ({arch})"
+  },
+  "wiz.install.step.installed": {
+    "text": "Installato",
+    "en": "Installed"
+  },
+  "wiz.install.step.onnx": {
+    "text": "ONNX Runtime {version} ({arch})",
+    "en": "ONNX Runtime {version} ({arch})"
+  },
+  "wiz.install.step.packages": {
+    "text": "apt-get update + pacchetti di base",
+    "en": "apt-get update + base packages"
+  },
+  "wiz.install.step.proto": {
+    "text": "Generazione di proto/generated (protoc + protoc-gen-go)",
+    "en": "Generate proto/generated (protoc + protoc-gen-go)"
+  },
+  "wiz.install.step.service": {
+    "text": "Database, configurazione e servizio systemd",
+    "en": "Database, config, and the systemd service"
+  },
+  "wiz.install.step.source": {
+    "text": "Sorgenti della release {version} (verificati)",
+    "en": "Source of release {version} (verified)"
+  },
+  "wiz.install.step.storage": {
+    "text": "Archiviazione RAID1 ({path})",
+    "en": "RAID1 storage ({path})"
+  },
+  "wiz.install.step.tagging_model": {
+    "text": "Modello di etichettatura RAM++ (~870 MB, scaricato una sola volta)",
+    "en": "RAM++ tagging model (~870MB, only downloaded once)"
+  },
+  "wiz.install.step.web": {
+    "text": "App web (release {version}, verificata)",
+    "en": "Web app (release {version}, verified)"
+  },
+  "wiz.install.title_installing": {
+    "text": "5 · Installazione",
+    "en": "5 · Installing"
+  },
+  "wiz.install.title_recovering": {
+    "text": "5 · Recupero",
+    "en": "5 · Recovering"
+  },
+  "wiz.install.waiting": {
+    "text": "Installato. In attesa che il dispositivo si connetta al bridge…",
+    "en": "Installed. Waiting for the device to connect to the bridge…"
+  },
+  "wiz.install.waiting_as": {
+    "text": "Installato. In attesa che il dispositivo si connetta al bridge con il nome <b>{domain}</b>…",
+    "en": "Installed. Waiting for the device to connect to the bridge as <b>{domain}</b>…"
+  },
+  "wiz.name.available": {
+    "text": "{domain} è disponibile",
+    "en": "{domain} is available"
+  },
+  "wiz.name.check_failed": {
+    "text": "Impossibile verificare quel nome",
+    "en": "Could not check that name"
+  },
+  "wiz.name.hint": {
+    "text": "Diventa il suo indirizzo su internet, per te e per gli amici. Lettere, cifre e trattini.",
+    "en": "This becomes its address on the internet, for you and for friends. Letters, digits and hyphens."
+  },
+  "wiz.name.install": {
+    "text": "Installa",
+    "en": "Install"
+  },
+  "wiz.name.install_failed": {
+    "text": "Impossibile avviare l’installazione",
+    "en": "Could not start the install"
+  },
+  "wiz.name.label": {
+    "text": "Nome del dispositivo",
+    "en": "Device name"
+  },
+  "wiz.name.local_hint": {
+    "text": "Hai scelto di continuare senza account, quindi il dispositivo non ha un indirizzo su internet. Sulla tua rete domestica risponde come <b>otc.local</b>.",
+    "en": "You chose to continue without an account, so the device gets no internet address. On your home network it answers as <b>otc.local</b>."
+  },
+  "wiz.name.local_title": {
+    "text": "4 · Nessun bridge",
+    "en": "4 · No bridge"
+  },
+  "wiz.name.placeholder": {
+    "text": "es. casa",
+    "en": "e.g. casa"
+  },
+  "wiz.name.rebind_hint": {
+    "text": "Il dispositivo è tornato, ma non raggiunge il bridge con il nome <b>{domain}</b>: quel nome potrebbe essere stato rilasciato. Scegli un nome per registrarlo di nuovo; tutto il resto è già stato recuperato.",
+    "en": "The device is back, but it isn't reaching the bridge as <b>{domain}</b> - that name may have been released. Choose a name to register it again; everything else is already recovered."
+  },
+  "wiz.name.rebind_hint_old": {
+    "text": "Il dispositivo è tornato, ma non raggiunge il bridge con <b>il suo vecchio nome</b>: quel nome potrebbe essere stato rilasciato. Scegli un nome per registrarlo di nuovo; tutto il resto è già stato recuperato.",
+    "en": "The device is back, but it isn't reaching the bridge as <b>its old name</b> - that name may have been released. Choose a name to register it again; everything else is already recovered."
+  },
+  "wiz.name.rebind_title": {
+    "text": "Dai un nome al dispositivo recuperato",
+    "en": "Name your recovered device"
+  },
+  "wiz.name.register": {
+    "text": "Registra",
+    "en": "Register"
+  },
+  "wiz.name.reserve_failed": {
+    "text": "Impossibile riservare quel nome",
+    "en": "Could not reserve that name"
+  },
+  "wiz.name.reserving": {
+    "text": "Prenotazione…",
+    "en": "Reserving…"
+  },
+  "wiz.name.someone_else": {
+    "text": "{domain} appartiene a qualcun altro: scegli un altro nome",
+    "en": "{domain} belongs to someone else - choose another name"
+  },
+  "wiz.name.taken": {
+    "text": "{domain} è già in uso. Se è di uno dei tuoi dispositivi, continuando togli l’indirizzo a quel dispositivo e lo assegni a questo.",
+    "en": "{domain} is already taken. If it is one of your devices, continuing removes that device from this address and gives it to this one.",
+    "reviewed": "claude-backtranslation 2026-10-11 #a76c8b41"
+  },
+  "wiz.name.title": {
+    "text": "4 · Dai un nome al tuo dispositivo",
+    "en": "4 · Name your device"
+  },
+  "wiz.name.yours_offline": {
+    "text": "{domain} appartiene a uno dei tuoi dispositivi (al momento offline). Se continui, l’indirizzo viene tolto a quel dispositivo e passa a questo.",
+    "en": "{domain} belongs to one of your devices (offline now). If you continue, that device is removed from this address and this one takes it.",
+    "reviewed": "claude-backtranslation 2026-10-11 #9deaf4cb"
+  },
+  "wiz.name.yours_online": {
+    "text": "{domain} è usato da uno dei tuoi dispositivi, online in questo momento. Se continui, l’indirizzo viene tolto a quel dispositivo (che continua a funzionare a casa) e passa a questo.",
+    "en": "{domain} is in use by one of your devices, online right now. If you continue, that device is removed from this address (it keeps working at home) and this one takes it.",
+    "reviewed": "claude-backtranslation 2026-10-11 #3f492d72"
+  },
+  "wiz.owner.hint": {
+    "text": "Almeno 8 caratteri. Crittografa tutto ciò che è sul dispositivo e non può essere recuperata: conservala in un posto sicuro. La userai per accedere al dispositivo.",
+    "en": "8 characters or more. It encrypts everything on the device and can't be recovered - keep it somewhere safe. You sign in to the device with it.",
+    "reviewed": "claude-backtranslation 2026-10-11 #5830bd94"
+  },
+  "wiz.owner.mismatch": {
+    "text": "Le due password non corrispondono.",
+    "en": "The two passwords don't match."
+  },
+  "wiz.owner.password_label": {
+    "text": "Password del dispositivo",
+    "en": "Device password"
+  },
+  "wiz.owner.repeat_label": {
+    "text": "Ripeti la password",
+    "en": "Repeat the password"
+  },
+  "wiz.owner.too_short": {
+    "text": "Almeno 8 caratteri.",
+    "en": "8 characters or more."
+  },
+  "wiz.page.blink": {
+    "text": "Fai lampeggiare la luce",
+    "en": "Blink its light"
+  },
+  "wiz.page.blinking": {
+    "text": "Lampeggia: cerca la luce verde intermittente",
+    "en": "Blinking - look for the flashing green light"
+  },
+  "wiz.page.device_id": {
+    "text": "Questo è il dispositivo <b>{id}</b>.",
+    "en": "This is device <b>{id}</b>."
+  },
+  "wiz.page.lead": {
+    "text": "Configuriamo il tuo dispositivo.",
+    "en": "Let's set up your device."
+  },
+  "wiz.page.title": {
+    "text": "Configurazione di Off The Cloud",
+    "en": "Off The Cloud setup"
+  },
+  "wiz.profile.about_label": {
+    "text": "Su di te",
+    "en": "About you"
+  },
+  "wiz.profile.about_placeholder": {
+    "text": "Una riga su di te",
+    "en": "A line about you"
+  },
+  "wiz.profile.drag_hint": {
+    "text": "Trascina la foto per centrare il tuo viso.",
+    "en": "Drag the photo to centre your face."
+  },
+  "wiz.profile.faces_hint": {
+    "text": "Raggruppa le stesse persone nelle tue foto, così puoi cercare per persona. Funziona solo su questo dispositivo, ma analizza tutte le persone presenti nelle tue foto, non solo te. Disattivato se non selezioni la casella.",
+    "en": "Groups the same people across your photos so you can search by person. It runs only on this device, but it looks at everyone in your photos, not just you. Off unless you tick it.",
+    "reviewed": "claude-backtranslation 2026-10-11 #bd9c323a"
+  },
+  "wiz.profile.faces_label": {
+    "text": "Riconosci i volti nelle mie foto",
+    "en": "Recognise faces in my photos",
+    "reviewed": "claude-backtranslation 2026-10-11 #c7e4a1c5"
+  },
+  "wiz.profile.name_label": {
+    "text": "Il tuo nome",
+    "en": "Your name"
+  },
+  "wiz.profile.name_placeholder": {
+    "text": "Come ti vedono i tuoi amici",
+    "en": "How your friends see you"
+  },
+  "wiz.profile.optional": {
+    "text": "(facoltativo)",
+    "en": "(optional)"
+  },
+  "wiz.profile.optional_hint": {
+    "text": "È tutto facoltativo: puoi impostarlo in seguito in Impostazioni.",
+    "en": "All of this is optional - you can set it later in Settings."
+  },
+  "wiz.profile.picture_label": {
+    "text": "Foto del profilo",
+    "en": "Profile picture"
+  },
+  "wiz.profile.title": {
+    "text": "Il tuo profilo",
+    "en": "Your profile"
+  },
+  "wiz.profile.zoom": {
+    "text": "Zoom",
+    "en": "Zoom"
+  },
+  "wiz.ready.back": {
+    "text": "Il tuo dispositivo è tornato, con tutto ciò che aveva.",
+    "en": "Your device is back, with everything it had."
+  },
+  "wiz.ready.choose_password": {
+    "text": "Scegli la sua password qui sotto: l’app lo aprirà subito.",
+    "en": "Choose its password below - the app then opens it straight away."
+  },
+  "wiz.ready.enter_password": {
+    "text": "Inserisci la sua password qui sotto per aprirlo nell’app.",
+    "en": "Enter its password below to open it in the app."
+  },
+  "wiz.ready.from_now": {
+    "text": "D’ora in poi si trova all’indirizzo",
+    "en": "From now on it lives at"
+  },
+  "wiz.ready.hotspot_off": {
+    "text": "L’hotspot “Off The Cloud” si spegne tra un minuto.",
+    "en": "The \"Off The Cloud\" hotspot switches off in a minute."
+  },
+  "wiz.ready.installed": {
+    "text": "È tutto installato.",
+    "en": "Everything is installed."
+  },
+  "wiz.ready.lives_at": {
+    "text": "Si trova all’indirizzo <b>{domain}</b>.",
+    "en": "It lives at <b>{domain}</b>."
+  },
+  "wiz.ready.local_hint": {
+    "text": "È tutto installato. Sulla tua rete domestica il dispositivo risponde all’indirizzo",
+    "en": "Everything is installed. On your home network the device answers at"
+  },
+  "wiz.ready.local_open": {
+    "text": "Apri quell’indirizzo da qualsiasi dispositivo di casa: ti chiederà prima di scegliere la password del proprietario. Vuoi poterlo raggiungere da ovunque in seguito? Crea un account su {bridge} ed esegui di nuovo la configurazione.",
+    "en": "Open that address from any device at home - it will ask you to choose the owner password first. Want it reachable from anywhere later? Create an account at {bridge} and run the setup again."
+  },
+  "wiz.ready.open_address": {
+    "text": "Apri quell’indirizzo nel browser e ricordalo: è così che raggiungi il tuo dispositivo da qualsiasi luogo.",
+    "en": "Open that address in your browser - remember it, it is how you reach your device from anywhere."
+  },
+  "wiz.ready.owner_password": {
+    "text": "Ti chiederà prima di scegliere la password del proprietario.",
+    "en": "It will ask you to choose the owner password first."
+  },
+  "wiz.ready.title": {
+    "text": "Pronto 🎉",
+    "en": "Ready 🎉"
+  },
+  "wiz.wifi.bands_signal": {
+    "text": "{bands} GHz · {signal}%",
+    "en": "{bands} GHz · {signal}%"
+  },
+  "wiz.wifi.choose_app": {
+    "text": "Scegli la rete che il dispositivo deve usare: 2,4 o 5 GHz.",
+    "en": "Choose the network the device should use - 2.4 or 5 GHz."
+  },
+  "wiz.wifi.choose_hotspot": {
+    "text": "Scegli la rete che il dispositivo deve usare. Tramite questo hotspot si connette a 2,4 GHz e passa a 5 GHz dopo la configurazione; una rete solo a 5 GHz richiede “Configura un nuovo dispositivo” dell’app (Bluetooth).",
+    "en": "Choose the network the device should use. Over this hotspot it joins on 2.4 GHz and moves to 5 GHz once set up; a network that is only 5 GHz needs the app's \"Set up a new device\" (Bluetooth)."
+  },
+  "wiz.wifi.enter_password": {
+    "text": "Inserisci la password della rete {ssid}",
+    "en": "Enter the password for {ssid}"
+  },
+  "wiz.wifi.failed": {
+    "text": "Operazione non riuscita",
+    "en": "Failed"
+  },
+  "wiz.wifi.hotspot_back": {
+    "text": "L’hotspot è tornato: riconnettiti.",
+    "en": "The hotspot is back - reconnect to it."
+  },
+  "wiz.wifi.join_failed": {
+    "text": "Impossibile connettersi a quella rete: controlla la password.",
+    "en": "Could not join that network - check the password."
+  },
+  "wiz.wifi.join_rejected": {
+    "text": "Impossibile connettersi a quella rete: controlla la password e riprova.",
+    "en": "Could not join that network - check the password and try again."
+  },
+  "wiz.wifi.joining_title": {
+    "text": "1 · Connessione alla rete {ssid}",
+    "en": "1 · Joining {ssid}"
+  },
+  "wiz.wifi.joining_wait": {
+    "text": "Connessione e attesa di internet: fino a un minuto.",
+    "en": "Connecting and waiting for the internet - up to a minute."
+  },
+  "wiz.wifi.keep_open": {
+    "text": "Tieni aperta questa pagina: proseguirà da sola quando il dispositivo sarà online.",
+    "en": "Keep this page open - it continues on its own once the device is online."
+  },
+  "wiz.wifi.none": {
+    "text": "Ancora nessuna rete: tocca “Cerca di nuovo”.",
+    "en": "No networks yet - tap Scan."
+  },
+  "wiz.wifi.online": {
+    "text": "Il dispositivo è online. Puoi continuare o connetterti a un’altra rete.",
+    "en": "The device is online. You can continue, or join a different network."
+  },
+  "wiz.wifi.online_via": {
+    "text": "Il dispositivo è online tramite <b>{ssid}</b>. Puoi continuare o connetterti a un’altra rete.",
+    "en": "The device is online via <b>{ssid}</b>. You can continue, or join a different network."
+  },
+  "wiz.wifi.only_5ghz": {
+    "text": "Solo 5 GHz: usa l’app per connetterti",
+    "en": "5 GHz only - use the app to join it"
+  },
+  "wiz.wifi.password_for": {
+    "text": "Password della rete {ssid}",
+    "en": "Password for {ssid}"
+  },
+  "wiz.wifi.pick_first": {
+    "text": "Prima scegli una rete",
+    "en": "Pick a network first"
+  },
+  "wiz.wifi.reconnect": {
+    "text": "<b>Se la connessione si interrompe, riconnettiti alla rete Wi-Fi “Off The Cloud”.</b> L’hotspot si riavvia per qualche secondo per passare al canale della tua rete; la maggior parte dei telefoni si riconnette da sola, ma se il tuo non lo fa, scegli di nuovo “Off The Cloud” nelle impostazioni Wi-Fi e torna a questa pagina.",
+    "en": "<b>If you get disconnected, reconnect to the \"Off The Cloud\" WiFi.</b> The hotspot restarts for a few seconds to switch to your network's channel; most phones rejoin it by themselves, but if yours doesn't, pick \"Off The Cloud\" again in your WiFi settings and come back to this page."
+  },
+  "wiz.wifi.scan_again": {
+    "text": "Cerca di nuovo",
+    "en": "Scan again"
+  },
+  "wiz.wifi.scanning": {
+    "text": "Ricerca…",
+    "en": "Scanning…"
+  },
+  "wiz.wifi.title": {
+    "text": "1 · Connettiti alla tua rete Wi-Fi",
+    "en": "1 · Connect to your WiFi"
+  },
+  "wiz.wifi.wrong_password": {
+    "text": "Se la password è errata, qui compare un errore: basta riprovare.",
+    "en": "A wrong password shows up here as an error; just try again."
+  }
+}

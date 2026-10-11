@@ -1,0 +1,569 @@
+{
+  "web.shell.account.label": {
+    "text": "Konto",
+    "en": "Account"
+  },
+  "web.shell.account.sign_out": {
+    "text": "Abmelden",
+    "en": "Sign out"
+  },
+  "web.shell.account.signing_out": {
+    "text": "Wird abgemeldet…",
+    "en": "Signing out…"
+  },
+  "web.shell.connection.closed": {
+    "text": "Verbindung zum Gerät geschlossen",
+    "en": "WS connection closed"
+  },
+  "web.shell.connection.no_answer": {
+    "text": "Das Gerät hat nicht geantwortet.",
+    "en": "The device did not answer."
+  },
+  "web.shell.connection.no_key": {
+    "text": "Der öffentliche Schlüssel der Verbindung konnte nicht abgerufen werden",
+    "en": "Unable to fetch the connection's public key",
+    "reviewed": "claude-backtranslation 2026-10-11 #e31d2519"
+  },
+  "web.shell.connection.no_push_key": {
+    "text": "Auf dem Gerät ist kein öffentlicher VAPID-Schlüssel eingerichtet",
+    "en": "Device has no VAPID public key configured"
+  },
+  "web.shell.connection.not_connected": {
+    "text": "Keine Verbindung zum Gerät",
+    "en": "WS not connected"
+  },
+  "web.shell.connection.signed_in_meanwhile": {
+    "text": "Inzwischen angemeldet.",
+    "en": "Signed in meanwhile."
+  },
+  "web.shell.connection.too_many": {
+    "text": "Zu viele Versuche. Versuche es in einer Minute erneut.",
+    "en": "Too many attempts. Try again in a minute.",
+    "reviewed": "claude-backtranslation 2026-10-11 #2bc6ca87"
+  },
+  "web.shell.download.dismiss": {
+    "text": "Schließen",
+    "en": "Dismiss"
+  },
+  "web.shell.download.downloading": {
+    "text": "Wird heruntergeladen…",
+    "en": "Downloading…"
+  },
+  "web.shell.download.downloading_sr": {
+    "text": "{name} wird heruntergeladen",
+    "en": "Downloading {name}"
+  },
+  "web.shell.download.failed": {
+    "text": "{name} konnte nicht heruntergeladen werden. Prüfe die Verbindung zu deinem Gerät und versuche es erneut.",
+    "en": "Couldn't download {name}. Check the connection to your device and try again."
+  },
+  "web.shell.download.original": {
+    "text": "Original herunterladen",
+    "en": "Download the original"
+  },
+  "web.shell.download.preparing": {
+    "text": "Wird vorbereitet…",
+    "en": "Preparing…"
+  },
+  "web.shell.download.progress": {
+    "text": "{percent} geladen",
+    "en": "Downloading {percent}"
+  },
+  "web.shell.download.started": {
+    "text": "Gestartet",
+    "en": "Started"
+  },
+  "web.shell.download.started_sr": {
+    "text": "{name}: Download gestartet",
+    "en": "{name}: download started"
+  },
+  "web.shell.file_icon.generic": {
+    "text": "DATEI",
+    "en": "FILE"
+  },
+  "web.shell.file_icon.label": {
+    "text": "{type}-Datei",
+    "en": "{type} file"
+  },
+  "web.shell.link.empty": {
+    "text": "Das Gerät hat eine leere Datei zurückgegeben.",
+    "en": "The device returned an empty file."
+  },
+  "web.shell.link.failed": {
+    "text": "Dieser Link konnte nicht heruntergeladen werden.",
+    "en": "Could not download that link."
+  },
+  "web.shell.link.invalid": {
+    "text": "Dieser Link ist nicht mehr gültig.",
+    "en": "That link is no longer valid."
+  },
+  "web.shell.link.malformed": {
+    "text": "Dieser Download-Link ist fehlerhaft.",
+    "en": "That download link is malformed."
+  },
+  "web.shell.link.preparing": {
+    "text": "Dein Download wird vorbereitet…",
+    "en": "Preparing your download…"
+  },
+  "web.shell.link.progress": {
+    "text": "Wird heruntergeladen… {percent}",
+    "en": "Downloading… {percent}"
+  },
+  "web.shell.link.stopped": {
+    "text": "Das Gerät hat aufgehört, die Datei zu senden.",
+    "en": "The device stopped sending the file."
+  },
+  "web.shell.lowres.description": {
+    "text": "Niedrige Auflösung – das vollständige Foto wird geladen",
+    "en": "Low resolution - the full photo is loading"
+  },
+  "web.shell.lowres.label": {
+    "text": "Vorschau",
+    "en": "Low res"
+  },
+  "web.shell.menu.alerts": {
+    "text": "Hinweise",
+    "en": "Alerts"
+  },
+  "web.shell.menu.collections": {
+    "text": "Sammlungen",
+    "en": "Collections"
+  },
+  "web.shell.menu.device": {
+    "text": "Gerät",
+    "en": "Device"
+  },
+  "web.shell.menu.files": {
+    "text": "Dateien",
+    "en": "Files"
+  },
+  "web.shell.menu.friends": {
+    "text": "Freunde",
+    "en": "Friends"
+  },
+  "web.shell.menu.images": {
+    "text": "Bilder",
+    "en": "Images"
+  },
+  "web.shell.menu.people": {
+    "text": "Personen",
+    "en": "People"
+  },
+  "web.shell.menu.privacy": {
+    "text": "Datenschutz",
+    "en": "Privacy",
+    "reviewed": "claude-backtranslation 2026-10-11 #e710294a"
+  },
+  "web.shell.menu.sections": {
+    "text": "Bereiche",
+    "en": "Sections"
+  },
+  "web.shell.menu.settings": {
+    "text": "Einstellungen",
+    "en": "Settings"
+  },
+  "web.shell.menu.sharing": {
+    "text": "Teilen",
+    "en": "Sharing"
+  },
+  "web.shell.menu.social": {
+    "text": "Social",
+    "en": "Social"
+  },
+  "web.shell.menu.terms": {
+    "text": "Bedingungen",
+    "en": "Terms",
+    "reviewed": "claude-backtranslation 2026-10-11 #5c56f131"
+  },
+  "web.shell.menu.unread": {
+    "text": {
+      "one": "{label}, {count} ungelesen",
+      "other": "{label}, {count} ungelesen"
+    },
+    "en": {
+      "one": "{label}, {count} unread",
+      "other": "{label}, {count} unread"
+    }
+  },
+  "web.shell.person.unnamed": {
+    "text": "Ohne Namen",
+    "en": "Unnamed"
+  },
+  "web.shell.scrubber.label": {
+    "text": "Zu einem Datum springen",
+    "en": "Jump to a date"
+  },
+  "web.shell.scrubber.month": {
+    "text": "{month} {year}",
+    "en": "{month} {year}"
+  },
+  "web.shell.scrubber.no_date": {
+    "text": "Ohne Datum",
+    "en": "No date"
+  },
+  "web.shell.search.a_person": {
+    "text": "eine Person",
+    "en": "a person"
+  },
+  "web.shell.search.already": {
+    "text": "„{text}“ ist bereits in der Suche.",
+    "en": "“{text}” is already in the search."
+  },
+  "web.shell.search.clear": {
+    "text": "Suche löschen",
+    "en": "Clear search"
+  },
+  "web.shell.search.close": {
+    "text": "Suche schließen",
+    "en": "Close search"
+  },
+  "web.shell.search.close_collection": {
+    "text": "Sammlung „{name}“ schließen",
+    "en": "Close the collection {name}"
+  },
+  "web.shell.search.collection": {
+    "text": "die Sammlung „{name}“",
+    "en": "the collection {name}"
+  },
+  "web.shell.search.documents": {
+    "text": "Dokumente nach „<mark>{text}</mark>“ durchsuchen",
+    "en": "Search documents for “<mark>{text}</mark>”"
+  },
+  "web.shell.search.field": {
+    "text": "Fotos und Dateien durchsuchen",
+    "en": "Search photos and files"
+  },
+  "web.shell.search.file_in": {
+    "text": "{name}, Datei im Ordner {folder}",
+    "en": "{name}, file in {folder}"
+  },
+  "web.shell.search.files": {
+    "text": "Dateien",
+    "en": "Files"
+  },
+  "web.shell.search.folder_in": {
+    "text": "{name}, Ordner in {folder}",
+    "en": "{name}, folder in {folder}"
+  },
+  "web.shell.search.no_matches": {
+    "text": "Keine Treffer",
+    "en": "No matches"
+  },
+  "web.shell.search.nothing": {
+    "text": "Keine Treffer für „{text}“.",
+    "en": "Nothing matches “{text}”."
+  },
+  "web.shell.search.people": {
+    "text": "Personen",
+    "en": "People"
+  },
+  "web.shell.search.person": {
+    "text": "Person",
+    "en": "Person"
+  },
+  "web.shell.search.photo_count": {
+    "text": {
+      "one": "{count} Foto",
+      "other": "{count} Fotos"
+    },
+    "en": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    }
+  },
+  "web.shell.search.photo_in": {
+    "text": "{name}, Foto im Ordner {folder}",
+    "en": "{name}, photo in {folder}"
+  },
+  "web.shell.search.remove": {
+    "text": "{name} entfernen",
+    "en": "Remove {name}"
+  },
+  "web.shell.search.remove_person": {
+    "text": "Diese Person entfernen",
+    "en": "Remove this person"
+  },
+  "web.shell.search.suggestion_count": {
+    "text": {
+      "one": "{count} Vorschlag",
+      "other": "{count} Vorschläge"
+    },
+    "en": {
+      "one": "{count} suggestion",
+      "other": "{count} suggestions"
+    }
+  },
+  "web.shell.search.suggestions": {
+    "text": "Vorschläge",
+    "en": "Suggestions"
+  },
+  "web.shell.search.summary": {
+    "text": "In der Suche: {items}",
+    "en": "In the search: {items}"
+  },
+  "web.shell.search.things": {
+    "text": "Dinge",
+    "en": "Things"
+  },
+  "web.shell.search.video_in": {
+    "text": "{name}, Video im Ordner {folder}",
+    "en": "{name}, video in {folder}"
+  },
+  "web.shell.session.ended": {
+    "text": "Deine Sitzung ist beendet – melde dich erneut an, um fortzufahren.",
+    "en": "Your session has ended — sign in again to continue."
+  },
+  "web.shell.session.signing_in": {
+    "text": "Wird angemeldet…",
+    "en": "Signing in…"
+  },
+  "web.shell.setup.choose_disks": {
+    "text": "Wähle bis zu 2 Laufwerke. Wähle 2, um sie zu spiegeln (RAID1, empfohlen – deine Dateien überstehen den Ausfall eines Laufwerks). Wähle 1, um es allein zu verwenden, ohne Redundanz. Wähle keines, um stattdessen das Startlaufwerk zu verwenden.",
+    "en": "Choose up to 2 disks. Pick 2 to mirror them (RAID1, recommended — your files survive one disk failing). Pick 1 to use it alone, with no redundancy. Pick none to use the boot disk instead.",
+    "reviewed": "claude-backtranslation 2026-10-11 #daf53195"
+  },
+  "web.shell.setup.confirm_password": {
+    "text": "Passwort bestätigen",
+    "en": "Confirm password"
+  },
+  "web.shell.setup.disk": {
+    "text": "{path} – {size}",
+    "en": "{path} — {size}"
+  },
+  "web.shell.setup.disk_model": {
+    "text": "{path} – {size} ({model})",
+    "en": "{path} — {size} ({model})"
+  },
+  "web.shell.setup.failed": {
+    "text": "Das Gerät konnte nicht eingerichtet werden – bitte versuche es erneut.",
+    "en": "Could not set up the device — please try again."
+  },
+  "web.shell.setup.finish": {
+    "text": "Einrichtung abschließen",
+    "en": "Finish setup"
+  },
+  "web.shell.setup.intro_account": {
+    "text": "Dieses Konto ist noch nicht eingerichtet. Wähle deinen Namen und ein Passwort – dieses Passwort schützt deine Dateien und dein soziales Profil, bewahre es also an einem sicheren Ort auf.",
+    "en": "This account isn't set up yet. Choose your name and a password — this password protects your files and social profile, so keep it somewhere safe.",
+    "reviewed": "claude-backtranslation 2026-10-11 #349787f4"
+  },
+  "web.shell.setup.intro_device": {
+    "text": "Dieses Gerät ist noch nicht eingerichtet. Wähle einen Namen für den Besitzer und ein Passwort – dieses Passwort schützt deine Dateien und dein soziales Profil, bewahre es also an einem sicheren Ort auf.",
+    "en": "This device isn't set up yet. Choose an owner name and a password — this password protects your files and social profile, so keep it somewhere safe.",
+    "reviewed": "claude-backtranslation 2026-10-11 #85787b7d"
+  },
+  "web.shell.setup.joining": {
+    "text": "Verbindung mit „{ssid}“ wird hergestellt… Falls du dieses Gerät über sein eigenes Einrichtungsnetz erreicht hast, verbinde dich wieder mit deinem normalen WLAN und finde es dort.",
+    "en": "Joining \"{ssid}\"… if this device was reached over its own setup network, reconnect to your normal WiFi and find it there."
+  },
+  "web.shell.setup.name": {
+    "text": "Dein Name",
+    "en": "Your name"
+  },
+  "web.shell.setup.name_example": {
+    "text": "zum Beispiel Lena",
+    "en": "e.g. Alex"
+  },
+  "web.shell.setup.next_storage": {
+    "text": "Weiter: Speicher",
+    "en": "Next: Storage"
+  },
+  "web.shell.setup.next_wifi": {
+    "text": "Weiter: WLAN",
+    "en": "Next: WiFi"
+  },
+  "web.shell.setup.no_disks": {
+    "text": "Keine weiteren Laufwerke gefunden – deine Dateien werden auf dem Startlaufwerk gespeichert.",
+    "en": "No extra disks were detected — your files will be stored on the boot disk."
+  },
+  "web.shell.setup.no_networks": {
+    "text": "Keine Netzwerke gefunden – stelle das Gerät näher an deinen Router oder überspringe diesen Schritt vorerst.",
+    "en": "No networks found — move the device closer to your router, or skip for now."
+  },
+  "web.shell.setup.password_mismatch": {
+    "text": "Die Passwörter stimmen nicht überein.",
+    "en": "Passwords don't match."
+  },
+  "web.shell.setup.password_short": {
+    "text": "Wähle ein Passwort mit mindestens 8 Zeichen.",
+    "en": "Choose a password with at least 8 characters.",
+    "reviewed": "claude-backtranslation 2026-10-11 #262a0f82"
+  },
+  "web.shell.setup.saving": {
+    "text": "Wird gespeichert…",
+    "en": "Saving…"
+  },
+  "web.shell.setup.setting_up": {
+    "text": "Wird eingerichtet…",
+    "en": "Setting up…"
+  },
+  "web.shell.setup.skip": {
+    "text": "Überspringen – ich bin schon verbunden",
+    "en": "Skip — I'm already connected"
+  },
+  "web.shell.setup.storage": {
+    "text": "Speicher",
+    "en": "Storage"
+  },
+  "web.shell.setup.storage_failed": {
+    "text": "Die Speicherkonfiguration konnte nicht gespeichert werden.",
+    "en": "Could not save storage configuration."
+  },
+  "web.shell.setup.welcome": {
+    "text": "Willkommen bei Off The Cloud",
+    "en": "Welcome to Off The Cloud"
+  },
+  "web.shell.setup.wifi": {
+    "text": "WLAN",
+    "en": "WiFi"
+  },
+  "web.shell.setup.wifi_failed": {
+    "text": "Die WLAN-Anfrage konnte nicht gespeichert werden.",
+    "en": "Could not save the WiFi request."
+  },
+  "web.shell.setup.wifi_intro": {
+    "text": "Wenn du die Einrichtung über das temporäre Netzwerk „Off The Cloud“ dieses Geräts machst, wähle unten dein eigentliches WLAN. Schon auf anderem Weg verbunden (Ethernet oder ein früher eingerichtetes WLAN)? Dann überspring diesen Schritt einfach.",
+    "en": "If you're set up over this device's own temporary \"Off The Cloud\" network, pick your real WiFi below. Already connected some other way (ethernet, or WiFi set up earlier)? Just skip this."
+  },
+  "web.shell.setup.wifi_network": {
+    "text": "{ssid} ({signal})",
+    "en": "{ssid} ({signal})"
+  },
+  "web.shell.signin.close": {
+    "text": "Anmeldung schließen",
+    "en": "Close sign in"
+  },
+  "web.shell.signin.interrupted": {
+    "text": "Dein Gerät hat nicht mehr geantwortet, deshalb wurdest du nicht angemeldet. Es ist wieder da – versuche es jetzt erneut.",
+    "en": "Your device stopped answering, so you weren't signed in. Try again now that it's back."
+  },
+  "web.shell.signin.offline": {
+    "text": "Du bist offline. Prüfe deine Verbindung und versuche es erneut.",
+    "en": "You're offline. Check your connection and try again."
+  },
+  "web.shell.signin.submit": {
+    "text": "Anmelden",
+    "en": "Sign In"
+  },
+  "web.shell.signin.unreachable": {
+    "text": "Dein Gerät ist gerade nicht erreichbar. Versuche es gleich noch einmal.",
+    "en": "Can't reach your device right now. Try again in a moment."
+  },
+  "web.shell.signin.wrong": {
+    "text": "Falsches Passwort. Versuche es erneut.",
+    "en": "Wrong password. Try again."
+  },
+  "web.shell.storage.attention": {
+    "text": "Erfordert Aufmerksamkeit",
+    "en": "Needs attention"
+  },
+  "web.shell.storage.cpu": {
+    "text": "CPU",
+    "en": "CPU"
+  },
+  "web.shell.storage.disks": {
+    "text": "Laufwerke",
+    "en": "Disks"
+  },
+  "web.shell.storage.free": {
+    "text": "Frei",
+    "en": "Free"
+  },
+  "web.shell.storage.gauge": {
+    "text": "Speicher. Details anzeigen",
+    "en": "Storage. Show details"
+  },
+  "web.shell.storage.gauge_used": {
+    "text": "Speicher, {percent} belegt. Details anzeigen",
+    "en": "Storage, {percent} used. Show details"
+  },
+  "web.shell.storage.gauge_used_attention": {
+    "text": "Speicher, {percent} belegt, erfordert Aufmerksamkeit. Details anzeigen",
+    "en": "Storage, {percent} used, needs attention. Show details"
+  },
+  "web.shell.storage.memory": {
+    "text": "RAM",
+    "en": "Memory"
+  },
+  "web.shell.storage.meter": {
+    "text": "Belegter Speicher",
+    "en": "Storage used"
+  },
+  "web.shell.storage.mirror_degraded": {
+    "text": "Spiegelung beeinträchtigt",
+    "en": "Mirror degraded"
+  },
+  "web.shell.storage.mirror_in_sync": {
+    "text": "Spiegelung synchron",
+    "en": "Mirror in sync"
+  },
+  "web.shell.storage.mirror_none": {
+    "text": "Keine Spiegelung",
+    "en": "No mirror"
+  },
+  "web.shell.storage.mirror_syncing": {
+    "text": "Spiegelung läuft ({percent})",
+    "en": "Mirror syncing ({percent})"
+  },
+  "web.shell.storage.mirror_unknown": {
+    "text": "Zustand der Spiegelung unbekannt",
+    "en": "Mirror state unknown"
+  },
+  "web.shell.storage.of": {
+    "text": "{used} von {total}",
+    "en": "{used} of {total}"
+  },
+  "web.shell.storage.reading": {
+    "text": "Wird gelesen…",
+    "en": "Reading…"
+  },
+  "web.shell.storage.system_card": {
+    "text": "Systemkarte",
+    "en": "System card"
+  },
+  "web.shell.storage.tip": {
+    "text": "Speicher: {details}",
+    "en": "Storage: {details}"
+  },
+  "web.shell.storage.title": {
+    "text": "Speicher",
+    "en": "Storage"
+  },
+  "web.shell.storage.unavailable": {
+    "text": "Speicher gerade nicht verfügbar",
+    "en": "Storage unavailable right now"
+  },
+  "web.shell.storage.used": {
+    "text": "{used} von {total} belegt",
+    "en": "{used} of {total} used"
+  },
+  "web.shell.top.hide_menu": {
+    "text": "Menü ausblenden",
+    "en": "Hide menu"
+  },
+  "web.shell.top.new_post": {
+    "text": "Neuer Beitrag",
+    "en": "New post"
+  },
+  "web.shell.top.show_menu": {
+    "text": "Menü einblenden",
+    "en": "Show menu"
+  },
+  "web.shell.unreachable.disabled": {
+    "text": "Dieses Konto wurde deaktiviert",
+    "en": "This account has been disabled"
+  },
+  "web.shell.unreachable.note": {
+    "text": "Es ist nichts verloren – alles bleibt auf dem Gerät selbst. Diese Seite prüft laufend und macht von selbst weiter, sobald das Gerät wieder da ist.",
+    "en": "Nothing has been lost — everything stays on the device itself. This page keeps checking, and picks up on its own as soon as it's back."
+  },
+  "web.shell.unreachable.title": {
+    "text": "Dieses Gerät ist gerade nicht verfügbar",
+    "en": "This device isn't available right now"
+  },
+  "web.shell.update.critical": {
+    "text": "<b>Kritisches Update {version} verfügbar.</b> {summary} Installiere es so bald wie möglich.",
+    "en": "<b>Critical update {version} available.</b> {summary} Install it as soon as possible.",
+    "reviewed": "claude-backtranslation 2026-10-11 #94e55b52"
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "common.accept": {
+    "text": "Aceptar",
+    "en": "Accept"
+  },
+  "common.add": {
+    "text": "Añadir",
+    "en": "Add"
+  },
+  "common.apply": {
+    "text": "Aplicar",
+    "en": "Apply"
+  },
+  "common.back": {
+    "text": "Atrás",
+    "en": "Back"
+  },
+  "common.cancel": {
+    "text": "Cancelar",
+    "en": "Cancel"
+  },
+  "common.choose": {
+    "text": "Elegir",
+    "en": "Choose"
+  },
+  "common.close": {
+    "text": "Cerrar",
+    "en": "Close"
+  },
+  "common.connect": {
+    "text": "Conectar",
+    "en": "Connect"
+  },
+  "common.connecting": {
+    "text": "Conectando…",
+    "en": "Connecting…"
+  },
+  "common.create": {
+    "text": "Crear",
+    "en": "Create"
+  },
+  "common.decline": {
+    "text": "Rechazar",
+    "en": "Decline"
+  },
+  "common.delete": {
+    "text": "Eliminar",
+    "en": "Delete"
+  },
+  "common.deleting": {
+    "text": "Eliminando…",
+    "en": "Deleting…"
+  },
+  "common.deselect": {
+    "text": "Deseleccionar",
+    "en": "Deselect"
+  },
+  "common.disconnect": {
+    "text": "Desconectar",
+    "en": "Disconnect"
+  },
+  "common.done": {
+    "text": "Hecho",
+    "en": "Done"
+  },
+  "common.download": {
+    "text": "Descargar",
+    "en": "Download"
+  },
+  "common.loading": {
+    "text": "Cargando…",
+    "en": "Loading…"
+  },
+  "common.next": {
+    "text": "Siguiente",
+    "en": "Next"
+  },
+  "common.ok": {
+    "text": "Aceptar",
+    "en": "OK"
+  },
+  "common.open": {
+    "text": "Abrir",
+    "en": "Open"
+  },
+  "common.password": {
+    "text": "Contraseña",
+    "en": "Password"
+  },
+  "common.pause": {
+    "text": "Pausar",
+    "en": "Pause"
+  },
+  "common.quit": {
+    "text": "Salir",
+    "en": "Quit"
+  },
+  "common.refresh": {
+    "text": "Actualizar",
+    "en": "Refresh"
+  },
+  "common.remove": {
+    "text": "Quitar",
+    "en": "Remove"
+  },
+  "common.rename": {
+    "text": "Renombrar",
+    "en": "Rename"
+  },
+  "common.resume": {
+    "text": "Reanudar",
+    "en": "Resume"
+  },
+  "common.save": {
+    "text": "Guardar",
+    "en": "Save"
+  },
+  "common.search": {
+    "text": "Buscar",
+    "en": "Search"
+  },
+  "common.select": {
+    "text": "Seleccionar",
+    "en": "Select"
+  },
+  "common.send": {
+    "text": "Enviar",
+    "en": "Send"
+  },
+  "common.settings": {
+    "text": "Ajustes",
+    "en": "Settings"
+  },
+  "common.share": {
+    "text": "Compartir",
+    "en": "Share"
+  },
+  "common.try_again": {
+    "text": "Reintentar",
+    "en": "Try again"
+  },
+  "common.update": {
+    "text": "Actualizar",
+    "en": "Update"
+  },
+  "common.updating": {
+    "text": "Actualizando…",
+    "en": "Updating…"
+  },
+  "common.upload": {
+    "text": "Subir",
+    "en": "Upload"
+  }
+}

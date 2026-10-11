@@ -1,0 +1,569 @@
+{
+  "web.shell.account.label": {
+    "text": "Account",
+    "en": "Account"
+  },
+  "web.shell.account.sign_out": {
+    "text": "Esci",
+    "en": "Sign out"
+  },
+  "web.shell.account.signing_out": {
+    "text": "Uscita…",
+    "en": "Signing out…"
+  },
+  "web.shell.connection.closed": {
+    "text": "Connessione al dispositivo chiusa",
+    "en": "WS connection closed"
+  },
+  "web.shell.connection.no_answer": {
+    "text": "Il dispositivo non ha risposto.",
+    "en": "The device did not answer."
+  },
+  "web.shell.connection.no_key": {
+    "text": "Impossibile ottenere la chiave pubblica della connessione",
+    "en": "Unable to fetch the connection's public key",
+    "reviewed": "claude-backtranslation 2026-10-11 #8eb46ce3"
+  },
+  "web.shell.connection.no_push_key": {
+    "text": "Il dispositivo non ha una chiave pubblica VAPID configurata",
+    "en": "Device has no VAPID public key configured"
+  },
+  "web.shell.connection.not_connected": {
+    "text": "Non connesso al dispositivo",
+    "en": "WS not connected"
+  },
+  "web.shell.connection.signed_in_meanwhile": {
+    "text": "Accesso già effettuato nel frattempo.",
+    "en": "Signed in meanwhile."
+  },
+  "web.shell.connection.too_many": {
+    "text": "Troppi tentativi. Riprova tra un minuto.",
+    "en": "Too many attempts. Try again in a minute.",
+    "reviewed": "claude-backtranslation 2026-10-11 #b3da8bf5"
+  },
+  "web.shell.download.dismiss": {
+    "text": "Chiudi",
+    "en": "Dismiss"
+  },
+  "web.shell.download.downloading": {
+    "text": "Download in corso…",
+    "en": "Downloading…"
+  },
+  "web.shell.download.downloading_sr": {
+    "text": "Download di {name} in corso",
+    "en": "Downloading {name}"
+  },
+  "web.shell.download.failed": {
+    "text": "Impossibile scaricare {name}. Controlla la connessione al tuo dispositivo e riprova.",
+    "en": "Couldn't download {name}. Check the connection to your device and try again."
+  },
+  "web.shell.download.original": {
+    "text": "Scarica l’originale",
+    "en": "Download the original"
+  },
+  "web.shell.download.preparing": {
+    "text": "Preparazione…",
+    "en": "Preparing…"
+  },
+  "web.shell.download.progress": {
+    "text": "Download {percent}",
+    "en": "Downloading {percent}"
+  },
+  "web.shell.download.started": {
+    "text": "Download avviato",
+    "en": "Started"
+  },
+  "web.shell.download.started_sr": {
+    "text": "{name}: download avviato",
+    "en": "{name}: download started"
+  },
+  "web.shell.file_icon.generic": {
+    "text": "FILE",
+    "en": "FILE"
+  },
+  "web.shell.file_icon.label": {
+    "text": "File {type}",
+    "en": "{type} file"
+  },
+  "web.shell.link.empty": {
+    "text": "Il dispositivo ha restituito un file vuoto.",
+    "en": "The device returned an empty file."
+  },
+  "web.shell.link.failed": {
+    "text": "Impossibile scaricare questo link.",
+    "en": "Could not download that link."
+  },
+  "web.shell.link.invalid": {
+    "text": "Questo link non è più valido.",
+    "en": "That link is no longer valid."
+  },
+  "web.shell.link.malformed": {
+    "text": "Questo link di download è malformato.",
+    "en": "That download link is malformed."
+  },
+  "web.shell.link.preparing": {
+    "text": "Preparazione del download…",
+    "en": "Preparing your download…"
+  },
+  "web.shell.link.progress": {
+    "text": "Download in corso… {percent}",
+    "en": "Downloading… {percent}"
+  },
+  "web.shell.link.stopped": {
+    "text": "Il dispositivo ha smesso di inviare il file.",
+    "en": "The device stopped sending the file."
+  },
+  "web.shell.lowres.description": {
+    "text": "Bassa risoluzione: la foto completa è in caricamento",
+    "en": "Low resolution - the full photo is loading"
+  },
+  "web.shell.lowres.label": {
+    "text": "Anteprima",
+    "en": "Low res"
+  },
+  "web.shell.menu.alerts": {
+    "text": "Avvisi",
+    "en": "Alerts"
+  },
+  "web.shell.menu.collections": {
+    "text": "Raccolte",
+    "en": "Collections"
+  },
+  "web.shell.menu.device": {
+    "text": "Dispositivo",
+    "en": "Device"
+  },
+  "web.shell.menu.files": {
+    "text": "File",
+    "en": "Files"
+  },
+  "web.shell.menu.friends": {
+    "text": "Amici",
+    "en": "Friends"
+  },
+  "web.shell.menu.images": {
+    "text": "Immagini",
+    "en": "Images"
+  },
+  "web.shell.menu.people": {
+    "text": "Persone",
+    "en": "People"
+  },
+  "web.shell.menu.privacy": {
+    "text": "Privacy",
+    "en": "Privacy",
+    "reviewed": "claude-backtranslation 2026-10-11 #100b2fcc"
+  },
+  "web.shell.menu.sections": {
+    "text": "Sezioni",
+    "en": "Sections"
+  },
+  "web.shell.menu.settings": {
+    "text": "Impostazioni",
+    "en": "Settings"
+  },
+  "web.shell.menu.sharing": {
+    "text": "Condivisione",
+    "en": "Sharing"
+  },
+  "web.shell.menu.social": {
+    "text": "Social",
+    "en": "Social"
+  },
+  "web.shell.menu.terms": {
+    "text": "Condizioni d’uso",
+    "en": "Terms",
+    "reviewed": "claude-backtranslation 2026-10-11 #9b11376b"
+  },
+  "web.shell.menu.unread": {
+    "text": {
+      "one": "{label}, {count} non letto",
+      "other": "{label}, {count} non letti"
+    },
+    "en": {
+      "one": "{label}, {count} unread",
+      "other": "{label}, {count} unread"
+    }
+  },
+  "web.shell.person.unnamed": {
+    "text": "Senza nome",
+    "en": "Unnamed"
+  },
+  "web.shell.scrubber.label": {
+    "text": "Vai a una data",
+    "en": "Jump to a date"
+  },
+  "web.shell.scrubber.month": {
+    "text": "{month} {year}",
+    "en": "{month} {year}"
+  },
+  "web.shell.scrubber.no_date": {
+    "text": "Senza data",
+    "en": "No date"
+  },
+  "web.shell.search.a_person": {
+    "text": "una persona",
+    "en": "a person"
+  },
+  "web.shell.search.already": {
+    "text": "“{text}” è già nella ricerca.",
+    "en": "“{text}” is already in the search."
+  },
+  "web.shell.search.clear": {
+    "text": "Cancella ricerca",
+    "en": "Clear search"
+  },
+  "web.shell.search.close": {
+    "text": "Chiudi ricerca",
+    "en": "Close search"
+  },
+  "web.shell.search.close_collection": {
+    "text": "Chiudi la raccolta {name}",
+    "en": "Close the collection {name}"
+  },
+  "web.shell.search.collection": {
+    "text": "la raccolta {name}",
+    "en": "the collection {name}"
+  },
+  "web.shell.search.documents": {
+    "text": "Cerca “<mark>{text}</mark>” nei documenti",
+    "en": "Search documents for “<mark>{text}</mark>”"
+  },
+  "web.shell.search.field": {
+    "text": "Cerca foto e file",
+    "en": "Search photos and files"
+  },
+  "web.shell.search.file_in": {
+    "text": "{name}, file nella cartella {folder}",
+    "en": "{name}, file in {folder}"
+  },
+  "web.shell.search.files": {
+    "text": "File",
+    "en": "Files"
+  },
+  "web.shell.search.folder_in": {
+    "text": "{name}, cartella in {folder}",
+    "en": "{name}, folder in {folder}"
+  },
+  "web.shell.search.no_matches": {
+    "text": "Nessun risultato",
+    "en": "No matches"
+  },
+  "web.shell.search.nothing": {
+    "text": "Nessun risultato per “{text}”.",
+    "en": "Nothing matches “{text}”."
+  },
+  "web.shell.search.people": {
+    "text": "Persone",
+    "en": "People"
+  },
+  "web.shell.search.person": {
+    "text": "Persona",
+    "en": "Person"
+  },
+  "web.shell.search.photo_count": {
+    "text": {
+      "one": "{count} foto",
+      "other": "{count} foto"
+    },
+    "en": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    }
+  },
+  "web.shell.search.photo_in": {
+    "text": "{name}, foto nella cartella {folder}",
+    "en": "{name}, photo in {folder}"
+  },
+  "web.shell.search.remove": {
+    "text": "Rimuovi {name}",
+    "en": "Remove {name}"
+  },
+  "web.shell.search.remove_person": {
+    "text": "Rimuovi questa persona",
+    "en": "Remove this person"
+  },
+  "web.shell.search.suggestion_count": {
+    "text": {
+      "one": "{count} suggerimento",
+      "other": "{count} suggerimenti"
+    },
+    "en": {
+      "one": "{count} suggestion",
+      "other": "{count} suggestions"
+    }
+  },
+  "web.shell.search.suggestions": {
+    "text": "Suggerimenti",
+    "en": "Suggestions"
+  },
+  "web.shell.search.summary": {
+    "text": "Nella ricerca: {items}",
+    "en": "In the search: {items}"
+  },
+  "web.shell.search.things": {
+    "text": "Cose",
+    "en": "Things"
+  },
+  "web.shell.search.video_in": {
+    "text": "{name}, video nella cartella {folder}",
+    "en": "{name}, video in {folder}"
+  },
+  "web.shell.session.ended": {
+    "text": "La tua sessione è terminata: accedi di nuovo per continuare.",
+    "en": "Your session has ended — sign in again to continue."
+  },
+  "web.shell.session.signing_in": {
+    "text": "Accesso…",
+    "en": "Signing in…"
+  },
+  "web.shell.setup.choose_disks": {
+    "text": "Scegli fino a 2 dischi. Scegline 2 per metterli in mirror (RAID1, consigliato: i tuoi file sopravvivono al guasto di un disco). Scegline 1 per usarlo da solo, senza ridondanza. Non sceglierne nessuno per usare invece il disco di avvio.",
+    "en": "Choose up to 2 disks. Pick 2 to mirror them (RAID1, recommended — your files survive one disk failing). Pick 1 to use it alone, with no redundancy. Pick none to use the boot disk instead.",
+    "reviewed": "claude-backtranslation 2026-10-11 #ac7f4a7b"
+  },
+  "web.shell.setup.confirm_password": {
+    "text": "Conferma password",
+    "en": "Confirm password"
+  },
+  "web.shell.setup.disk": {
+    "text": "{path} — {size}",
+    "en": "{path} — {size}"
+  },
+  "web.shell.setup.disk_model": {
+    "text": "{path} — {size} ({model})",
+    "en": "{path} — {size} ({model})"
+  },
+  "web.shell.setup.failed": {
+    "text": "Impossibile configurare il dispositivo. Riprova.",
+    "en": "Could not set up the device — please try again."
+  },
+  "web.shell.setup.finish": {
+    "text": "Completa configurazione",
+    "en": "Finish setup"
+  },
+  "web.shell.setup.intro_account": {
+    "text": "Questo account non è ancora configurato. Scegli il tuo nome e una password: questa password protegge i tuoi file e il tuo profilo social, quindi conservala in un posto sicuro.",
+    "en": "This account isn't set up yet. Choose your name and a password — this password protects your files and social profile, so keep it somewhere safe.",
+    "reviewed": "claude-backtranslation 2026-10-11 #6ec2918c"
+  },
+  "web.shell.setup.intro_device": {
+    "text": "Questo dispositivo non è ancora configurato. Scegli un nome per il proprietario e una password: questa password protegge i tuoi file e il tuo profilo social, quindi conservala in un posto sicuro.",
+    "en": "This device isn't set up yet. Choose an owner name and a password — this password protects your files and social profile, so keep it somewhere safe.",
+    "reviewed": "claude-backtranslation 2026-10-11 #095b879f"
+  },
+  "web.shell.setup.joining": {
+    "text": "Connessione a “{ssid}”… se hai raggiunto questo dispositivo tramite la sua rete di configurazione, riconnettiti alla tua solita rete Wi-Fi e ritrovalo lì.",
+    "en": "Joining \"{ssid}\"… if this device was reached over its own setup network, reconnect to your normal WiFi and find it there."
+  },
+  "web.shell.setup.name": {
+    "text": "Il tuo nome",
+    "en": "Your name"
+  },
+  "web.shell.setup.name_example": {
+    "text": "es. Marco",
+    "en": "e.g. Alex"
+  },
+  "web.shell.setup.next_storage": {
+    "text": "Avanti: archiviazione",
+    "en": "Next: Storage"
+  },
+  "web.shell.setup.next_wifi": {
+    "text": "Avanti: Wi-Fi",
+    "en": "Next: WiFi"
+  },
+  "web.shell.setup.no_disks": {
+    "text": "Nessun disco aggiuntivo rilevato: i tuoi file saranno salvati sul disco di avvio.",
+    "en": "No extra disks were detected — your files will be stored on the boot disk."
+  },
+  "web.shell.setup.no_networks": {
+    "text": "Nessuna rete trovata: avvicina il dispositivo al router o salta per ora.",
+    "en": "No networks found — move the device closer to your router, or skip for now."
+  },
+  "web.shell.setup.password_mismatch": {
+    "text": "Le password non corrispondono.",
+    "en": "Passwords don't match."
+  },
+  "web.shell.setup.password_short": {
+    "text": "Scegli una password di almeno 8 caratteri.",
+    "en": "Choose a password with at least 8 characters.",
+    "reviewed": "claude-backtranslation 2026-10-11 #4fda3954"
+  },
+  "web.shell.setup.saving": {
+    "text": "Salvataggio…",
+    "en": "Saving…"
+  },
+  "web.shell.setup.setting_up": {
+    "text": "Configurazione…",
+    "en": "Setting up…"
+  },
+  "web.shell.setup.skip": {
+    "text": "Salta, ho già una connessione",
+    "en": "Skip — I'm already connected"
+  },
+  "web.shell.setup.storage": {
+    "text": "Archiviazione",
+    "en": "Storage"
+  },
+  "web.shell.setup.storage_failed": {
+    "text": "Impossibile salvare la configurazione dell’archiviazione.",
+    "en": "Could not save storage configuration."
+  },
+  "web.shell.setup.welcome": {
+    "text": "Ti diamo il benvenuto in Off The Cloud",
+    "en": "Welcome to Off The Cloud"
+  },
+  "web.shell.setup.wifi": {
+    "text": "Wi-Fi",
+    "en": "WiFi"
+  },
+  "web.shell.setup.wifi_failed": {
+    "text": "Impossibile salvare la richiesta Wi-Fi.",
+    "en": "Could not save the WiFi request."
+  },
+  "web.shell.setup.wifi_intro": {
+    "text": "Se per la configurazione usi la rete temporanea “Off The Cloud” di questo dispositivo, scegli qui sotto la tua vera rete Wi-Fi. Hai già una connessione in un altro modo (Ethernet o Wi-Fi configurato prima)? Salta questo passaggio.",
+    "en": "If you're set up over this device's own temporary \"Off The Cloud\" network, pick your real WiFi below. Already connected some other way (ethernet, or WiFi set up earlier)? Just skip this."
+  },
+  "web.shell.setup.wifi_network": {
+    "text": "{ssid} ({signal})",
+    "en": "{ssid} ({signal})"
+  },
+  "web.shell.signin.close": {
+    "text": "Chiudi accesso",
+    "en": "Close sign in"
+  },
+  "web.shell.signin.interrupted": {
+    "text": "Il tuo dispositivo ha smesso di rispondere, quindi l’accesso non è riuscito. Riprova ora che è di nuovo disponibile.",
+    "en": "Your device stopped answering, so you weren't signed in. Try again now that it's back."
+  },
+  "web.shell.signin.offline": {
+    "text": "Sei offline. Controlla la connessione e riprova.",
+    "en": "You're offline. Check your connection and try again."
+  },
+  "web.shell.signin.submit": {
+    "text": "Accedi",
+    "en": "Sign In"
+  },
+  "web.shell.signin.unreachable": {
+    "text": "Impossibile raggiungere il tuo dispositivo in questo momento. Riprova tra poco.",
+    "en": "Can't reach your device right now. Try again in a moment."
+  },
+  "web.shell.signin.wrong": {
+    "text": "Password errata. Riprova.",
+    "en": "Wrong password. Try again."
+  },
+  "web.shell.storage.attention": {
+    "text": "Richiede attenzione",
+    "en": "Needs attention"
+  },
+  "web.shell.storage.cpu": {
+    "text": "CPU",
+    "en": "CPU"
+  },
+  "web.shell.storage.disks": {
+    "text": "Dischi",
+    "en": "Disks"
+  },
+  "web.shell.storage.free": {
+    "text": "Spazio libero",
+    "en": "Free"
+  },
+  "web.shell.storage.gauge": {
+    "text": "Archiviazione. Mostra dettagli",
+    "en": "Storage. Show details"
+  },
+  "web.shell.storage.gauge_used": {
+    "text": "Archiviazione, {percent} in uso. Mostra dettagli",
+    "en": "Storage, {percent} used. Show details"
+  },
+  "web.shell.storage.gauge_used_attention": {
+    "text": "Archiviazione, {percent} in uso, richiede attenzione. Mostra dettagli",
+    "en": "Storage, {percent} used, needs attention. Show details"
+  },
+  "web.shell.storage.memory": {
+    "text": "Memoria",
+    "en": "Memory"
+  },
+  "web.shell.storage.meter": {
+    "text": "Spazio utilizzato",
+    "en": "Storage used"
+  },
+  "web.shell.storage.mirror_degraded": {
+    "text": "Mirror degradato",
+    "en": "Mirror degraded"
+  },
+  "web.shell.storage.mirror_in_sync": {
+    "text": "Mirror sincronizzato",
+    "en": "Mirror in sync"
+  },
+  "web.shell.storage.mirror_none": {
+    "text": "Nessun mirror",
+    "en": "No mirror"
+  },
+  "web.shell.storage.mirror_syncing": {
+    "text": "Sincronizzazione mirror ({percent})",
+    "en": "Mirror syncing ({percent})"
+  },
+  "web.shell.storage.mirror_unknown": {
+    "text": "Stato del mirror sconosciuto",
+    "en": "Mirror state unknown"
+  },
+  "web.shell.storage.of": {
+    "text": "{used} di {total}",
+    "en": "{used} of {total}"
+  },
+  "web.shell.storage.reading": {
+    "text": "Lettura…",
+    "en": "Reading…"
+  },
+  "web.shell.storage.system_card": {
+    "text": "Scheda sistema",
+    "en": "System card"
+  },
+  "web.shell.storage.tip": {
+    "text": "Archiviazione: {details}",
+    "en": "Storage: {details}"
+  },
+  "web.shell.storage.title": {
+    "text": "Archiviazione",
+    "en": "Storage"
+  },
+  "web.shell.storage.unavailable": {
+    "text": "Archiviazione non disponibile ora",
+    "en": "Storage unavailable right now"
+  },
+  "web.shell.storage.used": {
+    "text": "{used} di {total} in uso",
+    "en": "{used} of {total} used"
+  },
+  "web.shell.top.hide_menu": {
+    "text": "Nascondi menu",
+    "en": "Hide menu"
+  },
+  "web.shell.top.new_post": {
+    "text": "Nuovo post",
+    "en": "New post"
+  },
+  "web.shell.top.show_menu": {
+    "text": "Mostra menu",
+    "en": "Show menu"
+  },
+  "web.shell.unreachable.disabled": {
+    "text": "Questo account è stato disattivato",
+    "en": "This account has been disabled"
+  },
+  "web.shell.unreachable.note": {
+    "text": "Non è andato perso nulla: tutto resta sul dispositivo. Questa pagina continua a controllare e riprende da sola appena il dispositivo è di nuovo disponibile.",
+    "en": "Nothing has been lost — everything stays on the device itself. This page keeps checking, and picks up on its own as soon as it's back."
+  },
+  "web.shell.unreachable.title": {
+    "text": "Questo dispositivo non è disponibile al momento",
+    "en": "This device isn't available right now"
+  },
+  "web.shell.update.critical": {
+    "text": "<b>Aggiornamento critico {version} disponibile.</b> {summary} Installalo il prima possibile.",
+    "en": "<b>Critical update {version} available.</b> {summary} Install it as soon as possible.",
+    "reviewed": "claude-backtranslation 2026-10-11 #7397141b"
+  }
+}

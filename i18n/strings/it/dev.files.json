@@ -1,0 +1,255 @@
+{
+  "dev.files.archive_offset": {
+    "text": "offset {offset} fuori dall’archivio",
+    "en": "offset {offset} outside the archive"
+  },
+  "dev.files.archive_too_big": {
+    "text": "l’archivio è di {size} byte: scaricalo in parti",
+    "en": "the archive is {size} bytes: download it in parts"
+  },
+  "dev.files.asset_not_found": {
+    "text": "risorsa non trovata",
+    "en": "asset not found"
+  },
+  "dev.files.bad_size": {
+    "text": "dimensione non valida",
+    "en": "bad size"
+  },
+  "dev.files.chunk_too_big": {
+    "text": "blocco oltre {limit} byte",
+    "en": "chunk over {limit} bytes"
+  },
+  "dev.files.cloud_ids_failed": {
+    "text": "errore durante la verifica degli ID cloud: {detail}",
+    "en": "error checking cloud ids: {detail}"
+  },
+  "dev.files.collection_needs_name": {
+    "text": "una raccolta deve avere un nome",
+    "en": "a collection needs a name"
+  },
+  "dev.files.content_missing": {
+    "text": "il contenuto di {path} manca su questo dispositivo",
+    "en": "the content of {path} is missing on this device"
+  },
+  "dev.files.content_unavailable": {
+    "text": "il contenuto di {path} manca o è illeggibile su questo dispositivo",
+    "en": "the content of {path} is missing or unreadable on this device"
+  },
+  "dev.files.content_unreadable": {
+    "text": "il contenuto di {path} è illeggibile su questo dispositivo",
+    "en": "the content of {path} is unreadable on this device"
+  },
+  "dev.files.delete_failed": {
+    "text": "errore durante l’eliminazione del file: {detail}",
+    "en": "error trying to delete file: {detail}"
+  },
+  "dev.files.download_failed": {
+    "text": "errore durante il download del file: {detail}",
+    "en": "error trying to download file: {detail}"
+  },
+  "dev.files.exif_unsupported": {
+    "text": "tipo MIME non supportato per EXIF: {mime}",
+    "en": "unsupported mime type for EXIF: {mime}"
+  },
+  "dev.files.file_not_found": {
+    "text": "file non trovato",
+    "en": "file not found"
+  },
+  "dev.files.file_offset": {
+    "text": "offset {offset} fuori dal file",
+    "en": "offset {offset} outside the file"
+  },
+  "dev.files.folder_update_failed": {
+    "text": "errore durante l’aggiornamento della cartella: {detail}",
+    "en": "error updating the folder: {detail}"
+  },
+  "dev.files.gallery_not_found": {
+    "text": "questo link non esiste o è scaduto",
+    "en": "this link doesn't exist or has expired"
+  },
+  "dev.files.hash_check_failed": {
+    "text": "errore durante la verifica dell’hash del file: {detail}",
+    "en": "error checking file hash: {detail}"
+  },
+  "dev.files.hash_content_missing": {
+    "text": "il contenuto per questo hash manca su questo dispositivo: caricalo invece",
+    "en": "the content for that hash is missing on this device: upload it instead"
+  },
+  "dev.files.image_grid_mismatch": {
+    "text": "l’immagine dichiara di essere {width}x{height}, più grande della sua griglia {grid_width}x{grid_height}",
+    "en": "the image says it is {width}x{height}, larger than its {grid_width}x{grid_height} grid"
+  },
+  "dev.files.image_too_large": {
+    "text": "l’immagine è di {width}x{height}, troppo grande per essere elaborata (oltre {limit} megapixel)",
+    "en": "the image is {width}x{height}, too large to process (over {limit} megapixels)"
+  },
+  "dev.files.info_failed": {
+    "text": "errore durante il recupero delle informazioni del file: {detail}",
+    "en": "error trying to retrieve file info: {detail}"
+  },
+  "dev.files.link_expired": {
+    "text": "il link condiviso è scaduto",
+    "en": "shared link has expired"
+  },
+  "dev.files.link_failed": {
+    "text": "errore durante il collegamento del file: {detail}",
+    "en": "error trying to link file: {detail}"
+  },
+  "dev.files.locked_by_parent": {
+    "text": "La cartella {name} si trova dentro la cartella in solo caricamento {parent}: sblocca {parent} per sbloccarla",
+    "en": "{name} is inside the upload-only folder {parent} - unlock {parent} to unlock it"
+  },
+  "dev.files.locked_by_parent_own": {
+    "text": "La cartella {name} si trova dentro la cartella in solo caricamento {parent}: sblocca prima {parent}, poi {name}",
+    "en": "{name} is inside the upload-only folder {parent} - unlock {parent} first, then {name}"
+  },
+  "dev.files.media_not_found": {
+    "text": "contenuto multimediale non trovato",
+    "en": "media not found"
+  },
+  "dev.files.no_low_res_photos": {
+    "text": "lì non ci sono foto da condividere in bassa risoluzione",
+    "en": "there are no photos to share in low resolution there"
+  },
+  "dev.files.no_media_to_share": {
+    "text": "lì non ci sono foto o video da condividere",
+    "en": "there are no photos or videos to share there"
+  },
+  "dev.files.no_path": {
+    "text": "nessun percorso",
+    "en": "no path"
+  },
+  "dev.files.no_such_hash": {
+    "text": "nessun file con questo hash su questo dispositivo",
+    "en": "no file with that hash on this device"
+  },
+  "dev.files.no_such_job": {
+    "text": "operazione inesistente",
+    "en": "no such job"
+  },
+  "dev.files.no_such_link": {
+    "text": "link inesistente",
+    "en": "no such link"
+  },
+  "dev.files.no_such_path": {
+    "text": "file o cartella inesistente: {path}",
+    "en": "no such file or directory: {path}"
+  },
+  "dev.files.not_on_device": {
+    "text": "{path} non è su questo dispositivo",
+    "en": "{path} is not on this device"
+  },
+  "dev.files.nothing_to_share": {
+    "text": "niente da condividere",
+    "en": "nothing to share"
+  },
+  "dev.files.nothing_to_stream": {
+    "text": "niente da riprodurre",
+    "en": "nothing to stream"
+  },
+  "dev.files.out_of_images_list_failed": {
+    "text": "errore durante l’elenco delle cartelle fuori da Immagini: {detail}",
+    "en": "error listing the folders kept out of Images: {detail}"
+  },
+  "dev.files.post_content_unavailable": {
+    "text": "il contenuto di {hash} manca o è illeggibile: {detail}",
+    "en": "the content of {hash} is missing or unreadable: {detail}"
+  },
+  "dev.files.read_failed": {
+    "text": "errore durante la lettura del file: {detail}",
+    "en": "error reading file: {detail}"
+  },
+  "dev.files.reprocess_count_failed": {
+    "text": "conteggio dei media da rielaborare: {detail}",
+    "en": "counting media for reprocess: {detail}"
+  },
+  "dev.files.reprocess_read_failed": {
+    "text": "lettura dello stato della rielaborazione: {detail}",
+    "en": "reading reprocess state: {detail}"
+  },
+  "dev.files.reprocess_resume_failed": {
+    "text": "ripresa della rielaborazione: {detail}",
+    "en": "resuming reprocess: {detail}"
+  },
+  "dev.files.reprocess_start_failed": {
+    "text": "avvio della rielaborazione: {detail}",
+    "en": "starting reprocess: {detail}"
+  },
+  "dev.files.reprocess_wipe_failed": {
+    "text": "rimozione di etichette e volti prima della rielaborazione: {detail}",
+    "en": "wiping tags/faces before reprocess: {detail}"
+  },
+  "dev.files.retrieve_failed": {
+    "text": "errore durante il recupero del file: {detail}",
+    "en": "error trying to retrieve file: {detail}"
+  },
+  "dev.files.share_link_failed": {
+    "text": "errore durante la creazione del link di condivisione dei file: {detail}",
+    "en": "error creating files share link: {detail}"
+  },
+  "dev.files.stream_failed": {
+    "text": "impossibile preparare lo streaming",
+    "en": "could not prepare the stream"
+  },
+  "dev.files.upload_bad_hash": {
+    "text": "il contenuto caricato non corrisponde al suo hash",
+    "en": "the upload's content doesn't match its hash"
+  },
+  "dev.files.upload_failed": {
+    "text": "errore durante il caricamento del file: {detail}",
+    "en": "error trying to upload file: {detail}"
+  },
+  "dev.files.upload_finish_failed": {
+    "text": "errore durante il completamento del caricamento: {detail}",
+    "en": "error finishing the upload: {detail}"
+  },
+  "dev.files.upload_incomplete": {
+    "text": "caricamento incompleto: {received} di {size} byte",
+    "en": "upload incomplete: {received} of {size} bytes"
+  },
+  "dev.files.upload_only": {
+    "text": "questa cartella è in solo caricamento: niente al suo interno può essere eliminato",
+    "en": "this folder is upload only: nothing in it can be deleted",
+    "reviewed": "claude-backtranslation 2026-10-11 #25dedbb9"
+  },
+  "dev.files.upload_out_of_order": {
+    "text": "blocco del caricamento fuori sequenza",
+    "en": "upload chunk out of order"
+  },
+  "dev.files.upload_receive_failed": {
+    "text": "errore durante la ricezione del caricamento: {detail}",
+    "en": "error receiving the upload: {detail}"
+  },
+  "dev.files.upload_removed": {
+    "text": "il contenuto caricato è stato rimosso prima di essere registrato: invialo di nuovo",
+    "en": "the upload's content was removed before it was recorded - send it again"
+  },
+  "dev.files.upload_start_failed": {
+    "text": "errore durante l’avvio del caricamento: {detail}",
+    "en": "error starting the upload: {detail}"
+  },
+  "dev.files.upload_too_much": {
+    "text": "più dati della dimensione del caricamento",
+    "en": "more data than the upload's size"
+  },
+  "dev.files.upload_unknown": {
+    "text": "caricamento sconosciuto o scaduto",
+    "en": "unknown or expired upload"
+  },
+  "dev.files.versions_failed": {
+    "text": "errore durante l’elenco delle versioni: {detail}",
+    "en": "error listing the versions: {detail}"
+  },
+  "dev.files.video_no_duration": {
+    "text": "il video non ha una durata utilizzabile",
+    "en": "video has no usable duration"
+  },
+  "dev.files.video_no_frames": {
+    "text": "impossibile estrarre fotogrammi dal video",
+    "en": "could not extract any frames from video"
+  },
+  "dev.files.video_no_frames_extracted": {
+    "text": "nessun fotogramma estratto dal video",
+    "en": "no frames extracted from video"
+  }
+}

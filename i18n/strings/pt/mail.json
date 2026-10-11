@@ -1,0 +1,91 @@
+{
+  "mail.date.april": {
+    "text": "abril",
+    "en": "April"
+  },
+  "mail.date.august": {
+    "text": "agosto",
+    "en": "August"
+  },
+  "mail.date.december": {
+    "text": "dezembro",
+    "en": "December"
+  },
+  "mail.date.february": {
+    "text": "fevereiro",
+    "en": "February"
+  },
+  "mail.date.january": {
+    "text": "janeiro",
+    "en": "January"
+  },
+  "mail.date.july": {
+    "text": "julho",
+    "en": "July"
+  },
+  "mail.date.june": {
+    "text": "junho",
+    "en": "June"
+  },
+  "mail.date.long": {
+    "text": "{day} de {month} de {year}",
+    "en": "{day} {month} {year}"
+  },
+  "mail.date.march": {
+    "text": "março",
+    "en": "March"
+  },
+  "mail.date.may": {
+    "text": "maio",
+    "en": "May"
+  },
+  "mail.date.november": {
+    "text": "novembro",
+    "en": "November"
+  },
+  "mail.date.october": {
+    "text": "outubro",
+    "en": "October"
+  },
+  "mail.date.september": {
+    "text": "setembro",
+    "en": "September"
+  },
+  "mail.greeting.named": {
+    "text": "Olá, {name},",
+    "en": "Hello {name},"
+  },
+  "mail.greeting.plain": {
+    "text": "Olá,",
+    "en": "Hello,"
+  },
+  "mail.inactivity.body": {
+    "text": "A tua conta da ponte Off The Cloud ({email}) não é usada há cinco meses: ninguém iniciou sessão nela e nenhuma app ou amigo acedeu aos teus dispositivos através da ponte.\n\nComo dizem os nossos termos, uma conta sem utilização durante seis meses é removida. Se nada mudar, esta conta e os respetivos nomes de dispositivo serão removidos a {date}. Os teus dispositivos continuam a funcionar em casa.\n\nPara a manteres, inicia sessão em {link} ou usa o teu dispositivo através da ponte antes dessa data.",
+    "en": "Your Off The Cloud bridge account ({email}) hasn't been used for five months: no one has signed in to it, and no app or friend has reached your devices through the bridge.\n\nAs our terms say, an account unused for six months is removed. If nothing changes, this one and its device names will be removed on {date}. Your devices keep working at home.\n\nTo keep it, sign in at {link} or use your device through the bridge before then.",
+    "reviewed": "claude-backtranslation 2026-10-11 #c168cd8b"
+  },
+  "mail.inactivity.subject": {
+    "text": "A tua conta Off The Cloud será removida a {date}",
+    "en": "Your Off The Cloud account will be removed on {date}",
+    "reviewed": "claude-backtranslation 2026-10-11 #175e7a6c"
+  },
+  "mail.reset.body": {
+    "text": "Alguém (esperamos que tu) pediu para repor a palavra-passe da conta Off The Cloud associada a este email. Para escolheres uma nova, abre esta ligação:\n\n{link}\n\nA ligação funciona durante uma hora e só uma vez. Definir uma nova palavra-passe termina a sessão da tua conta em todos os outros locais.\n\nSe não pediste isto, ignora este email: a tua palavra-passe mantém-se igual.",
+    "en": "Someone - hopefully you - asked to reset the password of the Off The Cloud account for this email. To choose a new one, open this link:\n\n{link}\n\nThe link works for one hour, once. Setting a new password signs your account out everywhere else.\n\nIf you didn't ask for this, ignore this email: your password stays as it is.",
+    "reviewed": "claude-backtranslation 2026-10-11 #2f227bf6"
+  },
+  "mail.reset.subject": {
+    "text": "Repõe a tua palavra-passe do Off The Cloud",
+    "en": "Reset your Off The Cloud password",
+    "reviewed": "claude-backtranslation 2026-10-11 #50d9b59e"
+  },
+  "mail.verify.body": {
+    "text": "Para confirmares que este é o teu endereço de email, abre esta ligação:\n\n{link}\n\nA ligação funciona durante 48 horas. Depois de confirmares o teu email, podes registar os teus dispositivos na ponte.\n\nSe não criaste uma conta Off The Cloud, ignora este email: nada é registado para este endereço sem a confirmação.",
+    "en": "Please confirm that this is your email address by opening this link:\n\n{link}\n\nThe link works for 48 hours. Once your email is confirmed you can register your devices on the bridge.\n\nIf you didn't create an Off The Cloud account, ignore this email: nothing is registered for this address without the confirmation.",
+    "reviewed": "claude-backtranslation 2026-10-11 #6c8afdc6"
+  },
+  "mail.verify.subject": {
+    "text": "Confirma o teu email para o Off The Cloud",
+    "en": "Confirm your email for Off The Cloud"
+  }
+}

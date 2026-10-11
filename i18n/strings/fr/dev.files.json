@@ -1,0 +1,255 @@
+{
+  "dev.files.archive_offset": {
+    "text": "position {offset} hors de l’archive",
+    "en": "offset {offset} outside the archive"
+  },
+  "dev.files.archive_too_big": {
+    "text": "l’archive fait {size} octets : téléchargez-la en plusieurs parties",
+    "en": "the archive is {size} bytes: download it in parts"
+  },
+  "dev.files.asset_not_found": {
+    "text": "ressource introuvable",
+    "en": "asset not found"
+  },
+  "dev.files.bad_size": {
+    "text": "taille incorrecte",
+    "en": "bad size"
+  },
+  "dev.files.chunk_too_big": {
+    "text": "fragment de plus de {limit} octets",
+    "en": "chunk over {limit} bytes"
+  },
+  "dev.files.cloud_ids_failed": {
+    "text": "erreur lors de la vérification des identifiants cloud : {detail}",
+    "en": "error checking cloud ids: {detail}"
+  },
+  "dev.files.collection_needs_name": {
+    "text": "une collection doit avoir un nom",
+    "en": "a collection needs a name"
+  },
+  "dev.files.content_missing": {
+    "text": "le contenu de {path} est absent de cet appareil",
+    "en": "the content of {path} is missing on this device"
+  },
+  "dev.files.content_unavailable": {
+    "text": "le contenu de {path} est absent ou illisible sur cet appareil",
+    "en": "the content of {path} is missing or unreadable on this device"
+  },
+  "dev.files.content_unreadable": {
+    "text": "le contenu de {path} est illisible sur cet appareil",
+    "en": "the content of {path} is unreadable on this device"
+  },
+  "dev.files.delete_failed": {
+    "text": "erreur lors de la suppression du fichier : {detail}",
+    "en": "error trying to delete file: {detail}"
+  },
+  "dev.files.download_failed": {
+    "text": "erreur lors du téléchargement du fichier : {detail}",
+    "en": "error trying to download file: {detail}"
+  },
+  "dev.files.exif_unsupported": {
+    "text": "type MIME non pris en charge pour EXIF : {mime}",
+    "en": "unsupported mime type for EXIF: {mime}"
+  },
+  "dev.files.file_not_found": {
+    "text": "fichier introuvable",
+    "en": "file not found"
+  },
+  "dev.files.file_offset": {
+    "text": "position {offset} hors du fichier",
+    "en": "offset {offset} outside the file"
+  },
+  "dev.files.folder_update_failed": {
+    "text": "erreur lors de la mise à jour du dossier : {detail}",
+    "en": "error updating the folder: {detail}"
+  },
+  "dev.files.gallery_not_found": {
+    "text": "ce lien n’existe pas ou a expiré",
+    "en": "this link doesn't exist or has expired"
+  },
+  "dev.files.hash_check_failed": {
+    "text": "erreur lors de la vérification de l’empreinte du fichier : {detail}",
+    "en": "error checking file hash: {detail}"
+  },
+  "dev.files.hash_content_missing": {
+    "text": "le contenu correspondant à cette empreinte est absent de cet appareil : envoyez-le plutôt",
+    "en": "the content for that hash is missing on this device: upload it instead"
+  },
+  "dev.files.image_grid_mismatch": {
+    "text": "l’image indique une taille de {width}x{height}, supérieure à sa grille de {grid_width}x{grid_height}",
+    "en": "the image says it is {width}x{height}, larger than its {grid_width}x{grid_height} grid"
+  },
+  "dev.files.image_too_large": {
+    "text": "l’image fait {width}x{height}, trop grande pour être traitée (plus de {limit} mégapixels)",
+    "en": "the image is {width}x{height}, too large to process (over {limit} megapixels)"
+  },
+  "dev.files.info_failed": {
+    "text": "erreur lors de la récupération des informations du fichier : {detail}",
+    "en": "error trying to retrieve file info: {detail}"
+  },
+  "dev.files.link_expired": {
+    "text": "le lien partagé a expiré",
+    "en": "shared link has expired"
+  },
+  "dev.files.link_failed": {
+    "text": "erreur lors de la liaison du fichier : {detail}",
+    "en": "error trying to link file: {detail}"
+  },
+  "dev.files.locked_by_parent": {
+    "text": "le dossier {name} se trouve dans {parent}, un dossier en envoi uniquement : déverrouillez {parent} pour le déverrouiller",
+    "en": "{name} is inside the upload-only folder {parent} - unlock {parent} to unlock it"
+  },
+  "dev.files.locked_by_parent_own": {
+    "text": "le dossier {name} se trouve dans {parent}, un dossier en envoi uniquement : déverrouillez d’abord {parent}, puis {name}",
+    "en": "{name} is inside the upload-only folder {parent} - unlock {parent} first, then {name}"
+  },
+  "dev.files.media_not_found": {
+    "text": "média introuvable",
+    "en": "media not found"
+  },
+  "dev.files.no_low_res_photos": {
+    "text": "il n’y a aucune photo à partager en basse résolution ici",
+    "en": "there are no photos to share in low resolution there"
+  },
+  "dev.files.no_media_to_share": {
+    "text": "il n’y a aucune photo ni vidéo à partager ici",
+    "en": "there are no photos or videos to share there"
+  },
+  "dev.files.no_path": {
+    "text": "aucun chemin",
+    "en": "no path"
+  },
+  "dev.files.no_such_hash": {
+    "text": "aucun fichier avec cette empreinte sur cet appareil",
+    "en": "no file with that hash on this device"
+  },
+  "dev.files.no_such_job": {
+    "text": "tâche introuvable",
+    "en": "no such job"
+  },
+  "dev.files.no_such_link": {
+    "text": "lien introuvable",
+    "en": "no such link"
+  },
+  "dev.files.no_such_path": {
+    "text": "fichier ou dossier introuvable : {path}",
+    "en": "no such file or directory: {path}"
+  },
+  "dev.files.not_on_device": {
+    "text": "{path} n’est pas sur cet appareil",
+    "en": "{path} is not on this device"
+  },
+  "dev.files.nothing_to_share": {
+    "text": "rien à partager",
+    "en": "nothing to share"
+  },
+  "dev.files.nothing_to_stream": {
+    "text": "rien à diffuser",
+    "en": "nothing to stream"
+  },
+  "dev.files.out_of_images_list_failed": {
+    "text": "erreur lors de la lecture de la liste des dossiers hors d’Images : {detail}",
+    "en": "error listing the folders kept out of Images: {detail}"
+  },
+  "dev.files.post_content_unavailable": {
+    "text": "le contenu de {hash} est absent ou illisible : {detail}",
+    "en": "the content of {hash} is missing or unreadable: {detail}"
+  },
+  "dev.files.read_failed": {
+    "text": "erreur lors de la lecture du fichier : {detail}",
+    "en": "error reading file: {detail}"
+  },
+  "dev.files.reprocess_count_failed": {
+    "text": "comptage des médias à retraiter : {detail}",
+    "en": "counting media for reprocess: {detail}"
+  },
+  "dev.files.reprocess_read_failed": {
+    "text": "lecture de l’état du retraitement : {detail}",
+    "en": "reading reprocess state: {detail}"
+  },
+  "dev.files.reprocess_resume_failed": {
+    "text": "reprise du retraitement : {detail}",
+    "en": "resuming reprocess: {detail}"
+  },
+  "dev.files.reprocess_start_failed": {
+    "text": "démarrage du retraitement : {detail}",
+    "en": "starting reprocess: {detail}"
+  },
+  "dev.files.reprocess_wipe_failed": {
+    "text": "suppression des étiquettes et visages avant le retraitement : {detail}",
+    "en": "wiping tags/faces before reprocess: {detail}"
+  },
+  "dev.files.retrieve_failed": {
+    "text": "erreur lors de la récupération du fichier : {detail}",
+    "en": "error trying to retrieve file: {detail}"
+  },
+  "dev.files.share_link_failed": {
+    "text": "erreur lors de la création du lien de partage des fichiers : {detail}",
+    "en": "error creating files share link: {detail}"
+  },
+  "dev.files.stream_failed": {
+    "text": "impossible de préparer la diffusion",
+    "en": "could not prepare the stream"
+  },
+  "dev.files.upload_bad_hash": {
+    "text": "le contenu envoyé ne correspond pas à son empreinte",
+    "en": "the upload's content doesn't match its hash"
+  },
+  "dev.files.upload_failed": {
+    "text": "erreur lors de l’envoi du fichier : {detail}",
+    "en": "error trying to upload file: {detail}"
+  },
+  "dev.files.upload_finish_failed": {
+    "text": "erreur lors de la finalisation de l’envoi : {detail}",
+    "en": "error finishing the upload: {detail}"
+  },
+  "dev.files.upload_incomplete": {
+    "text": "envoi incomplet : {received} octets sur {size}",
+    "en": "upload incomplete: {received} of {size} bytes"
+  },
+  "dev.files.upload_only": {
+    "text": "ce dossier est en envoi uniquement : rien de ce qu’il contient ne peut être supprimé",
+    "en": "this folder is upload only: nothing in it can be deleted",
+    "reviewed": "claude-backtranslation 2026-10-11 #657ef12e"
+  },
+  "dev.files.upload_out_of_order": {
+    "text": "fragment d’envoi reçu dans le désordre",
+    "en": "upload chunk out of order"
+  },
+  "dev.files.upload_receive_failed": {
+    "text": "erreur lors de la réception de l’envoi : {detail}",
+    "en": "error receiving the upload: {detail}"
+  },
+  "dev.files.upload_removed": {
+    "text": "le contenu envoyé a été supprimé avant d’être enregistré : envoyez-le de nouveau",
+    "en": "the upload's content was removed before it was recorded - send it again"
+  },
+  "dev.files.upload_start_failed": {
+    "text": "erreur lors du démarrage de l’envoi : {detail}",
+    "en": "error starting the upload: {detail}"
+  },
+  "dev.files.upload_too_much": {
+    "text": "plus de données que la taille annoncée pour l’envoi",
+    "en": "more data than the upload's size"
+  },
+  "dev.files.upload_unknown": {
+    "text": "envoi inconnu ou expiré",
+    "en": "unknown or expired upload"
+  },
+  "dev.files.versions_failed": {
+    "text": "erreur lors de la lecture de la liste des versions : {detail}",
+    "en": "error listing the versions: {detail}"
+  },
+  "dev.files.video_no_duration": {
+    "text": "la vidéo n’a pas de durée exploitable",
+    "en": "video has no usable duration"
+  },
+  "dev.files.video_no_frames": {
+    "text": "impossible d’extraire une image de la vidéo",
+    "en": "could not extract any frames from video"
+  },
+  "dev.files.video_no_frames_extracted": {
+    "text": "aucune image extraite de la vidéo",
+    "en": "no frames extracted from video"
+  }
+}

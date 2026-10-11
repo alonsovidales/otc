@@ -1,0 +1,26 @@
+{
+  "dev.keepout.inside_kept_out": {
+    "text": "le dossier {name} se trouve dans {parent}, qui est hors d’Images : affichez {parent} dans Images pour afficher {name}",
+    "en": "{name} is inside {parent}, which is kept out of Images - show {parent} in Images to show {name}"
+  },
+  "dev.keepout.inside_kept_out_own": {
+    "text": "le dossier {name} se trouve dans {parent}, qui est hors d’Images : affichez d’abord {parent} dans Images, puis {name}",
+    "en": "{name} is inside {parent}, which is kept out of Images - show {parent} in Images first, then {name}"
+  },
+  "dev.keepout.not_full_path": {
+    "text": "le dossier doit être un chemin complet",
+    "en": "the folder must be a full path"
+  },
+  "dev.keepout.path_invalid": {
+    "text": "le chemin du dossier n’est pas valide",
+    "en": "the folder's path is not valid"
+  },
+  "dev.keepout.path_too_long": {
+    "text": "le chemin du dossier est trop long",
+    "en": "the folder's path is too long"
+  },
+  "dev.keepout.whole_library": {
+    "text": "la bibliothèque entière ne peut pas être mise hors d’Images",
+    "en": "the whole library can't be kept out of Images"
+  }
+}
