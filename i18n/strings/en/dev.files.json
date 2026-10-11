@@ -1,0 +1,293 @@
+{
+  "dev.files.archive_offset": {
+    "text": "offset {offset} outside the archive",
+    "args": [["offset", "int"]],
+    "note": "Error shown after \"error trying to download file: \" when a download of shared files asks for a part past the end of the zip archive (an app fault). {offset} is the position asked for, in bytes."
+  },
+  "dev.files.archive_too_big": {
+    "text": "the archive is {size} bytes: download it in parts",
+    "args": [["size", "int"]],
+    "note": "Error shown after \"error trying to download file: \" when an older app asks for a whole shared zip archive at once and it is larger than 4 MB. {size} is the archive's size in bytes."
+  },
+  "dev.files.asset_not_found": {
+    "text": "asset not found",
+    "note": "Error reply when a file of the web app itself (a script, a picture) asked through the bridge doesn't exist on the device."
+  },
+  "dev.files.bad_size": {
+    "text": "bad size",
+    "note": "Error shown after \"error starting the upload: \" when an app starts an upload with a negative size (an app fault)."
+  },
+  "dev.files.chunk_too_big": {
+    "text": "chunk over {limit} bytes",
+    "args": [["limit", "int"]],
+    "note": "Error shown after \"error receiving the upload: \" when an app sends a piece of an upload larger than the device takes at once (an app fault). {limit} is that largest size in bytes (4194304)."
+  },
+  "dev.files.cloud_ids_failed": {
+    "text": "error checking cloud ids: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply during the iPhone's photo sync when the device could not check which iCloud photos it already has. {detail} is the reason, usually an error in English the device can't translate."
+  },
+  "dev.files.collection_needs_name": {
+    "text": "a collection needs a name",
+    "note": "Error reply when creating or renaming a collection (a group of photos chosen by the owner) with an empty name."
+  },
+  "dev.files.content_missing": {
+    "text": "the content of {path} is missing on this device",
+    "args": [["path", "user"]],
+    "note": "Error shown after \"error trying to retrieve file: \" when the file is listed but its content is gone from the device's disks. {path} is the file's path on the device."
+  },
+  "dev.files.content_unavailable": {
+    "text": "the content of {path} is missing or unreadable on this device",
+    "args": [["path", "user"]],
+    "note": "Error reply when a file's content could not be read from the device's disks (gone, or damaged) while opening, downloading or sharing it. {path} is the file's path on the device."
+  },
+  "dev.files.content_unreadable": {
+    "text": "the content of {path} is unreadable on this device",
+    "args": [["path", "user"]],
+    "note": "Error shown after \"error trying to retrieve file: \" when the file's content is on the device's disks but could not be decrypted (damaged). {path} is the file's path on the device."
+  },
+  "dev.files.delete_failed": {
+    "text": "error trying to delete file: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Files when deleting a file or folder failed. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.files.download_failed": {
+    "text": "error trying to download file: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply on the page that downloads files someone shared with a link, when the download failed. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.files.exif_unsupported": {
+    "text": "unsupported mime type for EXIF: {mime}",
+    "args": [["mime", "text"]],
+    "note": "Error shown after \"error trying to retrieve file info: \" when the photo details (camera, date, place) are asked for a file that isn't a photo or video. {mime} is the file's type, such as application/pdf. EXIF is the name of the photo details format; keep it."
+  },
+  "dev.files.file_not_found": {
+    "text": "file not found",
+    "note": "Error reply when a video to play no longer exists at that path on the device."
+  },
+  "dev.files.file_offset": {
+    "text": "offset {offset} outside the file",
+    "args": [["offset", "int"]],
+    "note": "Error shown after \"error reading file: \" when an app asks for a part of a file past its end (an app fault). {offset} is the position asked for, in bytes."
+  },
+  "dev.files.folder_update_failed": {
+    "text": "error updating the folder: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Files when making a folder upload only, or keeping it out of Images (or undoing either), failed. {detail} is the reason, usually an error in English the device can't translate."
+  },
+  "dev.files.gallery_not_found": {
+    "text": "this link doesn't exist or has expired",
+    "note": "Error on the page a shared link to photos opens, when the link is wrong, was deleted or has expired. Also shown in Settings > Shared Links."
+  },
+  "dev.files.hash_check_failed": {
+    "text": "error checking file hash: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply during a sync when the device could not check whether it already has a file's content. {detail} is the reason, usually an error in English the device can't translate."
+  },
+  "dev.files.hash_content_missing": {
+    "text": "the content for that hash is missing on this device: upload it instead",
+    "note": "Error shown after \"error trying to link file: \" during a sync: the app asked to reuse content the device should have, but its content is gone; the app uploads the file instead. A hash is the fingerprint that names a file's content."
+  },
+  "dev.files.image_grid_mismatch": {
+    "text": "the image says it is {width}x{height}, larger than its {grid_width}x{grid_height} grid",
+    "args": [["width", "int"], ["height", "int"], ["grid_width", "int"], ["grid_height", "int"]],
+    "note": "Error shown after \"error trying to retrieve file: \" when a HEIC photo is damaged: it claims to be larger than the tiles it is made of. The four numbers are sizes in pixels (width x height); keep the x between them."
+  },
+  "dev.files.image_too_large": {
+    "text": "the image is {width}x{height}, too large to process (over {limit} megapixels)",
+    "args": [["width", "int"], ["height", "int"], ["limit", "int"]],
+    "note": "Error shown after \"error trying to retrieve file: \" when a photo is too large for the device to convert for showing. {width} and {height} are its size in pixels (keep the x between them); {limit} is the largest the device handles, in megapixels (120)."
+  },
+  "dev.files.info_failed": {
+    "text": "error trying to retrieve file info: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply when a photo's details (camera, date, place - \"More info\" in the viewer) could not be read. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.files.link_expired": {
+    "text": "shared link has expired",
+    "note": "Error shown after \"error trying to download file: \" on the page that downloads files someone shared with a link, when the link's time is up."
+  },
+  "dev.files.link_failed": {
+    "text": "error trying to link file: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply during a sync when the device could not add a file whose content it already has (the app skips sending the bytes again). {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.files.locked_by_parent": {
+    "text": "{name} is inside the upload-only folder {parent} - unlock {parent} to unlock it",
+    "args": [["name", "user"], ["parent", "user"]],
+    "note": "Error in Files when the owner turns off upload only on a folder inside another upload-only folder: the outer one still protects it. Upload only: nothing in the folder can be deleted. {name} is the folder's name; {parent} is the path of the upload-only folder above it."
+  },
+  "dev.files.locked_by_parent_own": {
+    "text": "{name} is inside the upload-only folder {parent} - unlock {parent} first, then {name}",
+    "args": [["name", "user"], ["parent", "user"]],
+    "note": "Error in Files when the owner turns off upload only on a folder that is inside another upload-only folder and has upload only set itself: both must be turned off, the outer one first. {name} is the folder's name; {parent} is the path of the upload-only folder above it."
+  },
+  "dev.files.media_not_found": {
+    "text": "media not found",
+    "note": "Error reply when a photo or video to play could not be found, or its playing address has expired (shared galleries, posts, the viewer)."
+  },
+  "dev.files.no_low_res_photos": {
+    "text": "there are no photos to share in low resolution there",
+    "note": "Error when sharing a collection or folder as a gallery with \"low resolution\" on, and it holds no photos (low resolution shares photos only)."
+  },
+  "dev.files.no_media_to_share": {
+    "text": "there are no photos or videos to share there",
+    "note": "Error when sharing a collection or folder as a gallery and it holds no photos or videos."
+  },
+  "dev.files.no_path": {
+    "text": "no path",
+    "note": "Error shown after \"error starting the upload: \" when an app starts an upload without saying where the file goes (an app fault)."
+  },
+  "dev.files.no_such_hash": {
+    "text": "no file with that hash on this device",
+    "note": "Error shown after \"error trying to link file: \" during a sync: the app asked to reuse content the device doesn't have. A hash is the fingerprint that names a file's content."
+  },
+  "dev.files.no_such_job": {
+    "text": "no such job",
+    "note": "Error reply while sharing a gallery: the app asks how the copy is going, and the device no longer knows that copy (it restarted, or the copy finished long ago)."
+  },
+  "dev.files.no_such_link": {
+    "text": "no such link",
+    "note": "Error in Settings > Shared Links when deleting a link that no longer exists."
+  },
+  "dev.files.no_such_path": {
+    "text": "no such file or directory: {path}",
+    "args": [["path", "user"]],
+    "note": "Error shown after \"error creating files share link: \" when a file or folder chosen for sharing no longer exists. {path} is its path on the device."
+  },
+  "dev.files.not_on_device": {
+    "text": "{path} is not on this device",
+    "args": [["path", "user"]],
+    "note": "Error when sharing files as a gallery and one of the chosen files no longer exists. {path} is its path on the device."
+  },
+  "dev.files.nothing_to_share": {
+    "text": "nothing to share",
+    "note": "Error when sharing a gallery without choosing anything (no collection, folder or file)."
+  },
+  "dev.files.nothing_to_stream": {
+    "text": "nothing to stream",
+    "note": "Error reply when an app asks to play a video without saying which (an app fault)."
+  },
+  "dev.files.out_of_images_list_failed": {
+    "text": "error listing the folders kept out of Images: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply when the list of folders kept out of Images could not be read. Images is the photos section; a folder kept out of it shows no photos there and gets no tags or faces. {detail} is the reason, usually an error in English the device can't translate."
+  },
+  "dev.files.post_content_unavailable": {
+    "text": "the content of {hash} is missing or unreadable: {detail}",
+    "args": [["hash", "text"], ["detail", "text"]],
+    "note": "Error shown after \"error trying to create publication: \" when a file chosen for a post could not be read from the device's disks. {hash} is the fingerprint that names the file's content (64 letters and digits); {detail} is the reason, an error in English."
+  },
+  "dev.files.read_failed": {
+    "text": "error reading file: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply when reading a file (opening, downloading or syncing it) failed. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.files.reprocess_count_failed": {
+    "text": "counting media for reprocess: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Settings when starting to analyse every photo again (reprocess) failed while counting them. {detail} is the reason, an error in English."
+  },
+  "dev.files.reprocess_read_failed": {
+    "text": "reading reprocess state: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Settings when starting to analyse every photo again (reprocess) failed while reading how far an earlier run got. {detail} is the reason, an error in English."
+  },
+  "dev.files.reprocess_resume_failed": {
+    "text": "resuming reprocess: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Settings when carrying on with an interrupted analysis of every photo (reprocess) failed. {detail} is the reason, an error in English."
+  },
+  "dev.files.reprocess_start_failed": {
+    "text": "starting reprocess: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Settings when starting to analyse every photo again (reprocess) failed. {detail} is the reason, an error in English."
+  },
+  "dev.files.reprocess_wipe_failed": {
+    "text": "wiping tags/faces before reprocess: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Settings when starting to analyse every photo again (reprocess) failed while removing the tags and faces found before. {detail} is the reason, an error in English."
+  },
+  "dev.files.retrieve_failed": {
+    "text": "error trying to retrieve file: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply when opening a file or photo failed. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.files.share_link_failed": {
+    "text": "error creating files share link: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Files when making a link to download the chosen files failed. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.files.stream_failed": {
+    "text": "could not prepare the stream",
+    "note": "Error reply when the device could not get a video ready to play."
+  },
+  "dev.files.upload_bad_hash": {
+    "text": "the upload's content doesn't match its hash",
+    "note": "Error shown after \"error finishing the upload: \" when the uploaded file arrived damaged: its fingerprint (hash) isn't the one the app computed. The app sends it again."
+  },
+  "dev.files.upload_failed": {
+    "text": "error trying to upload file: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply when uploading a file failed. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate (such as \"Duplicated file\", which stays English)."
+  },
+  "dev.files.upload_finish_failed": {
+    "text": "error finishing the upload: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply when the last step of an upload sent in pieces failed. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate (such as \"Duplicated file\", which stays English)."
+  },
+  "dev.files.upload_incomplete": {
+    "text": "upload incomplete: {received} of {size} bytes",
+    "args": [["received", "int"], ["size", "int"]],
+    "note": "Error shown after \"error finishing the upload: \" when an upload sent in pieces is finished before all of it arrived. {received} is how many bytes arrived; {size} is the file's size in bytes."
+  },
+  "dev.files.upload_only": {
+    "text": "this folder is upload only: nothing in it can be deleted",
+    "note": "Error in Files and the sync apps when deleting something inside an upload-only folder: the owner protected the folder so that nothing in it can be deleted, and re-uploads keep the old version.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #b6596460"
+  },
+  "dev.files.upload_out_of_order": {
+    "text": "upload chunk out of order",
+    "note": "Error shown after \"error receiving the upload: \" when a piece of an upload arrives before the one it follows; the app sends again from where the device is."
+  },
+  "dev.files.upload_receive_failed": {
+    "text": "error receiving the upload: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply when a piece of an upload sent in pieces could not be received. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.files.upload_removed": {
+    "text": "the upload's content was removed before it was recorded - send it again",
+    "note": "Error shown after \"error finishing the upload: \" when the same content was deleted at the very moment the upload finished; the file has to be sent again."
+  },
+  "dev.files.upload_start_failed": {
+    "text": "error starting the upload: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply when an upload sent in pieces could not be started. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.files.upload_too_much": {
+    "text": "more data than the upload's size",
+    "note": "Error shown after \"error receiving the upload: \" when an app sends more bytes than the size it announced (an app fault)."
+  },
+  "dev.files.upload_unknown": {
+    "text": "unknown or expired upload",
+    "note": "Error reply when an app goes on with an upload the device no longer knows (it was idle for 30 minutes, or the device restarted); the app starts it again."
+  },
+  "dev.files.versions_failed": {
+    "text": "error listing the versions: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply when the earlier versions of a file (kept in upload-only folders) could not be listed. {detail} is the reason, usually an error in English the device can't translate."
+  },
+  "dev.files.video_no_duration": {
+    "text": "video has no usable duration",
+    "note": "Error when the device could not read how long a video is (damaged, or not really a video), so it can't make its preview picture."
+  },
+  "dev.files.video_no_frames": {
+    "text": "could not extract any frames from video",
+    "note": "Error when the device could not take any picture out of a video (damaged, or too short) to make its preview."
+  },
+  "dev.files.video_no_frames_extracted": {
+    "text": "no frames extracted from video",
+    "note": "Error when the device could not take a picture out of a video it shrank for a post, to make its preview."
+  }
+}

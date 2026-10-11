@@ -150,17 +150,17 @@ func (p MemoryProfile) NominalGB() int {
 // Describe is the line the start logs; "" for a device with the memory
 // the product is built for and no setting, which logs nothing new.
 func (p MemoryProfile) Describe() string {
-	size := "an unknown amount of memory"
+	size := "an unknown amount of memory" // i18n-ignore: a log line
 	if p.Total > 0 {
-		size = fmt.Sprintf("%d GB of memory (%d MB)", p.NominalGB(), p.Total>>20)
+		size = fmt.Sprintf("%d GB of memory (%d MB)", p.NominalGB(), p.Total>>20) // i18n-ignore: a log line
 	}
 	switch {
 	case p.Low && p.Source == "auto":
-		return fmt.Sprintf("low-memory mode: %s - photos are processed one at a time, the tagging and face models are released after %d idle minutes, Go is limited to %d MB (8 GB recommended)", size, int(cModelIdle.Minutes()), p.GoMemoryLimit()>>20)
+		return fmt.Sprintf("low-memory mode: %s - photos are processed one at a time, the tagging and face models are released after %d idle minutes, Go is limited to %d MB (8 GB recommended)", size, int(cModelIdle.Minutes()), p.GoMemoryLimit()>>20) // i18n-ignore: a log line
 	case p.Low:
-		return fmt.Sprintf("low-memory mode (set by %s): %s - photos are processed one at a time, the tagging and face models are released after %d idle minutes, Go is limited to %d MB", p.Source, size, int(cModelIdle.Minutes()), p.GoMemoryLimit()>>20)
+		return fmt.Sprintf("low-memory mode (set by %s): %s - photos are processed one at a time, the tagging and face models are released after %d idle minutes, Go is limited to %d MB", p.Source, size, int(cModelIdle.Minutes()), p.GoMemoryLimit()>>20) // i18n-ignore: a log line
 	case p.Source != "auto":
-		return fmt.Sprintf("low-memory mode off (set by %s): %s", p.Source, size)
+		return fmt.Sprintf("low-memory mode off (set by %s): %s", p.Source, size) // i18n-ignore: a log line
 	}
 	return ""
 }
@@ -396,11 +396,11 @@ func (m *idleModels) taggerLocked() (any, error) {
 		var t taggerModel
 		err := m.load(func() (err error) { t, err = m.loadTags(); return err })
 		if err != nil {
-			return nil, fmt.Errorf("loading the tagging model: %w", err)
+			return nil, fmt.Errorf("loading the tagging model: %w", err) // i18n-ignore: internal, logged
 		}
 		m.tags = t
 		if m.loaded != nil {
-			m.loaded("tagging model", m.now().Sub(started))
+			m.loaded("tagging model", m.now().Sub(started)) // i18n-ignore: a log line
 		}
 	}
 	return m.tags, nil
@@ -413,11 +413,11 @@ func (m *idleModels) facesLocked() (any, error) {
 		var f faceModel
 		err := m.load(func() (err error) { f, err = m.loadFace(); return err })
 		if err != nil {
-			return nil, fmt.Errorf("loading the face models: %w", err)
+			return nil, fmt.Errorf("loading the face models: %w", err) // i18n-ignore: internal, logged
 		}
 		m.faces = f
 		if m.loaded != nil {
-			m.loaded("face models", m.now().Sub(started))
+			m.loaded("face models", m.now().Sub(started)) // i18n-ignore: a log line
 		}
 	}
 	return m.faces, nil
@@ -479,12 +479,12 @@ func (m *idleModels) releaseIdle() (released []string) {
 	if m.tags != nil {
 		m.tags.Close()
 		m.tags = nil
-		released = append(released, "tagging model")
+		released = append(released, "tagging model") // i18n-ignore: a log line
 	}
 	if m.faces != nil {
 		m.faces.Close()
 		m.faces = nil
-		released = append(released, "face models")
+		released = append(released, "face models") // i18n-ignore: a log line
 	}
 	return released
 }
@@ -594,9 +594,9 @@ func memoryInUse() string {
 	rss := procStatusKB("/proc/self/status", "VmRSS")
 	avail := procStatusKB("/proc/meminfo", "MemAvailable")
 	if rss == 0 {
-		return "memory in use unknown"
+		return "memory in use unknown" // i18n-ignore: a log line
 	}
-	return fmt.Sprintf("this process holds %d MB, %d MB available on the device", rss>>10, avail>>10)
+	return fmt.Sprintf("this process holds %d MB, %d MB available on the device", rss>>10, avail>>10) // i18n-ignore: a log line
 }
 
 // memoryHighWater logs each time the process holds 128 MB more than it

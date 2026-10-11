@@ -1,0 +1,8 @@
+{
+  "dev.err.action_failed": {"text": "The device couldn't do that: {detail}", "args": [["detail", "text"]]},
+  "dev.err.error_detail": {"text": "Error: {detail}", "args": [["detail", "text"]]},
+  "dev.err.internal": {"text": "internal error"},
+  "dev.err.not_authenticated": {"text": "not authenticated"},
+  "dev.err.not_on_this_instance": {"text": "not available on this instance"},
+  "dev.err.unknown_request": {"text": "This device does not understand that request: its software is older than the app. Check for updates in Settings."}
+}

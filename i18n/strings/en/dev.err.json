@@ -1,0 +1,30 @@
+{
+  "dev.err.action_failed": {
+    "text": "The device couldn't do that: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply the apps show when a request to the device failed with an error the device can't translate (a database's or the operating system's own words). Shown only in languages other than English: an English request gets the error alone, as it always did. {detail} is that error, in English."
+  },
+  "dev.err.error_detail": {
+    "text": "Error: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply the device sends when signing in failed, or when a friend's device asked something about a friendship and it failed. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.err.internal": {
+    "text": "internal error",
+    "note": "Error reply the apps show when the device hit an unexpected fault while answering a request (a bug on the device). Nothing the user can do about it but try again."
+  },
+  "dev.err.not_authenticated": {
+    "text": "not authenticated",
+    "note": "Error reply to a request that needs the owner signed in (or a friend's device authenticated) on a connection that isn't: the session is gone, for example because the device restarted. The apps go back to the sign-in screen.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #b7827766"
+  },
+  "dev.err.not_on_this_instance": {
+    "text": "not available on this instance",
+    "note": "Error reply to a request only the device's main user can make (managing users, updates, restart, storage, Wi-Fi, the bridge, logs), sent by an additional user's account on the same device. An instance is one user's own copy of the device's software."
+  },
+  "dev.err.unknown_request": {
+    "text": "This device does not understand that request: its software is older than the app. Check for updates in Settings.",
+    "note": "Error reply to a request the device's software doesn't know: the app is newer than the device. Settings is the app's Settings screen, where the device's Update button is."
+  }
+}

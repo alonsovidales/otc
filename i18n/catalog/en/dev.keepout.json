@@ -1,0 +1,8 @@
+{
+  "dev.keepout.inside_kept_out": {"text": "{name} is inside {parent}, which is kept out of Images - show {parent} in Images to show {name}", "args": [["name", "user"], ["parent", "user"]]},
+  "dev.keepout.inside_kept_out_own": {"text": "{name} is inside {parent}, which is kept out of Images - show {parent} in Images first, then {name}", "args": [["name", "user"], ["parent", "user"]]},
+  "dev.keepout.not_full_path": {"text": "the folder must be a full path"},
+  "dev.keepout.path_invalid": {"text": "the folder's path is not valid"},
+  "dev.keepout.path_too_long": {"text": "the folder's path is too long"},
+  "dev.keepout.whole_library": {"text": "the whole library can't be kept out of Images"}
+}

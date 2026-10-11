@@ -5,13 +5,14 @@ package filesmanager
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
@@ -110,7 +111,7 @@ func fileMeta(path string) (*pb.File, error) {
 func copyPlaintext(ses *session.Session, hash, dst string) error {
 	blob, err := blobstore.Open(blobPath(hash), ses)
 	if err != nil {
-		return fmt.Errorf("the content of %s is missing or unreadable: %w", hash, err)
+		return devtext.Wrap(i18n.DevFilesPostContentUnavailable(hash, err.Error()), err)
 	}
 	defer blob.Close()
 	tmp, err := os.CreateTemp(filepath.Dir(dst), ".post-*")

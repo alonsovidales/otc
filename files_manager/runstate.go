@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alonsovidales/otc/alerttext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 )
 
@@ -433,37 +435,66 @@ func counterIn(path, name string) int64 {
 	return -1
 }
 
-// clockTime is t as the Alerts' lines show times: "15:04" today,
-// "2 Jan 15:04" another day.
+// clockTime is t as the log shows times: "15:04" today, "2 Jan 15:04"
+// another day.
 func clockTime(t, now time.Time) string {
-	if y, m, d := t.Date(); y == now.Year() && m == now.Month() && d == now.Day() {
+	if sameDay(t, now) {
 		return t.Format("15:04")
 	}
 	return t.Format("2 Jan 15:04")
 }
 
-// memoryAlertTitle is the Alert's one line for prev, a series of runs
-// that ran out of memory.
-func memoryAlertTitle(prev previousRun, now time.Time) string {
-	if prev.oomDeaths <= 1 {
-		return "Your device ran out of memory and restarted"
-	}
-	return fmt.Sprintf("Your device ran out of memory and restarted %d times since %s", prev.oomDeaths, clockTime(prev.since, now))
+// sameDay is whether t falls on now's day.
+func sameDay(t, now time.Time) bool {
+	y, m, d := t.Date()
+	return y == now.Year() && m == now.Month() && d == now.Day()
 }
 
-// memoryAlertHint is the Alert's detail, in plain words.
-func memoryAlertHint(p MemoryProfile) string {
-	size := "This device"
-	if p.Total > 0 {
-		size = fmt.Sprintf("This device has %d GB of memory", p.NominalGB())
+// memoryAlertTitle is memoryAlertMsg in English.
+func memoryAlertTitle(prev previousRun, now time.Time) string {
+	return alerttext.EnglishOf(memoryAlertMsg(prev, now))
+}
+
+// memoryAlertMsg is the Alert's one line for prev, a series of runs that
+// ran out of memory: how many, since a time today or a day before ("2
+// Jan 19:34", the month's name from the catalog).
+func memoryAlertMsg(prev previousRun, now time.Time) i18n.Msg {
+	if prev.oomDeaths <= 1 {
+		return i18n.DevAlertMemoryRestarted()
 	}
+	clock := prev.since.Format("15:04")
+	if sameDay(prev.since, now) {
+		return i18n.DevAlertMemoryRestartedTimes(prev.oomDeaths, clock)
+	}
+	return i18n.DevAlertMemoryRestartedTimesDay(prev.oomDeaths, prev.since.Day(), monthNames[prev.since.Month()-1](), clock)
+}
+
+// monthNames are the months' short names in a memory Alert's date.
+var monthNames = [12]func() i18n.Msg{
+	i18n.DevAlertMonthJan, i18n.DevAlertMonthFeb, i18n.DevAlertMonthMar, i18n.DevAlertMonthApr,
+	i18n.DevAlertMonthMay, i18n.DevAlertMonthJun, i18n.DevAlertMonthJul, i18n.DevAlertMonthAug,
+	i18n.DevAlertMonthSep, i18n.DevAlertMonthOct, i18n.DevAlertMonthNov, i18n.DevAlertMonthDec,
+}
+
+// memoryAlertHint is memoryHintMsg in English.
+func memoryAlertHint(p MemoryProfile) string {
+	return alerttext.EnglishOf(memoryHintMsg(p))
+}
+
+// memoryHintMsg is the Alert's detail, in plain words: how much memory
+// the device has, when it knows, and what it does about it.
+func memoryHintMsg(p MemoryProfile) i18n.Msg {
 	switch {
 	case p.Low && p.Total > 0 && p.NominalGB() < 8:
-		return size + ", less than the 8 GB recommended: it processes one photo at a time to fit (low-memory mode), and after a restart it waits a while before it goes on. If this keeps happening, send the logs from Settings > Logs."
+		return i18n.DevAlertMemoryHintLowSmall(p.NominalGB())
+	case p.Low && p.Total > 0:
+		return i18n.DevAlertMemoryHintLow(p.NominalGB())
 	case p.Low:
-		return size + ": it processes one photo at a time (low-memory mode), and after a restart it waits a while before it goes on. If this keeps happening, send the logs from Settings > Logs."
+		return i18n.DevAlertMemoryHintLowUnknown()
+	case p.Total > 0:
+		return i18n.DevAlertMemoryHint(p.NominalGB())
 	}
-	return size + ". After a restart it goes on processing one file at a time for an hour. If this keeps happening, send the logs from Settings > Logs."
+	return i18n.DevAlertMemoryHintUnknown()
 }
 
 // checkPreviousRun starts this run's marker, reports how the previous run
@@ -527,11 +558,11 @@ func (mg *Manager) checkPreviousRun(env runEnv, p MemoryProfile) *processingGuar
 // one Alert that counts the deaths (issue #64's Alerts; never a push). The
 // row stands alone: no other error joins it.
 func (mg *Manager) raiseMemoryAlert(rs *runState, prev previousRun, p MemoryProfile, now time.Time) {
-	detail := ""
+	var detail i18n.Msg
 	if rs.rec.Alert == "" {
-		detail = memoryAlertHint(p)
+		detail = memoryHintMsg(p)
 	}
-	id, err := mg.dao.UpsertErrorNotification(rs.rec.Alert, memoryAlertTitle(prev, now), detail)
+	id, err := mg.dao.UpsertErrorNotification(rs.rec.Alert, alerttext.New(memoryAlertMsg(prev, now), detail))
 	if err != nil {
 		log.Error("error recording the alert:", err)
 		return

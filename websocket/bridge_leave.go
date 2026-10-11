@@ -12,8 +12,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alonsovidales/otc/alerttext"
 	"github.com/alonsovidales/otc/bridgeaccess"
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/wsframe"
@@ -67,8 +69,7 @@ func (mg *Manager) nameUnknownOnBridge() {
 	}
 	_, domain, _ := mg.settings.Identity()
 	log.Info("the bridge no longer knows", domain, "- switching to local-only")
-	if err := mg.dao.AddErrorNotification("This device left the bridge",
-		fmt.Sprintf("The bridge no longer knows %s: its account was deleted or the name released. The device goes on working at home, at %s - set the apps to that address, or join the bridge again in Settings.", domain, localURL())); err != nil {
+	if err := mg.dao.AddErrorNotification(alerttext.New(i18n.DevAlertBridgeLeft(), i18n.DevAlertBridgeLeftDetail(domain, localURL()))); err != nil {
 		log.Error("could not add the notification:", err)
 	}
 	if err := mg.switchToLocal(bridgeaccess.LeftReleased); err != nil {
@@ -106,7 +107,7 @@ func (mg *Manager) switchToLocal(reason string) error {
 	}
 	owner, _, secret := mg.settings.Identity()
 	if err := mg.dao.SetBridgeIdentity(owner, cLocalDomain, secret); err != nil {
-		return fmt.Errorf("storing the local identity: %w", err)
+		return fmt.Errorf("storing the local identity: %w", err) // i18n-ignore: an internal step's name before a database error: the whole is a reply's raw detail
 	}
 	mg.settings.SetIdentity(owner, cLocalDomain, secret)
 	return bridgeaccess.RequestSwitchOff(reason)
@@ -147,14 +148,14 @@ func localURL() string {
 // connection like regenerateBridgeSecret's.
 func (mg *Manager) releaseBridgeDomain() error {
 	if !bridgeConfigured() {
-		return errors.New("this device is not on the bridge")
+		return errors.New("this device is not on the bridge") // i18n-ignore: logged (leaveBridge), never shown: the reply has a sentence of its own
 	}
 	u := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
 	h := http.Header{}
 	h.Set("Sec-WebSocket-Protocol", "protobuf")
 	c, err := wsframe.Dial(u.String(), h)
 	if err != nil {
-		return fmt.Errorf("dialing bridge: %w", err)
+		return fmt.Errorf("dialing bridge: %w", err) // i18n-ignore: logged (leaveBridge), never shown
 	}
 	defer c.Close()
 
@@ -169,11 +170,11 @@ func (mg *Manager) releaseBridgeDomain() error {
 		return err
 	}
 	if err := c.WriteMessage(gorilla.BinaryMessage, b); err != nil {
-		return fmt.Errorf("writing to bridge: %w", err)
+		return fmt.Errorf("writing to bridge: %w", err) // i18n-ignore: logged (leaveBridge), never shown
 	}
 	_, data, err := c.ReadMessage()
 	if err != nil {
-		return fmt.Errorf("reading from bridge: %w", err)
+		return fmt.Errorf("reading from bridge: %w", err) // i18n-ignore: logged (leaveBridge), never shown
 	}
 	var resp pb.RespEnvelope
 	if err := proto.Unmarshal(data, &resp); err != nil {

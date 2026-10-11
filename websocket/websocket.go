@@ -34,6 +34,7 @@ import (
 	"github.com/alonsovidales/otc/devtext"
 	facerecognition "github.com/alonsovidales/otc/face_recognition"
 	filesmanager "github.com/alonsovidales/otc/files_manager"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/lantls"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/mediastream"
@@ -364,7 +365,7 @@ func (mg *Manager) closeWithError(conn *gorilla.Conn, id int32, err error) {
 		Payload: &pb.RespEnvelope_RespAck{
 			RespAck: &pb.Ack{
 				Ok:       false,
-				ErrorMsg: fmt.Sprintf("Error: %s", err),
+				ErrorMsg: i18n.DevErrErrorDetail(err.Error()).Render(""),
 			},
 		},
 	}
@@ -658,14 +659,14 @@ func (mg *Manager) dropSurplusBridgeRetry() bool {
 // RotateSecret's compare-and-swap on the bridge side.
 func (mg *Manager) regenerateBridgeSecret() (newSecret string, err error) {
 	if !bridgeConfigured() {
-		return "", errors.New("this instance has no bridge access, so there is no bridge secret to regenerate")
+		return "", errors.New("this instance has no bridge access, so there is no bridge secret to regenerate") // i18n-ignore: no request reaches it (the device rotates its secret itself)
 	}
 	u := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
 	h := http.Header{}
 	h.Set("Sec-WebSocket-Protocol", "protobuf")
 	c, err := wsframe.Dial(u.String(), h)
 	if err != nil {
-		return "", fmt.Errorf("dialing bridge: %w", err)
+		return "", fmt.Errorf("dialing bridge: %w", err) // i18n-ignore: no request reaches it
 	}
 	defer c.Close()
 
@@ -686,12 +687,12 @@ func (mg *Manager) regenerateBridgeSecret() (newSecret string, err error) {
 		return "", err
 	}
 	if err := c.WriteMessage(gorilla.BinaryMessage, b); err != nil {
-		return "", fmt.Errorf("writing to bridge: %w", err)
+		return "", fmt.Errorf("writing to bridge: %w", err) // i18n-ignore: no request reaches it
 	}
 
 	_, data, err := c.ReadMessage()
 	if err != nil {
-		return "", fmt.Errorf("reading from bridge: %w", err)
+		return "", fmt.Errorf("reading from bridge: %w", err) // i18n-ignore: no request reaches it
 	}
 	var resp pb.RespEnvelope
 	if err := proto.Unmarshal(data, &resp); err != nil {
@@ -702,7 +703,7 @@ func (mg *Manager) regenerateBridgeSecret() (newSecret string, err error) {
 	}
 	ack, ok := resp.Payload.(*pb.RespEnvelope_RespRotateBridgeSecretAck)
 	if !ok || ack.RespRotateBridgeSecretAck == nil {
-		return "", errors.New("unexpected bridge response")
+		return "", errors.New("unexpected bridge response") // i18n-ignore: no request reaches it
 	}
 
 	return ack.RespRotateBridgeSecretAck.NewSecret, nil
@@ -1078,12 +1079,13 @@ func pureDownload(env *pb.ReqEnvelope) bool {
 }
 
 // tooManyAttemptsAck refuses a password attempt while its address (or the
-// device) is locked out (issue #117), saying when to try again.
-func tooManyAttemptsAck(secs int32) *pb.Ack {
+// device) is locked out (issue #117), saying when to try again, in lang.
+func tooManyAttemptsAck(secs int32, lang string) *pb.Ack {
 	return &pb.Ack{
-		Ok:                false,
-		Code:              "too_many_attempts",
-		ErrorMsg:          fmt.Sprintf("Too many attempts. Try again in %d seconds.", secs),
+		Ok:   false,
+		Code: "too_many_attempts",
+		ErrorMsg: sayOr(lang, fmt.Sprintf("Too many attempts. Try again in %d seconds.", secs), // i18n-ignore: the English as it always read (no grouping)
+			i18n.DevAuthTooManyAttempts(int(secs))),
 		RetryAfterSeconds: secs,
 	}
 }
@@ -1217,11 +1219,11 @@ func takeRSAKey() *rsa.PrivateKey {
 func (ch *connHandler) decryptSecret(ciphertext []byte) (string, error) {
 	privKey := ch.getPrivKey()
 	if privKey == nil {
-		return "", errors.New("no public key was requested for this connection")
+		return "", devtext.New(i18n.DevAuthNoPublicKey())
 	}
 	plain, err := rsa.DecryptOAEP(sha256.New(), crand.Reader, privKey, ciphertext, nil)
 	if err != nil {
-		return "", errors.New("unable to decrypt key material")
+		return "", devtext.New(i18n.DevAuthDecryptFailed())
 	}
 	return string(plain), nil
 }
@@ -1243,7 +1245,7 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 	case req.PubUuid != "" && req.Hash != "":
 		// The hash becomes a path below: only ever a content hash.
 		if !dao.IsContentHash(req.Hash) {
-			return "", 0, "", 0, fmt.Errorf("media not found")
+			return "", 0, "", 0, devtext.New(i18n.DevFilesMediaNotFound())
 		}
 		// Authorized the same way ReqGetPublicationMedia is: the
 		// publication has to actually carry this hash. Without that
@@ -1251,15 +1253,15 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 		// naming its hash next to a publication the caller can see.
 		pubMime, found, mErr := ch.mg.dao.PublicationFileMime(req.PubUuid, req.Hash)
 		if mErr != nil || !found {
-			return "", 0, "", 0, fmt.Errorf("media not found")
+			return "", 0, "", 0, devtext.New(i18n.DevFilesMediaNotFound())
 		}
 		// Issue #174: a friend only streams the owner's own posts.
 		if ch.getSession() == nil && !ch.ownPublication(req.PubUuid) {
-			return "", 0, "", 0, fmt.Errorf("media not found")
+			return "", 0, "", 0, devtext.New(i18n.DevFilesMediaNotFound())
 		}
 		info, sErr := os.Stat(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "unenc-storage-path"), req.Hash))
 		if sErr != nil {
-			return "", 0, "", 0, fmt.Errorf("media not found")
+			return "", 0, "", 0, devtext.New(i18n.DevFilesMediaNotFound())
 		}
 		res = mediastream.Resource{
 			Kind:    mediastream.KindPublicationMedia,
@@ -1277,11 +1279,11 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 		// decrypt it anyway.
 		ses := ch.getSession()
 		if ses == nil {
-			return "", 0, "", 0, fmt.Errorf("not authenticated")
+			return "", 0, "", 0, devtext.New(i18n.DevErrNotAuthenticated())
 		}
 		file, fErr := ch.mg.dao.GetFileByPath(req.Path)
 		if fErr != nil {
-			return "", 0, "", 0, fmt.Errorf("file not found")
+			return "", 0, "", 0, devtext.New(i18n.DevFilesFileNotFound())
 		}
 		res = mediastream.Resource{
 			Kind: mediastream.KindLibraryFile,
@@ -1293,7 +1295,7 @@ func (ch *connHandler) issueMediaURL(req *pb.ReqGetMediaURL) (url string, size i
 		}
 
 	default:
-		return "", 0, "", 0, fmt.Errorf("nothing to stream")
+		return "", 0, "", 0, devtext.New(i18n.DevFilesNothingToStream())
 	}
 
 	return ch.streamURL(reuseKey, res)
@@ -1317,7 +1319,7 @@ func (ch *connHandler) streamURL(reuseKey string, res mediastream.Resource) (url
 	token, expiresAt, tErr := ch.mg.media.Store().IssueShared(reuseKey, res)
 	if tErr != nil {
 		log.Error("error issuing a media token:", tErr)
-		return "", 0, "", 0, fmt.Errorf("could not prepare the stream")
+		return "", 0, "", 0, devtext.New(i18n.DevFilesStreamFailed())
 	}
 
 	// Relative on purpose: the browser is already on the device's own
@@ -1385,7 +1387,8 @@ func buildUpdateInfo(lang string) *pb.RespUpdateInfo {
 }
 
 // lang, here and in the two handlers below, is the request's language
-// (requestLang): "" for today's English. Replies don't depend on it yet.
+// (requestLang): "" for today's English. Replies are written in it
+// (replies.go); a request without one gets today's English, byte for byte.
 func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (resp *pb.RespEnvelope, closeConn bool) {
 	resp = &pb.RespEnvelope{
 		Id: env.Id,
@@ -1419,7 +1422,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 				log.Error("error reading media range:", rErr)
 			}
 			resp.Error = true
-			resp.ErrorMessage = "media not found"
+			resp.ErrorMessage = i18n.DevFilesMediaNotFound().Render(lang)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespMediaRange{
@@ -1435,14 +1438,14 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		path, rErr := staticassets.Resolve(ch.mg.staticPath, p.ReqGetStaticAsset.Path)
 		if rErr != nil {
 			resp.Error = true
-			resp.ErrorMessage = "asset not found"
+			resp.ErrorMessage = i18n.DevFilesAssetNotFound().Render(lang)
 			break
 		}
 		content, rErr := os.ReadFile(path)
 		if rErr != nil {
 			log.Error("error reading resolved static asset:", rErr)
 			resp.Error = true
-			resp.ErrorMessage = "asset not found"
+			resp.ErrorMessage = i18n.DevFilesAssetNotFound().Render(lang)
 			break
 		}
 		contentType := mime.TypeByExtension(filepath.Ext(path))
@@ -1461,7 +1464,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		if err != nil {
 			log.Error("error generating connection keypair:", err)
 			resp.Error = true
-			resp.ErrorMessage = "error generating keypair"
+			resp.ErrorMessage = i18n.DevAuthKeypairFailed().Render(lang)
 			break
 		}
 
@@ -1469,7 +1472,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		if err != nil {
 			log.Error("error marshaling public key:", err)
 			resp.Error = true
-			resp.ErrorMessage = "error marshaling public key"
+			resp.ErrorMessage = i18n.DevAuthPublicKeyFailed().Render(lang)
 			break
 		}
 
@@ -1477,7 +1480,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		if err != nil {
 			log.Error("error checking if secret is defined:", err)
 			resp.Error = true
-			resp.ErrorMessage = "error checking device state"
+			resp.ErrorMessage = i18n.DevAuthDeviceStateFailed().Render(lang)
 			break
 		}
 
@@ -1510,7 +1513,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			}
 		} else if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error retreiving friendship: %s", err)
+			resp.ErrorMessage = i18n.DevSocialFriendshipLookupFailed(err.Error()).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespFriendshipStatus{
 				RespFriendshipStatus: &pb.FriendshipStatusReply{
@@ -1534,7 +1537,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
 					Ok:       false,
-					ErrorMsg: fmt.Sprintf("Friendship not accepted"),
+					ErrorMsg: i18n.DevSocialNotAccepted().Render(lang),
 				},
 			}
 			return resp, true
@@ -1557,14 +1560,14 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		// what authorises dropping our copy (see ExternalFriendshipDelete).
 		if friendDomainTooLong(p.ReqFriendshipInterDelete.Domain) {
 			resp.Payload = &pb.RespEnvelope_RespAck{
-				RespAck: &pb.Ack{Ok: false, ErrorMsg: "Error: Friendship not found"},
+				RespAck: &pb.Ack{Ok: false, ErrorMsg: i18n.DevSocialNotFoundError().Render(lang)},
 			}
 			return resp, true
 		}
 		log.Info("Friendship deleted by the other side:", p.ReqFriendshipInterDelete.Domain)
 		if err := ch.mg.social.ExternalFriendshipDelete(p.ReqFriendshipInterDelete.Domain, p.ReqFriendshipInterDelete.Secret, p.ReqFriendshipInterDelete.ForgetMe); err != nil {
 			resp.Payload = &pb.RespEnvelope_RespAck{
-				RespAck: &pb.Ack{Ok: false, ErrorMsg: fmt.Sprintf("Error: %s", err)},
+				RespAck: &pb.Ack{Ok: false, ErrorMsg: i18n.DevErrErrorDetail(devtext.Text(lang, err)).Render(lang)},
 			}
 			return resp, true
 		}
@@ -1591,9 +1594,9 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		// detail rather than being correct on its own terms. Use `||` like
 		// the equivalent ReqAuthAsFriend check above.
 		if err != nil || friendship == nil {
-			errMsg := "Friendship not found"
+			errMsg := i18n.DevSocialNotFound().Render(lang)
 			if err != nil {
-				errMsg = fmt.Sprintf("Error: %s", err)
+				errMsg = i18n.DevErrErrorDetail(devtext.Text(lang, err)).Render(lang)
 			}
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
@@ -1616,7 +1619,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			// Before ExternalFriendshipRequest, whose errors quote the
 			// domain into the log and the reply.
 			resp.Payload = &pb.RespEnvelope_RespAck{
-				RespAck: &pb.Ack{Ok: false, ErrorMsg: "Error: friendship request refused"},
+				RespAck: &pb.Ack{Ok: false, ErrorMsg: i18n.DevSocialRequestRefusedError().Render(lang)},
 			}
 			return resp, true
 		}
@@ -1638,7 +1641,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
 					Ok:       false,
-					ErrorMsg: fmt.Sprintf("Error: %s", err),
+					ErrorMsg: i18n.DevErrErrorDetail(devtext.Text(lang, err)).Render(lang),
 				},
 			}
 			return resp, true
@@ -1657,7 +1660,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		// before the password is even looked at.
 		if retry, blocked := session.Attempts.Blocked(addr); blocked {
 			log.Info("password attempt refused, address locked out:", addr, "for", retry.Round(time.Second))
-			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: tooManyAttemptsAck(int32(retry.Seconds() + 0.999))}
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: tooManyAttemptsAck(int32(retry.Seconds()+0.999), lang)}
 			return resp, true
 		}
 
@@ -1679,7 +1682,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		})
 		if blocked {
 			log.Info("password attempt refused, address locked out:", addr, "for", retry.Round(time.Second))
-			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: tooManyAttemptsAck(int32(retry.Seconds() + 0.999))}
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: tooManyAttemptsAck(int32(retry.Seconds()+0.999), lang)}
 			return resp, true
 		}
 
@@ -1689,7 +1692,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			// the phone apps take any sign-in code for the bridge's "device
 			// unreachable" and would keep retrying behind that screen.
 			resp.Payload = &pb.RespEnvelope_RespAck{
-				RespAck: &pb.Ack{Ok: false, ErrorMsg: err.Error()},
+				RespAck: &pb.Ack{Ok: false, ErrorMsg: devtext.Text(lang, err)},
 			}
 			return resp, true
 		}
@@ -1698,12 +1701,12 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			// which is 1 *nanosecond* (time.Sleep takes a Duration, i.e.
 			// nanoseconds) — no throttling at all against repeated guesses.
 			time.Sleep(time.Second)
-			ack := &pb.Ack{Ok: false, ErrorMsg: fmt.Sprintf("Error: %s", err)}
+			ack := &pb.Ack{Ok: false, ErrorMsg: i18n.DevErrErrorDetail(devtext.Text(lang, err)).Render(lang)}
 			// Issue #117: the attempt that spends the allowance is answered
 			// with the lockout itself, so the client can say when to retry.
 			if locked > 0 {
 				log.Info("too many failed password attempts from", addr, "- locked out for", locked)
-				ack = tooManyAttemptsAck(int32(locked.Seconds()))
+				ack = tooManyAttemptsAck(int32(locked.Seconds()), lang)
 			}
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: ack}
 			return resp, true
@@ -1763,7 +1766,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
 					Ok:       false,
-					ErrorMsg: "Session expired or invalid, please sign in again.",
+					ErrorMsg: i18n.DevAuthSessionExpired().Render(lang),
 				},
 			}
 			break
@@ -1784,7 +1787,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		log.Info("Open shared gallery")
 		g, err := ch.mg.filesManager.OpenSharedGallery(p.ReqOpenSharedGallery.Uuid, p.ReqOpenSharedGallery.Secret)
 		if err != nil {
-			resp.Error, resp.ErrorMessage = true, filesmanager.ErrNoSuchGallery.Error()
+			resp.Error, resp.ErrorMessage = true, devtext.Text(lang, filesmanager.ErrNoSuchGallery)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespSharedGallery{RespSharedGallery: g}
@@ -1793,7 +1796,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		r := p.ReqGetSharedGalleryItem
 		data, size, mime, err := ch.mg.filesManager.ReadSharedGalleryItem(r.Uuid, r.Secret, int(r.Index), r.Part, r.Offset, int(r.Length))
 		if err != nil {
-			resp.Error, resp.ErrorMessage = true, filesmanager.ErrNoSuchGallery.Error()
+			resp.Error, resp.ErrorMessage = true, devtext.Text(lang, filesmanager.ErrNoSuchGallery)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespFileChunk{RespFileChunk: &pb.FileChunk{Mime: mime, Size: size, Offset: r.Offset, Data: data}}
@@ -1802,13 +1805,13 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 		r := p.ReqGetSharedGalleryStream
 		res, err := ch.mg.filesManager.SharedGalleryStream(r.Uuid, r.Secret, int(r.Index))
 		if err != nil {
-			resp.Error, resp.ErrorMessage = true, filesmanager.ErrNoSuchGallery.Error()
+			resp.Error, resp.ErrorMessage = true, devtext.Text(lang, filesmanager.ErrNoSuchGallery)
 			break
 		}
 		// The uuid and secret were checked above; a gallery has one secret.
 		url, size, mime, exp, err := ch.streamURL(fmt.Sprintf("gallery:%s/%d", r.Uuid, r.Index), res)
 		if err != nil {
-			resp.Error, resp.ErrorMessage = true, err.Error()
+			resp.Error, resp.ErrorMessage = true, devtext.Text(lang, err)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespMediaUrl{RespMediaUrl: &pb.RespMediaURL{Url: url, TotalSize: size, Mime: mime, ExpiresAtUnixMs: exp}}
@@ -1820,7 +1823,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 			data, size, err := ch.mg.filesManager.OpenSharedLinkRange(r.Uuid, r.Secret, r.Offset, int(r.Length))
 			if err != nil {
 				resp.Error = true
-				resp.ErrorMessage = fmt.Sprintf("error trying to download file: %s", err)
+				resp.ErrorMessage = i18n.DevFilesDownloadFailed(devtext.Text(lang, err)).Render(lang)
 				break
 			}
 			// Issue #180: the list in Settings counts downloads - one per
@@ -1837,7 +1840,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error trying to download file: %s", err)
+			resp.ErrorMessage = i18n.DevFilesDownloadFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespSharedFiles{
 				RespSharedFiles: &pb.SharedFiles{
@@ -1879,11 +1882,11 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope, lang stri
 	if isFriend {
 		accepted, leaving, err := ch.mg.dao.FriendshipAccess(friend.Domain())
 		if err != nil || !accepted {
-			return notAuthenticatedResponse(env.Id), true
+			return notAuthenticatedResponse(env.Id, lang), true
 		}
 		if _, events := env.Payload.(*pb.ReqEnvelope_ReqGetEvents); leaving && !events {
 			resp.Error = true
-			resp.ErrorMessage = "no longer friends"
+			resp.ErrorMessage = i18n.DevSocialNoLongerFriends().Render(lang)
 			return resp, false
 		}
 	}
@@ -1899,7 +1902,7 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope, lang stri
 		events, err := ch.mg.social.GetEvents(ch.mg.profile, p.ReqGetEvents.Since.AsTime(), p.ReqGetEvents.Total, requester)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error trying to retrieve events: %s", err)
+			resp.ErrorMessage = i18n.DevSocialEventsFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespEvents{
 				RespEvents: &pb.Events{
@@ -1918,7 +1921,7 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope, lang stri
 		url, size, mime, expiresAt, err := ch.issueMediaURL(p.ReqGetMediaUrl)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = devtext.Text(lang, err)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespMediaUrl{
@@ -1938,14 +1941,14 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope, lang stri
 		req := p.ReqGetPublicationMedia
 		if isFriend && !ch.ownPublication(req.PubUuid) {
 			resp.Error = true
-			resp.ErrorMessage = "media not available"
+			resp.ErrorMessage = i18n.DevSocialMediaNotAvailable().Render(lang)
 			break
 		}
 		content, mime, err := ch.mg.social.GetPublicationMedia(req.PubUuid, req.Hash)
 		if err != nil {
 			log.Error("error reading publication media:", err)
 			resp.Error = true
-			resp.ErrorMessage = "media not available"
+			resp.ErrorMessage = i18n.DevSocialMediaNotAvailable().Render(lang)
 		} else {
 			media := &pb.File{Hash: req.Hash, Mime: mime, Content: content}
 			dao.SetFileSize(media, int64(len(content)))
@@ -1956,13 +1959,13 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope, lang stri
 		log.Info("Getting social publication")
 		if isFriend && !ch.ownPublication(p.ReqGetSocialPublicationFiles.Uuid) {
 			resp.Error = true
-			resp.ErrorMessage = "no such publication"
+			resp.ErrorMessage = i18n.DevSocialNoSuchPost().Render(lang)
 			break
 		}
 		files, err := ch.mg.social.GetPublicationFiles(p.ReqGetSocialPublicationFiles.Uuid)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error trying to collect publications: %s", err)
+			resp.ErrorMessage = i18n.DevSocialPostsFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespSocialPublicationFiles{
 				RespSocialPublicationFiles: &pb.SocialPublicationFiles{
@@ -1976,7 +1979,7 @@ func (ch *connHandler) processAuthAsFriendRequest(env *pb.ReqEnvelope, lang stri
 		publications, err := ch.mg.social.GetPublications(ch.mg.profile, p.ReqGetSocialPublications.Since.AsTime(), p.ReqGetSocialPublications.Total, ch.getFriendProfile() != nil, p.ReqGetSocialPublications.ExcludeUuids)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error trying to collect publications: %s", err)
+			resp.ErrorMessage = i18n.DevSocialPostsFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespSocialPublications{
 				RespSocialPublications: publications,
@@ -2010,7 +2013,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error trying to create publication: %s", err)
+			resp.ErrorMessage = i18n.DevSocialPostFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespNewSocial{
 				RespNewSocial: &pb.NewSocial{
@@ -2024,7 +2027,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		err := ch.mg.social.NewSocialComment(ch.mg.profile, p.ReqNewSocialComment.PubUuid, p.ReqNewSocialComment.Comment)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error publishing comment: %s", err)
+			resp.ErrorMessage = i18n.DevSocialCommentFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
@@ -2038,7 +2041,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		err := ch.mg.social.DeletePublication(p.ReqDelSocialPublication.PubUuid)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error deleting publication: %s", err)
+			resp.ErrorMessage = i18n.DevSocialDeletePostFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
@@ -2052,7 +2055,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		err := ch.mg.social.DeleteComment(p.ReqDelSocialComment.CommentUuid)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error deleting comment: %s", err)
+			resp.ErrorMessage = i18n.DevSocialDeleteCommentFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
@@ -2067,7 +2070,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		r := p.ReqDeleteFriendship
 		if err := ch.mg.social.DeleteFriendship(r.Domain, r.DeleteTheirData, r.AskThemToDeleteMine); err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("Error trying to delete the friendship: %s", err)
+			resp.ErrorMessage = i18n.DevSocialDeleteFriendshipFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
@@ -2077,7 +2080,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		err := ch.mg.social.ChangeFriendStatus(p.ReqChangeFriendStatus.Domain, p.ReqChangeFriendStatus.Status)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("Error trying to change friend status: %s", err)
+			resp.ErrorMessage = i18n.DevSocialChangeStatusFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
@@ -2091,7 +2094,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		_, err := ch.mg.social.NewLikePublication(ch.mg.profile, p.ReqLikePublication.PubUuid)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error liking publication: %s", err)
+			resp.ErrorMessage = i18n.DevSocialLikePostFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
@@ -2105,7 +2108,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		_, err := ch.mg.social.NewLikePublicationComment(ch.mg.profile, p.ReqLikeComment.CommentUuid)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error liking publication comment: %s", err)
+			resp.ErrorMessage = i18n.DevSocialLikeCommentFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
@@ -2119,7 +2122,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		likers, err := ch.mg.social.GetPublicationLikers(p.ReqGetPublicationLikers.PubUuid)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error getting publication likers: %s", err)
+			resp.ErrorMessage = i18n.DevSocialPostLikersFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespLikers{
 				RespLikers: &pb.Likers{
@@ -2133,7 +2136,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		likers, err := ch.mg.social.GetCommentLikers(p.ReqGetCommentLikers.CommentUuid)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error getting comment likers: %s", err)
+			resp.ErrorMessage = i18n.DevSocialCommentLikersFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespLikers{
 				RespLikers: &pb.Likers{
@@ -2147,7 +2150,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		friendships, err := ch.mg.social.GetFriendships()
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("Error reading friendships: %s", err)
+			resp.ErrorMessage = i18n.DevSocialFriendshipsFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			log.Debug("Sending back list of frnedships", len(friendships))
 			// The secret is the credential AuthAsFriend accepts, for this
@@ -2174,7 +2177,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if errors.Is(err, social.ErrFriendsAgain) {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true, Code: "accepted"}}
 		} else if err != nil {
-			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: false, ErrorMsg: fmt.Sprintf("Could not send the request: %s", err)}}
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: false, ErrorMsg: i18n.DevSocialRequestFailed(devtext.Text(lang, err)).Render(lang)}}
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
@@ -2187,7 +2190,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqPreviewSharedGallery:
 		pv, err := ch.mg.filesManager.PreviewSharedGallery(p.ReqPreviewSharedGallery.Source)
 		if err != nil {
-			resp.Error, resp.ErrorMessage = true, err.Error()
+			resp.Error, resp.ErrorMessage = true, errText(lang, err)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespSharedGalleryPreview{RespSharedGalleryPreview: pv}
@@ -2197,15 +2200,15 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		r := p.ReqCreateSharedGallery
 		job, err := ch.mg.filesManager.StartSharedGallery(ses, r.Source, r.Description, r.TtlHours, ch.mg.settings.Domain(), r.LowRes)
 		if err != nil {
-			resp.Error, resp.ErrorMessage = true, err.Error()
+			resp.Error, resp.ErrorMessage = true, errText(lang, err)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespSharedGalleryJob{RespSharedGalleryJob: job}
 
 	case *pb.ReqEnvelope_ReqGetSharedGalleryJob:
-		job, ok := filesmanager.SharedGalleryJobState(p.ReqGetSharedGalleryJob.JobId)
+		job, ok := filesmanager.SharedGalleryJobState(p.ReqGetSharedGalleryJob.JobId, lang)
 		if !ok {
-			resp.Error, resp.ErrorMessage = true, "no such job"
+			resp.Error, resp.ErrorMessage = true, i18n.DevFilesNoSuchJob().Render(lang)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespSharedGalleryJob{RespSharedGalleryJob: job}
@@ -2213,7 +2216,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqListSharedLinks:
 		links, err := ch.mg.filesManager.ListSharedLinks(ses)
 		if err != nil {
-			resp.Error, resp.ErrorMessage = true, err.Error()
+			resp.Error, resp.ErrorMessage = true, errText(lang, err)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespSharedLinks{RespSharedLinks: &pb.SharedLinks{Links: links}}
@@ -2221,7 +2224,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqDeleteSharedLink:
 		log.Info("Delete shared link")
 		if err := ch.mg.filesManager.DeleteSharedLinkNow(p.ReqDeleteSharedLink.Uuid); err != nil {
-			resp.Error, resp.ErrorMessage = true, err.Error()
+			resp.Error, resp.ErrorMessage = true, errText(lang, err)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
@@ -2231,7 +2234,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		link, err := ch.mg.filesManager.GetSharedLink(ses, p.ReqShareFilesLink.Paths, ch.mg.settings.Domain())
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error creating files share link: %s", err)
+			resp.ErrorMessage = i18n.DevFilesShareLinkFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespShareLink{
 				RespShareLink: &pb.ShareLink{
@@ -2245,7 +2248,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		pbFile, err := ch.mg.filesManager.UploadFile(ses, p.ReqUploadFile.Path, p.ReqUploadFile.Content, p.ReqUploadFile.ForceOverride, p.ReqUploadFile.Created, p.ReqUploadFile.Modified, p.ReqUploadFile.CloudId)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error trying to upload file: %s", err)
+			resp.ErrorMessage = i18n.DevFilesUploadFailed(devtext.Text(lang, err)).Render(lang)
 			if errors.Is(err, filesmanager.ErrDuplicatedFile) {
 				resp.ErrorCode = cCodeDuplicatedFile
 			}
@@ -2262,7 +2265,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		file, data, size, err := ch.mg.filesManager.ReadFile(ses, r.Path, r.Hash, r.Offset, int(r.Length))
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error reading file: %s", err)
+			resp.ErrorMessage = i18n.DevFilesReadFailed(devtext.Text(lang, err)).Render(lang)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespFileChunk{RespFileChunk: &pb.FileChunk{
@@ -2276,7 +2279,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		id, err := ch.mg.filesManager.BeginUpload(ses, r.Path, r.Size, r.ForceOverride, r.Created, r.Modified, r.CloudId, ch)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error starting the upload: %s", err)
+			resp.ErrorMessage = i18n.DevFilesUploadStartFailed(devtext.Text(lang, err)).Render(lang)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespUploadStarted{RespUploadStarted: &pb.UploadStarted{UploadId: id}}
@@ -2286,7 +2289,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		received, err := ch.mg.filesManager.UploadChunk(ses, r.UploadId, r.Offset, r.Data)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error receiving the upload: %s", err)
+			resp.ErrorMessage = i18n.DevFilesUploadReceiveFailed(devtext.Text(lang, err)).Render(lang)
 			if errors.Is(err, filesmanager.ErrOutOfOrder) {
 				resp.ErrorCode = "out_of_order"
 			}
@@ -2297,7 +2300,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		file, err := ch.mg.filesManager.FinishUpload(ses, p.ReqFinishUpload.UploadId, p.ReqFinishUpload.Sha256)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error finishing the upload: %s", err)
+			resp.ErrorMessage = i18n.DevFilesUploadFinishFailed(devtext.Text(lang, err)).Render(lang)
 			if errors.Is(err, filesmanager.ErrDuplicatedFile) {
 				resp.ErrorCode = cCodeDuplicatedFile
 			}
@@ -2309,7 +2312,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		exists, err := ch.mg.filesManager.HasFile(p.ReqHasFile.Hash, p.ReqHasFile.CloudId)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error checking file hash: %s", err)
+			resp.ErrorMessage = i18n.DevFilesHashCheckFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespFileExists{
 				RespFileExists: &pb.FileExists{Exists: exists},
@@ -2320,7 +2323,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		found, err := ch.mg.filesManager.HasCloudIDs(p.ReqHasCloudIds.CloudIds)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error checking cloud ids: %s", err)
+			resp.ErrorMessage = i18n.DevFilesCloudIdsFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			out := &pb.CloudIdsFound{}
 			for id, hash := range found {
@@ -2334,7 +2337,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		pbFile, err := ch.mg.filesManager.LinkFile(ses, p.ReqLinkFile.Path, p.ReqLinkFile.Hash, p.ReqLinkFile.ForceOverride, p.ReqLinkFile.Created, p.ReqLinkFile.Modified, p.ReqLinkFile.CloudId)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error trying to link file: %s", err)
+			resp.ErrorMessage = i18n.DevFilesLinkFailed(devtext.Text(lang, err)).Render(lang)
 			if errors.Is(err, filesmanager.ErrDuplicatedFile) {
 				resp.ErrorCode = cCodeDuplicatedFile
 			}
@@ -2349,7 +2352,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		pbFile, err := ch.mg.filesManager.GetFile(ses, p.ReqGetFile.Path, p.ReqGetFile.Hash)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error trying to retrieve file: %s", err)
+			resp.ErrorMessage = i18n.DevFilesRetrieveFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespFile{
 				RespFile: pbFile,
@@ -2363,7 +2366,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		info, err := ch.mg.filesManager.GetFileInfo(ses, p.ReqGetFileInfo.Path)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error trying to retrieve file info: %s", err)
+			resp.ErrorMessage = i18n.DevFilesInfoFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespFileInfo{
 				RespFileInfo: info,
@@ -2381,10 +2384,10 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			// written there, only sent over the wire.
 			log.Error("error trying to delete a file:", err)
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error trying to delete file: %s", err)
+			resp.ErrorMessage = i18n.DevFilesDeleteFailed(devtext.Text(lang, err)).Render(lang)
 			if errors.Is(err, filesmanager.ErrUploadOnly) {
 				resp.ErrorCode = "upload_only"
-				resp.ErrorMessage = err.Error()
+				resp.ErrorMessage = devtext.Text(lang, err)
 			}
 		} else {
 			log.Debug("Deleted file by path:", p.ReqDelFile.Path)
@@ -2406,9 +2409,9 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 				// Issue #186: said as it is - every client shows the
 				// message of an error reply.
 				resp.ErrorCode = "locked_by_parent"
-				resp.ErrorMessage = err.Error()
+				resp.ErrorMessage = devtext.Text(lang, err)
 			} else {
-				resp.ErrorMessage = fmt.Sprintf("error updating the folder: %s", err)
+				resp.ErrorMessage = i18n.DevFilesFolderUpdateFailed(devtext.Text(lang, err)).Render(lang)
 			}
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
@@ -2423,9 +2426,9 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			if errors.As(err, &byParent) {
 				// As locked_by_parent: every client shows the message.
 				resp.ErrorCode = "out_of_images_by_parent"
-				resp.ErrorMessage = err.Error()
+				resp.ErrorMessage = devtext.Text(lang, err)
 			} else {
-				resp.ErrorMessage = fmt.Sprintf("error updating the folder: %s", err)
+				resp.ErrorMessage = i18n.DevFilesFolderUpdateFailed(devtext.Text(lang, err)).Render(lang)
 			}
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
@@ -2435,7 +2438,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		folders, err := ch.mg.filesManager.OutOfImagesFolders()
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error listing the folders kept out of Images: %s", err)
+			resp.ErrorMessage = i18n.DevFilesOutOfImagesListFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespOutOfImagesFolders{RespOutOfImagesFolders: &pb.OutOfImagesFolders{Paths: folders}}
 		}
@@ -2444,7 +2447,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		versions, err := ch.mg.filesManager.FileVersions(p.ReqListFileVersions.Path)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = fmt.Sprintf("error listing the versions: %s", err)
+			resp.ErrorMessage = i18n.DevFilesVersionsFailed(devtext.Text(lang, err)).Render(lang)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespFileVersions{RespFileVersions: &pb.FileVersions{Versions: versions}}
 		}
@@ -2461,7 +2464,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			log.Debug("Files to return:", len(files))
 
@@ -2485,7 +2488,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error trying to search files:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespListOfFiles{
 				RespListOfFiles: &pb.ListOfFiles{Files: files, OutOfImagesSupported: true},
@@ -2504,7 +2507,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error trying to get tags:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			log.Debug("Available tags:", len(tags))
 
@@ -2528,7 +2531,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			log.Debug("Files to return:", len(files))
 
@@ -2545,7 +2548,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error trying to compute photo date buckets:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			pbBuckets := make([]*pb.PhotoDateBucket, len(buckets))
 			for i, b := range buckets {
@@ -2566,8 +2569,9 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error listing notifications:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
+			localizeAlerts(ch.mg.dao, lang, notifications)
 			resp.Payload = &pb.RespEnvelope_RespNotifications{
 				RespNotifications: &pb.RespNotifications{Notifications: notifications},
 			}
@@ -2578,7 +2582,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error counting unacknowledged notifications:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespNotificationCount{
 				RespNotificationCount: &pb.RespNotificationCount{UnacknowledgedCount: int32(count)},
@@ -2589,7 +2593,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err := ch.mg.dao.MarkAllNotificationsAcknowledged(); err != nil {
 			log.Error("error acknowledging notifications:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
@@ -2599,7 +2603,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error fetching publication:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespPublication{
 				RespPublication: &pb.RespPublication{Publication: pub},
@@ -2619,14 +2623,14 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqListUsers:
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		users, err := ch.mg.dao.ListUsers()
 		if err != nil {
 			log.Error("error listing users:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespUsers{RespUsers: &pb.RespUsers{Users: users}}
 		}
@@ -2634,14 +2638,14 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqCreateUser:
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		users, err := ch.createUser(p.ReqCreateUser)
 		if err != nil {
 			log.Error("error creating user:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespUsers{RespUsers: &pb.RespUsers{Users: users}}
 		}
@@ -2649,13 +2653,13 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqDeleteUser:
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		if err := ch.deleteUser(p.ReqDeleteUser); err != nil {
 			log.Error("error deleting user:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
@@ -2663,13 +2667,13 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqSetUserActive:
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		if err := ch.setUserActive(p.ReqSetUserActive); err != nil {
 			log.Error("error setting user active flag:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
@@ -2677,14 +2681,14 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqGetUserMetrics:
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		metrics, err := ch.getUserMetrics(p.ReqGetUserMetrics.Uuid)
 		if err != nil {
 			log.Error("error fetching user metrics:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespUserMetrics{RespUserMetrics: metrics}
 		}
@@ -2696,7 +2700,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error trying to retrive status:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			log.Debug("Current status:", st)
 			// Issue #183: a pending major or critical update, for the
@@ -2729,12 +2733,12 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			// An Ack, so every client shows the reason: for a bare error
 			// they only say "Unexpected response".
 			resp.Payload = &pb.RespEnvelope_RespAck{
-				RespAck: &pb.Ack{Ok: false, Code: "password_too_short", ErrorMsg: err.Error()},
+				RespAck: &pb.Ack{Ok: false, Code: "password_too_short", ErrorMsg: devtext.Text(lang, err)},
 			}
 		} else if err != nil {
 			log.Error("error trying to change secret key:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
@@ -2755,7 +2759,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error issuing session token:", err)
 			resp.Error = true
-			resp.ErrorMessage = "error issuing session token"
+			resp.ErrorMessage = i18n.DevAuthTokenFailed().Render(lang)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespSessionToken{
@@ -2782,7 +2786,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error trying to update domain:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
@@ -2798,7 +2802,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	// which could only ever break the device's pairing.
 	case *pb.ReqEnvelope_ReqSetBridgeSecret, *pb.ReqEnvelope_ReqRegenerateBridgeSecret:
 		resp.Error = true
-		resp.ErrorMessage = "the bridge secret is managed by the device"
+		resp.ErrorMessage = i18n.DevDeviceBridgeSecretManaged().Render(lang)
 
 	case *pb.ReqEnvelope_ReqSetProfile:
 		log.Info("Set profile")
@@ -2807,7 +2811,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error trying to get serrings:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
@@ -2839,7 +2843,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error storing the language:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: ack}
 		}
@@ -2849,13 +2853,13 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		mb := p.ReqSetSocialStorageLimit.Mb
 		if mb < 100 {
 			resp.Error = true
-			resp.ErrorMessage = "the limit must be at least 0.1 GB"
+			resp.ErrorMessage = i18n.DevDeviceSocialLimitTooLow().Render(lang)
 			break
 		}
 		if err := ch.mg.dao.SetSocialStorageLimitMB(int(mb)); err != nil {
 			log.Error("error setting the social storage limit:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 			break
 		}
 		log.Info("friends' posts limit set to", mb, "MB")
@@ -2868,7 +2872,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err := ch.mg.settings.SetFaceRecognitionEnabled(p.ReqSetFaceRecognitionEnabled.Enabled); err != nil {
 			log.Error("error trying to update face_recognition_enabled:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{Ok: true},
@@ -2881,7 +2885,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err := ch.mg.settings.SetImageTaggingEnabled(p.ReqSetImageTaggingEnabled.Enabled); err != nil {
 			log.Error("error trying to update image_tagging_enabled:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
@@ -2891,7 +2895,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error listing people:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			// CoverThumbnail comes back from the DB encrypted at rest (see
 			// files_manager.processFaces) - decrypt it here, same as
@@ -2920,7 +2924,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error listing image groups:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespImageGroups{
 				RespImageGroups: &pb.ImageGroups{Groups: groups},
@@ -2932,7 +2936,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		log.Debug("Create image group:", name)
 		if name == "" {
 			resp.Error = true
-			resp.ErrorMessage = "a collection needs a name"
+			resp.ErrorMessage = i18n.DevFilesCollectionNeedsName().Render(lang)
 			break
 		}
 		id, err := ch.mg.dao.CreateImageGroup(name)
@@ -2942,7 +2946,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error creating image group:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			// Answered with the group as the list would show it, so a
 			// client can drop it straight into its own list - read on its
@@ -2961,7 +2965,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err := ch.mg.dao.AddPathsToImageGroup(p.ReqAddToImageGroup.GroupId, p.ReqAddToImageGroup.Paths); err != nil {
 			log.Error("error adding to image group:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
@@ -2971,13 +2975,13 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		log.Info("Rename image group:", p.ReqRenameImageGroup.Id)
 		if name == "" {
 			resp.Error = true
-			resp.ErrorMessage = "a collection needs a name"
+			resp.ErrorMessage = i18n.DevFilesCollectionNeedsName().Render(lang)
 			break
 		}
 		if err := ch.mg.dao.RenameImageGroup(p.ReqRenameImageGroup.Id, name); err != nil {
 			log.Error("error renaming image group:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
@@ -2987,7 +2991,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err := ch.mg.dao.DeleteImageGroup(p.ReqDeleteImageGroup.Id); err != nil {
 			log.Error("error deleting image group:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
@@ -2997,7 +3001,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err := ch.mg.dao.RenamePerson(p.ReqRenamePerson.Id, p.ReqRenamePerson.Name); err != nil {
 			log.Error("error renaming person:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{Ok: true},
@@ -3013,7 +3017,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error deleting person:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{Ok: true},
@@ -3029,7 +3033,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error merging people:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{Ok: true},
@@ -3041,7 +3045,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err := ch.mg.filesManager.Reprocess(ses, p.ReqStartReprocess.ForceRestart); err != nil {
 			log.Error("error starting reprocess:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{Ok: true},
@@ -3053,7 +3057,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error reading reprocess status:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespReprocessStatus{
 				RespReprocessStatus: &pb.ReprocessStatus{
@@ -3077,7 +3081,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		// hardware, and its wizard never asks.
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		// Issue #38/#39: read-only disk enumeration, safe to run directly —
@@ -3087,7 +3091,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error listing storage devices:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 			break
 		}
 
@@ -3113,7 +3117,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		// name, no subdomains to hand out.
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespTailscaleStatus{
@@ -3123,7 +3127,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqSetupTailscale:
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		var state tailscalefunnel.State
@@ -3148,7 +3152,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqGetBridgeAccess:
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespBridgeAccess{RespBridgeAccess: ch.mg.bridgeAccess(true, lang)}
@@ -3156,7 +3160,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqBridgeSignIn:
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		in := p.ReqBridgeSignIn
@@ -3182,14 +3186,14 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqGetLogs:
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		r := p.ReqGetLogs
 		l, err := readLog(r.Source, r.Offset, int(r.MaxBytes), time.Duration(r.WaitSeconds)*time.Second)
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespLogs{RespLogs: l}
@@ -3197,13 +3201,13 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqSendLogs:
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		if err := ch.mg.sendLogsToBridge(p.ReqSendLogs.Note); err != nil {
 			log.Error("could not send the logs:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 			break
 		}
 		log.Info("logs sent to the project for support")
@@ -3221,7 +3225,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			if !errors.Is(err, errLocalNotYet) {
 				resp.ErrorCode = cCodeLocalUnavailable
 			}
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespLocalEndpoint{RespLocalEndpoint: local}
@@ -3230,35 +3234,35 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqDisableBridge:
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		if !bridgeaccess.Enabled() {
 			resp.Error = true
-			resp.ErrorMessage = "this device is not on the bridge"
+			resp.ErrorMessage = i18n.DevDeviceNotOnBridge().Render(lang)
 			break
 		}
 		releaseErr, err := ch.mg.leaveBridge()
 		if err != nil {
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 			break
 		}
 		out := &pb.RespBridgeAccess{Bridge: bridgeaccess.Bridge(), Pending: true, LeftReason: bridgeaccess.LeftByOwner, LocalAddress: localAddress()}
 		if releaseErr != nil {
-			out.Error = "The bridge could not be reached, so the name is still registered: release it on the account page."
+			out.Error = i18n.DevDeviceReleaseFailed().Render(lang)
 		}
 		resp.Payload = &pb.RespEnvelope_RespBridgeAccess{RespBridgeAccess: out}
 
 	case *pb.ReqEnvelope_ReqEnableBridge:
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		if bridgeaccess.Enabled() {
 			resp.Error = true
-			resp.ErrorMessage = "this device is already on the bridge"
+			resp.ErrorMessage = i18n.DevDeviceAlreadyOnBridge().Render(lang)
 			break
 		}
 		// Checked before the name is reserved, so a device that can't
@@ -3277,7 +3281,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err := ch.mg.dao.SetBridgeIdentity(id.DeviceUuid, id.Domain, id.Secret); err != nil {
 			log.Error("error storing the bridge identity:", err)
 			resp.Error = true
-			resp.ErrorMessage = "could not store the device's new identity"
+			resp.ErrorMessage = i18n.DevDeviceIdentityStoreFailed().Render(lang)
 			break
 		}
 		ch.mg.settings.SetIdentity(id.DeviceUuid, id.Domain, id.Secret)
@@ -3296,7 +3300,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		// schema it runs on are not that user's to replace.
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespUpdateInfo{RespUpdateInfo: buildUpdateInfo(lang)}
@@ -3304,7 +3308,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqApplyUpdate:
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		if err := updater.Apply(); err != nil {
@@ -3321,13 +3325,13 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 	case *pb.ReqEnvelope_ReqRestartDevice:
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		if err := devicerestart.Request(); err != nil {
 			log.Error("error requesting a device restart:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 			break
 		}
 		resp.Payload = &pb.RespEnvelope_RespRestartingDevice{RespRestartingDevice: &pb.RestartingDevice{
@@ -3347,7 +3351,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		// destroy the owner's storage or take the device off the network.
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		// DESTRUCTIVE on anything selected (wipes/formats those disks) once
@@ -3360,7 +3364,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error requesting storage setup:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
@@ -3375,7 +3379,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		// hardware, and its wizard never asks.
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		// Issue #38: safe, read-only scan — see network.ListNetworks's
@@ -3384,7 +3388,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error listing wifi networks:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 			break
 		}
 		pbNetworks := make([]*pb.WifiNetwork, len(networks))
@@ -3414,7 +3418,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		// destroy the owner's storage or take the device off the network.
 		if ch.mg.sup == nil {
 			resp.Error = true
-			resp.ErrorMessage = "not available on this instance"
+			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
 		// DESTRUCTIVE to whatever network connection this device currently
@@ -3426,7 +3430,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error requesting wifi join:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{
 				RespAck: &pb.Ack{
@@ -3452,7 +3456,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error registering web push subscription:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 			ch.noteUILanguage(lang)
@@ -3469,7 +3473,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err := ch.mg.dao.DeleteApnsToken(p.ReqUnregisterApnsToken.Token); err != nil {
 			log.Error("error unregistering APNs token:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 			ch.mg.requestPushSync()
@@ -3480,7 +3484,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err := ch.mg.dao.DeleteWebPushSubscription(p.ReqUnregisterWebPush.Endpoint); err != nil {
 			log.Error("error unregistering web push subscription:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 			ch.mg.requestPushSync()
@@ -3492,7 +3496,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err := ch.mg.dao.SaveFcmToken(p.ReqRegisterFcmToken.Token); err != nil {
 			log.Error("error registering FCM token:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 			ch.noteUILanguage(lang)
@@ -3504,7 +3508,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err := ch.mg.dao.DeleteFcmToken(p.ReqUnregisterFcmToken.Token); err != nil {
 			log.Error("error unregistering FCM token:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 			ch.mg.requestPushSync()
@@ -3516,7 +3520,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		if err != nil {
 			log.Error("error registering APNs token:", err)
 			resp.Error = true
-			resp.ErrorMessage = err.Error()
+			resp.ErrorMessage = errText(lang, err)
 		} else {
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 			ch.noteUILanguage(lang)
@@ -3532,7 +3536,7 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		log.Error("unknown payload (the client is probably newer than this device):", p)
 		resp.Error = true
 		resp.ErrorCode = "unknown_payload"
-		resp.ErrorMessage = "This device does not understand that request: its software is older than the app. Check for updates in Settings."
+		resp.ErrorMessage = i18n.DevErrUnknownRequest().Render(lang)
 	}
 
 	return
@@ -3554,12 +3558,12 @@ var usernameRe = regexp.MustCompile(`^[a-z0-9-]+$`)
 func (ch *connHandler) createUser(req *pb.ReqCreateUser) ([]*pb.User, error) {
 	username := req.Username
 	if !usernameRe.MatchString(username) {
-		return nil, errors.New("username must be lowercase letters, digits, or hyphens")
+		return nil, devtext.New(i18n.DevUsersBadUsername())
 	}
 	if taken, err := ch.mg.dao.IsUsernameTaken(username); err != nil {
 		return nil, err
 	} else if taken {
-		return nil, errors.New("username already taken")
+		return nil, devtext.New(i18n.DevUsersUsernameTaken())
 	}
 
 	port := int(req.Port)
@@ -3571,7 +3575,7 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) ([]*pb.User, error) {
 	} else if inUse, err := ch.mg.dao.IsPortInUse(port); err != nil {
 		return nil, err
 	} else if inUse {
-		return nil, fmt.Errorf("port %d is already in use by another user", port)
+		return nil, devtext.New(i18n.DevUsersPortInUse(strconv.Itoa(port)))
 	}
 
 	id := uuid.New().String()
@@ -3602,7 +3606,7 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) ([]*pb.User, error) {
 	if req.RequestBridgeAccess {
 		free, err := isSubdomainFreeOnBridge(ch.mg.dao, subdomain)
 		if err != nil {
-			return nil, fmt.Errorf("could not reach the bridge to check %s, so this user was not created - try again in a moment, or uncheck \"request bridge access\" to create a local-only account: %w", subdomain, err)
+			return nil, devtext.Wrap(i18n.DevUsersBridgeCheckFailed(subdomain, err.Error()), err)
 		}
 		if !free {
 			// Both suggestions have to be things the person reading this
@@ -3612,7 +3616,7 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) ([]*pb.User, error) {
 			// as "your fault, unfixable". Choosing another name, or
 			// creating the account without bridge access, are both
 			// entirely in their hands.
-			return nil, fmt.Errorf("%s is already taken on the bridge - pick a different username, or uncheck \"request bridge access\" to create this user for your own network only", subdomain)
+			return nil, devtext.New(i18n.DevUsersNameTakenOnBridge(subdomain))
 		}
 	}
 
@@ -3620,7 +3624,7 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) ([]*pb.User, error) {
 		return nil, err
 	}
 	if err := os.MkdirAll(storagePath+"/unencrypted", 0750); err != nil {
-		return nil, fmt.Errorf("creating storage directory: %w", err)
+		return nil, devtext.Wrap(i18n.DevUsersStorageDirFailed(err.Error()), err)
 	}
 
 	u := dao.User{
@@ -3660,11 +3664,11 @@ func (ch *connHandler) deleteUser(req *pb.ReqDeleteUser) error {
 		return err
 	}
 	if req.ConfirmUsername != u.Username {
-		return errors.New("confirmation username does not match")
+		return devtext.New(i18n.DevUsersConfirmMismatch())
 	}
 
 	if err := ch.mg.sup.Stop(u.Uuid); err != nil {
-		return fmt.Errorf("could not stop %s's process: %w", u.Username, err)
+		return devtext.Wrap(i18n.DevUsersStopFailed(u.Username, err.Error()), err)
 	}
 	if err := dao.DropUserDatabase(u.DbName, u.DbName); err != nil {
 		return err
@@ -3702,7 +3706,7 @@ func (ch *connHandler) setUserActive(req *pb.ReqSetUserActive) error {
 		return err
 	}
 	if err := ch.mg.sup.Stop(u.Uuid); err != nil {
-		return fmt.Errorf("could not stop %s's process: %w", u.Username, err)
+		return devtext.Wrap(i18n.DevUsersStopFailed(u.Username, err.Error()), err)
 	}
 	if err := ch.mg.dao.DeactivateUser(req.Uuid); err != nil {
 		return err
@@ -3734,7 +3738,7 @@ func (ch *connHandler) setUserActive(req *pb.ReqSetUserActive) error {
 func isSubdomainFreeOnBridge(d *dao.Dao, candidate string) (bool, error) {
 	subDomain, deviceUuid, bridgeSecret, err := d.GetSettings()
 	if err != nil {
-		return false, fmt.Errorf("reading this device's own bridge identity: %w", err)
+		return false, fmt.Errorf("reading this device's own bridge identity: %w", err) // i18n-ignore: the detail after dev.users.bridge_check_failed
 	}
 
 	addr := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
@@ -3742,7 +3746,7 @@ func isSubdomainFreeOnBridge(d *dao.Dao, candidate string) (bool, error) {
 	h.Set("Sec-WebSocket-Protocol", "protobuf")
 	c, err := wsframe.Dial(addr.String(), h)
 	if err != nil {
-		return false, fmt.Errorf("could not reach the bridge: %w", err)
+		return false, fmt.Errorf("could not reach the bridge: %w", err) // i18n-ignore: the detail after dev.users.bridge_check_failed
 	}
 	defer c.Close()
 
@@ -3762,23 +3766,23 @@ func isSubdomainFreeOnBridge(d *dao.Dao, candidate string) (bool, error) {
 		return false, err
 	}
 	if err := c.WriteMessage(gorilla.BinaryMessage, b); err != nil {
-		return false, fmt.Errorf("asking the bridge: %w", err)
+		return false, fmt.Errorf("asking the bridge: %w", err) // i18n-ignore: the detail after dev.users.bridge_check_failed
 	}
 
 	_, data, err := c.ReadMessage()
 	if err != nil {
-		return false, fmt.Errorf("reading the bridge's answer: %w", err)
+		return false, fmt.Errorf("reading the bridge's answer: %w", err) // i18n-ignore: the detail after dev.users.bridge_check_failed
 	}
 	var resp pb.RespEnvelope
 	if err := proto.Unmarshal(data, &resp); err != nil {
-		return false, fmt.Errorf("unreadable answer from the bridge: %w", err)
+		return false, fmt.Errorf("unreadable answer from the bridge: %w", err) // i18n-ignore: the detail after dev.users.bridge_check_failed
 	}
 	if resp.Error {
 		return false, errors.New(resp.ErrorMessage)
 	}
 	avail, ok := resp.Payload.(*pb.RespEnvelope_RespDomainAvailable)
 	if !ok {
-		return false, errors.New("unexpected answer from the bridge")
+		return false, errors.New("unexpected answer from the bridge") // i18n-ignore: the detail after dev.users.bridge_check_failed
 	}
 	return avail.RespDomainAvailable.Available, nil
 }
@@ -3889,13 +3893,14 @@ func (ch *connHandler) getUserMetrics(uuidStr string) (*pb.RespUserMetrics, erro
 // is gone (the device restarted, discarding every session token - see
 // session/tokens.go). Without it the app sits on a view whose data will
 // now never load, saying nothing at all (issue #105).
-func notAuthenticatedResponse(id int32) *pb.RespEnvelope {
+func notAuthenticatedResponse(id int32, lang string) *pb.RespEnvelope {
+	msg := i18n.DevErrNotAuthenticated().Render(lang)
 	return &pb.RespEnvelope{
 		Id:           id,
 		Error:        true,
-		ErrorMessage: "not authenticated",
+		ErrorMessage: msg,
 		Payload: &pb.RespEnvelope_RespAck{
-			RespAck: &pb.Ack{Ok: false, ErrorMsg: "not authenticated", Code: cCodeNotAuthenticated},
+			RespAck: &pb.Ack{Ok: false, ErrorMsg: msg, Code: cCodeNotAuthenticated},
 		},
 	}
 }
@@ -3914,8 +3919,9 @@ func marshalReply(id int32, resp *pb.RespEnvelope) []byte {
 	clean := proto.Clone(resp).(*pb.RespEnvelope)
 	sanitizeUTF8(clean.ProtoReflect())
 	if b, err = proto.Marshal(clean); err != nil {
-		// Same shape as processMessage's panic reply.
-		b, _ = proto.Marshal(&pb.RespEnvelope{Id: id, Error: true, ErrorMessage: "internal error"})
+		// Same shape as processMessage's panic reply, in English: the
+		// request's language isn't known here.
+		b, _ = proto.Marshal(&pb.RespEnvelope{Id: id, Error: true, ErrorMessage: i18n.DevErrInternal().Render("")})
 	}
 	return b
 }
@@ -3949,21 +3955,21 @@ func sanitizeUTF8(m protoreflect.Message) {
 }
 
 func (ch *connHandler) processMessage(env *pb.ReqEnvelope) (resp *pb.RespEnvelope, closeConn bool) {
+	// Worked out once per request and passed down, never kept on ch:
+	// requests on a connection run concurrently.
+	lang := requestLang(env)
+
 	defer func() {
 		if r := recover(); r != nil {
 			log.Error("recovered from panic handling request:", r, string(debug.Stack()))
 			resp = &pb.RespEnvelope{
 				Id:           env.Id,
 				Error:        true,
-				ErrorMessage: "internal error",
+				ErrorMessage: i18n.DevErrInternal().Render(lang),
 			}
 			closeConn = true
 		}
 	}()
-
-	// Worked out once per request and passed down, never kept on ch:
-	// requests on a connection run concurrently.
-	lang := requestLang(env)
 
 	resp, closeConn = ch.processNonAuthRequest(env, lang)
 
@@ -4142,7 +4148,7 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 			// they're awaiting just hangs forever instead of failing. Send
 			// a real error instead.
 			if resp == nil {
-				resp = notAuthenticatedResponse(env.Id)
+				resp = notAuthenticatedResponse(env.Id, requestLang(env))
 			}
 
 			respBin := marshalReply(env.Id, resp)

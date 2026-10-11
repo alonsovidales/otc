@@ -1,0 +1,145 @@
+{
+  "dev.social.bad_domain": {
+    "text": "domain \"{domain}\" is not a {tld} address",
+    "args": [["domain", "user"], ["tld", "text"]],
+    "note": "Error shown after \"Could not send the request: \" when the owner adds a friend by an address that isn't a device on the bridge. {domain} is the address typed; {tld} is the bridge's domain, such as off-the.cloud."
+  },
+  "dev.social.blocked": {
+    "text": "you blocked this device - unblock it before sending a request",
+    "note": "Error shown after \"Could not send the request: \" when the owner sends a friend request to a device they blocked earlier (Friends)."
+  },
+  "dev.social.change_status_failed": {
+    "text": "Error trying to change friend status: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Friends when accepting, blocking or unblocking a friend failed. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.social.comment_failed": {
+    "text": "error publishing comment: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Social when posting a comment failed. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.social.comment_likers_failed": {
+    "text": "error getting comment likers: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Social when the list of people who liked a comment could not be read. {detail} is the reason, usually an error in English the device can't translate."
+  },
+  "dev.social.delete_comment_failed": {
+    "text": "error deleting comment: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Social when deleting a comment failed. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.social.delete_friendship_failed": {
+    "text": "Error trying to delete the friendship: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Friends when removing a friend (or a friend request) failed. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.social.delete_post_failed": {
+    "text": "error deleting publication: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Social when deleting one of the owner's posts failed. A publication is a post. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.social.events_failed": {
+    "text": "error trying to retrieve events: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply when the list of recent social activity (posts, comments, likes) could not be read. {detail} is the reason, usually an error in English the device can't translate."
+  },
+  "dev.social.friendship_lookup_failed": {
+    "text": "error retreiving friendship: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply to a friend's device asking whether a friendship still exists, when the device could not read it. Friends' devices show it to their owner as a detail. {detail} is an error in English. (\"retreiving\" is a typo kept from the English that ships; translate as \"retrieving\".)"
+  },
+  "dev.social.friendships_failed": {
+    "text": "Error reading friendships: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Friends when the list of friends could not be read. {detail} is the reason, usually an error in English the device can't translate."
+  },
+  "dev.social.like_comment_failed": {
+    "text": "error liking publication comment: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Social when liking a comment failed. {detail} is the reason, usually an error in English the device can't translate."
+  },
+  "dev.social.like_post_failed": {
+    "text": "error liking publication: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Social when liking a post failed. A publication is a post. {detail} is the reason, usually an error in English the device can't translate."
+  },
+  "dev.social.load_file_failed": {
+    "text": "error loading file \"{path}\": {detail}",
+    "args": [["path", "user"], ["detail", "text"]],
+    "note": "Error shown after \"error trying to create publication: \" when a file chosen for a new post could not be read. {path} is the file's path on the device; {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.social.media_not_available": {
+    "text": "media not available",
+    "note": "Error reply when a photo or video of a post can't be shown (it is gone, or a friend asked for media of a post that isn't the owner's own)."
+  },
+  "dev.social.no_friendship_with": {
+    "text": "no friendship with {domain}",
+    "args": [["domain", "text"]],
+    "note": "Error shown after \"Error trying to delete the friendship: \" when the friend to remove isn't in the list any more. {domain} is the friend's device address, such as anna.off-the.cloud."
+  },
+  "dev.social.no_longer_friends": {
+    "text": "no longer friends",
+    "note": "Error reply to a friend's device that was removed from the friends list and is only allowed to fetch the request to delete what it shared. Friends' devices show it as a detail."
+  },
+  "dev.social.no_such_comment": {
+    "text": "no such comment",
+    "note": "Error shown after \"error deleting comment: \" when the comment no longer exists."
+  },
+  "dev.social.no_such_post": {
+    "text": "no such publication",
+    "note": "Error reply when a friend's device asks for the files of a post that isn't the owner's own (or doesn't exist). A publication is a post."
+  },
+  "dev.social.not_accepted": {
+    "text": "Friendship not accepted",
+    "note": "Error reply to a friend's device that tried to sign in without an accepted friendship (still pending, blocked or removed). Friends' devices show it to their owner as a detail."
+  },
+  "dev.social.not_found": {
+    "text": "Friendship not found",
+    "note": "Error reply to a friend's device when this device holds no friendship with it (checking a friend request, or removing a friendship). Friends' devices show it to their owner as a detail."
+  },
+  "dev.social.not_found_error": {
+    "text": "Error: Friendship not found",
+    "note": "Error reply to a friend's device that asked to remove a friendship this device doesn't have. Friends' devices show it to their owner as a detail."
+  },
+  "dev.social.not_your_comment": {
+    "text": "not your comment, nor a comment on one of your posts",
+    "note": "Error shown after \"error deleting comment: \" when the owner tries to delete a friend's comment on a friend's post: only their own comments, and comments on their own posts, can be deleted."
+  },
+  "dev.social.not_your_post": {
+    "text": "not your publication",
+    "note": "Error shown after \"error deleting publication: \" when the owner tries to delete a friend's post. A publication is a post."
+  },
+  "dev.social.post_failed": {
+    "text": "error trying to create publication: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Social when publishing a new post failed. A publication is a post. {detail} is the reason: one of the device's own sentences, or an error in English it can't translate."
+  },
+  "dev.social.post_likers_failed": {
+    "text": "error getting publication likers: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Social when the list of people who liked a post could not be read. {detail} is the reason, usually an error in English the device can't translate."
+  },
+  "dev.social.posts_failed": {
+    "text": "error trying to collect publications: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error reply in Social when the feed's posts (or one post's files) could not be read. A publication is a post. {detail} is the reason, usually an error in English the device can't translate."
+  },
+  "dev.social.request_failed": {
+    "text": "Could not send the request: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error shown in Friends when a friend request could not be sent. {detail} is the reason: one of the device's own sentences, the friend's device's words in English, or an error in English the device can't translate."
+  },
+  "dev.social.request_refused": {
+    "text": "friendship request refused",
+    "note": "Reason a friend request from a device the owner blocked is refused, sent back to that device (shown after \"Error: \"). Friends' devices show it to their owner as a detail."
+  },
+  "dev.social.request_refused_error": {
+    "text": "Error: friendship request refused",
+    "note": "Error reply to a device whose friend request carried an address too long to be any device's. Friends' devices show it to their owner as a detail."
+  },
+  "dev.social.video_thumbnail_failed": {
+    "text": "generating thumbnail for compressed video \"{path}\": {detail}",
+    "args": [["path", "user"], ["detail", "text"]],
+    "note": "Error shown after \"error trying to create publication: \" when the device could not make the preview picture of a video it shrank for a post. {path} is the video's path on the device; {detail} is the reason, usually an error in English the device can't translate."
+  }
+}

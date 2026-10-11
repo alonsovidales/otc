@@ -1,0 +1,396 @@
+{
+  "dev.alert.bridge.left": {
+    "text": "This device left the bridge",
+    "note": "Title of an alert in Alerts (the device's own notifications, shown in every app): the bridge (off-the.cloud, the relay that makes the device reachable from outside the home) no longer knows this device's name, so the device stopped using it and now works only at home.",
+    "stored": true
+  },
+  "dev.alert.bridge.left_detail": {
+    "text": "The bridge no longer knows {domain}: its account was deleted or the name released. The device goes on working at home, at {address} - set the apps to that address, or join the bridge again in Settings.",
+    "args": [["domain", "text"], ["address", "text"]],
+    "note": "Detail of the alert dev.alert.bridge.left in Alerts. {domain} is the device's name on the bridge, such as kim.off-the.cloud; {address} is where the device answers on the home network, such as http://192.168.1.20:8080. Settings is the apps' Settings screen.",
+    "stored": true,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #4b8cbf42"
+  },
+  "dev.alert.file.crashed": {
+    "text": "{name} could not be processed (it crashed the processing)",
+    "args": [["name", "user"]],
+    "note": "Title of an alert in Alerts: making the preview or the search data of a file failed so badly that the processing stopped (the device carried on). {name} is the file's name. The error's own words follow it in the alert's details.",
+    "stored": true
+  },
+  "dev.alert.file.not_converted": {
+    "text": "{name} could not be converted from HEIC",
+    "args": [["name", "user"]],
+    "note": "Title of an alert in Alerts: a HEIC photo (the iPhone's photo format) could not be converted to show it. {name} is the file's name. The error's own words follow it in the alert's details.",
+    "stored": true
+  },
+  "dev.alert.file.not_decrypted": {
+    "text": "{name} could not be decrypted",
+    "args": [["name", "user"]],
+    "note": "Title of an alert in Alerts: a file stored on the device (every file is kept encrypted) could not be decrypted to be read. {name} is the file's name. The error's own words follow it in the alert's details.",
+    "stored": true
+  },
+  "dev.alert.file.not_processed": {
+    "text": "{name} could not be processed",
+    "args": [["name", "user"]],
+    "note": "Title of an alert in Alerts: the device could not make the preview or the search data (tags, faces) of a photo or video. {name} is the file's name. The error's own words follow it in the alert's details.",
+    "stored": true
+  },
+  "dev.alert.file.not_read": {
+    "text": "{name} could not be read",
+    "args": [["name", "user"]],
+    "note": "Title of an alert in Alerts: a file stored on the device could not be read from its disk. {name} is the file's name. The error's own words follow it in the alert's details.",
+    "stored": true
+  },
+  "dev.alert.file.not_read_back": {
+    "text": "{name} could not be read back for processing",
+    "args": [["name", "user"]],
+    "note": "Title of an alert in Alerts: a file just uploaded could not be read back from the device's disk to make its preview and search data. {name} is the file's name. The error's own words follow it in the alert's details.",
+    "stored": true
+  },
+  "dev.alert.file.not_saved": {
+    "text": "{name} could not be saved to disk",
+    "args": [["name", "user"]],
+    "note": "Title of an alert in Alerts: a file sent to the device could not be written to its disk. {name} is the file's name. The error's own words follow it in the alert's details.",
+    "stored": true
+  },
+  "dev.alert.file.not_tagged": {
+    "text": "{name} could not be tagged",
+    "args": [["name", "user"]],
+    "note": "Title of an alert in Alerts: the device could not work out the tags (words describing what is in the picture, used to search) of a photo. {name} is the file's name. The error's own words follow it in the alert's details.",
+    "stored": true
+  },
+  "dev.alert.file.small_thumbnail_not_written": {
+    "text": "{name} has no small thumbnail (it could not be written)",
+    "args": [["name", "user"]],
+    "note": "Title of an alert in Alerts: the small preview of a photo or video (the tile in the photo grids) could not be written to the device's disk. {name} is the file's name. The error's own words follow it in the alert's details.",
+    "stored": true
+  },
+  "dev.alert.file.thumbnail_not_encoded": {
+    "text": "{name} has no thumbnail (it could not be encoded)",
+    "args": [["name", "user"]],
+    "note": "Title of an alert in Alerts: the preview picture of a photo or video could not be made. {name} is the file's name. The error's own words follow it in the alert's details.",
+    "stored": true
+  },
+  "dev.alert.file.thumbnail_not_written": {
+    "text": "{name} has no thumbnail (it could not be written)",
+    "args": [["name", "user"]],
+    "note": "Title of an alert in Alerts: the preview picture of a photo or video was made but could not be written to the device's disk. {name} is the file's name. The error's own words follow it in the alert's details.",
+    "stored": true
+  },
+  "dev.alert.gallery.crashed": {
+    "text": {
+      "one": "{count} files could not be processed (it crashed the processing)",
+      "other": "{count} files could not be processed (it crashed the processing)"
+    },
+    "args": [["count", "count"]],
+    "note": "Title of an alert in Alerts: copying photos and videos into a shared gallery (a link the owner shares) failed so badly that the copy stopped. {count} is how many files the gallery was to hold. The error's own words follow it in the alert's details. The English says \"files\" for one too.",
+    "stored": true
+  },
+  "dev.alert.integrity.detail": {
+    "text": "{paths}. Upload them again from where they came from - Sync All on a phone, or the desktop app's folder - and they are restored.",
+    "args": [["paths", "user"]],
+    "note": "Detail of the alert dev.alert.integrity.lost in Alerts: what to do about files whose content is gone from the device's disk. {paths} is the list of those files (their full paths, separated by semicolons). Sync All is the button of the photo sync in the iPhone and Android apps; the desktop app is the computer's sync app.",
+    "stored": true,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #c58b115d"
+  },
+  "dev.alert.integrity.detail_more": {
+    "text": {
+      "one": "{paths}; and {count} more. Upload them again from where they came from - Sync All on a phone, or the desktop app's folder - and they are restored.",
+      "other": "{paths}; and {count} more. Upload them again from where they came from - Sync All on a phone, or the desktop app's folder - and they are restored."
+    },
+    "args": [["paths", "user"], ["count", "count"]],
+    "note": "Detail of the alert dev.alert.integrity.lost in Alerts when there are more files than it lists: {paths} is the list of the first ones (full paths, separated by semicolons), {count} how many more files are affected. Sync All is the button of the photo sync in the iPhone and Android apps; the desktop app is the computer's sync app.",
+    "stored": true,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #1fad246f"
+  },
+  "dev.alert.integrity.lost": {
+    "text": {
+      "one": "{count} file has lost its content",
+      "other": "{count} files have lost their content"
+    },
+    "args": [["count", "count"]],
+    "note": "Title of an alert in Alerts: the device's daily check found files whose content is no longer on its disk (the file is listed, but what it held is gone). {count} is how many files.",
+    "stored": true,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #4588ed2d"
+  },
+  "dev.alert.line.detail": {
+    "text": "{clock} {title}: {detail}",
+    "args": [["clock", "text"], ["title", "text"], ["detail", "text"]],
+    "note": "One line of an alert's details in Alerts (an alert can gather several errors, one line each). {clock} is the time it happened, such as 14:05; {title} what happened, a sentence of its own (such as \"IMG_1234.jpg could not be read\"); {detail} the reason, often the system's own words in English. Change only the punctuation and spacing around them, if your language writes it differently."
+  },
+  "dev.alert.line.plain": {
+    "text": "{clock} {title}",
+    "args": [["clock", "text"], ["title", "text"]],
+    "note": "One line of an alert's details in Alerts, for an error without a reason. {clock} is the time it happened, such as 14:05; {title} what happened, a sentence of its own. Change only the spacing, if your language writes it differently."
+  },
+  "dev.alert.memory.hint": {
+    "text": "This device has {gb} GB of memory. After a restart it goes on processing one file at a time for an hour. If this keeps happening, send the logs from Settings > Logs.",
+    "args": [["gb", "int"]],
+    "note": "Detail of the alert saying the device ran out of memory and restarted (dev.alert.memory.restarted), on a device with enough memory. {gb} is how much memory it has, in gigabytes. Settings > Logs is the Logs screen in the apps' Settings, where the logs are sent from.",
+    "stored": true
+  },
+  "dev.alert.memory.hint_low": {
+    "text": "This device has {gb} GB of memory: it processes one photo at a time (low-memory mode), and after a restart it waits a while before it goes on. If this keeps happening, send the logs from Settings > Logs.",
+    "args": [["gb", "int"]],
+    "note": "Detail of the alert saying the device ran out of memory and restarted, on a device set to its low-memory mode (it does one thing at a time). {gb} is how much memory it has, in gigabytes. Settings > Logs is the Logs screen in the apps' Settings.",
+    "stored": true
+  },
+  "dev.alert.memory.hint_low_small": {
+    "text": "This device has {gb} GB of memory, less than the 8 GB recommended: it processes one photo at a time to fit (low-memory mode), and after a restart it waits a while before it goes on. If this keeps happening, send the logs from Settings > Logs.",
+    "args": [["gb", "int"]],
+    "note": "Detail of the alert saying the device ran out of memory and restarted, on a device with less memory than recommended (it does one thing at a time to fit). {gb} is how much memory it has, in gigabytes. Settings > Logs is the Logs screen in the apps' Settings.",
+    "stored": true
+  },
+  "dev.alert.memory.hint_low_unknown": {
+    "text": "This device: it processes one photo at a time (low-memory mode), and after a restart it waits a while before it goes on. If this keeps happening, send the logs from Settings > Logs.",
+    "note": "Detail of the alert saying the device ran out of memory and restarted, on a device in low-memory mode whose amount of memory isn't known. The English starts with \"This device:\" on purpose (the version that knows the amount says \"This device has 4 GB of memory:\"). Settings > Logs is the Logs screen in the apps' Settings.",
+    "stored": true
+  },
+  "dev.alert.memory.hint_unknown": {
+    "text": "This device. After a restart it goes on processing one file at a time for an hour. If this keeps happening, send the logs from Settings > Logs.",
+    "note": "Detail of the alert saying the device ran out of memory and restarted, on a device whose amount of memory isn't known. The English starts with \"This device.\" on purpose (the version that knows the amount says \"This device has 8 GB of memory.\"). Settings > Logs is the Logs screen in the apps' Settings.",
+    "stored": true
+  },
+  "dev.alert.memory.restarted": {
+    "text": "Your device ran out of memory and restarted",
+    "note": "Title of an alert in Alerts: the device's software ran out of memory, was stopped by the system and started again by itself.",
+    "stored": true
+  },
+  "dev.alert.memory.restarted_times": {
+    "text": {
+      "one": "Your device ran out of memory and restarted {count} time since {clock}",
+      "other": "Your device ran out of memory and restarted {count} times since {clock}"
+    },
+    "args": [["count", "count"], ["clock", "text"]],
+    "note": "Title of an alert in Alerts, when the device ran out of memory and restarted several times in a row today. {count} is how many times (2 or more); {clock} the time of the first one today, such as 19:34.",
+    "stored": true
+  },
+  "dev.alert.memory.restarted_times_day": {
+    "text": {
+      "one": "Your device ran out of memory and restarted {count} time since {day} {month} {clock}",
+      "other": "Your device ran out of memory and restarted {count} times since {day} {month} {clock}"
+    },
+    "args": [["count", "count"], ["day", "int"], ["month", "msg"], ["clock", "text"]],
+    "note": "Title of an alert in Alerts, when the device ran out of memory and restarted several times in a row since an earlier day. {count} is how many times (2 or more); {day} {month} {clock} the date and time of the first one, such as 2 Jan 19:34: {day} the day of the month, {month} the month's short name (one of dev.alert.month.*), {clock} the time. Put them in your language's date order.",
+    "stored": true
+  },
+  "dev.alert.month.apr": {
+    "text": "Apr",
+    "note": "April, the short name of the month in a date such as \"2 Apr 19:34\" inside an alert's title (dev.alert.memory.restarted_times_day). Use your language's usual abbreviation.",
+    "max": 6,
+    "stored": true
+  },
+  "dev.alert.month.aug": {
+    "text": "Aug",
+    "note": "August, the short name of the month in a date such as \"2 Aug 19:34\" inside an alert's title (dev.alert.memory.restarted_times_day). Use your language's usual abbreviation.",
+    "max": 6,
+    "stored": true
+  },
+  "dev.alert.month.dec": {
+    "text": "Dec",
+    "note": "December, the short name of the month in a date such as \"2 Dec 19:34\" inside an alert's title (dev.alert.memory.restarted_times_day). Use your language's usual abbreviation.",
+    "max": 6,
+    "stored": true
+  },
+  "dev.alert.month.feb": {
+    "text": "Feb",
+    "note": "February, the short name of the month in a date such as \"2 Feb 19:34\" inside an alert's title (dev.alert.memory.restarted_times_day). Use your language's usual abbreviation.",
+    "max": 6,
+    "stored": true
+  },
+  "dev.alert.month.jan": {
+    "text": "Jan",
+    "note": "January, the short name of the month in a date such as \"2 Jan 19:34\" inside an alert's title (dev.alert.memory.restarted_times_day). Use your language's usual abbreviation.",
+    "max": 6,
+    "stored": true
+  },
+  "dev.alert.month.jul": {
+    "text": "Jul",
+    "note": "July, the short name of the month in a date such as \"2 Jul 19:34\" inside an alert's title (dev.alert.memory.restarted_times_day). Use your language's usual abbreviation.",
+    "max": 6,
+    "stored": true
+  },
+  "dev.alert.month.jun": {
+    "text": "Jun",
+    "note": "June, the short name of the month in a date such as \"2 Jun 19:34\" inside an alert's title (dev.alert.memory.restarted_times_day). Use your language's usual abbreviation.",
+    "max": 6,
+    "stored": true
+  },
+  "dev.alert.month.mar": {
+    "text": "Mar",
+    "note": "March, the short name of the month in a date such as \"2 Mar 19:34\" inside an alert's title (dev.alert.memory.restarted_times_day). Use your language's usual abbreviation.",
+    "max": 6,
+    "stored": true
+  },
+  "dev.alert.month.may": {
+    "text": "May",
+    "note": "May, the short name of the month in a date such as \"2 May 19:34\" inside an alert's title (dev.alert.memory.restarted_times_day). Use your language's usual abbreviation.",
+    "max": 6,
+    "stored": true
+  },
+  "dev.alert.month.nov": {
+    "text": "Nov",
+    "note": "November, the short name of the month in a date such as \"2 Nov 19:34\" inside an alert's title (dev.alert.memory.restarted_times_day). Use your language's usual abbreviation.",
+    "max": 6,
+    "stored": true
+  },
+  "dev.alert.month.oct": {
+    "text": "Oct",
+    "note": "October, the short name of the month in a date such as \"2 Oct 19:34\" inside an alert's title (dev.alert.memory.restarted_times_day). Use your language's usual abbreviation.",
+    "max": 6,
+    "stored": true
+  },
+  "dev.alert.month.sep": {
+    "text": "Sep",
+    "note": "September, the short name of the month in a date such as \"2 Sep 19:34\" inside an alert's title (dev.alert.memory.restarted_times_day). Use your language's usual abbreviation.",
+    "max": 6,
+    "stored": true
+  },
+  "dev.alert.raid.stopped_bottom": {
+    "text": "The disk in the bottom blue USB port stopped working",
+    "note": "Title of an alert in Alerts: one of the device's two storage disks (a mirror: each holds a copy of every file) stopped working. The device has two blue USB ports, one above the other; this disk is in the bottom one.",
+    "stored": true
+  },
+  "dev.alert.raid.stopped_detail": {
+    "text": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card.",
+    "note": "Detail of the alert saying one of the device's two storage disks stopped working (dev.alert.raid.stopped_top, _bottom, _unknown). A card is the storage card (an SD card in a USB reader) the disk is. The device erases the new card before copying the files onto it.",
+    "stored": true,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #8e7de24b"
+  },
+  "dev.alert.raid.stopped_detail_disk": {
+    "text": "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card. ({disk})",
+    "args": [["disk", "text"]],
+    "note": "Detail of the alert saying one of the device's two storage disks stopped working, when the device knows which disk it was. A card is the storage card (an SD card in a USB reader) the disk is; the device erases the new card before copying the files onto it. {disk} identifies the disk for a technician: its system name, serial number and USB port, such as \"sdb 0123456789 xhci-hcd.1 usb4 4-1\".",
+    "stored": true,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #81b12246"
+  },
+  "dev.alert.raid.stopped_top": {
+    "text": "The disk in the top blue USB port stopped working",
+    "note": "Title of an alert in Alerts: one of the device's two storage disks (a mirror: each holds a copy of every file) stopped working. The device has two blue USB ports, one above the other; this disk is in the top one.",
+    "stored": true
+  },
+  "dev.alert.raid.stopped_unknown": {
+    "text": "One of the two storage disks stopped working",
+    "note": "Title of an alert in Alerts: one of the device's two storage disks (a mirror: each holds a copy of every file) stopped working, and the device can't tell which USB port it is in.",
+    "stored": true
+  },
+  "dev.alert.raid.working_detail": {
+    "text": "The mirror is complete: every file is on both disks again.",
+    "note": "Detail of the alert dev.alert.raid.working_title: both storage disks hold a copy of every file again.",
+    "stored": true
+  },
+  "dev.alert.raid.working_title": {
+    "text": "Both storage disks are working again",
+    "note": "Title of an alert in Alerts: both of the device's storage disks work again after one had stopped.",
+    "stored": true
+  },
+  "dev.alert.setaside.detail": {
+    "text": "the device stopped twice while processing it. It is kept as it is, without the thumbnail, tags or faces it was missing, and tried again after the next update.",
+    "note": "Detail of the alert dev.alert.setaside.title, shown after it as the reason (the English starts in lower case for that reason): the device's software stopped twice while making the preview or search data (tags, faces) of this file, so it no longer tries. The file itself is untouched. The next update is the next update of the device's software.",
+    "stored": true
+  },
+  "dev.alert.setaside.title": {
+    "text": "{name} was set aside",
+    "args": [["name", "user"]],
+    "note": "Title of an alert in Alerts: the device stopped processing a file (making its preview and search data) because it made the device's software stop twice. {name} is the file's name. Its detail is dev.alert.setaside.detail.",
+    "stored": true
+  },
+  "dev.alert.update.critical": {
+    "text": "Critical update {version} - please install it soon",
+    "args": [["version", "text"]],
+    "note": "Title of an alert in Alerts: a critical update (a security fix, or one the apps need to keep working) is available for the device's software. {version} is the release's version label, such as 2.4.",
+    "stored": true
+  },
+  "dev.alert.update.detail": {
+    "text": "{summary} Install it from Settings.",
+    "args": [["summary", "text"]],
+    "note": "Detail of an update alert in Alerts (dev.alert.update.major, dev.alert.update.critical). {summary} is the release's own summary, which stays in English in every language; then where to install it: Settings is the apps' Settings screen, where the update is installed.",
+    "stored": true
+  },
+  "dev.alert.update.major": {
+    "text": "Update {version} is available",
+    "args": [["version", "text"]],
+    "note": "Title of an alert in Alerts: a major update (security, stability or durability) is available for the device's software. {version} is the release's version label, such as 2.4.",
+    "stored": true
+  },
+  "dev.alert.wifi.no_answer": {
+    "text": "sending data had slowed down to about {speed}, with {pct}% of it sent twice, and the Wi-Fi restart never answered. Restart the device from Settings, or connect it to your router with an Ethernet cable.",
+    "args": [["speed", "text"], ["pct", "text"]],
+    "note": "Detail of the alert dev.alert.wifi.not_restarted, shown after its title as the reason (the English starts in lower case for that reason): the device's Wi-Fi had become very slow, and the part of the device that restarts it never said whether it did. {speed} is how fast it still sent, such as 0.17 MB/s or 140 KB/s; {pct} the share of the data sent twice, in percent, such as 7.7. Both are written with a decimal point. Settings is the apps' Settings screen, which has a Restart button for the device.",
+    "stored": true
+  },
+  "dev.alert.wifi.no_runner": {
+    "text": "sending data has slowed down to about {speed}, with {pct}% of it sent twice. This device can't restart its Wi-Fi by itself until it is updated. Restart the device from Settings, or connect it to your router with an Ethernet cable.",
+    "args": [["speed", "text"], ["pct", "text"]],
+    "note": "Detail of the alert dev.alert.wifi.very_slow, shown after its title as the reason (the English starts in lower case for that reason): the device's Wi-Fi has become very slow, and its software is too old to restart the Wi-Fi by itself. {speed} is how fast it still sends, such as 0.17 MB/s or 140 KB/s; {pct} the share of the data sent twice, in percent, such as 7.7. Both are written with a decimal point. Settings is the apps' Settings screen, which has a Restart button for the device.",
+    "stored": true
+  },
+  "dev.alert.wifi.not_restarted": {
+    "text": "The Wi-Fi could not be restarted",
+    "note": "Title of an alert in Alerts: the device's Wi-Fi had become very slow, and restarting it (which the device does by itself, once) didn't work.",
+    "stored": true
+  },
+  "dev.alert.wifi.recovered": {
+    "text": "sending data had slowed down to about {speed}, with {pct}% of it sent twice. It is working normally again.",
+    "args": [["speed", "text"], ["pct", "text"]],
+    "note": "Detail of the alert dev.alert.wifi.restarted, shown after its title as the reason (the English starts in lower case for that reason): the device restarted its Wi-Fi because it had become very slow, and it works normally again. {speed} is how fast it still sent before, such as 0.17 MB/s or 140 KB/s; {pct} the share of the data sent twice, in percent, such as 7.7. Both are written with a decimal point.",
+    "stored": true
+  },
+  "dev.alert.wifi.recovered_rebooted": {
+    "text": "sending data had slowed down to about {speed}, with {pct}% of it sent twice. It didn't reconnect after the restart, so the device restarted. It is working normally again.",
+    "args": [["speed", "text"], ["pct", "text"]],
+    "note": "Detail of the alert dev.alert.wifi.restarted, shown after its title as the reason (the English starts in lower case for that reason): the device restarted its Wi-Fi because it had become very slow; the Wi-Fi didn't come back, so the whole device restarted, and it works normally again. {speed} is how fast it still sent before, such as 0.17 MB/s or 140 KB/s; {pct} the share of the data sent twice, in percent, such as 7.7. Both are written with a decimal point.",
+    "stored": true
+  },
+  "dev.alert.wifi.restart_failed": {
+    "text": "sending data had slowed down to about {speed}, with {pct}% of it sent twice, and restarting the Wi-Fi failed ({reason}). Restart the device from Settings, or connect it to your router with an Ethernet cable.",
+    "args": [["speed", "text"], ["pct", "text"], ["reason", "msg"]],
+    "note": "Detail of the alert dev.alert.wifi.not_restarted, shown after its title as the reason (the English starts in lower case for that reason): the device's Wi-Fi had become very slow and restarting it failed. {speed} is how fast it still sent, such as 0.17 MB/s or 140 KB/s; {pct} the share of the data sent twice, in percent, such as 7.7 (both written with a decimal point); {reason} why the restart failed, one of dev.status.wifi.too_soon, no_connection or not_wifi. Settings is the apps' Settings screen, which has a Restart button for the device.",
+    "stored": true
+  },
+  "dev.alert.wifi.restart_failed_other": {
+    "text": "sending data had slowed down to about {speed}, with {pct}% of it sent twice, and restarting the Wi-Fi failed ({reason}). Restart the device from Settings, or connect it to your router with an Ethernet cable.",
+    "args": [["speed", "text"], ["pct", "text"], ["reason", "text"]],
+    "note": "Detail of the alert dev.alert.wifi.not_restarted, shown after its title as the reason (the English starts in lower case for that reason): the device's Wi-Fi had become very slow and restarting it failed. {speed} is how fast it still sent, such as 0.17 MB/s or 140 KB/s; {pct} the share of the data sent twice, in percent, such as 7.7 (both written with a decimal point); {reason} why the restart failed, in English, as the device's restart helper said it. Settings is the apps' Settings screen, which has a Restart button for the device.",
+    "stored": true
+  },
+  "dev.alert.wifi.restarted": {
+    "text": "The Wi-Fi was restarted",
+    "note": "Title of an alert in Alerts: the device restarted its own Wi-Fi because it had become very slow at sending data.",
+    "stored": true
+  },
+  "dev.alert.wifi.still_slow": {
+    "text": "The Wi-Fi is still slow after a restart",
+    "note": "Title of an alert in Alerts: the device restarted its Wi-Fi because it had become very slow at sending data, and it is still slow.",
+    "stored": true
+  },
+  "dev.alert.wifi.still_slow_detail": {
+    "text": "sending data is still slow (about {speed}, with {pct}% of it sent twice). The Wi-Fi won't be restarted again until it has worked normally for a while. Restart the device from Settings, or connect it to your router with an Ethernet cable.",
+    "args": [["speed", "text"], ["pct", "text"]],
+    "note": "Detail of the alert dev.alert.wifi.still_slow, shown after its title as the reason (the English starts in lower case for that reason). {speed} is how fast it still sends, such as 0.17 MB/s or 140 KB/s; {pct} the share of the data sent twice, in percent, such as 7.7. Both are written with a decimal point. Settings is the apps' Settings screen, which has a Restart button for the device.",
+    "stored": true
+  },
+  "dev.alert.wifi.unjudged": {
+    "text": "sending data had slowed down to about {speed}, with {pct}% of it sent twice. There hasn't been enough traffic since to tell whether it is working normally again.",
+    "args": [["speed", "text"], ["pct", "text"]],
+    "note": "Detail of the alert dev.alert.wifi.restarted, shown after its title as the reason (the English starts in lower case for that reason): the device restarted its Wi-Fi because it had become very slow, and since then too little has been sent to tell whether it works normally. {speed} is how fast it still sent before, such as 0.17 MB/s or 140 KB/s; {pct} the share of the data sent twice, in percent, such as 7.7. Both are written with a decimal point.",
+    "stored": true
+  },
+  "dev.alert.wifi.unjudged_rebooted": {
+    "text": "sending data had slowed down to about {speed}, with {pct}% of it sent twice. It didn't reconnect after the restart, so the device restarted. There hasn't been enough traffic since to tell whether it is working normally again.",
+    "args": [["speed", "text"], ["pct", "text"]],
+    "note": "Detail of the alert dev.alert.wifi.restarted, shown after its title as the reason (the English starts in lower case for that reason): the device restarted its Wi-Fi because it had become very slow; the Wi-Fi didn't come back, so the whole device restarted, and since then too little has been sent to tell whether it works normally. {speed} is how fast it still sent before, such as 0.17 MB/s or 140 KB/s; {pct} the share of the data sent twice, in percent, such as 7.7. Both are written with a decimal point.",
+    "stored": true
+  },
+  "dev.alert.wifi.very_slow": {
+    "text": "The Wi-Fi is sending data very slowly",
+    "note": "Title of an alert in Alerts: the device's Wi-Fi has become very slow at sending data (receiving may still be fast).",
+    "stored": true
+  }
+}

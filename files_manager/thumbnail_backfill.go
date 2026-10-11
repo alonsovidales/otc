@@ -117,8 +117,8 @@ func (mg *Manager) BackfillMissingThumbnails(ses *session.Session) {
 			// thumbnail (issue #165): a file that takes the process down
 			// used to be retried at every start - a crash loop - because
 			// the marker was only written after processing returned.
-			_ = os.WriteFile(marker, []byte(cDecoders), 0o600) // perms: rw-------
-			mg.safelyOn("making a thumbnail for", file, func() { mg.reprocessOneFile(ses, file, storagePath) })
+			_ = os.WriteFile(marker, []byte(cDecoders), 0o600)                                                  // perms: rw-------
+			mg.safelyOn("making a thumbnail for", file, func() { mg.reprocessOneFile(ses, file, storagePath) }) // i18n-ignore: a log line
 			repaired++
 			if _, statErr := os.Stat(thumb); statErr == nil {
 				_ = os.Remove(marker)

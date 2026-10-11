@@ -3,10 +3,13 @@
 package filesmanager
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/gabriel-vasile/mimetype"
 
+	"github.com/alonsovidales/otc/alerttext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
@@ -141,13 +144,39 @@ func (mg *Manager) keptOutOfImages(hash string) bool {
 	return under[hash]
 }
 
+// fileAlert is what an alert says happened to a file: the constructor of
+// its catalog key (dev.alert.file.*), a sentence about the file's name -
+// i18n.DevAlertFileNotRead is "{name} could not be read".
+type fileAlert func(name string) i18n.Msg
+
+// key names the alert in the log, which stays English and names no file.
+func (what fileAlert) key() string { return what("").Key }
+
+// alert (issue #64) is how background processing tells the owner about a
+// file it could not handle: an Error notification in the Alerts section
+// (grouped by dao.AddErrorNotification so a failing batch is one row) -
+// what happened to the file, then the error's own words - plus the server
+// log as before.
+func (mg *Manager) alert(what fileAlert, path string, err error) {
+	log.Error("a file alert,", what.key()+":", err)
+	mg.raise(alerttext.WithRaw(what(filepath.Base(path)), err.Error()))
+}
+
+// raise adds a to the owner's Alerts, grouped with the errors of the last
+// few minutes; a failure is logged.
+func (mg *Manager) raise(a alerttext.Alert) {
+	if e := mg.dao.AddErrorNotification(a); e != nil {
+		log.Error("error recording the alert:", e)
+	}
+}
+
 // processingAlert is alert for a failure processing file's content:
 // logged instead when the content is kept out of Images - by its hash at
 // Info, its path at Debug only (issue #156: at level=info the log never
 // names a file path, and these are paths the owner chose to keep private).
-func (mg *Manager) processingAlert(what string, file *pb.File, err error) {
+func (mg *Manager) processingAlert(what fileAlert, file *pb.File, err error) {
 	if mg.keptOutOfImages(file.Hash) {
-		log.Info("content", file.Hash, what, "(kept out of Images, not alerted):", err)
+		log.Info("content", file.Hash, what.key(), "(kept out of Images, not alerted):", err)
 		log.Debug(file.Path, "is content", file.Hash)
 		return
 	}
@@ -157,7 +186,7 @@ func (mg *Manager) processingAlert(what string, file *pb.File, err error) {
 // stillFailed is processingAlert for a still that could not be converted
 // or decoded - content is what failed - quiet, too, when it isn't in a
 // format the device previews.
-func (mg *Manager) stillFailed(what string, file *pb.File, content []byte, err error) {
+func (mg *Manager) stillFailed(what fileAlert, file *pb.File, content []byte, err error) {
 	if !previewExpected(file, content) {
 		log.Debug(file.Path, "is in a format this device makes no preview of, skipped:", err)
 		return

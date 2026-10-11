@@ -18,6 +18,7 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 
 	"github.com/alonsovidales/otc/blobstore"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
@@ -60,12 +61,12 @@ func noFFmpeg(t *testing.T) *int {
 }
 
 // expectAlert is AddErrorNotification raising "<name> <what>" as a new
-// Alerts row.
+// Alerts row (with its keys: msg_key, msg_args, msg_lines).
 func expectAlert(mock sqlmock.Sqlmock, title string) {
 	mock.ExpectBegin()
-	mock.ExpectQuery("select `uuid`, coalesce\\(length\\(`details`\\), 0\\) from `notifications`").
-		WillReturnRows(sqlmock.NewRows([]string{"uuid", "size"}))
-	mock.ExpectExec("insert into `notifications`").WithArgs(sqlmock.AnyArg(), title, sqlmock.AnyArg()).
+	mock.ExpectQuery("select `uuid`, coalesce\\(length\\(`details`\\), 0\\), `msg_key`, `msg_lines` from `notifications`").
+		WillReturnRows(sqlmock.NewRows([]string{"uuid", "size", "msg_key", "msg_lines"}))
+	mock.ExpectExec("insert into `notifications`").WithArgs(sqlmock.AnyArg(), "", title, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 }
@@ -389,7 +390,7 @@ func TestKeptOutUnknownStillAlerts(t *testing.T) {
 	keptOut(mg, "/Private/")
 	mock.ExpectQuery(reVisible).WillReturnError(errors.New("gone away"))
 	expectAlert(mock, "x.jpg could not be processed")
-	mg.processingAlert("could not be processed", &pb.File{Hash: h, Path: "/Private/x.jpg"}, errors.New("bad"))
+	mg.processingAlert(i18n.DevAlertFileNotProcessed, &pb.File{Hash: h, Path: "/Private/x.jpg"}, errors.New("bad"))
 	allMet(t, mock)
 }
 
@@ -439,7 +440,7 @@ func TestKeptOutFailureLogNamesNoPathAtInfo(t *testing.T) {
 		}
 		expectNoAlert(mock)
 		file := &pb.File{Hash: h, Path: secret, Mime: "image/jpeg"}
-		mg.processingAlert("could not be processed", file, errors.New("bad"))
+		mg.processingAlert(i18n.DevAlertFileNotProcessed, file, errors.New("bad"))
 		mg.safelyOn("processing", file, func() { panic("decoder bug") })
 		if err := mock.ExpectationsWereMet(); err == nil || !strings.Contains(err.Error(), "ExpectedBegin") {
 			os.Exit(3) // alerted, or the kept-out check didn't run
@@ -459,7 +460,7 @@ func TestKeptOutFailureLogNamesNoPathAtInfo(t *testing.T) {
 			t.Fatal(err)
 		}
 		got := string(b)
-		if n := strings.Count(got, "content "+h+" could not be processed"); n != 2 {
+		if n := strings.Count(got, "content "+h+" dev.alert.file."); n != 2 {
 			t.Errorf("%s: %d line(s) name the hash, want 2:\n%s", level, n, got)
 		}
 		named := strings.Contains(got, "secret-name")

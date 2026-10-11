@@ -8,6 +8,8 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-sql-driver/mysql"
+
+	"github.com/alonsovidales/otc/alerttext"
 )
 
 func unknownColumn(col string) error {
@@ -80,10 +82,10 @@ func TestAddUpdateNotificationOncePerVersion(t *testing.T) {
 
 	mock.ExpectQuery(updateCount).WithArgs("3.0", legacy[0], legacy[1]).
 		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
-	mock.ExpectExec("insert into `notifications` \\(`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`, `update_version`\\) values \\(\\?, now\\(\\), 'Update', 'This device', '', \\?, \\?, 1, \\?\\)").
-		WithArgs(sqlmock.AnyArg(), legacy[1], "Fixes. Install it from Settings.", "3.0").
+	mock.ExpectExec("insert into `notifications` \\(`uuid`, `dt`, `type`, `actor_name`, `actor_domain`, `title`, `details`, `occurrences`, `update_version`, `msg_key`, `msg_args`, `msg_lines`\\) values \\(\\?, now\\(\\), 'Update', 'This device', '', \\?, \\?, 1, \\?, \\?, \\?, \\?\\)").
+		WithArgs(sqlmock.AnyArg(), legacy[1], "Fixes. Install it from Settings.", "3.0", nil, nil, nil).
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	added, err := d.AddUpdateNotification("3.0", legacy[1], "Fixes. Install it from Settings.", legacy)
+	added, err := d.AddUpdateNotification("3.0", alerttext.English(legacy[1], "Fixes. Install it from Settings."), legacy)
 	if err != nil || !added {
 		t.Fatalf("first time: added %v, %v", added, err)
 	}
@@ -92,7 +94,7 @@ func TestAddUpdateNotificationOncePerVersion(t *testing.T) {
 	// them apart: either keeps it out).
 	mock.ExpectQuery(updateCount).WithArgs("3.0", legacy[0], legacy[1]).
 		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
-	added, err = d.AddUpdateNotification("3.0", legacy[1], "Fixes. Install it from Settings.", legacy)
+	added, err = d.AddUpdateNotification("3.0", alerttext.English(legacy[1], "Fixes. Install it from Settings."), legacy)
 	if err != nil || added {
 		t.Errorf("again: added %v, %v", added, err)
 	}
@@ -101,9 +103,9 @@ func TestAddUpdateNotificationOncePerVersion(t *testing.T) {
 	// compare and the insert.
 	long := "1.2345678901234567890"
 	mock.ExpectQuery(updateCount).WithArgs(long[:16], "a", "b").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
-	mock.ExpectExec("insert into `notifications`").WithArgs(sqlmock.AnyArg(), "a", "d", long[:16]).
+	mock.ExpectExec("insert into `notifications`").WithArgs(sqlmock.AnyArg(), "a", "d", long[:16], nil, nil, nil).
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	if added, err := d.AddUpdateNotification(long, "a", "d", []string{"a", "b"}); err != nil || !added {
+	if added, err := d.AddUpdateNotification(long, alerttext.English("a", "d"), []string{"a", "b"}); err != nil || !added {
 		t.Errorf("long version: added %v, %v", added, err)
 	}
 
@@ -128,14 +130,14 @@ func TestAddUpdateNotificationOnAnOlderSchema(t *testing.T) {
 	mock.ExpectQuery("select count\\(\\*\\) from `notifications` where `type` = 'Update' and `title` in \\(\\?, \\?\\)").
 		WithArgs(legacy[0], legacy[1]).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectExec(legacyInsert).WithArgs(sqlmock.AnyArg(), legacy[0], "d").WillReturnResult(sqlmock.NewResult(0, 1))
-	if added, err := d.AddUpdateNotification("3.0", legacy[0], "d", legacy); err != nil || !added {
+	if added, err := d.AddUpdateNotification("3.0", alerttext.English(legacy[0], "d"), legacy); err != nil || !added {
 		t.Errorf("older schema: added %v, %v", added, err)
 	}
 
 	mock.ExpectQuery(updateCount).WillReturnError(unknownColumn("update_version"))
 	mock.ExpectQuery("select count\\(\\*\\) from `notifications` where `type` = 'Update' and `title` in").
 		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
-	if added, err := d.AddUpdateNotification("3.0", legacy[0], "d", legacy); err != nil || added {
+	if added, err := d.AddUpdateNotification("3.0", alerttext.English(legacy[0], "d"), legacy); err != nil || added {
 		t.Errorf("older schema, again: added %v, %v", added, err)
 	}
 
@@ -144,14 +146,14 @@ func TestAddUpdateNotificationOnAnOlderSchema(t *testing.T) {
 	mock.ExpectQuery(updateCount).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectExec("insert into `notifications`.*`update_version`").WillReturnError(unknownColumn("update_version"))
 	mock.ExpectExec(legacyInsert).WithArgs(sqlmock.AnyArg(), legacy[0], "d").WillReturnResult(sqlmock.NewResult(0, 1))
-	if added, err := d.AddUpdateNotification("3.0", legacy[0], "d", legacy); err != nil || !added {
+	if added, err := d.AddUpdateNotification("3.0", alerttext.English(legacy[0], "d"), legacy); err != nil || !added {
 		t.Errorf("retried without the column: added %v, %v", added, err)
 	}
 
 	// Without legacy titles, its own title stands for them.
 	mock.ExpectQuery("select count\\(\\*\\) from `notifications` where `type` = 'Update' and \\(`update_version` = \\? or `title` in \\(\\?\\)\\)").
 		WithArgs("3.0", "t").WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
-	if added, err := d.AddUpdateNotification("3.0", "t", "d", nil); err != nil || added {
+	if added, err := d.AddUpdateNotification("3.0", alerttext.English("t", "d"), nil); err != nil || added {
 		t.Errorf("no legacy titles: added %v, %v", added, err)
 	}
 

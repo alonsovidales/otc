@@ -41,7 +41,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alonsovidales/otc/alerttext"
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/updater"
 )
@@ -317,11 +320,41 @@ func (k *streak) pct() float64 {
 	return 100 * float64(k.retrans) / float64(k.segs)
 }
 
-// describe says how bad the streak was, for the Alert: "0.17 MB/s, with
-// 7.7% of it sent twice". The rate is the best minute's: with the link
-// stuck, that is about what it could still do.
+// describe says how bad the streak was, in English for the log and
+// State.Slow: "0.17 MB/s, with 7.7% of it sent twice". The rate is the
+// best minute's: with the link stuck, that is about what it could still
+// do.
 func (k *streak) describe() string {
-	return fmt.Sprintf("%s, with %.1f%% of it sent twice", rate(k.peakTx), k.pct())
+	return fmt.Sprintf("%s, with %.1f%% of it sent twice", rate(k.peakTx), k.pct()) // i18n-ignore: the log and State.Slow; the Alerts say it with keys (Speed)
+}
+
+// speed is describe's numbers, kept for the Alert after the restart.
+func (k *streak) speed() *Speed { return &Speed{Rate: k.peakTx, Pct: k.pct()} }
+
+// Speed is how a bad streak sent: the best minute's rate, in bytes a
+// second, and the share of TCP segments sent twice, in percent.
+type Speed struct {
+	Rate float64 `json:"rate"`
+	Pct  float64 `json:"pct"`
+}
+
+// args are s as the Alerts' keys take it: {speed} "0.17 MB/s" or "140
+// KB/s", {pct} "7.7" - written as describe writes them, so the Alert's
+// English is what it always was.
+func (s Speed) args() (speed, pct string) {
+	return rate(s.Rate), fmt.Sprintf("%.1f", s.Pct)
+}
+
+// legacySpeed reads the speed back out of a State.Slow written before
+// SlowSpeed was kept (describe's English); ok is false for anything
+// else.
+func legacySpeed(slow string) (speed, pct string, ok bool) {
+	speed, rest, ok := strings.Cut(slow, ", with ") // i18n-ignore: parses describe's English, never shown
+	if !ok {
+		return "", "", false
+	}
+	pct, ok = strings.CutSuffix(rest, "% of it sent twice") // i18n-ignore: parses describe's English, never shown
+	return speed, pct, ok && speed != "" && pct != ""
 }
 
 func rate(bytesPerSec float64) string {
@@ -340,8 +373,11 @@ type State struct {
 	Iface       string    `json:"iface,omitempty"`
 	RequestedAt time.Time `json:"requested_at,omitempty"`
 	RestartedAt time.Time `json:"restarted_at,omitempty"`
-	// How the link was before the restart (streak.describe).
-	Slow string `json:"slow,omitempty"`
+	// How the link was before the restart: in English (streak.describe,
+	// for the log and older binaries) and as numbers, for the Alert's
+	// keys. A state written before SlowSpeed has only Slow (legacySpeed).
+	Slow      string `json:"slow,omitempty"`
+	SlowSpeed *Speed `json:"slow_speed,omitempty"`
 	// What the root side said: "rebooted" when the Wi-Fi didn't come
 	// back and it restarted the device instead.
 	RootNote string `json:"root_note,omitempty"`
@@ -353,24 +389,29 @@ type State struct {
 	Pending *PendingAlert `json:"pending_alert,omitempty"`
 }
 
-// PendingAlert is one Alert waiting to be raised.
-type PendingAlert struct {
-	Title  string `json:"title"`
-	Detail string `json:"detail"`
-}
+// PendingAlert is one Alert waiting to be raised: its English (title,
+// detail - all a state from before keys holds) and its keys.
+type PendingAlert = alerttext.Alert
 
-// rootStatus is what otc-wifi-restart-runner writes.
+// rootStatus is what otc-wifi-restart-runner writes. Message is the
+// English; Code (a runner token, devtext.WifiRestartKey) and Args name the
+// same text in the catalog - absent from a runner before codes.
 type rootStatus struct {
-	State   string `json:"state"`
-	Message string `json:"message"`
-	Updated string `json:"updated"`
+	State   string          `json:"state"`
+	Message string          `json:"message"`
+	Code    string          `json:"code,omitempty"`
+	Args    json.RawMessage `json:"args,omitempty"`
+	Updated string          `json:"updated"`
 }
 
 // Watchdog is the state machine; its fields are the seams tests replace.
 type Watchdog struct {
-	cfg       Config
-	now       func() time.Time
-	read      func(time.Time) (sample, error)
+	cfg  Config
+	now  func() time.Time
+	read func(time.Time) (sample, error)
+	// store stores an Alert (dao.AddErrorNotification); without it, alert
+	// gets the Alert's English.
+	store     func(a alerttext.Alert) error
 	alert     func(title, detail string) error
 	statePath string
 	// The root side: whether it is installed, the trigger and its answer.
@@ -389,8 +430,8 @@ type Watchdog struct {
 }
 
 // Watch runs the watchdog for the life of the process, a look a minute.
-// alert stores an Alert (dao.AddErrorNotification).
-func Watch(alert func(title, detail string) error) {
+// store stores an Alert (dao.AddErrorNotification).
+func Watch(store func(a alerttext.Alert) error) {
 	c, on := loadConfig()
 	if !on {
 		log.Info("wifi watchdog: off ([otc] wifi-watchdog)")
@@ -405,7 +446,7 @@ func Watch(alert func(title, detail string) error) {
 		cfg:             c,
 		now:             time.Now,
 		read:            readSample,
-		alert:           alert,
+		store:           store,
 		statePath:       filepath.Join(wd, stateFile),
 		runnerInstalled: func() bool { _, err := os.Stat(cRootRunner); return err == nil },
 		updating:        func() bool { return updater.CurrentStatus().State == "running" },
@@ -539,19 +580,19 @@ func (w *Watchdog) step(now time.Time, win window) {
 		case w.k.recovered(w.cfg):
 			log.Info("wifi watchdog: the Wi-Fi works normally again after its restart; re-armed")
 			if !w.st.Alerted {
-				w.queueAlert("The Wi-Fi was restarted", "sending data had slowed down to about "+w.st.Slow+"."+w.rebootNote()+" It is working normally again.")
+				w.queueAlert(w.restartedAlert(i18n.DevAlertWifiRecovered, i18n.DevAlertWifiRecoveredRebooted))
 			}
 			w.st.Alerted = false
 			w.setPhase(phaseArmed)
 		case w.k.triggered(w.cfg):
 			log.Info("wifi watchdog: still bad after the restart (" + w.k.describe() + "); not restarting it again until it has been healthy for a while")
-			w.queueAlert("The Wi-Fi is still slow after a restart",
-				"sending data is still slow (about "+w.k.describe()+"). The Wi-Fi won't be restarted again until it has worked normally for a while. Restart the device from Settings, or connect it to your router with an Ethernet cable.")
+			speed, pct := w.k.speed().args()
+			w.queueAlert(alerttext.New(i18n.DevAlertWifiStillSlow(), i18n.DevAlertWifiStillSlowDetail(speed, pct)))
 			w.setPhase(phaseGaveUp)
 		case !w.st.Alerted && now.Sub(w.st.RestartedAt) >= w.cfg.VerdictWait:
 			log.Info("wifi watchdog: not enough traffic since the restart to judge it; telling the owner it happened")
 			w.st.Alerted = true
-			w.queueAlert("The Wi-Fi was restarted", "sending data had slowed down to about "+w.st.Slow+"."+w.rebootNote()+" There hasn't been enough traffic since to tell whether it is working normally again.")
+			w.queueAlert(w.restartedAlert(i18n.DevAlertWifiUnjudged, i18n.DevAlertWifiUnjudgedRebooted))
 		}
 	case phaseGaveUp:
 		switch {
@@ -565,11 +606,29 @@ func (w *Watchdog) step(now time.Time, win window) {
 	}
 }
 
-func (w *Watchdog) rebootNote() string {
+// restartedAlert is the Alert that the Wi-Fi was restarted: plain's
+// detail, or rebooted's when the root side restarted the whole device.
+func (w *Watchdog) restartedAlert(plain, rebooted func(speed, pct string) i18n.Msg) alerttext.Alert {
+	detail := plain
 	if w.st.RootNote == "rebooted" {
-		return " It didn't reconnect after the restart, so the device restarted."
+		detail = rebooted
 	}
-	return ""
+	return w.slowAlert(i18n.DevAlertWifiRestarted(), detail)
+}
+
+// slowAlert is the Alert titled title whose detail tells the speed before
+// the restart (detail, given it). With no speed to tell (a state from
+// before SlowSpeed whose Slow doesn't read back), the title alone.
+func (w *Watchdog) slowAlert(title i18n.Msg, detail func(speed, pct string) i18n.Msg) alerttext.Alert {
+	var speed, pct string
+	if s := w.st.SlowSpeed; s != nil {
+		speed, pct = s.args()
+	} else if sp, pc, ok := legacySpeed(w.st.Slow); ok {
+		speed, pct = sp, pc
+	} else {
+		return alerttext.New(title, i18n.Msg{})
+	}
+	return alerttext.New(title, detail(speed, pct))
 }
 
 // logWindow logs a minute that matters: every bad one, and every one
@@ -582,9 +641,9 @@ func (w *Watchdog) logWindow(win window) {
 		map[kind]string{kindBad: "bad", kindHealthy: "healthy", kindMiddling: "middling"}[win.kind],
 		win.iface, win.pct, win.segs, rate(win.txRate), win.txErrors)
 	if win.staCounted {
-		line += fmt.Sprintf(", %d of %d frames unacknowledged", win.staFailed, win.staTx)
+		line += fmt.Sprintf(", %d of %d frames unacknowledged", win.staFailed, win.staTx) // i18n-ignore: a log line
 	}
-	line += fmt.Sprintf(" (streak: %d bad, %d healthy; phase %s)", w.k.bad, w.k.healthy, w.st.Phase)
+	line += fmt.Sprintf(" (streak: %d bad, %d healthy; phase %s)", w.k.bad, w.k.healthy, w.st.Phase) // i18n-ignore: a log line
 	// Given up: bad minutes are the expected story, logged once an hour
 	// (step), not every minute for as long as the episode lasts.
 	if (win.kind == kindBad && w.st.Phase != phaseGaveUp) || (w.st.Phase != phaseArmed && win.kind != kindBad) {
@@ -598,15 +657,14 @@ func (w *Watchdog) logWindow(win window) {
 // episode.
 func (w *Watchdog) restart(now time.Time, iface string) {
 	slow := w.k.describe()
-	why := fmt.Sprintf("%d bad minutes", w.k.bad)
+	why := fmt.Sprintf("%d bad minutes", w.k.bad) // i18n-ignore: a log line
 	if w.k.corroborated(w.cfg) {
 		why += fmt.Sprintf(", the radio reporting failures (%d tx errors/drops, %d of %d frames unacknowledged)", w.k.txErrors, w.k.staFail, w.k.staTx)
 	}
-	w.st.Iface, w.st.Slow, w.st.RootNote, w.st.Alerted = iface, slow, "", false
+	w.st.Iface, w.st.Slow, w.st.SlowSpeed, w.st.RootNote, w.st.Alerted = iface, slow, w.k.speed(), "", false
 	if !w.runnerInstalled() {
 		log.Info("wifi watchdog: the Wi-Fi on " + iface + " is stuck (" + slow + "; " + why + "), but this device has no Wi-Fi restart runner (otc-wifi-restart-runner); giving up for this episode")
-		w.queueAlert("The Wi-Fi is sending data very slowly",
-			"sending data has slowed down to about "+slow+". This device can't restart its Wi-Fi by itself until it is updated. Restart the device from Settings, or connect it to your router with an Ethernet cable.")
+		w.queueAlert(w.slowAlert(i18n.DevAlertWifiVerySlow(), i18n.DevAlertWifiNoRunner))
 		w.setPhase(phaseGaveUp)
 		return
 	}
@@ -637,8 +695,7 @@ func (w *Watchdog) checkRoot(now time.Time) {
 		case "failed":
 			msg := truncate(st.Message, 200)
 			log.Info("wifi watchdog: the Wi-Fi restart failed: " + msg + "; giving up for this episode")
-			w.queueAlert("The Wi-Fi could not be restarted",
-				"sending data had slowed down to about "+w.st.Slow+", and restarting the Wi-Fi failed ("+msg+"). Restart the device from Settings, or connect it to your router with an Ethernet cable.")
+			w.queueAlert(w.slowAlert(i18n.DevAlertWifiNotRestarted(), failedDetail(st, msg)))
 			w.setPhase(phaseGaveUp)
 			return
 		}
@@ -650,10 +707,22 @@ func (w *Watchdog) checkRoot(now time.Time) {
 	if now.Sub(w.st.RequestedAt) >= w.cfg.RootWait {
 		log.Info("wifi watchdog: no answer from the Wi-Fi restart runner in", w.cfg.RootWait, "- giving up for this episode")
 		_ = os.Remove(w.requestPath)
-		w.queueAlert("The Wi-Fi could not be restarted",
-			"sending data had slowed down to about "+w.st.Slow+", and the Wi-Fi restart never answered. Restart the device from Settings, or connect it to your router with an Ethernet cable.")
+		w.queueAlert(w.slowAlert(i18n.DevAlertWifiNotRestarted(), i18n.DevAlertWifiNoAnswer))
 		w.setPhase(phaseGaveUp)
 	}
+}
+
+// failedDetail is the detail of an Alert that the Wi-Fi restart failed,
+// msg (the runner's message, as the Alert's English shows it) being why:
+// by the runner's code when it names a catalog text that is msg exactly
+// (dev.status.wifi.*), else msg itself, in English.
+func failedDetail(st rootStatus, msg string) func(speed, pct string) i18n.Msg {
+	if key := devtext.WifiRestartKey(st.Code); key != "" {
+		if why, err := i18n.ParseStored(key, st.Args); err == nil && len(why.Args) == 0 && alerttext.EnglishOf(why) == msg {
+			return func(speed, pct string) i18n.Msg { return i18n.DevAlertWifiRestartFailed(speed, pct, why) }
+		}
+	}
+	return func(speed, pct string) i18n.Msg { return i18n.DevAlertWifiRestartFailedOther(speed, pct, msg) }
 }
 
 // readRootStatus reads the runner's answer, only one written for this
@@ -675,17 +744,23 @@ func (w *Watchdog) readRootStatus() (rootStatus, bool) {
 
 // queueAlert records the Alert in the state first, so one the database
 // refuses (or a restart of otc in between) isn't lost, then raises it.
-func (w *Watchdog) queueAlert(title, detail string) {
-	w.st.Pending = &PendingAlert{Title: title, Detail: detail}
+func (w *Watchdog) queueAlert(a alerttext.Alert) {
+	w.st.Pending = &a
 	w.save()
 	w.flushAlert()
 }
 
 func (w *Watchdog) flushAlert() {
-	if w.st.Pending == nil || w.alert == nil {
+	if w.st.Pending == nil || (w.store == nil && w.alert == nil) {
 		return
 	}
-	if err := w.alert(w.st.Pending.Title, w.st.Pending.Detail); err != nil {
+	var err error
+	if w.store != nil {
+		err = w.store(*w.st.Pending)
+	} else {
+		err = w.alert(w.st.Pending.Title, w.st.Pending.Detail)
+	}
+	if err != nil {
 		log.Error("wifi watchdog: could not add the Alert, retrying in a minute:", err)
 		return
 	}

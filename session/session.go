@@ -10,6 +10,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	"golang.org/x/crypto/argon2"
 	"io"
@@ -39,7 +41,7 @@ const (
 const MinPasswordLen = 8
 
 // ErrPasswordTooShort is a new password shorter than MinPasswordLen.
-var ErrPasswordTooShort = errors.New("the password must have 8 characters or more")
+var ErrPasswordTooShort = devtext.New(i18n.DevAuthPasswordTooShort())
 
 // Manager Structure that provides HTTP access to manage all the different
 // groups and shards on each grorup
@@ -162,7 +164,7 @@ func New(userUuid, key string, create bool, dao *dao.Dao) (ses *Session, err err
 
 		secretValidator, err = ses.Decrypt(encText)
 		if err != nil || len(secretValidator) < len(cValidatorText) || string(secretValidator[:len(cValidatorText)]) != cValidatorText {
-			return nil, errors.New("Invalid session")
+			return nil, devtext.New(i18n.DevAuthInvalidSession())
 		}
 
 		if len(salt) == 0 {
@@ -257,7 +259,7 @@ func (ses *Session) ChangeKey(oldKey, newKey string) (err error) {
 
 	nonceSize := oldCipher.NonceSize()
 	if len(encText) < nonceSize {
-		return errors.New("ciphertext too short")
+		return errors.New("ciphertext too short") // i18n-ignore: internal (a damaged vault), never a reply of its own
 	}
 
 	nonce, ciphertext := encText[:nonceSize], encText[nonceSize:]
@@ -307,7 +309,7 @@ func (ses *Session) Encrypt(content []byte) []byte {
 func (ses *Session) Decrypt(content []byte) (plaintext []byte, err error) {
 	nonceSize := ses.cipher.NonceSize()
 	if len(content) < nonceSize {
-		return nil, errors.New("ciphertext too short")
+		return nil, errors.New("ciphertext too short") // i18n-ignore: internal (damaged data), never a reply of its own
 	}
 
 	nonce, ciphertext := content[:nonceSize], content[nonceSize:]

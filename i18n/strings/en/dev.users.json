@@ -1,0 +1,41 @@
+{
+  "dev.users.bad_username": {
+    "text": "username must be lowercase letters, digits, or hyphens",
+    "note": "Error in Settings > Users when adding a user whose username has other characters. The username also becomes part of the user's own address on the bridge."
+  },
+  "dev.users.bridge_check_failed": {
+    "text": "could not reach the bridge to check {domain}, so this user was not created - try again in a moment, or uncheck \"request bridge access\" to create a local-only account: {detail}",
+    "args": [["domain", "text"], ["detail", "text"]],
+    "note": "Error in Settings > Users when adding a user with \"request bridge access\" ticked and the bridge (off-the.cloud, the relay that makes devices reachable from outside the home) could not be asked whether the new user's address is free. {domain} is that address, such as kim.anna.off-the.cloud; {detail} is the reason, an error in English. \"request bridge access\" is the checkbox's label in the form: translate it as the label is translated."
+  },
+  "dev.users.confirm_mismatch": {
+    "text": "confirmation username does not match",
+    "note": "Error in Settings > Users when deleting a user: the username typed to confirm isn't that user's. Deleting a user removes all their files and data for good.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #af412b80"
+  },
+  "dev.users.name_taken_on_bridge": {
+    "text": "{domain} is already taken on the bridge - pick a different username, or uncheck \"request bridge access\" to create this user for your own network only",
+    "args": [["domain", "text"]],
+    "note": "Error in Settings > Users when adding a user with \"request bridge access\" ticked and the address the user would get on the bridge (off-the.cloud) already belongs to someone else. {domain} is that address, such as kim.anna.off-the.cloud. \"request bridge access\" is the checkbox's label in the form: translate it as the label is translated."
+  },
+  "dev.users.port_in_use": {
+    "text": "port {port} is already in use by another user",
+    "args": [["port", "text"]],
+    "note": "Error in Settings > Users when adding a user with a port number another user already has. {port} is the number, such as 8082."
+  },
+  "dev.users.stop_failed": {
+    "text": "could not stop {username}'s process: {detail}",
+    "args": [["username", "text"], ["detail", "text"]],
+    "note": "Error in Settings > Users when deleting or disabling a user and the device could not stop that user's own copy of the software. {username} is the user's username (lowercase letters, digits and hyphens); {detail} is the reason, an error in English."
+  },
+  "dev.users.storage_dir_failed": {
+    "text": "creating storage directory: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error in Settings > Users when adding a user and the folder for their files could not be made on the device's disks. {detail} is the reason, an error in English."
+  },
+  "dev.users.username_taken": {
+    "text": "username already taken",
+    "note": "Error in Settings > Users when adding a user with a username another user of this device already has."
+  }
+}

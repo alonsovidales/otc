@@ -19,6 +19,7 @@ import (
 
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/devtext"
 	filesmanager "github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
@@ -154,7 +155,7 @@ func expectPayload[T any](context, domain string, payload any) (T, error) {
 	if !ok {
 		log.Error(context, "- unexpected response from", domain, ", got payload type", fmt.Sprintf("%T", payload))
 		var zero T
-		return zero, fmt.Errorf("%s: unexpected response from %s", context, domain)
+		return zero, fmt.Errorf("%s: unexpected response from %s", context, domain) // i18n-ignore: a technical detail (a friend's device answered something unexpected)
 	}
 	return v, nil
 }
@@ -370,7 +371,7 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 			// thumbnail for this hash. Generate one directly instead.
 			unEncThumb, err = filesmanager.GenerateVideoThumbnailFrom(filepath.Join(unencDir, file.Hash), maxThumb)
 			if err != nil {
-				return "", fmt.Errorf("generating thumbnail for compressed video %q: %w", path, err)
+				return "", wrapCause(fmt.Sprintf("generating thumbnail for compressed video %q: %v", path, err), err, func(d string) i18n.Msg { return i18n.DevSocialVideoThumbnailFailed(path, d) }) // i18n-ignore: the English as it always read; the catalog has the other languages
 			}
 		} else {
 			// Issue #49: UploadFile writes the thumbnail from a background
@@ -423,7 +424,7 @@ func (sc *Social) NewPublication(ses *session.Session, text string, paths []stri
 func (sc *Social) publishFile(ses *session.Session, path string, trim *pb.VideoTrim, unencDir string) (*pb.File, bool, error) {
 	meta, err := sc.dao.GetFileByPath(path)
 	if err != nil || meta == nil {
-		return nil, false, fmt.Errorf("error loading file %q: %v", path, err)
+		return nil, false, wrapCause(fmt.Sprintf("error loading file %q: %v", path, err), err, func(d string) i18n.Msg { return i18n.DevSocialLoadFileFailed(path, d) }) // i18n-ignore: the English as it always read; the catalog has the other languages
 	}
 	if strings.HasPrefix(meta.Mime, "video/") {
 		return sc.publishVideo(ses, meta, trim, unencDir)
@@ -436,7 +437,7 @@ func (sc *Social) publishFile(ses *session.Session, path string, trim *pb.VideoT
 	file, err := sc.filesmanager.GetFile(ses, path, "")
 	if err != nil {
 		log.Error("Error loading file:", err)
-		return nil, false, fmt.Errorf("error loading file %q: %w", path, err)
+		return nil, false, wrapCause(fmt.Sprintf("error loading file %q: %v", path, err), err, func(d string) i18n.Msg { return i18n.DevSocialLoadFileFailed(path, d) }) // i18n-ignore: the English as it always read; the catalog has the other languages
 	}
 	if err := writeFileAtomic(filepath.Join(unencDir, file.Hash), file.Content); err != nil {
 		return nil, false, err
@@ -481,14 +482,14 @@ func (sc *Social) GetEvents(pr *profile.Profile, since time.Time, total int32, r
 // this possible without a path - publication files have none.
 func (sc *Social) GetPublicationMedia(pubUuid, hash string) (content []byte, mime string, err error) {
 	if !dao.IsContentHash(hash) {
-		return nil, "", fmt.Errorf("no file %q in publication %q", hash, pubUuid)
+		return nil, "", fmt.Errorf("no file %q in publication %q", hash, pubUuid) // i18n-ignore: logged only, the reply says media not available
 	}
 	mime, found, err := sc.dao.PublicationFileMime(pubUuid, hash)
 	if err != nil {
 		return nil, "", err
 	}
 	if !found {
-		return nil, "", fmt.Errorf("no file %q in publication %q", hash, pubUuid)
+		return nil, "", fmt.Errorf("no file %q in publication %q", hash, pubUuid) // i18n-ignore: logged only, the reply says media not available
 	}
 
 	content, err = os.ReadFile(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "unenc-storage-path"), hash))
@@ -668,7 +669,7 @@ func isAllowedFriendDomain(domain string) bool {
 
 func (sc *Social) connectToDevice(domain string) (conn *wsframe.Client, err error) {
 	if !isAllowedFriendDomain(domain) {
-		return nil, fmt.Errorf("domain %q is not a %s address", domain, friendDomainTLD())
+		return nil, devtext.WithEnglish(fmt.Sprintf("domain %q is not a %s address", domain, friendDomainTLD()), i18n.DevSocialBadDomain(domain, friendDomainTLD())) // i18n-ignore: the English as it always read; the catalog has the other languages
 	}
 
 	// If this is a bridge connection, we will retry to connect to the bridge
@@ -799,7 +800,7 @@ func (fr *friendship) updateFriendshipStatus() (err error) {
 		log.Debug("Error reading friendship status:", respProf.ErrorMessage)
 		return errors.New(respProf.ErrorMessage)
 	}
-	resp, err := expectPayload[*pb.RespEnvelope_RespFriendshipStatus]("update friendship status", fr.data.OriginProfile.Domain, respProf.Payload)
+	resp, err := expectPayload[*pb.RespEnvelope_RespFriendshipStatus]("update friendship status", fr.data.OriginProfile.Domain, respProf.Payload) // i18n-ignore: a log line's context and a technical detail
 	if err != nil {
 		return err
 	}
@@ -876,12 +877,12 @@ func (fr *friendship) autAsFriend() (err error) {
 		log.Debug("Error trying to auth as friend:", respProf.ErrorMessage)
 		return errors.New(respProf.ErrorMessage)
 	}
-	resp, err := expectPayload[*pb.RespEnvelope_RespAck]("auth as friend", fr.data.OriginProfile.Domain, respProf.Payload)
+	resp, err := expectPayload[*pb.RespEnvelope_RespAck]("auth as friend", fr.data.OriginProfile.Domain, respProf.Payload) // i18n-ignore: a log line's context and a technical detail
 	if err != nil {
 		return err
 	}
 	if !resp.RespAck.Ok {
-		return errors.New("Error authenticating as friend")
+		return errors.New("Error authenticating as friend") // i18n-ignore: the friend sync's, logged only
 	}
 
 	return
@@ -919,7 +920,7 @@ func (fr *friendship) refreshProfile() (err error) {
 		log.Debug("Error trying to get profile from friend:", respProf.ErrorMessage)
 		return errors.New(respProf.ErrorMessage)
 	}
-	profResp, err := expectPayload[*pb.RespEnvelope_RespProfile]("refresh friend profile", fr.data.OriginProfile.Domain, respProf.Payload)
+	profResp, err := expectPayload[*pb.RespEnvelope_RespProfile]("refresh friend profile", fr.data.OriginProfile.Domain, respProf.Payload) // i18n-ignore: a log line's context and a technical detail
 	if err != nil {
 		return err
 	}
@@ -981,7 +982,7 @@ func (fr *friendship) getPublicationMedia(pubUuid, hash string) (content []byte,
 		}
 		return nil, errors.New(resp.ErrorMessage)
 	}
-	rf, err := expectPayload[*pb.RespEnvelope_RespFile]("get publication media", fr.data.OriginProfile.Domain, resp.Payload)
+	rf, err := expectPayload[*pb.RespEnvelope_RespFile]("get publication media", fr.data.OriginProfile.Domain, resp.Payload) // i18n-ignore: a log line's context and a technical detail
 	if err != nil {
 		return nil, err
 	}
@@ -990,7 +991,7 @@ func (fr *friendship) getPublicationMedia(pubUuid, hash string) (content []byte,
 
 // errFriendTransport marks a failure of the connection to a friend's
 // device, as opposed to an answer about one post.
-var errFriendTransport = errors.New("friend connection failed")
+var errFriendTransport = errors.New("friend connection failed") // i18n-ignore: the friend sync's, logged only
 
 // bridgeLostFriend: the bridge answered for a friend's device it can't
 // reach (restarting, say, and it has hung up), so the connection failed,
@@ -1033,7 +1034,7 @@ func (fr *friendship) getPublicationFiles(uuid string) (files []*pb.File, err er
 		}
 		return nil, errors.New(respProf.ErrorMessage)
 	}
-	filesResp, err := expectPayload[*pb.RespEnvelope_RespSocialPublicationFiles]("get publication files", fr.data.OriginProfile.Domain, respProf.Payload)
+	filesResp, err := expectPayload[*pb.RespEnvelope_RespSocialPublicationFiles]("get publication files", fr.data.OriginProfile.Domain, respProf.Payload) // i18n-ignore: a log line's context and a technical detail
 	if err != nil {
 		return nil, err
 	}
@@ -1277,7 +1278,7 @@ func (fr *friendship) updateFriendEvents() (err error) {
 		log.Debug("Error trying to publications from friend:", respProf.ErrorMessage)
 		return errors.New(respProf.ErrorMessage)
 	}
-	resp, err := expectPayload[*pb.RespEnvelope_RespEvents]("get events", fr.data.OriginProfile.Domain, respProf.Payload)
+	resp, err := expectPayload[*pb.RespEnvelope_RespEvents]("get events", fr.data.OriginProfile.Domain, respProf.Payload) // i18n-ignore: a log line's context and a technical detail
 	if err != nil {
 		return err
 	}
@@ -1545,7 +1546,7 @@ func (sc *Social) GetRemoteProfile(domain string, conn *wsframe.Client) (name, t
 	if err = proto.Unmarshal(data, &respProf); err != nil {
 		return
 	}
-	profResp, err := expectPayload[*pb.RespEnvelope_RespProfile]("get remote profile", domain, respProf.Payload)
+	profResp, err := expectPayload[*pb.RespEnvelope_RespProfile]("get remote profile", domain, respProf.Payload) // i18n-ignore: a log line's context and a technical detail
 	if err != nil {
 		return "", "", nil, err
 	}
@@ -1558,7 +1559,7 @@ func (sc *Social) GetRemoteProfile(domain string, conn *wsframe.Client) (name, t
 // ErrFriendsAgain is SendFriendshipReq's "success, and already friends":
 // the other device re-linked an accepted friendship with this device's new
 // identity (issue #140), so there is nothing left to accept.
-var ErrFriendsAgain = errors.New("friends again")
+var ErrFriendsAgain = errors.New("friends again") // i18n-ignore: never shown, answered as Ack.code "accepted"
 
 func (sc *Social) SendFriendshipReq(domain string) (err error) {
 	conn, err := sc.connectToDevice(domain)
@@ -1587,7 +1588,7 @@ func (sc *Social) SendFriendshipReq(domain string) (err error) {
 		return err
 	}
 	if previous != nil && previous.Status == "blocked" {
-		return errors.New("you blocked this device - unblock it before sending a request")
+		return devtext.New(i18n.DevSocialBlocked())
 	}
 	if previous != nil {
 		err = sc.dao.RelinkFriendship(domain, secret, remoteName, remoteText, remoteImg, "pending", true)
@@ -1646,7 +1647,7 @@ func (sc *Social) SendFriendshipReq(domain string) (err error) {
 		log.Error("read error in unmarshalling friendship internal requestrespons3:", err)
 		return
 	}
-	ackResp, err := expectPayload[*pb.RespEnvelope_RespAck]("send friendship request", domain, respAck.Payload)
+	ackResp, err := expectPayload[*pb.RespEnvelope_RespAck]("send friendship request", domain, respAck.Payload) // i18n-ignore: a log line's context and a technical detail
 	if err != nil {
 		return err
 	}
@@ -1707,7 +1708,7 @@ func (sc *Social) ExternalFriendshipRequest(extDomain, secret, name, profileText
 		log.Error("read error unmarshalling external friendship request:", err)
 		return
 	}
-	ackResp, err := expectPayload[*pb.RespEnvelope_RespAck]("external friendship request", extDomain, respAck.Payload)
+	ackResp, err := expectPayload[*pb.RespEnvelope_RespAck]("external friendship request", extDomain, respAck.Payload) // i18n-ignore: a log line's context and a technical detail
 	if err != nil {
 		return err
 	}
@@ -1727,7 +1728,7 @@ func (sc *Social) ExternalFriendshipRequest(extDomain, secret, name, profileText
 		switch action {
 		case relinkRefuse:
 			log.Info("friend request from a blocked domain refused:", extDomain)
-			return errors.New("friendship request refused")
+			return devtext.New(i18n.DevSocialRequestRefused())
 		case relinkUpdate:
 			log.Info("friendship with", extDomain, "re-linked to its new device, status", status)
 			if err = sc.dao.RelinkFriendship(extDomain, secret, name, profileText, image, status, false); err != nil {
@@ -1985,7 +1986,7 @@ func (sc *Social) DeletePublication(pubUuid string) (err error) {
 		return err
 	}
 	if !own {
-		return errors.New("not your publication")
+		return devtext.New(i18n.DevSocialNotYourPost())
 	}
 
 	payload, err := json.Marshal(DelPublication{PubUUID: pubUuid, Dt: time.Now().Unix()})
@@ -2012,14 +2013,14 @@ func (sc *Social) DeleteComment(commentUuid string) (err error) {
 		return err
 	}
 	if !found {
-		return errors.New("no such comment")
+		return devtext.New(i18n.DevSocialNoSuchComment())
 	}
 	own, err := sc.dao.IsOwnPublication(pubUuid)
 	if err != nil {
 		return err
 	}
 	if !own && !ownComment {
-		return errors.New("not your comment, nor a comment on one of your posts")
+		return devtext.New(i18n.DevSocialNotYourComment())
 	}
 
 	payload, err := json.Marshal(DelComment{CommentUUID: commentUuid, Dt: time.Now().Unix()})
@@ -2064,7 +2065,7 @@ func (sc *Social) DeleteFriendship(domain string, deleteTheirData, askThemToDele
 		}
 	}
 	if fr == nil {
-		return fmt.Errorf("no friendship with %s", domain)
+		return devtext.New(i18n.DevSocialNoFriendshipWith(domain))
 	}
 
 	if deleteTheirData {
@@ -2198,7 +2199,7 @@ func (sc *Social) notifyFriendshipDeleted(domain, secret string, forgetMe bool) 
 	if err := proto.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	ack, err := expectPayload[*pb.RespEnvelope_RespAck]("delete friendship", domain, resp.Payload)
+	ack, err := expectPayload[*pb.RespEnvelope_RespAck]("delete friendship", domain, resp.Payload) // i18n-ignore: a log line's context and a technical detail
 	if err != nil {
 		return err
 	}
@@ -2218,7 +2219,7 @@ func (sc *Social) ExternalFriendshipDelete(domain, secret string, forgetMe bool)
 	if forgetMe {
 		// The secret proves the caller is domain before anything goes.
 		if _, _, _, _, _, err := sc.dao.GetFriendship(domain, secret); err != nil {
-			return errors.New("Friendship not found")
+			return devtext.New(i18n.DevSocialNotFound())
 		}
 		if err := sc.purgeFriendData(domain); err != nil {
 			return err
@@ -2229,7 +2230,7 @@ func (sc *Social) ExternalFriendshipDelete(domain, secret string, forgetMe bool)
 		return err
 	}
 	if !removed {
-		return errors.New("Friendship not found")
+		return devtext.New(i18n.DevSocialNotFound())
 	}
 	log.Info("friendship with", domain, "removed at that device's request")
 	return nil

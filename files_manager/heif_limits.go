@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/jdeng/goheif"
 	"github.com/jdeng/goheif/dav1d"
 	"github.com/jdeng/goheif/heif"
@@ -43,12 +45,12 @@ func checkHeifGrid(b []byte) error {
 	}
 	w, h := int64(tw)*int64(cols), int64(th)*int64(rows)
 	if w*h > cMaxImagePixels {
-		return fmt.Errorf("the image is %dx%d, %w (over %d megapixels)", w, h, errImageTooLarge, cMaxImagePixels/1_000_000)
+		return imageTooLarge(w, h)
 	}
 	// goheif crops the canvas to these: larger, and the image's bounds
 	// would run past its pixels.
 	if sw, sh, ok := it.SpatialExtents(); ok && (int64(sw) > w || int64(sh) > h) {
-		return fmt.Errorf("the image says it is %dx%d, larger than its %dx%d grid", sw, sh, w, h)
+		return devtext.WithEnglish(fmt.Sprintf("the image says it is %dx%d, larger than its %dx%d grid", sw, sh, w, h), i18n.DevFilesImageGridMismatch(int(sw), int(sh), int(w), int(h))) // i18n-ignore: the English as it always read; the catalog has the other languages
 	}
 	return nil
 }

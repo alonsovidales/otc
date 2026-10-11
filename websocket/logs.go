@@ -11,10 +11,13 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/wsframe"
 	gorilla "github.com/gorilla/websocket"
@@ -43,11 +46,14 @@ func logPath(source string) (string, error) {
 				return p, nil
 			}
 		}
-		return "", errors.New("this device logs to its console only")
+		return "", devtext.New(i18n.DevDeviceLogsConsoleOnly())
 	case "update":
 		return cUpdateLogPath, nil
 	}
-	return "", fmt.Errorf("unknown log %q", source)
+	// The name as the English quotes it (escaped), in every language: it
+	// is whatever an app sent.
+	quoted := strconv.Quote(source)
+	return "", devtext.New(i18n.DevDeviceUnknownLog(quoted[1 : len(quoted)-1]))
 }
 
 // readLog answers GetLogs: up to max bytes of source's log from offset (-1:
@@ -152,7 +158,7 @@ func (mg *Manager) logsForSupport() ([]byte, error) {
 // one-off connection like releaseBridgeDomain's.
 func (mg *Manager) sendLogsToBridge(note string) error {
 	if !bridgeConfigured() {
-		return errors.New("this device isn't on the bridge, so it can't send its logs - use Copy instead")
+		return devtext.New(i18n.DevDeviceLogsNeedBridge())
 	}
 	logs, err := mg.logsForSupport()
 	if err != nil {
@@ -163,7 +169,7 @@ func (mg *Manager) sendLogsToBridge(note string) error {
 	h.Set("Sec-WebSocket-Protocol", "protobuf")
 	c, err := wsframe.Dial(u.String(), h)
 	if err != nil {
-		return fmt.Errorf("dialing bridge: %w", err)
+		return devtext.Wrap(i18n.DevDeviceBridgeDialFailed(err.Error()), err)
 	}
 	defer c.Close()
 	owner, domain, secret := mg.settings.Identity()
@@ -180,11 +186,11 @@ func (mg *Manager) sendLogsToBridge(note string) error {
 		return err
 	}
 	if err := c.WriteMessage(gorilla.BinaryMessage, b); err != nil {
-		return fmt.Errorf("writing to bridge: %w", err)
+		return devtext.Wrap(i18n.DevDeviceBridgeWriteFailed(err.Error()), err)
 	}
 	_, data, err := c.ReadMessage()
 	if err != nil {
-		return fmt.Errorf("reading from bridge: %w", err)
+		return devtext.Wrap(i18n.DevDeviceBridgeReadFailed(err.Error()), err)
 	}
 	var resp pb.RespEnvelope
 	if err := proto.Unmarshal(data, &resp); err != nil {

@@ -23,6 +23,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 )
 
@@ -39,7 +41,7 @@ type Network struct {
 func ListNetworks() ([]Network, error) {
 	out, err := exec.Command("nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "dev", "wifi", "list").Output()
 	if err != nil {
-		return nil, fmt.Errorf("nmcli dev wifi list: %w", err)
+		return nil, fmt.Errorf("nmcli dev wifi list: %w", err) // i18n-ignore: command-line words and the command's error
 	}
 
 	best := map[string]Network{}
@@ -112,7 +114,7 @@ type joinRequest struct {
 // package comment for why this service can't do it itself.
 func RequestJoin(ssid, password string) error {
 	if ssid == "" {
-		return fmt.Errorf("ssid cannot be empty")
+		return devtext.New(i18n.DevDeviceWifiNoSsid())
 	}
 
 	data, err := json.Marshal(joinRequest{SSID: ssid, Password: password})

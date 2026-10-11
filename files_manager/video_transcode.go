@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"image"
 	"os"
@@ -14,6 +13,8 @@ import (
 	"strings"
 
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/gabriel-vasile/mimetype"
@@ -110,16 +111,16 @@ func (mg *Manager) TrimVideoForSocial(content []byte, trim TrimRange, downscale 
 func (mg *Manager) transcodeForSocial(content []byte, trim *TrimRange, downscale bool) ([]byte, error) {
 	inTmp, err := os.CreateTemp("", "otc-video-social-in-*")
 	if err != nil {
-		return nil, fmt.Errorf("creating temp input file: %w", err)
+		return nil, fmt.Errorf("creating temp input file: %w", err) // i18n-ignore: technical detail (temp file, ffmpeg) after a translated sentence or in an alert
 	}
 	inPath := inTmp.Name()
 	defer os.Remove(inPath)
 	if _, err := inTmp.Write(content); err != nil {
 		inTmp.Close()
-		return nil, fmt.Errorf("writing temp input file: %w", err)
+		return nil, fmt.Errorf("writing temp input file: %w", err) // i18n-ignore: technical detail (temp file, ffmpeg) after a translated sentence or in an alert
 	}
 	if err := inTmp.Close(); err != nil {
-		return nil, fmt.Errorf("closing temp input file: %w", err)
+		return nil, fmt.Errorf("closing temp input file: %w", err) // i18n-ignore: technical detail (temp file, ffmpeg) after a translated sentence or in an alert
 	}
 
 	outPath := inPath + "-out.mp4"
@@ -133,7 +134,7 @@ func (mg *Manager) transcodeForSocial(content []byte, trim *TrimRange, downscale
 	}
 	out, err := os.ReadFile(outPath)
 	if err != nil {
-		return nil, fmt.Errorf("reading transcoded output: %w", err)
+		return nil, fmt.Errorf("reading transcoded output: %w", err) // i18n-ignore: technical detail (temp file, ffmpeg) after a translated sentence or in an alert
 	}
 	log.Debug("Transcoded video for social:", len(content), "->", len(out), "bytes, trimmed:", trim != nil, "downscaled:", downscale)
 	return out, nil
@@ -214,7 +215,7 @@ func transcodeFile(inPath, outPath string, trim *TrimRange, downscale bool) erro
 		log.Info("ffmpeg transcode failed with", strings.Join(color, ","), "- trying the next conversion:", runErr)
 	}
 	if runErr != nil {
-		return fmt.Errorf("ffmpeg transcode: %w: %s", runErr, stderr.String())
+		return fmt.Errorf("ffmpeg transcode: %w: %s", runErr, stderr.String()) // i18n-ignore: technical detail (temp file, ffmpeg) after a translated sentence or in an alert
 	}
 	return nil
 }
@@ -266,7 +267,7 @@ func (mg *Manager) GenerateVideoThumbnail(content []byte, maxSide int) ([]byte, 
 	// frames and kept the first (issue #173).
 	frames, err := extractVideoFrames(content, 1)
 	if err != nil {
-		return nil, fmt.Errorf("extracting video frames: %w", err)
+		return nil, fmt.Errorf("extracting video frames: %w", err) // i18n-ignore: technical detail (temp file, ffmpeg) after a translated sentence or in an alert
 	}
 	return videoThumbnail(frames, maxSide)
 }
@@ -276,19 +277,19 @@ func (mg *Manager) GenerateVideoThumbnail(content []byte, maxSide int) ([]byte, 
 func GenerateVideoThumbnailFrom(src string, maxSide int) ([]byte, error) {
 	frames, err := extractVideoFramesFrom(src, 1)
 	if err != nil {
-		return nil, fmt.Errorf("extracting video frames: %w", err)
+		return nil, fmt.Errorf("extracting video frames: %w", err) // i18n-ignore: technical detail (temp file, ffmpeg) after a translated sentence or in an alert
 	}
 	return videoThumbnail(frames, maxSide)
 }
 
 func videoThumbnail(frames []image.Image, maxSide int) ([]byte, error) {
 	if len(frames) == 0 {
-		return nil, errors.New("no frames extracted from video")
+		return nil, devtext.New(i18n.DevFilesVideoNoFramesExtracted())
 	}
 
 	thumb, err := encodeJPEG(thumbnailSource(frames[0], maxSide), cThumbnailQuality)
 	if err != nil {
-		return nil, fmt.Errorf("encoding thumbnail: %w", err)
+		return nil, fmt.Errorf("encoding thumbnail: %w", err) // i18n-ignore: technical detail (temp file, ffmpeg) after a translated sentence or in an alert
 	}
 	return thumb, nil
 }

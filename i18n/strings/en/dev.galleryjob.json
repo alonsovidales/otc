@@ -1,0 +1,16 @@
+{
+  "dev.galleryjob.copy_crashed": {
+    "text": "the copy stopped: a file crashed the processing",
+    "note": "Error shown in the share dialog when making a shared gallery (a link to some photos and videos the owner shares) failed: copying one of the files made the device's processing stop."
+  },
+  "dev.galleryjob.copy_failed": {
+    "text": "could not copy {name}: {detail}",
+    "args": [["name", "user"], ["detail", "text"]],
+    "note": "Error shown in the share dialog when making a shared gallery failed: one of its files could not be copied into it. {name} is the file's name; {detail} the reason, in the system's own words (English)."
+  },
+  "dev.galleryjob.no_small_copy": {
+    "text": "could not make a small copy of {name}",
+    "args": [["name", "user"]],
+    "note": "Error shown in the share dialog when making a shared gallery in low resolution (only small copies of the photos are shared) failed: the small copy of one photo could not be made. {name} is the photo's name."
+  }
+}

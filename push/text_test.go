@@ -80,9 +80,10 @@ func TestFriendPushesEnglishUnchanged(t *testing.T) {
 
 // The critical-update push says in English exactly what it said when it
 // was built in websocket's updateAlert: the title, and the release's
-// summary followed by where to install it.
+// summary followed by where to install it. "ja" is a language no build
+// carries, so it gets the English too.
 func TestCriticalUpdateEnglishUnchanged(t *testing.T) {
-	for _, lang := range []string{"", "en", "es"} {
+	for _, lang := range []string{"", "en", "ja"} {
 		title, body := CriticalUpdate("2.4", "Fixes the sign-in on iOS 27.")(lang)
 		if title != "Critical update 2.4 - please install it soon" || body != "Fixes the sign-in on iOS 27. Install it from Settings." {
 			t.Errorf("lang %q: %q / %q", lang, title, body)
@@ -110,7 +111,7 @@ func TestStoragePushesEnglishUnchanged(t *testing.T) {
 			"The disk in the top blue USB port and the disk in the bottom blue USB port failed. Your files are safe on the other one: replace it soon."},
 	}
 	for _, c := range cases {
-		for _, lang := range []string{"", "en", "de"} {
+		for _, lang := range []string{"", "en", "ja"} {
 			title, body := StorageDiskStopped(c.ports, c.label)(lang)
 			if title != "Storage disk stopped working" || body != c.body {
 				t.Errorf("lang %q, ports %v: %q / %q", lang, c.ports, title, body)
@@ -126,7 +127,7 @@ func TestStoragePushesEnglishUnchanged(t *testing.T) {
 // The bridge's offline alert, as bridge/websocket's offlineAlertText
 // writes it.
 func TestOfflineAlertEnglishUnchanged(t *testing.T) {
-	for _, lang := range []string{"", "en", "nl"} {
+	for _, lang := range []string{"", "en", "ja"} {
 		if title, body := OfflineAlert(lang); title != "Off The Cloud" || body != "Your device appears to have gone offline" {
 			t.Errorf("lang %q: %q / %q", lang, title, body)
 		}

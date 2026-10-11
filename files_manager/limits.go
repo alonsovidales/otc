@@ -12,6 +12,8 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/alonsovidales/otc/alerttext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
@@ -32,7 +34,18 @@ const (
 )
 
 // errImageTooLarge is checkImageSize's refusal.
-var errImageTooLarge = errors.New("too large to process")
+var errImageTooLarge = errors.New("too large to process") // i18n-ignore: part of imageTooLarge's English; the catalog has the whole sentence
+
+// imageTooLarge is checkImageSize's refusal of a w x h image, wrapping
+// errImageTooLarge.
+func imageTooLarge(w, h int64) error {
+	limit := cMaxImagePixels / 1_000_000
+	return &englishErr{
+		english: fmt.Sprintf("the image is %dx%d, %s (over %d megapixels)", w, h, errImageTooLarge, limit), // i18n-ignore: the English as it always read; the catalog has the other languages
+		msg:     i18n.DevFilesImageTooLarge(int(w), int(h), limit),
+		cause:   errImageTooLarge,
+	}
+}
 
 // checkImageSize refuses an image whose header says it's too large to
 // decode. A header Go can't read is let through: the decoder then fails on
@@ -46,7 +59,7 @@ func checkImageSize(b []byte) error {
 		return nil
 	}
 	if int64(c.Width)*int64(c.Height) > cMaxImagePixels {
-		return fmt.Errorf("the image is %dx%d, %w (over %d megapixels)", c.Width, c.Height, errImageTooLarge, cMaxImagePixels/1_000_000)
+		return imageTooLarge(int64(c.Width), int64(c.Height))
 	}
 	if len(b) >= 8 && string(b[4:8]) == "ftyp" {
 		return checkHeifGrid(b)
@@ -100,11 +113,24 @@ func command(timeout time.Duration, name string, args ...string) (*exec.Cmd, con
 	return exec.CommandContext(ctx, name, args...), cancel
 }
 
-// safely runs background work on a file so that a panic in it (a decoder
-// bug on a malformed file, say) is logged and raised to the owner instead
-// of taking the whole service down - and, on restart, doing it again.
-func (mg *Manager) safely(what, path string, fn func()) {
-	mg.safelyOn(what, &pb.File{Path: path}, fn)
+// safely runs background work so that a panic in it (a decoder bug on a
+// malformed file, say) is logged and raised to the owner - crashed is the
+// alert, given the panic's text - instead of taking the whole service
+// down, and, on restart, doing it again.
+func (mg *Manager) safely(what string, crashed func(panicked string) alerttext.Alert, fn func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("recovered from a panic while", what+":", r, string(debug.Stack()))
+			// Telling the owner must not be what brings the process down.
+			defer func() {
+				if r2 := recover(); r2 != nil {
+					log.Error("could not raise the alert either:", r2)
+				}
+			}()
+			mg.raise(crashed(fmt.Sprint(r)))
+		}
+	}()
+	fn()
 }
 
 // safelyOn is safely for work on one file's content: a panic on content
@@ -120,7 +146,7 @@ func (mg *Manager) safelyOn(what string, file *pb.File, fn func()) {
 					log.Error("could not raise the alert either:", r2)
 				}
 			}()
-			mg.processingAlert("could not be processed (it crashed the processing)", file, fmt.Errorf("%v", r))
+			mg.processingAlert(i18n.DevAlertFileCrashed, file, fmt.Errorf("%v", r))
 		}
 	}()
 	fn()

@@ -322,7 +322,7 @@ func TestCheckPreviousRunRaisesOneCountingAlert(t *testing.T) {
 	k.oomKills(4)
 	k.now = k.now.Add(70 * time.Second)
 	mock.ExpectExec("insert into `notifications`").
-		WithArgs(sqlmock.AnyArg(), "(standalone)", "Your device ran out of memory and restarted", sqlmock.AnyArg()).
+		WithArgs(sqlmock.AnyArg(), "(standalone)", "Your device ran out of memory and restarted", sqlmock.AnyArg(), "dev.alert.memory.restarted", sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	g = mg.checkPreviousRun(k.env, p)
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -338,8 +338,10 @@ func TestCheckPreviousRunRaisesOneCountingAlert(t *testing.T) {
 
 	k.oomKills(5)
 	k.now = k.now.Add(70 * time.Second)
+	mock.ExpectQuery(regexp.QuoteMeta("select coalesce(length(`details`), 0), `msg_key`, `msg_lines` from `notifications` where `uuid` = ?")).
+		WithArgs(id).WillReturnRows(sqlmock.NewRows([]string{"size", "msg_key", "msg_lines"}).AddRow(100, "dev.alert.memory.restarted", `[{"at":"2026-10-08T17:34:00Z","key":"dev.alert.memory.restarted","args":{}}]`))
 	mock.ExpectExec(regexp.QuoteMeta("update `notifications` set `title` = ?")).
-		WithArgs("Your device ran out of memory and restarted 2 times since 19:35", sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), id).
+		WithArgs("Your device ran out of memory and restarted 2 times since 19:35", sqlmock.AnyArg(), "dev.alert.memory.restarted_times", sqlmock.AnyArg(), sqlmock.AnyArg(), id).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	g = mg.checkPreviousRun(k.env, p)
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -410,7 +412,7 @@ func TestCheckPreviousRunSetsAside(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}).
 			AddRow(h, "image/heic", time.Now(), time.Now(), "/Photos/IMG_0001.HEIC", 3_000_000))
 	mock.ExpectExec("insert into `notifications`").
-		WithArgs(sqlmock.AnyArg(), "(standalone)", "IMG_0001.HEIC was set aside", sqlmock.AnyArg()).
+		WithArgs(sqlmock.AnyArg(), "(standalone)", "IMG_0001.HEIC was set aside", sqlmock.AnyArg(), "dev.alert.setaside.title", sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mg.checkPreviousRun(k.env, p)
 	if err := mock.ExpectationsWereMet(); err != nil {

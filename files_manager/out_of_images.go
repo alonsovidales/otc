@@ -3,12 +3,14 @@
 package filesmanager
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
 	"strings"
 
+	"github.com/alonsovidales/otc/alerttext"
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/session"
 )
@@ -54,17 +56,17 @@ func outOfImagesFolder(path string) (string, error) {
 	p := strings.TrimSuffix(path, "/")
 	switch {
 	case !strings.HasPrefix(path, "/"):
-		return "", errors.New("the folder must be a full path")
+		return "", devtext.New(i18n.DevKeepoutNotFullPath())
 	case p == "":
-		return "", errors.New("the whole library can't be kept out of Images")
+		return "", devtext.New(i18n.DevKeepoutWholeLibrary())
 	case len(p) > cMaxFolderPath:
-		return "", errors.New("the folder's path is too long")
+		return "", devtext.New(i18n.DevKeepoutPathTooLong())
 	case strings.ContainsRune(p, 0):
-		return "", errors.New("the folder's path is not valid")
+		return "", devtext.New(i18n.DevKeepoutPathInvalid())
 	}
 	for _, c := range strings.Split(p[1:], "/") {
 		if c == "" || c == "." || c == ".." {
-			return "", errors.New("the folder's path is not valid")
+			return "", devtext.New(i18n.DevKeepoutPathInvalid())
 		}
 	}
 	return p + "/", nil
@@ -81,13 +83,24 @@ type OutOfImagesByParentError struct {
 	OwnFlag        bool
 }
 
-func (e *OutOfImagesByParentError) Error() string {
+// Error is the refusal in English, as the apps have always shown it.
+func (e *OutOfImagesByParentError) Error() string { return alerttext.EnglishOf(e.msg()) }
+
+// Localized is the refusal in lang, a request's language (devtext.Text).
+func (e *OutOfImagesByParentError) Localized(lang string) string {
+	if devtext.English(lang) {
+		return e.Error()
+	}
+	return e.msg().Render(lang)
+}
+
+func (e *OutOfImagesByParentError) msg() i18n.Msg {
 	name := filepath.Base(strings.TrimSuffix(e.Folder, "/"))
 	parent := strings.TrimSuffix(e.Parent, "/")
 	if e.OwnFlag {
-		return fmt.Sprintf("%s is inside %s, which is kept out of Images - show %s in Images first, then %s", name, parent, parent, name)
+		return i18n.DevKeepoutInsideKeptOutOwn(name, parent)
 	}
-	return fmt.Sprintf("%s is inside %s, which is kept out of Images - show %s in Images to show %s", name, parent, parent, name)
+	return i18n.DevKeepoutInsideKeptOut(name, parent)
 }
 
 // OutOfImagesFolders is the folders kept out of Images, each with its

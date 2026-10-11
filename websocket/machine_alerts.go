@@ -5,9 +5,12 @@ package websocket
 import (
 	"fmt"
 
+	"github.com/alonsovidales/otc/alerttext"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
+	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/push"
 	"github.com/alonsovidales/otc/raidwatch"
 	"github.com/alonsovidales/otc/supervisor"
@@ -19,7 +22,9 @@ import (
 // about the machine rather than one user's library: updates, the
 // mirror's disks and the Wi-Fi. Each runs on the main instance only (sup
 // != nil), so they land in the primary owner's Notifications and push
-// with the primary's Push.
+// with the primary's Push. Alerts are stored with their keys and pushes
+// rendered at delivery, each in its reader's language (alerttext,
+// push.Text).
 func startMachineAlerts(dao *dao.Dao, ps *push.Push, sup *supervisor.Supervisor) {
 	// Issue #183: check for updates by itself, on the main instance (the
 	// one that can install them), and tell the owner about a major or
@@ -27,7 +32,7 @@ func startMachineAlerts(dao *dao.Dao, ps *push.Push, sup *supervisor.Supervisor)
 	// with the notification so once per release.
 	if sup != nil {
 		go updater.Watch(func(a *updater.Alert) {
-			updateAlert(dao, ps.Notify, a)
+			updateAlert(dao, ps.NotifyText, a)
 		})
 	}
 
@@ -36,12 +41,12 @@ func startMachineAlerts(dao *dao.Dao, ps *push.Push, sup *supervisor.Supervisor)
 	// The one device error that is pushed - the others never are (#64).
 	if sup != nil && cfg.HasSection("otc") && cfg.GetStr("otc", "storage-path") != "" {
 		go raidwatch.Watch(cfg.GetStr("otc", "storage-path"), raidwatch.Notify{
-			Alert: func(title, detail string) {
-				if err := dao.AddStorageNotification(title, detail); err != nil {
+			AlertText: func(a alerttext.Alert) {
+				if err := dao.AddStorageNotification(a); err != nil {
 					log.Error("could not add the storage notification:", err)
 				}
 			},
-			Push: func(title, body string) { ps.Notify(title, body, push.Target{}) },
+			PushText: func(t push.Text) { ps.NotifyText(t, push.Target{}) },
 		})
 	}
 
@@ -56,30 +61,41 @@ func startMachineAlerts(dao *dao.Dao, ps *push.Push, sup *supervisor.Supervisor)
 // updateTitles are the English titles of the alert for an update to
 // version: a major one's and a critical one's. Rows written before
 // release 118 have no update_version, only one of these, so these exact
-// strings stay in the match even if the English title is ever reworded.
+// strings stay in the match even if the English title is ever reworded -
+// they are matched, never shown: the alert's own title is the catalog's.
 func updateTitles(version string) (major, critical string) {
-	return fmt.Sprintf("Update %s is available", version),
-		fmt.Sprintf("Critical update %s - please install it soon", version)
+	return fmt.Sprintf("Update %s is available", version), // i18n-ignore: matched against rows from before release 118, never shown
+		fmt.Sprintf("Critical update %s - please install it soon", version) // i18n-ignore: matched against rows from before release 118, never shown
 }
 
 // updateAlert adds the alert for a, once per version
 // (dao.AddUpdateNotification: by update_version, and by both English
 // titles for the rows from before it), and for a critical update pushes
-// it with the alert, so once too.
-func updateAlert(d *dao.Dao, notify func(title, body string, t push.Target), a *updater.Alert) {
+// it with the alert, so once too (push.CriticalUpdate, rendered in the
+// push language when it is delivered).
+func updateAlert(d *dao.Dao, notify func(t push.Text, target push.Target), a *updater.Alert) {
 	major, critical := updateTitles(a.Version)
-	title := major
+	title := i18n.DevAlertUpdateMajor(a.Version)
 	isCritical := a.Level == updater.KindCritical
 	if isCritical {
-		title = critical
+		title = i18n.DevAlertUpdateCritical(a.Version)
 	}
-	body := a.Summary + " Install it from Settings."
-	added, err := d.AddUpdateNotification(a.Version, title, body, []string{major, critical})
+	alert := alerttext.New(title, i18n.DevAlertUpdateDetail(a.Summary))
+	added, err := d.AddUpdateNotification(a.Version, alert, []string{major, critical})
 	if err != nil {
 		log.Error("could not add the update notification:", err)
 		return
 	}
 	if added && isCritical {
-		notify(title, body, push.Target{})
+		notify(push.CriticalUpdate(a.Version, a.Summary), push.Target{})
+	}
+}
+
+// localizeAlerts puts the alerts among notifications (ListNotifications'
+// answer) in lang, the request's language; on a failure they keep their
+// English (logged).
+func localizeAlerts(d *dao.Dao, lang string, notifications []*pb.Notification) {
+	if err := d.LocalizeNotifications(lang, notifications); err != nil {
+		log.Error("could not read the alerts' keys, shown in English:", err)
 	}
 }

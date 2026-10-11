@@ -17,9 +17,11 @@ import (
 	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/devtext"
 	"github.com/alonsovidales/otc/exifinfo"
 	facerecognition "github.com/alonsovidales/otc/face_recognition"
 	"github.com/alonsovidales/otc/geotag"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/images_tagger"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/modelserver"
@@ -514,22 +516,9 @@ func annotateListing(files []*pb.File, uploadOnly, outOfImages []string, version
 	}
 }
 
-// alert (issue #64) is how background processing tells the owner about a
-// file it could not handle: an Error notification in the Alerts section
-// (grouped by dao.AddErrorNotification so a failing batch is one row),
-// plus the server log as before. what completes "<file name> ..." - e.g.
-// "could not be processed".
-func (mg *Manager) alert(what string, path string, err error) {
-	log.Error("a file "+what+":", err)
-	title := filepath.Base(path) + " " + what
-	if e := mg.dao.AddErrorNotification(title, err.Error()); e != nil {
-		log.Error("error recording the alert:", e)
-	}
-}
-
 // ErrUploadOnly is the refusal for a delete under an upload-only folder
 // (issue #132); the handler turns it into RespEnvelope.error_code.
-var ErrUploadOnly = errors.New("this folder is upload only: nothing in it can be deleted")
+var ErrUploadOnly = devtext.New(i18n.DevFilesUploadOnly())
 
 // ErrDuplicatedFile is the refusal of an upload or a link (UploadFile,
 // FinishUpload, LinkFile) to a path that already holds other content,
@@ -537,7 +526,7 @@ var ErrUploadOnly = errors.New("this folder is upload only: nothing in it can be
 // turns it into RespEnvelope.error_code duplicated_file. Its text never
 // changes: the phone apps released before that code match a reply ending
 // in "Duplicated file" (iOS and Android PhotoSync).
-var ErrDuplicatedFile = errors.New("Duplicated file")
+var ErrDuplicatedFile = errors.New("Duplicated file") // i18n-ignore: stays English, the detail released apps match
 
 // folderPath is a folder as upload_only_folders (and issue #192's
 // out_of_images_folders) stores it: with its trailing slash, so "/kim/"
@@ -593,9 +582,23 @@ func (e *LockedByParentError) Error() string {
 	name := filepath.Base(strings.TrimSuffix(e.Folder, "/"))
 	parent := strings.TrimSuffix(e.Parent, "/")
 	if e.OwnFlag {
-		return fmt.Sprintf("%s is inside the upload-only folder %s - unlock %s first, then %s", name, parent, parent, name)
+		return fmt.Sprintf("%s is inside the upload-only folder %s - unlock %s first, then %s", name, parent, parent, name) // i18n-ignore: the English as it always read; the catalog has the other languages
 	}
-	return fmt.Sprintf("%s is inside the upload-only folder %s - unlock %s to unlock it", name, parent, parent)
+	return fmt.Sprintf("%s is inside the upload-only folder %s - unlock %s to unlock it", name, parent, parent) // i18n-ignore: the English as it always read; the catalog has the other languages
+}
+
+// Localized is the refusal in lang (devtext.Text, for the reply): Error()
+// for a request in English.
+func (e *LockedByParentError) Localized(lang string) string {
+	if devtext.English(lang) {
+		return e.Error()
+	}
+	name := filepath.Base(strings.TrimSuffix(e.Folder, "/"))
+	parent := strings.TrimSuffix(e.Parent, "/")
+	if e.OwnFlag {
+		return i18n.DevFilesLockedByParentOwn(name, parent).Render(lang)
+	}
+	return i18n.DevFilesLockedByParent(name, parent).Render(lang)
 }
 
 // SetUploadOnly flags or clears a folder (issue #132). Clearing one that a
@@ -718,7 +721,7 @@ func (mg *Manager) resolvePaths(paths []string) (files []*pb.File, err error) {
 			return nil, listErr
 		}
 		if len(under) == 0 {
-			return nil, fmt.Errorf("no such file or directory: %s", path)
+			return nil, devtext.WithEnglish(fmt.Sprintf("no such file or directory: %s", path), i18n.DevFilesNoSuchPath(path)) // i18n-ignore: the English as it always read; the catalog has the other languages
 		}
 		files = append(files, under...)
 	}
@@ -796,8 +799,8 @@ func (mg *Manager) GetSharedLink(session *session.Session, paths []string, domai
 		blob, err := blobstore.Open(blobPath(file.Hash), session)
 		if err != nil {
 			out.Abort()
-			mg.alert("could not be read", file.Path, err)
-			return "", fmt.Errorf("the content of %s is missing or unreadable on this device", file.Path)
+			mg.alert(i18n.DevAlertFileNotRead, file.Path, err)
+			return "", devtext.WithEnglish(fmt.Sprintf("the content of %s is missing or unreadable on this device", file.Path), i18n.DevFilesContentUnavailable(file.Path)) // i18n-ignore: the English as it always read; the catalog has the other languages
 		}
 		_, err = io.Copy(wr, io.NewSectionReader(blob, 0, blob.Size()))
 		blob.Close()
@@ -880,7 +883,7 @@ func (mg *Manager) OpenSharedLinkRange(uuid, secret string, offset int64, length
 		// Don't wait for the next sweep: drop the content and row now
 		// that we know it's expired, and refuse the download.
 		mg.deleteSharedLink(uuid)
-		return nil, 0, errors.New("shared link has expired")
+		return nil, 0, devtext.New(i18n.DevFilesLinkExpired())
 	}
 	blob, err := blobstore.Open(fmt.Sprintf("%s/%s", cfg.GetStr("otc", "storage-path"), uuid), linkKeys{getCipher(secret)})
 	if err != nil {
@@ -889,13 +892,13 @@ func (mg *Manager) OpenSharedLinkRange(uuid, secret string, offset int64, length
 	defer blob.Close()
 	size := blob.Size()
 	if offset < 0 || offset > size {
-		return nil, size, fmt.Errorf("offset %d outside the archive", offset)
+		return nil, size, devtext.WithEnglish(fmt.Sprintf("offset %d outside the archive", offset), i18n.DevFilesArchiveOffset(int(offset))) // i18n-ignore: the English as it always read; the catalog has the other languages
 	}
 	if length < 0 {
 		// Issue #166: the whole archive in one reply only while it is
 		// small; anything larger is fetched in parts (the web page does).
 		if size-offset > MaxChunk {
-			return nil, size, fmt.Errorf("the archive is %d bytes: download it in parts", size)
+			return nil, size, devtext.WithEnglish(fmt.Sprintf("the archive is %d bytes: download it in parts", size), i18n.DevFilesArchiveTooBig(int(size))) // i18n-ignore: the English as it always read; the catalog has the other languages
 		}
 		length = int(size - offset)
 	}
@@ -1262,14 +1265,14 @@ func (mg *Manager) GetFile(session *session.Session, path, versionHash string) (
 			// Alerted once, as ReadFile does: the daily integrity check
 			// keeps reporting it.
 			if !missingBlobs.has(file.Hash) {
-				mg.alert("could not be read", path, err)
+				mg.alert(i18n.DevAlertFileNotRead, path, err)
 			}
 			missingBlobs.set(file.Hash, true)
-			return nil, fmt.Errorf("the content of %s is missing on this device", path)
+			return nil, devtext.WithEnglish(fmt.Sprintf("the content of %s is missing on this device", path), i18n.DevFilesContentMissing(path)) // i18n-ignore: the English as it always read; the catalog has the other languages
 		}
 		if err != nil {
-			mg.alert("could not be decrypted", path, err)
-			return nil, fmt.Errorf("the content of %s is unreadable on this device", path)
+			mg.alert(i18n.DevAlertFileNotDecrypted, path, err)
+			return nil, devtext.WithEnglish(fmt.Sprintf("the content of %s is unreadable on this device", path), i18n.DevFilesContentUnreadable(path)) // i18n-ignore: the English as it always read; the catalog has the other languages
 		}
 
 		// Issue #44: the thumbnail is already a JPEG (converted at upload
@@ -1394,7 +1397,7 @@ func extractExif(content []byte, mime, path string) (*exifinfo.Info, error) {
 	case strings.HasPrefix(mime, "image/"):
 		return exifinfo.FromJPEG(content)
 	default:
-		return nil, fmt.Errorf("unsupported mime type for EXIF: %s", mime)
+		return nil, devtext.New(i18n.DevFilesExifUnsupported(mime))
 	}
 }
 
@@ -1553,7 +1556,7 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		err = blobstore.WriteBytes(targetPath, session, content)
 		unlock()
 		if err != nil {
-			mg.alert("could not be saved to disk", path, err)
+			mg.alert(i18n.DevAlertFileNotSaved, path, err)
 			return nil, err
 		}
 		wrote = true
@@ -1577,7 +1580,7 @@ func (mg *Manager) UploadFile(session *session.Session, path string, content []b
 		err = blobstore.WriteBytes(targetPath, session, content)
 		unlock()
 		if err != nil {
-			mg.alert("could not be saved to disk", path, err)
+			mg.alert(i18n.DevAlertFileNotSaved, path, err)
 			return nil, err
 		}
 	}
@@ -1804,7 +1807,7 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			}
 			converted, err := mg.heicToJpeg(content, 90, orientation)
 			if err != nil {
-				mg.stillFailed("could not be converted from HEIC", file, content, err)
+				mg.stillFailed(i18n.DevAlertFileNotConverted, file, content, err)
 				return false
 			}
 			content = converted
@@ -1816,7 +1819,7 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 		// what is too large to decode doesn't.
 		img, err := decodeStill(content, file.Path)
 		if err != nil {
-			mg.stillFailed("could not be processed", file, content, err)
+			mg.stillFailed(i18n.DevAlertFileNotProcessed, file, content, err)
 			return false
 		}
 
@@ -1868,7 +1871,7 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 				tags, err = tagger.Tags(ctx, img, imagestagger.DefaultRAMOptions())
 				cancel()
 				if err != nil {
-					mg.alert("could not be tagged", file.Path, err)
+					mg.alert(i18n.DevAlertFileNotTagged, file.Path, err)
 				}
 			}
 			tags = append(tags, locationTags(exif)...)
@@ -1902,7 +1905,7 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 		if content == nil {
 			src, done, srcErr := mg.videoSource(session, file)
 			if srcErr != nil {
-				mg.processingAlert("could not be processed", file, srcErr)
+				mg.processingAlert(i18n.DevAlertFileNotProcessed, file, srcErr)
 				return false
 			}
 			frames, err = extractVideoFramesFrom(src, frameCount)
@@ -1917,11 +1920,11 @@ func (mg *Manager) processMedia(session *session.Session, file *pb.File, targetP
 			}
 		}
 		if err != nil {
-			mg.processingAlert("could not be processed", file, err)
+			mg.processingAlert(i18n.DevAlertFileNotProcessed, file, err)
 			return false
 		}
 		if exif == nil {
-			err = errors.New("no metadata")
+			err = errors.New("no metadata") // i18n-ignore: logged at Debug only
 		}
 		if err != nil {
 			log.Debug("no location metadata for", targetPath, ":", err)
@@ -2044,7 +2047,7 @@ func (mg *Manager) withBlob(hash string, fn func() error) error {
 	unlock := lockBlob(hash)
 	defer unlock()
 	if !mg.hasBlob(hash) {
-		return errors.New("the content for that hash is missing on this device: upload it instead")
+		return devtext.New(i18n.DevFilesHashContentMissing())
 	}
 	return fn()
 }
@@ -2166,7 +2169,7 @@ func (mg *Manager) LinkFile(session *session.Session, path, hash string, forceOv
 	noteUploadActivity() // a sync's hash-first upload
 	existing, err := mg.dao.GetFileByHash(hash)
 	if err == sql.ErrNoRows {
-		return nil, errors.New("no file with that hash on this device")
+		return nil, devtext.New(i18n.DevFilesNoSuchHash())
 	}
 	if err != nil {
 		return nil, err

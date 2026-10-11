@@ -7,9 +7,14 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+
+	"github.com/alonsovidales/otc/alerttext"
 )
 
-const errGroupSelect = "select `uuid`, coalesce\\(length\\(`details`\\), 0\\) from `notifications` where `type` = 'Error'"
+// standaloneSelect is UpsertErrorNotification's look at its row.
+const standaloneSelect = "select coalesce\\(length\\(`details`\\), 0\\), `msg_key`, `msg_lines` from `notifications` where `uuid` = \\?"
+
+const errGroupSelect = "select `uuid`, coalesce\\(length\\(`details`\\), 0\\), `msg_key`, `msg_lines` from `notifications` where `type` = 'Error'"
 
 // An error joins the open group: its line is appended while the details
 // have room, and once they don't it still counts (and makes the row
@@ -23,20 +28,20 @@ func TestAddErrorNotificationGroupsAndCapsDetails(t *testing.T) {
 	d := NewWithDB(db)
 
 	mock.ExpectBegin()
-	mock.ExpectQuery(errGroupSelect).WillReturnRows(sqlmock.NewRows([]string{"uuid", "n"}).AddRow("g1", 100))
+	mock.ExpectQuery(errGroupSelect).WillReturnRows(sqlmock.NewRows([]string{"uuid", "n", "msg_key", "msg_lines"}).AddRow("g1", 100, nil, nil))
 	mock.ExpectExec("update `notifications` set `details` = concat").
 		WithArgs(sqlmock.AnyArg(), "g1").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
-	if err := d.AddErrorNotification("upload failed", "disk full"); err != nil {
+	if err := d.AddErrorNotification(alerttext.English("upload failed", "disk full")); err != nil {
 		t.Fatal(err)
 	}
 
 	mock.ExpectBegin()
-	mock.ExpectQuery(errGroupSelect).WillReturnRows(sqlmock.NewRows([]string{"uuid", "n"}).AddRow("g1", errorNotificationDetailsCap-10))
+	mock.ExpectQuery(errGroupSelect).WillReturnRows(sqlmock.NewRows([]string{"uuid", "n", "msg_key", "msg_lines"}).AddRow("g1", errorNotificationDetailsCap-10, nil, nil))
 	mock.ExpectExec("update `notifications` set `occurrences` = `occurrences` \\+ 1, `acknowledged` = 0 where `uuid` = \\?").
 		WithArgs("g1").WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
-	if err := d.AddErrorNotification("upload failed", "disk full"); err != nil {
+	if err := d.AddErrorNotification(alerttext.English("upload failed", "disk full")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -55,11 +60,11 @@ func TestAddErrorNotificationStartsAGroup(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectBegin()
-	mock.ExpectQuery(errGroupSelect).WillReturnRows(sqlmock.NewRows([]string{"uuid", "n"}))
+	mock.ExpectQuery(errGroupSelect).WillReturnRows(sqlmock.NewRows([]string{"uuid", "n", "msg_key", "msg_lines"}))
 	mock.ExpectExec("insert into `notifications`").
-		WithArgs(sqlmock.AnyArg(), "t", sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 1))
+		WithArgs(sqlmock.AnyArg(), "", "t", sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
-	if err := NewWithDB(db).AddErrorNotification("t", strings.Repeat("é", errorNotificationDetailsCap)); err != nil {
+	if err := NewWithDB(db).AddErrorNotification(alerttext.English("t", strings.Repeat("é", errorNotificationDetailsCap))); err != nil {
 		t.Fatal(err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -89,23 +94,25 @@ func TestUpsertErrorNotification(t *testing.T) {
 	mock.ExpectExec("insert into `notifications`").
 		WithArgs(sqlmock.AnyArg(), cStandaloneError, "ran out of memory", sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
-	id, err := d.UpsertErrorNotification("", "ran out of memory", "a hint")
+	id, err := d.UpsertErrorNotification("", alerttext.English("ran out of memory", "a hint"))
 	if err != nil || id == "" {
 		t.Fatalf("first: %q, %v", id, err)
 	}
 
+	mock.ExpectQuery(standaloneSelect).WithArgs(id).
+		WillReturnRows(sqlmock.NewRows([]string{"n", "msg_key", "msg_lines"}).AddRow(30, nil, nil))
 	mock.ExpectExec("update `notifications` set `title` = \\?").
-		WithArgs("ran out of memory 2 times", sqlmock.AnyArg(), errorNotificationDetailsCap, sqlmock.AnyArg(), id).
+		WithArgs("ran out of memory 2 times", sqlmock.AnyArg(), nil, nil, nil, id).
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	got, err := d.UpsertErrorNotification(id, "ran out of memory 2 times", "")
+	got, err := d.UpsertErrorNotification(id, alerttext.English("ran out of memory 2 times", ""))
 	if err != nil || got != id {
 		t.Fatalf("update: %q, %v", got, err)
 	}
 
 	// The owner deleted the row: a new one starts.
-	mock.ExpectExec("update `notifications` set `title` = \\?").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery(standaloneSelect).WithArgs(id).WillReturnRows(sqlmock.NewRows([]string{"n", "msg_key", "msg_lines"}))
 	mock.ExpectExec("insert into `notifications`").WillReturnResult(sqlmock.NewResult(1, 1))
-	got, err = d.UpsertErrorNotification(id, "ran out of memory 3 times", "")
+	got, err = d.UpsertErrorNotification(id, alerttext.English("ran out of memory 3 times", ""))
 	if err != nil || got == "" || got == id {
 		t.Fatalf("after a delete: %q, %v", got, err)
 	}
@@ -123,10 +130,10 @@ func TestAddErrorNotificationSkipsStandaloneRows(t *testing.T) {
 	}
 	defer db.Close()
 	mock.ExpectBegin()
-	mock.ExpectQuery(errGroupSelect + " and `actor_domain` = '' and `dt` >= now\\(\\) - interval").WillReturnRows(sqlmock.NewRows([]string{"uuid", "n"}))
+	mock.ExpectQuery(errGroupSelect + " and `actor_domain` = '' and `dt` >= now\\(\\) - interval").WillReturnRows(sqlmock.NewRows([]string{"uuid", "n", "msg_key", "msg_lines"}))
 	mock.ExpectExec("insert into `notifications`").WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
-	if err := NewWithDB(db).AddErrorNotification("x could not be processed", "bad"); err != nil {
+	if err := NewWithDB(db).AddErrorNotification(alerttext.English("x could not be processed", "bad")); err != nil {
 		t.Fatal(err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {

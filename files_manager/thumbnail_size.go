@@ -13,6 +13,7 @@ import (
 
 	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
@@ -200,7 +201,7 @@ func encodeThumbnails(shown image.Image, maxSide int) (big, small []byte, err er
 func (mg *Manager) writeThumbnails(ses *session.Session, file *pb.File, targetPath string, shown image.Image) {
 	big, small, err := encodeThumbnails(shown, ThumbnailMaxSide())
 	if err != nil {
-		mg.processingAlert("has no thumbnail (it could not be encoded)", file, err)
+		mg.processingAlert(i18n.DevAlertFileThumbnailNotEncoded, file, err)
 		return
 	}
 	unlock := lockBlob(file.Hash)
@@ -208,12 +209,12 @@ func (mg *Manager) writeThumbnails(ses *session.Session, file *pb.File, targetPa
 	bigErr := blobstore.WriteBytes(targetPath+cThumbnailSuffix, ses, big)
 	unlock()
 	if err := bigErr; err != nil {
-		mg.alert("has no thumbnail (it could not be written)", file.Path, errors.Join(err, smallErr))
+		mg.alert(i18n.DevAlertFileThumbnailNotWritten, file.Path, errors.Join(err, smallErr))
 		return
 	}
 	if smallErr != nil {
 		// The grids get the big one meanwhile, and queue it again.
-		mg.alert("has no small thumbnail (it could not be written)", file.Path, smallErr)
+		mg.alert(i18n.DevAlertFileSmallThumbnailNotWritten, file.Path, smallErr)
 	}
 }
 

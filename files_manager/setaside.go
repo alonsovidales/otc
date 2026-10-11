@@ -11,8 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alonsovidales/otc/alerttext"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 )
 
@@ -154,8 +156,8 @@ func (mg *Manager) setAside(hash string) {
 		return // gone meanwhile
 	}
 	// An Alert of its own (no other error joins it, nor it them).
-	title := filepath.Base(file.Path) + " was set aside"
-	if _, e := mg.dao.UpsertErrorNotification("", title, "the device stopped twice while processing it. It is kept as it is, without the thumbnail, tags or faces it was missing, and tried again after the next update."); e != nil {
+	alert := alerttext.New(i18n.DevAlertSetasideTitle(filepath.Base(file.Path)), i18n.DevAlertSetasideDetail())
+	if _, e := mg.dao.UpsertErrorNotification("", alert); e != nil {
 		log.Error("error recording the alert:", e)
 	}
 }

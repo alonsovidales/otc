@@ -16,6 +16,8 @@ import (
 
 	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
@@ -40,8 +42,8 @@ const (
 )
 
 var (
-	ErrUnknownUpload = errors.New("unknown or expired upload")
-	ErrOutOfOrder    = errors.New("upload chunk out of order")
+	ErrUnknownUpload = devtext.New(i18n.DevFilesUploadUnknown())
+	ErrOutOfOrder    = devtext.New(i18n.DevFilesUploadOutOfOrder())
 )
 
 type chunkedUpload struct {
@@ -119,11 +121,11 @@ func (mg *Manager) AbortUploadsOf(owner any) {
 // passes its connection) is what AbortUploadsOf matches.
 func (mg *Manager) BeginUpload(ses *session.Session, path string, size int64, forceOverride bool, created, modified *timestamppb.Timestamp, cloudID string, owner any) (string, error) {
 	if size < 0 {
-		return "", errors.New("bad size")
+		return "", devtext.New(i18n.DevFilesBadSize())
 	}
 	noteUploadActivity() // the thumbnails pass waits for a sync to stop
 	if path == "" {
-		return "", errors.New("no path")
+		return "", devtext.New(i18n.DevFilesNoPath())
 	}
 	w, err := blobstore.Create(fmt.Sprintf("%s/.pending", cfg.GetStr("otc", "storage-path")), ses)
 	if err != nil {
@@ -158,7 +160,7 @@ func (u *uploads) get(ses *session.Session, id string) (*chunkedUpload, error) {
 // order, so a client resends from where the device says it is).
 func (mg *Manager) UploadChunk(ses *session.Session, id string, offset int64, data []byte) (received int64, err error) {
 	if len(data) > MaxChunk {
-		return 0, fmt.Errorf("chunk over %d bytes", MaxChunk)
+		return 0, devtext.WithEnglish(fmt.Sprintf("chunk over %d bytes", MaxChunk), i18n.DevFilesChunkTooBig(MaxChunk)) // i18n-ignore: the English as it always read; the catalog has the other languages
 	}
 	up, err := pendingUploads.get(ses, id)
 	if err != nil {
@@ -172,7 +174,7 @@ func (mg *Manager) UploadChunk(ses *session.Session, id string, offset int64, da
 		return up.received, ErrOutOfOrder
 	}
 	if up.received+int64(len(data)) > up.size {
-		return up.received, errors.New("more data than the upload's size")
+		return up.received, devtext.New(i18n.DevFilesUploadTooMuch())
 	}
 	if _, err := up.w.Write(data); err != nil {
 		return up.received, err
@@ -201,12 +203,12 @@ func (mg *Manager) FinishUpload(ses *session.Session, id, sha string) (*pb.File,
 	defer up.mu.Unlock()
 	if up.received != up.size {
 		up.w.Abort()
-		return nil, fmt.Errorf("upload incomplete: %d of %d bytes", up.received, up.size)
+		return nil, devtext.WithEnglish(fmt.Sprintf("upload incomplete: %d of %d bytes", up.received, up.size), i18n.DevFilesUploadIncomplete(int(up.received), int(up.size))) // i18n-ignore: the English as it always read; the catalog has the other languages
 	}
 	hash := hex.EncodeToString(up.hasher.Sum(nil))
 	if sha != "" && sha != hash {
 		up.w.Abort()
-		return nil, errors.New("the upload's content doesn't match its hash")
+		return nil, devtext.New(i18n.DevFilesUploadBadHash())
 	}
 	if err := up.w.Seal(); err != nil {
 		up.w.Abort()
@@ -220,7 +222,7 @@ func (mg *Manager) FinishUpload(ses *session.Session, id, sha string) (*pb.File,
 	err = up.w.CommitAs(target)
 	unlock()
 	if err != nil {
-		mg.alert("could not be saved to disk", up.path, err)
+		mg.alert(i18n.DevAlertFileNotSaved, up.path, err)
 		return nil, err
 	}
 	known := mg.contentKnown(hash)
@@ -234,8 +236,8 @@ func (mg *Manager) FinishUpload(ses *session.Session, id, sha string) (*pb.File,
 	}
 	if !mg.hasBlob(hash) {
 		// Taken as unused by a DelFile between the commit and the row.
-		err = errors.New("the upload's content was removed before it was recorded - send it again")
-		mg.alert("could not be saved to disk", file.Path, err)
+		err = devtext.New(i18n.DevFilesUploadRemoved())
+		mg.alert(i18n.DevAlertFileNotSaved, file.Path, err)
 		return nil, err
 	}
 	// As UploadFile: content already processed isn't processed again -
@@ -260,7 +262,7 @@ func (mg *Manager) SetVideoSource(fn VideoSourceFunc) { mg.videoSourceFn = fn }
 
 func (mg *Manager) videoSource(ses *session.Session, file *pb.File) (string, func(), error) {
 	if mg.videoSourceFn == nil {
-		return "", func() {}, errors.New("no way to stream this video to ffmpeg")
+		return "", func() {}, errors.New("no way to stream this video to ffmpeg") // i18n-ignore: internal, before the websocket layer sets the source
 	}
 	return mg.videoSourceFn(ses, file)
 }
@@ -287,17 +289,17 @@ func (mg *Manager) ReadFile(ses *session.Session, path, versionHash string, offs
 			// already knows is gone (a sync client retrying every pass)
 			// raised a new alert every five minutes, all day.
 			if !missingBlobs.has(file.Hash) {
-				mg.alert("could not be read", path, err)
+				mg.alert(i18n.DevAlertFileNotRead, path, err)
 			}
 			missingBlobs.set(file.Hash, true)
 		} else {
-			mg.alert("could not be read", path, err)
+			mg.alert(i18n.DevAlertFileNotRead, path, err)
 		}
-		return nil, nil, 0, fmt.Errorf("the content of %s is missing or unreadable on this device", path)
+		return nil, nil, 0, devtext.WithEnglish(fmt.Sprintf("the content of %s is missing or unreadable on this device", path), i18n.DevFilesContentUnavailable(path)) // i18n-ignore: the English as it always read; the catalog has the other languages
 	}
 	defer blob.Close()
 	if offset < 0 || offset > blob.Size() {
-		return nil, nil, 0, fmt.Errorf("offset %d outside the file", offset)
+		return nil, nil, 0, devtext.WithEnglish(fmt.Sprintf("offset %d outside the file", offset), i18n.DevFilesFileOffset(int(offset))) // i18n-ignore: the English as it always read; the catalog has the other languages
 	}
 	if length <= 0 || length > MaxChunk {
 		length = MaxChunk

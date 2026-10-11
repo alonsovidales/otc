@@ -5,7 +5,6 @@ package filesmanager
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"image"
 	_ "image/jpeg"
@@ -15,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/images_tagger"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/modelserver"
@@ -34,16 +35,16 @@ const cVideoSampleFrames = 4
 func extractVideoFrames(videoContent []byte, n int) ([]image.Image, error) {
 	tmp, err := os.CreateTemp("", "otc-video-*")
 	if err != nil {
-		return nil, fmt.Errorf("creating temp file for video: %w", err)
+		return nil, fmt.Errorf("creating temp file for video: %w", err) // i18n-ignore: technical detail (temp file, ffmpeg) after a translated sentence or in an alert
 	}
 	tmpPath := tmp.Name()
 	defer os.Remove(tmpPath)
 	if _, err := tmp.Write(videoContent); err != nil {
 		tmp.Close()
-		return nil, fmt.Errorf("writing temp video: %w", err)
+		return nil, fmt.Errorf("writing temp video: %w", err) // i18n-ignore: technical detail (temp file, ffmpeg) after a translated sentence or in an alert
 	}
 	if err := tmp.Close(); err != nil {
-		return nil, fmt.Errorf("closing temp video: %w", err)
+		return nil, fmt.Errorf("closing temp video: %w", err) // i18n-ignore: technical detail (temp file, ffmpeg) after a translated sentence or in an alert
 	}
 
 	return extractVideoFramesFrom(tmpPath, n)
@@ -56,10 +57,10 @@ func extractVideoFrames(videoContent []byte, n int) ([]image.Image, error) {
 func extractVideoFramesFrom(tmpPath string, n int) ([]image.Image, error) {
 	duration, err := probeVideoDuration(tmpPath)
 	if err != nil {
-		return nil, fmt.Errorf("probing video duration: %w", err)
+		return nil, fmt.Errorf("probing video duration: %w", err) // i18n-ignore: technical detail (temp file, ffmpeg) after a translated sentence or in an alert
 	}
 	if duration <= 0 {
-		return nil, errors.New("video has no usable duration")
+		return nil, devtext.New(i18n.DevFilesVideoNoDuration())
 	}
 
 	frames := make([]image.Image, 0, n)
@@ -81,7 +82,7 @@ func extractVideoFramesFrom(tmpPath string, n int) ([]image.Image, error) {
 		if img, err := extractFirstFrame(tmpPath); err == nil {
 			return []image.Image{img}, nil
 		}
-		return nil, errors.New("could not extract any frames from video")
+		return nil, devtext.New(i18n.DevFilesVideoNoFrames())
 	}
 	return frames, nil
 }

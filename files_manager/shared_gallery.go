@@ -24,10 +24,13 @@ import (
 	"golang.org/x/image/draw"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/alonsovidales/otc/alerttext"
 	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/devtext"
 	"github.com/alonsovidales/otc/exifinfo"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/mediastream"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -68,7 +71,7 @@ var (
 
 // ErrNoSuchGallery is every "can't open it" answer to a visitor - no such
 // link, wrong secret, expired - so none of them tells one from another.
-var ErrNoSuchGallery = errors.New("this link doesn't exist or has expired")
+var ErrNoSuchGallery = devtext.New(i18n.DevFilesGalleryNotFound())
 
 type galleryManifest struct {
 	Description string        `json:"description"`
@@ -108,7 +111,7 @@ func isGalleryMedia(mime string) bool {
 // how many other files it held.
 func (mg *Manager) sharedGallerySource(src *pb.SharedGallerySource) (files []*pb.File, skipped int, err error) {
 	if src == nil {
-		return nil, 0, errors.New("nothing to share")
+		return nil, 0, devtext.New(i18n.DevFilesNothingToShare())
 	}
 	var all []*pb.File
 	switch {
@@ -116,7 +119,7 @@ func (mg *Manager) sharedGallerySource(src *pb.SharedGallerySource) (files []*pb
 		for _, p := range src.Paths {
 			f, err := mg.dao.GetFileByPath(p)
 			if err != nil || f == nil {
-				return nil, 0, fmt.Errorf("%s is not on this device", p)
+				return nil, 0, devtext.WithEnglish(fmt.Sprintf("%s is not on this device", p), i18n.DevFilesNotOnDevice(p)) // i18n-ignore: the English as it always read; the catalog has the other languages
 			}
 			all = append(all, f)
 		}
@@ -149,7 +152,7 @@ func (mg *Manager) sharedGallerySource(src *pb.SharedGallerySource) (files []*pb
 			}
 		}
 	default:
-		return nil, 0, errors.New("nothing to share")
+		return nil, 0, devtext.New(i18n.DevFilesNothingToShare())
 	}
 	seen := map[string]bool{}
 	for _, f := range all {
@@ -188,6 +191,9 @@ type galleryJob struct {
 	mu       sync.Mutex
 	state    *pb.SharedGalleryJob
 	finished time.Time
+	// err is why the job failed: state.Error is its English, and a reply
+	// gets it in the request's language (snapshot).
+	err error
 }
 
 var galleryJobs = struct {
@@ -219,11 +225,11 @@ func (mg *Manager) StartSharedGallery(ses *session.Session, src *pb.SharedGaller
 		}
 		files = photos
 		if len(files) == 0 {
-			return nil, errors.New("there are no photos to share in low resolution there")
+			return nil, devtext.New(i18n.DevFilesNoLowResPhotos())
 		}
 	}
 	if len(files) == 0 {
-		return nil, errors.New("there are no photos or videos to share there")
+		return nil, devtext.New(i18n.DevFilesNoMediaToShare())
 	}
 	ttl := mg.sharedLinkTTL
 	if ttlHours > 0 {
@@ -243,13 +249,16 @@ func (mg *Manager) StartSharedGallery(ses *session.Session, src *pb.SharedGaller
 	galleryJobs.m[job.state.JobId] = job
 	galleryJobs.Unlock()
 
-	go mg.safely("sharing a gallery of", fmt.Sprintf("%d files", len(files)), func() {
+	crashed := func(panicked string) alerttext.Alert {
+		return alerttext.WithRaw(i18n.DevAlertGalleryCrashed(len(files)), panicked)
+	}
+	go mg.safely("sharing a gallery", crashed, func() { // i18n-ignore: names the work in the log
 		// Finished in a defer: a file that crashes the copy (a decoder
 		// panic, recovered by safely) left the job running forever, and the
 		// owner's share dialog polling it with no way out. err keeps this
 		// unless the build returns.
 		var link string
-		err := errors.New("the copy stopped: a file crashed the processing")
+		var err error = devtext.New(i18n.DevGalleryjobCopyCrashed())
 		defer func() {
 			job.update(func(s *pb.SharedGalleryJob) {
 				s.Finished = true
@@ -261,30 +270,36 @@ func (mg *Manager) StartSharedGallery(ses *session.Session, src *pb.SharedGaller
 			})
 			job.mu.Lock()
 			job.finished = time.Now()
+			job.err = err
 			job.mu.Unlock()
 		}()
 		link, err = mg.buildSharedGallery(ses, files, description, ttl, domain, lowRes, job)
 	})
-	return job.snapshot(), nil
+	return job.snapshot(""), nil
 }
 
-// SharedGalleryJobState is a job's progress; ok false for an unknown job.
-func SharedGalleryJobState(id string) (*pb.SharedGalleryJob, bool) {
+// SharedGalleryJobState is a job's progress, its error in lang (the
+// request's language); ok false for an unknown job.
+func SharedGalleryJobState(id, lang string) (*pb.SharedGalleryJob, bool) {
 	galleryJobs.Lock()
 	j := galleryJobs.m[id]
 	galleryJobs.Unlock()
 	if j == nil {
 		return nil, false
 	}
-	return j.snapshot(), true
+	return j.snapshot(lang), true
 }
 
-// snapshot is the job's state as it is now, for a reply.
-func (j *galleryJob) snapshot() *pb.SharedGalleryJob {
+// snapshot is the job's state as it is now, for a reply in lang.
+func (j *galleryJob) snapshot(lang string) *pb.SharedGalleryJob {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	s := j.state
-	return &pb.SharedGalleryJob{JobId: s.JobId, Done: s.Done, Total: s.Total, BytesDone: s.BytesDone, BytesTotal: s.BytesTotal, Finished: s.Finished, Error: s.Error, Link: s.Link}
+	out := &pb.SharedGalleryJob{JobId: s.JobId, Done: s.Done, Total: s.Total, BytesDone: s.BytesDone, BytesTotal: s.BytesTotal, Finished: s.Finished, Error: s.Error, Link: s.Link}
+	if s.Error != "" && j.err != nil {
+		out.Error = devtext.Text(lang, j.err)
+	}
+	return out
 }
 
 func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, description string, ttl time.Duration, domain string, lowRes bool, job *galleryJob) (link string, err error) {
@@ -328,7 +343,8 @@ func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, de
 				small = mg.galleryThumbnail(ses, f, shown)
 			}
 			if len(small) == 0 {
-				return "", fmt.Errorf("could not make a small copy of %s", item.Name)
+				m := i18n.DevGalleryjobNoSmallCopy(item.Name)
+				return "", devtext.WithEnglish(alerttext.EnglishOf(m), m)
 			}
 			item.Name = strings.TrimSuffix(item.Name, filepath.Ext(item.Name)) + ".jpg"
 			item.Mime, item.Size, item.Thumb = "image/jpeg", int64(len(small)), true
@@ -345,7 +361,8 @@ func (mg *Manager) buildSharedGallery(ses *session.Session, files []*pb.File, de
 		}
 		n, err := copyBlob(ses, f.Hash, galleryFile(id, i, pb.GetSharedGalleryItem_ORIGINAL), keys)
 		if err != nil {
-			return "", fmt.Errorf("could not copy %s: %w", item.Name, err)
+			m := i18n.DevGalleryjobCopyFailed(item.Name, err.Error())
+			return "", devtext.WithEnglish(alerttext.EnglishOf(m), m)
 		}
 		stored += n
 		// Every photo gets a screen-sized preview (a 9 MB original took
@@ -671,7 +688,7 @@ func (mg *Manager) ReadSharedGalleryItem(id, secret string, index int, part pb.G
 	switch part {
 	case pb.GetSharedGalleryItem_THUMBNAIL:
 		if !it.Thumb {
-			return nil, 0, "", errors.New("no thumbnail")
+			return nil, 0, "", errors.New("no thumbnail") // i18n-ignore: the reply is ErrNoSuchGallery
 		}
 		mime = "image/jpeg"
 	case pb.GetSharedGalleryItem_PREVIEW:
@@ -688,7 +705,7 @@ func (mg *Manager) ReadSharedGalleryItem(id, secret string, index int, part pb.G
 	defer blob.Close()
 	size := blob.Size()
 	if offset < 0 || offset > size {
-		return nil, size, mime, fmt.Errorf("offset %d outside the file", offset)
+		return nil, size, mime, fmt.Errorf("offset %d outside the file", offset) // i18n-ignore: the reply is ErrNoSuchGallery
 	}
 	if length <= 0 || length > MaxChunk {
 		length = MaxChunk
@@ -749,10 +766,10 @@ func (mg *Manager) ListSharedLinks(ses *session.Session) ([]*pb.SharedLinkInfo, 
 // DeleteSharedLinkNow removes a share link and everything it shared.
 func (mg *Manager) DeleteSharedLinkNow(id string) error {
 	if !galleryUUID.MatchString(id) {
-		return errors.New("no such link")
+		return devtext.New(i18n.DevFilesNoSuchLink())
 	}
 	if _, _, err := mg.dao.GetSharedLinkExpiry(id); err != nil {
-		return errors.New("no such link")
+		return devtext.New(i18n.DevFilesNoSuchLink())
 	}
 	mg.deleteSharedLink(id)
 	return nil

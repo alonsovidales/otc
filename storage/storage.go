@@ -27,6 +27,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 )
 
@@ -158,7 +160,7 @@ type setupRequest struct {
 // separate root-owned process.
 func RequestSetup(devicePaths []string) error {
 	if len(devicePaths) > 2 {
-		return fmt.Errorf("choose at most 2 devices, got %d", len(devicePaths))
+		return devtext.WithEnglish(fmt.Sprintf("choose at most 2 devices, got %d", len(devicePaths)), i18n.DevDeviceStorageTooMany(len(devicePaths))) // i18n-ignore: the English as it always read; the catalog has the other languages
 	}
 	// A nil slice (the zero-devices case arrives as one, coming off a
 	// protobuf repeated field) marshals to JSON `null`, not `[]` — caught

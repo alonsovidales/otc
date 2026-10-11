@@ -732,7 +732,7 @@ func TestRegenerateBridgeSecretRefusesOnALocalOnlyInstance(t *testing.T) {
 func TestUnauthenticatedRequestGetsAnActionableCode(t *testing.T) {
 	// This is what handleConnection sends when nothing in the handler
 	// chain took the request - see its `resp == nil` branch.
-	resp := notAuthenticatedResponse(7)
+	resp := notAuthenticatedResponse(7, "")
 
 	if resp.Id != 7 {
 		t.Errorf("Id = %d, want the request's own 7", resp.Id)

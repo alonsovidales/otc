@@ -1,0 +1,12 @@
+{
+  "dev.auth.decrypt_failed": {"text": "unable to decrypt key material"},
+  "dev.auth.device_state_failed": {"text": "error checking device state"},
+  "dev.auth.invalid_session": {"text": "Invalid session"},
+  "dev.auth.keypair_failed": {"text": "error generating keypair"},
+  "dev.auth.no_public_key": {"text": "no public key was requested for this connection"},
+  "dev.auth.password_too_short": {"text": "the password must have 8 characters or more"},
+  "dev.auth.public_key_failed": {"text": "error marshaling public key"},
+  "dev.auth.session_expired": {"text": "Session expired or invalid, please sign in again."},
+  "dev.auth.token_failed": {"text": "error issuing session token"},
+  "dev.auth.too_many_attempts": {"text": "Too many attempts. Try again in {seconds} seconds.", "args": [["seconds", "int"]]}
+}

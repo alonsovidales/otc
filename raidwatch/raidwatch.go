@@ -27,7 +27,10 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/alonsovidales/otc/alerttext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/push"
 )
 
 // sysRoot is a var so tests can point it at a fake tree.
@@ -39,7 +42,7 @@ const (
 	alertedFile  = ".raid-alerted"
 	firstCheck   = 30 * time.Second
 	checkEvery   = time.Minute
-	unknownLabel = "one of the two storage disks"
+	unknownLabel = "one of the two storage disks" // i18n-ignore: Missing()'s English label (status, several disks, the log); the alerts and pushes have keys
 )
 
 // bluePort is where each of the Raspberry Pi 5's two USB controllers has
@@ -74,10 +77,12 @@ func (m Member) inSync() bool {
 	return false
 }
 
-// Label names the disk the way the owner can find it.
+// Label names the disk the way the owner can find it, in English: the
+// log, Missing() and the alert for several disks, which no key names (one
+// disk's alerts and pushes say it in every language, by its Port).
 func (m Member) Label() string {
 	if m.Position != "" {
-		return "the disk in the " + m.Position + " blue USB port"
+		return "the disk in the " + m.Position + " blue USB port" // i18n-ignore: English only, see above
 	}
 	return unknownLabel
 }
@@ -202,11 +207,35 @@ func locate(dev string) (port, position, serial string) {
 	return "", "", ""
 }
 
-// Notify is what the watcher calls: an Alert (title, detail) and a push
-// (title, body).
+// Notify is what the watcher calls: an Alert and a push. AlertText and
+// PushText get them whole, to be written and rendered in each reader's
+// language; without them Alert and Push get their English (title and
+// detail, title and body).
 type Notify struct {
-	Alert func(title, detail string)
-	Push  func(title, body string)
+	AlertText func(a alerttext.Alert)
+	PushText  func(t push.Text)
+	Alert     func(title, detail string)
+	Push      func(title, body string)
+}
+
+// alert hands a to n.
+func (n Notify) alert(a alerttext.Alert) {
+	switch {
+	case n.AlertText != nil:
+		n.AlertText(a)
+	case n.Alert != nil:
+		n.Alert(a.Title, a.Detail)
+	}
+}
+
+// push hands t to n.
+func (n Notify) push(t push.Text) {
+	switch {
+	case n.PushText != nil:
+		n.PushText(t)
+	case n.Push != nil:
+		n.Push(t(""))
+	}
 }
 
 var (
@@ -328,12 +357,8 @@ func check(storagePath string, n Notify) {
 		}
 		if alerted {
 			_ = os.Remove(alertedPath)
-			if n.Alert != nil {
-				n.Alert("Both storage disks are working again", "The mirror is complete: every file is on both disks again.")
-			}
-			if n.Push != nil {
-				n.Push("Storage disks working again", "The mirror is complete: every file is on both disks again.")
-			}
+			n.alert(alerttext.New(i18n.DevAlertRaidWorkingTitle(), i18n.DevAlertRaidWorkingDetail()))
+			n.push(push.StorageDisksWorkingAgain())
 		}
 		return
 	}
@@ -352,20 +377,45 @@ func check(storagePath string, n Notify) {
 	if err := os.WriteFile(alertedPath, []byte(what+"\n"), 0o600); err != nil {
 		log.Error("raid: could not record the alert:", err)
 	}
-	title := capitalize(what) + " stopped working"
-	detail := "Your files are safe on the other disk, but they are no longer mirrored. Replace it with a card at least as large: the device adds it and copies everything onto it by itself, erasing whatever was on the new card."
+	log.Error("raid:", what, "stopped working - the array is degraded")
+	n.alert(stoppedAlert(missing, f))
+	ports := make([]string, len(f.ports))
+	for i, p := range f.ports {
+		ports[i] = string(p)
+	}
+	n.push(push.StorageDiskStopped(ports, what))
+}
+
+// stoppedAlert is the Alert for f, the disks missing: one disk's in every
+// language, by its port, with what is known of it for a technician. Several
+// - which a two-disk mirror that still runs can't have - only in English,
+// from their labels, as before.
+func stoppedAlert(missing []Member, f failure) alerttext.Alert {
+	var known []string
 	for _, m := range missing {
 		if m.Dev != "" || m.Serial != "" || m.Port != "" {
-			detail += " (" + strings.TrimSpace(strings.Join([]string{m.Dev, m.Serial, m.Port}, " ")) + ")"
+			known = append(known, strings.TrimSpace(strings.Join([]string{m.Dev, m.Serial, m.Port}, " ")))
 		}
 	}
-	log.Error("raid:", what, "stopped working - the array is degraded")
-	if n.Alert != nil {
-		n.Alert(title, detail)
+	if len(f.ports) != 1 || len(known) > 1 {
+		title := capitalize(f.label) + " stopped working" // i18n-ignore: English only, for several missing disks, which no key names
+		detail := alerttext.EnglishOf(i18n.DevAlertRaidStoppedDetail())
+		for _, k := range known {
+			detail += " (" + k + ")"
+		}
+		return alerttext.English(title, detail)
 	}
-	if n.Push != nil {
-		n.Push("Storage disk stopped working", capitalize(what)+" failed. Your files are safe on the other one: replace it soon.")
+	title := i18n.DevAlertRaidStoppedUnknown()
+	switch f.ports[0] {
+	case PortTop:
+		title = i18n.DevAlertRaidStoppedTop()
+	case PortBottom:
+		title = i18n.DevAlertRaidStoppedBottom()
 	}
+	if len(known) == 1 {
+		return alerttext.New(title, i18n.DevAlertRaidStoppedDetailDisk(known[0]))
+	}
+	return alerttext.New(title, i18n.DevAlertRaidStoppedDetail())
 }
 
 // changed: the recorded disks differ from these (another disk, or the

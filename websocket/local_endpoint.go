@@ -3,8 +3,8 @@
 package websocket
 
 import (
-	"errors"
-
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/lantls"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -17,7 +17,7 @@ const cCodeLocalUnavailable = "local_unavailable"
 
 // errLocalNotYet answers GetLocalEndpoint between websocket.Init, which
 // starts the bridge pool, and api.Init setting the endpoint.
-var errLocalNotYet = errors.New("this device is still starting its home-network listener")
+var errLocalNotYet = devtext.New(i18n.DevDeviceLocalStarting())
 
 // localAddresses lists the home-network addresses; replaced in tests.
 var localAddresses = lantls.Addresses
@@ -38,15 +38,15 @@ func (mg *Manager) localEndpoint() (*pb.LocalEndpoint, error) {
 	}
 	ep := mg.local.Load()
 	if !ep.Serving() {
-		return nil, errors.New("this device has no home-network listener")
+		return nil, devtext.New(i18n.DevDeviceLocalNoListener())
 	}
 	addrs, err := localAddresses()
 	if err != nil {
 		log.Error("could not list the home-network addresses:", err)
-		return nil, errors.New("could not list this device's addresses")
+		return nil, devtext.New(i18n.DevDeviceLocalAddressesFailed())
 	}
 	if len(addrs) == 0 {
-		return nil, errors.New("this device has no home-network address")
+		return nil, devtext.New(i18n.DevDeviceLocalNoAddress())
 	}
 	return &pb.LocalEndpoint{
 		Addresses:  addrs,

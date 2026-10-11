@@ -5,14 +5,15 @@ package filesmanager
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/alonsovidales/otc/alerttext"
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 )
 
@@ -57,30 +58,31 @@ func missingContent(paths map[string][]string, exists func(hash string) bool) []
 	return out
 }
 
-// integrityReport is the alert for the missing hashes: a title with the
-// count, and the affected paths (the first few) with what to do.
+// integrityReport is integrityAlert's English: its title and detail.
 func integrityReport(missing []string, paths map[string][]string) (title, detail string) {
+	a := integrityAlert(missing, paths)
+	return a.Title, a.Detail
+}
+
+// integrityAlert is the alert for the missing hashes: a title with the
+// count, and the affected paths (the first few) with what to do.
+func integrityAlert(missing []string, paths map[string][]string) alerttext.Alert {
 	var all []string
 	for _, h := range missing {
 		all = append(all, paths[h]...)
 	}
 	sort.Strings(all)
 	n := len(all)
-	if n == 1 {
-		title = "1 file has lost its content"
-	} else {
-		title = fmt.Sprintf("%d files have lost their content", n)
-	}
 	shown := all
 	if len(shown) > cIntegrityListed {
 		shown = shown[:cIntegrityListed]
 	}
-	detail = strings.Join(shown, "; ")
+	listed := strings.Join(shown, "; ")
+	detail := i18n.DevAlertIntegrityDetail(listed)
 	if n > len(shown) {
-		detail += fmt.Sprintf("; and %d more", n-len(shown))
+		detail = i18n.DevAlertIntegrityDetailMore(listed, n-len(shown))
 	}
-	detail += ". Upload them again from where they came from - Sync All on a phone, or the desktop app's folder - and they are restored."
-	return title, detail
+	return alerttext.New(i18n.DevAlertIntegrityLost(n), detail)
 }
 
 func integrityDigest(missing []string) string {
@@ -116,7 +118,7 @@ func (mg *Manager) CheckStorageIntegrity() error {
 		log.Info("storage integrity check:", len(missing), "missing blobs, already reported")
 		return nil
 	}
-	title, detail := integrityReport(missing, paths)
+	alert := integrityAlert(missing, paths)
 	// The paths go to the owner's Alerts only: at Error the log names
 	// hashes, never paths, and "Send logs" mails it off the device. Capped
 	// like the detail, so a RAID loss doesn't write one line of many KB.
@@ -124,9 +126,9 @@ func (mg *Manager) CheckStorageIntegrity() error {
 	if len(shown) > cIntegrityListed {
 		shown = shown[:cIntegrityListed]
 	}
-	log.Error("storage integrity check:", title, "-", len(missing), "missing blobs:", strings.Join(shown, ","))
-	log.Debug("storage integrity check:", detail)
-	if err := mg.dao.AddErrorNotification(title, detail); err != nil {
+	log.Error("storage integrity check:", alert.Title, "-", len(missing), "missing blobs:", strings.Join(shown, ","))
+	log.Debug("storage integrity check:", alert.Detail)
+	if err := mg.dao.AddErrorNotification(alert); err != nil {
 		return err
 	}
 	return os.WriteFile(marker, []byte(digest+"\n"), 0o600) // perms: rw-------

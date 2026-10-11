@@ -14,12 +14,13 @@ package devicerestart
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 )
 
@@ -38,7 +39,7 @@ const (
 )
 
 // ErrNotInstalled is a device whose root side predates the button.
-var ErrNotInstalled = errors.New("this device can't be restarted from here until it is updated")
+var ErrNotInstalled = devtext.New(i18n.DevDeviceRestartNeedsUpdate())
 
 // Seams for tests.
 var (
@@ -55,11 +56,11 @@ func Request() error {
 		return ErrNotInstalled
 	}
 	if up, err := uptime(); err == nil && up < cMinUptime {
-		return fmt.Errorf("the device has only just started; try again in a minute")
+		return devtext.New(i18n.DevDeviceRestartTooSoon())
 	}
 	stamp := time.Now().UTC().Format(time.RFC3339) + "\n"
 	if err := os.WriteFile(requestPath, []byte(stamp), 0o644); err != nil { // perms: rw-r--r--
-		return fmt.Errorf("could not ask for the restart: %w", err)
+		return devtext.Wrap(i18n.DevDeviceRestartRequestFailed(err.Error()), err)
 	}
 	log.Info("device restart requested by the owner")
 	return nil

@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/alonsovidales/otc/blobstore"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
@@ -168,7 +169,7 @@ func (mg *Manager) processStoredStages(ses *session.Session, file *pb.File, targ
 	}
 	content, err := blobstore.ReadAll(target, ses)
 	if err != nil {
-		mg.alert("could not be read back for processing", file.Path, err)
+		mg.alert(i18n.DevAlertFileNotReadBack, file.Path, err)
 		return false
 	}
 	return mg.processMedia(ses, file, target, content, stages)

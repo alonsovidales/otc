@@ -201,11 +201,13 @@
   },
   "dev.status.wifi.no_connection": {
     "text": "the device has no network connection to restart",
-    "note": "Why the device's Wi-Fi restart (its watchdog restarts a Wi-Fi that has become very slow) didn't happen: the device has no network connection at all. Shown inside an alert in Alerts."
+    "note": "Why the device's Wi-Fi restart (its watchdog restarts a Wi-Fi that has become very slow) didn't happen: the device has no network connection at all. Shown inside an alert in Alerts.",
+    "stored": true
   },
   "dev.status.wifi.not_wifi": {
     "text": "the device isn't connected over Wi-Fi",
-    "note": "Why the device's Wi-Fi restart didn't happen: the device is connected another way (an Ethernet cable). Shown inside an alert in Alerts."
+    "note": "Why the device's Wi-Fi restart didn't happen: the device is connected another way (an Ethernet cable). Shown inside an alert in Alerts.",
+    "stored": true
   },
   "dev.status.wifi.rebooted": {
     "text": "The Wi-Fi did not reconnect after its restart, so the device restarted",
@@ -221,6 +223,7 @@
   },
   "dev.status.wifi.too_soon": {
     "text": "the Wi-Fi was restarted less than 30 minutes ago",
-    "note": "Why the device's Wi-Fi restart didn't happen: it restarts the Wi-Fi at most once every 30 minutes. Shown inside an alert in Alerts."
+    "note": "Why the device's Wi-Fi restart didn't happen: it restarts the Wi-Fi at most once every 30 minutes. Shown inside an alert in Alerts.",
+    "stored": true
   }
 }

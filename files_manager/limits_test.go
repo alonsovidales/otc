@@ -10,6 +10,8 @@ import (
 	"image/png"
 	"strings"
 	"testing"
+
+	"github.com/alonsovidales/otc/alerttext"
 )
 
 // pngHeader is a PNG whose header claims w x h - enough for DecodeConfig,
@@ -47,7 +49,8 @@ func TestDecompressionBombIsRefused(t *testing.T) {
 func TestSafelyRecovers(t *testing.T) {
 	mg := &Manager{}
 	ran := false
-	mg.safely("testing", "/x", func() { ran = true; panic("boom") })
+	crashed := func(panicked string) alerttext.Alert { return alerttext.English("x crashed", panicked) }
+	mg.safely("testing", crashed, func() { ran = true; panic("boom") })
 	if !ran {
 		t.Fatal("the work didn't run")
 	}

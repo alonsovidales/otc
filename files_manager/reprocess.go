@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/devtext"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/session"
@@ -90,12 +92,12 @@ func (mg *Manager) Reprocess(ses *session.Session, forceRestart bool) (err error
 
 	state, err := mg.dao.GetReprocessState()
 	if err != nil {
-		return fmt.Errorf("reading reprocess state: %w", err)
+		return devtext.Wrap(i18n.DevFilesReprocessReadFailed(err.Error()), err)
 	}
 
 	if !forceRestart && (state.Status == "running" || state.Status == "stopped") {
 		if err := mg.dao.ResumeReprocess(); err != nil {
-			return fmt.Errorf("resuming reprocess: %w", err)
+			return devtext.Wrap(i18n.DevFilesReprocessResumeFailed(err.Error()), err)
 		}
 	} else {
 		err := mg.dao.WipeTagsAndFaces()
@@ -103,14 +105,14 @@ func (mg *Manager) Reprocess(ses *session.Session, forceRestart bool) (err error
 		// gone now (or may be, if the wipe failed part way).
 		mg.InvalidateFaceRefs()
 		if err != nil {
-			return fmt.Errorf("wiping tags/faces before reprocess: %w", err)
+			return devtext.Wrap(i18n.DevFilesReprocessWipeFailed(err.Error()), err)
 		}
 		total, err := mg.dao.CountMediaFiles()
 		if err != nil {
-			return fmt.Errorf("counting media for reprocess: %w", err)
+			return devtext.Wrap(i18n.DevFilesReprocessCountFailed(err.Error()), err)
 		}
 		if err := mg.dao.StartReprocess(total); err != nil {
-			return fmt.Errorf("starting reprocess: %w", err)
+			return devtext.Wrap(i18n.DevFilesReprocessStartFailed(err.Error()), err)
 		}
 		state.LastHash = ""
 		state.Processed = 0

@@ -1,0 +1,28 @@
+{
+  "dev.keepout.inside_kept_out": {
+    "text": "{name} is inside {parent}, which is kept out of Images - show {parent} in Images to show {name}",
+    "args": [["name", "user"], ["parent", "user"]],
+    "note": "Error shown when the owner asks to show a folder in Images again (the photo library's main view) while a folder above it is still kept out of Images. {name} is the folder's name; {parent} the full path of the folder above it, such as /Photos/Private."
+  },
+  "dev.keepout.inside_kept_out_own": {
+    "text": "{name} is inside {parent}, which is kept out of Images - show {parent} in Images first, then {name}",
+    "args": [["name", "user"], ["parent", "user"]],
+    "note": "Error shown when the owner asks to show a folder in Images again (the photo library's main view) while a folder above it is still kept out of Images, and the folder is kept out itself too: both need showing, the one above first. {name} is the folder's name; {parent} the full path of the folder above it, such as /Photos/Private."
+  },
+  "dev.keepout.not_full_path": {
+    "text": "the folder must be a full path",
+    "note": "Error shown when keeping a folder out of Images (or showing it again) and the app sent a folder that doesn't start at the top of the library. Shown after \"error updating the folder:\"."
+  },
+  "dev.keepout.path_invalid": {
+    "text": "the folder's path is not valid",
+    "note": "Error shown when keeping a folder out of Images (or showing it again) and the folder's path has an empty, \".\" or \"..\" part. Shown after \"error updating the folder:\"."
+  },
+  "dev.keepout.path_too_long": {
+    "text": "the folder's path is too long",
+    "note": "Error shown when keeping a folder out of Images (or showing it again) and the folder's path is longer than the device can keep. Shown after \"error updating the folder:\"."
+  },
+  "dev.keepout.whole_library": {
+    "text": "the whole library can't be kept out of Images",
+    "note": "Error shown when the app asked to keep the whole library (its top folder) out of Images, the photo library's main view. Shown after \"error updating the folder:\"."
+  }
+}

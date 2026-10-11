@@ -1,0 +1,63 @@
+{
+  "dev.auth.decrypt_failed": {
+    "text": "unable to decrypt key material",
+    "note": "Error reply when signing in or changing the password: the device could not decrypt the password the app sent (the apps encrypt it for each connection). Shown after \"Error: \" at sign-in.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #31f28281"
+  },
+  "dev.auth.device_state_failed": {
+    "text": "error checking device state",
+    "note": "Error reply on the sign-in screen when the device could not tell whether it already has an owner password (a database problem on the device).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #849b4df8"
+  },
+  "dev.auth.invalid_session": {
+    "text": "Invalid session",
+    "note": "Error reply when signing in with a password the device doesn't accept (a wrong password). Shown after \"Error: \".",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #b3ca597e"
+  },
+  "dev.auth.keypair_failed": {
+    "text": "error generating keypair",
+    "note": "Error reply on the sign-in screen when the device could not make the key the app encrypts the password with (one per connection).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #91ba1950"
+  },
+  "dev.auth.no_public_key": {
+    "text": "no public key was requested for this connection",
+    "note": "Error reply when signing in or changing the password on a connection where the app never asked the device for the key it encrypts the password with (an app fault). Shown after \"Error: \" at sign-in.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #6c4d53be"
+  },
+  "dev.auth.password_too_short": {
+    "text": "the password must have 8 characters or more",
+    "note": "Error reply when choosing the device's first password, or a new one in Settings, that is shorter than 8 characters.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #74a3e1c1"
+  },
+  "dev.auth.public_key_failed": {
+    "text": "error marshaling public key",
+    "note": "Error reply on the sign-in screen when the device could not encode the key the app encrypts the password with (one per connection).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #b485ccd0"
+  },
+  "dev.auth.session_expired": {
+    "text": "Session expired or invalid, please sign in again.",
+    "note": "Error reply in the web app when its saved sign-in (kept for a while so the password isn't asked at every visit) has expired or is no longer valid: the user signs in with the password again.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #db6970d2"
+  },
+  "dev.auth.token_failed": {
+    "text": "error issuing session token",
+    "note": "Error reply in the web app right after signing in when the device could not make the saved sign-in that spares typing the password at the next visit.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #09e3e599"
+  },
+  "dev.auth.too_many_attempts": {
+    "text": "Too many attempts. Try again in {seconds} seconds.",
+    "args": [["seconds", "int"]],
+    "note": "Error reply on the sign-in screen after too many wrong passwords from the same address: the device refuses passwords for a while. {seconds} is how many seconds to wait (up to about 60).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #24b96645"
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "dev.device.already_on_bridge": {
+    "text": "this device is already on the bridge",
+    "note": "Error in Settings > Bridge when switching the bridge on while the device already uses it. The bridge is off-the.cloud, the relay that makes the device reachable from outside the home."
+  },
+  "dev.device.bridge_dial_failed": {
+    "text": "dialing bridge: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error in Settings > Logs when sending the logs to Off The Cloud failed because the bridge (off-the.cloud, the relay) could not be reached. {detail} is the reason, an error in English."
+  },
+  "dev.device.bridge_read_failed": {
+    "text": "reading from bridge: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error in Settings > Logs when sending the logs to Off The Cloud failed because the bridge's answer (off-the.cloud, the relay) could not be read. {detail} is the reason, an error in English."
+  },
+  "dev.device.bridge_secret_managed": {
+    "text": "the bridge secret is managed by the device",
+    "note": "Error reply when an older app tries to see or change the device's secret for the bridge (off-the.cloud, the relay): the device keeps and renews it itself."
+  },
+  "dev.device.bridge_write_failed": {
+    "text": "writing to bridge: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error in Settings > Logs when sending the logs to Off The Cloud failed while handing them to the bridge (off-the.cloud, the relay). {detail} is the reason, an error in English."
+  },
+  "dev.device.identity_store_failed": {
+    "text": "could not store the device's new identity",
+    "note": "Error in Settings > Bridge when switching the bridge on: the name was reserved, but the device could not save its new name and keys."
+  },
+  "dev.device.local_addresses_failed": {
+    "text": "could not list this device's addresses",
+    "note": "Error reply when the apps ask how to reach the device directly on the home network and it could not read its own network addresses. The apps then keep going through the bridge."
+  },
+  "dev.device.local_no_address": {
+    "text": "this device has no home-network address",
+    "note": "Error reply when the apps ask how to reach the device directly on the home network and it has no address there. The apps then keep going through the bridge."
+  },
+  "dev.device.local_no_listener": {
+    "text": "this device has no home-network listener",
+    "note": "Error reply when the apps ask how to reach the device directly on the home network and the device isn't accepting direct connections. The apps then keep going through the bridge."
+  },
+  "dev.device.local_starting": {
+    "text": "this device is still starting its home-network listener",
+    "note": "Error reply when the apps ask how to reach the device directly on the home network while the device is still starting up. The apps ask again later."
+  },
+  "dev.device.logs_console_only": {
+    "text": "this device logs to its console only",
+    "note": "Error in Settings > Logs when the device keeps no log file to show (its log goes only to its screen)."
+  },
+  "dev.device.logs_need_bridge": {
+    "text": "this device isn't on the bridge, so it can't send its logs - use Copy instead",
+    "note": "Error in Settings > Logs when \"Send to us\" is pressed on a device that isn't on the bridge (off-the.cloud, the relay the logs go through). Copy is the button next to it that copies the logs to paste them elsewhere: translate it as that button is translated.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #0fa2cee7"
+  },
+  "dev.device.not_on_bridge": {
+    "text": "this device is not on the bridge",
+    "note": "Error in Settings > Bridge when leaving the bridge while the device isn't on it. The bridge is off-the.cloud, the relay that makes the device reachable from outside the home."
+  },
+  "dev.device.release_failed": {
+    "text": "The bridge could not be reached, so the name is still registered: release it on the account page.",
+    "note": "Shown in Settings > Bridge after leaving the bridge when the bridge (off-the.cloud) could not be told: the device's name (name.off-the.cloud) stays reserved for the owner's account until they give it up on the account page (off-the.cloud/account).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #cba4f073"
+  },
+  "dev.device.restart_needs_update": {
+    "text": "this device can't be restarted from here until it is updated",
+    "note": "Error in Settings when pressing Restart device on a device whose software is too old for it: install the update first."
+  },
+  "dev.device.restart_request_failed": {
+    "text": "could not ask for the restart: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error in Settings when pressing Restart device and the device could not pass the request on. {detail} is the reason, an error in English."
+  },
+  "dev.device.restart_too_soon": {
+    "text": "the device has only just started; try again in a minute",
+    "note": "Error in Settings when pressing Restart device within two minutes of the device starting."
+  },
+  "dev.device.social_limit_too_low": {
+    "text": "the limit must be at least 0.1 GB",
+    "note": "Error in Settings when setting the space friends' posts may take on the device below 0.1 GB."
+  },
+  "dev.device.storage_too_many": {
+    "text": "choose at most 2 devices, got {chosen}",
+    "args": [["chosen", "int"]],
+    "note": "Error in the device's storage setup when more than two disks are chosen (the device mirrors two disks; the chosen ones are wiped). Devices here are disks. {chosen} is how many were chosen.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ef74d92c"
+  },
+  "dev.device.unknown_log": {
+    "text": "unknown log \"{source}\"",
+    "args": [["source", "text"]],
+    "note": "Error in Settings > Logs when an app asks for a log the device doesn't keep (an app fault). {source} is the name the app asked for."
+  },
+  "dev.device.wifi_no_ssid": {
+    "text": "ssid cannot be empty",
+    "note": "Error in the device's Wi-Fi setup when joining a network without its name. SSID is a Wi-Fi network's name; keep it lowercase as in the English or use your language's usual term."
+  }
+}

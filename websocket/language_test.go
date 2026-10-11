@@ -15,6 +15,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/dao"
+	"github.com/alonsovidales/otc/devtext"
 	"github.com/alonsovidales/otc/profile"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/push"
@@ -305,8 +306,11 @@ func TestRequestLang(t *testing.T) {
 	}
 }
 
-// Phase 1 changes no reply: whatever lang a request carries, every reply
-// is the one the same request gets without it, byte for byte.
+// A lang this build renders as English - English itself, or a language it
+// carries no text for, which is every other one until a translation ships
+// - changes no reply: it is the one the same request gets without a lang,
+// byte for byte. Replies in a carried language follow it
+// (TestRepliesFollowTheRequestsLanguage).
 func TestLangChangesNoReply(t *testing.T) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -353,6 +357,9 @@ func TestLangChangesNoReply(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, lang := range []string{"en", "EN-gb", "es", "fr-FR", "pt-BR", "qps", "xx", "<b>"} {
+			if !devtext.English(lang) {
+				continue
+			}
 			env := c.env()
 			env.Lang = lang
 			resp, _ := c.ch().processMessage(env)
@@ -497,13 +504,16 @@ func TestUpdateAlertOncePerVersion(t *testing.T) {
 	defer db.Close()
 	d := dao.NewWithDB(db)
 	var pushed []string
-	notify := func(title, body string, _ push.Target) { pushed = append(pushed, title+" | "+body) }
+	notify := func(text push.Text, _ push.Target) {
+		title, body := text("") // rendered as a request without a language would see it
+		pushed = append(pushed, title+" | "+body)
+	}
 	critical := &updater.Alert{Level: updater.KindCritical, Version: "3.0", Target: 120, Summary: "A security fix."}
 	const major3, critical3 = "Update 3.0 is available", "Critical update 3.0 - please install it soon"
 
 	mock.ExpectQuery(updateAlertCount).WithArgs("3.0", major3, critical3).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectExec("insert into `notifications`.*`update_version`").
-		WithArgs(sqlmock.AnyArg(), critical3, "A security fix. Install it from Settings.", "3.0").
+		WithArgs(sqlmock.AnyArg(), critical3, "A security fix. Install it from Settings.", "3.0", "dev.alert.update.critical", sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	updateAlert(d, notify, critical)
 	if len(pushed) != 1 || pushed[0] != critical3+" | A security fix. Install it from Settings." {
@@ -522,7 +532,7 @@ func TestUpdateAlertOncePerVersion(t *testing.T) {
 	mock.ExpectQuery(updateAlertCount).WithArgs("3.1", "Update 3.1 is available", "Critical update 3.1 - please install it soon").
 		WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
 	mock.ExpectExec("insert into `notifications`.*`update_version`").
-		WithArgs(sqlmock.AnyArg(), "Update 3.1 is available", "More. Install it from Settings.", "3.1").
+		WithArgs(sqlmock.AnyArg(), "Update 3.1 is available", "More. Install it from Settings.", "3.1", "dev.alert.update.major", sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	updateAlert(d, notify, &updater.Alert{Level: updater.KindMajor, Version: "3.1", Target: 121, Summary: "More."})
 	if len(pushed) != 1 {

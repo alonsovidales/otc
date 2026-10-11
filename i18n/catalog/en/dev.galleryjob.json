@@ -1,0 +1,5 @@
+{
+  "dev.galleryjob.copy_crashed": {"text": "the copy stopped: a file crashed the processing"},
+  "dev.galleryjob.copy_failed": {"text": "could not copy {name}: {detail}", "args": [["name", "user"], ["detail", "text"]]},
+  "dev.galleryjob.no_small_copy": {"text": "could not make a small copy of {name}", "args": [["name", "user"]]}
+}

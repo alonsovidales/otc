@@ -311,7 +311,7 @@ func TestSharedGalleryJobFinishesWhenTheCopyPanics(t *testing.T) {
 	}
 	var state *pb.SharedGalleryJob
 	for i := 0; i < 500; i++ {
-		state, _ = SharedGalleryJobState(job.JobId)
+		state, _ = SharedGalleryJobState(job.JobId, "")
 		if state.Finished {
 			break
 		}
