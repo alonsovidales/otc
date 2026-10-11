@@ -11,6 +11,7 @@ import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope, Notification as PbNotification } from "../proto/messages";
 import { FriendShipStatus, NotificationType } from "../proto/messages";
 import "./NotificationsPage.css";
+import { Trans, useT, type RichKey, type TFunction } from "../i18n";
 
 const POLL_MS = 5000;
 
@@ -19,31 +20,30 @@ function bytesToURL(bytes?: Uint8Array, mime = "image/jpeg") {
   return URL.createObjectURL(new Blob([bytes], { type: mime }));
 }
 
-function formatWhen(d?: Date): string {
+function formatWhen(t: TFunction, d?: Date): string {
   if (!d) return "";
   const diffMs = Date.now() - d.getTime();
   const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m`;
+  if (mins < 1) return t("web.social.time.just_now");
+  if (mins < 60) return t("web.social.time.minutes", { minutes: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
+  if (hours < 24) return t("web.social.time.hours", { hours });
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d`;
+  if (days < 7) return t("web.social.time.days", { days });
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 // A fixed sentence per type, actor name filled in - same "generic body,
 // specifics stay local" spirit as push/push.go's own notification text.
-function describe(n: PbNotification): string {
+type ActorKey = Extract<RichKey, `web.social.alerts.${string}`>;
+function describe(n: PbNotification): ActorKey | null {
   switch (n.type) {
-    case NotificationType.NotificationError: return "";
-    case NotificationType.NotificationUpdate: return "";
-    case NotificationType.NotificationLikePublication: return "liked your post";
-    case NotificationType.NotificationLikeComment: return "liked your comment";
-    case NotificationType.NotificationNewComment: return "commented on your post";
-    case NotificationType.NotificationFriendRequest: return "sent you a friend request";
-    case NotificationType.NotificationFriendAccepted: return "accepted your friend request";
-    default: return "";
+    case NotificationType.NotificationLikePublication: return "web.social.alerts.liked_post";
+    case NotificationType.NotificationLikeComment: return "web.social.alerts.liked_comment";
+    case NotificationType.NotificationNewComment: return "web.social.alerts.commented";
+    case NotificationType.NotificationFriendRequest: return "web.social.alerts.friend_request";
+    case NotificationType.NotificationFriendAccepted: return "web.social.alerts.friend_accepted";
+    default: return null;
   }
 }
 
@@ -92,6 +92,7 @@ export default function NotificationsPage({
   // everything read, rather than waiting for that separate poll to catch up.
   onAcknowledged: () => void;
 }) {
+  const t = useT();
   const [notifications, setNotifications] = useState<PbNotification[] | null>(null);
   // Issue #64: an error row's full list of errors shows on hover; a click
   // pins it open, for touch screens and for copying the text.
@@ -184,15 +185,17 @@ export default function NotificationsPage({
   return (
     <div className="np-page">
       {notifications == null ? (
-        <div className="np-empty">Loading…</div>
+        <div className="np-empty">{t("common.loading")}</div>
       ) : notifications.length === 0 ? (
-        <div className="np-empty">Nothing yet</div>
+        <div className="np-empty">{t("web.social.alerts.nothing")}</div>
       ) : (
         <ul className="np-list">
           {notifications.map(n => {
             const { avatar, thumb } = images.get(n.uuid) ?? { avatar: null, thumb: null };
             const isError = n.type === NotificationType.NotificationError;
             const isUpdate = n.type === NotificationType.NotificationUpdate;
+            const actorKey = describe(n);
+            const actor = n.actorName || n.actorDomain;
             return (
               <li
                 key={n.uuid}
@@ -220,6 +223,8 @@ export default function NotificationsPage({
                   <div className="np-avatar np-avatar-placeholder">👤</div>
                 )}
                 <span className="np-item-text">
+                  {/* The device's title and details (an update, an error) as
+                      they come: it writes them in the language asked. */}
                   {isUpdate ? (
                     <><strong>{n.title}</strong>{n.details ? <> - {n.details}</> : null}</>
                   ) : isError ? (
@@ -227,18 +232,20 @@ export default function NotificationsPage({
                       {/* Issue #64: one line in the list; the whole list of
                           errors on hover (or pinned by a click). */}
                       <strong>{n.title}</strong>
-                      {n.occurrences > 1 && <span className="np-more"> +{n.occurrences - 1} more</span>}
+                      {n.occurrences > 1 && <span className="np-more"> {t("web.social.alerts.more", { more: n.occurrences - 1 })}</span>}
                     </>
+                  ) : actorKey ? (
+                    <Trans k={actorKey} args={{ name: actor }} parts={{ b: (s) => <strong>{s}</strong> }} />
                   ) : (
-                    <><strong>{n.actorName || n.actorDomain}</strong> {describe(n)}</>
+                    <><strong>{actor}</strong> </>
                   )}
-                  <span className="np-item-when"> · {formatWhen(n.dt)}</span>
+                  <span className="np-item-when"> · {formatWhen(t, n.dt)}</span>
                 </span>
                 {n.type === NotificationType.NotificationFriendRequest && awaiting.has(n.actorDomain) && (
-                  <button className="np-accept" onClick={(e) => { e.stopPropagation(); void accept(n.actorDomain); }}>Accept</button>
+                  <button className="np-accept" onClick={(e) => { e.stopPropagation(); void accept(n.actorDomain); }}>{t("common.accept")}</button>
                 )}
                 {n.type === NotificationType.NotificationFriendRequest && acceptedHere.has(n.actorDomain) && (
-                  <span className="np-accepted">Friends ✓</span>
+                  <span className="np-accepted">{t("web.social.alerts.friends")}</span>
                 )}
                 {thumb && <img src={thumb} className="np-thumb" alt="" />}
                 {isError && n.details && (

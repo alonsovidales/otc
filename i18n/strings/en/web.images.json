@@ -1,0 +1,1029 @@
+{
+  "web.images.collect.add_failed": {
+    "text": "Couldn't add them to “{name}”. Try again.",
+    "args": [["name", "user"]],
+    "note": "Error in the Add to collection dialog when the device refused to add the selected photos. {name} is the collection's name. Use this language's quotation marks."
+  },
+  "web.images.collect.added": {
+    "text": "Added to “{name}”",
+    "args": [["name", "user"]],
+    "note": "Message at the bottom of Images once the selected photos are in a collection; a View button that opens it follows. {name} is the collection's name. Use this language's quotation marks."
+  },
+  "web.images.collect.create_failed": {
+    "text": "Couldn't create the collection. Try again.",
+    "note": "Error in the Add to collection dialog when the device could not make the new collection."
+  },
+  "web.images.collect.creating": {
+    "text": "Creating…",
+    "note": "The Create button of the Add to collection dialog while the new collection is made, next to a spinner.",
+    "max": 24
+  },
+  "web.images.collect.list": {
+    "text": "Collections",
+    "note": "Screen-reader name of the list of collections in the Add to collection dialog."
+  },
+  "web.images.collect.name_placeholder": {
+    "text": "Name, like Summer 2026",
+    "note": "Placeholder of the new collection's name field in the Add to collection dialog; the example is a collection's name."
+  },
+  "web.images.collect.new": {
+    "text": "New collection…",
+    "note": "First entry of the Add to collection dialog's list: opens the field to name a new collection.",
+    "max": 40
+  },
+  "web.images.collect.new_label": {
+    "text": "New collection",
+    "note": "Label of the name field in the Add to collection dialog, for a collection made there with the selected photos."
+  },
+  "web.images.collect.title": {
+    "text": "Add to collection",
+    "note": "Title of the dialog that puts the selected photos in a collection (an existing one, or a new one named there). Opened by the selection bar's Add to Collection."
+  },
+  "web.images.collect.view": {
+    "text": "View",
+    "note": "Button in the message web.images.collect.added that opens the collection.",
+    "max": 16
+  },
+  "web.images.collection.delete": {
+    "text": "Delete collection",
+    "note": "Button in an open collection's header in Images that deletes the collection (after web.images.collection.delete_title); the photos stay. Also its tooltip when shown as an icon on narrow windows.",
+    "max": 24
+  },
+  "web.images.collection.delete_failed": {
+    "text": "Couldn't delete the collection. Try again.",
+    "note": "Error in the dialog web.images.collection.delete_title when the device refused to delete the collection."
+  },
+  "web.images.collection.delete_text": {
+    "text": "Delete the collection “{name}”? The photos themselves are kept.",
+    "args": [["name", "user"]],
+    "note": "Text of the dialog web.images.collection.delete_title. {name} is the collection's name. Only the collection goes; its photos stay on the device. Use this language's quotation marks.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #b4495ede"
+  },
+  "web.images.collection.delete_title": {
+    "text": "Delete collection?",
+    "note": "Title of the dialog that asks before deleting the open collection (Images).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #dba408b2"
+  },
+  "web.images.collection.name_field": {
+    "text": "Collection name",
+    "note": "Screen-reader name of the field that replaces an open collection's name (Images page header) while it is renamed."
+  },
+  "web.images.collection.rename": {
+    "text": "Rename collection",
+    "note": "Screen-reader name of the pencil next to an open collection's name in Images; its tooltip is Rename."
+  },
+  "web.images.collection.rename_failed": {
+    "text": "Couldn't rename the collection. Try again.",
+    "note": "Error at the bottom of Images when the device refused the collection's new name."
+  },
+  "web.images.collection.rename_unreachable": {
+    "text": "Couldn't reach your device to rename the collection.",
+    "note": "Error at the bottom of Images when the device didn't answer while renaming the collection."
+  },
+  "web.images.collection.share": {
+    "text": "Share as gallery",
+    "note": "Button in an open collection's header in Images: makes a web page with the collection's photos that anyone with its link can open. Also its tooltip when shown as an icon on narrow windows.",
+    "max": 24
+  },
+  "web.images.collection.span_full": {
+    "text": "{from_month} {from_year} – {to_month} {to_year}",
+    "args": [["from_month", "text"], ["from_year", "text"], ["to_month", "text"], ["to_year", "text"]],
+    "note": "In an open collection's header (Images), after its count: the months its photos span, over several years (Mar 2024 – Oct 2026). The months are short names as the browser writes them in this language, the years in digits.",
+    "max": 56
+  },
+  "web.images.collection.span_month": {
+    "text": "{month} {year}",
+    "args": [["month", "text"], ["year", "text"]],
+    "note": "In an open collection's header (Images), after its count: the month its photos are from, when they are all from one month. {month} is the month's short name as the browser writes it in this language (Mar), {year} the year in digits.",
+    "max": 16
+  },
+  "web.images.collection.span_months": {
+    "text": "{from} – {to} {year}",
+    "args": [["from", "text"], ["to", "text"], ["year", "text"]],
+    "note": "In an open collection's header (Images), after its count: the months its photos span, within one year. {from} and {to} are the oldest and newest months' short names as the browser writes them in this language (Mar, Oct), {year} the year in digits.",
+    "max": 24
+  },
+  "web.images.collection.span_years": {
+    "text": "{from} – {to}",
+    "args": [["from", "text"], ["to", "text"]],
+    "note": "Short form of web.images.collection.span_full on narrow windows: the first and last year of the collection's photos, in digits (2024 – 2026).",
+    "max": 16
+  },
+  "web.images.collections.card": {
+    "text": {
+      "one": "{name}, {count} item",
+      "other": "{name}, {count} items"
+    },
+    "args": [["name", "user"], ["count", "count"]],
+    "note": "Screen-reader name of a collection's card on the Collections page. {name} is the collection's name, {count} how many photos and videos it holds (an item is a photo or a video)."
+  },
+  "web.images.collections.empty_text": {
+    "text": "Select photos in Images, then choose <b>Add to collection</b>.",
+    "note": "Text under web.images.collections.empty_title. Images is the section's name; Add to collection is the selection bar's button (web.images.select.collect) and the dialog it opens: use the same words. <b> is shown in bold.",
+    "rich": ["b"]
+  },
+  "web.images.collections.empty_title": {
+    "text": "No collections yet",
+    "note": "Title of the Collections page when the user has no collections."
+  },
+  "web.images.collections.failed": {
+    "text": "Couldn't load your collections",
+    "note": "Title of the Collections page when the list of collections could not be fetched from the device."
+  },
+  "web.images.collections.loading": {
+    "text": "Loading collections",
+    "note": "Screen-reader name of the grey placeholder cards on the Collections page while the list loads."
+  },
+  "web.images.collections.slow": {
+    "text": "Your collections are taking longer than usual to load.",
+    "note": "Text under web.images.load.waiting on the Collections page when the list takes more than 10 seconds."
+  },
+  "web.images.collections.title": {
+    "text": "Collections",
+    "note": "Title of the Collections page (the user's groups of photos), and the back link over an open collection in Images that returns there. Same word as the menu item.",
+    "max": 24
+  },
+  "web.images.collections.untitled": {
+    "text": "Untitled collection",
+    "note": "Shown on the Collections page for a collection without a name.",
+    "max": 32
+  },
+  "web.images.count.items": {
+    "text": {
+      "one": "{count} item",
+      "other": "{count} items"
+    },
+    "args": [["count", "count"]],
+    "note": "How many photos and videos a collection or a person has: the line under a collection's or person's name in Images, under each card on the Collections page, and in the list of the Add to collection dialog. An item is a photo or a video.",
+    "max": 24
+  },
+  "web.images.count.photos": {
+    "text": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    },
+    "args": [["count", "count"]],
+    "note": "Some selected photos, put into other texts (web.images.delete.title: Delete 3 photos?, web.images.delete.done: Deleted 3 photos) and shown alone under the title of the Add to collection dialog."
+  },
+  "web.images.count.photos_and_videos": {
+    "text": "{photos} and {videos}",
+    "args": [["photos", "text"], ["videos", "text"]],
+    "note": "Selected photos and videos together, used like web.images.count.photos (Delete 2 photos and 1 video?). {photos} is web.images.count.photos, {videos} web.images.count.videos."
+  },
+  "web.images.count.videos": {
+    "text": {
+      "one": "{count} video",
+      "other": "{count} videos"
+    },
+    "args": [["count", "count"]],
+    "note": "Some selected videos, used like web.images.count.photos (Delete 1 video?, Deleted 1 video)."
+  },
+  "web.images.crop.failed": {
+    "text": "The picture could not be prepared.",
+    "note": "Error in the profile picture's crop dialog when the cropped picture could not be made."
+  },
+  "web.images.crop.hint": {
+    "text": "Drag the photo to centre your face.",
+    "note": "Hint under the photo in the profile picture's crop dialog."
+  },
+  "web.images.crop.label": {
+    "text": "Crop your profile picture",
+    "note": "Screen-reader name of the dialog that crops the picked photo to the circle of the profile picture (Settings, Profile)."
+  },
+  "web.images.crop.title": {
+    "text": "Profile picture",
+    "note": "Title of the dialog that crops the picked photo to the circle of the profile picture (Settings, Profile)."
+  },
+  "web.images.crop.unsupported": {
+    "text": "This picture can't be opened here - try a JPEG or PNG.",
+    "note": "Error in the profile picture's crop dialog when the browser can't open the picked file. JPEG and PNG are image formats: keep them."
+  },
+  "web.images.crop.use": {
+    "text": "Use photo",
+    "note": "Button of the profile picture's crop dialog that keeps the cropped photo as the profile picture.",
+    "max": 24
+  },
+  "web.images.crop.zoom": {
+    "text": "Zoom",
+    "note": "Label of the zoom slider under the photo in the profile picture's crop dialog.",
+    "max": 16
+  },
+  "web.images.delete.done": {
+    "text": "Deleted {what}",
+    "args": [["what", "text"]],
+    "note": "Message at the bottom of Images once the selected photos are deleted. {what} is web.images.count.photos (3 photos), web.images.count.videos or web.images.count.photos_and_videos."
+  },
+  "web.images.delete.failed": {
+    "text": {
+      "one": "{count} item couldn't be deleted. Try again.",
+      "other": "{count} items couldn't be deleted. Try again."
+    },
+    "args": [["count", "count"]],
+    "note": "Error at the bottom of Images when some selected photos or videos could not be deleted; they stay selected. An item is a photo or a video."
+  },
+  "web.images.delete.progress": {
+    "text": "Deleting {done} of {total}…",
+    "args": [["done", "int"], ["total", "int"]],
+    "note": "On the Delete button of the dialog web.images.delete.title while the photos are deleted one by one: {done} is the one being deleted now, {total} how many there are.",
+    "max": 32
+  },
+  "web.images.delete.text": {
+    "text": "They're deleted from your device for good. This can't be undone.",
+    "note": "Text of the dialog web.images.delete.title when deleting from the whole library.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #439dbc55"
+  },
+  "web.images.delete.text_collection": {
+    "text": "They're deleted from your device, not just from this collection. This can't be undone.",
+    "note": "Text of the dialog web.images.delete.title when the photos were selected inside an open collection: they are deleted from the device, not only taken out of the collection.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #6c2e0415"
+  },
+  "web.images.delete.title": {
+    "text": "Delete {what}?",
+    "args": [["what", "text"]],
+    "note": "Title of the dialog that asks before deleting the selected photos in Images. {what} says what is selected: web.images.count.photos (3 photos), web.images.count.videos or web.images.count.photos_and_videos.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e8eb716e"
+  },
+  "web.images.delete.upload_only": {
+    "text": {
+      "one": "{count} item is in an upload-only folder and can't be deleted",
+      "other": "{count} items are in an upload-only folder and can't be deleted"
+    },
+    "args": [["count", "count"]],
+    "note": "Error at the bottom of Images when some selected photos or videos could not be deleted because they are in a folder set to upload only (the device keeps everything there). An item is a photo or a video."
+  },
+  "web.images.error.unreachable": {
+    "text": "Couldn't reach your device. Try again.",
+    "note": "Error at the bottom of Images or in a dialog (Add to collection, Delete collection) when the user's device didn't answer a request (making a share link or ZIP, adding to or creating or deleting a collection)."
+  },
+  "web.images.grid.clear_search": {
+    "text": "Clear search",
+    "note": "Button under web.images.grid.no_match_title that removes the search words and people and shows every photo again.",
+    "max": 24
+  },
+  "web.images.grid.date": {
+    "text": "{day} {month} {year}",
+    "args": [["day", "text"], ["month", "text"], ["year", "text"]],
+    "note": "A photo's date, read out by screen readers with each tile in Images (web.images.grid.tile_photo_dated). {day} is the day of the month in digits (1), {month} the month's full name as the browser writes it in this language (September), {year} the year in digits (2026). Put them in this language's usual order for a full date."
+  },
+  "web.images.grid.dismiss": {
+    "text": "Dismiss",
+    "note": "Screen-reader name of the × that closes a message at the bottom of Images (for example Your ZIP is ready).",
+    "max": 24
+  },
+  "web.images.grid.empty_collection_text": {
+    "text": "Select photos in Images, then choose Add to collection.",
+    "note": "Text under web.images.grid.empty_collection_title. Images is the section's name (menu); Add to collection is the selection bar's button (web.images.select.collect) and the dialog it opens: use the same words."
+  },
+  "web.images.grid.empty_collection_title": {
+    "text": "This collection is empty",
+    "note": "Title of the Images page when an open collection has no photos."
+  },
+  "web.images.grid.empty_text": {
+    "text": "Photos from the phone and computer apps appear here.",
+    "note": "Text under web.images.grid.empty_title: photos and videos uploaded by the phone and computer apps show up in Images."
+  },
+  "web.images.grid.empty_title": {
+    "text": "No photos yet",
+    "note": "Title of the Images page when the device holds no photos or videos at all."
+  },
+  "web.images.grid.go_to_images": {
+    "text": "Go to Images",
+    "note": "Button under an empty collection (Images page) and on the empty Collections page that shows the whole photo library. Images is the section's name in the menu.",
+    "max": 24
+  },
+  "web.images.grid.loading": {
+    "text": "Loading photos",
+    "note": "Screen-reader name of the grey placeholder tiles in Images while the photos load."
+  },
+  "web.images.grid.month_short": {
+    "text": "{month} {year}",
+    "args": [["month", "text"], ["year", "text"]],
+    "note": "Short form of a month's title in Images, shown instead of web.images.grid.month_title when the month has a single photo and its column is too narrow for the full name. {month} is the month's short name as the browser writes it in this language (Mar), {year} the year in digits (2024).",
+    "max": 16
+  },
+  "web.images.grid.month_title": {
+    "text": "{month} {year}",
+    "args": [["month", "text"], ["year", "text"]],
+    "note": "Title over each month of photos in Images (the photos are grouped by month, newest first). {month} is the month's full name as the browser writes it on its own in this language (March), {year} the year in digits (2024).",
+    "max": 32
+  },
+  "web.images.grid.more_failed": {
+    "text": "Couldn't load more photos.",
+    "note": "At the end of the photos in Images when the next ones could not be fetched; a Try again button follows it."
+  },
+  "web.images.grid.no_match_in": {
+    "text": "Nothing in “{name}” matches this search.",
+    "args": [["name", "user"]],
+    "note": "Text under web.images.grid.no_match_title when a collection is open and nothing in it matches the search. {name} is the collection's name. Use this language's quotation marks."
+  },
+  "web.images.grid.no_match_text": {
+    "text": "Try other words, or fewer of them.",
+    "note": "Text under web.images.grid.no_match_title when the whole library was searched."
+  },
+  "web.images.grid.no_match_title": {
+    "text": "No photos match",
+    "note": "Title of the Images page when the search in the top bar (words, people) finds no photo."
+  },
+  "web.images.grid.tile_photo": {
+    "text": "Photo",
+    "note": "Screen-reader name of a photo's tile in Images when the photo has no date. Pressing it opens the photo."
+  },
+  "web.images.grid.tile_photo_dated": {
+    "text": "Photo, {date}",
+    "args": [["date", "text"]],
+    "note": "Screen-reader name of a photo's tile in Images. {date} is the day it was taken (web.images.grid.date: 1 September 2026)."
+  },
+  "web.images.grid.tile_video": {
+    "text": "Video",
+    "note": "Screen-reader name of a video's tile in Images when the video has no date. Pressing it opens the video."
+  },
+  "web.images.grid.tile_video_dated": {
+    "text": "Video, {date}",
+    "args": [["date", "text"]],
+    "note": "Screen-reader name of a video's tile in Images. {date} is the day it was recorded (web.images.grid.date: 1 September 2026)."
+  },
+  "web.images.grid.trying": {
+    "text": "Trying…",
+    "note": "The Try again button on the Images page (device unreachable) while it asks the device again, next to a spinner.",
+    "max": 24
+  },
+  "web.images.grid.unreachable_text": {
+    "text": "Your photos will appear as soon as it answers.",
+    "note": "Text under web.images.grid.unreachable_title on the Images page. \"It\" is the user's device."
+  },
+  "web.images.grid.unreachable_title": {
+    "text": "Can't reach your device",
+    "note": "Title of the Images page when the first photos could not be fetched because the user's device didn't answer. The page keeps trying by itself."
+  },
+  "web.images.load.check": {
+    "text": "Check that your device is online, then try again.",
+    "note": "Text under web.images.collections.failed or web.images.people.failed, over a Try again button."
+  },
+  "web.images.load.waiting": {
+    "text": "Still waiting for your device",
+    "note": "Title of the Collections or People page when their list takes more than 10 seconds to come from the device; a Try again button follows."
+  },
+  "web.images.people.add_name": {
+    "text": "Add a name",
+    "note": "Button under a face without a name on the People page, and the first item of its … menu: opens a field to type the person's name.",
+    "max": 24
+  },
+  "web.images.people.count": {
+    "text": {
+      "one": "{count} selected",
+      "other": "{count} selected"
+    },
+    "args": [["count", "count"]],
+    "note": "In the selection bar of the People page: how many people (faces) are selected. Agree with people if the form changes.",
+    "max": 20
+  },
+  "web.images.people.delete_failed": {
+    "text": "They couldn't be deleted. Try again.",
+    "note": "Error in the Delete dialog of the People page when the device refused to delete any of several people."
+  },
+  "web.images.people.delete_failed_one": {
+    "text": "This person couldn't be deleted. Try again.",
+    "note": "Error in the Delete dialog of the People page when the device refused to delete the one person asked."
+  },
+  "web.images.people.delete_many": {
+    "text": "Delete {number} people?",
+    "args": [["number", "int"]],
+    "note": "Title of the dialog that asks before deleting the selected people (People page). {number} is how many (always 2 or more).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d1e609b5"
+  },
+  "web.images.people.delete_named": {
+    "text": "Delete {name}?",
+    "args": [["name", "user"]],
+    "note": "Title of the dialog that asks before deleting a person (People page). {name} is the person's name. Only the person and the faces matched to them go; the photos stay.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #c44e8671"
+  },
+  "web.images.people.delete_partial": {
+    "text": {
+      "one": "{count} of {total} people couldn't be deleted and is still selected. Try again.",
+      "other": "{count} of {total} people couldn't be deleted and are still selected. Try again."
+    },
+    "args": [["count", "count"], ["total", "int"]],
+    "note": "Error at the bottom of the People page when only some of several people could be deleted. {count} is how many could not be deleted (they stay selected), {total} how many were asked (always 2 or more)."
+  },
+  "web.images.people.delete_text": {
+    "text": "Their photos stay; only the faces matched to them are forgotten. This can't be undone, and they'll come back as new people in photos added later.",
+    "note": "Text of the dialog that asks before deleting people (People page): the people and the faces matched to them go, the photos stay, and a face in a photo added later is found as someone new.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #1efd0591"
+  },
+  "web.images.people.delete_this": {
+    "text": "Delete this person?",
+    "note": "Title of the dialog that asks before deleting a person without a name (People page).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d0d44d1d"
+  },
+  "web.images.people.deleted": {
+    "text": {
+      "one": "Deleted {count} person",
+      "other": "Deleted {count} people"
+    },
+    "args": [["count", "count"]],
+    "note": "Message at the bottom of the People page once several people are deleted (their photos stay). {count} is how many."
+  },
+  "web.images.people.deleted_one": {
+    "text": "Person deleted",
+    "note": "Message at the bottom of the People page once one person is deleted (their photos stay)."
+  },
+  "web.images.people.deleting_label": {
+    "text": "Delete…",
+    "note": "Screen-reader name of the Delete button of the People page's Delete dialog while the deletion runs (its label is a spinner then)."
+  },
+  "web.images.people.different_names": {
+    "text": "They have different names, and only one can stay. Pick the face to keep.",
+    "note": "Under the faces of the Merge dialog (People page) when the people to merge have different names and none is picked yet."
+  },
+  "web.images.people.dropped_many": {
+    "text": "The names {names} will be dropped.",
+    "args": [["names", "text"]],
+    "note": "Under the faces of the Merge dialog (People page), after web.images.people.will_be_called: names the other people have, which the merged person won't keep. {names} is a list of names (web.images.people.names_two, web.images.people.names_more)."
+  },
+  "web.images.people.dropped_one": {
+    "text": "The name {name} will be dropped.",
+    "args": [["name", "user"]],
+    "note": "Under the faces of the Merge dialog (People page), after web.images.people.will_be_called: a name one of the other people has, which the merged person won't keep. {name} is that name."
+  },
+  "web.images.people.empty_text": {
+    "text": "Face recognition runs on the device after photos are uploaded. You can switch it on in Settings.",
+    "note": "Text under web.images.people.empty_title. Face recognition is off unless the user switches it on in Settings; it runs on the user's own device. Settings is the section's name.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #53edb429"
+  },
+  "web.images.people.empty_title": {
+    "text": "No faces found yet",
+    "note": "Title of the People page when the device has found no faces."
+  },
+  "web.images.people.face_named": {
+    "text": {
+      "one": "{name}, {count} photo",
+      "other": "{name}, {count} photos"
+    },
+    "args": [["name", "user"], ["count", "count"]],
+    "note": "Screen-reader name of a face on the People page (pressing it shows the person's photos). {name} is the person's name, {count} how many photos they were found in."
+  },
+  "web.images.people.face_unnamed": {
+    "text": {
+      "one": "Unnamed person, {count} photo",
+      "other": "Unnamed person, {count} photos"
+    },
+    "args": [["count", "count"]],
+    "note": "Screen-reader name of a face without a name on the People page (pressing it shows the person's photos). {count} is how many photos the person was found in."
+  },
+  "web.images.people.failed": {
+    "text": "Couldn't load people",
+    "note": "Title of the People page when the list of people could not be fetched from the device."
+  },
+  "web.images.people.keep": {
+    "text": "Keep",
+    "note": "Small badge with a tick on the face picked to keep in the Merge dialog (People page).",
+    "max": 10
+  },
+  "web.images.people.keep_group": {
+    "text": "Face to keep",
+    "note": "Screen-reader name of the faces to choose from in the Merge dialog (People page): the one picked stays."
+  },
+  "web.images.people.loading": {
+    "text": "Loading people",
+    "note": "Screen-reader name of the grey placeholder faces on the People page while the list loads."
+  },
+  "web.images.people.menu": {
+    "text": "Person options",
+    "note": "Screen-reader name of a face's … menu on the People page (Rename, Merge with others…, Delete)."
+  },
+  "web.images.people.merge": {
+    "text": "Merge",
+    "note": "Button in the selection bar of the People page, and the confirming button of the Merge dialog: makes the selected faces one person (face recognition split one person in several).",
+    "max": 20
+  },
+  "web.images.people.merge_failed": {
+    "text": "They couldn't be merged. Try again.",
+    "note": "Error in the Merge dialog (People page) when the device refused to merge the selected people."
+  },
+  "web.images.people.merge_hint": {
+    "text": "Select the faces of the same person",
+    "note": "Hint in the selection bar of the People page after Merge with others…, while only one face is selected."
+  },
+  "web.images.people.merge_name_failed": {
+    "text": "The name couldn't be saved, so nothing was merged. Try again.",
+    "note": "Error in the Merge dialog (People page) when the merged person's name could not be saved first, so the merge didn't start."
+  },
+  "web.images.people.merge_needs_two": {
+    "text": "Select 2 or more faces to merge them into one.",
+    "note": "Message at the bottom of the People page when the dimmed Merge button is pressed with one face selected."
+  },
+  "web.images.people.merge_others": {
+    "text": "Merge with others…",
+    "note": "Item of a face's … menu on the People page: starts a selection with this face, to pick the other faces of the same person and merge them.",
+    "max": 32
+  },
+  "web.images.people.merge_text": {
+    "text": "Pick the face to keep: it keeps its name and picture, and gets the photos of the others. This can't be undone.",
+    "note": "Text of the Merge dialog (People page), over the faces to choose from.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d8c59932"
+  },
+  "web.images.people.merge_title": {
+    "text": "Merge {number} people into one?",
+    "args": [["number", "int"]],
+    "note": "Title of the dialog that asks before merging the selected people (People page). {number} is how many (always 2 or more).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #465f254c"
+  },
+  "web.images.people.merge_unavailable": {
+    "text": "Select 2 or more to merge",
+    "note": "Tooltip of the dimmed Merge button (People page's selection bar) while fewer than 2 faces are selected."
+  },
+  "web.images.people.merge_unavailable_label": {
+    "text": "Merge (select 2 or more to merge)",
+    "note": "Screen-reader name of the dimmed Merge button (People page's selection bar) while fewer than 2 faces are selected: web.images.people.merge, then why it can't be used yet."
+  },
+  "web.images.people.merged": {
+    "text": "Merged {number} faces",
+    "args": [["number", "int"]],
+    "note": "Message at the bottom of the People page after merging people who have no name. {number} is how many faces became one (always 2 or more)."
+  },
+  "web.images.people.merged_named": {
+    "text": "Merged {number} into {name}",
+    "args": [["number", "int"], ["name", "user"]],
+    "note": "Message at the bottom of the People page after a merge. {number} is how many faces became one (always 2 or more), {name} the merged person's name."
+  },
+  "web.images.people.merging_label": {
+    "text": "Merge…",
+    "note": "Screen-reader name of the Merge button of the People page's Merge dialog while the merge runs (its label is a spinner then)."
+  },
+  "web.images.people.more": {
+    "text": "More options",
+    "note": "Tooltip of the … button on a face (People page) that opens its menu.",
+    "max": 24
+  },
+  "web.images.people.more_named": {
+    "text": "More options for {name}",
+    "args": [["name", "user"]],
+    "note": "Screen-reader name of the … button on a face (People page) that opens its menu (Rename, Merge with others…, Delete). {name} is the person's name."
+  },
+  "web.images.people.more_unnamed": {
+    "text": "More options for this person",
+    "note": "Screen-reader name of the … button on a face without a name (People page) that opens its menu (Add a name, Merge with others…, Delete)."
+  },
+  "web.images.people.name_add_placeholder": {
+    "text": "Add a name",
+    "note": "Placeholder of the name field in the Merge dialog (People page): the merged person's name, which may be left empty."
+  },
+  "web.images.people.name_label": {
+    "text": "Name <dim>(optional)</dim>",
+    "note": "Label of the name field in the Merge dialog (People page), shown when none of the people to merge has a name. <dim> marks the part shown in grey.",
+    "rich": ["dim"]
+  },
+  "web.images.people.name_placeholder": {
+    "text": "Name",
+    "note": "Placeholder of the field under a face on the People page where its name is typed.",
+    "max": 20
+  },
+  "web.images.people.name_this": {
+    "text": "Name this person",
+    "note": "Screen-reader name of the field under a face without a name on the People page while a name is typed."
+  },
+  "web.images.people.names_more": {
+    "text": "{first}, {rest}",
+    "args": [["first", "user"], ["rest", "text"]],
+    "note": "A list of three or more people's names (in web.images.people.dropped_many), built one name at a time: {first} is a name, {rest} the rest of the list (web.images.people.names_two, or this again). Ana, Leo and Rosa."
+  },
+  "web.images.people.names_two": {
+    "text": "{first} and {second}",
+    "args": [["first", "user"], ["second", "user"]],
+    "note": "The last two names of a list of people's names (in web.images.people.dropped_many): Ana and Leo."
+  },
+  "web.images.people.new_name": {
+    "text": "New name",
+    "note": "Screen-reader name of the field under a named face on the People page while it is renamed."
+  },
+  "web.images.people.no_answer": {
+    "text": "Your device didn't answer. Try again.",
+    "note": "Error in the Merge or Delete dialog of the People page when the device didn't answer."
+  },
+  "web.images.people.photos": {
+    "text": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    },
+    "args": [["count", "count"]],
+    "note": "Under each face on the People page (and in the Merge dialog): how many photos the person was found in.",
+    "max": 24
+  },
+  "web.images.people.progress": {
+    "text": "{done} of {total}",
+    "args": [["done", "int"], ["total", "int"]],
+    "note": "Next to the spinner on the Delete button of the People page's Delete dialog while several people are deleted: {done} is the one being deleted now, {total} how many there are.",
+    "max": 20
+  },
+  "web.images.people.save_failed": {
+    "text": "The name couldn't be saved. Try again.",
+    "note": "Error at the bottom of the People page when a person's new name could not be saved on the device."
+  },
+  "web.images.people.select_named": {
+    "text": {
+      "one": "Select {name}, {count} photo",
+      "other": "Select {name}, {count} photos"
+    },
+    "args": [["name", "user"], ["count", "count"]],
+    "note": "Screen-reader name of the circle on a face (People page) that selects it, to merge or delete. {name} is the person's name, {count} how many photos they were found in."
+  },
+  "web.images.people.select_unnamed": {
+    "text": {
+      "one": "Select Unnamed person, {count} photo",
+      "other": "Select Unnamed person, {count} photos"
+    },
+    "args": [["count", "count"]],
+    "note": "Screen-reader name of the circle on a face without a name (People page) that selects it, to merge or delete. {count} is how many photos the person was found in."
+  },
+  "web.images.people.selected": {
+    "text": "Selected people",
+    "note": "Screen-reader name of the bar that replaces the top bar while faces are selected on the People page (it holds Merge and Delete)."
+  },
+  "web.images.people.slow": {
+    "text": "People are taking longer than usual to load.",
+    "note": "Text under web.images.load.waiting on the People page when the list takes more than 10 seconds."
+  },
+  "web.images.people.title": {
+    "text": "People",
+    "note": "Title of the People page: the faces face recognition found in the photos. Same word as the menu item.",
+    "max": 24
+  },
+  "web.images.people.will_be_called": {
+    "text": "The merged person will be called <b>{name}</b>.",
+    "args": [["name", "user"]],
+    "note": "Under the faces of the Merge dialog (People page): the name the merged person gets. {name} is that name, shown in bold (<b>).",
+    "rich": ["b"]
+  },
+  "web.images.person.more": {
+    "text": {
+      "one": "{first}, {second} & {count} other",
+      "other": "{first}, {second} & {count} others"
+    },
+    "args": [["first", "user"], ["second", "user"], ["count", "count"]],
+    "note": "Title over Images when three or more people's photos are shown together. {first} and {second} are the first two names, {count} how many more people there are."
+  },
+  "web.images.person.two": {
+    "text": "{first} & {second}",
+    "args": [["first", "user"], ["second", "user"]],
+    "note": "Title over Images when two people's photos are shown together (picked on the People page or in the search). {first} and {second} are their names."
+  },
+  "web.images.picker.all": {
+    "text": "All photos",
+    "note": "First chip of the photo picker (profile picture): shows every photo; the other chips are the user's collections.",
+    "max": 24
+  },
+  "web.images.picker.empty": {
+    "text": "No photos here yet.",
+    "note": "In the photo picker (profile picture) when the chosen chip (all photos or a collection) holds no photos."
+  },
+  "web.images.picker.failed": {
+    "text": "That photo could not be fetched from the device ({detail}).",
+    "args": [["detail", "text"]],
+    "note": "Error in the photo picker (profile picture) when the picked photo could not be fetched. {detail} is the device's or the connection's own explanation, already in the user's language."
+  },
+  "web.images.picker.label": {
+    "text": "Choose a photo from your device",
+    "note": "Screen-reader name of the dialog that picks the profile picture among the photos on the user's device (Settings, Profile)."
+  },
+  "web.images.picker.no_answer": {
+    "text": "That photo could not be fetched from the device (no answer).",
+    "note": "Error in the photo picker (profile picture) when the picked photo could not be fetched and the device gave no reason."
+  },
+  "web.images.picker.opening": {
+    "text": "Opening",
+    "note": "Screen-reader name of the spinner on a photo in the photo picker while it is fetched from the device."
+  },
+  "web.images.picker.title": {
+    "text": "Choose a photo",
+    "note": "Title of the dialog that picks the profile picture among the photos on the user's device (Settings, Profile)."
+  },
+  "web.images.post.caption": {
+    "text": "Caption",
+    "note": "Label of the text field in the New Social Post dialog: what the post says about its photos.",
+    "max": 24
+  },
+  "web.images.post.caption_placeholder": {
+    "text": "Say something about them (optional)",
+    "note": "Placeholder of the Caption field in the New Social Post dialog. \"Them\" are the post's photos."
+  },
+  "web.images.post.earlier_photo": {
+    "text": "Move photo {number} earlier",
+    "args": [["number", "int"]],
+    "note": "Screen-reader name of the left arrow under a photo in the New Social Post dialog: moves it one place towards the start of the post. {number} is its place now (1, 2...)."
+  },
+  "web.images.post.earlier_video": {
+    "text": "Move video {number} earlier",
+    "args": [["number", "int"]],
+    "note": "Screen-reader name of the left arrow under a video in the New Social Post dialog: moves it one place towards the start of the post. {number} is its place now (1, 2...)."
+  },
+  "web.images.post.empty": {
+    "text": "No photos left in this post.",
+    "note": "In the New Social Post dialog once every photo was removed from the post."
+  },
+  "web.images.post.failed": {
+    "text": "Couldn't publish the post. Try again.",
+    "note": "Error in the New Social Post dialog when the device refused the post; the device's own explanation may follow on its own line."
+  },
+  "web.images.post.later_photo": {
+    "text": "Move photo {number} later",
+    "args": [["number", "int"]],
+    "note": "Screen-reader name of the right arrow under a photo in the New Social Post dialog: moves it one place towards the end of the post. {number} is its place now (1, 2...)."
+  },
+  "web.images.post.later_video": {
+    "text": "Move video {number} later",
+    "args": [["number", "int"]],
+    "note": "Screen-reader name of the right arrow under a video in the New Social Post dialog: moves it one place towards the end of the post. {number} is its place now (1, 2...)."
+  },
+  "web.images.post.photos": {
+    "text": "Photos in the post, in order",
+    "note": "Screen-reader name of the row of thumbnails in the New Social Post dialog, in the order the post will show them."
+  },
+  "web.images.post.posted": {
+    "text": "Posted to Social",
+    "note": "Message at the bottom of Images once the post is published. Social is the section with friends' posts (menu)."
+  },
+  "web.images.post.publish": {
+    "text": "Publish",
+    "note": "Button of the New Social Post dialog that publishes the post for friends.",
+    "max": 24
+  },
+  "web.images.post.publishing": {
+    "text": "Publishing…",
+    "note": "The Publish button of the New Social Post dialog while the post is sent, next to a spinner.",
+    "max": 24
+  },
+  "web.images.post.remove_photo": {
+    "text": "Remove photo {number}",
+    "args": [["number", "int"]],
+    "note": "Screen-reader name of the × on a photo in the New Social Post dialog: takes it out of the post (not off the device). {number} is its place in the post (1, 2...)."
+  },
+  "web.images.post.remove_video": {
+    "text": "Remove video {number}",
+    "args": [["number", "int"]],
+    "note": "Screen-reader name of the × on a video in the New Social Post dialog: takes it out of the post (not off the device). {number} is its place in the post (1, 2...)."
+  },
+  "web.images.post.title": {
+    "text": "New Social Post",
+    "note": "Title of the dialog that publishes the selected photos as a post for friends (Social section)."
+  },
+  "web.images.post.unreachable": {
+    "text": "Couldn't reach your device. Check the connection and try again.",
+    "note": "Error in the New Social Post dialog when the device didn't answer."
+  },
+  "web.images.select.clear": {
+    "text": "Clear selection",
+    "note": "Screen-reader name and tooltip of the × at the left of the selection bar (Images and People): it unselects everything and closes the bar.",
+    "max": 30
+  },
+  "web.images.select.collect": {
+    "text": "Add to Collection",
+    "note": "Button in the selection bar of Images that puts the selected photos in a collection (opens the Add to collection dialog). Shown as an icon with this as its tooltip on narrow windows.",
+    "max": 24
+  },
+  "web.images.select.count": {
+    "text": {
+      "one": "{count} selected",
+      "other": "{count} selected"
+    },
+    "args": [["count", "count"]],
+    "note": "In the selection bar of Images: how many photos and videos are selected. Agree with photos (feminine in some languages) if the form changes.",
+    "max": 20
+  },
+  "web.images.select.label": {
+    "text": "Selected photos",
+    "note": "Screen-reader name of the bar that replaces the top bar while photos are selected in Images (it holds Social Post, Add to Collection, Share and Delete)."
+  },
+  "web.images.select.post": {
+    "text": "Social Post",
+    "note": "Button in the selection bar of Images that opens the New Social Post dialog with the selected photos (a post for friends in Social). Shown as an icon with this as its tooltip on narrow windows.",
+    "max": 24
+  },
+  "web.images.share.copied": {
+    "text": "Link copied",
+    "note": "Message at the bottom of Images once the download link of the selected photos is on the clipboard."
+  },
+  "web.images.share.copy": {
+    "text": "Copy",
+    "note": "Button next to the download link in the dialog web.images.share.link_title that copies it.",
+    "max": 16
+  },
+  "web.images.share.copy_done": {
+    "text": "Copied",
+    "note": "The Copy button (web.images.share.copy) once the link was copied.",
+    "max": 16
+  },
+  "web.images.share.copy_link": {
+    "text": "Copy link",
+    "note": "Item of the Share menu (selection bar in Images): makes a download link for the selected photos and copies it.",
+    "max": 40
+  },
+  "web.images.share.copy_link_hint": {
+    "text": "A link to download them",
+    "note": "Second line of the Share menu's web.images.share.copy_link item, explaining it. \"Them\" are the selected photos.",
+    "max": 48,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #b7f3705d"
+  },
+  "web.images.share.gallery": {
+    "text": "Share as a gallery page",
+    "note": "First item of the Share menu (selection bar in Images): makes a web page with the selected photos that anyone with its link can open.",
+    "max": 40
+  },
+  "web.images.share.gallery_hint": {
+    "text": "A page anyone with the link can see",
+    "note": "Second line of the Share menu's web.images.share.gallery item, explaining it.",
+    "max": 48,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #8d85b84d"
+  },
+  "web.images.share.link_failed": {
+    "text": "Couldn't make the link. Try again.",
+    "note": "Error at the bottom of Images when the device could not make a download link for the selected photos."
+  },
+  "web.images.share.link_field": {
+    "text": "Link",
+    "note": "Screen-reader name of the field holding the download link in the dialog web.images.share.link_title."
+  },
+  "web.images.share.link_text": {
+    "text": "Anyone with this link can download these files.",
+    "note": "Text under web.images.share.link_title, over the link.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #225cb12b"
+  },
+  "web.images.share.link_title": {
+    "text": "Your link is ready",
+    "note": "Title of the dialog that shows a download link to copy by hand (when the browser didn't let the page copy it)."
+  },
+  "web.images.share.preparing_link": {
+    "text": "Preparing the link…",
+    "note": "Message at the bottom of Images, with a spinner, while the device makes a download link for the selected photos."
+  },
+  "web.images.share.preparing_zip": {
+    "text": "Preparing the ZIP…",
+    "note": "Message at the bottom of Images, with a spinner, while the device makes a ZIP of the selected photos; also the title of the browser tab opened for its download."
+  },
+  "web.images.share.zip": {
+    "text": "Download ZIP",
+    "note": "Item of the Share menu (selection bar in Images): downloads the selected photos in one ZIP file.",
+    "max": 40
+  },
+  "web.images.share.zip_failed": {
+    "text": "Couldn't make the ZIP. Try again.",
+    "note": "Error at the bottom of Images when the device could not make a ZIP of the selected photos."
+  },
+  "web.images.share.zip_hint": {
+    "text": "Save them on this device",
+    "note": "Second line of the Share menu's web.images.share.zip item. \"Them\" are the selected photos; \"this device\" is the computer or phone the browser runs on.",
+    "max": 48
+  },
+  "web.images.share.zip_ready": {
+    "text": "Your ZIP is ready",
+    "note": "Message at the bottom of Images when the ZIP is made but the browser blocked the tab that would download it; a Download button follows."
+  },
+  "web.images.share.zip_tab": {
+    "text": "Preparing the ZIP… It downloads from here once it's ready.",
+    "note": "The only text of the new browser tab opened for a ZIP download while the device makes the ZIP; the download starts in that tab."
+  },
+  "web.images.trim.end": {
+    "text": "End of the cut",
+    "note": "Screen-reader name of the slider that sets where the part of the video to keep ends (Trim video panel)."
+  },
+  "web.images.trim.keeping": {
+    "text": "Keeping <b>{kept}</b> of {total}",
+    "args": [["kept", "text"], ["total", "text"]],
+    "note": "Under the sliders of the Trim video panel: how long the part kept is, of the whole video. {kept} and {total} are lengths written as minutes:seconds.tenths (0:12.3, 1:05.0). <b> is shown in bold.",
+    "rich": ["b"]
+  },
+  "web.images.trim.play": {
+    "text": "Play cut",
+    "note": "Button in the Trim video panel (after a ▶ symbol) that plays only the part of the video that will be kept.",
+    "max": 20
+  },
+  "web.images.trim.reading": {
+    "text": "Reading the clip…",
+    "note": "In the Trim video panel while the browser reads the video's length."
+  },
+  "web.images.trim.remove": {
+    "text": "Remove trim",
+    "note": "Button in the Trim video panel, when the video was trimmed before, that goes back to the whole video.",
+    "max": 24
+  },
+  "web.images.trim.start": {
+    "text": "Start of the cut",
+    "note": "Screen-reader name of the slider that sets where the part of the video to keep begins (Trim video panel)."
+  },
+  "web.images.trim.title": {
+    "text": "Trim video",
+    "note": "Title (and screen-reader name) of the panel that picks the part of a video to post (New post in Social)."
+  },
+  "web.images.trim.unopenable": {
+    "text": "This video could not be opened for trimming.",
+    "note": "In the Trim video panel when the browser could not open the video at all."
+  },
+  "web.images.trim.unreadable": {
+    "text": "This browser could not read this video, so it can't be trimmed here.",
+    "note": "In the Trim video panel when the browser didn't manage to read the video's length in time."
+  },
+  "web.images.viewer.aperture": {
+    "text": "Aperture",
+    "note": "Label in the photo viewer's details panel, before the lens aperture (f/1.8).",
+    "max": 20
+  },
+  "web.images.viewer.camera": {
+    "text": "Camera",
+    "note": "Label in the photo viewer's details panel, before the camera's make and model.",
+    "max": 20
+  },
+  "web.images.viewer.codec": {
+    "text": "This browser can't play this video.",
+    "note": "In the full-screen viewer, over the video's still image, when the browser can't decode the video."
+  },
+  "web.images.viewer.codec_hint": {
+    "text": "It may be recorded in HEVC, which not every browser can decode - Safari handles it, and recent Chrome does on hardware that supports it.",
+    "note": "Under web.images.viewer.codec. HEVC (a video format), Safari and Chrome (browsers) are names: keep them."
+  },
+  "web.images.viewer.dimensions": {
+    "text": "Dimensions",
+    "note": "Label in the photo viewer's details panel, before the photo's width × height in pixels.",
+    "max": 20
+  },
+  "web.images.viewer.download_it": {
+    "text": "Download it",
+    "note": "Link under web.images.viewer.codec or web.images.viewer.stalled that downloads the video so it can be played in another program. \"It\" is the video.",
+    "max": 24
+  },
+  "web.images.viewer.exposure": {
+    "text": "Exposure",
+    "note": "Label in the photo viewer's details panel, before the exposure time (1/120 s).",
+    "max": 20
+  },
+  "web.images.viewer.focal_length": {
+    "text": "Focal length",
+    "note": "Label in the photo viewer's details panel, before the lens focal length (26 mm).",
+    "max": 20
+  },
+  "web.images.viewer.info": {
+    "text": "Info",
+    "note": "Button at the top left of the full-screen photo viewer, after a small i, that opens the photo's details (web.images.viewer.more_info).",
+    "max": 12
+  },
+  "web.images.viewer.iso": {
+    "text": "ISO",
+    "note": "Label in the photo viewer's details panel, before the sensor sensitivity (ISO 100). Usually kept as ISO.",
+    "max": 20
+  },
+  "web.images.viewer.location": {
+    "text": "Location",
+    "note": "Label in the photo viewer's details panel, before the city and country where the photo was taken.",
+    "max": 20
+  },
+  "web.images.viewer.map": {
+    "text": "Photo location",
+    "note": "Screen-reader name of the map in the photo viewer's details panel that shows where the photo was taken."
+  },
+  "web.images.viewer.more_info": {
+    "text": "More info",
+    "note": "Tooltip of the Info button in the full-screen photo viewer, and the heading of the panel it opens (camera, date, size, place of the photo)."
+  },
+  "web.images.viewer.next": {
+    "text": "Next",
+    "note": "Screen-reader name of the › arrow in the full-screen photo viewer that shows the next photo."
+  },
+  "web.images.viewer.no_exif": {
+    "text": "No EXIF metadata in this file",
+    "note": "In the photo viewer's details panel when the file has no camera details (EXIF, the camera's data inside a photo; keep the word)."
+  },
+  "web.images.viewer.no_metadata": {
+    "text": "No metadata found",
+    "note": "In the photo viewer's details panel (web.images.viewer.more_info) when the device could not read any details of the file."
+  },
+  "web.images.viewer.previous": {
+    "text": "Previous",
+    "note": "Screen-reader name of the ‹ arrow in the full-screen photo viewer that shows the previous photo."
+  },
+  "web.images.viewer.stalled": {
+    "text": "This video is taking too long to load.",
+    "note": "In the full-screen viewer, over the video's still image, when nothing of the video arrived for a while."
+  },
+  "web.images.viewer.stalled_hint": {
+    "text": "Nothing has arrived from your device for a while - it may be busy or hard to reach right now. Trying again usually works.",
+    "note": "Under web.images.viewer.stalled."
+  },
+  "web.images.viewer.taken": {
+    "text": "Taken",
+    "note": "Label in the photo viewer's details panel, before the date and time the photo was taken.",
+    "max": 20
+  }
+}

@@ -86,12 +86,510 @@ export type MessageKey =
   | "common.update"
   | "common.updating"
   | "common.upload"
+  | "web.files.column.created"
+  | "web.files.column.modified"
+  | "web.files.column.name"
+  | "web.files.column.size"
+  | "web.files.gallery.cant_show"
+  | "web.files.gallery.download_all"
+  | "web.files.gallery.download_count"
+  | "web.files.gallery.download_failed"
+  | "web.files.gallery.downloading"
+  | "web.files.gallery.incomplete"
+  | "web.files.gallery.loading_percent"
+  | "web.files.gallery.low_res"
+  | "web.files.gallery.meta"
+  | "web.files.gallery.meta_until"
+  | "web.files.gallery.next"
+  | "web.files.gallery.not_found"
+  | "web.files.gallery.open_failed"
+  | "web.files.gallery.opening"
+  | "web.files.gallery.position"
+  | "web.files.gallery.previous"
+  | "web.files.gallery.select_all"
+  | "web.files.gallery.stopped"
+  | "web.files.gallery.title"
+  | "web.files.keep_out.banner"
+  | "web.files.keep_out.banner_parent"
+  | "web.files.keep_out.confirm_keep"
+  | "web.files.keep_out.confirm_show"
+  | "web.files.keep_out.kept"
+  | "web.files.keep_out.parent_tip"
+  | "web.files.keep_out.show"
+  | "web.files.keep_out.show_named"
+  | "web.files.keep_out.shown"
+  | "web.files.keep_out.state"
+  | "web.files.keep_out.switch"
+  | "web.files.keep_out.tip_off"
+  | "web.files.keep_out.tip_on"
+  | "web.files.links.confirm_delete"
+  | "web.files.links.delete_failed"
+  | "web.files.links.details"
+  | "web.files.links.details_files"
+  | "web.files.links.gallery"
+  | "web.files.links.hint"
+  | "web.files.links.load_failed"
+  | "web.files.links.never_opened"
+  | "web.files.links.none"
+  | "web.files.links.opened"
+  | "web.files.links.title"
+  | "web.files.links.total"
+  | "web.files.links.zip"
+  | "web.files.list.contents"
+  | "web.files.list.empty"
+  | "web.files.list.list_failed"
+  | "web.files.list.opening"
+  | "web.files.list.select_item"
+  | "web.files.list.unexpected"
+  | "web.files.list.update_failed"
+  | "web.files.list.upload_only_refused"
+  | "web.files.list.video"
+  | "web.files.lock.clear"
+  | "web.files.lock.file"
+  | "web.files.lock.make"
+  | "web.files.lock.off_tip"
+  | "web.files.lock.on_tip"
+  | "web.files.lock.on_tip_short"
+  | "web.files.results.back"
+  | "web.files.results.back_files"
+  | "web.files.results.cant_search"
+  | "web.files.results.count"
+  | "web.files.results.file_kept_out"
+  | "web.files.results.first"
+  | "web.files.results.folder_kept_out"
+  | "web.files.results.list"
+  | "web.files.results.no_answer"
+  | "web.files.results.none_for"
+  | "web.files.results.nothing"
+  | "web.files.results.photo_kept_out"
+  | "web.files.results.searching"
+  | "web.files.results.searching_for"
+  | "web.files.results.title"
+  | "web.files.results.unreachable"
+  | "web.files.results.video_kept_out"
+  | "web.files.selection.confirm_delete"
+  | "web.files.selection.download_zip"
+  | "web.files.selection.link_copied"
+  | "web.files.selection.preparing"
+  | "web.files.selection.preparing_zip"
+  | "web.files.selection.share_gallery"
+  | "web.files.selection.share_gallery_tip"
+  | "web.files.selection.upload_only"
+  | "web.files.share.available_for"
+  | "web.files.share.copied"
+  | "web.files.share.copy"
+  | "web.files.share.copying"
+  | "web.files.share.days"
+  | "web.files.share.default_description"
+  | "web.files.share.description"
+  | "web.files.share.link"
+  | "web.files.share.looking"
+  | "web.files.share.lost"
+  | "web.files.share.low_res_note"
+  | "web.files.share.note"
+  | "web.files.share.preview_failed"
+  | "web.files.share.ready"
+  | "web.files.share.skipped"
+  | "web.files.share.start_failed"
+  | "web.files.share.title"
+  | "web.files.share.videos_left_out"
+  | "web.files.size.b"
+  | "web.files.size.gb"
+  | "web.files.size.kb"
+  | "web.files.size.mb"
+  | "web.files.toolbar.grid"
+  | "web.files.toolbar.list"
+  | "web.files.toolbar.path"
+  | "web.files.toolbar.view"
+  | "web.files.upload.done"
+  | "web.files.upload.failed"
+  | "web.files.upload.finished_failed"
+  | "web.files.upload.progress"
+  | "web.files.upload.reading"
+  | "web.files.upload.uploaded"
+  | "web.files.upload.uploading"
+  | "web.files.versions.count"
+  | "web.files.versions.current"
+  | "web.files.versions.hint"
+  | "web.files.versions.replaced"
+  | "web.files.versions.tip"
+  | "web.files.versions.title"
+  | "web.images.collect.add_failed"
+  | "web.images.collect.added"
+  | "web.images.collect.create_failed"
+  | "web.images.collect.creating"
+  | "web.images.collect.list"
+  | "web.images.collect.name_placeholder"
+  | "web.images.collect.new"
+  | "web.images.collect.new_label"
+  | "web.images.collect.title"
+  | "web.images.collect.view"
+  | "web.images.collection.delete"
+  | "web.images.collection.delete_failed"
+  | "web.images.collection.delete_text"
+  | "web.images.collection.delete_title"
+  | "web.images.collection.name_field"
+  | "web.images.collection.rename"
+  | "web.images.collection.rename_failed"
+  | "web.images.collection.rename_unreachable"
+  | "web.images.collection.share"
+  | "web.images.collection.span_full"
+  | "web.images.collection.span_month"
+  | "web.images.collection.span_months"
+  | "web.images.collection.span_years"
+  | "web.images.collections.card"
+  | "web.images.collections.empty_title"
+  | "web.images.collections.failed"
+  | "web.images.collections.loading"
+  | "web.images.collections.slow"
+  | "web.images.collections.title"
+  | "web.images.collections.untitled"
+  | "web.images.count.items"
+  | "web.images.count.photos"
+  | "web.images.count.photos_and_videos"
+  | "web.images.count.videos"
+  | "web.images.crop.failed"
+  | "web.images.crop.hint"
+  | "web.images.crop.label"
+  | "web.images.crop.title"
+  | "web.images.crop.unsupported"
+  | "web.images.crop.use"
+  | "web.images.crop.zoom"
+  | "web.images.delete.done"
+  | "web.images.delete.failed"
+  | "web.images.delete.progress"
+  | "web.images.delete.text"
+  | "web.images.delete.text_collection"
+  | "web.images.delete.title"
+  | "web.images.delete.upload_only"
+  | "web.images.error.unreachable"
+  | "web.images.grid.clear_search"
+  | "web.images.grid.date"
+  | "web.images.grid.dismiss"
+  | "web.images.grid.empty_collection_text"
+  | "web.images.grid.empty_collection_title"
+  | "web.images.grid.empty_text"
+  | "web.images.grid.empty_title"
+  | "web.images.grid.go_to_images"
+  | "web.images.grid.loading"
+  | "web.images.grid.month_short"
+  | "web.images.grid.month_title"
+  | "web.images.grid.more_failed"
+  | "web.images.grid.no_match_in"
+  | "web.images.grid.no_match_text"
+  | "web.images.grid.no_match_title"
+  | "web.images.grid.tile_photo"
+  | "web.images.grid.tile_photo_dated"
+  | "web.images.grid.tile_video"
+  | "web.images.grid.tile_video_dated"
+  | "web.images.grid.trying"
+  | "web.images.grid.unreachable_text"
+  | "web.images.grid.unreachable_title"
+  | "web.images.load.check"
+  | "web.images.load.waiting"
+  | "web.images.people.add_name"
+  | "web.images.people.count"
+  | "web.images.people.delete_failed"
+  | "web.images.people.delete_failed_one"
+  | "web.images.people.delete_many"
+  | "web.images.people.delete_named"
+  | "web.images.people.delete_partial"
+  | "web.images.people.delete_text"
+  | "web.images.people.delete_this"
+  | "web.images.people.deleted"
+  | "web.images.people.deleted_one"
+  | "web.images.people.deleting_label"
+  | "web.images.people.different_names"
+  | "web.images.people.dropped_many"
+  | "web.images.people.dropped_one"
+  | "web.images.people.empty_text"
+  | "web.images.people.empty_title"
+  | "web.images.people.face_named"
+  | "web.images.people.face_unnamed"
+  | "web.images.people.failed"
+  | "web.images.people.keep"
+  | "web.images.people.keep_group"
+  | "web.images.people.loading"
+  | "web.images.people.menu"
+  | "web.images.people.merge"
+  | "web.images.people.merge_failed"
+  | "web.images.people.merge_hint"
+  | "web.images.people.merge_name_failed"
+  | "web.images.people.merge_needs_two"
+  | "web.images.people.merge_others"
+  | "web.images.people.merge_text"
+  | "web.images.people.merge_title"
+  | "web.images.people.merge_unavailable"
+  | "web.images.people.merge_unavailable_label"
+  | "web.images.people.merged"
+  | "web.images.people.merged_named"
+  | "web.images.people.merging_label"
+  | "web.images.people.more"
+  | "web.images.people.more_named"
+  | "web.images.people.more_unnamed"
+  | "web.images.people.name_add_placeholder"
+  | "web.images.people.name_placeholder"
+  | "web.images.people.name_this"
+  | "web.images.people.names_more"
+  | "web.images.people.names_two"
+  | "web.images.people.new_name"
+  | "web.images.people.no_answer"
+  | "web.images.people.photos"
+  | "web.images.people.progress"
+  | "web.images.people.save_failed"
+  | "web.images.people.select_named"
+  | "web.images.people.select_unnamed"
+  | "web.images.people.selected"
+  | "web.images.people.slow"
+  | "web.images.people.title"
+  | "web.images.person.more"
+  | "web.images.person.two"
+  | "web.images.picker.all"
+  | "web.images.picker.empty"
+  | "web.images.picker.failed"
+  | "web.images.picker.label"
+  | "web.images.picker.no_answer"
+  | "web.images.picker.opening"
+  | "web.images.picker.title"
+  | "web.images.post.caption"
+  | "web.images.post.caption_placeholder"
+  | "web.images.post.earlier_photo"
+  | "web.images.post.earlier_video"
+  | "web.images.post.empty"
+  | "web.images.post.failed"
+  | "web.images.post.later_photo"
+  | "web.images.post.later_video"
+  | "web.images.post.photos"
+  | "web.images.post.posted"
+  | "web.images.post.publish"
+  | "web.images.post.publishing"
+  | "web.images.post.remove_photo"
+  | "web.images.post.remove_video"
+  | "web.images.post.title"
+  | "web.images.post.unreachable"
+  | "web.images.select.clear"
+  | "web.images.select.collect"
+  | "web.images.select.count"
+  | "web.images.select.label"
+  | "web.images.select.post"
+  | "web.images.share.copied"
+  | "web.images.share.copy"
+  | "web.images.share.copy_done"
+  | "web.images.share.copy_link"
+  | "web.images.share.copy_link_hint"
+  | "web.images.share.gallery"
+  | "web.images.share.gallery_hint"
+  | "web.images.share.link_failed"
+  | "web.images.share.link_field"
+  | "web.images.share.link_text"
+  | "web.images.share.link_title"
+  | "web.images.share.preparing_link"
+  | "web.images.share.preparing_zip"
+  | "web.images.share.zip"
+  | "web.images.share.zip_failed"
+  | "web.images.share.zip_hint"
+  | "web.images.share.zip_ready"
+  | "web.images.share.zip_tab"
+  | "web.images.trim.end"
+  | "web.images.trim.play"
+  | "web.images.trim.reading"
+  | "web.images.trim.remove"
+  | "web.images.trim.start"
+  | "web.images.trim.title"
+  | "web.images.trim.unopenable"
+  | "web.images.trim.unreadable"
+  | "web.images.viewer.aperture"
+  | "web.images.viewer.camera"
+  | "web.images.viewer.codec"
+  | "web.images.viewer.codec_hint"
+  | "web.images.viewer.dimensions"
+  | "web.images.viewer.download_it"
+  | "web.images.viewer.exposure"
+  | "web.images.viewer.focal_length"
+  | "web.images.viewer.info"
+  | "web.images.viewer.iso"
+  | "web.images.viewer.location"
+  | "web.images.viewer.map"
+  | "web.images.viewer.more_info"
+  | "web.images.viewer.next"
+  | "web.images.viewer.no_exif"
+  | "web.images.viewer.no_metadata"
+  | "web.images.viewer.previous"
+  | "web.images.viewer.stalled"
+  | "web.images.viewer.stalled_hint"
+  | "web.images.viewer.taken"
+  | "web.settings.bridge.code_failed"
+  | "web.settings.bridge.continue_apple"
+  | "web.settings.bridge.continue_google"
+  | "web.settings.bridge.email"
+  | "web.settings.bridge.enable_failed"
+  | "web.settings.bridge.intro"
+  | "web.settings.bridge.join"
+  | "web.settings.bridge.joining"
+  | "web.settings.bridge.last_failed"
+  | "web.settings.bridge.leave"
+  | "web.settings.bridge.leave_confirm"
+  | "web.settings.bridge.leave_failed"
+  | "web.settings.bridge.leaving"
+  | "web.settings.bridge.name"
+  | "web.settings.bridge.name_example"
+  | "web.settings.bridge.name_hint"
+  | "web.settings.bridge.other_account"
+  | "web.settings.bridge.pending_join"
+  | "web.settings.bridge.released"
+  | "web.settings.bridge.setup_code"
+  | "web.settings.bridge.sign_in"
+  | "web.settings.bridge.sign_in_failed"
+  | "web.settings.bridge.signing_in"
+  | "web.settings.bridge.title"
+  | "web.settings.bridge.use"
+  | "web.settings.faces.disable"
+  | "web.settings.faces.enable"
+  | "web.settings.faces.hint"
+  | "web.settings.faces.title"
+  | "web.settings.general.load_failed"
+  | "web.settings.general.saving"
+  | "web.settings.general.starting"
+  | "web.settings.general.update_failed"
+  | "web.settings.general.working"
   | "web.settings.language.automatic"
   | "web.settings.language.changed"
   | "web.settings.language.hint"
   | "web.settings.language.not_saved"
   | "web.settings.language.title"
   | "web.settings.language.too_old"
+  | "web.settings.logs.copied"
+  | "web.settings.logs.copy"
+  | "web.settings.logs.hint"
+  | "web.settings.logs.live"
+  | "web.settings.logs.note"
+  | "web.settings.logs.paused"
+  | "web.settings.logs.read_failed"
+  | "web.settings.logs.retrying"
+  | "web.settings.logs.send_failed"
+  | "web.settings.logs.send_hint"
+  | "web.settings.logs.send_to_us"
+  | "web.settings.logs.sending"
+  | "web.settings.logs.sent"
+  | "web.settings.logs.show"
+  | "web.settings.logs.tab_device"
+  | "web.settings.logs.tab_updates"
+  | "web.settings.logs.title"
+  | "web.settings.logs.waiting"
+  | "web.settings.logs.warning"
+  | "web.settings.notifications.denied"
+  | "web.settings.notifications.disable"
+  | "web.settings.notifications.enable"
+  | "web.settings.notifications.hint"
+  | "web.settings.notifications.title"
+  | "web.settings.password.change"
+  | "web.settings.password.changed"
+  | "web.settings.password.confirm"
+  | "web.settings.password.failed"
+  | "web.settings.password.mismatch"
+  | "web.settings.password.new"
+  | "web.settings.password.old"
+  | "web.settings.password.title"
+  | "web.settings.password.too_short"
+  | "web.settings.password.unexpected"
+  | "web.settings.profile.title"
+  | "web.settings.reprocess.all"
+  | "web.settings.reprocess.cancel"
+  | "web.settings.reprocess.completed"
+  | "web.settings.reprocess.confirm"
+  | "web.settings.reprocess.confirm_restart"
+  | "web.settings.reprocess.confirm_resume"
+  | "web.settings.reprocess.failed"
+  | "web.settings.reprocess.hint"
+  | "web.settings.reprocess.progress"
+  | "web.settings.reprocess.resume"
+  | "web.settings.reprocess.resume_all"
+  | "web.settings.reprocess.start_failed"
+  | "web.settings.reprocess.start_over"
+  | "web.settings.reprocess.stop_failed"
+  | "web.settings.reprocess.stopped"
+  | "web.settings.reprocess.stopping"
+  | "web.settings.reprocess.title"
+  | "web.settings.restart.back"
+  | "web.settings.restart.button"
+  | "web.settings.restart.confirm"
+  | "web.settings.restart.failed"
+  | "web.settings.restart.needs_update"
+  | "web.settings.restart.restarting"
+  | "web.settings.restart.slow"
+  | "web.settings.restart.wait"
+  | "web.settings.session.hint"
+  | "web.settings.session.sign_out"
+  | "web.settings.session.signing_out"
+  | "web.settings.session.title"
+  | "web.settings.social.failed"
+  | "web.settings.social.hint"
+  | "web.settings.social.limit"
+  | "web.settings.social.saved"
+  | "web.settings.social.title"
+  | "web.settings.social.too_small"
+  | "web.settings.social.using"
+  | "web.settings.tagging.disable"
+  | "web.settings.tagging.enable"
+  | "web.settings.tagging.hint"
+  | "web.settings.tagging.title"
+  | "web.settings.tailscale.auth_key"
+  | "web.settings.tailscale.authorise"
+  | "web.settings.tailscale.authorise_window"
+  | "web.settings.tailscale.change_failed"
+  | "web.settings.tailscale.done"
+  | "web.settings.tailscale.enable"
+  | "web.settings.tailscale.key_hint"
+  | "web.settings.tailscale.limit_account"
+  | "web.settings.tailscale.limit_traffic"
+  | "web.settings.tailscale.no_funnel"
+  | "web.settings.tailscale.not_installed"
+  | "web.settings.tailscale.not_installed_enable"
+  | "web.settings.tailscale.off"
+  | "web.settings.tailscale.setting_up"
+  | "web.settings.tailscale.suits"
+  | "web.settings.tailscale.turn_off"
+  | "web.settings.update.check_again"
+  | "web.settings.update.check_failed"
+  | "web.settings.update.checking"
+  | "web.settings.update.checking_updates"
+  | "web.settings.update.critical"
+  | "web.settings.update.failed"
+  | "web.settings.update.failed_on"
+  | "web.settings.update.major"
+  | "web.settings.update.restarts_note"
+  | "web.settings.update.server_unreachable"
+  | "web.settings.update.start_failed"
+  | "web.settings.update.starting_status"
+  | "web.settings.update.title"
+  | "web.settings.update.up_to_date"
+  | "web.settings.update.update_to"
+  | "web.settings.update.version"
+  | "web.settings.update.version_build"
+  | "web.settings.update.version_label"
+  | "web.settings.users.add"
+  | "web.settings.users.create_failed"
+  | "web.settings.users.created"
+  | "web.settings.users.creating"
+  | "web.settings.users.delete_failed"
+  | "web.settings.users.deleted"
+  | "web.settings.users.disable"
+  | "web.settings.users.enable"
+  | "web.settings.users.hint"
+  | "web.settings.users.inactive"
+  | "web.settings.users.load_usage"
+  | "web.settings.users.local_hint"
+  | "web.settings.users.none"
+  | "web.settings.users.port"
+  | "web.settings.users.port_address"
+  | "web.settings.users.port_local"
+  | "web.settings.users.reachable_at"
+  | "web.settings.users.reachable_own"
+  | "web.settings.users.request_bridge"
+  | "web.settings.users.title"
+  | "web.settings.users.update_failed"
+  | "web.settings.users.usage"
+  | "web.settings.users.username"
   | "web.shell.account.label"
   | "web.shell.account.sign_out"
   | "web.shell.account.signing_out"
@@ -224,12 +722,175 @@ export type MessageKey =
   | "web.shell.top.show_menu"
   | "web.shell.unreachable.disabled"
   | "web.shell.unreachable.note"
-  | "web.shell.unreachable.title";
+  | "web.shell.unreachable.title"
+  | "web.social.alerts.friends"
+  | "web.social.alerts.more"
+  | "web.social.alerts.nothing"
+  | "web.social.comment.author"
+  | "web.social.comment.confirm_delete"
+  | "web.social.comment.delete"
+  | "web.social.comment.like"
+  | "web.social.comment.me"
+  | "web.social.comment.placeholder"
+  | "web.social.comment.post"
+  | "web.social.comment.unlike"
+  | "web.social.composer.camera"
+  | "web.social.composer.caption"
+  | "web.social.composer.drop"
+  | "web.social.composer.library"
+  | "web.social.composer.move_earlier"
+  | "web.social.composer.move_later"
+  | "web.social.composer.order"
+  | "web.social.composer.publish"
+  | "web.social.composer.publish_count"
+  | "web.social.composer.publish_failed"
+  | "web.social.composer.publishing"
+  | "web.social.composer.remove_file"
+  | "web.social.composer.remove_from_post"
+  | "web.social.composer.remove_tag"
+  | "web.social.composer.tag_filter"
+  | "web.social.composer.this_computer"
+  | "web.social.composer.title"
+  | "web.social.composer.trim"
+  | "web.social.composer.trim_item"
+  | "web.social.composer.trim_load_failed"
+  | "web.social.composer.upload_none"
+  | "web.social.composer.upload_some"
+  | "web.social.feed.empty_text"
+  | "web.social.feed.empty_title"
+  | "web.social.feed.loading_more"
+  | "web.social.feed.new_post"
+  | "web.social.feed.user"
+  | "web.social.friends.add_title"
+  | "web.social.friends.ask_delete_mine"
+  | "web.social.friends.ask_delete_mine_hint"
+  | "web.social.friends.asked_delete"
+  | "web.social.friends.block"
+  | "web.social.friends.cancel_request"
+  | "web.social.friends.confirm_cancel"
+  | "web.social.friends.confirm_delete"
+  | "web.social.friends.confirm_remove_now"
+  | "web.social.friends.delete_error"
+  | "web.social.friends.delete_failed"
+  | "web.social.friends.delete_theirs"
+  | "web.social.friends.delete_theirs_hint"
+  | "web.social.friends.friends_again"
+  | "web.social.friends.invalid_name"
+  | "web.social.friends.keep"
+  | "web.social.friends.leaving"
+  | "web.social.friends.name_label"
+  | "web.social.friends.name_placeholder"
+  | "web.social.friends.no_domain"
+  | "web.social.friends.no_name"
+  | "web.social.friends.no_others"
+  | "web.social.friends.none"
+  | "web.social.friends.remove"
+  | "web.social.friends.remove_error"
+  | "web.social.friends.remove_failed"
+  | "web.social.friends.remove_now"
+  | "web.social.friends.removed"
+  | "web.social.friends.request_cancelled"
+  | "web.social.friends.request_deleted"
+  | "web.social.friends.request_failed"
+  | "web.social.friends.request_sent"
+  | "web.social.friends.send"
+  | "web.social.friends.send_error"
+  | "web.social.friends.sending"
+  | "web.social.friends.set_pending"
+  | "web.social.friends.status_accepted"
+  | "web.social.friends.status_accepted_sent"
+  | "web.social.friends.status_blocked"
+  | "web.social.friends.status_blocked_sent"
+  | "web.social.friends.status_pending"
+  | "web.social.friends.status_pending_sent"
+  | "web.social.friends.status_updated"
+  | "web.social.friends.title"
+  | "web.social.friends.unexpected"
+  | "web.social.friends.update_error"
+  | "web.social.friends.update_failed"
+  | "web.social.friends.waiting_delete"
+  | "web.social.friends.waiting_title"
+  | "web.social.friends.yes"
+  | "web.social.likes.none"
+  | "web.social.likes.title"
+  | "web.social.post.confirm_delete"
+  | "web.social.post.delete"
+  | "web.social.post.download_photo_position"
+  | "web.social.post.download_video_position"
+  | "web.social.post.label_photo"
+  | "web.social.post.label_photo_position"
+  | "web.social.post.label_video"
+  | "web.social.post.label_video_position"
+  | "web.social.post.like"
+  | "web.social.post.likes"
+  | "web.social.post.mute"
+  | "web.social.post.next"
+  | "web.social.post.next_item"
+  | "web.social.post.previous"
+  | "web.social.post.previous_item"
+  | "web.social.post.replay"
+  | "web.social.post.share_unavailable"
+  | "web.social.post.unlike"
+  | "web.social.post.unmute"
+  | "web.social.profile.avatar"
+  | "web.social.profile.bio"
+  | "web.social.profile.from_computer"
+  | "web.social.profile.from_device"
+  | "web.social.profile.load_failed"
+  | "web.social.profile.name"
+  | "web.social.profile.no_bio"
+  | "web.social.profile.save"
+  | "web.social.profile.save_failed"
+  | "web.social.profile.saved"
+  | "web.social.profile.saving"
+  | "web.social.profile.unexpected"
+  | "web.social.profile.unnamed"
+  | "web.social.time.days"
+  | "web.social.time.days_ago"
+  | "web.social.time.hours"
+  | "web.social.time.hours_ago"
+  | "web.social.time.just_now"
+  | "web.social.time.minutes"
+  | "web.social.time.minutes_ago"
+  | "web.social.viewer.download_photo"
+  | "web.social.viewer.download_video"
+  | "web.social.viewer.full"
+  | "web.social.viewer.photo_by"
+  | "web.social.viewer.photo_by_position"
+  | "web.social.viewer.video_by"
+  | "web.social.viewer.video_by_position"
+  | "web.social.viewer.video_loading";
 
 /** The keys <Trans> renders: every web key with tags. */
 export type RichKey =
+  | "web.files.list.tip"
+  | "web.files.list.total"
+  | "web.files.selection.selected"
+  | "web.files.share.low_res"
+  | "web.files.share.summary"
+  | "web.images.collections.empty_text"
+  | "web.images.people.name_label"
+  | "web.images.people.will_be_called"
+  | "web.images.trim.keeping"
+  | "web.settings.bridge.leave_hint"
+  | "web.settings.bridge.pending_leave"
+  | "web.settings.bridge.reachable"
+  | "web.settings.bridge.setup_hint"
+  | "web.settings.bridge.signed_in_as"
+  | "web.settings.tailscale.intro"
+  | "web.settings.tailscale.limit_one_user"
+  | "web.settings.tailscale.limit_social"
+  | "web.settings.tailscale.popup_blocked"
+  | "web.settings.tailscale.served_at"
+  | "web.settings.update.version_to"
+  | "web.settings.users.delete_confirm"
   | "web.shell.search.documents"
-  | "web.shell.update.critical";
+  | "web.shell.update.critical"
+  | "web.social.alerts.commented"
+  | "web.social.alerts.friend_accepted"
+  | "web.social.alerts.friend_request"
+  | "web.social.alerts.liked_comment"
+  | "web.social.alerts.liked_post";
 
 /** Each key's arguments by name; undefined when it takes none. */
 export interface MessageArgs {
@@ -271,12 +932,531 @@ export interface MessageArgs {
   "common.update": undefined;
   "common.updating": undefined;
   "common.upload": undefined;
+  "web.files.column.created": undefined;
+  "web.files.column.modified": undefined;
+  "web.files.column.name": undefined;
+  "web.files.column.size": undefined;
+  "web.files.gallery.cant_show": undefined;
+  "web.files.gallery.download_all": undefined;
+  "web.files.gallery.download_count": { count: number };
+  "web.files.gallery.download_failed": undefined;
+  "web.files.gallery.downloading": { current: number; total: number; size: string };
+  "web.files.gallery.incomplete": undefined;
+  "web.files.gallery.loading_percent": { percent: string };
+  "web.files.gallery.low_res": undefined;
+  "web.files.gallery.meta": { count: number; size: string };
+  "web.files.gallery.meta_until": { count: number; size: string; date: string };
+  "web.files.gallery.next": undefined;
+  "web.files.gallery.not_found": undefined;
+  "web.files.gallery.open_failed": undefined;
+  "web.files.gallery.opening": undefined;
+  "web.files.gallery.position": { name: string; index: number; total: number };
+  "web.files.gallery.previous": undefined;
+  "web.files.gallery.select_all": undefined;
+  "web.files.gallery.stopped": undefined;
+  "web.files.gallery.title": undefined;
+  "web.files.keep_out.banner": undefined;
+  "web.files.keep_out.banner_parent": { folder: string };
+  "web.files.keep_out.confirm_keep": { name: string };
+  "web.files.keep_out.confirm_show": { name: string };
+  "web.files.keep_out.kept": { name: string };
+  "web.files.keep_out.parent_tip": { folder: string };
+  "web.files.keep_out.show": undefined;
+  "web.files.keep_out.show_named": { name: string };
+  "web.files.keep_out.shown": { name: string };
+  "web.files.keep_out.state": undefined;
+  "web.files.keep_out.switch": { name: string };
+  "web.files.keep_out.tip_off": undefined;
+  "web.files.keep_out.tip_on": undefined;
+  "web.files.links.confirm_delete": undefined;
+  "web.files.links.delete_failed": undefined;
+  "web.files.links.details": { size: string; made: string; until: string };
+  "web.files.links.details_files": { count: number; size: string; made: string; until: string };
+  "web.files.links.gallery": undefined;
+  "web.files.links.hint": undefined;
+  "web.files.links.load_failed": undefined;
+  "web.files.links.never_opened": undefined;
+  "web.files.links.none": undefined;
+  "web.files.links.opened": { count: number; date: string };
+  "web.files.links.title": undefined;
+  "web.files.links.total": { size: string };
+  "web.files.links.zip": undefined;
+  "web.files.list.contents": { folder: string };
+  "web.files.list.empty": undefined;
+  "web.files.list.list_failed": undefined;
+  "web.files.list.opening": undefined;
+  "web.files.list.select_item": { name: string };
+  "web.files.list.tip": { folder: string };
+  "web.files.list.total": { count: number };
+  "web.files.list.unexpected": undefined;
+  "web.files.list.update_failed": undefined;
+  "web.files.list.upload_only_refused": { name: string };
+  "web.files.list.video": undefined;
+  "web.files.lock.clear": undefined;
+  "web.files.lock.file": undefined;
+  "web.files.lock.make": undefined;
+  "web.files.lock.off_tip": undefined;
+  "web.files.lock.on_tip": undefined;
+  "web.files.lock.on_tip_short": undefined;
+  "web.files.results.back": { folder: string };
+  "web.files.results.back_files": undefined;
+  "web.files.results.cant_search": undefined;
+  "web.files.results.count": { count: number };
+  "web.files.results.file_kept_out": { name: string; folder: string };
+  "web.files.results.first": { limit: number };
+  "web.files.results.folder_kept_out": { name: string; folder: string };
+  "web.files.results.list": { text: string };
+  "web.files.results.no_answer": undefined;
+  "web.files.results.none_for": { text: string };
+  "web.files.results.nothing": { text: string };
+  "web.files.results.photo_kept_out": { name: string; folder: string };
+  "web.files.results.searching": undefined;
+  "web.files.results.searching_for": { text: string };
+  "web.files.results.title": { text: string };
+  "web.files.results.unreachable": undefined;
+  "web.files.results.video_kept_out": { name: string; folder: string };
+  "web.files.selection.confirm_delete": { count: number };
+  "web.files.selection.download_zip": undefined;
+  "web.files.selection.link_copied": undefined;
+  "web.files.selection.preparing": undefined;
+  "web.files.selection.preparing_zip": undefined;
+  "web.files.selection.selected": { count: number };
+  "web.files.selection.share_gallery": undefined;
+  "web.files.selection.share_gallery_tip": undefined;
+  "web.files.selection.upload_only": undefined;
+  "web.files.share.available_for": undefined;
+  "web.files.share.copied": undefined;
+  "web.files.share.copy": undefined;
+  "web.files.share.copying": { current: number; total: number; done: string; size: string };
+  "web.files.share.days": { count: number };
+  "web.files.share.default_description": { date: string };
+  "web.files.share.description": undefined;
+  "web.files.share.link": undefined;
+  "web.files.share.looking": undefined;
+  "web.files.share.lost": undefined;
+  "web.files.share.low_res": undefined;
+  "web.files.share.low_res_note": undefined;
+  "web.files.share.note": { size: string };
+  "web.files.share.preview_failed": undefined;
+  "web.files.share.ready": undefined;
+  "web.files.share.skipped": { count: number };
+  "web.files.share.start_failed": undefined;
+  "web.files.share.summary": { count: number; size: string };
+  "web.files.share.title": undefined;
+  "web.files.share.videos_left_out": { count: number };
+  "web.files.size.b": { size: string };
+  "web.files.size.gb": { size: string };
+  "web.files.size.kb": { size: string };
+  "web.files.size.mb": { size: string };
+  "web.files.toolbar.grid": undefined;
+  "web.files.toolbar.list": undefined;
+  "web.files.toolbar.path": undefined;
+  "web.files.toolbar.view": undefined;
+  "web.files.upload.done": undefined;
+  "web.files.upload.failed": undefined;
+  "web.files.upload.finished_failed": { done: number; failed: number };
+  "web.files.upload.progress": { done: number; total: number };
+  "web.files.upload.reading": undefined;
+  "web.files.upload.uploaded": { count: number };
+  "web.files.upload.uploading": undefined;
+  "web.files.versions.count": { count: number };
+  "web.files.versions.current": undefined;
+  "web.files.versions.hint": undefined;
+  "web.files.versions.replaced": { date: string };
+  "web.files.versions.tip": undefined;
+  "web.files.versions.title": { name: string };
+  "web.images.collect.add_failed": { name: string };
+  "web.images.collect.added": { name: string };
+  "web.images.collect.create_failed": undefined;
+  "web.images.collect.creating": undefined;
+  "web.images.collect.list": undefined;
+  "web.images.collect.name_placeholder": undefined;
+  "web.images.collect.new": undefined;
+  "web.images.collect.new_label": undefined;
+  "web.images.collect.title": undefined;
+  "web.images.collect.view": undefined;
+  "web.images.collection.delete": undefined;
+  "web.images.collection.delete_failed": undefined;
+  "web.images.collection.delete_text": { name: string };
+  "web.images.collection.delete_title": undefined;
+  "web.images.collection.name_field": undefined;
+  "web.images.collection.rename": undefined;
+  "web.images.collection.rename_failed": undefined;
+  "web.images.collection.rename_unreachable": undefined;
+  "web.images.collection.share": undefined;
+  "web.images.collection.span_full": { fromMonth: string; fromYear: string; toMonth: string; toYear: string };
+  "web.images.collection.span_month": { month: string; year: string };
+  "web.images.collection.span_months": { from: string; to: string; year: string };
+  "web.images.collection.span_years": { from: string; to: string };
+  "web.images.collections.card": { name: string; count: number };
+  "web.images.collections.empty_text": undefined;
+  "web.images.collections.empty_title": undefined;
+  "web.images.collections.failed": undefined;
+  "web.images.collections.loading": undefined;
+  "web.images.collections.slow": undefined;
+  "web.images.collections.title": undefined;
+  "web.images.collections.untitled": undefined;
+  "web.images.count.items": { count: number };
+  "web.images.count.photos": { count: number };
+  "web.images.count.photos_and_videos": { photos: string; videos: string };
+  "web.images.count.videos": { count: number };
+  "web.images.crop.failed": undefined;
+  "web.images.crop.hint": undefined;
+  "web.images.crop.label": undefined;
+  "web.images.crop.title": undefined;
+  "web.images.crop.unsupported": undefined;
+  "web.images.crop.use": undefined;
+  "web.images.crop.zoom": undefined;
+  "web.images.delete.done": { what: string };
+  "web.images.delete.failed": { count: number };
+  "web.images.delete.progress": { done: number; total: number };
+  "web.images.delete.text": undefined;
+  "web.images.delete.text_collection": undefined;
+  "web.images.delete.title": { what: string };
+  "web.images.delete.upload_only": { count: number };
+  "web.images.error.unreachable": undefined;
+  "web.images.grid.clear_search": undefined;
+  "web.images.grid.date": { day: string; month: string; year: string };
+  "web.images.grid.dismiss": undefined;
+  "web.images.grid.empty_collection_text": undefined;
+  "web.images.grid.empty_collection_title": undefined;
+  "web.images.grid.empty_text": undefined;
+  "web.images.grid.empty_title": undefined;
+  "web.images.grid.go_to_images": undefined;
+  "web.images.grid.loading": undefined;
+  "web.images.grid.month_short": { month: string; year: string };
+  "web.images.grid.month_title": { month: string; year: string };
+  "web.images.grid.more_failed": undefined;
+  "web.images.grid.no_match_in": { name: string };
+  "web.images.grid.no_match_text": undefined;
+  "web.images.grid.no_match_title": undefined;
+  "web.images.grid.tile_photo": undefined;
+  "web.images.grid.tile_photo_dated": { date: string };
+  "web.images.grid.tile_video": undefined;
+  "web.images.grid.tile_video_dated": { date: string };
+  "web.images.grid.trying": undefined;
+  "web.images.grid.unreachable_text": undefined;
+  "web.images.grid.unreachable_title": undefined;
+  "web.images.load.check": undefined;
+  "web.images.load.waiting": undefined;
+  "web.images.people.add_name": undefined;
+  "web.images.people.count": { count: number };
+  "web.images.people.delete_failed": undefined;
+  "web.images.people.delete_failed_one": undefined;
+  "web.images.people.delete_many": { number: number };
+  "web.images.people.delete_named": { name: string };
+  "web.images.people.delete_partial": { count: number; total: number };
+  "web.images.people.delete_text": undefined;
+  "web.images.people.delete_this": undefined;
+  "web.images.people.deleted": { count: number };
+  "web.images.people.deleted_one": undefined;
+  "web.images.people.deleting_label": undefined;
+  "web.images.people.different_names": undefined;
+  "web.images.people.dropped_many": { names: string };
+  "web.images.people.dropped_one": { name: string };
+  "web.images.people.empty_text": undefined;
+  "web.images.people.empty_title": undefined;
+  "web.images.people.face_named": { name: string; count: number };
+  "web.images.people.face_unnamed": { count: number };
+  "web.images.people.failed": undefined;
+  "web.images.people.keep": undefined;
+  "web.images.people.keep_group": undefined;
+  "web.images.people.loading": undefined;
+  "web.images.people.menu": undefined;
+  "web.images.people.merge": undefined;
+  "web.images.people.merge_failed": undefined;
+  "web.images.people.merge_hint": undefined;
+  "web.images.people.merge_name_failed": undefined;
+  "web.images.people.merge_needs_two": undefined;
+  "web.images.people.merge_others": undefined;
+  "web.images.people.merge_text": undefined;
+  "web.images.people.merge_title": { number: number };
+  "web.images.people.merge_unavailable": undefined;
+  "web.images.people.merge_unavailable_label": undefined;
+  "web.images.people.merged": { number: number };
+  "web.images.people.merged_named": { number: number; name: string };
+  "web.images.people.merging_label": undefined;
+  "web.images.people.more": undefined;
+  "web.images.people.more_named": { name: string };
+  "web.images.people.more_unnamed": undefined;
+  "web.images.people.name_add_placeholder": undefined;
+  "web.images.people.name_label": undefined;
+  "web.images.people.name_placeholder": undefined;
+  "web.images.people.name_this": undefined;
+  "web.images.people.names_more": { first: string; rest: string };
+  "web.images.people.names_two": { first: string; second: string };
+  "web.images.people.new_name": undefined;
+  "web.images.people.no_answer": undefined;
+  "web.images.people.photos": { count: number };
+  "web.images.people.progress": { done: number; total: number };
+  "web.images.people.save_failed": undefined;
+  "web.images.people.select_named": { name: string; count: number };
+  "web.images.people.select_unnamed": { count: number };
+  "web.images.people.selected": undefined;
+  "web.images.people.slow": undefined;
+  "web.images.people.title": undefined;
+  "web.images.people.will_be_called": { name: string };
+  "web.images.person.more": { first: string; second: string; count: number };
+  "web.images.person.two": { first: string; second: string };
+  "web.images.picker.all": undefined;
+  "web.images.picker.empty": undefined;
+  "web.images.picker.failed": { detail: string };
+  "web.images.picker.label": undefined;
+  "web.images.picker.no_answer": undefined;
+  "web.images.picker.opening": undefined;
+  "web.images.picker.title": undefined;
+  "web.images.post.caption": undefined;
+  "web.images.post.caption_placeholder": undefined;
+  "web.images.post.earlier_photo": { number: number };
+  "web.images.post.earlier_video": { number: number };
+  "web.images.post.empty": undefined;
+  "web.images.post.failed": undefined;
+  "web.images.post.later_photo": { number: number };
+  "web.images.post.later_video": { number: number };
+  "web.images.post.photos": undefined;
+  "web.images.post.posted": undefined;
+  "web.images.post.publish": undefined;
+  "web.images.post.publishing": undefined;
+  "web.images.post.remove_photo": { number: number };
+  "web.images.post.remove_video": { number: number };
+  "web.images.post.title": undefined;
+  "web.images.post.unreachable": undefined;
+  "web.images.select.clear": undefined;
+  "web.images.select.collect": undefined;
+  "web.images.select.count": { count: number };
+  "web.images.select.label": undefined;
+  "web.images.select.post": undefined;
+  "web.images.share.copied": undefined;
+  "web.images.share.copy": undefined;
+  "web.images.share.copy_done": undefined;
+  "web.images.share.copy_link": undefined;
+  "web.images.share.copy_link_hint": undefined;
+  "web.images.share.gallery": undefined;
+  "web.images.share.gallery_hint": undefined;
+  "web.images.share.link_failed": undefined;
+  "web.images.share.link_field": undefined;
+  "web.images.share.link_text": undefined;
+  "web.images.share.link_title": undefined;
+  "web.images.share.preparing_link": undefined;
+  "web.images.share.preparing_zip": undefined;
+  "web.images.share.zip": undefined;
+  "web.images.share.zip_failed": undefined;
+  "web.images.share.zip_hint": undefined;
+  "web.images.share.zip_ready": undefined;
+  "web.images.share.zip_tab": undefined;
+  "web.images.trim.end": undefined;
+  "web.images.trim.keeping": { kept: string; total: string };
+  "web.images.trim.play": undefined;
+  "web.images.trim.reading": undefined;
+  "web.images.trim.remove": undefined;
+  "web.images.trim.start": undefined;
+  "web.images.trim.title": undefined;
+  "web.images.trim.unopenable": undefined;
+  "web.images.trim.unreadable": undefined;
+  "web.images.viewer.aperture": undefined;
+  "web.images.viewer.camera": undefined;
+  "web.images.viewer.codec": undefined;
+  "web.images.viewer.codec_hint": undefined;
+  "web.images.viewer.dimensions": undefined;
+  "web.images.viewer.download_it": undefined;
+  "web.images.viewer.exposure": undefined;
+  "web.images.viewer.focal_length": undefined;
+  "web.images.viewer.info": undefined;
+  "web.images.viewer.iso": undefined;
+  "web.images.viewer.location": undefined;
+  "web.images.viewer.map": undefined;
+  "web.images.viewer.more_info": undefined;
+  "web.images.viewer.next": undefined;
+  "web.images.viewer.no_exif": undefined;
+  "web.images.viewer.no_metadata": undefined;
+  "web.images.viewer.previous": undefined;
+  "web.images.viewer.stalled": undefined;
+  "web.images.viewer.stalled_hint": undefined;
+  "web.images.viewer.taken": undefined;
+  "web.settings.bridge.code_failed": undefined;
+  "web.settings.bridge.continue_apple": undefined;
+  "web.settings.bridge.continue_google": undefined;
+  "web.settings.bridge.email": undefined;
+  "web.settings.bridge.enable_failed": undefined;
+  "web.settings.bridge.intro": { bridge: string };
+  "web.settings.bridge.join": undefined;
+  "web.settings.bridge.joining": undefined;
+  "web.settings.bridge.last_failed": { detail: string };
+  "web.settings.bridge.leave": undefined;
+  "web.settings.bridge.leave_confirm": { domain: string; address: string };
+  "web.settings.bridge.leave_failed": undefined;
+  "web.settings.bridge.leave_hint": undefined;
+  "web.settings.bridge.leaving": undefined;
+  "web.settings.bridge.name": undefined;
+  "web.settings.bridge.name_example": undefined;
+  "web.settings.bridge.name_hint": undefined;
+  "web.settings.bridge.other_account": undefined;
+  "web.settings.bridge.pending_join": { bridge: string };
+  "web.settings.bridge.pending_leave": { bridge: string; address: string };
+  "web.settings.bridge.reachable": { domain: string };
+  "web.settings.bridge.released": { bridge: string };
+  "web.settings.bridge.setup_code": undefined;
+  "web.settings.bridge.setup_hint": { address: string };
+  "web.settings.bridge.sign_in": undefined;
+  "web.settings.bridge.sign_in_failed": undefined;
+  "web.settings.bridge.signed_in_as": { email: string };
+  "web.settings.bridge.signing_in": undefined;
+  "web.settings.bridge.title": undefined;
+  "web.settings.bridge.use": undefined;
+  "web.settings.faces.disable": undefined;
+  "web.settings.faces.enable": undefined;
+  "web.settings.faces.hint": undefined;
+  "web.settings.faces.title": undefined;
+  "web.settings.general.load_failed": undefined;
+  "web.settings.general.saving": undefined;
+  "web.settings.general.starting": undefined;
+  "web.settings.general.update_failed": undefined;
+  "web.settings.general.working": undefined;
   "web.settings.language.automatic": { language: string };
   "web.settings.language.changed": undefined;
   "web.settings.language.hint": undefined;
   "web.settings.language.not_saved": undefined;
   "web.settings.language.title": undefined;
   "web.settings.language.too_old": undefined;
+  "web.settings.logs.copied": undefined;
+  "web.settings.logs.copy": undefined;
+  "web.settings.logs.hint": undefined;
+  "web.settings.logs.live": undefined;
+  "web.settings.logs.note": undefined;
+  "web.settings.logs.paused": undefined;
+  "web.settings.logs.read_failed": undefined;
+  "web.settings.logs.retrying": { error: string };
+  "web.settings.logs.send_failed": undefined;
+  "web.settings.logs.send_hint": undefined;
+  "web.settings.logs.send_to_us": undefined;
+  "web.settings.logs.sending": undefined;
+  "web.settings.logs.sent": undefined;
+  "web.settings.logs.show": undefined;
+  "web.settings.logs.tab_device": undefined;
+  "web.settings.logs.tab_updates": undefined;
+  "web.settings.logs.title": undefined;
+  "web.settings.logs.waiting": undefined;
+  "web.settings.logs.warning": undefined;
+  "web.settings.notifications.denied": undefined;
+  "web.settings.notifications.disable": undefined;
+  "web.settings.notifications.enable": undefined;
+  "web.settings.notifications.hint": undefined;
+  "web.settings.notifications.title": undefined;
+  "web.settings.password.change": undefined;
+  "web.settings.password.changed": undefined;
+  "web.settings.password.confirm": undefined;
+  "web.settings.password.failed": undefined;
+  "web.settings.password.mismatch": undefined;
+  "web.settings.password.new": undefined;
+  "web.settings.password.old": undefined;
+  "web.settings.password.title": undefined;
+  "web.settings.password.too_short": undefined;
+  "web.settings.password.unexpected": undefined;
+  "web.settings.profile.title": undefined;
+  "web.settings.reprocess.all": undefined;
+  "web.settings.reprocess.cancel": undefined;
+  "web.settings.reprocess.completed": { count: number };
+  "web.settings.reprocess.confirm": undefined;
+  "web.settings.reprocess.confirm_restart": undefined;
+  "web.settings.reprocess.confirm_resume": undefined;
+  "web.settings.reprocess.failed": { count: number };
+  "web.settings.reprocess.hint": undefined;
+  "web.settings.reprocess.progress": { percent: string; processed: number; total: number };
+  "web.settings.reprocess.resume": undefined;
+  "web.settings.reprocess.resume_all": undefined;
+  "web.settings.reprocess.start_failed": undefined;
+  "web.settings.reprocess.start_over": undefined;
+  "web.settings.reprocess.stop_failed": undefined;
+  "web.settings.reprocess.stopped": { percent: string; processed: number; total: number };
+  "web.settings.reprocess.stopping": undefined;
+  "web.settings.reprocess.title": undefined;
+  "web.settings.restart.back": undefined;
+  "web.settings.restart.button": undefined;
+  "web.settings.restart.confirm": undefined;
+  "web.settings.restart.failed": undefined;
+  "web.settings.restart.needs_update": undefined;
+  "web.settings.restart.restarting": undefined;
+  "web.settings.restart.slow": undefined;
+  "web.settings.restart.wait": undefined;
+  "web.settings.session.hint": undefined;
+  "web.settings.session.sign_out": undefined;
+  "web.settings.session.signing_out": undefined;
+  "web.settings.session.title": undefined;
+  "web.settings.social.failed": undefined;
+  "web.settings.social.hint": undefined;
+  "web.settings.social.limit": undefined;
+  "web.settings.social.saved": undefined;
+  "web.settings.social.title": undefined;
+  "web.settings.social.too_small": undefined;
+  "web.settings.social.using": { size: string };
+  "web.settings.tagging.disable": undefined;
+  "web.settings.tagging.enable": undefined;
+  "web.settings.tagging.hint": undefined;
+  "web.settings.tagging.title": undefined;
+  "web.settings.tailscale.auth_key": undefined;
+  "web.settings.tailscale.authorise": undefined;
+  "web.settings.tailscale.authorise_window": undefined;
+  "web.settings.tailscale.change_failed": undefined;
+  "web.settings.tailscale.done": { address: string };
+  "web.settings.tailscale.enable": undefined;
+  "web.settings.tailscale.intro": undefined;
+  "web.settings.tailscale.key_hint": undefined;
+  "web.settings.tailscale.limit_account": undefined;
+  "web.settings.tailscale.limit_one_user": undefined;
+  "web.settings.tailscale.limit_social": undefined;
+  "web.settings.tailscale.limit_traffic": undefined;
+  "web.settings.tailscale.no_funnel": undefined;
+  "web.settings.tailscale.not_installed": undefined;
+  "web.settings.tailscale.not_installed_enable": undefined;
+  "web.settings.tailscale.off": undefined;
+  "web.settings.tailscale.popup_blocked": undefined;
+  "web.settings.tailscale.served_at": { address: string };
+  "web.settings.tailscale.setting_up": undefined;
+  "web.settings.tailscale.suits": undefined;
+  "web.settings.tailscale.turn_off": undefined;
+  "web.settings.update.check_again": undefined;
+  "web.settings.update.check_failed": undefined;
+  "web.settings.update.checking": undefined;
+  "web.settings.update.checking_updates": undefined;
+  "web.settings.update.critical": undefined;
+  "web.settings.update.failed": { reason: string };
+  "web.settings.update.failed_on": { date: string; reason: string };
+  "web.settings.update.major": undefined;
+  "web.settings.update.restarts_note": undefined;
+  "web.settings.update.server_unreachable": undefined;
+  "web.settings.update.start_failed": undefined;
+  "web.settings.update.starting_status": undefined;
+  "web.settings.update.title": undefined;
+  "web.settings.update.up_to_date": undefined;
+  "web.settings.update.update_to": { version: string };
+  "web.settings.update.version": { version: string };
+  "web.settings.update.version_build": { build: string };
+  "web.settings.update.version_label": { label: string; build: string };
+  "web.settings.update.version_to": { version: string; latest: string };
+  "web.settings.users.add": undefined;
+  "web.settings.users.create_failed": undefined;
+  "web.settings.users.created": { name: string };
+  "web.settings.users.creating": undefined;
+  "web.settings.users.delete_confirm": { name: string };
+  "web.settings.users.delete_failed": undefined;
+  "web.settings.users.deleted": { name: string };
+  "web.settings.users.disable": undefined;
+  "web.settings.users.enable": undefined;
+  "web.settings.users.hint": undefined;
+  "web.settings.users.inactive": undefined;
+  "web.settings.users.load_usage": undefined;
+  "web.settings.users.local_hint": undefined;
+  "web.settings.users.none": undefined;
+  "web.settings.users.port": undefined;
+  "web.settings.users.port_address": { port: string; address: string };
+  "web.settings.users.port_local": { port: string };
+  "web.settings.users.reachable_at": { address: string };
+  "web.settings.users.reachable_own": undefined;
+  "web.settings.users.request_bridge": undefined;
+  "web.settings.users.title": undefined;
+  "web.settings.users.update_failed": undefined;
+  "web.settings.users.usage": { size: string; percent: string; count: number };
+  "web.settings.users.username": undefined;
   "web.shell.account.label": undefined;
   "web.shell.account.sign_out": undefined;
   "web.shell.account.signing_out": undefined;
@@ -412,12 +1592,180 @@ export interface MessageArgs {
   "web.shell.unreachable.note": undefined;
   "web.shell.unreachable.title": undefined;
   "web.shell.update.critical": { version: string; summary: string };
+  "web.social.alerts.commented": { name: string };
+  "web.social.alerts.friend_accepted": { name: string };
+  "web.social.alerts.friend_request": { name: string };
+  "web.social.alerts.friends": undefined;
+  "web.social.alerts.liked_comment": { name: string };
+  "web.social.alerts.liked_post": { name: string };
+  "web.social.alerts.more": { more: number };
+  "web.social.alerts.nothing": undefined;
+  "web.social.comment.author": { name: string };
+  "web.social.comment.confirm_delete": undefined;
+  "web.social.comment.delete": undefined;
+  "web.social.comment.like": undefined;
+  "web.social.comment.me": undefined;
+  "web.social.comment.placeholder": undefined;
+  "web.social.comment.post": undefined;
+  "web.social.comment.unlike": undefined;
+  "web.social.composer.camera": undefined;
+  "web.social.composer.caption": undefined;
+  "web.social.composer.drop": undefined;
+  "web.social.composer.library": undefined;
+  "web.social.composer.move_earlier": { name: string };
+  "web.social.composer.move_later": { name: string };
+  "web.social.composer.order": undefined;
+  "web.social.composer.publish": undefined;
+  "web.social.composer.publish_count": { count: number };
+  "web.social.composer.publish_failed": undefined;
+  "web.social.composer.publishing": undefined;
+  "web.social.composer.remove_file": { name: string };
+  "web.social.composer.remove_from_post": { name: string };
+  "web.social.composer.remove_tag": { tag: string };
+  "web.social.composer.tag_filter": undefined;
+  "web.social.composer.this_computer": undefined;
+  "web.social.composer.title": undefined;
+  "web.social.composer.trim": undefined;
+  "web.social.composer.trim_item": { name: string };
+  "web.social.composer.trim_load_failed": undefined;
+  "web.social.composer.upload_none": undefined;
+  "web.social.composer.upload_some": { count: number };
+  "web.social.feed.empty_text": undefined;
+  "web.social.feed.empty_title": undefined;
+  "web.social.feed.loading_more": undefined;
+  "web.social.feed.new_post": undefined;
+  "web.social.feed.user": undefined;
+  "web.social.friends.add_title": undefined;
+  "web.social.friends.ask_delete_mine": { name: string };
+  "web.social.friends.ask_delete_mine_hint": undefined;
+  "web.social.friends.asked_delete": undefined;
+  "web.social.friends.block": undefined;
+  "web.social.friends.cancel_request": undefined;
+  "web.social.friends.confirm_cancel": undefined;
+  "web.social.friends.confirm_delete": undefined;
+  "web.social.friends.confirm_remove_now": { name: string };
+  "web.social.friends.delete_error": undefined;
+  "web.social.friends.delete_failed": undefined;
+  "web.social.friends.delete_theirs": { name: string };
+  "web.social.friends.delete_theirs_hint": undefined;
+  "web.social.friends.friends_again": undefined;
+  "web.social.friends.invalid_name": undefined;
+  "web.social.friends.keep": undefined;
+  "web.social.friends.leaving": undefined;
+  "web.social.friends.name_label": { suffix: string };
+  "web.social.friends.name_placeholder": undefined;
+  "web.social.friends.no_domain": undefined;
+  "web.social.friends.no_name": undefined;
+  "web.social.friends.no_others": undefined;
+  "web.social.friends.none": undefined;
+  "web.social.friends.remove": undefined;
+  "web.social.friends.remove_error": undefined;
+  "web.social.friends.remove_failed": undefined;
+  "web.social.friends.remove_now": undefined;
+  "web.social.friends.removed": undefined;
+  "web.social.friends.request_cancelled": undefined;
+  "web.social.friends.request_deleted": undefined;
+  "web.social.friends.request_failed": undefined;
+  "web.social.friends.request_sent": undefined;
+  "web.social.friends.send": undefined;
+  "web.social.friends.send_error": undefined;
+  "web.social.friends.sending": undefined;
+  "web.social.friends.set_pending": undefined;
+  "web.social.friends.status_accepted": undefined;
+  "web.social.friends.status_accepted_sent": undefined;
+  "web.social.friends.status_blocked": undefined;
+  "web.social.friends.status_blocked_sent": undefined;
+  "web.social.friends.status_pending": undefined;
+  "web.social.friends.status_pending_sent": undefined;
+  "web.social.friends.status_updated": undefined;
+  "web.social.friends.title": undefined;
+  "web.social.friends.unexpected": undefined;
+  "web.social.friends.update_error": undefined;
+  "web.social.friends.update_failed": undefined;
+  "web.social.friends.waiting_delete": undefined;
+  "web.social.friends.waiting_title": undefined;
+  "web.social.friends.yes": undefined;
+  "web.social.likes.none": undefined;
+  "web.social.likes.title": undefined;
+  "web.social.post.confirm_delete": undefined;
+  "web.social.post.delete": undefined;
+  "web.social.post.download_photo_position": { index: number; total: number };
+  "web.social.post.download_video_position": { index: number; total: number };
+  "web.social.post.label_photo": undefined;
+  "web.social.post.label_photo_position": { index: number; total: number };
+  "web.social.post.label_video": undefined;
+  "web.social.post.label_video_position": { index: number; total: number };
+  "web.social.post.like": undefined;
+  "web.social.post.likes": { count: number };
+  "web.social.post.mute": undefined;
+  "web.social.post.next": undefined;
+  "web.social.post.next_item": undefined;
+  "web.social.post.previous": undefined;
+  "web.social.post.previous_item": undefined;
+  "web.social.post.replay": undefined;
+  "web.social.post.share_unavailable": undefined;
+  "web.social.post.unlike": undefined;
+  "web.social.post.unmute": undefined;
+  "web.social.profile.avatar": undefined;
+  "web.social.profile.bio": undefined;
+  "web.social.profile.from_computer": undefined;
+  "web.social.profile.from_device": undefined;
+  "web.social.profile.load_failed": undefined;
+  "web.social.profile.name": undefined;
+  "web.social.profile.no_bio": undefined;
+  "web.social.profile.save": undefined;
+  "web.social.profile.save_failed": undefined;
+  "web.social.profile.saved": undefined;
+  "web.social.profile.saving": undefined;
+  "web.social.profile.unexpected": undefined;
+  "web.social.profile.unnamed": undefined;
+  "web.social.time.days": { days: number };
+  "web.social.time.days_ago": { days: number };
+  "web.social.time.hours": { hours: number };
+  "web.social.time.hours_ago": { hours: number };
+  "web.social.time.just_now": undefined;
+  "web.social.time.minutes": { minutes: number };
+  "web.social.time.minutes_ago": { minutes: number };
+  "web.social.viewer.download_photo": undefined;
+  "web.social.viewer.download_video": undefined;
+  "web.social.viewer.full": undefined;
+  "web.social.viewer.photo_by": { name: string };
+  "web.social.viewer.photo_by_position": { name: string; index: number; total: number };
+  "web.social.viewer.video_by": { name: string };
+  "web.social.viewer.video_by_position": { name: string; index: number; total: number };
+  "web.social.viewer.video_loading": undefined;
 }
 
 /** Each rich key's tags. */
 export interface RichTags {
+  "web.files.list.tip": "code";
+  "web.files.list.total": "b";
+  "web.files.selection.selected": "b";
+  "web.files.share.low_res": "b";
+  "web.files.share.summary": "b";
+  "web.images.collections.empty_text": "b";
+  "web.images.people.name_label": "dim";
+  "web.images.people.will_be_called": "b";
+  "web.images.trim.keeping": "b";
+  "web.settings.bridge.leave_hint": "account" | "privacy";
+  "web.settings.bridge.pending_leave": "link";
+  "web.settings.bridge.reachable": "link";
+  "web.settings.bridge.setup_hint": "account" | "privacy" | "terms";
+  "web.settings.bridge.signed_in_as": "b";
+  "web.settings.tailscale.intro": "code";
+  "web.settings.tailscale.limit_one_user": "b";
+  "web.settings.tailscale.limit_social": "b";
+  "web.settings.tailscale.popup_blocked": "link";
+  "web.settings.tailscale.served_at": "link";
+  "web.settings.update.version_to": "b";
+  "web.settings.users.delete_confirm": "b";
   "web.shell.search.documents": "mark";
   "web.shell.update.critical": "b";
+  "web.social.alerts.commented": "b";
+  "web.social.alerts.friend_accepted": "b";
+  "web.social.alerts.friend_request": "b";
+  "web.social.alerts.liked_comment": "b";
+  "web.social.alerts.liked_post": "b";
 }
 
 /**

@@ -5,12 +5,14 @@ import type {
   KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { Trans, useT, type TFunction } from "../i18n";
 import { useWS } from "../net/useWS";
 import type { Person, ReqEnvelope, RespEnvelope } from "../proto/messages";
-import { reloadPeople, renamePersonLocally, usePeople } from "./libraryStore";
+import { personLabel, reloadPeople, renamePersonLocally, usePeople } from "./libraryStore";
 import type { Reload } from "./libraryStore";
 import { forgetPerson, showPerson } from "./photoFilter";
 import Spinner from "./Spinner";
+import { say, type UiText } from "./uiText";
 import "./PeopleView.css";
 
 // The People page: the faces the device found, named people first, each a
@@ -53,13 +55,16 @@ const cPressSlopPx = 8;
 // Deletions out at once: one request per person, a few at a time.
 const cDeleteParallel = 3;
 
-const counted = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
-const photosLabel = (n: number) => counted(n, "photo", "photos");
+const photosLabel = (t: TFunction, n: number) => t("web.images.people.photos", { count: n });
 const tidy = (s: string) => s.replace(/\s+/g, " ").trim();
 const fold = (s: string) => tidy(s).toLocaleLowerCase();
-// "Ana", "Ana and Leo", "Ana, Leo and Rosa".
-const andList = (xs: readonly string[]) =>
-  xs.length < 2 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
+// "Ana", "Ana and Leo", "Ana, Leo and Rosa": the last two joined, then each
+// name before them put in front.
+function nameList(t: TFunction, xs: readonly string[]): string {
+  if (xs.length < 2) return xs[0] ?? "";
+  if (xs.length === 2) return t("web.images.people.names_two", { first: xs[0], second: xs[1] });
+  return t("web.images.people.names_more", { first: xs[0], rest: nameList(t, xs.slice(1)) });
+}
 
 // A request the device answers with an Ack: true once it is done.
 async function ack(payload: ReqPayload): Promise<boolean> {
@@ -120,6 +125,7 @@ function namesOf(list: readonly Person[]): string[] {
 }
 
 export default function PeopleView({ onOpenPhotos }: Props) {
+  const t = useT();
   const { items, thumbs, loaded } = usePeople();
   const { failed, slow, retry } = useFreshList(loaded, reloadPeople);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -142,10 +148,11 @@ export default function PeopleView({ onOpenPhotos }: Props) {
   const [gone, setGone] = useState<ReadonlySet<string>>(() => new Set());
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [busy, setBusy] = useState(false);
-  const [confirmError, setConfirmError] = useState<string | null>(null);
+  // Words made when shown (UiText), so they follow a change of language.
+  const [confirmError, setConfirmError] = useState<UiText | null>(null);
   // How far a deletion of several has got.
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
-  const [toast, setToast] = useState<{ text: string; at: number; error: boolean } | null>(null);
+  const [toast, setToast] = useState<{ text: UiText; at: number; error: boolean } | null>(null);
 
   // Named people first, each part in the order the device lists them.
   const people = useMemo(() => {
@@ -167,11 +174,11 @@ export default function PeopleView({ onOpenPhotos }: Props) {
     (el ?? titleRef.current)?.focus({ preventScroll: true });
   });
 
-  const say = useCallback((text: string, error = false) => setToast({ text, at: Date.now(), error }), []);
+  const notify = useCallback((text: UiText, error = false) => setToast({ text, at: Date.now(), error }), []);
   useEffect(() => {
     if (!toast) return;
-    const t = window.setTimeout(() => setToast(null), toast.error ? cErrorToastMs : cToastMs);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => setToast(null), toast.error ? cErrorToastMs : cToastMs);
+    return () => window.clearTimeout(timer);
   }, [toast]);
 
   // ---- selecting ------------------------------------------------------------
@@ -362,13 +369,13 @@ export default function PeopleView({ onOpenPhotos }: Props) {
       // No answer: reported below like a refusal.
     }
     if (ok) renamePersonLocally(p.id, name);
-    else say("The name couldn't be saved. Try again.", true);
+    else notify(say("web.images.people.save_failed"), true);
     setSaving((m) => {
       const next = new Map(m);
       next.delete(p.id);
       return next;
     });
-  }, [say]);
+  }, [notify]);
 
   // typed is null for Esc. Leaving a field emptied by accident (a click
   // elsewhere) keeps the name; Enter on an empty field takes it off.
@@ -421,13 +428,13 @@ export default function PeopleView({ onOpenPhotos }: Props) {
       // others are still there to merge again.
       if (name && name !== tidy(keep.name)) {
         if (!(await ack({ $case: "reqRenamePerson", reqRenamePerson: { id: keep.id, name } }))) {
-          setConfirmError("The name couldn't be saved, so nothing was merged. Try again.");
+          setConfirmError(() => say("web.images.people.merge_name_failed"));
           return;
         }
         renamePersonLocally(keep.id, name);
       }
       if (!(await ack({ $case: "reqMergePeople", reqMergePeople: { targetId: keep.id, sourceIds: sources } }))) {
-        setConfirmError("They couldn't be merged. Try again.");
+        setConfirmError(() => say("web.images.people.merge_failed"));
         return;
       }
       sources.forEach(forgetPerson);
@@ -440,10 +447,12 @@ export default function PeopleView({ onOpenPhotos }: Props) {
       setConfirm(null);
       clearSel();
       const n = sources.length + 1;
-      say(name ? `Merged ${n} into ${name}` : `Merged ${n} faces`);
+      notify(name
+        ? (t) => t("web.images.people.merged_named", { number: n, name })
+        : (t) => t("web.images.people.merged", { number: n }));
       void reloadPeople().catch(() => {});
     } catch {
-      setConfirmError("Your device didn't answer. Try again.");
+      setConfirmError(() => say("web.images.people.no_answer"));
     } finally {
       setBusy(false);
     }
@@ -475,9 +484,9 @@ export default function PeopleView({ onOpenPhotos }: Props) {
     setBusy(false);
     setProgress(null);
     if (deleted.size === 0) {
-      setConfirmError(unanswered === ids.length
-        ? "Your device didn't answer. Try again."
-        : ids.length === 1 ? "This person couldn't be deleted. Try again." : "They couldn't be deleted. Try again.");
+      setConfirmError(() => say(unanswered === ids.length
+        ? "web.images.people.no_answer"
+        : ids.length === 1 ? "web.images.people.delete_failed_one" : "web.images.people.delete_failed"));
       return;
     }
     deleted.forEach(forgetPerson);
@@ -491,12 +500,11 @@ export default function PeopleView({ onOpenPhotos }: Props) {
     setConfirm(null);
     const failedCount = ids.length - deleted.size;
     if (failedCount === 0) {
-      say(ids.length === 1 ? "Person deleted" : `Deleted ${counted(ids.length, "person", "people")}`);
+      notify(ids.length === 1 ? say("web.images.people.deleted_one") : (t) => t("web.images.people.deleted", { count: ids.length }));
     } else {
       // "1 of 2 people couldn't be deleted and is still selected." Only a
       // deletion of several gets here: one person is all or nothing.
-      const verb = failedCount === 1 ? "is" : "are";
-      say(`${failedCount.toLocaleString()} of ${counted(ids.length, "person", "people")} couldn't be deleted and ${verb} still selected. Try again.`, true);
+      notify((t) => t("web.images.people.delete_partial", { count: failedCount, total: ids.length }), true);
     }
     void reloadPeople().catch(() => {});
   };
@@ -508,9 +516,9 @@ export default function PeopleView({ onOpenPhotos }: Props) {
     body = (
       <div className="pv-state">
         <span className="pv-state-art"><EmptyArt /></span>
-        <h2 className="pv-state-title">No faces found yet</h2>
+        <h2 className="pv-state-title">{t("web.images.people.empty_title")}</h2>
         <p className="pv-state-text">
-          Face recognition runs on the device after photos are uploaded. You can switch it on in Settings.
+          {t("web.images.people.empty_text")}
         </p>
       </div>
     );
@@ -552,16 +560,16 @@ export default function PeopleView({ onOpenPhotos }: Props) {
     body = (
       <div className="pv-state" role="status">
         <span className="pv-state-art"><ProblemIcon /></span>
-        <h2 className="pv-state-title">{failed ? "Couldn't load people" : "Still waiting for your device"}</h2>
+        <h2 className="pv-state-title">{failed ? t("web.images.people.failed") : t("web.images.load.waiting")}</h2>
         <p className="pv-state-text">
-          {failed ? "Check that your device is online, then try again." : "People are taking longer than usual to load."}
+          {failed ? t("web.images.load.check") : t("web.images.people.slow")}
         </p>
-        <button type="button" className="pv-btn pv-btn-primary pv-state-btn" onClick={retry}>Try again</button>
+        <button type="button" className="pv-btn pv-btn-primary pv-state-btn" onClick={retry}>{t("common.try_again")}</button>
       </div>
     );
   } else {
     body = (
-      <ul className="pv-grid pv-skeleton" aria-busy="true" aria-label="Loading people">
+      <ul className="pv-grid pv-skeleton" aria-busy="true" aria-label={t("web.images.people.loading")}>
         {Array.from({ length: cSkeletonFaces }, (_, i) => (
           <li key={i} className="pv-person" aria-hidden="true">
             <span className="pv-face-wrap" />
@@ -587,29 +595,30 @@ export default function PeopleView({ onOpenPhotos }: Props) {
           the faces, as it would the top bar it covers. pv-pickbar is what
           TopSearch.tsx looks for to close its panel under a bar. */}
       {selecting && (
-        <div ref={barRef} className="pv-selbar pv-pickbar" role="toolbar" aria-label="Selected people">
+        <div ref={barRef} className="pv-selbar pv-pickbar" role="toolbar" aria-label={t("web.images.people.selected")}>
           <button
             type="button"
             className="pv-icon-btn"
             onClick={() => { swallowSecondClick(); endSelection(); }}
-            aria-label="Clear selection"
-            data-tip="Clear selection"
+            aria-label={t("web.images.select.clear")}
+            data-tip={t("web.images.select.clear")}
           >
             <CloseIcon />
           </button>
           <div className="pv-selbar-text" aria-live="polite">
-            <span className="pv-selbar-count">{selPeople.length.toLocaleString()} selected</span>
-            {mergeHint && !canMerge && <span className="pv-selbar-hint">Select the faces of the same person</span>}
+            <span className="pv-selbar-count">{t("web.images.people.count", { count: selPeople.length })}</span>
+            {mergeHint && !canMerge && <span className="pv-selbar-hint">{t("web.images.people.merge_hint")}</span>}
           </div>
           <div className="pv-selbar-actions">
             <BarButton
               compact={compact}
-              label="Merge"
+              label={t("web.images.people.merge")}
               icon={<MergeIcon size={22} />}
-              unavailable={canMerge ? undefined : "Select 2 or more to merge"}
+              unavailable={canMerge ? undefined : t("web.images.people.merge_unavailable")}
+              unavailableLabel={t("web.images.people.merge_unavailable_label")}
               onClick={() => {
                 if (!canMerge) {
-                  say("Select 2 or more faces to merge them into one.");
+                  notify(say("web.images.people.merge_needs_two"));
                   return;
                 }
                 mergedIntoRef.current = null;
@@ -620,7 +629,7 @@ export default function PeopleView({ onOpenPhotos }: Props) {
             <BarButton
               compact={compact}
               danger
-              label="Delete"
+              label={t("common.delete")}
               icon={<TrashIcon size={22} />}
               onClick={() => {
                 setConfirmError(null);
@@ -632,7 +641,7 @@ export default function PeopleView({ onOpenPhotos }: Props) {
       )}
 
       <header className="pv-head">
-        <h1 ref={titleRef} className="pv-title" tabIndex={-1}>People</h1>
+        <h1 ref={titleRef} className="pv-title" tabIndex={-1}>{t("web.images.people.title")}</h1>
       </header>
       {body}
 
@@ -674,15 +683,20 @@ export default function PeopleView({ onOpenPhotos }: Props) {
           key={`delete:${deleting.ids.join(",")}`}
           art={<FaceStack people={deletePeople} thumbs={thumbs} />}
           title={deletePeople.length === 1
-            ? (tidy(deletePeople[0].name) ? `Delete ${tidy(deletePeople[0].name)}?` : "Delete this person?")
-            : `Delete ${deletePeople.length.toLocaleString()} people?`}
+            ? (tidy(deletePeople[0].name)
+              ? t("web.images.people.delete_named", { name: tidy(deletePeople[0].name) })
+              : t("web.images.people.delete_this"))
+            : t("web.images.people.delete_many", { number: deletePeople.length })}
           // What DeletePerson does: the person and every face matched to
           // them go, the photos stay, and a face in a photo added later is
           // found as someone new.
-          text="Their photos stay; only the faces matched to them are forgotten. This can't be undone, and they'll come back as new people in photos added later."
-          action="Delete"
+          text={t("web.images.people.delete_text")}
+          action={t("common.delete")}
+          busyLabel={t("web.images.people.deleting_label")}
           busy={busy}
-          busyText={progress && progress.total > 1 ? `${Math.min(progress.done + 1, progress.total)} of ${progress.total}` : undefined}
+          busyText={progress && progress.total > 1
+            ? t("web.images.people.progress", { done: Math.min(progress.done + 1, progress.total), total: progress.total })
+            : undefined}
           error={confirmError}
           onCancel={() => setConfirm(null)}
           onConfirm={() => void remove(deletePeople.map((p) => p.id))}
@@ -691,7 +705,7 @@ export default function PeopleView({ onOpenPhotos }: Props) {
       )}
 
       <div className="pv-toast-host" aria-live="polite">
-        {toast && <div key={toast.at} className={`pv-toast${toast.error ? " error" : ""}`}>{toast.text}</div>}
+        {toast && <div key={toast.at} className={`pv-toast${toast.error ? " error" : ""}`}>{toast.text(t)}</div>}
       </div>
     </div>
   );
@@ -720,28 +734,34 @@ type TileProps = {
 // or a name being saved re-renders one tile, not every face in the library.
 // The face and its circle have no handlers of their own: the grid's take
 // their clicks (see onGridClick).
-const PersonTile = memo(function PersonTile(t: TileProps) {
-  const { person, name, selecting, selected } = t;
-  const who = name || "this person";
-  const faceLabel = `${name || "Unnamed person"}, ${photosLabel(person.faceCount)}`;
+const PersonTile = memo(function PersonTile(props: TileProps) {
+  const t = useT();
+  const { person, name, selecting, selected } = props;
+  const photos = person.faceCount;
+  const faceLabel = name
+    ? t("web.images.people.face_named", { name, count: photos })
+    : t("web.images.people.face_unnamed", { count: photos });
+  const selectLabel = name
+    ? t("web.images.people.select_named", { name, count: photos })
+    : t("web.images.people.select_unnamed", { count: photos });
 
   let label: ReactNode;
-  if (t.editing) {
+  if (props.editing) {
     label = (
       <NameEditor
         initial={name}
         named={name !== ""}
-        onDone={(typed, fromBlur) => t.onEndRename(person, typed, fromBlur)}
+        onDone={(typed, fromBlur) => props.onEndRename(person, typed, fromBlur)}
       />
     );
   } else if (name) {
-    label = <span className={`pv-name${t.pending ? " pending" : ""}`} title={name}>{name}</span>;
+    label = <span className={`pv-name${props.pending ? " pending" : ""}`} title={name}>{name}</span>;
   } else if (selecting) {
-    label = <span className="pv-name pv-unnamed">Unnamed</span>;
+    label = <span className="pv-name pv-unnamed">{personLabel({ name })}</span>;
   } else {
     label = (
-      <button type="button" className="pv-addname" onClick={() => t.onStartRename(person)}>
-        Add a name
+      <button type="button" className="pv-addname" onClick={() => props.onStartRename(person)}>
+        {t("web.images.people.add_name")}
       </button>
     );
   }
@@ -750,8 +770,8 @@ const PersonTile = memo(function PersonTile(t: TileProps) {
     <li className={`pv-person${selected ? " selected" : ""}`} data-person-id={person.id}>
       <div className="pv-face-wrap">
         <button type="button" className="pv-face" aria-label={faceLabel} aria-pressed={selecting ? selected : undefined}>
-          {t.thumb
-            ? <img src={t.thumb} alt="" draggable={false} decoding="async" />
+          {props.thumb
+            ? <img src={props.thumb} alt="" draggable={false} decoding="async" />
             : <span className="pv-face-ph"><PersonGlyph size={44} /></span>}
         </button>
         {/* Its own button for the keyboard; on a touch screen taps go to the
@@ -760,7 +780,7 @@ const PersonTile = memo(function PersonTile(t: TileProps) {
           type="button"
           className="pv-check"
           aria-pressed={selected}
-          aria-label={`Select ${faceLabel}`}
+          aria-label={selectLabel}
           tabIndex={selecting ? -1 : 0}
         >
           <span className="pv-check-circle"><CheckIcon size={16} /></span>
@@ -769,19 +789,19 @@ const PersonTile = memo(function PersonTile(t: TileProps) {
           <button
             type="button"
             className="pv-more"
-            onClick={(e) => t.onMore(person, e.currentTarget)}
-            aria-label={`More options for ${who}`}
-            data-tip="More options"
+            onClick={(e) => props.onMore(person, e.currentTarget)}
+            aria-label={name ? t("web.images.people.more_named", { name }) : t("web.images.people.more_unnamed")}
+            data-tip={t("web.images.people.more")}
             aria-haspopup="menu"
-            aria-expanded={t.menuOpen}
-            aria-controls={t.menuOpen ? t.menuId : undefined}
+            aria-expanded={props.menuOpen}
+            aria-controls={props.menuOpen ? props.menuId : undefined}
           >
             <MoreIcon />
           </button>
         )}
       </div>
       <div className="pv-label">{label}</div>
-      <span className="pv-count">{photosLabel(person.faceCount)}</span>
+      <span className="pv-count">{photosLabel(t, photos)}</span>
     </li>
   );
 });
@@ -793,6 +813,7 @@ function NameEditor({ initial, named, onDone }: {
   named: boolean;
   onDone: (typed: string | null, fromBlur: boolean) => void;
 }) {
+  const t = useT();
   const [value, setValue] = useState(initial);
   return (
     <input
@@ -814,8 +835,8 @@ function NameEditor({ initial, named, onDone }: {
       }}
       autoFocus
       maxLength={cMaxName}
-      placeholder="Name"
-      aria-label={named ? "New name" : "Name this person"}
+      placeholder={t("web.images.people.name_placeholder")}
+      aria-label={named ? t("web.images.people.new_name") : t("web.images.people.name_this")}
       autoComplete="off"
       autoCapitalize="words"
       spellCheck={false}
@@ -829,13 +850,16 @@ function NameEditor({ initial, named, onDone }: {
 // An action of the selection bar: icon and label, or the icon alone with a
 // tooltip below 900px. One that can't be used yet stays where it is, dimmed,
 // and says why - in its tooltip, to a screen reader, and when pressed.
-function BarButton({ compact, label, icon, onClick, danger = false, unavailable }: {
+function BarButton({ compact, label, icon, onClick, danger = false, unavailable, unavailableLabel }: {
   compact: boolean;
   label: string;
   icon: ReactNode;
   onClick: () => void;
   danger?: boolean;
+  // Why it can't be used yet (its tooltip), and its screen-reader name
+  // then: the action and why, in one text.
   unavailable?: string;
+  unavailableLabel?: string;
 }) {
   return (
     <button
@@ -843,7 +867,7 @@ function BarButton({ compact, label, icon, onClick, danger = false, unavailable 
       className={`pv-bar-btn${danger ? " danger" : ""}`}
       onClick={onClick}
       aria-disabled={unavailable ? true : undefined}
-      aria-label={unavailable ? `${label} (${unavailable.toLowerCase()})` : label}
+      aria-label={unavailable ? (unavailableLabel ?? label) : label}
       data-tip={unavailable ?? (compact ? label : undefined)}
     >
       {icon}
@@ -866,6 +890,7 @@ function PersonMenu({ id, anchor, list, named, canMerge, onRename, onMerge, onDe
   onDelete: () => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; up: boolean } | null>(null);
 
@@ -944,21 +969,21 @@ function PersonMenu({ id, anchor, list, named, canMerge, onRename, onMerge, onDe
         ref={ref}
         id={id}
         role="menu"
-        aria-label="Person options"
+        aria-label={t("web.images.people.menu")}
         className={`pv-menu${pos?.up ? " up" : ""}`}
         style={pos ? { top: pos.top, left: pos.left } : { top: 0, left: 0, visibility: "hidden" }}
         onKeyDown={onKeyDown}
       >
         <button type="button" role="menuitem" tabIndex={-1} className="pv-menu-item" onClick={onRename}>
-          <PencilIcon />{named ? "Rename" : "Add a name"}
+          <PencilIcon />{named ? t("common.rename") : t("web.images.people.add_name")}
         </button>
         {canMerge && (
           <button type="button" role="menuitem" tabIndex={-1} className="pv-menu-item" onClick={onMerge}>
-            <MergeIcon />Merge with others…
+            <MergeIcon />{t("web.images.people.merge_others")}
           </button>
         )}
         <button type="button" role="menuitem" tabIndex={-1} className="pv-menu-item danger" onClick={onDelete}>
-          <TrashIcon />Delete
+          <TrashIcon />{t("common.delete")}
         </button>
       </div>
     </>,
@@ -984,11 +1009,12 @@ function MergeDialog({ people, thumbs, busy, error, onCancel, onConfirm, onRetur
   people: readonly Person[];
   thumbs: ReadonlyMap<string, string>;
   busy: boolean;
-  error: string | null;
+  error: UiText | null;
   onCancel: () => void;
   onConfirm: (keep: Person, name: string) => void;
   onReturnFocus: () => void;
 }) {
+  const t = useT();
   const [keepId, setKeepId] = useState<string | null>(() => firstKeep(people));
   const [typed, setTyped] = useState("");
   const groupRef = useRef<HTMLDivElement>(null);
@@ -1057,20 +1083,24 @@ function MergeDialog({ people, thumbs, busy, error, onCancel, onConfirm, onRetur
 
   let note: ReactNode = null;
   if (!keep) {
-    note = <>They have different names, and only one can stay. Pick the face to keep.</>;
+    note = <>{t("web.images.people.different_names")}</>;
   } else if (name && !askName) {
-    note = <>The merged person will be called <strong>{name}</strong>.</>;
+    note = <Trans k="web.images.people.will_be_called" args={{ name }} parts={{ b: (s) => <strong>{s}</strong> }} />;
   }
+  // After the note, a sentence of its own.
   const droppedNote = dropped.length > 0 && (
-    <> {dropped.length === 1 ? "The name" : "The names"} {andList(dropped)} will be dropped.</>
+    <> {dropped.length === 1
+      ? t("web.images.people.dropped_one", { name: dropped[0] })
+      : t("web.images.people.dropped_many", { names: nameList(t, dropped) })}</>
   );
 
   return (
     <ConfirmDialog
       wide
-      title={`Merge ${n.toLocaleString()} people into one?`}
-      text="Pick the face to keep: it keeps its name and picture, and gets the photos of the others. This can't be undone."
-      action="Merge"
+      title={t("web.images.people.merge_title", { number: n })}
+      text={t("web.images.people.merge_text")}
+      action={t("web.images.people.merge")}
+      busyLabel={t("web.images.people.merging_label")}
       tone="primary"
       ready={keep !== null}
       busy={busy}
@@ -1083,7 +1113,7 @@ function MergeDialog({ people, thumbs, busy, error, onCancel, onConfirm, onRetur
         ref={groupRef}
         className={`pv-keep${more & 1 ? " more-above" : ""}${more & 2 ? " more-below" : ""}`}
         role="radiogroup"
-        aria-label="Face to keep"
+        aria-label={t("web.images.people.keep_group")}
         aria-disabled={busy || undefined}
         onKeyDown={onGroupKey}
         onScroll={measure}
@@ -1104,10 +1134,10 @@ function MergeDialog({ people, thumbs, busy, error, onCancel, onConfirm, onRetur
             >
               <span className="pv-keep-face">
                 <Avatar src={thumbs.get(p.id)} className="pv-avatar-keep" />
-                {chosen && <span className="pv-keep-badge" aria-hidden="true"><CheckIcon size={12} />Keep</span>}
+                {chosen && <span className="pv-keep-badge" aria-hidden="true"><CheckIcon size={12} />{t("web.images.people.keep")}</span>}
               </span>
-              <span className={`pv-keep-name${label ? "" : " pv-unnamed"}`}>{label || "Unnamed"}</span>
-              <span className="pv-keep-count">{photosLabel(p.faceCount)}</span>
+              <span className={`pv-keep-name${label ? "" : " pv-unnamed"}`}>{label || personLabel(p)}</span>
+              <span className="pv-keep-count">{photosLabel(t, p.faceCount)}</span>
             </button>
           );
         })}
@@ -1115,7 +1145,7 @@ function MergeDialog({ people, thumbs, busy, error, onCancel, onConfirm, onRetur
       {(note || droppedNote) && <p className="pv-dialog-note" aria-live="polite">{note}{droppedNote}</p>}
       {askName && (
         <div className="pv-field">
-          <label htmlFor={fieldId}>Name <span>(optional)</span></label>
+          <label htmlFor={fieldId}><Trans k="web.images.people.name_label" parts={{ dim: (s) => <span>{s}</span> }} /></label>
           <input
             id={fieldId}
             value={typed}
@@ -1129,7 +1159,7 @@ function MergeDialog({ people, thumbs, busy, error, onCancel, onConfirm, onRetur
               }
             }}
             maxLength={cMaxName}
-            placeholder="Add a name"
+            placeholder={t("web.images.people.name_add_placeholder")}
             autoComplete="off"
             autoCapitalize="words"
             spellCheck={false}
@@ -1147,7 +1177,7 @@ function MergeDialog({ people, thumbs, busy, error, onCancel, onConfirm, onRetur
 // opened it, if that is still there (the selection bar), else wherever
 // onReturnFocus says (the person it was about).
 function ConfirmDialog({
-  art, title, text, children, action, tone = "danger", ready = true, wide = false,
+  art, title, text, children, action, busyLabel, tone = "danger", ready = true, wide = false,
   busy, busyText, error, onCancel, onConfirm, onReturnFocus,
 }: {
   art?: ReactNode;
@@ -1156,6 +1186,8 @@ function ConfirmDialog({
   // More of the question, under the text: the merge's faces and name.
   children?: ReactNode;
   action: string;
+  // The action button's screen-reader name while busy ("Delete…").
+  busyLabel: string;
   tone?: "danger" | "primary";
   // False while the question still needs an answer: the action is dimmed.
   ready?: boolean;
@@ -1163,11 +1195,12 @@ function ConfirmDialog({
   busy: boolean;
   // Shown by the spinner while busy (how far it has got).
   busyText?: string;
-  error: string | null;
+  error: UiText | null;
   onCancel: () => void;
   onConfirm: () => void;
   onReturnFocus: () => void;
 }) {
+  const t = useT();
   const ref = useRef<HTMLDialogElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
@@ -1283,18 +1316,18 @@ function ConfirmDialog({
           <h2 id={titleId} className="pv-dialog-title">{title}</h2>
           <p id={textId} className="pv-dialog-text">{text}</p>
           {children}
-          {error && <p ref={errorRef} className="pv-dialog-error" role="alert">{error}</p>}
+          {error && <p ref={errorRef} className="pv-dialog-error" role="alert">{error(t)}</p>}
         </div>
         <div className="pv-dialog-actions">
           <button ref={cancelRef} type="button" className="pv-btn pv-btn-quiet" onClick={dismiss} aria-disabled={busy}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="button"
             className={`pv-btn pv-btn-${tone}`}
             onClick={() => { if (!busy) onConfirm(); }}
             aria-disabled={busy || !ready}
-            aria-label={busy ? `${action}…` : undefined}
+            aria-label={busy ? busyLabel : undefined}
           >
             {busy ? <Spinner label={busyText} /> : action}
           </button>

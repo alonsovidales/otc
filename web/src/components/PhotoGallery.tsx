@@ -11,6 +11,7 @@
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode, Ref, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
+import { useT, type TFunction } from "../i18n";
 import { useWS } from "../net/useWS";
 import type { DeepPartial, File as MsgFile, ImageGroup, Person, ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { fileSize } from "../net/fileSize";
@@ -24,6 +25,7 @@ import { useObjectURLs } from "./useObjectURLs";
 import { usePageRetry } from "./usePageRetry";
 import { clearSearch, isDateOrdered, isFiltered, leaveGroup, openGroup, updateOpenGroup, usePhotoFilter, type OpenGroup } from "./photoFilter";
 import { dropGroupLocally, personLabel, reloadGroups, renameGroupLocally, useGroups, usePeople } from "./libraryStore";
+import { say, type UiText } from "./uiText";
 
 // A search's first page asks for only this many photos (SearchPhotos.limit):
 // a full page of ~30 thumbnails took 5-45 s over a slow home upload, and the
@@ -86,53 +88,81 @@ const acked = (r: RespEnvelope) => r.payload?.$case === "respAck" && r.payload.r
 
 // ---- words -----------------------------------------------------------------
 
-const cMonthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const cDayFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric" });
-const cNumber = new Intl.NumberFormat("en");
+// Month names as the language writes them, by its canonical tag (t.tag)
+// rather than the browser's region, as DateScrubber does: English reads
+// "September" and "Sep" in every browser, as the names written here did.
+const monthFormats = new Map<string, Intl.DateTimeFormat>();
+function monthName(t: TFunction, month: number, width: "long" | "short"): string {
+  const key = `${t.tag}|${width}`;
+  let f = monthFormats.get(key);
+  if (!f) {
+    try {
+      f = new Intl.DateTimeFormat(t.tag, { month: width, timeZone: "UTC" });
+    } catch {
+      f = new Intl.DateTimeFormat("en", { month: width, timeZone: "UTC" });
+    }
+    monthFormats.set(key, f);
+  }
+  return f.format(Date.UTC(2000, month, 15));
+}
 
 /** "2024-03" for a date, in the viewer's time zone. */
 const monthOf = (d?: Date): string | null =>
   d && !Number.isNaN(d.getTime()) ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` : null;
 
+// "2024-03" as its year and month (0 = January).
 const monthParts = (key: string) => {
   const [y, m] = key.split("-").map(Number);
-  return { year: y, name: cMonthNames[(m || 1) - 1] };
+  return { year: y, month: (m || 1) - 1 };
 };
 /** "March 2024" */
-const monthTitle = (key: string) => {
-  const { year, name } = monthParts(key);
-  return `${name} ${year}`;
+const monthTitle = (t: TFunction, key: string) => {
+  const { year, month } = monthParts(key);
+  return t("web.images.grid.month_title", { month: monthName(t, month, "long"), year: String(year) });
 };
 /** "Mar 2024" */
-const monthShort = (key: string) => {
-  const { year, name } = monthParts(key);
-  return `${name.slice(0, 3)} ${year}`;
+const monthShort = (t: TFunction, key: string) => {
+  const { year, month } = monthParts(key);
+  return t("web.images.grid.month_short", { month: monthName(t, month, "short"), year: String(year) });
 };
+
+/** "1 September 2026", in the viewer's time zone. */
+const dayLabel = (t: TFunction, d: Date) =>
+  t("web.images.grid.date", { day: String(d.getDate()), month: monthName(t, d.getMonth(), "long"), year: String(d.getFullYear()) });
 
 /** The months the photos span, from date buckets (newest first): "Mar 2024",
  *  "Mar – Oct 2024" or "Mar 2024 – Oct 2026" ("2024 – 2026" in `years`,
  *  which fits a narrow header's line). */
-function spanLabel(buckets: ScrubBucket[], years = false): string {
+function spanLabel(t: TFunction, buckets: ScrubBucket[], years = false): string {
   if (!buckets.length) return "";
   const from = monthParts(buckets[buckets.length - 1].month);
   const to = monthParts(buckets[0].month);
-  const short = (p: { name: string }) => p.name.slice(0, 3);
-  if (from.year === to.year && from.name === to.name) return `${short(to)} ${to.year}`;
-  if (from.year === to.year) return `${short(from)} – ${short(to)} ${to.year}`;
-  if (years) return `${from.year} – ${to.year}`;
-  return `${short(from)} ${from.year} – ${short(to)} ${to.year}`;
+  const short = (p: { month: number }) => monthName(t, p.month, "short");
+  if (from.year === to.year && from.month === to.month) {
+    return t("web.images.collection.span_month", { month: short(to), year: String(to.year) });
+  }
+  if (from.year === to.year) {
+    return t("web.images.collection.span_months", { from: short(from), to: short(to), year: String(to.year) });
+  }
+  if (years) return t("web.images.collection.span_years", { from: String(from.year), to: String(to.year) });
+  return t("web.images.collection.span_full", {
+    fromMonth: short(from), fromYear: String(from.year), toMonth: short(to), toYear: String(to.year),
+  });
 }
 
 /** "1 item", "1,234 items" */
-const count = (n: number, one: string, many = `${one}s`) => `${cNumber.format(n)} ${n === 1 ? one : many}`;
+const itemsLabel = (t: TFunction, n: number) => t("web.images.count.items", { count: n });
 
 /** "3 photos", "1 video", "2 photos and 1 video" */
-function whatLabel(files: MsgFile[]): string {
+function whatLabel(t: TFunction, files: MsgFile[]): string {
   const videos = files.filter(isVideoFile).length;
   const photos = files.length - videos;
-  if (!videos) return count(photos, "photo");
-  if (!photos) return count(videos, "video");
-  return `${count(photos, "photo")} and ${count(videos, "video")}`;
+  if (!videos) return t("web.images.count.photos", { count: photos });
+  if (!photos) return t("web.images.count.videos", { count: videos });
+  return t("web.images.count.photos_and_videos", {
+    photos: t("web.images.count.photos", { count: photos }),
+    videos: t("web.images.count.videos", { count: videos }),
+  });
 }
 
 // ---- icons (24px outlines, like NavIcons) -----------------------------------
@@ -210,15 +240,15 @@ function swallowSecondClick(ms = 500) {
 // A tab for a ZIP still being made, opened at the click: a browser refuses
 // one opened more than a few seconds after it, and making the archive can
 // take longer. It goes to the link once there is one.
-function openWaitingTab(): Window | null {
+function openWaitingTab(t: TFunction): Window | null {
   const tab = window.open("", "_blank");
   if (!tab) return null;
   tab.opener = null;
   try {
-    tab.document.title = "Preparing the ZIP…";
+    tab.document.title = t("web.images.share.preparing_zip");
     tab.document.body.style.cssText =
       "margin:0;min-height:100vh;display:grid;place-items:center;background:#242424;color:#eaf2ef;font:16px system-ui,sans-serif";
-    tab.document.body.textContent = "Preparing the ZIP… It downloads from here once it's ready.";
+    tab.document.body.textContent = t("web.images.share.zip_tab");
   } catch {
     // A blank tab still does the job.
   }
@@ -256,19 +286,22 @@ type DialogState =
   // allows a copy right after a click, and making the link took longer).
   | { kind: "link"; link: string };
 
+// Its words are made when shown (UiText), so a message on screen follows a
+// change of language.
 type Toast = {
   id: number;
-  text: string;
+  text: UiText;
   error?: boolean;
   // Stays until replaced (work in progress), with a spinner.
   busy?: boolean;
-  action?: { label: string; run: () => void };
+  action?: { label: UiText; run: () => void };
   // Stays until used or dismissed: its action is the only way to what it
   // offers.
   stay?: boolean;
 };
 
 export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
+  const t = useT();
   const filter = usePhotoFilter();
   const { tags, personIds, group } = filter;
   const groupId = group?.id ?? "";
@@ -867,18 +900,18 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   // -------- toasts ------------------------------------------------------------
   const [toast, setToast] = useState<Toast | null>(null);
   const toastIdRef = useRef(0);
-  const showToast = useCallback((t: Omit<Toast, "id">) => {
+  const showToast = useCallback((next: Omit<Toast, "id">) => {
     const id = ++toastIdRef.current;
-    setToast({ ...t, id });
+    setToast({ ...next, id });
     return id;
   }, []);
   const dismissToast = useCallback((id: number) => setToast((cur) => (cur?.id === id ? null : cur)), []);
   useEffect(() => {
     if (!toast || toast.busy || toast.stay) return;
-    const t = window.setTimeout(() => dismissToast(toast.id), toast.action ? 6000 : toast.error ? 5000 : 3000);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => dismissToast(toast.id), toast.action ? 6000 : toast.error ? 5000 : 3000);
+    return () => window.clearTimeout(timer);
   }, [toast, dismissToast]);
-  const toastError = useCallback((text: string) => { showToast({ text, error: true }); }, [showToast]);
+  const toastError = useCallback((text: UiText) => { showToast({ text, error: true }); }, [showToast]);
 
   // -------- dialogs, menus and sharing -----------------------------------------
   const [dialog, setDialog] = useState<DialogState | null>(null);
@@ -908,15 +941,15 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     const paths = sel.map((f) => f.path);
     closeShare(false);
     setPreparing(kind);
-    const busyId = showToast({ text: kind === "zip" ? "Preparing the ZIP…" : "Preparing the link…", busy: true });
+    const busyId = showToast({ text: say(kind === "zip" ? "web.images.share.preparing_zip" : "web.images.share.preparing_link"), busy: true });
     // The link's own page downloads the archive, in a tab opened now.
-    const tab = kind === "zip" ? openWaitingTab() : null;
+    const tab = kind === "zip" ? openWaitingTab(t) : null;
     try {
       const resp = await ask({ $case: "reqShareFilesLink", reqShareFilesLink: { paths } });
       const link = resp.payload?.$case === "respShareLink" ? resp.payload.respShareLink.link : "";
       if (!link) {
         tab?.close();
-        showToast({ text: kind === "zip" ? "Couldn't make the ZIP. Try again." : "Couldn't make the link. Try again.", error: true });
+        showToast({ text: say(kind === "zip" ? "web.images.share.zip_failed" : "web.images.share.link_failed"), error: true });
         return;
       }
       if (kind === "zip") {
@@ -927,20 +960,24 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
           dismissToast(busyId);
         } else {
           // Popups refused, or the tab closed meanwhile: a button opens it.
-          showToast({ text: "Your ZIP is ready", stay: true, action: { label: "Download", run: () => { window.open(link, "_blank"); } } });
+          showToast({
+            text: say("web.images.share.zip_ready"),
+            stay: true,
+            action: { label: say("common.download"), run: () => { window.open(link, "_blank"); } },
+          });
         }
         return;
       }
       try {
         await navigator.clipboard.writeText(link);
-        showToast({ text: "Link copied" });
+        showToast({ text: say("web.images.share.copied") });
       } catch {
         dismissToast(busyId);
         setDialog({ kind: "link", link });
       }
     } catch {
       tab?.close();
-      showToast({ text: "Couldn't reach your device. Try again.", error: true });
+      showToast({ text: say("web.images.error.unreachable"), error: true });
     } finally {
       setPreparing(null);
     }
@@ -956,7 +993,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
 
   // Issue #45: delete every selected photo and video, one request each.
   const [deleting, setDeleting] = useState<{ done: number; total: number } | null>(null);
-  const deleteSelected = async (): Promise<string | null> => {
+  const deleteSelected = async (): Promise<UiText | null> => {
     const files = sel;
     if (!files.length) return null;
     setDeleting({ done: 0, total: files.length });
@@ -993,22 +1030,22 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     setDialog(null);
     const kept = uploadOnly + failed;
     if (!kept) {
-      showToast({ text: `Deleted ${whatLabel(files)}` });
+      showToast({ text: (t) => t("web.images.delete.done", { what: whatLabel(t, files) }) });
     } else if (kept === uploadOnly) {
-      showToast({ text: `${count(kept, "item")} ${kept === 1 ? "is" : "are"} in an upload-only folder and can't be deleted`, error: true });
+      showToast({ text: (t) => t("web.images.delete.upload_only", { count: kept }), error: true });
     } else {
-      showToast({ text: `${count(kept, "item")} couldn't be deleted. Try again.`, error: true });
+      showToast({ text: (t) => t("web.images.delete.failed", { count: kept }), error: true });
     }
     return null;
   };
 
-  const deleteCollection = async (): Promise<string | null> => {
+  const deleteCollection = async (): Promise<UiText | null> => {
     if (!group) return null;
     try {
       const resp = await ask({ $case: "reqDeleteImageGroup", reqDeleteImageGroup: { id: group.id } });
-      if (!acked(resp)) return "Couldn't delete the collection. Try again.";
+      if (!acked(resp)) return say("web.images.collection.delete_failed");
     } catch {
-      return "Couldn't reach your device. Try again.";
+      return say("web.images.error.unreachable");
     }
     // One render for all of it: after the await these would otherwise be
     // two (the filter's store and App's tab), and the first would search
@@ -1025,13 +1062,13 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   const onPosted = () => {
     setDialog(null);
     clearSel();
-    showToast({ text: "Posted to Social" });
+    showToast({ text: say("web.images.post.posted") });
   };
 
   const onCollected = (g: OpenGroup) => {
     setDialog(null);
     clearSel();
-    showToast({ text: `Added to “${g.name}”`, action: { label: "View", run: () => openGroup(g) } });
+    showToast({ text: (t) => t("web.images.collect.added", { name: g.name }), action: { label: say("web.images.collect.view"), run: () => openGroup(g) } });
   };
 
   // Escape clears the selection - unless something on top of the grid
@@ -1114,7 +1151,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   let body: ReactNode;
   if (previewing) {
     body = (
-      <div className="pg-grid" ref={gridRef} aria-busy="true" aria-label="Loading photos">
+      <div className="pg-grid" ref={gridRef} aria-busy="true" aria-label={t("web.images.grid.loading")}>
         <div className="pg-sec" style={sectionStyle(placeholderCount)}>
           <MonthTitle month={placeholderMonth} oneTile={placeholderCount === 1} />
           {Array.from({ length: placeholderCount }, (_, i) => <div key={i} className="pg-tile pg-tile-skel" />)}
@@ -1123,7 +1160,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     );
   } else if (firstLoad) {
     body = (
-      <div className="pg-grid" aria-busy="true" aria-label="Loading photos">
+      <div className="pg-grid" aria-busy="true" aria-label={t("web.images.grid.loading")}>
         <div className="pg-sec" style={sectionStyle(cSkeletonTiles)}>
           {dateOrdered && <div className="pg-month pg-month-skel"><span /></div>}
           {Array.from({ length: cSkeletonTiles }, (_, i) => <div key={i} className="pg-tile pg-tile-skel" />)}
@@ -1132,27 +1169,35 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     );
   } else if (items.length === 0 && pageError) {
     body = (
-      <Empty icon={<OfflineIcon size={32} />} title="Can't reach your device" text="Your photos will appear as soon as it answers.">
+      <Empty icon={<OfflineIcon size={32} />} title={t("web.images.grid.unreachable_title")} text={t("web.images.grid.unreachable_text")}>
         <button type="button" className="pg-btn outline" onClick={retryNow} disabled={loading}>
-          {loading ? <Spinner label="Trying…" /> : "Try again"}
+          {loading ? <Spinner label={t("web.images.grid.trying")} /> : t("common.try_again")}
         </button>
       </Empty>
     );
   } else if (items.length === 0) {
     if (group && !tags.length && !personIds.length) {
       body = (
-        <Empty icon={<CollectionsIcon size={32} />} title="This collection is empty" text="Select photos in Images, then choose Add to collection.">
-          <button type="button" className="pg-btn outline" onClick={() => leaveGroup()}>Go to Images</button>
+        <Empty
+          icon={<CollectionsIcon size={32} />}
+          title={t("web.images.grid.empty_collection_title")}
+          text={t("web.images.grid.empty_collection_text")}
+        >
+          <button type="button" className="pg-btn outline" onClick={() => leaveGroup()}>{t("web.images.grid.go_to_images")}</button>
         </Empty>
       );
     } else if (isFiltered(filter)) {
       body = (
-        <Empty icon={<SearchIcon size={32} />} title="No photos match" text={group ? `Nothing in “${group.name}” matches this search.` : "Try other words, or fewer of them."}>
-          <button type="button" className="pg-btn outline" onClick={() => clearSearch()}>Clear search</button>
+        <Empty
+          icon={<SearchIcon size={32} />}
+          title={t("web.images.grid.no_match_title")}
+          text={group ? t("web.images.grid.no_match_in", { name: group.name }) : t("web.images.grid.no_match_text")}
+        >
+          <button type="button" className="pg-btn outline" onClick={() => clearSearch()}>{t("web.images.grid.clear_search")}</button>
         </Empty>
       );
     } else {
-      body = <Empty icon={<ImagesIcon size={32} />} title="No photos yet" text="Photos from the phone and computer apps appear here." />;
+      body = <Empty icon={<ImagesIcon size={32} />} title={t("web.images.grid.empty_title")} text={t("web.images.grid.empty_text")} />;
     }
   } else {
     body = (
@@ -1182,25 +1227,30 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
       {/* First, though it is drawn over the top bar: Tab reaches it before
           the photos, as it would the top bar it covers. */}
       {selecting && (
-        <div className="pg-selbar" role="toolbar" aria-label="Selected photos">
+        <div className="pg-selbar" role="toolbar" aria-label={t("web.images.select.label")}>
           <button
             type="button"
             className="pg-icon-btn"
             onClick={() => { swallowSecondClick(); clearSel(); }}
-            aria-label="Clear selection"
-            data-tip="Clear selection"
+            aria-label={t("web.images.select.clear")}
+            data-tip={t("web.images.select.clear")}
           >
             <CloseIcon />
           </button>
-          <span className="pg-selbar-count" aria-live="polite">{cNumber.format(sel.length)} selected</span>
+          <span className="pg-selbar-count" aria-live="polite">{t("web.images.select.count", { count: sel.length })}</span>
           <div className="pg-selbar-actions">
-            <BarButton compact={compact} label="Social Post" icon={<PostIcon size={22} />} onClick={() => openDialog({ kind: "post" })} />
-            <BarButton compact={compact} label="Add to Collection" icon={<AddToCollectionIcon size={22} />} onClick={() => openDialog({ kind: "collect" })} />
+            <BarButton compact={compact} label={t("web.images.select.post")} icon={<PostIcon size={22} />} onClick={() => openDialog({ kind: "post" })} />
+            <BarButton
+              compact={compact}
+              label={t("web.images.select.collect")}
+              icon={<AddToCollectionIcon size={22} />}
+              onClick={() => openDialog({ kind: "collect" })}
+            />
             <div className="pg-share-anchor">
               <BarButton
                 ref={shareBtnRef}
                 compact={compact}
-                label="Share"
+                label={t("common.share")}
                 icon={preparing ? <Spinner /> : <ShareIcon size={22} />}
                 onClick={() => setShareOpen((v) => !v)}
                 disabled={!!preparing}
@@ -1215,7 +1265,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
                 />
               )}
             </div>
-            <BarButton compact={compact} danger label="Delete" icon={<TrashIcon size={22} />} onClick={() => openDialog({ kind: "delete" })} />
+            <BarButton compact={compact} danger label={t("common.delete")} icon={<TrashIcon size={22} />} onClick={() => openDialog({ kind: "delete" })} />
           </div>
         </div>
       )}
@@ -1225,7 +1275,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
           group={group}
           // Below 900px, as in the selection bar, the actions are icons and
           // the span is years only: the name and its line keep the room.
-          span={bucketsFresh ? spanLabel(dateBuckets, compact) : ""}
+          span={bucketsFresh ? spanLabel(t, dateBuckets, compact) : ""}
           compact={compact}
           onBack={() => {
             swallowSecondClick();
@@ -1254,8 +1304,8 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
           ? <Spinner />
           : pageError && (
             <span className="pg-foot-error">
-              Couldn't load more photos.
-              <button type="button" className="pg-btn quiet small" onClick={retryNow}>Try again</button>
+              {t("web.images.grid.more_failed")}
+              <button type="button" className="pg-btn quiet small" onClick={retryNow}>{t("common.try_again")}</button>
             </span>
           ))}
       </div>
@@ -1268,22 +1318,22 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
       )}
       {dialog?.kind === "delete" && (
         <ConfirmDialog
-          title={`Delete ${whatLabel(sel)}?`}
-          text={group
-            ? "They're deleted from your device, not just from this collection. This can't be undone."
-            : "They're deleted from your device for good. This can't be undone."}
-          confirm="Delete"
-          busyText={deleting ? `Deleting ${Math.min(deleting.done + 1, deleting.total)} of ${deleting.total}…` : "Deleting…"}
+          title={t("web.images.delete.title", { what: whatLabel(t, sel) })}
+          text={group ? t("web.images.delete.text_collection") : t("web.images.delete.text")}
+          confirm={t("common.delete")}
+          busyText={deleting
+            ? t("web.images.delete.progress", { done: Math.min(deleting.done + 1, deleting.total), total: deleting.total })
+            : t("common.deleting")}
           onConfirm={deleteSelected}
           onCancel={closeDialog}
         />
       )}
       {dialog?.kind === "deleteCollection" && group && (
         <ConfirmDialog
-          title="Delete collection?"
-          text={<>Delete the collection “{group.name}”? The photos themselves are kept.</>}
-          confirm="Delete"
-          busyText="Deleting…"
+          title={t("web.images.collection.delete_title")}
+          text={t("web.images.collection.delete_text", { name: group.name })}
+          confirm={t("common.delete")}
+          busyText={t("common.deleting")}
           onConfirm={deleteCollection}
           onCancel={closeDialog}
         />
@@ -1294,18 +1344,18 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
         {toast && (
           <div key={toast.id} className={`pg-toast${toast.error ? " error" : ""}${toast.action ? " has-action" : ""}`}>
             {toast.busy && <Spinner />}
-            <span className="pg-toast-text">{toast.text}</span>
+            <span className="pg-toast-text">{toast.text(t)}</span>
             {toast.action && (
               <button
                 type="button"
                 className="pg-toast-action"
                 onClick={() => { swallowSecondClick(); toast.action?.run(); dismissToast(toast.id); }}
               >
-                {toast.action.label}
+                {toast.action.label(t)}
               </button>
             )}
             {toast.stay && (
-              <button type="button" className="pg-icon-btn pg-toast-close" onClick={() => dismissToast(toast.id)} aria-label="Dismiss">
+              <button type="button" className="pg-icon-btn pg-toast-close" onClick={() => dismissToast(toast.id)} aria-label={t("web.images.grid.dismiss")}>
                 <CloseIcon size={18} />
               </button>
             )}
@@ -1345,15 +1395,19 @@ const markLoaded = (e: SyntheticEvent<HTMLImageElement>) => { e.currentTarget.da
 // Plain markup: the grid's own handlers deal with clicks and presses (see
 // onGridClick), so a tile only renders again when what it shows changes.
 const Tile = memo(function Tile({ file, index, thumb, selNo, selecting }: TileProps) {
+  const t = useT();
   const video = isVideoFile(file);
   const selected = selNo > 0;
-  const when = file.created && !Number.isNaN(file.created.getTime()) ? cDayFormat.format(file.created) : "";
+  const date = file.created && !Number.isNaN(file.created.getTime()) ? dayLabel(t, file.created) : "";
+  let label: string;
+  if (date) label = video ? t("web.images.grid.tile_video_dated", { date }) : t("web.images.grid.tile_photo_dated", { date });
+  else label = video ? t("web.images.grid.tile_video") : t("web.images.grid.tile_photo");
   return (
     <div className={`pg-tile${selected ? " selected" : ""}`} data-idx={index}>
       <button
         type="button"
         className="pg-tile-open"
-        aria-label={`${video ? "Video" : "Photo"}${when ? `, ${when}` : ""}`}
+        aria-label={label}
         aria-pressed={selecting ? selected : undefined}
       >
         {thumb
@@ -1363,7 +1417,7 @@ const Tile = memo(function Tile({ file, index, thumb, selNo, selecting }: TilePr
       </button>
       {/* Its own button for the keyboard; on a touch screen taps go to the
           tile underneath (CSS), which picks it once anything is picked. */}
-      <button type="button" className="pg-tile-check" aria-pressed={selected} aria-label="Select" tabIndex={selecting ? -1 : 0}>
+      <button type="button" className="pg-tile-check" aria-pressed={selected} aria-label={t("common.select")} tabIndex={selecting ? -1 : 0}>
         <span className="pg-tile-circle">{selected ? selNo : <CheckIcon size={16} />}</span>
       </button>
     </div>
@@ -1379,12 +1433,13 @@ const sectionStyle = (tiles: number) => ({ "--pg-n": tiles }) as CSSProperties;
 // Photos without a date at the top of the list get an empty line, so the
 // tiles of months beside them stay level.
 const MonthTitle = memo(function MonthTitle({ month, oneTile }: { month: string | null; oneTile: boolean }) {
+  const t = useT();
   if (!month) return <div className="pg-month" aria-hidden="true" />;
-  if (!oneTile) return <h2 className="pg-month">{monthTitle(month)}</h2>;
+  if (!oneTile) return <h2 className="pg-month">{monthTitle(t, month)}</h2>;
   return (
     <h2 className="pg-month fit">
-      <span className="pg-month-long">{monthTitle(month)}</span>
-      <span className="pg-month-short" aria-hidden="true">{monthShort(month)}</span>
+      <span className="pg-month-long">{monthTitle(t, month)}</span>
+      <span className="pg-month-short" aria-hidden="true">{monthShort(t, month)}</span>
     </h2>
   );
 });
@@ -1400,8 +1455,9 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
   onBack: () => void;
   onShare: () => void;
   onDelete: () => void;
-  onError: (text: string) => void;
+  onError: (text: UiText) => void;
 }) {
+  const t = useT();
   const groups = useGroups();
   // The name and count as the device lists them: renamed or grown in
   // another tab or on another device, or after photos were deleted here.
@@ -1441,10 +1497,10 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
         updateOpenGroup({ ...group, name });
         renameGroupLocally(group.id, name);
       } else {
-        onError("Couldn't rename the collection. Try again.");
+        onError(say("web.images.collection.rename_failed"));
       }
     } catch {
-      onError("Couldn't reach your device to rename the collection.");
+      onError(say("web.images.collection.rename_unreachable"));
     } finally {
       setSaving(null);
     }
@@ -1455,7 +1511,7 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
     <header className="pg-head">
       <button type="button" className="pg-back" onClick={onBack}>
         <BackIcon size={20} />
-        Collections
+        {t("web.images.collections.title")}
       </button>
       <div className="pg-head-row">
         <div className="pg-head-main">
@@ -1466,7 +1522,7 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
                 value={draft}
                 autoFocus
                 maxLength={120}
-                aria-label="Collection name"
+                aria-label={t("web.images.collection.name_field")}
                 onChange={(e) => setDraft(e.target.value)}
                 onFocus={(e) => e.currentTarget.select()}
                 onBlur={() => void commit()}
@@ -1482,34 +1538,34 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
                 <button type="button" className="pg-title-text" tabIndex={-1} onClick={start}>
                   <span className="pg-clamp">{shown}</span>
                 </button>
-                <button type="button" className="pg-icon-btn pg-title-edit" onClick={start} aria-label="Rename collection" data-tip="Rename">
+                <button type="button" className="pg-icon-btn pg-title-edit" onClick={start} aria-label={t("web.images.collection.rename")} data-tip={t("common.rename")}>
                   <PencilIcon size={20} />
                 </button>
               </>
             )}
           </h1>
-          <p className="pg-sub">{count(group.fileCount, "item")}{span && <> · {span}</>}</p>
+          <p className="pg-sub">{itemsLabel(t, group.fileCount)}{span && <> · {span}</>}</p>
         </div>
         <div className="pg-head-actions">
           <button
             type="button"
             className={compact ? "pg-icon-btn" : "pg-btn outline"}
             onClick={onShare}
-            aria-label="Share as gallery"
-            data-tip={compact ? "Share as gallery" : undefined}
+            aria-label={t("web.images.collection.share")}
+            data-tip={compact ? t("web.images.collection.share") : undefined}
           >
             <GalleryPageIcon size={20} />
-            {!compact && <span>Share as gallery</span>}
+            {!compact && <span>{t("web.images.collection.share")}</span>}
           </button>
           <button
             type="button"
             className={compact ? "pg-icon-btn danger" : "pg-btn outline danger"}
             onClick={onDelete}
-            aria-label="Delete collection"
-            data-tip={compact ? "Delete collection" : undefined}
+            aria-label={t("web.images.collection.delete")}
+            data-tip={compact ? t("web.images.collection.delete") : undefined}
           >
             <TrashIcon size={20} />
-            {!compact && <span>Delete collection</span>}
+            {!compact && <span>{t("web.images.collection.delete")}</span>}
           </button>
         </div>
       </div>
@@ -1520,6 +1576,7 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
 // One person's photos (or several people's together), opened from the
 // People page or the search.
 function PersonHeader({ personIds, total }: { personIds: string[]; total: number | null }) {
+  const t = useT();
   const people = usePeople();
   if (!people.loaded) {
     // The same height as the header it stands in for: no jump when it comes.
@@ -1537,7 +1594,9 @@ function PersonHeader({ personIds, total }: { personIds: string[]; total: number
     .filter((p): p is Person => p != null);
   if (!picked.length) return null;
   const names = picked.map(personLabel);
-  const title = names.length <= 2 ? names.join(" & ") : `${names.slice(0, 2).join(", ")} & ${count(names.length - 2, "other")}`;
+  let title = names[0];
+  if (names.length === 2) title = t("web.images.person.two", { first: names[0], second: names[1] });
+  else if (names.length > 2) title = t("web.images.person.more", { first: names[0], second: names[1], count: names.length - 2 });
   return (
     <header className="pg-head">
       <div className="pg-head-row">
@@ -1552,7 +1611,7 @@ function PersonHeader({ personIds, total }: { personIds: string[]; total: number
         <div className="pg-head-main">
           <h1 className="pg-title"><span className="pg-clamp">{title}</span></h1>
           {/* The line is there before the count is: nothing moves when it comes. */}
-          <p className="pg-sub">{total != null ? count(total, "item") : "\u00a0"}</p>
+          <p className="pg-sub">{total != null ? itemsLabel(t, total) : "\u00a0"}</p>
         </div>
       </div>
     </header>
@@ -1599,6 +1658,7 @@ function ShareMenu({ onGallery, onCopyLink, onZip, onClose }: {
   // refocus: give the focus back to the Share button (Escape).
   onClose: (refocus: boolean) => void;
 }) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     ref.current?.querySelector<HTMLElement>("[role=menuitem]")?.focus();
@@ -1631,18 +1691,24 @@ function ShareMenu({ onGallery, onCopyLink, onZip, onClose }: {
           open the photo under it (nor a double tap's second). Below the
           bar's own buttons. */}
       <div className="pg-menu-catcher" aria-hidden="true" onClick={() => { swallowSecondClick(); onClose(false); }} />
-      <div ref={ref} className="pg-menu" role="menu" aria-label="Share" onKeyDown={onKeyDown}>
+      <div ref={ref} className="pg-menu" role="menu" aria-label={t("common.share")} onKeyDown={onKeyDown}>
         <button type="button" role="menuitem" className="pg-menu-item" onClick={onGallery}>
           <GalleryPageIcon size={22} />
-          <span className="pg-menu-text"><strong>Share as a gallery page</strong><small>A page anyone with the link can see</small></span>
+          <span className="pg-menu-text">
+            <strong>{t("web.images.share.gallery")}</strong><small>{t("web.images.share.gallery_hint")}</small>
+          </span>
         </button>
         <button type="button" role="menuitem" className="pg-menu-item" onClick={onCopyLink}>
           <LinkIcon size={22} />
-          <span className="pg-menu-text"><strong>Copy link</strong><small>A link to download them</small></span>
+          <span className="pg-menu-text">
+            <strong>{t("web.images.share.copy_link")}</strong><small>{t("web.images.share.copy_link_hint")}</small>
+          </span>
         </button>
         <button type="button" role="menuitem" className="pg-menu-item" onClick={onZip}>
           <DownloadIcon size={22} />
-          <span className="pg-menu-text"><strong>Download ZIP</strong><small>Save them on this device</small></span>
+          <span className="pg-menu-text">
+            <strong>{t("web.images.share.zip")}</strong><small>{t("web.images.share.zip_hint")}</small>
+          </span>
         </button>
       </div>
     </>
@@ -1753,18 +1819,19 @@ function ConfirmDialog({ title, text, confirm, busyText, onConfirm, onCancel }: 
   busyText: string;
   // Does the work: an error to show in the dialog, or null when done (the
   // caller closes the dialog then).
-  onConfirm: () => Promise<string | null>;
+  onConfirm: () => Promise<UiText | null>;
   onCancel: () => void;
 }) {
+  const t = useT();
   const titleId = useId();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UiText | null>(null);
   const run = async () => {
     setBusy(true);
     setError(null);
     const err = await onConfirm();
     if (err) {
-      setError(err);
+      setError(() => err);
       setBusy(false);
     }
   };
@@ -1774,10 +1841,10 @@ function ConfirmDialog({ title, text, confirm, busyText, onConfirm, onCancel }: 
         <h2 id={titleId} className="pg-dlg-title">{title}</h2>
         <p className="pg-dlg-text">{text}</p>
       </div>
-      {error && <p className="pg-dlg-error" role="alert">{error}</p>}
+      {error && <p className="pg-dlg-error" role="alert">{error(t)}</p>}
       <div className="pg-dlg-actions">
         {/* Focus starts on Cancel: Enter right away keeps everything. */}
-        <button type="button" className="pg-btn quiet" onClick={onCancel} disabled={busy} data-autofocus>Cancel</button>
+        <button type="button" className="pg-btn quiet" onClick={onCancel} disabled={busy} data-autofocus>{t("common.cancel")}</button>
         <button type="button" className="pg-btn danger" onClick={() => void run()} disabled={busy} aria-busy={busy}>
           {busy ? <Spinner label={busyText} /> : confirm}
         </button>
@@ -1796,12 +1863,14 @@ function PostDialog({ files, thumbFor, onMove, onRemove, onCancel, onPosted }: {
   onCancel: () => void;
   onPosted: () => void;
 }) {
+  const t = useT();
   const titleId = useId();
   const titleRef = useRef<HTMLHeadingElement>(null);
   const captionId = useId();
   const [caption, setCaption] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<{ text: string; detail?: string } | null>(null);
+  // detail: the device's own words, shown as they come.
+  const [error, setError] = useState<{ text: UiText; detail?: string } | null>(null);
   const stripRef = useRef<HTMLOListElement>(null);
   // A moved photo keeps the focus on its arrow, wherever it went.
   const [focusAfterMove, setFocusAfterMove] = useState<{ path: string; dir: -1 | 1 } | null>(null);
@@ -1842,21 +1911,22 @@ function PostDialog({ files, thumbFor, onMove, onRemove, onCancel, onPosted }: {
         onPosted();
         return;
       }
-      setError({ text: "Couldn't publish the post. Try again.", detail: resp.errorMessage || undefined });
+      setError({ text: say("web.images.post.failed"), detail: resp.errorMessage || undefined });
     } catch {
-      setError({ text: "Couldn't reach your device. Check the connection and try again." });
+      setError({ text: say("web.images.post.unreachable") });
     }
     setBusy(false);
   };
 
   return (
     <Modal labelledBy={titleId} busy={busy} wide onClose={onCancel}>
-      <h2 id={titleId} ref={titleRef} className="pg-dlg-title">New Social Post</h2>
+      <h2 id={titleId} ref={titleRef} className="pg-dlg-title">{t("web.images.post.title")}</h2>
       {files.length ? (
-        <ol className="pg-strip" ref={stripRef} aria-label="Photos in the post, in order">
+        <ol className="pg-strip" ref={stripRef} aria-label={t("web.images.post.photos")}>
           {files.map((f, i) => {
             const thumb = thumbFor(f);
-            const what = `${isVideoFile(f) ? "video" : "photo"} ${i + 1}`;
+            const video = isVideoFile(f);
+            const number = i + 1;
             return (
               <li key={f.path} className="pg-strip-item" data-path={f.path}>
                 <div className="pg-strip-thumb">
@@ -1871,8 +1941,8 @@ function PostDialog({ files, thumbFor, onMove, onRemove, onCancel, onPosted }: {
                     setFocusAfterRemove(files[i + 1]?.path ?? files[i - 1]?.path ?? "");
                     onRemove(f.path);
                   }}
-                  aria-label={`Remove ${what}`}
-                  data-tip="Remove"
+                  aria-label={video ? t("web.images.post.remove_video", { number }) : t("web.images.post.remove_photo", { number })}
+                  data-tip={t("common.remove")}
                   disabled={busy}
                 >
                   <CloseIcon size={16} />
@@ -1883,7 +1953,7 @@ function PostDialog({ files, thumbFor, onMove, onRemove, onCancel, onPosted }: {
                     className="pg-strip-btn"
                     data-dir="-1"
                     disabled={busy || i === 0}
-                    aria-label={`Move ${what} earlier`}
+                    aria-label={video ? t("web.images.post.earlier_video", { number }) : t("web.images.post.earlier_photo", { number })}
                     onClick={() => { onMove(f.path, -1); setFocusAfterMove({ path: f.path, dir: -1 }); }}
                   >
                     <ChevronLeftIcon size={20} />
@@ -1893,7 +1963,7 @@ function PostDialog({ files, thumbFor, onMove, onRemove, onCancel, onPosted }: {
                     className="pg-strip-btn"
                     data-dir="1"
                     disabled={busy || i === files.length - 1}
-                    aria-label={`Move ${what} later`}
+                    aria-label={video ? t("web.images.post.later_video", { number }) : t("web.images.post.later_photo", { number })}
                     onClick={() => { onMove(f.path, 1); setFocusAfterMove({ path: f.path, dir: 1 }); }}
                   >
                     <ChevronRightIcon size={20} />
@@ -1904,16 +1974,16 @@ function PostDialog({ files, thumbFor, onMove, onRemove, onCancel, onPosted }: {
           })}
         </ol>
       ) : (
-        <p className="pg-dlg-text">No photos left in this post.</p>
+        <p className="pg-dlg-text">{t("web.images.post.empty")}</p>
       )}
       <div className="pg-field">
-        <label className="pg-label" htmlFor={captionId}>Caption</label>
+        <label className="pg-label" htmlFor={captionId}>{t("web.images.post.caption")}</label>
         <textarea
           id={captionId}
           className="pg-input pg-textarea"
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
-          placeholder="Say something about them (optional)"
+          placeholder={t("web.images.post.caption_placeholder")}
           disabled={busy}
           data-autofocus={typeAtOnce ? "" : undefined}
           onKeyDown={(e) => {
@@ -1924,14 +1994,14 @@ function PostDialog({ files, thumbFor, onMove, onRemove, onCancel, onPosted }: {
       </div>
       {error && (
         <p className="pg-dlg-error" role="alert">
-          {error.text}
+          {error.text(t)}
           {error.detail && <span className="pg-dlg-detail">{error.detail}</span>}
         </p>
       )}
       <div className="pg-dlg-actions">
-        <button type="button" className="pg-btn quiet" onClick={onCancel} disabled={busy}>Cancel</button>
+        <button type="button" className="pg-btn quiet" onClick={onCancel} disabled={busy}>{t("common.cancel")}</button>
         <button type="button" className="pg-btn primary" onClick={() => void publish()} disabled={busy || !files.length} aria-busy={busy}>
-          {busy ? <Spinner label="Publishing…" /> : "Publish"}
+          {busy ? <Spinner label={t("web.images.post.publishing")} /> : t("web.images.post.publish")}
         </button>
       </div>
     </Modal>
@@ -1946,6 +2016,7 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
   onCancel: () => void;
   onDone: (g: OpenGroup) => void;
 }) {
+  const t = useT();
   const titleId = useId();
   const nameId = useId();
   const groups = useGroups();
@@ -1960,7 +2031,7 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
   const [name, setName] = useState("");
   // What is being saved: "new", or the id of a collection.
   const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UiText | null>(null);
   const paths = files.map((f) => f.path);
   // With nothing to add to, naming a new one is the only thing to do.
   const showForm = creating || (groups.loaded && list.length === 0);
@@ -1984,9 +2055,9 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
         onDone({ id: g.id, name: g.name, fileCount: g.fileCount });
         return;
       }
-      setError(`Couldn't add them to “${g.name}”. Try again.`);
+      setError(() => (t: TFunction) => t("web.images.collect.add_failed", { name: g.name }));
     } catch {
-      setError("Couldn't reach your device. Try again.");
+      setError(() => say("web.images.error.unreachable"));
     }
     setBusy(null);
   };
@@ -2006,9 +2077,9 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
         onDone({ id: g.id, name: g.name, fileCount: g.fileCount });
         return;
       }
-      setError("Couldn't create the collection. Try again.");
+      setError(() => say("web.images.collect.create_failed"));
     } catch {
-      setError("Couldn't reach your device. Try again.");
+      setError(() => say("web.images.error.unreachable"));
     }
     setBusy(null);
   };
@@ -2016,19 +2087,19 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
   return (
     <Modal labelledBy={titleId} busy={busy != null} onClose={onCancel}>
       <div>
-        <h2 id={titleId} className="pg-dlg-title">Add to collection</h2>
-        <p className="pg-dlg-text">{whatLabel(files)}</p>
+        <h2 id={titleId} className="pg-dlg-title">{t("web.images.collect.title")}</h2>
+        <p className="pg-dlg-text">{whatLabel(t, files)}</p>
       </div>
       {showForm ? (
         <form className="pg-field" onSubmit={(e) => { e.preventDefault(); void create(); }}>
-          <label className="pg-label" htmlFor={nameId}>New collection</label>
+          <label className="pg-label" htmlFor={nameId}>{t("web.images.collect.new_label")}</label>
           <div className="pg-inline">
             <input
               id={nameId}
               className="pg-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Name, like Summer 2026"
+              placeholder={t("web.images.collect.name_placeholder")}
               maxLength={120}
               autoFocus
               disabled={busy != null}
@@ -2044,14 +2115,14 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
               }}
             />
             <button type="submit" className="pg-btn primary" disabled={!name.trim() || busy != null} aria-busy={busy === "new"}>
-              {busy === "new" ? <Spinner label="Creating…" /> : "Create"}
+              {busy === "new" ? <Spinner label={t("web.images.collect.creating")} /> : t("common.create")}
             </button>
           </div>
         </form>
       ) : (
         <button type="button" ref={newRef} className="pg-pick pg-pick-new" onClick={() => setCreating(true)} disabled={busy != null} data-autofocus>
           <span className="pg-pick-cover"><PlusIcon size={22} /></span>
-          <span className="pg-pick-text"><span className="pg-pick-name">New collection…</span></span>
+          <span className="pg-pick-text"><span className="pg-pick-name">{t("web.images.collect.new")}</span></span>
         </button>
       )}
       {!groups.loaded ? (
@@ -2061,7 +2132,7 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
           ))}
         </ul>
       ) : list.length > 0 && (
-        <ul className="pg-pick-list" aria-label="Collections">
+        <ul className="pg-pick-list" aria-label={t("web.images.collect.list")}>
           {list.map((g) => {
             const cover = groups.thumbs.get(g.id);
             return (
@@ -2072,7 +2143,7 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
                     : <span className="pg-pick-cover"><CollectionsIcon size={22} /></span>}
                   <span className="pg-pick-text">
                     <span className="pg-pick-name">{g.name}</span>
-                    <span className="pg-pick-count">{count(g.fileCount, "item")}</span>
+                    <span className="pg-pick-count">{itemsLabel(t, g.fileCount)}</span>
                   </span>
                   {busy === g.id && <Spinner />}
                 </button>
@@ -2081,9 +2152,9 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
           })}
         </ul>
       )}
-      {error && <p className="pg-dlg-error" role="alert">{error}</p>}
+      {error && <p className="pg-dlg-error" role="alert">{error(t)}</p>}
       <div className="pg-dlg-actions">
-        <button type="button" className="pg-btn quiet" onClick={onCancel} disabled={busy != null}>Cancel</button>
+        <button type="button" className="pg-btn quiet" onClick={onCancel} disabled={busy != null}>{t("common.cancel")}</button>
       </div>
     </Modal>
   );
@@ -2091,6 +2162,7 @@ function CollectDialog({ files, exclude, onCancel, onDone }: {
 
 // The share link, for copying by hand (see DialogState's "link").
 function LinkDialog({ link, onClose }: { link: string; onClose: () => void }) {
+  const t = useT();
   const titleId = useId();
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -2104,15 +2176,17 @@ function LinkDialog({ link, onClose }: { link: string; onClose: () => void }) {
   return (
     <Modal labelledBy={titleId} onClose={onClose}>
       <div>
-        <h2 id={titleId} className="pg-dlg-title">Your link is ready</h2>
-        <p className="pg-dlg-text">Anyone with this link can download these files.</p>
+        <h2 id={titleId} className="pg-dlg-title">{t("web.images.share.link_title")}</h2>
+        <p className="pg-dlg-text">{t("web.images.share.link_text")}</p>
       </div>
       <div className="pg-inline">
-        <input className="pg-input" readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label="Link" data-autofocus />
-        <button type="button" className="pg-btn primary" onClick={() => void copy()}>{copied ? "Copied" : "Copy"}</button>
+        <input className="pg-input" readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label={t("web.images.share.link_field")} data-autofocus />
+        <button type="button" className="pg-btn primary" onClick={() => void copy()}>
+          {copied ? t("web.images.share.copy_done") : t("web.images.share.copy")}
+        </button>
       </div>
       <div className="pg-dlg-actions">
-        <button type="button" className="pg-btn quiet" onClick={onClose}>Done</button>
+        <button type="button" className="pg-btn quiet" onClick={onClose}>{t("common.done")}</button>
       </div>
     </Modal>
   );

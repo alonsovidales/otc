@@ -17,6 +17,8 @@ import { formatTimecode, type TrimRange } from "./videoTrim";
 import { useObjectURLs } from "./useObjectURLs";
 import { usePageRetry } from "./usePageRetry";
 import "./NewPostPicker.css";
+import { useT, type TFunction } from "../i18n";
+import { asIs, say, type UiText } from "./uiText";
 
 const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
   if (!content) return "";
@@ -45,6 +47,7 @@ type Props = {
 type Source = "server" | "local";
 
 export default function NewPostPicker({ onCancel, onPosted }: Props) {
+  const t = useT();
   const [source, setSource] = useState<Source>("server");
 
   // -------- local files (issue #87) --------------------------------------
@@ -365,10 +368,11 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
         trimUrlsRef.current.set(path, url);
         setTrimming({ kind: "server", path, url });
       } else {
-        setError(resp.errorMessage || "Could not load that video to trim it.");
+        const message = resp.errorMessage;
+        setError(() => (message ? asIs(message) : say("web.social.composer.trim_load_failed")));
       }
     } catch (err: any) {
-      setError(err?.message ?? String(err));
+      setError(() => errorText(err));
     } finally {
       setTrimLoading(null);
     }
@@ -396,7 +400,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   // then the length that survives, so the strip shows the decision without
   // having to reopen the editor.
   const trimBadge = (range: TrimRange | undefined) =>
-    range ? `✂ ${formatTimecode(range.end - range.start)}` : "✂ Trim";
+    range ? `✂ ${formatTimecode(range.end - range.start)}` : t("web.social.composer.trim");
 
   // -------- publish --------------------------------------------------------
   const [caption, setCaption] = useState("");
@@ -406,7 +410,13 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
   // window.alert() here freezes the tab until someone manually dismisses
   // it - reproduced live as an unrecoverable "Publishing..." composer.
   // An inline banner reports the same errors without blocking anything.
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UiText | null>(null);
+  // A thrown error's own words (an empty one shows nothing, as before).
+  const errorText = (err: unknown): UiText | null => {
+    const m = (err as { message?: unknown } | null | undefined)?.message;
+    const message = m != null ? String(m) : String(err);
+    return message ? asIs(message) : null;
+  };
 
   // Issue #87: uploads one local File straight to this device (the same
   // uploadFile the Files section's own drag & drop uses), returning
@@ -455,11 +465,12 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
         }
         paths = uploadedPaths.filter((p): p is string => p !== null);
         if (paths.length === 0) {
-          setError("Could not upload any of the selected files.");
+          setError(() => say("web.social.composer.upload_none"));
           return;
         }
         if (paths.length < localFiles.length) {
-          setError(`${localFiles.length - paths.length} file(s) failed to upload - publishing the rest.`);
+          const failed = localFiles.length - paths.length;
+          setError(() => (tt: TFunction) => tt("web.social.composer.upload_some", { count: failed }));
         }
       } else {
         paths = selected;
@@ -493,20 +504,24 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
       if (resp.payload?.$case === "respNewSocial" && resp.payload.respNewSocial.uuid) {
         onPosted();
       } else {
-        setError(resp.errorMessage || "Could not publish the post.");
+        const message = resp.errorMessage;
+        setError(() => (message ? asIs(message) : say("web.social.composer.publish_failed")));
       }
     } catch (err: any) {
-      setError(err?.message ?? String(err));
+      setError(() => errorText(err));
     } finally {
       setPublishing(false);
     }
   };
 
+  // How many photos and videos the post has so far.
+  const picked = source === "local" ? localFiles.length : selected.length;
+
   return (
     <div className="np-root">
       <div className="np-header">
-        <button className="np-close" onClick={onCancel} aria-label="Cancel">✕</button>
-        <div className="np-title">New post</div>
+        <button className="np-close" onClick={onCancel} aria-label={t("common.cancel")}>✕</button>
+        <div className="np-title">{t("web.social.composer.title")}</div>
         <div className="np-header-spacer" />
       </div>
 
@@ -516,13 +531,13 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
           className={`np-source-tab${source === "server" ? " active" : ""}`}
           onClick={() => setSource("server")}
         >
-          Library
+          {t("web.social.composer.library")}
         </button>
         <button
           className={`np-source-tab${source === "local" ? " active" : ""}`}
           onClick={() => setSource("local")}
         >
-          This Computer
+          {t("web.social.composer.this_computer")}
         </button>
       </div>
 
@@ -533,7 +548,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
               {chips.map((c) => (
                 <span key={`chip-${c}`} className="np-chip">
                   {c}
-                  <button className="np-chip-x" onClick={() => removeChip(c)} aria-label={`Remove ${c}`}>×</button>
+                  <button className="np-chip-x" onClick={() => removeChip(c)} aria-label={t("web.social.composer.remove_tag", { tag: c })}>×</button>
                 </span>
               ))}
               <input
@@ -550,7 +565,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
                     removeChip(chips[chips.length - 1]);
                   }
                 }}
-                placeholder="Filter by tag…"
+                placeholder={t("web.social.composer.tag_filter")}
               />
             </div>
             {showSuggest && suggestions.length > 0 && (
@@ -614,7 +629,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
           />
           {hasCamera && (
             <button type="button" className="np-camera" onClick={() => cameraInputRef.current?.click()}>
-              📷 Take a photo or video
+              📷 {t("web.social.composer.camera")}
             </button>
           )}
           <div
@@ -628,7 +643,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
               if (e.dataTransfer.files.length) addLocalFiles(e.dataTransfer.files);
             }}
           >
-            Drag photos or videos here, or click to choose files from this computer.
+            {t("web.social.composer.drop")}
           </div>
           <div className="np-grid">
             {localFiles.map((f, i) => {
@@ -645,7 +660,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
                   <button
                     className="np-remove"
                     onClick={() => removeLocalFile(f)}
-                    aria-label={`Remove ${f.name}`}
+                    aria-label={t("web.social.composer.remove_file", { name: f.name })}
                   >
                     ✕
                   </button>
@@ -664,7 +679,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
           since issue #48, plus drag & drop for a mouse. */}
       {(source === "server" ? selected.length > 0 : localFiles.length > 0) && (
         <div className="np-strip">
-          <div className="np-strip-title">Order in post — drag, or use ‹ ›</div>
+          <div className="np-strip-title">{t("web.social.composer.order")}</div>
           <div className="np-strip-items">
             {source === "server"
               ? selected.map((p, i) => {
@@ -691,7 +706,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
                         className={`np-strip-thumb${isVideo ? " trimmable" : ""}`}
                         role={isVideo ? "button" : undefined}
                         tabIndex={isVideo ? 0 : undefined}
-                        aria-label={isVideo ? `Trim ${p}` : undefined}
+                        aria-label={isVideo ? t("web.social.composer.trim_item", { name: p }) : undefined}
                         onClick={() => { if (isVideo && trimLoading !== p) void openServerTrimmer(p); }}
                         onKeyDown={(e) => {
                           if (!isVideo || trimLoading === p) return;
@@ -712,7 +727,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
                           // above and opens the trimmer on a video that
                           // was just removed.
                           onClick={(e) => { e.stopPropagation(); if (f) toggleSel(f); }}
-                          aria-label={`Remove ${p} from the post`}
+                          aria-label={t("web.social.composer.remove_from_post", { name: p })}
                         >
                           ✕
                         </button>
@@ -721,14 +736,14 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
                         <button
                           onClick={() => moveSelected(p, -1)}
                           disabled={i === 0}
-                          aria-label={`Move ${p} earlier`}
+                          aria-label={t("web.social.composer.move_earlier", { name: p })}
                         >
                           ‹
                         </button>
                         <button
                           onClick={() => moveSelected(p, 1)}
                           disabled={i === selected.length - 1}
-                          aria-label={`Move ${p} later`}
+                          aria-label={t("web.social.composer.move_later", { name: p })}
                         >
                           ›
                         </button>
@@ -751,7 +766,7 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
                       className={`np-strip-thumb${f.type.startsWith("video/") ? " trimmable" : ""}`}
                       role={f.type.startsWith("video/") ? "button" : undefined}
                       tabIndex={f.type.startsWith("video/") ? 0 : undefined}
-                      aria-label={f.type.startsWith("video/") ? `Trim ${f.name}` : undefined}
+                      aria-label={f.type.startsWith("video/") ? t("web.social.composer.trim_item", { name: f.name }) : undefined}
                       onClick={() => {
                         if (f.type.startsWith("video/")) setTrimming({ kind: "local", file: f, url: localUrlFor(f) });
                       }}
@@ -776,14 +791,14 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
                       <button
                         className="np-remove"
                         onClick={(e) => { e.stopPropagation(); removeLocalFile(f); }}
-                        aria-label={`Remove ${f.name} from the post`}
+                        aria-label={t("web.social.composer.remove_from_post", { name: f.name })}
                       >
                         ✕
                       </button>
                     </div>
                     <div className="np-strip-moves">
-                      <button onClick={() => moveLocalFile(i, -1)} disabled={i === 0} aria-label={`Move ${f.name} earlier`}>‹</button>
-                      <button onClick={() => moveLocalFile(i, 1)} disabled={i === localFiles.length - 1} aria-label={`Move ${f.name} later`}>›</button>
+                      <button onClick={() => moveLocalFile(i, -1)} disabled={i === 0} aria-label={t("web.social.composer.move_earlier", { name: f.name })}>‹</button>
+                      <button onClick={() => moveLocalFile(i, 1)} disabled={i === localFiles.length - 1} aria-label={t("web.social.composer.move_later", { name: f.name })}>›</button>
                     </div>
                   </div>
                 ))}
@@ -804,14 +819,14 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
         />
       )}
 
-      {error && <div className="np-error">{error}</div>}
+      {error && <div className="np-error">{error(t)}</div>}
 
       <div className="np-composer">
         <input
           className="np-caption"
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
-          placeholder="Write a caption…"
+          placeholder={t("web.social.composer.caption")}
         />
         <button
           className="np-publish"
@@ -819,8 +834,8 @@ export default function NewPostPicker({ onCancel, onPosted }: Props) {
           onClick={publish}
         >
           {publishing
-            ? "Publishing…"
-            : `Publish${(source === "local" ? localFiles.length : selected.length) ? ` (${source === "local" ? localFiles.length : selected.length})` : ""}`}
+            ? t("web.social.composer.publishing")
+            : picked ? t("web.social.composer.publish_count", { count: picked }) : t("web.social.composer.publish")}
         </button>
       </div>
     </div>

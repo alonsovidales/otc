@@ -11,6 +11,8 @@ import "./FriendshipsManager.css";
 import { FriendShipStatus } from "../proto/messages";
 import { useWS } from "../net/useWS";
 import { friendDomain, FRIEND_TLD } from "../net/friendDomain";
+import { useT, type TFunction } from "../i18n";
+import { asIs, say, type UiText } from "./uiText";
 
 function bytesToObjectURL(bytes?: Uint8Array, mime = "image/png"): string | undefined {
   if (!bytes || bytes.length === 0) return undefined;
@@ -22,11 +24,12 @@ function bytesToObjectURL(bytes?: Uint8Array, mime = "image/png"): string | unde
   }
 }
 
-const statusLabel = (s: FriendShipStatus): string => {
+// The pill beside a friend; "(sent)" when the request was ours.
+const statusLabel = (t: TFunction, s: FriendShipStatus, sent: boolean): string => {
   switch (s) {
-    case FriendShipStatus.Accepted: return "Accepted";
-    case FriendShipStatus.Blocked:  return "Blocked";
-    default:                        return "Pending";
+    case FriendShipStatus.Accepted: return sent ? t("web.social.friends.status_accepted_sent") : t("web.social.friends.status_accepted");
+    case FriendShipStatus.Blocked:  return sent ? t("web.social.friends.status_blocked_sent") : t("web.social.friends.status_blocked");
+    default:                        return sent ? t("web.social.friends.status_pending_sent") : t("web.social.friends.status_pending");
   }
 };
 
@@ -53,6 +56,7 @@ function ActionButtons({
   onRemove: () => void;
   disabled?: boolean;
 }) {
+  const t = useT();
   const btn = (label: string, next: FriendShipStatus) => (
     <button
       className="fr-btn"
@@ -66,13 +70,13 @@ function ActionButtons({
   // which side of it the owner is on.
   const del = (
     <button className="fr-btn danger" onClick={onDelete} disabled={disabled}>
-      {f.sent ? "Cancel request" : "Delete"}
+      {f.sent ? t("web.social.friends.cancel_request") : t("common.delete")}
     </button>
   );
 
   const remove = (
     <button className="fr-btn danger" onClick={onRemove} disabled={disabled}>
-      Remove friend
+      {t("web.social.friends.remove")}
     </button>
   );
 
@@ -86,24 +90,24 @@ function ActionButtons({
     case FriendShipStatus.Pending:
       return (
         <div className="fr-actions">
-          {btn("Accept", FriendShipStatus.Accepted)}
-          {btn("Block", FriendShipStatus.Blocked)}
+          {btn(t("common.accept"), FriendShipStatus.Accepted)}
+          {btn(t("web.social.friends.block"), FriendShipStatus.Blocked)}
           {del}
         </div>
       );
     case FriendShipStatus.Accepted:
       return (
         <div className="fr-actions">
-          {btn("Set Pending", FriendShipStatus.Pending)}
-          {btn("Block", FriendShipStatus.Blocked)}
+          {btn(t("web.social.friends.set_pending"), FriendShipStatus.Pending)}
+          {btn(t("web.social.friends.block"), FriendShipStatus.Blocked)}
           {remove}
         </div>
       );
     case FriendShipStatus.Blocked:
       return (
         <div className="fr-actions">
-          {btn("Accept", FriendShipStatus.Accepted)}
-          {btn("Set Pending", FriendShipStatus.Pending)}
+          {btn(t("common.accept"), FriendShipStatus.Accepted)}
+          {btn(t("web.social.friends.set_pending"), FriendShipStatus.Pending)}
           {remove}
         </div>
       );
@@ -113,6 +117,7 @@ function ActionButtons({
 }
 
 export default function FriendshipsManager() {
+  const t = useT();
   // Friendship request (by domain)
   const [targetDomain, setTargetDomain] = useState("");
   const [sendingReq, setSendingReq] = useState(false);
@@ -136,12 +141,14 @@ export default function FriendshipsManager() {
     setConfirmingRemove(domain);
   };
 
-  // Toast/message
-  const [message, setMessage] = useState<string | null>(null);
-  const showMsg = (m: string) => {
-    setMessage(m);
+  // Toast/message: ours, or the device's own words.
+  const [message, setMessage] = useState<UiText | null>(null);
+  const showMsg = (m: UiText | null) => {
+    setMessage(() => m);
     setTimeout(() => setMessage(null), 2500);
   };
+  // The device's words when it gave some, else ours.
+  const orSay = (words: string | undefined, fallback: Parameters<typeof say>[0]) => (words ? asIs(words) : say(fallback));
 
   // Initial load
   useEffect(() => {
@@ -169,7 +176,7 @@ export default function FriendshipsManager() {
     if (!targetDomain.trim()) return;
     const domain = friendDomain(targetDomain);
     if (!domain) {
-      showMsg("Enter the device's name, like pit - letters, digits and dashes.");
+      showMsg(say("web.social.friends.invalid_name"));
       return;
     }
     setSendingReq(true);
@@ -183,17 +190,17 @@ export default function FriendshipsManager() {
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
         // Issue #140: "accepted" - they already had this device as a friend
         // and re-linked it, nothing left to accept.
-        showMsg(resp.payload.respAck.code === "accepted" ? "You're friends again ✅" : "Friend request sent ✅");
+        showMsg(say(resp.payload.respAck.code === "accepted" ? "web.social.friends.friends_again" : "web.social.friends.request_sent"));
         setTargetDomain("");
         await reloadFriendships();
       } else {
         showMsg(resp.payload?.$case === "respAck"
-          ? resp.payload.respAck.errorMsg || "Request failed"
-          : resp.error ? resp.errorMessage || "Request failed" : "Unexpected response");
+          ? orSay(resp.payload.respAck.errorMsg, "web.social.friends.request_failed")
+          : resp.error ? orSay(resp.errorMessage, "web.social.friends.request_failed") : say("web.social.friends.unexpected"));
       }
     } catch (err) {
       console.error("Friend request error:", err);
-      showMsg("Error sending request");
+      showMsg(say("web.social.friends.send_error"));
     } finally {
       setSendingReq(false);
     }
@@ -214,15 +221,15 @@ export default function FriendshipsManager() {
       });
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
         await reloadFriendships();
-        showMsg("Status updated ✅");
+        showMsg(say("web.social.friends.status_updated"));
       } else {
         showMsg(resp.payload?.$case === "respAck"
-          ? resp.payload.respAck.errorMsg || "Update failed"
-          : "Unexpected response");
+          ? orSay(resp.payload.respAck.errorMsg, "web.social.friends.update_failed")
+          : say("web.social.friends.unexpected"));
       }
     } catch (err) {
       console.error("Change status error:", err);
-      showMsg("Error updating status");
+      showMsg(say("web.social.friends.update_error"));
     }
   };
 
@@ -239,13 +246,14 @@ export default function FriendshipsManager() {
       });
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
         await reloadFriendships();
-        showMsg(f.sent ? "Request cancelled" : "Request deleted");
+        showMsg(say(f.sent ? "web.social.friends.request_cancelled" : "web.social.friends.request_deleted"));
       } else {
-        showMsg(resp.error ? resp.errorMessage : "Delete failed");
+        // The device's words as they are; none shows nothing (as before).
+        showMsg(resp.error ? (resp.errorMessage ? asIs(resp.errorMessage) : null) : say("web.social.friends.delete_failed"));
       }
     } catch (err) {
       console.error("Delete friendship error:", err);
-      showMsg("Error deleting request");
+      showMsg(say("web.social.friends.delete_error"));
     }
   };
 
@@ -268,15 +276,15 @@ export default function FriendshipsManager() {
       });
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
         await reloadFriendships();
-        showMsg(askThem ? "Asked their device to delete what you shared" : "Friend removed");
+        showMsg(say(askThem ? "web.social.friends.asked_delete" : "web.social.friends.removed"));
       } else {
         showMsg(resp.payload?.$case === "respAck"
-          ? resp.payload.respAck.errorMsg || "Remove failed"
-          : resp.error ? resp.errorMessage || "Remove failed" : "Unexpected response");
+          ? orSay(resp.payload.respAck.errorMsg, "web.social.friends.remove_failed")
+          : resp.error ? orSay(resp.errorMessage, "web.social.friends.remove_failed") : say("web.social.friends.unexpected"));
       }
     } catch (err) {
       console.error("Remove friend error:", err);
-      showMsg("Error removing friend");
+      showMsg(say("web.social.friends.remove_error"));
     }
   };
 
@@ -294,8 +302,11 @@ export default function FriendshipsManager() {
 
   const renderRow = (f: MsgFriendship) => {
     const avatar = avatars.get(f);
-    const name = f.originProfile?.name || "(no name)";
-    const domain = f.originProfile?.domain || "(no domain)";
+    const name = f.originProfile?.name || t("web.social.friends.no_name");
+    // The row's key and what the confirmations remember (not the shown
+    // text, which follows the language).
+    const domain = f.originProfile?.domain || "";
+    const shownDomain = domain || t("web.social.friends.no_domain");
     return (
       <li key={domain} className="friend-item">
         <div className="friend-left">
@@ -304,25 +315,26 @@ export default function FriendshipsManager() {
           </div>
           <div className="meta">
             <div className="name">{name}</div>
-            <div className="domain">{domain}</div>
+            <div className="domain">{shownDomain}</div>
           </div>
         </div>
         <div className="friend-right">
           {f.leaving ? (
-            <span className="status pill s-leaving">Leaving</span>
+            <span className="status pill s-leaving">{t("web.social.friends.leaving")}</span>
           ) : (
+            // The space after a request not ours, as it always had.
             <span className={`status pill s-${f.status}`}>
-              {statusLabel(f.status)} {f.sent ? "(sent)" : ""}
+              {statusLabel(t, f.status, f.sent)}{f.sent ? "" : " "}
             </span>
           )}
           {f.leaving ? (
             // Issue #174: waiting for their device to delete what this one
             // shared; nothing syncs meanwhile. "Remove now" stops waiting.
             <div className="fr-actions fr-confirm">
-              <span>Waiting for their device to delete what you shared.</span>
+              <span>{t("web.social.friends.waiting_delete")}</span>
               <button className="fr-btn danger" onClick={() => {
-                if (window.confirm(`Remove ${name} now? This stops waiting for their device. Whatever it hasn't deleted yet stays there.`)) void removeFriend(f, false, false);
-              }}>Remove now</button>
+                if (window.confirm(t("web.social.friends.confirm_remove_now", { name }))) void removeFriend(f, false, false);
+              }}>{t("web.social.friends.remove_now")}</button>
             </div>
           ) : confirmingRemove === domain ? (
             <div className="fr-actions fr-confirm fr-remove">
@@ -333,8 +345,8 @@ export default function FriendshipsManager() {
                   onChange={(e) => setDeleteTheirData(e.target.checked)}
                 />
                 <span>
-                  Also delete everything from {name} on this device
-                  <small className="fr-hint">Their posts and photos, and their comments and likes on any post.</small>
+                  {t("web.social.friends.delete_theirs", { name })}
+                  <small className="fr-hint">{t("web.social.friends.delete_theirs_hint")}</small>
                 </span>
               </label>
               <label className="fr-check">
@@ -344,11 +356,8 @@ export default function FriendshipsManager() {
                   onChange={(e) => setAskThemToDeleteMine(e.target.checked)}
                 />
                 <span>
-                  Ask {name}'s device to delete what I shared there
-                  <small className="fr-hint">
-                    Your posts, comments and likes on their device. If it's offline, it happens the next time it
-                    connects; until then they show as leaving.
-                  </small>
+                  {t("web.social.friends.ask_delete_mine", { name })}
+                  <small className="fr-hint">{t("web.social.friends.ask_delete_mine_hint")}</small>
                 </span>
               </label>
               <div className="fr-actions">
@@ -356,16 +365,16 @@ export default function FriendshipsManager() {
                   className="fr-btn danger"
                   onClick={() => removeFriend(f, deleteTheirData, askThemToDeleteMine)}
                 >
-                  Remove friend
+                  {t("web.social.friends.remove")}
                 </button>
-                <button className="fr-btn" onClick={() => setConfirmingRemove(null)}>Keep</button>
+                <button className="fr-btn" onClick={() => setConfirmingRemove(null)}>{t("web.social.friends.keep")}</button>
               </div>
             </div>
           ) : confirmingDelete === domain ? (
             <div className="fr-actions fr-confirm">
-              <span>{f.sent ? "Cancel this request?" : "Delete this request?"}</span>
-              <button className="fr-btn danger" onClick={() => deleteFriendship(f)}>Yes</button>
-              <button className="fr-btn" onClick={() => setConfirmingDelete(null)}>Keep</button>
+              <span>{f.sent ? t("web.social.friends.confirm_cancel") : t("web.social.friends.confirm_delete")}</span>
+              <button className="fr-btn danger" onClick={() => deleteFriendship(f)}>{t("web.social.friends.yes")}</button>
+              <button className="fr-btn" onClick={() => setConfirmingDelete(null)}>{t("web.social.friends.keep")}</button>
             </div>
           ) : (
             <ActionButtons
@@ -382,13 +391,13 @@ export default function FriendshipsManager() {
 
   return (
     <div className="friends-wrap">
-      {message && <div className="toast">{message}</div>}
+      {message && <div className="toast">{message(t)}</div>}
 
       {/* Requests waiting for an answer come first: a clicked
           friend-request alert lands here to answer it. */}
       {waiting.length > 0 && (
         <section className="card">
-          <h2>Waiting for your answer</h2>
+          <h2>{t("web.social.friends.waiting_title")}</h2>
           <ul className="friends-list">{waiting.map(renderRow)}</ul>
         </section>
       )}
@@ -401,14 +410,14 @@ export default function FriendshipsManager() {
 
       {/* New friendship request */}
       <section className="card">
-        <h2>Add a friend</h2>
+        <h2>{t("web.social.friends.add_title")}</h2>
         <div className="add-friend">
           {/* Issue #142: the name only; the suffix is fixed. */}
           <label className="friend-domain-field">
             <input
               type="text"
-              placeholder="name"
-              aria-label={`Friend's device name, before .${FRIEND_TLD}`}
+              placeholder={t("web.social.friends.name_placeholder")}
+              aria-label={t("web.social.friends.name_label", { suffix: FRIEND_TLD })}
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
@@ -421,7 +430,7 @@ export default function FriendshipsManager() {
             <span className="friend-domain-suffix">.{FRIEND_TLD}</span>
           </label>
           <button onClick={sendFriendRequest} disabled={sendingReq || !targetDomain.trim()}>
-            {sendingReq ? "Sending…" : "Send request"}
+            {sendingReq ? t("web.social.friends.sending") : t("web.social.friends.send")}
           </button>
         </div>
       </section>
@@ -429,14 +438,14 @@ export default function FriendshipsManager() {
       {/* Friendships list */}
       <section className="card">
         <div className="list-head">
-          <h2>Friends</h2>
+          <h2>{t("web.social.friends.title")}</h2>
           <button className="refresh" onClick={reloadFriendships} disabled={loadingFriends}>
-            {loadingFriends ? "Loading…" : "Refresh"}
+            {loadingFriends ? t("common.loading") : t("common.refresh")}
           </button>
         </div>
 
         {others.length === 0 ? (
-          <div className="empty">{waiting.length ? "No other friends yet." : "No friendships yet."}</div>
+          <div className="empty">{waiting.length ? t("web.social.friends.no_others") : t("web.social.friends.none")}</div>
         ) : (
           <ul className="friends-list">{others.map(renderRow)}</ul>
         )}

@@ -1,4 +1,207 @@
 {
+  "web.settings.bridge.code_failed": {
+    "text": "That setup code didn't work.",
+    "note": "Error in Settings > Bridge access when the device could not use a setup code (pasted, or brought back from Apple or Google sign-in) and gave no reason."
+  },
+  "web.settings.bridge.continue_apple": {
+    "text": "Continue with Apple",
+    "note": "Button in Settings > Bridge access that signs in to an Off The Cloud account with Apple.",
+    "max": 32
+  },
+  "web.settings.bridge.continue_google": {
+    "text": "Continue with Google",
+    "note": "Button in Settings > Bridge access that signs in to an Off The Cloud account with Google.",
+    "max": 32
+  },
+  "web.settings.bridge.email": {
+    "text": "Email",
+    "note": "Label of the email field for signing in to an Off The Cloud account, in Settings > Bridge access.",
+    "max": 24
+  },
+  "web.settings.bridge.enable_failed": {
+    "text": "Could not switch the bridge on.",
+    "note": "Error in Settings > Bridge access when the device could not join the bridge with the chosen name and gave no reason."
+  },
+  "web.settings.bridge.intro": {
+    "text": "This device is only reachable on your home network. Through the {bridge} bridge it gets its own address, so you can reach it from anywhere and add friends. You'll need an Off The Cloud account.",
+    "args": [["bridge", "text"]],
+    "note": "Explanation in Settings > Bridge access while the device is not on the bridge. {bridge} is the bridge's own domain (off-the.cloud)."
+  },
+  "web.settings.bridge.join": {
+    "text": "Join the bridge",
+    "note": "Button in Settings > Bridge access that puts the device on the bridge with the chosen name (the device then restarts).",
+    "max": 32
+  },
+  "web.settings.bridge.joining": {
+    "text": "Joining…",
+    "note": "Label of the Join the bridge button in Settings > Bridge access while the device joins.",
+    "max": 32
+  },
+  "web.settings.bridge.last_failed": {
+    "text": "The last attempt failed: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error in Settings > Bridge access when the device's last try to join the bridge failed. {detail} is the device's own message about it, already in the user's language."
+  },
+  "web.settings.bridge.leave": {
+    "text": "Leave the bridge",
+    "note": "Button in Settings > Bridge access that takes the device off the bridge (the browser asks to confirm first).",
+    "max": 32,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #3b35df49"
+  },
+  "web.settings.bridge.leave_confirm": {
+    "text": "Take this device off the bridge? {domain} is given back and the device restarts. It keeps everything on it and works at home, at {address}, but is no longer reachable from outside or by your friends. You can join again later.",
+    "args": [["domain", "text"], ["address", "text"]],
+    "note": "Confirmation the browser shows after Leave the bridge in Settings > Bridge access (OK and Cancel are the browser's). {domain} is the device's address on the bridge (home.off-the.cloud); {address} is where it can be opened at home afterwards (http://192.168.1.20).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #5ce3a8cc"
+  },
+  "web.settings.bridge.leave_failed": {
+    "text": "Could not leave the bridge.",
+    "note": "Error in Settings > Bridge access when the device could not leave the bridge and gave no reason."
+  },
+  "web.settings.bridge.leave_hint": {
+    "text": "Leaving the bridge gives the name back; the device keeps working at home. To delete your Off The Cloud account as well, leave first, then use <account>your account page</account>. What the bridge keeps about you is in the <privacy>privacy notice</privacy>.",
+    "note": "Explanation in Settings > Bridge access while the device is on the bridge, above the Leave the bridge button. <account> links to the account page on the bridge's website, where the account can be deleted; <privacy> links to the bridge's privacy notice.",
+    "rich": ["account", "privacy"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #f55f1fdd"
+  },
+  "web.settings.bridge.leaving": {
+    "text": "Leaving…",
+    "note": "Label of the Leave the bridge button in Settings > Bridge access while the device leaves.",
+    "max": 32
+  },
+  "web.settings.bridge.name": {
+    "text": "Device name",
+    "note": "Label of the field in Settings > Bridge access where the device's name on the bridge is chosen: it becomes its address (name.off-the.cloud).",
+    "max": 24
+  },
+  "web.settings.bridge.name_example": {
+    "text": "myhome",
+    "note": "Example in the empty Device name field in Settings > Bridge access. It must be a valid name: only lower-case letters a-z, digits and hyphens, no spaces or accents.",
+    "max": 20
+  },
+  "web.settings.bridge.name_hint": {
+    "text": "Lower-case letters, digits and hyphens. A name your account already holds moves to this device.",
+    "note": "Explanation under the Device name field in Settings > Bridge access: the characters a name may use."
+  },
+  "web.settings.bridge.other_account": {
+    "text": "Use another account",
+    "note": "Link-like button after Signed in as … in Settings > Bridge access: signs out of that account to sign in with another.",
+    "max": 32
+  },
+  "web.settings.bridge.pending_join": {
+    "text": "Joining {bridge}… the device restarts to finish, which takes about a minute. You may need to sign in again afterwards.",
+    "args": [["bridge", "text"]],
+    "note": "Line in Settings > Bridge access while the device is joining the bridge. {bridge} is the bridge's own domain (off-the.cloud)."
+  },
+  "web.settings.bridge.pending_leave": {
+    "text": "Leaving {bridge}… the device restarts, which takes about a minute. From then on open it at home, at <link>{address}</link>.",
+    "args": [["bridge", "text"], ["address", "text"]],
+    "note": "Line in Settings > Bridge access while the device is leaving the bridge. {bridge} is the bridge's own domain (off-the.cloud); {address} is where the device can be opened at home afterwards (http://192.168.1.20), shown as a link (<link>).",
+    "rich": ["link"]
+  },
+  "web.settings.bridge.reachable": {
+    "text": "Reachable from anywhere at <link>{domain}</link>.",
+    "args": [["domain", "text"]],
+    "note": "Line in Settings > Bridge access while the device is on the bridge. {domain} is its address (home.off-the.cloud), shown as a link (<link>) that opens it.",
+    "rich": ["link"]
+  },
+  "web.settings.bridge.released": {
+    "text": "This device left the bridge: {bridge} no longer knew its name (its account was deleted, or the name released). Everything on it is still here.",
+    "args": [["bridge", "text"]],
+    "note": "Warning in Settings > Bridge access when the bridge dropped the device's name on its own. {bridge} is the bridge's own domain (off-the.cloud)."
+  },
+  "web.settings.bridge.setup_code": {
+    "text": "Setup code",
+    "note": "Label of the field in Settings > Bridge access where a setup code from the account page is pasted.",
+    "max": 24
+  },
+  "web.settings.bridge.setup_hint": {
+    "text": "No account yet, or you sign in another way? Create one or sign in at <account>{address}</account>, choose “Get a setup code” and paste it here. See the <terms>terms</terms> and the <privacy>privacy notice</privacy>.",
+    "args": [["address", "text"]],
+    "note": "Explanation in Settings > Bridge access, above the Setup code field. {address} is the account page's address without https:// (off-the.cloud/account), shown as a link (<account>). “Get a setup code” is the name of a button on that account page: use the same words as its translation there, in your language's quotes. <terms> links to the bridge's terms, <privacy> to its privacy notice.",
+    "rich": ["account", "terms", "privacy"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #27cbb405"
+  },
+  "web.settings.bridge.sign_in": {
+    "text": "Sign in",
+    "note": "Button in Settings > Bridge access that signs in to the Off The Cloud account with the email and password above it.",
+    "max": 24
+  },
+  "web.settings.bridge.sign_in_failed": {
+    "text": "Could not sign in.",
+    "note": "Error in Settings > Bridge access when signing in to the Off The Cloud account failed and the device gave no reason."
+  },
+  "web.settings.bridge.signed_in_as": {
+    "text": "Signed in as <b>{email}</b>.",
+    "args": [["email", "text"]],
+    "note": "Line in Settings > Bridge access once the account is signed in, before choosing the device's name. {email} is the account's email address, in bold (<b>). A link-like button, web.settings.bridge.other_account, follows it.",
+    "rich": ["b"]
+  },
+  "web.settings.bridge.signing_in": {
+    "text": "Signing in…",
+    "note": "Label of the Sign in button in Settings > Bridge access while the device signs in to the account.",
+    "max": 24
+  },
+  "web.settings.bridge.title": {
+    "text": "Bridge access",
+    "note": "Heading of the section in Settings about the Off The Cloud bridge: the relay that gives the device its own address on the internet, so it can be reached from anywhere and have friends.",
+    "max": 32
+  },
+  "web.settings.bridge.use": {
+    "text": "Use",
+    "note": "Button beside the Setup code field in Settings > Bridge access that signs in with the pasted code.",
+    "max": 12
+  },
+  "web.settings.faces.disable": {
+    "text": "Disable Face Recognition",
+    "note": "Button in Settings > Face Recognition that turns face recognition off.",
+    "max": 40
+  },
+  "web.settings.faces.enable": {
+    "text": "Enable Face Recognition",
+    "note": "Button in Settings > Face Recognition that turns face recognition on (the user's consent to it).",
+    "max": 40,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e43bab43"
+  },
+  "web.settings.faces.hint": {
+    "text": "Detect faces in newly uploaded photos so you can search by person, like other photo apps. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media to scan the ones you already have.",
+    "note": "Explanation and consent text under the Face Recognition heading in Settings. Reprocess Media is the name of another section in Settings (web.settings.reprocess.title): use the same words.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #7b29615c"
+  },
+  "web.settings.faces.title": {
+    "text": "Face Recognition",
+    "note": "Heading of the section in Settings that turns face recognition (finding people in photos, to search by person) on or off.",
+    "max": 32
+  },
+  "web.settings.general.load_failed": {
+    "text": "Failed to load settings.",
+    "note": "Error at the top of Settings when the device's settings could not be read and the device gave no reason."
+  },
+  "web.settings.general.saving": {
+    "text": "Saving…",
+    "note": "Label of a Save button in Settings (Change Password, the friends' posts storage limit) while the device saves.",
+    "max": 24
+  },
+  "web.settings.general.starting": {
+    "text": "Starting…",
+    "note": "Label of a Settings button (Reprocess All Media, Resume Reprocessing, Update to …) while the device starts the job.",
+    "max": 24
+  },
+  "web.settings.general.update_failed": {
+    "text": "Could not update this setting.",
+    "note": "Error at the top of Settings when the device refused to switch Face Recognition or Image Tagging on or off and gave no reason."
+  },
+  "web.settings.general.working": {
+    "text": "Working…",
+    "note": "Label of a Settings button (Enable/Disable Notifications, Face Recognition, Image Tagging, Turn Funnel off) while the device carries out the change.",
+    "max": 24
+  },
   "web.settings.language.automatic": {
     "text": "Automatic ({language})",
     "args": [["language", "text"]],
@@ -25,5 +228,696 @@
   "web.settings.language.too_old": {
     "text": "This browser will remember it. Update your device to use it in every app.",
     "note": "Shown under the Language picker in Settings when the user's device runs software too old to store the language: only this browser switches until the device is updated (Settings, Update)."
+  },
+  "web.settings.logs.copied": {
+    "text": "Copied",
+    "note": "Label of the Copy button in the logs window for a moment after the log was copied.",
+    "max": 16
+  },
+  "web.settings.logs.copy": {
+    "text": "Copy",
+    "note": "Button in the logs window that copies the shown log to the clipboard.",
+    "max": 16
+  },
+  "web.settings.logs.hint": {
+    "text": "What the device is doing, live - useful when something goes wrong. You can copy them, or send them to us so we can help.",
+    "note": "Explanation under the Logs heading in Settings. Us is the Off The Cloud team."
+  },
+  "web.settings.logs.live": {
+    "text": "Live",
+    "note": "Status label in the logs window while new lines are fetched and shown as the device writes them.",
+    "max": 12
+  },
+  "web.settings.logs.note": {
+    "text": "What went wrong? (optional)",
+    "note": "Placeholder of the text box in the form that sends the logs: an optional note for the Off The Cloud team.",
+    "max": 40
+  },
+  "web.settings.logs.paused": {
+    "text": "Paused",
+    "note": "Status label in the logs window while the live view is paused (no new lines are fetched).",
+    "max": 12
+  },
+  "web.settings.logs.read_failed": {
+    "text": "Could not read the logs",
+    "note": "Error in the logs window when the device could not send its logs and gave no reason. web.settings.logs.retrying shows it."
+  },
+  "web.settings.logs.retrying": {
+    "text": "{error} - trying again…",
+    "args": [["error", "text"]],
+    "note": "Error line in the logs window while the logs can't be read; the window keeps trying. {error} is the reason: the device's own message, or web.settings.logs.read_failed."
+  },
+  "web.settings.logs.send_failed": {
+    "text": "Could not send them.",
+    "note": "Error in the form that sends the logs when the device could not send them and gave no reason. Them: the logs."
+  },
+  "web.settings.logs.send_hint": {
+    "text": "Sends the last part of your device's logs, your note and your account's email to info@off-the.cloud, so we can help.",
+    "note": "Explanation in the form that sends the logs to the Off The Cloud team (we). web.settings.logs.warning follows it in the same paragraph.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #51a18df9"
+  },
+  "web.settings.logs.send_to_us": {
+    "text": "Send to us…",
+    "note": "Button in the logs window that opens the form to send the logs to the Off The Cloud team for help.",
+    "max": 24
+  },
+  "web.settings.logs.sending": {
+    "text": "Sending…",
+    "note": "Label of the Send button in the form that sends the logs, while they are sent.",
+    "max": 16
+  },
+  "web.settings.logs.sent": {
+    "text": "Sent - we'll answer at your account's email.",
+    "note": "Confirmation in the form that sends the logs, once the Off The Cloud team (we) received them."
+  },
+  "web.settings.logs.show": {
+    "text": "Show logs",
+    "note": "Button in Settings > Logs that opens the window with the device's logs.",
+    "max": 24
+  },
+  "web.settings.logs.tab_device": {
+    "text": "Device",
+    "note": "Tab in the logs window that shows the device's own log.",
+    "max": 16
+  },
+  "web.settings.logs.tab_updates": {
+    "text": "Updates",
+    "note": "Tab in the logs window that shows the log of the device's software updates.",
+    "max": 16
+  },
+  "web.settings.logs.title": {
+    "text": "Logs",
+    "note": "Heading of the Logs section in Settings, and title of the window that shows the device's logs live.",
+    "max": 24
+  },
+  "web.settings.logs.waiting": {
+    "text": "Waiting for the log…",
+    "note": "Shown in the logs window until the first lines of the log arrive."
+  },
+  "web.settings.logs.warning": {
+    "text": "Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses. Check them before you share them.",
+    "note": "Privacy warning shown at the top of the logs window and in the form that sends them.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #f5faacde"
+  },
+  "web.settings.notifications.denied": {
+    "text": "Notification permission was denied.",
+    "note": "Error at the top of Settings when the browser's permission prompt for notifications was refused or blocked."
+  },
+  "web.settings.notifications.disable": {
+    "text": "Disable Notifications",
+    "note": "Button in Settings > Notifications that turns push notifications off in this browser.",
+    "max": 32
+  },
+  "web.settings.notifications.enable": {
+    "text": "Enable Notifications",
+    "note": "Button in Settings > Notifications that turns push notifications on in this browser (the browser then asks for permission).",
+    "max": 32
+  },
+  "web.settings.notifications.hint": {
+    "text": "Get a push notification in this browser when a friend posts. Self-hosted — this device sends it directly, no third-party notification service involved.",
+    "note": "Explanation under the Notifications heading in Settings. Self-hosted: the user's own device sends the pushes, without a notification company in between.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #6e2418f1"
+  },
+  "web.settings.notifications.title": {
+    "text": "Notifications",
+    "note": "Heading of the section in Settings that turns push notifications on or off in this browser.",
+    "max": 32
+  },
+  "web.settings.password.change": {
+    "text": "Change Password",
+    "note": "Button under the three password fields in Settings that changes the device password.",
+    "max": 24
+  },
+  "web.settings.password.changed": {
+    "text": "Password changed.",
+    "note": "Confirmation at the top of Settings once the device password has been changed. This browser stays signed in.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #a5b9f5c7"
+  },
+  "web.settings.password.confirm": {
+    "text": "Confirm new password",
+    "note": "Label of the field where the new device password is typed a second time, in Settings > Change Password.",
+    "max": 32,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #01424429"
+  },
+  "web.settings.password.failed": {
+    "text": "Change failed.",
+    "note": "Error at the top of Settings when the device refused the password change and gave no reason."
+  },
+  "web.settings.password.mismatch": {
+    "text": "New passwords do not match.",
+    "note": "Error under the password fields in Settings > Change Password while the new password and its confirmation differ.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #7faac8bd"
+  },
+  "web.settings.password.new": {
+    "text": "New password",
+    "note": "Label of the field for the new device password, in Settings > Change Password.",
+    "max": 32,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ae396ba9"
+  },
+  "web.settings.password.old": {
+    "text": "Old password",
+    "note": "Label of the field for the current device password, in Settings > Change Password.",
+    "max": 32,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #3bd25d3e"
+  },
+  "web.settings.password.title": {
+    "text": "Change Password",
+    "note": "Heading of the section in Settings where the owner changes the device password (the one used to sign in).",
+    "max": 32
+  },
+  "web.settings.password.too_short": {
+    "text": "Use at least 8 characters.",
+    "note": "Error under the password fields in Settings > Change Password while the new password is shorter than 8 characters.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d307e434"
+  },
+  "web.settings.password.unexpected": {
+    "text": "Unexpected response.",
+    "note": "Error at the top of Settings when the device answered the password change with something other than a yes or no."
+  },
+  "web.settings.profile.title": {
+    "text": "Profile",
+    "note": "Heading of the first section in Settings: the user's own profile (name, picture, description) that friends see.",
+    "max": 24
+  },
+  "web.settings.reprocess.all": {
+    "text": "Reprocess All Media",
+    "note": "Button in Settings > Reprocess Media that runs tagging and face detection again on the whole library (asks first).",
+    "max": 32
+  },
+  "web.settings.reprocess.cancel": {
+    "text": "Cancel",
+    "note": "Button beside the progress line in Settings > Reprocess Media that stops the run (it can be resumed later).",
+    "max": 16
+  },
+  "web.settings.reprocess.completed": {
+    "text": {
+      "one": "Last run completed — {count} file(s) processed.",
+      "other": "Last run completed — {count} file(s) processed."
+    },
+    "args": [["count", "count"]],
+    "note": "Line in Settings > Reprocess Media after the last run finished. {count} is how many files it processed."
+  },
+  "web.settings.reprocess.confirm": {
+    "text": "Reprocess",
+    "note": "Button in the dialog that confirms reprocessing the whole library (deleting existing tags and recognized people first), in Settings > Reprocess Media.",
+    "max": 16,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #3e9f3126"
+  },
+  "web.settings.reprocess.confirm_restart": {
+    "text": "Reprocess every photo and video in your library? This deletes all existing tags and recognized people and rebuilds them from scratch. It can take a while and can't be undone.",
+    "note": "Question in the dialog after Reprocess All Media or Start Over in Settings > Reprocess Media. Its buttons are Cancel and Reprocess.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #efed027f"
+  },
+  "web.settings.reprocess.confirm_resume": {
+    "text": "Resume reprocessing where it left off? It can take a while.",
+    "note": "Question in the dialog after Resume Reprocessing in Settings > Reprocess Media. Its buttons are Cancel and Resume."
+  },
+  "web.settings.reprocess.failed": {
+    "text": {
+      "one": "Last run failed after {count} file(s) — try again.",
+      "other": "Last run failed after {count} file(s) — try again."
+    },
+    "args": [["count", "count"]],
+    "note": "Error in Settings > Reprocess Media when the last run stopped with an error. {count} is how many files it processed before."
+  },
+  "web.settings.reprocess.hint": {
+    "text": "Re-run tagging and face detection on every photo and video already in your library — useful after a detection fix or model update. This clears existing tags and recognized people first and rebuilds them from scratch.",
+    "note": "Explanation under the Reprocess Media heading in Settings.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d96e7c95"
+  },
+  "web.settings.reprocess.progress": {
+    "text": "Reprocessing… {percent} ({processed} / {total})",
+    "args": [["percent", "text"], ["processed", "int"], ["total", "int"]],
+    "note": "Progress line in Settings > Reprocess Media while it runs. {percent} is how far it is, already formatted (45%); {processed} is how many files are done and {total} how many there are."
+  },
+  "web.settings.reprocess.resume": {
+    "text": "Resume",
+    "note": "Button in the dialog that confirms resuming a cancelled reprocessing run, in Settings > Reprocess Media.",
+    "max": 16
+  },
+  "web.settings.reprocess.resume_all": {
+    "text": "Resume Reprocessing",
+    "note": "Button in Settings > Reprocess Media, after a run was cancelled: continues it from where it stopped (asks first).",
+    "max": 32
+  },
+  "web.settings.reprocess.start_failed": {
+    "text": "Could not start reprocessing.",
+    "note": "Error at the top of Settings when the device refused to start reprocessing and gave no reason."
+  },
+  "web.settings.reprocess.start_over": {
+    "text": "Start Over",
+    "note": "Button in Settings > Reprocess Media, after a run was cancelled: starts again from the beginning, clearing tags and people first (asks first).",
+    "max": 24
+  },
+  "web.settings.reprocess.stop_failed": {
+    "text": "Could not stop reprocessing.",
+    "note": "Error at the top of Settings when the device refused to stop reprocessing and gave no reason."
+  },
+  "web.settings.reprocess.stopped": {
+    "text": "Stopped at {percent} ({processed} / {total}).",
+    "args": [["percent", "text"], ["processed", "int"], ["total", "int"]],
+    "note": "Line in Settings > Reprocess Media after a run was cancelled. {percent} is how far it got, already formatted (45%); {processed} is how many files were done and {total} how many there were."
+  },
+  "web.settings.reprocess.stopping": {
+    "text": "Stopping…",
+    "note": "Label of the Cancel button in Settings > Reprocess Media while the run is being stopped.",
+    "max": 16
+  },
+  "web.settings.reprocess.title": {
+    "text": "Reprocess Media",
+    "note": "Heading of the section in Settings that runs image tagging and face detection again on every photo and video already stored.",
+    "max": 32
+  },
+  "web.settings.restart.back": {
+    "text": "The device is back.",
+    "note": "Shown in Settings > Device version once the device answers again after a restart."
+  },
+  "web.settings.restart.button": {
+    "text": "Restart Device",
+    "note": "Button in Settings > Device version that restarts the whole device (asks first).",
+    "max": 24
+  },
+  "web.settings.restart.confirm": {
+    "text": "Restart the device? It will be unreachable for about a minute.",
+    "note": "Confirmation the browser shows after Restart Device in Settings > Device version (OK and Cancel are the browser's).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #b24559ec"
+  },
+  "web.settings.restart.failed": {
+    "text": "Could not restart the device.",
+    "note": "Error in Settings > Device version when the device could not restart and gave no reason."
+  },
+  "web.settings.restart.needs_update": {
+    "text": "Your device needs an update before it can be restarted from here.",
+    "note": "Error in Settings > Device version when the device's software is too old to be restarted from Settings."
+  },
+  "web.settings.restart.restarting": {
+    "text": "Restarting…",
+    "note": "Label of the Restart Device button in Settings > Device version while the device restarts.",
+    "max": 24
+  },
+  "web.settings.restart.slow": {
+    "text": "The device hasn't come back yet. It can take a little longer; if it doesn't come back, unplug it and plug it back in.",
+    "note": "Warning in Settings > Device version when the device hasn't answered five minutes after a restart."
+  },
+  "web.settings.restart.wait": {
+    "text": "Restarting… the device will be back in about a minute.",
+    "note": "Status line in Settings > Device version while the device restarts."
+  },
+  "web.settings.session.hint": {
+    "text": "This browser stays signed in across reloads. Sign out if you're on a shared or public computer.",
+    "note": "Explanation under the Session heading in Settings. Sign out refers to the button below it.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e066efe2"
+  },
+  "web.settings.session.sign_out": {
+    "text": "Sign Out",
+    "note": "Button in Settings > Session that signs this browser out of the device.",
+    "max": 24
+  },
+  "web.settings.session.signing_out": {
+    "text": "Signing out…",
+    "note": "Label of the Sign Out button in Settings > Session while this browser signs out.",
+    "max": 24
+  },
+  "web.settings.session.title": {
+    "text": "Session",
+    "note": "Heading of the last section in Settings, about this browser staying signed in.",
+    "max": 24
+  },
+  "web.settings.social.failed": {
+    "text": "Could not save the limit.",
+    "note": "Error under the limit field in Settings > Friends' posts storage when the device refused the new limit and gave no reason."
+  },
+  "web.settings.social.hint": {
+    "text": "Photos and videos from your friends' posts are kept on this device, so your feed works even when they're offline. When they take more than this, the oldest friends' posts are removed. Your own posts and files are never touched.",
+    "note": "Explanation under the Friends' posts storage heading in Settings. \"This\" is the limit set in the field below it. web.settings.social.using may follow it in the same paragraph.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #290826c1"
+  },
+  "web.settings.social.limit": {
+    "text": "Limit (GB)",
+    "note": "Label of the number field in Settings > Friends' posts storage: the most space friends' posts may take, in gigabytes.",
+    "max": 24
+  },
+  "web.settings.social.saved": {
+    "text": "Saved. Older posts over the limit are being removed.",
+    "note": "Confirmation under the limit field in Settings > Friends' posts storage: the new limit is saved, and the oldest friends' posts beyond it are being deleted from this device.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #94dbc73e"
+  },
+  "web.settings.social.title": {
+    "text": "Friends' posts storage",
+    "note": "Heading of the section in Settings that limits how much space the copies of friends' photos and videos (from their posts) may take on this device.",
+    "max": 32
+  },
+  "web.settings.social.too_small": {
+    "text": "Enter a size of at least 0.1 GB.",
+    "note": "Error under the limit field in Settings > Friends' posts storage when the number is missing or below 0.1 gigabytes. Write the number in your language's style."
+  },
+  "web.settings.social.using": {
+    "text": "Using {size} now.",
+    "args": [["size", "text"]],
+    "note": "Sentence after the explanation in Settings > Friends' posts storage. {size} is the space friends' posts take now, already formatted with its unit (1.25 GB)."
+  },
+  "web.settings.tagging.disable": {
+    "text": "Disable Image Tagging",
+    "note": "Button in Settings > Image Tagging that turns image tagging off.",
+    "max": 40
+  },
+  "web.settings.tagging.enable": {
+    "text": "Enable Image Tagging",
+    "note": "Button in Settings > Image Tagging that turns image tagging on.",
+    "max": 40
+  },
+  "web.settings.tagging.hint": {
+    "text": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.",
+    "note": "Explanation under the Image Tagging heading in Settings.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ff6ddd62"
+  },
+  "web.settings.tagging.title": {
+    "text": "Image Tagging",
+    "note": "Heading of the section in Settings that turns image tagging (recognising what photos and videos show, to search for it) on or off.",
+    "max": 32
+  },
+  "web.settings.tailscale.auth_key": {
+    "text": "Auth key (optional)",
+    "note": "Label of the field in Settings > Tailscale Funnel for a Tailscale auth key (a code from Tailscale's admin console that signs the device in without a browser).",
+    "max": 32
+  },
+  "web.settings.tailscale.authorise": {
+    "text": "Authorise this device in Tailscale, then press Enable again.",
+    "note": "Note in Settings > Tailscale Funnel when the browser blocked Tailscale's sign-in window (a link to it is shown). Enable refers to the Enable Tailscale Funnel button (web.settings.tailscale.enable)."
+  },
+  "web.settings.tailscale.authorise_window": {
+    "text": "Authorise this device in the window that just opened, then press Enable again.",
+    "note": "Note in Settings > Tailscale Funnel: Tailscale's sign-in page opened in a new window. Enable refers to the Enable Tailscale Funnel button (web.settings.tailscale.enable)."
+  },
+  "web.settings.tailscale.change_failed": {
+    "text": "Could not change the setting.",
+    "note": "Error in Settings > Tailscale Funnel when the device could not turn Funnel on or off and gave no reason."
+  },
+  "web.settings.tailscale.done": {
+    "text": "Done — this device is reachable at {address}",
+    "args": [["address", "text"]],
+    "note": "Note in Settings > Tailscale Funnel once Funnel is on. {address} is the device's public web address on Tailscale (https://home.tail1234.ts.net)."
+  },
+  "web.settings.tailscale.enable": {
+    "text": "Enable Tailscale Funnel",
+    "note": "Button in Settings > Tailscale Funnel that turns Funnel on, signing in to Tailscale if needed.",
+    "max": 32
+  },
+  "web.settings.tailscale.intro": {
+    "text": "Tailscale Funnel is an alternative to the Off The Cloud bridge, it publishes this device on your own <code>ts.net</code> address but with the next limitations:",
+    "note": "Explanation in Settings > Tailscale Funnel, followed by a list of limitations. Funnel makes the device reachable by anyone on the internet at an address of the user's own Tailscale network. <code>ts.net</code> is Tailscale's domain, in a code font: keep it as it is.",
+    "rich": ["code"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #9586261f"
+  },
+  "web.settings.tailscale.key_hint": {
+    "text": "With a key from your Tailscale admin console this finishes on its own. Without one, you'll be taken to Tailscale to authorise this device.",
+    "note": "Note under the Enable Tailscale Funnel button in Settings, about the optional auth key field."
+  },
+  "web.settings.tailscale.limit_account": {
+    "text": "You'll need a Tailscale account, with Funnel enabled for your tailnet.",
+    "note": "Item in the list of Tailscale Funnel's limitations in Settings. Tailnet is Tailscale's word for a user's private network."
+  },
+  "web.settings.tailscale.limit_one_user": {
+    "text": "<b>One user only.</b> Extra users need a web address each, and Funnel gives this machine a single one.",
+    "note": "Item in the list of Tailscale Funnel's limitations in Settings. <b> is shown in bold.",
+    "rich": ["b"]
+  },
+  "web.settings.tailscale.limit_social": {
+    "text": "<b>The social side won't work.</b> Friends find each other through the bridge, so sharing and friends' timelines are unavailable.",
+    "note": "Item in the list of Tailscale Funnel's limitations in Settings. <b> is shown in bold.",
+    "rich": ["b"]
+  },
+  "web.settings.tailscale.limit_traffic": {
+    "text": "Tailscale caps how much traffic can pass through Funnel, and doesn't publish the limit.",
+    "note": "Item in the list of Tailscale Funnel's limitations in Settings."
+  },
+  "web.settings.tailscale.no_funnel": {
+    "text": "Tailscale is connected, but Funnel didn't come up. Check that Funnel is enabled for your tailnet.",
+    "note": "Note in Settings > Tailscale Funnel when Tailscale signed in but Funnel didn't start. Tailnet is Tailscale's word for a user's private network."
+  },
+  "web.settings.tailscale.not_installed": {
+    "text": "Tailscale isn't installed on this device, so Funnel isn't available here.",
+    "note": "Shown in Settings > Tailscale Funnel when the device doesn't have Tailscale."
+  },
+  "web.settings.tailscale.not_installed_enable": {
+    "text": "Tailscale isn't installed on this device, so Funnel can't be turned on here.",
+    "note": "Error in Settings > Tailscale Funnel after Enable Tailscale Funnel, when the device doesn't have Tailscale."
+  },
+  "web.settings.tailscale.off": {
+    "text": "Funnel is off. This device is reachable through the bridge again.",
+    "note": "Note in Settings > Tailscale Funnel once Funnel was turned off."
+  },
+  "web.settings.tailscale.popup_blocked": {
+    "text": "Your browser blocked the window — <link>authorise this device in Tailscale</link> instead.",
+    "note": "Note in Settings > Tailscale Funnel when the browser blocked Tailscale's sign-in window. <link> opens Tailscale's sign-in page.",
+    "rich": ["link"]
+  },
+  "web.settings.tailscale.served_at": {
+    "text": "Served over Tailscale Funnel at <link>{address}</link>.",
+    "args": [["address", "text"]],
+    "note": "Line in Settings > Tailscale Funnel while Funnel is on. {address} is the device's public web address on Tailscale (https://home.tail1234.ts.net), shown as a link (<link>).",
+    "rich": ["link"]
+  },
+  "web.settings.tailscale.setting_up": {
+    "text": "Setting up…",
+    "note": "Label of the Enable Tailscale Funnel button in Settings while the device sets Funnel up.",
+    "max": 32
+  },
+  "web.settings.tailscale.suits": {
+    "text": "It suits a device you want purely as your own private NAS — your files and photos, reachable from anywhere, nothing shared with anyone.",
+    "note": "Note after the list of Tailscale Funnel's limitations in Settings."
+  },
+  "web.settings.tailscale.turn_off": {
+    "text": "Turn Funnel off",
+    "note": "Button in Settings > Tailscale Funnel that turns Funnel off (the device is then reached through the bridge again).",
+    "max": 32
+  },
+  "web.settings.update.check_again": {
+    "text": "Check again",
+    "note": "Button in Settings > Device version that asks the update server for new versions again.",
+    "max": 24
+  },
+  "web.settings.update.check_failed": {
+    "text": "Could not check for updates.",
+    "note": "Error in Settings > Device version when the device could not check for updates and gave no reason."
+  },
+  "web.settings.update.checking": {
+    "text": "Checking…",
+    "note": "Label of the Check again button in Settings > Device version while it checks.",
+    "max": 24
+  },
+  "web.settings.update.checking_updates": {
+    "text": "Checking for updates…",
+    "note": "Shown in Settings > Device version while the device asks the update server for new versions."
+  },
+  "web.settings.update.critical": {
+    "text": "Critical",
+    "note": "Small label beside a pending release in Settings > Device version: a critical update (a serious security fix, or one needed to keep working).",
+    "max": 12
+  },
+  "web.settings.update.failed": {
+    "text": "Update failed: {reason}",
+    "args": [["reason", "text"]],
+    "note": "Error in Settings > Device version when the last update failed. {reason} is the device's own message about it."
+  },
+  "web.settings.update.failed_on": {
+    "text": "Update failed on {date}: {reason}",
+    "args": [["date", "text"], ["reason", "text"]],
+    "note": "Error in Settings > Device version when the last update failed. {date} is when, date and time already formatted; {reason} is the device's own message about it."
+  },
+  "web.settings.update.major": {
+    "text": "Major",
+    "note": "Small label beside a pending release in Settings > Device version: a major update (big new features).",
+    "max": 12
+  },
+  "web.settings.update.restarts_note": {
+    "text": "The device rebuilds itself and restarts, which takes a few minutes and drops this connection on the way. Your photos and settings are left alone.",
+    "note": "Note in Settings > Device version under the update button and while an update runs."
+  },
+  "web.settings.update.server_unreachable": {
+    "text": "Couldn't reach the update server just now, so this may be out of date.",
+    "note": "Note in Settings > Device version when the device could not ask the update server for new versions."
+  },
+  "web.settings.update.start_failed": {
+    "text": "Could not start the update.",
+    "note": "Error in Settings > Device version when the device could not start the update and gave no reason."
+  },
+  "web.settings.update.starting_status": {
+    "text": "Starting",
+    "note": "Status line in Settings > Device version right after Update to … was pressed, until the device reports its own progress."
+  },
+  "web.settings.update.title": {
+    "text": "Device version",
+    "note": "Heading of the section in Settings that shows the device's software version and installs updates.",
+    "max": 24
+  },
+  "web.settings.update.up_to_date": {
+    "text": "Up to date",
+    "note": "Shown beside the version in Settings > Device version when no update is available.",
+    "max": 24
+  },
+  "web.settings.update.update_to": {
+    "text": "Update to {version}",
+    "args": [["version", "text"]],
+    "note": "Button in Settings > Device version that installs the newest version. {version} is its version number (1.2), or its build number (90) for one without.",
+    "max": 32
+  },
+  "web.settings.update.version": {
+    "text": "Version {version}",
+    "args": [["version", "text"]],
+    "note": "The device's software version in Settings > Device version. {version} is web.settings.update.version_label, web.settings.update.version_build, or a dash."
+  },
+  "web.settings.update.version_build": {
+    "text": "build {build}",
+    "args": [["build", "text"]],
+    "note": "A software version from before version numbers, in Settings > Device version: only its build number. {build} is that number (79). Lower case in English."
+  },
+  "web.settings.update.version_label": {
+    "text": "{label} (build {build})",
+    "args": [["label", "text"], ["build", "text"]],
+    "note": "A software version in Settings > Device version. {label} is the version number (1.1) and {build} the build number (85)."
+  },
+  "web.settings.update.version_to": {
+    "text": "Version {version} → <b>{latest}</b>",
+    "args": [["version", "text"], ["latest", "text"]],
+    "note": "The device's software version in Settings > Device version while an update is available. {version} is the installed version and {latest} the newest one, in bold (<b>); each is web.settings.update.version_label or web.settings.update.version_build.",
+    "rich": ["b"]
+  },
+  "web.settings.users.add": {
+    "text": "Add User",
+    "note": "Button in Settings > Users that creates a user with the name typed beside it.",
+    "max": 24
+  },
+  "web.settings.users.create_failed": {
+    "text": "Could not create user.",
+    "note": "Error in Settings > Users when the device could not add the user and gave no reason."
+  },
+  "web.settings.users.created": {
+    "text": "User \"{name}\" created.",
+    "args": [["name", "text"]],
+    "note": "Confirmation in Settings > Users once a user was added. {name} is the new user's name (lower-case letters, digits and hyphens)."
+  },
+  "web.settings.users.creating": {
+    "text": "Creating…",
+    "note": "Label of the Add User button in Settings > Users while the device creates the user.",
+    "max": 16
+  },
+  "web.settings.users.delete_confirm": {
+    "text": "Delete <b>{name}</b>? This permanently removes its database and every file it stored. Type <b>{name}</b> to confirm.",
+    "args": [["name", "text"]],
+    "note": "Dialog in Settings > Users before a user is deleted; the user's name has to be typed in the field below it. {name} is that user's name (lower-case letters, digits and hyphens), in bold (<b>). Its buttons are Cancel and Delete.",
+    "rich": ["b"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #998a1329"
+  },
+  "web.settings.users.delete_failed": {
+    "text": "Could not delete user.",
+    "note": "Error in Settings > Users when the device could not delete the user and gave no reason."
+  },
+  "web.settings.users.deleted": {
+    "text": "User \"{name}\" deleted.",
+    "args": [["name", "text"]],
+    "note": "Confirmation in Settings > Users once a user and everything they stored was deleted. {name} is that user's name (lower-case letters, digits and hyphens)."
+  },
+  "web.settings.users.disable": {
+    "text": "Disable",
+    "note": "Button on a user's row in Settings > Users that stops the user's instance without deleting anything (it can be enabled again).",
+    "max": 12
+  },
+  "web.settings.users.enable": {
+    "text": "Enable",
+    "note": "Button on a disabled user's row in Settings > Users that lets the user sign in and be reached again.",
+    "max": 12
+  },
+  "web.settings.users.hint": {
+    "text": "Each user runs as its own fully separate instance — own port, own database, own storage — managed only from here.",
+    "note": "Explanation under the Users heading in Settings."
+  },
+  "web.settings.users.inactive": {
+    "text": "inactive",
+    "note": "Small label beside a user's name in Settings > Users while that user is disabled. Lower case in English.",
+    "max": 12
+  },
+  "web.settings.users.load_usage": {
+    "text": "Load usage",
+    "note": "Button on a user's row in Settings > Users that fetches the space the user takes and their open connections.",
+    "max": 16
+  },
+  "web.settings.users.local_hint": {
+    "text": "Uncheck to keep this account on your own network only — no remote access, and no friends outside your home.",
+    "note": "Second sentence of the explanation under Request bridge access in Settings > Users."
+  },
+  "web.settings.users.none": {
+    "text": "No additional users yet.",
+    "note": "Shown in Settings > Users while the device has no users besides the owner."
+  },
+  "web.settings.users.port": {
+    "text": "port (optional)",
+    "note": "Placeholder of the field for a new user's network port in Settings > Users; left empty, the device picks one. Lower case in English.",
+    "max": 20
+  },
+  "web.settings.users.port_address": {
+    "text": "port {port} · {address}",
+    "args": [["port", "text"], ["address", "text"]],
+    "note": "Line under a user's name in Settings > Users. {port} is the network port the user's instance listens on (8081); {address} is the user's address on the bridge (ana.off-the.cloud). Lower case in English."
+  },
+  "web.settings.users.port_local": {
+    "text": "port {port} · local only (no bridge access)",
+    "args": [["port", "text"]],
+    "note": "Line under a user's name in Settings > Users for a user without an address on the bridge. {port} is the network port the user's instance listens on (8081). Lower case in English."
+  },
+  "web.settings.users.reachable_at": {
+    "text": "Reachable from anywhere at {address}.",
+    "args": [["address", "user"]],
+    "note": "Explanation under Request bridge access in Settings > Users. {address} is the address the new user would get (the typed name and the bridge's domain: ana.off-the.cloud). web.settings.users.local_hint follows it."
+  },
+  "web.settings.users.reachable_own": {
+    "text": "Reachable from anywhere at their own subdomain.",
+    "note": "Explanation under Request bridge access in Settings > Users, when the bridge's domain isn't known yet. web.settings.users.local_hint follows it."
+  },
+  "web.settings.users.request_bridge": {
+    "text": "Request bridge access",
+    "note": "Checkbox label in Settings > Users: give the new user an address on the bridge, so they can be reached from anywhere and have friends.",
+    "max": 40
+  },
+  "web.settings.users.title": {
+    "text": "Users",
+    "note": "Heading of the section in Settings where the owner adds, disables and deletes other users of this device.",
+    "max": 24
+  },
+  "web.settings.users.update_failed": {
+    "text": "Could not update this user.",
+    "note": "Error in Settings > Users when the device could not enable or disable the user and gave no reason."
+  },
+  "web.settings.users.usage": {
+    "text": {
+      "one": "{size} ({percent}) · {count} active",
+      "other": "{size} ({percent}) · {count} active"
+    },
+    "args": [["size", "text"], ["percent", "text"], ["count", "count"]],
+    "note": "A user's usage in Settings > Users. {size} is the space the user's files take, already formatted (1234 MB); {percent} the share of the disk that is, already formatted (12.5%); {count} how many connections to that user are open now."
+  },
+  "web.settings.users.username": {
+    "text": "username",
+    "note": "Placeholder of the name field for a new user in Settings > Users. Names use lower-case letters, digits and hyphens only. Lower case in English.",
+    "max": 20
   }
 }

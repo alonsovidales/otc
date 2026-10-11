@@ -11,11 +11,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import { isDeviceStatusCode } from "../net/deviceStatus";
 import type { RespEnvelope } from "../proto/messages";
+import { Trans, useT, type TFunction } from "../i18n";
 import Spinner from "./Spinner";
+import { asIs, say, type UiText } from "./uiText";
 import "./UpdatePanel.css";
 
 // Issue #183: releases have kinds and "major.minor" labels; one without a
-// label (from before them) shows as a build.
+// label (from before them) shows as a build. The description is the
+// release's own summary, which stays English (docs/i18n.md).
 type Release = { version: number; description: string; kind: string; label: string };
 type UpdateInfo = {
   currentVersion: number;
@@ -24,15 +27,20 @@ type UpdateInfo = {
   latestLabel: string;
   pending: Release[];
   state: string;
-  message: string;
+  // The runner's status line, in the device's words - or ours right after
+  // the update was asked for, until the device reports its own.
+  message: UiText;
   lastUpdated: string;
   checkError: string;
 };
 
-// "1.1 (build 85)", or "build 79" for a release from before labels.
-function versionText(label: string, build: number) {
+// "1.1 (build 85)", or "build 79" for a release from before labels. Build
+// numbers are versions: written as they are, never grouped.
+function versionText(t: TFunction, label: string, build: number) {
   if (!build) return "—";
-  return label ? `${label} (build ${build})` : `build ${build}`;
+  return label
+    ? t("web.settings.update.version_label", { label, build: String(build) })
+    : t("web.settings.update.version_build", { build: String(build) });
 }
 
 // While an update runs the device rebuilds and restarts itself, so the
@@ -41,7 +49,8 @@ function versionText(label: string, build: number) {
 const cPollMs = 5000;
 
 // The runner writes an ISO timestamp; show it in the reader's own terms,
-// and fall back to the raw value rather than printing "Invalid Date".
+// and fall back to the raw value rather than printing "Invalid Date". Like
+// the other dates the web app shows, it follows the browser's own locale.
 const formatWhen = (iso: string) => {
   const when = new Date(iso);
   return isNaN(when.getTime()) ? iso : when.toLocaleString();
@@ -62,14 +71,15 @@ const cRestartLookTimeoutMs = 10_000;
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
 export default function UpdatePanel() {
+  const t = useT();
   const [isPrimary, setIsPrimary] = useState<boolean | null>(null);
   const [info, setInfo] = useState<UpdateInfo | null>(null);
   const [checking, setChecking] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UiText | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [restartPhase, setRestartPhase] = useState<RestartPhase>("");
-  const [restartError, setRestartError] = useState<string | null>(null);
+  const [restartError, setRestartError] = useState<UiText | null>(null);
   // Bumped on unmount, so a wait for the device stops with the panel.
   const restartGen = useRef(0);
   useEffect(() => () => { restartGen.current++; }, []);
@@ -102,13 +112,13 @@ export default function UpdatePanel() {
           latestLabel: u.latestLabel,
           pending: u.pending.map(p => ({ version: p.version, description: p.summary, kind: p.kind, label: p.label })),
           state: u.state,
-          message: u.message,
+          message: asIs(u.message),
           lastUpdated: u.lastUpdated,
           checkError: u.checkError,
         });
         setError(null);
       } else if (resp.error) {
-        setError(resp.errorMessage || "Could not check for updates.");
+        setError(() => (resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.update.check_failed")));
       }
     } catch (e: any) {
       // A dropped socket mid-update is expected, not a failure to report:
@@ -146,12 +156,12 @@ export default function UpdatePanel() {
         (e as any).payload = { $case: "reqApplyUpdate", reqApplyUpdate: {} };
       });
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-        setInfo(prev => (prev ? { ...prev, state: "running", message: "Starting" } : prev));
+        setInfo(prev => (prev ? { ...prev, state: "running", message: say("web.settings.update.starting_status") } : prev));
       } else {
-        setError(resp.errorMessage || "Could not start the update.");
+        setError(() => (resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.update.start_failed")));
       }
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      setError(() => asIs(e?.message ?? String(e)));
     } finally {
       setStarting(false);
     }
@@ -193,7 +203,7 @@ export default function UpdatePanel() {
   };
 
   const restart = async () => {
-    if (!window.confirm("Restart the device? It will be unreachable for about a minute.")) return;
+    if (!window.confirm(t("web.settings.restart.confirm"))) return;
     const gen = ++restartGen.current;
     setRestartPhase("asking");
     setRestartError(null);
@@ -203,14 +213,14 @@ export default function UpdatePanel() {
       });
       if (resp.payload?.$case !== "respRestartingDevice") {
         setRestartPhase("");
-        setRestartError(resp.error && resp.errorCode === "unknown_payload"
-          ? "Your device needs an update before it can be restarted from here."
-          : (resp.errorMessage || "Could not restart the device."));
+        setRestartError(() => (resp.error && resp.errorCode === "unknown_payload"
+          ? say("web.settings.restart.needs_update")
+          : (resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.restart.failed"))));
         return;
       }
     } catch (e: any) {
       setRestartPhase("");
-      setRestartError(e?.message ?? String(e));
+      setRestartError(() => asIs(e?.message ?? String(e)));
       return;
     }
     setRestartPhase("restarting");
@@ -224,19 +234,24 @@ export default function UpdatePanel() {
 
   return (
     <section className="sf-section">
-      <h3>Device version</h3>
+      <h3>{t("web.settings.update.title")}</h3>
 
       {!info ? (
-        <div className="up-line"><Spinner label="Checking for updates…" /></div>
+        <div className="up-line"><Spinner label={t("web.settings.update.checking_updates")} /></div>
       ) : (
         <>
           <div className="up-line">
             <span className="up-version">
-              Version {versionText(info.currentLabel, info.currentVersion)}
-              {hasUpdate && <> → <strong>{versionText(info.latestLabel, info.latestVersion)}</strong></>}
+              {hasUpdate ? (
+                <Trans
+                  k="web.settings.update.version_to"
+                  args={{ version: versionText(t, info.currentLabel, info.currentVersion), latest: versionText(t, info.latestLabel, info.latestVersion) }}
+                  parts={{ b: (s) => <strong>{s}</strong> }}
+                />
+              ) : t("web.settings.update.version", { version: versionText(t, info.currentLabel, info.currentVersion) })}
             </span>
             {!hasUpdate && !running && !info.checkError && (
-              <span className="up-ok">Up to date</span>
+              <span className="up-ok">{t("web.settings.update.up_to_date")}</span>
             )}
           </div>
 
@@ -244,8 +259,8 @@ export default function UpdatePanel() {
             <ul className="up-releases">
               {info.pending.map(r => (
                 <li key={r.version}>
-                  <strong>{r.label || `build ${r.version}`}</strong>
-                  {(r.kind === "major" || r.kind === "critical") && <span className={`up-kind ${r.kind}`}>{r.kind === "critical" ? "Critical" : "Major"}</span>}
+                  <strong>{r.label || t("web.settings.update.version_build", { build: String(r.version) })}</strong>
+                  {(r.kind === "major" || r.kind === "critical") && <span className={`up-kind ${r.kind}`}>{r.kind === "critical" ? t("web.settings.update.critical") : t("web.settings.update.major")}</span>}
                   {" "}{r.description}
                 </li>
               ))}
@@ -254,7 +269,7 @@ export default function UpdatePanel() {
 
           {running && (
             <div className="up-line">
-              <Spinner label={info.message || "Updating…"} />
+              <Spinner label={info.message(t) || t("common.updating")} />
             </div>
           )}
 
@@ -263,38 +278,34 @@ export default function UpdatePanel() {
             // another run replaces it, so one from weeks ago would
             // otherwise read as something that just happened.
             <p className="up-error">
-              Update failed{info.lastUpdated ? ` on ${formatWhen(info.lastUpdated)}` : ""}: {info.message}
+              {info.lastUpdated
+                ? t("web.settings.update.failed_on", { date: formatWhen(info.lastUpdated), reason: info.message(t) })
+                : t("web.settings.update.failed", { reason: info.message(t) })}
             </p>
           )}
 
           {info.checkError && (
-            <p className="up-note">
-              Couldn't reach the update server just now, so this may be out of date.
-            </p>
+            <p className="up-note">{t("web.settings.update.server_unreachable")}</p>
           )}
 
           <div className="up-actions">
             <button className="sf-btn" onClick={() => void check()} disabled={checking || running}>
-              {checking ? "Checking…" : "Check again"}
+              {checking ? t("web.settings.update.checking") : t("web.settings.update.check_again")}
             </button>
             {hasUpdate && (
               <button className="sf-btn primary" onClick={() => void apply()} disabled={starting || running}>
-                {starting ? "Starting…" : `Update to ${info.latestLabel || info.latestVersion}`}
+                {starting ? t("web.settings.general.starting") : t("web.settings.update.update_to", { version: `${info.latestLabel || info.latestVersion}` })}
               </button>
             )}
           </div>
 
           {(hasUpdate || running) && (
-            <p className="up-note">
-              The device rebuilds itself and restarts, which takes a few minutes and
-              drops this connection on the way. Your photos and settings are left
-              alone.
-            </p>
+            <p className="up-note">{t("web.settings.update.restarts_note")}</p>
           )}
         </>
       )}
 
-      {error && <p className="up-error">{error}</p>}
+      {error && <p className="up-error">{error(t)}</p>}
 
       {/* Settings > Restart device: the whole machine, owner of the main
           instance only (the device refuses the others too). */}
@@ -303,20 +314,15 @@ export default function UpdatePanel() {
           <div className="up-actions">
             <button className="sf-btn sf-danger" onClick={() => void restart()}
               disabled={restartPhase === "asking" || restartPhase === "restarting" || info?.state === "running"}>
-              {restartPhase === "asking" || restartPhase === "restarting" ? "Restarting…" : "Restart Device"}
+              {restartPhase === "asking" || restartPhase === "restarting" ? t("web.settings.restart.restarting") : t("web.settings.restart.button")}
             </button>
           </div>
           {restartPhase === "restarting" && (
-            <div className="up-line"><Spinner label="Restarting… the device will be back in about a minute." /></div>
+            <div className="up-line"><Spinner label={t("web.settings.restart.wait")} /></div>
           )}
-          {restartPhase === "back" && <p className="up-note">The device is back.</p>}
-          {restartPhase === "slow" && (
-            <p className="up-warn">
-              The device hasn't come back yet. It can take a little longer; if it doesn't come
-              back, unplug it and plug it back in.
-            </p>
-          )}
-          {restartError && <p className="up-error">{restartError}</p>}
+          {restartPhase === "back" && <p className="up-note">{t("web.settings.restart.back")}</p>}
+          {restartPhase === "slow" && <p className="up-warn">{t("web.settings.restart.slow")}</p>}
+          {restartError && <p className="up-error">{restartError(t)}</p>}
         </div>
       )}
     </section>

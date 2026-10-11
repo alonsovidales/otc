@@ -13,6 +13,9 @@ import type { ReqEnvelope, RespEnvelope, SharedGallery, SharedGalleryItem } from
 import { GetSharedGalleryItem_Part } from "../proto/messages";
 import Spinner from "./Spinner";
 import "./SharedGalleryView.css";
+import { useT, type TFunction } from "../i18n";
+import { asIs, percentText, say, type PlainKey, type UiText } from "./uiText";
+import { sizeText } from "./sizeText";
 
 const CHUNK = 4 << 20;
 type Part = typeof GetSharedGalleryItem_Part[keyof typeof GetSharedGalleryItem_Part];
@@ -28,15 +31,33 @@ function parseLink(): { uuid: string; secret: string } | null {
   return { uuid: frag.slice(0, dot), secret: frag.slice(dot + 1) };
 }
 
-const fmtBytes = (n: number) =>
-  n < 1024 ? `${n} B` : n < 1 << 20 ? `${(n / 1024).toFixed(0)} KB` : n < 1 << 30 ? `${(n / (1 << 20)).toFixed(1)} MB` : `${(n / (1 << 30)).toFixed(2)} GB`;
+// Sizes: whole KB, MB with one digit, GB with two.
+const fmtBytes = (t: TFunction, n: number) => sizeText(t, n, [0, 1, 2]);
+
+// A request that failed, with what the visitor is told: the device's own
+// words (in the language the request carried) or ours. The page is for
+// anyone with the link, signed in or not: it follows the browser's
+// language, as the rest of the app does with no choice stored.
+class GalleryFailure extends Error {
+  readonly text: UiText;
+  constructor(text: UiText) {
+    super("shared gallery request failed"); // i18n-ignore: never shown, its text is
+    this.text = text;
+  }
+}
+const failureText = (err: unknown, fallback: PlainKey): UiText => {
+  if (err instanceof GalleryFailure) return err.text;
+  const message = (err as { message?: unknown } | null | undefined)?.message;
+  return message ? asIs(String(message)) : say(fallback);
+};
 
 const isVideo = (it: SharedGalleryItem) => it.mime.startsWith("video/");
 
 export default function SharedGalleryView() {
+  const t = useT();
   const link = useMemo(parseLink, []);
   const [gallery, setGallery] = useState<SharedGallery | null>(null);
-  const [error, setError] = useState<string | null>(link ? null : "This link is incomplete - copy the whole link and try again.");
+  const [error, setError] = useState<UiText | null>(() => (link ? null : say("web.files.gallery.incomplete")));
   const [thumbs, setThumbs] = useState<Record<number, string>>({});
   const [open, setOpen] = useState<number | null>(null);
   const [selecting, setSelecting] = useState(false);
@@ -63,11 +84,14 @@ export default function SharedGalleryView() {
           reqGetSharedGalleryItem: { uuid: link.uuid, secret: link.secret, index, part, offset: BigInt(offset), length: CHUNK },
         };
       });
-      if (resp.payload?.$case !== "respFileChunk") throw new Error(resp.errorMessage || "This link doesn't exist or has expired.");
+      if (resp.payload?.$case !== "respFileChunk") {
+        const message = resp.errorMessage;
+        throw new GalleryFailure(message ? asIs(message) : say("web.files.gallery.not_found"));
+      }
       const c = resp.payload.respFileChunk;
       total = Number(c.size);
       mime = c.mime || mime;
-      if (c.data.length === 0 && offset < total) throw new Error("The device stopped sending the file.");
+      if (c.data.length === 0 && offset < total) throw new GalleryFailure(say("web.files.gallery.stopped"));
       pieces.push(c.data);
       offset += c.data.length;
       onBytes?.(c.data.length, total);
@@ -113,12 +137,12 @@ export default function SharedGalleryView() {
         });
         if (cancelled) return;
         if (resp.payload?.$case !== "respSharedGallery") {
-          setError(resp.errorMessage || "This link doesn't exist or has expired.");
+          const message = resp.errorMessage;
+          setError(() => (message ? asIs(message) : say("web.files.gallery.not_found")));
           return;
         }
         const g = resp.payload.respSharedGallery;
         setGallery(g);
-        document.title = g.description || "Shared gallery";
         // Thumbnails, four at a time, in order.
         let next = 0;
         const worker = async () => {
@@ -143,7 +167,7 @@ export default function SharedGalleryView() {
         await Promise.all([worker(), worker(), worker(), worker()]);
         flush();
       } catch (err: any) {
-        if (!cancelled) setError(err?.message || "Could not open this gallery.");
+        if (!cancelled) setError(() => failureText(err, "web.files.gallery.open_failed"));
       }
     })();
     return () => {
@@ -151,6 +175,12 @@ export default function SharedGalleryView() {
       if (flushTimer != null) clearTimeout(flushTimer);
     };
   }, [link, fetchPart, objectURL]);
+
+  // The tab's title: the gallery's description, or ours in the language
+  // on screen.
+  useEffect(() => {
+    if (gallery) document.title = gallery.description || t("web.files.gallery.title");
+  }, [gallery, t]);
 
   const download = async (indexes: number[]) => {
     if (!gallery || dl) return;
@@ -169,7 +199,7 @@ export default function SharedGalleryView() {
         setDl(d => d && { ...d, done: k + 1 });
       }
     } catch (err: any) {
-      setError(err?.message || "The download failed.");
+      setError(() => failureText(err, "web.files.gallery.download_failed"));
     } finally {
       setDl(null);
     }
@@ -178,12 +208,12 @@ export default function SharedGalleryView() {
   if (error) {
     return (
       <div className="sg-page">
-        <div className="sg-empty"><h1>Shared gallery</h1><p>{error}</p></div>
+        <div className="sg-empty"><h1>{t("web.files.gallery.title")}</h1><p>{error(t)}</p></div>
       </div>
     );
   }
   if (!gallery) {
-    return <div className="sg-page"><div className="sg-empty"><Spinner label="Opening the gallery…" /></div></div>;
+    return <div className="sg-page"><div className="sg-empty"><Spinner label={t("web.files.gallery.opening")} /></div></div>;
   }
 
   const items = gallery.items;
@@ -198,32 +228,40 @@ export default function SharedGalleryView() {
     <div className="sg-page">
       <header className="sg-head">
         <div className="sg-title">
-          <h1>{gallery.description || "Shared gallery"}</h1>
+          <h1>{gallery.description || t("web.files.gallery.title")}</h1>
           <p className="sg-meta">
-            {items.length} {items.length === 1 ? "item" : "items"} · {fmtBytes(totalBytes)}
-            {gallery.expires && <> · available until {gallery.expires.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}</>}
+            {gallery.expires
+              ? t("web.files.gallery.meta_until", {
+                count: items.length,
+                size: fmtBytes(t, totalBytes),
+                date: gallery.expires.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }),
+              })
+              : t("web.files.gallery.meta", { count: items.length, size: fmtBytes(t, totalBytes) })}
           </p>
-          {gallery.lowRes && <p className="sg-lowres">Low resolution: these are small copies, not the original photos.</p>}
+          {gallery.lowRes && <p className="sg-lowres">{t("web.files.gallery.low_res")}</p>}
         </div>
         <div className="sg-actions">
           {selecting ? (
             <>
-              <button className="btn" onClick={() => setSelected(new Set(items.map(it => it.index)))}>Select all</button>
-              <button className="btn" onClick={() => { setSelecting(false); setSelected(new Set()); }}>Cancel</button>
+              <button className="btn" onClick={() => setSelected(new Set(items.map(it => it.index)))}>{t("web.files.gallery.select_all")}</button>
+              <button className="btn" onClick={() => { setSelecting(false); setSelected(new Set()); }}>{t("common.cancel")}</button>
+              {/* With nothing selected (disabled) it read "Download ", space included. */}
               <button className="btn primary" disabled={selected.size === 0 || !!dl}
-                onClick={() => void download([...selected].sort((a, b) => a - b))}>Download {selected.size || ""}</button>
+                onClick={() => void download([...selected].sort((a, b) => a - b))}>
+                {selected.size ? t("web.files.gallery.download_count", { count: selected.size }) : <>{t("common.download")} </>}
+              </button>
             </>
           ) : (
             <>
-              <button className="btn" onClick={() => setSelecting(true)}>Select</button>
-              <button className="btn primary" disabled={!!dl} onClick={() => void download(items.map(it => it.index))}>Download all</button>
+              <button className="btn" onClick={() => setSelecting(true)}>{t("common.select")}</button>
+              <button className="btn primary" disabled={!!dl} onClick={() => void download(items.map(it => it.index))}>{t("web.files.gallery.download_all")}</button>
             </>
           )}
         </div>
       </header>
       {dl && (
         <div className="sg-progress" role="status">
-          Downloading {Math.min(dl.done + 1, dl.total)} of {dl.total} · {fmtBytes(dl.bytes)}
+          {t("web.files.gallery.downloading", { current: Math.min(dl.done + 1, dl.total), total: dl.total, size: fmtBytes(t, dl.bytes) })}
           <div className="sg-bar"><div style={{ width: `${(100 * dl.done) / dl.total}%` }} /></div>
         </div>
       )}
@@ -256,6 +294,7 @@ function Viewer(props: {
   onClose: () => void; onMove: (d: number) => void; onDownload: () => void;
 }) {
   const { item, index, count, thumb, link, fetchPart, cache, onClose, onMove, onDownload } = props;
+  const t = useT();
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState<{ n: number; total: number }>({ n: 0, total: 0 });
@@ -325,26 +364,28 @@ function Viewer(props: {
   return (
     <div className="sg-viewer" role="dialog" aria-label={item.name} onClick={onClose}>
       <div className="sg-viewer-bar" onClick={e => e.stopPropagation()}>
-        <span className="sg-viewer-name">{item.name} · {index + 1} of {count}</span>
-        <button className="btn" onClick={onDownload}>Download</button>
-        <button className="btn" onClick={onClose} aria-label="Close">✕</button>
+        <span className="sg-viewer-name">{t("web.files.gallery.position", { name: item.name, index: index + 1, total: count })}</span>
+        <button className="btn" onClick={onDownload}>{t("common.download")}</button>
+        <button className="btn" onClick={onClose} aria-label={t("common.close")}>✕</button>
       </div>
       <div className="sg-stage" onClick={e => e.stopPropagation()}>
-        {count > 1 && <button className="sg-nav prev" onClick={() => onMove(-1)} aria-label="Previous">‹</button>}
-        {failed ? <p className="sg-name">This file could not be shown here - download it instead.</p>
+        {count > 1 && <button className="sg-nav prev" onClick={() => onMove(-1)} aria-label={t("web.files.gallery.previous")}>‹</button>}
+        {failed ? <p className="sg-name">{t("web.files.gallery.cant_show")}</p>
           : !src ? (
             // The thumbnail, blurred, while the photo itself arrives -
             // with how far along it is, so it never looks stuck.
             <div className="sg-loading">
               {thumb && <img src={thumb} alt="" className="sg-blur" />}
               <div className="sg-loading-label" role="status">
-                <Spinner label={loaded.total > 0 ? `Loading… ${Math.round((100 * loaded.n) / loaded.total)}%` : "Loading…"} />
+                <Spinner label={loaded.total > 0
+                  ? t("web.files.gallery.loading_percent", { percent: percentText(t, Math.round((100 * loaded.n) / loaded.total)) })
+                  : t("common.loading")} />
               </div>
             </div>
           )
           : isVideo(item) ? <video src={src} controls autoPlay playsInline />
           : <img src={src} alt={item.name} />}
-        {count > 1 && <button className="sg-nav next" onClick={() => onMove(1)} aria-label="Next">›</button>}
+        {count > 1 && <button className="sg-nav next" onClick={() => onMove(1)} aria-label={t("web.files.gallery.next")}>›</button>}
       </div>
     </div>
   );

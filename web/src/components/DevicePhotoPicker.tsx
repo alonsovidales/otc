@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useT, type TFunction } from "../i18n";
 import { useWS } from "../net/useWS";
 import type { File as MsgFile, ImageGroup, RespEnvelope } from "../proto/messages";
+import { say, type UiText } from "./uiText";
 import "./DevicePhotoPicker.css";
 
 // Issue #178: the profile picture can come from the photos on the device
@@ -25,6 +27,7 @@ const thumbURL = (f: MsgFile) => {
 const cFirstPagePhotos = 12;
 
 export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
+  const t = useT();
   const [groups, setGroups] = useState<ImageGroup[]>([]);
   const [group, setGroup] = useState("");
   const [items, setItems] = useState<{ f: MsgFile; url: string }[]>([]);
@@ -40,7 +43,7 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
   // tile already shown each time a new page arrived.
   const urls = useRef<string[]>([]);
   const [opening, setOpening] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UiText | null>(null);
   const gen = useRef(0);
   // How many photos the grid holds, for SearchPhotos.have (a ref: the
   // page request's closure would read a stale `items`).
@@ -138,41 +141,49 @@ export default function DevicePhotoPicker({ onCancel, onPicked }: Props) {
       const resp: RespEnvelope = await useWS.request(e => {
         (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: f.path } };
       });
-      if (resp.payload?.$case !== "respFile") throw new Error(resp.errorMessage || "no answer");
+      if (resp.payload?.$case !== "respFile") {
+        // The device's own words when it gave a reason (in the request's
+        // language), ours when it didn't.
+        const detail = resp.errorMessage;
+        setError(() => (detail ? (t: TFunction) => t("web.images.picker.failed", { detail }) : say("web.images.picker.no_answer")));
+        return;
+      }
       const full = resp.payload.respFile;
       const bytes = full.content as unknown as Uint8Array;
       onPicked(new File([bytes], f.path.split("/").pop() || "photo.jpg", { type: full.mime || "image/jpeg" }));
-    } catch (e: any) {
-      setError(`That photo could not be fetched from the device (${e?.message ?? e}).`);
+    } catch (e: unknown) {
+      // No connection: the error's own message (net/ words it).
+      const detail = String((e as { message?: unknown } | null)?.message ?? e);
+      setError(() => (t: TFunction) => t("web.images.picker.failed", { detail }));
     } finally {
       setOpening(null);
     }
   };
 
   return (
-    <div className="dpp-backdrop" role="dialog" aria-modal="true" aria-label="Choose a photo from your device">
+    <div className="dpp-backdrop" role="dialog" aria-modal="true" aria-label={t("web.images.picker.label")}>
       <div className="dpp-dialog">
         <div className="dpp-head">
-          <h3>Choose a photo</h3>
-          <button className="dpp-cancel" onClick={onCancel}>Cancel</button>
+          <h3>{t("web.images.picker.title")}</h3>
+          <button className="dpp-cancel" onClick={onCancel}>{t("common.cancel")}</button>
         </div>
         <div className="dpp-chips">
-          <button className={`dpp-chip${group === "" ? " on" : ""}`} onClick={() => setGroup("")}>All photos</button>
+          <button className={`dpp-chip${group === "" ? " on" : ""}`} onClick={() => setGroup("")}>{t("web.images.picker.all")}</button>
           {groups.map(g => (
             <button key={g.id} className={`dpp-chip${group === g.id ? " on" : ""}`} onClick={() => setGroup(g.id)}>
               {g.name} <span className="dpp-count">{g.fileCount}</span>
             </button>
           ))}
         </div>
-        {error && <p className="dpp-error">{error}</p>}
+        {error && <p className="dpp-error">{error(t)}</p>}
         <div className="dpp-grid" ref={gridRef}>
           {items.map(({ f, url }) => (
             <button key={f.path} className="dpp-tile" onClick={() => void pick(f)} disabled={opening !== null} title={f.path}>
               {url && <img src={url} alt="" loading="lazy" />}
-              {opening === f.path && <span className="dpp-spinner" aria-label="Opening" />}
+              {opening === f.path && <span className="dpp-spinner" aria-label={t("web.images.picker.opening")} />}
             </button>
           ))}
-          {!loading && items.length === 0 && <p className="dpp-empty">No photos here yet.</p>}
+          {!loading && items.length === 0 && <p className="dpp-empty">{t("web.images.picker.empty")}</p>}
           <div ref={sentinelRef} className="dpp-sentinel" />
         </div>
       </div>

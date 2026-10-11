@@ -14,6 +14,8 @@ import LogsPanel from "./LogsPanel";
 import BridgePanel from "./BridgePanel";
 import LanguagePanel from "./settings/LanguagePanel";
 import { setFaceRecognition, useFaceRecognition } from "./faceRecognition";
+import { useT, type TFunction } from "../i18n";
+import { asIs, percentText, say, unitText, type UiText } from "./uiText";
 import type {
   ReqEnvelope,
   RespEnvelope,
@@ -28,7 +30,13 @@ function reprocessPercent(s: { total: number; processed: number }): number {
   return Math.max(0, Math.min(100, Math.round((s.processed / s.total) * 100)));
 }
 
+// "1.25 GB", as (bytes / 1024^3).toFixed(2) wrote it, in the language's
+// format: rounded by toFixed first (Intl rounds the shortest decimal form,
+// toFixed the exact value), so Intl only lays out the final digits.
+const usedGB = (t: TFunction, bytes: number) => unitText(t, Number((bytes / 1024 ** 3).toFixed(2)), "gigabyte", 2);
+
 export default function SettingsForm() {
+  const t = useT();
   // Loaded settings
 
   // Domain form
@@ -59,11 +67,11 @@ export default function SettingsForm() {
   const [socialLimitGB, setSocialLimitGB] = useState("");
   const [socialUsedBytes, setSocialUsedBytes] = useState<number | null>(null);
   const [socialLimitBusy, setSocialLimitBusy] = useState(false);
-  const [socialLimitNote, setSocialLimitNote] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [socialLimitNote, setSocialLimitNote] = useState<{ kind: "ok" | "error"; text: UiText } | null>(null);
   const saveSocialLimit = async () => {
     const gb = Number(socialLimitGB.replace(",", "."));
     if (!Number.isFinite(gb) || gb < 0.1) {
-      setSocialLimitNote({ kind: "error", text: "Enter a size of at least 0.1 GB." });
+      setSocialLimitNote({ kind: "error", text: say("web.settings.social.too_small") });
       return;
     }
     setSocialLimitBusy(true);
@@ -72,10 +80,10 @@ export default function SettingsForm() {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqSetSocialStorageLimit", reqSetSocialStorageLimit: { mb: Math.round(gb * 1024) } };
       });
-      if (resp.error) setSocialLimitNote({ kind: "error", text: resp.errorMessage || "Could not save the limit." });
-      else setSocialLimitNote({ kind: "ok", text: "Saved. Older posts over the limit are being removed." });
+      if (resp.error) setSocialLimitNote({ kind: "error", text: resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.social.failed") });
+      else setSocialLimitNote({ kind: "ok", text: say("web.settings.social.saved") });
     } catch (e: any) {
-      setSocialLimitNote({ kind: "error", text: e?.message ?? String(e) });
+      setSocialLimitNote({ kind: "error", text: asIs(e?.message ?? String(e)) });
     } finally {
       setSocialLimitBusy(false);
     }
@@ -92,10 +100,10 @@ export default function SettingsForm() {
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
         setFaceRecognition(next);
       } else {
-        setStatus({ kind: "error", text: resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "Could not update this setting." });
+        setStatus({ kind: "error", text: resp.payload?.$case === "respAck" ? asIs(resp.payload.respAck.errorMsg) : say("web.settings.general.update_failed") });
       }
     } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message ?? String(err) });
+      setStatus({ kind: "error", text: asIs(err?.message ?? String(err)) });
     } finally {
       setFaceRecognitionBusy(false);
     }
@@ -113,10 +121,10 @@ export default function SettingsForm() {
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
         setImageTaggingEnabled(next);
       } else {
-        setStatus({ kind: "error", text: resp.errorMessage || (resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "Could not update this setting.") });
+        setStatus({ kind: "error", text: resp.errorMessage ? asIs(resp.errorMessage) : (resp.payload?.$case === "respAck" ? asIs(resp.payload.respAck.errorMsg) : say("web.settings.general.update_failed")) });
       }
     } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message ?? String(err) });
+      setStatus({ kind: "error", text: asIs(err?.message ?? String(err)) });
     } finally {
       setImageTaggingBusy(false);
     }
@@ -154,8 +162,8 @@ export default function SettingsForm() {
   // status doesn't change on its own, no point re-fetching it every tick.
   useEffect(() => {
     if (reprocessStatus?.status !== "running") return;
-    const t = setInterval(loadReprocessStatus, 1500);
-    return () => clearInterval(t);
+    const timer = setInterval(loadReprocessStatus, 1500);
+    return () => clearInterval(timer);
   }, [reprocessStatus?.status, loadReprocessStatus]);
 
   const startReprocess = async (forceRestart: boolean) => {
@@ -169,10 +177,10 @@ export default function SettingsForm() {
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
         await loadReprocessStatus();
       } else {
-        setStatus({ kind: "error", text: resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "Could not start reprocessing." });
+        setStatus({ kind: "error", text: resp.payload?.$case === "respAck" ? asIs(resp.payload.respAck.errorMsg) : say("web.settings.reprocess.start_failed") });
       }
     } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message ?? String(err) });
+      setStatus({ kind: "error", text: asIs(err?.message ?? String(err)) });
     } finally {
       setReprocessBusy(false);
     }
@@ -191,17 +199,18 @@ export default function SettingsForm() {
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
         await loadReprocessStatus();
       } else {
-        setStatus({ kind: "error", text: resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : "Could not stop reprocessing." });
+        setStatus({ kind: "error", text: resp.payload?.$case === "respAck" ? asIs(resp.payload.respAck.errorMsg) : say("web.settings.reprocess.stop_failed") });
       }
     } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message ?? String(err) });
+      setStatus({ kind: "error", text: asIs(err?.message ?? String(err)) });
     } finally {
       setReprocessCancelling(false);
     }
   };
 
   // Status
-  const [status, setStatus] = useState<{ kind: "info"|"success"|"error"; text: string } | null>(null);
+  // Kept as UiText: made when shown, so it follows a language change.
+  const [status, setStatus] = useState<{ kind: "info"|"success"|"error"; text: UiText } | null>(null);
 
   useEffect(() => {
     if (pushSupported()) void isPushSubscribed().then(setPushSubscribed);
@@ -217,10 +226,10 @@ export default function SettingsForm() {
       } else {
         const ok = await enablePush();
         setPushSubscribed(ok);
-        if (!ok) setStatus({ kind: "error", text: "Notification permission was denied." });
+        if (!ok) setStatus({ kind: "error", text: say("web.settings.notifications.denied") });
       }
     } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message ?? String(err) });
+      setStatus({ kind: "error", text: asIs(err?.message ?? String(err)) });
     } finally {
       setPushBusy(false);
     }
@@ -242,11 +251,11 @@ export default function SettingsForm() {
           setSocialLimitGB(String(Math.round((limitMb / 1024) * 10) / 10));
           setSocialUsedBytes(Number(s.socialStorageUsedBytes ?? 0));
         } else if (resp.payload?.$case === "respAck") {
-          const msg = resp.payload.respAck.errorMsg || "Failed to load settings.";
-          setStatus({ kind: "error", text: msg });
+          const msg = resp.payload.respAck.errorMsg;
+          setStatus({ kind: "error", text: msg ? asIs(msg) : say("web.settings.general.load_failed") });
         }
       } catch (err: any) {
-        setStatus({ kind: "error", text: err?.message ?? String(err) });
+        setStatus({ kind: "error", text: asIs(err?.message ?? String(err)) });
       }
     })();
   }, []);
@@ -295,15 +304,15 @@ export default function SettingsForm() {
         useWS.passwordChanged(newKey);
         await useWS.refreshSessionToken();
         setOldKey(""); setNewKey(""); setConfirmKey("");
-        setStatus({ kind: "success", text: "Password changed." });
+        setStatus({ kind: "success", text: say("web.settings.password.changed") });
       } else if (resp.payload?.$case === "respAck") {
-        const msg = resp.payload.respAck.errorMsg || "Change failed.";
-        setStatus({ kind: "error", text: msg });
+        const msg = resp.payload.respAck.errorMsg;
+        setStatus({ kind: "error", text: msg ? asIs(msg) : say("web.settings.password.failed") });
       } else {
-        setStatus({ kind: "error", text: "Unexpected response." });
+        setStatus({ kind: "error", text: say("web.settings.password.unexpected") });
       }
     } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message ?? String(err) });
+      setStatus({ kind: "error", text: asIs(err?.message ?? String(err)) });
     } finally {
       setSavingKey(false);
     }
@@ -313,7 +322,7 @@ export default function SettingsForm() {
     <div className="sf-wrap">
       {status && (
         <div className={`sf-status ${status.kind}`}>
-          {status.text}
+          {status.text(t)}
         </div>
       )}
 
@@ -325,7 +334,7 @@ export default function SettingsForm() {
           renders once authenticated (see App.tsx), so this is always the
           editable branch, never ProfileCard's own read-only visitor view. */}
       <section className="sf-section">
-        <h3>Profile</h3>
+        <h3>{t("web.settings.profile.title")}</h3>
         <ProfileCard authenticated={true} />
       </section>
 
@@ -334,9 +343,9 @@ export default function SettingsForm() {
       <UsersPanel />
 
       <section className="sf-section">
-        <h3>Change Password</h3>
+        <h3>{t("web.settings.password.title")}</h3>
         <div className="sf-row">
-          <label htmlFor="sf-old">Old password</label>
+          <label htmlFor="sf-old">{t("web.settings.password.old")}</label>
           <input
             id="sf-old"
             className="sf-input"
@@ -346,7 +355,7 @@ export default function SettingsForm() {
           />
         </div>
         <div className="sf-row">
-          <label htmlFor="sf-new">New password</label>
+          <label htmlFor="sf-new">{t("web.settings.password.new")}</label>
           <input
             id="sf-new"
             className="sf-input"
@@ -356,7 +365,7 @@ export default function SettingsForm() {
           />
         </div>
         <div className="sf-row">
-          <label htmlFor="sf-conf">Confirm new password</label>
+          <label htmlFor="sf-conf">{t("web.settings.password.confirm")}</label>
           <input
             id="sf-conf"
             className="sf-input"
@@ -365,23 +374,20 @@ export default function SettingsForm() {
             onChange={(e) => setConfirmKey(e.target.value)}
           />
         </div>
-        {pwTooShort && <div className="sf-note error">Use at least 8 characters.</div>}
-        {pwMismatch && <div className="sf-note error">New passwords do not match.</div>}
+        {pwTooShort && <div className="sf-note error">{t("web.settings.password.too_short")}</div>}
+        {pwMismatch && <div className="sf-note error">{t("web.settings.password.mismatch")}</div>}
 
         <button className="sf-btn" disabled={!canSaveKey || savingKey} onClick={() => void changePassword()}>
-          {savingKey ? "Saving…" : "Change Password"}
+          {savingKey ? t("web.settings.general.saving") : t("web.settings.password.change")}
         </button>
       </section>
 
       {pushSupported() && (
         <section className="sf-section">
-          <h3>Notifications</h3>
-          <p className="sf-hint">
-            Get a push notification in this browser when a friend posts. Self-hosted — this device
-            sends it directly, no third-party notification service involved.
-          </p>
+          <h3>{t("web.settings.notifications.title")}</h3>
+          <p className="sf-hint">{t("web.settings.notifications.hint")}</p>
           <button className="sf-btn" disabled={pushBusy} onClick={() => void togglePush()}>
-            {pushBusy ? "Working…" : pushSubscribed ? "Disable Notifications" : "Enable Notifications"}
+            {pushBusy ? t("web.settings.general.working") : pushSubscribed ? t("web.settings.notifications.disable") : t("web.settings.notifications.enable")}
           </button>
         </section>
       )}
@@ -397,50 +403,38 @@ export default function SettingsForm() {
       <LogsPanel />
 
       <section className="sf-section">
-        <h3>Face Recognition</h3>
-        <p className="sf-hint">
-          Detect faces in newly uploaded photos so you can search by person, like other photo
-          apps. Off unless you turn it on (here or during setup), and faces never leave the
-          device. It looks at everyone in your photos, not just you. It only affects photos
-          uploaded while it is on — use Reprocess Media to scan the ones you already have.
-        </p>
+        <h3>{t("web.settings.faces.title")}</h3>
+        <p className="sf-hint">{t("web.settings.faces.hint")}</p>
         <button className="sf-btn" disabled={faceRecognitionBusy} onClick={() => void toggleFaceRecognition()}>
-          {faceRecognitionBusy ? "Working…" : faceRecognitionEnabled ? "Disable Face Recognition" : "Enable Face Recognition"}
+          {faceRecognitionBusy ? t("web.settings.general.working") : faceRecognitionEnabled ? t("web.settings.faces.disable") : t("web.settings.faces.enable")}
         </button>
       </section>
 
       <section className="sf-section">
-        <h3>Image Tagging</h3>
-        <p className="sf-hint">
-          Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake)
-          so you can search for it. It runs on this device and nothing leaves it. Turning it off
-          saves processing time; places from a photo's own location data are still searchable.
-          It only affects what is uploaded while it is off.
-        </p>
+        <h3>{t("web.settings.tagging.title")}</h3>
+        <p className="sf-hint">{t("web.settings.tagging.hint")}</p>
         <button className="sf-btn" disabled={imageTaggingBusy} onClick={() => void toggleImageTagging()}>
-          {imageTaggingBusy ? "Working…" : imageTaggingEnabled ? "Disable Image Tagging" : "Enable Image Tagging"}
+          {imageTaggingBusy ? t("web.settings.general.working") : imageTaggingEnabled ? t("web.settings.tagging.disable") : t("web.settings.tagging.enable")}
         </button>
       </section>
 
       <section className="sf-section">
-        <h3>Friends' posts storage</h3>
+        <h3>{t("web.settings.social.title")}</h3>
         <p className="sf-hint">
-          Photos and videos from your friends' posts are kept on this device, so your feed works
-          even when they're offline. When they take more than this, the oldest friends' posts are
-          removed. Your own posts and files are never touched.
-          {socialUsedBytes !== null && <> Using {(socialUsedBytes / 1024 ** 3).toFixed(2)} GB now.</>}
+          {t("web.settings.social.hint")}
+          {socialUsedBytes !== null && <> {t("web.settings.social.using", { size: usedGB(t, socialUsedBytes) })}</>}
         </p>
         <div className="sf-row">
-          <label htmlFor="sf-social-limit">Limit (GB)</label>
+          <label htmlFor="sf-social-limit">{t("web.settings.social.limit")}</label>
           <div className="sf-secret-row">
             <input id="sf-social-limit" className="sf-input" type="number" min="0.1" step="0.5" inputMode="decimal"
               value={socialLimitGB} onChange={e => setSocialLimitGB(e.target.value)} />
             <button className="sf-btn small" type="button" disabled={socialLimitBusy} onClick={() => void saveSocialLimit()}>
-              {socialLimitBusy ? "Saving…" : "Save"}
+              {socialLimitBusy ? t("web.settings.general.saving") : t("common.save")}
             </button>
           </div>
         </div>
-        {socialLimitNote && <p className={`sf-note ${socialLimitNote.kind === "ok" ? "success" : "error"}`}>{socialLimitNote.text}</p>}
+        {socialLimitNote && <p className={`sf-note ${socialLimitNote.kind === "ok" ? "success" : "error"}`}>{socialLimitNote.text(t)}</p>}
       </section>
 
       {/* Issue #94: in-place updates. Renders nothing on a non-primary
@@ -451,12 +445,8 @@ export default function SettingsForm() {
       <SharedLinksPanel />
 
       <section className="sf-section">
-        <h3>Reprocess Media</h3>
-        <p className="sf-hint">
-          Re-run tagging and face detection on every photo and video already in your library —
-          useful after a detection fix or model update. This clears existing tags and recognized
-          people first and rebuilds them from scratch.
-        </p>
+        <h3>{t("web.settings.reprocess.title")}</h3>
+        <p className="sf-hint">{t("web.settings.reprocess.hint")}</p>
         {reprocessStatus?.status === "running" ? (
           <div className="sf-progress">
             <div className="sf-progress-track">
@@ -467,35 +457,45 @@ export default function SettingsForm() {
             </div>
             <div className="sf-progress-row">
               <div className="sf-hint">
-                Reprocessing… {reprocessPercent(reprocessStatus)}% ({reprocessStatus.processed} / {reprocessStatus.total})
+                {t("web.settings.reprocess.progress", {
+                  percent: percentText(t, reprocessPercent(reprocessStatus)),
+                  processed: reprocessStatus.processed,
+                  total: reprocessStatus.total,
+                })}
               </div>
               <button className="sf-btn small sf-danger" disabled={reprocessCancelling} onClick={() => void stopReprocess()}>
-                {reprocessCancelling ? "Stopping…" : "Cancel"}
+                {reprocessCancelling ? t("web.settings.reprocess.stopping") : t("web.settings.reprocess.cancel")}
               </button>
             </div>
           </div>
         ) : reprocessStatus?.status === "stopped" ? (
           <>
-            <div className="sf-hint">Stopped at {reprocessPercent(reprocessStatus)}% ({reprocessStatus.processed} / {reprocessStatus.total}).</div>
+            <div className="sf-hint">
+              {t("web.settings.reprocess.stopped", {
+                percent: percentText(t, reprocessPercent(reprocessStatus)),
+                processed: reprocessStatus.processed,
+                total: reprocessStatus.total,
+              })}
+            </div>
             <div className="sf-btn-row">
               <button className="sf-btn" disabled={reprocessBusy} onClick={() => setReprocessConfirming("resume")}>
-                {reprocessBusy ? "Starting…" : "Resume Reprocessing"}
+                {reprocessBusy ? t("web.settings.general.starting") : t("web.settings.reprocess.resume_all")}
               </button>
               <button className="sf-btn sf-btn-secondary" disabled={reprocessBusy} onClick={() => setReprocessConfirming("restart")}>
-                Start Over
+                {t("web.settings.reprocess.start_over")}
               </button>
             </div>
           </>
         ) : (
           <>
             <button className="sf-btn" disabled={reprocessBusy} onClick={() => setReprocessConfirming("restart")}>
-              {reprocessBusy ? "Starting…" : "Reprocess All Media"}
+              {reprocessBusy ? t("web.settings.general.starting") : t("web.settings.reprocess.all")}
             </button>
             {reprocessStatus?.status === "completed" && (
-              <div className="sf-hint">Last run completed — {reprocessStatus.processed} file(s) processed.</div>
+              <div className="sf-hint">{t("web.settings.reprocess.completed", { count: reprocessStatus.processed })}</div>
             )}
             {reprocessStatus?.status === "failed" && (
-              <div className="sf-note error">Last run failed after {reprocessStatus.processed} file(s) — try again.</div>
+              <div className="sf-note error">{t("web.settings.reprocess.failed", { count: reprocessStatus.processed })}</div>
             )}
           </>
         )}
@@ -506,13 +506,13 @@ export default function SettingsForm() {
           <div className="sf-modal-inner" onClick={e => e.stopPropagation()}>
             <p>
               {reprocessConfirming === "resume"
-                ? "Resume reprocessing where it left off? It can take a while."
-                : "Reprocess every photo and video in your library? This deletes all existing tags and recognized people and rebuilds them from scratch. It can take a while and can't be undone."}
+                ? t("web.settings.reprocess.confirm_resume")
+                : t("web.settings.reprocess.confirm_restart")}
             </p>
             <div className="sf-modal-actions">
-              <button className="sf-btn small" onClick={() => setReprocessConfirming(null)}>Cancel</button>
+              <button className="sf-btn small" onClick={() => setReprocessConfirming(null)}>{t("common.cancel")}</button>
               <button className="sf-btn small sf-danger" onClick={() => void startReprocess(reprocessConfirming === "restart")}>
-                {reprocessConfirming === "resume" ? "Resume" : "Reprocess"}
+                {reprocessConfirming === "resume" ? t("web.settings.reprocess.resume") : t("web.settings.reprocess.confirm")}
               </button>
             </div>
           </div>
@@ -520,11 +520,8 @@ export default function SettingsForm() {
       )}
 
       <section className="sf-section">
-        <h3>Session</h3>
-        <p className="sf-hint">
-          This browser stays signed in across reloads. Sign out if you're on a shared or public
-          computer.
-        </p>
+        <h3>{t("web.settings.session.title")}</h3>
+        <p className="sf-hint">{t("web.settings.session.hint")}</p>
         {/* The same as the account menu's Sign out (net/signOut.ts):
             the device forgets this browser's push subscription and
             tokens, then the page reloads signed out. aria-disabled
@@ -539,7 +536,7 @@ export default function SettingsForm() {
             void signOut();
           }}
         >
-          {signingOut ? "Signing out…" : "Sign Out"}
+          {signingOut ? t("web.settings.session.signing_out") : t("web.settings.session.sign_out")}
         </button>
       </section>
     </div>

@@ -17,21 +17,22 @@ import LowResBadge from "./LowResBadge";
 import Spinner from "./Spinner";
 import { startDownload, pubMediaKey, extensionForMime, leafName, useDownloadState, useDownloadFailure, useDownloadHost, useDownloadToldByHost } from "./mediaDownload";
 import { DownloadButton, DownloadNote } from "./DownloadButton";
+import { useT, type TFunction } from "../i18n";
 
 // When the post was published, shown in the feed. Relative for anything
 // recent (the timescale people actually care about scrolling a feed),
 // falling back to an absolute date once it's old enough that "3d ago" stops
-// being more useful than just the date.
-function formatPostDate(d?: Date): string {
+// being more useful than just the date (in the browser's own format).
+function formatPostDate(t: TFunction, d?: Date): string {
   if (!d) return "";
   const diffMs = Date.now() - d.getTime();
   const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t("web.social.time.just_now");
+  if (mins < 60) return t("web.social.time.minutes_ago", { minutes: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t("web.social.time.hours_ago", { hours });
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return t("web.social.time.days_ago", { days });
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
@@ -56,9 +57,10 @@ function subscribePostDateTick(fn: () => void): () => void {
   };
 }
 function PostDate({ d }: { d: Date }) {
+  const t = useT();
   const [, setTick] = useState(0);
-  useEffect(() => subscribePostDateTick(() => setTick(t => t + 1)), []);
-  return <div className="sv-post-date">{formatPostDate(d)}</div>;
+  useEffect(() => subscribePostDateTick(() => setTick(n => n + 1)), []);
+  return <div className="sv-post-date">{formatPostDate(t, d)}</div>;
 }
 
 // Issue #114: whether feed videos are muted, shared by every post - once
@@ -162,7 +164,7 @@ function postMediaName(p: PbSocialPublication, index: number): string {
   const own = ownMediaName(f);
   if (own) return own;
   const who = Array.from(cleanFileName(p.publisher?.name || "")).slice(0, 60).join("").trim()
-    || cleanFileName(p.publisher?.domain || "") || "Post";
+    || cleanFileName(p.publisher?.domain || "") || "Post"; // i18n-ignore: a file name the app writes
   const d = p.dateTime;
   const date = d ? `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` : "";
   const num = p.files.length > 1 ? String(index + 1) : "";
@@ -221,6 +223,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   // just hands it a function to call instead.
   onRegisterOpenComposer?: (open: () => void) => void;
 }) {
+  const t = useT();
   // ---------------- Feed ----------------
   const [feed, setFeed] = useState<PbSocialPublication[]>([]);
   // Whether the first page has answered - an empty feed before that is
@@ -786,9 +789,9 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
             gets nothing to do about it either. */}
         {authenticated && loaded && feed.length === 0 && (
           <div className="sv-empty">
-            <h2>No social posts</h2>
-            <p>Share a photo or a video with your friends — it goes from your device to theirs, with no cloud in between.</p>
-            <button className="sv-empty-new" onClick={() => setPickerOpen(true)} aria-label="New post">
+            <h2>{t("web.social.feed.empty_title")}</h2>
+            <p>{t("web.social.feed.empty_text")}</p>
+            <button className="sv-empty-new" onClick={() => setPickerOpen(true)} aria-label={t("web.social.feed.new_post")}>
               {/* Drawn, not typed: a text "+" sits on the font's baseline,
                   visibly below centre in a circle this size. */}
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -807,7 +810,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
             actions={postActions}
           />
         ))}
-        {loadingMore && <div className="sv-loading-more">Loading more…</div>}
+        {loadingMore && <div className="sv-loading-more">{t("web.social.feed.loading_more")}</div>}
       </div>
 
       {/* Issue #32: new post — a dedicated picker (tag filter + tap to
@@ -832,8 +835,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
             className="sv-modal-body sv-viewer-body"
             role="dialog"
             aria-modal="true"
-            aria-label={`${viewerIsVideo ? "Video" : "Photo"} by ${viewerPub?.publisher?.name || "User"}`
-              + ((viewerPub?.files.length ?? 0) > 1 ? `, ${viewerIdx + 1} of ${viewerPub!.files.length}` : "")}
+            aria-label={viewerLabel(t, viewerIsVideo, viewerPub?.publisher?.name || t("web.social.feed.user"), viewerIdx, viewerPub?.files.length ?? 0)}
             tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
           >
@@ -842,8 +844,8 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
                 where the picture covered it. */}
             <div className="sv-modal-hdr">
               <span className="sv-modal-title">
-                {viewerPub?.publisher?.name || "User"}
-                {viewerPub?.dateTime && <span className="sv-modal-date"> · {formatPostDate(viewerPub.dateTime)}</span>}
+                {viewerPub?.publisher?.name || t("web.social.feed.user")}
+                {viewerPub?.dateTime && <span className="sv-modal-date"> · {formatPostDate(t, viewerPub.dateTime)}</span>}
               </span>
               {viewerPub && viewerFile && (
                 // The post's copy (a HEIC as the JPEG it was posted as, a
@@ -853,10 +855,10 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
                   save={viewerSave}
                   onClick={downloadViewerItem}
                   what={postMediaName(viewerPub, viewerIdx)}
-                  title={`Download this ${(viewerFile.mime || "").startsWith("video/") ? "video" : "photo"}`}
+                  title={(viewerFile.mime || "").startsWith("video/") ? t("web.social.viewer.download_video") : t("web.social.viewer.download_photo")}
                 />
               )}
-              <button type="button" className="sv-close" title="Close" aria-label="Close" onClick={closeViewer}>✕</button>
+              <button type="button" className="sv-close" title={t("common.close")} aria-label={t("common.close")} onClick={closeViewer}>✕</button>
             </div>
             {viewerIsVideo ? (
               <div className="sv-full-wrap">
@@ -866,9 +868,9 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
                   // which uses clicks for prev/next paging.
                   <video className="sv-full" src={viewerVideoURL} poster={viewerPosterURL ?? undefined} controls autoPlay />
                 ) : viewerPosterURL ? (
-                  <img className="sv-full" src={viewerPosterURL} alt="video loading" />
+                  <img className="sv-full" src={viewerPosterURL} alt={t("web.social.viewer.video_loading")} />
                 ) : null}
-                {viewerLoading && !viewerVideoURL && <div className="sv-loading">Loading…</div>}
+                {viewerLoading && !viewerVideoURL && <div className="sv-loading">{t("common.loading")}</div>}
                 {(viewerPub?.files.length ?? 0) > 1 && (
                   // The clicks are the player's here too (see the feed).
                   <PostNavButtons onPrev={prevImg} onNext={nextImg} />
@@ -892,7 +894,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
                   if ((viewerPub?.files.length ?? 0) > 1) navByClickX(e, prevImg, nextImg);
                 }}
               >
-                <img className="sv-full" ref={viewerImgRef} src={viewerURL} alt="full" />
+                <img className="sv-full" ref={viewerImgRef} src={viewerURL} alt={t("web.social.viewer.full")} />
                 {!viewerHiRes && <LowResBadge imgRef={viewerImgRef} loading={viewerLoading} />}
                 {(viewerPub?.files.length ?? 0) > 1 && (
                   <div className="sv-dots" aria-hidden="true">
@@ -903,7 +905,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
                 )}
               </div>
             ) : (
-              <div className="sv-loading">Loading…</div>
+              <div className="sv-loading">{t("common.loading")}</div>
             )}
             <DownloadNote failed={downloadFailed} />
             {/* Last of all: see onViewerGuardFocus. */}
@@ -917,11 +919,11 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
         <div className="sv-modal" onClick={closeLikers}>
           <div className="sv-modal-body sv-likers-body" onClick={(e) => e.stopPropagation()}>
             <button className="sv-close" onClick={closeLikers}>✕</button>
-            <h3 className="sv-likers-title">Likes</h3>
+            <h3 className="sv-likers-title">{t("web.social.likes.title")}</h3>
             {likers == null ? (
-              <div className="sv-loading-more">Loading…</div>
+              <div className="sv-loading-more">{t("common.loading")}</div>
             ) : likers.length === 0 ? (
-              <div className="sv-loading-more">No likes yet</div>
+              <div className="sv-loading-more">{t("web.social.likes.none")}</div>
             ) : (
               <ul className="sv-likers-list">
                 {likers.map((l, i) => {
@@ -944,17 +946,42 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
 
 // -------- Small bits --------
 
+/** The photo viewer's accessible name: what it shows, by whom, and which
+    of the post's items it is when there are several. */
+function viewerLabel(t: TFunction, video: boolean, name: string, idx: number, total: number): string {
+  if (total > 1) {
+    const args = { name, index: idx + 1, total };
+    return video ? t("web.social.viewer.video_by_position", args) : t("web.social.viewer.photo_by_position", args);
+  }
+  return video ? t("web.social.viewer.video_by", { name }) : t("web.social.viewer.photo_by", { name });
+}
+
+/** The download button under a post: its tooltip and accessible name, for
+    the item on screen ("Download this photo 2 of 3"). */
+function postDownloadTexts(t: TFunction, video: boolean, idx: number, total: number): { title: string; label: string } {
+  if (total > 1) {
+    const args = { index: idx + 1, total };
+    return video
+      ? { title: t("web.social.post.download_video_position", args), label: t("web.social.post.label_video_position", args) }
+      : { title: t("web.social.post.download_photo_position", args), label: t("web.social.post.label_photo_position", args) };
+  }
+  return video
+    ? { title: t("web.social.viewer.download_video"), label: t("web.social.post.label_video") }
+    : { title: t("web.social.viewer.download_photo"), label: t("web.social.post.label_photo") };
+}
+
 /** Previous/next over a video in a post with more than one item: the
     player takes every click, so the click-to-page zones can't be used.
     A touch on them must not start the strip's swipe either. */
 function PostNavButtons({ onPrev, onNext }: { onPrev: () => void; onNext: () => void }) {
+  const t = useT();
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   return (
     <>
-      <button type="button" className="sv-nav prev" aria-label="Previous item" title="Previous"
+      <button type="button" className="sv-nav prev" aria-label={t("web.social.post.previous_item")} title={t("web.social.post.previous")}
               onTouchStart={stop} onTouchEnd={stop}
               onClick={e => { e.stopPropagation(); onPrev(); }}>‹</button>
-      <button type="button" className="sv-nav next" aria-label="Next item" title="Next"
+      <button type="button" className="sv-nav next" aria-label={t("web.social.post.next_item")} title={t("web.social.post.next")}
               onTouchStart={stop} onTouchEnd={stop}
               onClick={e => { e.stopPropagation(); onNext(); }}>›</button>
     </>
@@ -993,6 +1020,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
     loadMoreIfNeeded, likePublication, likeComment, addComment, deletePublication,
     deleteComment, showPublicationLikers, showCommentLikers, openViewer,
   } = actions;
+  const t = useT();
   const [idx, setIdx] = useState(0);
   const rootRef = useRef<HTMLElement | null>(null);
 
@@ -1108,7 +1136,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
   const dlKey = pubMediaKey(p.uuid, current.hash);
   const dlSave = useDownloadState(dlKey);
   const dlToldByPopup = useDownloadToldByHost(dlKey);
-  const dlWhat = `${isVideo ? "video" : "photo"}${p.files.length > 1 ? ` ${idx + 1} of ${p.files.length}` : ""}`;
+  const dlTexts = postDownloadTexts(t, isVideo, idx, p.files.length);
   // Unknown, the frame is the whole box (see .sv-frame).
   const currentAspect = ratios[idx] ?? (idx === 0 ? measuredAspect : null);
   // current.content is always a server-generated JPEG thumbnail (see
@@ -1254,15 +1282,15 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
       <header className="sv-post-hdr">
         {profURL && <img src={profURL} className="sv-img-avatar" /> || <div className="sv-avatar">👤</div> }
         <div className="sv-pub-meta">
-          <div className="sv-publisher">{p.publisher?.name || "User"}</div>
+          <div className="sv-publisher">{p.publisher?.name || t("web.social.feed.user")}</div>
           {p.dateTime && <PostDate d={p.dateTime} />}
         </div>
         {/* Issue #34: delete one of your own posts. */}
         {p.own && (
           <button
             className="sv-post-delete"
-            title="Delete post"
-            onClick={() => { if (window.confirm("Delete this post?")) void deletePublication(p.uuid); }}
+            title={t("web.social.post.delete")}
+            onClick={() => { if (window.confirm(t("web.social.post.confirm_delete"))) void deletePublication(p.uuid); }}
           >
             🗑️
           </button>
@@ -1307,7 +1335,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
             className="sv-strip"
             style={{
               transform: `translateX(calc(${-idx * 100}% + ${dragDX}px))`,
-              transition: dragDX === 0 ? "transform 0.25s ease-out" : "none",
+              transition: dragDX === 0 ? "transform 0.25s ease-out" : "none", // i18n-ignore: CSS value
             }}
           >
             {p.files.map((f, i) => (
@@ -1353,7 +1381,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
               el.currentTime = 0;
               void el.play().catch(() => {});
             }}
-            aria-label="Replay video"
+            aria-label={t("web.social.post.replay")}
           >
             ↺
           </button>
@@ -1369,7 +1397,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
                 e.stopPropagation();
                 setMuted(!muted);
               }}
-              aria-label={muted ? "Unmute video" : "Mute video"}
+              aria-label={muted ? t("web.social.post.unmute") : t("web.social.post.mute")}
             >
               {muted ? "🔇" : "🔊"}
             </button>
@@ -1402,27 +1430,27 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
         <button
           className={`sv-btn${p.liked ? " liked" : ""}`}
           onClick={() => likePublication(p.uuid)}
-          aria-label={p.liked ? "Unlike publication" : "Like publication"}
+          aria-label={p.liked ? t("web.social.post.unlike") : t("web.social.post.like")}
           aria-pressed={p.liked}
         >
           {p.liked ? "❤️" : "🤍"}
         </button>
-        <button className="sv-btn" onClick={() => alert("Share (not implemented)")}>↗︎ Share</button>
+        <button className="sv-btn" onClick={() => alert(t("web.social.post.share_unavailable"))}>↗︎ {t("common.share")}</button>
         <DownloadButton
           cls="sv-dl"
           className="sv-btn"
           save={dlSave}
           onClick={() => downloadPostMedia(p, idx)}
           what={postMediaName(p, idx)}
-          title={`Download this ${dlWhat}`}
-          label={`Download ${dlWhat}`}
+          title={dlTexts.title}
+          label={dlTexts.label}
           announce={!dlToldByPopup}
         />
       </div>
       {/* Issue #29: tap the count (separate from the heart toggle above) */}
       {p.likes > 0 && (
         <button className="sv-likes-link" onClick={() => showPublicationLikers(p.uuid)}>
-          {p.likes} like{p.likes === 1 ? "" : "s"}
+          {t("web.social.post.likes", { count: p.likes })}
         </button>
       )}
 
@@ -1435,7 +1463,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
             key={c.commentUuid}
           >
             <div className="sv-cmeta">
-              <span className="sv-cname">{c.publisher || "User"}:</span>
+              <span className="sv-cname">{t("web.social.comment.author", { name: commentAuthor(t, c) })}</span>
               <span className="sv-ctext">{c.comment}</span>
             </div>
             {c.likes > 0 && (
@@ -1446,7 +1474,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
             <button
               className={`sv-btn tiny${c.liked ? " liked" : ""}`}
               onClick={() => likeComment(c.commentUuid)}
-              aria-label={c.liked ? "Unlike comment" : "Like comment"}
+              aria-label={c.liked ? t("web.social.comment.unlike") : t("web.social.comment.like")}
               aria-pressed={c.liked}
             >
               {c.liked ? "❤️" : "🤍"}
@@ -1458,34 +1486,46 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
             {(p.own || c.own) && !c.commentUuid.startsWith("pending-") && (
               <button
                 className="sv-btn tiny"
-                title="Delete comment"
-                onClick={() => { if (window.confirm("Delete this comment?")) void deleteComment(c.commentUuid); }}
+                title={t("web.social.comment.delete")}
+                onClick={() => { if (window.confirm(t("web.social.comment.confirm_delete"))) void deleteComment(c.commentUuid); }}
               >
                 🗑️
               </button>
             )}
           </div>
         ))}
-        <NewComment pubUuid={p.uuid} onSend={(txt) => addComment(p.uuid, txt, "me")} />
+        <NewComment pubUuid={p.uuid} onSend={(txt) => addComment(p.uuid, txt, cOwnCommentName)} />
       </div>
     </article>
   );
 });
 
 
+// The name sent with a new comment (the device puts the owner's own) and
+// held by its placeholder until the device has it: shown as
+// web.social.comment.me.
+const cOwnCommentName = "me"; // i18n-ignore: sent to the device, which ignores it; shown translated
+
+/** Who wrote a comment, for its "{name}:" line. */
+function commentAuthor(t: TFunction, c: { commentUuid: string; publisher: string }): string {
+  if (c.commentUuid.startsWith("pending-") && c.publisher === cOwnCommentName) return t("web.social.comment.me");
+  return c.publisher || t("web.social.feed.user");
+}
+
 function NewComment({ onSend }: { pubUuid: string; onSend: (t: string) => void }) {
+  const t = useT();
   const [txt, setTxt] = useState("");
   return (
     <div className="sv-newcomment">
       <input
         className="sv-input"
-        placeholder="Add a comment…"
+        placeholder={t("web.social.comment.placeholder")}
         value={txt}
         onChange={(e) => setTxt(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter" && txt.trim()) { onSend(txt); setTxt(""); } }}
       />
       <button className="sv-btn tiny" disabled={!txt.trim()} onClick={() => { onSend(txt); setTxt(""); }}>
-        Post
+        {t("web.social.comment.post")}
       </button>
     </div>
   );

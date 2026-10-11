@@ -15,6 +15,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { RespEnvelope } from "../proto/messages";
+import { Trans, useT } from "../i18n";
+import { asIs, say, type UiText } from "./uiText";
 import "./UpdatePanel.css";
 
 type TailscaleState = {
@@ -27,12 +29,13 @@ type TailscaleState = {
 };
 
 export default function TailscalePanel() {
+  const t = useT();
   const [isPrimary, setIsPrimary] = useState<boolean | null>(null);
   const [state, setState] = useState<TailscaleState | null>(null);
   const [authKey, setAuthKey] = useState("");
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<UiText | null>(null);
+  const [error, setError] = useState<UiText | null>(null);
   const [popupBlocked, setPopupBlocked] = useState(false);
 
   useEffect(() => {
@@ -50,14 +53,14 @@ export default function TailscalePanel() {
 
   const read = (resp: RespEnvelope): TailscaleState | null => {
     if (resp.payload?.$case !== "respTailscaleStatus") return null;
-    const t = resp.payload.respTailscaleStatus;
+    const s = resp.payload.respTailscaleStatus;
     return {
-      installed: t.installed,
-      loggedIn: t.loggedIn,
-      funnelOn: t.funnelOn,
-      publicUrl: t.publicUrl,
-      loginUrl: t.loginUrl,
-      error: t.error,
+      installed: s.installed,
+      loggedIn: s.loggedIn,
+      funnelOn: s.funnelOn,
+      publicUrl: s.publicUrl,
+      loginUrl: s.loginUrl,
+      error: s.error,
     };
   };
 
@@ -68,7 +71,7 @@ export default function TailscalePanel() {
       });
       setState(read(resp));
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      setError(() => asIs(e?.message ?? String(e)));
     }
   }, []);
 
@@ -107,33 +110,37 @@ export default function TailscalePanel() {
       });
       const next = read(resp);
       if (!next) {
-        setError(resp.errorMessage || "Could not change the setting.");
+        setError(() => (resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.tailscale.change_failed")));
         return;
       }
       setState(next);
-      if (next.error) { setError(next.error); return; }
+      if (next.error) { setError(() => asIs(next.error)); return; }
       if (enable && next.loggedIn) setPopupBlocked(false);
-      if (!enable) { setNote("Funnel is off. This device is reachable through the bridge again."); return; }
+      if (!enable) { setNote(() => say("web.settings.tailscale.off")); return; }
       if (!next.installed) {
-        setError("Tailscale isn't installed on this device, so Funnel can't be turned on here.");
+        setError(() => say("web.settings.tailscale.not_installed_enable"));
         return;
       }
       if (next.loginUrl) {
         if (authWindow) {
           authWindow.location.href = next.loginUrl;
           navigated = true;
-          setNote("Authorise this device in the window that just opened, then press Enable again.");
+          setNote(() => say("web.settings.tailscale.authorise_window"));
         } else {
           // Blocked, so the link has to be offered after all.
           setPopupBlocked(true);
-          setNote("Authorise this device in Tailscale, then press Enable again.");
+          setNote(() => say("web.settings.tailscale.authorise"));
         }
         return;
       }
-      if (next.funnelOn) { setNote(`Done — this device is reachable at ${next.publicUrl}`); return; }
-      setNote("Tailscale is connected, but Funnel didn't come up. Check that Funnel is enabled for your tailnet.");
+      if (next.funnelOn) {
+        const done: UiText = (tr) => tr("web.settings.tailscale.done", { address: next.publicUrl });
+        setNote(() => done);
+        return;
+      }
+      setNote(() => say("web.settings.tailscale.no_funnel"));
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      setError(() => asIs(e?.message ?? String(e)));
     } finally {
       // Anything other than a pending login leaves a blank tab behind.
       // Tracked with a flag rather than by reading the window's location,
@@ -153,43 +160,35 @@ export default function TailscalePanel() {
 
       {state?.funnelOn && (
         <p className="up-note">
-          Served over Tailscale Funnel at{" "}
-          <a href={state.publicUrl} target="_blank" rel="noreferrer">{state.publicUrl}</a>.
+          <Trans k="web.settings.tailscale.served_at" args={{ address: state.publicUrl }} parts={{
+            link: (s) => <a href={state.publicUrl} target="_blank" rel="noreferrer">{s}</a>,
+          }} />
         </p>
       )}
 
       {state && !state.installed ? (
-        <p className="up-note">
-          Tailscale isn't installed on this device, so Funnel isn't available here.
-        </p>
+        <p className="up-note">{t("web.settings.tailscale.not_installed")}</p>
       ) : (
         <>
           <p className="up-note">
-            Tailscale Funnel is an alternative to the Off The Cloud bridge, it publishes this
-            device on your own <code>ts.net</code> address but with the next limitations:
+            <Trans k="web.settings.tailscale.intro" parts={{ code: (s) => <code>{s}</code> }} />
           </p>
           <ul className="up-releases">
-            <li><strong>The social side won't work.</strong> Friends find each other through the
-              bridge, so sharing and friends' timelines are unavailable.</li>
-            <li><strong>One user only.</strong> Extra users need a web address each, and Funnel
-              gives this machine a single one.</li>
-            <li>Tailscale caps how much traffic can pass through Funnel, and doesn't publish
-              the limit.</li>
-            <li>You'll need a Tailscale account, with Funnel enabled for your tailnet.</li>
+            <li><Trans k="web.settings.tailscale.limit_social" parts={{ b: (s) => <strong>{s}</strong> }} /></li>
+            <li><Trans k="web.settings.tailscale.limit_one_user" parts={{ b: (s) => <strong>{s}</strong> }} /></li>
+            <li>{t("web.settings.tailscale.limit_traffic")}</li>
+            <li>{t("web.settings.tailscale.limit_account")}</li>
           </ul>
-          <p className="up-note">
-            It suits a device you want purely as your own private NAS — your files and photos,
-            reachable from anywhere, nothing shared with anyone.
-          </p>
+          <p className="up-note">{t("web.settings.tailscale.suits")}</p>
 
           {!state?.funnelOn && (
             <div className="sf-row">
-              <label htmlFor="sf-ts-key">Auth key (optional)</label>
+              <label htmlFor="sf-ts-key">{t("web.settings.tailscale.auth_key")}</label>
               <input
                 id="sf-ts-key"
                 className="sf-input"
                 type="text"
-                placeholder="tskey-auth-…"
+                placeholder="tskey-auth-…" // i18n-ignore: the start of every Tailscale auth key
                 value={authKey}
                 onChange={e => setAuthKey(e.target.value)}
               />
@@ -198,37 +197,32 @@ export default function TailscalePanel() {
 
           {popupBlocked && state?.loginUrl && (
             <p className="up-note">
-              Your browser blocked the window —{" "}
-              <a href={state.loginUrl} target="_blank" rel="noreferrer">
-                authorise this device in Tailscale
-              </a>{" "}
-              instead.
+              <Trans k="web.settings.tailscale.popup_blocked" parts={{
+                link: (s) => <a href={state.loginUrl} target="_blank" rel="noreferrer">{s}</a>,
+              }} />
             </p>
           )}
 
           <div className="up-actions">
             {state?.funnelOn ? (
               <button className="sf-btn" onClick={() => void configure(false)} disabled={busy}>
-                {busy ? "Working…" : "Turn Funnel off"}
+                {busy ? t("web.settings.general.working") : t("web.settings.tailscale.turn_off")}
               </button>
             ) : (
               <button className="sf-btn" onClick={() => void configure(true)} disabled={busy}>
-                {busy ? "Setting up…" : "Enable Tailscale Funnel"}
+                {busy ? t("web.settings.tailscale.setting_up") : t("web.settings.tailscale.enable")}
               </button>
             )}
           </div>
 
           {!state?.funnelOn && (
-            <p className="up-note">
-              With a key from your Tailscale admin console this finishes on its own. Without
-              one, you'll be taken to Tailscale to authorise this device.
-            </p>
+            <p className="up-note">{t("web.settings.tailscale.key_hint")}</p>
           )}
         </>
       )}
 
-      {note && <p className="up-note">{note}</p>}
-      {error && <p className="up-error">{error}</p>}
+      {note && <p className="up-note">{note(t)}</p>}
+      {error && <p className="up-error">{error(t)}</p>}
     </section>
   );
 }

@@ -6,6 +6,8 @@ import type { ReqEnvelope, RespEnvelope, Profile as PbProfile } from "../proto/m
 import DevicePhotoPicker from "./DevicePhotoPicker";
 import PhotoCropDialog from "./PhotoCropDialog";
 import "./ProfileCard.css";
+import { useT } from "../i18n";
+import { asIs, say, type UiText } from "./uiText";
 
 type Props = {
   authenticated: boolean;
@@ -19,7 +21,15 @@ function bytesToObjectURL(bytes?: Uint8Array, mime = "image/jpeg") {
   return URL.createObjectURL(blob);
 }
 
+// A thrown error's own words (an empty one shows nothing, as before).
+const errorText = (e: unknown): UiText | null => {
+  const m = (e as { message?: unknown } | null | undefined)?.message;
+  const message = m != null ? String(m) : String(e);
+  return message ? asIs(message) : null;
+};
+
 export default function ProfileCard({ authenticated }: Props) {
+  const t = useT();
   // Loaded data
   const [name, setName]   = useState("");
   const [text, setText]   = useState("");
@@ -32,8 +42,8 @@ export default function ProfileCard({ authenticated }: Props) {
   // UI state
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [error, setError]     = useState<UiText | null>(null);
+  const [success, setSuccess] = useState<UiText | null>(null);
 
   // Load profile on mount
   useEffect(() => {
@@ -60,13 +70,14 @@ export default function ProfileCard({ authenticated }: Props) {
             const url = bytesToObjectURL(bytes, "image/*");
             setImgUrl(url);
           } else if (resp.payload?.$case === "respAck") {
-            setError(resp.payload.respAck.errorMsg || "Failed to load profile.");
+            const message = resp.payload.respAck.errorMsg;
+            setError(() => (message ? asIs(message) : say("web.social.profile.load_failed")));
           } else {
-            setError("Unexpected response.");
+            setError(() => say("web.social.profile.unexpected"));
           }
         }
       } catch (e: any) {
-        if (!cancelled) setError(e?.message ?? String(e));
+        if (!cancelled) setError(() => errorText(e));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -119,17 +130,18 @@ export default function ProfileCard({ authenticated }: Props) {
       });
 
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-        setSuccess("Profile saved.");
+        setSuccess(() => say("web.social.profile.saved"));
         // The top bar's account button (AccountMenu.tsx) shows the new
         // name or picture at once.
         window.dispatchEvent(new Event("otc-profile-changed"));
       } else if (resp.payload?.$case === "respAck") {
-        setError(resp.payload.respAck.errorMsg || "Save failed.");
+        const message = resp.payload.respAck.errorMsg;
+        setError(() => (message ? asIs(message) : say("web.social.profile.save_failed")));
       } else {
-        setError("Unexpected response.");
+        setError(() => say("web.social.profile.unexpected"));
       }
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      setError(() => errorText(e));
     } finally {
       setSaving(false);
     }
@@ -143,7 +155,7 @@ export default function ProfileCard({ authenticated }: Props) {
           {loading ? (
             <div className="pc-skel" />
           ) : imgUrl ? (
-            <img className="pc-avatar" src={imgUrl} alt={name || "avatar"} />
+            <img className="pc-avatar" src={imgUrl} alt={name || t("web.social.profile.avatar")} />
           ) : (
             <div className="pc-avatar pc-placeholder">👤</div>
           )}
@@ -156,9 +168,9 @@ export default function ProfileCard({ authenticated }: Props) {
             </>
           ) : (
             <>
-              <h3 className="pc-name">{name || "Unnamed user"}</h3>
-              <p className="pc-text">{text || "No bio yet."}</p>
-              {error && <div className="pc-status error">{error}</div>}
+              <h3 className="pc-name">{name || t("web.social.profile.unnamed")}</h3>
+              <p className="pc-text">{text || t("web.social.profile.no_bio")}</p>
+              {error && <div className="pc-status error">{error(t)}</div>}
             </>
           )}
         </div>
@@ -171,13 +183,13 @@ export default function ProfileCard({ authenticated }: Props) {
     <div className="pc-card">
       <div className="pc-left">
         {imgUrl ? (
-          <img className="pc-avatar pc-round" src={imgUrl} alt={name || "avatar"} />
+          <img className="pc-avatar pc-round" src={imgUrl} alt={name || t("web.social.profile.avatar")} />
         ) : (
           <div className="pc-avatar pc-placeholder">👤</div>
         )}
         {/* Issue #178: from this computer, or from the photos on the device. */}
         <label className="pc-btn">
-          From this computer
+          {t("web.social.profile.from_computer")}
           <input
             type="file"
             accept="image/*"
@@ -185,7 +197,7 @@ export default function ProfileCard({ authenticated }: Props) {
             onChange={(e) => { onPickImage(e.target.files?.[0] ?? null); e.target.value = ""; }}
           />
         </label>
-        <button className="pc-btn pc-link" onClick={() => setPickingFromDevice(true)}>From your device</button>
+        <button className="pc-btn pc-link" onClick={() => setPickingFromDevice(true)}>{t("web.social.profile.from_device")}</button>
         {pickingFromDevice && (
           <DevicePhotoPicker
             onCancel={() => setPickingFromDevice(false)}
@@ -201,7 +213,7 @@ export default function ProfileCard({ authenticated }: Props) {
             className="pc-input"
             value={name}
             onChange={(e) => { setName(e.target.value); setSuccess(null); setError(null); }}
-            placeholder="Your name"
+            placeholder={t("web.social.profile.name")}
           />
         </div>
         <div className="pc-row">
@@ -209,19 +221,19 @@ export default function ProfileCard({ authenticated }: Props) {
             className="pc-textarea"
             value={text}
             onChange={(e) => { setText(e.target.value); setSuccess(null); setError(null); }}
-            placeholder="Say something about you…"
+            placeholder={t("web.social.profile.bio")}
             rows={4}
           />
         </div>
 
         <div className="pc-actions">
           <button className="pc-save" disabled={!canSave} onClick={() => void saveProfile()}>
-            {saving ? "Saving…" : "Save profile"}
+            {saving ? t("web.social.profile.saving") : t("web.social.profile.save")}
           </button>
         </div>
 
-        {error && <div className="pc-status error">{error}</div>}
-        {success && <div className="pc-status success">{success}</div>}
+        {error && <div className="pc-status error">{error(t)}</div>}
+        {success && <div className="pc-status success">{success(t)}</div>}
       </div>
     </div>
   );

@@ -1,0 +1,678 @@
+{
+  "web.social.alerts.commented": {
+    "text": "<b>{name}</b> commented on your post",
+    "args": [["name", "user"]],
+    "note": "Alerts section: an alert about a friend. {name} is the friend's name (bold, <b>).",
+    "rich": ["b"]
+  },
+  "web.social.alerts.friend_accepted": {
+    "text": "<b>{name}</b> accepted your friend request",
+    "args": [["name", "user"]],
+    "note": "Alerts section: an alert about a friend. {name} is the friend's name (bold, <b>).",
+    "rich": ["b"]
+  },
+  "web.social.alerts.friend_request": {
+    "text": "<b>{name}</b> sent you a friend request",
+    "args": [["name", "user"]],
+    "note": "Alerts section: an alert about a friend. {name} is the friend's name (bold, <b>).",
+    "rich": ["b"]
+  },
+  "web.social.alerts.friends": {
+    "text": "Friends ✓",
+    "note": "Alerts section: beside a friend request accepted from here. Keep the check mark.",
+    "max": 16
+  },
+  "web.social.alerts.liked_comment": {
+    "text": "<b>{name}</b> liked your comment",
+    "args": [["name", "user"]],
+    "note": "Alerts section: an alert about a friend. {name} is the friend's name (bold, <b>).",
+    "rich": ["b"]
+  },
+  "web.social.alerts.liked_post": {
+    "text": "<b>{name}</b> liked your post",
+    "args": [["name", "user"]],
+    "note": "Alerts section: an alert about a friend. {name} is the friend's name (bold, <b>).",
+    "rich": ["b"]
+  },
+  "web.social.alerts.more": {
+    "text": "+{more} more",
+    "args": [["more", "int"]],
+    "note": "Alerts section: after an error alert's title, how many more errors it groups ({more}); hovering shows them all.",
+    "max": 16
+  },
+  "web.social.alerts.nothing": {
+    "text": "Nothing yet",
+    "note": "Alerts section: when there are no alerts."
+  },
+  "web.social.comment.author": {
+    "text": "{name}:",
+    "args": [["name", "user"]],
+    "note": "Social feed: before a comment's text, who wrote it. {name} is their name. Keep or change the colon as your language writes it."
+  },
+  "web.social.comment.confirm_delete": {
+    "text": "Delete this comment?",
+    "note": "Social feed: confirmation before deleting a comment.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #22e50516"
+  },
+  "web.social.comment.delete": {
+    "text": "Delete comment",
+    "note": "Social feed: tooltip of the bin button on a comment you can delete (on your post, or your own)."
+  },
+  "web.social.comment.like": {
+    "text": "Like comment",
+    "note": "Social feed: accessibility name of the heart button on a comment you haven't liked."
+  },
+  "web.social.comment.me": {
+    "text": "me",
+    "note": "Social feed: the author shown on your own comment for the moment it takes to send it. Lowercase in English.",
+    "max": 16
+  },
+  "web.social.comment.placeholder": {
+    "text": "Add a comment…",
+    "note": "Social feed: placeholder of the field under a post for writing a comment."
+  },
+  "web.social.comment.post": {
+    "text": "Post",
+    "note": "Social feed: button that sends the comment written. A verb.",
+    "max": 12
+  },
+  "web.social.comment.unlike": {
+    "text": "Unlike comment",
+    "note": "Social feed: accessibility name of the heart button on a comment you liked."
+  },
+  "web.social.composer.camera": {
+    "text": "Take a photo or video",
+    "note": "New post (the composer opened from the + button): button (on phones and tablets) that opens the camera. A camera symbol comes before it."
+  },
+  "web.social.composer.caption": {
+    "text": "Write a caption…",
+    "note": "New post (the composer opened from the + button): placeholder of the caption field (every post needs one)."
+  },
+  "web.social.composer.drop": {
+    "text": "Drag photos or videos here, or click to choose files from this computer.",
+    "note": "New post (the composer opened from the + button): the box that takes photos and videos from this computer."
+  },
+  "web.social.composer.library": {
+    "text": "Library",
+    "note": "New post (the composer opened from the + button): tab that picks photos and videos from the device.",
+    "max": 20
+  },
+  "web.social.composer.move_earlier": {
+    "text": "Move {name} earlier",
+    "args": [["name", "user"]],
+    "note": "New post (the composer opened from the + button): accessibility name of the ‹ button under an item of the strip. {name} is its name or path."
+  },
+  "web.social.composer.move_later": {
+    "text": "Move {name} later",
+    "args": [["name", "user"]],
+    "note": "New post (the composer opened from the + button): accessibility name of the › button under an item of the strip. {name} is its name or path."
+  },
+  "web.social.composer.order": {
+    "text": "Order in post — drag, or use ‹ ›",
+    "note": "New post (the composer opened from the + button): title of the strip showing the post's photos in order. ‹ and › are the buttons that move one; keep them."
+  },
+  "web.social.composer.publish": {
+    "text": "Publish",
+    "note": "New post (the composer opened from the + button): button that publishes the post.",
+    "max": 20
+  },
+  "web.social.composer.publish_count": {
+    "text": "Publish ({count})",
+    "args": [["count", "int"]],
+    "note": "New post (the composer opened from the + button): button that publishes the post. {count} is how many photos and videos it has.",
+    "max": 20
+  },
+  "web.social.composer.publish_failed": {
+    "text": "Could not publish the post.",
+    "note": "New post (the composer opened from the + button): error when the device didn't publish the post and gave no reason of its own."
+  },
+  "web.social.composer.publishing": {
+    "text": "Publishing…",
+    "note": "New post (the composer opened from the + button): on the Publish button while the post is sent.",
+    "max": 20
+  },
+  "web.social.composer.remove_file": {
+    "text": "Remove {name}",
+    "args": [["name", "user"]],
+    "note": "New post (the composer opened from the + button): accessibility name of the × on a photo or video taken from this computer. {name} is its file name."
+  },
+  "web.social.composer.remove_from_post": {
+    "text": "Remove {name} from the post",
+    "args": [["name", "user"]],
+    "note": "New post (the composer opened from the + button): accessibility name of the × on an item of the strip. {name} is its name or path."
+  },
+  "web.social.composer.remove_tag": {
+    "text": "Remove {tag}",
+    "args": [["tag", "user"]],
+    "note": "New post (the composer opened from the + button): accessibility name of the × on a tag filter. {tag} is the tag (beach)."
+  },
+  "web.social.composer.tag_filter": {
+    "text": "Filter by tag…",
+    "note": "New post (the composer opened from the + button): placeholder of the field that filters the library by tag."
+  },
+  "web.social.composer.this_computer": {
+    "text": "This Computer",
+    "note": "New post (the composer opened from the + button): tab that picks photos and videos from this computer.",
+    "max": 20
+  },
+  "web.social.composer.title": {
+    "text": "New post",
+    "note": "New post (the composer opened from the + button): its title.",
+    "max": 24
+  },
+  "web.social.composer.trim": {
+    "text": "✂ Trim",
+    "note": "New post (the composer opened from the + button): badge on a video in the strip; opens the trimmer. Keep the scissors.",
+    "max": 12
+  },
+  "web.social.composer.trim_item": {
+    "text": "Trim {name}",
+    "args": [["name", "user"]],
+    "note": "New post (the composer opened from the + button): accessibility name of a video in the strip; opens the trimmer. {name} is the video's name or path."
+  },
+  "web.social.composer.trim_load_failed": {
+    "text": "Could not load that video to trim it.",
+    "note": "New post (the composer opened from the + button): error when a video from the device couldn't be fetched to trim it."
+  },
+  "web.social.composer.upload_none": {
+    "text": "Could not upload any of the selected files.",
+    "note": "New post (the composer opened from the + button): error when none of the files from this computer could be sent to the device."
+  },
+  "web.social.composer.upload_some": {
+    "text": {
+      "one": "{count} file(s) failed to upload - publishing the rest.",
+      "other": "{count} file(s) failed to upload - publishing the rest."
+    },
+    "args": [["count", "count"]],
+    "note": "New post (the composer opened from the + button): when some files from this computer couldn't be sent; the post goes out with the rest. {count} is how many failed."
+  },
+  "web.social.feed.empty_text": {
+    "text": "Share a photo or a video with your friends — it goes from your device to theirs, with no cloud in between.",
+    "note": "Social feed: text under No social posts, above the button that starts a new post."
+  },
+  "web.social.feed.empty_title": {
+    "text": "No social posts",
+    "note": "Social feed: title when there are no posts yet."
+  },
+  "web.social.feed.loading_more": {
+    "text": "Loading more…",
+    "note": "Social feed: at the end of the feed while older posts load."
+  },
+  "web.social.feed.new_post": {
+    "text": "New post",
+    "note": "Social feed: accessibility name of the big + button that starts a new post when there are none."
+  },
+  "web.social.feed.user": {
+    "text": "User",
+    "note": "Social feed: the name shown for someone whose profile has no name (on a post, a comment or the photo viewer).",
+    "max": 24
+  },
+  "web.social.friends.add_title": {
+    "text": "Add a friend",
+    "note": "Friends section: title of the box that sends a friend request."
+  },
+  "web.social.friends.ask_delete_mine": {
+    "text": "Ask {name}'s device to delete what I shared there",
+    "args": [["name", "user"]],
+    "note": "Friends section: tick box when removing a friend. {name} is the friend's name.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #effa6dd4"
+  },
+  "web.social.friends.ask_delete_mine_hint": {
+    "text": "Your posts, comments and likes on their device. If it's offline, it happens the next time it connects; until then they show as leaving.",
+    "note": "Friends section: small text under the tick box that asks the friend's device to delete what you shared.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #7e00d0a5"
+  },
+  "web.social.friends.asked_delete": {
+    "text": "Asked their device to delete what you shared",
+    "note": "Friends section: message shown for a moment at the top, once a friend was removed and their device asked to delete your posts, comments and likes."
+  },
+  "web.social.friends.block": {
+    "text": "Block",
+    "note": "Friends section: button that blocks a friend or a request.",
+    "max": 20
+  },
+  "web.social.friends.cancel_request": {
+    "text": "Cancel request",
+    "note": "Friends section: button that withdraws a friend request you sent.",
+    "max": 24
+  },
+  "web.social.friends.confirm_cancel": {
+    "text": "Cancel this request?",
+    "note": "Friends section: asked before withdrawing a friend request you sent.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e636ed3b"
+  },
+  "web.social.friends.confirm_delete": {
+    "text": "Delete this request?",
+    "note": "Friends section: asked before deleting a friend request you received.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e2788c1d"
+  },
+  "web.social.friends.confirm_remove_now": {
+    "text": "Remove {name} now? This stops waiting for their device. Whatever it hasn't deleted yet stays there.",
+    "args": [["name", "user"]],
+    "note": "Friends section: confirmation of Remove now. {name} is the friend's name.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #8da0f471"
+  },
+  "web.social.friends.delete_error": {
+    "text": "Error deleting request",
+    "note": "Friends section: message shown for a moment at the top, when the deletion of a request couldn't be sent."
+  },
+  "web.social.friends.delete_failed": {
+    "text": "Delete failed",
+    "note": "Friends section: message shown for a moment at the top, when the device didn't delete a request."
+  },
+  "web.social.friends.delete_theirs": {
+    "text": "Also delete everything from {name} on this device",
+    "args": [["name", "user"]],
+    "note": "Friends section: tick box when removing a friend. {name} is the friend's name.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #c5e8f353"
+  },
+  "web.social.friends.delete_theirs_hint": {
+    "text": "Their posts and photos, and their comments and likes on any post.",
+    "note": "Friends section: small text under the tick box Also delete everything from them on this device: what gets deleted.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #c816a1ab"
+  },
+  "web.social.friends.friends_again": {
+    "text": "You're friends again ✅",
+    "note": "Friends section: message shown for a moment at the top, when the request went to someone who already had you as a friend."
+  },
+  "web.social.friends.invalid_name": {
+    "text": "Enter the device's name, like pit - letters, digits and dashes.",
+    "note": "Friends section: message shown for a moment at the top, when the name typed isn't a device name. pit is an example of a device name; keep it."
+  },
+  "web.social.friends.keep": {
+    "text": "Keep",
+    "note": "Friends section: button that leaves the friendship or request as it is, instead of deleting or removing it.",
+    "max": 16
+  },
+  "web.social.friends.leaving": {
+    "text": "Leaving",
+    "note": "Friends section: the state of a friendship, on a pill beside the friend: a friend removed, whose device hasn't deleted what you shared yet.",
+    "max": 20
+  },
+  "web.social.friends.name_label": {
+    "text": "Friend's device name, before .{suffix}",
+    "args": [["suffix", "text"]],
+    "note": "Friends section: accessibility name of the field for a friend's device name. {suffix} is the fixed end of every device's address (off-the.cloud)."
+  },
+  "web.social.friends.name_placeholder": {
+    "text": "name",
+    "note": "Friends section: placeholder of the field for a friend's device name (the part before .off-the.cloud). Lowercase in English.",
+    "max": 12
+  },
+  "web.social.friends.no_domain": {
+    "text": "(no domain)",
+    "note": "Friends section: in place of a friend's device address when it is unknown."
+  },
+  "web.social.friends.no_name": {
+    "text": "(no name)",
+    "note": "Friends section: in place of a friend's name when their profile has none."
+  },
+  "web.social.friends.no_others": {
+    "text": "No other friends yet.",
+    "note": "Friends section: when the only friendships are requests waiting for your answer."
+  },
+  "web.social.friends.none": {
+    "text": "No friendships yet.",
+    "note": "Friends section: when there are no friends or requests."
+  },
+  "web.social.friends.remove": {
+    "text": "Remove friend",
+    "note": "Friends section: button that removes a friend (opens the options), and the button that confirms it.",
+    "max": 24
+  },
+  "web.social.friends.remove_error": {
+    "text": "Error removing friend",
+    "note": "Friends section: message shown for a moment at the top, when the removal couldn't be sent."
+  },
+  "web.social.friends.remove_failed": {
+    "text": "Remove failed",
+    "note": "Friends section: message shown for a moment at the top, when the device refused to remove a friend and gave no reason of its own."
+  },
+  "web.social.friends.remove_now": {
+    "text": "Remove now",
+    "note": "Friends section: button beside a leaving friend that stops waiting for their device and removes them.",
+    "max": 20
+  },
+  "web.social.friends.removed": {
+    "text": "Friend removed",
+    "note": "Friends section: message shown for a moment at the top, once a friend was removed."
+  },
+  "web.social.friends.request_cancelled": {
+    "text": "Request cancelled",
+    "note": "Friends section: message shown for a moment at the top, once a friend request you sent was withdrawn."
+  },
+  "web.social.friends.request_deleted": {
+    "text": "Request deleted",
+    "note": "Friends section: message shown for a moment at the top, once a friend request you received was deleted."
+  },
+  "web.social.friends.request_failed": {
+    "text": "Request failed",
+    "note": "Friends section: message shown for a moment at the top, when the device refused a friend request and gave no reason of its own."
+  },
+  "web.social.friends.request_sent": {
+    "text": "Friend request sent ✅",
+    "note": "Friends section: message shown for a moment at the top, once a friend request was sent."
+  },
+  "web.social.friends.send": {
+    "text": "Send request",
+    "note": "Friends section: button that sends a friend request.",
+    "max": 20
+  },
+  "web.social.friends.send_error": {
+    "text": "Error sending request",
+    "note": "Friends section: message shown for a moment at the top, when a friend request couldn't be sent."
+  },
+  "web.social.friends.sending": {
+    "text": "Sending…",
+    "note": "Friends section: on the Send request button while the request is sent.",
+    "max": 20
+  },
+  "web.social.friends.set_pending": {
+    "text": "Set Pending",
+    "note": "Friends section: button that puts a friendship back to pending (not accepted, not blocked).",
+    "max": 20
+  },
+  "web.social.friends.status_accepted": {
+    "text": "Accepted",
+    "note": "Friends section: the state of a friendship, on a pill beside the friend: you are friends.",
+    "max": 20
+  },
+  "web.social.friends.status_accepted_sent": {
+    "text": "Accepted (sent)",
+    "note": "Friends section: the state of a friendship, on a pill beside the friend: you sent the request and they accepted it.",
+    "max": 24
+  },
+  "web.social.friends.status_blocked": {
+    "text": "Blocked",
+    "note": "Friends section: the state of a friendship, on a pill beside the friend: you blocked them.",
+    "max": 20
+  },
+  "web.social.friends.status_blocked_sent": {
+    "text": "Blocked (sent)",
+    "note": "Friends section: the state of a friendship, on a pill beside the friend: you sent the request and they blocked it.",
+    "max": 24
+  },
+  "web.social.friends.status_pending": {
+    "text": "Pending",
+    "note": "Friends section: the state of a friendship, on a pill beside the friend: a request nobody has answered yet.",
+    "max": 20
+  },
+  "web.social.friends.status_pending_sent": {
+    "text": "Pending (sent)",
+    "note": "Friends section: the state of a friendship, on a pill beside the friend: you sent the request and they haven't answered.",
+    "max": 24
+  },
+  "web.social.friends.status_updated": {
+    "text": "Status updated ✅",
+    "note": "Friends section: message shown for a moment at the top, once a friendship was accepted, blocked or set to pending."
+  },
+  "web.social.friends.title": {
+    "text": "Friends",
+    "note": "Friends section: title of the list of friends.",
+    "max": 24
+  },
+  "web.social.friends.unexpected": {
+    "text": "Unexpected response",
+    "note": "Friends section: message shown for a moment at the top, when the device answered with something unexpected."
+  },
+  "web.social.friends.update_error": {
+    "text": "Error updating status",
+    "note": "Friends section: message shown for a moment at the top, when a friendship's change couldn't be sent."
+  },
+  "web.social.friends.update_failed": {
+    "text": "Update failed",
+    "note": "Friends section: message shown for a moment at the top, when the device refused to change a friendship and gave no reason of its own."
+  },
+  "web.social.friends.waiting_delete": {
+    "text": "Waiting for their device to delete what you shared.",
+    "note": "Friends section: beside a friend removed whose device hasn't deleted your posts, comments and likes yet."
+  },
+  "web.social.friends.waiting_title": {
+    "text": "Waiting for your answer",
+    "note": "Friends section: title of the friend requests waiting for you to accept, block or delete them."
+  },
+  "web.social.friends.yes": {
+    "text": "Yes",
+    "note": "Friends section: button that confirms cancelling or deleting a friend request.",
+    "max": 16
+  },
+  "web.social.likes.none": {
+    "text": "No likes yet",
+    "note": "Social feed: in the list of who liked a post or a comment, when nobody has."
+  },
+  "web.social.likes.title": {
+    "text": "Likes",
+    "note": "Social feed: title of the list of who liked a post or a comment.",
+    "max": 24
+  },
+  "web.social.post.confirm_delete": {
+    "text": "Delete this post?",
+    "note": "Social feed: confirmation before deleting one of your own posts (it is deleted on your friends' devices too).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #29841c8c"
+  },
+  "web.social.post.delete": {
+    "text": "Delete post",
+    "note": "Social feed: tooltip of the bin button on one of your own posts."
+  },
+  "web.social.post.download_photo_position": {
+    "text": "Download this photo {index} of {total}",
+    "args": [["index", "int"], ["total", "int"]],
+    "note": "Social feed: the download button under a post saves the photo or video shown (the copy made for the post): its tooltip, on a post with several. {index} is the photo's position and {total} how many the post has."
+  },
+  "web.social.post.download_video_position": {
+    "text": "Download this video {index} of {total}",
+    "args": [["index", "int"], ["total", "int"]],
+    "note": "Social feed: the download button under a post saves the photo or video shown (the copy made for the post): its tooltip, on a post with several. {index} is the video's position and {total} how many the post has."
+  },
+  "web.social.post.label_photo": {
+    "text": "Download photo",
+    "note": "Social feed: the download button under a post saves the photo or video shown (the copy made for the post): its accessibility name, on a post with one photo."
+  },
+  "web.social.post.label_photo_position": {
+    "text": "Download photo {index} of {total}",
+    "args": [["index", "int"], ["total", "int"]],
+    "note": "Social feed: the download button under a post saves the photo or video shown (the copy made for the post): its accessibility name, on a post with several. {index} is the photo's position and {total} how many the post has."
+  },
+  "web.social.post.label_video": {
+    "text": "Download video",
+    "note": "Social feed: the download button under a post saves the photo or video shown (the copy made for the post): its accessibility name, on a post with one video."
+  },
+  "web.social.post.label_video_position": {
+    "text": "Download video {index} of {total}",
+    "args": [["index", "int"], ["total", "int"]],
+    "note": "Social feed: the download button under a post saves the photo or video shown (the copy made for the post): its accessibility name, on a post with several. {index} is the video's position and {total} how many the post has."
+  },
+  "web.social.post.like": {
+    "text": "Like publication",
+    "note": "Social feed: accessibility name of the heart button under a post you haven't liked."
+  },
+  "web.social.post.likes": {
+    "text": {
+      "one": "{count} like",
+      "other": "{count} likes"
+    },
+    "args": [["count", "count"]],
+    "note": "Social feed: under a post; opens the list of who liked it. {count} is how many likes.",
+    "max": 20
+  },
+  "web.social.post.mute": {
+    "text": "Mute video",
+    "note": "Social feed: accessibility name of the speaker button on a video playing with sound."
+  },
+  "web.social.post.next": {
+    "text": "Next",
+    "note": "Social feed: tooltip of the button that shows the next photo or video of a post.",
+    "max": 16
+  },
+  "web.social.post.next_item": {
+    "text": "Next item",
+    "note": "Social feed: accessibility name of the button that shows the next photo or video of a post (over a video)."
+  },
+  "web.social.post.previous": {
+    "text": "Previous",
+    "note": "Social feed: tooltip of the button that shows the previous photo or video of a post.",
+    "max": 16
+  },
+  "web.social.post.previous_item": {
+    "text": "Previous item",
+    "note": "Social feed: accessibility name of the button that shows the previous photo or video of a post (over a video)."
+  },
+  "web.social.post.replay": {
+    "text": "Replay video",
+    "note": "Social feed: accessibility name of the button that plays a video again once it ended."
+  },
+  "web.social.post.share_unavailable": {
+    "text": "Share (not implemented)",
+    "note": "Social feed: message after pressing Share under a post; sharing a post isn't possible yet."
+  },
+  "web.social.post.unlike": {
+    "text": "Unlike publication",
+    "note": "Social feed: accessibility name of the heart button under a post you liked."
+  },
+  "web.social.post.unmute": {
+    "text": "Unmute video",
+    "note": "Social feed: accessibility name of the speaker button on a muted video."
+  },
+  "web.social.profile.avatar": {
+    "text": "avatar",
+    "note": "Profile (your public profile in Settings, and the card visitors see): description of the profile picture when the profile has no name. Lowercase in English."
+  },
+  "web.social.profile.bio": {
+    "text": "Say something about you…",
+    "note": "Profile (your public profile in Settings, and the card visitors see): placeholder of the field for a few words about yourself."
+  },
+  "web.social.profile.from_computer": {
+    "text": "From this computer",
+    "note": "Profile (your public profile in Settings, and the card visitors see): button that picks a new profile picture from this computer.",
+    "max": 24
+  },
+  "web.social.profile.from_device": {
+    "text": "From your device",
+    "note": "Profile (your public profile in Settings, and the card visitors see): button that picks a new profile picture from the photos on the device.",
+    "max": 24
+  },
+  "web.social.profile.load_failed": {
+    "text": "Failed to load profile.",
+    "note": "Profile (your public profile in Settings, and the card visitors see): error when the device couldn't load the profile and gave no reason of its own."
+  },
+  "web.social.profile.name": {
+    "text": "Your name",
+    "note": "Profile (your public profile in Settings, and the card visitors see): placeholder of the name field."
+  },
+  "web.social.profile.no_bio": {
+    "text": "No bio yet.",
+    "note": "Profile (your public profile in Settings, and the card visitors see): the card visitors see, when the profile has no text about its owner."
+  },
+  "web.social.profile.save": {
+    "text": "Save profile",
+    "note": "Profile (your public profile in Settings, and the card visitors see): button that saves the profile.",
+    "max": 20
+  },
+  "web.social.profile.save_failed": {
+    "text": "Save failed.",
+    "note": "Profile (your public profile in Settings, and the card visitors see): error when the device didn't save the profile and gave no reason of its own."
+  },
+  "web.social.profile.saved": {
+    "text": "Profile saved.",
+    "note": "Profile (your public profile in Settings, and the card visitors see): message once the profile was saved."
+  },
+  "web.social.profile.saving": {
+    "text": "Saving…",
+    "note": "Profile (your public profile in Settings, and the card visitors see): on the save button while the profile is saved.",
+    "max": 20
+  },
+  "web.social.profile.unexpected": {
+    "text": "Unexpected response.",
+    "note": "Profile (your public profile in Settings, and the card visitors see): error when the device answered with something else than the profile."
+  },
+  "web.social.profile.unnamed": {
+    "text": "Unnamed user",
+    "note": "Profile (your public profile in Settings, and the card visitors see): the card visitors see, when the profile has no name."
+  },
+  "web.social.time.days": {
+    "text": "{days}d",
+    "args": [["days", "int"]],
+    "note": "Alerts: an alert's time when it is less than a week old. {days} is how many days. Shortest form (d for days).",
+    "max": 12
+  },
+  "web.social.time.days_ago": {
+    "text": "{days}d ago",
+    "args": [["days", "int"]],
+    "note": "Social feed: a post's date when it is less than a week old. {days} is how many days. Short form (d for days).",
+    "max": 16
+  },
+  "web.social.time.hours": {
+    "text": "{hours}h",
+    "args": [["hours", "int"]],
+    "note": "Alerts: an alert's time when it is less than a day old. {hours} is how many hours. Shortest form (h for hours).",
+    "max": 12
+  },
+  "web.social.time.hours_ago": {
+    "text": "{hours}h ago",
+    "args": [["hours", "int"]],
+    "note": "Social feed: a post's date when it is less than a day old. {hours} is how many hours. Short form (h for hours).",
+    "max": 16
+  },
+  "web.social.time.just_now": {
+    "text": "just now",
+    "note": "Social feed and Alerts: when a post or an alert is less than a minute old, in place of its date. Lowercase in English.",
+    "max": 16
+  },
+  "web.social.time.minutes": {
+    "text": "{minutes}m",
+    "args": [["minutes", "int"]],
+    "note": "Alerts: an alert's time when it is less than an hour old, after the alert's text. {minutes} is how many minutes. Shortest form (m for minutes).",
+    "max": 13
+  },
+  "web.social.time.minutes_ago": {
+    "text": "{minutes}m ago",
+    "args": [["minutes", "int"]],
+    "note": "Social feed: a post's date when it is less than an hour old. {minutes} is how many minutes. Short form (m for minutes).",
+    "max": 16
+  },
+  "web.social.viewer.download_photo": {
+    "text": "Download this photo",
+    "note": "Social feed: tooltip of the download button in the photo viewer, and under a post with one photo; it saves the copy made for the post."
+  },
+  "web.social.viewer.download_video": {
+    "text": "Download this video",
+    "note": "Social feed: tooltip of the download button in the photo viewer, and under a post with one video; it saves the copy made for the post."
+  },
+  "web.social.viewer.full": {
+    "text": "full",
+    "note": "Social feed's photo viewer: description of the photo shown full size. Lowercase in English."
+  },
+  "web.social.viewer.photo_by": {
+    "text": "Photo by {name}",
+    "args": [["name", "user"]],
+    "note": "Social feed's photo viewer: its accessibility name. {name} is who posted it."
+  },
+  "web.social.viewer.photo_by_position": {
+    "text": "Photo by {name}, {index} of {total}",
+    "args": [["name", "user"], ["index", "int"], ["total", "int"]],
+    "note": "Social feed's photo viewer: its accessibility name, on a post with several. {name} is who posted it, {index} the photo's position, {total} how many the post has."
+  },
+  "web.social.viewer.video_by": {
+    "text": "Video by {name}",
+    "args": [["name", "user"]],
+    "note": "Social feed's photo viewer: its accessibility name, on a video. {name} is who posted it."
+  },
+  "web.social.viewer.video_by_position": {
+    "text": "Video by {name}, {index} of {total}",
+    "args": [["name", "user"], ["index", "int"], ["total", "int"]],
+    "note": "Social feed's photo viewer: its accessibility name, on a video of a post with several. {name} is who posted it, {index} the video's position, {total} how many the post has."
+  },
+  "web.social.viewer.video_loading": {
+    "text": "video loading",
+    "note": "Social feed's photo viewer: description of a video's still picture shown while the video loads. Lowercase in English."
+  }
+}

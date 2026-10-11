@@ -15,6 +15,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { RespEnvelope } from "../proto/messages";
+import { Trans, useT } from "../i18n";
+import { asIs, say, type PlainKey, type UiText } from "./uiText";
 import "./UpdatePanel.css";
 import "./BridgePanel.css";
 
@@ -29,7 +31,8 @@ type Access = {
   localAddress?: string;
 };
 
-const providerLabels: Record<string, string> = { apple: "Continue with Apple", google: "Continue with Google" };
+// Keys, translated when shown; a provider this build doesn't know shows its id.
+const providerLabels = new Map<string, PlainKey>([["apple", "web.settings.bridge.continue_apple"], ["google", "web.settings.bridge.continue_google"]]);
 
 // Where the bridge agrees to send a provider sign-in back to - its
 // validReturnURL: the device's own name, a .local name, or a private or
@@ -44,6 +47,7 @@ function returnAllowed(host: string): boolean {
 }
 
 export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean) => void }) {
+  const t = useT();
   const [access, setAccess] = useState<Access | null>(null);
   const [hidden, setHidden] = useState(false);
   const [token, setToken] = useState("");
@@ -52,7 +56,7 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UiText | null>(null);
   const onStatusRef = useRef(onStatus);
   // Issue #182 follow-up: whether Google/Apple sign-in can come back to
   // this page's address - asked of the bridge when the quick check says no.
@@ -95,8 +99,8 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
   // the bridge.
   useEffect(() => {
     if (!access?.pending) return;
-    const t = window.setInterval(() => void refresh(), 3000);
-    return () => window.clearInterval(t);
+    const timer = window.setInterval(() => void refresh(), 3000);
+    return () => window.clearInterval(timer);
   }, [access?.pending, refresh]);
 
   const redeem = useCallback(async (setupCode: string) => {
@@ -107,13 +111,13 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
         (e as any).payload = { $case: "reqBridgeSignIn", reqBridgeSignIn: { email: "", password: "", setupCode } };
       });
       if (resp.payload?.$case !== "respBridgeSignedIn") {
-        setError(resp.errorMessage || "That setup code didn't work.");
+        setError(() => (resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.bridge.code_failed")));
         return;
       }
       setToken(resp.payload.respBridgeSignedIn.setupToken);
       setEmail(resp.payload.respBridgeSignedIn.email);
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      setError(() => asIs(e?.message ?? String(e)));
     } finally {
       setBusy(false);
     }
@@ -141,14 +145,14 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
         (e as any).payload = { $case: "reqBridgeSignIn", reqBridgeSignIn: { email: email.trim(), password, setupCode: "" } };
       });
       if (resp.payload?.$case !== "respBridgeSignedIn") {
-        setError(resp.errorMessage || "Could not sign in.");
+        setError(() => (resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.bridge.sign_in_failed")));
         return;
       }
       setToken(resp.payload.respBridgeSignedIn.setupToken);
       setEmail(resp.payload.respBridgeSignedIn.email);
       setPassword("");
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      setError(() => asIs(e?.message ?? String(e)));
     } finally {
       setBusy(false);
     }
@@ -162,13 +166,13 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
         (e as any).payload = { $case: "reqEnableBridge", reqEnableBridge: { name: name.trim().toLowerCase(), setupToken: token } };
       });
       if (resp.payload?.$case !== "respBridgeAccess") {
-        setError(resp.errorMessage || "Could not switch the bridge on.");
+        setError(() => (resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.bridge.enable_failed")));
         return;
       }
       const a = resp.payload.respBridgeAccess;
       setAccess({ ...a, providers: a.providers ?? [] });
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      setError(() => asIs(e?.message ?? String(e)));
     } finally {
       setBusy(false);
     }
@@ -189,10 +193,7 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
   // restarts local-only; this page, if it came through the bridge, stops
   // answering - the device is then at http://otc.local:8080 at home.
   const leave = async () => {
-    if (!window.confirm(
-      `Take this device off the bridge? ${access?.domain} is given back and the device restarts. ` +
-      `It keeps everything on it and works at home, at ${localUrl}, but is no longer ` +
-      "reachable from outside or by your friends. You can join again later.")) return;
+    if (!window.confirm(t("web.settings.bridge.leave_confirm", { domain: `${access?.domain}`, address: localUrl }))) return;
     setBusy(true);
     setError(null);
     try {
@@ -200,13 +201,13 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
         (e as any).payload = { $case: "reqDisableBridge", reqDisableBridge: {} };
       });
       if (resp.payload?.$case !== "respBridgeAccess") {
-        setError(resp.errorMessage || "Could not leave the bridge.");
+        setError(() => (resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.bridge.leave_failed")));
         return;
       }
       const a = resp.payload.respBridgeAccess;
       setAccess({ ...a, providers: a.providers ?? [] });
     } catch (e: any) {
-      setError(e?.message ?? String(e));
+      setError(() => asIs(e?.message ?? String(e)));
     } finally {
       setBusy(false);
     }
@@ -217,24 +218,24 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
   if (access.enabled) {
     return (
       <section className="sf-section">
-        <h3>Bridge access</h3>
+        <h3>{t("web.settings.bridge.title")}</h3>
         <p className="up-note">
-          Reachable from anywhere at{" "}
-          <a href={`https://${access.domain}`} target="_blank" rel="noreferrer">{access.domain}</a>.
+          <Trans k="web.settings.bridge.reachable" args={{ domain: access.domain }} parts={{
+            link: (s) => <a href={`https://${access.domain}`} target="_blank" rel="noreferrer">{s}</a>,
+          }} />
         </p>
         <p className="up-note">
-          Leaving the bridge gives the name back; the device keeps working at home. To delete your
-          Off The Cloud account as well, leave first, then use{" "}
-          <a href={`https://${access.bridge}/account?delete=1`} target="_blank" rel="noreferrer">your account page</a>.
-          {" "}What the bridge keeps about you is in the{" "}
-          <a href={`https://${access.bridge}/privacy`} target="_blank" rel="noreferrer">privacy notice</a>.
+          <Trans k="web.settings.bridge.leave_hint" parts={{
+            account: (s) => <a href={`https://${access.bridge}/account?delete=1`} target="_blank" rel="noreferrer">{s}</a>,
+            privacy: (s) => <a href={`https://${access.bridge}/privacy`} target="_blank" rel="noreferrer">{s}</a>,
+          }} />
         </p>
         <div className="up-actions">
           <button className="sf-btn sf-danger" disabled={busy} onClick={() => void leave()}>
-            {busy ? "Leaving…" : "Leave the bridge"}
+            {busy ? t("web.settings.bridge.leaving") : t("web.settings.bridge.leave")}
           </button>
         </div>
-        {error && <p className="up-error">{error}</p>}
+        {error && <p className="up-error">{error(t)}</p>}
       </section>
     );
   }
@@ -244,31 +245,22 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
 
   return (
     <section className="sf-section">
-      <h3>Bridge access</h3>
+      <h3>{t("web.settings.bridge.title")}</h3>
 
       {access.pending && access.leftReason === "left" ? (
         <p className="up-note">
-          Leaving {access.bridge}… the device restarts, which takes about a minute. From then on
-          open it at home, at <a href={localUrl}>{localUrl}</a>.
+          <Trans k="web.settings.bridge.pending_leave" args={{ bridge: access.bridge, address: localUrl }} parts={{
+            link: (s) => <a href={localUrl}>{s}</a>,
+          }} />
         </p>
       ) : access.pending ? (
-        <p className="up-note">
-          Joining {access.bridge}… the device restarts to finish, which takes about a minute. You
-          may need to sign in again afterwards.
-        </p>
+        <p className="up-note">{t("web.settings.bridge.pending_join", { bridge: access.bridge })}</p>
       ) : (
         <>
           {access.leftReason === "released" && (
-            <p className="up-error">
-              This device left the bridge: {access.bridge} no longer knew its name (its account was
-              deleted, or the name released). Everything on it is still here.
-            </p>
+            <p className="up-error">{t("web.settings.bridge.released", { bridge: access.bridge })}</p>
           )}
-          <p className="up-note">
-            This device is only reachable on your home network. Through the {access.bridge} bridge
-            it gets its own address, so you can reach it from anywhere and add friends. You'll need
-            an Off The Cloud account.
-          </p>
+          <p className="up-note">{t("web.settings.bridge.intro", { bridge: access.bridge })}</p>
 
           {!token ? (
             <>
@@ -276,71 +268,66 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
                 <div className="bp-providers">
                   {providers.map(p => (
                     <button key={p} className={`bp-sso bp-${p}`} disabled={busy} onClick={() => startProvider(p)}>
-                      {providerLabels[p] ?? p}
+                      {providerLabels.has(p) ? t(providerLabels.get(p)!) : p}
                     </button>
                   ))}
                 </div>
               )}
 
               <div className="sf-row">
-                <label htmlFor="bp-email">Email</label>
+                <label htmlFor="bp-email">{t("web.settings.bridge.email")}</label>
                 <input id="bp-email" className="sf-input" type="email" autoComplete="username"
                   value={email} onChange={e => setEmail(e.target.value)} />
               </div>
               <div className="sf-row">
-                <label htmlFor="bp-password">Password</label>
+                <label htmlFor="bp-password">{t("common.password")}</label>
                 <input id="bp-password" className="sf-input" type="password" autoComplete="current-password"
                   value={password} onChange={e => setPassword(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && email && password) void signIn(); }} />
               </div>
               <div className="up-actions">
                 <button className="sf-btn" disabled={busy || !email.trim() || !password} onClick={() => void signIn()}>
-                  {busy ? "Signing in…" : "Sign in"}
+                  {busy ? t("web.settings.bridge.signing_in") : t("web.settings.bridge.sign_in")}
                 </button>
               </div>
 
               <p className="up-note">
-                No account yet, or you sign in another way? Create one or sign in at{" "}
-                <a href={`https://${access.bridge}/account`} target="_blank" rel="noreferrer">
-                  {access.bridge}/account
-                </a>
-                , choose “Get a setup code” and paste it here. See the{" "}
-                <a href={`https://${access.bridge}/terms`} target="_blank" rel="noreferrer">terms</a> and the{" "}
-                <a href={`https://${access.bridge}/privacy`} target="_blank" rel="noreferrer">privacy notice</a>.
+                <Trans k="web.settings.bridge.setup_hint" args={{ address: `${access.bridge}/account` }} parts={{
+                  account: (s) => <a href={`https://${access.bridge}/account`} target="_blank" rel="noreferrer">{s}</a>,
+                  terms: (s) => <a href={`https://${access.bridge}/terms`} target="_blank" rel="noreferrer">{s}</a>,
+                  privacy: (s) => <a href={`https://${access.bridge}/privacy`} target="_blank" rel="noreferrer">{s}</a>,
+                }} />
               </p>
               <div className="sf-row">
-                <label htmlFor="bp-code">Setup code</label>
+                <label htmlFor="bp-code">{t("web.settings.bridge.setup_code")}</label>
                 <div className="sf-secret-row">
                   <input id="bp-code" className="sf-input" value={code} onChange={e => setCode(e.target.value)} />
                   <button className="sf-btn small" type="button" disabled={busy || !code.trim()}
-                    onClick={() => void redeem(code.trim())}>Use</button>
+                    onClick={() => void redeem(code.trim())}>{t("web.settings.bridge.use")}</button>
                 </div>
               </div>
             </>
           ) : (
             <>
               <p className="up-note">
-                Signed in as <strong>{email}</strong>.{" "}
+                <Trans k="web.settings.bridge.signed_in_as" args={{ email }} parts={{ b: (s) => <strong>{s}</strong> }} />{" "}
                 <button className="bp-link" type="button" onClick={() => { setToken(""); setEmail(""); }}>
-                  Use another account
+                  {t("web.settings.bridge.other_account")}
                 </button>
               </p>
               <div className="sf-row">
-                <label htmlFor="bp-name">Device name</label>
+                <label htmlFor="bp-name">{t("web.settings.bridge.name")}</label>
                 <div className="bp-name">
                   <input id="bp-name" className="sf-input" value={name} autoCapitalize="none" spellCheck={false}
-                    placeholder="myhome" onChange={e => setName(e.target.value)}
+                    placeholder={t("web.settings.bridge.name_example")} onChange={e => setName(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter" && nameValid) void enable(); }} />
                   <span className="bp-tld">.{access.bridge}</span>
                 </div>
               </div>
-              <p className="up-note">
-                Lower-case letters, digits and hyphens. A name your account already holds moves to
-                this device.
-              </p>
+              <p className="up-note">{t("web.settings.bridge.name_hint")}</p>
               <div className="up-actions">
                 <button className="sf-btn" disabled={busy || !nameValid} onClick={() => void enable()}>
-                  {busy ? "Joining…" : "Join the bridge"}
+                  {busy ? t("web.settings.bridge.joining") : t("web.settings.bridge.join")}
                 </button>
               </div>
             </>
@@ -348,8 +335,8 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
         </>
       )}
 
-      {access.error && !access.pending && <p className="up-error">The last attempt failed: {access.error}</p>}
-      {error && <p className="up-error">{error}</p>}
+      {access.error && !access.pending && <p className="up-error">{t("web.settings.bridge.last_failed", { detail: access.error })}</p>}
+      {error && <p className="up-error">{error(t)}</p>}
     </section>
   );
 }

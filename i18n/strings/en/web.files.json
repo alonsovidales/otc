@@ -1,0 +1,681 @@
+{
+  "web.files.column.created": {
+    "text": "Created",
+    "note": "Files: column heading (when the file was created) in the folder's list.",
+    "max": 20
+  },
+  "web.files.column.modified": {
+    "text": "Modified",
+    "note": "Files: column heading (when the file last changed) in the folder's list and in the search results.",
+    "max": 20
+  },
+  "web.files.column.name": {
+    "text": "Name",
+    "note": "Files: column heading in the folder's list and in the search results.",
+    "max": 20
+  },
+  "web.files.column.size": {
+    "text": "Size",
+    "note": "Files: column heading in the folder's list and in the search results.",
+    "max": 12
+  },
+  "web.files.gallery.cant_show": {
+    "text": "This file could not be shown here - download it instead.",
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): in the viewer when a photo or video can't be shown in the browser."
+  },
+  "web.files.gallery.download_all": {
+    "text": "Download all",
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): button that downloads every photo and video of the gallery.",
+    "max": 24
+  },
+  "web.files.gallery.download_count": {
+    "text": "Download {count}",
+    "args": [["count", "int"]],
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): button that downloads the selected photos and videos. {count} is how many are selected.",
+    "max": 24
+  },
+  "web.files.gallery.download_failed": {
+    "text": "The download failed.",
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): error when a download failed."
+  },
+  "web.files.gallery.downloading": {
+    "text": "Downloading {current} of {total} · {size}",
+    "args": [["current", "int"], ["total", "int"], ["size", "text"]],
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): progress of a download. {current} is the file being downloaded, {total} how many there are, {size} how much has come so far with its unit (1.2 GB)."
+  },
+  "web.files.gallery.incomplete": {
+    "text": "This link is incomplete - copy the whole link and try again.",
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): error when the link is cut short."
+  },
+  "web.files.gallery.loading_percent": {
+    "text": "Loading… {percent}",
+    "args": [["percent", "text"]],
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): while a photo or video loads in the viewer. {percent} is how much has come, already formatted (45%)."
+  },
+  "web.files.gallery.low_res": {
+    "text": "Low resolution: these are small copies, not the original photos.",
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): note under the title of a gallery shared in low resolution."
+  },
+  "web.files.gallery.meta": {
+    "text": {
+      "one": "{count} item · {size}",
+      "other": "{count} items · {size}"
+    },
+    "args": [["count", "count"], ["size", "text"]],
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): under the title. {count} is how many photos and videos, {size} their size with its unit (4.6 GB)."
+  },
+  "web.files.gallery.meta_until": {
+    "text": {
+      "one": "{count} item · {size} · available until {date}",
+      "other": "{count} items · {size} · available until {date}"
+    },
+    "args": [["count", "count"], ["size", "text"], ["date", "text"]],
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): under the title. {count} is how many photos and videos, {size} their size with its unit (4.6 GB); {date} is when the link stops working, already formatted (7 October 2026)."
+  },
+  "web.files.gallery.next": {
+    "text": "Next",
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): accessibility name of the viewer's button that shows the next photo or video."
+  },
+  "web.files.gallery.not_found": {
+    "text": "This link doesn't exist or has expired.",
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): error when the device doesn't know the link (deleted or expired) and gave no reason of its own."
+  },
+  "web.files.gallery.open_failed": {
+    "text": "Could not open this gallery.",
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): error when the gallery couldn't be opened."
+  },
+  "web.files.gallery.opening": {
+    "text": "Opening the gallery…",
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): while the gallery opens."
+  },
+  "web.files.gallery.position": {
+    "text": "{name} · {index} of {total}",
+    "args": [["name", "user"], ["index", "int"], ["total", "int"]],
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): the viewer's title. {name} is the file's name, {index} its position and {total} how many there are."
+  },
+  "web.files.gallery.previous": {
+    "text": "Previous",
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): accessibility name of the viewer's button that shows the previous photo or video."
+  },
+  "web.files.gallery.select_all": {
+    "text": "Select all",
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): button while selecting photos to download.",
+    "max": 24
+  },
+  "web.files.gallery.stopped": {
+    "text": "The device stopped sending the file.",
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): error when a download stopped half way."
+  },
+  "web.files.gallery.title": {
+    "text": "Shared gallery",
+    "note": "A shared gallery's page, seen by anyone with its link (visitors with no account; in their browser's language): the page's title and heading when the gallery has no description."
+  },
+  "web.files.keep_out.banner": {
+    "text": "Kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images.",
+    "note": "Files: banner over a folder kept out of Images. A folder kept out of Images: its photos and videos aren't tagged, searched for faces or shown in Images; Files still shows them. Use the same name for Images as web.shell.menu.images."
+  },
+  "web.files.keep_out.banner_parent": {
+    "text": "Inside {folder}, which is kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images.",
+    "args": [["folder", "user"]],
+    "note": "Files: banner over a folder inside one kept out of Images. {folder} is that outer folder's path (/Backups). A folder kept out of Images: its photos and videos aren't tagged, searched for faces or shown in Images; Files still shows them. Use the same name for Images as web.shell.menu.images."
+  },
+  "web.files.keep_out.confirm_keep": {
+    "text": "Keep “{name}” out of Images?\n\nIts photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them.",
+    "args": [["name", "user"]],
+    "note": "Files: confirmation (title, blank line, message) before keeping a folder out of Images. {name} is the folder's name. The tags and faces found in its photos are deleted. Write the quotes in your language's style. A folder kept out of Images: its photos and videos aren't tagged, searched for faces or shown in Images; Files still shows them. Use the same name for Images as web.shell.menu.images.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #41f00400"
+  },
+  "web.files.keep_out.confirm_show": {
+    "text": "Show “{name}” in Images?\n\nIts photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background.",
+    "args": [["name", "user"]],
+    "note": "Files: confirmation (title, blank line, message) before showing a folder kept out of Images in Images again; its photos are then searched for faces when face recognition is on. {name} is the folder's name. Write the quotes in your language's style. A folder kept out of Images: its photos and videos aren't tagged, searched for faces or shown in Images; Files still shows them. Use the same name for Images as web.shell.menu.images.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ba85c6f5"
+  },
+  "web.files.keep_out.kept": {
+    "text": "{name} kept out of Images",
+    "args": [["name", "user"]],
+    "note": "Files: read out by screen readers once a folder is kept out of Images. {name} is the folder's name."
+  },
+  "web.files.keep_out.parent_tip": {
+    "text": "Inside {folder}, which is kept out of Images",
+    "args": [["folder", "user"]],
+    "note": "Files: tooltip and accessibility name of the crossed-out picture beside a folder that is kept out because a folder above it is. {folder} is that folder's path. A folder kept out of Images: its photos and videos aren't tagged, searched for faces or shown in Images; Files still shows them. Use the same name for Images as web.shell.menu.images."
+  },
+  "web.files.keep_out.show": {
+    "text": "Show in Images",
+    "note": "Files: button on the banner of a folder kept out of Images that shows its photos in Images again. A folder kept out of Images: its photos and videos aren't tagged, searched for faces or shown in Images; Files still shows them. Use the same name for Images as web.shell.menu.images.",
+    "max": 32
+  },
+  "web.files.keep_out.show_named": {
+    "text": "Show “{name}” in Images",
+    "args": [["name", "user"]],
+    "note": "Files: button on the banner of a folder inside one kept out of Images; it shows that outer folder ({name}) in Images again. Write the quotes in your language's style. A folder kept out of Images: its photos and videos aren't tagged, searched for faces or shown in Images; Files still shows them. Use the same name for Images as web.shell.menu.images."
+  },
+  "web.files.keep_out.shown": {
+    "text": "{name} shown in Images",
+    "args": [["name", "user"]],
+    "note": "Files: read out by screen readers once a folder kept out of Images is shown in Images again. {name} is the folder's name."
+  },
+  "web.files.keep_out.state": {
+    "text": "Kept out of Images",
+    "note": "Files: tooltip of the crossed-out picture beside a search result kept out of Images. A folder kept out of Images: its photos and videos aren't tagged, searched for faces or shown in Images; Files still shows them. Use the same name for Images as web.shell.menu.images."
+  },
+  "web.files.keep_out.switch": {
+    "text": "Keep {name} out of Images",
+    "args": [["name", "user"]],
+    "note": "Files: accessibility name of the crossed-out picture button beside a folder; screen readers add whether it is pressed (kept out). {name} is the folder's name. A folder kept out of Images: its photos and videos aren't tagged, searched for faces or shown in Images; Files still shows them. Use the same name for Images as web.shell.menu.images."
+  },
+  "web.files.keep_out.tip_off": {
+    "text": "Keep out of Images: photos and videos here won't be tagged, searched for faces or shown in Images",
+    "note": "Files: tooltip of the switch beside a folder shown in Images. A folder kept out of Images: its photos and videos aren't tagged, searched for faces or shown in Images; Files still shows them. Use the same name for Images as web.shell.menu.images."
+  },
+  "web.files.keep_out.tip_on": {
+    "text": "Kept out of Images: photos and videos here aren't tagged, searched for faces or shown in Images. Click to show them in Images.",
+    "note": "Files: tooltip of the switch beside a folder kept out of Images. A folder kept out of Images: its photos and videos aren't tagged, searched for faces or shown in Images; Files still shows them. Use the same name for Images as web.shell.menu.images."
+  },
+  "web.files.links.confirm_delete": {
+    "text": "Delete this link? The shared copies are deleted and the link stops working.",
+    "note": "Settings > Shared Links: every gallery and download link shared: confirmation before deleting a link.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #be807be0"
+  },
+  "web.files.links.delete_failed": {
+    "text": "Could not delete it.",
+    "note": "Settings > Shared Links: every gallery and download link shared: error when the device couldn't delete a link and gave no reason of its own."
+  },
+  "web.files.links.details": {
+    "text": "{size} · made {made} · until {until}",
+    "args": [["size", "text"], ["made", "text"], ["until", "text"]],
+    "note": "Settings > Shared Links: every gallery and download link shared: details of a link. {size} is the space its copy takes (4.6 GB), {made} when it was made and {until} when it stops working, already formatted (7 Oct 2026, 14:05)."
+  },
+  "web.files.links.details_files": {
+    "text": {
+      "one": "{count} file · {size} · made {made} · until {until}",
+      "other": "{count} files · {size} · made {made} · until {until}"
+    },
+    "args": [["count", "count"], ["size", "text"], ["made", "text"], ["until", "text"]],
+    "note": "Settings > Shared Links: every gallery and download link shared: details of a link. {size} is the space its copy takes (4.6 GB), {made} when it was made and {until} when it stops working, already formatted (7 Oct 2026, 14:05); {count} is how many files it shares."
+  },
+  "web.files.links.gallery": {
+    "text": "Shared gallery",
+    "note": "Settings > Shared Links: every gallery and download link shared: the name of a gallery link that has no description."
+  },
+  "web.files.links.hint": {
+    "text": "Galleries and downloads you shared. The links themselves aren't kept on the device, so they can't be shown again - only removed.",
+    "note": "Settings > Shared Links: every gallery and download link shared: explanation under the title."
+  },
+  "web.files.links.load_failed": {
+    "text": "Could not load the shared links.",
+    "note": "Settings > Shared Links: every gallery and download link shared: error when the device couldn't list them and gave no reason of its own."
+  },
+  "web.files.links.never_opened": {
+    "text": "Never opened",
+    "note": "Settings > Shared Links: every gallery and download link shared: a link nobody has opened yet."
+  },
+  "web.files.links.none": {
+    "text": "No shared links.",
+    "note": "Settings > Shared Links: every gallery and download link shared: when nothing is shared."
+  },
+  "web.files.links.opened": {
+    "text": {
+      "one": "Opened {count} time, last {date}",
+      "other": "Opened {count} times, last {date}"
+    },
+    "args": [["count", "count"], ["date", "text"]],
+    "note": "Settings > Shared Links: every gallery and download link shared: how often a link was opened, and when last ({date}, already formatted: 7 Oct 2026, 14:05)."
+  },
+  "web.files.links.title": {
+    "text": "Shared Links",
+    "note": "Settings > Shared Links: every gallery and download link shared: the section's title."
+  },
+  "web.files.links.total": {
+    "text": "Together they take {size}.",
+    "args": [["size", "text"]],
+    "note": "Settings > Shared Links: every gallery and download link shared: after the explanation, the space all the shared copies take. {size} has its unit (4.6 GB)."
+  },
+  "web.files.links.zip": {
+    "text": "Shared files (zip)",
+    "note": "Settings > Shared Links: every gallery and download link shared: the name of a link to a ZIP of files that has no description."
+  },
+  "web.files.list.contents": {
+    "text": "Contents of {folder}",
+    "args": [["folder", "user"]],
+    "note": "Files: accessibility name of the region that lists the folder's contents. {folder} is the folder's path (/Photos/2024/)."
+  },
+  "web.files.list.empty": {
+    "text": "This folder is empty.",
+    "note": "Files: in the grid when the folder has nothing in it."
+  },
+  "web.files.list.list_failed": {
+    "text": "Failed to list path",
+    "note": "Files: error when the device couldn't list the folder and gave no reason of its own."
+  },
+  "web.files.list.opening": {
+    "text": "Opening…",
+    "note": "Files: in place of a file's name, or over its thumbnail, while the file is fetched from the device to open it.",
+    "max": 24
+  },
+  "web.files.list.select_item": {
+    "text": "Select {name}",
+    "args": [["name", "user"]],
+    "note": "Files: accessibility name of the tick box on a file or folder in the grid. {name} is its name."
+  },
+  "web.files.list.tip": {
+    "text": "Tip: Drag files here to upload to <code>{folder}</code>.",
+    "args": [["folder", "user"]],
+    "note": "Files: hint under the folder's contents. {folder} is the folder's path (/Photos/), shown in a code font (<code>).",
+    "rich": ["code"]
+  },
+  "web.files.list.total": {
+    "text": "Total files: <b>{count}</b>",
+    "args": [["count", "int"]],
+    "note": "Files: under the toolbar, how many entries the folder shows ({count}, in bold <b>).",
+    "rich": ["b"]
+  },
+  "web.files.list.unexpected": {
+    "text": "Unexpected response",
+    "note": "Files: error when the device answered the folder listing with something else than a list."
+  },
+  "web.files.list.update_failed": {
+    "text": "Could not update the folder.",
+    "note": "Files: message when the device refused or didn't answer a change to a folder (upload only, or kept out of Images) and gave no reason of its own."
+  },
+  "web.files.list.upload_only_refused": {
+    "text": "{name} is in an upload-only folder and cannot be deleted.",
+    "args": [["name", "user"]],
+    "note": "Files: message when the device refused to delete a file or folder because it is inside an upload-only folder. {name} is its name."
+  },
+  "web.files.list.video": {
+    "text": "Video",
+    "note": "Files: accessibility name of the play badge on a video's thumbnail in the grid."
+  },
+  "web.files.lock.clear": {
+    "text": "Clear upload only",
+    "note": "Files: accessibility name of the closed lock on an upload-only folder; clicking it makes the folder normal again. An upload-only folder keeps every file: nothing in it can be deleted, and uploading a file again keeps the old version."
+  },
+  "web.files.lock.file": {
+    "text": "In an upload-only folder: cannot be deleted",
+    "note": "Files list: tooltip and accessibility name of the lock beside a file inside an upload-only folder."
+  },
+  "web.files.lock.make": {
+    "text": "Make upload only",
+    "note": "Files: tooltip and accessibility name of the open lock on a folder that isn't upload only; clicking it makes it so. An upload-only folder keeps every file: nothing in it can be deleted, and uploading a file again keeps the old version."
+  },
+  "web.files.lock.off_tip": {
+    "text": "Make upload only: nothing in this folder can be deleted, and re-uploads keep the old version",
+    "note": "Files list: tooltip of the open lock on a folder that isn't upload only."
+  },
+  "web.files.lock.on_tip": {
+    "text": "Upload only: nothing in this folder can be deleted, and re-uploads keep the old version. Click to clear.",
+    "note": "Files list: tooltip of the closed lock on an upload-only folder."
+  },
+  "web.files.lock.on_tip_short": {
+    "text": "Upload only. Click to clear.",
+    "note": "Files grid: tooltip of the lock on a folder that is upload only. An upload-only folder keeps every file: nothing in it can be deleted, and uploading a file again keeps the old version."
+  },
+  "web.files.results.back": {
+    "text": "Back to {folder}",
+    "args": [["folder", "user"]],
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): button that leaves the results and goes back to the folder shown before. {folder} is that folder's name.",
+    "max": 40
+  },
+  "web.files.results.back_files": {
+    "text": "Back to Files",
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): button that leaves the results and goes back to the top folder of Files.",
+    "max": 32
+  },
+  "web.files.results.cant_search": {
+    "text": "This device can't search its files yet. Update it in Settings.",
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): the device's software is too old to search files."
+  },
+  "web.files.results.count": {
+    "text": {
+      "one": "{count} result",
+      "other": "{count} results"
+    },
+    "args": [["count", "count"]],
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): how many were found, above the list."
+  },
+  "web.files.results.file_kept_out": {
+    "text": "{name}, file in {folder}, kept out of Images",
+    "args": [["name", "user"], ["folder", "user"]],
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): what a screen reader says for a result. {name} is its name, {folder} the folder it is in (/Photos/2024); the file is in a folder kept out of Images."
+  },
+  "web.files.results.first": {
+    "text": "Showing the first {limit} results",
+    "args": [["limit", "int"]],
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): above the list when it holds the most the device answers ({limit}: 50)."
+  },
+  "web.files.results.folder_kept_out": {
+    "text": "{name}, folder in {folder}, kept out of Images",
+    "args": [["name", "user"], ["folder", "user"]],
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): what a screen reader says for a result. {name} is its name, {folder} the folder it is in (/Photos/2024); the folder is kept out of Images (its photos aren't tagged, searched for faces or shown in Images)."
+  },
+  "web.files.results.list": {
+    "text": "Files matching {text}",
+    "args": [["text", "user"]],
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): accessibility name of the list of results. {text} is what was searched for."
+  },
+  "web.files.results.no_answer": {
+    "text": "The device didn't answer the search.",
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): error when the device answered without results or a reason of its own."
+  },
+  "web.files.results.none_for": {
+    "text": "No files match {text}",
+    "args": [["text", "user"]],
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): read out by screen readers when nothing was found. {text} is what was searched for."
+  },
+  "web.files.results.nothing": {
+    "text": "No files match “{text}”.",
+    "args": [["text", "user"]],
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): when nothing was found. {text} is what was searched for. Write the quotes in your language's style."
+  },
+  "web.files.results.photo_kept_out": {
+    "text": "{name}, photo in {folder}, kept out of Images",
+    "args": [["name", "user"], ["folder", "user"]],
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): what a screen reader says for a result. {name} is its name, {folder} the folder it is in (/Photos/2024); the photo is in a folder kept out of Images."
+  },
+  "web.files.results.searching": {
+    "text": "Searching…",
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): while the search runs.",
+    "max": 24
+  },
+  "web.files.results.searching_for": {
+    "text": "Searching for {text}",
+    "args": [["text", "user"]],
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): read out by screen readers while the search runs. {text} is what was searched for."
+  },
+  "web.files.results.title": {
+    "text": "Files matching “{text}”",
+    "args": [["text", "user"]],
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): title. {text} is what was searched for. Write the quotes in your language's style."
+  },
+  "web.files.results.unreachable": {
+    "text": "The search didn't reach the device. Check the connection and try again.",
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): error when the search couldn't be sent."
+  },
+  "web.files.results.video_kept_out": {
+    "text": "{name}, video in {folder}, kept out of Images",
+    "args": [["name", "user"], ["folder", "user"]],
+    "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): what a screen reader says for a result. {name} is its name, {folder} the folder it is in (/Photos/2024); the video is in a folder kept out of Images."
+  },
+  "web.files.selection.confirm_delete": {
+    "text": {
+      "one": "Delete {count} item? This cannot be undone.",
+      "other": "Delete {count} items? This cannot be undone."
+    },
+    "args": [["count", "count"]],
+    "note": "Files: confirmation before deleting the ticked files and folders (a folder with everything in it). {count} is how many are ticked.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #2d31124d"
+  },
+  "web.files.selection.download_zip": {
+    "text": "Download ZIP",
+    "note": "Files: button that downloads the ticked files and folders as one ZIP archive.",
+    "max": 24
+  },
+  "web.files.selection.link_copied": {
+    "text": "Share link copied to clipboard",
+    "note": "Files: message after Share made a download link for the ticked files and copied it, ready to paste."
+  },
+  "web.files.selection.preparing": {
+    "text": "Preparing…",
+    "note": "Files: on the Share button while the device builds the share link (it reads every file first).",
+    "max": 24
+  },
+  "web.files.selection.preparing_zip": {
+    "text": "Preparing ZIP…",
+    "note": "Files: on the Download ZIP button while the device builds the ZIP archive.",
+    "max": 24
+  },
+  "web.files.selection.selected": {
+    "text": {
+      "one": "<b>{count}</b> selected",
+      "other": "<b>{count}</b> selected"
+    },
+    "args": [["count", "count"]],
+    "note": "Files: the bar shown while files or folders are ticked. {count} is how many, in bold (<b>).",
+    "max": 24,
+    "rich": ["b"]
+  },
+  "web.files.selection.share_gallery": {
+    "text": "Share as gallery",
+    "note": "Files: button, with one folder ticked, that shares the folder's photos and videos as a gallery anyone with the link can see.",
+    "max": 24
+  },
+  "web.files.selection.share_gallery_tip": {
+    "text": "Share this folder's photos and videos as a gallery",
+    "note": "Files: tooltip of the Share as gallery button."
+  },
+  "web.files.selection.upload_only": {
+    "text": "The selection includes an upload-only folder's contents, which cannot be deleted",
+    "note": "Files: tooltip of the greyed-out Delete button when something ticked is inside an upload-only folder (a folder whose files can't be deleted)."
+  },
+  "web.files.share.available_for": {
+    "text": "Available for",
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: label of the choice of how long the link works (1 day, 7 days, 30 days).",
+    "max": 24
+  },
+  "web.files.share.copied": {
+    "text": "Copied",
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: on the copy button once the link was copied.",
+    "max": 16
+  },
+  "web.files.share.copy": {
+    "text": "Copy",
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: button that copies the link.",
+    "max": 16
+  },
+  "web.files.share.copying": {
+    "text": "Copying {current} of {total} · {done} of {size}",
+    "args": [["current", "int"], ["total", "int"], ["done", "text"], ["size", "text"]],
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: progress of the copy. {current} is the file being copied, {total} how many there are, {done} and {size} the sizes copied and in all, with their units (1.2 GB)."
+  },
+  "web.files.share.days": {
+    "text": {
+      "one": "{count} day",
+      "other": "{count} days"
+    },
+    "args": [["count", "count"]],
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: a choice of how long the link works (1, 7 or 30 days).",
+    "max": 14
+  },
+  "web.files.share.default_description": {
+    "text": "Shared Media {date}",
+    "args": [["date", "text"]],
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: the gallery's description until the owner writes one; visitors see it as the gallery's title. {date} is today's date and time (07-10-2026 14:05)."
+  },
+  "web.files.share.description": {
+    "text": "Description",
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: label of the gallery's description field.",
+    "max": 24
+  },
+  "web.files.share.link": {
+    "text": "Gallery link",
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: accessibility name of the field holding the gallery's link."
+  },
+  "web.files.share.looking": {
+    "text": "Looking at what to share…",
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: while the device works out what it would share."
+  },
+  "web.files.share.lost": {
+    "text": "Lost track of the copy.",
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: error when the device stopped answering about the copy."
+  },
+  "web.files.share.low_res": {
+    "text": "<b>Low resolution only</b> - small copies of the photos, not the originals",
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: tick box. The words in <b> are bold.",
+    "rich": ["b"]
+  },
+  "web.files.share.low_res_note": {
+    "text": "Only small copies of the photos are shared (about 1000 pixels wide), re-encrypted with a key of their own that only the link carries; the originals never leave your device.",
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: explanation with Low resolution only ticked.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #117675be"
+  },
+  "web.files.share.note": {
+    "text": "They are copied and re-encrypted with a key of their own, which only the link carries. Anyone with the link can see them until it expires; the copy takes {size} on the device.",
+    "args": [["size", "text"]],
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: explanation. {size} is the copy's size with its unit (4.6 GB).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #04cf1e5e"
+  },
+  "web.files.share.preview_failed": {
+    "text": "Could not look at what to share.",
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: error when the device couldn't say what it would share."
+  },
+  "web.files.share.ready": {
+    "text": "Your gallery is ready. This is the only time the link is shown: copy it now - the device keeps no copy of it, so it can't be shown again.",
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: once the copy is done, above the link.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #5d2d9f87"
+  },
+  "web.files.share.skipped": {
+    "text": {
+      "one": "{count} other file is not included",
+      "other": "{count} other files are not included"
+    },
+    "args": [["count", "count"]],
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: after the summary, files that aren't photos or videos and are left out."
+  },
+  "web.files.share.start_failed": {
+    "text": "Could not start sharing.",
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: error when the copy couldn't be started."
+  },
+  "web.files.share.summary": {
+    "text": {
+      "one": "<b>{count}</b> photo or video, <b>{size}</b>",
+      "other": "<b>{count}</b> photos and videos, <b>{size}</b>"
+    },
+    "args": [["count", "count"], ["size", "text"]],
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: what will be shared. {count} is how many photos and videos, {size} their size with its unit (4.6 GB); both bold (<b>).",
+    "rich": ["b"]
+  },
+  "web.files.share.title": {
+    "text": "Share as a gallery",
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: the dialog's title and accessibility name."
+  },
+  "web.files.share.videos_left_out": {
+    "text": {
+      "one": "{count} video is left out.",
+      "other": "{count} videos are left out."
+    },
+    "args": [["count", "count"]],
+    "note": "Share as a gallery dialog (from Files or Images): the device copies the photos and videos, re-encrypted with a key only the link carries, and shows the link once: after the low resolution explanation; videos aren't shared in low resolution."
+  },
+  "web.files.size.b": {
+    "text": "{size} B",
+    "args": [["size", "text"]],
+    "note": "A size in bytes, in Files' lists, the share dialog, Settings > Shared Links and a shared gallery's page. B is the symbol for bytes. {size} is the number, already formatted with its decimals (512, 4.6).",
+    "max": 12
+  },
+  "web.files.size.gb": {
+    "text": "{size} GB",
+    "args": [["size", "text"]],
+    "note": "A size in gigabytes, in Files' lists, the share dialog, Settings > Shared Links and a shared gallery's page. Write your language's symbol (French: Go). {size} is the number, already formatted with its decimals (512, 4.6).",
+    "max": 12
+  },
+  "web.files.size.kb": {
+    "text": "{size} KB",
+    "args": [["size", "text"]],
+    "note": "A size in kilobytes (1024 bytes), in Files' lists, the share dialog, Settings > Shared Links and a shared gallery's page. Write your language's symbol (French: Ko). {size} is the number, already formatted with its decimals (512, 4.6).",
+    "max": 12
+  },
+  "web.files.size.mb": {
+    "text": "{size} MB",
+    "args": [["size", "text"]],
+    "note": "A size in megabytes, in Files' lists, the share dialog, Settings > Shared Links and a shared gallery's page. Write your language's symbol (French: Mo). {size} is the number, already formatted with its decimals (512, 4.6).",
+    "max": 12
+  },
+  "web.files.toolbar.grid": {
+    "text": "Grid",
+    "note": "Files: tooltip of the button that shows the folder as a grid of thumbnails.",
+    "max": 16
+  },
+  "web.files.toolbar.list": {
+    "text": "List",
+    "note": "Files: tooltip of the button that shows the folder as a list (name, size, dates).",
+    "max": 16
+  },
+  "web.files.toolbar.path": {
+    "text": "Path:",
+    "note": "Files: label before the field holding the folder shown (/Photos/2024/). Keep the colon if your language uses one there.",
+    "max": 12
+  },
+  "web.files.toolbar.view": {
+    "text": "View",
+    "note": "Files: accessibility name of the pair of buttons that switch between the list and the grid of thumbnails."
+  },
+  "web.files.upload.done": {
+    "text": "✓ Done",
+    "note": "Files: status of a dropped file that was uploaded, in the upload panel. Keep the check mark.",
+    "max": 16
+  },
+  "web.files.upload.failed": {
+    "text": "✕ Failed",
+    "note": "Files: status of a dropped file that couldn't be uploaded, in the upload panel. Keep the cross.",
+    "max": 16
+  },
+  "web.files.upload.finished_failed": {
+    "text": "Uploads finished ({done} ok, {failed} failed)",
+    "args": [["done", "int"], ["failed", "int"]],
+    "note": "Files: title of the upload panel once every dropped file was tried and some failed. {done} uploaded, {failed} failed."
+  },
+  "web.files.upload.progress": {
+    "text": "Uploading {done}/{total}…",
+    "args": [["done", "int"], ["total", "int"]],
+    "note": "Files: title of the upload panel while dropped files are sent. {done} is how many are done, {total} how many were dropped."
+  },
+  "web.files.upload.reading": {
+    "text": "Reading…",
+    "note": "Files: status of a dropped file waiting to be read and sent, in the upload panel.",
+    "max": 16
+  },
+  "web.files.upload.uploaded": {
+    "text": {
+      "one": "Uploaded {count} file",
+      "other": "Uploaded {count} files"
+    },
+    "args": [["count", "count"]],
+    "note": "Files: title of the upload panel once every dropped file was uploaded."
+  },
+  "web.files.upload.uploading": {
+    "text": "Uploading…",
+    "note": "Files: status shown on each row of the upload panel.",
+    "max": 16
+  },
+  "web.files.versions.count": {
+    "text": {
+      "one": "{count} version",
+      "other": "{count} versions"
+    },
+    "args": [["count", "count"]],
+    "note": "Files list: button beside a file with older versions. {count} is how many older versions there are.",
+    "max": 20
+  },
+  "web.files.versions.current": {
+    "text": "Current",
+    "note": "Files: the first row of a file's versions pop-up, the version in use now.",
+    "max": 24
+  },
+  "web.files.versions.hint": {
+    "text": "The file is in an upload-only folder, so each upload to this path kept the one before it.",
+    "note": "Files: explanation at the top of a file's versions pop-up."
+  },
+  "web.files.versions.replaced": {
+    "text": "Replaced {date}",
+    "args": [["date", "text"]],
+    "note": "Files: a row of a file's versions pop-up. {date} is when that version was replaced by a newer upload, already formatted (9/1/2026, 10:42:07 AM), or a dash when unknown."
+  },
+  "web.files.versions.tip": {
+    "text": "Older versions of this file",
+    "note": "Files: tooltip of the button beside a file that opens the list of its older versions (kept because the file is in an upload-only folder)."
+  },
+  "web.files.versions.title": {
+    "text": "Versions of {name}",
+    "args": [["name", "user"]],
+    "note": "Files: title of the pop-up listing a file's older versions. {name} is the file's name."
+  }
+}

@@ -14,6 +14,8 @@
 // scrub the preview to its own position as it moves, which is the part
 // that actually makes trimming feel accurate.
 import { useEffect, useRef, useState } from "react";
+import { Trans, useT } from "../i18n";
+import { say, type UiText } from "./uiText";
 import { formatTimecode, type TrimRange } from "./videoTrim";
 import "./VideoTrimmer.css";
 
@@ -36,6 +38,7 @@ type Props = {
 };
 
 export default function VideoTrimmer({ src, value, onApply, onCancel }: Props) {
+  const t = useT();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
   // A browser that can't decode the clip doesn't necessarily fire `error`
@@ -44,7 +47,7 @@ export default function VideoTrimmer({ src, value, onApply, onCancel }: Props) {
   // reads "Reading the clip…" forever and the only way out is Cancel,
   // which looks like the feature is broken rather than the video being
   // unplayable here.
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<UiText | null>(null);
   const [start, setStart] = useState(value?.start ?? 0);
   const [end, setEnd] = useState(value?.end ?? 0);
   // Set while "Play cut" is running, so the timeupdate handler below knows
@@ -65,29 +68,29 @@ export default function VideoTrimmer({ src, value, onApply, onCancel }: Props) {
   useEffect(() => {
     if (duration !== null) return;
     const timer = setTimeout(
-      () => setLoadError("This browser could not read this video, so it can't be trimmed here."),
+      () => setLoadError(() => say("web.images.trim.unreadable")),
       cReadTimeoutMs
     );
     return () => clearTimeout(timer);
   }, [duration]);
 
-  const seek = (t: number) => {
+  const seek = (at: number) => {
     const v = videoRef.current;
     if (!v) return;
     playingCutRef.current = false;
     v.pause();
-    v.currentTime = t;
+    v.currentTime = at;
   };
 
-  const changeStart = (t: number) => {
+  const changeStart = (at: number) => {
     const max = (end || duration || 0) - cMinTrimSecs;
-    const next = Math.max(0, Math.min(t, Math.max(0, max)));
+    const next = Math.max(0, Math.min(at, Math.max(0, max)));
     setStart(next);
     seek(next);
   };
 
-  const changeEnd = (t: number) => {
-    const next = Math.min(duration ?? t, Math.max(t, start + cMinTrimSecs));
+  const changeEnd = (at: number) => {
+    const next = Math.min(duration ?? at, Math.max(at, start + cMinTrimSecs));
     setEnd(next);
     seek(next);
   };
@@ -126,11 +129,11 @@ export default function VideoTrimmer({ src, value, onApply, onCancel }: Props) {
   const isWholeClip = duration !== null && start <= 0 && effectiveEnd >= duration - 0.05;
 
   return (
-    <div className="vt-backdrop" role="dialog" aria-modal="true" aria-label="Trim video">
+    <div className="vt-backdrop" role="dialog" aria-modal="true" aria-label={t("web.images.trim.title")}>
       <div className="vt-panel">
         <div className="vt-header">
-          <div className="vt-title">Trim video</div>
-          <button className="vt-close" onClick={onCancel} aria-label="Cancel">✕</button>
+          <div className="vt-title">{t("web.images.trim.title")}</div>
+          <button className="vt-close" onClick={onCancel} aria-label={t("common.cancel")}>✕</button>
         </div>
 
         <video
@@ -138,21 +141,21 @@ export default function VideoTrimmer({ src, value, onApply, onCancel }: Props) {
           className="vt-video"
           src={src}
           onLoadedMetadata={onLoadedMetadata}
-          onError={() => setLoadError("This video could not be opened for trimming.")}
+          onError={() => setLoadError(() => say("web.images.trim.unopenable"))}
           playsInline
           preload="metadata"
         />
 
         {loadError ? (
           <div className="vt-loading">
-            <div>{loadError}</div>
+            <div>{loadError(t)}</div>
             <div className="vt-actions">
               <div className="vt-actions-spacer" />
-              <button className="vt-btn" onClick={onCancel}>Close</button>
+              <button className="vt-btn" onClick={onCancel}>{t("common.close")}</button>
             </div>
           </div>
         ) : duration === null ? (
-          <div className="vt-loading">Reading the clip…</div>
+          <div className="vt-loading">{t("web.images.trim.reading")}</div>
         ) : (
           <>
             {/* One track, a handle at each end - the two values are
@@ -176,7 +179,7 @@ export default function VideoTrimmer({ src, value, onApply, onCancel }: Props) {
                 <input
                   type="range"
                   className="vt-dual-input"
-                  aria-label="Start of the cut"
+                  aria-label={t("web.images.trim.start")}
                   min={0}
                   max={duration}
                   step={0.1}
@@ -186,7 +189,7 @@ export default function VideoTrimmer({ src, value, onApply, onCancel }: Props) {
                 <input
                   type="range"
                   className="vt-dual-input"
-                  aria-label="End of the cut"
+                  aria-label={t("web.images.trim.end")}
                   min={0}
                   max={duration}
                   step={0.1}
@@ -198,24 +201,28 @@ export default function VideoTrimmer({ src, value, onApply, onCancel }: Props) {
             </div>
 
             <div className="vt-summary">
-              Keeping <strong>{formatTimecode(cutLength)}</strong> of {formatTimecode(duration)}
+              <Trans
+                k="web.images.trim.keeping"
+                args={{ kept: formatTimecode(cutLength), total: formatTimecode(duration) }}
+                parts={{ b: (s) => <strong>{s}</strong> }}
+              />
             </div>
 
             <div className="vt-actions">
-              <button className="vt-btn" onClick={playCut}>▶ Play cut</button>
+              <button className="vt-btn" onClick={playCut}>▶ {t("web.images.trim.play")}</button>
               <div className="vt-actions-spacer" />
               {value && (
                 <button className="vt-btn" onClick={() => onApply(null)}>
-                  Remove trim
+                  {t("web.images.trim.remove")}
                 </button>
               )}
-              <button className="vt-btn" onClick={onCancel}>Cancel</button>
+              <button className="vt-btn" onClick={onCancel}>{t("common.cancel")}</button>
               <button
                 className="vt-btn vt-btn-primary"
                 disabled={isWholeClip || cutLength < cMinTrimSecs}
                 onClick={() => onApply({ start, end: effectiveEnd })}
               >
-                Apply
+                {t("common.apply")}
               </button>
             </div>
           </>

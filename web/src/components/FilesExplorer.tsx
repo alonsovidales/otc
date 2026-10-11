@@ -18,6 +18,9 @@ import MediaViewer, { type ViewerItem } from "./MediaViewer";
 import { reloadAfterImagesChanged } from "./libraryStore";
 import "./FilesExplorer.css";
 import Spinner from "./Spinner";
+import { Trans, useT, type TFunction } from "../i18n";
+import { asIs, percentText, say, type UiText } from "./uiText";
+import { sizeText } from "./sizeText";
 
 type Props = {
   wsUrl?: string;            // defaults to VITE_WS_URL
@@ -46,38 +49,27 @@ const cThumbBatch = 24;
 // it was (path, list or grid, selection) for the way back.
 const cSearchLimit = 50;
 // An error says what went wrong, and whether trying again may help.
-type Results = { text: string; state: "loading" | "done" | "error"; files: PbFile[]; error?: string; retry?: boolean };
-// What a result is, read out with its name.
-const kindWord = (f: PbFile) => (isDir(f) ? "folder" : isVideo(f) ? "video" : isMedia(f) ? "photo" : "file");
+type Results = { text: string; state: "loading" | "done" | "error"; files: PbFile[]; error?: UiText; retry?: boolean };
+// What a screen reader hears for a result: its name, what it is, the
+// folder it is in - and that it is kept out of Images (issue #192), when
+// it is.
+function resultLabel(t: TFunction, f: PbFile, name: string, folder: string): string {
+  const args = { name, folder };
+  const out = f.outOfImages;
+  if (isDir(f)) return out ? t("web.files.results.folder_kept_out", args) : t("web.shell.search.folder_in", args);
+  if (isVideo(f)) return out ? t("web.files.results.video_kept_out", args) : t("web.shell.search.video_in", args);
+  if (isMedia(f)) return out ? t("web.files.results.photo_kept_out", args) : t("web.shell.search.photo_in", args);
+  return out ? t("web.files.results.file_kept_out", args) : t("web.shell.search.file_in", args);
+}
 
 // Issue #192: a folder kept out of Images - its photos and videos are
 // never tagged or searched for faces and Images leaves them out, while
-// Files still shows them. The same words as the other apps (the iOS and
-// Android OutOfImagesText).
-const noImgHere = "photos and videos here aren't tagged, searched for faces or shown in Images.";
-const NoImg = {
-  show: "Show in Images",
-  state: "Kept out of Images",
-  stateInline: "kept out of Images",
-  // The switch's name, the same pressed or not (aria-pressed says which):
-  // "Keep Backups out of Images, pressed".
-  keepNamed: (name: string) => `Keep ${name} out of Images`,
-  keepTitle: (name: string) => `Keep “${name}” out of Images?`,
-  keepMessage: "Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them.",
-  showTitle: (name: string) => `Show “${name}” in Images?`,
-  showMessage: "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background.",
-  banner: `Kept out of Images - ${noImgHere}`,
-  // In a folder only kept out because a folder above it is: which one,
-  // and the banner's button shows that one (the only Show that works).
-  bannerByParent: (parent: string) => `Inside ${parent}, which is kept out of Images - ${noImgHere}`,
-  showNamed: (name: string) => `Show “${name}” in Images`,
-  byParentTip: (parent: string) => `Inside ${parent}, which is kept out of Images`,
-  tipOn: "Kept out of Images: photos and videos here aren't tagged, searched for faces or shown in Images. Click to show them in Images.",
-  tipOff: "Keep out of Images: photos and videos here won't be tagged, searched for faces or shown in Images",
-  // Read out once a change is done.
-  keptSaid: (name: string) => `${name} kept out of Images`,
-  shownSaid: (name: string) => `${name} shown in Images`,
-};
+// Files still shows them (web.files.keep_out.*, the iOS and Android
+// OutOfImagesText's words). The switch's name stays the same pressed or
+// not (aria-pressed says which): "Keep Backups out of Images, pressed".
+// In a folder only kept out because a folder above it is, the banner
+// names that one, and its button shows that one (the only Show that
+// works).
 
 // A picture (frame, hills, sun) struck through, drawn like the lock: a
 // gap is masked out of the picture along the stroke so it reads at 14px.
@@ -106,13 +98,8 @@ function Marked({ text, span }: { text: string; span?: Span }) {
   return <>{text.slice(0, span[0])}<mark className="fb-mark">{text.slice(span[0], span[1])}</mark>{text.slice(span[1])}</>;
 }
 
-const fmtBytes = (n?: number) =>
-  typeof n === "number"
-    ? (n >= 1<<30 ? (n/(1<<30)).toFixed(1)+" GB"
-      : n >= 1<<20 ? (n/(1<<20)).toFixed(1)+" MB"
-      : n >= 1<<10 ? (n/(1<<10)).toFixed(1)+" KB"
-      : `${n} B`)
-    : "—";
+// A size with one digit after the point (bytes whole), or a dash.
+const fmtBytes = (t: TFunction, n?: number) => (typeof n === "number" ? sizeText(t, n, [1, 1, 1]) : "—");
 
 /*function tsToDate(ts: any): Date | undefined {
   if (!ts) return;
@@ -236,6 +223,7 @@ function leafName(full: string) {
 export default function FilesExplorer({
   initialPath = "/"
 }: Props) {
+  const t = useT();
   // Issue #53 follow-up: a reload restores the Files tab itself now, but
   // used to still always drop back to initialPath ("/") rather than
   // wherever the user had actually navigated to.
@@ -246,7 +234,7 @@ export default function FilesExplorer({
   // waits for its own folder's listing.
   const [listed, setListed] = useState<{ path: string } | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UiText | null>(null);
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [dragOver, setDragOver] = useState(false);
 
@@ -270,7 +258,7 @@ export default function FilesExplorer({
   const [noImgBusy, setNoImgBusy] = useState<string | null>(null);
   const noImgBusyRef = useRef<string | null>(null);
   // What a screen reader hears once a change is done.
-  const [noImgSaid, setNoImgSaid] = useState("");
+  const [noImgSaid, setNoImgSaid] = useState<UiText | null>(null);
   // Where the focus goes back to once the folder is listed again after a
   // change: that folder's switch, or the banner's button - or the
   // folder's contents when it is gone. The tick runs the effect below.
@@ -375,15 +363,18 @@ export default function FilesExplorer({
           }, () => coverIs(null));
         }
       } else if (resp.error) {
-        setError(resp.errorMessage || "Failed to list path");
+        const message = resp.errorMessage;
+        setError(() => (message ? asIs(message) : say("web.files.list.list_failed")));
         setListed({ path: p });
       } else {
-        setError("Unexpected response");
+        setError(() => say("web.files.list.unexpected"));
         setListed({ path: p });
       }
     } catch (e: any) {
       if (seq !== listSeq.current) return;
-      setError(e?.message ?? String(e));
+      // An empty message shows nothing, as it always did.
+      const message: string = e?.message ?? String(e);
+      setError(message ? () => asIs(message) : null);
       setListed({ path: p });
     } finally {
       if (seq === listSeq.current) {
@@ -569,14 +560,14 @@ export default function FilesExplorer({
 
   const delSelected = async () => {
     if (!selected.length || selectedUploadOnly) return;
-    if (!window.confirm(`Delete ${selected.length} item${selected.length > 1 ? "s" : ""}? This cannot be undone.`)) return;
+    if (!window.confirm(t("web.files.selection.confirm_delete", { count: selected.length }))) return;
     for (const f of selected) {
       const full = f.path.includes("/") ? f.path : joinPath(path, f.path);
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqDelFile", reqDelFile: { path: full } };
       });
       if (resp.error && resp.errorCode === "upload_only") {
-        alert(`${leafName(full)} is in an upload-only folder and cannot be deleted.`);
+        alert(t("web.files.list.upload_only_refused", { name: leafName(full) }));
         break;
       }
     }
@@ -593,7 +584,7 @@ export default function FilesExplorer({
     // Issue #186: a folder inside another upload-only one can't be
     // unlocked on its own; the device says which folder to unlock, as the
     // apps show it. Silently reloading left the lock on with no word.
-    if (resp.error) alert(resp.errorMessage || "Could not update the folder.");
+    if (resp.error) alert(resp.errorMessage || t("web.files.list.update_failed"));
     await loadList(path);
   };
 
@@ -612,26 +603,26 @@ export default function FilesExplorer({
   const toggleOutOfImages = async (full: string, out: boolean, from: "row" | "banner") => {
     if (noImgBusyRef.current) return;
     const name = leafName(full.replace(/\/+$/, ""));
-    const ask = out ? `${NoImg.showTitle(name)}\n\n${NoImg.showMessage}` : `${NoImg.keepTitle(name)}\n\n${NoImg.keepMessage}`;
+    const ask = out ? t("web.files.keep_out.confirm_show", { name }) : t("web.files.keep_out.confirm_keep", { name });
     if (!window.confirm(ask)) return;
     const listedAt = pathRef.current;
     const opener = document.activeElement;
     noImgBusyRef.current = full;
     setNoImgBusy(full);
-    setNoImgSaid("");
+    setNoImgSaid(null);
     try {
       try {
         const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
           e.payload = { $case: "reqSetOutOfImages", reqSetOutOfImages: { path: full, outOfImages: !out } };
         });
         const ack = resp.payload?.$case === "respAck" ? resp.payload.respAck : null;
-        if (resp.error || !ack?.ok) alert(resp.errorMessage || ack?.errorMsg || "Could not update the folder.");
+        if (resp.error || !ack?.ok) alert(resp.errorMessage || ack?.errorMsg || t("web.files.list.update_failed"));
         else {
           reloadAfterImagesChanged();
-          setNoImgSaid(out ? NoImg.shownSaid(name) : NoImg.keptSaid(name));
+          setNoImgSaid(() => (tt: TFunction) => (out ? tt("web.files.keep_out.shown", { name }) : tt("web.files.keep_out.kept", { name })));
         }
       } catch {
-        alert("Could not update the folder.");
+        alert(t("web.files.list.update_failed"));
       }
       // Unless it moved on meanwhile (another folder, a field), the focus
       // goes back once the rows are there again: the listing replaces them.
@@ -718,7 +709,7 @@ export default function FilesExplorer({
         const link = resp.payload.respShareLink.link;
         if (openZip) window.open(link, "_blank");
         else {
-          try { await navigator.clipboard.writeText(link); alert("Share link copied to clipboard"); }
+          try { await navigator.clipboard.writeText(link); alert(t("web.files.selection.link_copied")); }
           catch { window.open(link, "_blank"); }
         }
       }
@@ -895,7 +886,7 @@ export default function FilesExplorer({
     afterResults.current = null;
     focusResults.current = true;
     setResults({ text, state: "loading", files: [] });
-    const fail = (error: string, retry = true) => {
+    const fail = (error: UiText, retry = true) => {
       if (seq === searchSeq.current) setResults({ text, state: "error", files: [], error, retry });
     };
     useWS.request((e: Partial<ReqEnvelope>) => {
@@ -907,11 +898,11 @@ export default function FilesExplorer({
       if (resp.payload?.$case === "respListOfFiles") {
         setResults({ text, state: "done", files: resp.payload.respListOfFiles.files ?? [] });
       } else if (resp.errorCode === "unknown_payload") {
-        fail("This device can't search its files yet. Update it in Settings.", false);
+        fail(say("web.files.results.cant_search"), false);
       } else {
-        fail(resp.errorMessage || "The device didn't answer the search.");
+        fail(resp.errorMessage ? asIs(resp.errorMessage) : say("web.files.results.no_answer"));
       }
-    }, () => fail("The search didn't reach the device. Check the connection and try again."));
+    }, () => fail(say("web.files.results.unreachable")));
   }, []);
 
   // Back to the folder. `y`: where to scroll to - where it was, unless
@@ -1062,14 +1053,19 @@ export default function FilesExplorer({
       k, file: f, isDir: isDir(f), media: !isDir(f) && isMedia(f), size: fileSize(f), ...foundParts(f.path, q),
     }));
   }, [results]);
-  // The folder the results go back to.
-  const folderLabel = path === "/" ? "Files" : leafName(path.endsWith("/") ? path.slice(0, -1) : path);
+  // The way back to the folder the results cover: Files' top, or a folder.
+  const backLabel = path === "/"
+    ? t("web.files.results.back_files")
+    : t("web.files.results.back", { folder: leafName(path.endsWith("/") ? path.slice(0, -1) : path) });
+  // How many were found, above the list and for screen readers.
+  const foundCount = found.length === cSearchLimit
+    ? t("web.files.results.first", { limit: cSearchLimit })
+    : t("web.files.results.count", { count: found.length });
   const resultsStatus = !results ? ""
-    : results.state === "loading" ? `Searching for ${results.text}`
-    : results.state === "error" ? results.error ?? ""
-    : found.length === 0 ? `No files match ${results.text}`
-    : found.length === cSearchLimit ? `Showing the first ${cSearchLimit} results`
-    : `${found.length} ${found.length === 1 ? "result" : "results"}`;
+    : results.state === "loading" ? t("web.files.results.searching_for", { text: results.text })
+    : results.state === "error" ? results.error?.(t) ?? ""
+    : found.length === 0 ? t("web.files.results.none_for", { text: results.text })
+    : foundCount;
 
   // Issue #192: the folder's switch for Images, beside its lock. Its name
   // stays the same and aria-pressed says whether the folder is kept out
@@ -1083,7 +1079,7 @@ export default function FilesExplorer({
   const noImgButton = (r: { name: string; file: PbFile; outOfImages: boolean }, tile = false) => {
     const tileClass = tile ? " fb-tile-noimg" : "";
     if (noImg.folderOut) {
-      const tip = NoImg.byParentTip(noImgCover);
+      const tip = t("web.files.keep_out.parent_tip", { folder: noImgCover });
       return (
         <span className={`fb-noimg${tileClass} on static`} data-tip={tip} role="img" aria-label={tip}>
           <NoImgIcon />
@@ -1096,9 +1092,9 @@ export default function FilesExplorer({
         type="button"
         className={`fb-noimg${tileClass}${r.outOfImages ? " on" : ""}`}
         onClick={() => void toggleOutOfImages(full, r.outOfImages, "row")}
-        data-tip={r.outOfImages ? NoImg.tipOn : NoImg.tipOff}
+        data-tip={r.outOfImages ? t("web.files.keep_out.tip_on") : t("web.files.keep_out.tip_off")}
         data-noimg={full}
-        aria-label={NoImg.keepNamed(r.name)}
+        aria-label={t("web.files.keep_out.switch", { name: r.name })}
         aria-pressed={r.outOfImages}
         aria-disabled={noImgBusy !== null || undefined}
       >
@@ -1136,7 +1132,7 @@ export default function FilesExplorer({
       <div hidden={inResults}>
       <div className="fb-toolbar">
         <div className="fb-path">
-          <span className="fb-label">Path:</span>
+          <span className="fb-label">{t("web.files.toolbar.path")}</span>
           <input
             ref={pathInputRef}
             defaultValue={path}
@@ -1151,22 +1147,22 @@ export default function FilesExplorer({
             className={`fb-refresh${loading ? " spinning" : ""}`}
             onClick={() => void loadList(path)}
             disabled={loading}
-            aria-label="Refresh"
-            title="Refresh"
+            aria-label={t("common.refresh")}
+            title={t("common.refresh")}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
               <path d="M20 4v5h-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
-          <div className="fb-viewmode" role="group" aria-label="View">
-            <button className={viewMode === "list" ? "on" : ""} aria-pressed={viewMode === "list"} title="List" onClick={() => switchView("list")}>
+          <div className="fb-viewmode" role="group" aria-label={t("web.files.toolbar.view")}>
+            <button className={viewMode === "list" ? "on" : ""} aria-pressed={viewMode === "list"} title={t("web.files.toolbar.list")} onClick={() => switchView("list")}>
               <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8 6h13M8 12h13M8 18h13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 <circle cx="4" cy="6" r="1.5" fill="currentColor" /><circle cx="4" cy="12" r="1.5" fill="currentColor" /><circle cx="4" cy="18" r="1.5" fill="currentColor" />
               </svg>
             </button>
-            <button className={viewMode === "grid" ? "on" : ""} aria-pressed={viewMode === "grid"} title="Grid" onClick={() => switchView("grid")}>
+            <button className={viewMode === "grid" ? "on" : ""} aria-pressed={viewMode === "grid"} title={t("web.files.toolbar.grid")} onClick={() => switchView("grid")}>
               <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
                 <rect x="3" y="3" width="7.5" height="7.5" rx="1.5" fill="currentColor" /><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" fill="currentColor" />
                 <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" fill="currentColor" /><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" fill="currentColor" />
@@ -1177,29 +1173,29 @@ export default function FilesExplorer({
       {selected.length > 0 && (
         <div className="fb-actions">
           <div className="fb-actions-inner">
-            <div><strong>{selected.length}</strong> selected</div>
+            <div><Trans k="web.files.selection.selected" args={{ count: selected.length }} parts={{ b: (s) => <strong>{s}</strong> }} /></div>
             <div className="grow" />
             <button className="btn danger" onClick={() => void delSelected()} disabled={selectedUploadOnly}
-              title={selectedUploadOnly ? "The selection includes an upload-only folder's contents, which cannot be deleted" : undefined}>Delete</button>
+              title={selectedUploadOnly ? t("web.files.selection.upload_only") : undefined}>{t("common.delete")}</button>
             <button className="btn" onClick={() => void shareOrZip(false)} disabled={!!preparing}>
-              {preparing === "share" ? <Spinner label="Preparing…" /> : "Share"}
+              {preparing === "share" ? <Spinner label={t("web.files.selection.preparing")} /> : t("common.share")}
             </button>
             <button className="btn" onClick={() => void shareOrZip(true)} disabled={!!preparing}>
-              {preparing === "zip" ? <Spinner label="Preparing ZIP…" /> : "Download ZIP"}
+              {preparing === "zip" ? <Spinner label={t("web.files.selection.preparing_zip")} /> : t("web.files.selection.download_zip")}
             </button>
             {singleFolder && (
-              <button className="btn" onClick={() => setSharingFolder(singleFolder)} title="Share this folder's photos and videos as a gallery">
-                Share as gallery
+              <button className="btn" onClick={() => setSharingFolder(singleFolder)} title={t("web.files.selection.share_gallery_tip")}>
+                {t("web.files.selection.share_gallery")}
               </button>
             )}
           </div>
         </div>
       )}
 
-        <div className="fb-total">Total files: <strong>{rows.length}</strong></div>
+        <div className="fb-total"><Trans k="web.files.list.total" args={{ count: rows.length }} parts={{ b: (s) => <strong>{s}</strong> }} /></div>
       </div>
 
-      {error && <div className="fb-error">{error}</div>}
+      {error && <div className="fb-error">{error(t)}</div>}
       {/* Issue #192: in a folder kept out of Images (or inside one), what
           that means for its photos, and the way back. Its files carry no
           marker of their own: this says it for all of them. */}
@@ -1207,18 +1203,20 @@ export default function FilesExplorer({
         <div className="fb-noimg-banner" role="note">
           <span className="fb-noimg-banner-note">
             <span className="fb-noimg-banner-icon"><NoImgIcon size={16} /></span>
-            <span>{noImgShowByParent ? NoImg.bannerByParent(noImgShowPath) : NoImg.banner}</span>
+            <span>{noImgShowByParent
+              ? t("web.files.keep_out.banner_parent", { folder: noImgShowPath })
+              : t("web.files.keep_out.banner")}</span>
           </span>
           {noImgShow !== null && (
             <button type="button" className="fb-noimg-banner-show" onClick={() => void toggleOutOfImages(noImgShowPath, true, "banner")}
               aria-disabled={noImgBusy !== null || undefined}>
-              {noImgShowByParent ? NoImg.showNamed(leafName(noImgShowPath)) : NoImg.show}
+              {noImgShowByParent ? t("web.files.keep_out.show_named", { name: leafName(noImgShowPath) }) : t("web.files.keep_out.show")}
             </button>
           )}
         </div>
       )}
       {/* Issue #192: a change for Images, once done. */}
-      <span className="fb-sr" role="status" aria-live="polite">{noImgSaid}</span>
+      <span className="fb-sr" role="status" aria-live="polite">{noImgSaid?.(t)}</span>
       </div>
 
       {results && (
@@ -1228,39 +1226,38 @@ export default function FilesExplorer({
               <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M19 12H5m6-6-6 6 6 6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <span className="fb-results-back-label">Back to {folderLabel}</span>
+              <span className="fb-results-back-label">{backLabel}</span>
             </button>
             <h2 ref={resultsHeadRef} id={`${uid}rt`} className="fb-results-title" tabIndex={-1}>
-              Files matching “{results.text}”
+              {t("web.files.results.title", { text: results.text })}
             </h2>
             {/* Its line kept while searching, so the list doesn't move.
                 Read out by the live region below, not twice. */}
             <p className="fb-results-count" aria-hidden="true">
-              {results.state === "done" && found.length > 0 &&
-                (found.length === cSearchLimit ? `Showing the first ${cSearchLimit} results` : `${found.length} ${found.length === 1 ? "result" : "results"}`)}
+              {results.state === "done" && found.length > 0 && foundCount}
             </p>
           </div>
           <span className="fb-sr" aria-live="polite">{resultsStatus}</span>
           <div className="fb-table fb-results-table" aria-busy={results.state === "loading"}>
             <div className="fb-head" aria-hidden="true">
-              <div className="c c-name">Name</div>
-              <div className="c c-size">Size</div>
-              <div className="c c-modified">Modified</div>
+              <div className="c c-name">{t("web.files.column.name")}</div>
+              <div className="c c-size">{t("web.files.column.size")}</div>
+              <div className="c c-modified">{t("web.files.column.modified")}</div>
             </div>
             {results.state === "loading" && (
-              <div className="fb-results-note" aria-hidden="true"><Spinner /><span>Searching…</span></div>
+              <div className="fb-results-note" aria-hidden="true"><Spinner /><span>{t("web.files.results.searching")}</span></div>
             )}
             {results.state === "error" && (
               <div className="fb-results-note is-error">
-                <span aria-hidden="true">{results.error}</span>
-                {results.retry && <button type="button" className="btn" onClick={() => startSearch(results.text)}>Try again</button>}
+                <span aria-hidden="true">{results.error?.(t)}</span>
+                {results.retry && <button type="button" className="btn" onClick={() => startSearch(results.text)}>{t("common.try_again")}</button>}
               </div>
             )}
             {results.state === "done" && found.length === 0 && (
-              <div className="fb-results-note" aria-hidden="true">No files match “{results.text}”.</div>
+              <div className="fb-results-note" aria-hidden="true">{t("web.files.results.nothing", { text: results.text })}</div>
             )}
             {found.length > 0 && (
-              <ul className="fb-body fb-results-list" aria-label={`Files matching ${results.text}`}>
+              <ul className="fb-body fb-results-list" aria-label={t("web.files.results.list", { text: results.text })}>
                 {found.map(r => {
                   const thumb = r.media ? thumbs[r.file.path] : undefined;
                   const meta = r.isDir ? undefined : `${uid}m${r.k}`;
@@ -1283,26 +1280,26 @@ export default function FilesExplorer({
                           className="fb-res-open"
                           onClick={() => openFound(r.file)}
                           disabled={openingPath !== null}
-                          aria-label={`${r.name}, ${kindWord(r.file)} in ${r.dir}${r.file.outOfImages ? `, ${NoImg.stateInline}` : ""}`}
+                          aria-label={resultLabel(t, r.file, r.name, r.dir)}
                           aria-describedby={[meta, metaDate].filter(Boolean).join(" ") || undefined}
                         >
                           <span className="fb-res-nameline">
                             <span className="fb-res-name">
-                              {openingPath === r.file.path ? <span className="fb-opening">Opening…</span> : <Marked text={r.name} span={r.nameSpan} />}
+                              {openingPath === r.file.path ? <span className="fb-opening">{t("web.files.list.opening")}</span> : <Marked text={r.name} span={r.nameSpan} />}
                             </span>
                             {/* Issue #192: a folder kept out of Images, or
                                 anything inside one. Only a marker here: the
                                 switch is on the folder's row in its own
                                 listing. Read out with the row's name above. */}
                             {r.file.outOfImages && (
-                              <span className="fb-res-noimg" data-tip={NoImg.state}><NoImgIcon /></span>
+                              <span className="fb-res-noimg" data-tip={t("web.files.keep_out.state")}><NoImgIcon /></span>
                             )}
                           </span>
                           {/* Long folders lose their start, not the end nearest the file. */}
                           <span className="fb-res-dir"><bdi dir="ltr"><Marked text={r.dir} span={r.dirSpan} /></bdi></span>
                         </button>
                       </div>
-                      <div className="c c-size" id={meta}>{r.isDir ? "—" : fmtBytes(r.size)}</div>
+                      <div className="c c-size" id={meta}>{r.isDir ? "—" : fmtBytes(t, r.size)}</div>
                       <div className="c c-modified" id={metaDate}>{r.file.modified ? r.file.modified.toLocaleString() : "—"}</div>
                     </li>
                   );
@@ -1320,12 +1317,12 @@ export default function FilesExplorer({
           <div className="fb-uploads-head">
             <span className="fb-uploads-title">
               {uploadsActive
-                ? `Uploading ${uploadsDone}/${uploads.length}…`
+                ? t("web.files.upload.progress", { done: uploadsDone, total: uploads.length })
                 : uploadsFailed
-                  ? `Uploads finished (${uploadsDone} ok, ${uploadsFailed} failed)`
-                  : `Uploaded ${uploadsDone} file${uploadsDone === 1 ? "" : "s"}`}
+                  ? t("web.files.upload.finished_failed", { done: uploadsDone, failed: uploadsFailed })
+                  : t("web.files.upload.uploaded", { count: uploadsDone })}
             </span>
-            <span className="fb-uploads-pct">{uploadsPct}%</span>
+            <span className="fb-uploads-pct">{percentText(t, uploadsPct)}</span>
           </div>
           <div className="fb-uploads-bar">
             <div className="fb-uploads-fill" style={{ width: `${uploadsPct}%` }} />
@@ -1334,12 +1331,13 @@ export default function FilesExplorer({
             {uploads.map((u, i) => (
               <li key={i} className={`fb-uploads-item ${u.status}`}>
                 <span className="fb-uploads-name">{u.name}</span>
-                <span className="fb-uploads-size">{fmtBytes(u.size)}</span>
+                <span className="fb-uploads-size">{fmtBytes(t, u.size)}</span>
+                {/* "Uploading…" follows whatever the status is, as it always has. */}
                 <span className="fb-uploads-status">
-                  {u.status === "reading" && "Reading…"}
-                  {u.status === "sending" && <span className="fb-spinner" />} Uploading…
-                  {u.status === "done" && "✓ Done"}
-                  {u.status === "failed" && "✕ Failed"}
+                  {u.status === "reading" && t("web.files.upload.reading")}
+                  {u.status === "sending" && <span className="fb-spinner" />} {t("web.files.upload.uploading")}
+                  {u.status === "done" && t("web.files.upload.done")}
+                  {u.status === "failed" && t("web.files.upload.failed")}
                 </span>
               </li>
             ))}
@@ -1347,11 +1345,11 @@ export default function FilesExplorer({
         </div>
       )}
 
-      <div ref={folderViewRef} className="fb-contents" hidden={inResults} tabIndex={-1} role="region" aria-label={`Contents of ${path}`}>
+      <div ref={folderViewRef} className="fb-contents" hidden={inResults} tabIndex={-1} role="region" aria-label={t("web.files.list.contents", { folder: path })}>
       {viewMode === "grid" ? (
         <div className="fb-grid" ref={gridRef}>
-          {loading && <div className="fb-grid-note">Loading…</div>}
-          {!loading && rows.length === 0 && <div className="fb-grid-note">This folder is empty.</div>}
+          {loading && <div className="fb-grid-note">{t("common.loading")}</div>}
+          {!loading && rows.length === 0 && <div className="fb-grid-note">{t("web.files.list.empty")}</div>}
           {!loading && rows.map(r => {
             const full = r.name === ".." ? "" : fullPathOf(r.file);
             const thumb = !r.isDir ? thumbs[full] : undefined;
@@ -1365,24 +1363,24 @@ export default function FilesExplorer({
                       ? <img src={thumb} alt="" loading="lazy" />
                       : <FileTypeIcon name={r.name} size={72} />}
                   {!r.isDir && thumb && isVideo(r.file) && (
-                    <span className="fb-play" aria-label="Video"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M8 5v14l11-7z" fill="#fff" /></svg></span>
+                    <span className="fb-play" aria-label={t("web.files.list.video")}><svg viewBox="0 0 24 24" width="12" height="12"><path d="M8 5v14l11-7z" fill="#fff" /></svg></span>
                   )}
-                  {openingPath === r.file.path && <span className="fb-tile-opening">Opening…</span>}
+                  {openingPath === r.file.path && <span className="fb-tile-opening">{t("web.files.list.opening")}</span>}
                 </button>
                 {r.name !== ".." && (
-                  <input className="fb-tile-check" type="checkbox" checked={!!sel[r.k]} onChange={() => toggleOne(r.file)} aria-label={`Select ${r.name}`} />
+                  <input className="fb-tile-check" type="checkbox" checked={!!sel[r.k]} onChange={() => toggleOne(r.file)} aria-label={t("web.files.list.select_item", { name: r.name })} />
                 )}
                 {/* Issue #192: left of the lock, which keeps its corner. */}
                 {r.name !== ".." && r.isDir && noImgShown && noImgButton(r, true)}
                 {r.name !== ".." && r.isDir && (
                   <button className={`fb-lock fb-tile-lock${r.uploadOnly ? " on" : ""}`} onClick={() => void toggleUploadOnly(r.file)}
-                    data-tip={r.uploadOnly ? "Upload only. Click to clear." : "Make upload only"}
-                    aria-label={r.uploadOnly ? "Clear upload only" : "Make upload only"} aria-pressed={r.uploadOnly}>
+                    data-tip={r.uploadOnly ? t("web.files.lock.on_tip_short") : t("web.files.lock.make")}
+                    aria-label={r.uploadOnly ? t("web.files.lock.clear") : t("web.files.lock.make")} aria-pressed={r.uploadOnly}>
                     {lockIcon(r.uploadOnly)}
                   </button>
                 )}
                 {!r.isDir && r.versions > 0 && (
-                  <button className="fb-tile-versions" onClick={() => void openVersions(r.file)} title="Older versions of this file">{r.versions}</button>
+                  <button className="fb-tile-versions" onClick={() => void openVersions(r.file)} title={t("web.files.versions.tip")}>{r.versions}</button>
                 )}
                 <div className="fb-tile-name" title={r.name}>{r.name}</div>
               </div>
@@ -1393,14 +1391,14 @@ export default function FilesExplorer({
       <div className="fb-table">
         <div className="fb-head">
           <div className="c c-check"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></div>
-          <div className="c c-name">Name</div>
-          <div className="c c-size">Size</div>
-          <div className="c c-created">Created</div>
-          <div className="c c-modified">Modified</div>
+          <div className="c c-name">{t("web.files.column.name")}</div>
+          <div className="c c-size">{t("web.files.column.size")}</div>
+          <div className="c c-created">{t("web.files.column.created")}</div>
+          <div className="c c-modified">{t("web.files.column.modified")}</div>
         </div>
 
         <div className="fb-body">
-          {loading && <div className="fb-row">Loading…</div>}
+          {loading && <div className="fb-row">{t("common.loading")}</div>}
           {!loading && rows.map(r => (
             <div className="fb-row" key={r.k}>
               <div className="c c-check">
@@ -1417,7 +1415,7 @@ export default function FilesExplorer({
                       while its GetFile round trip is in flight - the only
                       feedback a click used to get was however long that
                       took, which just looked stuck. */}
-                  {openingPath === r.file.path ? <span className="fb-opening">Opening…</span> : r.name}
+                  {openingPath === r.file.path ? <span className="fb-opening">{t("web.files.list.opening")}</span> : r.name}
                 </button>
                 {/* Issue #132: the lock on a folder flags it upload only;
                     on a file it just says the file is inside one. */}
@@ -1425,8 +1423,8 @@ export default function FilesExplorer({
                   <button
                     className={`fb-lock${r.uploadOnly ? " on" : ""}`}
                     onClick={() => void toggleUploadOnly(r.file)}
-                    data-tip={r.uploadOnly ? "Upload only: nothing in this folder can be deleted, and re-uploads keep the old version. Click to clear." : "Make upload only: nothing in this folder can be deleted, and re-uploads keep the old version"}
-                    aria-label={r.uploadOnly ? "Clear upload only" : "Make upload only"}
+                    data-tip={r.uploadOnly ? t("web.files.lock.on_tip") : t("web.files.lock.off_tip")}
+                    aria-label={r.uploadOnly ? t("web.files.lock.clear") : t("web.files.lock.make")}
                     aria-pressed={r.uploadOnly}
                   >
                     {lockIcon(r.uploadOnly)}
@@ -1434,20 +1432,20 @@ export default function FilesExplorer({
                 )}
                 {r.name !== ".." && r.isDir && noImgShown && noImgButton(r)}
                 {!r.isDir && r.uploadOnly && (
-                  <span className="fb-lock on static" data-tip="In an upload-only folder: cannot be deleted" role="img" aria-label="In an upload-only folder: cannot be deleted">{lockIcon(true)}</span>
+                  <span className="fb-lock on static" data-tip={t("web.files.lock.file")} role="img" aria-label={t("web.files.lock.file")}>{lockIcon(true)}</span>
                 )}
                 {!r.isDir && r.versions > 0 && (
-                  <button className="fb-versions" onClick={() => void openVersions(r.file)} title="Older versions of this file">
+                  <button className="fb-versions" onClick={() => void openVersions(r.file)} title={t("web.files.versions.tip")}>
                     <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M4 12a8 8 0 1 0 2.34-5.66" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
                       <path d="M4 4v5h5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                       <path d="M12 8v4l3 2" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
                     </svg>
-                    {r.versions} {r.versions === 1 ? "version" : "versions"}
+                    {t("web.files.versions.count", { count: r.versions })}
                   </button>
                 )}
               </div>
-              <div className="c c-size">{r.isDir ? "—" : fmtBytes(r.size)}</div>
+              <div className="c c-size">{r.isDir ? "—" : fmtBytes(t, r.size)}</div>
               <div className="c c-created">{r.created ? r.created.toLocaleString() : "—"}</div>
               <div className="c c-modified">{r.modified ? r.modified.toLocaleString() : "—"}</div>
             </div>
@@ -1457,7 +1455,7 @@ export default function FilesExplorer({
 
       )}
 
-      <div className="fb-tip">Tip: Drag files here to upload to <code>{path}</code>.</div>
+      <div className="fb-tip"><Trans k="web.files.list.tip" args={{ folder: path }} parts={{ code: (s) => <code>{s}</code> }} /></div>
       </div>
 
       {mediaViewer && (
@@ -1474,22 +1472,22 @@ export default function FilesExplorer({
       {versionsOf && (
         <div className="fb-modal" onClick={() => setVersionsOf(null)}>
           <div className="fb-modal-body fb-versions-body" onClick={(e) => e.stopPropagation()}>
-            <button className="fb-close" onClick={() => setVersionsOf(null)} aria-label="Close">✕</button>
-            <h3 className="fb-versions-title">Versions of {versionsOf.name}</h3>
-            <p className="fb-versions-hint">The file is in an upload-only folder, so each upload to this path kept the one before it.</p>
-            {versionsLoading && <div className="fb-row">Loading…</div>}
+            <button className="fb-close" onClick={() => setVersionsOf(null)} aria-label={t("common.close")}>✕</button>
+            <h3 className="fb-versions-title">{t("web.files.versions.title", { name: versionsOf.name })}</h3>
+            <p className="fb-versions-hint">{t("web.files.versions.hint")}</p>
+            {versionsLoading && <div className="fb-row">{t("common.loading")}</div>}
             {!versionsLoading && (
               <ul className="fb-versions-list">
                 <li className="fb-versions-item current">
-                  <span className="fb-versions-when">Current</span>
+                  <span className="fb-versions-when">{t("web.files.versions.current")}</span>
                   <span className="fb-versions-size" />
-                  <button className="btn" onClick={() => void downloadVersion(versionsOf.path, "", versionsOf.name, versionsOf.mime)}>Download</button>
+                  <button className="btn" onClick={() => void downloadVersion(versionsOf.path, "", versionsOf.name, versionsOf.mime)}>{t("common.download")}</button>
                 </li>
                 {versionsOf.versions.map((v) => (
                   <li key={v.hash} className="fb-versions-item">
-                    <span className="fb-versions-when">Replaced {v.modified ? v.modified.toLocaleString() : "—"}</span>
-                    <span className="fb-versions-size">{fmtBytes(fileSize(v))}</span>
-                    <button className="btn" onClick={() => void downloadVersion(versionsOf.path, v.hash, versionsOf.name, v.mime)}>Download</button>
+                    <span className="fb-versions-when">{t("web.files.versions.replaced", { date: v.modified ? v.modified.toLocaleString() : "—" })}</span>
+                    <span className="fb-versions-size">{fmtBytes(t, fileSize(v))}</span>
+                    <button className="btn" onClick={() => void downloadVersion(versionsOf.path, v.hash, versionsOf.name, v.mime)}>{t("common.download")}</button>
                   </li>
                 ))}
               </ul>

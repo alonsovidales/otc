@@ -8,15 +8,27 @@
 import { useCallback, useEffect, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope, User as PbUser } from "../proto/messages";
+import { Trans, useT, type TFunction } from "../i18n";
+import { asIs, plainNumber, say, unitText, type UiText } from "./uiText";
 import "./SettingsForm.css";
 import "./UsersPanel.css";
 
 type Metrics = { storageMb: number; storagePct: number; activeConnections: number };
 
+// Numbers as toFixed wrote them, in the language's own format. Rounded by
+// toFixed first: Intl rounds the shortest decimal form (1.15 -> "1.2")
+// where toFixed rounds the exact value ("1.1"), so Intl only lays out
+// digits that are already final. "12.5%" is a percent unit: the number
+// isn't multiplied by 100 on the way.
+const mbText = (t: TFunction, mb: number) => unitText(t, Number(mb.toFixed(0)), "megabyte", 0);
+const pctText = (t: TFunction, pct: number) =>
+  plainNumber(t, Number(pct.toFixed(1)), { style: "unit", unit: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false });
+
 export default function UsersPanel() {
+  const t = useT();
   const [isPrimary, setIsPrimary] = useState<boolean | null>(null);
   const [users, setUsers] = useState<PbUser[] | null>(null);
-  const [status, setStatus] = useState<{ kind: "error" | "success"; text: string } | null>(null);
+  const [status, setStatus] = useState<{ kind: "error" | "success"; text: UiText } | null>(null);
 
   const [newUsername, setNewUsername] = useState("");
   const [newPort, setNewPort] = useState("");
@@ -94,12 +106,13 @@ export default function UsersPanel() {
         setUsers(resp.payload.respUsers.users);
         setNewUsername("");
         setNewPort("");
-        setStatus({ kind: "success", text: `User "${newUsername.trim()}" created.` });
+        const name = newUsername.trim();
+        setStatus({ kind: "success", text: (tr) => tr("web.settings.users.created", { name }) });
       } else {
-        setStatus({ kind: "error", text: resp.errorMessage || "Could not create user." });
+        setStatus({ kind: "error", text: resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.users.create_failed") });
       }
     } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message ?? String(err) });
+      setStatus({ kind: "error", text: asIs(err?.message ?? String(err)) });
     } finally {
       setCreating(false);
     }
@@ -116,15 +129,16 @@ export default function UsersPanel() {
         };
       });
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
-        setStatus({ kind: "success", text: `User "${deleteTarget.username}" deleted.` });
+        const name = deleteTarget.username;
+        setStatus({ kind: "success", text: (tr) => tr("web.settings.users.deleted", { name }) });
         setDeleteTarget(null);
         setDeleteConfirmText("");
         await loadUsers();
       } else {
-        setStatus({ kind: "error", text: resp.errorMessage || "Could not delete user." });
+        setStatus({ kind: "error", text: resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.users.delete_failed") });
       }
     } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message ?? String(err) });
+      setStatus({ kind: "error", text: asIs(err?.message ?? String(err)) });
     } finally {
       setDeleting(false);
     }
@@ -142,10 +156,10 @@ export default function UsersPanel() {
       if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) {
         await loadUsers();
       } else {
-        setStatus({ kind: "error", text: resp.errorMessage || "Could not update this user." });
+        setStatus({ kind: "error", text: resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.users.update_failed") });
       }
     } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message ?? String(err) });
+      setStatus({ kind: "error", text: asIs(err?.message ?? String(err)) });
     } finally {
       setBusyActive(null);
     }
@@ -155,16 +169,13 @@ export default function UsersPanel() {
 
   return (
     <section className="sf-section">
-      <h3>Users</h3>
-      <p className="sf-hint">
-        Each user runs as its own fully separate instance — own port, own database, own storage —
-        managed only from here.
-      </p>
+      <h3>{t("web.settings.users.title")}</h3>
+      <p className="sf-hint">{t("web.settings.users.hint")}</p>
 
-      {status && <div className={`sf-status ${status.kind}`}>{status.text}</div>}
+      {status && <div className={`sf-status ${status.kind}`}>{status.text(t)}</div>}
 
       {users == null ? (
-        <div className="sf-hint">Loading…</div>
+        <div className="sf-hint">{t("common.loading")}</div>
       ) : (
         <ul className="up-list">
           {users.map(u => {
@@ -174,19 +185,25 @@ export default function UsersPanel() {
                 <div className="up-item-main">
                   <div className="up-item-name">
                     {u.username}
-                    {!u.active && <span className="up-badge up-badge-muted">inactive</span>}
+                    {!u.active && <span className="up-badge up-badge-muted">{t("web.settings.users.inactive")}</span>}
                   </div>
                   <div className="up-item-sub">
-                    port {u.port} · {u.bridgeAccess ? u.subdomain : "local only (no bridge access)"}
+                    {u.bridgeAccess
+                      ? t("web.settings.users.port_address", { port: String(u.port), address: u.subdomain })
+                      : t("web.settings.users.port_local", { port: String(u.port) })}
                   </div>
                 </div>
                 <div className="up-item-metrics">
                   {m ? (
                     <span className="sf-hint" style={{ margin: 0 }}>
-                      {m.storageMb.toFixed(0)} MB ({m.storagePct.toFixed(1)}%) · {m.activeConnections} active
+                      {t("web.settings.users.usage", {
+                        size: mbText(t, m.storageMb),
+                        percent: pctText(t, m.storagePct),
+                        count: m.activeConnections,
+                      })}
                     </span>
                   ) : (
-                    <button className="sf-btn small" onClick={() => void fetchMetrics(u.uuid)}>Load usage</button>
+                    <button className="sf-btn small" onClick={() => void fetchMetrics(u.uuid)}>{t("web.settings.users.load_usage")}</button>
                   )}
                 </div>
                 <div className="up-item-actions">
@@ -195,23 +212,23 @@ export default function UsersPanel() {
                     disabled={busyActive === u.uuid}
                     onClick={() => void toggleActive(u)}
                   >
-                    {busyActive === u.uuid ? "…" : u.active ? "Disable" : "Enable"}
+                    {busyActive === u.uuid ? "…" : u.active ? t("web.settings.users.disable") : t("web.settings.users.enable")}
                   </button>
                   <button className="sf-btn small sf-danger" onClick={() => { setDeleteTarget(u); setDeleteConfirmText(""); }}>
-                    Delete
+                    {t("common.delete")}
                   </button>
                 </div>
               </li>
             );
           })}
-          {users.length === 0 && <li className="sf-hint">No additional users yet.</li>}
+          {users.length === 0 && <li className="sf-hint">{t("web.settings.users.none")}</li>}
         </ul>
       )}
 
       <div className="up-add-row">
         <input
           className="sf-input"
-          placeholder="username"
+          placeholder={t("web.settings.users.username")}
           value={newUsername}
           onChange={(e) => setNewUsername(e.target.value)}
           autoCapitalize="none"
@@ -219,7 +236,7 @@ export default function UsersPanel() {
         />
         <input
           className="sf-input up-port-input"
-          placeholder="port (optional)"
+          placeholder={t("web.settings.users.port")}
           inputMode="numeric"
           value={newPort}
           onChange={(e) => setNewPort(e.target.value.replace(/\D/g, ""))}
@@ -229,7 +246,7 @@ export default function UsersPanel() {
           disabled={creating || !/^[a-z0-9-]+$/.test(newUsername.trim())}
           onClick={() => void createUser()}
         >
-          {creating ? "Creating…" : "Add User"}
+          {creating ? t("web.settings.users.creating") : t("web.settings.users.add")}
         </button>
       </div>
 
@@ -241,13 +258,12 @@ export default function UsersPanel() {
           onChange={(e) => setRequestBridgeAccess(e.target.checked)}
         />
         <span>
-          Request bridge access
+          {t("web.settings.users.request_bridge")}
           <span className="sf-hint">
             {newUsername.trim() && bridgeDomain
-              ? `Reachable from anywhere at ${newUsername.trim()}.${bridgeDomain}. `
-              : "Reachable from anywhere at their own subdomain. "}
-            Uncheck to keep this account on your own network only — no remote access, and
-            no friends outside your home.
+              ? t("web.settings.users.reachable_at", { address: `${newUsername.trim()}.${bridgeDomain}` })
+              : t("web.settings.users.reachable_own")}
+            {" "}{t("web.settings.users.local_hint")}
           </span>
         </span>
       </label>
@@ -256,8 +272,7 @@ export default function UsersPanel() {
         <div className="sf-modal" onClick={() => setDeleteTarget(null)}>
           <div className="sf-modal-inner" onClick={e => e.stopPropagation()}>
             <p>
-              Delete <strong>{deleteTarget.username}</strong>? This permanently removes its database
-              and every file it stored. Type <strong>{deleteTarget.username}</strong> to confirm.
+              <Trans k="web.settings.users.delete_confirm" args={{ name: deleteTarget.username }} parts={{ b: (s) => <strong>{s}</strong> }} />
             </p>
             <input
               className="sf-input"
@@ -268,13 +283,13 @@ export default function UsersPanel() {
               autoCorrect="off"
             />
             <div className="sf-modal-actions">
-              <button className="sf-btn small" onClick={() => setDeleteTarget(null)}>Cancel</button>
+              <button className="sf-btn small" onClick={() => setDeleteTarget(null)}>{t("common.cancel")}</button>
               <button
                 className="sf-btn small sf-danger"
                 disabled={deleteConfirmText !== deleteTarget.username || deleting}
                 onClick={() => void confirmDelete()}
               >
-                {deleting ? "Deleting…" : "Delete"}
+                {deleting ? t("common.deleting") : t("common.delete")}
               </button>
             </div>
           </div>

@@ -277,7 +277,7 @@
   "web.shell.search.file_in": {
     "text": "{name}, file in {folder}",
     "args": [["name", "user"], ["folder", "user"]],
-    "note": "Screen-reader name of a document or other file in the search suggestions. {name} is its file name, {folder} the folder it is in (a path such as /Documents)."
+    "note": "Screen-reader name of a document or other file in the search suggestions and in the results of a search in Files (from Search documents). {name} is its file name, {folder} the folder it is in (a path such as /Documents)."
   },
   "web.shell.search.files": {
     "text": "Files",
@@ -287,7 +287,7 @@
   "web.shell.search.folder_in": {
     "text": "{name}, folder in {folder}",
     "args": [["name", "user"], ["folder", "user"]],
-    "note": "Screen-reader name of a folder in the search suggestions. {name} is its name, {folder} the folder it is in (a path such as /Photos/2024)."
+    "note": "Screen-reader name of a folder in the search suggestions and in the results of a search in Files (from Search documents). {name} is its name, {folder} the folder it is in (a path such as /Photos/2024)."
   },
   "web.shell.search.no_matches": {
     "text": "No matches",
@@ -319,7 +319,7 @@
   "web.shell.search.photo_in": {
     "text": "{name}, photo in {folder}",
     "args": [["name", "user"], ["folder", "user"]],
-    "note": "Screen-reader name of a photo in the search suggestions. {name} is its file name, {folder} the folder it is in (a path such as /Photos/2024)."
+    "note": "Screen-reader name of a photo in the search suggestions and in the results of a search in Files (from Search documents). {name} is its file name, {folder} the folder it is in (a path such as /Photos/2024)."
   },
   "web.shell.search.remove": {
     "text": "Remove {name}",
@@ -355,7 +355,7 @@
   "web.shell.search.video_in": {
     "text": "{name}, video in {folder}",
     "args": [["name", "user"], ["folder", "user"]],
-    "note": "Screen-reader name of a video in the search suggestions. {name} is its file name, {folder} the folder it is in (a path such as /Photos/2024)."
+    "note": "Screen-reader name of a video in the search suggestions and in the results of a search in Files (from Search documents). {name} is its file name, {folder} the folder it is in (a path such as /Photos/2024)."
   },
   "web.shell.session.ended": {
     "text": "Your session has ended — sign in again to continue.",

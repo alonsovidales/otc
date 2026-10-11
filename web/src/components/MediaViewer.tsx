@@ -6,6 +6,7 @@
 // video streamed from the device, swiping or arrows between items, the
 // Info panel (issue #41), Download. The apps do the same with ImageModal.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useT } from "../i18n";
 import { useWS } from "../net/useWS";
 import { requestStreamURL, canStream } from "../net/media";
 import type { ReqEnvelope, RespEnvelope, FileExifInfo } from "../proto/messages";
@@ -57,6 +58,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
   onIndexChange: (i: number) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const [hiURL, setHiURL] = useState<string | null>(null);
   // A full-size photo (or a small video fetched whole) is a blob of
   // several MB: freed after the commit that took it off screen - the next
@@ -319,7 +321,8 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
   const modalTouchStartX = useRef<number | null>(null);
   const pinchStartDist = useRef<number | null>(null);
   const pinchStartScale = useRef(1);
-  const touchDistance = (t: React.TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  const touchDistance = (touches: React.TouchList) =>
+    Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
   const onModalTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       pinchStartDist.current = touchDistance(e.touches);
@@ -370,13 +373,13 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
             metadata": the button that opens it was never in view. */}
         <div className="pg-modal-hdr">
           {/* Issue #41: camera/EXIF metadata + location, on demand. */}
-          <button className={"pg-info-btn" + (infoOpen ? " on" : "")} title="More info" onClick={infoOpen ? closeInfo : openInfo}>
-            <span className="pg-info-glyph">i</span> Info
+          <button className={"pg-info-btn" + (infoOpen ? " on" : "")} title={t("web.images.viewer.more_info")} onClick={infoOpen ? closeInfo : openInfo}>
+            <span className="pg-info-glyph">i</span> {t("web.images.viewer.info")}
           </button>
           <span className="pg-modal-title">{name}</span>
           {/* The original file, under its own name. */}
           <DownloadButton save={save} onClick={download} what={name ?? ""} />
-          <button className="pg-close" title="Close" onClick={onClose}>×</button>
+          <button className="pg-close" title={t("common.close")} onClick={onClose}>×</button>
         </div>
         <div
           className="pg-modal-imgwrap"
@@ -407,24 +410,17 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
                     <img src={thumb} alt={f.path} />
                     {videoProblem === "codec" ? (
                       <>
-                        <p>This browser can't play this video.</p>
-                        <p className="pg-video-unplayable-hint">
-                          It may be recorded in HEVC, which not every browser can decode -
-                          Safari handles it, and recent Chrome does on hardware that
-                          supports it.
-                        </p>
+                        <p>{t("web.images.viewer.codec")}</p>
+                        <p className="pg-video-unplayable-hint">{t("web.images.viewer.codec_hint")}</p>
                       </>
                     ) : (
                       <>
-                        <p>This video is taking too long to load.</p>
-                        <p className="pg-video-unplayable-hint">
-                          Nothing has arrived from your device for a while - it may be
-                          busy or hard to reach right now. Trying again usually works.
-                        </p>
+                        <p>{t("web.images.viewer.stalled")}</p>
+                        <p className="pg-video-unplayable-hint">{t("web.images.viewer.stalled_hint")}</p>
                       </>
                     )}
                     <a className="pg-video-download" href={hiURL} download={f.path.split("/").pop()}>
-                      Download it
+                      {t("web.images.viewer.download_it")}
                     </a>
                   </div>
                 );
@@ -486,7 +482,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
                   src={full || thumb}
                   alt={f.path}
                   onError={full ? () => setStuck(f.path) : undefined}
-                  style={{ transform: `scale(${zoomScale})`, transition: pinchStartDist.current ? "none" : "transform 0.15s ease-out" }}
+                  style={{ transform: `scale(${zoomScale})`, transition: pinchStartDist.current ? "none" : "transform 0.15s ease-out" }} // i18n-ignore: a CSS transition
                 />
                 {!full && thumb && <LowResBadge imgRef={imgRef} loading={hiLoading} />}
               </>
@@ -495,79 +491,79 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
         </div>
         {/* After the picture, which would paint over them, and before the
             Info panel, which covers them. */}
-        {index > 0 && <button className="pg-nav left" onClick={() => onIndexChange(index - 1)} aria-label="Previous">‹</button>}
-        {index < items.length - 1 && <button className="pg-nav right" onClick={() => onIndexChange(index + 1)} aria-label="Next">›</button>}
+        {index > 0 && <button className="pg-nav left" onClick={() => onIndexChange(index - 1)} aria-label={t("web.images.viewer.previous")}>‹</button>}
+        {index < items.length - 1 && <button className="pg-nav right" onClick={() => onIndexChange(index + 1)} aria-label={t("web.images.viewer.next")}>›</button>}
 
         {infoOpen && (
           <div className="pg-info-panel" onClick={(e) => e.stopPropagation()}>
             <div className="pg-info-hdr">
-              <span>More info</span>
+              <span>{t("web.images.viewer.more_info")}</span>
               <button className="pg-info-close" onClick={closeInfo}>×</button>
             </div>
             {infoLoading ? (
-              <div className="pg-info-loading">Loading…</div>
+              <div className="pg-info-loading">{t("common.loading")}</div>
             ) : !infoData ? (
-              <div className="pg-info-loading">No metadata found</div>
+              <div className="pg-info-loading">{t("web.images.viewer.no_metadata")}</div>
             ) : (
               <div className="pg-info-body">
                 {(infoData.cameraMake || infoData.cameraModel) && (
                   <div className="pg-info-row">
-                    <span className="pg-info-label">Camera</span>
+                    <span className="pg-info-label">{t("web.images.viewer.camera")}</span>
                     <span>{[infoData.cameraMake, infoData.cameraModel].filter(Boolean).join(" ")}</span>
                   </div>
                 )}
                 {infoData.takenAt && (
                   <div className="pg-info-row">
-                    <span className="pg-info-label">Taken</span>
+                    <span className="pg-info-label">{t("web.images.viewer.taken")}</span>
                     <span>{infoData.takenAt.toLocaleString()}</span>
                   </div>
                 )}
                 {!!(infoData.width && infoData.height) && (
                   <div className="pg-info-row">
-                    <span className="pg-info-label">Dimensions</span>
+                    <span className="pg-info-label">{t("web.images.viewer.dimensions")}</span>
                     <span>{infoData.width} × {infoData.height}</span>
                   </div>
                 )}
                 {infoData.exposureTime && (
                   <div className="pg-info-row">
-                    <span className="pg-info-label">Exposure</span>
+                    <span className="pg-info-label">{t("web.images.viewer.exposure")}</span>
                     <span>{infoData.exposureTime}</span>
                   </div>
                 )}
                 {infoData.fNumber && (
                   <div className="pg-info-row">
-                    <span className="pg-info-label">Aperture</span>
+                    <span className="pg-info-label">{t("web.images.viewer.aperture")}</span>
                     <span>{infoData.fNumber}</span>
                   </div>
                 )}
                 {!!infoData.iso && (
                   <div className="pg-info-row">
-                    <span className="pg-info-label">ISO</span>
+                    <span className="pg-info-label">{t("web.images.viewer.iso")}</span>
                     <span>{infoData.iso}</span>
                   </div>
                 )}
                 {infoData.focalLength && (
                   <div className="pg-info-row">
-                    <span className="pg-info-label">Focal length</span>
+                    <span className="pg-info-label">{t("web.images.viewer.focal_length")}</span>
                     <span>{infoData.focalLength}</span>
                   </div>
                 )}
                 {(infoData.city || infoData.country) && (
                   <div className="pg-info-row">
-                    <span className="pg-info-label">Location</span>
+                    <span className="pg-info-label">{t("web.images.viewer.location")}</span>
                     <span>{[infoData.city, infoData.country].filter(Boolean).join(", ")}</span>
                   </div>
                 )}
                 {infoData.hasGps && (
                   <iframe
                     className="pg-info-map"
-                    title="Photo location"
+                    title={t("web.images.viewer.map")}
                     loading="lazy"
                     src={`https://www.openstreetmap.org/export/embed.html?bbox=${infoData.longitude - 0.02}%2C${infoData.latitude - 0.02}%2C${infoData.longitude + 0.02}%2C${infoData.latitude + 0.02}&layer=mapnik&marker=${infoData.latitude}%2C${infoData.longitude}`}
                   />
                 )}
                 {!infoData.cameraMake && !infoData.cameraModel && !infoData.hasGps && !infoData.exposureTime && (
-                  <div className="pg-info-loading">No EXIF metadata in this file</div>
+                  <div className="pg-info-loading">{t("web.images.viewer.no_exif")}</div>
                 )}
               </div>
             )}

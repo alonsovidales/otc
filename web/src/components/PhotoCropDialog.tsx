@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "../i18n";
+import { say, type UiText } from "./uiText";
 import "./PhotoCropDialog.css";
 
 // The profile picture's circle crop (issue #178) - the same one the setup
@@ -19,9 +21,10 @@ type Props = {
 };
 
 export default function PhotoCropDialog({ file, onCancel, onDone }: Props) {
+  const t = useT();
   const canvas = useRef<HTMLCanvasElement>(null);
   const [img, setImg] = useState<HTMLImageElement | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UiText | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
@@ -30,7 +33,7 @@ export default function PhotoCropDialog({ file, onCancel, onDone }: Props) {
     const url = URL.createObjectURL(file);
     const im = new Image();
     im.onload = () => setImg(im);
-    im.onerror = () => setError("This picture can't be opened here - try a JPEG or PNG.");
+    im.onerror = () => setError(() => say("web.images.crop.unsupported"));
     im.src = url;
     return () => URL.revokeObjectURL(url);
   }, [file]);
@@ -89,7 +92,7 @@ export default function PhotoCropDialog({ file, onCancel, onDone }: Props) {
       if (blob && blob.size <= MAX_BYTES) break;
     }
     if (!blob) {
-      setError("The picture could not be prepared.");
+      setError(() => say("web.images.crop.failed"));
       return;
     }
     onDone(new Uint8Array(await blob.arrayBuffer()), URL.createObjectURL(blob));
@@ -98,11 +101,11 @@ export default function PhotoCropDialog({ file, onCancel, onDone }: Props) {
   const cssK = () => VIEW / (canvas.current?.getBoundingClientRect().width || VIEW);
 
   return (
-    <div className="pcd-backdrop" role="dialog" aria-modal="true" aria-label="Crop your profile picture">
+    <div className="pcd-backdrop" role="dialog" aria-modal="true" aria-label={t("web.images.crop.label")}>
       <div className="pcd-dialog">
-        <h3>Profile picture</h3>
+        <h3>{t("web.images.crop.title")}</h3>
         {error ? (
-          <p className="pcd-error">{error}</p>
+          <p className="pcd-error">{error(t)}</p>
         ) : (
           <>
             <canvas
@@ -125,15 +128,15 @@ export default function PhotoCropDialog({ file, onCancel, onDone }: Props) {
               onWheel={(e) => setZoomClamped(zoom * (e.deltaY < 0 ? 1.08 : 1 / 1.08))}
             />
             <label className="pcd-zoom">
-              Zoom
+              {t("web.images.crop.zoom")}
               <input type="range" min={1} max={4} step={0.01} value={zoom} onChange={(e) => setZoomClamped(Number(e.target.value))} />
             </label>
-            <p className="pcd-hint">Drag the photo to centre your face.</p>
+            <p className="pcd-hint">{t("web.images.crop.hint")}</p>
           </>
         )}
         <div className="pcd-actions">
-          <button className="pcd-btn" onClick={onCancel}>Cancel</button>
-          <button className="pcd-btn pcd-primary" onClick={() => void save()} disabled={!img}>Use photo</button>
+          <button className="pcd-btn" onClick={onCancel}>{t("common.cancel")}</button>
+          <button className="pcd-btn pcd-primary" onClick={() => void save()} disabled={!img}>{t("web.images.crop.use")}</button>
         </div>
       </div>
     </div>

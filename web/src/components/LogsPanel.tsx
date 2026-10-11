@@ -9,13 +9,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope } from "../proto/messages";
+import { useT } from "../i18n";
+import { asIs, say, type UiText } from "./uiText";
 import "./LogsPanel.css";
 
 type Source = "app" | "update";
 const cMaxChars = 1 << 20; // keep about the last megabyte on screen
-const cWarning = "Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses. Check them before you share them.";
+// Part of the log text itself, copied and downloaded with it: English, like the log lines.
+const cRotated = "\n— log rotated —\n"; // i18n-ignore: inside the log text, which stays English
 
 export default function LogsPanel() {
+  const t = useT();
   const [isPrimary, setIsPrimary] = useState(false);
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -31,19 +35,20 @@ export default function LogsPanel() {
   if (!isPrimary) return null;
   return (
     <section className="sf-section">
-      <h3>Logs</h3>
-      <p className="sf-hint">What the device is doing, live - useful when something goes wrong. You can copy them, or send them to us so we can help.</p>
-      <button className="sf-btn" onClick={() => setOpen(true)}>Show logs</button>
+      <h3>{t("web.settings.logs.title")}</h3>
+      <p className="sf-hint">{t("web.settings.logs.hint")}</p>
+      <button className="sf-btn" onClick={() => setOpen(true)}>{t("web.settings.logs.show")}</button>
       {open && <LogsViewer onClose={() => setOpen(false)} />}
     </section>
   );
 }
 
 function LogsViewer({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const [source, setSource] = useState<Source>("app");
   const [text, setText] = useState("");
   const [paused, setPaused] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UiText | null>(null);
   const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false);
   const boxRef = useRef<HTMLPreElement>(null);
@@ -67,20 +72,25 @@ function LogsViewer({ onClose }: { onClose: () => void }) {
             (e as any).payload = { $case: "reqGetLogs", reqGetLogs: { source, offset: BigInt(offset), maxBytes: first ? 65536 : 262144, waitSeconds: first ? 0 : 25 } };
           });
           if (!alive) return;
-          if (resp.payload?.$case !== "respLogs") throw new Error(resp.errorMessage || "Could not read the logs");
+          if (resp.payload?.$case !== "respLogs") {
+            // The device's words, or ours when it has none; tried again like a failed request.
+            setError(() => (resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.logs.read_failed")));
+            await sleep(5000);
+            continue;
+          }
           const l = resp.payload.respLogs;
           const rotated = offset > 0 && Number(l.size) < offset;
           offset = Number(l.nextOffset);
           if (l.text || rotated) {
-            setText(t => {
-              const next = t + (rotated ? "\n— log rotated —\n" : "") + l.text;
+            setText(prev => {
+              const next = prev + (rotated ? cRotated : "") + l.text;
               return next.length > cMaxChars ? next.slice(next.length - cMaxChars) : next;
             });
           }
           setError(null);
         } catch (e: any) {
           if (!alive) return;
-          setError(e?.message ?? String(e));
+          setError(() => asIs(e?.message ?? String(e)));
           await sleep(5000);
         }
       }
@@ -111,25 +121,25 @@ function LogsViewer({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="lg-backdrop" onClick={onClose}>
-      <div className="lg-dialog" role="dialog" aria-label="Logs" onClick={e => e.stopPropagation()}>
+      <div className="lg-dialog" role="dialog" aria-label={t("web.settings.logs.title")} onClick={e => e.stopPropagation()}>
         <div className="lg-head">
-          <h3>Logs</h3>
+          <h3>{t("web.settings.logs.title")}</h3>
           <div className="lg-tabs" role="tablist">
-            <button role="tab" aria-selected={source === "app"} className={source === "app" ? "on" : ""} onClick={() => setSource("app")}>Device</button>
-            <button role="tab" aria-selected={source === "update"} className={source === "update" ? "on" : ""} onClick={() => setSource("update")}>Updates</button>
+            <button role="tab" aria-selected={source === "app"} className={source === "app" ? "on" : ""} onClick={() => setSource("app")}>{t("web.settings.logs.tab_device")}</button>
+            <button role="tab" aria-selected={source === "update"} className={source === "update" ? "on" : ""} onClick={() => setSource("update")}>{t("web.settings.logs.tab_updates")}</button>
           </div>
-          <button className="lg-close" onClick={onClose} aria-label="Close">×</button>
+          <button className="lg-close" onClick={onClose} aria-label={t("common.close")}>×</button>
         </div>
-        <p className="lg-warning">{cWarning}</p>
-        <pre className="lg-text" ref={boxRef} onScroll={onScroll}>{text || "Waiting for the log…"}</pre>
-        {error && <p className="lg-error">{error} - trying again…</p>}
+        <p className="lg-warning">{t("web.settings.logs.warning")}</p>
+        <pre className="lg-text" ref={boxRef} onScroll={onScroll}>{text || t("web.settings.logs.waiting")}</pre>
+        {error && <p className="lg-error">{t("web.settings.logs.retrying", { error: error(t) })}</p>}
         <div className="lg-actions">
-          <span className={`lg-live${paused ? "" : " on"}`}>{paused ? "Paused" : "Live"}</span>
-          <button className="sf-btn" onClick={() => setPaused(p => !p)}>{paused ? "Resume" : "Pause"}</button>
+          <span className={`lg-live${paused ? "" : " on"}`}>{paused ? t("web.settings.logs.paused") : t("web.settings.logs.live")}</span>
+          <button className="sf-btn" onClick={() => setPaused(p => !p)}>{paused ? t("common.resume") : t("common.pause")}</button>
           <span className="lg-grow" />
-          <button className="sf-btn" onClick={() => void copy()} disabled={!text}>{copied ? "Copied" : "Copy"}</button>
-          <button className="sf-btn" onClick={download} disabled={!text}>Download</button>
-          <button className="sf-btn" onClick={() => setSending(true)}>Send to us…</button>
+          <button className="sf-btn" onClick={() => void copy()} disabled={!text}>{copied ? t("web.settings.logs.copied") : t("web.settings.logs.copy")}</button>
+          <button className="sf-btn" onClick={download} disabled={!text}>{t("common.download")}</button>
+          <button className="sf-btn" onClick={() => setSending(true)}>{t("web.settings.logs.send_to_us")}</button>
         </div>
         {sending && <SendLogs onDone={() => setSending(false)} />}
       </div>
@@ -138,36 +148,37 @@ function LogsViewer({ onClose }: { onClose: () => void }) {
 }
 
 function SendLogs({ onDone }: { onDone: () => void }) {
+  const t = useT();
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [result, setResult] = useState<{ ok: boolean; text: UiText } | null>(null);
   const send = useCallback(async () => {
     setBusy(true);
     try {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqSendLogs", reqSendLogs: { note } };
       });
-      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) setResult({ ok: true, text: "Sent - we'll answer at your account's email." });
-      else setResult({ ok: false, text: resp.errorMessage || "Could not send them." });
+      if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) setResult({ ok: true, text: say("web.settings.logs.sent") });
+      else setResult({ ok: false, text: resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.logs.send_failed") });
     } catch (e: any) {
-      setResult({ ok: false, text: e?.message ?? String(e) });
+      setResult({ ok: false, text: asIs(e?.message ?? String(e)) });
     } finally {
       setBusy(false);
     }
   }, [note]);
   return (
     <div className="lg-send">
-      <p>Sends the last part of your device's logs, your note and your account's email to info@off-the.cloud, so we can help. {cWarning}</p>
+      <p>{t("web.settings.logs.send_hint")} {t("web.settings.logs.warning")}</p>
       {!result?.ok && <>
-        <textarea className="sf-input" rows={3} placeholder="What went wrong? (optional)" value={note} onChange={e => setNote(e.target.value)} maxLength={2000} />
+        <textarea className="sf-input" rows={3} placeholder={t("web.settings.logs.note")} value={note} onChange={e => setNote(e.target.value)} maxLength={2000} />
         <div className="lg-actions">
           <span className="lg-grow" />
-          <button className="sf-btn" onClick={onDone} disabled={busy}>Cancel</button>
-          <button className="sf-btn" onClick={() => void send()} disabled={busy}>{busy ? "Sending…" : "Send"}</button>
+          <button className="sf-btn" onClick={onDone} disabled={busy}>{t("common.cancel")}</button>
+          <button className="sf-btn" onClick={() => void send()} disabled={busy}>{busy ? t("web.settings.logs.sending") : t("common.send")}</button>
         </div>
       </>}
-      {result && <p className={result.ok ? "lg-ok" : "lg-error"}>{result.text}</p>}
-      {result?.ok && <div className="lg-actions"><span className="lg-grow" /><button className="sf-btn" onClick={onDone}>Done</button></div>}
+      {result && <p className={result.ok ? "lg-ok" : "lg-error"}>{result.text(t)}</p>}
+      {result?.ok && <div className="lg-actions"><span className="lg-grow" /><button className="sf-btn" onClick={onDone}>{t("common.done")}</button></div>}
     </div>
   );
 }

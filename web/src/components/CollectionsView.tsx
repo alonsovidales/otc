@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { Trans, useT, type TFunction } from "../i18n";
 import type { ImageGroup } from "../proto/messages";
 import { reloadGroups, useGroups } from "./libraryStore";
 import type { Reload } from "./libraryStore";
@@ -23,10 +24,10 @@ const cSkeletonCards = 8;
 // How long the first listing may take before the page offers to ask again.
 const cSlowMs = 10_000;
 
-const itemsLabel = (n: number) => `${n.toLocaleString()} ${n === 1 ? "item" : "items"}`;
-const nameOf = (g: ImageGroup) => g.name.trim() || "Untitled collection";
+const nameOf = (t: TFunction, g: ImageGroup) => g.name.trim() || t("web.images.collections.untitled");
 
 export default function CollectionsView({ onOpenPhotos }: Props) {
+  const t = useT();
   const { items, thumbs, loaded } = useGroups();
   const { failed, slow, retry } = useFreshList(loaded, reloadGroups);
 
@@ -40,10 +41,10 @@ export default function CollectionsView({ onOpenPhotos }: Props) {
     body = (
       <div className="cv-state">
         <span className="cv-state-art"><EmptyArt /></span>
-        <h2 className="cv-state-title">No collections yet</h2>
-        <p className="cv-state-text">Select photos in Images, then choose <strong>Add to collection</strong>.</p>
+        <h2 className="cv-state-title">{t("web.images.collections.empty_title")}</h2>
+        <p className="cv-state-text"><Trans k="web.images.collections.empty_text" parts={{ b: (s) => <strong>{s}</strong> }} /></p>
         <button type="button" className="cv-btn" onClick={() => { showAll(); onOpenPhotos(); }}>
-          Go to Images
+          {t("web.images.grid.go_to_images")}
         </button>
       </div>
     );
@@ -52,17 +53,17 @@ export default function CollectionsView({ onOpenPhotos }: Props) {
       <ul className="cv-grid" role="list">
         {items.map((g) => {
           const cover = thumbs.get(g.id);
-          const name = nameOf(g);
+          const name = nameOf(t, g);
           return (
             <li key={g.id}>
-              <button type="button" className="cv-card" onClick={() => open(g)} aria-label={`${name}, ${itemsLabel(g.fileCount)}`}>
+              <button type="button" className="cv-card" onClick={() => open(g)} aria-label={t("web.images.collections.card", { name, count: g.fileCount })}>
                 <span className="cv-cover">
                   {cover
                     ? <img src={cover} alt="" draggable={false} decoding="async" />
                     : <span className="cv-cover-ph"><CollectionsIcon size={36} /></span>}
                 </span>
                 <span className="cv-name" title={name}>{name}</span>
-                <span className="cv-count">{itemsLabel(g.fileCount)}</span>
+                <span className="cv-count">{t("web.images.count.items", { count: g.fileCount })}</span>
               </button>
             </li>
           );
@@ -73,18 +74,16 @@ export default function CollectionsView({ onOpenPhotos }: Props) {
     body = (
       <div className="cv-state" role="status">
         <span className="cv-state-art"><ProblemIcon /></span>
-        <h2 className="cv-state-title">{failed ? "Couldn't load your collections" : "Still waiting for your device"}</h2>
+        <h2 className="cv-state-title">{failed ? t("web.images.collections.failed") : t("web.images.load.waiting")}</h2>
         <p className="cv-state-text">
-          {failed
-            ? "Check that your device is online, then try again."
-            : "Your collections are taking longer than usual to load."}
+          {failed ? t("web.images.load.check") : t("web.images.collections.slow")}
         </p>
-        <button type="button" className="cv-btn" onClick={retry}>Try again</button>
+        <button type="button" className="cv-btn" onClick={retry}>{t("common.try_again")}</button>
       </div>
     );
   } else {
     body = (
-      <ul className="cv-grid cv-skeleton" aria-busy="true" aria-label="Loading collections">
+      <ul className="cv-grid cv-skeleton" aria-busy="true" aria-label={t("web.images.collections.loading")}>
         {Array.from({ length: cSkeletonCards }, (_, i) => (
           <li key={i} aria-hidden="true">
             <span className="cv-cover" />
@@ -99,7 +98,7 @@ export default function CollectionsView({ onOpenPhotos }: Props) {
   return (
     <div className="cv-root">
       <header className="cv-head">
-        <h1 className="cv-title">Collections</h1>
+        <h1 className="cv-title">{t("web.images.collections.title")}</h1>
       </header>
       {body}
     </div>
