@@ -132,6 +132,7 @@ import cloud.offthe.otc.i18n.appShellSearchPerson
 import cloud.offthe.otc.i18n.appShellSearchRemove
 import cloud.offthe.otc.i18n.appShellSearchRemovePerson
 import cloud.offthe.otc.i18n.appShellSearchUnnamed
+import cloud.offthe.otc.ui.common.FitText
 
 // Port of the web's TopSearch.tsx, at the top of Images where the tag
 // field was. The field holds what Images is narrowed to - people and
@@ -656,7 +657,9 @@ private fun SearchField(
             }
             Box(Modifier.weight(1f).padding(horizontal = 8.dp), contentAlignment = Alignment.CenterStart) {
                 if (search.query.isEmpty() && chipCount == 0) {
-                    Text(placeholder, style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    // Smaller rather than cut (Fotos und Dateien suchen,
+                    // Pesquisar fotos e ficheiros at 360 dp).
+                    FitText(placeholder, style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant, minScale = 0.8f)
                 }
                 BasicTextField(
                     value = fieldValue,

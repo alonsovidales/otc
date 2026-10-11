@@ -95,7 +95,7 @@
     <string name="app_photos_notice_save_failed">Salvataggio non riuscito: %1$s</string>
     <string name="app_photos_notice_saved">Salvata in Foto ✅</string>
     <string name="app_photos_notice_share_failed">Condivisione non riuscita: %1$s</string>
-    <string name="app_photos_people_add_name">Aggiungi un nome</string>
+    <string name="app_photos_people_add_name">Dai un nome</string>
     <string name="app_photos_people_clear_selection">Cancella selezione</string>
     <string name="app_photos_people_delete_failed">Impossibile eliminare queste persone. Riprova.</string>
     <plurals name="app_photos_people_delete_many">

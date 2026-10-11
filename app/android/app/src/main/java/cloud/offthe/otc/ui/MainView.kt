@@ -114,6 +114,11 @@ import cloud.offthe.otc.ui.theme.Ember
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
+import cloud.offthe.otc.ui.common.BAR_LABEL_MIN_SP
 
 // Port of MainView.swift: the five tabs (Alerts, Social, Files, Images,
 // Settings), a badge on Alerts, and the connection overlays (issue #56).
@@ -145,6 +150,29 @@ private val SHORT_WINDOW = 680.dp
 // The whole menu or the rail on a wide window, remembered as the files
 // view mode is (the web's otc_menu_open).
 private const val MENU_OPEN_KEY = "menu_open"
+/** The bottom bar's gap between tabs (Material's NavigationBar). */
+private val TabGap = 8.dp
+
+/**
+ * The size the bottom bar's labels are drawn at: the label style's own, or
+ * smaller when one of [titles] wouldn't fit a tab of [width] pixels on one
+ * line - never below the selection bar's 8sp as drawn at the default font size.
+ */
+@Composable
+private fun tabLabelSize(titles: List<String>, width: Int, style: TextStyle): TextUnit {
+    val measurer = rememberTextMeasurer(cacheSize = 0)
+    val density = LocalDensity.current
+    return remember(titles, width, style, density) {
+        val max = style.fontSize.value
+        val min = minOf(max, BAR_LABEL_MIN_SP / density.fontScale)
+        var size = max
+        while (size > min && titles.any { measurer.measure(it, style.copy(fontSize = size.sp), softWrap = false, maxLines = 1, density = density).size.width > width }) {
+            size = maxOf(min, size - 0.5f)
+        }
+        size.sp
+    }
+}
+
 private fun uiPrefs() = OTCApp.instance.getSharedPreferences("otc_settings", Context.MODE_PRIVATE)
 private fun loadMenuOpen(): Boolean = try { uiPrefs().getBoolean(MENU_OPEN_KEY, true) } catch (_: Exception) { true }
 private fun saveMenuOpen(open: Boolean) { try { uiPrefs().edit().putBoolean(MENU_OPEN_KEY, open).apply() } catch (_: Exception) {} }
@@ -338,27 +366,37 @@ fun MainView(secrets: SecretsStore) {
                 }
             }
         }, bottomBar = {
-            if (!wide) NavigationBar {
-                tabs.forEach { t ->
-                    NavigationBarItem(
-                        selected = section.tab == t.section,
-                        onClick = {
-                            // Files picked in the tab bar: whatever search
-                            // results show, back to the folder (as the web's menu).
-                            if (t.section == Section.Files) FilesNav.leaveFilesSearch()
-                            // Another tab, or the tab already showing from
-                            // one of its pages (Images' People page): the
-                            // tab's own root, as Android's tabs do. The root
-                            // itself, tapped again, stays as it is.
-                            if (section != t.section) go(t.section)
-                        },
-                        icon = {
-                            if (t.section == Section.Alerts && unread > 0) {
-                                BadgedBox(badge = { Badge { Text(unread.toString()) } }) { Icon(t.icon, t.section.label.resolve()) }
-                            } else Icon(t.icon, t.section.label.resolve())
-                        },
-                        label = { Text(t.section.label.resolve()) },
-                    )
+            if (!wide) BoxWithConstraints {
+                // One size for the five labels, on one line each: the
+                // style's own, or smaller when a label doesn't fit its tab
+                // (Einstellungen, Paramètres, Impostazioni, Afbeeldingen at
+                // 360 dp broke inside the word), as the selection bar's.
+                val labels = tabs.map { it.section.label.resolve() }
+                val labelStyle = MaterialTheme.typography.labelMedium
+                val slot = with(LocalDensity.current) { ((maxWidth - TabGap * (tabs.size - 1)) / tabs.size).toPx().toInt() - 1 }
+                val tabStyle = labelStyle.copy(fontSize = tabLabelSize(labels, slot, labelStyle))
+                NavigationBar {
+                    tabs.forEachIndexed { i, t ->
+                        NavigationBarItem(
+                            selected = section.tab == t.section,
+                            onClick = {
+                                // Files picked in the tab bar: whatever search
+                                // results show, back to the folder (as the web's menu).
+                                if (t.section == Section.Files) FilesNav.leaveFilesSearch()
+                                // Another tab, or the tab already showing from
+                                // one of its pages (Images' People page): the
+                                // tab's own root, as Android's tabs do. The root
+                                // itself, tapped again, stays as it is.
+                                if (section != t.section) go(t.section)
+                            },
+                            icon = {
+                                if (t.section == Section.Alerts && unread > 0) {
+                                    BadgedBox(badge = { Badge { Text(unread.toString()) } }) { Icon(t.icon, t.section.label.resolve()) }
+                                } else Icon(t.icon, t.section.label.resolve())
+                            },
+                            label = { Text(labels[i], style = tabStyle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        )
+                    }
                 }
             }
         }) { pad ->

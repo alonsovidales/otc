@@ -371,7 +371,7 @@
     "en": "Close the collection {name}"
   },
   "app.shell.search_field": {
-    "text": "Rechercher des photos et des fichiers",
+    "text": "Rechercher photos et fichiers",
     "en": "Search photos and files"
   },
   "app.shell.search_person": {

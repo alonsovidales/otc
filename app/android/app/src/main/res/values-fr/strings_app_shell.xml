@@ -97,7 +97,7 @@
     <string name="app_shell_save_retry">Enregistrer et réessayer</string>
     <string name="app_shell_search_clear">Effacer la recherche</string>
     <string name="app_shell_search_close_collection">Fermer la collection \u2068%1$s\u2069</string>
-    <string name="app_shell_search_field">Rechercher des photos et des fichiers</string>
+    <string name="app_shell_search_field">Rechercher photos et fichiers</string>
     <string name="app_shell_search_person">Personne</string>
     <string name="app_shell_search_remove">Retirer \u2068%1$s\u2069</string>
     <string name="app_shell_search_remove_person">Retirer cette personne</string>

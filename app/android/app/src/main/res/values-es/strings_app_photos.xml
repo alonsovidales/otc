@@ -95,7 +95,7 @@
     <string name="app_photos_notice_save_failed">No se ha podido guardar: %1$s</string>
     <string name="app_photos_notice_saved">Guardada en Fotos ✅</string>
     <string name="app_photos_notice_share_failed">No se ha podido compartir: %1$s</string>
-    <string name="app_photos_people_add_name">Añadir un nombre</string>
+    <string name="app_photos_people_add_name">Poner nombre</string>
     <string name="app_photos_people_clear_selection">Anular selección</string>
     <string name="app_photos_people_delete_failed">No se han podido eliminar. Vuelve a intentarlo.</string>
     <plurals name="app_photos_people_delete_many">

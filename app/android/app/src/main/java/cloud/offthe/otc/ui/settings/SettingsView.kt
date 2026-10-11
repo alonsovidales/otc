@@ -255,6 +255,7 @@ import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.sync.AssetSyncCache
 import cloud.offthe.otc.sync.SyncScheduler
 import cloud.offthe.otc.ui.social.SocialFeedViewModel
+import cloud.offthe.otc.ui.common.FitText
 
 // Port of SettingsView.swift and its sections: Profile (issue #84),
 // Users (#82), bridge secret (#40), face recognition (#52), reprocess
@@ -815,7 +816,7 @@ private fun UsersManagementSection() {
         Caption(S.appSettingsUsersIntro().resolve())
         st.users.forEach { u -> UserRow(vm, st, u) }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            OTCTextField(value = st.newUsername, onValueChange = vm::setNewUsername, placeholder = { Text(S.appSettingsUsersUsername().resolve()) }, singleLine = true,
+            OTCTextField(value = st.newUsername, onValueChange = vm::setNewUsername, placeholder = { FitText(S.appSettingsUsersUsername().resolve(), minScale = 0.8f) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false), modifier = Modifier.weight(1f))
             Spacer(Modifier.width(6.dp))
             OTCTextField(value = st.newPort, onValueChange = vm::setNewPort, placeholder = { Text(S.appSettingsUsersPort().resolve()) }, singleLine = true,

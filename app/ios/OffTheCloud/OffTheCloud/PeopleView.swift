@@ -949,6 +949,9 @@ private struct PersonTile: View {
                     .font(.subheadline)
                     .italic()
                     .foregroundStyle(.secondary)
+                    // One line in the face's width: smaller rather than cut.
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                     .padding(.horizontal, 8)
                     .frame(height: 32)
                     .contentShape(Rectangle())

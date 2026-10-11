@@ -4404,7 +4404,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fotos und Dateien durchsuchen"
+            "value" : "Fotos und Dateien suchen"
           }
         },
         "en" : {
@@ -4422,7 +4422,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rechercher des photos et des fichiers"
+            "value" : "Rechercher photos et fichiers"
           }
         },
         "it" : {
@@ -7878,7 +7878,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Te damos la bienvenida"
+            "value" : "Hola"
           }
         },
         "fr" : {

@@ -186,6 +186,7 @@ import cloud.offthe.otc.i18n.commonRename
 import cloud.offthe.otc.i18n.commonSave
 import cloud.offthe.otc.i18n.commonSelect
 import cloud.offthe.otc.i18n.commonTryAgain
+import cloud.offthe.otc.ui.common.FitText
 
 // Port of the web's PeopleView.tsx, opened from Images' People button (next
 // to Collections) while face recognition is on: the faces the device found,
@@ -789,9 +790,11 @@ private fun PersonTile(
                     color = if (selected) colors.primary else colors.onSurface, modifier = Modifier.alpha(if (pending) 0.55f else 1f),
                 )
                 selecting -> Text(S.appShellSearchUnnamed().resolve(), style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic, color = colors.onSurfaceVariant)
-                else -> Text(
-                    S.appPhotosPeopleAddName().resolve(), style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic, color = colors.onSurfaceVariant,
+                // One line in the face's width: smaller rather than cut (FitText).
+                else -> FitText(
+                    S.appPhotosPeopleAddName().resolve(), style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic), color = colors.onSurfaceVariant,
                     modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button, onClick = onRename).padding(horizontal = 8.dp, vertical = 2.dp),
+                    minScale = 0.8f,
                 )
             }
         }

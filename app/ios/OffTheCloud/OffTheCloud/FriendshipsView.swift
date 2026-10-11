@@ -219,17 +219,35 @@ struct FriendshipsView: View {
                 if !waiting.isEmpty {
                     Section(S.appSocialFriendsWaitingAnswer) {
                         ForEach(waiting, id: \.originProfile.domain) { f in
-                            HStack(spacing: 12) {
+                            let who = HStack(spacing: 12) {
                                 avatarView(data: f.originProfile.hasImage ? f.originProfile.image : nil, size: 44)
                                 VStack(alignment: .leading) {
-                                    Text(f.originProfile.name.isEmpty ? S.appSocialFriendsNoName : f.originProfile.name).font(.headline)
+                                    WholeWordText(f.originProfile.name.isEmpty ? S.appSocialFriendsNoName : f.originProfile.name, alignment: .leading).font(.headline)
                                     Text(f.originProfile.domain).font(.caption).foregroundColor(.secondary)
                                 }
-                                Spacer()
-                                Button(S.commonDecline) { Task { await vm.deleteFriendship(f) } }
+                            }
+                            let answer = Group {
+                                Button { Task { await vm.deleteFriendship(f) } } label: { WholeWordText(S.commonDecline) }
                                     .buttonStyle(.bordered).controlSize(.small)
-                                Button(S.commonAccept) { Task { await vm.changeStatus(f, to: .accepted) } }
+                                Button { Task { await vm.changeStatus(f, to: .accepted) } } label: { WholeWordText(S.commonAccept) }
                                     .buttonStyle(.borderedProminent).controlSize(.small)
+                            }
+                            // Beside the name while every word fits; else on a
+                            // line of their own under it (Annehmen, Accepter
+                            // were broken in the middle on a narrow phone).
+                            ViewThatFits(in: .horizontal) {
+                                SmallestIsIdeal {
+                                    HStack(spacing: 12) {
+                                        who
+                                        Spacer()
+                                        answer
+                                    }
+                                }
+                                VStack(alignment: .leading, spacing: 8) {
+                                    who
+                                    HStack(spacing: 12) { answer }
+                                        .padding(.leading, 56)
+                                }
                             }
                             .padding(.vertical, 4)
                         }
@@ -353,26 +371,30 @@ private struct FriendRow: View {
                 Spacer()
             }
             // Issue #179: every action is a button on the row, as on the web.
-            HStack(spacing: 8) {
+            // In one line while no label has to break inside a word, else
+            // whole buttons on more lines (Android's FlowRow).
+            WholeWordButtons(spacing: 8) {
                 if f.leaving {
                     // Issue #174: nothing else to do with a leaving friend
                     // but stop waiting for their device.
-                    Button(S.appSocialFriendsRemoveNow, role: .destructive) { confirmingRemoveNow = true }
+                    Button(role: .destructive) { confirmingRemoveNow = true } label: { WholeWordText(S.appSocialFriendsRemoveNow) }
                         .buttonStyle(.bordered)
                 } else {
                     ForEach(actionOptions, id: \.0) { opt in
                         if opt.1 == .accepted {
-                            Button(opt.0) { onChange(opt.1) }.buttonStyle(.borderedProminent)
+                            Button { onChange(opt.1) } label: { WholeWordText(opt.0) }.buttonStyle(.borderedProminent)
                         } else {
-                            Button(opt.0) { onChange(opt.1) }.buttonStyle(.bordered)
+                            Button { onChange(opt.1) } label: { WholeWordText(opt.0) }.buttonStyle(.bordered)
                         }
                     }
                     if canDelete {
-                        Button(f.sent ? S.appSocialFriendsCancelRequestButton : S.commonDecline, role: .destructive) { confirmingDelete = true }
+                        Button(role: .destructive) { confirmingDelete = true } label: {
+                            WholeWordText(f.sent ? S.appSocialFriendsCancelRequestButton : S.commonDecline)
+                        }
                             .buttonStyle(.bordered)
                     }
                     if canRemove {
-                        Button(S.appSocialFriendsRemoveButton, role: .destructive) { removing = true }
+                        Button(role: .destructive) { removing = true } label: { WholeWordText(S.appSocialFriendsRemoveButton) }
                             .buttonStyle(.bordered)
                     }
                 }
@@ -462,6 +484,103 @@ private struct RemoveFriendSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+    }
+}
+
+/// A row of buttons that never breaks a label inside a word: one line, as an
+/// HStack, while every label's words fit whole; else whole buttons wrapped onto
+/// more lines, as Android's FlowRow. German, French, Spanish and Dutch labels
+/// (Blockieren, Ac-cepter, Blo-quear) used to be broken in the middle on a
+/// narrow phone; English keeps its one line.
+private struct WholeWordButtons<Content: View>: View {
+    var spacing: CGFloat
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            SmallestIsIdeal { HStack(spacing: spacing) { content } }
+            FlowRow(spacing: spacing) { content }
+        }
+    }
+}
+
+/// A text whose smallest width is its longest word: hidden copies of its
+/// words, each on one line, hold it open. Squeezed, Text hyphenates German,
+/// French, Spanish and Dutch (An-nehmen, So-phie), which let a row "fit" by
+/// splitting its words; English isn't hyphenated, so it lays out as before.
+private struct WholeWordText: View {
+    let text: String
+    var alignment: Alignment = .center
+
+    init(_ text: String, alignment: Alignment = .center) {
+        self.text = text
+        self.alignment = alignment
+    }
+
+    var body: some View {
+        ZStack(alignment: alignment) {
+            ForEach(Array(Set(text.split(separator: " ").map(String.init))).sorted(), id: \.self) { word in
+                Text(word).fixedSize().hidden()
+            }
+            Text(text)
+        }
+    }
+}
+
+/// Offers ViewThatFits its content's smallest width as the ideal one, and
+/// otherwise lays the content out as it is. A Text's smallest width is its
+/// longest unbreakable piece - a whole word, with WholeWordText - so an HStack
+/// of buttons "fits" exactly when no label in it has to break inside a word.
+private struct SmallestIsIdeal: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let content = subviews.first else { return .zero }
+        if proposal.width == nil {
+            return content.sizeThatFits(ProposedViewSize(width: 0, height: proposal.height))
+        }
+        return content.sizeThatFits(proposal)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        // The proposal it was measured with, not its measured size: a Text
+        // laid out in exactly its own width can wrap by a rounding hair.
+        subviews.first?.place(at: bounds.origin, anchor: .topLeading, proposal: proposal)
+    }
+}
+
+/// Views at their own width, left to right, a new line when the next doesn't
+/// fit; one wider than a whole line gets the line's width.
+private struct FlowRow: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let frames = arrange(width: proposal.width, subviews)
+        return CGSize(width: frames.map(\.maxX).max() ?? 0, height: frames.map(\.maxY).max() ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for (view, frame) in zip(subviews, arrange(width: bounds.width, subviews)) {
+            view.place(at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                       anchor: .topLeading, proposal: ProposedViewSize(frame.size))
+        }
+    }
+
+    private func arrange(width: CGFloat?, _ subviews: Subviews) -> [CGRect] {
+        let line = width ?? .infinity
+        var frames: [CGRect] = []
+        var x: CGFloat = 0, y: CGFloat = 0, lineHeight: CGFloat = 0
+        for view in subviews {
+            var size = view.sizeThatFits(.unspecified)
+            if size.width > line { size = view.sizeThatFits(ProposedViewSize(width: line, height: nil)) }
+            if x > 0 && x + size.width > line {
+                x = 0
+                y += lineHeight + spacing
+                lineHeight = 0
+            }
+            frames.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
+            x += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+        }
+        return frames
     }
 }
 

@@ -95,7 +95,7 @@
     <string name="app_photos_notice_save_failed">Échec de l’enregistrement : %1$s</string>
     <string name="app_photos_notice_saved">Enregistrée dans Photos ✅</string>
     <string name="app_photos_notice_share_failed">Échec du partage : %1$s</string>
-    <string name="app_photos_people_add_name">Ajouter un nom</string>
+    <string name="app_photos_people_add_name">Nommer</string>
     <string name="app_photos_people_clear_selection">Effacer la sélection</string>
     <string name="app_photos_people_delete_failed">Impossible de les supprimer. Réessayez.</string>
     <plurals name="app_photos_people_delete_many">

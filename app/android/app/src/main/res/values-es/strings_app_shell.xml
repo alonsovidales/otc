@@ -175,5 +175,5 @@
     <string name="app_shell_upload_paused">En pausa</string>
     <string name="app_shell_upload_queue">Cola de subida</string>
     <string name="app_shell_upload_uploading">Subiendo…</string>
-    <string name="app_shell_welcome">Te damos la bienvenida</string>
+    <string name="app_shell_welcome">Hola</string>
 </resources>

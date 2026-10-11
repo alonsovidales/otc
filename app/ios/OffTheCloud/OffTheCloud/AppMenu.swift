@@ -474,7 +474,11 @@ struct SideMenu: View {
             } label: {
                 HStack(spacing: 16) {
                     NavIconView(.storage, size: 22).foregroundStyle(.secondary)
+                    // One line: Almacenamiento and Armazenamento are a
+                    // little wider than the room beside the chevron.
                     Text(S.appShellStorage).font(.system(size: 15)).foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     if storage.attention {
                         Circle().fill(MenuStyle.danger).frame(width: 8, height: 8)
                             .accessibilityLabel(S.iosStorageNeedsAttention)
@@ -552,7 +556,10 @@ struct SideMenu: View {
     }
 
     private func legalLink(_ title: String, _ url: String) -> some View {
-        Button(title) { if let u = URL(string: url) { openURL(u) } }
+        // One line each: German Nutzungsbedingungen was broken in two.
+        Button { if let u = URL(string: url) { openURL(u) } } label: {
+            Text(title).lineLimit(1).minimumScaleFactor(0.8)
+        }
             .buttonStyle(.plain)
             .padding(.horizontal, 4)
             .frame(minHeight: 40)

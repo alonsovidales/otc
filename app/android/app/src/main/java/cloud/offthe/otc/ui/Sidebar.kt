@@ -46,6 +46,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -126,6 +127,7 @@ import cloud.offthe.otc.i18n.appShellTerms
 import cloud.offthe.otc.i18n.appShellSectionSettings
 import cloud.offthe.otc.proto.RaidState
 import cloud.offthe.otc.proto.Status
+import cloud.offthe.otc.ui.common.FitText
 import cloud.offthe.otc.ui.common.NavIcons
 import cloud.offthe.otc.ui.common.Share
 import cloud.offthe.otc.ui.settings.sizeText
@@ -571,9 +573,14 @@ private fun RailItem(s: Section, active: Boolean, count: Int, compact: Boolean, 
             // On the pill's corner, ringed in the rail's colour so it stands off the icon.
             if (count > 0) CountBadge(count, colors, small = true, modifier = Modifier.offset(x = 30.dp, y = (-2).dp))
         }
-        Text(
-            label, fontSize = 11.sp, lineHeight = 14.sp, fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-            color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+        // Smaller rather than cut, down to 80% as iOS's rail (FitText).
+        FitText(
+            label,
+            style = LocalTextStyle.current.copy(
+                fontSize = 11.sp, lineHeight = 14.sp, fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                textAlign = TextAlign.Center,
+            ),
+            color = tint, minScale = 0.8f,
         )
     }
 }
@@ -653,7 +660,8 @@ private fun StoragePanel(s: StorageSummary, details: Boolean, onToggle: () -> Un
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Icon(NavIcons.Storage, null, Modifier.size(22.dp), tint = colors.dim)
-            Text(S.appShellStorage().resolve(), Modifier.weight(1f), fontSize = 15.sp, color = colors.text, maxLines = 1)
+            // Almacenamiento and Armazenamento are a little wider than the room: smaller rather than cut.
+            FitText(S.appShellStorage().resolve(), Modifier.weight(1f), style = LocalTextStyle.current.copy(fontSize = 15.sp), color = colors.text, minScale = 0.8f)
             if (s.attention) Box(Modifier.size(8.dp).clip(CircleShape).background(colors.danger))
             Icon(NavIcons.Chevron, null, Modifier.size(18.dp).rotate(turn), tint = colors.dim)
         }
@@ -717,7 +725,10 @@ private fun LegalLink(label: String, colors: MenuColors, onClick: () -> Unit) {
     Box(
         Modifier.heightIn(min = 40.dp).clip(RoundedCornerShape(4.dp)).clickable(role = Role.Button, onClick = onClick).padding(horizontal = 4.dp),
         contentAlignment = Alignment.Center,
-    ) { Text(label, fontSize = 12.sp, color = colors.dim) }
+    ) {
+        // One line each: German Nutzungsbedingungen was broken in two.
+        FitText(label, style = LocalTextStyle.current.copy(fontSize = 12.sp), color = colors.dim, minScale = 0.8f)
+    }
 }
 
 /** The top bar's menu button (MenuIcon): 44dp round, lined up with the rail's icons below it. */

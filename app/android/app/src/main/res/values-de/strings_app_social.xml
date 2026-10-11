@@ -14,7 +14,7 @@
     <string name="app_social_alerts_liked_post">&lt;b&gt;\u2068%1$s\u2069&lt;/b&gt; gefällt dein Beitrag</string>
     <string name="app_social_alerts_title">Benachrichtigungen</string>
     <string name="app_social_compose_camera">Foto oder Video aufnehmen</string>
-    <string name="app_social_compose_caption_placeholder">Bildunterschrift schreiben…</string>
+    <string name="app_social_compose_caption_placeholder">Bildunterschrift…</string>
     <string name="app_social_compose_empty_response">Leere Antwort</string>
     <string name="app_social_compose_filter_placeholder">Nach Tag filtern…</string>
     <string name="app_social_compose_order">Reihenfolge im Beitrag</string>

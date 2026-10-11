@@ -4174,7 +4174,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Namen hinzufügen"
+            "value" : "Benennen"
           }
         },
         "en" : {
@@ -4186,31 +4186,31 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Añadir un nombre"
+            "value" : "Poner nombre"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ajouter un nom"
+            "value" : "Nommer"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aggiungi un nome"
+            "value" : "Dai un nome"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Naam toevoegen"
+            "value" : "Naam geven"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Adicionar um nome"
+            "value" : "Dar um nome"
           }
         }
       }
