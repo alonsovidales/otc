@@ -29,13 +29,20 @@ import (
 //	/<code>/          the page in that language; /en/ is English without that redirect (the switcher's link)
 //	/<code>           301 to /<code>/
 //	/xx, /xx/         404 for two or three lowercase letters that aren't a carried language
-//	/<code>/anything  404: the site has no other localized pages yet
+//	/<code>/anything  404: the site has no other localized pages yet, but for
+//	/account          the account page: English, or 302 to /<code>/account as / does
+//	/<code>/account   the account page in that language; /en/account is English without the redirect
+//	/xx/account       404 for a language this build doesn't carry
 //	/landing(.html)   301 to /, the page's old address
+//	/account.html     301 to /account, the account page's old address
+//
+// The account page's own links (emails' #verify= and #reset=, the Google
+// and Apple sign-ins' ?error= and ?complete=) all come to /account: a
+// redirect keeps the query, and the browser keeps the fragment.
 //
 // /disabled and /unavailable show those pages on the bridge's host too
-// (Accept-Language), for a look at them. Everything else (the account,
-// privacy, terms and admin pages, fonts, images) is serveStatic's, as
-// before. On a device's own address the bridge answers with serveOwnPage
+// (Accept-Language), for a look at them. Everything else (the privacy,
+// terms and admin pages, fonts, images) is serveStatic's, as before. On a device's own address the bridge answers with serveOwnPage
 // when it can't proxy: there the path is the device's, so those pages
 // follow Accept-Language.
 
@@ -57,16 +64,13 @@ func (api *API) sitePage(w http.ResponseWriter, r *http.Request) bool {
 	var answer func()
 	switch p {
 	case "/":
-		answer = func() {
-			w.Header().Add("Vary", "Accept-Language")
-			if lang := i18n.Match(r.Header.Get("Accept-Language")); lang != site.English() {
-				siteRedirect(w, r, site.Path(lang), http.StatusFound)
-				return
-			}
-			api.writeSitePage(w, site.Landing, site.English(), http.StatusOK)
-		}
+		answer = func() { api.writeEnglishOrRedirect(w, r, site.Landing, site.Path) }
+	case "/account":
+		answer = func() { api.writeEnglishOrRedirect(w, r, site.Account, site.AccountPath) }
 	case "/landing", "/landing.html":
 		answer = func() { siteRedirect(w, r, "/", http.StatusMovedPermanently) }
+	case "/account.html":
+		answer = func() { siteRedirect(w, r, "/account", http.StatusMovedPermanently) }
 	case "/disabled", "/disabled.html":
 		answer = func() { api.writeLocalizedPage(w, r, site.Disabled, http.StatusOK) }
 	case "/unavailable", "/unavailable.html":
@@ -82,7 +86,9 @@ func (api *API) sitePage(w http.ResponseWriter, r *http.Request) bool {
 			answer = func() { siteRedirect(w, r, "/"+code+"/", http.StatusMovedPermanently) }
 		case carried && rest == "":
 			answer = func() { api.writeSitePage(w, site.Landing, code, http.StatusOK) }
-		case carried, rest == "":
+		case carried && rest == "account":
+			answer = func() { api.writeSitePage(w, site.Account, code, http.StatusOK) }
+		case carried, rest == "", rest == "account":
 			answer = func() { http.NotFound(w, r) }
 		default:
 			// Not a language: /img/device.jpg and the like.
@@ -96,6 +102,19 @@ func (api *API) sitePage(w http.ResponseWriter, r *http.Request) bool {
 	}
 	answer()
 	return true
+}
+
+// writeEnglishOrRedirect answers a page's English address (/, /account):
+// the page in English, or a 302 to the page in the language
+// Accept-Language prefers (at gives its address) when that is another
+// language this build carries.
+func (api *API) writeEnglishOrRedirect(w http.ResponseWriter, r *http.Request, page string, at func(code string) string) {
+	w.Header().Add("Vary", "Accept-Language")
+	if lang := i18n.Match(r.Header.Get("Accept-Language")); lang != site.English() {
+		siteRedirect(w, r, at(lang), http.StatusFound)
+		return
+	}
+	api.writeSitePage(w, page, site.English(), http.StatusOK)
 }
 
 // siteRedirect sends r to path, keeping its query.
@@ -165,8 +184,8 @@ func (api *API) writeSitePage(w http.ResponseWriter, page, lang string, status i
 // sitePolicy is the pages' Content-Security-Policy: their inline style and
 // scripts by nonce, and nothing from anywhere but the bridge itself (the
 // self-hosted fonts and their stylesheet, the logo and screenshots, the
-// contact form's POST). The JSON blocks holding the scripts' text are data,
-// never run.
+// contact form's POST, the account page's calls to /api/account). The JSON
+// blocks holding the scripts' text are data, never run.
 func sitePolicy(nonce string) string {
 	return strings.ReplaceAll(cSitePolicy, "NONCE", "'nonce-"+nonce+"'")
 }

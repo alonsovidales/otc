@@ -102,12 +102,14 @@ tags, keys for storage and preferences, symbols and image names (`systemImage:`,
   bridgeaccess, tailscalefunnel, session, devicerestart, storage, network, updater, raidwatch,
   wifiwatch, status, push, settings, profile; bridge: accounts, api, websocket; otc-sync: tray,
   engine, flasher, selfupdate, wsclient, config, browser, autostart - not `cmd/otc-sync`).
-- **pages** (`bridge/static/account.html` and the bridge's embedded page templates
-  `bridge/site/pages/landing.html`, `disabled.html`, `unavailable.html`; not `admin.html`,
-  `privacy.html`, `terms.html`, `index.html`): HTML text and attributes, and the inline scripts
-  through a JavaScript lexer (`jslex.go`); markup built in a template literal is scanned as HTML,
-  at its own lines. In the templates a Go template action (`{{t "site.landing.faq.title"}}`) is a
-  placeholder, like an interpolation.
+- **pages** (the bridge's embedded page templates `bridge/site/pages/landing.html`,
+  `account.html`, `disabled.html`, `unavailable.html`; nothing in `bridge/static`: `admin.html` is
+  the operator's, `privacy.html` and `terms.html` stay English, `index.html` is a stale copy of the
+  web app's shell): HTML text and attributes, and the inline scripts through a JavaScript lexer
+  (`jslex.go`); markup built in a template literal is scanned as HTML, at its own lines. Every Go
+  template action (`{{t "site.landing.faq.title"}}`, the account page's `{{jstexts …}}` JSON
+  blocks) is blanked to a placeholder first, like an interpolation, padded to its length with its
+  line breaks kept so findings keep their lines (`blankActions`).
 - **wizard** (`scripts/setup_wizard.py`): its `PAGE` like the pages, and the backend's
   `{"error": "…"}`, `data.get("error", "…")` and `data.get("error") or "…"`.
 

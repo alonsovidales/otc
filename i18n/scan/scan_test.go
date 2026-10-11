@@ -286,10 +286,10 @@ func TestHTML(t *testing.T) {
 func TestHTMLLines(t *testing.T) {
 	root := t.TempDir()
 	src := "<html>\n<body>\n<h1>Title here</h1>\n<script>\nview.innerHTML = `\n  <h2>${a}</h2>\n  <p>On line seven</p>`;\n</script>\n</body>\n</html>\n"
-	if err := os.MkdirAll(filepath.Join(root, "bridge", "static"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "bridge", "site", "pages"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "bridge", "static", "account.html"), []byte(src), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "bridge", "site", "pages", "account.html"), []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	res, err := Run(Options{Root: root, Surfaces: []string{"pages"}})

@@ -23,6 +23,9 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
+// pages are every page the site renders.
+var pages = []string{Landing, Disabled, Unavailable, Account}
+
 var testOptions = Options{
 	Base:  "https://off-the.cloud",
 	Nonce: "bm9uY2Utbm9uY2Utbm9uY2U=",
@@ -71,6 +74,7 @@ func englishEntries(t *testing.T, pattern string) map[string]englishEntry {
 type use struct {
 	fn, key string
 	args    []string
+	types   []string // jsform: each argument's type, as the page names it
 }
 
 // pageUses walks the parsed pages for every call of the text functions.
@@ -117,6 +121,25 @@ func pageUses(t *testing.T) []use {
 			for i := 1; i < len(rest); i += 2 {
 				uses = append(uses, use{fn: "t", key: str(rest[i])})
 			}
+		case "jstexts":
+			// name/value pairs: a value is a key without arguments, or a
+			// jsform, which the walk finds on its own.
+			for i := 1; i < len(rest); i += 2 {
+				if s, ok := rest[i].(*parse.StringNode); ok {
+					uses = append(uses, use{fn: "jsform", key: s.Text})
+				}
+			}
+		case "jsform":
+			if len(rest) == 0 {
+				t.Errorf("jsform without a key")
+				return
+			}
+			u := use{fn: "jsform", key: str(rest[0])}
+			for i := 1; i+1 < len(rest); i += 2 {
+				u.args = append(u.args, str(rest[i]))
+				u.types = append(u.types, str(rest[i+1]))
+			}
+			uses = append(uses, u)
 		}
 	}
 	walk = func(n parse.Node) {
@@ -158,7 +181,7 @@ func pageUses(t *testing.T) []use {
 			walk(n.Pipe)
 		}
 	}
-	for _, name := range []string{Landing, Disabled, Unavailable} {
+	for _, name := range pages {
 		pt := tmpl.Lookup(name)
 		if pt == nil {
 			t.Fatalf("no page %s", name)
@@ -197,11 +220,25 @@ func TestPageKeys(t *testing.T) {
 		if !slices.Equal(got, declared) {
 			t.Errorf("%s %q: the page passes %v, the key declares %v", u.fn, u.key, u.args, declared)
 		}
-		if rich := len(e.Rich) > 0; rich != (u.fn == "rich") {
+		// A script's text (jsform) may be plain or rich: the script
+		// gets spans for a rich one. Its arguments' types are the key's.
+		if rich := len(e.Rich) > 0; u.fn != "jsform" && rich != (u.fn == "rich") {
 			t.Errorf("%s %q: rich key %v", u.fn, u.key, rich)
 		}
+		for i, name := range u.args {
+			for _, a := range e.Args {
+				if a[0] == name && i < len(u.types) && u.types[i] != a[1] {
+					t.Errorf("%s %q: the page says %s is a %s, the key a %s", u.fn, u.key, name, u.types[i], a[1])
+				}
+			}
+		}
 		for _, tag := range e.Rich {
-			if _, ok := tags[tag]; !ok {
+			if u.fn == "jsform" {
+				// The account page's script makes these elements itself.
+				if _, ok := accountTags[tag]; !ok {
+					t.Errorf("%q: tag <%s> isn't one the account page's script makes", u.key, tag)
+				}
+			} else if _, ok := tags[tag]; !ok {
 				t.Errorf("%q: tag <%s> isn't in the tags table", u.key, tag)
 			}
 		}
@@ -217,7 +254,7 @@ func TestPageKeys(t *testing.T) {
 // nonce on each inline <style> and executable <script>, and its language.
 func TestRenderEveryLanguage(t *testing.T) {
 	for _, l := range i18n.Languages() {
-		for _, page := range []string{Landing, Disabled, Unavailable} {
+		for _, page := range pages {
 			out, err := Render(page, l.Code, testOptions)
 			if err != nil {
 				t.Fatalf("%s in %s: %v", page, l.Code, err)
@@ -421,10 +458,12 @@ func jsonBlock(t *testing.T, page []byte, id string) string {
 // The English pages read exactly as the static pages they replaced: their
 // text and text attributes, their links and images, line by line
 // (testdata/*.golden were extracted from bridge/static/landing.html,
-// disabled.html and unavailable.html before they moved into the binary,
-// with the year the footer's script filled in).
+// disabled.html, unavailable.html and account.html before they moved into
+// the binary, with the year the footer's script filled in). The account
+// page writes the rest of its text from its script:
+// TestAccountScriptTextsUnchanged.
 func TestEnglishUnchanged(t *testing.T) {
-	for _, page := range []string{Landing, Disabled, Unavailable} {
+	for _, page := range pages {
 		out, err := Render(page, English(), testOptions)
 		if err != nil {
 			t.Fatal(err)
@@ -592,7 +631,7 @@ func TestTagsAndPages(t *testing.T) {
 		}
 	}
 	names, err := fs.Glob(pagesFS, "pages/*.html")
-	if err != nil || len(names) != 3 {
+	if err != nil || len(names) != len(pages) {
 		t.Errorf("embedded pages %v, %v", names, err)
 	}
 }

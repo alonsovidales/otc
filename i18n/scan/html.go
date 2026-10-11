@@ -348,12 +348,13 @@ func (s *scanner) scanHTML(rel string, src []byte, lineOf func(int) int) {
 
 // bridgePages are the pages people read. admin.html is the operator's,
 // privacy.html and terms.html stay English (legal text), index.html is a
-// stale copy of the web app's shell. The landing, disabled and unavailable
-// pages are html/template files the bridge embeds (bridge/site/pages):
-// their text comes from site.* keys through template actions.
+// stale copy of the web app's shell. The landing, account, disabled and
+// unavailable pages are html/template files the bridge embeds
+// (bridge/site/pages): their text comes from site.* keys through template
+// actions.
 var bridgePages = []string{
 	"bridge/site/pages/landing.html",
-	"bridge/static/account.html",
+	"bridge/site/pages/account.html",
 	"bridge/site/pages/disabled.html",
 	"bridge/site/pages/unavailable.html",
 }

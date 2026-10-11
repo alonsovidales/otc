@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/bridge/limits"
+	"github.com/alonsovidales/otc/bridge/site"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -165,7 +165,7 @@ func TestSignInErrorRedirectsCarryACode(t *testing.T) {
 // The account page has its own message for every sign-in code, so none
 // of them falls to its general one; the page never shows ?error= itself.
 func TestAccountPageKnowsEverySignInCode(t *testing.T) {
-	b, err := os.ReadFile("../static/account.html")
+	b, err := site.Render(site.Account, site.English(), site.Options{Base: "https://off-the.cloud", Nonce: "n", Now: time.Now()})
 	if err != nil {
 		t.Fatal(err)
 	}

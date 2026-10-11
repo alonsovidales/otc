@@ -25,6 +25,7 @@ func siteAPI(t *testing.T) *API {
 	dir := t.TempDir() + "/"
 	for name, body := range map[string]string{
 		"landing.html":     "STALE landing",
+		"account.html":     "STALE account",
 		"disabled.html":    "STALE disabled",
 		"unavailable.html": "STALE unavailable",
 		"privacy.html":     "the privacy notice",
@@ -192,5 +193,70 @@ func TestSiteDevicePages(t *testing.T) {
 	checkPage(t, "disabled on a device's address", rec, http.StatusServiceUnavailable, i18n.Match("de-DE"))
 	if !strings.Contains(rec.Body.String(), "<h1>") {
 		t.Error("the disabled page has no heading")
+	}
+}
+
+// The account page, from the binary, at /account and /<code>/account,
+// chosen like the landing page's language; every address the emails, the
+// sign-ins and the apps send people to keeps working.
+func TestSiteAccountPage(t *testing.T) {
+	api := siteAPI(t)
+	for _, al := range []string{"", "en-US,en;q=0.9", "ja-JP", "garbage;;q=x"} {
+		for _, target := range []string{"/account", "/account?error=cancelled", "/account?complete=1&return=http%3A%2F%2F10.42.0.1%2F", "/account?signup=1"} {
+			rec := siteGet(api, http.MethodGet, target, map[string]string{"Accept-Language": al})
+			checkPage(t, target+" with "+al, rec, http.StatusOK, site.English())
+			body := rec.Body.String()
+			if !strings.Contains(body, "<title>Off The Cloud — your account</title>") || !strings.Contains(body, `id="error-text"`) {
+				t.Errorf("%s with %q: not the English account page", target, al)
+			}
+			if rec.Header().Get("Vary") != "Accept-Language" {
+				t.Errorf("%s with %q: Vary %q", target, al, rec.Header().Get("Vary"))
+			}
+		}
+	}
+	// Another carried language is a redirect to the page in it, the query
+	// kept (the fragment - #verify=, #reset= - stays with the browser).
+	for _, l := range i18n.Languages()[1:] {
+		rec := siteGet(api, http.MethodGet, "/account?complete=1", map[string]string{"Accept-Language": l.Tag + ",en;q=0.5"})
+		if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/"+l.Code+"/account?complete=1" || rec.Header().Get("Vary") != "Accept-Language" {
+			t.Errorf("/account for %s: %d %q, Vary %q", l.Tag, rec.Code, rec.Header().Get("Location"), rec.Header().Get("Vary"))
+		}
+		page := siteGet(api, http.MethodGet, "/"+l.Code+"/account?complete=1", nil)
+		checkPage(t, "/"+l.Code+"/account", page, http.StatusOK, l.Code)
+		if !strings.Contains(page.Body.String(), `<html lang="`+l.Tag+`">`) {
+			t.Errorf("/%s/account isn't in %s", l.Code, l.Tag)
+		}
+	}
+	// /en/account is English whatever the browser prefers, and names
+	// /account as the page's address.
+	rec := siteGet(api, http.MethodGet, "/en/account", map[string]string{"Accept-Language": "es,fr;q=0.8"})
+	checkPage(t, "/en/account", rec, http.StatusOK, "en")
+	if !strings.Contains(rec.Body.String(), `<link rel="canonical" href="https://bridge.test/account">`) {
+		t.Error("/en/account doesn't name /account as its canonical address")
+	}
+	for target, want := range map[string]string{
+		"/account.html":               "/account",
+		"/account.html?delete=1":      "/account?delete=1",
+		"/account.html?error=expired": "/account?error=expired",
+	} {
+		rec := siteGet(api, http.MethodGet, target, nil)
+		if rec.Code != http.StatusMovedPermanently || rec.Header().Get("Location") != want {
+			t.Errorf("%s: %d %q, want 301 %q", target, rec.Code, rec.Header().Get("Location"), want)
+		}
+	}
+	notFound := []string{"/xx/account", "/zzz/account", "/en/account/", "/en/account/x", "/img/account"}
+	if _, ok := site.Language("es"); !ok {
+		notFound = append(notFound, "/es/account")
+	}
+	for _, target := range notFound {
+		if rec := siteGet(api, http.MethodGet, target, nil); rec.Code != http.StatusNotFound || strings.Contains(rec.Body.String(), "STALE") {
+			t.Errorf("%s: %d, want 404", target, rec.Code)
+		}
+	}
+	if rec := siteGet(api, http.MethodPost, "/account", nil); rec.Code != http.StatusMethodNotAllowed || strings.Contains(rec.Body.String(), "STALE") {
+		t.Errorf("POST /account: %d %q", rec.Code, rec.Body.String())
+	}
+	if rec := siteGet(api, http.MethodHead, "/account", nil); rec.Code != http.StatusOK {
+		t.Errorf("HEAD /account: %d", rec.Code)
 	}
 }

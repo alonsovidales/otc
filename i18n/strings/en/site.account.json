@@ -1,0 +1,630 @@
+{
+  "site.account.data.download": {
+    "text": "Download my data",
+    "note": "Account page: button that downloads a file with everything the bridge keeps about the account.",
+    "max": 30
+  },
+  "site.account.data.hint": {
+    "text": "Download everything this bridge keeps about you: your details, how you sign in, your domains and their traffic counts. What <privacy>we keep, and why</privacy>.",
+    "note": "Account page: text above the Download my data button. The bridge is our relay service. <privacy> links to the privacy notice.",
+    "rich": ["privacy"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #7d3c0e7b"
+  },
+  "site.account.data.title": {
+    "text": "Your data and your account",
+    "note": "Account page: title of the box for downloading the account's data and deleting the account.",
+    "max": 50
+  },
+  "site.account.delete.button": {
+    "text": "Delete my account",
+    "note": "Account page: red button that deletes the account, for good.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #1523ff5a"
+  },
+  "site.account.delete.failed": {
+    "text": "Could not delete the account",
+    "note": "Account page: error when the account could not be deleted and the bridge gave no reason.",
+    "max": 60
+  },
+  "site.account.delete.hint": {
+    "text": "<b>Deleting your account</b> releases all your domains (each name stays reserved for you for 30 days, so no one can pose as your device to your friends) and removes your details, sign-ins and setup codes. Your devices keep working at home, at <code>{address}</code>, as if they had been set up without an account - with everything on them - but are no longer reachable from outside nor by your friends. This can't be undone.",
+    "args": [["address", "text"]],
+    "note": "Account page: what deleting the account does, above the deletion fields. <b> marks the opening words in bold. {address} is the device's address on the home network (http://otc.local:8080), in code style (<code>).",
+    "rich": ["b", "code"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #8be9d17a"
+  },
+  "site.account.delete.password_label": {
+    "text": "Your password",
+    "note": "Account page, account deletion: label of the field where the account's password is typed to delete it.",
+    "max": 40
+  },
+  "site.account.delete.provider_hint": {
+    "text": "You sign in with Google or Apple: sign in again just before deleting (within 15 minutes).",
+    "note": "Account page, account deletion: shown instead of the password field to an account without a password (made with Google or Apple).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #1e92123f"
+  },
+  "site.account.delete.type_error": {
+    "text": "Type {word} to confirm",
+    "args": [["word", "text"]],
+    "note": "Account page, account deletion: error when Delete my account is pressed without typing the word. {word} is the word to type, site.account.delete.word.",
+    "max": 60,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #5c597b4d"
+  },
+  "site.account.delete.type_label": {
+    "text": "Type <b>{word}</b> to confirm",
+    "args": [["word", "text"]],
+    "note": "Account page, account deletion: label of the field where a word is typed to confirm. {word} is the word to type (site.account.delete.word), in bold (<b>).",
+    "max": 60,
+    "rich": ["b"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #55a57ade"
+  },
+  "site.account.delete.word": {
+    "text": "delete",
+    "note": "Account page, account deletion: the word typed to confirm deleting the account, shown in bold in site.account.delete.type_label and in site.account.delete.type_error. One short lowercase word that is easy to type on a phone (the check ignores capitals and spaces around it). It is only compared on the page: the bridge always receives the English \"delete\", and typing \"delete\" is accepted too.",
+    "max": 20,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #9e4308db"
+  },
+  "site.account.deleted.home": {
+    "text": "Back to the home page",
+    "note": "Account page: link to the site's home page, shown once the account was deleted.",
+    "max": 40
+  },
+  "site.account.deleted.lead": {
+    "text": "Your devices go on working at home, at <code>{address}</code>.",
+    "args": [["address", "text"]],
+    "note": "Account page: paragraph under Your account is deleted, for an account that had no domains. {address} is the device's address on the home network (http://otc.local:8080), in code style (<code>).",
+    "rich": ["code"]
+  },
+  "site.account.deleted.lead_released": {
+    "text": "Released: {domains}. Your devices go on working at home, at <code>{address}</code>.",
+    "args": [["domains", "text"], ["address", "text"]],
+    "note": "Account page: paragraph under Your account is deleted. {domains} is the list of the domains released (name.off-the.cloud), separated by commas; {address} is the device's address on the home network (http://otc.local:8080), in code style (<code>).",
+    "rich": ["code"]
+  },
+  "site.account.deleted.title": {
+    "text": "Your account is deleted",
+    "note": "Account page: heading shown once the account was deleted.",
+    "max": 50
+  },
+  "site.account.domains.connected": {
+    "text": "connected",
+    "note": "Account page, list of domains: state of a domain whose device is connected to the bridge right now (under the domain, and as the tooltip of the green dot). Lower case: it may be followed by \" · disabled\" and \" · since <date>\".",
+    "max": 20
+  },
+  "site.account.domains.disabled": {
+    "text": "disabled",
+    "note": "Account page, list of domains: shown after connected or not connected, after a middle dot, when the domain was disabled by us. Lower case.",
+    "max": 20
+  },
+  "site.account.domains.empty": {
+    "text": "No domains yet. Set up a device with a setup code, or register a name for a manual install.",
+    "note": "Account page: shown in place of the list of domains while the account has none."
+  },
+  "site.account.domains.identity_confirm": {
+    "text": "Give {domain} a new identity? The device using it now will be locked out of the bridge until it is set up with the new one.",
+    "args": [["domain", "text"]],
+    "note": "Account page: the browser's confirmation dialog after New identity. {domain} is the device's address (name.off-the.cloud). The identity is the device's secret credentials for the bridge.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #cc0313c6"
+  },
+  "site.account.domains.identity_failed": {
+    "text": "Could not re-issue that domain",
+    "note": "Account page, list of domains: error when a new identity could not be made and the bridge gave no reason.",
+    "max": 60
+  },
+  "site.account.domains.new_identity": {
+    "text": "New identity",
+    "note": "Account page, list of domains: small button that gives the domain new secret credentials (a confirmation follows).",
+    "max": 20
+  },
+  "site.account.domains.not_connected": {
+    "text": "not connected",
+    "note": "Account page, list of domains: state of a domain whose device is not connected to the bridge (under the domain, and as the tooltip of the red dot). Lower case, like connected.",
+    "max": 20
+  },
+  "site.account.domains.release": {
+    "text": "Release",
+    "note": "Account page, list of domains: small red button that gives the domain up (a confirmation follows).",
+    "max": 20
+  },
+  "site.account.domains.release_confirm": {
+    "text": "Release {domain}? Its device goes on working at home only ({address}), and the name stays reserved for you for 30 days.",
+    "args": [["domain", "text"], ["address", "text"]],
+    "note": "Account page: the browser's confirmation dialog after Release. {domain} is the device's address (name.off-the.cloud); {address} is the device's address on the home network (http://otc.local:8080).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #90be1b2d"
+  },
+  "site.account.domains.release_failed": {
+    "text": "Could not release that domain",
+    "note": "Account page, list of domains: error when the domain could not be released and the bridge gave no reason.",
+    "max": 60
+  },
+  "site.account.domains.since": {
+    "text": "since {date}",
+    "args": [["date", "text"]],
+    "note": "Account page, list of domains: the last item of a domain's state line, after a middle dot. {date} is the day the domain was registered, already written in the page's language. Lower case.",
+    "max": 40
+  },
+  "site.account.domains.title": {
+    "text": "Your domains",
+    "note": "Account page: title of the list of the account's domains (the devices' addresses, name.off-the.cloud).",
+    "max": 50
+  },
+  "site.account.error.confirm_required": {
+    "text": "confirm with {body}",
+    "args": [["body", "text"]],
+    "note": "Account page: error (lower case, like the bridge's) when a request to delete the account came without its confirmation. {body} is the confirmation the request must carry, written as data: {\"confirm\": \"delete\"}. The page always sends it, so people should not see this.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #5a9ab9b3"
+  },
+  "site.account.error.recent_signin_required": {
+    "text": "sign in again (with Google or Apple), then try again within 15 minutes",
+    "note": "Account page: error (lower case, like the bridge's) when adding a password or deleting the account needs a sign-in with Google or Apple from the last 15 minutes.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #f3e14403"
+  },
+  "site.account.field.country": {
+    "text": "Country of residence",
+    "note": "Account page: label of the list where the person picks the country they live in (sign-up and the account's details).",
+    "max": 40
+  },
+  "site.account.field.country_choose": {
+    "text": "Choose…",
+    "note": "Account page: first entry of the country list, shown while no country is picked.",
+    "max": 30
+  },
+  "site.account.field.email": {
+    "text": "Email",
+    "note": "Account page: label of an email address field (sign-in, sign-up, and the account's details, where it can't be changed).",
+    "max": 30
+  },
+  "site.account.field.name": {
+    "text": "Name",
+    "note": "Account page: label of the first-name field (sign-up and the account's details).",
+    "max": 30
+  },
+  "site.account.field.surname": {
+    "text": "Surname",
+    "note": "Account page: label of the surname field (sign-up and the account's details).",
+    "max": 30
+  },
+  "site.account.footer.privacy": {
+    "text": "Privacy",
+    "note": "Account page: link at the bottom of the page to the privacy notice (which stays in English).",
+    "max": 20
+  },
+  "site.account.forgot.email_label": {
+    "text": "Your account's email",
+    "note": "Account page, sign-in box: label of the field for the email address a password-reset link is sent to.",
+    "max": 40
+  },
+  "site.account.forgot.open": {
+    "text": "Forgot your password?",
+    "note": "Account page, sign-in box: link that opens the field for asking a password-reset email.",
+    "max": 40
+  },
+  "site.account.forgot.send": {
+    "text": "Email me a reset link",
+    "note": "Account page, sign-in box: button that asks for a password-reset email.",
+    "max": 40
+  },
+  "site.account.forgot.sent": {
+    "text": "If there is an account for that email, a link to reset its password is on its way. It works for an hour.",
+    "note": "Account page, sign-in box: message after asking for a password-reset email. It must not say whether the account exists: the same answer is given for any address.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #369988c5"
+  },
+  "site.account.header.sign_out": {
+    "text": "Sign out",
+    "note": "Account page: small button at the top right, next to the signed-in email address.",
+    "max": 20
+  },
+  "site.account.home.hello": {
+    "text": "Hello, {name}",
+    "args": [["name", "user"]],
+    "note": "Account page: main heading once signed in. {name} is the account holder's first name.",
+    "max": 50
+  },
+  "site.account.home.summary": {
+    "text": "{registered} of {max} domains registered · free until <b>{date}</b> · <details>your details</details>",
+    "args": [["registered", "int"], ["max", "int"], ["date", "text"]],
+    "note": "Account page: line under the main heading once signed in, three parts separated by a middle dot. {registered} is how many domains the account has, {max} how many it may have (5); {date} is when the free period ends, a date already written in the page's language, in bold (<b>); <details> links to the form for changing the account's name and country.",
+    "rich": ["b", "details"]
+  },
+  "site.account.identity.yours": {
+    "text": "<b>{domain}</b> is yours. Copy this now - it is not shown again:",
+    "args": [["domain", "text"]],
+    "note": "Account page: line above the new device identity (two lines of secret values) after registering a name or asking for a new identity. {domain} is the device's address (name.off-the.cloud), in bold (<b>). The values are shown only this once.",
+    "rich": ["b"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #9c306d23"
+  },
+  "site.account.loading": {
+    "text": "Loading…",
+    "note": "Account page: shown for a moment while the page loads the account.",
+    "max": 30
+  },
+  "site.account.manual.failed": {
+    "text": "Could not register that name",
+    "note": "Account page: error when the device name could not be registered and the bridge gave no reason.",
+    "max": 60
+  },
+  "site.account.manual.hint": {
+    "text": "For a device installed with the install script rather than the image: register its name here and put the identity you get into <code>{path}</code> before running the script (it is shown once).",
+    "args": [["path", "text"]],
+    "note": "Account page: text of the box for registering a name by hand. The image is the system image written to the microSD card; the identity is the device's secret credentials for the bridge, shown only once. {path} is a file's path on the device (/etc/otc/otc-install.env), in code style (<code>).",
+    "rich": ["code"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #75676d61"
+  },
+  "site.account.manual.name_label": {
+    "text": "Name",
+    "note": "Account page, box for registering a name by hand: label of the field for the device's name (its address will be name.off-the.cloud), not a person's name.",
+    "max": 30
+  },
+  "site.account.manual.name_placeholder": {
+    "text": "e.g. casa",
+    "note": "Account page: grey example inside the empty device-name field, which is followed by .off-the.cloud. \"casa\" is an example name (lower-case letters, digits and hyphens only); another short example word is fine.",
+    "max": 30
+  },
+  "site.account.manual.register": {
+    "text": "Register the name",
+    "note": "Account page: button that registers the device name typed in the field.",
+    "max": 30
+  },
+  "site.account.manual.title": {
+    "text": "Installing by hand?",
+    "note": "Account page: title of the box for registering a device's name by hand, for a device installed with the install script.",
+    "max": 50
+  },
+  "site.account.meta.description": {
+    "text": "Sign in to see the domains registered to your Off The Cloud account, release them, replace a lost device, and get a setup code for a new one.",
+    "note": "Account page: the description search engines show under the page's title. A domain is an address of the form name.off-the.cloud; a setup code links a new device to the account.",
+    "max": 200
+  },
+  "site.account.meta.title": {
+    "text": "Off The Cloud — your account",
+    "note": "Account page (off-the.cloud/account): the browser tab's title and the page's title in search results.",
+    "max": 60
+  },
+  "site.account.password.add": {
+    "text": "Add a password",
+    "note": "Account page, password box: the save button for an account that has no password yet (made with Google or Apple).",
+    "max": 30
+  },
+  "site.account.password.change": {
+    "text": "Change password",
+    "note": "Account page, password box: button that saves the new password.",
+    "max": 30
+  },
+  "site.account.password.current_label": {
+    "text": "Current password",
+    "note": "Account page, password box: label of the field for the password in use now.",
+    "max": 40
+  },
+  "site.account.password.mismatch": {
+    "text": "The two passwords don't match",
+    "note": "Account page: error under the new-password fields when the two passwords typed differ.",
+    "max": 60
+  },
+  "site.account.password.new_label": {
+    "text": "New password <small>({min_chars} characters or more)</small>",
+    "args": [["min_chars", "int"]],
+    "note": "Account page: label of the new-password field (resetting a forgotten password, changing or adding one). <small> is the hint in smaller grey text after the label. {min_chars} is the shortest password allowed (8).",
+    "max": 60,
+    "rich": ["small"]
+  },
+  "site.account.password.provider_hint": {
+    "text": "You sign in with Google or Apple. You can add a password within 15 minutes of signing in that way.",
+    "note": "Account page, password box: shown instead of the current-password field to an account without a password (made with Google or Apple).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #408a6878"
+  },
+  "site.account.password.repeat_label": {
+    "text": "Repeat the new password",
+    "note": "Account page: label of the field where the new password is typed a second time.",
+    "max": 40
+  },
+  "site.account.password.save_failed": {
+    "text": "Could not save the password",
+    "note": "Account page, password box: error when the password could not be saved and the bridge gave no reason.",
+    "max": 60
+  },
+  "site.account.password.saved": {
+    "text": "Password saved. Other sessions are signed out.",
+    "note": "Account page: green message at the top of the page after the password was changed."
+  },
+  "site.account.password.sign_out_all": {
+    "text": "Sign out everywhere",
+    "note": "Account page, password box: small red button that ends every session of the account (a confirmation follows).",
+    "max": 30
+  },
+  "site.account.password.sign_out_all_confirm": {
+    "text": "Sign out of your account on every browser and device, this one included?",
+    "note": "Account page: the browser's confirmation dialog after Sign out everywhere.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #36c935e4"
+  },
+  "site.account.password.signs_out": {
+    "text": "Changing the password signs you out everywhere else. Left signed in on a computer you don't use any more?",
+    "note": "Account page, password box: hint above the Sign out everywhere button.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ce86586c"
+  },
+  "site.account.password.title": {
+    "text": "Password and sign-in",
+    "note": "Account page: title of the box for changing the password and signing out of other browsers.",
+    "max": 50
+  },
+  "site.account.profile.back": {
+    "text": "Back",
+    "note": "Account page, the account's details: button that returns to the account without saving.",
+    "max": 20
+  },
+  "site.account.profile.lead_edit": {
+    "text": "Update the details on your account.",
+    "note": "Account page: paragraph under the heading Your details."
+  },
+  "site.account.profile.lead_new": {
+    "text": "We need a name and your country of residence to finish creating the account.",
+    "note": "Account page: paragraph under the heading Almost there."
+  },
+  "site.account.profile.save": {
+    "text": "Save",
+    "note": "Account page, the account's details: button that saves them.",
+    "max": 20
+  },
+  "site.account.profile.save_continue": {
+    "text": "Save and continue the setup",
+    "note": "Account page, the account's details: the save button when the person came from setting up a device and goes back to it afterwards.",
+    "max": 40
+  },
+  "site.account.profile.save_failed": {
+    "text": "Could not save",
+    "note": "Account page, the account's details: error when they could not be saved and the bridge gave no reason.",
+    "max": 60
+  },
+  "site.account.profile.title_edit": {
+    "text": "Your details",
+    "note": "Account page: heading of the form for changing the account's name and country.",
+    "max": 50
+  },
+  "site.account.profile.title_new": {
+    "text": "Almost there",
+    "note": "Account page: heading of the form asking a new account (made with Google or Apple) for its name and country before it is complete.",
+    "max": 50
+  },
+  "site.account.reset.card_title": {
+    "text": "New password",
+    "note": "Account page, password reset: title of the box holding the new-password fields.",
+    "max": 40
+  },
+  "site.account.reset.done": {
+    "text": "Your new password is set, and you are signed in.",
+    "note": "Account page: green message at the top of the page after a password reset succeeded."
+  },
+  "site.account.reset.failed": {
+    "text": "Could not set it",
+    "note": "Account page, password reset: error when the new password could not be saved and the bridge gave no reason. \"it\" is the new password.",
+    "max": 60
+  },
+  "site.account.reset.set": {
+    "text": "Set the password",
+    "note": "Account page, password reset: button that saves the new password.",
+    "max": 30
+  },
+  "site.account.reset.signs_out": {
+    "text": "Setting it signs your account out everywhere else.",
+    "note": "Account page, password reset: hint under the button. Saving the new password ends the account's sessions in every other browser and app.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #19f99c09"
+  },
+  "site.account.reset.title": {
+    "text": "Choose a new password",
+    "note": "Account page: heading of the page a password-reset email's link opens.",
+    "max": 50
+  },
+  "site.account.send_failed": {
+    "text": "Could not send it right now",
+    "note": "Account page: error when an email (a password-reset link, or the confirmation link again) could not be sent and the bridge gave no reason.",
+    "max": 60
+  },
+  "site.account.setup.expires": {
+    "text": "Expires in {minutes} minutes.",
+    "args": [["minutes", "int"]],
+    "note": "Account page, setup-code box: line under the code just made. {minutes} is how long the code stays valid (15).",
+    "max": 60
+  },
+  "site.account.setup.failed": {
+    "text": "Could not make a code",
+    "note": "Account page, setup-code box: error when no setup code could be made and the bridge gave no reason.",
+    "max": 60
+  },
+  "site.account.setup.get": {
+    "text": "Get a setup code",
+    "note": "Account page: button that shows a new setup code.",
+    "max": 36
+  },
+  "site.account.setup.hint": {
+    "text": "Flash the image, power the device on and set it up from the iOS or Android app (Set up a new device, over Bluetooth). At the account step choose <b>I have a setup code</b> and type this code - it links the new device's name to this account. Good for 15 minutes.",
+    "note": "Account page: text of the setup-code box. The image is the system image written to the microSD card. \"Set up a new device\" and \"I have a setup code\" (in bold, <b>) are the words the apps and the setup page show: use their translations. The code expires after 15 minutes.",
+    "rich": ["b"]
+  },
+  "site.account.setup.lost": {
+    "text": "Lost a device? Set up its replacement the same way and give it the <b>same name</b>: the name moves to the new device and the old one is locked out.",
+    "note": "Account page: hint at the bottom of the setup-code box. The name is the device's address (name.off-the.cloud), in bold (<b>); the old device can no longer use it.",
+    "rich": ["b"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #c5fb1b3e"
+  },
+  "site.account.setup.title": {
+    "text": "Setting up a device?",
+    "note": "Account page: title of the box that gives a setup code.",
+    "max": 50
+  },
+  "site.account.signed_out.lead": {
+    "text": "One account holds the domains of your devices: sign in here to see them, replace a lost device, or get a code for setting up a new one.",
+    "note": "Account page: paragraph under the main heading while nobody is signed in. A domain is a device's address (name.off-the.cloud)."
+  },
+  "site.account.signed_out.title": {
+    "text": "Your Off The Cloud account",
+    "note": "Account page: main heading while nobody is signed in.",
+    "max": 50
+  },
+  "site.account.signin.button": {
+    "text": "Sign in",
+    "note": "Account page, sign-in box: the button that signs in.",
+    "max": 30
+  },
+  "site.account.signin.continue_with": {
+    "text": "Continue with {provider}",
+    "args": [["provider", "text"]],
+    "note": "Account page: button that signs in or creates the account through another company's account. {provider} is Google or Apple.",
+    "max": 30
+  },
+  "site.account.signin.failed": {
+    "text": "Could not sign in",
+    "note": "Account page, sign-in box: error when signing in failed and the bridge gave no reason.",
+    "max": 60
+  },
+  "site.account.signin.password_label": {
+    "text": "Password",
+    "note": "Account page, sign-in box: label of the password field.",
+    "max": 30
+  },
+  "site.account.signin.title": {
+    "text": "Sign in",
+    "note": "Account page: title of the sign-in box.",
+    "max": 30
+  },
+  "site.account.signin_error.cancelled": {
+    "text": "the sign-in was cancelled",
+    "note": "Account page: error at the top of the page (lower case) when a sign-in with Google or Apple was stopped before it finished."
+  },
+  "site.account.signin_error.expired": {
+    "text": "that sign-in has expired, please try again",
+    "note": "Account page: error at the top of the page (lower case) when a sign-in with Google or Apple took too long or was started in another browser."
+  },
+  "site.account.signin_error.failed": {
+    "text": "the sign-in could not be completed",
+    "note": "Account page: error at the top of the page (lower case) when a sign-in with Google or Apple failed, for any other reason."
+  },
+  "site.account.signin_error.no_email": {
+    "text": "the sign-in did not include an email address",
+    "note": "Account page: error at the top of the page (lower case) when Google or Apple did not share an email address they confirmed."
+  },
+  "site.account.signup.button": {
+    "text": "Create account",
+    "note": "Account page, sign-up box: the button that creates the account.",
+    "max": 30
+  },
+  "site.account.signup.failed": {
+    "text": "Could not create the account",
+    "note": "Account page, sign-up box: error when the account could not be created and the bridge gave no reason.",
+    "max": 60
+  },
+  "site.account.signup.password_label": {
+    "text": "Password <small>({min_chars} characters or more)</small>",
+    "args": [["min_chars", "int"]],
+    "note": "Account page, sign-up box: label of the password field. <small> is the hint in smaller grey text after the label. {min_chars} is the shortest password allowed (8).",
+    "max": 60,
+    "rich": ["small"]
+  },
+  "site.account.signup.providers": {
+    "text": "Or create it with a sign-in provider (you accept the terms on the next page):",
+    "note": "Account page, sign-up box: line above the Continue with Google and Continue with Apple buttons. \"it\" is the account; the terms are the terms of use, accepted on the page that follows the provider's sign-in.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ae997b73"
+  },
+  "site.account.signup.title": {
+    "text": "Create an account",
+    "note": "Account page: title of the sign-up box.",
+    "max": 40
+  },
+  "site.account.terms.accept": {
+    "text": "I accept the <terms>terms of use</terms> and have read the <privacy>privacy notice</privacy>.",
+    "note": "Account page: text of the checkbox that accepts the terms (sign-up, the account's details, and the box asking an existing account to accept new terms). <terms> links to the terms of use and <privacy> to the privacy notice, both in a new tab.",
+    "rich": ["terms", "privacy"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e5d8bb36"
+  },
+  "site.account.terms.accept_button": {
+    "text": "Accept",
+    "note": "Account page: button that records the acceptance of the terms of use, under the checkbox.",
+    "max": 20
+  },
+  "site.account.terms.intro": {
+    "text": "Creating an account is only necessary to use our bridge: you will get up to <b>{max_domains} domains</b> like <i>name</i>.{host} to connect to your device and also connect with the devices of your friends and family. If you only want to use your device in your local network as a NAS or with Tailscale Funnel, you do not need an account.",
+    "args": [["max_domains", "int"], ["host", "text"]],
+    "note": "Account page: first paragraph of the summary of the terms, shown at sign-up and at the bottom of the account. The bridge is our relay service that makes a device reachable from outside the home. {max_domains} is how many domains an account gets (5); <i>name</i>.{host} shows the form of a domain: <i>name</i> is a placeholder word in italics for the name the person chooses, {host} is the site's address (off-the.cloud).",
+    "rich": ["b", "i"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e072070e"
+  },
+  "site.account.terms.pricing": {
+    "text": "An account for up to {max_domains} domains is <b>free for the first {free_years} years</b>, and after this period will cost {price} euros + VAT a year (we will e-mail you before the period ends). If you need more domains, each extra one costs {extra_domain_eur} euros a year: please contact us at <mail>{contact}</mail>. An account unused for {inactive_months} months (no sign-in here, and no app or friend reaching your devices through the bridge) is removed and its domains released; we email you a month before. Read the full <terms>terms of use</terms> and the <privacy>privacy notice</privacy>.",
+    "args": [["max_domains", "int"], ["free_years", "int"], ["price", "text"], ["extra_domain_eur", "int"], ["contact", "text"], ["inactive_months", "int"]],
+    "note": "Account page: second paragraph of the summary of the terms (prices and removal of unused accounts), after the first. {max_domains} (5), {free_years} (2), {extra_domain_eur} (2) and {inactive_months} (6) are numbers; {price} is the yearly price, already written as a number of the page's language (9.99); {contact} is our email address, a link (<mail>). <terms> links to the terms of use and <privacy> to the privacy notice, both in a new tab.",
+    "rich": ["b", "mail", "terms", "privacy"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #7e630690"
+  },
+  "site.account.terms.prompt": {
+    "text": "We have published <terms>terms of use</terms> for accounts and the bridge. Please read and accept them: until then this account can't register device names or give setup codes.",
+    "note": "Account page: text of the box asking an account to accept the terms. <terms> links to the terms of use, in a new tab. The bridge is our relay service; a device name is the device's address (name.off-the.cloud); a setup code links a new device to the account.",
+    "rich": ["terms"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #7efe97a2"
+  },
+  "site.account.terms.prompt_title": {
+    "text": "Our terms of use",
+    "note": "Account page: title of the box asking an account to accept the terms of use (published after it was created, or changed since).",
+    "max": 50
+  },
+  "site.account.terms.save_failed": {
+    "text": "Could not save right now",
+    "note": "Account page: error when the acceptance of the terms could not be recorded and the bridge gave no reason.",
+    "max": 60
+  },
+  "site.account.terms.tick": {
+    "text": "Tick the box to accept them.",
+    "note": "Account page: error when Accept is pressed without ticking the checkbox. \"them\" is the terms of use.",
+    "max": 60
+  },
+  "site.account.verify.done": {
+    "text": "Your email is confirmed. You can register your devices now.",
+    "note": "Account page: green message at the top of the page after the link of the confirmation email was opened."
+  },
+  "site.account.verify.failed": {
+    "text": "Could not confirm the email",
+    "note": "Account page: error at the top of the page when the confirmation email's link could not be used and the bridge gave no reason.",
+    "max": 60
+  },
+  "site.account.verify.prompt": {
+    "text": "We sent a link to <b>{email}</b>. Open it to confirm the address is yours - until then this account can't register device names or give setup codes.",
+    "args": [["email", "text"]],
+    "note": "Account page: text of the box shown until the email address is confirmed. {email} is the account's email address, in bold (<b>). A device name is the device's address (name.off-the.cloud); a setup code links a new device to the account.",
+    "rich": ["b"]
+  },
+  "site.account.verify.prompt_title": {
+    "text": "Confirm your email",
+    "note": "Account page: title of the box shown until the account's email address is confirmed.",
+    "max": 50
+  },
+  "site.account.verify.resend": {
+    "text": "Send the link again",
+    "note": "Account page: button in the confirm-your-email box that sends the confirmation email again.",
+    "max": 30
+  },
+  "site.account.verify.resent": {
+    "text": "Sent - check your inbox (and the spam folder).",
+    "note": "Account page: message under the Send the link again button once the email is on its way."
+  }
+}

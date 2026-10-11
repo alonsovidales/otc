@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="{{.Tag}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{t "site.account.meta.title"}}</title>
+  <meta name="description" content="{{t "site.account.meta.description"}}" />
+  <link rel="canonical" href="{{.Canonical}}">
+  {{- range .Alternates}}
+  <link rel="alternate" hreflang="{{.Lang}}" href="{{.Href}}">
+  {{- end}}
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/fonts/fonts.css">
+  <style nonce="{{.Nonce}}">
+    :root{
+      --ink:#10231f; --ink-2:#0b1815; --ember:#ff6b4a; --gold:#ffc857; --mist:#eaf2ef; --mist-dim:#b9c9c4;
+      --line:rgba(234,242,239,.12); --panel:rgba(234,242,239,.05); --panel-solid:#132a25; --ok:#7fd1a5; --bad:#f28b82;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font:16px/1.55 'Manrope',system-ui,-apple-system,sans-serif;color:var(--mist);background:var(--ink)}
+    a{color:var(--gold)}
+    header{border-bottom:1px solid var(--line);background:var(--ink-2)}
+    .nav{max-width:960px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .brand{display:flex;align-items:center;gap:10px;color:var(--mist);text-decoration:none;font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px}
+    .brand img{width:32px;height:32px;border-radius:8px}
+    .nav .who{color:var(--mist-dim);font-size:14px;display:flex;gap:14px;align-items:center}
+    main{max-width:960px;margin:0 auto;padding:28px 20px 60px}
+    h1{font-family:'Unbounded',sans-serif;font-size:1.5rem;margin:0 0 6px;letter-spacing:-.01em}
+    h2{font-family:'Unbounded',sans-serif;font-size:1.05rem;margin:0 0 10px}
+    p.lead{color:var(--mist-dim);margin:0 0 22px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    @media (max-width:760px){.grid{grid-template-columns:1fr}}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:18px}
+    .card.wide{grid-column:1 / -1}
+    label{display:block;font-size:13px;color:var(--mist-dim);margin:12px 0 4px}
+    input,select{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--ink-2);color:var(--mist)}
+    input:focus,select:focus{outline:2px solid var(--ember);border-color:transparent}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .row > *{flex:1}
+    .btn{font:inherit;font-weight:700;padding:10px 16px;border-radius:10px;border:1px solid transparent;background:var(--ember);color:var(--ink-2);cursor:pointer;margin-top:14px}
+    .btn.ghost{background:transparent;color:var(--mist);border-color:var(--line)}
+    .btn.danger{background:transparent;color:var(--bad);border-color:rgba(242,139,130,.5)}
+    .btn.small{padding:6px 12px;font-size:13px;margin-top:0;flex:none}
+    .btn:disabled{opacity:.5;cursor:default}
+    .msg{margin-top:10px;font-size:14px;min-height:1.2em}.msg.bad{color:var(--bad)}.msg.ok{color:var(--ok)}
+    .hint{color:var(--mist-dim);font-size:14px;margin:0 0 8px}
+    .providers{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .providers a{flex:1;text-align:center;text-decoration:none;color:var(--mist);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-weight:600;font-size:14px}
+    .providers a:hover{border-color:var(--gold)}
+    .terms{font-size:13px;color:var(--mist-dim);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:12px}
+    .terms b{color:var(--mist)}
+    .check{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:14px}
+    .check input{width:auto;margin-top:3px}
+    ul.domains{list-style:none;margin:0;padding:0}
+    ul.domains li{display:flex;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+    ul.domains li:first-child{border-top:0}
+    .dom{font-family:'JetBrains Mono',monospace;font-size:15px;flex:1;min-width:200px}
+    .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--mist-dim);margin-right:8px;vertical-align:1px}
+    .dot.on{background:var(--ok)}.dot.off{background:var(--bad)}
+    small{color:var(--mist-dim)}
+    .code{font-family:'JetBrains Mono',monospace;font-size:2rem;letter-spacing:.18em;text-align:center;padding:16px;border:1px dashed var(--gold);border-radius:12px;margin:12px 0 6px;user-select:all}
+    .secret{font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--ink-2);border:1px solid var(--line);border-radius:10px;padding:12px;white-space:pre-wrap;word-break:break-all;user-select:all;margin-top:10px}
+    .banner{border:1px solid rgba(242,139,130,.5);color:var(--bad);border-radius:10px;padding:10px 12px;margin-bottom:18px}
+    .muted{color:var(--mist-dim)}
+    /* What were style attributes, which the page's Content-Security-Policy
+       refuses: each selector outranks the rule it overrides, as the
+       attribute did. */
+    .hint.mt10{margin-top:10px}
+    .hint.mt12{margin-top:12px}
+    .hint.mt16{margin-top:16px}
+    .hint.foot{margin-top:32px}
+    .card.narrow{max-width:520px}
+    .card.gold{border-color:var(--gold)}
+    .row > .fixed{flex:none}
+    .banner.ok{color:var(--ok);border-color:rgba(127,209,165,.5)}
+    .lang-switch{display:flex;gap:14px;flex-wrap:wrap;font-size:14px}
+    .lang-switch a[aria-current]{color:var(--mist);text-decoration:none}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="nav">
+      <a class="brand" href="{{.Home}}">
+        <img src="/logo.png" alt="" width="32" height="32">
+        Off The Cloud
+      </a>
+      <div class="who" id="who"></div>
+    </div>
+  </header>
+  <main>
+    <div id="banner"></div>
+    <div id="view"><p class="hint">{{t "site.account.loading"}}</p></div>
+    <p class="hint foot"><a href="/privacy">{{t "site.account.footer.privacy"}}</a> · <a href="{{.Home}}">Off The Cloud</a></p>
+    {{- if .Switcher}}
+    <nav class="lang-switch" aria-label="{{t "site.common.language"}}">
+      {{- range .Switcher}}
+      <a href="{{.Href}}" lang="{{.Lang}}" hreflang="{{.Lang}}"{{if .Current}} aria-current="page"{{end}}>{{.Name}}</a>
+      {{- end}}
+    </nav>
+    {{- end}}
+  </main>
+  <!-- The page's language and its home (the landing page in it). -->
+  <script type="application/json" id="account-page">{"lang":{{.Lang}},"tag":{{.Tag}},"home":{{.Home}}}</script>
+  <!-- What the script below writes, in the page's language: by name, a
+       string, or a text with spans as [tag, text] pairs, with {placeholders}
+       for the script to fill in (bridge/site, jstexts). Data only, read
+       with JSON.parse. -->
+  <script type="application/json" id="account-text">{{jstexts
+    "signOut" "site.account.header.sign_out"
+    "emailLabel" "site.account.field.email"
+    "nameLabel" "site.account.field.name"
+    "surnameLabel" "site.account.field.surname"
+    "countryLabel" "site.account.field.country"
+    "countryChoose" "site.account.field.country_choose"
+    "newPasswordLabel" (jsform "site.account.password.new_label" "min_chars" "int")
+    "repeatPasswordLabel" "site.account.password.repeat_label"
+    "passwordMismatch" "site.account.password.mismatch"
+    "resetTitle" "site.account.reset.title"
+    "resetCard" "site.account.reset.card_title"
+    "resetSet" "site.account.reset.set"
+    "resetSignsOut" "site.account.reset.signs_out"
+    "resetFailed" "site.account.reset.failed"
+    "resetDone" "site.account.reset.done"
+    "verifyDone" "site.account.verify.done"
+    "verifyFailed" "site.account.verify.failed"
+    "verifyPromptTitle" "site.account.verify.prompt_title"
+    "verifyPrompt" (jsform "site.account.verify.prompt" "email" "text")
+    "verifyResend" "site.account.verify.resend"
+    "verifyResent" "site.account.verify.resent"
+    "sendFailed" "site.account.send_failed"
+    "signedOutTitle" "site.account.signed_out.title"
+    "signedOutLead" "site.account.signed_out.lead"
+    "signInTitle" "site.account.signin.title"
+    "passwordLabel" "site.account.signin.password_label"
+    "signInButton" "site.account.signin.button"
+    "signInFailed" "site.account.signin.failed"
+    "continueWith" (jsform "site.account.signin.continue_with" "provider" "text")
+    "forgotOpen" "site.account.forgot.open"
+    "forgotEmail" "site.account.forgot.email_label"
+    "forgotSend" "site.account.forgot.send"
+    "forgotSent" "site.account.forgot.sent"
+    "signUpTitle" "site.account.signup.title"
+    "signUpPasswordLabel" (jsform "site.account.signup.password_label" "min_chars" "int")
+    "signUpButton" "site.account.signup.button"
+    "signUpFailed" "site.account.signup.failed"
+    "signUpProviders" "site.account.signup.providers"
+    "termsIntro" (jsform "site.account.terms.intro" "max_domains" "int" "host" "text")
+    "termsPricing" (jsform "site.account.terms.pricing" "max_domains" "int" "free_years" "int" "price" "text" "extra_domain_eur" "int" "contact" "text" "inactive_months" "int")
+    "termsAccept" "site.account.terms.accept"
+    "termsPromptTitle" "site.account.terms.prompt_title"
+    "termsPrompt" "site.account.terms.prompt"
+    "termsAcceptButton" "site.account.terms.accept_button"
+    "termsTick" "site.account.terms.tick"
+    "termsSaveFailed" "site.account.terms.save_failed"
+    "profileNewTitle" "site.account.profile.title_new"
+    "profileEditTitle" "site.account.profile.title_edit"
+    "profileNewLead" "site.account.profile.lead_new"
+    "profileEditLead" "site.account.profile.lead_edit"
+    "save" "site.account.profile.save"
+    "saveContinue" "site.account.profile.save_continue"
+    "back" "site.account.profile.back"
+    "profileSaveFailed" "site.account.profile.save_failed"
+    "hello" (jsform "site.account.home.hello" "name" "user")
+    "summary" (jsform "site.account.home.summary" "registered" "int" "max" "int" "date" "text")
+    "setupTitle" "site.account.setup.title"
+    "setupHint" "site.account.setup.hint"
+    "setupGet" "site.account.setup.get"
+    "setupLost" "site.account.setup.lost"
+    "setupFailed" "site.account.setup.failed"
+    "setupExpires" (jsform "site.account.setup.expires" "minutes" "int")
+    "manualTitle" "site.account.manual.title"
+    "manualHint" (jsform "site.account.manual.hint" "path" "text")
+    "manualNameLabel" "site.account.manual.name_label"
+    "manualPlaceholder" "site.account.manual.name_placeholder"
+    "manualRegister" "site.account.manual.register"
+    "manualFailed" "site.account.manual.failed"
+    "identityYours" (jsform "site.account.identity.yours" "domain" "text")
+    "domainsTitle" "site.account.domains.title"
+    "connected" "site.account.domains.connected"
+    "notConnected" "site.account.domains.not_connected"
+    "domainDisabled" "site.account.domains.disabled"
+    "since" (jsform "site.account.domains.since" "date" "text")
+    "newIdentity" "site.account.domains.new_identity"
+    "release" "site.account.domains.release"
+    "domainsEmpty" "site.account.domains.empty"
+    "identityConfirm" (jsform "site.account.domains.identity_confirm" "domain" "text")
+    "identityFailed" "site.account.domains.identity_failed"
+    "releaseConfirm" (jsform "site.account.domains.release_confirm" "domain" "text" "address" "text")
+    "releaseFailed" "site.account.domains.release_failed"
+    "passwordTitle" "site.account.password.title"
+    "passwordCurrent" "site.account.password.current_label"
+    "passwordProvider" "site.account.password.provider_hint"
+    "passwordChange" "site.account.password.change"
+    "passwordAdd" "site.account.password.add"
+    "passwordSignsOut" "site.account.password.signs_out"
+    "signOutAll" "site.account.password.sign_out_all"
+    "signOutAllConfirm" "site.account.password.sign_out_all_confirm"
+    "passwordSaveFailed" "site.account.password.save_failed"
+    "passwordSaved" "site.account.password.saved"
+    "dataTitle" "site.account.data.title"
+    "dataHint" "site.account.data.hint"
+    "dataDownload" "site.account.data.download"
+    "deleteHint" (jsform "site.account.delete.hint" "address" "text")
+    "deletePassword" "site.account.delete.password_label"
+    "deleteProvider" "site.account.delete.provider_hint"
+    "deleteType" (jsform "site.account.delete.type_label" "word" "text")
+    "deleteTypeError" (jsform "site.account.delete.type_error" "word" "text")
+    "deleteWord" "site.account.delete.word"
+    "deleteButton" "site.account.delete.button"
+    "deleteFailed" "site.account.delete.failed"
+    "deletedTitle" "site.account.deleted.title"
+    "deletedLead" (jsform "site.account.deleted.lead" "address" "text")
+    "deletedReleased" (jsform "site.account.deleted.lead_released" "domains" "text" "address" "text")
+    "deletedHome" "site.account.deleted.home"}}</script>
+  <!-- What the page says for each error code (docs/i18n.md), in its
+       language: "api" for the {code, error} answers of bridge/accounts and
+       bridge/api - the API's own words for the code (api.error.*), or the
+       page's where it words a code its own way - with the terms' figures
+       filled in by the script (fillIn); "signin" for the ?error= a Google
+       or Apple sign-in comes back with (oidc.go's cSignIn* codes). Data
+       only, read with JSON.parse. errorcodes_test.go keeps it in step with
+       the Go side. -->
+  <script type="application/json" id="error-text">{"api":{{jstexts
+    "invalid_body" "api.error.invalid_body"
+    "not_signed_in" "api.error.not_signed_in"
+    "signin_check_unavailable" "api.error.signin_check_unavailable"
+    "cross_origin" "api.error.cross_origin"
+    "invalid_credentials" "api.error.invalid_credentials"
+    "too_many_attempts" "api.error.too_many_attempts"
+    "signin_unavailable" "api.error.signin_unavailable"
+    "too_many_signups" "api.error.too_many_signups"
+    "invalid_email" "api.error.invalid_email"
+    "password_too_short" (jsform "api.error.password_too_short" "min_chars" "int")
+    "profile_incomplete" "api.error.profile_incomplete"
+    "terms_required" "api.error.terms_required_profile"
+    "signup_unavailable" "api.error.signup_unavailable"
+    "email_taken" "api.error.email_taken"
+    "save_unavailable" "api.error.save_unavailable"
+    "wrong_password" "api.error.wrong_password"
+    "recent_signin_required" "site.account.error.recent_signin_required"
+    "account_check_unavailable" "api.error.account_check_unavailable"
+    "confirm_required" (jsform "site.account.error.confirm_required" "body" "text")
+    "delete_unavailable" "api.error.delete_unavailable"
+    "too_many_emails" "api.error.too_many_emails"
+    "email_send_unavailable" "api.error.email_send_unavailable_email"
+    "verify_unavailable" "api.error.verify_unavailable"
+    "verify_link_invalid" "api.error.verify_link_invalid"
+    "reset_unavailable" "api.error.reset_unavailable"
+    "reset_link_invalid" "api.error.reset_link_invalid"
+    "email_not_verified" "api.error.email_not_verified"
+    "terms_not_accepted" "api.error.terms_not_accepted"
+    "setup_code_unavailable" "api.error.setup_code_unavailable"
+    "register_unavailable" "api.error.register_unavailable"
+    "invalid_name" "api.error.invalid_name"
+    "name_taken" "api.error.name_taken"
+    "name_held" "api.error.name_held"
+    "domain_limit" (jsform "api.error.domain_limit" "max_domains" "int" "price_eur" "int" "contact" "text")
+    "reissue_unavailable" "api.error.reissue_unavailable"
+    "not_your_domain" "api.error.not_your_domain"
+    "release_unavailable" "api.error.release_unavailable"
+    "invalid_language" "api.error.invalid_language"}},"signin":{{jstexts
+    "cancelled" "site.account.signin_error.cancelled"
+    "expired" "site.account.signin_error.expired"
+    "failed" "site.account.signin_error.failed"
+    "no_email" "site.account.signin_error.no_email"}}}</script>
+  <script nonce="{{.Nonce}}">
+  // Issue #124: the account page. Everything here talks to /api/account/*
+  // with the session cookie; the shape of each answer is documented next
+  // to its handler in bridge/accounts and bridge/api.
+  const $ = (s) => document.querySelector(s);
+  const params = new URLSearchParams(location.search);
+  const api = async (method, path, body) => {
+    const r = await fetch(path, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin', cache: 'no-store' });
+    let j = {}; try { j = await r.json(); } catch (e) {}
+    return { ok: r.ok, status: r.status, ...j };
+  };
+  let me = null, domains = [], providers = [], terms = {}, countries = {}, maxDomains = 5;
+
+  // The page's words come from #account-text, in its language
+  // (docs/i18n.md, "Rendering contract"). They, and every value put into
+  // them, only ever go in as text - text nodes and textContent, never
+  // markup - so nothing a translation or a value holds can become an
+  // element.
+  const hasOwn = Object.hasOwn || ((o, k) => Object.prototype.hasOwnProperty.call(o, k));
+  const block = (id) => { try { return JSON.parse(document.getElementById(id).textContent); } catch (e) { return {}; } };
+  const PAGE = block('account-page'), T = block('account-text');
+  // English shows dates in the browser's own format, numbers as they come
+  // and the bridge's own country names, as this page always did; the
+  // other languages write them their own way.
+  const ENGLISH = PAGE.lang === 'en';
+  const LOCALE = ENGLISH ? undefined : PAGE.tag;
+  const num = (n) => { if (ENGLISH) return String(n); try { return new Intl.NumberFormat(PAGE.tag).format(n); } catch (e) { return String(n); } };
+  // Where this page is (/account, /es/account...): signing in or out comes
+  // back here, in the same language.
+  const SELF = location.pathname;
+  // What the bridge checks or says, the same in every language: the body
+  // confirming a deletion carries "delete". The word typed to confirm is
+  // the page's language's (site.account.delete.word); "delete" works too.
+  const MIN_PASSWORD = 8;
+  const CONFIRM_WORD = 'delete';
+  const CONFIRM_BODY = '{"confirm": "delete"}';
+  const HOME_ADDRESS = 'http://otc.local:8080';
+  const IDENTITY_FILE = '/etc/otc/otc-install.env';
+
+  // fill puts values into a text in one pass, each as plain text: a number
+  // in the page's language, a person's own words (between the isolation
+  // marks the bridge put around their place) without bidi controls of
+  // their own. A placeholder without a value comes out empty, and sets
+  // state.missing.
+  const BIDI = /[\u202a-\u202e\u2066-\u2069]/g;
+  function fill(s, a, state) {
+    return String(s).replace(/(\u2068?)\{([a-z][a-z0-9_]*)\}(\u2069?)/g, (m, open, k, close) => {
+      const v = a && hasOwn(a, k) ? a[k] : undefined;
+      if (v === undefined || v === null || v === '') { if (state) state.missing = true; return open + close; }
+      const text = typeof v === 'number' ? num(v) : String(v);
+      return open + (open ? text.replace(BIDI, '') : text) + close;
+    });
+  }
+  // t(name, values): a text without spans.
+  const t = (name, a) => (typeof T[name] === 'string' ? fill(T[name], a) : name);
+  // rich(name, values, tags): a text with spans, as nodes: each span the
+  // element tags[tag] makes of its text (b, i, code and small are those
+  // elements themselves), the text between them text nodes.
+  const PLAIN_TAGS = ['b', 'i', 'code', 'small'];
+  function rich(name, a, tags) {
+    const v = T[name];
+    if (!Array.isArray(v)) return [t(name, a)];
+    return v.map(([tag, s]) => {
+      const text = fill(s, a);
+      if (!tag) return text;
+      if (tags && hasOwn(tags, tag)) return tags[tag](text);
+      return PLAIN_TAGS.includes(tag) ? h(tag, {}, text) : text;
+    });
+  }
+  // h(tag, attributes, ...children): an element. Children are nodes or
+  // strings (text nodes), in nested arrays; null, undefined, false and ''
+  // are left out, and so is an attribute that is null, undefined or false.
+  // A ' ' child stands where the page's markup had white space between
+  // two inline elements (an input and its button), as it always did.
+  const kids = (c) => c.flat(9).filter((x) => x !== null && x !== undefined && x !== false && x !== '');
+  function h(tag, at, ...c) {
+    const e = document.createElement(tag);
+    for (const k in at || {}) {
+      const v = at[k];
+      if (v !== null && v !== undefined && v !== false) e.setAttribute(k, v === true ? '' : String(v));
+    }
+    e.append(...kids(c));
+    return e;
+  }
+  const paint = (...c) => $('#view').replaceChildren(...kids(c));
+
+  // Error messages come from the #error-text table by code. An API answer
+  // with a code the table lacks shows the server's own text, then the
+  // caller's fallback; a sign-in's ?error= is only ever looked up, never
+  // shown as it is, so a crafted link can't make this page say anything.
+  const errorTable = block('error-text');
+  const lookUp = (table, code) => (typeof code === 'string' && table && typeof table === 'object' && hasOwn(table, code)) ? String(table[code]) : '';
+  // fillIn puts the terms' figures into a message; one it can't fill
+  // (the terms not loaded) gives '' so the server's text is shown instead.
+  function fillIn(text) {
+    const vars = { min_chars: MIN_PASSWORD, max_domains: terms.max_domains, price_eur: terms.extra_domain_eur, contact: terms.contact, body: CONFIRM_BODY };
+    const state = { missing: false };
+    const out = fill(text, vars, state);
+    return state.missing ? '' : out;
+  }
+  const errText = (r, fallback) => fillIn(lookUp(errorTable.api, r.code)) || r.error || fallback;
+  // An unknown sign-in code gets the general "could not be completed".
+  const signInErrorText = (code) => lookUp(errorTable.signin, code) || lookUp(errorTable.signin, 'failed');
+
+  // The links in the terms' texts, which open in a new tab.
+  const newTab = (href) => (s) => h('a', { href, target: '_blank' }, s);
+  const termsLinks = { terms: newTab('/terms'), privacy: newTab('/privacy') };
+  const termsBox = () => h('div', { class: 'terms' },
+    rich('termsIntro', { max_domains: terms.max_domains, host: location.hostname }),
+    h('br'), h('br'),
+    rich('termsPricing', { max_domains: terms.max_domains, free_years: terms.free_years, price: terms.price_per_year_eur, extra_domain_eur: terms.extra_domain_eur, contact: terms.contact, inactive_months: terms.inactive_months },
+      { ...termsLinks, mail: (s) => h('a', { href: 'mailto:' + (terms.contact ?? '') }, s) }));
+  const termsCheck = (id) => h('label', { class: 'check' }, h('input', { type: 'checkbox', id }), ' ', h('span', {}, rich('termsAccept', null, termsLinks)));
+  const providerButtons = (ret) => providers.length ? h('div', { class: 'providers' }, providers.map((p) => h('a', { href: '/account/auth/' + p + '/start' + (ret ? '?return=' + encodeURIComponent(ret) : '') }, t('continueWith', { provider: p === 'google' ? 'Google' : 'Apple' })))) : null;
+  // Country names: in English the bridge's own, as they come; in another
+  // language the browser's name for the code, else the bridge's.
+  const regionNames = (() => { if (ENGLISH) return null; try { return new Intl.DisplayNames([PAGE.tag], { type: 'region' }); } catch (e) { return null; } })();
+  const countryName = (code, name) => { if (!regionNames) return name; try { const n = regionNames.of(code); return n && n !== code ? n : name; } catch (e) { return name; } };
+  const countryOptions = (sel) => [h('option', { value: '' }, t('countryChoose')),
+    Object.entries(countries).map(([c, n]) => [c, countryName(c, n)])
+      .sort((a, b) => ENGLISH ? a[1].localeCompare(b[1]) : a[1].localeCompare(b[1], PAGE.tag))
+      .map(([c, n]) => h('option', { value: c, selected: c === sel }, n))];
+
+  function banner(text, kind) { $('#banner').replaceChildren(...(text ? [h('div', { class: kind === 'ok' ? 'banner ok' : 'banner' }, text)] : [])); }
+
+  // The links in our emails carry their token in the fragment (#verify=,
+  // #reset=), which the browser never sends anywhere: it is read here and
+  // posted, then dropped from the address bar.
+  const link = (() => {
+    const m = location.hash.match(/^#(verify|reset)=([A-Za-z0-9_-]{20,})$/);
+    if (m) history.replaceState(null, '', location.pathname + location.search);
+    return m ? { kind: m[1], token: m[2] } : null;
+  })();
+
+  async function loadLists() {
+    const [p, c] = await Promise.all([api('GET', '/api/account/providers'), api('GET', '/api/account/countries')]);
+    providers = p.providers || []; terms = p.terms || {}; countries = c.ok ? c : {};
+    delete countries.ok; delete countries.status;
+  }
+
+  function renderReset(token) {
+    $('#who').replaceChildren();
+    paint(h('h1', {}, t('resetTitle')),
+      h('div', { class: 'grid' }, h('div', { class: 'card' }, h('h2', {}, t('resetCard')),
+        h('label', {}, rich('newPasswordLabel', { min_chars: MIN_PASSWORD })), h('input', { id: 'rs-pass', type: 'password', autocomplete: 'new-password' }),
+        h('label', {}, t('repeatPasswordLabel')), h('input', { id: 'rs-pass2', type: 'password', autocomplete: 'new-password' }), ' ',
+        h('button', { class: 'btn', id: 'rs-go' }, t('resetSet')), h('div', { class: 'msg', id: 'rs-msg' }),
+        h('p', { class: 'hint mt12' }, t('resetSignsOut')))));
+    $('#rs-pass').focus();
+    $('#rs-pass2').onkeydown = (e) => { if (e.key === 'Enter') $('#rs-go').click(); };
+    $('#rs-go').onclick = async () => {
+      const m = $('#rs-msg'); m.textContent = '';
+      if ($('#rs-pass').value !== $('#rs-pass2').value) { m.textContent = t('passwordMismatch'); m.className = 'msg bad'; return; }
+      $('#rs-go').disabled = true;
+      const r = await api('POST', '/api/account/reset', { token, password: $('#rs-pass').value });
+      $('#rs-go').disabled = false;
+      if (!r.ok) { m.textContent = errText(r, t('resetFailed')); m.className = 'msg bad'; return; }
+      banner(t('resetDone'), 'ok');
+      load();
+    };
+  }
+
+  async function load() {
+    if (link && link.kind === 'reset' && !link.used) { link.used = true; await loadLists(); return renderReset(link.token); }
+    if (link && link.kind === 'verify' && !link.used) {
+      link.used = true;
+      const r = await api('POST', '/api/account/verify', { token: link.token });
+      banner(r.ok ? t('verifyDone') : errText(r, t('verifyFailed')), r.ok ? 'ok' : '');
+    }
+    const [p, c] = await Promise.all([api('GET', '/api/account/providers'), api('GET', '/api/account/countries')]);
+    providers = p.providers || []; terms = p.terms || {}; countries = c.ok ? c : {};
+    delete countries.ok; delete countries.status;
+    const r = await api('GET', '/api/account/me');
+    me = r.ok ? r.account : null;
+    if (me) { const d = await api('GET', '/api/account/domains'); domains = d.domains || []; maxDomains = d.max_domains || 5; }
+    // The language the account's emails are written in (docs/i18n.md):
+    // an account that has none yet (every account from before the bridge
+    // kept one) takes this page's, when that is a language besides English
+    // - the browser asked for it, as at sign-up, or the person chose it.
+    // Never one already set, and never "en": "" keeps meaning "not known".
+    if (me && me.lang === '' && !ENGLISH) { me.lang = PAGE.lang; api('PUT', '/api/account/language', { lang: PAGE.lang }).catch(() => {}); }
+    if (params.get('error')) banner(signInErrorText(params.get('error')));
+    render();
+  }
+
+  function render() {
+    $('#who').replaceChildren(...(me ? [h('span', {}, me.email), h('button', { class: 'btn ghost small', id: 'out' }, t('signOut'))] : [])); // i18n-ignore: CSS classes
+    const out = $('#out'); if (out) out.onclick = async () => { await api('POST', '/api/account/logout'); location.href = SELF; };
+    if (!me) return renderSignedOut();
+    if (!me.profile_complete || params.get('complete') === '1') return renderComplete();
+    renderAccount();
+  }
+
+  function renderSignedOut() {
+    const signup = params.get('signup') === '1';
+    paint(h('h1', {}, t('signedOutTitle')),
+      h('p', { class: 'lead' }, t('signedOutLead')),
+      h('div', { class: 'grid' },
+        h('div', { class: 'card' }, h('h2', {}, t('signInTitle')),
+          h('label', {}, t('emailLabel')), h('input', { id: 'li-email', type: 'email', autocomplete: 'email' }),
+          h('label', {}, t('passwordLabel')), h('input', { id: 'li-pass', type: 'password', autocomplete: 'current-password' }), ' ',
+          h('button', { class: 'btn', id: 'li-go' }, t('signInButton')), h('div', { class: 'msg', id: 'li-msg' }),
+          h('p', { class: 'hint mt10' }, h('a', { href: '#', id: 'fp-open' }, t('forgotOpen'))),
+          h('div', { id: 'fp', hidden: true },
+            h('label', {}, t('forgotEmail')), h('input', { id: 'fp-email', type: 'email', autocomplete: 'email' }), ' ',
+            h('button', { class: 'btn ghost', id: 'fp-go' }, t('forgotSend')), h('div', { class: 'msg', id: 'fp-msg' })),
+          providerButtons('')),
+        h('div', { class: 'card' }, h('h2', {}, t('signUpTitle')),
+          h('div', { class: 'row' },
+            h('div', {}, h('label', {}, t('nameLabel')), h('input', { id: 'su-name', autocomplete: 'given-name' })),
+            h('div', {}, h('label', {}, t('surnameLabel')), h('input', { id: 'su-surname', autocomplete: 'family-name' }))),
+          h('label', {}, t('countryLabel')), h('select', { id: 'su-country' }, countryOptions('')),
+          h('label', {}, t('emailLabel')), h('input', { id: 'su-email', type: 'email', autocomplete: 'email' }),
+          h('label', {}, rich('signUpPasswordLabel', { min_chars: MIN_PASSWORD })), h('input', { id: 'su-pass', type: 'password', autocomplete: 'new-password' }),
+          termsBox(),
+          termsCheck('su-terms'),
+          h('button', { class: 'btn', id: 'su-go' }, t('signUpButton')), h('div', { class: 'msg', id: 'su-msg' }),
+          providers.length ? [h('p', { class: 'hint mt12' }, t('signUpProviders')), providerButtons('')] : null)));
+    if (signup) $('#su-name').focus(); else $('#li-email').focus();
+    $('#li-go').onclick = async () => {
+      $('#li-msg').textContent = ''; $('#li-go').disabled = true;
+      const r = await api('POST', '/api/account/login', { email: $('#li-email').value, password: $('#li-pass').value });
+      $('#li-go').disabled = false;
+      if (!r.ok) { $('#li-msg').textContent = errText(r, t('signInFailed')); $('#li-msg').className = 'msg bad'; return; }
+      location.href = SELF + (params.get('return') ? '?complete=0&return=' + encodeURIComponent(params.get('return')) : '');
+    };
+    $('#li-pass').onkeydown = (e) => { if (e.key === 'Enter') $('#li-go').click(); };
+    $('#fp-open').onclick = (e) => { e.preventDefault(); $('#fp').hidden = false; $('#fp-email').value = $('#li-email').value; $('#fp-email').focus(); };
+    $('#fp-go').onclick = async () => {
+      const m = $('#fp-msg'); m.textContent = ''; m.className = 'msg'; $('#fp-go').disabled = true;
+      const r = await api('POST', '/api/account/forgot', { email: $('#fp-email').value });
+      $('#fp-go').disabled = false;
+      if (!r.ok) { m.textContent = errText(r, t('sendFailed')); m.className = 'msg bad'; return; }
+      m.textContent = t('forgotSent');
+      m.className = 'msg';
+    };
+    $('#su-go').onclick = async () => {
+      $('#su-msg').textContent = ''; $('#su-go').disabled = true;
+      const body = { name: $('#su-name').value, surname: $('#su-surname').value, country: $('#su-country').value, email: $('#su-email').value, password: $('#su-pass').value, accept_terms: $('#su-terms').checked };
+      // The new account's emails come in the language of the page it was
+      // made on; English sends nothing, and the bridge goes by the
+      // browser's language, as it always did.
+      if (!ENGLISH) body.lang = PAGE.lang;
+      const r = await api('POST', '/api/account/signup', body);
+      $('#su-go').disabled = false;
+      if (!r.ok) { $('#su-msg').textContent = errText(r, t('signUpFailed')); $('#su-msg').className = 'msg bad'; return; }
+      location.href = SELF;
+    };
+  }
+
+  function renderComplete() {
+    const ret = params.get('return') || '';
+    paint(h('h1', {}, t(me.profile_complete ? 'profileEditTitle' : 'profileNewTitle')),
+      h('p', { class: 'lead' }, t(me.profile_complete ? 'profileEditLead' : 'profileNewLead')),
+      h('div', { class: 'card narrow' },
+        h('div', { class: 'row' },
+          h('div', {}, h('label', {}, t('nameLabel')), h('input', { id: 'c-name', value: me.name ?? '' })),
+          h('div', {}, h('label', {}, t('surnameLabel')), h('input', { id: 'c-surname', value: me.surname ?? '' }))),
+        h('label', {}, t('countryLabel')), h('select', { id: 'c-country' }, countryOptions(me.country)),
+        h('label', {}, t('emailLabel')), h('input', { value: me.email ?? '', disabled: true }), ' ',
+        me.profile_complete && me.terms_accepted ? null : termsBox(), ' ',
+        me.terms_accepted ? null : termsCheck('c-terms'), ' ',
+        h('button', { class: 'btn', id: 'c-go' }, t(ret ? 'saveContinue' : 'save')), ' ',
+        me.profile_complete ? h('button', { class: 'btn ghost', id: 'c-back' }, t('back')) : null, ' ',
+        h('div', { class: 'msg', id: 'c-msg' })));
+    $('#c-go').onclick = async () => {
+      $('#c-go').disabled = true;
+      const r = await api('PUT', '/api/account/me', { name: $('#c-name').value, surname: $('#c-surname').value, country: $('#c-country').value, accept_terms: !!($('#c-terms') && $('#c-terms').checked) });
+      $('#c-go').disabled = false;
+      if (!r.ok) { $('#c-msg').textContent = errText(r, t('profileSaveFailed')); $('#c-msg').className = 'msg bad'; return; }
+      if (ret) { location.href = '/api/account/continue?return=' + encodeURIComponent(ret); return; }
+      location.href = SELF;
+    };
+    const back = $('#c-back'); if (back) back.onclick = () => { location.href = SELF; };
+  }
+
+  function renderAccount() {
+    const free = me.free_until ? new Date(me.free_until).toLocaleDateString(LOCALE, { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+    const unverified = !me.email_verified ? h('div', { class: 'card wide gold' }, h('h2', {}, t('verifyPromptTitle')), // i18n-ignore: CSS classes
+      h('p', { class: 'hint' }, rich('verifyPrompt', { email: me.email })),
+      h('button', { class: 'btn ghost', id: 'vr-go' }, t('verifyResend')), h('div', { class: 'msg', id: 'vr-msg' })) : null;
+    const termsPrompt = !me.terms_accepted ? h('div', { class: 'card wide gold' }, h('h2', {}, t('termsPromptTitle')), // i18n-ignore: CSS classes
+      h('p', { class: 'hint' }, rich('termsPrompt', null, termsLinks)),
+      termsCheck('tm-check'),
+      h('button', { class: 'btn', id: 'tm-go' }, t('termsAcceptButton')), h('div', { class: 'msg', id: 'tm-msg' })) : null;
+    const created = (d) => d.created && !d.created.startsWith('0001') ? t('since', { date: new Date(d.created).toLocaleDateString(LOCALE) }) : null;
+    paint(h('h1', {}, t('hello', { name: me.name })),
+      h('p', { class: 'lead' }, rich('summary', { registered: domains.length, max: maxDomains, date: free }, { details: (s) => h('a', { href: SELF + '?complete=1' }, s) })),
+      h('div', { class: 'grid' },
+        unverified,
+        termsPrompt,
+        h('div', { class: 'card' }, h('h2', {}, t('setupTitle')),
+          h('p', { class: 'hint' }, rich('setupHint')),
+          h('div', { id: 'code' }),
+          h('button', { class: 'btn', id: 'code-go' }, t('setupGet')),
+          h('p', { class: 'hint mt12' }, rich('setupLost'))),
+        h('div', { class: 'card' }, h('h2', {}, t('manualTitle')),
+          h('p', { class: 'hint' }, rich('manualHint', { path: IDENTITY_FILE })),
+          h('label', {}, t('manualNameLabel')), h('div', { class: 'row' }, h('input', { id: 'add-name', placeholder: t('manualPlaceholder'), autocapitalize: 'none', spellcheck: 'false' }), h('span', { class: 'muted fixed' }, '.' + location.hostname)),
+          h('button', { class: 'btn ghost', id: 'add-go', disabled: domains.length >= maxDomains }, t('manualRegister')), h('div', { class: 'msg', id: 'add-msg' }),
+          h('div', { id: 'add-out' })),
+        h('div', { class: 'card wide' }, h('h2', {}, t('domainsTitle')),
+          domains.length ? h('ul', { class: 'domains' }, domains.map((d) => h('li', {},
+            h('span', { class: 'dom' }, h('span', { class: 'dot ' + (d.online ? 'on' : 'off'), title: t(d.online ? 'connected' : 'notConnected') }), d.domain),
+            h('small', {}, [t(d.online ? 'connected' : 'notConnected'), d.disabled ? t('domainDisabled') : null, created(d)].filter((x) => x).join(' · ')),
+            h('button', { class: 'btn ghost small', 'data-identity': d.domain }, t('newIdentity')), // i18n-ignore: CSS classes
+            h('button', { class: 'btn danger small', 'data-release': d.domain }, t('release'))))) : h('p', { class: 'hint' }, t('domainsEmpty')), // i18n-ignore: CSS classes
+          h('div', { id: 'dom-out' })),
+        h('div', { class: 'card' }, h('h2', {}, t('passwordTitle')),
+          me.has_password ? [h('label', {}, t('passwordCurrent')), h('input', { id: 'pw-cur', type: 'password', autocomplete: 'current-password' })] : h('p', { class: 'hint' }, t('passwordProvider')),
+          h('label', {}, rich('newPasswordLabel', { min_chars: MIN_PASSWORD })), h('input', { id: 'pw-new', type: 'password', autocomplete: 'new-password' }),
+          h('label', {}, t('repeatPasswordLabel')), h('input', { id: 'pw-new2', type: 'password', autocomplete: 'new-password' }), ' ',
+          h('button', { class: 'btn ghost', id: 'pw-go' }, t(me.has_password ? 'passwordChange' : 'passwordAdd')), h('div', { class: 'msg', id: 'pw-msg' }),
+          h('p', { class: 'hint mt12' }, t('passwordSignsOut')),
+          h('button', { class: 'btn danger small', id: 'out-all' }, t('signOutAll'))), // i18n-ignore: CSS classes
+        h('div', { class: 'card wide', id: 'data-card' }, h('h2', {}, t('dataTitle')),
+          h('p', { class: 'hint' }, rich('dataHint', null, { privacy: (s) => h('a', { href: '/privacy' }, s) })),
+          h('a', { class: 'btn ghost', href: '/api/account/export', download: true }, t('dataDownload')),
+          h('p', { class: 'hint mt16' }, rich('deleteHint', { address: HOME_ADDRESS })),
+          me.has_password ? [h('label', {}, t('deletePassword')), h('input', { id: 'del-pw', type: 'password', autocomplete: 'current-password' })] : h('p', { class: 'hint' }, t('deleteProvider')),
+          h('label', {}, rich('deleteType', { word: t('deleteWord') })), h('input', { id: 'del-confirm', autocapitalize: 'none', spellcheck: 'false' }), ' ',
+          h('button', { class: 'btn danger', id: 'del-go' }, t('deleteButton')), h('div', { class: 'msg', id: 'del-msg' })),
+        h('div', { class: 'card wide' }, termsBox())));
+    const tm = $('#tm-go');
+    if (tm) tm.onclick = async () => {
+      const m = $('#tm-msg');
+      if (!$('#tm-check').checked) { m.textContent = t('termsTick'); m.className = 'msg bad'; return; }
+      tm.disabled = true;
+      const r = await api('POST', '/api/account/accept-terms');
+      tm.disabled = false;
+      if (!r.ok) { m.textContent = errText(r, t('termsSaveFailed')); m.className = 'msg bad'; return; }
+      location.reload();
+    };
+    const vr = $('#vr-go');
+    if (vr) vr.onclick = async () => {
+      const m = $('#vr-msg'); m.textContent = ''; vr.disabled = true;
+      const r = await api('POST', '/api/account/resend-verification');
+      vr.disabled = false;
+      m.textContent = r.ok ? t('verifyResent') : errText(r, t('sendFailed'));
+      m.className = r.ok ? 'msg' : 'msg bad';
+    };
+    // Issue #182: deleting the account. The word typed is the page's
+    // language's (or "delete"); the body always carries "delete".
+    $('#del-go').onclick = async () => {
+      const m = $('#del-msg'); m.textContent = ''; m.className = 'msg';
+      const typed = $('#del-confirm').value.trim().toLocaleLowerCase(LOCALE);
+      if (typed !== t('deleteWord').toLocaleLowerCase(LOCALE) && typed !== CONFIRM_WORD) { m.textContent = t('deleteTypeError', { word: t('deleteWord') }); m.className = 'msg bad'; return; }
+      $('#del-go').disabled = true;
+      const r = await api('DELETE', '/api/account/me', { confirm: CONFIRM_WORD, password: me.has_password ? $('#del-pw').value : '' });
+      $('#del-go').disabled = false;
+      if (!r.ok) { m.textContent = errText(r, t('deleteFailed')); m.className = 'msg bad'; return; }
+      me = null; domains = [];
+      $('#who').replaceChildren();
+      paint(h('h1', {}, t('deletedTitle')),
+        h('p', { class: 'lead' }, r.released && r.released.length ? rich('deletedReleased', { domains: r.released.join(', '), address: HOME_ADDRESS }) : rich('deletedLead', { address: HOME_ADDRESS })),
+        h('p', {}, h('a', { href: PAGE.home || '/' }, t('deletedHome'))));
+    };
+    if (params.get('delete') === '1') { const c = $('#data-card'); c.scrollIntoView({ block: 'start' }); c.style.outline = '2px solid var(--bad)'; }
+    // Issue #164: the current password is asked for; every other session
+    // ends with the change (this one carries on with a new cookie).
+    $('#pw-go').onclick = async () => {
+      const m = $('#pw-msg'); m.textContent = ''; m.className = 'msg';
+      if ($('#pw-new').value !== $('#pw-new2').value) { m.textContent = t('passwordMismatch'); m.className = 'msg bad'; return; }
+      const r = await api('PUT', '/api/account/password', { password: $('#pw-new').value, current: me.has_password ? $('#pw-cur').value : '' });
+      if (!r.ok) { m.textContent = errText(r, t('passwordSaveFailed')); m.className = 'msg bad'; return; }
+      me.has_password = true; banner(t('passwordSaved'), 'ok'); render();
+    };
+    $('#out-all').onclick = async () => {
+      if (!confirm(t('signOutAllConfirm'))) return;
+      await api('POST', '/api/account/logout-everywhere'); location.href = SELF;
+    };
+    $('#code-go').onclick = async () => {
+      const r = await api('GET', '/api/account/setup-token');
+      if (!r.ok) { $('#code').replaceChildren(h('div', { class: 'msg bad' }, errText(r, t('setupFailed')))); return; }
+      $('#code').replaceChildren(h('div', { class: 'code' }, r.setup_token), h('p', { class: 'hint' }, t('setupExpires', { minutes: Math.round(r.expires_in_seconds / 60) })));
+    };
+    $('#add-go').onclick = async () => {
+      $('#add-msg').textContent = ''; $('#add-go').disabled = true;
+      const r = await api('POST', '/api/account/domains', { name: $('#add-name').value });
+      $('#add-go').disabled = false;
+      if (!r.ok) { $('#add-msg').textContent = errText(r, t('manualFailed')); $('#add-msg').className = 'msg bad'; return; }
+      $('#add-out').replaceChildren(...identityBlock(r));
+      const d = await api('GET', '/api/account/domains'); domains = d.domains || []; renderDomainsOnly();
+    };
+    bindDomainButtons();
+  }
+
+  // A new identity is shown once: the device's two settings, as text.
+  const identityBlock = (r) => [h('p', { class: 'hint mt12' }, rich('identityYours', { domain: r.domain })),
+    h('div', { class: 'secret' }, 'DEVICE_UUID=' + (r.owner_uuid ?? '') + '\nBRIDGE_SECRET=' + (r.secret ?? ''))];
+
+  function renderDomainsOnly() { render(); }
+
+  function bindDomainButtons() {
+    document.querySelectorAll('[data-identity]').forEach((b) => b.onclick = async () => {
+      const domain = b.dataset.identity;
+      if (!confirm(t('identityConfirm', { domain }))) return;
+      const r = await api('POST', '/api/account/domains/' + encodeURIComponent(domain) + '/identity');
+      $('#dom-out').replaceChildren(...(r.ok ? identityBlock(r) : [h('div', { class: 'msg bad' }, errText(r, t('identityFailed')))]));
+    });
+    document.querySelectorAll('[data-release]').forEach((b) => b.onclick = async () => {
+      const domain = b.dataset.release;
+      if (!confirm(t('releaseConfirm', { domain, address: HOME_ADDRESS }))) return;
+      const r = await api('DELETE', '/api/account/domains/' + encodeURIComponent(domain));
+      if (!r.ok) { $('#dom-out').replaceChildren(h('div', { class: 'msg bad' }, errText(r, t('releaseFailed')))); return; }
+      const d = await api('GET', '/api/account/domains'); domains = d.domains || []; render();
+    });
+  }
+
+  load();
+  </script>
+</body>
+</html>

@@ -2,9 +2,9 @@
 
 // Package site renders the bridge's public pages in the visitor's
 // language (docs/i18n.md, "Each platform": bridge): the landing page, at
-// / in English and /<code>/ in every other language, and the two pages a
-// device's own address shows when the bridge answers for it (disabled,
-// unavailable).
+// / in English and /<code>/ in every other language, the account page, at
+// /account and /<code>/account, and the two pages a device's own address
+// shows when the bridge answers for it (disabled, unavailable).
 //
 // The pages are html/template files embedded in the binary (pages/), so a
 // deploy never serves a stale copy left in the static directory, and their
@@ -20,6 +20,13 @@
 //	<h2>{{t "site.landing.faq.title"}}</h2>
 //	<p>{{template "spans" (rich "site.landing.faq.free.p2")}}</p>
 //	<p>{{t "site.landing.footer.copyright" "year" .Year}}</p>
+//
+// A page whose script writes text (the account page) gets it in a JSON
+// block, each key with its placeholders left for the script to fill in:
+//
+//	<script type="application/json" id="account-text">{{jstexts
+//	  "signIn" "site.account.signin.title"
+//	  "hello" (jsform "site.account.home.hello" "name" "user")}}</script>
 //
 // TestPageKeys checks that every key a page names exists, with the
 // arguments it declares, that t never gets a rich key nor rich a plain
@@ -44,6 +51,7 @@ const (
 	Landing     = "landing.html"
 	Disabled    = "disabled.html"
 	Unavailable = "unavailable.html"
+	Account     = "account.html"
 )
 
 //go:embed pages/*.html
@@ -88,6 +96,15 @@ func Path(code string) string {
 	return "/" + code + "/"
 }
 
+// AccountPath is where the account page lives in a language: /account for
+// English, /<code>/account for the others.
+func AccountPath(code string) string {
+	if code == English() {
+		return "/account"
+	}
+	return "/" + code + "/account"
+}
+
 // Render returns page in lang. lang is a code this build carries; anything
 // else renders English.
 func Render(page, lang string, o Options) ([]byte, error) {
@@ -100,7 +117,7 @@ func Render(page, lang string, o Options) ([]byte, error) {
 		return nil, err
 	}
 	var b bytes.Buffer
-	if err := t.ExecuteTemplate(&b, page, pageData(l, o)); err != nil {
+	if err := t.ExecuteTemplate(&b, page, pageData(page, l, o)); err != nil {
 		return nil, err
 	}
 	return b.Bytes(), nil
@@ -112,8 +129,12 @@ type data struct {
 	Tag   string // its BCP 47 tag, for <html lang> and hreflang
 	Nonce string
 	Year  string
-	// Canonical and Alternates are the landing page's own address and its
-	// addresses in every carried language (hreflang, plus x-default: /).
+	// Home is the landing page in this language (/, /<code>/), where the
+	// other pages' links home go.
+	Home string
+	// Canonical and Alternates are the page's own address and its
+	// addresses in every carried language (hreflang, plus x-default: the
+	// English one): the landing page's, or the account page's.
 	Canonical  string
 	Alternates []alternate
 	// Switcher links to the page in every carried language, this one
@@ -130,25 +151,31 @@ type choice struct {
 	Current bool
 }
 
-func pageData(l i18n.Language, o Options) data {
+func pageData(page string, l i18n.Language, o Options) data {
+	// Where the page lives in each language, and where the switcher links
+	// to it: /en/ (or /en/account) for English, which shows English
+	// without the Accept-Language redirect of / (or /account) - a visitor
+	// whose browser prefers Spanish could never reach English that way.
+	at, choose := Path, func(code string) string { return "/" + code + "/" }
+	if page == Account {
+		at, choose = AccountPath, func(code string) string { return "/" + code + "/account" }
+	}
 	d := data{
 		Lang:      l.Code,
 		Tag:       l.Tag,
 		Nonce:     o.Nonce,
 		Year:      strconv.Itoa(o.Now.Year()),
-		Canonical: o.Base + Path(l.Code),
+		Home:      Path(l.Code),
+		Canonical: o.Base + at(l.Code),
 	}
 	langs := i18n.Languages()
 	for _, other := range langs {
-		d.Alternates = append(d.Alternates, alternate{other.Tag, o.Base + Path(other.Code)})
+		d.Alternates = append(d.Alternates, alternate{other.Tag, o.Base + at(other.Code)})
 	}
-	d.Alternates = append(d.Alternates, alternate{"x-default", o.Base + Path(English())})
+	d.Alternates = append(d.Alternates, alternate{"x-default", o.Base + at(English())})
 	if len(langs) > 1 {
 		for _, other := range langs {
-			// English's own link is /en/, which shows English without
-			// the Accept-Language redirect of /: a visitor whose browser
-			// prefers Spanish could never reach English through /.
-			d.Switcher = append(d.Switcher, choice{other.Name, other.Tag, "/" + other.Code + "/", other.Code == l.Code})
+			d.Switcher = append(d.Switcher, choice{other.Name, other.Tag, choose(other.Code), other.Code == l.Code})
 		}
 	}
 	return d
@@ -241,6 +268,8 @@ type line struct {
 //	lines "key" y dy             its lines (the text may hold line breaks), y, y+dy, ...
 //	texts "name" "key"...        name -> text, for a page script's JSON block
 //	series "key" "arg" from to   the text with arg = from...to, for a script counting down
+//	jstexts "name" key...        name -> text with its placeholders, for a script that fills them in (below)
+//	jsform "key" ["arg" "type"]... one key's text for jstexts, its arguments named with their types
 func funcs(code string) template.FuncMap {
 	return template.FuncMap{
 		"t": func(key string, args ...any) (string, error) {
@@ -292,7 +321,112 @@ func funcs(code string) template.FuncMap {
 			}
 			return out
 		},
+		"jstexts": func(pairs ...any) (map[string]any, error) {
+			if len(pairs)%2 != 0 {
+				return nil, fmt.Errorf("jstexts: %d arguments, want name/key pairs", len(pairs))
+			}
+			m := map[string]any{}
+			for i := 0; i < len(pairs); i += 2 {
+				name, ok := pairs[i].(string)
+				if !ok {
+					return nil, fmt.Errorf("jstexts: argument %d is not a name", i)
+				}
+				switch v := pairs[i+1].(type) {
+				case string: // a key without arguments
+					f, err := scriptForm(code, v, nil)
+					if err != nil {
+						return nil, err
+					}
+					m[name] = f.text
+				case scriptText:
+					m[name] = v.text
+				default:
+					return nil, fmt.Errorf("jstexts: %s is neither a key nor a jsform", name)
+				}
+			}
+			return m, nil
+		},
+		"jsform": func(key string, args ...string) (scriptText, error) {
+			return scriptForm(code, key, args)
+		},
 	}
+}
+
+// scriptText is one key's text as a page's script gets it (jstexts): a
+// string for a plain key; for a rich one its spans, [tag, text] pairs with
+// "" for plain text, so the script never looks for markup in the text.
+// The placeholders are left in, {name}, for the script to fill in as
+// plain text; a user argument's comes between its isolation marks (FSI
+// {name} PDI), as the script must keep it.
+type scriptText struct{ text any }
+
+// Stand-ins for the arguments while a key renders: private-use
+// characters, which the checker refuses in the catalog's text, around a
+// text argument's name, and for a number one no text holds.
+const (
+	standInOpen        = "\ue000"
+	standInClose       = "\ue001"
+	standInInt   int64 = 987_654_321_000
+)
+
+// scriptForm renders key in code with each argument left as its
+// placeholder. args are name/type pairs: "text" or "user" (a string), or
+// "int" (a number, which the script writes in the page's language). The
+// catalog renders the key with a stand-in for each argument, and each
+// stand-in, as rendered, becomes the placeholder again - so a translation
+// missing (English in its place, with English numbers) or an argument
+// isolated works the same. A key that doesn't render back with every
+// placeholder is an error, as is one whose arguments aren't exactly these.
+func scriptForm(code, key string, args []string) (scriptText, error) {
+	if len(args)%2 != 0 {
+		return scriptText{}, fmt.Errorf("%s: %d arguments, want name/type pairs", key, len(args))
+	}
+	vals := map[string]any{}
+	var swap []string
+	var names []string
+	for i := 0; i < len(args); i += 2 {
+		name, typ := args[i], args[i+1]
+		ph := "{" + name + "}"
+		switch typ {
+		case "text", "user":
+			s := standInOpen + name + standInClose
+			vals[name] = s
+			swap = append(swap, s, ph)
+		case "int":
+			n := standInInt + int64(i/2)
+			vals[name] = n
+			swap = append(swap, i18n.FormatInt(code, n), ph, i18n.FormatInt(English(), n), ph)
+		default:
+			return scriptText{}, fmt.Errorf("%s: argument %s is a %q; a script fills in text, user and int arguments", key, name, typ)
+		}
+		names = append(names, ph)
+	}
+	if err := (i18n.Msg{Key: key, Args: vals}).Check(); err != nil {
+		return scriptText{}, fmt.Errorf("%s: %w", key, err)
+	}
+	back := strings.NewReplacer(swap...)
+	var spans [][2]string
+	var all strings.Builder
+	rich := false
+	for _, p := range (i18n.Rich{Key: key, Args: vals}).Parts(code) {
+		text := back.Replace(p.Text)
+		spans = append(spans, [2]string{p.Tag, text})
+		all.WriteString(text)
+		rich = rich || p.Tag != ""
+	}
+	whole := all.String()
+	for _, ph := range names {
+		if !strings.Contains(whole, ph) {
+			return scriptText{}, fmt.Errorf("%s: %s didn't render back", key, ph)
+		}
+	}
+	if strings.ContainsAny(whole, standInOpen+standInClose) {
+		return scriptText{}, fmt.Errorf("%s: a stand-in left in the text", key)
+	}
+	if !rich {
+		return scriptText{whole}, nil
+	}
+	return scriptText{spans}, nil
 }
 
 // argMap turns a page's "name", value, ... into a key's arguments.

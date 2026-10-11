@@ -67,21 +67,21 @@ app/desktop/internal/tray/tray.go:15: sink:Question: Remove this folder?
 app/desktop/internal/tray/tray.go:15: sink:OKLabel: Remove
 app/desktop/internal/tray/tray.go:15: sink:CancelLabel: Cancel
 # pages: 15 found, 2 ignored
+bridge/site/pages/account.html:5: text: Off The Cloud — your account
+bridge/site/pages/account.html:6: attr:content: Sign in to see your domains.
+bridge/site/pages/account.html:11: text: Your account
+bridge/site/pages/account.html:12: text: Read the privacy notice before you sign up.
+bridge/site/pages/account.html:14: attr:alt: The Off The Cloud logo
+bridge/site/pages/account.html:15: attr:value: Sign in
+bridge/site/pages/account.html:18: json: invalid request body
+bridge/site/pages/account.html:23: text: Hello, {}
+bridge/site/pages/account.html:24: text: Sign out
+bridge/site/pages/account.html:25: assign:textContent: The two passwords don't match
+bridge/site/pages/account.html:28: sink:banner: Could not sign in
+bridge/site/pages/account.html:30: sink:confirm: Release {}? Its device goes on working at home only.
+bridge/site/pages/account.html:33: prop:label: Download my data
 bridge/site/pages/landing.html:11: text: A sentence left in English
 bridge/site/pages/landing.html:18: assign:textContent: Copied!
-bridge/static/account.html:5: text: Off The Cloud — your account
-bridge/static/account.html:6: attr:content: Sign in to see your domains.
-bridge/static/account.html:11: text: Your account
-bridge/static/account.html:12: text: Read the privacy notice before you sign up.
-bridge/static/account.html:14: attr:alt: The Off The Cloud logo
-bridge/static/account.html:15: attr:value: Sign in
-bridge/static/account.html:18: json: invalid request body
-bridge/static/account.html:23: text: Hello, {}
-bridge/static/account.html:24: text: Sign out
-bridge/static/account.html:25: assign:textContent: The two passwords don't match
-bridge/static/account.html:28: sink:banner: Could not sign in
-bridge/static/account.html:30: sink:confirm: Release {}? Its device goes on working at home only.
-bridge/static/account.html:33: prop:label: Download my data
 # wizard: 13 found, 1 ignored
 scripts/setup_wizard.py:11: key:error: choose a network
 scripts/setup_wizard.py:12: key:error: {} needs a password

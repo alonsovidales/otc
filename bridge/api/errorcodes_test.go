@@ -19,6 +19,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/alonsovidales/otc/bridge/accounts"
 	"github.com/alonsovidales/otc/bridge/dao"
+	"github.com/alonsovidales/otc/bridge/site"
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/i18n/model"
 )
@@ -213,10 +214,10 @@ func catalogEnglish(t *testing.T) map[string]string {
 
 var cCodePattern = regexp.MustCompile(`^[a-z][a-z0-9]*(_[a-z0-9]+)*$`)
 
-// pageErrorTable is account.html's #error-text table.
+// pageErrorTable is the English account page's #error-text table.
 func pageErrorTable(t *testing.T) (api, signIn map[string]string) {
 	t.Helper()
-	b, err := os.ReadFile("../static/account.html")
+	b, err := site.Render(site.Account, site.English(), site.Options{Base: "https://off-the.cloud", Nonce: "n", Now: time.Now()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -281,8 +282,10 @@ func TestAccountPageErrorTable(t *testing.T) {
 		}(),
 	}
 	reworded := map[string]bool{"recent_signin_required": true}
-	fill := strings.NewReplacer("{min_password}", "8", "{max_domains}", strconv.Itoa(accounts.MaxDomains),
-		"{extra_domain_eur}", strconv.Itoa(accounts.ExtraDomainEUR), "{contact}", accounts.ContactEmail)
+	// The figures the page's script fills in (fillIn), by the API keys'
+	// placeholder names.
+	fill := strings.NewReplacer("{min_chars}", "8", "{max_domains}", strconv.Itoa(accounts.MaxDomains),
+		"{price_eur}", strconv.Itoa(accounts.ExtraDomainEUR), "{contact}", accounts.ContactEmail, "{body}", `{"confirm": "delete"}`)
 	for code, text := range page {
 		texts, ok := codes[code]
 		if !ok {
