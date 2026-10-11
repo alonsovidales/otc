@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.net
 
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.androidDownloadChanged
+import cloud.offthe.otc.i18n.androidDownloadEmptyPiece
+import cloud.offthe.otc.i18n.androidDownloadWrongPiece
 import cloud.offthe.otc.proto.GetFile
 import cloud.offthe.otc.proto.ReadFile
 import cloud.offthe.otc.proto.RespEnvelope
+import cloud.offthe.otc.ui.common.TextIOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -70,14 +75,14 @@ object ChunkedDownload {
             val c = resp.respFileChunk
             // The current version can be replaced mid-download: never mix two files.
             if (fileHash == null) { fileHash = c.hash; mime = c.mime }
-            else if (c.hash != fileHash) throw IOException("the file changed on the device while downloading")
+            else if (c.hash != fileHash) throw TextIOException(S.androidDownloadChanged())
             size = c.size
             val n = c.data.size()
-            if (c.offset != at || at + n > size) throw IOException("the device sent the wrong piece of the file")
-            if (n == 0 && at < size) throw IOException("the device sent an empty piece of the file")
+            if (c.offset != at || at + n > size) throw TextIOException(S.androidDownloadWrongPiece())
+            if (n == 0 && at < size) throw TextIOException(S.androidDownloadEmptyPiece())
             c.data.writeTo(out)
             offset += n
-            if (!keepGoing()) throw CancellationException("the download is no longer wanted")
+            if (!keepGoing()) throw CancellationException("the download is no longer wanted") // i18n-ignore: a cancellation, never shown
         }
         return Meta(mime, size.coerceAtLeast(0))
     }

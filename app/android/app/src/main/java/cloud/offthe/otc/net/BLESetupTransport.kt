@@ -21,10 +21,15 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.ParcelUuid
 import androidx.core.content.ContextCompat
-import java.io.ByteArrayOutputStream
-import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
-import java.util.zip.Inflater
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.androidBleLost
+import cloud.offthe.otc.i18n.androidBleSendFailed
+import cloud.offthe.otc.i18n.appShellBleBadAnswer
+import cloud.offthe.otc.i18n.appShellBleClosed
+import cloud.offthe.otc.i18n.appShellBleNotConnected
+import cloud.offthe.otc.i18n.appShellBleTimeout
+import cloud.offthe.otc.ui.common.now
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +37,10 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.zip.Inflater
 
 /**
  * Port of BLESetupTransport (BluetoothSetupView.swift), issue #137: finds
@@ -56,7 +65,12 @@ class BLESetupTransport(private val context: Context) {
 
     class Answer(val status: Int, val contentType: String, val body: String)
 
-    class SetupException(message: String) : Exception(message)
+    /** Handed to the setup page, which shows it: worded when read, in the app's language. */
+    class SetupException(val text: UiText) : Exception() {
+        override val message: String get() = text.now()
+
+        override fun toString(): String = "SetupException($text)"
+    }
 
     private val _phase = MutableStateFlow<Phase>(Phase.Starting)
     val phase: StateFlow<Phase> = _phase
@@ -198,7 +212,7 @@ class BLESetupTransport(private val context: Context) {
         if (scanning) { adapter?.bluetoothLeScanner?.stopScan(scanCallback); scanning = false }
         gatt?.close()
         gatt = null
-        failAll(SetupException("Setup was closed"))
+        failAll(SetupException(S.appShellBleClosed()))
     }
 
     @SuppressLint("MissingPermission")
@@ -257,7 +271,7 @@ class BLESetupTransport(private val context: Context) {
         requestChrc = null
         responseChrc = null
         infoPending = false
-        failAll(SetupException("Not connected to the device"))
+        failAll(SetupException(S.appShellBleNotConnected()))
         _phase.value = Phase.Lost
         if (!stopped) scan()
     }
@@ -381,7 +395,7 @@ class BLESetupTransport(private val context: Context) {
     suspend fun request(method: String, path: String, body: String?): Answer {
         val g = gatt
         val chrc = requestChrc
-        if (g == null || chrc == null || !isReady) throw SetupException("Not connected to the device")
+        if (g == null || chrc == null || !isReady) throw SetupException(S.appShellBleNotConnected())
         val stream = synchronized(this) { nextStream = (nextStream + 1) and 0xff; nextStream }
         val msg = JSONObject().put("m", method).put("p", path).put("k", setupKey(context))
         if (!body.isNullOrEmpty()) msg.put("b", body)
@@ -412,7 +426,7 @@ class BLESetupTransport(private val context: Context) {
                     @Suppress("DEPRECATION")
                     g.writeCharacteristic(chrc)
                 }
-                if (!ok) { waiters.remove(stream); throw SetupException("Could not send to the device") }
+                if (!ok) { waiters.remove(stream); throw SetupException(S.androidBleSendFailed()) }
                 // A failed write means the device's service is gone while
                 // the link stays up (its daemon restarting, as iOS):
                 // drop the link so it reconnects instead of waiting.
@@ -420,7 +434,7 @@ class BLESetupTransport(private val context: Context) {
                 if (!written) {
                     waiters.remove(stream)
                     g.disconnect()
-                    throw SetupException("Lost the device - reconnecting")
+                    throw SetupException(S.androidBleLost())
                 }
                 offset = end
             } while (offset < payload.size)
@@ -429,10 +443,10 @@ class BLESetupTransport(private val context: Context) {
             withTimeout(90_000) { waiter.await() }
         } catch (e: Exception) {
             waiters.remove(stream)
-            throw if (e is SetupException) e else SetupException("The device did not answer in time")
+            throw if (e is SetupException) e else SetupException(S.appShellBleTimeout())
         }
         val json = try { JSONObject(String(inflate(raw), Charsets.UTF_8)) } catch (e: Exception) {
-            throw SetupException("The device sent an answer this app could not read")
+            throw SetupException(S.appShellBleBadAnswer())
         }
         val answer = Answer(json.optInt("s", 502), json.optString("t", "application/octet-stream"), json.optString("b", ""))
         if (path.startsWith("/api/state") && answer.status == 200) noteState(answer.body)

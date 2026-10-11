@@ -33,6 +33,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.ui.common.LoadSubject
 import cloud.offthe.otc.ui.common.OTCTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -354,7 +356,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         val path: String,
         val rows: List<FileRow> = emptyList(),
         val loading: Boolean = false,
-        val error: String? = null,
+        val error: UiText? = null,
         val selected: Set<String> = emptySet(),
         val toast: String? = null,
         val openingPath: String? = null,
@@ -472,7 +474,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     private fun listingFailed(p: String, problem: LoadProblem) {
         listingProblem = problem
         failedPath = p
-        _state.update { it.copy(error = loadProblemText(problem, "The files")) }
+        _state.update { it.copy(error = loadProblemText(problem, LoadSubject.FILES)) }
         val ask = listingAsks.get()
         val wait = retryWaitMs(++listingFailures)
         viewModelScope.launch {
@@ -516,10 +518,10 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
             } else if (resp.error) {
                 if (mediaToOpen?.first == p) mediaToOpen = null
                 listingProblem = null
-                _state.update { it.copy(error = resp.errorMessage.ifEmpty { "Failed to list path" }) }
+                _state.update { it.copy(error = UiText.Raw(resp.errorMessage.ifEmpty { "Failed to list path" })) }
             } else {
                 listingProblem = null
-                _state.update { it.copy(error = "Unexpected response") }
+                _state.update { it.copy(error = UiText.Raw("Unexpected response")) }
             }
         } catch (e: CancellationException) {
             throw e
@@ -1175,7 +1177,7 @@ fun FilesExplorerView(initialPath: String) {
                     // Said to TalkBack when it appears or changes.
                     st.error?.let {
                         Text(
-                            it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
+                            it.resolve(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(horizontal = 12.dp).semantics { liveRegion = LiveRegionMode.Polite },
                         )
                     }
@@ -1664,5 +1666,5 @@ private fun queryDisplayName(context: Context, uri: Uri): String? =
  * asked again rather than flickering away at each try - and the neutral
  * line once the phone is back [online]; nothing for another folder.
  */
-internal fun listingErrorWhileAsking(problem: LoadProblem?, failedPath: String?, p: String, online: Boolean): String? =
-    problem?.takeIf { failedPath == p }?.backOnline(online)?.let { loadProblemText(it, "The files") }
+internal fun listingErrorWhileAsking(problem: LoadProblem?, failedPath: String?, p: String, online: Boolean): UiText? =
+    problem?.takeIf { failedPath == p }?.backOnline(online)?.let { loadProblemText(it, LoadSubject.FILES) }

@@ -54,7 +54,7 @@ struct SelectionActionBar: View {
             // unreadable - which is exactly how it looked. Only once
             // there is a count to show.
             if count > 0 {
-                Text("\(count) selected")
+                Text(S.appShellSelected(count: count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 12)
@@ -64,22 +64,22 @@ struct SelectionActionBar: View {
 
             HStack(spacing: 0) {
                 if let onUpload {
-                    item("Upload", symbol: "square.and.arrow.down.on.square", action: onUpload)
+                    item(S.commonUpload, symbol: "square.and.arrow.down.on.square", action: onUpload)
                 }
-                item("Share", symbol: "square.and.arrow.up", busy: busy == .share, action: onShare)
+                item(S.commonShare, symbol: "square.and.arrow.up", busy: busy == .share, action: onShare)
                     .disabled(count == 0)
                 if let onGallery {
-                    item("Share as gallery", symbol: "photo.on.rectangle.angled", action: onGallery)
+                    item(S.appShellShareAsGallery, symbol: "photo.on.rectangle.angled", action: onGallery)
                         .disabled(count == 0)
                 }
-                item("Download", symbol: "arrow.down.circle", busy: busy == .download, action: onDownload)
+                item(S.commonDownload, symbol: "arrow.down.circle", busy: busy == .download, action: onDownload)
                     .disabled(count == 0)
                 if let onGroup {
                     // The web's own drawing: a collection with a plus.
-                    item("Add to collection", symbol: "", icon: .addToCollection, action: onGroup)
+                    item(S.appShellAddToCollection, symbol: "", icon: .addToCollection, action: onGroup)
                         .disabled(count == 0)
                 }
-                item("Delete", symbol: "trash", tint: .red, action: onDelete)
+                item(S.commonDelete, symbol: "trash", tint: .red, action: onDelete)
                     .disabled(count == 0)
             }
             .padding(.vertical, 10)

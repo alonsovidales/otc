@@ -158,14 +158,28 @@ enum LoadProblem: Equatable {
         of(resp: resp, error: error, offline: NetworkWatch.shared.offline, statusCode: OTCConnection.shared.statusCode)
     }
 
-    /// Why `what` ("Your photos", "The posts") isn't here yet, and that it
+    /// What a screen is waiting for: each has its own sentences, since a
+    /// translation can't take "Your photos" or "The posts" as a piece.
+    enum Subject {
+        case photos, files, posts
+    }
+
+    /// Why `what` (your photos, the posts) isn't here yet, and that it
     /// comes by itself once it can.
-    func text(_ what: String) -> String {
-        switch self {
-        case .offline: return "This phone is offline. \(what) will appear once it's back online."
-        case .unreachable: return "Your device isn't reachable right now. \(what) will appear as soon as it answers."
-        case .slow: return "Your device took too long to answer. \(what) will appear as soon as it does."
-        case .failed: return "\(what) will appear as soon as your device answers."
+    func text(_ what: Subject) -> String {
+        switch (what, self) {
+        case (.photos, .offline): return S.appShellProblemPhotosOffline
+        case (.photos, .unreachable): return S.appShellProblemPhotosUnreachable
+        case (.photos, .slow): return S.appShellProblemPhotosSlow
+        case (.photos, .failed): return S.appShellProblemPhotosFailed
+        case (.files, .offline): return S.appShellProblemFilesOffline
+        case (.files, .unreachable): return S.appShellProblemFilesUnreachable
+        case (.files, .slow): return S.appShellProblemFilesSlow
+        case (.files, .failed): return S.appShellProblemFilesFailed
+        case (.posts, .offline): return S.appShellProblemPostsOffline
+        case (.posts, .unreachable): return S.appShellProblemPostsUnreachable
+        case (.posts, .slow): return S.appShellProblemPostsSlow
+        case (.posts, .failed): return S.appShellProblemPostsFailed
         }
     }
 
@@ -179,26 +193,26 @@ enum LoadProblem: Equatable {
 
     /// Images' first page failed: the title, then why (photosText), then
     /// Try again.
-    static let photosTitle = "Couldn't load your photos"
+    static var photosTitle: String { S.appShellProblemPhotosTitle }
     /// Under photosTitle: why, in plain words, and that they come by
     /// themselves.
-    var photosText: String { text("Your photos") }
+    var photosText: String { text(.photos) }
     /// A failed load's button, and while it is asked again.
-    static let tryAgain = "Try again"
-    static let trying = "Trying…"
+    static var tryAgain: String { S.commonTryAgain }
+    static var trying: String { S.appShellProblemTrying }
     /// A later page failed: the row at the end of the grid, before its Try
     /// again (the web's wording).
-    static let morePhotos = "Couldn't load more photos."
+    static var morePhotos: String { S.appShellProblemMorePhotos }
     /// The first page has been on its way a while (People's and
     /// Collections' wording).
-    static let photosSlow = "Still waiting for your device…"
+    static var photosSlow: String { S.appShellProblemWaiting }
     /// The grey tiles, to VoiceOver (the web's aria-busy grid).
-    static let photosLoading = "Loading photos"
+    static var photosLoading: String { S.appShellProblemPhotosLoading }
     /// The feed's next page failed: the end of the feed, before its Try again.
-    static let morePosts = "Couldn't load more posts."
+    static var morePosts: String { S.appShellProblemMorePosts }
     /// The viewer: a video that couldn't be fetched or played, over its
     /// poster, before its Try again.
-    static let videoUnplayable = "Couldn't play this video."
+    static var videoUnplayable: String { S.appShellProblemVideo }
 }
 
 /// What a screen says to VoiceOver when its problem line appears or

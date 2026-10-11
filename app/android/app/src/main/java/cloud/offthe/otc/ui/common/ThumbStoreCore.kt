@@ -279,7 +279,7 @@ class ThumbStoreCore(
                 if (g != gen) { c.close(); return null }
                 opened = Opened(g, c)
             }
-            log("opened: ${c.count} thumbnails, ${c.usedBytes} of ${c.limitBytes} bytes")
+            log("opened: ${c.count} thumbnails, ${c.usedBytes} of ${c.limitBytes} bytes") // i18n-ignore: a log line
             publish(c)
             return c
         }

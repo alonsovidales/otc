@@ -163,8 +163,8 @@ struct LoadProblemTests {
         #expect(LoadProblem.unreachable.photosText == "Your device isn't reachable right now. Your photos will appear as soon as it answers.")
         #expect(LoadProblem.slow.photosText == "Your device took too long to answer. Your photos will appear as soon as it does.")
         #expect(LoadProblem.failed.photosText == "Your photos will appear as soon as your device answers.")
-        #expect(LoadProblem.slow.text("The posts") == "Your device took too long to answer. The posts will appear as soon as it does.")
-        #expect(LoadProblem.offline.text("The files") == "This phone is offline. The files will appear once it's back online.")
+        #expect(LoadProblem.slow.text(.posts) == "Your device took too long to answer. The posts will appear as soon as it does.")
+        #expect(LoadProblem.offline.text(.files) == "This phone is offline. The files will appear once it's back online.")
         #expect(LoadProblem.morePhotos == "Couldn't load more photos.")
         #expect(LoadProblem.morePosts == "Couldn't load more posts.")
         #expect(LoadProblem.photosSlow == "Still waiting for your device…")
@@ -174,7 +174,7 @@ struct LoadProblemTests {
         #expect(LoadProblem.trying == "Trying…")
         #expect(LoadProblem.photosLoading == "Loading photos")
         #expect(LoadProblem.videoUnplayable == "Couldn't play this video.")
-        #expect(LoadProblem.failed.text("The files") == "The files will appear as soon as your device answers.")
+        #expect(LoadProblem.failed.text(.files) == "The files will appear as soon as your device answers.")
         // Every text differs: the reason is what tells them apart.
         #expect(Set([LoadProblem.offline, .unreachable, .slow, .failed].map(\.photosText)).count == 4)
     }

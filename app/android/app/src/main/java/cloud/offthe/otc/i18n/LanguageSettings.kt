@@ -420,7 +420,7 @@ object LanguageSettings {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.w(TAG, "could not send the language: ${e.message}")
+                Log.w(TAG, "could not send the language: $e")
                 LanguageAnswer.FAILED
             }
             when (answer) {

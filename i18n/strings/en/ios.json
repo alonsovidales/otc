@@ -1,0 +1,135 @@
+{
+  "ios.bluetooth_needed_hint": {
+    "text": "Allow Bluetooth for Off The Cloud in Settings to set a device up this way.",
+    "note": "Set up a new device (over Bluetooth): under the heading Bluetooth access is needed. Settings is the iPhone's own Settings app: use its name in this language."
+  },
+  "ios.bluetooth_off_hint": {
+    "text": "Turn Bluetooth on in Control Centre to find the device.",
+    "note": "Set up a new device (over Bluetooth): under the heading Bluetooth is off. Control Centre is the iPhone's: use iOS's own name for it in this language."
+  },
+  "ios.connection_superseded": {
+    "text": "The connection settings changed; try again.",
+    "note": "Error given to an action whose connection attempt was overtaken by new connection settings (saved, or a Log Out) while it was on its way."
+  },
+  "ios.download_bad_piece": {
+    "text": "The device sent a piece that doesn't fit the file",
+    "note": "Why opening or downloading a file failed (after Download failed: or similar): a piece the device sent doesn't match the file's size or place."
+  },
+  "ios.download_changed": {
+    "text": "The file changed on the device during the download",
+    "note": "Why opening or downloading a file failed (after Download failed: or similar): the file was replaced on the device while it was being fetched."
+  },
+  "ios.file_type_label": {
+    "text": "{type} file",
+    "args": [["type", "text"]],
+    "note": "Screen-reader name of a document icon in the Files grid. {type} is what the icon shows: a type such as PDF, DOC or ZIP, or a file extension in capitals."
+  },
+  "ios.menu_close": {
+    "text": "Close the menu",
+    "note": "Screen-reader name of the dimmed page behind the left menu laid over it (on a wide screen): tapping it closes the menu."
+  },
+  "ios.no_answer_slow": {
+    "text": "The device isn't answering. It may be off, or the connection may be too slow.",
+    "note": "Why the app can't connect, on the card shown over the app: the connection to the device stopped answering while signing in."
+  },
+  "ios.plist.cfbundlename": {
+    "text": "OffTheCloud",
+    "note": "The app's bundle name (Info.plist CFBundleName). Never translated.",
+    "translate": false
+  },
+  "ios.plist.nsbluetoothalwaysusagedescription": {
+    "text": "Used to set up a new Off The Cloud device next to you, before it has joined your WiFi.",
+    "note": "iOS permission prompt (Bluetooth), shown by the system when the app first uses Bluetooth: why the app needs it.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #f0c6e3b3"
+  },
+  "ios.plist.nscamerausagedescription": {
+    "text": "Used to take a photo or video to post to your feed",
+    "note": "iOS permission prompt (camera), shown by the system when the app first uses the camera: why the app needs it. No full stop in English.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #3da0f82d"
+  },
+  "ios.plist.nslocalnetworkusagedescription": {
+    "text": "Off The Cloud connects to your own device on your home network to sync photos and files.",
+    "note": "iOS permission prompt (local network), shown by the system when the app first reaches the device on the home network: why the app needs it.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #0dcffef2"
+  },
+  "ios.plist.nsmicrophoneusagedescription": {
+    "text": "Used to record sound with videos you post to your feed",
+    "note": "iOS permission prompt (microphone), shown by the system when the app first records a video: why the app needs it. No full stop in English.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #50b4ee1d"
+  },
+  "ios.plist.nsphotolibraryaddusagedescription": {
+    "text": "Used to save photos from the gallery viewer, and photos and videos you take to post, to your Photos library",
+    "note": "iOS permission prompt (adding to Photos), shown by the system the first time the app saves a photo to the library: why the app needs it. Photos is Apple's Photos app. No full stop in English.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d191bf0d"
+  },
+  "ios.plist.nsphotolibraryusagedescription": {
+    "text": "This app needs access to your Photos to back them up",
+    "note": "iOS permission prompt (Photos library), shown by the system the first time the app reads the photo library: why the app needs it (it backs the photos up to the user's device). No full stop in English.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #de68238a"
+  },
+  "ios.setup_signin_cancelled": {
+    "text": "Sign-in cancelled",
+    "note": "Set up a new device (over Bluetooth): error given to the setup page when the person closed the Apple or Google sign-in."
+  },
+  "ios.storage_details_hidden": {
+    "text": "Details hidden",
+    "note": "Screen-reader value of the Storage row at the foot of the left menu (on a wide screen) while the storage details under it are hidden."
+  },
+  "ios.storage_details_shown": {
+    "text": "Details shown",
+    "note": "Screen-reader value of the Storage row at the foot of the left menu (on a wide screen) while the storage details under it are shown."
+  },
+  "ios.storage_gauge_attention": {
+    "text": "Storage, needs attention",
+    "note": "Screen-reader name of the storage ring in the icon rail (on a wide screen) while the device's fullness isn't known and a disk stopped working or the device reports a problem."
+  },
+  "ios.storage_gauge_hint": {
+    "text": "Shows the details",
+    "note": "Screen-reader hint of the storage ring in the icon rail (on a wide screen): pressing it opens the whole menu at the storage details."
+  },
+  "ios.storage_gauge_used": {
+    "text": "Storage, {percent} used",
+    "args": [["percent", "text"]],
+    "note": "Screen-reader name of the storage ring in the icon rail (on a wide screen). {percent} is how full the storage is, already formatted (45%)."
+  },
+  "ios.storage_gauge_used_attention": {
+    "text": "Storage, {percent} used, needs attention",
+    "args": [["percent", "text"]],
+    "note": "Screen-reader name of the storage ring in the icon rail (on a wide screen) when a disk stopped working or the device reports a problem. {percent} is how full the storage is, already formatted (45%)."
+  },
+  "ios.storage_needs_attention": {
+    "text": "Needs attention",
+    "note": "Screen-reader name of the red dot by Storage at the foot of the left menu (on a wide screen): one disk of the mirror stopped working or the device reports a problem."
+  },
+  "ios.storage_percent": {
+    "text": "{percent} percent",
+    "args": [["percent", "int"]],
+    "note": "Screen-reader value of the storage bar at the foot of the left menu (on a wide screen): how full the storage is. {percent} is a whole number from 0 to 100."
+  },
+  "ios.storage_used": {
+    "text": "Storage used",
+    "note": "Screen-reader name of the bar at the foot of the left menu (on a wide screen) that shows how full the device's storage is."
+  },
+  "ios.ws_connect_timeout": {
+    "text": "The device didn't answer the connection in time.",
+    "note": "Error given to an action when the connection to the device couldn't be opened in time (nothing answered at its address)."
+  },
+  "ios.ws_still_connecting": {
+    "text": "Still connecting to the device.",
+    "note": "Error given to an action whose time ran out while the app was still connecting to the device."
+  },
+  "ios.ws_timed_out": {
+    "text": "The device didn't answer in time.",
+    "note": "Error given to an action (and shown on the card shown over the app when connecting fails) when the device didn't answer a request in time."
+  },
+  "ios.ws_unresponsive": {
+    "text": "The connection to the device stopped answering.",
+    "note": "Error given to the actions waiting on the connection to the device when it stopped answering and was closed; the app connects again."
+  }
+}

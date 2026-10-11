@@ -1,0 +1,248 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "ios.bluetooth_needed_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow Bluetooth for Off The Cloud in Settings to set a device up this way."
+          }
+        }
+      }
+    },
+    "ios.bluetooth_off_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn Bluetooth on in Control Centre to find the device."
+          }
+        }
+      }
+    },
+    "ios.connection_superseded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The connection settings changed; try again."
+          }
+        }
+      }
+    },
+    "ios.download_bad_piece" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The device sent a piece that doesn't fit the file"
+          }
+        }
+      }
+    },
+    "ios.download_changed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The file changed on the device during the download"
+          }
+        }
+      }
+    },
+    "ios.file_type_label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ file"
+          }
+        }
+      }
+    },
+    "ios.menu_close" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close the menu"
+          }
+        }
+      }
+    },
+    "ios.no_answer_slow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The device isn't answering. It may be off, or the connection may be too slow."
+          }
+        }
+      }
+    },
+    "ios.setup_signin_cancelled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign-in cancelled"
+          }
+        }
+      }
+    },
+    "ios.storage_details_hidden" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Details hidden"
+          }
+        }
+      }
+    },
+    "ios.storage_details_shown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Details shown"
+          }
+        }
+      }
+    },
+    "ios.storage_gauge_attention" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Storage, needs attention"
+          }
+        }
+      }
+    },
+    "ios.storage_gauge_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows the details"
+          }
+        }
+      }
+    },
+    "ios.storage_gauge_used" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Storage, %1$@ used"
+          }
+        }
+      }
+    },
+    "ios.storage_gauge_used_attention" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Storage, %1$@ used, needs attention"
+          }
+        }
+      }
+    },
+    "ios.storage_needs_attention" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Needs attention"
+          }
+        }
+      }
+    },
+    "ios.storage_percent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld percent"
+          }
+        }
+      }
+    },
+    "ios.storage_used" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Storage used"
+          }
+        }
+      }
+    },
+    "ios.ws_connect_timeout" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The device didn't answer the connection in time."
+          }
+        }
+      }
+    },
+    "ios.ws_still_connecting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Still connecting to the device."
+          }
+        }
+      }
+    },
+    "ios.ws_timed_out" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The device didn't answer in time."
+          }
+        }
+      }
+    },
+    "ios.ws_unresponsive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The connection to the device stopped answering."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

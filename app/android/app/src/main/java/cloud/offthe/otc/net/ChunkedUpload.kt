@@ -87,7 +87,7 @@ object ChunkedUpload {
                     n += r
                 }
                 if (n == 0) break
-                if (offset + n > size) throw IOException("$path grew past $size bytes while uploading")
+                if (offset + n > size) throw IOException("$path grew past $size bytes while uploading") // i18n-ignore: a diagnostic naming the upload protocol, shown only after a translated "Upload failed:"
                 md?.update(buf, 0, n)
                 val at = offset
                 val data = UnsafeByteOperations.unsafeWrap(buf, 0, n)
@@ -98,23 +98,23 @@ object ChunkedUpload {
                 }
                 check(progress, RespEnvelope.PayloadCase.RESP_UPLOAD_PROGRESS, "UploadChunk")
                 if (progress.respUploadProgress.received != offset + n) {
-                    throw IOException("UploadChunk: device has ${progress.respUploadProgress.received} bytes, expected ${offset + n}")
+                    throw IOException("UploadChunk: device has ${progress.respUploadProgress.received} bytes, expected ${offset + n}") // i18n-ignore: a diagnostic naming the upload protocol, shown only after a translated "Upload failed:"
                 }
                 offset += n
                 if (n < chunkSize) break
             }
         }
-        if (offset != size) throw IOException("$path is $offset bytes, expected $size")
+        if (offset != size) throw IOException("$path is $offset bytes, expected $size") // i18n-ignore: a diagnostic naming the upload protocol, shown only after a translated "Upload failed:"
 
         val hash = sha256 ?: hex(md!!.digest())
         val resp = OTCConnection.request { it.setReqFinishUpload(FinishUpload.newBuilder().setUploadId(uploadId).setSha256(hash)) }
-        if (resp.error) throw OTCConnection.RequestError(resp.errorMessage.ifEmpty { "FinishUpload failed" }, resp.errorCode)
+        if (resp.error) throw OTCConnection.RequestError(resp.errorMessage.ifEmpty { "FinishUpload failed" }, resp.errorCode) // i18n-ignore: a diagnostic naming the upload protocol, shown only after a translated "Upload failed:"
         resp
     }
 
     private fun check(resp: RespEnvelope, want: RespEnvelope.PayloadCase, what: String) {
-        if (resp.error) throw OTCConnection.RequestError(resp.errorMessage.ifEmpty { "$what failed" }, resp.errorCode)
-        if (resp.payloadCase != want) throw OTCConnection.RequestError("$what: unexpected ${resp.payloadCase}")
+        if (resp.error) throw OTCConnection.RequestError(resp.errorMessage.ifEmpty { "$what failed" }, resp.errorCode) // i18n-ignore: a diagnostic naming the upload protocol, shown only after a translated "Upload failed:"
+        if (resp.payloadCase != want) throw OTCConnection.RequestError("$what: unexpected ${resp.payloadCase}") // i18n-ignore: a diagnostic naming the upload protocol, shown only after a translated "Upload failed:"
     }
 
     private fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it) }

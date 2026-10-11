@@ -139,7 +139,7 @@ final class PhotoSync: NSObject {
         if s == .authorized || s == .limited { return }
         let r = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
         guard r == .authorized || r == .limited else {
-            throw NSError(domain: "photos", code: 1, userInfo: [NSLocalizedDescriptionKey: "Photos access denied"])
+            throw NSError(domain: "photos", code: 1, userInfo: [NSLocalizedDescriptionKey: "Photos access denied"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
         }
     }
 
@@ -193,7 +193,7 @@ final class PhotoSync: NSObject {
         let resources = PHAssetResource.assetResources(for: asset)
         guard let res = resources.first(where: { $0.type == .photo || $0.type == .fullSizePhoto || $0.type == .video }) ?? resources.first
         else {
-            throw NSError(domain: "PhotoExport", code: -10, userInfo: [NSLocalizedDescriptionKey: "No asset resource"])
+            throw NSError(domain: "PhotoExport", code: -10, userInfo: [NSLocalizedDescriptionKey: "No asset resource"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
         }
 
         // Temp file to stream into
@@ -204,7 +204,7 @@ final class PhotoSync: NSObject {
 
         // Open an output stream (constant memory usage)
         guard let out = OutputStream(url: tmpURL, append: false) else {
-            throw NSError(domain: "PhotoExport", code: -11, userInfo: [NSLocalizedDescriptionKey: "Cannot open output stream"])
+            throw NSError(domain: "PhotoExport", code: -11, userInfo: [NSLocalizedDescriptionKey: "Cannot open output stream"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
         }
         out.open()
         defer { out.close() }
@@ -231,7 +231,7 @@ final class PhotoSync: NSObject {
                             streamError = out.streamError ?? NSError(
                                 domain: "PhotoExport",
                                 code: -12,
-                                userInfo: [NSLocalizedDescriptionKey: "Failed writing to stream"]
+                                userInfo: [NSLocalizedDescriptionKey: "Failed writing to stream"] // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
                             )
                             return
                         }
@@ -383,7 +383,7 @@ final class PhotoSync: NSObject {
             // You can also return the URL instead of throwing if you refactor callers.
             throw NSError(domain: "PhotoExport",
                           code: -20,
-                          userInfo: [NSLocalizedDescriptionKey: "AssetTooLargeForMemory: \(size) bytes"])
+                          userInfo: [NSLocalizedDescriptionKey: "AssetTooLargeForMemory: \(size) bytes"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
         }
 
         // Map into memory (still allocates a buffer ~size)
@@ -560,7 +560,7 @@ final class PhotoSync: NSObject {
                             // knownFiles/the asset cache below) be checked
                             // before ever touching the expensive part.
                             guard let rawName = self.resourceFilename(for: asset) else {
-                                throw NSError(domain: "PhotoExport", code: -10, userInfo: [NSLocalizedDescriptionKey: "No asset resource"])
+                                throw NSError(domain: "PhotoExport", code: -10, userInfo: [NSLocalizedDescriptionKey: "No asset resource"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
                             }
                             let cleanName = rawName.replacingOccurrences(of: "/", with: "_")
                             let basePath = "\(targetPath)\(cleanName)"
@@ -710,7 +710,7 @@ final class PhotoSync: NSObject {
                                     }
                                 }
                                 guard let data else {
-                                    throw NSError(domain: "PhotoExport", code: -13, userInfo: [NSLocalizedDescriptionKey: "No data to upload"])
+                                    throw NSError(domain: "PhotoExport", code: -13, userInfo: [NSLocalizedDescriptionKey: "No data to upload"]) // i18n-ignore: an internal error of the photo export, logged by the sync (a detail after a translated sentence at most)
                                 }
                                 // Issue #165: chunked, never the whole
                                 // file in one message; reuses the hash

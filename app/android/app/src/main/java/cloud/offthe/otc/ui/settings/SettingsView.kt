@@ -94,6 +94,7 @@ import cloud.offthe.otc.MainActivity
 import cloud.offthe.otc.i18n.LanguageSettings
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.appSettingsLanguage
+import cloud.offthe.otc.i18n.appShellThumbCacheUsage
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.sync.AssetSyncCache
@@ -351,24 +352,25 @@ private fun ThumbnailCacheSection() {
     var menu by remember { mutableStateOf(false) }
     var clearing by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { ThumbStore.refreshUsage() }
+    val limitText = formatCacheBytes(usage.limit).resolve()
     Section("Thumbnail cache", "Thumbnails are kept on this phone so Images opens without downloading them again.") {
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
                 .clickable(onClickLabel = "Change the size", role = Role.DropdownList) { menu = true }
-                .semantics { contentDescription = "Maximum size, ${formatCacheBytes(usage.limit)}" }
+                .semantics { contentDescription = "Maximum size, $limitText" }
                 .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Maximum size", Modifier.weight(1f))
             Box {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(formatCacheBytes(usage.limit), color = MaterialTheme.colorScheme.primary)
+                    Text(limitText, color = MaterialTheme.colorScheme.primary)
                     Icon(Icons.Filled.ArrowDropDown, null, tint = MaterialTheme.colorScheme.primary)
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     for (choice in THUMB_CACHE_CHOICES) {
                         DropdownMenuItem(
-                            text = { Text(formatCacheBytes(choice)) },
+                            text = { Text(formatCacheBytes(choice).resolve()) },
                             trailingIcon = if (choice == usage.limit) ({ Icon(Icons.Filled.Check, "Selected") }) else null,
                             onClick = { menu = false; scope.launch { ThumbStore.setLimit(choice) } },
                         )
@@ -376,7 +378,7 @@ private fun ThumbnailCacheSection() {
                 }
             }
         }
-        Caption("Using ${formatCacheBytes(usage.used)} of ${formatCacheBytes(usage.limit)}")
+        Caption(S.appShellThumbCacheUsage(formatCacheBytes(usage.used).resolve(), limitText).resolve())
         RowButton("Clear thumbnail cache", enabled = !clearing) {
             clearing = true
             scope.launch { try { ThumbStore.clearAll() } finally { clearing = false } }

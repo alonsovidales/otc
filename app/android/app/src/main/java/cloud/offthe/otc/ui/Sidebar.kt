@@ -81,6 +81,49 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.androidMenuSections
+import cloud.offthe.otc.i18n.androidStorageGauge
+import cloud.offthe.otc.i18n.androidStorageGaugeAttention
+import cloud.offthe.otc.i18n.androidStorageGaugeUsed
+import cloud.offthe.otc.i18n.androidStorageGaugeUsedAttention
+import cloud.offthe.otc.i18n.androidStorageHideDetails
+import cloud.offthe.otc.i18n.androidStorageHideDetailsAttention
+import cloud.offthe.otc.i18n.androidStorageShowDetails
+import cloud.offthe.otc.i18n.androidStorageShowDetailsAttention
+import cloud.offthe.otc.i18n.androidStorageUsed
+import cloud.offthe.otc.i18n.appShellMenuDevice
+import cloud.offthe.otc.i18n.appShellMenuHide
+import cloud.offthe.otc.i18n.appShellMenuSharing
+import cloud.offthe.otc.i18n.appShellMenuShow
+import cloud.offthe.otc.i18n.appShellMirrorDegraded
+import cloud.offthe.otc.i18n.appShellMirrorInSync
+import cloud.offthe.otc.i18n.appShellMirrorNone
+import cloud.offthe.otc.i18n.appShellMirrorSyncing
+import cloud.offthe.otc.i18n.appShellMirrorUnknown
+import cloud.offthe.otc.i18n.appShellPercent
+import cloud.offthe.otc.i18n.appShellPrivacy
+import cloud.offthe.otc.i18n.appShellSectionAlerts
+import cloud.offthe.otc.i18n.appShellSectionCollections
+import cloud.offthe.otc.i18n.appShellSectionFiles
+import cloud.offthe.otc.i18n.appShellSectionFriends
+import cloud.offthe.otc.i18n.appShellSectionImages
+import cloud.offthe.otc.i18n.appShellSectionPeople
+import cloud.offthe.otc.i18n.appShellSectionSocial
+import cloud.offthe.otc.i18n.appShellSectionUnread
+import cloud.offthe.otc.i18n.appShellStorage
+import cloud.offthe.otc.i18n.appShellStorageCpu
+import cloud.offthe.otc.i18n.appShellStorageDisks
+import cloud.offthe.otc.i18n.appShellStorageFree
+import cloud.offthe.otc.i18n.appShellStorageMemory
+import cloud.offthe.otc.i18n.appShellStorageOf
+import cloud.offthe.otc.i18n.appShellStorageReading
+import cloud.offthe.otc.i18n.appShellStorageSystemCard
+import cloud.offthe.otc.i18n.appShellStorageUnavailable
+import cloud.offthe.otc.i18n.appShellStorageUsed
+import cloud.offthe.otc.i18n.appShellTerms
+import cloud.offthe.otc.i18n.appShellSectionSettings
 import cloud.offthe.otc.proto.RaidState
 import cloud.offthe.otc.proto.Status
 import cloud.offthe.otc.ui.common.NavIcons
@@ -108,15 +151,27 @@ import kotlin.math.roundToInt
  * tab in [tab] (Images' People page and Collections sheet, Social's
  * Friends sheet).
  */
-enum class Section(val id: Int, val label: String) {
-    Alerts(0, "Alerts"),
-    Social(1, "Social"),
-    Files(3, "Files"),
-    Images(4, "Images"),
-    Settings(5, "Settings"),
-    People(6, "People"),
-    Collections(7, "Collections"),
-    Friends(8, "Friends");
+enum class Section(val id: Int) {
+    Alerts(0),
+    Social(1),
+    Files(3),
+    Images(4),
+    Settings(5),
+    People(6),
+    Collections(7),
+    Friends(8);
+
+    /** Its name in the menu and the bottom bar, resolved where it is shown. */
+    val label: UiText get() = when (this) {
+        Alerts -> S.appShellSectionAlerts()
+        Social -> S.appShellSectionSocial()
+        Files -> S.appShellSectionFiles()
+        Images -> S.appShellSectionImages()
+        Settings -> S.appShellSectionSettings()
+        People -> S.appShellSectionPeople()
+        Collections -> S.appShellSectionCollections()
+        Friends -> S.appShellSectionFriends()
+    }
 
     /** The bottom bar's tab that shows this section on a narrow window. */
     val tab: Section get() = when (this) {
@@ -157,13 +212,13 @@ fun menuLayout(widthDp: Float, menuOpen: Boolean): MenuLayout = when {
 }
 
 /** A group of the menu: a heading (none for the first) over its sections. */
-data class MenuGroup(val heading: String?, val items: List<Section>)
+data class MenuGroup(val heading: UiText?, val items: List<Section>)
 
 /** The menu's groups; People only while face recognition is on. */
 fun menuGroups(faces: Boolean): List<MenuGroup> = listOf(
     MenuGroup(null, listOfNotNull(Section.Images, Section.People.takeIf { faces }, Section.Collections, Section.Files)),
-    MenuGroup("Sharing", listOf(Section.Social, Section.Friends)),
-    MenuGroup("Device", listOf(Section.Alerts, Section.Settings)),
+    MenuGroup(S.appShellMenuSharing(), listOf(Section.Social, Section.Friends)),
+    MenuGroup(S.appShellMenuDevice(), listOf(Section.Alerts, Section.Settings)),
 )
 
 /** The open section, as the menu marks it: a collection open in Images is still Collections. */
@@ -175,15 +230,15 @@ fun menuCurrent(section: Section, collectionOpen: Boolean): Section =
 /** Fuller than comfortable: the meter turns ember, then red. */
 enum class StorageLevel { OK, WARN, CRIT }
 
-/** What the menu says about the storage (the web's summarize). */
+/** What the menu says about the storage (the web's summarize); its text is resolved where it is shown. */
 data class StorageSummary(
     val status: Status?,
     val usedPct: Double,
     val level: StorageLevel,
     val degraded: Boolean,
     val attention: Boolean,
-    val usedText: String,
-    val mirrorText: String,
+    val usedText: UiText,
+    val mirrorText: UiText,
 )
 
 /** Rounded to two decimals, kept within 0-100 (the web's round). */
@@ -198,12 +253,12 @@ internal fun pctText(x: Double): String {
 internal fun usedPct(used: Int, total: Int): Double = if (used <= 0 || total <= 0) 0.0 else pctRound(used.toDouble() / total * 100)
 
 /** Issue #65: the mirror's own health (the web's raidStateLabel). */
-internal fun mirrorLabel(s: Status): String = when (s.raidState) {
-    RaidState.RaidNone -> "No mirror"
-    RaidState.RaidInSync -> "Mirror in sync"
-    RaidState.RaidSyncing -> "Mirror syncing (${pctText(s.raidSyncPercent.toDouble())}%)"
-    RaidState.RaidDegraded -> "Mirror degraded"
-    else -> "Mirror state unknown"
+internal fun mirrorLabel(s: Status): UiText = when (s.raidState) {
+    RaidState.RaidNone -> S.appShellMirrorNone()
+    RaidState.RaidInSync -> S.appShellMirrorInSync()
+    RaidState.RaidSyncing -> S.appShellMirrorSyncing(pctText(s.raidSyncPercent.toDouble()))
+    RaidState.RaidDegraded -> S.appShellMirrorDegraded()
+    else -> S.appShellMirrorUnknown()
 }
 
 fun summarizeStorage(status: Status?, error: String?): StorageSummary {
@@ -216,11 +271,11 @@ fun summarizeStorage(status: Status?, error: String?): StorageSummary {
         degraded = degraded,
         attention = degraded || (status?.errorsCount ?: 0) > 0,
         usedText = when {
-            status != null -> "${sizeText(status.raidUsage.toDouble())} of ${sizeText(status.raidSize.toDouble())} used"
-            error != null -> "Storage unavailable right now"
-            else -> "Reading…"
+            status != null -> S.appShellStorageUsed(sizeText(status.raidUsage.toDouble()), sizeText(status.raidSize.toDouble()))
+            error != null -> S.appShellStorageUnavailable()
+            else -> S.appShellStorageReading()
         },
-        mirrorText = status?.let(::mirrorLabel) ?: "",
+        mirrorText = status?.let(::mirrorLabel) ?: UiText.Raw(""),
     )
 }
 
@@ -291,9 +346,10 @@ fun Sidebar(
     if (layout == MenuLayout.NONE) return
     val colors = menuColors()
     val groups = remember(faces) { menuGroups(faces) }
+    val sections = S.androidMenuSections().resolve()
     Box(
         modifier.fillMaxHeight().width(if (layout == MenuLayout.FULL) SIDEBAR_WIDTH else RAIL_WIDTH).background(colors.surface)
-            .semantics { contentDescription = "Sections" },
+            .semantics { contentDescription = sections },
     ) {
         if (layout == MenuLayout.RAIL) RailMenu(groups, current, unread, storage, compact, colors, onPick, onStorage)
         else FullMenu(groups, current, unread, storage, details, onToggleDetails, colors, revealStorage, onStorageRevealed, onPick)
@@ -313,6 +369,7 @@ fun MenuDrawer(
 ) {
     val colors = menuColors()
     val groups = remember(faces) { menuGroups(faces) }
+    val sections = S.androidMenuSections().resolve()
     // Registered as it opens, so it comes before the page under it
     // (People's, Collections', Friends' own back, registered later than an
     // always-present handler here would be).
@@ -337,7 +394,7 @@ fun MenuDrawer(
                     .background(colors.drawer)
                     .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Start))
                     .width(min(SIDEBAR_WIDTH.value, (maxWidth - 56.dp).value).dp)
-                    .semantics { contentDescription = "Sections" },
+                    .semantics { contentDescription = sections },
             ) {
                 FullMenu(
                     groups, current, unread, storage, details, onToggleDetails, colors.copy(surface = colors.drawer),
@@ -390,7 +447,7 @@ private fun FullMenu(
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 g.heading?.let { h ->
                     Text(
-                        h.uppercase(), fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.04.em,
+                        h.resolve().uppercase(), fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.04.em,
                         color = colors.dim, modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp).semantics { heading() },
                     )
                 }
@@ -406,13 +463,15 @@ private fun FullMenu(
 @Composable
 private fun FullItem(s: Section, active: Boolean, count: Int, colors: MenuColors, bringIntoView: Boolean, onClick: () -> Unit) {
     val inView = rememberActiveInView(active, enabled = bringIntoView)
+    val label = s.label.resolve()
+    val described = if (count > 0) S.appShellSectionUnread(label, count).resolve() else label
     Row(
         Modifier.fillMaxWidth().then(inView).heightIn(min = 44.dp).clip(CircleShape)
             .background(if (active) colors.accentFill else Color.Transparent)
             .clickable(role = Role.Tab, onClick = onClick)
             .semantics(mergeDescendants = true) {
                 selected = active
-                contentDescription = if (count > 0) "${s.label}, $count unread" else s.label
+                contentDescription = described
             }
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -420,7 +479,7 @@ private fun FullItem(s: Section, active: Boolean, count: Int, colors: MenuColors
     ) {
         Icon(s.icon, null, Modifier.size(22.dp), tint = if (active) colors.accent else colors.dim)
         Text(
-            s.label, Modifier.weight(1f), fontSize = 15.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+            label, Modifier.weight(1f), fontSize = 15.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
             color = if (active) colors.accent else colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis,
         )
         if (count > 0) CountBadge(count, colors, small = false)
@@ -488,12 +547,14 @@ private fun RailItem(s: Section, active: Boolean, count: Int, compact: Boolean, 
     val shown by animateFloatAsState(if (active) 1f else 0f, tween(250), label = "pill")
     val tint = if (active) colors.accent else colors.dim
     val inView = rememberActiveInView(active)
+    val label = s.label.resolve()
+    val described = if (count > 0) S.appShellSectionUnread(label, count).resolve() else label
     Column(
         Modifier.fillMaxWidth().then(inView).heightIn(min = if (compact) 52.dp else 56.dp)
             .clickable(interactionSource = press, indication = null, role = Role.Tab, onClick = onClick)
             .semantics(mergeDescendants = true) {
                 selected = active
-                contentDescription = if (count > 0) "${s.label}, $count unread" else s.label
+                contentDescription = described
             }
             .padding(horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -511,7 +572,7 @@ private fun RailItem(s: Section, active: Boolean, count: Int, compact: Boolean, 
             if (count > 0) CountBadge(count, colors, small = true, modifier = Modifier.offset(x = 30.dp, y = (-2).dp))
         }
         Text(
-            s.label, fontSize = 11.sp, lineHeight = 14.sp, fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+            label, fontSize = 11.sp, lineHeight = 14.sp, fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
             color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
         )
     }
@@ -521,7 +582,13 @@ private fun RailItem(s: Section, active: Boolean, count: Int, compact: Boolean, 
 @Composable
 private fun StorageGauge(s: StorageSummary, compact: Boolean, colors: MenuColors, onClick: () -> Unit) {
     val press = remember { MutableInteractionSource() }
-    val shown = if (s.status != null) "${s.usedPct.roundToInt()}%" else "–"
+    val shown = if (s.status != null) S.appShellPercent(s.usedPct.roundToInt().toString()).resolve() else "–"
+    val described = when {
+        s.status != null && s.attention -> S.androidStorageGaugeUsedAttention(shown)
+        s.status != null -> S.androidStorageGaugeUsed(shown)
+        s.attention -> S.androidStorageGaugeAttention()
+        else -> S.androidStorageGauge()
+    }.resolve()
     val value = when (s.level) {
         StorageLevel.CRIT -> colors.danger
         StorageLevel.WARN -> colors.warn
@@ -531,7 +598,7 @@ private fun StorageGauge(s: StorageSummary, compact: Boolean, colors: MenuColors
         Modifier.fillMaxWidth().heightIn(min = if (compact) 52.dp else 56.dp)
             .clickable(interactionSource = press, indication = null, role = Role.Button, onClick = onClick)
             .semantics(mergeDescendants = true) {
-                contentDescription = "Storage${if (s.status != null) ", $shown used" else ""}${if (s.attention) ", needs attention" else ""}. Show details"
+                contentDescription = described
             },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 4.dp, Alignment.CenterVertically),
@@ -566,20 +633,27 @@ private fun StorageGauge(s: StorageSummary, compact: Boolean, colors: MenuColors
 @Composable
 private fun StoragePanel(s: StorageSummary, details: Boolean, onToggle: () -> Unit, colors: MenuColors) {
     val turn by animateFloatAsState(if (details) 180f else 0f, tween(200), label = "chevron")
+    val described = when {
+        s.attention && details -> S.androidStorageHideDetailsAttention()
+        s.attention -> S.androidStorageShowDetailsAttention()
+        details -> S.androidStorageHideDetails()
+        else -> S.androidStorageShowDetails()
+    }.resolve()
+    val meter = S.androidStorageUsed(pctText(s.usedPct)).resolve()
     Column(Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(colors.line))
         Spacer(Modifier.height(8.dp))
         Row(
             Modifier.fillMaxWidth().heightIn(min = 44.dp).clip(CircleShape).clickable(onClick = onToggle)
                 .semantics(mergeDescendants = true) {
-                    contentDescription = "Storage${if (s.attention) ", needs attention" else ""}, ${if (details) "hide" else "show"} details"
+                    contentDescription = described
                 }
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Icon(NavIcons.Storage, null, Modifier.size(22.dp), tint = colors.dim)
-            Text("Storage", Modifier.weight(1f), fontSize = 15.sp, color = colors.text, maxLines = 1)
+            Text(S.appShellStorage().resolve(), Modifier.weight(1f), fontSize = 15.sp, color = colors.text, maxLines = 1)
             if (s.attention) Box(Modifier.size(8.dp).clip(CircleShape).background(colors.danger))
             Icon(NavIcons.Chevron, null, Modifier.size(18.dp).rotate(turn), tint = colors.dim)
         }
@@ -591,21 +665,21 @@ private fun StoragePanel(s: StorageSummary, details: Boolean, onToggle: () -> Un
         Box(
             Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp).fillMaxWidth().height(4.dp)
                 .clip(CircleShape).background(colors.track)
-                .semantics { contentDescription = "Storage used, ${pctText(s.usedPct)}%" },
+                .semantics { contentDescription = meter },
         ) {
             Box(Modifier.fillMaxHeight().fillMaxWidth((s.usedPct / 100.0).toFloat().coerceIn(0f, 1f)).clip(CircleShape).background(fill))
         }
-        StorageText(s.usedText, colors.dim)
+        StorageText(s.usedText.resolve(), colors.dim)
         // Its line is kept while the status loads, so the block doesn't grow when it comes.
-        StorageText(s.mirrorText.ifEmpty { " " }, if (s.degraded) colors.danger else colors.dim)
+        StorageText(s.mirrorText.resolve().ifEmpty { " " }, if (s.degraded) colors.danger else colors.dim)
         val st = s.status
         if (details && st != null) {
             Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                DetailRow("Disks", if (st.disks > 0) st.disks.toString() else "—", colors)
-                DetailRow("Free", sizeText(max(0, st.raidSize - st.raidUsage).toDouble()), colors)
-                DetailRow("System card", "${sizeText(st.diskUsage.toDouble())} of ${sizeText(st.diskSize.toDouble())}", colors)
-                DetailRow("CPU", "${pctText(st.cpuUsagePrc.toDouble())}%", colors)
-                DetailRow("Memory", "${sizeText(st.memUsage.toDouble())} of ${sizeText(st.memSize.toDouble())}", colors)
+                DetailRow(S.appShellStorageDisks().resolve(), if (st.disks > 0) st.disks.toString() else "—", colors)
+                DetailRow(S.appShellStorageFree().resolve(), sizeText(max(0, st.raidSize - st.raidUsage).toDouble()), colors)
+                DetailRow(S.appShellStorageSystemCard().resolve(), S.appShellStorageOf(sizeText(st.diskUsage.toDouble()), sizeText(st.diskSize.toDouble())).resolve(), colors)
+                DetailRow(S.appShellStorageCpu().resolve(), S.appShellPercent(pctText(st.cpuUsagePrc.toDouble())).resolve(), colors)
+                DetailRow(S.appShellStorageMemory().resolve(), S.appShellStorageOf(sizeText(st.memUsage.toDouble()), sizeText(st.memSize.toDouble())).resolve(), colors)
                 for (e in st.errorsList) {
                     Text(e.message.ifEmpty { e.statusErrorCode.toString() }, fontSize = 12.sp, lineHeight = 16.sp, color = colors.danger)
                 }
@@ -632,9 +706,9 @@ private fun DetailRow(label: String, value: String, colors: MenuColors) {
 private fun LegalLinks(colors: MenuColors) {
     val context = LocalContext.current
     Row(Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        LegalLink("Privacy", colors) { Share.openInBrowser(context, "https://off-the.cloud/privacy") }
+        LegalLink(S.appShellPrivacy().resolve(), colors) { Share.openInBrowser(context, "https://off-the.cloud/privacy") }
         Text("·", fontSize = 12.sp, color = colors.dim, modifier = Modifier.padding(horizontal = 2.dp))
-        LegalLink("Terms", colors) { Share.openInBrowser(context, "https://off-the.cloud/terms") }
+        LegalLink(S.appShellTerms().resolve(), colors) { Share.openInBrowser(context, "https://off-the.cloud/terms") }
     }
 }
 
@@ -650,9 +724,10 @@ private fun LegalLink(label: String, colors: MenuColors, onClick: () -> Unit) {
 @Composable
 fun MenuButton(expanded: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = menuColors()
+    val described = (if (expanded) S.appShellMenuHide() else S.appShellMenuShow()).resolve()
     Box(
         modifier.size(44.dp).clip(CircleShape).clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = if (expanded) "Hide menu" else "Show menu" },
+            .semantics { contentDescription = described },
         contentAlignment = Alignment.Center,
     ) { Icon(NavIcons.Menu, null, Modifier.size(24.dp), tint = colors.text) }
 }

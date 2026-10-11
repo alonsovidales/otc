@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.common
 
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.androidCacheBytes
 import java.io.File
 import java.math.RoundingMode
 import java.text.NumberFormat
@@ -26,7 +29,7 @@ class ThumbCacheLimit(private val file: File) {
 
     /** Kept whole or not at all; false when it couldn't be written. */
     fun set(bytes: Long): Boolean {
-        require(bytes in THUMB_CACHE_CHOICES) { "not a thumbnail cache size: $bytes" }
+        require(bytes in THUMB_CACHE_CHOICES) { "not a thumbnail cache size: $bytes" } // i18n-ignore: a programming error, never shown
         val tmp = File(file.absoluteFile.parentFile, "${file.name}.tmp")
         return try {
             file.absoluteFile.parentFile?.mkdirs()
@@ -44,11 +47,13 @@ class ThumbCacheLimit(private val file: File) {
  * it: decimal units as the sizes offered (1 GB is 10^9 bytes), "bytes"
  * below a kilobyte ("Using 0 bytes of 1 GB" for an empty cache, not "0 B"),
  * one decimal below 10 of a unit ("4.5 MB", "1.5 GB") and whole numbers from
- * there, with [locale]'s decimal separator ("1,5 GB").
+ * there, with [locale]'s decimal separator ("1,5 GB"). Text, resolved where
+ * it is shown: "bytes" is the language's word (android.cache_bytes), the
+ * unit symbols stay KB, MB, GB, TB.
  */
-fun formatCacheBytes(bytes: Long, locale: Locale = Locale.getDefault()): String {
+fun formatCacheBytes(bytes: Long, locale: Locale = Locale.getDefault()): UiText {
     val b = maxOf(bytes, 0L)
-    if (b < 1_000L) return if (b == 1L) "1 byte" else "$b bytes"
+    if (b < 1_000L) return S.androidCacheBytes(b.toInt())
     val units = arrayOf("KB", "MB", "GB", "TB")
     var v = b / 1_000.0
     var i = 0
@@ -59,5 +64,5 @@ fun formatCacheBytes(bytes: Long, locale: Locale = Locale.getDefault()): String 
         maximumFractionDigits = if (v < 9.95) 1 else 0
         roundingMode = RoundingMode.HALF_UP
     }
-    return "${nf.format(v)} ${units[i]}"
+    return UiText.Raw("${nf.format(v)} ${units[i]}")
 }

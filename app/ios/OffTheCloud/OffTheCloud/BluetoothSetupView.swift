@@ -365,11 +365,40 @@ enum BLESetupError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notConnected: return "Not connected to the device"
-        case .timeout: return "The device did not answer in time"
-        case .badAnswer: return "The device sent an answer this app could not read"
-        case .closed: return "Setup was closed"
+        case .notConnected: return S.appShellBleNotConnected
+        case .timeout: return S.appShellBleTimeout
+        case .badAnswer: return S.appShellBleBadAnswer
+        case .closed: return S.appShellBleClosed
         }
+    }
+}
+
+/// The wizard speaks the app's language (docs/i18n.md, "Setup wizard"): its
+/// page is loaded with ?lang=<code>, and every /api call carries it too,
+/// since only the path travels over Bluetooth - no header. The language in
+/// effect when the call is made; a path that already has one keeps it. The
+/// page itself keeps the language it was loaded in. Android's
+/// BluetoothSetupView.kt does the same.
+enum BLESetupLang {
+    static var code: String { L10n.shared.code }
+
+    /// The page's first address: otc-setup://device/?lang=<code>.
+    static func pageURL(code: String = BLESetupLang.code) -> URL {
+        var c = URLComponents()
+        c.scheme = BLESetupSchemeHandler.scheme
+        c.host = "device"
+        c.path = "/"
+        c.queryItems = [URLQueryItem(name: "lang", value: code)]
+        return c.url!
+    }
+
+    /// `path` (with its query) with lang added when it is an /api call.
+    static func adding(to path: String, code: String = BLESetupLang.code) -> String {
+        guard path == "/api" || path.hasPrefix("/api/") || path.hasPrefix("/api?") else { return path }
+        let query = path.split(separator: "?", maxSplits: 1).dropFirst().first ?? ""
+        if query.split(separator: "&").contains(where: { $0.hasPrefix("lang=") }) { return path }
+        let item = "lang=" + (code.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "en")
+        return path + (path.contains("?") ? "&" : "?") + item
     }
 }
 
@@ -399,6 +428,7 @@ final class BLESetupSchemeHandler: NSObject, WKURLSchemeHandler {
         guard let url = request.url else { return }
         var path = url.path.isEmpty ? "/" : url.path
         if let q = url.query, !q.isEmpty { path += "?" + q }
+        path = BLESetupLang.adding(to: path)
         print("[ble] page request \(request.httpMethod ?? "GET") \(path)")
         Task { @MainActor in
             do {
@@ -441,6 +471,7 @@ final class BLESetupScriptBridge: NSObject, WKScriptMessageHandlerWithReply {
         let method = req["m"] as? String ?? "GET"
         var path = req["p"] as? String ?? "/"
         if path.contains("://"), let u = URL(string: path) { path = u.path + (u.query.map { "?" + $0 } ?? "") }
+        path = BLESetupLang.adding(to: path)
         let body = (req["b"] as? String).map { Data($0.utf8) }
         Task { @MainActor in
             do {
@@ -491,7 +522,7 @@ struct BLESetupWebView: UIViewRepresentable {
         view.navigationDelegate = context.coordinator
         view.isOpaque = false
         view.backgroundColor = UIColor(red: 0.118, green: 0.122, blue: 0.133, alpha: 1) // the wizard's own background
-        view.load(URLRequest(url: URL(string: "\(BLESetupSchemeHandler.scheme)://device/")!))
+        view.load(URLRequest(url: BLESetupLang.pageURL()))
         return view
     }
 
@@ -515,7 +546,7 @@ struct BluetoothSetupView: View {
                     // where it left off once the link is back.
                     HStack(spacing: 8) {
                         ProgressView()
-                        Text("Connection to the device lost - reconnecting. Keep the phone next to it.")
+                        Text(S.appShellBleLinkLost)
                             .font(.footnote)
                     }
                     .frame(maxWidth: .infinity)
@@ -535,26 +566,26 @@ struct BluetoothSetupView: View {
                 let known = transport.chosenPassword
                 let valid = !known.isEmpty || !password.isEmpty
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(domain.isEmpty ? "The device is ready on your home network." : "The device is ready as \(domain).")
+                    Text(domain.isEmpty ? S.appShellSetupReadyHome : S.appShellSetupReadyAs(domain: domain))
                         .font(.footnote).foregroundStyle(.secondary)
                     // Issue #137: the password is chosen here, in the app,
                     // which then signs in with it straight away - the first
                     // sign-in to a new device sets it. A recovered device
                     // keeps the one it had.
                     if known.isEmpty {
-                        Text("Enter the device's password").font(.headline)
-                        SecureField("Password", text: $password)
+                        Text(S.appShellSetupEnterPassword).font(.headline)
+                        SecureField(S.commonPassword, text: $password)
                             .textContentType(.password)
                             .textFieldStyle(.roundedBorder)
                     } else {
-                        Text("Signing in with the password you chose in the setup.")
+                        Text(S.appShellSetupSigningIn)
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                     Button {
                         onUseDevice(endpoint, known.isEmpty ? password : known)
                         dismiss()
                     } label: {
-                        Text("Open my device").frame(maxWidth: .infinity)
+                        Text(S.appShellSetupOpenDevice).frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(!valid)
@@ -563,7 +594,7 @@ struct BluetoothSetupView: View {
                 .background(.bar)
             }
         }
-        .navigationTitle("Set up a new device")
+        .navigationTitle(S.appShellSetupNewDevice)
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: transport.chosenPassword) { _, _ in savePending() }
         .onChange(of: transport.setupDomain) { _, _ in savePending() }
@@ -582,19 +613,19 @@ struct BluetoothSetupView: View {
             switch transport.phase {
             case .starting, .scanning, .lost:
                 ProgressView()
-                Text("Looking for a device to set up…").font(.headline)
-                Text("Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep the phone next to it.")
+                Text(S.appShellSetupLooking).font(.headline)
+                Text(S.appShellSetupPowerOn)
                     .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
             case .choosing:
-                Text("Which device?").font(.headline)
-                Text("Several devices are waiting to be set up. Each one's ID is on its setup page, where \"Blink its light\" shows which box it is. The strongest signal is usually the closest.")
+                Text(S.appShellSetupWhich).font(.headline)
+                Text(S.appShellSetupSeveral)
                     .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 VStack(spacing: 8) {
                     ForEach(transport.found.sorted { $0.rssi > $1.rssi }) { dev in
                         Button { transport.choose(dev.id) } label: {
                             HStack {
                                 Image(systemName: "externaldrive.connected.to.line.below")
-                                Text(dev.shortID.isEmpty ? "Device (older image)" : "Device \(dev.shortID)").font(.body.monospacedDigit())
+                                Text(dev.shortID.isEmpty ? S.appShellSetupDeviceOlder : S.appShellSetupDevice(id: dev.shortID)).font(.body.monospacedDigit())
                                 Spacer()
                                 Image(systemName: "cellularbars", variableValue: min(1, max(0, Double(dev.rssi + 95) / 45)))
                             }
@@ -607,15 +638,15 @@ struct BluetoothSetupView: View {
                 }
             case .connecting:
                 ProgressView()
-                Text("Connecting…").font(.headline)
+                Text(S.commonConnecting).font(.headline)
             case .off:
                 Image(systemName: "antenna.radiowaves.left.and.right.slash").font(.largeTitle)
-                Text("Bluetooth is off").font(.headline)
-                Text("Turn Bluetooth on in Control Centre to find the device.").font(.footnote).foregroundStyle(.secondary)
+                Text(S.appShellBluetoothOff).font(.headline)
+                Text(S.iosBluetoothOffHint).font(.footnote).foregroundStyle(.secondary)
             case .unauthorized:
                 Image(systemName: "lock").font(.largeTitle)
-                Text("Bluetooth access is needed").font(.headline)
-                Text("Allow Bluetooth for Off The Cloud in Settings to set a device up this way.").font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                Text(S.appShellBluetoothNeeded).font(.headline)
+                Text(S.iosBluetoothNeededHint).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
             case .ready:
                 EmptyView()
             }
@@ -657,7 +688,7 @@ final class BLESetupSignIn: NSObject, WKScriptMessageHandlerWithReply, ASWebAuth
         guard isFromSetupPage(message) else { return replyHandler(nil, "not allowed") }
         guard let body = message.body as? [String: Any], let provider = body["p"] as? String,
               provider == "apple" || provider == "google" else {
-            return replyHandler(nil, "Unknown sign-in provider")
+            return replyHandler(nil, S.appShellSetupUnknownProvider)
         }
         let verifier = Self.randomVerifier()
         let challenge = Data(SHA256.hash(data: Data(verifier.utf8))).base64URLEncoded
@@ -666,11 +697,11 @@ final class BLESetupSignIn: NSObject, WKScriptMessageHandlerWithReply, ASWebAuth
         let session = ASWebAuthenticationSession(url: start.url!, callbackURLScheme: "otcsetup") { [weak self] callback, error in
             self?.session = nil
             if let error = error as? ASWebAuthenticationSessionError, error.code == .canceledLogin {
-                return replyHandler(nil, "Sign-in cancelled")
+                return replyHandler(nil, S.iosSetupSigninCancelled)
             }
             guard let callback, let code = URLComponents(url: callback, resolvingAgainstBaseURL: false)?
                     .queryItems?.first(where: { $0.name == "code" })?.value else {
-                return replyHandler(nil, error?.localizedDescription ?? "The sign-in did not finish")
+                return replyHandler(nil, error?.localizedDescription ?? S.appShellSetupSigninUnfinished)
             }
             Task {
                 do {
@@ -704,7 +735,8 @@ final class BLESetupSignIn: NSObject, WKScriptMessageHandlerWithReply, ASWebAuth
         let (data, resp) = try await URLSession.shared.data(for: req)
         let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         guard (resp as? HTTPURLResponse)?.statusCode == 200, let token = obj?["setup_token"] as? String else {
-            throw NSError(domain: "signin", code: 1, userInfo: [NSLocalizedDescriptionKey: obj?["error"] as? String ?? "Could not finish the sign-in"])
+            // The bridge's own words when it gave some, else ours.
+            throw NSError(domain: "signin", code: 1, userInfo: [NSLocalizedDescriptionKey: obj?["error"] as? String ?? S.appShellSetupSigninFailed])
         }
         return token
     }

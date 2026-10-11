@@ -138,7 +138,7 @@ struct MainView: View {
                     fullWidth: fullWidth,
                     // The page's own action: a new post, on the feed.
                     action: currentSection == .social
-                        ? TopBarAction(label: "New post") { social.composeRequests += 1 }
+                        ? TopBarAction(label: S.appShellNewPost) { social.composeRequests += 1 }
                         : nil,
                     actionIconOnly: windowSize.width < 700,
                     onMenu: toggleMenu
@@ -224,7 +224,7 @@ struct MainView: View {
                 NotificationsListView(model: notifications)
             }
             .toolbar(wide ? .hidden : .automatic, for: .tabBar)
-            .tabItem { Label("Alerts", systemImage: "bell.fill") }
+            .tabItem { Label(AppSection.alerts.label, systemImage: "bell.fill") }
             .badge(notifications.unacknowledgedCount)
             .tag(0)
 
@@ -232,7 +232,7 @@ struct MainView: View {
                 SocialFeedView(showingFriendships: $friendsSheet)
             }
             .toolbar(wide ? .hidden : .automatic, for: .tabBar)
-            .tabItem { Label("Social", systemImage: "bubble.left.and.bubble.right") }
+            .tabItem { Label(AppSection.social.label, systemImage: "bubble.left.and.bubble.right") }
             .tag(1)
 
             // Issue #84: Friendships moved from here into a sheet
@@ -243,21 +243,21 @@ struct MainView: View {
                 FilesExplorerView(initialPath: "/", search: fileSearch)
             }
             .toolbar(wide ? .hidden : .automatic, for: .tabBar)
-            .tabItem { Label("Files", systemImage: "folder") }
+            .tabItem { Label(AppSection.files.label, systemImage: "folder") }
             .tag(3)
 
             LazyTab(tag: 4, selection: $selectedTab) {
                 PhotoGalleryView(vm: gallery, search: search)
             }
             .toolbar(wide ? .hidden : .automatic, for: .tabBar)
-            .tabItem { Label("Images", systemImage: "photo.on.rectangle") }
+            .tabItem { Label(AppSection.images.label, systemImage: "photo.on.rectangle") }
             .tag(4)
 
             LazyTab(tag: 5, selection: $selectedTab) {
                 SettingsView()
             }
             .toolbar(wide ? .hidden : .automatic, for: .tabBar)
-            .tabItem { Label("Settings", systemImage: "gearshape") }
+            .tabItem { Label(AppSection.settings.label, systemImage: "gearshape") }
             .tag(5)
         }
     }
@@ -321,7 +321,7 @@ struct MainView: View {
                 .ignoresSafeArea(.keyboard)
                 .contentShape(Rectangle())
                 .onTapGesture { closeDrawer() }
-                .accessibilityLabel("Close the menu")
+                .accessibilityLabel(S.iosMenuClose)
                 .accessibilityAddTraits(.isButton)
                 .transition(.opacity)
         }

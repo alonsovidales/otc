@@ -35,7 +35,7 @@ struct DeviceUnreachableView: View {
                 .frame(width: 56, height: 56)
                 .foregroundStyle(Color.orange)
 
-            Text(disabled ? "This account has been disabled" : "This device isn't available right now")
+            Text(disabled ? S.appShellAccountDisabled : S.appShellDeviceUnavailable)
                 .font(.headline)
                 .multilineTextAlignment(.center)
 
@@ -54,7 +54,7 @@ struct DeviceUnreachableView: View {
                 // already happening.
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text("Still trying…").font(.footnote).foregroundStyle(.secondary)
+                    Text(S.appShellStillTrying).font(.footnote).foregroundStyle(.secondary)
                 }
                 .padding(.top, 4)
             }
@@ -72,14 +72,14 @@ struct DeviceUnreachableView: View {
                         .foregroundStyle(.secondary)
                         .padding(14)
                 }
-                .accessibilityLabel("Close and leave this device")
+                .accessibilityLabel(S.appShellCloseAndLeave)
             }
         }
-        .alert("Leave this device?", isPresented: $confirmClose) {
-            Button("Leave", role: .destructive) { onClose?() }
-            Button("Cancel", role: .cancel) {}
+        .alert(S.appShellLeaveTitle, isPresented: $confirmClose) {
+            Button(S.appShellLeave, role: .destructive) { onClose?() }
+            Button(S.commonCancel, role: .cancel) {}
         } message: {
-            Text("You'll go back to the connection screen, to connect to a device or set up a new one. Nothing on the device is deleted, and its address and password stay filled in there, to connect to it again later.")
+            Text(S.appShellLeaveMessageConnection)
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

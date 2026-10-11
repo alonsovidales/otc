@@ -52,6 +52,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import cloud.offthe.otc.ui.common.LoadSubject
 import cloud.offthe.otc.ui.common.OTCTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -284,7 +285,7 @@ private fun Feed(
                         st.problem?.let { p ->
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                loadProblemText(p, "The posts"), style = MaterialTheme.typography.bodyMedium,
+                                loadProblemText(p, LoadSubject.POSTS).resolve(), style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
                                 modifier = Modifier.widthIn(max = 360.dp).semantics { liveRegion = LiveRegionMode.Polite },
                             )
@@ -328,10 +329,10 @@ private fun Feed(
                         else if (st.moreFailed) item {
                             Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    MORE_POSTS_PROBLEM, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    MORE_POSTS_PROBLEM.resolve(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                                 )
-                                TextButton(onClick = { vm.retryMore() }) { Text(TRY_AGAIN) }
+                                TextButton(onClick = { vm.retryMore() }) { Text(TRY_AGAIN.resolve()) }
                             }
                         }
                     }

@@ -77,7 +77,7 @@ extension OTCConnection {
         begin.cloudID = cloudID
         let started = try await request { $0.payload = .reqBeginUpload(begin) }
         guard !started.error, case .respUploadStarted(let st) = started.payload else {
-            throw fail(started.errorMessage.isEmpty ? "BeginUpload failed" : started.errorMessage, code: started.errorCode)
+            throw fail(started.errorMessage.isEmpty ? "BeginUpload failed" : started.errorMessage, code: started.errorCode) // i18n-ignore: a diagnostic naming the upload protocol, shown only after a translated "Upload failed:"
         }
         let uploadID = st.uploadID
 
@@ -94,7 +94,7 @@ extension OTCConnection {
             case .file:
                 chunk = try fileHandle?.read(upToCount: want) ?? Data()
             }
-            if chunk.isEmpty { throw fail("File ended early at \(offset) of \(size) bytes") }
+            if chunk.isEmpty { throw fail("File ended early at \(offset) of \(size) bytes") } // i18n-ignore: a diagnostic naming the upload protocol, shown only after a translated "Upload failed:"
             hasher?.update(data: chunk)
 
             var up = Msg_UploadChunk()
@@ -103,11 +103,11 @@ extension OTCConnection {
             up.data = chunk
             let resp = try await request { $0.payload = .reqUploadChunk(up) }
             guard !resp.error, case .respUploadProgress(let p) = resp.payload else {
-                throw fail(resp.errorMessage.isEmpty ? "UploadChunk failed" : resp.errorMessage, code: resp.errorCode)
+                throw fail(resp.errorMessage.isEmpty ? "UploadChunk failed" : resp.errorMessage, code: resp.errorCode) // i18n-ignore: a diagnostic naming the upload protocol, shown only after a translated "Upload failed:"
             }
             let expected = offset + Int64(chunk.count)
             guard p.received == expected else {
-                throw fail("Device received \(p.received) bytes, expected \(expected)")
+                throw fail("Device received \(p.received) bytes, expected \(expected)") // i18n-ignore: a diagnostic naming the upload protocol, shown only after a translated "Upload failed:"
             }
             offset = expected
         }
@@ -118,7 +118,7 @@ extension OTCConnection {
             ?? hasher!.finalize().map { String(format: "%02x", $0) }.joined()
         let done = try await request { $0.payload = .reqFinishUpload(finish) }
         if done.error {
-            throw fail(done.errorMessage.isEmpty ? "FinishUpload failed" : done.errorMessage, code: done.errorCode)
+            throw fail(done.errorMessage.isEmpty ? "FinishUpload failed" : done.errorMessage, code: done.errorCode) // i18n-ignore: a diagnostic naming the upload protocol, shown only after a translated "Upload failed:"
         }
         return done
     }

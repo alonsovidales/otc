@@ -42,14 +42,14 @@ enum AppSection: String, CaseIterable, Hashable {
 
     var label: String {
         switch self {
-        case .images: return "Images"
-        case .people: return "People"
-        case .collections: return "Collections"
-        case .files: return "Files"
-        case .social: return "Social"
-        case .friends: return "Friends"
-        case .alerts: return "Alerts"
-        case .settings: return "Settings"
+        case .images: return S.appShellSectionImages
+        case .people: return S.appShellSectionPeople
+        case .collections: return S.appShellSectionCollections
+        case .files: return S.appShellSectionFiles
+        case .social: return S.appShellSectionSocial
+        case .friends: return S.appShellSectionFriends
+        case .alerts: return S.appShellSectionAlerts
+        case .settings: return S.appShellSectionSettings
         }
     }
 
@@ -94,11 +94,12 @@ enum AppSection: String, CaseIterable, Hashable {
 
     /// The menu's groups, as the web's Sidebar: what is stored, what is
     /// shared, then the device. People only while face recognition is on.
+    /// Made at each render, so the headings are in the language shown.
     static func menu(faces: Bool) -> [MenuGroup] {
         [
             MenuGroup(heading: nil, items: faces ? [.images, .people, .collections, .files] : [.images, .collections, .files]),
-            MenuGroup(heading: "Sharing", items: [.social, .friends]),
-            MenuGroup(heading: "Device", items: [.alerts, .settings]),
+            MenuGroup(heading: S.appShellMenuSharing, items: [.social, .friends]),
+            MenuGroup(heading: S.appShellMenuDevice, items: [.alerts, .settings]),
         ]
     }
 }
@@ -235,7 +236,8 @@ enum MenuStyle {
 // MARK: - Storage
 
 /// The device's storage as the menu's foot shows it - the web's
-/// Sidebar.summarize, from the same status poll Settings makes.
+/// Sidebar.summarize, from the same status poll Settings makes. Made at
+/// each render (MainView.sideMenu), so its text is in the language shown.
 struct StorageSummary: Equatable {
     enum Level: Equatable { case ok, warn, crit }
 
@@ -249,14 +251,14 @@ struct StorageSummary: Equatable {
     var level: Level = .ok
     var degraded = false
     var attention = false
-    var usedText = "Reading…"
+    var usedText = S.appShellStorageReading
     var mirrorText = ""
     var details: [Row] = []
     var errors: [String] = []
 
     init(status: Msg_Status?, error: String?) {
         guard let s = status else {
-            usedText = error == nil ? "Reading…" : "Storage unavailable right now"
+            usedText = error == nil ? S.appShellStorageReading : S.appShellStorageUnavailable
             return
         }
         known = true
@@ -264,20 +266,20 @@ struct StorageSummary: Equatable {
         level = usedPct >= 90 ? .crit : usedPct >= 70 ? .warn : .ok
         degraded = s.raidState == .raidDegraded
         attention = degraded || !s.errors.isEmpty
-        usedText = "\(sizeText(Double(s.raidUsage))) of \(sizeText(Double(s.raidSize))) used"
+        usedText = S.appShellStorageUsed(used: sizeText(Double(s.raidUsage)), total: sizeText(Double(s.raidSize)))
         mirrorText = Self.mirrorLabel(s)
         details = [
-            Row(label: "Disks", value: s.disks == 0 ? "—" : "\(s.disks)"),
-            Row(label: "Free", value: sizeText(Double(max(0, Int64(s.raidSize) - Int64(s.raidUsage))))),
-            Row(label: "System card", value: "\(sizeText(Double(s.diskUsage))) of \(sizeText(Double(s.diskSize)))"),
-            Row(label: "CPU", value: "\(Self.trim(Self.round(Double(s.cpuUsagePrc))))%"),
-            Row(label: "Memory", value: "\(sizeText(Double(s.memUsage))) of \(sizeText(Double(s.memSize)))"),
+            Row(label: S.appShellStorageDisks, value: s.disks == 0 ? "—" : "\(s.disks)"),
+            Row(label: S.appShellStorageFree, value: sizeText(Double(max(0, Int64(s.raidSize) - Int64(s.raidUsage))))),
+            Row(label: S.appShellStorageSystemCard, value: S.appShellStorageOf(used: sizeText(Double(s.diskUsage)), total: sizeText(Double(s.diskSize)))),
+            Row(label: S.appShellStorageCpu, value: S.appShellPercent(percent: Self.trim(Self.round(Double(s.cpuUsagePrc))))),
+            Row(label: S.appShellStorageMemory, value: S.appShellStorageOf(used: sizeText(Double(s.memUsage)), total: sizeText(Double(s.memSize)))),
         ]
         errors = s.errors.map { $0.message.isEmpty ? "\($0.statusErrorCode)" : $0.message }
     }
 
     /// The rail's figure under its ring.
-    var gaugeText: String { known ? "\(Int(usedPct.rounded()))%" : "–" }
+    var gaugeText: String { known ? S.appShellPercent(percent: String(Int(usedPct.rounded()))) : "–" }
 
     /// Between 0 and 100, to two decimals (the web's round).
     static func round(_ x: Double) -> Double { max(0, min(100, (x * 100).rounded() / 100)) }
@@ -294,11 +296,11 @@ struct StorageSummary: Equatable {
     /// The mirror's health, worded as the web's raidStateLabel.
     static func mirrorLabel(_ s: Msg_Status) -> String {
         switch s.raidState {
-        case .raidNone: return "No mirror"
-        case .raidInSync: return "Mirror in sync"
-        case .raidSyncing: return "Mirror syncing (\(trim(round(Double(s.raidSyncPercent))))%)"
-        case .raidDegraded: return "Mirror degraded"
-        default: return "Mirror state unknown"
+        case .raidNone: return S.appShellMirrorNone
+        case .raidInSync: return S.appShellMirrorInSync
+        case .raidSyncing: return S.appShellMirrorSyncing(percent: trim(round(Double(s.raidSyncPercent))))
+        case .raidDegraded: return S.appShellMirrorDegraded
+        default: return S.appShellMirrorUnknown
         }
     }
 
@@ -461,7 +463,7 @@ struct SideMenu: View {
             .contentShape(Capsule())
         }
         .buttonStyle(PillRowStyle())
-        .accessibilityLabel(count > 0 ? "\(s.label), \(count) unread" : s.label)
+        .accessibilityLabel(count > 0 ? S.appShellSectionUnread(section: s.label, count: count) : s.label)
         .accessibilityAddTraits(active ? .isSelected : [])
     }
 
@@ -472,10 +474,10 @@ struct SideMenu: View {
             } label: {
                 HStack(spacing: 16) {
                     NavIconView(.storage, size: 22).foregroundStyle(.secondary)
-                    Text("Storage").font(.system(size: 15)).foregroundStyle(.primary)
+                    Text(S.appShellStorage).font(.system(size: 15)).foregroundStyle(.primary)
                     if storage.attention {
                         Circle().fill(MenuStyle.danger).frame(width: 8, height: 8)
-                            .accessibilityLabel("Needs attention")
+                            .accessibilityLabel(S.iosStorageNeedsAttention)
                     }
                     Spacer(minLength: 0)
                     NavIconView(.chevron, size: 18)
@@ -487,7 +489,7 @@ struct SideMenu: View {
                 .contentShape(Capsule())
             }
             .buttonStyle(PillRowStyle())
-            .accessibilityValue(details ? "Details shown" : "Details hidden")
+            .accessibilityValue(details ? S.iosStorageDetailsShown : S.iosStorageDetailsHidden)
 
             // How full, as a bar.
             GeometryReader { g in
@@ -502,8 +504,8 @@ struct SideMenu: View {
             .padding(.top, 4)
             .padding(.bottom, 8)
             .accessibilityElement()
-            .accessibilityLabel("Storage used")
-            .accessibilityValue("\(Int(storage.usedPct.rounded())) percent")
+            .accessibilityLabel(S.iosStorageUsed)
+            .accessibilityValue(S.iosStoragePercent(percent: Int(storage.usedPct.rounded())))
 
             Text(storage.usedText)
                 .storageLine()
@@ -539,9 +541,9 @@ struct SideMenu: View {
 
     private var legal: some View {
         HStack(spacing: 2) {
-            legalLink("Privacy", "https://off-the.cloud/privacy")
-            Text("·").accessibilityHidden(true)
-            legalLink("Terms", "https://off-the.cloud/terms")
+            legalLink(S.appShellPrivacy, "https://off-the.cloud/privacy")
+            Text(verbatim: "·").accessibilityHidden(true)
+            legalLink(S.appShellTerms, "https://off-the.cloud/terms")
         }
         .font(.system(size: 12))
         .foregroundStyle(.secondary)
@@ -585,7 +587,7 @@ struct SideMenu: View {
             RailItemLabel(icon: s.icon, label: s.label, active: active, count: count, short: short)
         }
         .buttonStyle(RailItemStyle())
-        .accessibilityLabel(count > 0 ? "\(s.label), \(count) unread" : s.label)
+        .accessibilityLabel(count > 0 ? S.appShellSectionUnread(section: s.label, count: count) : s.label)
         .accessibilityAddTraits(active ? .isSelected : [])
     }
 
@@ -594,8 +596,18 @@ struct SideMenu: View {
             RailGaugeLabel(storage: storage, short: short)
         }
         .buttonStyle(RailItemStyle())
-        .accessibilityLabel("Storage\(storage.known ? ", \(storage.gaugeText) used" : "")\(storage.attention ? ", needs attention" : "")")
-        .accessibilityHint("Shows the details")
+        .accessibilityLabel(gaugeLabel)
+        .accessibilityHint(S.iosStorageGaugeHint)
+    }
+
+    /// The rail's gauge to VoiceOver: how full, and whether something is wrong.
+    private var gaugeLabel: String {
+        switch (storage.known, storage.attention) {
+        case (true, true): return S.iosStorageGaugeUsedAttention(percent: storage.gaugeText)
+        case (true, false): return S.iosStorageGaugeUsed(percent: storage.gaugeText)
+        case (false, true): return S.iosStorageGaugeAttention
+        case (false, false): return S.appShellStorage
+        }
     }
 }
 
@@ -765,7 +777,7 @@ struct WideTopBar<Search: View>: View {
                     .contentShape(Circle())
             }
             .buttonStyle(CircleButtonStyle())
-            .accessibilityLabel(menuShown ? "Hide menu" : "Show menu")
+            .accessibilityLabel(menuShown ? S.appShellMenuHide : S.appShellMenuShow)
 
             Image("OTCLogo")
                 .resizable()
@@ -894,7 +906,7 @@ struct TopBarSearchField: View {
                 .frame(width: min(chipsWidth, max(0, width - (focused.wrappedValue || !search.query.isEmpty ? 150 : 90))))
                 .padding(.leading, 2)
             }
-            TextField(hasChips ? "Search" : "Search photos and files", text: $search.query)
+            TextField(hasChips ? S.commonSearch : S.appShellSearchField, text: $search.query)
                 .focused(focused)
                 .submitLabel(.search)
                 .textInputAutocapitalization(.never)
@@ -908,7 +920,7 @@ struct TopBarSearchField: View {
                 .font(.system(size: 16))
                 .padding(.horizontal, 8)
                 .frame(maxHeight: .infinity)
-                .accessibilityLabel("Search photos and files")
+                .accessibilityLabel(S.appShellSearchField)
             // Everything typed and searched for goes - not an open
             // collection, which its chip's x closes (the web's clearable).
             if !search.query.isEmpty || searched {
@@ -922,7 +934,7 @@ struct TopBarSearchField: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(CircleButtonStyle())
-                .accessibilityLabel("Clear search")
+                .accessibilityLabel(S.appShellSearchClear)
             }
         }
         .padding(.leading, 4)
@@ -948,7 +960,7 @@ struct TopBarSearchField: View {
                 chip(
                     label: g.name,
                     dim: false,
-                    removeLabel: "Close the collection \(g.name)",
+                    removeLabel: S.appShellSearchCloseCollection(name: g.name),
                     leading: AnyView(
                         NavIconView(.collections, size: 18)
                             .foregroundStyle(MenuStyle.gold)
@@ -960,9 +972,9 @@ struct TopBarSearchField: View {
                 let person = vm.allPeople.first { $0.id == pid }
                 let name = person.map { $0.name.trimmingCharacters(in: .whitespacesAndNewlines) } ?? ""
                 chip(
-                    label: person == nil ? "Person" : (name.isEmpty ? "Unnamed" : name),
+                    label: person == nil ? S.appShellSearchPerson : (name.isEmpty ? S.appShellSearchUnnamed : name),
                     dim: name.isEmpty,
-                    removeLabel: name.isEmpty ? "Remove this person" : "Remove \(name)",
+                    removeLabel: name.isEmpty ? S.appShellSearchRemovePerson : S.appShellSearchRemove(name: name),
                     leading: AnyView(
                         Group {
                             if let person, let img = vm.face(for: person) {
@@ -977,7 +989,7 @@ struct TopBarSearchField: View {
                 ) { vm.togglePerson(pid) }
             }
             ForEach(vm.chips, id: \.self) { tag in
-                chip(label: tag, dim: false, removeLabel: "Remove \(tag)", leading: nil) { vm.removeChip(tag) }
+                chip(label: tag, dim: false, removeLabel: S.appShellSearchRemove(name: tag), leading: nil) { vm.removeChip(tag) }
             }
         }
     }
@@ -1034,9 +1046,9 @@ struct CollectionsPage: View {
             if vm.groupsLoaded && vm.groups.isEmpty {
                 stateView(
                     art: AnyView(NavIconView(.collections, size: 72, stroke: 1.2).foregroundStyle(.secondary)),
-                    title: "No collections yet",
-                    text: Text("Select photos in Images, then choose **Add to collection**."),
-                    button: "Go to Images"
+                    title: S.appShellCollectionsEmptyTitle,
+                    text: Text(S.appShellCollectionsEmptyText(b: Self.bold)),
+                    button: S.appShellCollectionsGoToImages
                 ) {
                     vm.showAll()
                     onOpenPhotos()
@@ -1053,9 +1065,9 @@ struct CollectionsPage: View {
             } else if failed || slow {
                 stateView(
                     art: AnyView(Image(systemName: "exclamationmark.circle").font(.system(size: 40, weight: .light)).foregroundStyle(.secondary)),
-                    title: failed ? "Couldn't load your collections" : "Still waiting for your device",
-                    text: Text(failed ? "Check that your device is online, then try again." : "Your collections are taking longer than usual to load."),
-                    button: "Try again"
+                    title: failed ? S.appShellCollectionsFailedTitle : S.appShellCollectionsSlowTitle,
+                    text: Text(failed ? S.appShellCollectionsFailedText : S.appShellCollectionsSlowText),
+                    button: S.commonTryAgain
                 ) {
                     Task { await ask() }
                 }
@@ -1066,15 +1078,15 @@ struct CollectionsPage: View {
                     }
                     .padding(24)
                 }
-                .accessibilityLabel("Loading collections")
+                .accessibilityLabel(S.appShellCollectionsLoading)
             }
         }
-        .navigationTitle("Collections")
+        .navigationTitle(S.appShellSectionCollections)
         .navigationBarTitleDisplayMode(.inline)
         // Only the wide layout has this page, and its menu names it, as
         // the web's does: no title bar.
         .toolbar(.hidden, for: .navigationBar)
-        .overlay(alignment: .topLeading) { HiddenPageHeading(title: "Collections") }
+        .overlay(alignment: .topLeading) { HiddenPageHeading(title: S.appShellSectionCollections) }
         // Asked again on every visit (covers and counts change as photos
         // are added elsewhere); what is here already shows meanwhile.
         .task { await ask() }
@@ -1095,10 +1107,18 @@ struct CollectionsPage: View {
         failed = !ok && !vm.groupsLoaded
     }
 
-    private static func itemsLabel(_ n: Int32) -> String { "\(Int(n).formatted()) \(n == 1 ? "item" : "items")" }
+    /// The empty page's "Add to collection", in bold as the selection
+    /// bar's own item is named.
+    private static var bold: AttributeContainer {
+        var b = AttributeContainer()
+        b.inlinePresentationIntent = .stronglyEmphasized
+        return b
+    }
+
+    private static func itemsLabel(_ n: Int32) -> String { S.appShellCollectionItems(count: Int(n)) }
     private static func name(_ g: Msg_ImageGroup) -> String {
         let n = g.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return n.isEmpty ? "Untitled collection" : n
+        return n.isEmpty ? S.appShellCollectionUntitled : n
     }
 
     private func card(_ g: Msg_ImageGroup) -> some View {
@@ -1121,13 +1141,13 @@ struct CollectionsPage: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(CardPressStyle())
-        .accessibilityLabel("\(Self.name(g)), \(Self.itemsLabel(g.fileCount))")
+        .accessibilityLabel(S.appShellCollectionCard(name: Self.name(g), count: Int(g.fileCount)))
         // Issue #180: long-press a collection to share it.
         .contextMenu {
             Button {
                 shareSource = .group(g.id)
             } label: {
-                Label("Share as Gallery", systemImage: "photo.on.rectangle.angled")
+                Label(S.appShellShareAsGalleryMenu, systemImage: "photo.on.rectangle.angled")
             }
         }
     }

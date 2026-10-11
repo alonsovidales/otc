@@ -25,6 +25,22 @@ enum FileDownload {
         var errorDescription: String? { message }
     }
 
+    /// The device's pieces don't make one file (domain "FileDownload", codes
+    /// 1 and 2, as the NSErrors these replace), worded when read.
+    enum Failure: Int, LocalizedError, CustomNSError {
+        case changed = 1
+        case badPiece = 2
+
+        static var errorDomain: String { "FileDownload" }
+        var errorCode: Int { rawValue }
+        var errorDescription: String? {
+            switch self {
+            case .changed: return S.iosDownloadChanged
+            case .badPiece: return S.iosDownloadBadPiece
+            }
+        }
+    }
+
     static let chunkSize = 4 << 20
 
     /// GetFile converts these to JPEG (files_manager isHeicFile); ReadFile
@@ -70,13 +86,13 @@ enum FileDownload {
                 return try await getFile(path: path, hash: hash, to: dest)
             }
             guard !resp.error, case .respFileChunk(let chunk) = resp.payload else {
-                throw Refused(message: resp.errorMessage.isEmpty ? "Unexpected response" : resp.errorMessage)
+                throw Refused(message: resp.errorMessage.isEmpty ? "Unexpected response" : resp.errorMessage) // i18n-ignore: callers show their own text for Refused, never this
             }
             if let first, chunk.hash != first.hash {
-                throw NSError(domain: "FileDownload", code: 1, userInfo: [NSLocalizedDescriptionKey: "The file changed on the device during the download"])
+                throw Failure.changed
             }
             if chunk.offset != offset || (chunk.data.isEmpty && offset < chunk.size) || offset + Int64(chunk.data.count) > chunk.size {
-                throw NSError(domain: "FileDownload", code: 2, userInfo: [NSLocalizedDescriptionKey: "The device sent a piece that doesn't fit the file"])
+                throw Failure.badPiece
             }
             if first == nil { first = chunk }
             let data = chunk.data
@@ -101,7 +117,7 @@ enum FileDownload {
             e.payload = .reqGetFile(gf)
         }
         guard case .respFile(let f) = resp.payload else {
-            throw Refused(message: resp.errorMessage.isEmpty ? "Unexpected response" : resp.errorMessage)
+            throw Refused(message: resp.errorMessage.isEmpty ? "Unexpected response" : resp.errorMessage) // i18n-ignore: callers show their own text for Refused, never this
         }
         let content = f.content
         try await Task.detached(priority: .utility) { try content.write(to: dest) }.value

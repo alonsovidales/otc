@@ -41,6 +41,16 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.appShellAddToCollection
+import cloud.offthe.otc.i18n.appShellKeepOutOfImages
+import cloud.offthe.otc.i18n.appShellSelected
+import cloud.offthe.otc.i18n.appShellShareAsGallery
+import cloud.offthe.otc.i18n.appShellShowInImages
+import cloud.offthe.otc.i18n.commonDelete
+import cloud.offthe.otc.i18n.commonDownload
+import cloud.offthe.otc.i18n.commonShare
+import cloud.offthe.otc.i18n.commonUpload
 
 /** Which action is waiting on the device, if any. */
 enum class SelectionActionTask { SHARE, DOWNLOAD, OUT_OF_IMAGES }
@@ -71,22 +81,22 @@ fun SelectionActionBar(
     keptOutOfImages: Boolean = false,
 ) {
     val items = buildList {
-        if (onUpload != null) add(BarItem("Upload", Icons.Default.Upload, busy == null, onUpload))
-        add(BarItem("Share", Icons.Default.Share, count > 0 && busy == null, onShare, busy = busy == SelectionActionTask.SHARE))
-        if (onGallery != null) add(BarItem("Share as gallery", Icons.Default.PhotoLibrary, busy == null, onGallery))
+        if (onUpload != null) add(BarItem(S.commonUpload().resolve(), Icons.Default.Upload, busy == null, onUpload))
+        add(BarItem(S.commonShare().resolve(), Icons.Default.Share, count > 0 && busy == null, onShare, busy = busy == SelectionActionTask.SHARE))
+        if (onGallery != null) add(BarItem(S.appShellShareAsGallery().resolve(), Icons.Default.PhotoLibrary, busy == null, onGallery))
         if (onOutOfImages != null) add(BarItem(
-            if (keptOutOfImages) "Show in Images" else "Keep out of Images",
+            (if (keptOutOfImages) S.appShellShowInImages() else S.appShellKeepOutOfImages()).resolve(),
             if (keptOutOfImages) Icons.Default.Image else Icons.Default.HideImage,
             busy == null, onOutOfImages, busy = busy == SelectionActionTask.OUT_OF_IMAGES,
         ))
-        add(BarItem("Download", Icons.Default.Download, count > 0 && busy == null, onDownload, busy = busy == SelectionActionTask.DOWNLOAD))
-        if (onGroup != null) add(BarItem("Add to collection", NavIcons.AddToCollection, count > 0 && busy == null, onGroup))
-        add(BarItem("Delete", Icons.Default.Delete, count > 0 && busy == null, onDelete, tint = Color(0xFFE53935)))
+        add(BarItem(S.commonDownload().resolve(), Icons.Default.Download, count > 0 && busy == null, onDownload, busy = busy == SelectionActionTask.DOWNLOAD))
+        if (onGroup != null) add(BarItem(S.appShellAddToCollection().resolve(), NavIcons.AddToCollection, count > 0 && busy == null, onGroup))
+        add(BarItem(S.commonDelete().resolve(), Icons.Default.Delete, count > 0 && busy == null, onDelete, tint = Color(0xFFE53935)))
     }
     Column(Modifier.padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         if (count > 0) {
             Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 3.dp, shadowElevation = 2.dp) {
-                Text("$count selected", style = MaterialTheme.typography.labelSmall,
+                Text(S.appShellSelected(count).resolve(), style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp))
             }
             Spacer(Modifier.height(6.dp))

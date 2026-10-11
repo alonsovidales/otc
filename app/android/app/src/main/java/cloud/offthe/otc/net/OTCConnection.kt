@@ -4,12 +4,24 @@ package cloud.offthe.otc.net
 import android.os.SystemClock
 import android.util.Log
 import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.appShellAddressInvalid
+import cloud.offthe.otc.i18n.appShellAuthFailed
+import cloud.offthe.otc.i18n.appShellHostNotFound
+import cloud.offthe.otc.i18n.appShellInsecure
+import cloud.offthe.otc.i18n.appShellNoAnswerAddress
+import cloud.offthe.otc.i18n.appShellNoPublicKey
+import cloud.offthe.otc.i18n.appShellNotOtc
+import cloud.offthe.otc.i18n.appShellOffline
 import cloud.offthe.otc.proto.Ack
 import cloud.offthe.otc.proto.Auth
 import cloud.offthe.otc.proto.GetLocalEndpoint
 import cloud.offthe.otc.proto.GetPubKey
 import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.RespEnvelope
+import cloud.offthe.otc.ui.common.TextIOException
+import cloud.offthe.otc.ui.common.now
 import com.google.protobuf.ByteString
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -51,11 +63,13 @@ object OTCConnection {
     @Volatile private var ws = WSClient()
 
     private val _authenticated = MutableStateFlow(false)
-    private val _lastError = MutableStateFlow<String?>(null)
+    // Why connecting failed, as text resolved where it is shown: a card
+    // already up follows a change of language.
+    private val _lastError = MutableStateFlow<UiText?>(null)
     private val _statusCode = MutableStateFlow<String?>(null)
     private val _connectionFailed = MutableStateFlow(false)
     val authenticated: StateFlow<Boolean> = _authenticated
-    val lastError: StateFlow<String?> = _lastError
+    val lastError: StateFlow<UiText?> = _lastError
     /** Issue #56: "device_unreachable" / "account_disabled" (Ack.code), null when the device answers. */
     val statusCode: StateFlow<String?> = _statusCode
     /** Set whenever connecting or signing in fails; MainView shows the connection form while set. */
@@ -111,14 +125,17 @@ object OTCConnection {
     // attempt with the same credentials fails with the same message without
     // dialling. Memory only, keyed on a hash of the credentials, so saving
     // new ones lifts it at once (as OTCConnection.swift does).
-    private class AuthRejection(val credKey: String, val message: String, val notBeforeMs: Long)
+    private class AuthRejection(val credKey: String, val text: UiText, val notBeforeMs: Long)
     @Volatile private var authRejection: AuthRejection? = null
     // 5 s doubling: at most 4 failures in the first minute, under the lockout.
     @Volatile private var authBackoffMs = 5_000L
     private const val maxAuthBackoffMs = 300_000L
 
     /** [code]: the device's error_code when it refused with one ("" otherwise), checked before the message (ErrorCodes). */
-    class RequestError(message: String, val code: String = "") : IOException(message)
+    class RequestError(message: String, val code: String = "") : IOException(message) {
+        // What a log line prints: the message is worded for the screen, so it stays out.
+        override fun toString(): String = if (code.isEmpty()) "RequestError" else "RequestError(code=$code)"
+    }
 
     /**
      * How long what a screen shows waits for its answer before the request
@@ -150,7 +167,7 @@ object OTCConnection {
     private val patience = Patience()
 
     /** Why connecting failed when the phone has no network at all (the connection card's line). */
-    const val OFFLINE_MESSAGE = "This phone is offline. Connect to Wi-Fi or mobile data."
+    val OFFLINE_MESSAGE: UiText get() = S.appShellOffline()
 
     /** A request with the socket's own time (or [timeoutMs]): connecting, sending, waiting. */
     suspend fun request(
@@ -210,9 +227,9 @@ object OTCConnection {
         val done = try {
             if (timeoutMs >= WSClient.DEFAULT_TIMEOUT_MS) ensureConnected() else withTimeoutOrNull(timeoutMs) { ensureConnected() }
         } catch (e: WSClient.RequestTimeout) {
-            throw IOException(e.message, e)
+            throw TextIOException(e.text, e)
         }
-        if (done == null) throw WSClient.RequestTimeout("Still connecting to the device", answerTimedOut = false)
+        if (done == null) throw WSClient.RequestTimeout(answerTimedOut = false)
     }
 
     /**
@@ -307,13 +324,14 @@ object OTCConnection {
         val password = secrets.password.value
         val deviceId = secrets.deviceId.value
         if (url.isEmpty() || !(url.startsWith("ws://") || url.startsWith("wss://"))) {
-            _lastError.value = "The address \"${secrets.endpoint.value}\" isn't valid."
+            val text = S.appShellAddressInvalid(secrets.endpoint.value)
+            _lastError.value = text
             _connectionFailed.value = true
-            throw RequestError(_lastError.value!!)
+            throw RequestError(text.now())
         }
         val credKey = credentialsKey(url, deviceId, password)
         authRejection?.let { r ->
-            if (r.credKey == credKey && SystemClock.elapsedRealtime() < r.notBeforeMs) throw RequestError(r.message)
+            if (r.credKey == credKey && SystemClock.elapsedRealtime() < r.notBeforeMs) throw RequestError(r.text.now())
         }
         val gen = synchronized(connectLock) { configGen }
 
@@ -422,7 +440,7 @@ object OTCConnection {
                 currentCoroutineContext().ensureActive()
                 record(refusal, credKey)
                 _connectionFailed.value = true
-                throw RequestError(refusal.message)
+                throw RequestError(refusal.text.now())
             }
             currentCoroutineContext().ensureActive()
             // Dropped right after signing in: the bridge, rather than a dead socket.
@@ -437,15 +455,16 @@ object OTCConnection {
         }
     }
 
-    // What answered instead of signing us in: GetPubKey's or Auth's reply.
-    private class Refusal(val message: String, val ack: Ack?, val auth: Boolean)
+    // What answered instead of signing us in: GetPubKey's or Auth's reply -
+    // the device's (or the bridge's) own words when it gave some.
+    private class Refusal(val text: UiText, val ack: Ack?, val auth: Boolean)
 
     /** GetPubKey, then Auth with the password sealed to that key. null once signed in; throws when the socket fails. */
     private suspend fun signIn(c: WSClient, password: String, deviceId: String): Refusal? {
         val pubKeyResp = c.request(SIGN_IN_TIMEOUT_MS) { it.setReqGetPubKey(GetPubKey.getDefaultInstance()) }
         if (pubKeyResp.payloadCase != RespEnvelope.PayloadCase.RESP_PUB_KEY) {
             val ack = if (pubKeyResp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) pubKeyResp.respAck else null
-            return Refusal(ack?.errorMsg?.ifEmpty { null } ?: "Unable to fetch the connection's public key", ack, auth = false)
+            return Refusal(ack?.errorMsg?.ifEmpty { null }?.let { UiText.Raw(it) } ?: S.appShellNoPublicKey(), ack, auth = false)
         }
         val encrypted = PwCrypto.encryptPassword(password, pubKeyResp.respPubKey.publicKey.toByteArray())
         val auth = Auth.newBuilder()
@@ -456,7 +475,7 @@ object OTCConnection {
         val resp = c.request(SIGN_IN_TIMEOUT_MS) { it.setReqAuth(auth) }
         if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && resp.respAck.ok) return null
         val ack = if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) resp.respAck else null
-        return Refusal(ack?.errorMsg ?: "Authentication failed", ack, auth = true)
+        return Refusal(if (ack != null) UiText.Raw(ack.errorMsg) else S.appShellAuthFailed(), ack, auth = true)
     }
 
     /** [signIn] on the configured endpoint's socket: any failure goes on the card and closes it. */
@@ -477,13 +496,13 @@ object OTCConnection {
             c.close()
             record(refusal, credKey)
             _connectionFailed.value = true
-            throw RequestError(refusal.message)
+            throw RequestError(refusal.text.now())
         }
     }
 
     private fun record(r: Refusal, credKey: String) {
         r.ack?.let { _statusCode.value = it.code.ifEmpty { null } }
-        _lastError.value = r.message
+        _lastError.value = r.text
         val ack = r.ack ?: return
         if (!r.auth) return
         // The device's own verdict on the password; the bridge's
@@ -493,7 +512,7 @@ object OTCConnection {
             "too_many_attempts" -> maxOf((ack.retryAfterSeconds + 1) * 1_000L, authBackoffMs)
             else -> return
         }
-        authRejection = AuthRejection(credKey, r.message, SystemClock.elapsedRealtime() + rejectedForMs)
+        authRejection = AuthRejection(credKey, r.text, SystemClock.elapsedRealtime() + rejectedForMs)
         authBackoffMs = minOf(authBackoffMs * 2, maxAuthBackoffMs)
     }
 
@@ -682,16 +701,21 @@ object OTCConnection {
         MessageDigest.getInstance("SHA-256").digest("$url\u0000$deviceId\u0000$password".toByteArray())
             .joinToString("") { "%02x".format(it) }
 
-    /** Plain words for the errors the network stack hands back. */
-    private fun describe(e: Throwable): String = when {
+    /**
+     * Plain words for the errors the network stack hands back, decided now
+     * (the phone may be back online by the time the card shows them).
+     */
+    private fun describe(e: Throwable): UiText = when {
         // No network at all: not the address's fault, whatever failed.
         !NetworkWatch.online() -> OFFLINE_MESSAGE
-        e is UnknownHostException -> "That address can't be found. Check the device name or address."
-        e is ConnectException || e is SocketTimeoutException -> "The device isn't answering. It may be off, or the address may be wrong."
-        e is SSLException -> "Couldn't make a secure connection to that address."
-        e.message?.contains("bad response", ignoreCase = true) == true ->
-            "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name."
-        else -> e.message ?: e.javaClass.simpleName
+        e is UnknownHostException -> S.appShellHostNotFound()
+        e is ConnectException || e is SocketTimeoutException -> S.appShellNoAnswerAddress()
+        e is SSLException -> S.appShellInsecure()
+        e.message?.contains("bad response", ignoreCase = true) == true -> S.appShellNotOtc()
+        // Ours: worded where shown, in the language shown then.
+        e is TextIOException -> e.text
+        e is WSClient.RequestTimeout -> e.text
+        else -> UiText.Raw(e.message ?: e.javaClass.simpleName)
     }
 
     private fun handleDisconnect() {

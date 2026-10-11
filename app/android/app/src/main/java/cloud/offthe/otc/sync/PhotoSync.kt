@@ -94,7 +94,7 @@ object PhotoSync {
     fun runForegroundAsync(after: Job? = null) {
         scope.launch {
             after?.join()
-            try { runForeground() } catch (e: Exception) { Log.w(tag, "sync failed: ${e.message}") }
+            try { runForeground() } catch (e: Exception) { Log.w(tag, "sync failed: $e") }
         }
     }
 
@@ -235,7 +235,7 @@ object PhotoSync {
             send(alt)
         }
         if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FILE) { AssetSyncCache.record(cacheKey, hash, cacheEpoch); return target }
-        throw IllegalStateException(resp.errorMessage.ifEmpty { "Upload failed" })
+        throw IllegalStateException(resp.errorMessage.ifEmpty { "Upload failed" }) // i18n-ignore: logged by the sync, never shown
     }
 
     private const val tag = "OTC/PhotoSync"
@@ -291,10 +291,10 @@ object PhotoSync {
                             } catch (e: CancellationException) {
                                 throw e // Log Out: no watermark past what was cut short
                             } catch (e: UnreadableAsset) {
-                                Log.w(tag, "skipped ${asset.name}, it can't be read: ${e.message}")
+                                Log.w(tag, "skipped ${asset.name}, it can't be read: $e")
                                 true
                             } catch (e: Exception) {
-                                Log.w(tag, "upload failed for ${asset.name}: ${e.message}")
+                                Log.w(tag, "upload failed for ${asset.name}: $e")
                                 false
                             }
                         }
@@ -316,7 +316,7 @@ object PhotoSync {
                     // The device gone: the rest would only be read and hashed
                     // to fail the same way.
                     try { OTCConnection.ensureConnected() } catch (e: CancellationException) { throw e } catch (e: Exception) {
-                        Log.w(tag, "sync stopped, the device can't be reached: ${e.message}")
+                        Log.w(tag, "sync stopped, the device can't be reached: $e")
                         break
                     }
                 }

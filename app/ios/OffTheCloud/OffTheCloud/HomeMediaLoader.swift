@@ -155,7 +155,7 @@ private final class RangeFetch: @unchecked Sendable {
             let code = (response as? HTTPURLResponse)?.statusCode ?? 0
             if !request.isCancelled, !request.isFinished {
                 request.finishLoading(with: NSError(domain: "HomeMediaLoader", code: code,
-                                                    userInfo: [NSLocalizedDescriptionKey: "The device answered \(code)"]))
+                                                    userInfo: [NSLocalizedDescriptionKey: "The device answered \(code)"])) // i18n-ignore: AVFoundation error detail; the viewer says Couldn't play this video
             }
             return .cancel
         }

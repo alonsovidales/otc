@@ -92,11 +92,11 @@ object HomeNetwork {
     class PinnedTrustManager(private val pin: ByteArray) : X509TrustManager {
         override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
             val leaf = chain?.firstOrNull() ?: throw CertificateException("no certificate")
-            if (!matches(leaf, pin)) throw CertificateException("not this device's certificate")
+            if (!matches(leaf, pin)) throw CertificateException("not this device's certificate") // i18n-ignore: TLS internals; OTCConnection words a failed handshake
         }
 
         override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) =
-            throw CertificateException("no client certificates here")
+            throw CertificateException("no client certificates here") // i18n-ignore: TLS internals, never shown
 
         override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
     }

@@ -262,7 +262,7 @@ final class FilesExplorerViewModel: ObservableObject {
     /// line once the phone is back `online`; nothing for another folder.
     nonisolated static func errorWhileAsking(_ problem: LoadProblem?, failedPath: String?, _ p: String, online: Bool) -> String? {
         guard let problem, failedPath == p else { return nil }
-        return problem.backOnline(online).text("The files")
+        return problem.backOnline(online).text(.files)
     }
 
     /// The listing failed on the way (`problem`: why): said in plain words,
@@ -270,7 +270,7 @@ final class FilesExplorerViewModel: ObservableObject {
     private func listingFailed(_ asked: String, _ problem: LoadProblem) {
         listingProblem = problem
         failedPath = asked
-        error = problem.text("The files")
+        error = problem.text(.files)
         let ask = listingAsks
         listRetry.failed { [weak self] in
             guard let self, self.listingAsks == ask, self.path == asked else { return }

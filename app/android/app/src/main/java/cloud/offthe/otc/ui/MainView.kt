@@ -87,6 +87,11 @@ import cloud.offthe.otc.R
 import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.appShellCriticalUpdate
+import cloud.offthe.otc.i18n.appShellCriticalUpdateSummary
+import cloud.offthe.otc.i18n.appShellNewPost
+import cloud.offthe.otc.i18n.commonUpdate
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.GetStatus
 import cloud.offthe.otc.proto.RespEnvelope
@@ -347,10 +352,10 @@ fun MainView(secrets: SecretsStore) {
                         },
                         icon = {
                             if (t.section == Section.Alerts && unread > 0) {
-                                BadgedBox(badge = { Badge { Text(unread.toString()) } }) { Icon(t.icon, t.section.label) }
-                            } else Icon(t.icon, t.section.label)
+                                BadgedBox(badge = { Badge { Text(unread.toString()) } }) { Icon(t.icon, t.section.label.resolve()) }
+                            } else Icon(t.icon, t.section.label.resolve())
                         },
-                        label = { Text(t.section.label) },
+                        label = { Text(t.section.label.resolve()) },
                     )
                 }
             }
@@ -419,7 +424,7 @@ fun MainView(secrets: SecretsStore) {
                 val context = androidx.compose.ui.platform.LocalContext.current
                 Box(Modifier.fillMaxSize().imePadding()) {
                     if (code != null) {
-                        DeviceUnreachableView(message = lastError ?: "", code = code, onClose = { logOut(context, secrets, unregisterPush = false, keepDevice = true) })
+                        DeviceUnreachableView(message = lastError?.resolve() ?: "", code = code, onClose = { logOut(context, secrets, unregisterPush = false, keepDevice = true) })
                     } else if (showConnectionProblem) {
                         ConnectionProblemView(secrets = secrets, onLeave = { e, p -> logOut(context, secrets, unregisterPush = false, keepDevice = true, lastDevice = e to p) })
                     }
@@ -475,6 +480,7 @@ private fun WideTopBar(
     newPost: (() -> Unit)?, iconOnlyAction: Boolean, search: @Composable () -> Unit,
 ) {
     val colors = menuColors()
+    val newPostLabel = S.appShellNewPost().resolve()
     Column(Modifier.fillMaxWidth().background(colors.surface)) {
         Row(
             Modifier.fillMaxWidth()
@@ -497,10 +503,10 @@ private fun WideTopBar(
                     onClick = newPost, border = BorderStroke(1.dp, Ember), shape = CircleShape,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Ember),
                     contentPadding = PaddingValues(horizontal = if (iconOnlyAction) 12.dp else 16.dp),
-                    modifier = Modifier.height(if (iconOnlyAction) 40.dp else 38.dp).semantics { contentDescription = "New post" },
+                    modifier = Modifier.height(if (iconOnlyAction) 40.dp else 38.dp).semantics { contentDescription = newPostLabel },
                 ) {
                     Text("+", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                    if (!iconOnlyAction) Text(" New post", fontWeight = FontWeight.SemiBold)
+                    if (!iconOnlyAction) Text(" $newPostLabel", fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -518,9 +524,11 @@ private fun CriticalUpdateBanner(alert: UpdateAlert, onUpdate: () -> Unit) {
         Icon(Icons.Default.Warning, null, tint = Color.White)
         Spacer(Modifier.width(12.dp))
         Text(
-            "Critical update ${alert.version} available. ${alert.summary.trim().let { if (it.isEmpty()) "" else "$it " }}Install it as soon as possible.",
+            // The release's summary, when it has one, stays in English
+            // (docs/i18n.md, "Stays English": release summaries).
+            alert.summary.trim().let { if (it.isEmpty()) S.appShellCriticalUpdate(alert.version) else S.appShellCriticalUpdateSummary(alert.version, it) }.resolve(),
             color = Color.White, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f),
         )
-        TextButton(onClick = onUpdate) { Text("Update", color = Color.White, fontWeight = FontWeight.Bold) }
+        TextButton(onClick = onUpdate) { Text(S.commonUpdate().resolve(), color = Color.White, fontWeight = FontWeight.Bold) }
     }
 }

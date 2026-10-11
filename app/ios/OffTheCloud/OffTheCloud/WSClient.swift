@@ -111,20 +111,28 @@ actor WSClient {
         var answerTimedOut = true
 
         var errorDescription: String? {
-            answerTimedOut ? "The device didn't answer in time." : "Still connecting to the device."
+            answerTimedOut ? S.iosWsTimedOut : S.iosWsStillConnecting
         }
     }
 
     /// Thrown to every request waiting on a socket that stopped answering
     /// (SocketLiveness), which is closed: the owner connects again.
     struct Unresponsive: LocalizedError {
-        var errorDescription: String? { "The connection to the device stopped answering." }
+        var errorDescription: String? { S.iosWsUnresponsive }
+    }
+
+    /// A request with no socket to go on (domain "ws", code -1, as the
+    /// NSError it replaces).
+    struct NotConnected: LocalizedError, CustomNSError {
+        static var errorDomain: String { "ws" }
+        var errorCode: Int { -1 }
+        var errorDescription: String? { S.appShellNotConnected }
     }
 
     /// The WebSocket upgrade wasn't answered within connectTimeout
     /// (Android's WSClient.ConnectTimeout).
     struct ConnectTimeout: LocalizedError {
-        var errorDescription: String? { "The device didn't answer the connection in time." }
+        var errorDescription: String? { S.iosWsConnectTimeout }
     }
 
     /// A request's answer, and how long it was waited for once the request
@@ -411,7 +419,7 @@ actor WSClient {
     /// before it ever reached the device.
     func exchange(timeout: TimeInterval? = nil, build: (inout Msg_ReqEnvelope) -> Void) async throws -> Answer {
         guard connected, let t = task else {
-            throw NSError(domain: "ws", code: -1, userInfo: [NSLocalizedDescriptionKey: "Not connected"])
+            throw NotConnected()
         }
         var env = Msg_ReqEnvelope()
         let id = nextId; nextId &+= 1

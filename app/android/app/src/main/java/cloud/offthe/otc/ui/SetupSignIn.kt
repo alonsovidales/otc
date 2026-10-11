@@ -10,6 +10,11 @@ import android.util.Base64
 import androidx.browser.customtabs.CustomTabsIntent
 import cloud.offthe.otc.MainActivity
 import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.appShellSetupSigninFailed
+import cloud.offthe.otc.i18n.appShellSetupSigninUnfinished
+import cloud.offthe.otc.i18n.appShellSetupUnknownProvider
+import cloud.offthe.otc.ui.common.now
 import java.security.MessageDigest
 import java.security.SecureRandom
 import kotlinx.coroutines.CompletableDeferred
@@ -35,7 +40,7 @@ object SetupSignIn {
     private var pending: CompletableDeferred<Uri>? = null
 
     suspend fun run(context: Context, provider: String): String {
-        require(provider == "apple" || provider == "google") { "Unknown sign-in provider" }
+        require(provider == "apple" || provider == "google") { S.appShellSetupUnknownProvider().now(context) }
         val verifier = randomVerifier()
         val challenge = b64url(MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray()))
         val start = Uri.parse("https://${SecretsStore.bridgeDomain}/account/auth/$provider/start").buildUpon()
@@ -51,8 +56,8 @@ object SetupSignIn {
         } finally {
             if (pending === waiter) pending = null
         }
-        val code = callback.getQueryParameter("code") ?: error("The sign-in did not finish")
-        return exchange(code, verifier)
+        val code = callback.getQueryParameter("code") ?: error(S.appShellSetupSigninUnfinished().now(context))
+        return exchange(code, verifier, S.appShellSetupSigninFailed().now(context))
     }
 
     /** SetupSignInCallbackActivity hands the otcsetup://done redirect over. */
@@ -60,14 +65,15 @@ object SetupSignIn {
         pending?.complete(uri)
     }
 
-    private suspend fun exchange(code: String, verifier: String): String = withContext(Dispatchers.IO) {
+    /** The setup token for [code]; [failed] is what the page shows when the bridge says nothing itself. */
+    private suspend fun exchange(code: String, verifier: String, failed: String): String = withContext(Dispatchers.IO) {
         val body = JSONObject().put("code", code).put("verifier", verifier).toString()
             .toRequestBody("application/json".toMediaType())
         val req = Request.Builder().url("https://${SecretsStore.bridgeDomain}/api/account/app-exchange").post(body).build()
         OkHttpClient().newCall(req).execute().use { resp ->
             val obj = runCatching { JSONObject(resp.body.string()) }.getOrNull()
             val token = obj?.optString("setup_token").orEmpty()
-            if (!resp.isSuccessful || token.isEmpty()) error(obj?.optString("error")?.ifEmpty { null } ?: "Could not finish the sign-in")
+            if (!resp.isSuccessful || token.isEmpty()) error(obj?.optString("error")?.ifEmpty { null } ?: failed)
             token
         }
     }

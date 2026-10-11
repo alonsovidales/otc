@@ -25,6 +25,22 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.appShellAccountDisabled
+import cloud.offthe.otc.i18n.appShellCantConnect
+import cloud.offthe.otc.i18n.appShellCloseAndLeave
+import cloud.offthe.otc.i18n.appShellConnectionHeading
+import cloud.offthe.otc.i18n.appShellDeviceUnavailable
+import cloud.offthe.otc.i18n.appShellLeave
+import cloud.offthe.otc.i18n.appShellLeaveButton
+import cloud.offthe.otc.i18n.appShellLeaveMessageConnection
+import cloud.offthe.otc.i18n.appShellLeaveMessageStart
+import cloud.offthe.otc.i18n.appShellLeaveTitle
+import cloud.offthe.otc.i18n.appShellSaveRetry
+import cloud.offthe.otc.i18n.appShellStillTrying
+import cloud.offthe.otc.i18n.commonCancel
+import cloud.offthe.otc.i18n.commonConnecting
+import cloud.offthe.otc.i18n.commonPassword
 import cloud.offthe.otc.ui.common.OTCTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -70,10 +86,10 @@ fun ConnectionProblemView(secrets: SecretsStore, onLeave: ((endpoint: String, pa
     if (confirmLeave && onLeave != null) {
         AlertDialog(
             onDismissRequest = { confirmLeave = false },
-            title = { Text("Leave this device?") },
-            text = { Text("You'll go back to the start, to set up a new device or connect to another one. Nothing on the device is deleted, and its address and password stay filled in there, to connect to it again later.") },
-            confirmButton = { TextButton(onClick = { confirmLeave = false; onLeave(endpoint, password) }) { Text("Leave", color = Color(0xFFE53935)) } },
-            dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text("Cancel") } },
+            title = { Text(S.appShellLeaveTitle().resolve()) },
+            text = { Text(S.appShellLeaveMessageStart().resolve()) },
+            confirmButton = { TextButton(onClick = { confirmLeave = false; onLeave(endpoint, password) }) { Text(S.appShellLeave().resolve(), color = Color(0xFFE53935)) } },
+            dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text(S.commonCancel().resolve()) } },
         )
     }
 
@@ -82,18 +98,19 @@ fun ConnectionProblemView(secrets: SecretsStore, onLeave: ((endpoint: String, pa
             Column(Modifier.padding(24.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Default.WifiOff, null, tint = Color(0xFFFF9500), modifier = Modifier.size(48.dp))
                 Spacer(Modifier.height(12.dp))
-                Text("Can't connect to your device", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-                if (!lastError.isNullOrEmpty()) {
+                Text(S.appShellCantConnect().resolve(), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+                val why = lastError?.resolve()
+                if (!why.isNullOrEmpty()) {
                     Spacer(Modifier.height(8.dp))
-                    Text(lastError!!, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                    Text(why, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 }
                 Spacer(Modifier.height(18.dp))
                 Column(Modifier.fillMaxWidth()) {
-                    Text("Connection", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(S.appShellConnectionHeading().resolve(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     ConnectionEndpointFields(endpoint = endpoint, onEndpointChange = { endpoint = it })
                     Spacer(Modifier.height(8.dp))
                     OTCTextField(
-                        value = password, onValueChange = { password = it }, label = { Text("Password") },
+                        value = password, onValueChange = { password = it }, label = { Text(S.commonPassword().resolve()) },
                         singleLine = true, visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         modifier = Modifier.fillMaxWidth(),
@@ -117,12 +134,12 @@ fun ConnectionProblemView(secrets: SecretsStore, onLeave: ((endpoint: String, pa
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (retrying) { CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)) }
-                        Text(if (retrying) "Connecting…" else "Save & Retry")
+                        Text((if (retrying) S.commonConnecting() else S.appShellSaveRetry()).resolve())
                     }
                 }
                 if (onLeave != null) {
                     Spacer(Modifier.height(4.dp))
-                    TextButton(onClick = { confirmLeave = true }) { Text("Set up or connect a different device") }
+                    TextButton(onClick = { confirmLeave = true }) { Text(S.appShellLeaveButton().resolve()) }
                 }
             }
         }
@@ -140,10 +157,10 @@ fun DeviceUnreachableView(message: String, code: String, onClose: (() -> Unit)? 
     if (confirmClose && onClose != null) {
         AlertDialog(
             onDismissRequest = { confirmClose = false },
-            title = { Text("Leave this device?") },
-            text = { Text("You'll go back to the connection screen, to connect to a device or set up a new one. Nothing on the device is deleted, and its address and password stay filled in there, to connect to it again later.") },
-            confirmButton = { TextButton(onClick = { confirmClose = false; onClose() }) { Text("Leave", color = Color(0xFFE53935)) } },
-            dismissButton = { TextButton(onClick = { confirmClose = false }) { Text("Cancel") } },
+            title = { Text(S.appShellLeaveTitle().resolve()) },
+            text = { Text(S.appShellLeaveMessageConnection().resolve()) },
+            confirmButton = { TextButton(onClick = { confirmClose = false; onClose() }) { Text(S.appShellLeave().resolve(), color = Color(0xFFE53935)) } },
+            dismissButton = { TextButton(onClick = { confirmClose = false }) { Text(S.commonCancel().resolve()) } },
         )
     }
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = 0.92f)), contentAlignment = Alignment.Center) {
@@ -151,13 +168,13 @@ fun DeviceUnreachableView(message: String, code: String, onClose: (() -> Unit)? 
           Box {
             if (onClose != null) {
                 IconButton(onClick = { confirmClose = true }, modifier = Modifier.align(Alignment.TopEnd)) {
-                    Icon(Icons.Default.Close, contentDescription = "Close and leave this device", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Default.Close, contentDescription = S.appShellCloseAndLeave().resolve(), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(if (disabled) Icons.Default.Block else Icons.Default.CloudOff, null, tint = Color(0xFFFF9500), modifier = Modifier.size(56.dp))
                 Spacer(Modifier.height(16.dp))
-                Text(if (disabled) "This account has been disabled" else "This device isn't available right now",
+                Text((if (disabled) S.appShellAccountDisabled() else S.appShellDeviceUnavailable()).resolve(),
                     style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
                 if (message.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
@@ -168,7 +185,7 @@ fun DeviceUnreachableView(message: String, code: String, onClose: (() -> Unit)? 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
-                        Text("Still trying…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(S.appShellStillTrying().resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

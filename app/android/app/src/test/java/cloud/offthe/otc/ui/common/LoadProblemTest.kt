@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.common
 
+import cloud.offthe.otc.i18n.english
 import cloud.offthe.otc.net.WSClient
 import cloud.offthe.otc.net.retryWaitMs
 import cloud.offthe.otc.proto.Ack
@@ -40,15 +41,15 @@ class LoadProblemTest {
     }
 
     @Test fun eachProblemSaysWhyInPlainWords() {
-        assertEquals("Couldn't load your photos", PHOTOS_PROBLEM_TITLE)
-        assertEquals("This phone is offline. Your photos will appear once it's back online.", photosProblemText(LoadProblem.OFFLINE))
-        assertEquals("Your device isn't reachable right now. Your photos will appear as soon as it answers.", photosProblemText(LoadProblem.UNREACHABLE))
-        assertEquals("Your device took too long to answer. Your photos will appear as soon as it does.", photosProblemText(LoadProblem.SLOW))
-        assertEquals("Your photos will appear as soon as your device answers.", photosProblemText(LoadProblem.FAILED))
-        assertEquals("This phone is offline. The posts will appear once it's back online.", loadProblemText(LoadProblem.OFFLINE, "The posts"))
-        assertEquals("Couldn't load more photos.", MORE_PHOTOS_PROBLEM)
+        assertEquals("Couldn't load your photos", PHOTOS_PROBLEM_TITLE.english())
+        assertEquals("This phone is offline. Your photos will appear once it's back online.", photosProblemText(LoadProblem.OFFLINE).english())
+        assertEquals("Your device isn't reachable right now. Your photos will appear as soon as it answers.", photosProblemText(LoadProblem.UNREACHABLE).english())
+        assertEquals("Your device took too long to answer. Your photos will appear as soon as it does.", photosProblemText(LoadProblem.SLOW).english())
+        assertEquals("Your photos will appear as soon as your device answers.", photosProblemText(LoadProblem.FAILED).english())
+        assertEquals("This phone is offline. The posts will appear once it's back online.", loadProblemText(LoadProblem.OFFLINE, LoadSubject.POSTS).english())
+        assertEquals("Couldn't load more photos.", MORE_PHOTOS_PROBLEM.english())
         // Every text differs: the reason is what tells them apart.
-        assertEquals(4, LoadProblem.entries.map { photosProblemText(it) }.toSet().size)
+        assertEquals(4, LoadProblem.entries.map { photosProblemText(it).english() }.toSet().size)
     }
 
     @Test fun backOnlineOfflineGivesWayToTheNeutralLine() {
@@ -59,14 +60,14 @@ class LoadProblemTest {
     }
 
     @Test fun theWordingIOSCopies() {
-        assertEquals("Try again", TRY_AGAIN)
-        assertEquals("Trying…", TRYING)
-        assertEquals("Couldn't load more posts.", MORE_POSTS_PROBLEM)
-        assertEquals("Still waiting for your device…", PHOTOS_SLOW)
-        assertEquals("Loading photos", PHOTOS_LOADING)
-        assertEquals("Couldn't play this video.", VIDEO_UNPLAYABLE)
-        assertEquals("Your device took too long to answer. The posts will appear as soon as it does.", loadProblemText(LoadProblem.SLOW, "The posts"))
-        assertEquals("The files will appear as soon as your device answers.", loadProblemText(LoadProblem.FAILED, "The files"))
+        assertEquals("Try again", TRY_AGAIN.english())
+        assertEquals("Trying…", TRYING.english())
+        assertEquals("Couldn't load more posts.", MORE_POSTS_PROBLEM.english())
+        assertEquals("Still waiting for your device…", PHOTOS_SLOW.english())
+        assertEquals("Loading photos", PHOTOS_LOADING.english())
+        assertEquals("Couldn't play this video.", VIDEO_UNPLAYABLE.english())
+        assertEquals("Your device took too long to answer. The posts will appear as soon as it does.", loadProblemText(LoadProblem.SLOW, LoadSubject.POSTS).english())
+        assertEquals("The files will appear as soon as your device answers.", loadProblemText(LoadProblem.FAILED, LoadSubject.FILES).english())
     }
 
     @Test fun theWaitDoublesFromOneSecondToTen() {

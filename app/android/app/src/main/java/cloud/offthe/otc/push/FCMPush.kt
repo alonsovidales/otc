@@ -79,7 +79,7 @@ object FCMPush {
         val token = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(TOKEN_KEY, null) ?: return
         scope.launch {
             runCatching { OTCConnection.request { it.setReqRegisterFcmToken(RegisterFcmToken.newBuilder().setToken(token)) } }
-                .onFailure { Log.w(TAG, "could not register the FCM token after signing in: ${it.message}") }
+                .onFailure { Log.w(TAG, "could not register the FCM token after signing in: $it") }
         }
     }
 
@@ -110,7 +110,7 @@ object FCMPush {
                     else Log.i(TAG, "registered the FCM token with the device")
                     return@launch
                 } catch (e: Exception) {
-                    Log.w(TAG, "could not register the FCM token (attempt $attempt/6): ${e.message}")
+                    Log.w(TAG, "could not register the FCM token (attempt $attempt/6): $e")
                     if (attempt == 6) return@launch
                     delay(delayMs)
                     delayMs = (delayMs * 2).coerceAtMost(30_000L)

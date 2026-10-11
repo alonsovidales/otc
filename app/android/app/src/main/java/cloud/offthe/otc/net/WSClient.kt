@@ -2,8 +2,16 @@
 package cloud.offthe.otc.net
 
 import cloud.offthe.otc.i18n.LanguageSettings
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.androidWsConnectTimeout
+import cloud.offthe.otc.i18n.androidWsStillConnecting
+import cloud.offthe.otc.i18n.androidWsTimedOut
+import cloud.offthe.otc.i18n.appShellNotConnected
 import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.RespEnvelope
+import cloud.offthe.otc.ui.common.TextIOException
+import cloud.offthe.otc.ui.common.now
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.sync.Mutex
@@ -57,12 +65,25 @@ class WSClient(private val client: OkHttpClient = defaultClient) {
      * how fast the device answers (Patience).
      */
     class RequestTimeout(
-        message: String = "The device did not answer in time",
+        private val given: String? = null,
         val answerTimedOut: Boolean = true,
-    ) : IOException(message)
+    ) : IOException(given) {
+        /** What it says, worded where it is shown. */
+        val text: UiText
+            get() = given?.let { UiText.Raw(it) }
+                ?: if (answerTimedOut) S.androidWsTimedOut() else S.androidWsStillConnecting()
+
+        override val message: String get() = text.now()
+
+        override fun toString(): String = "RequestTimeout(answerTimedOut=$answerTimedOut)"
+    }
 
     /** The WebSocket upgrade wasn't answered within [CONNECT_TIMEOUT_MS]. */
-    class ConnectTimeout : SocketTimeoutException("The device didn't answer the connection in time")
+    class ConnectTimeout : SocketTimeoutException() {
+        override val message: String get() = S.androidWsConnectTimeout().now()
+
+        override fun toString(): String = "ConnectTimeout"
+    }
 
     /** A request's answer, and how long it was waited for once the request had left the phone. */
     class Answer(val resp: RespEnvelope, val waitedMs: Long)
@@ -128,7 +149,7 @@ class WSClient(private val client: OkHttpClient = defaultClient) {
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 val err = if (response != null && !connected) {
-                    IOException("bad response from the server (${response.code})", t)
+                    IOException("bad response from the server (${response.code})", t) // i18n-ignore: matched by OTCConnection.describe, which words it
                 } else t
                 // onDisconnect first, while the connect it ends is still in
                 // flight: that is what makes OTCConnection schedule a retry.
@@ -208,7 +229,7 @@ class WSClient(private val client: OkHttpClient = defaultClient) {
      * write timeout, its pings), so the queue's wait is never endless.
      */
     suspend fun exchange(timeoutMs: Long = DEFAULT_TIMEOUT_MS, build: (ReqEnvelope.Builder) -> Unit): Answer {
-        if (!connected) throw IOException("Not connected")
+        if (!connected) throw TextIOException(S.appShellNotConnected())
         val id = lock.withLock { nextId++ }
         val b = ReqEnvelope.newBuilder()
         build(b)

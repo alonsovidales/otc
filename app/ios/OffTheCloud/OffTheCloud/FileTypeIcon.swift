@@ -85,7 +85,7 @@ struct FileTypeIcon: View {
             .position(x: geo.size.width / 2, y: h / 2)
         }
         .aspectRatio(0.78, contentMode: .fit)
-        .accessibilityLabel("\(badge.label) file")
+        .accessibilityLabel(S.iosFileTypeLabel(type: badge.label))
     }
 }
 

@@ -10,6 +10,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.appShellConnectTitle
+import cloud.offthe.otc.i18n.appShellOnboardingLastDevice
+import cloud.offthe.otc.i18n.appShellOnboardingPending
+import cloud.offthe.otc.i18n.appShellOnboardingSetupFooter
+import cloud.offthe.otc.i18n.appShellPrivacy
+import cloud.offthe.otc.i18n.appShellSaveContinue
+import cloud.offthe.otc.i18n.appShellSetupNewDevice
+import cloud.offthe.otc.i18n.appShellWelcome
+import cloud.offthe.otc.i18n.commonPassword
 import cloud.offthe.otc.ui.common.OTCTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -59,14 +69,14 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
         return
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Welcome") }) }) { pad ->
+    Scaffold(topBar = { TopAppBar(title = { Text(S.appShellWelcome().resolve()) }) }) { pad ->
         Column(Modifier.padding(pad).fillMaxSize().padding(16.dp)) {
-            Text("Connect to Off The Cloud", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(S.appShellConnectTitle().resolve(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
             ConnectionEndpointFields(endpoint = endpoint, onEndpointChange = { endpoint = it })
             Spacer(Modifier.height(8.dp))
             OTCTextField(
-                value = password, onValueChange = { password = it }, label = { Text("Password") },
+                value = password, onValueChange = { password = it }, label = { Text(S.commonPassword().resolve()) },
                 singleLine = true, visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier.fillMaxWidth(),
@@ -74,14 +84,14 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
             if (last != null) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Filled in from the device you left. Tap Save & Continue to connect to it again, or change it to use another one.",
+                    S.appShellOnboardingLastDevice().resolve(),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             if (pending != null) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Filled in from the device you set up with this phone. Once its install has finished (about 20 minutes), tap Save & Continue.",
+                    S.appShellOnboardingPending().resolve(),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -98,19 +108,19 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
                 },
                 enabled = endpoint.isNotEmpty() && password.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Save & Continue") }
+            ) { Text(S.appShellSaveContinue().resolve()) }
             Spacer(Modifier.height(28.dp))
             androidx.compose.material3.OutlinedButton(onClick = { setupOpen = true }, modifier = Modifier.fillMaxWidth()) {
-                Text("Set up a new device")
+                Text(S.appShellSetupNewDevice().resolve())
             }
             Spacer(Modifier.height(6.dp))
             Text(
-                "For a device fresh out of the box: it runs the setup over Bluetooth, and this app becomes its app. Log out first if you are switching from another device.",
+                S.appShellOnboardingSetupFooter().resolve(),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             // Issue #175: what the bridge keeps, before signing in.
             val context = androidx.compose.ui.platform.LocalContext.current
-            androidx.compose.material3.TextButton(onClick = { cloud.offthe.otc.ui.common.Share.openInBrowser(context, "https://off-the.cloud/privacy") }) { Text("Privacy") }
+            androidx.compose.material3.TextButton(onClick = { cloud.offthe.otc.ui.common.Share.openInBrowser(context, "https://off-the.cloud/privacy") }) { Text(S.appShellPrivacy().resolve()) }
         }
     }
 }

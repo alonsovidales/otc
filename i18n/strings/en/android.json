@@ -1,4 +1,44 @@
 {
+  "android.ble_lost": {
+    "text": "Lost the device - reconnecting",
+    "note": "Set up a new device (over Bluetooth): error given to the setup page when the Bluetooth link dropped while a request was sent; the app reconnects."
+  },
+  "android.ble_send_failed": {
+    "text": "Could not send to the device",
+    "note": "Set up a new device (over Bluetooth): error given to the setup page when a request couldn't be written over Bluetooth."
+  },
+  "android.bluetooth_needed_hint": {
+    "text": "Allow nearby devices for Off The Cloud in Settings to set a device up this way.",
+    "note": "Set up a new device (over Bluetooth): under the heading Bluetooth access is needed. \"Nearby devices\" is Android's name for the Bluetooth permission and Settings the phone's Settings app: use Android's own words in this language."
+  },
+  "android.bluetooth_off_hint": {
+    "text": "Turn Bluetooth on to find the device.",
+    "note": "Set up a new device (over Bluetooth): under the heading Bluetooth is off."
+  },
+  "android.cache_bytes": {
+    "text": {
+      "one": "{count} byte",
+      "other": "{count} bytes"
+    },
+    "args": [["count", "count"]],
+    "note": "Settings > Thumbnail cache: a size below one kilobyte (Using 0 bytes of 1 GB for an empty cache); larger sizes use the units KB, MB, GB."
+  },
+  "android.download_changed": {
+    "text": "the file changed on the device while downloading",
+    "note": "Why opening or downloading a file failed, after Download failed: or similar (hence the lowercase start): the file was replaced on the device while it was being fetched."
+  },
+  "android.download_empty_piece": {
+    "text": "the device sent an empty piece of the file",
+    "note": "Why opening or downloading a file failed, after Download failed: or similar (hence the lowercase start): the device sent a piece without data before the end of the file."
+  },
+  "android.download_wrong_piece": {
+    "text": "the device sent the wrong piece of the file",
+    "note": "Why opening or downloading a file failed, after Download failed: or similar (hence the lowercase start): a piece the device sent doesn't match the place asked for."
+  },
+  "android.menu_sections": {
+    "text": "Sections",
+    "note": "Screen-reader name of the left menu and of the icon rail (on a wide screen), not shown."
+  },
   "android.notification_channel": {
     "text": "Friends and posts",
     "note": "Name of the notification channel for pushes, shown in Android's notification settings for the app.",
@@ -7,5 +47,103 @@
   "android.notification_channel_description": {
     "text": "Friend requests, new posts, likes and comments",
     "note": "Description of that notification channel, shown under its name in Android's notification settings."
+  },
+  "android.signal_good": {
+    "text": "Good signal",
+    "note": "Set up a new device (over Bluetooth): at the right of a device in the list of devices waiting to be set up: its Bluetooth signal is good.",
+    "max": 20
+  },
+  "android.signal_strong": {
+    "text": "Strong signal",
+    "note": "Set up a new device (over Bluetooth): at the right of a device in the list of devices waiting to be set up: its Bluetooth signal is strong (it is probably the closest).",
+    "max": 20
+  },
+  "android.signal_weak": {
+    "text": "Weak signal",
+    "note": "Set up a new device (over Bluetooth): at the right of a device in the list of devices waiting to be set up: its Bluetooth signal is weak.",
+    "max": 20
+  },
+  "android.storage_gauge": {
+    "text": "Storage. Show details",
+    "note": "Screen-reader name of the storage ring in the icon rail (on a wide screen) while the device's status isn't known yet; pressing it opens the whole menu at the storage details."
+  },
+  "android.storage_gauge_attention": {
+    "text": "Storage, needs attention. Show details",
+    "note": "Screen-reader name of the storage ring in the icon rail (on a wide screen) while the device's fullness isn't known and a disk stopped working or the device reports a problem; pressing it opens the whole menu at the storage details."
+  },
+  "android.storage_gauge_used": {
+    "text": "Storage, {percent} used. Show details",
+    "args": [["percent", "text"]],
+    "note": "Screen-reader name of the storage ring in the icon rail (on a wide screen); pressing it opens the whole menu at the storage details. {percent} is how full the storage is, already formatted (45%)."
+  },
+  "android.storage_gauge_used_attention": {
+    "text": "Storage, {percent} used, needs attention. Show details",
+    "args": [["percent", "text"]],
+    "note": "Screen-reader name of the storage ring in the icon rail (on a wide screen) when a disk stopped working or the device reports a problem. {percent} is how full the storage is, already formatted (45%)."
+  },
+  "android.storage_hide_details": {
+    "text": "Storage, hide details",
+    "note": "Screen-reader name of the Storage row at the foot of the left menu (on a wide screen) while the storage details under it are shown: pressing it hides them."
+  },
+  "android.storage_hide_details_attention": {
+    "text": "Storage, needs attention, hide details",
+    "note": "Screen-reader name of the Storage row at the foot of the left menu (on a wide screen) while the storage details are shown and a disk stopped working or the device reports a problem: pressing it hides them."
+  },
+  "android.storage_show_details": {
+    "text": "Storage, show details",
+    "note": "Screen-reader name of the Storage row at the foot of the left menu (on a wide screen) while the storage details under it are hidden: pressing it shows them."
+  },
+  "android.storage_show_details_attention": {
+    "text": "Storage, needs attention, show details",
+    "note": "Screen-reader name of the Storage row at the foot of the left menu (on a wide screen) while the storage details are hidden and a disk stopped working or the device reports a problem: pressing it shows them."
+  },
+  "android.storage_used": {
+    "text": "Storage used, {percent}%",
+    "args": [["percent", "text"]],
+    "note": "Screen-reader name of the bar at the foot of the left menu (on a wide screen) that shows how full the device's storage is. {percent} is a number already formatted (45 or 45.68). Write the percent sign as your language does."
+  },
+  "android.time_days_ago": {
+    "text": {
+      "one": "{count}d ago",
+      "other": "{count}d ago"
+    },
+    "args": [["count", "count"]],
+    "note": "How long ago something happened, in days, in the Social feed, the alerts and Settings > Shared Links. Keep it as short as the English (d for days).",
+    "max": 16
+  },
+  "android.time_hours_ago": {
+    "text": {
+      "one": "{count}h ago",
+      "other": "{count}h ago"
+    },
+    "args": [["count", "count"]],
+    "note": "How long ago something happened, in hours, in the Social feed, the alerts and Settings > Shared Links. Keep it as short as the English (h for hours).",
+    "max": 16
+  },
+  "android.time_just_now": {
+    "text": "just now",
+    "note": "When something happened less than a minute ago, in the Social feed, the alerts and Settings > Shared Links (after last there, hence the lowercase start).",
+    "max": 16
+  },
+  "android.time_minutes_ago": {
+    "text": {
+      "one": "{count}m ago",
+      "other": "{count}m ago"
+    },
+    "args": [["count", "count"]],
+    "note": "How long ago something happened, in minutes, in the Social feed, the alerts and Settings > Shared Links. Keep it as short as the English (m for minutes).",
+    "max": 16
+  },
+  "android.ws_connect_timeout": {
+    "text": "The device didn't answer the connection in time",
+    "note": "Error given to an action when the connection to the device couldn't be opened in time (nothing answered at its address)."
+  },
+  "android.ws_still_connecting": {
+    "text": "Still connecting to the device",
+    "note": "Error given to an action whose time ran out while the app was still connecting to the device."
+  },
+  "android.ws_timed_out": {
+    "text": "The device did not answer in time",
+    "note": "Error given to an action (and shown on the card shown over the app when connecting fails) when the device didn't answer a request in time."
   }
 }

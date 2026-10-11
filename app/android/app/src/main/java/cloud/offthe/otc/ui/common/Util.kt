@@ -3,8 +3,16 @@ package cloud.offthe.otc.ui.common
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.androidTimeDaysAgo
+import cloud.offthe.otc.i18n.androidTimeHoursAgo
+import cloud.offthe.otc.i18n.androidTimeJustNow
+import cloud.offthe.otc.i18n.androidTimeMinutesAgo
 import java.text.DateFormat
 import java.util.Date
 
@@ -57,16 +65,21 @@ fun gridCellPx(widthPx: Int, density: Density, padding: Dp, spacing: Dp, minSize
     maxOf((avail - s * (n - 1) + n - 1) / n, 1)
 }
 
-/** "3m ago" / "2h ago" / "5d ago", then the date - the feed's own convention. */
-fun relativeTime(epochMs: Long): String {
+/** "3m ago" / "2h ago" / "5d ago", then the date - the feed's own convention - in the language shown. */
+@Composable
+@ReadOnlyComposable
+fun relativeTime(epochMs: Long): String = relativeTimeText(epochMs).resolve()
+
+/** [relativeTime] as text resolved where it is shown, for a view model; the date in the default locale's own format. */
+fun relativeTimeText(epochMs: Long): UiText {
     val mins = ((System.currentTimeMillis() - epochMs) / 60_000).toInt()
-    if (mins < 1) return "just now"
-    if (mins < 60) return "${mins}m ago"
+    if (mins < 1) return S.androidTimeJustNow()
+    if (mins < 60) return S.androidTimeMinutesAgo(mins)
     val hours = mins / 60
-    if (hours < 24) return "${hours}h ago"
+    if (hours < 24) return S.androidTimeHoursAgo(hours)
     val days = hours / 24
-    if (days < 7) return "${days}d ago"
-    return DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(epochMs))
+    if (days < 7) return S.androidTimeDaysAgo(days)
+    return UiText.Raw(DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(epochMs)))
 }
 
 fun formatBytes(bytes: Long): String = when {

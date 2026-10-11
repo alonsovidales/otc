@@ -21,22 +21,22 @@ struct OnboardingView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section(header: Text("Connect to Off The Cloud")) {
+                Section(header: Text(S.appShellConnectTitle)) {
                     // Issue #121: the device's name is all the bridge
                     // needs; a custom address is behind the toggle.
                     ConnectionEndpointFields(endpoint: $endpoint)
-                    SecureField("Password", text: $password)
+                    SecureField(S.commonPassword, text: $password)
                     if lastNote {
-                        Text("Filled in from the device you left. Tap Save & Continue to connect to it again, or change it to use another one.")
+                        Text(S.appShellOnboardingLastDevice)
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                     if pendingNote {
-                        Text("Filled in from the device you set up with this phone. Once its install has finished (about 20 minutes), tap Save & Continue.")
+                        Text(S.appShellOnboardingPending)
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                 }
                 Section {
-                    Button("Save & Continue") {
+                    Button(S.appShellSaveContinue) {
                         secrets.endpoint = endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
                         secrets.password = password
                         secrets.persist()
@@ -46,7 +46,7 @@ struct OnboardingView: View {
                 // Issue #137: a brand-new device is set up from here over
                 // Bluetooth; when it is done its address lands in the form
                 // above and the first sign in sets the owner password.
-                Section(footer: Text("For a device fresh out of the box: it runs the setup over Bluetooth, and this app becomes its app. Log out first if you are switching from another device.")) {
+                Section(footer: Text(S.appShellOnboardingSetupFooter)) {
                     NavigationLink {
                         BluetoothSetupView { newEndpoint, newPassword in
                             // Straight in: the root view switches to the
@@ -58,15 +58,15 @@ struct OnboardingView: View {
                             secrets.persist()
                         }
                     } label: {
-                        Label("Set up a new device", systemImage: "antenna.radiowaves.left.and.right")
+                        Label(S.appShellSetupNewDevice, systemImage: "antenna.radiowaves.left.and.right")
                     }
                 }
                 // Issue #175: what the bridge keeps, before signing in.
                 Section {
-                    Link("Privacy", destination: URL(string: "https://off-the.cloud/privacy")!)
+                    Link(S.appShellPrivacy, destination: URL(string: "https://off-the.cloud/privacy")!)
                 }
             }
-            .navigationTitle("Welcome")
+            .navigationTitle(S.appShellWelcome)
         }
         .onAppear {
             endpoint = secrets.endpoint

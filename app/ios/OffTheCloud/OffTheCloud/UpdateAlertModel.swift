@@ -71,7 +71,7 @@ struct CriticalUpdateBanner: View {
                 .font(.footnote)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
-            Button("Update", action: onUpdate)
+            Button(S.commonUpdate, action: onUpdate)
                 .buttonStyle(.bordered)
                 .tint(.white)
                 .controlSize(.small)
@@ -82,8 +82,11 @@ struct CriticalUpdateBanner: View {
         .background(Color.red)
     }
 
+    /// The release's summary, when it has one, stays in English (docs/i18n.md,
+    /// "Stays English": release summaries).
     private var message: String {
-        let summary = alert.summary.isEmpty ? "" : " \(alert.summary)"
-        return "Critical update \(alert.version) available.\(summary) Install it as soon as possible."
+        alert.summary.isEmpty
+            ? S.appShellCriticalUpdate(version: alert.version)
+            : S.appShellCriticalUpdateSummary(version: alert.version, summary: alert.summary)
     }
 }

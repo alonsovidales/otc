@@ -761,7 +761,7 @@ enum ThumbCacheLimit {
 
     /// Settings' line: "Using 120 MB of 1 GB".
     static func usage(_ used: Int64, of limit: Int64) -> String {
-        "Using \(text(used)) of \(text(limit))"
+        S.appShellThumbCacheUsage(used: text(used), limit: text(limit))
     }
 }
 

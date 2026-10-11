@@ -618,7 +618,7 @@ struct SocialFeedView: View {
                         ProgressView()
                         Text("Loading…").foregroundColor(.secondary)
                         if let problem = vm.problem {
-                            Text(problem.text("The posts"))
+                            Text(problem.text(.posts))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
@@ -626,8 +626,8 @@ struct SocialFeedView: View {
                                 .padding(.horizontal, 32)
                                 // Said to VoiceOver when it appears or
                                 // changes (Android's polite live region).
-                                .onAppear { Announce.polite(problem.text("The posts")) }
-                                .onChange(of: problem) { _, p in Announce.polite(p.text("The posts")) }
+                                .onAppear { Announce.polite(problem.text(.posts)) }
+                                .onChange(of: problem) { _, p in Announce.polite(p.text(.posts)) }
                         }
                         Spacer()
                     }

@@ -48,7 +48,35 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.i18n.LanguageSettings
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.androidBluetoothNeededHint
+import cloud.offthe.otc.i18n.androidBluetoothOffHint
+import cloud.offthe.otc.i18n.androidSignalGood
+import cloud.offthe.otc.i18n.androidSignalStrong
+import cloud.offthe.otc.i18n.androidSignalWeak
+import cloud.offthe.otc.i18n.appShellBleLinkLost
+import cloud.offthe.otc.i18n.appShellBluetoothNeeded
+import cloud.offthe.otc.i18n.appShellBluetoothOff
+import cloud.offthe.otc.i18n.appShellSetupDevice
+import cloud.offthe.otc.i18n.appShellSetupDeviceOlder
+import cloud.offthe.otc.i18n.appShellSetupEnterPassword
+import cloud.offthe.otc.i18n.appShellSetupLooking
+import cloud.offthe.otc.i18n.appShellSetupNewDevice
+import cloud.offthe.otc.i18n.appShellSetupOpenDevice
+import cloud.offthe.otc.i18n.appShellSetupPowerOn
+import cloud.offthe.otc.i18n.appShellSetupReadyAs
+import cloud.offthe.otc.i18n.appShellSetupReadyHome
+import cloud.offthe.otc.i18n.appShellSetupSeveral
+import cloud.offthe.otc.i18n.appShellSetupSigninUnfinished
+import cloud.offthe.otc.i18n.appShellSetupSigningIn
+import cloud.offthe.otc.i18n.appShellSetupWhich
+import cloud.offthe.otc.i18n.commonBack
+import cloud.offthe.otc.i18n.commonConnecting
+import cloud.offthe.otc.i18n.commonPassword
 import cloud.offthe.otc.net.BLESetupTransport
+import cloud.offthe.otc.ui.common.now
 import java.io.ByteArrayInputStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +84,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.net.URLEncoder
 
 // Port of BluetoothSetupView.swift (issue #137): the device's own setup
 // wizard, shown in a WebView whose requests travel over Bluetooth LE to
@@ -106,8 +135,8 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
 
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text("Set up a new device") },
-            navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
+            title = { Text(S.appShellSetupNewDevice().resolve()) },
+            navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = S.commonBack().resolve()) } },
         )
     }) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
@@ -117,7 +146,7 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
                     // where it left off once the link is back.
                     Surface(color = MaterialTheme.colorScheme.tertiaryContainer, modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            "Connection to the device lost - reconnecting. Keep the phone next to it.",
+                            S.appShellBleLinkLost().resolve(),
                             style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(10.dp),
                         )
                     }
@@ -136,7 +165,7 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
                 Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            if (domain.isEmpty()) "The device is ready on your home network." else "The device is ready as $domain.",
+                            (if (domain.isEmpty()) S.appShellSetupReadyHome() else S.appShellSetupReadyAs(domain)).resolve(),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         // Issue #137: the password is chosen here, in the app,
@@ -148,22 +177,22 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
                         // the app restarted mid-setup) the owner types it.
                         Spacer(Modifier.height(8.dp))
                         if (chosenPassword.isEmpty()) {
-                            Text("Enter the device's password", style = MaterialTheme.typography.titleSmall, modifier = Modifier.fillMaxWidth())
+                            Text(S.appShellSetupEnterPassword().resolve(), style = MaterialTheme.typography.titleSmall, modifier = Modifier.fillMaxWidth())
                             Spacer(Modifier.height(6.dp))
                             cloud.offthe.otc.ui.common.OTCTextField(
                                 value = password, onValueChange = { password = it }, singleLine = true,
-                                placeholder = { Text("Password") },
+                                placeholder = { Text(S.commonPassword().resolve()) },
                                 visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         } else {
-                            Text("Signing in with the password you chose in the setup.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
+                            Text(S.appShellSetupSigningIn().resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
                         }
                         val valid = chosenPassword.isNotEmpty() || password.isNotEmpty()
                         Spacer(Modifier.height(8.dp))
                         Button(onClick = { onUseDevice(endpointForDomain(domain), chosenPassword.ifEmpty { password }) }, enabled = valid, modifier = Modifier.fillMaxWidth()) {
-                            Text("Open my device")
+                            Text(S.appShellSetupOpenDevice().resolve())
                         }
                     }
                 }
@@ -178,17 +207,17 @@ private fun Waiting(phase: BLESetupTransport.Phase, transport: BLESetupTransport
         val found by transport.found.collectAsState()
         Column(modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(24.dp))
-            Text("Which device?", style = MaterialTheme.typography.titleMedium)
+            Text(S.appShellSetupWhich().resolve(), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(6.dp))
             Text(
-                "Several devices are waiting to be set up. Each one's ID is on its setup page, where \"Blink its light\" shows which box it is. The strongest signal is usually the closest.",
+                S.appShellSetupSeveral().resolve(),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(16.dp))
             for (dev in found.sortedByDescending { it.rssi }) {
                 androidx.compose.material3.OutlinedButton(onClick = { transport.choose(dev.address) }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                    Text(if (dev.shortId.isEmpty()) "Device (older image)" else "Device ${dev.shortId}", modifier = Modifier.weight(1f))
-                    Text(signal(dev.rssi), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text((if (dev.shortId.isEmpty()) S.appShellSetupDeviceOlder() else S.appShellSetupDevice(dev.shortId)).resolve(), modifier = Modifier.weight(1f))
+                    Text(signal(dev.rssi).resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -197,26 +226,26 @@ private fun Waiting(phase: BLESetupTransport.Phase, transport: BLESetupTransport
     Column(modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.weight(1f))
         val (title, hint) = when (phase) {
-            is BLESetupTransport.Phase.Connecting -> "Connecting…" to ""
-            is BLESetupTransport.Phase.Off -> "Bluetooth is off" to "Turn Bluetooth on to find the device."
-            is BLESetupTransport.Phase.Unauthorized -> "Bluetooth access is needed" to "Allow nearby devices for Off The Cloud in Settings to set a device up this way."
-            else -> "Looking for a device to set up…" to "Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep the phone next to it."
+            is BLESetupTransport.Phase.Connecting -> S.commonConnecting() to null
+            is BLESetupTransport.Phase.Off -> S.appShellBluetoothOff() to S.androidBluetoothOffHint()
+            is BLESetupTransport.Phase.Unauthorized -> S.appShellBluetoothNeeded() to S.androidBluetoothNeededHint()
+            else -> S.appShellSetupLooking() to S.appShellSetupPowerOn()
         }
         if (phase is BLESetupTransport.Phase.Off || phase is BLESetupTransport.Phase.Unauthorized) Spacer(Modifier.height(8.dp)) else CircularProgressIndicator()
         Spacer(Modifier.height(14.dp))
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        if (hint.isNotEmpty()) {
+        Text(title.resolve(), style = MaterialTheme.typography.titleMedium)
+        if (hint != null) {
             Spacer(Modifier.height(6.dp))
-            Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            Text(hint.resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         }
         Spacer(Modifier.weight(1f))
     }
 }
 
-private fun signal(rssi: Int): String = when {
-    rssi >= -60 -> "Strong signal"
-    rssi >= -75 -> "Good signal"
-    else -> "Weak signal"
+private fun signal(rssi: Int): UiText = when {
+    rssi >= -60 -> S.androidSignalStrong()
+    rssi >= -75 -> S.androidSignalGood()
+    else -> S.androidSignalWeak()
 }
 
 /** A bridge domain becomes the usual wss endpoint; without the bridge the device answers as otc.local. */
@@ -235,6 +264,21 @@ private const val FETCH_OVERRIDE = "<script>window.otcApp=1;window.__otcId=0;win
     "window.otcSetupPassword=function(p){OTCSetup.password(String(p))};" +
     "window.otcSetupSignIn=function(p){return new Promise(function(res,rej){var id=++window.__otcId;window.__otcCb[id]=function(r){if(r.ok)res(r.token);else rej(new Error(r.error))};OTCSetup.signIn(id,String(p))})};</script>"
 
+/**
+ * The wizard speaks the app's language (docs/i18n.md, "Setup wizard"): its
+ * page is loaded with ?lang=<code>, and every /api call carries it too,
+ * since only the path travels over Bluetooth - no header. The language in
+ * effect when the call is made; a path that already has one keeps it. The
+ * page itself keeps the language it was loaded in. As BLESetupLang in
+ * BluetoothSetupView.swift.
+ */
+internal fun withLang(path: String, code: String = LanguageSettings.wireCode): String {
+    if (!(path == "/api" || path.startsWith("/api/") || path.startsWith("/api?"))) return path
+    val query = path.substringAfter('?', "")
+    if (query.split('&').any { it.startsWith("lang=") }) return path
+    return path + (if ('?' in path) "&" else "?") + "lang=" + URLEncoder.encode(code, "UTF-8")
+}
+
 private fun pathOf(url: String): String =
     if (url.contains("://")) Uri.parse(url).let { (it.encodedPath.orEmpty().ifEmpty { "/" }) + (it.encodedQuery?.let { q -> "?$q" } ?: "") } else url
 
@@ -252,7 +296,7 @@ private class Bridge(private val webView: WebView, private val transport: BLESet
             val reply = try {
                 JSONObject().put("ok", true).put("token", SetupSignIn.run(webView.context, provider))
             } catch (e: Exception) {
-                JSONObject().put("ok", false).put("error", e.message ?: "The sign-in did not finish")
+                JSONObject().put("ok", false).put("error", e.message ?: S.appShellSetupSigninUnfinished().now(webView.context))
             }
             webView.evaluateJavascript("window.__otcAnswer($id, ${JSONObject.quote(reply.toString())})", null)
         }
@@ -262,10 +306,10 @@ private class Bridge(private val webView: WebView, private val transport: BLESet
     fun request(id: Int, method: String, url: String, body: String) {
         scope.launch(Dispatchers.IO) {
             val reply = try {
-                val a = transport.request(method, pathOf(url), body.ifEmpty { null })
+                val a = transport.request(method, withLang(pathOf(url)), body.ifEmpty { null })
                 JSONObject().put("s", a.status).put("t", a.contentType).put("b", a.body)
             } catch (e: Exception) {
-                JSONObject().put("s", 503).put("t", "application/json").put("b", JSONObject().put("error", e.message ?: "failed").toString())
+                JSONObject().put("s", 503).put("t", "application/json").put("b", JSONObject().put("error", e.message ?: "failed").toString()) // i18n-ignore: an exception without a message; ours all have one
             }
             withContext(Dispatchers.Main) { webView.evaluateJavascript("window.__otcAnswer($id, ${JSONObject.quote(reply.toString())})", null) }
         }
@@ -305,11 +349,11 @@ private fun makeWebView(
             if (request.url.host != "device") {
                 return WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), ByteArrayInputStream(ByteArray(0)))
             }
-            val path = pathOf(request.url.toString())
+            val path = withLang(pathOf(request.url.toString()))
             val a = try {
                 runBlocking { transport.request(request.method, path, null) }
             } catch (e: Exception) {
-                BLESetupTransport.Answer(503, "application/json", JSONObject().put("error", e.message ?: "failed").toString())
+                BLESetupTransport.Answer(503, "application/json", JSONObject().put("error", e.message ?: "failed").toString()) // i18n-ignore: an exception without a message; ours all have one
             }
             var body = a.body
             if (a.contentType.startsWith("text/html")) body = body.replaceFirst("<head>", "<head>$FETCH_OVERRIDE")
@@ -317,10 +361,10 @@ private fun makeWebView(
             return WebResourceResponse(mime, "utf-8", a.status, reason(a.status), mapOf("Cache-Control" to "no-store"), ByteArrayInputStream(body.toByteArray()))
         }
     }
-    loadUrl("https://device/")
+    loadUrl(Uri.Builder().scheme("https").authority("device").path("/").appendQueryParameter("lang", LanguageSettings.wireCode).build().toString())
 }
 
 private fun reason(status: Int): String = when (status) {
-    200 -> "OK"; 202 -> "Accepted"; 400 -> "Bad Request"; 404 -> "Not Found"; 409 -> "Conflict"; 503 -> "Service Unavailable"
+    200 -> "OK"; 202 -> "Accepted"; 400 -> "Bad Request"; 404 -> "Not Found"; 409 -> "Conflict"; 503 -> "Service Unavailable" // i18n-ignore: HTTP reason phrases, protocol values
     else -> "Status $status"
 }

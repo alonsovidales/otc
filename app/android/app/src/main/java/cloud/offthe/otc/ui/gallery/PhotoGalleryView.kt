@@ -423,7 +423,8 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                     }
                     // Grey tiles say nothing to TalkBack but, once, that
                     // photos are on their way (the web's aria-busy "Loading photos").
-                    val rowSemantics = if (!grey) Modifier else Modifier.clearAndSetSemantics { if (i == 0) contentDescription = PHOTOS_LOADING }
+                    val loading = PHOTOS_LOADING.resolve()
+                    val rowSemantics = if (!grey) Modifier else Modifier.clearAndSetSemantics { if (i == 0) contentDescription = loading }
                     GalleryRowView(row, geo, metrics, Modifier.padding(start = metrics.pad, end = metrics.pad, top = top).then(rowSemantics), titleSkeleton = skeleton && ph == null) { k, cell ->
                         if (grey) Box(cell.aspectRatio(1f).clip(TILE_SHAPE).background(tileColor))
                         else {
@@ -633,14 +634,14 @@ private fun PhotoTile(
 private fun PhotosProblem(problem: LoadProblem, retrying: Boolean, onRetry: () -> Unit) {
     GridMessage(
         icon = if (problem == LoadProblem.OFFLINE) Icons.Outlined.WifiOff else Icons.Outlined.CloudOff,
-        title = PHOTOS_PROBLEM_TITLE, text = photosProblemText(problem), announce = true,
+        title = PHOTOS_PROBLEM_TITLE.resolve(), text = photosProblemText(problem).resolve(), announce = true,
     ) {
         Button(onClick = onRetry, enabled = !retrying) {
             if (retrying) {
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = LocalContentColor.current)
                 Spacer(Modifier.width(8.dp))
-                Text(TRYING)
-            } else Text(TRY_AGAIN)
+                Text(TRYING.resolve())
+            } else Text(TRY_AGAIN.resolve())
         }
     }
 }
@@ -691,10 +692,10 @@ private fun GridMessage(icon: ImageVector, title: String, text: String, announce
 private fun MorePhotosProblem(onRetry: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-            MORE_PHOTOS_PROBLEM, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            MORE_PHOTOS_PROBLEM.resolve(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
         )
-        TextButton(onClick = onRetry) { Text(TRY_AGAIN) }
+        TextButton(onClick = onRetry) { Text(TRY_AGAIN.resolve()) }
     }
 }
 
@@ -705,7 +706,7 @@ private fun StillWaiting(modifier: Modifier) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
             Spacer(Modifier.width(10.dp))
-            Text(PHOTOS_SLOW, style = MaterialTheme.typography.bodyMedium)
+            Text(PHOTOS_SLOW.resolve(), style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -1242,8 +1243,8 @@ private fun VideoUnplayable(modifier: Modifier, onRetry: () -> Unit) {
         modifier.padding(16.dp).background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(50)).padding(start = 16.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(VIDEO_UNPLAYABLE, color = Color.White, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-        TextButton(onClick = onRetry) { Text(TRY_AGAIN, color = Color.White) }
+        Text(VIDEO_UNPLAYABLE.resolve(), color = Color.White, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        TextButton(onClick = onRetry) { Text(TRY_AGAIN.resolve(), color = Color.White) }
     }
 }
 

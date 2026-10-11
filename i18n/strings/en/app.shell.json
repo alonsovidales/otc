@@ -1,0 +1,663 @@
+{
+  "app.shell.account_disabled": {
+    "text": "This account has been disabled",
+    "note": "Heading of the card shown over the whole app when the relay (off-the.cloud) says the device's account is switched off. The relay's own explanation is shown under it."
+  },
+  "app.shell.add_to_collection": {
+    "text": "Add to collection",
+    "note": "Item of the bar shown over Images while photos are selected (an icon with this label under it): adds the selected photos to a collection (our word for named groups of photos), or makes a new one. May wrap onto two lines.",
+    "max": 20
+  },
+  "app.shell.address_invalid": {
+    "text": "The address \"{address}\" isn't valid.",
+    "args": [["address", "text"]],
+    "note": "Why the app can't connect, on the card shown over the app when connecting fails: the device's address in the connection settings isn't a usable address. {address} is the address as typed (for example cala.off-the.cloud or ws://192.168.1.20:8080/ws). Write the quotes in your language's style."
+  },
+  "app.shell.auth_failed": {
+    "text": "Authentication failed",
+    "note": "Why the app can't connect, on the card shown over the app: the device didn't sign the app in and gave no reason.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e185c0a5"
+  },
+  "app.shell.ble_bad_answer": {
+    "text": "The device sent an answer this app could not read",
+    "note": "Set up a new device (over Bluetooth): error given to the setup page when the device's answer over Bluetooth couldn't be read. The page shows it."
+  },
+  "app.shell.ble_closed": {
+    "text": "Setup was closed",
+    "note": "Set up a new device (over Bluetooth): error given to the setup page's requests still waiting when the Bluetooth setup screen was left."
+  },
+  "app.shell.ble_link_lost": {
+    "text": "Connection to the device lost - reconnecting. Keep the phone next to it.",
+    "note": "Set up a new device (over Bluetooth): banner above the setup page while the Bluetooth link to the device is being restored."
+  },
+  "app.shell.ble_not_connected": {
+    "text": "Not connected to the device",
+    "note": "Set up a new device (over Bluetooth): error given to the setup page when a request can't be sent because the Bluetooth link is down."
+  },
+  "app.shell.ble_timeout": {
+    "text": "The device did not answer in time",
+    "note": "Set up a new device (over Bluetooth): error given to the setup page when the device didn't answer a request over Bluetooth within 90 seconds."
+  },
+  "app.shell.bluetooth_needed": {
+    "text": "Bluetooth access is needed",
+    "note": "Set up a new device (over Bluetooth): heading when the app isn't allowed to use Bluetooth. How to allow it follows under it."
+  },
+  "app.shell.bluetooth_off": {
+    "text": "Bluetooth is off",
+    "note": "Set up a new device (over Bluetooth): heading when the phone's Bluetooth is off. How to turn it on follows under it."
+  },
+  "app.shell.cant_connect": {
+    "text": "Can't connect to your device",
+    "note": "Heading of the card shown over the whole app when connecting or signing in to the device keeps failing. The reason, then the connection settings to fix it, follow."
+  },
+  "app.shell.close_and_leave": {
+    "text": "Close and leave this device",
+    "note": "Screen-reader name of the × at the corner of the card shown while the device isn't available: it asks to leave this device for the connection screen (app.shell.leave_title)."
+  },
+  "app.shell.collection_card": {
+    "text": {
+      "one": "{name}, {count} item",
+      "other": "{name}, {count} items"
+    },
+    "args": [["name", "user"], ["count", "count"]],
+    "note": "Screen-reader name of a collection's card on the Collections page. {name} is the collection's name (or app.shell.collection_untitled), {count} how many photos and videos it holds."
+  },
+  "app.shell.collection_items": {
+    "text": {
+      "one": "{count} item",
+      "other": "{count} items"
+    },
+    "args": [["count", "count"]],
+    "note": "Under a collection's name on its card on the Collections page: how many photos and videos it holds.",
+    "max": 24
+  },
+  "app.shell.collection_untitled": {
+    "text": "Untitled collection",
+    "note": "Name shown on the Collections page for a collection that has no name."
+  },
+  "app.shell.collections_empty_text": {
+    "text": "Select photos in Images, then choose <b>Add to collection</b>.",
+    "note": "Under the heading No collections yet, on the Collections page with no collection. <b>…</b> is the name of the selection bar's item (app.shell.add_to_collection), shown in bold: use the same words. Images is the photo section (app.shell.section_images).",
+    "rich": ["b"]
+  },
+  "app.shell.collections_empty_title": {
+    "text": "No collections yet",
+    "note": "Heading of the Collections page when there is no collection (our word for named groups of photos)."
+  },
+  "app.shell.collections_failed_text": {
+    "text": "Check that your device is online, then try again.",
+    "note": "Under the heading Couldn't load your collections, on the Collections page; a Try again button follows."
+  },
+  "app.shell.collections_failed_title": {
+    "text": "Couldn't load your collections",
+    "note": "Heading of the Collections page when the list of collections couldn't be loaded from the device."
+  },
+  "app.shell.collections_go_to_images": {
+    "text": "Go to Images",
+    "note": "Button on the Collections page when there is no collection: opens Images (the photo section, app.shell.section_images).",
+    "max": 30
+  },
+  "app.shell.collections_loading": {
+    "text": "Loading collections",
+    "note": "Screen-reader name of the grey placeholder cards on the Collections page while the collections load."
+  },
+  "app.shell.collections_slow_text": {
+    "text": "Your collections are taking longer than usual to load.",
+    "note": "Under the heading Still waiting for your device, on the Collections page after 10 seconds without an answer; a Try again button follows."
+  },
+  "app.shell.collections_slow_title": {
+    "text": "Still waiting for your device",
+    "note": "Heading of the Collections page when the device hasn't answered with the collections after 10 seconds."
+  },
+  "app.shell.connect_title": {
+    "text": "Connect to Off The Cloud",
+    "note": "Heading above the device's address and password on the first screen of the app (Welcome)."
+  },
+  "app.shell.connection_heading": {
+    "text": "Connection",
+    "note": "Small heading above the device's address and password on the card shown over the app when it can't connect."
+  },
+  "app.shell.critical_update": {
+    "text": "Critical update {version} available. Install it as soon as possible.",
+    "args": [["version", "text"]],
+    "note": "Red banner over every tab while a critical update of the device's software (a serious security fix, or one needed to keep working with the relay and the apps) waits to be installed. An Update button follows. {version} is the update's version number (2.4).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #0cedd708"
+  },
+  "app.shell.critical_update_summary": {
+    "text": "Critical update {version} available. {summary} Install it as soon as possible.",
+    "args": [["version", "text"], ["summary", "text"]],
+    "note": "The red critical-update banner (app.shell.critical_update) when the update has a summary. {version} is the update's version number (2.4), {summary} the release's own summary, in English (a sentence or two ending in a full stop).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d25e2dfa"
+  },
+  "app.shell.device_unavailable": {
+    "text": "This device isn't available right now",
+    "note": "Heading of the card shown over the whole app when the relay (off-the.cloud) can't reach the user's device: switched off, no internet. The relay's own explanation is shown under it."
+  },
+  "app.shell.endpoint_address": {
+    "text": "Address (wss://host/ws)",
+    "note": "Placeholder of the field for the device's full address, shown when Custom address is on (first screen and the connection card). wss://host/ws is the address's form: keep it as it is."
+  },
+  "app.shell.endpoint_custom": {
+    "text": "Custom address",
+    "note": "Switch under the device's name (first screen and the connection card): on, the device's full address is typed instead of its name on the Off The Cloud bridge.",
+    "max": 30
+  },
+  "app.shell.endpoint_custom_note": {
+    "text": "For a device not on the Off The Cloud bridge - your own bridge, Tailscale Funnel, or the local network (ws://192.168.…:8080/ws).",
+    "note": "Small print under the Custom address switch while it is on. Tailscale Funnel is a product name; ws://192.168.…:8080/ws is an example address: keep it as it is."
+  },
+  "app.shell.endpoint_device_name": {
+    "text": "Device name",
+    "note": "Placeholder of the field for the device's name on the Off The Cloud bridge (first screen and the connection card); .off-the.cloud follows it."
+  },
+  "app.shell.host_not_found": {
+    "text": "That address can't be found. Check the device name or address.",
+    "note": "Why the app can't connect, on the card shown over the app: the device's name or address doesn't exist on the internet."
+  },
+  "app.shell.insecure": {
+    "text": "Couldn't make a secure connection to that address.",
+    "note": "Why the app can't connect, on the card shown over the app: the encrypted connection (TLS) to the address failed.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #52f76fad"
+  },
+  "app.shell.keep_out_of_images": {
+    "text": "Keep out of Images",
+    "note": "Item of the bar shown over Files while one folder is selected: keeps that folder's photos and videos out of Images (not tagged, not searched for faces; the tags and faces already found are deleted, after a confirmation). Images is the photo section (app.shell.section_images). May wrap onto two lines.",
+    "max": 24,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #bcf2987f"
+  },
+  "app.shell.leave": {
+    "text": "Leave",
+    "note": "Button (in red) of the Leave this device? confirmation: leaves the device for the connection screen. This phone forgets everything it kept for the device, as at Log Out; nothing on the device is deleted.",
+    "max": 20,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ebd6a200"
+  },
+  "app.shell.leave_button": {
+    "text": "Set up or connect a different device",
+    "note": "Button under Save & Retry on the card shown over the app when it can't connect: asks to leave this device (app.shell.leave_title) for the first screen."
+  },
+  "app.shell.leave_message_connection": {
+    "text": "You'll go back to the connection screen, to connect to a device or set up a new one. Nothing on the device is deleted, and its address and password stay filled in there, to connect to it again later.",
+    "note": "Message of the Leave this device? confirmation asked from the card shown while the device isn't available (its ×). This phone forgets what it kept for the device, as at Log Out.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #f1b66c8f"
+  },
+  "app.shell.leave_message_start": {
+    "text": "You'll go back to the start, to set up a new device or connect to another one. Nothing on the device is deleted, and its address and password stay filled in there, to connect to it again later.",
+    "note": "Message of the Leave this device? confirmation asked from the card shown when the app can't connect (Set up or connect a different device). This phone forgets what it kept for the device, as at Log Out.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #67b52963"
+  },
+  "app.shell.leave_title": {
+    "text": "Leave this device?",
+    "note": "Title of the confirmation asked before leaving the device for the first screen (from the card shown when the app can't connect, or while the device isn't available). Buttons: Leave and Cancel.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e7ac358e"
+  },
+  "app.shell.menu_device": {
+    "text": "Device",
+    "note": "Heading of a group in the left menu (on a wide screen) holding Alerts and Settings: the user's own device. Shown in capitals.",
+    "max": 20
+  },
+  "app.shell.menu_hide": {
+    "text": "Hide menu",
+    "note": "Screen-reader name of the menu button at the left of the top bar (on a wide screen) while the left menu is shown."
+  },
+  "app.shell.menu_sharing": {
+    "text": "Sharing",
+    "note": "Heading of a group in the left menu (on a wide screen) holding Social and Friends. Shown in capitals.",
+    "max": 20
+  },
+  "app.shell.menu_show": {
+    "text": "Show menu",
+    "note": "Screen-reader name of the menu button at the left of the top bar (on a wide screen) while the left menu is hidden or folded into icons."
+  },
+  "app.shell.mirror_degraded": {
+    "text": "Mirror degraded",
+    "note": "Under the storage bar in the left menu (on a wide screen), in red: one disk of the mirror (RAID1, each disk holds a copy of every file) stopped working.",
+    "max": 34
+  },
+  "app.shell.mirror_in_sync": {
+    "text": "Mirror in sync",
+    "note": "Under the storage bar in the left menu (on a wide screen): both disks of the mirror (RAID1) hold the same files.",
+    "max": 34
+  },
+  "app.shell.mirror_none": {
+    "text": "No mirror",
+    "note": "Under the storage bar in the left menu (on a wide screen): the device keeps its files on one disk, with no mirrored (RAID1) copy.",
+    "max": 34
+  },
+  "app.shell.mirror_syncing": {
+    "text": "Mirror syncing ({percent}%)",
+    "args": [["percent", "text"]],
+    "note": "Under the storage bar in the left menu (on a wide screen) while the second disk of the mirror (RAID1) is being copied. {percent} is how far it got, a number already formatted (45 or 45.5). Write the percent sign as your language does.",
+    "max": 34
+  },
+  "app.shell.mirror_unknown": {
+    "text": "Mirror state unknown",
+    "note": "Under the storage bar in the left menu (on a wide screen) when the device doesn't say how its mirror (RAID1) is.",
+    "max": 34
+  },
+  "app.shell.new_post": {
+    "text": "New post",
+    "note": "Button in the top bar (on a wide screen) on the Social feed, after a plus sign, that opens the composer for a new post. On narrow windows only the plus shows and this is its screen-reader name.",
+    "max": 20
+  },
+  "app.shell.no_answer_address": {
+    "text": "The device isn't answering. It may be off, or the address may be wrong.",
+    "note": "Why the app can't connect, on the card shown over the app: nothing answered at the device's address."
+  },
+  "app.shell.no_public_key": {
+    "text": "Unable to fetch the connection's public key",
+    "note": "Why the app can't connect, on the card shown over the app: the device did not hand out the key the password is encrypted with before it is sent, and gave no reason.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e7c6dea2"
+  },
+  "app.shell.not_connected": {
+    "text": "Not connected",
+    "note": "Error shown where an action failed because there was no connection to the device at that moment (often after Upload failed: or a similar start)."
+  },
+  "app.shell.not_otc": {
+    "text": "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name.",
+    "note": "Why the app can't connect, on the card shown over the app: something answered at the address, but not the device's WebSocket. /ws is the end of the address: keep it as it is."
+  },
+  "app.shell.offline": {
+    "text": "This phone is offline. Connect to Wi-Fi or mobile data.",
+    "note": "Why the app can't connect, on the card shown over the app: the phone has no network at all."
+  },
+  "app.shell.onboarding_last_device": {
+    "text": "Filled in from the device you left. Tap Save & Continue to connect to it again, or change it to use another one.",
+    "note": "Small print under the address and password on the first screen, when they were filled in from the device this phone left. Save & Continue is the button under them (app.shell.save_continue): use the same words."
+  },
+  "app.shell.onboarding_pending": {
+    "text": "Filled in from the device you set up with this phone. Once its install has finished (about 20 minutes), tap Save & Continue.",
+    "note": "Small print under the address and password on the first screen, when they were filled in from a device set up from this phone over Bluetooth. Save & Continue is the button under them (app.shell.save_continue): use the same words."
+  },
+  "app.shell.onboarding_setup_footer": {
+    "text": "For a device fresh out of the box: it runs the setup over Bluetooth, and this app becomes its app. Log out first if you are switching from another device.",
+    "note": "Small print under the Set up a new device button on the first screen."
+  },
+  "app.shell.percent": {
+    "text": "{percent}%",
+    "args": [["percent", "text"]],
+    "note": "A percentage in the left menu (on a wide screen): how full the device's storage is (under the storage ring of the icon rail) and the processor's load (CPU in the storage details). {percent} is the number, already formatted (45 or 45.68). Write the percent sign as your language does.",
+    "max": 14
+  },
+  "app.shell.privacy": {
+    "text": "Privacy",
+    "note": "Link that opens the privacy notice (in English), on the first screen and at the foot of the left menu (on a wide screen).",
+    "max": 20,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #f22e10da"
+  },
+  "app.shell.problem_files_failed": {
+    "text": "The files will appear as soon as your device answers.",
+    "note": "Why Files, for the folder being opened shows nothing yet, while the app keeps asking: the request failed for another reason (an error, a dropped connection)."
+  },
+  "app.shell.problem_files_offline": {
+    "text": "This phone is offline. The files will appear once it's back online.",
+    "note": "Why Files, for the folder being opened shows nothing yet, while the app keeps asking the device: the phone has no network. Goes away by itself once they come."
+  },
+  "app.shell.problem_files_slow": {
+    "text": "Your device took too long to answer. The files will appear as soon as it does.",
+    "note": "Why Files, for the folder being opened shows nothing yet, while the app keeps asking: the device didn't answer in time."
+  },
+  "app.shell.problem_files_unreachable": {
+    "text": "Your device isn't reachable right now. The files will appear as soon as it answers.",
+    "note": "Why Files, for the folder being opened shows nothing yet, while the app keeps asking: the relay (off-the.cloud) says the device isn't connected to it."
+  },
+  "app.shell.problem_more_photos": {
+    "text": "Couldn't load more photos.",
+    "note": "Row at the end of the grid in Images when the next photos couldn't be loaded; a Try again button follows."
+  },
+  "app.shell.problem_more_posts": {
+    "text": "Couldn't load more posts.",
+    "note": "Row at the end of the Social feed when the next posts couldn't be loaded; a Try again button follows."
+  },
+  "app.shell.problem_photos_failed": {
+    "text": "Your photos will appear as soon as your device answers.",
+    "note": "Why Images (the photo section) shows nothing yet, while the app keeps asking: the request failed for another reason (an error, a dropped connection)."
+  },
+  "app.shell.problem_photos_loading": {
+    "text": "Loading photos",
+    "note": "Screen-reader name of the grey placeholder tiles in Images while the photos load."
+  },
+  "app.shell.problem_photos_offline": {
+    "text": "This phone is offline. Your photos will appear once it's back online.",
+    "note": "Why Images (the photo section) shows nothing yet, while the app keeps asking the device: the phone has no network. Goes away by itself once they come."
+  },
+  "app.shell.problem_photos_slow": {
+    "text": "Your device took too long to answer. Your photos will appear as soon as it does.",
+    "note": "Why Images (the photo section) shows nothing yet, while the app keeps asking: the device didn't answer in time."
+  },
+  "app.shell.problem_photos_title": {
+    "text": "Couldn't load your photos",
+    "note": "Heading in Images when the first photos couldn't be loaded; why (app.shell.problem_photos_*) and a Try again button follow."
+  },
+  "app.shell.problem_photos_unreachable": {
+    "text": "Your device isn't reachable right now. Your photos will appear as soon as it answers.",
+    "note": "Why Images (the photo section) shows nothing yet, while the app keeps asking: the relay (off-the.cloud) says the device isn't connected to it."
+  },
+  "app.shell.problem_posts_failed": {
+    "text": "The posts will appear as soon as your device answers.",
+    "note": "Why the Social feed shows nothing yet, while the app keeps asking: the request failed for another reason (an error, a dropped connection)."
+  },
+  "app.shell.problem_posts_offline": {
+    "text": "This phone is offline. The posts will appear once it's back online.",
+    "note": "Why the Social feed shows nothing yet, while the app keeps asking the device: the phone has no network. Goes away by itself once they come."
+  },
+  "app.shell.problem_posts_slow": {
+    "text": "Your device took too long to answer. The posts will appear as soon as it does.",
+    "note": "Why the Social feed shows nothing yet, while the app keeps asking: the device didn't answer in time."
+  },
+  "app.shell.problem_posts_unreachable": {
+    "text": "Your device isn't reachable right now. The posts will appear as soon as it answers.",
+    "note": "Why the Social feed shows nothing yet, while the app keeps asking: the relay (off-the.cloud) says the device isn't connected to it."
+  },
+  "app.shell.problem_trying": {
+    "text": "Trying…",
+    "note": "The Try again button after a failed load (Images, the photo viewer) while it asks again.",
+    "max": 20
+  },
+  "app.shell.problem_video": {
+    "text": "Couldn't play this video.",
+    "note": "Over a video's poster in the photo viewer when the video couldn't be fetched or played; a Try again button follows."
+  },
+  "app.shell.problem_waiting": {
+    "text": "Still waiting for your device…",
+    "note": "In Images when the first photos have been on their way for a while (the device is slow to answer)."
+  },
+  "app.shell.route_configured": {
+    "text": "Connected through the configured address",
+    "note": "Settings: how the app reaches the device, when it went through an address of the owner's own that has no host name."
+  },
+  "app.shell.route_home": {
+    "text": "Connected over your home network",
+    "note": "Settings: how the app reaches the device, when it reached it directly on the home network (not through the internet)."
+  },
+  "app.shell.route_through": {
+    "text": "Connected through {host}",
+    "args": [["host", "text"]],
+    "note": "Settings: how the app reaches the device. {host} is off-the.cloud (the Off The Cloud bridge) or the host name of the owner's own address."
+  },
+  "app.shell.save_continue": {
+    "text": "Save & Continue",
+    "note": "Button on the first screen of the app that saves the device's address and password and connects to it.",
+    "max": 30
+  },
+  "app.shell.save_retry": {
+    "text": "Save & Retry",
+    "note": "Button on the card shown over the app when it can't connect: saves the connection settings above it and connects again.",
+    "max": 30
+  },
+  "app.shell.search_clear": {
+    "text": "Clear search",
+    "note": "Screen-reader name of the × at the end of the search field in the top bar (on a wide screen) that clears what is typed and every chip in it."
+  },
+  "app.shell.search_close_collection": {
+    "text": "Close the collection {name}",
+    "args": [["name", "user"]],
+    "note": "Screen-reader name of the × on the chip of the collection open in Images, in the search field. {name} is the collection's name."
+  },
+  "app.shell.search_field": {
+    "text": "Search photos and files",
+    "note": "Placeholder and screen-reader name of the search field in the top bar (on a wide screen): it finds photos by things, people and collections, and files and folders by name. With chips in it the placeholder is the shorter Search (common.search).",
+    "max": 40
+  },
+  "app.shell.search_person": {
+    "text": "Person",
+    "note": "Chip in the search field for a person (found by face recognition) whose details haven't loaded yet.",
+    "max": 20
+  },
+  "app.shell.search_remove": {
+    "text": "Remove {name}",
+    "args": [["name", "user"]],
+    "note": "Screen-reader name of the × on a chip in the search field. {name} is a person's name or a thing (a tag such as beach)."
+  },
+  "app.shell.search_remove_person": {
+    "text": "Remove this person",
+    "note": "Screen-reader name of the × on the chip of a person without a name, in the search field."
+  },
+  "app.shell.search_unnamed": {
+    "text": "Unnamed",
+    "note": "Chip in the search field for a person found by face recognition who hasn't been given a name yet.",
+    "max": 20
+  },
+  "app.shell.section_alerts": {
+    "text": "Alerts",
+    "note": "Tab of the bottom bar, and item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen: the device's alerts (errors, updates, friend activity).",
+    "max": 12
+  },
+  "app.shell.section_collections": {
+    "text": "Collections",
+    "note": "Item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen, and the Collections page's name: the collections, our word for named groups of photos.",
+    "max": 12
+  },
+  "app.shell.section_files": {
+    "text": "Files",
+    "note": "Tab of the bottom bar, and item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen: the file explorer.",
+    "max": 12
+  },
+  "app.shell.section_friends": {
+    "text": "Friends",
+    "note": "Item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen: the list of friends and friend requests.",
+    "max": 12
+  },
+  "app.shell.section_images": {
+    "text": "Images",
+    "note": "Tab of the bottom bar, and item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen: the library of photos and videos.",
+    "max": 12
+  },
+  "app.shell.section_people": {
+    "text": "People",
+    "note": "Item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen: the people found by face recognition; shown only while face recognition is on.",
+    "max": 12
+  },
+  "app.shell.section_settings": {
+    "text": "Settings",
+    "note": "Tab of the bottom bar, and item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen: the device's and the app's settings. Kept short: the rail cuts longer labels.",
+    "max": 12
+  },
+  "app.shell.section_social": {
+    "text": "Social",
+    "note": "Tab of the bottom bar, and item of the left menu and label under its icon in the icon rail (80 points wide) on a wide screen: the feed of posts shared with friends.",
+    "max": 12
+  },
+  "app.shell.section_unread": {
+    "text": {
+      "one": "{section}, {count} unread",
+      "other": "{section}, {count} unread"
+    },
+    "args": [["section", "text"], ["count", "count"]],
+    "note": "Screen-reader name of a left menu item (on a wide screen) that has unread alerts. {section} is the item's name (app.shell.section_alerts), {count} how many alerts are unread."
+  },
+  "app.shell.selected": {
+    "text": {
+      "one": "{count} selected",
+      "other": "{count} selected"
+    },
+    "args": [["count", "count"]],
+    "note": "Small pill above the bar shown over Images and Files while something is selected: how many photos, files or folders are selected.",
+    "max": 24
+  },
+  "app.shell.setup_device": {
+    "text": "Device {id}",
+    "args": [["id", "text"]],
+    "note": "Set up a new device (over Bluetooth): a row of the list of devices waiting to be set up. {id} is the device's short ID (four letters and digits, shown on its setup page)."
+  },
+  "app.shell.setup_device_older": {
+    "text": "Device (older image)",
+    "note": "Set up a new device (over Bluetooth): a row of the list of devices waiting to be set up, for a device whose image (the software on its card) announces no ID."
+  },
+  "app.shell.setup_enter_password": {
+    "text": "Enter the device's password",
+    "note": "Set up a new device (over Bluetooth): heading above the password field once the device is installed, for a recovered device that keeps the password it had."
+  },
+  "app.shell.setup_looking": {
+    "text": "Looking for a device to set up…",
+    "note": "Set up a new device (over Bluetooth): heading while the phone looks for a device announcing its setup over Bluetooth."
+  },
+  "app.shell.setup_new_device": {
+    "text": "Set up a new device",
+    "note": "Button on the first screen of the app that sets up a device fresh out of the box over Bluetooth, and the title of that setup screen.",
+    "max": 30
+  },
+  "app.shell.setup_open_device": {
+    "text": "Open my device",
+    "note": "Set up a new device (over Bluetooth): button once the device is installed, which signs the app in to it.",
+    "max": 30
+  },
+  "app.shell.setup_power_on": {
+    "text": "Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep the phone next to it.",
+    "note": "Set up a new device (over Bluetooth): under the heading Looking for a device to set up…."
+  },
+  "app.shell.setup_ready_as": {
+    "text": "The device is ready as {domain}.",
+    "args": [["domain", "text"]],
+    "note": "Set up a new device (over Bluetooth): once the device is installed; the button to open it follows. {domain} is its address on the Off The Cloud bridge (for example cala.off-the.cloud)."
+  },
+  "app.shell.setup_ready_home": {
+    "text": "The device is ready on your home network.",
+    "note": "Set up a new device (over Bluetooth): once the device is installed without the Off The Cloud bridge (it is reached on the home network only); the button to open it follows."
+  },
+  "app.shell.setup_several": {
+    "text": "Several devices are waiting to be set up. Each one's ID is on its setup page, where \"Blink its light\" shows which box it is. The strongest signal is usually the closest.",
+    "note": "Set up a new device (over Bluetooth): under the heading Which device?, above the list of devices. \"Blink its light\" is the setup page's link (use its translation, wiz.*); write the quotes in your language's style."
+  },
+  "app.shell.setup_signin_failed": {
+    "text": "Could not finish the sign-in",
+    "note": "Set up a new device (over Bluetooth): error given to the setup page when the Apple or Google sign-in couldn't be completed with Off The Cloud."
+  },
+  "app.shell.setup_signin_unfinished": {
+    "text": "The sign-in did not finish",
+    "note": "Set up a new device (over Bluetooth): error given to the setup page when the Apple or Google sign-in came back without a result."
+  },
+  "app.shell.setup_signing_in": {
+    "text": "Signing in with the password you chose in the setup.",
+    "note": "Set up a new device (over Bluetooth): small print above the Open my device button, when the setup page handed over the password chosen in it."
+  },
+  "app.shell.setup_unknown_provider": {
+    "text": "Unknown sign-in provider",
+    "note": "Set up a new device (over Bluetooth): error given to the setup page when it asks to sign in with a provider other than Apple or Google."
+  },
+  "app.shell.setup_which": {
+    "text": "Which device?",
+    "note": "Set up a new device (over Bluetooth): heading when several devices are waiting to be set up; a list of them follows."
+  },
+  "app.shell.share_as_gallery": {
+    "text": "Share as gallery",
+    "note": "Item of the bar shown over Images (and over Files while one folder is selected): shares the selection as a gallery, a web page friends and others can open with a link. May wrap onto two lines.",
+    "max": 20
+  },
+  "app.shell.share_as_gallery_menu": {
+    "text": "Share as Gallery",
+    "note": "Menu item (long press on a collection's card, Collections page) that shares the collection as a gallery, a web page others can open with a link. Title Case in English menus.",
+    "max": 30
+  },
+  "app.shell.show_in_images": {
+    "text": "Show in Images",
+    "note": "Item of the bar shown over Files while one folder kept out of Images is selected: shows that folder's photos and videos in Images again (they are analysed again). May wrap onto two lines.",
+    "max": 24
+  },
+  "app.shell.still_trying": {
+    "text": "Still trying…",
+    "note": "By a spinner on the card shown while the device isn't available: the app keeps trying to reach it by itself."
+  },
+  "app.shell.storage": {
+    "text": "Storage",
+    "note": "Row at the foot of the left menu (on a wide screen) that shows or hides the details of the device's storage; also the screen-reader name of the storage ring in the icon rail while the device's status isn't known.",
+    "max": 20
+  },
+  "app.shell.storage_cpu": {
+    "text": "CPU",
+    "note": "Label in the storage details of the left menu (on a wide screen): the processor's load (a percentage at the right).",
+    "max": 14
+  },
+  "app.shell.storage_disks": {
+    "text": "Disks",
+    "note": "Label in the storage details of the left menu (on a wide screen): how many disks the device has (a number at the right).",
+    "max": 14
+  },
+  "app.shell.storage_free": {
+    "text": "Free",
+    "note": "Label in the storage details of the left menu (on a wide screen): free space left (a size at the right).",
+    "max": 14
+  },
+  "app.shell.storage_memory": {
+    "text": "Memory",
+    "note": "Label in the storage details of the left menu (on a wide screen): the device's working memory, RAM (1.2 GB of 8 GB at the right).",
+    "max": 14
+  },
+  "app.shell.storage_of": {
+    "text": "{used} of {total}",
+    "args": [["used", "text"], ["total", "text"]],
+    "note": "Value of System card and Memory in the storage details of the left menu (on a wide screen): the part in use out of the total. {used} and {total} are sizes with their unit, already formatted (12.4 GB, 64 GB)."
+  },
+  "app.shell.storage_reading": {
+    "text": "Reading…",
+    "note": "Under the storage bar in the left menu (on a wide screen) while the device's status is being read.",
+    "max": 34
+  },
+  "app.shell.storage_system_card": {
+    "text": "System card",
+    "note": "Label in the storage details of the left menu (on a wide screen): the memory card the device's system runs from (12.4 GB of 64 GB at the right).",
+    "max": 14
+  },
+  "app.shell.storage_unavailable": {
+    "text": "Storage unavailable right now",
+    "note": "Under the storage bar in the left menu (on a wide screen) when the device's status could not be read.",
+    "max": 34
+  },
+  "app.shell.storage_used": {
+    "text": "{used} of {total} used",
+    "args": [["used", "text"], ["total", "text"]],
+    "note": "Under the storage bar in the left menu (on a wide screen). {used} and {total} are sizes with their unit, already formatted (39.6 GB, 474 GB).",
+    "max": 34
+  },
+  "app.shell.terms": {
+    "text": "Terms",
+    "note": "Link at the foot of the left menu (on a wide screen) that opens the terms of use (in English).",
+    "max": 20,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e50b7b2c"
+  },
+  "app.shell.thumb_cache_usage": {
+    "text": "Using {used} of {limit}",
+    "args": [["used", "text"], ["limit", "text"]],
+    "note": "Settings > Thumbnail cache: how much of its size the cache of photo thumbnails kept on this phone uses. {used} and {limit} are sizes with their unit, already formatted (120 MB, 1 GB)."
+  },
+  "app.shell.upload_left": {
+    "text": {
+      "one": "{count} left",
+      "other": "{count} left"
+    },
+    "args": [["count", "count"]],
+    "note": "Settings > Uploads, at the right of the upload status: how many photos and videos are still to be uploaded.",
+    "max": 16
+  },
+  "app.shell.upload_paused": {
+    "text": "Paused",
+    "note": "Settings > Uploads: the photo upload is paused (the button next to it resumes it).",
+    "max": 24
+  },
+  "app.shell.upload_queue": {
+    "text": "Upload queue",
+    "note": "Settings > Uploads: heading of the upload status while nothing is being uploaded.",
+    "max": 24
+  },
+  "app.shell.upload_uploading": {
+    "text": "Uploading…",
+    "note": "Settings > Uploads: photos and videos are being uploaded from this phone to the device.",
+    "max": 24
+  },
+  "app.shell.welcome": {
+    "text": "Welcome",
+    "note": "Title of the first screen of the app, where the device's address and password are entered.",
+    "max": 30
+  }
+}

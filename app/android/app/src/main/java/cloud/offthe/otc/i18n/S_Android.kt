@@ -6,6 +6,42 @@ package cloud.offthe.otc.i18n
 
 import cloud.offthe.otc.R
 
+/** "Lost the device - reconnecting": Set up a new device (over Bluetooth): error given to the setup page when the Bluetooth link dropped while a request was sent; the app reconnects. */
+fun S.androidBleLost(): UiText =
+    UiText.Res(R.string.android_ble_lost)
+
+/** "Could not send to the device": Set up a new device (over Bluetooth): error given to the setup page when a request couldn't be written over Bluetooth. */
+fun S.androidBleSendFailed(): UiText =
+    UiText.Res(R.string.android_ble_send_failed)
+
+/** "Allow nearby devices for Off The Cloud in Settings to set a device up this way.": Set up a new device (over Bluetooth): under the heading Bluetooth access is needed. "Nearby devices" is Android's name for the Bluetooth permission and Settings the phone's Settings app: use Android's own words in this language. */
+fun S.androidBluetoothNeededHint(): UiText =
+    UiText.Res(R.string.android_bluetooth_needed_hint)
+
+/** "Turn Bluetooth on to find the device.": Set up a new device (over Bluetooth): under the heading Bluetooth is off. */
+fun S.androidBluetoothOffHint(): UiText =
+    UiText.Res(R.string.android_bluetooth_off_hint)
+
+/** "{count} bytes" (one: "{count} byte"): Settings > Thumbnail cache: a size below one kilobyte (Using 0 bytes of 1 GB for an empty cache); larger sizes use the units KB, MB, GB. */
+fun S.androidCacheBytes(count: Int): UiText =
+    UiText.Plural(R.plurals.android_cache_bytes, count, listOf(count))
+
+/** "the file changed on the device while downloading": Why opening or downloading a file failed, after Download failed: or similar (hence the lowercase start): the file was replaced on the device while it was being fetched. */
+fun S.androidDownloadChanged(): UiText =
+    UiText.Res(R.string.android_download_changed)
+
+/** "the device sent an empty piece of the file": Why opening or downloading a file failed, after Download failed: or similar (hence the lowercase start): the device sent a piece without data before the end of the file. */
+fun S.androidDownloadEmptyPiece(): UiText =
+    UiText.Res(R.string.android_download_empty_piece)
+
+/** "the device sent the wrong piece of the file": Why opening or downloading a file failed, after Download failed: or similar (hence the lowercase start): a piece the device sent doesn't match the place asked for. */
+fun S.androidDownloadWrongPiece(): UiText =
+    UiText.Res(R.string.android_download_wrong_piece)
+
+/** "Sections": Screen-reader name of the left menu and of the icon rail (on a wide screen), not shown. */
+fun S.androidMenuSections(): UiText =
+    UiText.Res(R.string.android_menu_sections)
+
 /** "Friends and posts": Name of the notification channel for pushes, shown in Android's notification settings for the app. */
 fun S.androidNotificationChannel(): UiText =
     UiText.Res(R.string.android_notification_channel)
@@ -13,3 +49,79 @@ fun S.androidNotificationChannel(): UiText =
 /** "Friend requests, new posts, likes and comments": Description of that notification channel, shown under its name in Android's notification settings. */
 fun S.androidNotificationChannelDescription(): UiText =
     UiText.Res(R.string.android_notification_channel_description)
+
+/** "Good signal": Set up a new device (over Bluetooth): at the right of a device in the list of devices waiting to be set up: its Bluetooth signal is good. */
+fun S.androidSignalGood(): UiText =
+    UiText.Res(R.string.android_signal_good)
+
+/** "Strong signal": Set up a new device (over Bluetooth): at the right of a device in the list of devices waiting to be set up: its Bluetooth signal is strong (it is probably the closest). */
+fun S.androidSignalStrong(): UiText =
+    UiText.Res(R.string.android_signal_strong)
+
+/** "Weak signal": Set up a new device (over Bluetooth): at the right of a device in the list of devices waiting to be set up: its Bluetooth signal is weak. */
+fun S.androidSignalWeak(): UiText =
+    UiText.Res(R.string.android_signal_weak)
+
+/** "Storage. Show details": Screen-reader name of the storage ring in the icon rail (on a wide screen) while the device's status isn't known yet; pressing it opens the whole menu at the storage details. */
+fun S.androidStorageGauge(): UiText =
+    UiText.Res(R.string.android_storage_gauge)
+
+/** "Storage, needs attention. Show details": Screen-reader name of the storage ring in the icon rail (on a wide screen) while the device's fullness isn't known and a disk stopped working or the device reports a problem; pressing it opens the whole menu at the storage details. */
+fun S.androidStorageGaugeAttention(): UiText =
+    UiText.Res(R.string.android_storage_gauge_attention)
+
+/** "Storage, {percent} used. Show details": Screen-reader name of the storage ring in the icon rail (on a wide screen); pressing it opens the whole menu at the storage details. {percent} is how full the storage is, already formatted (45%). */
+fun S.androidStorageGaugeUsed(percent: String): UiText =
+    UiText.Res(R.string.android_storage_gauge_used, listOf(percent))
+
+/** "Storage, {percent} used, needs attention. Show details": Screen-reader name of the storage ring in the icon rail (on a wide screen) when a disk stopped working or the device reports a problem. {percent} is how full the storage is, already formatted (45%). */
+fun S.androidStorageGaugeUsedAttention(percent: String): UiText =
+    UiText.Res(R.string.android_storage_gauge_used_attention, listOf(percent))
+
+/** "Storage, hide details": Screen-reader name of the Storage row at the foot of the left menu (on a wide screen) while the storage details under it are shown: pressing it hides them. */
+fun S.androidStorageHideDetails(): UiText =
+    UiText.Res(R.string.android_storage_hide_details)
+
+/** "Storage, needs attention, hide details": Screen-reader name of the Storage row at the foot of the left menu (on a wide screen) while the storage details are shown and a disk stopped working or the device reports a problem: pressing it hides them. */
+fun S.androidStorageHideDetailsAttention(): UiText =
+    UiText.Res(R.string.android_storage_hide_details_attention)
+
+/** "Storage, show details": Screen-reader name of the Storage row at the foot of the left menu (on a wide screen) while the storage details under it are hidden: pressing it shows them. */
+fun S.androidStorageShowDetails(): UiText =
+    UiText.Res(R.string.android_storage_show_details)
+
+/** "Storage, needs attention, show details": Screen-reader name of the Storage row at the foot of the left menu (on a wide screen) while the storage details are hidden and a disk stopped working or the device reports a problem: pressing it shows them. */
+fun S.androidStorageShowDetailsAttention(): UiText =
+    UiText.Res(R.string.android_storage_show_details_attention)
+
+/** "Storage used, {percent}%": Screen-reader name of the bar at the foot of the left menu (on a wide screen) that shows how full the device's storage is. {percent} is a number already formatted (45 or 45.68). Write the percent sign as your language does. */
+fun S.androidStorageUsed(percent: String): UiText =
+    UiText.Res(R.string.android_storage_used, listOf(percent))
+
+/** "{count}d ago" (one: "{count}d ago"): How long ago something happened, in days, in the Social feed, the alerts and Settings > Shared Links. Keep it as short as the English (d for days). */
+fun S.androidTimeDaysAgo(count: Int): UiText =
+    UiText.Plural(R.plurals.android_time_days_ago, count, listOf(count))
+
+/** "{count}h ago" (one: "{count}h ago"): How long ago something happened, in hours, in the Social feed, the alerts and Settings > Shared Links. Keep it as short as the English (h for hours). */
+fun S.androidTimeHoursAgo(count: Int): UiText =
+    UiText.Plural(R.plurals.android_time_hours_ago, count, listOf(count))
+
+/** "just now": When something happened less than a minute ago, in the Social feed, the alerts and Settings > Shared Links (after last there, hence the lowercase start). */
+fun S.androidTimeJustNow(): UiText =
+    UiText.Res(R.string.android_time_just_now)
+
+/** "{count}m ago" (one: "{count}m ago"): How long ago something happened, in minutes, in the Social feed, the alerts and Settings > Shared Links. Keep it as short as the English (m for minutes). */
+fun S.androidTimeMinutesAgo(count: Int): UiText =
+    UiText.Plural(R.plurals.android_time_minutes_ago, count, listOf(count))
+
+/** "The device didn't answer the connection in time": Error given to an action when the connection to the device couldn't be opened in time (nothing answered at its address). */
+fun S.androidWsConnectTimeout(): UiText =
+    UiText.Res(R.string.android_ws_connect_timeout)
+
+/** "Still connecting to the device": Error given to an action whose time ran out while the app was still connecting to the device. */
+fun S.androidWsStillConnecting(): UiText =
+    UiText.Res(R.string.android_ws_still_connecting)
+
+/** "The device did not answer in time": Error given to an action (and shown on the card shown over the app when connecting fails) when the device didn't answer a request in time. */
+fun S.androidWsTimedOut(): UiText =
+    UiText.Res(R.string.android_ws_timed_out)

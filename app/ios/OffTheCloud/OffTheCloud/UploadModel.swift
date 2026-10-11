@@ -81,11 +81,11 @@ struct UploadDetail: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(upload.isPaused ? "Paused" : (upload.isUploading ? "Uploading…" : "Upload queue"))
+                Text(upload.isPaused ? S.appShellUploadPaused : (upload.isUploading ? S.appShellUploadUploading : S.appShellUploadQueue))
                     .font(.subheadline).bold()
                 Spacer()
                 if upload.totalPending > 0 {
-                    Text("\(upload.totalPending) left").font(.caption)
+                    Text(S.appShellUploadLeft(count: upload.totalPending)).font(.caption)
                 }
                 // Issue #30: pause/resume the sync right from here.
                 if upload.isUploading || upload.totalPending > 0 {

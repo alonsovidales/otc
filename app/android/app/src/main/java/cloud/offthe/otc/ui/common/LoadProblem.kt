@@ -1,6 +1,28 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.common
 
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.appShellProblemFilesFailed
+import cloud.offthe.otc.i18n.appShellProblemFilesOffline
+import cloud.offthe.otc.i18n.appShellProblemFilesSlow
+import cloud.offthe.otc.i18n.appShellProblemFilesUnreachable
+import cloud.offthe.otc.i18n.appShellProblemMorePhotos
+import cloud.offthe.otc.i18n.appShellProblemMorePosts
+import cloud.offthe.otc.i18n.appShellProblemPhotosFailed
+import cloud.offthe.otc.i18n.appShellProblemPhotosLoading
+import cloud.offthe.otc.i18n.appShellProblemPhotosOffline
+import cloud.offthe.otc.i18n.appShellProblemPhotosSlow
+import cloud.offthe.otc.i18n.appShellProblemPhotosTitle
+import cloud.offthe.otc.i18n.appShellProblemPhotosUnreachable
+import cloud.offthe.otc.i18n.appShellProblemPostsFailed
+import cloud.offthe.otc.i18n.appShellProblemPostsOffline
+import cloud.offthe.otc.i18n.appShellProblemPostsSlow
+import cloud.offthe.otc.i18n.appShellProblemPostsUnreachable
+import cloud.offthe.otc.i18n.appShellProblemTrying
+import cloud.offthe.otc.i18n.appShellProblemVideo
+import cloud.offthe.otc.i18n.appShellProblemWaiting
+import cloud.offthe.otc.i18n.commonTryAgain
 import cloud.offthe.otc.net.WSClient
 import cloud.offthe.otc.proto.RespEnvelope
 
@@ -30,18 +52,38 @@ fun loadProblem(resp: RespEnvelope?, error: Throwable?, online: Boolean, statusC
     else -> LoadProblem.FAILED
 }
 
+// What the screens say is text resolved where it is shown (UiText): a
+// view model keeps it, and a change of language rewords it.
+
 /** Images' first page failed: the title, then why ([photosProblemText]), then Try again. */
-const val PHOTOS_PROBLEM_TITLE = "Couldn't load your photos"
+val PHOTOS_PROBLEM_TITLE: UiText get() = S.appShellProblemPhotosTitle()
 
 /** Under [PHOTOS_PROBLEM_TITLE]: why, in plain words, and that they come by themselves. */
-fun photosProblemText(p: LoadProblem): String = loadProblemText(p, "Your photos")
+fun photosProblemText(p: LoadProblem): UiText = loadProblemText(p, LoadSubject.PHOTOS)
 
-/** Why [what] ("Your photos", "The posts") isn't here yet, and that it comes by itself once it can. */
-fun loadProblemText(p: LoadProblem, what: String): String = when (p) {
-    LoadProblem.OFFLINE -> "This phone is offline. $what will appear once it's back online."
-    LoadProblem.UNREACHABLE -> "Your device isn't reachable right now. $what will appear as soon as it answers."
-    LoadProblem.SLOW -> "Your device took too long to answer. $what will appear as soon as it does."
-    LoadProblem.FAILED -> "$what will appear as soon as your device answers."
+/** What a screen is waiting for: each has its own sentences, since a translation can't take "Your photos" or "The posts" as a piece. */
+enum class LoadSubject { PHOTOS, FILES, POSTS }
+
+/** Why [what] (your photos, the posts) isn't here yet, and that it comes by itself once it can. */
+fun loadProblemText(p: LoadProblem, what: LoadSubject): UiText = when (what) {
+    LoadSubject.PHOTOS -> when (p) {
+        LoadProblem.OFFLINE -> S.appShellProblemPhotosOffline()
+        LoadProblem.UNREACHABLE -> S.appShellProblemPhotosUnreachable()
+        LoadProblem.SLOW -> S.appShellProblemPhotosSlow()
+        LoadProblem.FAILED -> S.appShellProblemPhotosFailed()
+    }
+    LoadSubject.FILES -> when (p) {
+        LoadProblem.OFFLINE -> S.appShellProblemFilesOffline()
+        LoadProblem.UNREACHABLE -> S.appShellProblemFilesUnreachable()
+        LoadProblem.SLOW -> S.appShellProblemFilesSlow()
+        LoadProblem.FAILED -> S.appShellProblemFilesFailed()
+    }
+    LoadSubject.POSTS -> when (p) {
+        LoadProblem.OFFLINE -> S.appShellProblemPostsOffline()
+        LoadProblem.UNREACHABLE -> S.appShellProblemPostsUnreachable()
+        LoadProblem.SLOW -> S.appShellProblemPostsSlow()
+        LoadProblem.FAILED -> S.appShellProblemPostsFailed()
+    }
 }
 
 /**
@@ -52,20 +94,20 @@ fun loadProblemText(p: LoadProblem, what: String): String = when (p) {
 fun LoadProblem.backOnline(online: Boolean): LoadProblem = if (this == LoadProblem.OFFLINE && online) LoadProblem.FAILED else this
 
 /** A failed load's button, and while it is asked again. */
-const val TRY_AGAIN = "Try again"
-const val TRYING = "Trying…"
+val TRY_AGAIN: UiText get() = S.commonTryAgain()
+val TRYING: UiText get() = S.appShellProblemTrying()
 
 /** A later page failed: the row at the end of the grid, before its Try again (the web's wording). */
-const val MORE_PHOTOS_PROBLEM = "Couldn't load more photos."
+val MORE_PHOTOS_PROBLEM: UiText get() = S.appShellProblemMorePhotos()
 
 /** Social's next page failed: the end of the feed, before its Try again. */
-const val MORE_POSTS_PROBLEM = "Couldn't load more posts."
+val MORE_POSTS_PROBLEM: UiText get() = S.appShellProblemMorePosts()
 
 /** The first page has been on its way a while (People's and Collections' wording). */
-const val PHOTOS_SLOW = "Still waiting for your device…"
+val PHOTOS_SLOW: UiText get() = S.appShellProblemWaiting()
 
 /** The grey tiles, to TalkBack (the web's aria-busy grid). */
-const val PHOTOS_LOADING = "Loading photos"
+val PHOTOS_LOADING: UiText get() = S.appShellProblemPhotosLoading()
 
 /** The viewer: a video that couldn't be fetched or played, over its poster, before its Try again. */
-const val VIDEO_UNPLAYABLE = "Couldn't play this video."
+val VIDEO_UNPLAYABLE: UiText get() = S.appShellProblemVideo()

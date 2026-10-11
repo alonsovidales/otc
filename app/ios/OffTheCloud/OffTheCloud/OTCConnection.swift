@@ -26,7 +26,12 @@ final class OTCConnection: ObservableObject {
             }
         }
     }
-    @Published private(set) var lastError: String?
+    /// Why connecting or signing in failed, as what happened: worded only
+    /// when shown (lastError), so a card already up follows a change of
+    /// language (docs/i18n.md, "Each platform").
+    @Published private(set) var lastProblem: ConnectionProblem?
+    /// lastProblem in the language shown now.
+    var lastError: String? { lastProblem?.text }
     /// Issue #56: the bridge's machine-readable verdict when it couldn't
     /// hand this request to a device at all - "device_unreachable" (the
     /// domain is registered but nothing is connected) or
@@ -62,15 +67,15 @@ final class OTCConnection: ObservableObject {
         var description: String {
             switch self {
             case .home:
-                return "Connected over your home network"
+                return S.appShellRouteHome
             case .remote(let host):
                 // An endpoint whose URL has no host name.
-                guard !host.isEmpty else { return "Connected through the configured address" }
+                guard !host.isEmpty else { return S.appShellRouteConfigured }
                 // Host names aren't case-sensitive: "Cala.Off-The.Cloud"
                 // is the bridge too.
                 let bridge = SecretsStore.bridgeDomain
                 let h = host.lowercased()
-                return "Connected through \(h == bridge || h.hasSuffix("." + bridge) ? bridge : host)"
+                return S.appShellRouteThrough(host: h == bridge || h.hasSuffix("." + bridge) ? bridge : host)
             }
         }
     }
@@ -181,7 +186,7 @@ final class OTCConnection: ObservableObject {
 
     /// Why connecting failed when the phone has no network at all (the
     /// connection card's line), as on Android.
-    nonisolated static let offlineMessage = "This phone is offline. Connect to Wi-Fi or mobile data."
+    nonisolated static var offlineMessage: String { S.appShellOffline }
 
     /// Sends a request, connecting/authenticating first if needed, and
     /// waits `timeout` seconds at most for its answer (nil: the socket's
@@ -278,7 +283,7 @@ final class OTCConnection: ObservableObject {
             if !won { throw WSClient.TimedOut(answerTimedOut: false) }
         } catch let e as WSClient.TimedOut where e.answerTimedOut {
             // GetPubKey or Auth unanswered: the connection failed.
-            throw NSError(domain: "OTCConnection", code: 5, userInfo: [NSLocalizedDescriptionKey: e.localizedDescription])
+            throw ConnectionError(errorCode: 5, problem: .failure(e))
         }
     }
 
@@ -323,7 +328,7 @@ final class OTCConnection: ObservableObject {
     /// last one, so the next sign-in starts without a stale error over it.
     func reset() {
         invalidate()
-        lastError = nil
+        lastProblem = nil
         statusCode = nil
         connectionFailed = false
     }
@@ -331,9 +336,7 @@ final class OTCConnection: ObservableObject {
     /// Thrown by a connect that Save Connection or Log Out overtook
     /// (invalidate): whatever it was doing belongs to settings that are
     /// gone.
-    private static let superseded = NSError(domain: "OTCConnection", code: 4, userInfo: [
-        NSLocalizedDescriptionKey: "The connection settings changed; try again.",
-    ])
+    private static let superseded = ConnectionError(errorCode: 4, problem: .superseded)
 
     /// `gen`: `generation` when this connect was decided on. Once
     /// invalidate() bumps it, the connect stops at its next step: it must
@@ -361,9 +364,10 @@ final class OTCConnection: ObservableObject {
         // be dialled as typed.
         guard let url = URL(string: secrets.endpointURLString) else {
             raced?.task.cancel()
-            lastError = "The address \"\(secrets.endpoint)\" isn't valid."
+            let problem = ConnectionProblem.invalidAddress(secrets.endpoint)
+            lastProblem = problem
             connectionFailed = true
-            throw NSError(domain: "OTCConnection", code: 1, userInfo: [NSLocalizedDescriptionKey: lastError ?? "Bad endpoint"])
+            throw ConnectionError(errorCode: 1, problem: problem)
         }
         let credKey = Self.credentialsKey(secrets)
         if let r = authRejection, r.credKey == credKey, Date() < r.notBefore {
@@ -378,7 +382,7 @@ final class OTCConnection: ObservableObject {
         // ask again as soon as a network is back (wakes).
         if NetworkWatch.shared.offline {
             raced?.task.cancel()
-            lastError = Self.offlineMessage
+            lastProblem = .offline
             connectionFailed = true
             throw URLError(.notConnectedToInternet)
         }
@@ -411,7 +415,7 @@ final class OTCConnection: ObservableObject {
                 await ws.close(ifCurrent: home.task)
                 throw Self.superseded
             }
-            let before = (lastError, statusCode)
+            let before = (lastProblem, statusCode)
             // A socket that opened and then stalls must not hold every
             // request: closing it fails the sign-in, which then goes
             // through the endpoint.
@@ -438,7 +442,7 @@ final class OTCConnection: ObservableObject {
                     throw error
                 }
                 print("[home] the sign-in at \(home.link.address) failed, going through the endpoint: \(error)")
-                (lastError, statusCode) = before
+                (lastProblem, statusCode) = before
             }
         }
 
@@ -446,7 +450,7 @@ final class OTCConnection: ObservableObject {
             try await ws.connect(url: url)
         } catch {
             guard gen == generation else { throw Self.superseded }
-            lastError = Self.describe(error)
+            lastProblem = Self.describe(error)
             connectionFailed = true
             throw error
         }
@@ -462,7 +466,7 @@ final class OTCConnection: ObservableObject {
             // a refused handshake or an unreachable host arrives here as a
             // URLSession error with nothing set above, and the owner
             // should see it rather than empty tabs.
-            if lastError == nil { lastError = Self.describe(error) }
+            if lastProblem == nil { lastProblem = Self.describe(error) }
             connectionFailed = true
             throw error
         }
@@ -528,13 +532,13 @@ final class OTCConnection: ObservableObject {
             // the connection's public key" here (as this used to) threw
             // that explanation away and made an offline device look
             // identical to a genuinely broken one.
-            var msg = "Unable to fetch the connection's public key"
+            var problem = ConnectionProblem.noPublicKey
             if case .respAck(let ack) = pubKeyResp.payload {
-                if !ack.errorMsg.isEmpty { msg = ack.errorMsg }
+                if !ack.errorMsg.isEmpty { problem = .said(ack.errorMsg) }
                 statusCode = ack.code.isEmpty ? nil : ack.code
             }
-            lastError = msg
-            throw NSError(domain: "OTCConnection", code: 2, userInfo: [NSLocalizedDescriptionKey: msg])
+            lastProblem = problem
+            throw ConnectionError(errorCode: 2, problem: problem)
         }
         let encryptedKey = try PwCrypto.encryptPassword(secrets.password, pubKeyDER: pubKey.publicKey)
 
@@ -547,10 +551,10 @@ final class OTCConnection: ObservableObject {
             req.payload = .reqAuth(auth)
         }
         guard case .respAck(let ack) = resp.payload, ack.ok else {
-            let msg: String
+            let problem: ConnectionProblem
             var rejectedFor: TimeInterval?
             if case .respAck(let ack) = resp.payload {
-                msg = ack.errorMsg
+                problem = .said(ack.errorMsg)
                 statusCode = ack.code.isEmpty ? nil : ack.code
                 // The device's own verdict on the password; the
                 // bridge's (device_unreachable, account_disabled)
@@ -560,9 +564,9 @@ final class OTCConnection: ObservableObject {
                 } else if ack.code == "too_many_attempts" {
                     rejectedFor = max(TimeInterval(ack.retryAfterSeconds) + 1, authBackoff)
                 }
-            } else { msg = "Authentication failed" }
-            lastError = msg
-            let err = NSError(domain: "OTCConnection", code: 3, userInfo: [NSLocalizedDescriptionKey: msg])
+            } else { problem = .authFailed }
+            lastProblem = problem
+            let err = ConnectionError(errorCode: 3, problem: problem)
             if let rejectedFor {
                 authRejection = AuthRejection(credKey: credKey, error: err, notBefore: Date() + rejectedFor)
                 authBackoff = min(authBackoff * 2, maxAuthBackoff)
@@ -573,12 +577,11 @@ final class OTCConnection: ObservableObject {
 
     /// Auth answered, not ok: what the device said about the credentials.
     private static func isPasswordVerdict(_ error: Error) -> Bool {
-        let ns = error as NSError
-        return ns.domain == "OTCConnection" && ns.code == 3
+        (error as? ConnectionError)?.errorCode == 3
     }
 
     private func connected(home: HomeLink?, endpoint: String) {
-        lastError = nil
+        lastProblem = nil
         statusCode = nil
         connectionFailed = false
         backoffSeconds = 1
@@ -807,35 +810,33 @@ final class OTCConnection: ObservableObject {
     }
 
     /// Plain words for the errors URLSession hands back, which are not
-    /// written for people ("There was a bad response from the server").
-    private static func describe(_ error: Error) -> String {
+    /// written for people ("There was a bad response from the server"):
+    /// which ones, decided now (the phone may be back online by the time
+    /// the card words it).
+    private static func describe(_ error: Error) -> ConnectionProblem {
         // No network at all: not the address's fault, whatever failed.
-        if NetworkWatch.shared.offline { return offlineMessage }
-        if error is WSClient.Unresponsive {
-            return "The device isn't answering. It may be off, or the connection may be too slow."
-        }
+        if NetworkWatch.shared.offline { return .offline }
+        if error is WSClient.Unresponsive { return .unresponsive }
         // The upgrade unanswered (Android: a SocketTimeoutException).
-        if error is WSClient.ConnectTimeout {
-            return "The device isn't answering. It may be off, or the address may be wrong."
-        }
+        if error is WSClient.ConnectTimeout { return .notAnswering }
         let ns = error as NSError
         if ns.domain == NSURLErrorDomain {
             switch ns.code {
             case NSURLErrorBadServerResponse:
-                return "The address answered, but not as an Off The Cloud device. Check that it ends in /ws and points at your device or its bridge name."
+                return .notOTC
             case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed:
-                return "That address can't be found. Check the device name or address."
+                return .hostNotFound
             case NSURLErrorCannotConnectToHost, NSURLErrorTimedOut, NSURLErrorNetworkConnectionLost:
-                return "The device isn't answering. It may be off, or the address may be wrong."
+                return .notAnswering
             case NSURLErrorNotConnectedToInternet:
-                return offlineMessage
+                return .offline
             case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted, NSURLErrorServerCertificateHasBadDate:
-                return "Couldn't make a secure connection to that address."
+                return .insecure
             default:
                 break
             }
         }
-        return ns.localizedDescription
+        return .failure(error)
     }
 
     private func handleDisconnect() {
@@ -865,4 +866,62 @@ private final class ConnectRace: @unchecked Sendable {
         }
         c?.resume(with: result)
     }
+}
+
+/// Why connecting or signing in failed (OTCConnection.lastProblem), kept as
+/// what happened and worded only when shown (docs/i18n.md, "Each
+/// platform": models keep state, views word it).
+enum ConnectionProblem {
+    /// The phone has no network at all.
+    case offline
+    /// The saved address, as typed, can't be dialled.
+    case invalidAddress(String)
+    /// GetPubKey answered without a key, and without saying why.
+    case noPublicKey
+    /// Auth answered with something other than an Ack.
+    case authFailed
+    /// The device's or the bridge's own words (Ack.error_msg), shown as
+    /// they came: the device words them in the request's language.
+    case said(String)
+    /// The connection stopped answering while signing in.
+    case unresponsive
+    /// Nothing answered at the address.
+    case notAnswering
+    /// Something answered, but not the device's WebSocket.
+    case notOTC
+    case hostNotFound
+    case insecure
+    /// New connection settings (or a Log Out) overtook the attempt.
+    case superseded
+    /// Anything else: its own description, read when shown.
+    case failure(Error)
+
+    var text: String {
+        switch self {
+        case .offline: return S.appShellOffline
+        case .invalidAddress(let address): return S.appShellAddressInvalid(address: address)
+        case .noPublicKey: return S.appShellNoPublicKey
+        case .authFailed: return S.appShellAuthFailed
+        case .said(let message): return message
+        case .unresponsive: return S.iosNoAnswerSlow
+        case .notAnswering: return S.appShellNoAnswerAddress
+        case .notOTC: return S.appShellNotOtc
+        case .hostNotFound: return S.appShellHostNotFound
+        case .insecure: return S.appShellInsecure
+        case .superseded: return S.iosConnectionSuperseded
+        case .failure(let error): return error.localizedDescription
+        }
+    }
+}
+
+/// What a failed connect throws: domain "OTCConnection" as before, with
+/// code 1 a bad address, 2 no public key, 3 the device's verdict on the
+/// password, 4 superseded, 5 a sign-in nobody answered. Its description is
+/// worded when read.
+struct ConnectionError: LocalizedError, CustomNSError {
+    static var errorDomain: String { "OTCConnection" }
+    let errorCode: Int
+    let problem: ConnectionProblem
+
+    var errorDescription: String? { problem.text }
 }

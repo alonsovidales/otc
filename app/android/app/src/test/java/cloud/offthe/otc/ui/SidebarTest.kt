@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui
 
+import cloud.offthe.otc.i18n.english
 import cloud.offthe.otc.proto.RaidState
 import cloud.offthe.otc.proto.Status
 import cloud.offthe.otc.proto.StatusErrors
@@ -24,7 +25,7 @@ class SidebarTest {
 
     @Test fun groupsAndPeopleOnlyWithFaceRecognition() {
         val on = menuGroups(faces = true)
-        assertEquals(listOf(null, "Sharing", "Device"), on.map { it.heading })
+        assertEquals(listOf(null, "Sharing", "Device"), on.map { it.heading?.english() })
         assertEquals(
             listOf(Section.Images, Section.People, Section.Collections, Section.Files, Section.Social, Section.Friends, Section.Alerts, Section.Settings),
             on.flatMap { it.items },
@@ -66,8 +67,8 @@ class SidebarTest {
             val s = summarizeStorage(status(2_800, 474_000), null)
             assertEquals(0.59, s.usedPct, 0.0001)
             assertEquals(StorageLevel.OK, s.level)
-            assertEquals("2.8 GB of 474 GB used", s.usedText)
-            assertEquals("Mirror in sync", s.mirrorText)
+            assertEquals("2.8 GB of 474 GB used", s.usedText.english())
+            assertEquals("Mirror in sync", s.mirrorText.english())
             assertFalse(s.attention)
 
             assertEquals(StorageLevel.WARN, summarizeStorage(status(70, 100), null).level)
@@ -77,13 +78,13 @@ class SidebarTest {
             val bad = summarizeStorage(status(10, 100, RaidState.RaidDegraded), null)
             assertTrue(bad.degraded)
             assertTrue(bad.attention)
-            assertEquals("Mirror degraded", bad.mirrorText)
+            assertEquals("Mirror degraded", bad.mirrorText.english())
             assertTrue(summarizeStorage(status(10, 100, errors = 1), null).attention)
-            assertEquals("Mirror syncing (45.68%)", summarizeStorage(status(10, 100, RaidState.RaidSyncing), null).mirrorText)
+            assertEquals("Mirror syncing (45.68%)", summarizeStorage(status(10, 100, RaidState.RaidSyncing), null).mirrorText.english())
 
-            assertEquals("Reading…", summarizeStorage(null, null).usedText)
-            assertEquals("Storage unavailable right now", summarizeStorage(null, "offline").usedText)
-            assertEquals("", summarizeStorage(null, null).mirrorText)
+            assertEquals("Reading…", summarizeStorage(null, null).usedText.english())
+            assertEquals("Storage unavailable right now", summarizeStorage(null, "offline").usedText.english())
+            assertEquals("", summarizeStorage(null, null).mirrorText.english())
             assertEquals(0.0, summarizeStorage(status(0, 0), null).usedPct, 0.0)
         } finally {
             Locale.setDefault(was)

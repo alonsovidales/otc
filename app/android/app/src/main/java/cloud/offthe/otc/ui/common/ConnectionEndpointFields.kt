@@ -7,6 +7,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.appShellEndpointAddress
+import cloud.offthe.otc.i18n.appShellEndpointCustom
+import cloud.offthe.otc.i18n.appShellEndpointCustomNote
+import cloud.offthe.otc.i18n.appShellEndpointDeviceName
 import cloud.offthe.otc.ui.common.OTCTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -43,7 +48,7 @@ fun ConnectionEndpointFields(endpoint: String, onEndpointChange: (String) -> Uni
         if (customAddress) {
             OTCTextField(
                 value = endpoint, onValueChange = onEndpointChange,
-                label = { Text("Address (wss://host/ws)") }, singleLine = true,
+                label = { Text(S.appShellEndpointAddress().resolve()) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, capitalization = KeyboardCapitalization.None),
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -55,7 +60,7 @@ fun ConnectionEndpointFields(endpoint: String, onEndpointChange: (String) -> Uni
                         deviceName = name
                         onEndpointChange(if (name.trim().isEmpty()) "" else SecretsStore.bridgeEndpoint(name))
                     },
-                    label = { Text("Device name") }, singleLine = true,
+                    label = { Text(S.appShellEndpointDeviceName().resolve()) }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, capitalization = KeyboardCapitalization.None),
                     modifier = Modifier.weight(1f),
                 )
@@ -63,7 +68,7 @@ fun ConnectionEndpointFields(endpoint: String, onEndpointChange: (String) -> Uni
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-            Text("Custom address", modifier = Modifier.weight(1f))
+            Text(S.appShellEndpointCustom().resolve(), modifier = Modifier.weight(1f))
             Switch(checked = customAddress, onCheckedChange = { custom ->
                 customAddress = custom
                 if (!custom) {
@@ -74,7 +79,7 @@ fun ConnectionEndpointFields(endpoint: String, onEndpointChange: (String) -> Uni
         }
         if (customAddress) {
             Text(
-                "For a device not on the Off The Cloud bridge - your own bridge, Tailscale Funnel, or the local network (ws://192.168.…:8080/ws).",
+                S.appShellEndpointCustomNote().resolve(),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

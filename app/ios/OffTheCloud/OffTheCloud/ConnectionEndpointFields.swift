@@ -29,14 +29,14 @@ struct ConnectionEndpointFields: View {
     var body: some View {
         Group {
             if customAddress {
-                TextField("Address (wss://host/ws)", text: $endpoint)
+                TextField(S.appShellEndpointAddress, text: $endpoint)
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
                     .textContentType(.URL)
                     .keyboardType(.URL)
             } else {
                 HStack(spacing: 0) {
-                    TextField("Device name", text: $deviceName)
+                    TextField(S.appShellEndpointDeviceName, text: $deviceName)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
                         .keyboardType(.asciiCapable)
@@ -44,13 +44,13 @@ struct ConnectionEndpointFields: View {
                             endpoint = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                                 ? "" : SecretsStore.bridgeEndpoint(forName: name)
                         }
-                    Text(".\(SecretsStore.bridgeDomain)")
+                    Text(verbatim: ".\(SecretsStore.bridgeDomain)")
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .fixedSize()
                 }
             }
-            Toggle("Custom address", isOn: $customAddress)
+            Toggle(S.appShellEndpointCustom, isOn: $customAddress)
                 .onChange(of: customAddress) { _, custom in
                     // Switching to the name keeps whatever name the
                     // address had; switching to custom keeps the address.
@@ -60,7 +60,7 @@ struct ConnectionEndpointFields: View {
                     }
                 }
             if customAddress {
-                Text("For a device not on the Off The Cloud bridge - your own bridge, Tailscale Funnel, or the local network (ws://192.168.…:8080/ws).")
+                Text(S.appShellEndpointCustomNote)
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

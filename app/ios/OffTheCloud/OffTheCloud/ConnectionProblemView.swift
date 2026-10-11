@@ -32,7 +32,7 @@ struct ConnectionProblemView: View {
                     .frame(width: 48, height: 48)
                     .foregroundStyle(Color.orange)
 
-                Text("Can't connect to your device")
+                Text(S.appShellCantConnect)
                     .font(.headline)
                     .multilineTextAlignment(.center)
 
@@ -44,10 +44,10 @@ struct ConnectionProblemView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Connection").font(.caption).foregroundStyle(.secondary)
+                    Text(S.appShellConnectionHeading).font(.caption).foregroundStyle(.secondary)
                     ConnectionEndpointFields(endpoint: $secrets.endpoint)
                         .textFieldStyle(.roundedBorder)
-                    SecureField("Password", text: $secrets.password)
+                    SecureField(S.commonPassword, text: $secrets.password)
                         .textFieldStyle(.roundedBorder)
                 }
                 .padding(14)
@@ -66,7 +66,7 @@ struct ConnectionProblemView: View {
                 } label: {
                     HStack(spacing: 8) {
                         if retrying { ProgressView().controlSize(.small) }
-                        Text(retrying ? "Connecting…" : "Save & Retry")
+                        Text(retrying ? S.commonConnecting : S.appShellSaveRetry)
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -74,7 +74,7 @@ struct ConnectionProblemView: View {
                 .disabled(retrying || !secrets.isConfigured)
 
                 if onLeave != nil {
-                    Button("Set up or connect a different device") { confirmLeave = true }
+                    Button(S.appShellLeaveButton) { confirmLeave = true }
                         .font(.subheadline)
                 }
             }
@@ -85,11 +85,11 @@ struct ConnectionProblemView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.background.opacity(0.92))
-        .alert("Leave this device?", isPresented: $confirmLeave) {
-            Button("Leave", role: .destructive) { onLeave?() }
-            Button("Cancel", role: .cancel) {}
+        .alert(S.appShellLeaveTitle, isPresented: $confirmLeave) {
+            Button(S.appShellLeave, role: .destructive) { onLeave?() }
+            Button(S.commonCancel, role: .cancel) {}
         } message: {
-            Text("You'll go back to the start, to set up a new device or connect to another one. Nothing on the device is deleted, and its address and password stay filled in there, to connect to it again later.")
+            Text(S.appShellLeaveMessageStart)
         }
     }
 }
