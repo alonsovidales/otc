@@ -12,6 +12,7 @@ import SharedLinksPanel from "./SharedLinksPanel";
 import TailscalePanel from "./TailscalePanel";
 import LogsPanel from "./LogsPanel";
 import BridgePanel from "./BridgePanel";
+import LanguagePanel from "./settings/LanguagePanel";
 import { setFaceRecognition, useFaceRecognition } from "./faceRecognition";
 import type {
   ReqEnvelope,
@@ -327,6 +328,8 @@ export default function SettingsForm() {
         <h3>Profile</h3>
         <ProfileCard authenticated={true} />
       </section>
+
+      <LanguagePanel />
 
       <UsersPanel />
 

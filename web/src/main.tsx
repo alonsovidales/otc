@@ -6,10 +6,13 @@ import { BrowserRouter } from "react-router-dom";
 import './index.css'
 import App from './App.tsx'
 import TipLayer from './components/TipLayer.tsx'
+import { I18nProvider } from './i18n'
 
 createRoot(document.getElementById('root')!).render(
+  <I18nProvider>
     <BrowserRouter>
       <App />
       <TipLayer />
     </BrowserRouter>
+  </I18nProvider>
 )

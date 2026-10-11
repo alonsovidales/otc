@@ -60,6 +60,11 @@ export async function enablePush(): Promise<boolean> {
       });
     })());
 
+  await registerSubscription(sub);
+  return true;
+}
+
+async function registerSubscription(sub: PushSubscription): Promise<void> {
   const json = sub.toJSON();
   await useWS.request((e) => {
     (e as any).payload = {
@@ -71,8 +76,22 @@ export async function enablePush(): Promise<boolean> {
       },
     };
   });
+}
 
-  return true;
+/** Sends this browser's subscription to the device again, if it has one:
+ * at each sign-in and whenever the language the page shows changes, so
+ * the device writes this browser's pushes in that language (ws.ts puts it
+ * on the request as lang; docs/i18n.md, last_ui_language). Never asks for
+ * permission or subscribes. Best effort. */
+export async function reregisterPush(): Promise<void> {
+  if (!pushSupported() || typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+    const sub = await reg?.pushManager.getSubscription();
+    if (sub) await registerSubscription(sub);
+  } catch (err) {
+    console.error("Could not register push again:", err);
+  }
 }
 
 export async function disablePush(): Promise<void> {

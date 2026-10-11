@@ -1,0 +1,7 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* Settings > Language: the picker under the section's hint, as wide as a
+   language's name needs, never wider than a phone. */
+.lp-select { display: block; width: 100%; max-width: 360px; box-sizing: border-box; cursor: pointer; }
+.lp-note { margin-top: 8px; font-size: 13px; color: var(--mist-dim); }
+.lp-note.error { color: var(--danger); }

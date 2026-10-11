@@ -85,7 +85,13 @@ export type MessageKey =
   | "common.try_again"
   | "common.update"
   | "common.updating"
-  | "common.upload";
+  | "common.upload"
+  | "web.settings.language.automatic"
+  | "web.settings.language.changed"
+  | "web.settings.language.hint"
+  | "web.settings.language.not_saved"
+  | "web.settings.language.title"
+  | "web.settings.language.too_old";
 
 /** The keys <Trans> renders: every web key with tags. */
 export type RichKey = never;
@@ -130,6 +136,12 @@ export interface MessageArgs {
   "common.update": undefined;
   "common.updating": undefined;
   "common.upload": undefined;
+  "web.settings.language.automatic": { language: string };
+  "web.settings.language.changed": undefined;
+  "web.settings.language.hint": undefined;
+  "web.settings.language.not_saved": undefined;
+  "web.settings.language.title": undefined;
+  "web.settings.language.too_old": undefined;
 }
 
 /** Each rich key's tags. */

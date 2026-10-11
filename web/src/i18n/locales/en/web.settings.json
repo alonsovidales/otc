@@ -1,0 +1,8 @@
+{
+  "web.settings.language.automatic": "Automatic ({language})",
+  "web.settings.language.changed": "Another app changed the language at the same time. This browser now uses that one.",
+  "web.settings.language.hint": "Every app signed in to this device uses this language. Automatic follows the language of each browser, phone or computer.",
+  "web.settings.language.not_saved": "Couldn't save it on your device. This browser will try again when it reconnects.",
+  "web.settings.language.title": "Language",
+  "web.settings.language.too_old": "This browser will remember it. Update your device to use it in every app."
+}

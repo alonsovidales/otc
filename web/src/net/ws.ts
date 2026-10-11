@@ -2,6 +2,7 @@
 
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { noteResponse } from "./deviceStatus";
+import { noteLanguageConnection, noteLanguageReply, requestLanguage } from "../i18n/choice";
 
 type RespListener = (env: RespEnvelope) => void;
 
@@ -42,7 +43,7 @@ export class WSClient {
       const ws = new WebSocket(url);
       ws.binaryType = "arraybuffer";
 
-      ws.onopen = () => { this.connected = true; this.connecting = undefined; resolve(); };
+      ws.onopen = () => { this.connected = true; this.connecting = undefined; noteLanguageConnection(); resolve(); };
       ws.onerror = (e) => { this.connecting = undefined; reject(e); };
       ws.onclose = () => {
         this.connected = false;
@@ -70,6 +71,9 @@ export class WSClient {
             env.payload?.$case === "respAck" ? env.payload.respAck.errorMsg : env.errorMessage,
             env.error,
           );
+          // The user's language as the device has it (Status, Settings):
+          // whichever part of the app asked, this browser follows it.
+          noteLanguageReply(env);
           const cont = this.waiters.get(env.id);
           if (cont) { this.waiters.delete(env.id); cont.resolve(env); }
           this.listeners.forEach(fn => fn(env));
@@ -92,6 +96,10 @@ export class WSClient {
     const id = this.nextId++;
     const draft: Partial<ReqEnvelope> = { id };
     build(draft);
+    // docs/i18n.md: every request says which language this browser shows,
+    // so the device answers in it. Set here, after build and over whatever
+    // it put in the envelope - the one place, so no request goes without.
+    draft.lang = requestLanguage();
     const req = ReqEnvelope.fromPartial(draft);
     const bytes = ReqEnvelope.encode(req).finish();
     this.ws.send(bytes);

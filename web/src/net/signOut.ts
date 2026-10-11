@@ -9,6 +9,7 @@ import { useWS } from "./useWS";
 import { clearPersistedToken } from "./pwCrypto";
 import { clearPrivateUiState } from "./uiState";
 import { unregisterPushOnSignOut } from "./webPush";
+import { languageChoice } from "../i18n/choice";
 
 // How long each best-effort step may keep the page waiting for the device:
 // a device that stopped answering must not leave this browser signed in.
@@ -50,5 +51,9 @@ async function run(): Promise<void> {
   }), "revoke session tokens");
   clearPersistedToken();
   clearPrivateUiState();
+  // The language stays (otc_language): the signed-out page and the next
+  // sign-in keep it, as Log Out does in the apps. Only a change the device
+  // never got is dropped, so it can't reach whoever signs in next.
+  languageChoice.dropPending();
   window.location.reload();
 }

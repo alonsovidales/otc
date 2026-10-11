@@ -24,7 +24,8 @@ import NotificationsPage, { useNotificationCount } from "./components/Notificati
 import type { ReqEnvelope, RespEnvelope } from "./proto/messages";
 import { useSearchParams } from "react-router-dom";
 import { getDeviceSetupInfo, loadPersistedToken, type DeviceSetupInfo } from "./net/pwCrypto";
-import { promptForPushIfNeverAsked } from "./net/webPush";
+import { promptForPushIfNeverAsked, reregisterPush } from "./net/webPush";
+import { useLanguage } from "./i18n";
 import DeviceUnreachable from "./components/DeviceUnreachable";
 import Spinner from "./components/Spinner";
 import { getDeviceStatus, subscribeDeviceStatus } from "./net/deviceStatus";
@@ -231,6 +232,14 @@ function App() {
     setTab("Social");
     if (!mobile) promptForPushIfNeverAsked();
   };
+
+  // The device writes this browser's pushes in the language the page shows
+  // (docs/i18n.md, last_ui_language): a subscription it already has goes
+  // again at each sign-in and whenever that language changes.
+  const shownLanguage = useLanguage().effective;
+  useEffect(() => {
+    if (authenticated && !mobile) void reregisterPush();
+  }, [authenticated, mobile, shownLanguage]);
 
   // Issue #38/#39: a device with no owner secret yet lands straight on
   // setup (the SignIn tab) — nobody should have to know to go click
