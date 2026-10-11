@@ -1,0 +1,648 @@
+{
+  "web.shell.account.label": {
+    "text": "Account",
+    "note": "Screen-reader name and tooltip of the profile picture at the right of the top bar, which opens the account menu (Settings, Sign out).",
+    "max": 24
+  },
+  "web.shell.account.sign_out": {
+    "text": "Sign out",
+    "note": "Item of the account menu (top bar, right) that signs this browser out of the device.",
+    "max": 24
+  },
+  "web.shell.account.signing_out": {
+    "text": "Signing out…",
+    "note": "The Sign out item of the account menu while this browser signs out.",
+    "max": 24
+  },
+  "web.shell.connection.closed": {
+    "text": "WS connection closed",
+    "note": "Error shown where an action failed because the connection to the device closed before the answer came (a note under a form, a failed download). WS is the WebSocket connection to the device; write it as the connection to the device."
+  },
+  "web.shell.connection.no_answer": {
+    "text": "The device did not answer.",
+    "note": "Error shown when the relay answered for the user's device without saying why (a note under the password field or a form)."
+  },
+  "web.shell.connection.no_key": {
+    "text": "Unable to fetch the connection's public key",
+    "note": "Error shown when the device did not hand out the key the password is encrypted with before it is sent (under the password field, or in Settings when changing the password).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e7c6dea2"
+  },
+  "web.shell.connection.no_push_key": {
+    "text": "Device has no VAPID public key configured",
+    "note": "Error in Settings when notifications are turned on and the device has no key for browser notifications. VAPID is the name of that key (Web Push), never translated."
+  },
+  "web.shell.connection.not_connected": {
+    "text": "WS not connected",
+    "note": "Error shown where an action failed because there was no connection to the device (a note under a form, a failed download). WS is the WebSocket connection to the device; write it as the connection to the device."
+  },
+  "web.shell.connection.signed_in_meanwhile": {
+    "text": "Signed in meanwhile.",
+    "note": "Under the top bar's password field when this browser signed in another way (a saved session coming back) while the typed password was waiting to be sent."
+  },
+  "web.shell.connection.too_many": {
+    "text": "Too many attempts. Try again in a minute.",
+    "note": "Under the password field when the device refuses sign-ins for a while after several wrong passwords and didn't say for how long.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #11054acd"
+  },
+  "web.shell.download.dismiss": {
+    "text": "Dismiss",
+    "note": "Screen-reader name of the × that closes the note of a failed download.",
+    "max": 24
+  },
+  "web.shell.download.downloading": {
+    "text": "Downloading…",
+    "note": "The Download button (photo viewer, posts) while the file arrives and its size isn't known yet.",
+    "max": 24
+  },
+  "web.shell.download.downloading_sr": {
+    "text": "Downloading {name}",
+    "args": [["name", "user"]],
+    "note": "Told to screen readers while a file downloads. {name} is the file's name."
+  },
+  "web.shell.download.failed": {
+    "text": "Couldn't download {name}. Check the connection to your device and try again.",
+    "args": [["name", "user"]],
+    "note": "Note over the photo viewer or the page when a download failed. {name} is the file's name."
+  },
+  "web.shell.download.original": {
+    "text": "Download the original",
+    "note": "Tooltip and screen-reader name of the Download button in the photo viewer and on posts: it saves the original file, never the preview shown."
+  },
+  "web.shell.download.preparing": {
+    "text": "Preparing…",
+    "note": "The Download button (photo viewer, posts) while the device gets the file ready.",
+    "max": 24
+  },
+  "web.shell.download.progress": {
+    "text": "Downloading {percent}",
+    "args": [["percent", "text"]],
+    "note": "The Download button (photo viewer, posts) while the file arrives. {percent} is how much arrived, already formatted (45%).",
+    "max": 24
+  },
+  "web.shell.download.started": {
+    "text": "Started",
+    "note": "The Download button (photo viewer, posts) once the browser has the file and saves it.",
+    "max": 24
+  },
+  "web.shell.download.started_sr": {
+    "text": "{name}: download started",
+    "args": [["name", "user"]],
+    "note": "Told to screen readers when the browser has a downloaded file. {name} is the file's name."
+  },
+  "web.shell.file_icon.generic": {
+    "text": "FILE",
+    "note": "Written in capitals on the coloured band of the document icon in the Files grid for a file without an extension, where a type such as PDF or DOC would be. An abbreviation is fine.",
+    "max": 5
+  },
+  "web.shell.file_icon.label": {
+    "text": "{type} file",
+    "args": [["type", "text"]],
+    "note": "Screen-reader name of a document icon in the Files grid. {type} is what the icon shows: a type such as PDF, DOC or ZIP, a file extension in capitals, or web.shell.file_icon.generic."
+  },
+  "web.shell.link.empty": {
+    "text": "The device returned an empty file.",
+    "note": "The whole page when the archive of a shared download link came back empty."
+  },
+  "web.shell.link.failed": {
+    "text": "Could not download that link.",
+    "note": "The whole page when downloading a shared link failed for another reason."
+  },
+  "web.shell.link.invalid": {
+    "text": "That link is no longer valid.",
+    "note": "The whole page when the device refused a shared download link (expired or deleted) without saying why."
+  },
+  "web.shell.link.malformed": {
+    "text": "That download link is malformed.",
+    "note": "The whole page when a shared download link is opened and its address is incomplete."
+  },
+  "web.shell.link.preparing": {
+    "text": "Preparing your download…",
+    "note": "The whole page, by a spinner, while the device builds the archive of a shared download link."
+  },
+  "web.shell.link.progress": {
+    "text": "Downloading… {percent}",
+    "args": [["percent", "text"]],
+    "note": "The whole page, by a spinner, while the archive of a shared download link arrives. {percent} is how much arrived, already formatted (45%)."
+  },
+  "web.shell.link.stopped": {
+    "text": "The device stopped sending the file.",
+    "note": "The whole page when the device stopped sending the archive of a shared download link before its end."
+  },
+  "web.shell.lowres.description": {
+    "text": "Low resolution - the full photo is loading",
+    "note": "Screen-reader text of the Low res pill on a photo opened full screen."
+  },
+  "web.shell.lowres.label": {
+    "text": "Low res",
+    "note": "Small pill on the corner of a photo opened full screen while only its preview is shown and the full photo loads.",
+    "max": 12
+  },
+  "web.shell.menu.alerts": {
+    "text": "Alerts",
+    "note": "Left menu item (and icon-rail label, 80 px) that opens the device's alerts (errors, updates, friend activity).",
+    "max": 12
+  },
+  "web.shell.menu.collections": {
+    "text": "Collections",
+    "note": "Left menu item (and icon-rail label, 80 px) that opens the collections: our word for named groups of photos.",
+    "max": 12
+  },
+  "web.shell.menu.device": {
+    "text": "Device",
+    "note": "Heading of a group in the left menu holding Alerts and Settings: the user's own device. Also the group's name for screen readers.",
+    "max": 20
+  },
+  "web.shell.menu.files": {
+    "text": "Files",
+    "note": "Left menu item (and icon-rail label, 80 px) that opens the file explorer.",
+    "max": 12
+  },
+  "web.shell.menu.friends": {
+    "text": "Friends",
+    "note": "Left menu item (and icon-rail label, 80 px) that opens the list of friends and friend requests.",
+    "max": 12
+  },
+  "web.shell.menu.images": {
+    "text": "Images",
+    "note": "Left menu item, also the label under its icon in the narrow icon rail (80 px wide), that opens the library of photos and videos.",
+    "max": 12
+  },
+  "web.shell.menu.people": {
+    "text": "People",
+    "note": "Left menu item (and icon-rail label, 80 px) that opens the people found by face recognition; shown only while face recognition is on.",
+    "max": 12
+  },
+  "web.shell.menu.privacy": {
+    "text": "Privacy",
+    "note": "Link at the foot of the left menu that opens the privacy notice (in English).",
+    "max": 16,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #f22e10da"
+  },
+  "web.shell.menu.sections": {
+    "text": "Sections",
+    "note": "Name of the left menu for screen readers (not shown)."
+  },
+  "web.shell.menu.settings": {
+    "text": "Settings",
+    "note": "Left menu item (and icon-rail label, 80 px) that opens the device's settings. Kept short: the rail cuts longer labels.",
+    "max": 12
+  },
+  "web.shell.menu.sharing": {
+    "text": "Sharing",
+    "note": "Heading of a group in the left menu holding Social and Friends; also that group's name for screen readers.",
+    "max": 20
+  },
+  "web.shell.menu.social": {
+    "text": "Social",
+    "note": "Left menu item (and icon-rail label, 80 px) that opens the feed of posts shared with friends.",
+    "max": 12
+  },
+  "web.shell.menu.terms": {
+    "text": "Terms",
+    "note": "Link at the foot of the left menu that opens the terms of use (in English).",
+    "max": 16,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e50b7b2c"
+  },
+  "web.shell.menu.unread": {
+    "text": {
+      "one": "{label}, {count} unread",
+      "other": "{label}, {count} unread"
+    },
+    "args": [["label", "text"], ["count", "count"]],
+    "note": "Screen-reader name of a left menu item that has unread alerts. {label} is the item's name (Alerts), {count} how many alerts are unread."
+  },
+  "web.shell.person.unnamed": {
+    "text": "Unnamed",
+    "note": "Shown for a person found by face recognition who hasn't been given a name yet (search suggestions, Images, People).",
+    "max": 24
+  },
+  "web.shell.scrubber.label": {
+    "text": "Jump to a date",
+    "note": "Screen-reader name of the date slider beside Images: a column of years to jump through the photos by date."
+  },
+  "web.shell.scrubber.month": {
+    "text": "{month} {year}",
+    "args": [["month", "text"], ["year", "text"]],
+    "note": "The date slider's bubble and spoken value: a month of the timeline. {month} is the month's short name as the browser writes it in this language (Mar), {year} the year in four digits (2024).",
+    "max": 24
+  },
+  "web.shell.scrubber.no_date": {
+    "text": "No date",
+    "note": "The date slider's bubble and spoken value on the photos that have no date.",
+    "max": 16
+  },
+  "web.shell.search.a_person": {
+    "text": "a person",
+    "note": "Item of the screen-reader summary of the search (web.shell.search.summary): a person whose details haven't loaded yet. Starts in lowercase: it follows a colon, in a list."
+  },
+  "web.shell.search.already": {
+    "text": "“{text}” is already in the search.",
+    "args": [["text", "user"]],
+    "note": "Under the search field when the thing typed is already a chip in it. {text} is what was typed. Write the quotes in your language's style."
+  },
+  "web.shell.search.clear": {
+    "text": "Clear search",
+    "note": "Screen-reader name and tooltip of the × at the end of the search field that clears what is typed and every chip in it.",
+    "max": 32
+  },
+  "web.shell.search.close": {
+    "text": "Close search",
+    "note": "Screen-reader name of the back arrow that closes the search suggestions under the top bar's search field."
+  },
+  "web.shell.search.close_collection": {
+    "text": "Close the collection {name}",
+    "args": [["name", "user"]],
+    "note": "Screen-reader name of the × on the chip of the collection open in Images, in the search field. {name} is the collection's name."
+  },
+  "web.shell.search.collection": {
+    "text": "the collection {name}",
+    "args": [["name", "user"]],
+    "note": "Item of the screen-reader summary of the search (web.shell.search.summary): the collection open in Images. {name} is its name. Starts in lowercase: it follows a colon, in a list."
+  },
+  "web.shell.search.documents": {
+    "text": "Search documents for “<mark>{text}</mark>”",
+    "args": [["text", "user"]],
+    "note": "Row in the search suggestions that lists, in Files, every file and folder whose path contains what was typed. {text} is the typed text, highlighted (<mark>). Write the quotes in your language's style.",
+    "rich": ["mark"]
+  },
+  "web.shell.search.field": {
+    "text": "Search photos and files",
+    "note": "Placeholder and screen-reader name of the search field in the top bar: it finds photos by things, people and collections, and files and folders by name.",
+    "max": 40
+  },
+  "web.shell.search.file_in": {
+    "text": "{name}, file in {folder}",
+    "args": [["name", "user"], ["folder", "user"]],
+    "note": "Screen-reader name of a document or other file in the search suggestions. {name} is its file name, {folder} the folder it is in (a path such as /Documents)."
+  },
+  "web.shell.search.files": {
+    "text": "Files",
+    "note": "Heading of the search suggestions that are files and folders whose name or path matches.",
+    "max": 24
+  },
+  "web.shell.search.folder_in": {
+    "text": "{name}, folder in {folder}",
+    "args": [["name", "user"], ["folder", "user"]],
+    "note": "Screen-reader name of a folder in the search suggestions. {name} is its name, {folder} the folder it is in (a path such as /Photos/2024)."
+  },
+  "web.shell.search.no_matches": {
+    "text": "No matches",
+    "note": "Told to screen readers when nothing matches what is typed in the search field."
+  },
+  "web.shell.search.nothing": {
+    "text": "Nothing matches “{text}”.",
+    "args": [["text", "user"]],
+    "note": "Under the search field when nothing matches what was typed. {text} is what was typed. Write the quotes in your language's style."
+  },
+  "web.shell.search.people": {
+    "text": "People",
+    "note": "Heading of the search suggestions that are people found by face recognition.",
+    "max": 24
+  },
+  "web.shell.search.person": {
+    "text": "Person",
+    "note": "Chip in the search field for a person whose details haven't loaded yet.",
+    "max": 16
+  },
+  "web.shell.search.photo_count": {
+    "text": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    },
+    "args": [["count", "count"]],
+    "note": "Under a person's name in the search suggestions: how many photos show them."
+  },
+  "web.shell.search.photo_in": {
+    "text": "{name}, photo in {folder}",
+    "args": [["name", "user"], ["folder", "user"]],
+    "note": "Screen-reader name of a photo in the search suggestions. {name} is its file name, {folder} the folder it is in (a path such as /Photos/2024)."
+  },
+  "web.shell.search.remove": {
+    "text": "Remove {name}",
+    "args": [["name", "user"]],
+    "note": "Screen-reader name of the × on a chip in the search field. {name} is a person's name or a thing (a tag such as beach)."
+  },
+  "web.shell.search.remove_person": {
+    "text": "Remove this person",
+    "note": "Screen-reader name of the × on the chip of a person without a name, in the search field."
+  },
+  "web.shell.search.suggestion_count": {
+    "text": {
+      "one": "{count} suggestion",
+      "other": "{count} suggestions"
+    },
+    "args": [["count", "count"]],
+    "note": "Told to screen readers: how many suggestions match what is typed in the search field."
+  },
+  "web.shell.search.suggestions": {
+    "text": "Suggestions",
+    "note": "Screen-reader name of the list of suggestions under the search field."
+  },
+  "web.shell.search.summary": {
+    "text": "In the search: {items}",
+    "args": [["items", "user"]],
+    "note": "Read by screen readers with the search field: what the search holds. {items} is a list separated by commas of web.shell.search.collection, people's names and things (tags such as beach)."
+  },
+  "web.shell.search.things": {
+    "text": "Things",
+    "note": "Heading of the search suggestions that are things recognised in photos (tags such as beach or dog).",
+    "max": 24
+  },
+  "web.shell.search.video_in": {
+    "text": "{name}, video in {folder}",
+    "args": [["name", "user"], ["folder", "user"]],
+    "note": "Screen-reader name of a video in the search suggestions. {name} is its file name, {folder} the folder it is in (a path such as /Photos/2024)."
+  },
+  "web.shell.session.ended": {
+    "text": "Your session has ended — sign in again to continue.",
+    "note": "Shown in place of a page that needs a session after it ended (the device restarted, or it expired). The password field is in the top bar."
+  },
+  "web.shell.session.signing_in": {
+    "text": "Signing in…",
+    "note": "Shown while this browser signs in to the device: a saved session being restored, or the password just typed in the top bar."
+  },
+  "web.shell.setup.choose_disks": {
+    "text": "Choose up to 2 disks. Pick 2 to mirror them (RAID1, recommended — your files survive one disk failing). Pick 1 to use it alone, with no redundancy. Pick none to use the boot disk instead.",
+    "note": "Storage step of a new device's setup: how to choose the disks. The disks chosen are formatted. RAID1 is the name of the mirror, never translated.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d5d18bfd"
+  },
+  "web.shell.setup.confirm_password": {
+    "text": "Confirm password",
+    "note": "Label of the field where the new password is typed a second time, in the first step of a new device's setup."
+  },
+  "web.shell.setup.disk": {
+    "text": "{path} — {size}",
+    "args": [["path", "text"], ["size", "text"]],
+    "note": "A disk in the storage step of a new device's setup. {path} is its device path (/dev/sda), {size} its size with the unit, already formatted (500.0 GB)."
+  },
+  "web.shell.setup.disk_model": {
+    "text": "{path} — {size} ({model})",
+    "args": [["path", "text"], ["size", "text"], ["model", "text"]],
+    "note": "A disk in the storage step of a new device's setup. {path} is its device path (/dev/sda), {size} its size with the unit, already formatted (500.0 GB), {model} the model name the disk reports."
+  },
+  "web.shell.setup.failed": {
+    "text": "Could not set up the device — please try again.",
+    "note": "Error in the first step of a new device's setup when the device didn't take the password."
+  },
+  "web.shell.setup.finish": {
+    "text": "Finish setup",
+    "note": "Button of the first (and only) step of an additional user's setup.",
+    "max": 24
+  },
+  "web.shell.setup.intro_account": {
+    "text": "This account isn't set up yet. Choose your name and a password — this password protects your files and social profile, so keep it somewhere safe.",
+    "note": "First step of the setup of an additional user's account on a device someone else set up: they choose a name and their password.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #6108b5a2"
+  },
+  "web.shell.setup.intro_device": {
+    "text": "This device isn't set up yet. Choose an owner name and a password — this password protects your files and social profile, so keep it somewhere safe.",
+    "note": "First step of a new device's setup, under the heading: the owner chooses a name and the device's password.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #a5519d02"
+  },
+  "web.shell.setup.joining": {
+    "text": "Joining \"{ssid}\"… if this device was reached over its own setup network, reconnect to your normal WiFi and find it there.",
+    "args": [["ssid", "user"]],
+    "note": "WiFi step of a new device's setup after a network was chosen: the device leaves its own temporary network to join it. {ssid} is the network's name. Write the quotes in your language's style."
+  },
+  "web.shell.setup.name": {
+    "text": "Your name",
+    "note": "Label of the name field in the first step of a new device's setup."
+  },
+  "web.shell.setup.name_example": {
+    "text": "e.g. Alex",
+    "note": "Placeholder of the name field in the first step of a new device's setup: an example name. Use a common first name in your language."
+  },
+  "web.shell.setup.next_storage": {
+    "text": "Next: Storage",
+    "note": "Button of the first step of a new device's setup that goes on to the step where disks are chosen.",
+    "max": 24
+  },
+  "web.shell.setup.next_wifi": {
+    "text": "Next: WiFi",
+    "note": "Button of the storage step of a new device's setup that goes on to the WiFi step.",
+    "max": 24
+  },
+  "web.shell.setup.no_disks": {
+    "text": "No extra disks were detected — your files will be stored on the boot disk.",
+    "note": "Storage step of a new device's setup when no disks are plugged in besides the one the system runs from."
+  },
+  "web.shell.setup.no_networks": {
+    "text": "No networks found — move the device closer to your router, or skip for now.",
+    "note": "WiFi step of a new device's setup when the device found no WiFi networks."
+  },
+  "web.shell.setup.password_mismatch": {
+    "text": "Passwords don't match.",
+    "note": "Error in the first step of a new device's setup when the password and its confirmation differ."
+  },
+  "web.shell.setup.password_short": {
+    "text": "Choose a password with at least 8 characters.",
+    "note": "Error in the first step of a new device's setup when the password is too short.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #4136b4d0"
+  },
+  "web.shell.setup.saving": {
+    "text": "Saving…",
+    "note": "The button of the storage step of a new device's setup while the choice is saved.",
+    "max": 24
+  },
+  "web.shell.setup.setting_up": {
+    "text": "Setting up…",
+    "note": "The button of the first step of a new device's setup while the password is being set.",
+    "max": 24
+  },
+  "web.shell.setup.skip": {
+    "text": "Skip — I'm already connected",
+    "note": "Button of the WiFi step of a new device's setup that finishes it without joining a network.",
+    "max": 40
+  },
+  "web.shell.setup.storage": {
+    "text": "Storage",
+    "note": "Heading of the step of a new device's setup where the disks that store the files are chosen."
+  },
+  "web.shell.setup.storage_failed": {
+    "text": "Could not save storage configuration.",
+    "note": "Error in the storage step of a new device's setup when the device didn't take the choice and gave no reason. Setup goes on; storage can be set later."
+  },
+  "web.shell.setup.welcome": {
+    "text": "Welcome to Off The Cloud",
+    "note": "Heading of the first step of a new device's setup, in the web app."
+  },
+  "web.shell.setup.wifi": {
+    "text": "WiFi",
+    "note": "Heading of the step of a new device's setup where it joins a WiFi network."
+  },
+  "web.shell.setup.wifi_failed": {
+    "text": "Could not save the WiFi request.",
+    "note": "Error in the WiFi step of a new device's setup when the device didn't take the network and gave no reason."
+  },
+  "web.shell.setup.wifi_intro": {
+    "text": "If you're set up over this device's own temporary \"Off The Cloud\" network, pick your real WiFi below. Already connected some other way (ethernet, or WiFi set up earlier)? Just skip this.",
+    "note": "WiFi step of a new device's setup. \"Off The Cloud\" is the name of the temporary network the device makes during setup."
+  },
+  "web.shell.setup.wifi_network": {
+    "text": "{ssid} ({signal})",
+    "args": [["ssid", "user"], ["signal", "text"]],
+    "note": "A WiFi network in the list of the setup's WiFi step (a lock before it marks one with a password). {ssid} is the network's name, {signal} its signal strength, already formatted (72%)."
+  },
+  "web.shell.signin.close": {
+    "text": "Close sign in",
+    "note": "Screen-reader name of the back arrow that folds the top bar's password field away again on a phone."
+  },
+  "web.shell.signin.interrupted": {
+    "text": "Your device stopped answering, so you weren't signed in. Try again now that it's back.",
+    "note": "Under the top bar's password field when the device is back after it stopped answering during a sign-in. The password is still in the field."
+  },
+  "web.shell.signin.offline": {
+    "text": "You're offline. Check your connection and try again.",
+    "note": "Under the top bar's password field when this computer or phone has no internet connection."
+  },
+  "web.shell.signin.submit": {
+    "text": "Sign In",
+    "note": "Button at the right of the top bar while signed out that signs in with the device's password; on a phone it first opens the password field. Title Case as shown.",
+    "max": 16
+  },
+  "web.shell.signin.unreachable": {
+    "text": "Can't reach your device right now. Try again in a moment.",
+    "note": "Under the top bar's password field when the device didn't answer (switched off, or no connection to it)."
+  },
+  "web.shell.signin.wrong": {
+    "text": "Wrong password. Try again.",
+    "note": "Under the top bar's password field when the device refused the password."
+  },
+  "web.shell.storage.attention": {
+    "text": "Needs attention",
+    "note": "Name of the red dot by Storage in the left menu, and part of the rail's storage tooltip: one disk of the mirror stopped working or the device reports a problem."
+  },
+  "web.shell.storage.cpu": {
+    "text": "CPU",
+    "note": "Label in the storage details of the left menu: the processor's load (a percentage at the right).",
+    "max": 16
+  },
+  "web.shell.storage.disks": {
+    "text": "Disks",
+    "note": "Label in the storage details of the left menu: how many disks the device has (a number at the right).",
+    "max": 16
+  },
+  "web.shell.storage.free": {
+    "text": "Free",
+    "note": "Label in the storage details of the left menu: free space left (a size at the right).",
+    "max": 16
+  },
+  "web.shell.storage.gauge": {
+    "text": "Storage. Show details",
+    "note": "Screen-reader name of the storage gauge in the left menu's icon rail while the device's status isn't known yet; pressing it opens the whole menu at the storage details."
+  },
+  "web.shell.storage.gauge_used": {
+    "text": "Storage, {percent} used. Show details",
+    "args": [["percent", "text"]],
+    "note": "Screen-reader name of the storage gauge in the left menu's icon rail; pressing it opens the whole menu at the storage details. {percent} is how full it is, already formatted (45%)."
+  },
+  "web.shell.storage.gauge_used_attention": {
+    "text": "Storage, {percent} used, needs attention. Show details",
+    "args": [["percent", "text"]],
+    "note": "Screen-reader name of the storage gauge in the icon rail when a disk stopped working or the device reports a problem. {percent} is how full it is, already formatted (45%)."
+  },
+  "web.shell.storage.memory": {
+    "text": "Memory",
+    "note": "Label in the storage details of the left menu: the device's working memory, RAM (1.2 GB of 8.0 GB at the right).",
+    "max": 16
+  },
+  "web.shell.storage.meter": {
+    "text": "Storage used",
+    "note": "Screen-reader name of the bar that shows how full the device's storage is."
+  },
+  "web.shell.storage.mirror_degraded": {
+    "text": "Mirror degraded",
+    "note": "Under the storage bar in the left menu, in red: one disk of the mirror (RAID1) stopped working."
+  },
+  "web.shell.storage.mirror_in_sync": {
+    "text": "Mirror in sync",
+    "note": "Under the storage bar in the left menu: both disks of the mirror (RAID1) hold the same files."
+  },
+  "web.shell.storage.mirror_none": {
+    "text": "No mirror",
+    "note": "Under the storage bar in the left menu: the device keeps its files on one disk, with no mirrored (RAID1) copy."
+  },
+  "web.shell.storage.mirror_syncing": {
+    "text": "Mirror syncing ({percent})",
+    "args": [["percent", "text"]],
+    "note": "Under the storage bar in the left menu while the second disk of the mirror (RAID1) is being copied. {percent} is how far it got, already formatted (45.5%)."
+  },
+  "web.shell.storage.mirror_unknown": {
+    "text": "Mirror state unknown",
+    "note": "Under the storage bar in the left menu when the device doesn't say how its mirror (RAID1) is."
+  },
+  "web.shell.storage.of": {
+    "text": "{used} of {total}",
+    "args": [["used", "text"], ["total", "text"]],
+    "note": "Value of System card and Memory in the storage details: the part in use out of the total. {used} and {total} are sizes with their unit, already formatted (1.2 GB, 8.0 GB)."
+  },
+  "web.shell.storage.reading": {
+    "text": "Reading…",
+    "note": "Under the storage bar in the left menu while the device's status is being read."
+  },
+  "web.shell.storage.system_card": {
+    "text": "System card",
+    "note": "Label in the storage details of the left menu: the memory card the device's system runs from (12.4 GB of 64 GB at the right).",
+    "max": 16
+  },
+  "web.shell.storage.tip": {
+    "text": "Storage: {details}",
+    "args": [["details", "text"]],
+    "note": "Tooltip of the storage gauge in the left menu's icon rail. {details} is the storage lines joined by middle dots, for example: 39.6 GB of 474 GB used · Mirror in sync."
+  },
+  "web.shell.storage.title": {
+    "text": "Storage",
+    "note": "Button at the foot of the left menu that shows or hides the details of the device's storage; also the first word of the storage gauge's tooltip in the icon rail.",
+    "max": 16
+  },
+  "web.shell.storage.unavailable": {
+    "text": "Storage unavailable right now",
+    "note": "Under the storage bar in the left menu when the device's status could not be read."
+  },
+  "web.shell.storage.used": {
+    "text": "{used} of {total} used",
+    "args": [["used", "text"], ["total", "text"]],
+    "note": "Under the storage bar in the left menu. {used} and {total} are sizes with their unit, already formatted (39.6 GB, 474 GB)."
+  },
+  "web.shell.top.hide_menu": {
+    "text": "Hide menu",
+    "note": "Screen-reader name of the menu button at the left of the top bar while the left menu is shown."
+  },
+  "web.shell.top.new_post": {
+    "text": "New post",
+    "note": "Button in the top bar on the Social feed, after a plus sign, that opens the composer for a new post. On narrow windows only the plus shows and this is its tooltip.",
+    "max": 16
+  },
+  "web.shell.top.show_menu": {
+    "text": "Show menu",
+    "note": "Screen-reader name of the menu button at the left of the top bar while the left menu is hidden or folded into icons."
+  },
+  "web.shell.unreachable.disabled": {
+    "text": "This account has been disabled",
+    "note": "Heading of the full page shown when the relay says the device's account is switched off. The relay's own explanation is shown under it."
+  },
+  "web.shell.unreachable.note": {
+    "text": "Nothing has been lost — everything stays on the device itself. This page keeps checking, and picks up on its own as soon as it's back.",
+    "note": "Under the explanation on the full page shown while the device can't be reached."
+  },
+  "web.shell.unreachable.title": {
+    "text": "This device isn't available right now",
+    "note": "Heading of the full page shown when the relay (off-the.cloud) can't reach the user's device: switched off, no internet. The relay's own explanation is shown under it."
+  },
+  "web.shell.update.critical": {
+    "text": "<b>Critical update {version} available.</b> {summary} Install it as soon as possible.",
+    "args": [["version", "text"], ["summary", "text"]],
+    "note": "Banner above every page while a critical update of the device's software (a serious security fix, or one needed to keep working with the relay and the apps) waits to be installed. <b> is shown in bold. {version} is its version number (2.1), {summary} the release's own summary, in English, maybe empty. The button beside it is common.update.",
+    "rich": ["b"],
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #c2ff2a24"
+  }
+}

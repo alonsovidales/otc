@@ -7,6 +7,8 @@
 // post's own button).
 import { savingLabel, savingPercent, failedText, dismissFailed } from "./mediaDownload";
 import type { Saving, FailedDownload } from "./mediaDownload";
+import { useT } from "../i18n";
+import { percentText } from "./uiText";
 import "./PhotoGallery.css";
 
 const DownloadGlyph = () => (
@@ -24,7 +26,7 @@ const DoneGlyph = () => (
  *  Busy rather than disabled while it runs, so the keyboard's focus
  *  stays. `cls` names its parts: "pg-modal-dl" is the viewers' header
  *  pill (its label only on a wide screen), "sv-dl" a post's own. */
-export function DownloadButton({ save, onClick, what, cls = "pg-modal-dl", className = "", title = "Download the original", label = "Download", announce = true }: {
+export function DownloadButton({ save, onClick, what, cls = "pg-modal-dl", className = "", title, label, announce = true }: {
   /** The download of the item it saves, if one is under way. */
   save: Saving | undefined;
   onClick: () => void;
@@ -33,22 +35,24 @@ export function DownloadButton({ save, onClick, what, cls = "pg-modal-dl", class
   cls?: string;
   /** More classes for the button itself. */
   className?: string;
-  /** The tooltip and accessible name while idle. */
+  /** The tooltip and accessible name while idle ("Download the original",
+   *  "Download"), made by the caller in the language on screen. */
   title?: string;
   label?: string;
   /** Whether its status is told to screen readers (false while another
    *  button for the same download, in an open viewer, tells it). */
   announce?: boolean;
 }) {
-  const text = savingLabel(save);
+  const t = useT();
+  const text = savingLabel(t, save);
   const pct = savingPercent(save);
   return (
     <>
       <button
         type="button"
         className={cls + (className ? " " + className : "") + (save ? " busy" : "")}
-        title={save ? text : title}
-        aria-label={save ? text : label}
+        title={save ? text : title ?? t("web.shell.download.original")}
+        aria-label={save ? text : label ?? t("common.download")}
         aria-disabled={save ? true : undefined}
         onClick={onClick}
       >
@@ -56,10 +60,12 @@ export function DownloadButton({ save, onClick, what, cls = "pg-modal-dl", class
           {!save ? <DownloadGlyph /> : save.phase === "handed" ? <DoneGlyph /> : <span className="pg-modal-dl-spin" />}
         </span>
         <span className={cls + "-text"}>{text}</span>
-        {pct != null && <span className={cls + "-pct"} aria-hidden="true">{pct}%</span>}
+        {pct != null && <span className={cls + "-pct"} aria-hidden="true">{percentText(t, pct)}</span>}
       </button>
       <span className="pg-modal-sr" role="status">
-        {save && announce ? (save.phase === "handed" ? `${what}: download started` : `Downloading ${what}`) : ""}
+        {save && announce
+          ? (save.phase === "handed" ? t("web.shell.download.started_sr", { name: what }) : t("web.shell.download.downloading_sr", { name: what }))
+          : ""}
       </span>
     </>
   );
@@ -68,11 +74,12 @@ export function DownloadButton({ save, onClick, what, cls = "pg-modal-dl", class
 /** A failed download's note, inside a viewer (useDownloadHost); over the
  *  page there is mediaDownload's own. */
 export function DownloadNote({ failed }: { failed: FailedDownload | null }) {
+  const t = useT();
   if (!failed) return null;
   return (
     <div className="pg-modal-toast" role="alert" key={failed.seq}>
       <span>{failedText(failed.name)}</span>
-      <button type="button" className="pg-modal-toast-close" aria-label="Dismiss" onClick={dismissFailed}>×</button>
+      <button type="button" className="pg-modal-toast-close" aria-label={t("web.shell.download.dismiss")} onClick={dismissFailed}>×</button>
     </div>
   );
 }

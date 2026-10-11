@@ -2,6 +2,7 @@
 
 import forge from "node-forge";
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
+import { t } from "../i18n/runtime";
 
 // The bridge relays already-decrypted app payloads between a device and a
 // browser/friend client, so anything sent as plaintext in the protobuf
@@ -149,7 +150,7 @@ export async function encryptForConnection(request: Requester, plaintext: string
 export function encryptWithPubKey(resp: RespEnvelope, plaintext: string): Uint8Array {
   if (resp.payload?.$case !== "respPubKey") {
     const msg = resp.payload?.$case === "respAck" ? resp.payload.respAck.errorMsg : undefined;
-    throw new Error(msg || "Unable to fetch the connection's public key");
+    throw new Error(msg || t("web.shell.connection.no_key"));
   }
 
   const der = resp.payload.respPubKey.publicKey;

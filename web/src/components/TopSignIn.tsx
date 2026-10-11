@@ -24,8 +24,9 @@ import "./TopSignIn.css";
 import Spinner from "./Spinner";
 import { signInWithPassword, type SignInResult } from "../net/signIn";
 import { getDeviceStatus } from "../net/deviceStatus";
+import { useT } from "../i18n";
 
-type Refusal = Extract<SignInResult, { ok: false }>;
+type Refusal = Extract<SignInResult, { reason: "wrong" | "unreachable" | "other" }>;
 
 // A sign-in the unreachable screen cut off, kept by App until the field is
 // back.
@@ -36,7 +37,7 @@ export interface Interrupted {
 const cInterruptedNote: Refusal = {
   ok: false,
   reason: "unreachable",
-  message: "Your device stopped answering, so you weren't signed in. Try again now that it's back.",
+  message: (t) => t("web.shell.signin.interrupted"),
 };
 
 interface Props {
@@ -63,6 +64,7 @@ interface Props {
 export default function TopSignIn({
   deviceHost, compact, open, onOpenChange, onNewDevice, onSignedIn, interrupted, onInterrupted,
 }: Props) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   // The guard against a second Enter while the first is being checked:
@@ -159,7 +161,7 @@ export default function TopSignIn({
       noValidate
     >
       {compact && open && (
-        <button type="button" className="tsi-close" aria-label="Close sign in" onClick={fold}>
+        <button type="button" className="tsi-close" aria-label={t("web.shell.signin.close")} onClick={fold}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
             strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M19 12H5m6-6-6 6 6 6" />
@@ -192,7 +194,7 @@ export default function TopSignIn({
             else if (refusal) setRefusal(null);
           }}
         />
-        <label htmlFor={fieldId} className="tsi-label">Password</label>
+        <label htmlFor={fieldId} className="tsi-label">{t("common.password")}</label>
       </div>
       <button
         ref={buttonRef}
@@ -208,12 +210,12 @@ export default function TopSignIn({
         // to type again.
         onMouseDown={(e) => { if (!folded && document.activeElement === inputRef.current) e.preventDefault(); }}
       >
-        <span className="tsi-submit-label">Sign In</span>
+        <span className="tsi-submit-label">{t("web.shell.signin.submit")}</span>
         {busy && <span className="tsi-submit-spin"><Spinner /></span>}
       </button>
-      <span className="tsi-sr" role="status">{busy ? "Signing in…" : ""}</span>
+      <span className="tsi-sr" role="status">{busy ? t("web.shell.session.signing_in") : ""}</span>
       {refusal && (
-        <p id={noteId} className="tsi-note" role="alert">{refusal.message}</p>
+        <p id={noteId} className="tsi-note" role="alert">{refusal.message(t)}</p>
       )}
     </form>
   );

@@ -91,10 +91,145 @@ export type MessageKey =
   | "web.settings.language.hint"
   | "web.settings.language.not_saved"
   | "web.settings.language.title"
-  | "web.settings.language.too_old";
+  | "web.settings.language.too_old"
+  | "web.shell.account.label"
+  | "web.shell.account.sign_out"
+  | "web.shell.account.signing_out"
+  | "web.shell.connection.closed"
+  | "web.shell.connection.no_answer"
+  | "web.shell.connection.no_key"
+  | "web.shell.connection.no_push_key"
+  | "web.shell.connection.not_connected"
+  | "web.shell.connection.signed_in_meanwhile"
+  | "web.shell.connection.too_many"
+  | "web.shell.download.dismiss"
+  | "web.shell.download.downloading"
+  | "web.shell.download.downloading_sr"
+  | "web.shell.download.failed"
+  | "web.shell.download.original"
+  | "web.shell.download.preparing"
+  | "web.shell.download.progress"
+  | "web.shell.download.started"
+  | "web.shell.download.started_sr"
+  | "web.shell.file_icon.generic"
+  | "web.shell.file_icon.label"
+  | "web.shell.link.empty"
+  | "web.shell.link.failed"
+  | "web.shell.link.invalid"
+  | "web.shell.link.malformed"
+  | "web.shell.link.preparing"
+  | "web.shell.link.progress"
+  | "web.shell.link.stopped"
+  | "web.shell.lowres.description"
+  | "web.shell.lowres.label"
+  | "web.shell.menu.alerts"
+  | "web.shell.menu.collections"
+  | "web.shell.menu.device"
+  | "web.shell.menu.files"
+  | "web.shell.menu.friends"
+  | "web.shell.menu.images"
+  | "web.shell.menu.people"
+  | "web.shell.menu.privacy"
+  | "web.shell.menu.sections"
+  | "web.shell.menu.settings"
+  | "web.shell.menu.sharing"
+  | "web.shell.menu.social"
+  | "web.shell.menu.terms"
+  | "web.shell.menu.unread"
+  | "web.shell.person.unnamed"
+  | "web.shell.scrubber.label"
+  | "web.shell.scrubber.month"
+  | "web.shell.scrubber.no_date"
+  | "web.shell.search.a_person"
+  | "web.shell.search.already"
+  | "web.shell.search.clear"
+  | "web.shell.search.close"
+  | "web.shell.search.close_collection"
+  | "web.shell.search.collection"
+  | "web.shell.search.field"
+  | "web.shell.search.file_in"
+  | "web.shell.search.files"
+  | "web.shell.search.folder_in"
+  | "web.shell.search.no_matches"
+  | "web.shell.search.nothing"
+  | "web.shell.search.people"
+  | "web.shell.search.person"
+  | "web.shell.search.photo_count"
+  | "web.shell.search.photo_in"
+  | "web.shell.search.remove"
+  | "web.shell.search.remove_person"
+  | "web.shell.search.suggestion_count"
+  | "web.shell.search.suggestions"
+  | "web.shell.search.summary"
+  | "web.shell.search.things"
+  | "web.shell.search.video_in"
+  | "web.shell.session.ended"
+  | "web.shell.session.signing_in"
+  | "web.shell.setup.choose_disks"
+  | "web.shell.setup.confirm_password"
+  | "web.shell.setup.disk"
+  | "web.shell.setup.disk_model"
+  | "web.shell.setup.failed"
+  | "web.shell.setup.finish"
+  | "web.shell.setup.intro_account"
+  | "web.shell.setup.intro_device"
+  | "web.shell.setup.joining"
+  | "web.shell.setup.name"
+  | "web.shell.setup.name_example"
+  | "web.shell.setup.next_storage"
+  | "web.shell.setup.next_wifi"
+  | "web.shell.setup.no_disks"
+  | "web.shell.setup.no_networks"
+  | "web.shell.setup.password_mismatch"
+  | "web.shell.setup.password_short"
+  | "web.shell.setup.saving"
+  | "web.shell.setup.setting_up"
+  | "web.shell.setup.skip"
+  | "web.shell.setup.storage"
+  | "web.shell.setup.storage_failed"
+  | "web.shell.setup.welcome"
+  | "web.shell.setup.wifi"
+  | "web.shell.setup.wifi_failed"
+  | "web.shell.setup.wifi_intro"
+  | "web.shell.setup.wifi_network"
+  | "web.shell.signin.close"
+  | "web.shell.signin.interrupted"
+  | "web.shell.signin.offline"
+  | "web.shell.signin.submit"
+  | "web.shell.signin.unreachable"
+  | "web.shell.signin.wrong"
+  | "web.shell.storage.attention"
+  | "web.shell.storage.cpu"
+  | "web.shell.storage.disks"
+  | "web.shell.storage.free"
+  | "web.shell.storage.gauge"
+  | "web.shell.storage.gauge_used"
+  | "web.shell.storage.gauge_used_attention"
+  | "web.shell.storage.memory"
+  | "web.shell.storage.meter"
+  | "web.shell.storage.mirror_degraded"
+  | "web.shell.storage.mirror_in_sync"
+  | "web.shell.storage.mirror_none"
+  | "web.shell.storage.mirror_syncing"
+  | "web.shell.storage.mirror_unknown"
+  | "web.shell.storage.of"
+  | "web.shell.storage.reading"
+  | "web.shell.storage.system_card"
+  | "web.shell.storage.tip"
+  | "web.shell.storage.title"
+  | "web.shell.storage.unavailable"
+  | "web.shell.storage.used"
+  | "web.shell.top.hide_menu"
+  | "web.shell.top.new_post"
+  | "web.shell.top.show_menu"
+  | "web.shell.unreachable.disabled"
+  | "web.shell.unreachable.note"
+  | "web.shell.unreachable.title";
 
 /** The keys <Trans> renders: every web key with tags. */
-export type RichKey = never;
+export type RichKey =
+  | "web.shell.search.documents"
+  | "web.shell.update.critical";
 
 /** Each key's arguments by name; undefined when it takes none. */
 export interface MessageArgs {
@@ -142,11 +277,148 @@ export interface MessageArgs {
   "web.settings.language.not_saved": undefined;
   "web.settings.language.title": undefined;
   "web.settings.language.too_old": undefined;
+  "web.shell.account.label": undefined;
+  "web.shell.account.sign_out": undefined;
+  "web.shell.account.signing_out": undefined;
+  "web.shell.connection.closed": undefined;
+  "web.shell.connection.no_answer": undefined;
+  "web.shell.connection.no_key": undefined;
+  "web.shell.connection.no_push_key": undefined;
+  "web.shell.connection.not_connected": undefined;
+  "web.shell.connection.signed_in_meanwhile": undefined;
+  "web.shell.connection.too_many": undefined;
+  "web.shell.download.dismiss": undefined;
+  "web.shell.download.downloading": undefined;
+  "web.shell.download.downloading_sr": { name: string };
+  "web.shell.download.failed": { name: string };
+  "web.shell.download.original": undefined;
+  "web.shell.download.preparing": undefined;
+  "web.shell.download.progress": { percent: string };
+  "web.shell.download.started": undefined;
+  "web.shell.download.started_sr": { name: string };
+  "web.shell.file_icon.generic": undefined;
+  "web.shell.file_icon.label": { type: string };
+  "web.shell.link.empty": undefined;
+  "web.shell.link.failed": undefined;
+  "web.shell.link.invalid": undefined;
+  "web.shell.link.malformed": undefined;
+  "web.shell.link.preparing": undefined;
+  "web.shell.link.progress": { percent: string };
+  "web.shell.link.stopped": undefined;
+  "web.shell.lowres.description": undefined;
+  "web.shell.lowres.label": undefined;
+  "web.shell.menu.alerts": undefined;
+  "web.shell.menu.collections": undefined;
+  "web.shell.menu.device": undefined;
+  "web.shell.menu.files": undefined;
+  "web.shell.menu.friends": undefined;
+  "web.shell.menu.images": undefined;
+  "web.shell.menu.people": undefined;
+  "web.shell.menu.privacy": undefined;
+  "web.shell.menu.sections": undefined;
+  "web.shell.menu.settings": undefined;
+  "web.shell.menu.sharing": undefined;
+  "web.shell.menu.social": undefined;
+  "web.shell.menu.terms": undefined;
+  "web.shell.menu.unread": { label: string; count: number };
+  "web.shell.person.unnamed": undefined;
+  "web.shell.scrubber.label": undefined;
+  "web.shell.scrubber.month": { month: string; year: string };
+  "web.shell.scrubber.no_date": undefined;
+  "web.shell.search.a_person": undefined;
+  "web.shell.search.already": { text: string };
+  "web.shell.search.clear": undefined;
+  "web.shell.search.close": undefined;
+  "web.shell.search.close_collection": { name: string };
+  "web.shell.search.collection": { name: string };
+  "web.shell.search.documents": { text: string };
+  "web.shell.search.field": undefined;
+  "web.shell.search.file_in": { name: string; folder: string };
+  "web.shell.search.files": undefined;
+  "web.shell.search.folder_in": { name: string; folder: string };
+  "web.shell.search.no_matches": undefined;
+  "web.shell.search.nothing": { text: string };
+  "web.shell.search.people": undefined;
+  "web.shell.search.person": undefined;
+  "web.shell.search.photo_count": { count: number };
+  "web.shell.search.photo_in": { name: string; folder: string };
+  "web.shell.search.remove": { name: string };
+  "web.shell.search.remove_person": undefined;
+  "web.shell.search.suggestion_count": { count: number };
+  "web.shell.search.suggestions": undefined;
+  "web.shell.search.summary": { items: string };
+  "web.shell.search.things": undefined;
+  "web.shell.search.video_in": { name: string; folder: string };
+  "web.shell.session.ended": undefined;
+  "web.shell.session.signing_in": undefined;
+  "web.shell.setup.choose_disks": undefined;
+  "web.shell.setup.confirm_password": undefined;
+  "web.shell.setup.disk": { path: string; size: string };
+  "web.shell.setup.disk_model": { path: string; size: string; model: string };
+  "web.shell.setup.failed": undefined;
+  "web.shell.setup.finish": undefined;
+  "web.shell.setup.intro_account": undefined;
+  "web.shell.setup.intro_device": undefined;
+  "web.shell.setup.joining": { ssid: string };
+  "web.shell.setup.name": undefined;
+  "web.shell.setup.name_example": undefined;
+  "web.shell.setup.next_storage": undefined;
+  "web.shell.setup.next_wifi": undefined;
+  "web.shell.setup.no_disks": undefined;
+  "web.shell.setup.no_networks": undefined;
+  "web.shell.setup.password_mismatch": undefined;
+  "web.shell.setup.password_short": undefined;
+  "web.shell.setup.saving": undefined;
+  "web.shell.setup.setting_up": undefined;
+  "web.shell.setup.skip": undefined;
+  "web.shell.setup.storage": undefined;
+  "web.shell.setup.storage_failed": undefined;
+  "web.shell.setup.welcome": undefined;
+  "web.shell.setup.wifi": undefined;
+  "web.shell.setup.wifi_failed": undefined;
+  "web.shell.setup.wifi_intro": undefined;
+  "web.shell.setup.wifi_network": { ssid: string; signal: string };
+  "web.shell.signin.close": undefined;
+  "web.shell.signin.interrupted": undefined;
+  "web.shell.signin.offline": undefined;
+  "web.shell.signin.submit": undefined;
+  "web.shell.signin.unreachable": undefined;
+  "web.shell.signin.wrong": undefined;
+  "web.shell.storage.attention": undefined;
+  "web.shell.storage.cpu": undefined;
+  "web.shell.storage.disks": undefined;
+  "web.shell.storage.free": undefined;
+  "web.shell.storage.gauge": undefined;
+  "web.shell.storage.gauge_used": { percent: string };
+  "web.shell.storage.gauge_used_attention": { percent: string };
+  "web.shell.storage.memory": undefined;
+  "web.shell.storage.meter": undefined;
+  "web.shell.storage.mirror_degraded": undefined;
+  "web.shell.storage.mirror_in_sync": undefined;
+  "web.shell.storage.mirror_none": undefined;
+  "web.shell.storage.mirror_syncing": { percent: string };
+  "web.shell.storage.mirror_unknown": undefined;
+  "web.shell.storage.of": { used: string; total: string };
+  "web.shell.storage.reading": undefined;
+  "web.shell.storage.system_card": undefined;
+  "web.shell.storage.tip": { details: string };
+  "web.shell.storage.title": undefined;
+  "web.shell.storage.unavailable": undefined;
+  "web.shell.storage.used": { used: string; total: string };
+  "web.shell.top.hide_menu": undefined;
+  "web.shell.top.new_post": undefined;
+  "web.shell.top.show_menu": undefined;
+  "web.shell.unreachable.disabled": undefined;
+  "web.shell.unreachable.note": undefined;
+  "web.shell.unreachable.title": undefined;
+  "web.shell.update.critical": { version: string; summary: string };
 }
 
 /** Each rich key's tags. */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface RichTags {}
+export interface RichTags {
+  "web.shell.search.documents": "mark";
+  "web.shell.update.critical": "b";
+}
 
 /**
  * What follows the key in a lookup of K: nothing, or its arguments, as in

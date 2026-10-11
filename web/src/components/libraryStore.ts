@@ -4,6 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { useWS } from "../net/useWS";
 import type { ImageGroup, Person, RespEnvelope, TagsList } from "../proto/messages";
 import { forgetPerson, getPhotoFilter } from "./photoFilter";
+import { t } from "../i18n";
 
 // The library's people, groups and tags, each loaded once and shared by
 // the top bar's search, the People and Groups pages and the Images grid.
@@ -207,5 +208,6 @@ export function dropGroupLocally(id: string) {
   if (thumb) URL.revokeObjectURL(thumb);
 }
 
-/** A person's name as shown: their name, or "Unnamed". */
-export const personLabel = (p: Pick<Person, "name">) => p.name.trim() || "Unnamed";
+/** A person's name as shown: their name, or "Unnamed" in the language on
+ *  screen (call it while rendering, from a component that uses useT). */
+export const personLabel = (p: Pick<Person, "name">) => p.name.trim() || t("web.shell.person.unnamed");

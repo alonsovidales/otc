@@ -4,14 +4,17 @@ import { useEffect, useState } from "react";
 import { useWS } from "../net/useWS";
 import { RaidState } from "../proto/messages";
 import type { ReqEnvelope, RespEnvelope, Status as MsgStatus } from "../proto/messages";
+import type { TFunction } from "../i18n";
+import { percentText, unitText } from "./uiText";
 
 // A size the device reports in MB, readable: "4.6 GB", "984 GB", "820 MB" -
-// the same as sizeText in the iOS and Android apps.
-export function formatMB(n?: number | null) {
+// the same as sizeText in the iOS and Android apps - in the language's own
+// number format ("4,6 GB" in German; uiText.ts).
+export function formatMB(t: TFunction, n?: number | null) {
   if (n === undefined || n === null || Number.isNaN(n)) return "—";
-  if (n >= 100_000) return `${Math.round(n / 1000)} GB`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)} GB`;
-  return `${Math.round(n)} MB`;
+  if (n >= 100_000) return unitText(t, Math.round(n / 1000), "gigabyte", 0);
+  if (n >= 1000) return unitText(t, n / 1000, "gigabyte", 1);
+  return unitText(t, Math.round(n), "megabyte", 0);
 }
 
 export function round(num: number) {
@@ -24,21 +27,21 @@ export function pct(used?: number | null, total?: number | null) {
 }
 
 // Issue #65: the RAID's own health, always visible.
-export function raidStateLabel(status: MsgStatus): string {
+export function raidStateLabel(t: TFunction, status: MsgStatus): string {
   switch (status.raidState) {
-    case RaidState.RaidNone: return "No mirror";
-    case RaidState.RaidInSync: return "Mirror in sync";
-    case RaidState.RaidSyncing: return `Mirror syncing (${round(status.raidSyncPercent)}%)`;
-    case RaidState.RaidDegraded: return "Mirror degraded";
-    default: return "Mirror state unknown";
+    case RaidState.RaidNone: return t("web.shell.storage.mirror_none");
+    case RaidState.RaidInSync: return t("web.shell.storage.mirror_in_sync");
+    case RaidState.RaidSyncing: return t("web.shell.storage.mirror_syncing", { percent: percentText(t, round(status.raidSyncPercent), 2) });
+    case RaidState.RaidDegraded: return t("web.shell.storage.mirror_degraded");
+    default: return t("web.shell.storage.mirror_unknown");
   }
 }
 
 /** The device's status (storage, mirror, CPU, memory, errors), polled
- *  while connected. */
+ *  while connected; `failed` while the last poll got no status. */
 export function useDeviceStatus(refreshMs = 5000) {
   const [status, setStatus] = useState<MsgStatus | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let stop = false;
@@ -50,15 +53,15 @@ export function useDeviceStatus(refreshMs = 5000) {
         });
         if (stop) return;
         if (resp.error) {
-          setErr(resp.errorMessage || "Could not read the device's status");
+          setFailed(true);
           return;
         }
         if (resp.payload?.$case === "respStatus") {
           setStatus(resp.payload.respStatus);
-          setErr(null);
+          setFailed(false);
         }
-      } catch (ex) {
-        if (!stop) setErr(ex instanceof Error ? ex.message : String(ex));
+      } catch {
+        if (!stop) setFailed(true);
       }
     }
     void fetchStatus();
@@ -66,5 +69,5 @@ export function useDeviceStatus(refreshMs = 5000) {
     return () => { stop = true; clearInterval(t); };
   }, [refreshMs]);
 
-  return { status, err };
+  return { status, failed };
 }

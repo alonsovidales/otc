@@ -13,6 +13,7 @@ import { signOut } from "../net/signOut";
 import type { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { SettingsIcon } from "./NavIcons";
 import Spinner from "./Spinner";
+import { useT } from "../i18n";
 import "./AccountMenu.css";
 
 type Props = {
@@ -129,6 +130,7 @@ function Avatar({ profile, big = false }: { profile: Profile; big?: boolean }) {
 }
 
 export default function AccountMenu({ onOpenSettings, refreshKey, tip }: Props) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
@@ -238,11 +240,11 @@ export default function AccountMenu({ onOpenSettings, refreshKey, tip }: Props) 
         ref={btnRef}
         type="button"
         className="am-btn"
-        aria-label="Account"
+        aria-label={t("web.shell.account.label")}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        data-tip={tip && !open ? "Account" : undefined}
+        data-tip={tip && !open ? t("web.shell.account.label") : undefined}
         onClick={() => { if (open) { if (!busy) close(); } else show(false); }}
         onKeyDown={onButtonKeyDown}
       >
@@ -288,7 +290,7 @@ export default function AccountMenu({ onOpenSettings, refreshKey, tip }: Props) 
                 aria-disabled={busy || undefined}
                 onClick={onSettings}
               >
-                <SettingsIcon size={22} />Settings
+                <SettingsIcon size={22} />{t("common.settings")}
               </button>
               <button
                 type="button"
@@ -301,7 +303,9 @@ export default function AccountMenu({ onOpenSettings, refreshKey, tip }: Props) 
                 {/* Signing out: the ring (hidden from screen readers) by
                     plain text, so the item, which keeps the focus, is
                     named by it. */}
-                {busy ? <><Spinner />Signing out…</> : <><SignOutIcon />Sign out</>}
+                {busy
+                  ? <><Spinner />{t("web.shell.account.signing_out")}</>
+                  : <><SignOutIcon />{t("web.shell.account.sign_out")}</>}
               </button>
             </div>
           </div>

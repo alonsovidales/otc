@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { useWS } from "./useWS";
+import { t } from "../i18n/runtime";
 
 // Issue #43: browser push notifications for new posts from friends. Fully
 // self-hosted — the device generates its own VAPID keypair (see
@@ -52,7 +53,7 @@ export async function enablePush(): Promise<boolean> {
         (e as any).payload = { $case: "reqGetVapidPublicKey", reqGetVapidPublicKey: {} };
       });
       if (resp.payload?.$case !== "respVapidPublicKey" || !resp.payload.respVapidPublicKey.key) {
-        throw new Error("Device has no VAPID public key configured");
+        throw new Error(t("web.shell.connection.no_push_key"));
       }
       return reg.pushManager.subscribe({
         userVisibleOnly: true,

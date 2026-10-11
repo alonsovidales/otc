@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { CSSProperties } from "react";
+import { useT, type TFunction } from "../i18n";
 import "./DateScrubber.css";
 
 // The date scrubber beside Images, as in Google Photos: the whole timeline
@@ -26,7 +27,7 @@ type Props = {
   onJump: (month: string) => void;
 };
 
-const cFineQuery = "(hover: hover) and (pointer: fine)";
+const cFineQuery = "(hover: hover) and (pointer: fine)"; // i18n-ignore: a media query
 // A finger has to move this far before it scrubs: a touch that stays put is
 // a tap, and a tap on the handle (or the column) does nothing.
 const cEngagePx = 6;
@@ -46,7 +47,6 @@ const cInsetFine = 12;
 const cInsetTouch = 32;
 // Half the mouse bubble's height (DateScrubber.css), to keep it on the track.
 const cBubbleHalfFine = 16;
-const cMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 // A bucket and where its photos fall in the timeline (0 = the newest).
 type Span = { month: string; start: number; end: number; index: number };
@@ -82,16 +82,30 @@ const subscribePointer = (onChange: () => void) => {
 };
 const isFinePointer = () => fineMedia().matches;
 
-function monthName(month: string): string | null {
+// Month names as the language writes them short ("Mar", "mars"), by its
+// canonical tag (t.tag) rather than the browser's region: English reads
+// "Sep" in every browser, as it did (uiText.ts).
+const monthFormats = new Map<string, Intl.DateTimeFormat>();
+function monthName(t: TFunction, month: string): string | null {
   const m = Number(month.slice(5, 7));
-  return m >= 1 && m <= 12 ? cMonthNames[m - 1] : null;
+  if (!(m >= 1 && m <= 12)) return null;
+  let f = monthFormats.get(t.tag);
+  if (!f) {
+    try {
+      f = new Intl.DateTimeFormat(t.tag, { month: "short", timeZone: "UTC" });
+    } catch {
+      f = new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" });
+    }
+    monthFormats.set(t.tag, f);
+  }
+  return f.format(Date.UTC(2000, m - 1, 15));
 }
 
 // "Mar 2024". A photo without a date is grouped under a zero month.
-function monthLabel(month: string): string {
-  const name = monthName(month);
+function monthLabel(t: TFunction, month: string): string {
+  const name = monthName(t, month);
   const year = month.slice(0, 4);
-  return name && Number(year) > 0 ? `${name} ${year}` : "No date";
+  return name && Number(year) > 0 ? t("web.shell.scrubber.month", { month: name, year }) : t("web.shell.scrubber.no_date");
 }
 
 function spansOf(buckets: ScrubBucket[]): { spans: Span[]; total: number } {
@@ -149,7 +163,7 @@ function yearAway(spans: Span[], from: number, dir: 1 | -1): number {
 // more photos keeps its label: the stretch of track is mostly that year's.
 // On a timeline of a year or two, month names fill in where they fit, or the
 // track would be one label and a lot of nothing.
-function layoutLabels(spans: Span[], total: number, height: number, inset: number, gap: number): Label[] {
+function layoutLabels(t: TFunction, spans: Span[], total: number, height: number, inset: number, gap: number): Label[] {
   const travel = height - 2 * inset;
   if (travel <= 0 || total <= 0) return [];
   const yAt = (at: number) => inset + (at / total) * travel;
@@ -193,7 +207,7 @@ function layoutLabels(spans: Span[], total: number, height: number, inset: numbe
   if (years.size <= 2) {
     const monthCandidates: { label: Label; weight: number }[] = [];
     for (const s of spans) {
-      const name = monthName(s.month);
+      const name = monthName(t, s.month);
       const year = s.month.slice(0, 4);
       // A year's first month is where the year's own label is, and the
       // months of a year without a label would read as another year's.
@@ -221,6 +235,7 @@ function dropFocus(root: HTMLElement | null, g: Gesture | null) {
 const at = (y: number) => ({ "--y": `${Math.round(y)}px` }) as CSSProperties;
 
 export default function DateScrubber({ buckets, currentMonth, onPreview, onJump }: Props) {
+  const t = useT();
   const fine = useSyncExternalStore(subscribePointer, isFinePointer);
   const { spans, total } = useMemo(() => spansOf(buckets), [buckets]);
   const live = total > 0;
@@ -241,8 +256,8 @@ export default function DateScrubber({ buckets, currentMonth, onPreview, onJump 
   }, [live]);
 
   const labels = useMemo(
-    () => layoutLabels(spans, total, height, inset, fine ? cLabelGapFine : cLabelGapTouch),
-    [spans, total, height, inset, fine],
+    () => layoutLabels(t, spans, total, height, inset, fine ? cLabelGapFine : cLabelGapTouch),
+    [t, spans, total, height, inset, fine],
   );
 
   const [scrub, setScrub] = useState<Scrub | null>(null);
@@ -533,12 +548,12 @@ export default function DateScrubber({ buckets, currentMonth, onPreview, onJump 
   const slider = {
     role: "slider",
     tabIndex: 0,
-    "aria-label": "Jump to a date",
+    "aria-label": t("web.shell.scrubber.label"),
     "aria-orientation": "vertical" as const,
     "aria-valuemin": 0,
     "aria-valuemax": n - 1,
     "aria-valuenow": n - 1 - valueIndex,
-    "aria-valuetext": monthLabel(spans[valueIndex].month),
+    "aria-valuetext": monthLabel(t, spans[valueIndex].month),
     onKeyDown,
     onBlur,
     onClick,
@@ -576,7 +591,7 @@ export default function DateScrubber({ buckets, currentMonth, onPreview, onJump 
               style={at(Math.min(height - cBubbleHalfFine, Math.max(cBubbleHalfFine, spot.y)))}
               aria-hidden="true"
             >
-              {monthLabel(spans[spot.index].month)}
+              {monthLabel(t, spans[spot.index].month)}
             </div>
           </>
         )}
@@ -595,7 +610,7 @@ export default function DateScrubber({ buckets, currentMonth, onPreview, onJump 
       <div className="ds-labels" aria-hidden="true">{labelNodes}</div>
       {bubble && (
         <div className="ds-bubble" style={at(bubble.y)} aria-hidden="true">
-          {monthLabel(spans[bubble.index].month)}
+          {monthLabel(t, spans[bubble.index].month)}
         </div>
       )}
       <div

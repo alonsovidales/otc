@@ -4,6 +4,7 @@ import { wsClient } from "./ws";
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { encryptWithPubKey, savePersistedToken, loadPersistedToken, clearPersistedToken } from "./pwCrypto";
 import { isDeviceStatusCode } from "./deviceStatus";
+import { t } from "../i18n/runtime";
 
 // The device refused a password and refuses any more from this address
 // for a while (issue #117). Unlike a sign-in nobody answered, that is a
@@ -17,7 +18,7 @@ class LockedOut extends Error {}
 export class NewDevice extends Error {
   readonly isPrimary: boolean;
   constructor(isPrimary: boolean) {
-    super("This device isn't set up yet.");
+    super("This device isn't set up yet."); // i18n-ignore: never shown, signIn turns it into the setup
     this.isPrimary = isPrimary;
   }
 }
@@ -42,7 +43,7 @@ export interface SendAuthOptions {
 // is kept for another try, as when the socket drops.
 function bridgeAnswer(resp: RespEnvelope): Error | null {
   if (resp.payload?.$case !== "respAck" || !isDeviceStatusCode(resp.payload.respAck.code)) return null;
-  return new Error(resp.payload.respAck.errorMsg || resp.errorMessage || "The device did not answer.");
+  return new Error(resp.payload.respAck.errorMsg || resp.errorMessage || t("web.shell.connection.no_answer"));
 }
 
 // How long a refused token waits for another tab's successor (see
@@ -231,7 +232,7 @@ export function UseWS() {
     // a refusal then would end the session it just made.
     if (authPromise && opts.keepOnlyIfAccepted) {
       return authPromise.then(
-        (ok) => (ok ? Promise.reject(new Error("Signed in meanwhile.")) : sendAuth(key, opts)),
+        (ok) => (ok ? Promise.reject(new Error(t("web.shell.connection.signed_in_meanwhile"))) : sendAuth(key, opts)),
         () => sendAuth(key, opts),
       );
     }
@@ -280,7 +281,7 @@ export function UseWS() {
         // rather than "incorrect password". Thrown so the sign-in form's
         // existing error path shows the device's own message.
         if (resp.payload?.$case === "respAck" && resp.payload.respAck.code === "too_many_attempts") {
-          throw new LockedOut(resp.payload.respAck.errorMsg || "Too many attempts. Try again in a minute.");
+          throw new LockedOut(resp.payload.respAck.errorMsg || t("web.shell.connection.too_many"));
         }
 
         // Wrong/stale password (e.g. it was changed elsewhere, or a

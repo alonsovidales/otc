@@ -11,6 +11,7 @@
 import { useEffect } from "react";
 import { useWS } from "../net/useWS";
 import type { DeviceStatus } from "../net/deviceStatus";
+import { useT } from "../i18n";
 import "./DeviceUnreachable.css";
 
 // How often to check whether the device is answering again. Cheap enough
@@ -20,6 +21,7 @@ import "./DeviceUnreachable.css";
 const cRetryMs = 5000;
 
 export default function DeviceUnreachable({ status }: { status: DeviceStatus }) {
+  const t = useT();
   const disabled = status.code === "account_disabled";
 
   // This screen replaces the whole app (see App.tsx), which means every
@@ -66,15 +68,12 @@ export default function DeviceUnreachable({ status }: { status: DeviceStatus }) 
             <path d="M3 3l18 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         )}
-        <h2>{disabled ? "This account has been disabled" : "This device isn't available right now"}</h2>
+        <h2>{disabled ? t("web.shell.unreachable.disabled") : t("web.shell.unreachable.title")}</h2>
         {/* The device/bridge's own wording, shown as-is - it's the half of
             this that can actually say something specific. */}
         <p>{status.message}</p>
         {!disabled && (
-          <p className="du-note">
-            Nothing has been lost — everything stays on the device itself. This page keeps
-            checking, and picks up on its own as soon as it's back.
-          </p>
+          <p className="du-note">{t("web.shell.unreachable.note")}</p>
         )}
       </div>
     </div>

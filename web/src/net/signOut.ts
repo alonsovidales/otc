@@ -48,7 +48,7 @@ async function run(): Promise<void> {
   // happens either way.
   await bounded(useWS.request((e: Partial<ReqEnvelope>) => {
     e.payload = { $case: "reqRevokeSessionToken", reqRevokeSessionToken: {} };
-  }), "revoke session tokens");
+  }), "revoke session tokens"); // i18n-ignore: a log line
   clearPersistedToken();
   clearPrivateUiState();
   // The language stays (otc_language): the signed-out page and the next

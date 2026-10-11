@@ -3,8 +3,13 @@
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { noteResponse } from "./deviceStatus";
 import { noteLanguageConnection, noteLanguageReply, requestLanguage } from "../i18n/choice";
+import { t } from "../i18n/runtime";
 
 type RespListener = (env: RespEnvelope) => void;
+
+/** A request no answer can come to: the socket isn't open, or it closed
+ *  before the answer. Its message is in the language on screen. */
+export class NoAnswer extends Error {}
 
 export class WSClient {
   private ws?: WebSocket;
@@ -56,7 +61,7 @@ export class WSClient {
         // still being iterated.
         const pending = this.waiters;
         this.waiters = new Map();
-        pending.forEach(({ reject }) => reject(new Error("WS connection closed")));
+        pending.forEach(({ reject }) => reject(new NoAnswer(t("web.shell.connection.closed"))));
       };
       ws.onmessage = (ev) => {
         try {
@@ -91,7 +96,7 @@ export class WSClient {
 
   request(build: (e: Partial<ReqEnvelope>) => void): Promise<RespEnvelope> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      return Promise.reject(new Error("WS not connected"));
+      return Promise.reject(new NoAnswer(t("web.shell.connection.not_connected")));
     }
     const id = this.nextId++;
     const draft: Partial<ReqEnvelope> = { id };

@@ -8,11 +8,13 @@
 import { useEffect, useState } from "react";
 import { useWS } from "../net/useWS";
 import type { ReqEnvelope, RespEnvelope, UpdateAlert } from "../proto/messages";
+import { Trans, useT } from "../i18n";
 import "./UpdateBanner.css";
 
 const cEveryMs = 5 * 60 * 1000;
 
 export default function UpdateBanner({ onOpenSettings }: { onOpenSettings: () => void }) {
+  const t = useT();
   const [alert, setAlert] = useState<UpdateAlert | null>(null);
   useEffect(() => {
     let alive = true;
@@ -32,8 +34,15 @@ export default function UpdateBanner({ onOpenSettings }: { onOpenSettings: () =>
   return (
     <div className="ub-banner" role="alert">
       <span className="ub-icon" aria-hidden="true">⚠</span>
-      <span className="ub-text"><strong>Critical update {alert.version} available.</strong> {alert.summary} Install it as soon as possible.</span>
-      <button className="ub-btn" onClick={onOpenSettings}>Update</button>
+      <span className="ub-text">
+        {/* The summary is the release's own, in English (docs/i18n.md). */}
+        <Trans
+          k="web.shell.update.critical"
+          args={{ version: alert.version, summary: alert.summary }}
+          parts={{ b: (s) => <strong>{s}</strong> }}
+        />
+      </span>
+      <button className="ub-btn" onClick={onOpenSettings}>{t("common.update")}</button>
     </div>
   );
 }

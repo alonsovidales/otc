@@ -9,6 +9,8 @@ import { usePhotoFilter } from "./photoFilter";
 import { useFaceRecognition } from "./faceRecognition";
 import { RaidState } from "../proto/messages";
 import type { Status } from "../proto/messages";
+import { useT, type TFunction } from "../i18n";
+import { percentText } from "./uiText";
 import "./Sidebar.css";
 
 type Props = {
@@ -26,32 +28,38 @@ type Props = {
   onExpand: () => void;
 };
 
-type Item = { key: TabKey; label: string; Icon: ComponentType<{ size?: number }> };
-type Section = { heading?: string; items: Item[] };
+// The words of the menu, by key: made in the language on screen when it
+// renders (t), never kept here as text.
+type LabelKey =
+  | "web.shell.menu.images" | "web.shell.menu.people" | "web.shell.menu.collections" | "web.shell.menu.files"
+  | "web.shell.menu.social" | "web.shell.menu.friends" | "web.shell.menu.alerts" | "web.shell.menu.settings";
+type HeadingKey = "web.shell.menu.sharing" | "web.shell.menu.device";
+type Item = { key: TabKey; label: LabelKey; Icon: ComponentType<{ size?: number }> };
+type Section = { heading?: HeadingKey; items: Item[] };
 
 // Grouped like a photo library: what is stored, what is shared, then the
 // device. People only while face recognition is on (faceRecognition.ts).
 const SECTIONS: Section[] = [
   {
     items: [
-      { key: "PhotoGallery", label: "Images", Icon: ImagesIcon },
-      { key: "People", label: "People", Icon: PeopleIcon },
-      { key: "Collections", label: "Collections", Icon: CollectionsIcon },
-      { key: "AdminPannel", label: "Files", Icon: FilesIcon },
+      { key: "PhotoGallery", label: "web.shell.menu.images", Icon: ImagesIcon },
+      { key: "People", label: "web.shell.menu.people", Icon: PeopleIcon },
+      { key: "Collections", label: "web.shell.menu.collections", Icon: CollectionsIcon },
+      { key: "AdminPannel", label: "web.shell.menu.files", Icon: FilesIcon },
     ],
   },
   {
-    heading: "Sharing",
+    heading: "web.shell.menu.sharing",
     items: [
-      { key: "Social", label: "Social", Icon: SocialIcon },
-      { key: "Friends", label: "Friends", Icon: FriendsIcon },
+      { key: "Social", label: "web.shell.menu.social", Icon: SocialIcon },
+      { key: "Friends", label: "web.shell.menu.friends", Icon: FriendsIcon },
     ],
   },
   {
-    heading: "Device",
+    heading: "web.shell.menu.device",
     items: [
-      { key: "Notifications", label: "Alerts", Icon: AlertsIcon },
-      { key: "Settings", label: "Settings", Icon: SettingsIcon },
+      { key: "Notifications", label: "web.shell.menu.alerts", Icon: AlertsIcon },
+      { key: "Settings", label: "web.shell.menu.settings", Icon: SettingsIcon },
     ],
   },
 ];
@@ -67,13 +75,14 @@ const onHoverChange = (cb: () => void) => {
 const canHover = () => hoverQuery.matches;
 
 export default function Sidebar({ tab, notificationCount, layout, drawerOpen, onSelect, onCloseDrawer, onExpand }: Props) {
+  const t = useT();
   // A collection open in Images is still the Collections section.
   const { group } = usePhotoFilter();
   const current: TabKey = tab === "PhotoGallery" && group ? "Collections" : tab;
   // One poll of the device's status for the menu beside the page and the
   // drawer both.
-  const { status, err } = useDeviceStatus();
-  const storage = summarize(status, err);
+  const { status, failed } = useDeviceStatus();
+  const storage = summarize(t, status, failed);
   const [details, setDetails] = useState(false);
   const tips = useSyncExternalStore(onHoverChange, canHover);
   const faces = useFaceRecognition() === true;
@@ -188,7 +197,7 @@ export default function Sidebar({ tab, notificationCount, layout, drawerOpen, on
   return (
     <>
       {layout !== "none" && (
-        <nav ref={dockRef} className={`sidebar sb-dock sb-${layout}`} aria-label="Sections" inert={drawerOpen}>
+        <nav ref={dockRef} className={`sidebar sb-dock sb-${layout}`} aria-label={t("web.shell.menu.sections")} inert={drawerOpen}>
           {layout === "rail" ? (
             <div className="sb-inner sb-inner-rail">
               <RailMenu
@@ -215,7 +224,7 @@ export default function Sidebar({ tab, notificationCount, layout, drawerOpen, on
       <nav
         ref={drawerRef}
         className={`sidebar sb-drawer${drawerOpen ? " open" : ""}`}
-        aria-label="Sections"
+        aria-label={t("web.shell.menu.sections")}
         inert={!drawerOpen}
       >
         <div className="sb-inner sb-inner-full">{full(pickInDrawer)}</div>
@@ -235,7 +244,7 @@ type Storage = {
   mirrorText: string;
 };
 
-function summarize(status: Status | null, err: string | null): Storage {
+function summarize(t: TFunction, status: Status | null, failed: boolean): Storage {
   const usedPct = pct(status?.raidUsage, status?.raidSize);
   const degraded = status?.raidState === RaidState.RaidDegraded;
   return {
@@ -245,9 +254,9 @@ function summarize(status: Status | null, err: string | null): Storage {
     degraded,
     attention: degraded || (status?.errors?.length ?? 0) > 0,
     usedText: status
-      ? `${formatMB(status.raidUsage)} of ${formatMB(status.raidSize)} used`
-      : err ? "Storage unavailable right now" : "Reading…",
-    mirrorText: status ? raidStateLabel(status) : "",
+      ? t("web.shell.storage.used", { used: formatMB(t, status.raidUsage), total: formatMB(t, status.raidSize) })
+      : failed ? t("web.shell.storage.unavailable") : t("web.shell.storage.reading"),
+    mirrorText: status ? raidStateLabel(t, status) : "",
   };
 }
 
@@ -264,11 +273,12 @@ function FullMenu({ sections, current, unread, storage, details, onToggleDetails
   details: boolean;
   onToggleDetails: () => void;
 }) {
+  const t = useT();
   return (
     <>
       {sections.map((s) => (
-        <div key={s.heading ?? ""} className="sb-section" role={s.heading ? "group" : undefined} aria-label={s.heading}>
-          {s.heading && <div className="sb-heading" aria-hidden="true">{s.heading}</div>}
+        <div key={s.heading ?? ""} className="sb-section" role={s.heading ? "group" : undefined} aria-label={s.heading && t(s.heading)}>
+          {s.heading && <div className="sb-heading" aria-hidden="true">{t(s.heading)}</div>}
           {s.items.map((it) => (
             <NavItem key={it.key} item={it} active={it.key === current} unread={unread} onPick={onPick} />
           ))}
@@ -277,9 +287,9 @@ function FullMenu({ sections, current, unread, storage, details, onToggleDetails
       <div className="sb-fill" />
       <StoragePanel storage={storage} details={details} onToggle={onToggleDetails} />
       <div className="sb-legal">
-        <a href="https://off-the.cloud/privacy" target="_blank" rel="noreferrer">Privacy</a>
+        <a href="https://off-the.cloud/privacy" target="_blank" rel="noreferrer">{t("web.shell.menu.privacy")}</a>
         <span aria-hidden="true">·</span>
-        <a href="https://off-the.cloud/terms" target="_blank" rel="noreferrer">Terms</a>
+        <a href="https://off-the.cloud/terms" target="_blank" rel="noreferrer">{t("web.shell.menu.terms")}</a>
       </div>
     </>
   );
@@ -291,12 +301,13 @@ function RailMenu({ sections, current, unread, storage, tips, onPick, onStorage 
   tips: boolean;
   onStorage: () => void;
 }) {
+  const t = useT();
   return (
     <>
       {sections.map((s, i) => (
         <Fragment key={s.heading ?? ""}>
           {i > 0 && <div className="sb-sep" aria-hidden="true" />}
-          <div className="sb-section" role={s.heading ? "group" : undefined} aria-label={s.heading}>
+          <div className="sb-section" role={s.heading ? "group" : undefined} aria-label={s.heading && t(s.heading)}>
             {s.items.map((it) => (
               <NavItem key={it.key} item={it} active={it.key === current} unread={unread} rail onPick={onPick} />
             ))}
@@ -309,13 +320,15 @@ function RailMenu({ sections, current, unread, storage, tips, onPick, onStorage 
   );
 }
 
-function NavItem({ item: { key, label, Icon }, active, unread, rail = false, onPick }: {
+function NavItem({ item: { key, label: labelKey, Icon }, active, unread, rail = false, onPick }: {
   item: Item;
   active: boolean;
   unread: number;
   rail?: boolean;
   onPick: (key: TabKey) => void;
 }) {
+  const t = useT();
+  const label = t(labelKey);
   const count = key === "Notifications" ? unread : 0;
   const badge = count > 0 && <span className="sb-badge" aria-hidden="true">{count > 99 ? "99+" : count}</span>;
   return (
@@ -324,7 +337,7 @@ function NavItem({ item: { key, label, Icon }, active, unread, rail = false, onP
       className={`sb-item${active ? " active" : ""}`}
       onClick={() => onPick(key)}
       aria-current={active ? "page" : undefined}
-      aria-label={count > 0 ? `${label}, ${count} unread` : label}
+      aria-label={count > 0 ? t("web.shell.menu.unread", { label, count }) : label}
     >
       <span className="sb-icon">
         <Icon size={rail ? 24 : 22} />
@@ -340,16 +353,17 @@ function NavItem({ item: { key, label, Icon }, active, unread, rail = false, onP
 // health; the rest of the device's status (disks, CPU, memory, errors) on
 // a click.
 function StoragePanel({ storage: s, details, onToggle }: { storage: Storage; details: boolean; onToggle: () => void }) {
+  const t = useT();
   const { status } = s;
   return (
     <div className="sb-storage">
       <button type="button" className="sb-item sb-storage-head" onClick={onToggle} aria-expanded={details}>
         <span className="sb-icon"><StorageIcon /></span>
-        <span className="sb-label">Storage</span>
-        {s.attention && <span className="sb-dot" role="img" aria-label="Needs attention" />}
+        <span className="sb-label">{t("web.shell.storage.title")}</span>
+        {s.attention && <span className="sb-dot" role="img" aria-label={t("web.shell.storage.attention")} />}
         <span className="sb-chevron"><ChevronIcon size={18} /></span>
       </button>
-      <div className="sb-meter" role="progressbar" aria-label="Storage used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={s.usedPct}>
+      <div className="sb-meter" role="progressbar" aria-label={t("web.shell.storage.meter")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={s.usedPct}>
         <div className={`sb-meter-fill${s.level ? ` ${s.level}` : ""}`} style={{ width: `${s.usedPct}%` }} />
       </div>
       <div className="sb-storage-text">{s.usedText}</div>
@@ -358,11 +372,11 @@ function StoragePanel({ storage: s, details, onToggle }: { storage: Storage; det
       <div className={`sb-storage-text${s.degraded ? " bad" : ""}`}>{s.mirrorText || " "}</div>
       {details && status && (
         <div className="sb-details">
-          <div><span>Disks</span><span>{status.disks || "—"}</span></div>
-          <div><span>Free</span><span>{formatMB(Math.max(0, (status.raidSize || 0) - (status.raidUsage || 0)))}</span></div>
-          <div><span>System card</span><span>{formatMB(status.diskUsage)} of {formatMB(status.diskSize)}</span></div>
-          <div><span>CPU</span><span>{status.cpuUsagePrc != null ? `${round(status.cpuUsagePrc)}%` : "—"}</span></div>
-          <div><span>Memory</span><span>{formatMB(status.memUsage)} of {formatMB(status.memSize)}</span></div>
+          <div><span>{t("web.shell.storage.disks")}</span><span>{status.disks || "—"}</span></div>
+          <div><span>{t("web.shell.storage.free")}</span><span>{formatMB(t, Math.max(0, (status.raidSize || 0) - (status.raidUsage || 0)))}</span></div>
+          <div><span>{t("web.shell.storage.system_card")}</span><span>{t("web.shell.storage.of", { used: formatMB(t, status.diskUsage), total: formatMB(t, status.diskSize) })}</span></div>
+          <div><span>{t("web.shell.storage.cpu")}</span><span>{status.cpuUsagePrc != null ? percentText(t, round(status.cpuUsagePrc), 2) : "—"}</span></div>
+          <div><span>{t("web.shell.storage.memory")}</span><span>{t("web.shell.storage.of", { used: formatMB(t, status.memUsage), total: formatMB(t, status.memSize) })}</span></div>
           {(status.errors ?? []).map((e, i) => <div key={i} className="sb-error">{e.Message || String(e.StatusErrorCode)}</div>)}
         </div>
       )}
@@ -373,15 +387,22 @@ function StoragePanel({ storage: s, details, onToggle }: { storage: Storage; det
 // The rail's storage: a ring filling up as the disks do, the percentage
 // under it. A click opens the whole menu at the details.
 function StorageGauge({ storage: s, tips, onOpen }: { storage: Storage; tips: boolean; onOpen: () => void }) {
-  const shown = s.status ? `${Math.round(s.usedPct)}%` : "–";
-  const problems = (s.status?.errors?.length ?? 0) > 0 ? "Needs attention" : "";
-  const tip = ["Storage", [s.usedText, s.mirrorText, problems].filter(Boolean).join(" · ")].join(": ");
+  const t = useT();
+  const shown = s.status ? percentText(t, Math.round(s.usedPct)) : "–";
+  const problems = (s.status?.errors?.length ?? 0) > 0 ? t("web.shell.storage.attention") : "";
+  const tip = t("web.shell.storage.tip", { details: [s.usedText, s.mirrorText, problems].filter(Boolean).join(" · ") });
+  // Needing attention comes from the status, so it is never without one.
+  const label = !s.status
+    ? t("web.shell.storage.gauge")
+    : s.attention
+      ? t("web.shell.storage.gauge_used_attention", { percent: shown })
+      : t("web.shell.storage.gauge_used", { percent: shown });
   return (
     <button
       type="button"
       className={`sb-gauge${s.level ? ` ${s.level}` : ""}`}
       onClick={onOpen}
-      aria-label={`Storage${s.status ? `, ${shown} used` : ""}${s.attention ? ", needs attention" : ""}. Show details`}
+      aria-label={label}
       data-tip={tips ? tip : undefined}
     >
       <span className="sb-ring">

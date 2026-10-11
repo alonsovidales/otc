@@ -26,6 +26,7 @@ import {
   type Folded, type Span,
 } from "./filesNav";
 import { CollectionsIcon } from "./NavIcons";
+import { Trans, useT } from "../i18n";
 import "./TopSearch.css";
 
 type Props = {
@@ -75,9 +76,13 @@ function fileKind(f: PbFile): FileKind {
   if (mime.startsWith("image/") || /\.(heic|heif)$/i.test(f.path)) return "photo";
   return "doc";
 }
-const KIND_WORD: Record<FileKind, string> = { folder: "Folder", photo: "Photo", video: "Video", doc: "File" };
-
-const photosLabel = (n: number) => `${n.toLocaleString()} ${n === 1 ? "photo" : "photos"}`;
+// A file found, as screen readers say it: its name, what it is, and where.
+const KIND_LABEL = {
+  folder: "web.shell.search.folder_in",
+  photo: "web.shell.search.photo_in",
+  video: "web.shell.search.video_in",
+  doc: "web.shell.search.file_in",
+} as const satisfies Record<FileKind, string>;
 
 // New photos bring new tags and faces. The lists are fetched again when a
 // search ends, if the last time was a while ago: current for the next
@@ -98,7 +103,7 @@ const cls = (...names: (string | false)[]) => names.filter(Boolean).join(" ");
 const onScreenKeyboard = () => window.matchMedia("(pointer: coarse)").matches;
 
 // The selection bars of Images and People, laid over the top bar.
-const COVERS = ".pg-selbar, .pv-pickbar";
+const COVERS = ".pg-selbar, .pv-pickbar"; // i18n-ignore: CSS selectors
 
 // Outline icons drawn like NavIcons': 24px box, stroke in currentColor.
 function Icon({ size = 20, stroke = 1.6, children }: { size?: number; stroke?: number; children: React.ReactNode }) {
@@ -142,6 +147,7 @@ function Marked({ text, span }: { text: string; span?: Span }) {
 }
 
 export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
+  const t = useT();
   const filter = usePhotoFilter();
   const people = usePeople();
   const tags = useTags();
@@ -196,7 +202,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
     () => people.items.filter((p) => p.name.trim()).map((p) => ({ person: p, label: p.name.trim(), f: fold(p.name.trim()) })),
     [people.items],
   );
-  const tagIndex = useMemo(() => tags.map((t) => ({ label: t, f: fold(t) })), [tags]);
+  const tagIndex = useMemo(() => tags.map((tag) => ({ label: tag, f: fold(tag) })), [tags]);
 
   const typed = query.trim();
   const q = fold(typed).text;
@@ -212,7 +218,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
       return;
     }
     if (noFileSearch) return;
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       const seq = ++fileSeq.current;
       const answer = (files: PbFile[]) => setFound({ typed, q: fold(typed).text, files });
       useWS.request((e: Partial<ReqEnvelope>) => {
@@ -229,7 +235,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
         if (seq === fileSeq.current) answer([]);
       });
     }, FILES_DELAY_MS);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [typed, noFileSearch]);
 
   // The device's answer for the text as it is now, as the device gave it.
@@ -254,8 +260,8 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
     const out: Option[] = [];
     if (!q) return { options: out, best: null };
     // Tags already searched for are chips in the field, not suggestions.
-    const inSearch = new Set(filter.tags.map((t) => fold(t).text));
-    const free = tagIndex.filter((t) => !inSearch.has(t.f.text));
+    const inSearch = new Set(filter.tags.map((tag) => fold(tag).text));
+    const free = tagIndex.filter((tag) => !inSearch.has(tag.f.text));
     // What Enter takes: an exact match, or else the first.
     let exact: string | null = null;
     for (const h of ranked(free, q).slice(0, MATCH_TAGS)) {
@@ -601,7 +607,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
             <span className="ts-row-pic">{thumb ? <img src={thumb} alt="" draggable={false} /> : <FaceIcon size={18} />}</span>
             <span className="ts-row-text">
               <span className="ts-row-label"><Marked text={personLabel(o.person)} span={o.span} /></span>
-              <span className="ts-row-sub">{photosLabel(o.person.faceCount)}</span>
+              <span className="ts-row-sub">{t("web.shell.search.photo_count", { count: o.person.faceCount })}</span>
             </span>
             {on && <span className="ts-row-tick"><CheckIcon size={18} /></span>}
           </div>
@@ -611,7 +617,9 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
         return (
           <div key={o.key} {...optionProps(o, i)} className={cls("ts-row", hl && "is-active")}>
             <span className="ts-row-icon"><DocSearchIcon /></span>
-            <span className="ts-row-label">Search documents for “<mark className="ts-mark">{o.text}</mark>”</span>
+            <span className="ts-row-label">
+              <Trans k="web.shell.search.documents" args={{ text: o.text }} parts={{ mark: (s) => <mark className="ts-mark">{s}</mark> }} />
+            </span>
           </div>
         );
       case "file":
@@ -619,7 +627,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
           <div
             key={o.key}
             {...optionProps(o, i)}
-            aria-label={`${o.name}, ${KIND_WORD[o.type].toLowerCase()} in ${o.dir}`}
+            aria-label={t(KIND_LABEL[o.type], { name: o.name, folder: o.dir })}
             className={cls("ts-row", "is-two", hl && "is-active")}
           >
             <span className={`ts-row-icon ts-file is-${o.type}`}>{FILE_ICONS[o.type]}</span>
@@ -651,12 +659,12 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
 
   // What matches, not counting the row to search the documents.
   const matches = options.length - (docsOpt ? 1 : 0);
-  const status = !shown ? "" : !matches ? "No matches" : `${matches} ${matches === 1 ? "suggestion" : "suggestions"}`;
-  const alreadyIn = filter.tags.some((t) => fold(t).text === q);
+  const status = !shown ? "" : !matches ? t("web.shell.search.no_matches") : t("web.shell.search.suggestion_count", { count: matches });
+  const alreadyIn = filter.tags.some((tag) => fold(tag).text === q);
   // The chips, read out with the field.
   const summary = [
-    filter.group && `the collection ${filter.group.name}`,
-    ...filter.personIds.map((pid) => { const p = byId.get(pid); return p ? personLabel(p) : "a person"; }),
+    filter.group && t("web.shell.search.collection", { name: filter.group.name }),
+    ...filter.personIds.map((pid) => { const p = byId.get(pid); return p ? personLabel(p) : t("web.shell.search.a_person"); }),
     ...filter.tags,
   ].filter(Boolean).join(", ");
 
@@ -667,7 +675,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
       <div className={cls("ts-field", query !== "" && "has-query")} onMouseDown={onFieldMouseDown}>
         <span className="ts-glass" aria-hidden="true"><SearchIcon /></span>
         {shown && (
-          <button type="button" className="ts-back" aria-label="Close search" onMouseDown={keepFocus} onClick={dismiss}>
+          <button type="button" className="ts-back" aria-label={t("web.shell.search.close")} onMouseDown={keepFocus} onClick={dismiss}>
             <BackIcon />
           </button>
         )}
@@ -679,7 +687,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
               <button
                 type="button"
                 className="ts-chip-x"
-                aria-label={`Close the collection ${filter.group.name}`}
+                aria-label={t("web.shell.search.close_collection", { name: filter.group.name })}
                 onMouseDown={keepFocus}
                 onClick={(e) => { leaveGroup(); refocus(e); }}
               >
@@ -694,11 +702,11 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
             return (
               <span key={`p:${pid}`} className="ts-chip has-pic">
                 <span className="ts-chip-pic">{thumb ? <img src={thumb} alt="" draggable={false} /> : <FaceIcon size={16} />}</span>
-                <span className={cls("ts-chip-label", !name && "is-unnamed")}>{p ? personLabel(p) : "Person"}</span>
+                <span className={cls("ts-chip-label", !name && "is-unnamed")}>{p ? personLabel(p) : t("web.shell.search.person")}</span>
                 <button
                   type="button"
                   className="ts-chip-x"
-                  aria-label={name ? `Remove ${name}` : "Remove this person"}
+                  aria-label={name ? t("web.shell.search.remove", { name }) : t("web.shell.search.remove_person")}
                   onMouseDown={keepFocus}
                   onClick={(e) => { togglePerson(pid); refocus(e); }}
                 >
@@ -707,15 +715,15 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
               </span>
             );
           })}
-          {filter.tags.map((t) => (
-            <span key={`t:${t}`} className="ts-chip">
-              <span className="ts-chip-label">{t}</span>
+          {filter.tags.map((tag) => (
+            <span key={`t:${tag}`} className="ts-chip">
+              <span className="ts-chip-label">{tag}</span>
               <button
                 type="button"
                 className="ts-chip-x"
-                aria-label={`Remove ${t}`}
+                aria-label={t("web.shell.search.remove", { name: tag })}
                 onMouseDown={keepFocus}
-                onClick={(e) => { removeTag(t); refocus(e); }}
+                onClick={(e) => { removeTag(tag); refocus(e); }}
               >
                 <CloseIcon size={16} />
               </button>
@@ -727,13 +735,13 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
           className="ts-input"
           type="text"
           role="combobox"
-          aria-label="Search photos and files"
+          aria-label={t("web.shell.search.field")}
           aria-expanded={shown}
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={shown && active >= 0 ? optId(active) : undefined}
           aria-describedby={summary ? `${id}now` : undefined}
-          placeholder={chipCount ? "" : "Search photos and files"}
+          placeholder={chipCount ? "" : t("web.shell.search.field")}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -749,7 +757,7 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
           enterKeyHint="search"
         />
         {clearable && (
-          <button type="button" className="ts-clear" aria-label="Clear search" data-tip="Clear search" onMouseDown={keepFocus} onClick={onClear}>
+          <button type="button" className="ts-clear" aria-label={t("web.shell.search.clear")} data-tip={t("web.shell.search.clear")} onMouseDown={keepFocus} onClick={onClear}>
             <CloseIcon />
           </button>
         )}
@@ -765,18 +773,20 @@ export default function TopSearch({ onShowPhotos, onShowFiles }: Props) {
             onMouseDown={onPanelMouseDown}
             onPointerMove={onPanelPointerMove}
           >
-            <div role="listbox" id={listId} aria-label="Suggestions">
-              {tagOpts.length > 0 && section("things", "Things", tagOpts.map(([o, i]) => renderOption(o, i)))}
-              {personOpts.length > 0 && section("people", "People", personOpts.map(([o, i]) => renderOption(o, i)))}
+            <div role="listbox" id={listId} aria-label={t("web.shell.search.suggestions")}>
+              {tagOpts.length > 0 && section("things", t("web.shell.search.things"), tagOpts.map(([o, i]) => renderOption(o, i)))}
+              {personOpts.length > 0 && section("people", t("web.shell.search.people"), personOpts.map(([o, i]) => renderOption(o, i)))}
               {docsFirst && docsRow}
-              {fileOpts.length > 0 && section("files", "Files", fileOpts.map(([o, i]) => renderOption(o, i)))}
+              {fileOpts.length > 0 && section("files", t("web.shell.search.files"), fileOpts.map(([o, i]) => renderOption(o, i)))}
               {!docsFirst && docsRow}
             </div>
-            {!options.length && <p className="ts-hint">{alreadyIn ? <>“{typed}” is already in the search.</> : <>Nothing matches “{typed}”.</>}</p>}
+            {!options.length && (
+              <p className="ts-hint">{alreadyIn ? t("web.shell.search.already", { text: typed }) : t("web.shell.search.nothing", { text: typed })}</p>
+            )}
           </div>
         </>
       )}
-      {summary && <span id={`${id}now`} className="ts-sr">In the search: {summary}</span>}
+      {summary && <span id={`${id}now`} className="ts-sr">{t("web.shell.search.summary", { items: summary })}</span>}
       <span className="ts-sr" aria-live="polite">{status}</span>
     </div>
   );

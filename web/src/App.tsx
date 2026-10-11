@@ -25,7 +25,8 @@ import type { ReqEnvelope, RespEnvelope } from "./proto/messages";
 import { useSearchParams } from "react-router-dom";
 import { getDeviceSetupInfo, loadPersistedToken, type DeviceSetupInfo } from "./net/pwCrypto";
 import { promptForPushIfNeverAsked, reregisterPush } from "./net/webPush";
-import { useLanguage } from "./i18n";
+import { useLanguage, useT } from "./i18n";
+import { asIs, percentText, say, type UiText } from "./components/uiText";
 import DeviceUnreachable from "./components/DeviceUnreachable";
 import Spinner from "./components/Spinner";
 import { getDeviceStatus, subscribeDeviceStatus } from "./net/deviceStatus";
@@ -61,6 +62,7 @@ function checkDeviceSetup(): Promise<DeviceSetupInfo | null> {
 }
 
 function App() {
+  const t = useT();
   const cfg = window.__OTC_CONFIG!;
   // Anonymous visitors have no tab switcher at all (TopTabs only renders
   // once authenticated, below), so their landing tab has to be one that
@@ -68,7 +70,7 @@ function App() {
   // request, Social's feed isn't. A fresh sign-in moves to Social
   // explicitly (see handleSignedIn below); otherwise (issue #53) a reload
   // restores whatever tab was last open rather than always landing here.
-  const [tab, setTab] = useState<TabKey>(() => loadLastTab() ?? "Profile");
+  const [tab, setTab] = useState<TabKey>(() => loadLastTab() ?? "Profile"); // i18n-ignore: a tab's key
   const [authenticated, setAuthenticated] = useState(false);
   const [sp] = useSearchParams();
 
@@ -360,7 +362,7 @@ function App() {
   // (StrictMode in development), where a dependency array alone wouldn't.
   const downloadLink = sp.get("download");
   const startedDownloadRef = useRef<string | null>(null);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<UiText | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   useEffect(() => {
     if (!downloadLink) return;
@@ -370,7 +372,7 @@ function App() {
     (async () => {
       const parts = downloadLink.split("_").filter(Boolean);
       if (parts.length < 2) {
-        setDownloadError("That download link is malformed.");
+        setDownloadError(() => say("web.shell.link.malformed"));
         return;
       }
       const [uuid, secret] = parts;
@@ -389,13 +391,14 @@ function App() {
             };
           });
           if (resp.payload?.$case !== "respFileChunk") {
-            setDownloadError(resp.errorMessage || "That link is no longer valid.");
+            // The device's own words, in the language the request carried.
+            setDownloadError(() => (resp.errorMessage ? asIs(resp.errorMessage) : say("web.shell.link.invalid")));
             return;
           }
           const chunk = resp.payload.respFileChunk;
           total = Number(chunk.size);
           if (chunk.data.length === 0 && offset < total) {
-            setDownloadError("The device stopped sending the file.");
+            setDownloadError(() => say("web.shell.link.stopped"));
             return;
           }
           parts.push(chunk.data);
@@ -403,7 +406,7 @@ function App() {
           if (total > 0) setDownloadProgress(offset / total);
         }
         if (total === 0) {
-          setDownloadError("The device returned an empty file.");
+          setDownloadError(() => say("web.shell.link.empty"));
           return;
         }
 
@@ -419,7 +422,8 @@ function App() {
         // Reported inline rather than through alert(), which blocks the
         // whole tab until someone dismisses it - and this view has nothing
         // else to show, so the message is the page.
-        setDownloadError(err?.message || "Could not download that link.");
+        const message: string = err?.message || "";
+        setDownloadError(() => (message ? asIs(message) : say("web.shell.link.failed")));
       }
     })();
   }, [downloadLink]);
@@ -438,10 +442,10 @@ function App() {
     return (
       <div className="download-view">
         {downloadError
-          ? <p className="sf-note error">{downloadError}</p>
+          ? <p className="sf-note error">{downloadError(t)}</p>
           : <Spinner label={downloadProgress === null
-              ? "Preparing your download…"
-              : `Downloading… ${Math.round(downloadProgress * 100)}%`} />}
+              ? t("web.shell.link.preparing")
+              : t("web.shell.link.progress", { percent: percentText(t, Math.round(downloadProgress * 100)) })} />}
       </div>
     );
   }
@@ -461,8 +465,8 @@ function App() {
   const signedOutPlaceholder = (
     <div className="page-wait">
       {restoringSession
-        ? <Spinner label="Signing in…" />
-        : <p>Your session has ended — sign in again to continue.</p>}
+        ? <Spinner label={t("web.shell.session.signing_in")} />
+        : <p>{t("web.shell.session.ended")}</p>}
     </div>
   );
 
@@ -478,7 +482,7 @@ function App() {
     <>
       <header className="topbar">
         {authenticated && (
-          <button className="tb-menu" onClick={toggleMenu} aria-label={menuShown ? "Hide menu" : "Show menu"} aria-expanded={menuShown}>
+          <button className="tb-menu" onClick={toggleMenu} aria-label={menuShown ? t("web.shell.top.hide_menu") : t("web.shell.top.show_menu")} aria-expanded={menuShown}>
             <MenuIcon size={24} />
           </button>
         )}
@@ -499,10 +503,10 @@ function App() {
           <button
             className="tb-action"
             onClick={() => openComposer()}
-            aria-label="New post"
-            data-tip={actionIconOnly && canHover ? "New post" : undefined}
+            aria-label={t("web.shell.top.new_post")}
+            data-tip={actionIconOnly && canHover ? t("web.shell.top.new_post") : undefined}
           >
-            <span aria-hidden="true">+</span><span className="tb-action-label"> New post</span>
+            <span aria-hidden="true">+</span><span className="tb-action-label"> {t("web.shell.top.new_post")}</span>
           </button>
         )}
         {/* The account, at the right end as in Google Photos: the

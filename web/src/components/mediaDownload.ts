@@ -28,6 +28,9 @@ import { useEffect, useSyncExternalStore } from "react";
 import { useWS } from "../net/useWS";
 import type { MediaRef } from "../net/media";
 import type { ReqEnvelope, RespEnvelope } from "../proto/messages";
+import { t as translate, type TFunction } from "../i18n";
+import { subscribeI18n } from "../i18n/runtime";
+import { percentText } from "./uiText";
 
 // How long the button stays busy once the browser has the download, so a
 // double click doesn't start a second one.
@@ -63,24 +66,26 @@ export type DownloadJob = {
   extFromBytes?: boolean;
 };
 
-export const leafName = (path: string) => path.split("/").pop() || "download";
+export const leafName = (path: string) => path.split("/").pop() || "download"; // i18n-ignore: a file name the browser saves under
 
 /** The store key of a post's media. */
 export const pubMediaKey = (pubUuid: string, hash: string) => `pub:${pubUuid}/${hash}`;
 
 /** The button's words for a download's state. */
-export function savingLabel(s: Saving | undefined): string {
-  if (!s) return "Download";
-  if (s.phase === "start") return "Preparing…";
-  if (s.phase === "handed") return "Started";
+export function savingLabel(t: TFunction, s: Saving | undefined): string {
+  if (!s) return t("common.download");
+  if (s.phase === "start") return t("web.shell.download.preparing");
+  if (s.phase === "handed") return t("web.shell.download.started");
   const pct = savingPercent(s);
-  return pct == null ? "Downloading…" : `Downloading ${pct}%`;
+  return pct == null ? t("web.shell.download.downloading") : t("web.shell.download.progress", { percent: percentText(t, pct) });
 }
 /** How much of it is read, when that is known. */
 export function savingPercent(s: Saving | undefined): number | null {
   return s?.phase === "read" && s.total > 0 ? Math.floor((s.done / s.total) * 100) : null;
 }
-export const failedText = (name: string) => `Couldn't download ${name}. Check the connection to your device and try again.`;
+/** A failed download's note, in the language on screen (call it while
+ *  rendering, or for the note over the page, which follows a change). */
+export const failedText = (name: string) => translate("web.shell.download.failed", { name });
 
 // The downloads under way, by key, and the note of the last one that
 // failed. Here rather than in a viewer: closing one unmounts it while its
@@ -178,17 +183,26 @@ function syncPageNote() {
   note.setAttribute("role", "alert");
   note.dataset.seq = String(f.seq);
   const text = document.createElement("span");
-  text.textContent = failedText(f.name);
   const close = document.createElement("button");
   close.type = "button";
   close.className = "pg-modal-toast-close";
-  close.setAttribute("aria-label", "Dismiss");
   close.textContent = "×";
   close.addEventListener("click", dismissFailed);
   note.append(text, close);
   document.body.appendChild(note);
   pageNote = note;
+  pageNoteName = f.name;
+  wordPageNote();
 }
+// The page note's words, in the language on screen: again when it changes
+// while the note is up.
+let pageNoteName = "";
+function wordPageNote() {
+  if (!pageNote) return;
+  pageNote.children[0].textContent = failedText(pageNoteName);
+  pageNote.children[1].setAttribute("aria-label", translate("web.shell.download.dismiss"));
+}
+subscribeI18n(wordPageNote);
 
 // A /media/<token> URL made absolute as net/media.ts does: against the
 // page, or the device a native app's copy of this page talks to.

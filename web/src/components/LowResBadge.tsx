@@ -6,9 +6,11 @@
 // letterboxed (object-fit: contain), so the corner is worked out from its
 // natural size and the box it is drawn in. The apps show the same pill.
 import { useCallback, useEffect, useState, type RefObject } from "react";
+import { useT } from "../i18n";
 import "./LowResBadge.css";
 
 export default function LowResBadge({ imgRef, loading }: { imgRef: RefObject<HTMLImageElement | null>; loading: boolean }) {
+  const t = useT();
   const [pos, setPos] = useState<{ right: number; bottom: number } | null>(null);
   const place = useCallback(() => {
     const img = imgRef.current;
@@ -31,8 +33,8 @@ export default function LowResBadge({ imgRef, loading }: { imgRef: RefObject<HTM
     return () => { img.removeEventListener("load", place); window.removeEventListener("resize", place); };
   }, [imgRef, place]);
   return (
-    <span className="lowres-badge" style={pos ? { right: pos.right, bottom: pos.bottom } : undefined} aria-label="Low resolution - the full photo is loading">
-      {loading && <span className="lowres-spin" aria-hidden="true" />}Low res
+    <span className="lowres-badge" style={pos ? { right: pos.right, bottom: pos.bottom } : undefined} aria-label={t("web.shell.lowres.description")}>
+      {loading && <span className="lowres-spin" aria-hidden="true" />}{t("web.shell.lowres.label")}
     </span>
   );
 }

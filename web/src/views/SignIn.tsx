@@ -13,15 +13,19 @@ import './SignIn.css'
 import { useWS } from "../net/useWS";
 import { signInWithPassword } from "../net/signIn";
 import type { StorageDevice, WifiNetwork } from "../proto/messages";
+import { useT, type TFunction } from "../i18n";
+import { asIs, percentText, say, unitText, type UiText } from "../components/uiText";
 
 type Step = "credentials" | "storage" | "wifi";
 
-function formatSize(bytes: bigint): string {
+// A disk's size, in the language's own number format ("500.0 GB").
+function formatSize(t: TFunction, bytes: bigint): string {
   const gb = Number(bytes) / (1000 * 1000 * 1000);
-  return gb >= 1 ? `${gb.toFixed(1)} GB` : `${(Number(bytes) / (1000 * 1000)).toFixed(0)} MB`;
+  return gb >= 1 ? unitText(t, gb, "gigabyte", 1) : unitText(t, Number(bytes) / (1000 * 1000), "megabyte", 0);
 }
 
 function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void }) {
+  const t = useT();
   // Issue #39: a device with no owner secret yet is treated as fresh out
   // of the box — instead of a plain password box (which would just
   // silently adopt whatever's typed as the permanent password with no
@@ -38,29 +42,31 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
   const [ownerName, setOwnerName] = useState("");
   const [setupPassword, setSetupPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
+  // The notes of the steps (an error, the WiFi join under way), made in the
+  // language on screen when shown (UiText).
+  const [error, setError] = useState<UiText | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [devices, setDevices] = useState<StorageDevice[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
-  const [storageNote, setStorageNote] = useState("");
+  const [storageNote, setStorageNote] = useState<UiText | null>(null);
 
   const [networks, setNetworks] = useState<WifiNetwork[]>([]);
   const [chosenSsid, setChosenSsid] = useState("");
   const [wifiPassword, setWifiPassword] = useState("");
-  const [wifiNote, setWifiNote] = useState("");
+  const [wifiNote, setWifiNote] = useState<UiText | null>(null);
 
   const submitCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError(null);
 
     // The same 8 the setup wizard asks for.
     if (setupPassword.length < 8) {
-      setError("Choose a password with at least 8 characters.");
+      setError(() => say("web.shell.setup.password_short"));
       return;
     }
     if (setupPassword !== confirmPassword) {
-      setError("Passwords don't match.");
+      setError(() => say("web.shell.setup.password_mismatch"));
       return;
     }
 
@@ -70,7 +76,9 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
       // one sign-in allowed to reach a new device.
       const result = await signInWithPassword(setupPassword, { setUp: true });
       if (!result.ok) {
-        setError(result.reason === "wrong" ? "Could not set up the device — please try again." : result.message);
+        // A new device's own setup never meets "new-device" (setUp).
+        const note = result.reason === "wrong" || result.reason === "new-device" ? say("web.shell.setup.failed") : result.message;
+        setError(() => note);
         return;
       }
 
@@ -130,7 +138,7 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
       if (resp.error) {
         // Not fatal to finishing setup — storage can always be configured
         // later from Settings.
-        setStorageNote(resp.errorMessage || "Could not save storage configuration.");
+        setStorageNote(() => (resp.errorMessage ? asIs(resp.errorMessage) : say("web.shell.setup.storage_failed")));
       }
       // Building the array (if 1 or 2 disks were picked) happens in the
       // background from here — see raid_watch.py — so this only confirms
@@ -158,16 +166,17 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
     e.preventDefault();
     if (!chosenSsid) return;
     setSubmitting(true);
-    setWifiNote("");
+    setWifiNote(null);
     try {
       const resp = await useWS.request((e) => {
         (e as any).payload = { $case: "reqSetWifi", reqSetWifi: { ssid: chosenSsid, password: wifiPassword } };
       });
       if (resp.error) {
-        setWifiNote(resp.errorMessage || "Could not save the WiFi request.");
+        setWifiNote(() => (resp.errorMessage ? asIs(resp.errorMessage) : say("web.shell.setup.wifi_failed")));
         return;
       }
-      setWifiNote(`Joining "${chosenSsid}"… if this device was reached over its own setup network, reconnect to your normal WiFi and find it there.`);
+      const ssid = chosenSsid;
+      setWifiNote(() => (tr: TFunction) => tr("web.shell.setup.joining", { ssid }));
     } finally {
       setSubmitting(false);
     }
@@ -176,12 +185,8 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
   if (step === "wifi") {
     return (
       <section className="sf-section setup-section">
-        <h3>WiFi</h3>
-        <p className="sf-hint">
-          If you're set up over this device's own temporary "Off The Cloud" network, pick your
-          real WiFi below. Already connected some other way (ethernet, or WiFi set up earlier)?
-          Just skip this.
-        </p>
+        <h3>{t("web.shell.setup.wifi")}</h3>
+        <p className="sf-hint">{t("web.shell.setup.wifi_intro")}</p>
         <form onSubmit={submitWifi}>
           {networks.map((n) => (
             <label key={n.ssid} className="sf-row" style={{ gridTemplateColumns: "24px 1fr", cursor: "pointer" }}>
@@ -191,13 +196,13 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
                 checked={chosenSsid === n.ssid}
                 onChange={() => setChosenSsid(n.ssid)}
               />
-              <span>{n.secured ? "🔒 " : ""}{n.ssid} ({n.signal}%)</span>
+              <span>{n.secured ? "🔒 " : ""}{t("web.shell.setup.wifi_network", { ssid: n.ssid, signal: percentText(t, n.signal) })}</span>
             </label>
           ))}
-          {networks.length === 0 && <p className="sf-hint">No networks found — move the device closer to your router, or skip for now.</p>}
+          {networks.length === 0 && <p className="sf-hint">{t("web.shell.setup.no_networks")}</p>}
           {chosenSsid && (
             <div className="sf-row">
-              <label htmlFor="sf-wifi-password">Password</label>
+              <label htmlFor="sf-wifi-password">{t("common.password")}</label>
               <input
                 id="sf-wifi-password"
                 className="sf-input"
@@ -207,12 +212,12 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
               />
             </div>
           )}
-          {wifiNote && <p className="sf-note success">{wifiNote}</p>}
+          {wifiNote && <p className="sf-note success">{wifiNote(t)}</p>}
           <div style={{ display: "flex", gap: 8 }}>
             <button className="sf-btn" disabled={!chosenSsid || submitting}>
-              {submitting ? "Connecting…" : "Connect"}
+              {submitting ? t("common.connecting") : t("common.connect")}
             </button>
-            <button className="sf-btn" type="button" onClick={onDone}>Skip — I'm already connected</button>
+            <button className="sf-btn" type="button" onClick={onDone}>{t("web.shell.setup.skip")}</button>
           </div>
         </form>
       </section>
@@ -222,11 +227,9 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
   if (step === "storage") {
     return (
       <section className="sf-section setup-section">
-        <h3>Storage</h3>
+        <h3>{t("web.shell.setup.storage")}</h3>
         <p className="sf-hint">
-          {devices.length === 0
-            ? "No extra disks were detected — your files will be stored on the boot disk."
-            : "Choose up to 2 disks. Pick 2 to mirror them (RAID1, recommended — your files survive one disk failing). Pick 1 to use it alone, with no redundancy. Pick none to use the boot disk instead."}
+          {devices.length === 0 ? t("web.shell.setup.no_disks") : t("web.shell.setup.choose_disks")}
         </p>
         <form onSubmit={submitStorage}>
           {devices.map((d) => (
@@ -236,12 +239,16 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
                 checked={selected.includes(d.path)}
                 onChange={() => toggleDevice(d.path)}
               />
-              <span>{d.path} — {formatSize(d.sizeBytes)}{d.model ? ` (${d.model})` : ""}</span>
+              <span>
+                {d.model
+                  ? t("web.shell.setup.disk_model", { path: d.path, size: formatSize(t, d.sizeBytes), model: d.model })
+                  : t("web.shell.setup.disk", { path: d.path, size: formatSize(t, d.sizeBytes) })}
+              </span>
             </label>
           ))}
-          {storageNote && <p className="sf-note error">{storageNote}</p>}
+          {storageNote && <p className="sf-note error">{storageNote(t)}</p>}
           <button className="sf-btn" disabled={submitting}>
-            {submitting ? "Saving…" : "Next: WiFi"}
+            {submitting ? t("web.shell.setup.saving") : t("web.shell.setup.next_wifi")}
           </button>
         </form>
       </section>
@@ -250,29 +257,27 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
 
   return (
     <section className="sf-section setup-section">
-      <h3>Welcome to Off The Cloud</h3>
+      <h3>{t("web.shell.setup.welcome")}</h3>
       {/* Issue #85: an additional user isn't setting up a device - the
           machine is already running, someone else set it up, and saying
           otherwise invites them to go looking for disks and WiFi that
           aren't theirs. */}
       <p className="sf-hint">
-        {isPrimary
-          ? "This device isn't set up yet. Choose an owner name and a password — this password protects your files and social profile, so keep it somewhere safe."
-          : "This account isn't set up yet. Choose your name and a password — this password protects your files and social profile, so keep it somewhere safe."}
+        {isPrimary ? t("web.shell.setup.intro_device") : t("web.shell.setup.intro_account")}
       </p>
       <form onSubmit={submitCredentials}>
         <div className="sf-row">
-          <h3>Your name</h3>
+          <h3>{t("web.shell.setup.name")}</h3>
           <input
             className="sf-input"
             type="text"
             value={ownerName}
             onChange={(e) => setOwnerName(e.target.value)}
-            placeholder="e.g. Alex"
+            placeholder={t("web.shell.setup.name_example")}
           />
         </div>
         <div className="sf-row">
-          <h3>Password</h3>
+          <h3>{t("common.password")}</h3>
           <input
             className="sf-input"
             type="password"
@@ -282,7 +287,7 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
           />
         </div>
         <div className="sf-row">
-          <h3>Confirm password</h3>
+          <h3>{t("web.shell.setup.confirm_password")}</h3>
           <input
             className="sf-input"
             type="password"
@@ -291,9 +296,9 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
             onChange={(e) => setConfirmPassword(e.target.value)}
           />
         </div>
-        {error && <p className="sf-note error">{error}</p>}
+        {error && <p className="sf-note error">{error(t)}</p>}
         <button className="sf-btn" disabled={submitting}>
-          {submitting ? "Setting up…" : isPrimary ? "Next: Storage" : "Finish setup"}
+          {submitting ? t("web.shell.setup.setting_up") : isPrimary ? t("web.shell.setup.next_storage") : t("web.shell.setup.finish")}
         </button>
       </form>
     </section>

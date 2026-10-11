@@ -4,7 +4,9 @@
 // with a coloured, labelled band - PDF red, documents blue, spreadsheets
 // green, and so on - in the colours people know those types by, without
 // any vendor's logo. The same mapping is in the apps (FileTypeIcon.swift,
-// FileTypeIcon.kt): change all three together.
+// FileTypeIcon.kt): change all three together. The type codes (PDF, DOC...)
+// are never translated; only the word for a file without one is.
+import { t as translate, useT } from "../i18n";
 
 type Badge = { label: string; color: string };
 
@@ -29,14 +31,15 @@ export function fileTypeBadge(name: string): Badge {
   for (const [exts, label, color] of groups) {
     if (exts.includes(ext)) return { label: label ?? ext.toUpperCase().slice(0, 4), color };
   }
-  return { label: ext ? ext.toUpperCase().slice(0, 4) : "FILE", color: "#64748B" };
+  return { label: ext ? ext.toUpperCase().slice(0, 4) : translate("web.shell.file_icon.generic"), color: "#64748B" };
 }
 
 export default function FileTypeIcon({ name, size = 64 }: { name: string; size?: number }) {
+  const t = useT();
   const { label, color } = fileTypeBadge(name);
   const fontSize = label.length > 3 ? 13 : 16;
   return (
-    <svg width={size * 0.78} height={size} viewBox="0 0 78 100" role="img" aria-label={`${label} file`} className="fti">
+    <svg width={size * 0.78} height={size} viewBox="0 0 78 100" role="img" aria-label={t("web.shell.file_icon.label", { type: label })} className="fti">
       {/* The page, with its top-right corner folded. */}
       <path d="M8 2h44l24 24v64a8 8 0 0 1-8 8H8a8 8 0 0 1-8-8V10a8 8 0 0 1 8-8z" className="fti-page" />
       <path d="M52 2v16a8 8 0 0 0 8 8h16z" className="fti-fold" />

@@ -39,7 +39,7 @@ export async function uploadFile(path: string, file: File, forceOverride = false
     if (resp.error) return resp;
     if (resp.payload?.$case !== "respUploadProgress" ||
         resp.payload.respUploadProgress.received !== BigInt(off + data.length)) {
-      throw new Error(`the device stopped taking ${file.name} at ${off} bytes`);
+      throw new Error(`the device stopped taking ${file.name} at ${off} bytes`); // i18n-ignore: only logged, never shown
     }
   }
 
