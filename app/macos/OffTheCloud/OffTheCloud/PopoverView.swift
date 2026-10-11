@@ -610,7 +610,8 @@ struct FolderStateView: View {
 
 /// Settings: connected (configured), the device and a Disconnect button;
 /// not configured, the device and password fields with Connect. Below,
-/// always, "Start at login" (StartAtLoginToggle) with "Set Up a New Device…" (issue #184) at its
+/// the Language picker (only once more than English ships), then always
+/// "Start at login" (StartAtLoginToggle) with "Set Up a New Device…" (issue #184) at its
 /// right, a button the size of Disconnect's.
 struct SettingsInlineView: View {
     var onSetUpDevice: () -> Void
@@ -643,6 +644,9 @@ struct SettingsInlineView: View {
             } else {
                 connectForm
             }
+            // The user's language for every app; hidden while English is
+            // the only language that ships.
+            LanguagePicker()
             HStack(spacing: 8) {
                 // The real state; a change records the owner's choice.
                 StartAtLoginToggle(login: login)

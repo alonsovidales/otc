@@ -1,0 +1,4 @@
+{
+  "desk.main.language": {"text": "Language"},
+  "desk.main.language_automatic": {"text": "Automatic ({language})", "args": [["language", "text"]]}
+}

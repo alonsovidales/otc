@@ -121,6 +121,39 @@ final class SettingsStore: ObservableObject {
     }
 
     var ready: Bool { !domain.isEmpty && !password.isEmpty }
+
+    // The user's language, its local copy (LanguageSettings.swift): what
+    // the app goes by before the device has said, or with a device that
+    // predates localization. Not the device's, so neither Disconnect nor
+    // another device clears it. otc-sync keeps the same in config.json.
+    private static let cLanguageKey = "language"
+    private static let cLanguagePendingKey = "languagePendingSince"
+    private static let cLanguageExpectedKey = "languageExpected"
+}
+
+extension SettingsStore: LanguageStore {
+    /// "" for Automatic, else a language code.
+    var language: String {
+        get { UserDefaults.standard.string(forKey: Self.cLanguageKey) ?? "" }
+        set { UserDefaults.standard.set(newValue, forKey: Self.cLanguageKey) }
+    }
+
+    /// When the choice was changed on this Mac, until the device has it.
+    var languagePendingSince: Date? {
+        get { UserDefaults.standard.object(forKey: Self.cLanguagePendingKey) as? Date }
+        set { UserDefaults.standard.set(newValue, forKey: Self.cLanguagePendingKey) }
+    }
+
+    /// The device's value the pending change was made against.
+    var languageExpected: String? {
+        get { UserDefaults.standard.string(forKey: Self.cLanguageExpectedKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.cLanguageExpectedKey) }
+    }
+}
+
+extension LanguageSettings {
+    /// The app's: the copy in SettingsStore.
+    static let shared = LanguageSettings(store: SettingsStore.shared)
 }
 
 // Tiny Keychain helper — same shape as the iOS app's own (SecretsStore.swift).

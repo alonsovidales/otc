@@ -1,0 +1,13 @@
+{
+  "desk.main.language": {
+    "text": "Language",
+    "note": "Label of the language picker in the Mac app's Settings, and title of the Language submenu in otc-sync's tray menu (Windows and Linux). The choice applies to every Off The Cloud app.",
+    "max": 30
+  },
+  "desk.main.language_automatic": {
+    "text": "Automatic ({language})",
+    "args": [["language", "text"]],
+    "note": "First choice of the language picker: follow the computer's own language. {language} is the language that gives, written by its own name (for example Español); language names are never translated.",
+    "max": 40
+  }
+}

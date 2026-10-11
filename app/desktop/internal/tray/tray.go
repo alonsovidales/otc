@@ -82,6 +82,7 @@ type ui struct {
 	explain   *systray.MenuItem
 	settings  *systray.MenuItem
 	autost    *systray.MenuItem
+	language  *languageMenu // nil while only English ships (language.go)
 	quit      *systray.MenuItem
 	lastIcon  string
 	// The start-at-login question has been put this run (autostart.go).
@@ -267,6 +268,7 @@ func (u *ui) build(folders []config.FolderStatus) {
 	// Connected: the device and Disconnect; not: the device and password.
 	u.settings = systray.AddMenuItem(u.settingsTitle(), "")
 	u.autost = systray.AddMenuItemCheckbox(autostartToggle, autostartToggleTip, u.c.AutostartEnabled())
+	u.language = addLanguageMenu(u.c.Config())
 	systray.AddSeparator()
 	u.setup = systray.AddMenuItem("Set Up a New Device…", "Prepare the SD card for a new Raspberry Pi device")
 	systray.AddSeparator()
@@ -308,6 +310,9 @@ func (u *ui) build(folders []config.FolderStatus) {
 			}
 		}
 	}()
+	if u.language != nil {
+		u.watchLanguage(u.language, stop)
+	}
 	for _, fi := range items {
 		fi := fi
 		go func() {
@@ -400,6 +405,7 @@ func (u *ui) apply() {
 	// Read every time (a stat, or a registry read), so an entry removed
 	// outside the app shows; only the write is skipped.
 	u.setChecked(u.autost, u.c.AutostartEnabled())
+	u.applyLanguage(cfg)
 	// Once connected, start at login is asked about, once.
 	if st.Status == "Connected" && !u.autostartAsked {
 		u.autostartAsked = true

@@ -391,10 +391,8 @@ final class WSClient {
                     return
                 }
 
-                var req = Req()
-                req.id = self.nextId
+                let req = Self.envelope(id: self.nextId, build)
                 self.nextId &+= 1
-                build(&req)
 
                 do {
                     let bytes = try req.serializedData()
@@ -427,6 +425,20 @@ final class WSClient {
                 }
             }
         }
+    }
+
+    /// The envelope a request sends: what `build` makes of it, then its id
+    /// and the app's language as ReqEnvelope.lang - set after the build,
+    /// which may replace the whole envelope. The one place lang is set
+    /// (docs/i18n.md): every request carries it, the sign-in's included,
+    /// so the device answers in the language the app shows.
+    static func envelope(id: Int32, lang: String = L10n.shared.code, _ build: (inout Req) -> Void) -> Req {
+        var req = Req()
+        req.id = id
+        build(&req)
+        req.id = id
+        req.lang = lang
+        return req
     }
 
     /// Convenience auth helper; returns true if resp_ack.ok

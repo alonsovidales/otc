@@ -21,6 +21,7 @@
 //	otc-sync open                  the device's web app in the browser
 //	otc-sync service install|uninstall|status   (Linux) run as a systemd user service
 //	otc-sync autostart on|off|status   start the tray app at login (only when asked to)
+//	otc-sync language [auto|<code>]   the language of every Off The Cloud app (language.go)
 //
 // Only one process runs the engine (a lock in the config directory); the
 // tray started next to the service becomes a viewer of the service's
@@ -52,6 +53,7 @@ import (
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
 	"github.com/alonsovidales/otc/app/desktop/internal/engine"
 	"github.com/alonsovidales/otc/app/desktop/internal/flasher"
+	"github.com/alonsovidales/otc/app/desktop/internal/oslang"
 	"github.com/alonsovidales/otc/app/desktop/internal/selfupdate"
 	"github.com/alonsovidales/otc/app/desktop/internal/service"
 	"github.com/alonsovidales/otc/app/desktop/internal/tray"
@@ -111,6 +113,8 @@ func main() {
 		err = cmdService(args)
 	case "autostart":
 		err = cmdAutostart(args)
+	case "language":
+		err = cmdLanguage(args)
 	case "version":
 		fmt.Println("otc-sync", version)
 	case "update":
@@ -257,6 +261,13 @@ func usage() {
                                 until you say so: here, with the tray's "Start at login", or
                                 when the tray asks once after the first connection
 `)
+	// Nothing to choose while English is the only language that ships.
+	if oslang.Choosable() {
+		fmt.Print(`  otc-sync language [auto|` + strings.Join(languageCodes(), "|") + `]
+                                the language of every Off The Cloud app, kept on the device:
+                                without an argument, what is chosen; auto follows this computer
+`)
+	}
 }
 
 func hasDisplay() bool {
@@ -638,6 +649,7 @@ func connectOnce(cfg *config.Config, pw string) (*wsclient.Client, error) {
 		}
 	}
 	ws.Configure(cfg.Domain, cfg.ClientID, pw)
+	ws.SetLang(oslang.Effective(cfg.Language))
 	// The home network first, as the engine (issue #190); what this
 	// connection learns is not stored, the engine's is.
 	ws.SetLocalEndpoint(engine.LocalEndpointFor(cfg.Domain))

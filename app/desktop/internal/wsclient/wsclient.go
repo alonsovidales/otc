@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/alonsovidales/otc/app/desktop/internal/oslang"
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
 
@@ -81,11 +82,23 @@ type Client struct {
 	backoff   time.Duration
 	gen       int64 // bumped on every connect, so a stale loop can tell it is stale
 	writeMu   sync.Mutex
+	// lang is ReqEnvelope.lang, the language otc-sync shows (SetLang).
+	lang string
 }
 
-// New makes an unconfigured client.
+// New makes an unconfigured client, sending the computer's language
+// until SetLang says otherwise.
 func New() *Client {
-	return &Client{waiters: map[int32]chan *pb.RespEnvelope{}, backoff: initialBackoff}
+	return &Client{waiters: map[int32]chan *pb.RespEnvelope{}, backoff: initialBackoff, lang: oslang.System()}
+}
+
+// SetLang sets the language every request carries as ReqEnvelope.lang:
+// the one otc-sync shows (oslang.Effective of the choice), so the device
+// answers in it (docs/i18n.md).
+func (c *Client) SetLang(code string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.lang = code
 }
 
 // Configure takes a bare host (bridge) or a full ws:// / wss:// URL, and the
@@ -505,7 +518,10 @@ func (c *Client) Request(ctx context.Context, build func(*pb.ReqEnvelope)) (*pb.
 	id := atomic.AddInt32(&c.nextID, 1)
 	req := &pb.ReqEnvelope{Id: id}
 	build(req)
+	// Set after the build, which may replace the whole envelope: the one
+	// place lang is set (docs/i18n.md).
 	req.Id = id
+	req.Lang = c.lang
 	ch := make(chan *pb.RespEnvelope, 1)
 	c.waiters[id] = ch
 	c.mu.Unlock()

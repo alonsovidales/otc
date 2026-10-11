@@ -6,6 +6,9 @@ import AppKit
 @main
 struct CloudSyncApp: App {
     init() {
+        // The user's language before anything is drawn (docs/i18n.md):
+        // the local copy's, until the device says.
+        LanguageSettings.shared.start()
         // Connect and start syncing at launch. This used to happen in
         // PopoverView.onAppear, and MenuBarExtra doesn't build its content
         // until the icon is clicked - so after login the app sat idle,
@@ -27,8 +30,10 @@ struct CloudSyncApp: App {
         // A drawn label rather than a system image, so the two drives can
         // take different colours. Rendered as an image so the menu bar
         // gets a fixed-size bitmap rather than live view content.
+        // Each scene's content in L10nRoot: the locale follows the app's
+        // language (an .environment on the Scene doesn't reach it).
         MenuBarExtra {
-            PopoverView()
+            L10nRoot { PopoverView() }
         } label: {
             MenuBarLabel()
         }
@@ -37,7 +42,7 @@ struct CloudSyncApp: App {
         // Issue #184: the new-device wizard, opened from the popover. Never
         // at launch - this is a menu bar app.
         Window("Set Up a New Device", id: "setup") {
-            SetupWizardView()
+            L10nRoot { SetupWizardView() }
         }
         .windowResizability(.contentSize)
         .defaultPosition(.center)

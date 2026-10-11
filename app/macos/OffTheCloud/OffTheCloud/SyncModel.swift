@@ -538,6 +538,13 @@ final class SyncModel: ObservableObject {
         restoreRemoteFolders()
         migrateLocalFolders()
 
+        // The user's language (LanguageSettings.swift): SetLanguage goes
+        // through this connection, and "changed" reads the status again.
+        LanguageSettings.shared.send = { [weak self] language, expected in
+            await self?.setLanguage(language, expected: expected) ?? .failed
+        }
+        LanguageSettings.shared.reread = { [weak self] in await self?.pollRaidStatus() }
+
         ws.onConnect = { [weak self] route in
             Task { @MainActor in
                 guard let self else { return }
@@ -545,6 +552,9 @@ final class SyncModel: ObservableObject {
                 self.route = route
                 // The one-time "Start at login?" offer waits for this.
                 LoginItemSettings.shared.deviceConnected()
+                // Before the status poll: a language change still pending
+                // is under way by the time the device's value comes back.
+                LanguageSettings.shared.connected()
                 self.startRaidPolling()
                 // Issue #192: what the device keeps out of Images, then the
                 // requests still pending - asked again at every connect,
@@ -769,6 +779,9 @@ final class SyncModel: ObservableObject {
                     self.uploadOnlySupported = nil
                     self.uploadOnlyRequestErrors.removeAll()
                     self.uploadOnlyNotes.removeAll()
+                    // Nor the user's language there (the choice itself is
+                    // kept).
+                    LanguageSettings.shared.forgetDevice()
                     if settings.ready {
                         self.overallStatus = "Connecting…"
                         self.ws.configure(domain: domain, key: key)
@@ -834,9 +847,13 @@ final class SyncModel: ObservableObject {
     }
 
     private func pollRaidStatus() async {
+        let languageEpoch = LanguageSettings.shared.epoch
         guard let resp = try? await ws.request({ req in
             req.payload = .reqGetStatus(Msg_GetStatus())
         }), case .respStatus(let status) = resp.payload else { return }
+        // The user's language as the device has it; absent on a device
+        // that predates localization.
+        LanguageSettings.shared.deviceReported(status.hasLanguage ? status.language : nil, askedAt: languageEpoch)
         // Published only when they change: each assignment redraws what
         // watches SyncModel, every 10 seconds for nothing. deviceStatus
         // carries CPU and memory, which do change on every poll.
@@ -847,6 +864,26 @@ final class SyncModel: ObservableObject {
         let alert: Msg_UpdateAlert? = status.hasUpdateAlert && (level == "major" || level == "critical")
             ? status.updateAlert : nil
         if updateAlert != alert { updateAlert = alert }
+    }
+
+    /// Sends the user's language (LanguageSettings), and what the device
+    /// answered. An answer from a device other than the one it was sent
+    /// to doesn't count (still pending, for the next connection).
+    private func setLanguage(_ language: String, expected: String?) async -> LanguageState.Answer {
+        let domain = settings?.domain
+        let resp = try? await ws.request { req in
+            var set = Msg_SetLanguage()
+            set.language = language
+            if let expected { set.expected = expected }
+            req.payload = .reqSetLanguage(set)
+        }
+        guard let resp, settings?.domain == domain else { return .failed }
+        if Self.isUnknownPayload(resp) { return .unknownPayload }
+        let ack: Msg_Ack? = if case .respAck(let a) = resp.payload { a } else { nil }
+        if ack?.code == "changed" || resp.errorCode == "changed" { return .changed }
+        if !resp.error, ack?.ok == true { return .ok }
+        syncLog.info("the device refused the language (sent again at the next connection): \(resp.errorMessage, privacy: .public)")
+        return .failed
     }
 
     /// A one-way backup of a folder on this Mac: new and changed files go

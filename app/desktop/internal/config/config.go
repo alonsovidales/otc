@@ -6,7 +6,7 @@
 // the tray app, the command line and the Linux service all read and
 // write the same thing.
 //
-//	config.json  - device address, the folders, autostart  (mode 0600)
+//	config.json  - device address, the folders, autostart, the language (0600)
 //	secret       - the password, only when no keyring is available (0600)
 //	local.json   - where the device answers on the home network (0600)
 //	state.json   - written by whichever process runs the sync engine, read
@@ -169,6 +169,101 @@ type Config struct {
 	// is registered - only a true lets the tray register itself at login
 	// (the Mac's startAtLoginChoice, App Store guideline 2.4.5).
 	Autostart *bool `json:"autostart,omitempty"`
+
+	// Language is the local copy of the user's language choice
+	// (docs/i18n.md, "The stored choice"): "" for Automatic (the
+	// computer's language, oslang.System), else a language code. The device
+	// keeps the choice per user; this copy is what otc-sync goes by before
+	// the device has said and with a device that predates it, and it
+	// survives Disconnect. The engine keeps it equal to the device's
+	// (Status.language), except while a change made here is pending.
+	Language string `json:"language,omitempty"`
+	// LanguagePending is when Language was changed here (the tray's
+	// Language menu, `otc-sync language`) and the device hasn't
+	// acknowledged it yet: the engine sends SetLanguage until it has, and
+	// then clears it compare-and-clear, like a folder's requests. nil when
+	// there is nothing to send. The Mac's languagePendingSince.
+	LanguagePending *time.Time `json:"language_pending,omitempty"`
+	// LanguageExpected is the device's value the change was made against,
+	// sent as SetLanguage.expected - the device keeps the change only
+	// while it still holds that, so a change made meanwhile from another
+	// app isn't overwritten. nil when the process that made the change
+	// hadn't seen one (expected is then left out).
+	LanguageExpected *string `json:"language_expected,omitempty"`
+}
+
+// SetLanguage records a language chosen on this computer ("" Automatic),
+// pending for the engine to send, against expected: the device's value as
+// last seen (nil when none was).
+func (c *Config) SetLanguage(code string, expected *string, now time.Time) {
+	c.Language = code
+	at := now.UTC()
+	c.LanguagePending = &at
+	if expected != nil {
+		e := *expected
+		c.LanguageExpected = &e
+	} else {
+		c.LanguageExpected = nil
+	}
+}
+
+// ClearLanguagePending drops the pending mark once the device has
+// answered SetLanguage for sent - only while the choice is still sent,
+// not one the tray or the command line made meanwhile. Says whether it
+// did.
+func (c *Config) ClearLanguagePending(sent string) bool {
+	if c.LanguagePending == nil || c.Language != sent {
+		return false
+	}
+	c.LanguagePending, c.LanguageExpected = nil, nil
+
+	return true
+}
+
+// DropLanguagePending drops the pending mark set at at - another device
+// or password, which the change wasn't made for - unless a newer change
+// replaced it meanwhile. The choice stays. Says whether it did.
+func (c *Config) DropLanguagePending(at *time.Time) bool {
+	if at == nil || !sameTime(c.LanguagePending, at) {
+		return false
+	}
+	c.LanguagePending, c.LanguageExpected = nil, nil
+
+	return true
+}
+
+// SetLanguageExpected makes a newer change still pending count against
+// the value the device was just given (sent), so that sending it isn't
+// taken for a change made elsewhere. Says whether there was one.
+func (c *Config) SetLanguageExpected(sent string) bool {
+	if c.LanguagePending == nil || c.Language == sent {
+		return false
+	}
+	s := sent
+	c.LanguageExpected = &s
+
+	return true
+}
+
+// AdoptLanguage takes the device's value as the choice, in place of seen
+// - only while the choice and its pending mark are still what the engine
+// looked at (seen, pending), so a change made meanwhile here stands. Says
+// whether it did.
+func (c *Config) AdoptLanguage(device, seen string, pending *time.Time) bool {
+	if c.Language != seen || !sameTime(c.LanguagePending, pending) {
+		return false
+	}
+	c.Language, c.LanguagePending, c.LanguageExpected = device, nil, nil
+
+	return true
+}
+
+func sameTime(a, b *time.Time) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+
+	return a.Equal(*b)
 }
 
 // Dir is the config directory, created on first use.
@@ -388,6 +483,15 @@ type State struct {
 	OutOfImagesUnsupported bool `json:"out_of_images_unsupported,omitempty"`
 	// Issue #132: likewise, that it can't make a folder upload only.
 	UploadOnlyUnsupported bool `json:"upload_only_unsupported,omitempty"`
+
+	// DeviceLanguage is the user's language as the device last reported it
+	// (Status.language: "" Automatic, or a code); nil when unknown or the
+	// device predates localization. The tray and `otc-sync language` send
+	// it as SetLanguage.expected with a change (Config.SetLanguage).
+	DeviceLanguage *string `json:"device_language,omitempty"`
+	// LanguageUnsupported: the device can't store a language (a release
+	// before localization): the choice stays on this computer.
+	LanguageUnsupported bool `json:"language_unsupported,omitempty"`
 }
 
 // UpdateAlert is the status's update_alert: Level is "major" or

@@ -173,6 +173,17 @@ type Engine struct {
 	// those changes).
 	imagesFolders []string
 	imagesGen     int
+
+	// The user's language (language.go): the device's value as last
+	// polled (nil when unknown or the device predates localization), a
+	// SetLanguage under way, and a device that answered it can't store one
+	// (until the next connection).
+	devLanguage     *string
+	langSending     bool
+	langUnsupported bool
+	// langEpoch counts SetLanguage requests sent and answered: a status
+	// asked for before the last of those may be older than it.
+	langEpoch uint64
 }
 
 // New builds an engine over cfg; onChange fires whenever anything the UI
@@ -218,6 +229,7 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 		netStop:       make(chan struct{}),
 	}
 	e.migrateFolders(cfg)
+	e.applyLanguageLocked()
 	for _, f := range cfg.Folders {
 		e.folderStates[f.ID] = FolderState{Kind: StateScanning}
 	}
@@ -226,6 +238,9 @@ func New(cfg *config.Config, password string, onChange func()) *Engine {
 	}
 	e.ws.OnConnect = func() {
 		e.setStatus("Connected")
+		// Before the status poll: a pending change is under way by the
+		// time the device's value comes back.
+		e.languageAtConnect()
 		e.startRaidPolling()
 		// Issues #192 and #132: alongside the passes, which wait for a
 		// folder's request under way before they send anything.
@@ -360,6 +375,7 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 		}
 	}
 	credsChanged := old.Domain != cfg.Domain || oldPw != password
+	var droppedLanguage *time.Time
 	if credsChanged && e.authRetry != nil {
 		e.authRetry.Stop()
 		e.authRetry = nil
@@ -373,6 +389,13 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 		// do; requests still pending go to it.
 		e.forgetOutOfImagesLocked()
 		e.forgetRequestsLocked(uploadOnlyRequest)
+		droppedLanguage = e.forgetLanguageLocked()
+	}
+	// A language chosen in the tray or on the command line: shown and
+	// sent at once.
+	langChanged := languageChangedLocked(old, cfg)
+	if langChanged {
+		e.applyLanguageLocked()
 	}
 	// A request the tray or the command line just made for a folder
 	// already synced goes now, not at the folder's next pass.
@@ -388,6 +411,7 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 	e.mu.Unlock()
 	e.notify()
 	if credsChanged {
+		dropLanguagePending(droppedLanguage)
 		e.ws.Disconnect()
 		e.applySettings()
 
@@ -399,6 +423,9 @@ func (e *Engine) UpdateConfig(cfg *config.Config, password string) {
 	}
 	if len(uploadOnlyChanged) > 0 {
 		go e.applyPendingRequests(uploadOnlyRequest, uploadOnlyChanged...)
+	}
+	if langChanged {
+		e.sendLanguage()
 	}
 	if e.ws.IsConnected() {
 		go e.startSync()
@@ -498,6 +525,7 @@ func (e *Engine) Snapshot() config.State {
 	}
 	st.OutOfImagesUnsupported = e.imagesUnsupportedLocked()
 	st.UploadOnlyUnsupported = e.upOnly.unsupportedLocked()
+	e.languageStatusLocked(&st)
 	for _, f := range e.cfg.Folders {
 		fs := toStatus(f.ID, f.Path, "", e.folderStates[f.ID])
 		e.imagesStatusLocked(&fs)
@@ -612,6 +640,9 @@ func (e *Engine) stopRaidPolling() {
 }
 
 func (e *Engine) pollRaid() {
+	e.mu.Lock()
+	langEpoch := e.langEpoch
+	e.mu.Unlock()
 	resp, err := e.request(func(r *pb.ReqEnvelope) {
 		r.Payload = &pb.ReqEnvelope_ReqGetStatus{ReqGetStatus: &pb.GetStatus{}}
 	})
@@ -627,6 +658,7 @@ func (e *Engine) pollRaid() {
 	e.devStatus = st.RespStatus
 	e.mu.Unlock()
 	e.notify()
+	e.deviceLanguage(st.RespStatus.Language, langEpoch)
 }
 
 // Raid is the current health.
