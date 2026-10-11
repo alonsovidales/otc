@@ -15,16 +15,17 @@ import Combine
 // When a post was published, shown in its header. Relative for anything
 // recent (the timescale people actually care about scrolling a feed),
 // falling back to an absolute date once "3d ago" stops being more useful
-// than the date itself.
+// than the date itself. Worded when shown, in the app's language and locale.
 private func formatPostDate(_ date: Date) -> String {
     let mins = Int(Date().timeIntervalSince(date) / 60)
-    if mins < 1 { return "just now" }
-    if mins < 60 { return "\(mins)m ago" }
+    if mins < 1 { return S.appShellTimeJustNow }
+    if mins < 60 { return S.appShellTimeMinutesAgo(count: mins) }
     let hours = mins / 60
-    if hours < 24 { return "\(hours)h ago" }
+    if hours < 24 { return S.appShellTimeHoursAgo(count: hours) }
     let days = hours / 24
-    if days < 7 { return "\(days)d ago" }
+    if days < 7 { return S.appShellTimeDaysAgo(count: days) }
     let f = DateFormatter()
+    f.locale = L10n.shared.locale
     f.dateStyle = .medium
     f.timeStyle = .none
     return f.string(from: date)
@@ -616,7 +617,7 @@ struct SocialFeedView: View {
                         logoHeader
                         Spacer()
                         ProgressView()
-                        Text("Loading…").foregroundColor(.secondary)
+                        Text(S.commonLoading).foregroundColor(.secondary)
                         if let problem = vm.problem {
                             Text(problem.text(.posts))
                                 .font(.subheadline)
@@ -641,9 +642,9 @@ struct SocialFeedView: View {
                         logoHeader
                         Spacer()
                         VStack(spacing: 14) {
-                            Text("No social posts")
+                            Text(S.appSocialFeedEmptyTitle)
                                 .font(.system(size: 30, weight: .heavy))
-                            Text("Share a photo or a video with your friends - it goes from your device to theirs, with no cloud in between.")
+                            Text(S.appSocialFeedEmptyText)
                                 .font(.body)
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
@@ -664,7 +665,7 @@ struct SocialFeedView: View {
                                 }
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("New post")
+                            .accessibilityLabel(S.appShellNewPost)
                             .padding(.top, 10)
                         }
                         Spacer()
@@ -806,7 +807,7 @@ struct SocialFeedView: View {
                         Button { showingFriendships = true } label: {
                             Image(systemName: "person.2")
                         }
-                        .accessibilityLabel("Friends")
+                        .accessibilityLabel(S.appShellSectionFriends)
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -819,7 +820,7 @@ struct SocialFeedView: View {
                         Image(systemName: "plus.circle")
                     }
                     .tint(Color(red: 1.0, green: 0.42, blue: 0.29)) // matches web's --ember (#ff6b4a)
-                    .accessibilityLabel("New post")
+                    .accessibilityLabel(S.appShellNewPost)
                 }
             }
         }
@@ -1177,6 +1178,12 @@ private struct PostCard: View {
     private let cardSpacing: CGFloat = 8
     private let headerTopPadding: CGFloat = 10
     private let avatarSize: CGFloat = 28
+    /// A comment's writer, in bold before the comment.
+    private static var bold: AttributeContainer {
+        var b = AttributeContainer()
+        b.inlinePresentationIntent = .stronglyEmphasized
+        return b
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: cardSpacing) {
@@ -1187,7 +1194,7 @@ private struct PostCard: View {
                 // name wrapping to two (a long one, or any at the largest
                 // sizes) would push the media's bottom under the tab bar.
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(post.publisher.name.isEmpty ? "User" : post.publisher.name)
+                    Text(post.publisher.name.isEmpty ? S.appSocialPostUnnamed : post.publisher.name)
                         .font(.subheadline).bold()
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -1203,7 +1210,7 @@ private struct PostCard: View {
                 // Issue #34: delete one of your own posts.
                 if post.own {
                     Menu {
-                        Button("Delete Post", role: .destructive) { confirmDeletePost = true }
+                        Button(S.appSocialPostDeletePost, role: .destructive) { confirmDeletePost = true }
                     } label: {
                         Image(systemName: "ellipsis").foregroundColor(.secondary)
                             .padding(.horizontal, 6) // bigger tap target than the glyph alone
@@ -1349,7 +1356,7 @@ private struct PostCard: View {
                 Button {
                     likersTarget = LikersTarget(kind: .publication(post.uuid))
                 } label: {
-                    Text("\(post.likes) like\(post.likes == 1 ? "" : "s")")
+                    Text(S.appSocialPostLikes(count: Int(post.likes)))
                         .font(.footnote).bold()
                         .foregroundColor(.primary)
                 }
@@ -1365,7 +1372,9 @@ private struct PostCard: View {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(post.comments, id: \.commentUuid) { c in
                         HStack {
-                            Text(c.publisher.isEmpty ? "User" : c.publisher).bold() + Text(": " + c.comment)
+                            Text(c.publisher.isEmpty
+                                 ? S.appSocialPostCommentUnnamed(comment: c.comment, b: Self.bold)
+                                 : S.appSocialPostComment(name: c.publisher, comment: c.comment, b: Self.bold))
                             Spacer()
                             // Issue #29: tapping the count (not the heart
                             // itself) shows who liked this comment.
@@ -1406,10 +1415,10 @@ private struct PostCard: View {
             }
 
             HStack {
-                TextField("Add a comment…", text: $commentText)
+                TextField(S.appSocialPostCommentPlaceholder, text: $commentText)
                     .textFieldStyle(.roundedBorder)
                     .font(.caption)
-                Button("Post") {
+                Button(S.appSocialPostSendComment) {
                     onComment(commentText)
                     commentText = ""
                 }
@@ -1426,19 +1435,19 @@ private struct PostCard: View {
         .sheet(item: $likersTarget) { target in
             LikersListView(target: target, fetchPublicationLikers: fetchPublicationLikers, fetchCommentLikers: fetchCommentLikers)
         }
-        .confirmationDialog("Delete this post?", isPresented: $confirmDeletePost, titleVisibility: .visible) {
-            Button("Delete Post", role: .destructive, action: onDeletePub)
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog(S.appSocialPostDeletePostTitle, isPresented: $confirmDeletePost, titleVisibility: .visible) {
+            Button(S.appSocialPostDeletePost, role: .destructive, action: onDeletePub)
+            Button(S.commonCancel, role: .cancel) {}
         }
         .confirmationDialog(
-            "Delete this comment?",
+            S.appSocialPostDeleteCommentTitle,
             isPresented: Binding(get: { commentPendingDelete != nil }, set: { if !$0 { commentPendingDelete = nil } }),
             titleVisibility: .visible
         ) {
-            Button("Delete Comment", role: .destructive) {
+            Button(S.appSocialPostDeleteComment, role: .destructive) {
                 if let uuid = commentPendingDelete { onDeleteComment(uuid) }
             }
-            Button("Cancel", role: .cancel) {}
+            Button(S.commonCancel, role: .cancel) {}
         }
     }
 
@@ -1841,7 +1850,7 @@ private struct LikersListView: View {
             Group {
                 if let likers {
                     if likers.isEmpty {
-                        ContentUnavailableView("No likes yet", systemImage: "heart")
+                        ContentUnavailableView(S.appSocialLikesEmpty, systemImage: "heart")
                     } else {
                         List(Array(likers.enumerated()), id: \.offset) { _, liker in
                             HStack(spacing: 12) {
@@ -1855,11 +1864,11 @@ private struct LikersListView: View {
                     ProgressView()
                 }
             }
-            .navigationTitle("Likes")
+            .navigationTitle(S.appSocialLikesTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button(S.commonDone) { dismiss() }
                 }
             }
         }

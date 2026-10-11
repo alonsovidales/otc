@@ -1,4 +1,25 @@
 {
+  "ios.alerts_errors_collapse": {
+    "text": {
+      "one": "{title}, {count} error, collapse",
+      "other": "{title}, {count} errors, collapse"
+    },
+    "args": [["title", "text"], ["count", "count"]],
+    "note": "Screen-reader name of a row of the Alerts tab that groups the device's errors, while its list of errors is shown: tapping it hides the list. {title} is the first error's title, written by the device (already in the user's language); {count} is how many errors the row holds. Lowercase collapse, as the end of the phrase."
+  },
+  "ios.alerts_errors_expand": {
+    "text": {
+      "one": "{title}, {count} error, expand",
+      "other": "{title}, {count} errors, expand"
+    },
+    "args": [["title", "text"], ["count", "count"]],
+    "note": "Screen-reader name of a row of the Alerts tab that groups the device's errors, while its list of errors is hidden: tapping it shows the list. {title} is the first error's title, written by the device (already in the user's language); {count} is how many errors the row holds. Lowercase expand, as the end of the phrase."
+  },
+  "ios.alerts_friends": {
+    "text": "Friends",
+    "note": "Beside a check mark, at the right of a friend request in the Alerts tab once you accepted it from there: you are friends now.",
+    "max": 16
+  },
   "ios.bluetooth_needed_hint": {
     "text": "Allow Bluetooth for Off The Cloud in Settings to set a device up this way.",
     "note": "Set up a new device (over Bluetooth): under the heading Bluetooth access is needed. Settings is the iPhone's own Settings app: use its name in this language."
@@ -6,6 +27,31 @@
   "ios.bluetooth_off_hint": {
     "text": "Turn Bluetooth on in Control Centre to find the device.",
     "note": "Set up a new device (over Bluetooth): under the heading Bluetooth is off. Control Centre is the iPhone's: use iOS's own name for it in this language."
+  },
+  "ios.compose_capture_save_failed": {
+    "text": "Couldn't save the capture to Photos: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Alert in the New Post composer when a photo or video just taken with the camera couldn't be saved to the iPhone's Photos library. {detail} is the system's reason (in the iPhone's language)."
+  },
+  "ios.compose_capture_unreadable": {
+    "text": "The capture was saved to Photos but couldn't be read back.",
+    "note": "Alert in the New Post composer when a photo or video just taken with the camera was saved to the iPhone's Photos library but couldn't be added to the post."
+  },
+  "ios.compose_photo_unreadable": {
+    "text": "Could not read this photo",
+    "note": "Why a post couldn't be published, after app.social.compose.publish_failed_detail: a photo picked from the iPhone couldn't be read to upload it."
+  },
+  "ios.compose_source": {
+    "text": "Source",
+    "note": "Screen-reader name of the Phone / Synced switch at the top of the New Post composer: where the photos shown come from."
+  },
+  "ios.compose_upload_failed": {
+    "text": "Upload failed",
+    "note": "Why a post couldn't be published, after app.social.compose.publish_failed_detail: a photo picked from the iPhone couldn't be uploaded to the device, which gave no reason."
+  },
+  "ios.compose_video_unavailable": {
+    "text": "This video is not available on the phone",
+    "note": "Why a video picked from the iPhone couldn't be opened for trimming in the New Post composer (shown after app.social.compose.trim_load_failed): Photos couldn't hand it over (for example it is only in iCloud and couldn't be downloaded)."
   },
   "ios.connection_superseded": {
     "text": "The connection settings changed; try again.",
@@ -24,6 +70,140 @@
     "args": [["type", "text"]],
     "note": "Screen-reader name of a document icon in the Files grid. {type} is what the icon shows: a type such as PDF, DOC or ZIP, or a file extension in capitals."
   },
+  "ios.files.allow_deletions": {
+    "text": "Allow Deletions",
+    "note": "Confirm button of the question app.files.allow_deletions_title (Files, a tap on an upload-only folder's lock): lets the folder's files be deleted again. Title Case in English.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #bd5ac7d9"
+  },
+  "ios.files.gallery_copied": {
+    "text": "Copied",
+    "note": "What the Copy Link button (app.files.gallery_copy_link) of the Share as Gallery sheet says once the link was copied.",
+    "max": 20
+  },
+  "ios.files.gallery_counting": {
+    "text": "Counting photos and videos…",
+    "note": "Shown with a spinner when the Share as Gallery sheet opens, while the device counts what will be shared."
+  },
+  "ios.files.gallery_expires": {
+    "text": "Expires after",
+    "note": "Heading of the choices of how long the gallery's link works (1, 7 or 30 days) in the Share as Gallery sheet, and the screen-reader name of those choices.",
+    "max": 30
+  },
+  "ios.files.gallery_job_failed": {
+    "text": "The gallery could not be created",
+    "note": "Error in the Share as Gallery sheet when the device stopped copying with an error and gave no reason (when it gives one, its own words are shown instead)."
+  },
+  "ios.files.gallery_keep_open": {
+    "text": "Keep this screen open: the link is shown here once the copy is done.",
+    "note": "Under the progress bar of the Share as Gallery sheet while the device copies the photos and videos."
+  },
+  "ios.files.gallery_link_once": {
+    "text": "This link is shown only now - the device never stores it. Send or copy it before closing.",
+    "note": "Under the gallery's link in the Share as Gallery sheet once the gallery is ready.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d24cf951"
+  },
+  "ios.files.gallery_nothing": {
+    "text": "There are no photos or videos to share here.",
+    "note": "Under the disabled Share button of the Share as Gallery sheet when the folder or collection has no photos or videos."
+  },
+  "ios.files.gallery_skipped": {
+    "text": {
+      "one": "{count} other files are not included",
+      "other": "{count} other files are not included"
+    },
+    "args": [["count", "count"]],
+    "note": "Second line of the Share as Gallery sheet, before sharing, when the folder holds files that aren't photos or videos: they won't be in the gallery. {count} is how many. In English both forms are the same."
+  },
+  "ios.files.gallery_starting": {
+    "text": "Starting…",
+    "note": "Shown with a spinner in the Share as Gallery sheet right after Share is tapped, until the device starts copying."
+  },
+  "ios.files.keep_out_of_images": {
+    "text": "Keep Out of Images",
+    "note": "Item of a folder's long-press menu in Files, and the confirm button of the question app.files.keep_out_title: keeps the folder's photos and videos out of Images (not tagged, not searched for faces; the tags and faces already found are deleted). Title Case in English. Images is the photo section (app.shell.section_images).",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #190094a7"
+  },
+  "ios.files.make_upload_only": {
+    "text": "Make Upload Only",
+    "note": "Confirm button of the question app.files.make_upload_only_title (Files, a tap on a folder's open lock): makes the folder upload only. Title Case in English. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version.",
+    "max": 30
+  },
+  "ios.files.older_versions": {
+    "text": {
+      "one": "{count} older version",
+      "other": "{count} older versions"
+    },
+    "args": [["count", "count"]],
+    "note": "Screen-reader name of the badge with a clock and a number on a file in Files: how many older versions the device keeps of it. A tap lists them."
+  },
+  "ios.files.result_file": {
+    "text": "{name}, file in {folder}",
+    "args": [["name", "user"], ["folder", "user"]],
+    "note": "Screen-reader name of a file (not a photo or video) in the results of a search in Files and in the search suggestions (Images, or the top bar on a wide screen). {name} is its file name, {folder} the folder it is in (a path such as /Photos/2024)."
+  },
+  "ios.files.result_file_kept_out": {
+    "text": "{name}, file in {folder}, kept out of Images",
+    "args": [["name", "user"], ["folder", "user"]],
+    "note": "Screen-reader name of a file (not a photo or video) in the results of a search in Files when its folder is kept out of Images. {name} is its file name, {folder} the folder it is in. Images is the photo section (app.shell.section_images)."
+  },
+  "ios.files.result_folder": {
+    "text": "{name}, folder in {folder}",
+    "args": [["name", "user"], ["folder", "user"]],
+    "note": "Screen-reader name of a folder in the results of a search in Files and in the search suggestions (Images, or the top bar on a wide screen). {name} is its name, {folder} the folder it is in (a path such as /Photos/2024)."
+  },
+  "ios.files.result_folder_kept_out": {
+    "text": "{name}, folder in {folder}, kept out of Images",
+    "args": [["name", "user"], ["folder", "user"]],
+    "note": "Screen-reader name of a folder in the results of a search in Files when it is kept out of Images (its photos and videos aren't tagged, searched for faces or shown there). {name} is its name, {folder} the folder it is in. Images is the photo section (app.shell.section_images)."
+  },
+  "ios.files.result_photo": {
+    "text": "{name}, photo in {folder}",
+    "args": [["name", "user"], ["folder", "user"]],
+    "note": "Screen-reader name of a photo in the results of a search in Files and in the search suggestions (Images, or the top bar on a wide screen). {name} is its file name, {folder} the folder it is in (a path such as /Photos/2024)."
+  },
+  "ios.files.result_photo_kept_out": {
+    "text": "{name}, photo in {folder}, kept out of Images",
+    "args": [["name", "user"], ["folder", "user"]],
+    "note": "Screen-reader name of a photo in the results of a search in Files when its folder is kept out of Images. {name} is its file name, {folder} the folder it is in. Images is the photo section (app.shell.section_images)."
+  },
+  "ios.files.result_video": {
+    "text": "{name}, video in {folder}",
+    "args": [["name", "user"], ["folder", "user"]],
+    "note": "Screen-reader name of a video in the results of a search in Files and in the search suggestions (Images, or the top bar on a wide screen). {name} is its file name, {folder} the folder it is in (a path such as /Photos/2024)."
+  },
+  "ios.files.result_video_kept_out": {
+    "text": "{name}, video in {folder}, kept out of Images",
+    "args": [["name", "user"], ["folder", "user"]],
+    "note": "Screen-reader name of a video in the results of a search in Files when its folder is kept out of Images. {name} is its file name, {folder} the folder it is in. Images is the photo section (app.shell.section_images)."
+  },
+  "ios.files.try_again": {
+    "text": "Try Again",
+    "note": "Button under the error shown in place of the results of a search in Files: searches again. Title Case in English.",
+    "max": 20
+  },
+  "ios.files.upload_only_folder_info": {
+    "text": "Nothing in this folder can be deleted, and uploading a file again keeps its older version. Long-press the folder to change it.",
+    "note": "Explanation shown (title app.files.upload_only) when the lock badge on an upload-only folder's tile is tapped in Files' grid."
+  },
+  "ios.friends_delete_theirs": {
+    "text": "Delete everything from {name} on this iPhone",
+    "args": [["name", "user"]],
+    "note": "Switch (off at first) when removing a friend: also deletes everything of theirs from your device (explained by app.social.friends.delete_theirs_text). {name} is the friend's profile name (or their device's address when they have none).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #81fdb8b7"
+  },
+  "ios.friends_remove_friend": {
+    "text": "Remove Friend",
+    "note": "Button (in red) at the foot of the Remove (a friend)? screen: removes the friend, deleting what its two switches say.",
+    "max": 24,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #f5f80e5e"
+  },
   "ios.menu_close": {
     "text": "Close the menu",
     "note": "Screen-reader name of the dimmed page behind the left menu laid over it (on a wide screen): tapping it closes the menu."
@@ -31,6 +211,58 @@
   "ios.no_answer_slow": {
     "text": "The device isn't answering. It may be off, or the connection may be too slow.",
     "note": "Why the app can't connect, on the card shown over the app: the connection to the device stopped answering while signing in."
+  },
+  "ios.photos_access_denied": {
+    "text": "Photos access denied",
+    "note": "Alert in the full-screen photo viewer when Save was tapped but the app isn't allowed to add photos to the iPhone's Photos library."
+  },
+  "ios.photos_download_failed": {
+    "text": "Download failed: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Alert in Images when the link to download the selected photos as a zip (the selection bar's Download) couldn't be made. {detail} is the reason (the app's or the system's own words)."
+  },
+  "ios.photos_people_deleting": {
+    "text": "Deleting {current} of {total}…",
+    "args": [["current", "int"], ["total", "int"]],
+    "note": "At the foot of the People page while several people are being deleted: which one is being deleted ({current}) of how many ({total})."
+  },
+  "ios.photos_people_face_to_keep": {
+    "text": "Face to keep",
+    "note": "Screen-reader name of the group of faces to choose from in the merge's box (People page)."
+  },
+  "ios.photos_people_merge_hint": {
+    "text": "Select 2 or more to merge",
+    "note": "Screen-reader hint on the dimmed Merge item of the bar shown while one face is picked on the People page."
+  },
+  "ios.photos_people_new_name": {
+    "text": "New name",
+    "note": "Screen-reader name of the field that renames a person who already has a name, under their face on the People page."
+  },
+  "ios.photos_search_documents": {
+    "text": "Search documents for {text}",
+    "args": [["text", "user"]],
+    "note": "Screen-reader name of the row of the search suggestions that lists, in Files, every file and folder whose path contains what was typed (app.photos.search.documents). {text} is the typed text."
+  },
+  "ios.photos_search_key_hint": {
+    "text": "What the Search key picks",
+    "note": "Screen-reader hint on the highlighted row of the search suggestions: the keyboard's Search key takes that row."
+  },
+  "ios.photos_search_person_in": {
+    "text": {
+      "one": "{name}, {count} photo, in the search",
+      "other": "{name}, {count} photos, in the search"
+    },
+    "args": [["name", "user"], ["count", "count"]],
+    "note": "Screen-reader name of a person in the search suggestions who is already a chip in the search. {name} is their name, {count} how many photos show them. Otherwise it is app.photos.people.face_label."
+  },
+  "ios.photos_search_suggestions": {
+    "text": "Suggestions",
+    "note": "Screen-reader name of the list of suggestions under the search field (Images, or the top bar on a wide screen)."
+  },
+  "ios.photos_upload_failed": {
+    "text": "Upload failed: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Alert in Images when a photo that is only on this iPhone couldn't be uploaded to the device before sharing it, downloading it or adding it to a collection. {detail} is the reason (the app's or the system's own words)."
   },
   "ios.plist.cfbundlename": {
     "text": "OffTheCloud",
@@ -72,6 +304,82 @@
     "note": "iOS permission prompt (Photos library), shown by the system the first time the app reads the photo library: why the app needs it (it backs the photos up to the user's device). No full stop in English.",
     "review": "required",
     "reviewed": "shipped 2026-10-11 #de68238a"
+  },
+  "ios.settings.bridge_leave_delete": {
+    "text": "Leave and Delete the Account",
+    "note": "Button (in red) of the confirmation Delete your account?: the device leaves the bridge, then the account page opens to delete the account.",
+    "max": 40,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #74d32e00"
+  },
+  "ios.settings.crop_hint": {
+    "text": "Drag the photo to centre your face.",
+    "note": "Under the circle on the screen Crop photo."
+  },
+  "ios.settings.crop_title": {
+    "text": "Crop photo",
+    "note": "Title of the screen that crops the new profile photo to a circle.",
+    "max": 30
+  },
+  "ios.settings.links_delete_message": {
+    "text": "Delete this link? The shared copies are deleted and the link stops working.",
+    "note": "Message of the confirmation asked before deleting a shared link (its title is app.settings.links.delete_title).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #be807be0"
+  },
+  "ios.settings.logs_picker": {
+    "text": "Log",
+    "note": "Screen-reader name of the choice at the top of the Logs screen between the Device and Updates logs.",
+    "max": 20
+  },
+  "ios.settings.logs_read_failed": {
+    "text": "Could not read the logs.",
+    "note": "Error on the Logs screen when the log couldn't be read and the device gave no reason; the app tries again."
+  },
+  "ios.settings.logs_send_failed": {
+    "text": "Could not send the logs.",
+    "note": "Error in the form that sends the logs when they couldn't be sent and the device gave no reason."
+  },
+  "ios.settings.logs_troubleshooting": {
+    "text": "Troubleshooting",
+    "note": "Heading of the section of Settings holding the Logs row.",
+    "max": 30
+  },
+  "ios.settings.picker_empty": {
+    "text": "No photos here.",
+    "note": "Shown on the screen Choose a photo when the chosen collection (or the device) has no photo."
+  },
+  "ios.settings.picker_error": {
+    "text": "Couldn't load that photo: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error on the screen Choose a photo when the tapped photo couldn't be fetched. {detail} is why, as the system or the connection words it."
+  },
+  "ios.settings.picker_load_failed": {
+    "text": "Couldn't load that photo from your device.",
+    "note": "Error on the screen Choose a photo when the tapped photo couldn't be fetched and the device gave no reason."
+  },
+  "ios.settings.picker_open_failed": {
+    "text": "That photo couldn't be opened.",
+    "note": "Error on the screen Choose a photo when the tapped photo arrived but couldn't be read as a picture."
+  },
+  "ios.settings.profile_from_iphone": {
+    "text": "From this iPhone",
+    "note": "Item of the Change photo menu in Settings > Profile: pick the profile photo in the iPhone's Photos.",
+    "max": 30
+  },
+  "ios.settings.profile_unexpected": {
+    "text": "Unexpected response while saving profile",
+    "note": "Shown for a few seconds in Settings > Profile when the device answered the save with something the app didn't expect."
+  },
+  "ios.settings.sync_icloud": {
+    "text": "Sync from iCloud",
+    "note": "Switch in Settings > Sync Options: also upload photos whose original is only in iCloud (the iPhone downloads them first).",
+    "max": 30
+  },
+  "ios.settings.thumbs_title": {
+    "text": "Thumbnail Cache",
+    "note": "Heading of the section of Settings about the small pictures of the photos kept on this iPhone so Images opens fast.",
+    "max": 30
   },
   "ios.setup_signin_cancelled": {
     "text": "Sign-in cancelled",
@@ -115,6 +423,23 @@
   "ios.storage_used": {
     "text": "Storage used",
     "note": "Screen-reader name of the bar at the foot of the left menu (on a wide screen) that shows how full the device's storage is."
+  },
+  "ios.trim_cant_title": {
+    "text": "Can't trim this video",
+    "note": "Heading in the Trim video screen of the New Post composer when the video can't be opened; why follows under it (app.social.trim.cant_open or app.social.trim.no_length)."
+  },
+  "ios.trim_end_handle": {
+    "text": "End of the cut",
+    "note": "Screen-reader name of the right handle of the two-handle slider in the Trim video screen: where the part of the video kept for the post ends. Its value is read as a time (0:12.5)."
+  },
+  "ios.trim_play_cut": {
+    "text": "Play cut",
+    "note": "Button (with a play symbol) in the Trim video screen of the New Post composer: plays only the part of the video that will be kept.",
+    "max": 20
+  },
+  "ios.trim_start_handle": {
+    "text": "Start of the cut",
+    "note": "Screen-reader name of the left handle of the two-handle slider in the Trim video screen: where the part of the video kept for the post starts. Its value is read as a time (0:02.0)."
   },
   "ios.ws_connect_timeout": {
     "text": "The device didn't answer the connection in time.",

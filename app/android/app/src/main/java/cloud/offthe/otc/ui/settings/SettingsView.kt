@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.settings
 
+import androidx.compose.ui.text.buildAnnotatedString
 import cloud.offthe.otc.ui.logOut
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -92,9 +93,163 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import cloud.offthe.otc.MainActivity
 import cloud.offthe.otc.i18n.LanguageSettings
+import cloud.offthe.otc.i18n.RichText
 import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.androidSettingsBridgeLeaveDelete
+import cloud.offthe.otc.i18n.androidSettingsLogsFooter
+import cloud.offthe.otc.i18n.androidSettingsProfileDescription
+import cloud.offthe.otc.i18n.androidSettingsProfileFromPhone
+import cloud.offthe.otc.i18n.androidSettingsSharingFooter
+import cloud.offthe.otc.i18n.androidSettingsSyncCloud
+import cloud.offthe.otc.i18n.androidSettingsSyncTitle
+import cloud.offthe.otc.i18n.androidSettingsThumbsChangeSize
+import cloud.offthe.otc.i18n.androidSettingsThumbsMaxSizeA11y
+import cloud.offthe.otc.i18n.androidSettingsThumbsSelected
+import cloud.offthe.otc.i18n.androidSettingsThumbsTitle
+import cloud.offthe.otc.i18n.androidSettingsUpdateVersionUnknown
+import cloud.offthe.otc.i18n.androidSettingsUploadPending
+import cloud.offthe.otc.i18n.androidSettingsUploadWaiting
+import cloud.offthe.otc.i18n.androidSettingsUploading
+import cloud.offthe.otc.i18n.appSettingsBridgeAccountPage
+import cloud.offthe.otc.i18n.appSettingsBridgeAtHome
+import cloud.offthe.otc.i18n.appSettingsBridgeDeleteAccount
+import cloud.offthe.otc.i18n.appSettingsBridgeDeleteMessage
+import cloud.offthe.otc.i18n.appSettingsBridgeDeleteTitle
+import cloud.offthe.otc.i18n.appSettingsBridgeFooter
+import cloud.offthe.otc.i18n.appSettingsBridgeLeave
+import cloud.offthe.otc.i18n.appSettingsBridgeLeaveConfirm
+import cloud.offthe.otc.i18n.appSettingsBridgeLeaveMessage
+import cloud.offthe.otc.i18n.appSettingsBridgeLeaveTitle
+import cloud.offthe.otc.i18n.appSettingsBridgeLocalOnly
+import cloud.offthe.otc.i18n.appSettingsBridgeReachable
+import cloud.offthe.otc.i18n.appSettingsBridgeReleased
+import cloud.offthe.otc.i18n.appSettingsBridgeTitle
+import cloud.offthe.otc.i18n.appSettingsConnectionDeviceId
+import cloud.offthe.otc.i18n.appSettingsConnectionLogOut
+import cloud.offthe.otc.i18n.appSettingsConnectionLogOutConfirm
+import cloud.offthe.otc.i18n.appSettingsConnectionLogOutMessage
+import cloud.offthe.otc.i18n.appSettingsConnectionLogOutTitle
+import cloud.offthe.otc.i18n.appSettingsConnectionSave
+import cloud.offthe.otc.i18n.appSettingsConnectionTitle
+import cloud.offthe.otc.i18n.appSettingsFacesFooter
+import cloud.offthe.otc.i18n.appSettingsFacesTitle
+import cloud.offthe.otc.i18n.appSettingsFacesToggle
 import cloud.offthe.otc.i18n.appSettingsLanguage
+import cloud.offthe.otc.i18n.appSettingsLinksTitle
+import cloud.offthe.otc.i18n.appSettingsLogsTitle
+import cloud.offthe.otc.i18n.appSettingsPasswordChange
+import cloud.offthe.otc.i18n.appSettingsPasswordChanging
+import cloud.offthe.otc.i18n.appSettingsPasswordConfirm
+import cloud.offthe.otc.i18n.appSettingsPasswordCurrent
+import cloud.offthe.otc.i18n.appSettingsPasswordNew
+import cloud.offthe.otc.i18n.appSettingsPasswordTitle
+import cloud.offthe.otc.i18n.appSettingsProfileChangePhoto
+import cloud.offthe.otc.i18n.appSettingsProfileFromDevice
+import cloud.offthe.otc.i18n.appSettingsProfileName
+import cloud.offthe.otc.i18n.appSettingsProfileSave
+import cloud.offthe.otc.i18n.appSettingsProfileTitle
+import cloud.offthe.otc.i18n.appSettingsReprocessAll
+import cloud.offthe.otc.i18n.appSettingsReprocessCompleted
+import cloud.offthe.otc.i18n.appSettingsReprocessConfirmRestart
+import cloud.offthe.otc.i18n.appSettingsReprocessConfirmResume
+import cloud.offthe.otc.i18n.appSettingsReprocessFailed
+import cloud.offthe.otc.i18n.appSettingsReprocessFooter
+import cloud.offthe.otc.i18n.appSettingsReprocessRestartButton
+import cloud.offthe.otc.i18n.appSettingsReprocessResume
+import cloud.offthe.otc.i18n.appSettingsReprocessResumeButton
+import cloud.offthe.otc.i18n.appSettingsReprocessRunning
+import cloud.offthe.otc.i18n.appSettingsReprocessStartOver
+import cloud.offthe.otc.i18n.appSettingsReprocessStarting
+import cloud.offthe.otc.i18n.appSettingsReprocessStopped
+import cloud.offthe.otc.i18n.appSettingsReprocessStopping
+import cloud.offthe.otc.i18n.appSettingsReprocessTitle
+import cloud.offthe.otc.i18n.appSettingsSharingTitle
+import cloud.offthe.otc.i18n.appSettingsStatusCpuMem
+import cloud.offthe.otc.i18n.appSettingsStatusDisk
+import cloud.offthe.otc.i18n.appSettingsStatusRaid
+import cloud.offthe.otc.i18n.appSettingsStatusRaidDegraded
+import cloud.offthe.otc.i18n.appSettingsStatusRaidInSync
+import cloud.offthe.otc.i18n.appSettingsStatusRaidLevel
+import cloud.offthe.otc.i18n.appSettingsStatusRaidNone
+import cloud.offthe.otc.i18n.appSettingsStatusRaidSyncing
+import cloud.offthe.otc.i18n.appSettingsStatusRaidUnknown
+import cloud.offthe.otc.i18n.appSettingsStatusRaidUsed
+import cloud.offthe.otc.i18n.appSettingsStatusTitle
+import cloud.offthe.otc.i18n.appSettingsStatusUsedPercent
+import cloud.offthe.otc.i18n.appSettingsSyncAll
+import cloud.offthe.otc.i18n.appSettingsSyncAuthorize
+import cloud.offthe.otc.i18n.appSettingsSyncFooter
+import cloud.offthe.otc.i18n.appSettingsSyncFromNow
+import cloud.offthe.otc.i18n.appSettingsSyncNow
+import cloud.offthe.otc.i18n.appSettingsSyncTitle
+import cloud.offthe.otc.i18n.appSettingsSyncVideos
+import cloud.offthe.otc.i18n.appSettingsSyncWifiOnly
+import cloud.offthe.otc.i18n.appSettingsTaggingFooter
+import cloud.offthe.otc.i18n.appSettingsTaggingTitle
+import cloud.offthe.otc.i18n.appSettingsTailscaleAuthKey
+import cloud.offthe.otc.i18n.appSettingsTailscaleEnable
+import cloud.offthe.otc.i18n.appSettingsTailscaleIntro
+import cloud.offthe.otc.i18n.appSettingsTailscaleKeyHint
+import cloud.offthe.otc.i18n.appSettingsTailscaleLimitAccount
+import cloud.offthe.otc.i18n.appSettingsTailscaleLimitBandwidth
+import cloud.offthe.otc.i18n.appSettingsTailscaleLimitOneUser
+import cloud.offthe.otc.i18n.appSettingsTailscaleLimitSocial
+import cloud.offthe.otc.i18n.appSettingsTailscaleNotInstalled
+import cloud.offthe.otc.i18n.appSettingsTailscaleServed
+import cloud.offthe.otc.i18n.appSettingsTailscaleSuits
+import cloud.offthe.otc.i18n.appSettingsTailscaleTurnOff
+import cloud.offthe.otc.i18n.appSettingsTailscaleWorking
+import cloud.offthe.otc.i18n.appSettingsThumbsClear
+import cloud.offthe.otc.i18n.appSettingsThumbsFooter
+import cloud.offthe.otc.i18n.appSettingsThumbsMaxSize
+import cloud.offthe.otc.i18n.appSettingsUpdateBack
+import cloud.offthe.otc.i18n.appSettingsUpdateBuild
+import cloud.offthe.otc.i18n.appSettingsUpdateCheckAgain
+import cloud.offthe.otc.i18n.appSettingsUpdateCheckError
+import cloud.offthe.otc.i18n.appSettingsUpdateChecking
+import cloud.offthe.otc.i18n.appSettingsUpdateCritical
+import cloud.offthe.otc.i18n.appSettingsUpdateFailed
+import cloud.offthe.otc.i18n.appSettingsUpdateFailedOn
+import cloud.offthe.otc.i18n.appSettingsUpdateMajor
+import cloud.offthe.otc.i18n.appSettingsUpdateRestart
+import cloud.offthe.otc.i18n.appSettingsUpdateRestartConfirm
+import cloud.offthe.otc.i18n.appSettingsUpdateRestartMessage
+import cloud.offthe.otc.i18n.appSettingsUpdateRestartNote
+import cloud.offthe.otc.i18n.appSettingsUpdateRestartTitle
+import cloud.offthe.otc.i18n.appSettingsUpdateRestarting
+import cloud.offthe.otc.i18n.appSettingsUpdateRestartingNote
+import cloud.offthe.otc.i18n.appSettingsUpdateSlow
+import cloud.offthe.otc.i18n.appSettingsUpdateStarting
+import cloud.offthe.otc.i18n.appSettingsUpdateTitle
+import cloud.offthe.otc.i18n.appSettingsUpdateUpToDate
+import cloud.offthe.otc.i18n.appSettingsUploadsTitle
+import cloud.offthe.otc.i18n.appSettingsUsersConfirmDelete
+import cloud.offthe.otc.i18n.appSettingsUsersConfirmHint
+import cloud.offthe.otc.i18n.appSettingsUsersDisable
+import cloud.offthe.otc.i18n.appSettingsUsersEnable
+import cloud.offthe.otc.i18n.appSettingsUsersInactive
+import cloud.offthe.otc.i18n.appSettingsUsersIntro
+import cloud.offthe.otc.i18n.appSettingsUsersLoadUsage
+import cloud.offthe.otc.i18n.appSettingsUsersPort
+import cloud.offthe.otc.i18n.appSettingsUsersPortDomain
+import cloud.offthe.otc.i18n.appSettingsUsersTitle
+import cloud.offthe.otc.i18n.appSettingsUsersUsage
+import cloud.offthe.otc.i18n.appSettingsUsersUsername
+import cloud.offthe.otc.i18n.appShellPrivacy
+import cloud.offthe.otc.i18n.appShellRouteConfigured
+import cloud.offthe.otc.i18n.appShellRouteHome
+import cloud.offthe.otc.i18n.appShellRouteThrough
 import cloud.offthe.otc.i18n.appShellThumbCacheUsage
+import cloud.offthe.otc.i18n.commonAdd
+import cloud.offthe.otc.i18n.commonCancel
+import cloud.offthe.otc.i18n.commonDelete
+import cloud.offthe.otc.i18n.commonDeleting
+import cloud.offthe.otc.i18n.commonOk
+import cloud.offthe.otc.i18n.commonPassword
+import cloud.offthe.otc.i18n.commonPause
+import cloud.offthe.otc.i18n.commonResume
+import cloud.offthe.otc.i18n.commonUpdating
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.sync.AssetSyncCache
@@ -179,63 +334,63 @@ fun SettingsView(secrets: SecretsStore) {
                 }
             }
 
-            Section("Status") { StatusSectionContent(status) }
+            Section(S.appSettingsStatusTitle().resolve()) { StatusSectionContent(status) }
 
             if (upload.totalPending > 0 || upload.isUploading) {
-                Section("Uploads") {
-                    Text(if (upload.isUploading) "Uploading ${upload.currentName}" else "Waiting", style = MaterialTheme.typography.bodyMedium)
+                Section(S.appSettingsUploadsTitle().resolve()) {
+                    Text((if (upload.isUploading) S.androidSettingsUploading(upload.currentName) else S.androidSettingsUploadWaiting()).resolve(), style = MaterialTheme.typography.bodyMedium)
                     LinearProgressIndicator(progress = { upload.progress }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Caption("${upload.totalPending} pending")
+                        Caption(S.androidSettingsUploadPending(upload.totalPending).resolve())
                         Spacer(Modifier.weight(1f))
-                        RowButton(if (upload.isPaused) "Resume" else "Pause") { UploadModel.togglePause() }
+                        RowButton((if (upload.isPaused) S.commonResume() else S.commonPause()).resolve()) { UploadModel.togglePause() }
                     }
                 }
             }
 
-            Section("Sharing", "Galleries and download links you shared, until they expire. Deleting one removes the shared copies and the link stops working.") {
-                RowButton("Shared Links") { showSharedLinks = true }
+            Section(S.appSettingsSharingTitle().resolve(), S.androidSettingsSharingFooter().resolve()) {
+                RowButton(S.appSettingsLinksTitle().resolve()) { showSharedLinks = true }
             }
 
             UpdateSection()
 
-            Section("Change Password") {
-                PasswordField(dst.oldKey, "Current password", device::setOldKey)
-                PasswordField(dst.newKey, "New password", device::setNewKey)
-                PasswordField(dst.confirmKey, "Confirm new password", device::setConfirmKey)
-                RowButton(if (dst.savingKey) "Changing…" else "Change Password", enabled = !dst.savingKey && dst.oldKey.isNotEmpty() && dst.newKey.isNotEmpty()) { scope.launch { device.changePassword(secrets) } }
+            Section(S.appSettingsPasswordTitle().resolve()) {
+                PasswordField(dst.oldKey, S.appSettingsPasswordCurrent().resolve(), device::setOldKey)
+                PasswordField(dst.newKey, S.appSettingsPasswordNew().resolve(), device::setNewKey)
+                PasswordField(dst.confirmKey, S.appSettingsPasswordConfirm().resolve(), device::setConfirmKey)
+                RowButton((if (dst.savingKey) S.appSettingsPasswordChanging() else S.appSettingsPasswordChange()).resolve(), enabled = !dst.savingKey && dst.oldKey.isNotEmpty() && dst.newKey.isNotEmpty()) { scope.launch { device.changePassword(secrets) } }
             }
 
-            Section("Sync Options") {
-                ToggleRow("Wi-Fi only", wifiOnly, secrets::setWifiOnly)
-                ToggleRow("Include videos", includeVideos, secrets::setIncludeVideos)
-                ToggleRow("Sync from cloud", downloadFromCloud, secrets::setDownloadFromCloud)
-                RowButton("Authorize Photos Access") { permission.launch(mediaPermissions()) }
+            Section(S.appSettingsSyncTitle().resolve()) {
+                ToggleRow(S.appSettingsSyncWifiOnly().resolve(), wifiOnly, secrets::setWifiOnly)
+                ToggleRow(S.appSettingsSyncVideos().resolve(), includeVideos, secrets::setIncludeVideos)
+                ToggleRow(S.androidSettingsSyncCloud().resolve(), downloadFromCloud, secrets::setDownloadFromCloud)
+                RowButton(S.appSettingsSyncAuthorize().resolve()) { permission.launch(mediaPermissions()) }
             }
 
-            Section("Sync", "Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.") {
-                RowButton("Sync Now") { secrets.persist(); PhotoSync.runForegroundAsync() }
-                RowButton("Sync All") { secrets.persist(); PhotoSync.setWatermark(0); PhotoSync.runForegroundAsync() }
-                RowButton("Sync From Now") { secrets.persist(); PhotoSync.setWatermark(System.currentTimeMillis()) }
+            Section(S.androidSettingsSyncTitle().resolve(), S.appSettingsSyncFooter().resolve()) {
+                RowButton(S.appSettingsSyncNow().resolve()) { secrets.persist(); PhotoSync.runForegroundAsync() }
+                RowButton(S.appSettingsSyncAll().resolve()) { secrets.persist(); PhotoSync.setWatermark(0); PhotoSync.runForegroundAsync() }
+                RowButton(S.appSettingsSyncFromNow().resolve()) { secrets.persist(); PhotoSync.setWatermark(System.currentTimeMillis()) }
             }
 
             ThumbnailCacheSection()
 
-            Section("Image Tagging", "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.") {
+            Section(S.appSettingsTaggingTitle().resolve(), S.appSettingsTaggingFooter().resolve()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Image Tagging", Modifier.weight(1f))
+                    Text(S.appSettingsTaggingTitle().resolve(), Modifier.weight(1f))
                     Switch(checked = dst.imageTaggingEnabled, enabled = !dst.savingImageTagging, onCheckedChange = { v -> scope.launch { device.toggleImageTagging(v) } })
                 }
             }
 
-            Section("People", "Detect faces in newly uploaded photos so you can search by person. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media below to scan the ones you already have.") {
+            Section(S.appSettingsFacesTitle().resolve(), S.appSettingsFacesFooter().resolve()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Face Recognition", Modifier.weight(1f))
+                    Text(S.appSettingsFacesToggle().resolve(), Modifier.weight(1f))
                     Switch(checked = dst.faceRecognitionEnabled, enabled = !dst.savingFaceRecognition, onCheckedChange = { v -> scope.launch { device.toggleFaceRecognition(v) } })
                 }
             }
 
-            Section("Connection") {
+            Section(S.appSettingsConnectionTitle().resolve()) {
                 // Edits stay here until Save Connection: a reconnect (a socket
                 // drop while typing) dials the store's values. Keyed on the
                 // saved ones, so a password change or leaving the bridge still
@@ -243,14 +398,14 @@ fun SettingsView(secrets: SecretsStore) {
                 var editEndpoint by remember(endpoint) { mutableStateOf(endpoint) }
                 var editPassword by remember(password) { mutableStateOf(password) }
                 ConnectionEndpointFields(endpoint = editEndpoint, onEndpointChange = { editEndpoint = it })
-                PasswordField(editPassword, "Password") { editPassword = it }
-                routeLine(signedIn, route, endpoint)?.let { Caption(it) }
-                Caption("Device ID: $deviceId")
-                RowButton("Save Connection") {
+                PasswordField(editPassword, S.commonPassword().resolve()) { editPassword = it }
+                routeLine(signedIn, route, endpoint)?.let { Caption(it.resolve()) }
+                Caption(S.appSettingsConnectionDeviceId(deviceId).resolve())
+                RowButton(S.appSettingsConnectionSave().resolve()) {
                     secrets.setEndpoint(editEndpoint); secrets.setPassword(editPassword)
                     secrets.persist(); OTCConnection.invalidate()
                 }
-                RowButton("Log Out", destructive = true) { confirmLogout = true }
+                RowButton(S.appSettingsConnectionLogOut().resolve(), destructive = true) { confirmLogout = true }
             }
 
             TailscaleSection()
@@ -259,40 +414,40 @@ fun SettingsView(secrets: SecretsStore) {
 
             UsersManagementSection()
 
-            Section("Reprocess Media", "Re-run tagging and face detection on every photo and video already in your library — useful after a detection fix or model update. This clears existing tags and recognized people first and rebuilds them from scratch.") {
+            Section(S.appSettingsReprocessTitle().resolve(), S.appSettingsReprocessFooter().resolve()) {
                 when (dst.reprocessStatus) {
                     "running" -> {
                         LinearProgressIndicator(progress = { if (dst.reprocessTotal > 0) dst.reprocessProcessed.toFloat() / dst.reprocessTotal else 0f }, modifier = Modifier.fillMaxWidth())
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Caption("Reprocessing… ${dst.reprocessPercent}% (${dst.reprocessProcessed} / ${dst.reprocessTotal})")
+                            Caption(S.appSettingsReprocessRunning(dst.reprocessPercent, dst.reprocessProcessed, dst.reprocessTotal).resolve())
                             Spacer(Modifier.weight(1f))
-                            RowButton(if (dst.cancellingReprocess) "Stopping…" else "Cancel", enabled = !dst.cancellingReprocess, destructive = true) { scope.launch { device.stopReprocess() } }
+                            RowButton((if (dst.cancellingReprocess) S.appSettingsReprocessStopping() else S.commonCancel()).resolve(), enabled = !dst.cancellingReprocess, destructive = true) { scope.launch { device.stopReprocess() } }
                         }
                     }
                     "stopped" -> {
-                        Caption("Stopped at ${dst.reprocessPercent}% (${dst.reprocessProcessed} / ${dst.reprocessTotal}).")
+                        Caption(S.appSettingsReprocessStopped(dst.reprocessPercent, dst.reprocessProcessed, dst.reprocessTotal).resolve())
                         Row(Modifier.fillMaxWidth()) {
-                            RowButton(if (dst.startingReprocess) "Starting…" else "Resume Reprocessing", enabled = !dst.startingReprocess) { device.setReprocessConfirm(DeviceSettingsViewModel.ReprocessConfirm.RESUME) }
+                            RowButton((if (dst.startingReprocess) S.appSettingsReprocessStarting() else S.appSettingsReprocessResume()).resolve(), enabled = !dst.startingReprocess) { device.setReprocessConfirm(DeviceSettingsViewModel.ReprocessConfirm.RESUME) }
                             Spacer(Modifier.weight(1f))
-                            RowButton("Start Over", enabled = !dst.startingReprocess) { device.setReprocessConfirm(DeviceSettingsViewModel.ReprocessConfirm.RESTART) }
+                            RowButton(S.appSettingsReprocessStartOver().resolve(), enabled = !dst.startingReprocess) { device.setReprocessConfirm(DeviceSettingsViewModel.ReprocessConfirm.RESTART) }
                         }
                     }
                     else -> {
-                        RowButton(if (dst.startingReprocess) "Starting…" else "Reprocess All Media", enabled = !dst.startingReprocess) { device.setReprocessConfirm(DeviceSettingsViewModel.ReprocessConfirm.RESTART) }
-                        if (dst.reprocessStatus == "completed") Caption("Last run completed — ${dst.reprocessProcessed} file(s) processed.")
-                        else if (dst.reprocessStatus == "failed") Caption("Last run failed after ${dst.reprocessProcessed} file(s) — try again.", Color(0xFFE53935))
+                        RowButton((if (dst.startingReprocess) S.appSettingsReprocessStarting() else S.appSettingsReprocessAll()).resolve(), enabled = !dst.startingReprocess) { device.setReprocessConfirm(DeviceSettingsViewModel.ReprocessConfirm.RESTART) }
+                        if (dst.reprocessStatus == "completed") Caption(S.appSettingsReprocessCompleted(dst.reprocessProcessed).resolve())
+                        else if (dst.reprocessStatus == "failed") Caption(S.appSettingsReprocessFailed(dst.reprocessProcessed).resolve(), Color(0xFFE53935))
                     }
                 }
             }
 
             if (isPrimary) {
-                Section("Logs", "What the device and its updates write down as they run - live, to read, share or send to us when something goes wrong.") {
-                    RowButton("Logs") { showLogs = true }
+                Section(S.appSettingsLogsTitle().resolve(), S.androidSettingsLogsFooter().resolve()) {
+                    RowButton(S.appSettingsLogsTitle().resolve()) { showLogs = true }
                 }
             }
             Spacer(Modifier.height(24.dp))
         }
-        Toast(dst.toast, Modifier.align(Alignment.TopCenter))
+        Toast(dst.toast?.resolve(), Modifier.align(Alignment.TopCenter))
     }
 
     if (showLanguage) LanguageView(onClose = { showLanguage = false })
@@ -301,33 +456,33 @@ fun SettingsView(secrets: SecretsStore) {
     if (confirmLogout) {
         AlertDialog(
             onDismissRequest = { confirmLogout = false },
-            title = { Text("Log out of this device?") },
-            text = { Text("The connection, the sync history and everything cached from the device are removed from this phone. Nothing on the device itself is deleted.") },
-            confirmButton = { TextButton(onClick = { confirmLogout = false; logOut(context, secrets) }) { Text("Log Out", color = Color(0xFFE53935)) } },
-            dismissButton = { TextButton(onClick = { confirmLogout = false }) { Text("Cancel") } },
+            title = { Text(S.appSettingsConnectionLogOutTitle().resolve()) },
+            text = { Text(S.appSettingsConnectionLogOutMessage().resolve()) },
+            confirmButton = { TextButton(onClick = { confirmLogout = false; logOut(context, secrets) }) { Text(S.appSettingsConnectionLogOutConfirm().resolve(), color = Color(0xFFE53935)) } },
+            dismissButton = { TextButton(onClick = { confirmLogout = false }) { Text(S.commonCancel().resolve()) } },
         )
     }
     dst.reprocessConfirm?.let { action ->
         val resume = action == DeviceSettingsViewModel.ReprocessConfirm.RESUME
         AlertDialog(
             onDismissRequest = { device.setReprocessConfirm(null) },
-            text = { Text(if (resume) "Resume reprocessing where it left off? It can take a while." else "Reprocess every photo and video in your library? This deletes all existing tags and recognized people and rebuilds them from scratch. It can take a while and can't be undone.") },
-            confirmButton = { TextButton(onClick = { scope.launch { device.startReprocess(forceRestart = !resume) } }) { Text(if (resume) "Resume" else "Reprocess", color = Color(0xFFE53935)) } },
-            dismissButton = { TextButton(onClick = { device.setReprocessConfirm(null) }) { Text("Cancel") } },
+            text = { Text((if (resume) S.appSettingsReprocessConfirmResume() else S.appSettingsReprocessConfirmRestart()).resolve()) },
+            confirmButton = { TextButton(onClick = { scope.launch { device.startReprocess(forceRestart = !resume) } }) { Text((if (resume) S.appSettingsReprocessResumeButton() else S.appSettingsReprocessRestartButton()).resolve(), color = Color(0xFFE53935)) } },
+            dismissButton = { TextButton(onClick = { device.setReprocessConfirm(null) }) { Text(S.commonCancel().resolve()) } },
         )
     }
 }
 
 /** Issue #190: which way the app reaches the device, worded as in the other apps; nothing while not connected. */
-private fun routeLine(signedIn: Boolean, route: OTCConnection.Route?, endpoint: String): String? {
+private fun routeLine(signedIn: Boolean, route: OTCConnection.Route?, endpoint: String): UiText? {
     if (!signedIn || route == null) return null
-    if (route == OTCConnection.Route.HOME) return "Connected over your home network"
+    if (route == OTCConnection.Route.HOME) return S.appShellRouteHome()
     val host = try { java.net.URI(SecretsStore.normalizedEndpoint(endpoint)).host } catch (e: Exception) { null }
-    if (host.isNullOrEmpty()) return "Connected through the configured address"
+    if (host.isNullOrEmpty()) return S.appShellRouteConfigured()
     // Host names aren't case-sensitive; "Cala.Off-The.Cloud" is the bridge too, as on macOS.
     val h = host.lowercase()
     val bridge = SecretsStore.bridgeDomain
-    return "Connected through " + if (h == bridge || h.endsWith(".$bridge")) bridge else host
+    return S.appShellRouteThrough(if (h == bridge || h.endsWith(".$bridge")) bridge else host)
 }
 
 @Composable
@@ -353,15 +508,19 @@ private fun ThumbnailCacheSection() {
     var clearing by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { ThumbStore.refreshUsage() }
     val limitText = formatCacheBytes(usage.limit).resolve()
-    Section("Thumbnail cache", "Thumbnails are kept on this phone so Images opens without downloading them again.") {
+    // Resolved here: the semantics lambda below isn't composable.
+    val changeSize = S.androidSettingsThumbsChangeSize().resolve()
+    val rowLabel = S.androidSettingsThumbsMaxSizeA11y(limitText).resolve()
+    val selected = S.androidSettingsThumbsSelected().resolve()
+    Section(S.androidSettingsThumbsTitle().resolve(), S.appSettingsThumbsFooter().resolve()) {
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
-                .clickable(onClickLabel = "Change the size", role = Role.DropdownList) { menu = true }
-                .semantics { contentDescription = "Maximum size, $limitText" }
+                .clickable(onClickLabel = changeSize, role = Role.DropdownList) { menu = true }
+                .semantics { contentDescription = rowLabel }
                 .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Maximum size", Modifier.weight(1f))
+            Text(S.appSettingsThumbsMaxSize().resolve(), Modifier.weight(1f))
             Box {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(limitText, color = MaterialTheme.colorScheme.primary)
@@ -371,7 +530,7 @@ private fun ThumbnailCacheSection() {
                     for (choice in THUMB_CACHE_CHOICES) {
                         DropdownMenuItem(
                             text = { Text(formatCacheBytes(choice).resolve()) },
-                            trailingIcon = if (choice == usage.limit) ({ Icon(Icons.Filled.Check, "Selected") }) else null,
+                            trailingIcon = if (choice == usage.limit) ({ Icon(Icons.Filled.Check, selected) }) else null,
                             onClick = { menu = false; scope.launch { ThumbStore.setLimit(choice) } },
                         )
                     }
@@ -379,7 +538,7 @@ private fun ThumbnailCacheSection() {
             }
         }
         Caption(S.appShellThumbCacheUsage(formatCacheBytes(usage.used).resolve(), limitText).resolve())
-        RowButton("Clear thumbnail cache", enabled = !clearing) {
+        RowButton(S.appSettingsThumbsClear().resolve(), enabled = !clearing) {
             clearing = true
             scope.launch { try { ThumbStore.clearAll() } finally { clearing = false } }
         }
@@ -428,36 +587,36 @@ private fun ProfileEditorSection() {
         }
     }
     LaunchedEffect(Unit) { vm.load() }
-    Section("Profile") {
+    Section(S.appSettingsProfileTitle().resolve()) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             AvatarView(data = st.imageData, size = 96.dp)
             Box {
-                TextButton(onClick = { photoMenu = true }) { Text("Change photo") }
+                TextButton(onClick = { photoMenu = true }) { Text(S.appSettingsProfileChangePhoto().resolve()) }
                 DropdownMenu(expanded = photoMenu, onDismissRequest = { photoMenu = false }) {
-                    DropdownMenuItem(text = { Text("From this phone") }, onClick = {
+                    DropdownMenuItem(text = { Text(S.androidSettingsProfileFromPhone().resolve()) }, onClick = {
                         photoMenu = false
                         picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                     })
-                    DropdownMenuItem(text = { Text("From your device") }, onClick = { photoMenu = false; devicePicker = true })
+                    DropdownMenuItem(text = { Text(S.appSettingsProfileFromDevice().resolve()) }, onClick = { photoMenu = false; devicePicker = true })
                 }
             }
         }
-        OTCTextField(value = st.name, onValueChange = vm::setName, placeholder = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        OTCTextField(value = st.bio, onValueChange = vm::setBio, placeholder = { Text("Description") }, minLines = 3, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
+        OTCTextField(value = st.name, onValueChange = vm::setName, placeholder = { Text(S.appSettingsProfileName().resolve()) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OTCTextField(value = st.bio, onValueChange = vm::setBio, placeholder = { Text(S.androidSettingsProfileDescription().resolve()) }, minLines = 3, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            RowButton("Save Profile", enabled = !st.saving) { scope.launch { vm.save() } }
+            RowButton(S.appSettingsProfileSave().resolve(), enabled = !st.saving) { scope.launch { vm.save() } }
             if (st.saving) CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp)
         }
-        st.toast?.let { Caption(it) }
+        st.toast?.let { Caption(it.resolve()) }
     }
 }
 
-private fun raidStateLabel(s: Status): String = when (s.raidState) {
-    RaidState.RaidNone -> "No RAID"
-    RaidState.RaidInSync -> "In sync"
-    RaidState.RaidSyncing -> "Syncing (${s.raidSyncPercent.toInt()}%)"
-    RaidState.RaidDegraded -> "Degraded"
-    else -> "Unknown"
+private fun raidStateLabel(s: Status): UiText = when (s.raidState) {
+    RaidState.RaidNone -> S.appSettingsStatusRaidNone()
+    RaidState.RaidInSync -> S.appSettingsStatusRaidInSync()
+    RaidState.RaidSyncing -> S.appSettingsStatusRaidSyncing(s.raidSyncPercent.toInt())
+    RaidState.RaidDegraded -> S.appSettingsStatusRaidDegraded()
+    else -> S.appSettingsStatusRaidUnknown()
 }
 
 @Composable
@@ -469,13 +628,15 @@ private fun StatusSectionContent(vm: StatusViewModel) {
             val usedPct = if (s.raidSize > 0) s.raidUsage.toDouble() / s.raidSize * 100 else 0.0
             val tint = if (usedPct >= 90) Color(0xFFE53935) else if (usedPct >= 70) Color(0xFFFFC107) else Color(0xFF43A047)
             RaidUsageBar(usedPct, tint)
-            Caption("RAID used: ${sizeText(s.raidUsage.toDouble())} of ${sizeText(s.raidSize.toDouble())}")
-            Caption("Disk: ${sizeText(s.diskUsage.toDouble())} of ${sizeText(s.diskSize.toDouble())}")
-            Caption("CPU: %.1f%% · Mem: ${sizeText(s.memUsage.toDouble())} of ${sizeText(s.memSize.toDouble())}".format(s.cpuUsagePrc))
-            Caption("RAID: ${if (s.raidLevel.isEmpty()) raidStateLabel(s) else "${s.raidLevel} — ${raidStateLabel(s)}"} · Disks: ${s.disks}")
-            s.errorsList.forEach { Caption("⚠️ ${it.message}", Color(0xFFE53935)) }
+            Caption(S.appSettingsStatusRaidUsed(sizeText(s.raidUsage.toDouble()), sizeText(s.raidSize.toDouble())).resolve())
+            Caption(S.appSettingsStatusDisk(sizeText(s.diskUsage.toDouble()), sizeText(s.diskSize.toDouble())).resolve())
+            Caption(S.appSettingsStatusCpuMem("%.1f".format(s.cpuUsagePrc), sizeText(s.memUsage.toDouble()), sizeText(s.memSize.toDouble())).resolve())
+            val state = raidStateLabel(s).resolve()
+            Caption((if (s.raidLevel.isEmpty()) S.appSettingsStatusRaid(state, s.disks) else S.appSettingsStatusRaidLevel(s.raidLevel, state, s.disks)).resolve())
+            // The device's own words (in the request's language) after a sign.
+            s.errorsList.forEach { Caption("⚠️ ${it.message}", Color(0xFFE53935)) } // i18n-ignore: a sign before the device's own words
         }
-        st.errorText != null -> Caption(st.errorText!!, Color(0xFFE53935))
+        st.errorText != null -> Caption(st.errorText!!.resolve(), Color(0xFFE53935))
         else -> CircularProgressIndicator()
     }
 }
@@ -485,7 +646,7 @@ private fun RaidUsageBar(percent: Double, tint: Color) {
     val clamped = percent.coerceIn(0.0, 100.0)
     Box(Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(7.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
         Box(Modifier.fillMaxWidth(clamped.toFloat() / 100f).height(14.dp).background(tint, RoundedCornerShape(7.dp)))
-        Text("${clamped.toInt()}%", fontSize = 9.sp, color = Color.White, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 3.dp).background(Color(0x59000000), RoundedCornerShape(4.dp)).padding(horizontal = 4.dp))
+        Text(S.appSettingsStatusUsedPercent(clamped.toInt()).resolve(), fontSize = 9.sp, color = Color.White, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 3.dp).background(Color(0x59000000), RoundedCornerShape(4.dp)).padding(horizontal = 4.dp))
     }
 }
 
@@ -497,43 +658,44 @@ private fun UpdateSection() {
     var confirmRestart by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { vm.load() }
     if (!st.isPrimary) return
-    Section("Device version") {
+    Section(S.appSettingsUpdateTitle().resolve()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(if (st.currentVersion > 0) st.installedText else "Version —")
-            if (st.hasUpdate) { Text(" → ${st.latestText}", fontWeight = FontWeight.Bold); KindBadge(st.latestKind) }
+            Text((if (st.currentVersion > 0) st.installedText else S.androidSettingsUpdateVersionUnknown()).resolve())
+            if (st.hasUpdate) { Text(" → ${st.latestText.resolve()}", fontWeight = FontWeight.Bold); KindBadge(st.latestKind) } // i18n-ignore: an arrow before the newest version, no words
             Spacer(Modifier.weight(1f))
-            if (!st.hasUpdate && !st.running && st.checkError.isEmpty()) Caption("Up to date")
+            if (!st.hasUpdate && !st.running && st.checkError.isEmpty()) Caption(S.appSettingsUpdateUpToDate().resolve())
         }
         st.pending.forEach { r ->
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(r.label.ifEmpty { "build ${r.version}" }, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
+                Text(r.label.ifEmpty { S.appSettingsUpdateBuild("${r.version}").resolve() }, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
                 KindBadge(r.kind)
                 Spacer(Modifier.width(6.dp))
                 Caption(r.summary)
             }
         }
-        if (st.running) Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Caption(st.message.ifEmpty { "Updating…" }) }
-        if (st.state == "failed") Caption(if (st.lastUpdated.isEmpty()) "Update failed: ${st.message}" else "Update failed on ${st.lastUpdated}: ${st.message}", Color(0xFFE53935))
-        if (st.checkError.isNotEmpty()) Caption("Couldn't reach the update server just now, so this may be out of date.")
-        RowButton(if (st.checking) "Checking…" else "Check again", enabled = !st.checking && !st.running) { scope.launch { vm.check() } }
-        if (st.hasUpdate) RowButton(if (st.starting) "Starting…" else "Update to ${st.latestText}", enabled = !st.starting && !st.running) { scope.launch { vm.apply() } }
-        if (st.hasUpdate || st.running) Caption("The device rebuilds itself and restarts, which takes a few minutes and drops this connection on the way. Your photos and settings are left alone.")
-        st.error?.let { Caption(it, Color(0xFFE53935)) }
+        val message = st.statusMessage.resolve()
+        if (st.running) Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Caption(message.ifEmpty { S.commonUpdating().resolve() }) }
+        if (st.state == "failed") Caption((if (st.lastUpdated.isEmpty()) S.appSettingsUpdateFailed(message) else S.appSettingsUpdateFailedOn(st.lastUpdated, message)).resolve(), Color(0xFFE53935))
+        if (st.checkError.isNotEmpty()) Caption(S.appSettingsUpdateCheckError().resolve())
+        RowButton((if (st.checking) S.appSettingsUpdateChecking() else S.appSettingsUpdateCheckAgain()).resolve(), enabled = !st.checking && !st.running) { scope.launch { vm.check() } }
+        if (st.hasUpdate) RowButton((if (st.starting) S.appSettingsUpdateStarting() else st.updateToText).resolve(), enabled = !st.starting && !st.running) { scope.launch { vm.apply() } }
+        if (st.hasUpdate || st.running) Caption(S.appSettingsUpdateRestartNote().resolve())
+        st.error?.let { Caption(it.resolve(), Color(0xFFE53935)) }
         // Settings > Restart device: the whole machine, owner of the primary only.
-        RowButton(if (st.restarting) "Restarting…" else "Restart Device", enabled = !st.restarting && !st.running) { confirmRestart = true }
+        RowButton((if (st.restarting) S.appSettingsUpdateRestarting() else S.appSettingsUpdateRestart()).resolve(), enabled = !st.restarting && !st.running) { confirmRestart = true }
         when (st.restartPhase) {
-            "restarting" -> Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Caption("Restarting… the device will be back in about a minute.") }
-            "back" -> Caption("The device is back.")
-            "slow" -> Caption("The device hasn't come back yet. It can take a little longer; if it doesn't come back, unplug it and plug it back in.", Color(0xFFFF9800))
+            "restarting" -> Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Caption(S.appSettingsUpdateRestartingNote().resolve()) }
+            "back" -> Caption(S.appSettingsUpdateBack().resolve())
+            "slow" -> Caption(S.appSettingsUpdateSlow().resolve(), Color(0xFFFF9800))
         }
-        st.restartError?.let { Caption(it, Color(0xFFE53935)) }
+        st.restartError?.let { Caption(it.resolve(), Color(0xFFE53935)) }
     }
     if (confirmRestart) AlertDialog(
         onDismissRequest = { confirmRestart = false },
-        title = { Text("Restart the device?") },
-        text = { Text("It will be unreachable for about a minute.") },
-        confirmButton = { TextButton(onClick = { confirmRestart = false; vm.viewModelScope.launch { vm.restart() } }) { Text("Restart", color = Color(0xFFE53935)) } },
-        dismissButton = { TextButton(onClick = { confirmRestart = false }) { Text("Cancel") } },
+        title = { Text(S.appSettingsUpdateRestartTitle().resolve()) },
+        text = { Text(S.appSettingsUpdateRestartMessage().resolve()) },
+        confirmButton = { TextButton(onClick = { confirmRestart = false; vm.viewModelScope.launch { vm.restart() } }) { Text(S.appSettingsUpdateRestartConfirm().resolve(), color = Color(0xFFE53935)) } },
+        dismissButton = { TextButton(onClick = { confirmRestart = false }) { Text(S.commonCancel().resolve()) } },
     )
 }
 
@@ -541,8 +703,8 @@ private fun UpdateSection() {
 @Composable
 private fun KindBadge(kind: String) {
     val (label, color) = when (kind) {
-        "major" -> "Major" to Color(0xFFFF9800)
-        "critical" -> "Critical" to Color(0xFFE53935)
+        "major" -> S.appSettingsUpdateMajor().resolve() to Color(0xFFFF9800)
+        "critical" -> S.appSettingsUpdateCritical().resolve() to Color(0xFFE53935)
         else -> return
     }
     Text(label, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold,
@@ -565,30 +727,37 @@ private fun TailscaleSection() {
     }
     if (!st.isPrimary) return
     Section("Tailscale Funnel") {
-        if (st.funnelOn) Caption("Served over Tailscale Funnel at ${st.publicUrl}")
+        if (st.funnelOn) Caption(S.appSettingsTailscaleServed(st.publicUrl).resolve())
         if (st.installed) {
-            Caption("Tailscale Funnel is an alternative to the Off The Cloud bridge, it publishes this device on your own ts.net address but with the next limitations:")
-            Caption("• The social side won't work. Friends find each other through the bridge, so sharing and friends' timelines are unavailable.")
-            Caption("• One user only. Extra users need a web address each, and Funnel gives this machine a single one.")
-            Caption("• Bandwidth is capped. Tailscale limits what can pass through Funnel and doesn't publish the limit.")
-            Caption("• You'll need a Tailscale account, with Funnel enabled for your tailnet.")
-            Caption("It suits a device you want purely as your own private NAS — your files and photos, reachable from anywhere, nothing shared with anyone.")
-            if (!st.funnelOn) OTCTextField(value = st.authKey, onValueChange = vm::setAuthKey, placeholder = { Text("Auth key (optional)") }, singleLine = true,
+            Caption(S.appSettingsTailscaleIntro().resolve())
+            Limitation(S.appSettingsTailscaleLimitSocial())
+            Limitation(S.appSettingsTailscaleLimitOneUser())
+            Limitation(S.appSettingsTailscaleLimitBandwidth())
+            Limitation(S.appSettingsTailscaleLimitAccount())
+            Caption(S.appSettingsTailscaleSuits().resolve())
+            if (!st.funnelOn) OTCTextField(value = st.authKey, onValueChange = vm::setAuthKey, placeholder = { Text(S.appSettingsTailscaleAuthKey().resolve()) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false), modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
-            RowButton(if (st.busy) "Working…" else if (st.funnelOn) "Turn Funnel off" else "Enable Tailscale Funnel", enabled = !st.busy) {
+            RowButton((if (st.busy) S.appSettingsTailscaleWorking() else if (st.funnelOn) S.appSettingsTailscaleTurnOff() else S.appSettingsTailscaleEnable()).resolve(), enabled = !st.busy) {
                 scope.launch {
                     vm.configure(enable = !st.funnelOn)
                     val login = vm.state.value.loginUrl
                     if (login.isNotEmpty()) Share.openInBrowser(context, login)
                 }
             }
-            if (!st.funnelOn) Caption("With a key from your Tailscale admin console this finishes on its own. Without one, you'll be taken to Tailscale to authorise this device.")
+            if (!st.funnelOn) Caption(S.appSettingsTailscaleKeyHint().resolve())
         } else {
-            Caption("Tailscale isn't installed on this device, so Funnel isn't available here.")
+            Caption(S.appSettingsTailscaleNotInstalled().resolve())
         }
-        st.note?.let { Caption(it) }
-        st.error?.let { Caption(it, Color(0xFFE53935)) }
+        st.note?.let { Caption(it.resolve()) }
+        st.error?.let { Caption(it.resolve(), Color(0xFFE53935)) }
     }
+}
+
+/** A limitation of Tailscale Funnel after a bullet, as plain text (its lead is bold on the iPhone). */
+@Composable
+private fun Limitation(text: RichText) {
+    val line = buildAnnotatedString { append("• "); append(text.resolve(emptyMap())) } // i18n-ignore: the list's bullet
+    Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 2.dp))
 }
 
 /** Issue #182: leaving the bridge and deleting the account. Mirrors iOS's BridgeAccountSection. */
@@ -603,34 +772,34 @@ private fun BridgeAccountSection(secrets: SecretsStore) {
     LaunchedEffect(Unit) { vm.load() }
     if (!st.visible) return
     fun open(path: String) = Share.openInBrowser(context, "https://${st.bridge}/$path")
-    Section("Bridge and Account", if (st.enabled) "Leaving gives the name back; the device keeps working at home, at http://${st.localAddress.ifEmpty { "otc.local:8080" }}." else null) {
+    Section(S.appSettingsBridgeTitle().resolve(), if (st.enabled) S.appSettingsBridgeFooter(st.localAddress.ifEmpty { "otc.local:8080" }).resolve() else null) {
         if (st.enabled) {
-            Caption("Reachable from anywhere at ${st.domain}")
-            if (st.localAddress.isNotEmpty()) Caption("At home: ${st.localAddress}")
-            RowButton("Leave the Bridge", enabled = !st.busy, destructive = true) { confirmLeave = true }
-            RowButton("Delete My Account…", enabled = !st.busy, destructive = true) { confirmDelete = true }
+            Caption(S.appSettingsBridgeReachable(st.domain).resolve())
+            if (st.localAddress.isNotEmpty()) Caption(S.appSettingsBridgeAtHome(st.localAddress).resolve())
+            RowButton(S.appSettingsBridgeLeave().resolve(), enabled = !st.busy, destructive = true) { confirmLeave = true }
+            RowButton(S.appSettingsBridgeDeleteAccount().resolve(), enabled = !st.busy, destructive = true) { confirmDelete = true }
         } else {
-            if (st.leftReason == "released") Caption("This device left the bridge: ${st.bridge} no longer knew its name (its account was deleted, or the name released). Everything on it is still there.", Color(0xFFFF9800))
-            Caption("Only reachable on your home network. Join the bridge from Settings in the device's web app.")
-            RowButton("Your Account Page") { open("account") }
+            if (st.leftReason == "released") Caption(S.appSettingsBridgeReleased(st.bridge).resolve(), Color(0xFFFF9800))
+            Caption(S.appSettingsBridgeLocalOnly().resolve())
+            RowButton(S.appSettingsBridgeAccountPage().resolve()) { open("account") }
         }
-        RowButton("Privacy") { open("privacy") }
-        st.note?.let { Caption(it) }
-        st.error?.let { Caption(it, Color(0xFFE53935)) }
+        RowButton(S.appShellPrivacy().resolve()) { open("privacy") }
+        st.note?.let { Caption(it.resolve()) }
+        st.error?.let { Caption(it.resolve(), Color(0xFFE53935)) }
     }
     if (confirmLeave) AlertDialog(
         onDismissRequest = { confirmLeave = false },
-        title = { Text("Leave the bridge?") },
-        text = { Text("${st.domain} is given back and the device restarts. It keeps everything and works at home, but is no longer reachable from outside or by your friends. You can join again later.") },
-        confirmButton = { TextButton(onClick = { confirmLeave = false; scope.launch { vm.leave(secrets) } }) { Text("Leave the Bridge", color = Color(0xFFE53935)) } },
-        dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text("Cancel") } },
+        title = { Text(S.appSettingsBridgeLeaveTitle().resolve()) },
+        text = { Text(S.appSettingsBridgeLeaveMessage(st.domain).resolve()) },
+        confirmButton = { TextButton(onClick = { confirmLeave = false; scope.launch { vm.leave(secrets) } }) { Text(S.appSettingsBridgeLeaveConfirm().resolve(), color = Color(0xFFE53935)) } },
+        dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text(S.commonCancel().resolve()) } },
     )
     if (confirmDelete) AlertDialog(
         onDismissRequest = { confirmDelete = false },
-        title = { Text("Delete your account?") },
-        text = { Text("This device leaves the bridge first and goes on working at home. Then your account page opens: sign in there and delete the account, which releases any other devices' names too.") },
-        confirmButton = { TextButton(onClick = { confirmDelete = false; scope.launch { if (vm.leave(secrets)) open("account?delete=1") } }) { Text("Leave and Delete", color = Color(0xFFE53935)) } },
-        dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
+        title = { Text(S.appSettingsBridgeDeleteTitle().resolve()) },
+        text = { Text(S.appSettingsBridgeDeleteMessage().resolve()) },
+        confirmButton = { TextButton(onClick = { confirmDelete = false; scope.launch { if (vm.leave(secrets)) open("account?delete=1") } }) { Text(S.androidSettingsBridgeLeaveDelete().resolve(), color = Color(0xFFE53935)) } },
+        dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(S.commonCancel().resolve()) } },
     )
 }
 
@@ -642,19 +811,19 @@ private fun UsersManagementSection() {
     LaunchedEffect(Unit) { vm.checkRole() }
     if (!st.isPrimary) return
     val usernameValid = st.newUsername.trim().let { it.isNotEmpty() && Regex("^[a-z0-9-]+$").matches(it) }
-    Section("Users") {
-        Caption("Each user runs as its own fully separate instance — own port, own database, own storage — managed only from here.")
+    Section(S.appSettingsUsersTitle().resolve()) {
+        Caption(S.appSettingsUsersIntro().resolve())
         st.users.forEach { u -> UserRow(vm, st, u) }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            OTCTextField(value = st.newUsername, onValueChange = vm::setNewUsername, placeholder = { Text("username") }, singleLine = true,
+            OTCTextField(value = st.newUsername, onValueChange = vm::setNewUsername, placeholder = { Text(S.appSettingsUsersUsername().resolve()) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false), modifier = Modifier.weight(1f))
             Spacer(Modifier.width(6.dp))
-            OTCTextField(value = st.newPort, onValueChange = vm::setNewPort, placeholder = { Text("port") }, singleLine = true,
+            OTCTextField(value = st.newPort, onValueChange = vm::setNewPort, placeholder = { Text(S.appSettingsUsersPort().resolve()) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.width(90.dp))
-            RowButton(if (st.creating) "…" else "Add", enabled = !st.creating && usernameValid) { scope.launch { vm.createUser() } }
+            RowButton(if (st.creating) "…" else S.commonAdd().resolve(), enabled = !st.creating && usernameValid) { scope.launch { vm.createUser() } } // i18n-ignore: an ellipsis while the user is being added
         }
     }
-    st.toast?.let { AlertDialog(onDismissRequest = { vm.dismissToast() }, text = { Text(it) }, confirmButton = { TextButton(onClick = { vm.dismissToast() }) { Text("OK") } }) }
+    st.toast?.let { AlertDialog(onDismissRequest = { vm.dismissToast() }, text = { Text(it.resolve()) }, confirmButton = { TextButton(onClick = { vm.dismissToast() }) { Text(S.commonOk().resolve()) } }) }
 }
 
 @Composable
@@ -663,23 +832,24 @@ private fun UserRow(vm: UsersManagementViewModel, st: UsersManagementViewModel.S
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Row { Text(u.username, fontWeight = FontWeight.Bold); if (!u.active) Text(" INACTIVE", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                Caption("port ${u.port} · ${u.subdomain}")
+                // The space before the label keeps it apart from the name.
+                Row { Text(u.username, fontWeight = FontWeight.Bold); if (!u.active) Text(" " + S.appSettingsUsersInactive().resolve(), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                Caption(S.appSettingsUsersPortDomain("${u.port}", u.subdomain).resolve())
             }
             val m = st.metrics[u.uuid]
-            if (m != null) Caption("${m.storageMb.toInt()} MB (%.1f%%) · ${m.activeConnections} active".format(m.storagePct))
-            else RowButton("Load usage") { scope.launch { vm.fetchMetrics(u.uuid) } }
+            if (m != null) Caption(S.appSettingsUsersUsage("${m.storageMb.toInt()}", "%.1f".format(m.storagePct), m.activeConnections).resolve())
+            else RowButton(S.appSettingsUsersLoadUsage().resolve()) { scope.launch { vm.fetchMetrics(u.uuid) } }
         }
         Row(Modifier.fillMaxWidth()) {
-            RowButton(if (u.active) "Disable" else "Enable", enabled = st.busyActiveUuid != u.uuid) { scope.launch { vm.toggleActive(u) } }
+            RowButton((if (u.active) S.appSettingsUsersDisable() else S.appSettingsUsersEnable()).resolve(), enabled = st.busyActiveUuid != u.uuid) { scope.launch { vm.toggleActive(u) } }
             Spacer(Modifier.weight(1f))
-            RowButton("Delete", destructive = true) { vm.toggleDeleteTarget(u.uuid) }
+            RowButton(S.commonDelete().resolve(), destructive = true) { vm.toggleDeleteTarget(u.uuid) }
         }
         if (st.deleteTargetUuid == u.uuid) {
-            Caption("Type \"${u.username}\" to confirm deletion.")
+            Caption(S.appSettingsUsersConfirmHint(u.username).resolve())
             OTCTextField(value = st.deleteConfirmText, onValueChange = vm::setDeleteConfirmText, placeholder = { Text(u.username) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false), modifier = Modifier.fillMaxWidth())
-            RowButton(if (st.deleting) "Deleting…" else "Confirm Delete", enabled = !st.deleting && st.deleteConfirmText == u.username, destructive = true) { scope.launch { vm.confirmDelete(u) } }
+            RowButton((if (st.deleting) S.commonDeleting() else S.appSettingsUsersConfirmDelete()).resolve(), enabled = !st.deleting && st.deleteConfirmText == u.username, destructive = true) { scope.launch { vm.confirmDelete(u) } }
         }
         HorizontalDivider(Modifier.padding(top = 4.dp))
     }
@@ -688,7 +858,7 @@ private fun UserRow(vm: UsersManagementViewModel, st: UsersManagementViewModel.S
 
 /** A size the device reports in MB, readable: "4.6 GB", "984 GB", "820 MB". Same as iOS's sizeText. */
 internal fun sizeText(mb: Double): String = when {
-    mb >= 100_000 -> "%.0f GB".format(mb / 1000)
-    mb >= 1000 -> "%.1f GB".format(mb / 1000)
-    else -> "%.0f MB".format(mb)
+    mb >= 100_000 -> "%.0f GB".format(mb / 1000) // i18n-ignore: a size, the unit's symbol in every language
+    mb >= 1000 -> "%.1f GB".format(mb / 1000) // i18n-ignore: a size, the unit's symbol in every language
+    else -> "%.0f MB".format(mb) // i18n-ignore: a size, the unit's symbol in every language
 }

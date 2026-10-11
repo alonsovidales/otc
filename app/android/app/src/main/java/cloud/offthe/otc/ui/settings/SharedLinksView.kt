@@ -50,6 +50,28 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.androidSettingsLinksDeleteText
+import cloud.offthe.otc.i18n.androidSettingsLinksEmptyText
+import cloud.offthe.otc.i18n.appSettingsErrorUnexpected
+import cloud.offthe.otc.i18n.appSettingsLinksCreated
+import cloud.offthe.otc.i18n.appSettingsLinksDeleteFailed
+import cloud.offthe.otc.i18n.appSettingsLinksDeleteLink
+import cloud.offthe.otc.i18n.appSettingsLinksDeleteTitle
+import cloud.offthe.otc.i18n.appSettingsLinksEmpty
+import cloud.offthe.otc.i18n.appSettingsLinksExpires
+import cloud.offthe.otc.i18n.appSettingsLinksLoadFailed
+import cloud.offthe.otc.i18n.appSettingsLinksNeverOpened
+import cloud.offthe.otc.i18n.appSettingsLinksOpened
+import cloud.offthe.otc.i18n.appSettingsLinksOpenedLast
+import cloud.offthe.otc.i18n.appSettingsLinksSizeFiles
+import cloud.offthe.otc.i18n.appSettingsLinksTitle
+import cloud.offthe.otc.i18n.appSettingsLinksUntitledGallery
+import cloud.offthe.otc.i18n.appSettingsLinksUntitledZip
+import cloud.offthe.otc.i18n.commonCancel
+import cloud.offthe.otc.i18n.commonDelete
+import cloud.offthe.otc.i18n.commonDone
 
 /*
  * Port of SharedLinksView.swift (issue #180): Settings > Shared Links, every
@@ -65,7 +87,7 @@ class SharedLinksViewModel : ViewModel() {
         val links: List<SharedLinkInfo> = emptyList(),
         val loading: Boolean = false,
         val loaded: Boolean = false,
-        val error: String? = null,
+        val error: UiText? = null,
         val confirmDelete: SharedLinkInfo? = null,
         val deleting: String? = null,
     )
@@ -78,11 +100,11 @@ class SharedLinksViewModel : ViewModel() {
             when {
                 resp.payloadCase == RespEnvelope.PayloadCase.RESP_SHARED_LINKS ->
                     state.update { it.copy(links = resp.respSharedLinks.linksList, loaded = true) }
-                resp.error -> state.update { it.copy(error = resp.errorMessage.ifEmpty { "Could not load the shared links" }) }
-                else -> state.update { it.copy(error = "Unexpected response") }
+                resp.error -> state.update { it.copy(error = deviceOr(resp.errorMessage, S.appSettingsLinksLoadFailed())) }
+                else -> state.update { it.copy(error = S.appSettingsErrorUnexpected()) }
             }
         } catch (e: Exception) {
-            state.update { it.copy(error = e.message ?: "Could not load the shared links") }
+            state.update { it.copy(error = e.shownText() ?: S.appSettingsLinksLoadFailed()) }
         } finally {
             state.update { it.copy(loading = false) }
         }
@@ -94,11 +116,11 @@ class SharedLinksViewModel : ViewModel() {
         state.update { it.copy(confirmDelete = null, deleting = link.uuid) }
         try {
             val resp = OTCConnection.request { it.setReqDeleteSharedLink(DeleteSharedLink.newBuilder().setUuid(link.uuid)) }
-            if (resp.error) state.update { it.copy(error = resp.errorMessage.ifEmpty { "Could not delete the link" }) }
+            if (resp.error) state.update { it.copy(error = deviceOr(resp.errorMessage, S.appSettingsLinksDeleteFailed())) }
             else if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && !resp.respAck.ok)
-                state.update { it.copy(error = resp.respAck.errorMsg.ifEmpty { "Could not delete the link" }) }
+                state.update { it.copy(error = deviceOr(resp.respAck.errorMsg, S.appSettingsLinksDeleteFailed())) }
         } catch (e: Exception) {
-            state.update { it.copy(error = e.message ?: "Could not delete the link") }
+            state.update { it.copy(error = e.shownText() ?: S.appSettingsLinksDeleteFailed()) }
         } finally {
             state.update { it.copy(deleting = null) }
         }
@@ -109,10 +131,11 @@ class SharedLinksViewModel : ViewModel() {
 private fun formatDate(ts: Timestamp): String =
     DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(ts.seconds * 1000))
 
+@Composable
 private fun linkTitle(l: SharedLinkInfo): String = when {
     l.description.isNotEmpty() -> l.description
-    l.kind == "archive" -> "Shared files (zip)"
-    else -> "Shared gallery"
+    l.kind == "archive" -> S.appSettingsLinksUntitledZip().resolve()
+    else -> S.appSettingsLinksUntitledGallery().resolve()
 }
 
 /** Full screen, over Settings - the counterpart of iOS's pushed list. */
@@ -126,16 +149,16 @@ fun SharedLinksView(onClose: () -> Unit) {
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).systemBarsPadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Shared Links", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 8.dp))
+                Text(S.appSettingsLinksTitle().resolve(), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 8.dp))
                 if (st.loading) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                TextButton(onClick = onClose) { Text("Done") }
+                TextButton(onClick = onClose) { Text(S.commonDone().resolve()) }
             }
-            st.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
+            st.error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
             if (st.loaded && st.links.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("No shared links", style = MaterialTheme.typography.titleMedium)
-                        Text("Links made with Share or Share as Gallery in Images and Files show up here until they expire.",
+                        Text(S.appSettingsLinksEmpty().resolve(), style = MaterialTheme.typography.titleMedium)
+                        Text(S.androidSettingsLinksEmptyText().resolve(),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 6.dp))
                     }
@@ -153,10 +176,10 @@ fun SharedLinksView(onClose: () -> Unit) {
         st.confirmDelete?.let { l ->
             AlertDialog(
                 onDismissRequest = { vm.askDelete(null) },
-                title = { Text("Delete this link?") },
-                text = { Text("The shared copies are deleted and the link stops working.") },
-                confirmButton = { TextButton(onClick = { scope.launch { vm.delete(l) } }) { Text("Delete", color = Color(0xFFE53935)) } },
-                dismissButton = { TextButton(onClick = { vm.askDelete(null) }) { Text("Cancel") } },
+                title = { Text(S.appSettingsLinksDeleteTitle().resolve()) },
+                text = { Text(S.androidSettingsLinksDeleteText().resolve()) },
+                confirmButton = { TextButton(onClick = { scope.launch { vm.delete(l) } }) { Text(S.commonDelete().resolve(), color = Color(0xFFE53935)) } },
+                dismissButton = { TextButton(onClick = { vm.askDelete(null) }) { Text(S.commonCancel().resolve()) } },
             )
         }
     }
@@ -169,19 +192,21 @@ private fun SharedLinkRow(l: SharedLinkInfo, deleting: Boolean, onDelete: () -> 
             Text(linkTitle(l), style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
             val caption = MaterialTheme.typography.bodySmall
             val muted = MaterialTheme.colorScheme.onSurfaceVariant
-            if (l.hasCreated()) Text("Created ${formatDate(l.created)}", style = caption, color = muted)
-            if (l.hasExpires()) Text("Expires ${formatDate(l.expires)}", style = caption, color = muted)
+            if (l.hasCreated()) Text(S.appSettingsLinksCreated(formatDate(l.created)).resolve(), style = caption, color = muted)
+            if (l.hasExpires()) Text(S.appSettingsLinksExpires(formatDate(l.expires)).resolve(), style = caption, color = muted)
             Text(
-                if (l.opens > 0) "Opened ${l.opens} time${if (l.opens == 1) "" else "s"}" +
-                    (if (l.hasLastOpened()) ", last ${relativeTime(l.lastOpened.seconds * 1000)}" else "")
-                else "Never opened",
+                when {
+                    l.opens <= 0 -> S.appSettingsLinksNeverOpened()
+                    l.hasLastOpened() -> S.appSettingsLinksOpenedLast(l.opens, relativeTime(l.lastOpened.seconds * 1000))
+                    else -> S.appSettingsLinksOpened(l.opens)
+                }.resolve(),
                 style = caption, color = muted,
             )
-            Text("${formatBytes(l.bytes)} · ${l.files} file${if (l.files == 1) "" else "s"}", style = caption, color = muted)
+            Text(S.appSettingsLinksSizeFiles(formatBytes(l.bytes), l.files).resolve(), style = caption, color = muted)
         }
         Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
             if (deleting) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-            else IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Delete link", tint = Color(0xFFE53935)) }
+            else IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, S.appSettingsLinksDeleteLink().resolve(), tint = Color(0xFFE53935)) }
         }
     }
 }

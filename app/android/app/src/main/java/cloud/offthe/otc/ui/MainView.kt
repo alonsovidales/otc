@@ -287,7 +287,9 @@ fun MainView(secrets: SecretsStore) {
                 try { awaitCancellation() } finally { menuStatus.stop() }
             }
         }
-        val storage = remember(statusState) { summarizeStorage(statusState.status, statusState.errorText) }
+        // The poll's error is text for the screen (UiText): worded here, in composition.
+        val statusError = statusState.errorText?.resolve()
+        val storage = remember(statusState, statusError) { summarizeStorage(statusState.status, statusError) }
         val gst = gallery?.state?.collectAsState()?.value
         val current = menuCurrent(section, gst?.activeGroup != null)
 

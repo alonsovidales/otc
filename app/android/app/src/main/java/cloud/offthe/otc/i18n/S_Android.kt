@@ -6,6 +6,18 @@ package cloud.offthe.otc.i18n
 
 import cloud.offthe.otc.R
 
+/** "Collapse": Screen-reader name of the arrow at the right of a row of the Alerts tab that groups the device's errors, while its list of errors is shown: hides it. */
+fun S.androidAlertsCollapse(): UiText =
+    UiText.Res(R.string.android_alerts_collapse)
+
+/** "Expand": Screen-reader name of the arrow at the right of a row of the Alerts tab that groups the device's errors, while its list of errors is hidden: shows it. */
+fun S.androidAlertsExpand(): UiText =
+    UiText.Res(R.string.android_alerts_expand)
+
+/** "Friends ✓": At the right of a friend request in the Alerts tab once you accepted it from there: you are friends now. Keep the check mark. */
+fun S.androidAlertsFriends(): UiText =
+    UiText.Res(R.string.android_alerts_friends)
+
 /** "Lost the device - reconnecting": Set up a new device (over Bluetooth): error given to the setup page when the Bluetooth link dropped while a request was sent; the app reconnects. */
 fun S.androidBleLost(): UiText =
     UiText.Res(R.string.android_ble_lost)
@@ -26,6 +38,22 @@ fun S.androidBluetoothOffHint(): UiText =
 fun S.androidCacheBytes(count: Int): UiText =
     UiText.Plural(R.plurals.android_cache_bytes, count, listOf(count))
 
+/** "Move left": Screen-reader name of the left arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place earlier in the post. */
+fun S.androidComposeMoveLeft(): UiText =
+    UiText.Res(R.string.android_compose_move_left)
+
+/** "Move right": Screen-reader name of the right arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place later in the post. */
+fun S.androidComposeMoveRight(): UiText =
+    UiText.Res(R.string.android_compose_move_right)
+
+/** "Record a video": Item of the menu of the camera button in the New Post composer: opens the camera to record a video for the post. */
+fun S.androidComposeRecordVideo(): UiText =
+    UiText.Res(R.string.android_compose_record_video)
+
+/** "Take a photo": Item of the menu of the camera button in the New Post composer: opens the camera to take a photo for the post. */
+fun S.androidComposeTakePhoto(): UiText =
+    UiText.Res(R.string.android_compose_take_photo)
+
 /** "the file changed on the device while downloading": Why opening or downloading a file failed, after Download failed: or similar (hence the lowercase start): the file was replaced on the device while it was being fetched. */
 fun S.androidDownloadChanged(): UiText =
     UiText.Res(R.string.android_download_changed)
@@ -37,6 +65,142 @@ fun S.androidDownloadEmptyPiece(): UiText =
 /** "the device sent the wrong piece of the file": Why opening or downloading a file failed, after Download failed: or similar (hence the lowercase start): a piece the device sent doesn't match the place asked for. */
 fun S.androidDownloadWrongPiece(): UiText =
     UiText.Res(R.string.android_download_wrong_piece)
+
+/** "Allow deletions": Confirm button of the question app.files.allow_deletions_title (Files, a tap on an upload-only folder's lock): lets the folder's files be deleted again. */
+fun S.androidFilesAllowDeletions(): UiText =
+    UiText.Res(R.string.android_files_allow_deletions)
+
+/** "cannot read {uri}": Why uploading a file picked on the phone failed, after Upload failed: (hence the lowercase start): the phone wouldn't open the picked file. {uri} is the file's address on the phone (content://...). */
+fun S.androidFilesCannotRead(uri: String): UiText =
+    UiText.Res(R.string.android_files_cannot_read, listOf(uri))
+
+/** "Could not update the folder: {detail}": Short message (toast) at the top of Files when making a folder upload only (or allowing deletions again), keeping it out of Images or showing it there again failed on the way. {detail} is the reason, from the app or the phone (it may be in the phone's own language). */
+fun S.androidFilesFolderUpdateFailedDetail(detail: String): UiText =
+    UiText.Res(R.string.android_files_folder_update_failed_detail, listOf(detail))
+
+/** "Shared gallery link": Label the phone may show for what Copy Link (app.files.gallery_copy_link) put on the clipboard: the gallery's link. */
+fun S.androidFilesGalleryClipLabel(): UiText =
+    UiText.Res(R.string.android_files_gallery_clip_label)
+
+/** "The copy failed": Error in the Share as Gallery dialog when the device stopped copying the photos and videos with an error and gave no reason (when it gives one, its own words are shown instead). */
+fun S.androidFilesGalleryCopyFailed(): UiText =
+    UiText.Res(R.string.android_files_gallery_copy_failed)
+
+/** "There are no photos or videos here.": Error in the Share as Gallery dialog when the folder or collection has nothing that can be shared. */
+fun S.androidFilesGalleryEmpty(): UiText =
+    UiText.Res(R.string.android_files_gallery_empty)
+
+/** "There are no photos or videos here ({count} other files)." (one: "There are no photos or videos here ({count} other file)."): Error in the Share as Gallery dialog when the folder has no photos or videos, only other files, which galleries can't hold. {count} is how many other files there are. */
+fun S.androidFilesGalleryEmptySkipped(count: Int): UiText =
+    UiText.Plural(R.plurals.android_files_gallery_empty_skipped, count, listOf(count))
+
+/** "Link expires after": Heading of the choices of how long the gallery's link works (1, 7 or 30 days) in the Share as Gallery dialog. */
+fun S.androidFilesGalleryExpires(): UiText =
+    UiText.Res(R.string.android_files_gallery_expires)
+
+/** "Couldn't Share": Title of the Share as Gallery dialog when making the gallery failed; the reason is under it. Title Case in English. */
+fun S.androidFilesGalleryFailedTitle(): UiText =
+    UiText.Res(R.string.android_files_gallery_failed_title)
+
+/** "Keep this open: the link is shown when the copy finishes.": Under the progress bar of the Share as Gallery dialog while the device copies the photos and videos. */
+fun S.androidFilesGalleryKeepOpen(): UiText =
+    UiText.Res(R.string.android_files_gallery_keep_open)
+
+/** "Link copied": Shown under the gallery's link in the Share as Gallery dialog once Copy Link was tapped. */
+fun S.androidFilesGalleryLinkCopied(): UiText =
+    UiText.Res(R.string.android_files_gallery_link_copied)
+
+/** "This link is shown only now - the device never stores it. Share it or copy it before closing.": Text over the gallery's link in the Share as Gallery dialog once the gallery is ready. */
+fun S.androidFilesGalleryLinkOnce(): UiText =
+    UiText.Res(R.string.android_files_gallery_link_once)
+
+/** "Looking at what will be shared…": Shown with a spinner when the Share as Gallery dialog opens, while the device counts what will be shared. */
+fun S.androidFilesGalleryLooking(): UiText =
+    UiText.Res(R.string.android_files_gallery_looking)
+
+/** "Lost track of the copy": Error in the Share as Gallery dialog when the app couldn't ask the device how the copy was going five times in a row. */
+fun S.androidFilesGalleryLost(): UiText =
+    UiText.Res(R.string.android_files_gallery_lost)
+
+/** "Gallery Ready": Title of the Share as Gallery dialog once the gallery is made and its link is shown. Title Case in English. */
+fun S.androidFilesGalleryReady(): UiText =
+    UiText.Res(R.string.android_files_gallery_ready)
+
+/** "{count} other files are not included" (one: "{count} other file is not included"): Second line of the Share as Gallery dialog, before sharing, when the folder holds files that aren't photos or videos: they won't be in the gallery. {count} is how many. */
+fun S.androidFilesGallerySkipped(count: Int): UiText =
+    UiText.Plural(R.plurals.android_files_gallery_skipped, count, listOf(count))
+
+/** "Inside {folder}, which is kept out of Images": Says that the folder shown in Files is inside another folder that is kept out of Images. {folder} is that other folder (a path such as /Photos/Private). Images is the photo section (app.shell.section_images). */
+fun S.androidFilesInsideKeptOut(folder: String): UiText =
+    UiText.Res(R.string.android_files_inside_kept_out, listOf(folder))
+
+/** "Inside {folder}, which is kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images.": Banner at the top of Files over a folder inside another folder kept out of Images, with a button to show that one in Images under it. {folder} is that other folder (a path such as /Photos/Private). Images is the photo section (app.shell.section_images). */
+fun S.androidFilesInsideKeptOutBanner(folder: String): UiText =
+    UiText.Res(R.string.android_files_inside_kept_out_banner, listOf(folder))
+
+/** "Inside {folder}, which is kept out of Images. Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them.": Explanation shown (title app.files.kept_out) when the mark of a folder is tapped in Files while the folder shown is inside another one kept out of Images. {folder} is that other folder (a path such as /Photos/Private). Images is the photo section (app.shell.section_images). */
+fun S.androidFilesInsideKeptOutInfo(folder: String): UiText =
+    UiText.Res(R.string.android_files_inside_kept_out_info, listOf(folder))
+
+/** "{name} kept out of Images": Said by the screen reader (not shown) once a folder has been kept out of Images. {name} is the folder's name. Images is the photo section (app.shell.section_images). */
+fun S.androidFilesKeptOutSaid(name: String): UiText =
+    UiText.Res(R.string.android_files_kept_out_said, listOf(name))
+
+/** "Show “{name}” in Images": Button of the banner at the top of Files (android.files.inside_kept_out_banner): asks whether to show the folder that keeps this one out of Images there again. {name} is that folder's name. Images is the photo section (app.shell.section_images). Write the quotes in your language's style. */
+fun S.androidFilesShowNamed(name: String): UiText =
+    UiText.Res(R.string.android_files_show_named, listOf(name))
+
+/** "{name} shown in Images": Said by the screen reader (not shown) once a folder kept out of Images is shown there again. {name} is the folder's name. Images is the photo section (app.shell.section_images). */
+fun S.androidFilesShownSaid(name: String): UiText =
+    UiText.Res(R.string.android_files_shown_said, listOf(name))
+
+/** "Wait for the download link to be ready": Short message (toast) at the top of Files when keeping a folder out of Images (or showing it there) is asked while a download link for the selection is still being made. No full stop in English. */
+fun S.androidFilesWaitDownloadLink(): UiText =
+    UiText.Res(R.string.android_files_wait_download_link)
+
+/** "Wait for the folder to be updated": Short message (toast) at the top of Files when keeping a folder out of Images (or showing it there) is asked while another folder's change is still under way. No full stop in English. */
+fun S.androidFilesWaitFolder(): UiText =
+    UiText.Res(R.string.android_files_wait_folder)
+
+/** "Wait for the share link to be ready": Short message (toast) at the top of Files when keeping a folder out of Images (or showing it there) is asked while a share link for the selection is still being made. No full stop in English. */
+fun S.androidFilesWaitShareLink(): UiText =
+    UiText.Res(R.string.android_files_wait_share_link)
+
+/** "Ask this friend's device to delete what I shared": app.social.friends.ask_theirs for a friend with neither a profile name nor an address: a switch (off at first) when removing them that also asks their device to delete your posts, comments and likes there. */
+fun S.androidFriendsAskTheirsUnnamed(): UiText =
+    UiText.Res(R.string.android_friends_ask_theirs_unnamed)
+
+/** "Delete everything from {name} on this phone": Check box (off at first) when removing a friend: also deletes everything of theirs from your device (explained by app.social.friends.delete_theirs_text). {name} is the friend's profile name (or their device's address when they have none). */
+fun S.androidFriendsDeleteTheirs(name: String): UiText =
+    UiText.Res(R.string.android_friends_delete_theirs, listOf(name))
+
+/** "Delete everything from this friend on this phone": android.friends_delete_theirs for a friend with neither a profile name nor an address: a check box (off at first) when removing them that also deletes everything of theirs from your device. */
+fun S.androidFriendsDeleteTheirsUnnamed(): UiText =
+    UiText.Res(R.string.android_friends_delete_theirs_unnamed)
+
+/** "Keep": Button of the Remove (a friend)? dialog that closes it and keeps the friend. */
+fun S.androidFriendsKeep(): UiText =
+    UiText.Res(R.string.android_friends_keep)
+
+/** "Keep waiting": Button of the confirmation app.social.friends.remove_now_title that closes it and keeps waiting for the friend's device. */
+fun S.androidFriendsKeepWaiting(): UiText =
+    UiText.Res(R.string.android_friends_keep_waiting)
+
+/** "Remove friend": Button (in red) of the Remove (a friend)? dialog: removes the friend, deleting what its two check boxes say. */
+fun S.androidFriendsRemoveFriend(): UiText =
+    UiText.Res(R.string.android_friends_remove_friend)
+
+/** "Remove now": Button (in red) of the confirmation app.social.friends.remove_now_title: stops waiting for the friend's device and ends the friendship at once. */
+fun S.androidFriendsRemoveNow(): UiText =
+    UiText.Res(R.string.android_friends_remove_now)
+
+/** "Remove this friend now?": app.social.friends.remove_now_title for a friend with neither a profile name nor an address: the confirmation asked before ending the friendship without waiting for their device. */
+fun S.androidFriendsRemoveNowTitleUnnamed(): UiText =
+    UiText.Res(R.string.android_friends_remove_now_title_unnamed)
+
+/** "Remove this friend?": app.social.friends.remove_title for a friend with neither a profile name nor an address: the title of the dialog for removing them. */
+fun S.androidFriendsRemoveTitleUnnamed(): UiText =
+    UiText.Res(R.string.android_friends_remove_title_unnamed)
 
 /** "Sections": Screen-reader name of the left menu and of the icon rail (on a wide screen), not shown. */
 fun S.androidMenuSections(): UiText =
@@ -50,6 +214,138 @@ fun S.androidNotificationChannel(): UiText =
 fun S.androidNotificationChannelDescription(): UiText =
     UiText.Res(R.string.android_notification_channel_description)
 
+/** "Open in Maps ({latitude}, {longitude})": Button under the map in the panel with a photo's camera details: opens the place in the phone's maps app. {latitude} and {longitude} are the place's coordinates (40.41678, -3.70379). */
+fun S.androidPhotosOpenInMaps(latitude: String, longitude: String): UiText =
+    UiText.Res(R.string.android_photos_open_in_maps, listOf(latitude, longitude))
+
+/** "Back to photos": Screen-reader name of the back arrow at the start of the People page's bar: back to Images. */
+fun S.androidPhotosPeopleBack(): UiText =
+    UiText.Res(R.string.android_photos_people_back)
+
+/** "{current} of {total}": On the Delete button of the confirmation (People page) while several people are being deleted, beside a spinner: which one is being deleted ({current}) of how many ({total}). */
+fun S.androidPhotosPeopleDeleting(current: Int, total: Int): UiText =
+    UiText.Res(R.string.android_photos_people_deleting, listOf(current, total))
+
+/** "Keep {name}, {count} photos" (one: "Keep {name}, {count} photo"): Screen-reader name of a face to choose in the merge's box (People page): choosing it keeps that person. {name} is their name (or app.shell.search_unnamed), {count} how many photos show them. */
+fun S.androidPhotosPeopleKeep(name: String, count: Int): UiText =
+    UiText.Plural(R.plurals.android_photos_people_keep, count, listOf(name, count))
+
+/** "Merge (select 2 or more to merge)": Screen-reader name of the dimmed Merge item (app.photos.people.merge) of the bar shown while only one face is picked on the People page. */
+fun S.androidPhotosPeopleMergeDimmed(): UiText =
+    UiText.Res(R.string.android_photos_people_merge_dimmed)
+
+/** "Close search": Screen-reader name of the back arrow at the start of the search field that closes the search suggestions. */
+fun S.androidPhotosSearchClose(): UiText =
+    UiText.Res(R.string.android_photos_search_close)
+
+/** "In the search": Screen-reader name of the check mark beside a person in the search suggestions who is already a chip in the search. */
+fun S.androidPhotosSearchInSearch(): UiText =
+    UiText.Res(R.string.android_photos_search_in_search)
+
+/** "Leave and Delete": Button (in red) of the confirmation Delete your account?: the device leaves the bridge, then the account page opens to delete the account. */
+fun S.androidSettingsBridgeLeaveDelete(): UiText =
+    UiText.Res(R.string.android_settings_bridge_leave_delete)
+
+/** "Drag the photo to centre your face": Above the square on the screen that crops the new profile photo to a circle. */
+fun S.androidSettingsCropHint(): UiText =
+    UiText.Res(R.string.android_settings_crop_hint)
+
+/** "Zoom": Label of the zoom slider on the screen that crops the new profile photo. */
+fun S.androidSettingsCropZoom(): UiText =
+    UiText.Res(R.string.android_settings_crop_zoom)
+
+/** "The shared copies are deleted and the link stops working.": Message of the confirmation Delete this link? (app.settings.links.delete_title). */
+fun S.androidSettingsLinksDeleteText(): UiText =
+    UiText.Res(R.string.android_settings_links_delete_text)
+
+/** "Links made with Share or Share as Gallery in Images and Files show up here until they expire.": Under No shared links on the Shared Links screen. Share and Share as Gallery are the names of buttons in Images and Files. */
+fun S.androidSettingsLinksEmptyText(): UiText =
+    UiText.Res(R.string.android_settings_links_empty_text)
+
+/** "Nothing logged yet.": Shown on the Logs screen when the chosen log is empty. */
+fun S.androidSettingsLogsEmpty(): UiText =
+    UiText.Res(R.string.android_settings_logs_empty)
+
+/** "What the device and its updates write down as they run - live, to read, share or send to us when something goes wrong.": Under the Logs row in Settings: what the logs are. */
+fun S.androidSettingsLogsFooter(): UiText =
+    UiText.Res(R.string.android_settings_logs_footer)
+
+/** "Could not load the log": Error on the Logs screen when the log couldn't be read and the device gave no reason; the app tries again. */
+fun S.androidSettingsLogsLoadFailed(): UiText =
+    UiText.Res(R.string.android_settings_logs_load_failed)
+
+/** "Could not send the logs": Error after Send in the form that sends the logs, when they couldn't be sent and the device gave no reason. */
+fun S.androidSettingsLogsSendFailed(): UiText =
+    UiText.Res(R.string.android_settings_logs_send_failed)
+
+/** "Send logs to us": Title of the form that sends the device's logs to Off The Cloud for help. */
+fun S.androidSettingsLogsSendTitle(): UiText =
+    UiText.Res(R.string.android_settings_logs_send_title)
+
+/** "No photos here yet.": Shown on the screen Choose a photo when the chosen collection (or the device) has no photo. */
+fun S.androidSettingsPickerEmpty(): UiText =
+    UiText.Res(R.string.android_settings_picker_empty)
+
+/** "Could not load your photos.": Error on the screen Choose a photo when a page of photos couldn't be loaded; it is asked again. */
+fun S.androidSettingsPickerLoadFailed(): UiText =
+    UiText.Res(R.string.android_settings_picker_load_failed)
+
+/** "Could not open that photo.": Error on the screen Choose a photo when the tapped photo couldn't be fetched or read. */
+fun S.androidSettingsPickerOpenFailed(): UiText =
+    UiText.Res(R.string.android_settings_picker_open_failed)
+
+/** "Description": Placeholder of the text field under the name in Settings > Profile: a few words about the user that friends see. */
+fun S.androidSettingsProfileDescription(): UiText =
+    UiText.Res(R.string.android_settings_profile_description)
+
+/** "From this phone": Item of the Change photo menu in Settings > Profile: pick the profile photo among this phone's photos. */
+fun S.androidSettingsProfileFromPhone(): UiText =
+    UiText.Res(R.string.android_settings_profile_from_phone)
+
+/** "Galleries and download links you shared, until they expire. Deleting one removes the shared copies and the link stops working.": Under the Shared Links row in Settings > Sharing. */
+fun S.androidSettingsSharingFooter(): UiText =
+    UiText.Res(R.string.android_settings_sharing_footer)
+
+/** "Sync from cloud": Switch in Settings > Sync Options: also upload photos kept only in the cloud (the phone downloads them first). */
+fun S.androidSettingsSyncCloud(): UiText =
+    UiText.Res(R.string.android_settings_sync_cloud)
+
+/** "Sync": Heading of the section of Settings holding the Sync Now, Sync All and Sync From Now buttons. */
+fun S.androidSettingsSyncTitle(): UiText =
+    UiText.Res(R.string.android_settings_sync_title)
+
+/** "Change the size": What a screen reader says tapping does, on the Maximum size row of Settings > Thumbnail cache. */
+fun S.androidSettingsThumbsChangeSize(): UiText =
+    UiText.Res(R.string.android_settings_thumbs_change_size)
+
+/** "Maximum size, {size}": Screen-reader name of the Maximum size row of Settings > Thumbnail cache. {size} is the chosen size, already formatted (1 GB). */
+fun S.androidSettingsThumbsMaxSizeA11y(size: String): UiText =
+    UiText.Res(R.string.android_settings_thumbs_max_size_a11y, listOf(size))
+
+/** "Selected": Screen-reader name of the check mark next to the chosen size in the Maximum size menu of Settings > Thumbnail cache. */
+fun S.androidSettingsThumbsSelected(): UiText =
+    UiText.Res(R.string.android_settings_thumbs_selected)
+
+/** "Thumbnail cache": Heading of the section of Settings about the small pictures of the photos kept on this phone so Images opens fast. Shown in capitals. */
+fun S.androidSettingsThumbsTitle(): UiText =
+    UiText.Res(R.string.android_settings_thumbs_title)
+
+/** "Version —": Settings > Device version before the device said which version it runs. */
+fun S.androidSettingsUpdateVersionUnknown(): UiText =
+    UiText.Res(R.string.android_settings_update_version_unknown)
+
+/** "{count} pending" (one: "{count} pending"): Settings > Uploads, under the progress bar: how many photos and videos are still to be uploaded. */
+fun S.androidSettingsUploadPending(count: Int): UiText =
+    UiText.Plural(R.plurals.android_settings_upload_pending, count, listOf(count))
+
+/** "Waiting": Settings > Uploads: photos are waiting to be uploaded and none is being uploaded right now. */
+fun S.androidSettingsUploadWaiting(): UiText =
+    UiText.Res(R.string.android_settings_upload_waiting)
+
+/** "Uploading {name}": Settings > Uploads: the photo or video being uploaded now. {name} is its file name. */
+fun S.androidSettingsUploading(name: String): UiText =
+    UiText.Res(R.string.android_settings_uploading, listOf(name))
+
 /** "Good signal": Set up a new device (over Bluetooth): at the right of a device in the list of devices waiting to be set up: its Bluetooth signal is good. */
 fun S.androidSignalGood(): UiText =
     UiText.Res(R.string.android_signal_good)
@@ -61,6 +357,38 @@ fun S.androidSignalStrong(): UiText =
 /** "Weak signal": Set up a new device (over Bluetooth): at the right of a device in the list of devices waiting to be set up: its Bluetooth signal is weak. */
 fun S.androidSignalWeak(): UiText =
     UiText.Res(R.string.android_signal_weak)
+
+/** "Delete comment": Screen-reader name of the bin beside a comment in the Social feed (on your own post, or on a comment you wrote): asks to delete it. */
+fun S.androidSocialDeleteComment(): UiText =
+    UiText.Res(R.string.android_social_delete_comment)
+
+/** "Like": Screen-reader name of the empty heart under a post in the Social feed: likes the post. */
+fun S.androidSocialLike(): UiText =
+    UiText.Res(R.string.android_social_like)
+
+/** "Like comment": Screen-reader name of the empty heart beside a comment in the Social feed: likes the comment. */
+fun S.androidSocialLikeComment(): UiText =
+    UiText.Res(R.string.android_social_like_comment)
+
+/** "Mute": Screen-reader name of the sound button at the corner of a video in the Social feed: turns the sound of the feed's videos off or on. */
+fun S.androidSocialMute(): UiText =
+    UiText.Res(R.string.android_social_mute)
+
+/** "Play": Screen-reader name of the play symbol over a video in the Social feed: plays it. */
+fun S.androidSocialPlay(): UiText =
+    UiText.Res(R.string.android_social_play)
+
+/** "Replay": Screen-reader name of the button over a video in the Social feed once it has played to the end: plays it again from the start. */
+fun S.androidSocialReplay(): UiText =
+    UiText.Res(R.string.android_social_replay)
+
+/** "Unlike": Screen-reader name of the filled heart under a post you liked in the Social feed: takes your like back. */
+fun S.androidSocialUnlike(): UiText =
+    UiText.Res(R.string.android_social_unlike)
+
+/** "Unlike comment": Screen-reader name of the filled heart beside a comment you liked in the Social feed: takes your like back. */
+fun S.androidSocialUnlikeComment(): UiText =
+    UiText.Res(R.string.android_social_unlike_comment)
 
 /** "Storage. Show details": Screen-reader name of the storage ring in the icon rail (on a wide screen) while the device's status isn't known yet; pressing it opens the whole menu at the storage details. */
 fun S.androidStorageGauge(): UiText =
@@ -98,21 +426,13 @@ fun S.androidStorageShowDetailsAttention(): UiText =
 fun S.androidStorageUsed(percent: String): UiText =
     UiText.Res(R.string.android_storage_used, listOf(percent))
 
-/** "{count}d ago" (one: "{count}d ago"): How long ago something happened, in days, in the Social feed, the alerts and Settings > Shared Links. Keep it as short as the English (d for days). */
-fun S.androidTimeDaysAgo(count: Int): UiText =
-    UiText.Plural(R.plurals.android_time_days_ago, count, listOf(count))
+/** "Can't trim this video: {reason}": In the Trim video screen of the New Post composer when the video can't be opened. {reason} says why (app.social.trim.cant_open or app.social.trim.no_length). */
+fun S.androidTrimCant(reason: String): UiText =
+    UiText.Res(R.string.android_trim_cant, listOf(reason))
 
-/** "{count}h ago" (one: "{count}h ago"): How long ago something happened, in hours, in the Social feed, the alerts and Settings > Shared Links. Keep it as short as the English (h for hours). */
-fun S.androidTimeHoursAgo(count: Int): UiText =
-    UiText.Plural(R.plurals.android_time_hours_ago, count, listOf(count))
-
-/** "just now": When something happened less than a minute ago, in the Social feed, the alerts and Settings > Shared Links (after last there, hence the lowercase start). */
-fun S.androidTimeJustNow(): UiText =
-    UiText.Res(R.string.android_time_just_now)
-
-/** "{count}m ago" (one: "{count}m ago"): How long ago something happened, in minutes, in the Social feed, the alerts and Settings > Shared Links. Keep it as short as the English (m for minutes). */
-fun S.androidTimeMinutesAgo(count: Int): UiText =
-    UiText.Plural(R.plurals.android_time_minutes_ago, count, listOf(count))
+/** "▶ Play cut": Button in the Trim video screen of the New Post composer: plays only the part of the video that will be kept. Keep the play symbol. */
+fun S.androidTrimPlayCut(): UiText =
+    UiText.Res(R.string.android_trim_play_cut)
 
 /** "The device didn't answer the connection in time": Error given to an action when the connection to the device couldn't be opened in time (nothing answered at its address). */
 fun S.androidWsConnectTimeout(): UiText =

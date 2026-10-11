@@ -24,7 +24,7 @@ final class FriendshipsViewModel: ObservableObject {
     @Published var friendships: [Msg_Friendship] = []
     @Published var loadingFriendships = false
 
-    @Published var toast: String?
+    @Published var toast: FriendsToast?
 
     func reloadFriendships() async {
         loadingFriendships = true
@@ -35,7 +35,7 @@ final class FriendshipsViewModel: ObservableObject {
                 friendships = f.friendships
             }
         } catch {
-            showToast("Could not load friendships")
+            showToast(.loadFailed)
         }
     }
 
@@ -56,7 +56,7 @@ final class FriendshipsViewModel: ObservableObject {
     func sendFriendRequest() async {
         guard !targetDomain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         guard let domain = Self.friendDomain(targetDomain) else {
-            showToast("Enter the device's name, like pit - letters, digits and dashes.")
+            showToast(.nameInvalid)
             return
         }
         sendingRequest = true
@@ -68,16 +68,16 @@ final class FriendshipsViewModel: ObservableObject {
             if case .respAck(let ack) = resp.payload, ack.ok {
                 // Issue #140: "accepted" - they already had this device as a
                 // friend and re-linked it, nothing left to accept.
-                showToast(ack.code == "accepted" ? "You're friends again ✅" : "Friend request sent ✅")
+                showToast(ack.code == "accepted" ? .friendsAgain : .requestSent)
                 targetDomain = ""
                 await reloadFriendships()
             } else if case .respAck(let ack) = resp.payload {
-                showToast(ack.errorMsg.isEmpty ? "Request failed" : ack.errorMsg)
+                showToast(ack.errorMsg.isEmpty ? .requestFailed : .device(ack.errorMsg))
             } else {
-                showToast("Unexpected response")
+                showToast(.unexpectedResponse)
             }
         } catch {
-            showToast("Error sending request")
+            showToast(.sendError)
         }
     }
 
@@ -89,14 +89,14 @@ final class FriendshipsViewModel: ObservableObject {
             let resp = try await ws.request { $0.payload = .reqChangeFriendStatus(req) }
             if case .respAck(let ack) = resp.payload, ack.ok {
                 await reloadFriendships()
-                showToast("Status updated ✅")
+                showToast(.statusUpdated)
             } else if case .respAck(let ack) = resp.payload {
-                showToast(ack.errorMsg.isEmpty ? "Update failed" : ack.errorMsg)
+                showToast(ack.errorMsg.isEmpty ? .updateFailed : .device(ack.errorMsg))
             } else {
-                showToast("Unexpected response")
+                showToast(.unexpectedResponse)
             }
         } catch {
-            showToast("Error updating status")
+            showToast(.updateError)
         }
     }
 
@@ -109,14 +109,14 @@ final class FriendshipsViewModel: ObservableObject {
             let resp = try await ws.request { $0.payload = .reqDeleteFriendship(req) }
             if case .respAck(let ack) = resp.payload, ack.ok {
                 await reloadFriendships()
-                showToast(f.sent ? "Request cancelled" : "Request deleted")
+                showToast(f.sent ? .requestCancelled : .requestDeleted)
             } else if resp.error {
-                showToast(resp.errorMessage)
+                showToast(.device(resp.errorMessage))
             } else {
-                showToast("Delete failed")
+                showToast(.deleteFailed)
             }
         } catch {
-            showToast("Error deleting request")
+            showToast(.deleteError)
         }
     }
 
@@ -138,24 +138,59 @@ final class FriendshipsViewModel: ObservableObject {
                 // Still listed as leaving: their device was offline and will
                 // be asked the next time it connects.
                 let leaving = friendships.contains { $0.originProfile.domain == f.originProfile.domain && $0.leaving }
-                showToast(leaving ? "Waiting for their device" : "Friend removed")
+                showToast(leaving ? .waitingForTheirDevice : .removed)
             } else if case .respAck(let ack) = resp.payload {
-                showToast(ack.errorMsg.isEmpty ? "Remove failed" : ack.errorMsg)
+                showToast(ack.errorMsg.isEmpty ? .removeFailed : .device(ack.errorMsg))
             } else if resp.error {
-                showToast(resp.errorMessage)
+                showToast(.device(resp.errorMessage))
             } else {
-                showToast("Remove failed")
+                showToast(.removeFailed)
             }
         } catch {
-            showToast("Error removing friend")
+            showToast(.removeError)
         }
     }
 
-    private func showToast(_ m: String) {
+    private func showToast(_ m: FriendsToast) {
         toast = m
         Task { [weak self] in
             try? await Task.sleep(nanoseconds: 2_500_000_000)
             if self?.toast == m { self?.toast = nil }
+        }
+    }
+}
+
+/// A short message at the top of the Friends screen, kept as what happened
+/// and worded when it shows, so it follows a change of language.
+enum FriendsToast: Equatable {
+    case loadFailed, nameInvalid, friendsAgain, requestSent, requestFailed, unexpectedResponse, sendError
+    case statusUpdated, updateFailed, updateError
+    case requestCancelled, requestDeleted, deleteFailed, deleteError
+    case waitingForTheirDevice, removed, removeFailed, removeError
+    /// The device's own words, already in the app's language.
+    case device(String)
+
+    var text: String {
+        switch self {
+        case .loadFailed: return S.appSocialFriendsLoadFailed
+        case .nameInvalid: return S.appSocialFriendsNameInvalid
+        case .friendsAgain: return S.appSocialFriendsFriendsAgain
+        case .requestSent: return S.appSocialFriendsRequestSent
+        case .requestFailed: return S.appSocialFriendsRequestFailed
+        case .unexpectedResponse: return S.appSocialFriendsUnexpectedResponse
+        case .sendError: return S.appSocialFriendsSendError
+        case .statusUpdated: return S.appSocialFriendsStatusUpdated
+        case .updateFailed: return S.appSocialFriendsUpdateFailed
+        case .updateError: return S.appSocialFriendsUpdateError
+        case .requestCancelled: return S.appSocialFriendsRequestCancelled
+        case .requestDeleted: return S.appSocialFriendsRequestDeleted
+        case .deleteFailed: return S.appSocialFriendsDeleteFailed
+        case .deleteError: return S.appSocialFriendsDeleteError
+        case .waitingForTheirDevice: return S.appSocialFriendsWaitingTheirDevice
+        case .removed: return S.appSocialFriendsRemoved
+        case .removeFailed: return S.appSocialFriendsRemoveFailed
+        case .removeError: return S.appSocialFriendsRemoveError
+        case .device(let words): return words
         }
     }
 }
@@ -182,18 +217,18 @@ struct FriendshipsView: View {
                 // answer, whatever its status.
                 let waiting = vm.friendships.filter { $0.status == .pending && !$0.sent && !$0.leaving }
                 if !waiting.isEmpty {
-                    Section("Waiting for your answer") {
+                    Section(S.appSocialFriendsWaitingAnswer) {
                         ForEach(waiting, id: \.originProfile.domain) { f in
                             HStack(spacing: 12) {
                                 avatarView(data: f.originProfile.hasImage ? f.originProfile.image : nil, size: 44)
                                 VStack(alignment: .leading) {
-                                    Text(f.originProfile.name.isEmpty ? "(no name)" : f.originProfile.name).font(.headline)
+                                    Text(f.originProfile.name.isEmpty ? S.appSocialFriendsNoName : f.originProfile.name).font(.headline)
                                     Text(f.originProfile.domain).font(.caption).foregroundColor(.secondary)
                                 }
                                 Spacer()
-                                Button("Decline") { Task { await vm.deleteFriendship(f) } }
+                                Button(S.commonDecline) { Task { await vm.deleteFriendship(f) } }
                                     .buttonStyle(.bordered).controlSize(.small)
-                                Button("Accept") { Task { await vm.changeStatus(f, to: .accepted) } }
+                                Button(S.commonAccept) { Task { await vm.changeStatus(f, to: .accepted) } }
                                     .buttonStyle(.borderedProminent).controlSize(.small)
                             }
                             .padding(.vertical, 4)
@@ -201,26 +236,26 @@ struct FriendshipsView: View {
                     }
                 }
 
-                Section("Add a friend") {
+                Section(S.appSocialFriendsAddHeading) {
                     HStack {
                         // Issue #142: the name only; the suffix is fixed.
-                        TextField("name", text: $vm.targetDomain)
+                        TextField(S.appSocialFriendsNamePlaceholder, text: $vm.targetDomain)
                             .autocapitalization(.none)
                             .disableAutocorrection(true)
                             .keyboardType(.URL)
                             .multilineTextAlignment(.trailing)
-                        Text(".\(SecretsStore.bridgeDomain)")
+                        Text(verbatim: ".\(SecretsStore.bridgeDomain)")
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .fixedSize()
-                        Button("Send") { Task { await vm.sendFriendRequest() } }
+                        Button(S.commonSend) { Task { await vm.sendFriendRequest() } }
                             .disabled(vm.sendingRequest || vm.targetDomain.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
                 }
 
                 Section {
                     if vm.friendships.isEmpty {
-                        Text("No friendships yet.").foregroundColor(.secondary)
+                        Text(S.appSocialFriendsEmpty).foregroundColor(.secondary)
                     } else {
                         ForEach(vm.friendships.filter { !($0.status == .pending && !$0.sent && !$0.leaving) }, id: \.originProfile.domain) { f in
                             FriendRow(
@@ -235,12 +270,12 @@ struct FriendshipsView: View {
                     }
                 } header: {
                     HStack {
-                        Text("Friends")
+                        Text(S.appSocialFriendsListHeading)
                         Spacer()
                         if vm.loadingFriendships {
                             ProgressView()
                         } else {
-                            Button("Refresh") { Task { await vm.reloadFriendships() } }
+                            Button(S.commonRefresh) { Task { await vm.reloadFriendships() } }
                                 .font(.caption)
                         }
                     }
@@ -250,24 +285,24 @@ struct FriendshipsView: View {
             // Issue #84: now a sheet (see SocialFeedView's own toolbar
             // button), so it needs a real title of its own - the tab bar
             // used to supply "Profile" for free.
-            .navigationTitle("Friends")
+            .navigationTitle(S.appSocialFriendsTitle)
             .navigationBarTitleDisplayMode(.inline)
             // The wide layout's page: its menu names it, as the web's
             // does, so no title bar.
             .toolbar(showsDone ? .automatic : .hidden, for: .navigationBar)
             .overlay(alignment: .topLeading) {
-                if !showsDone { HiddenPageHeading(title: "Friends") }
+                if !showsDone { HiddenPageHeading(title: S.appShellSectionFriends) }
             }
             .toolbar {
                 if showsDone {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Done") { dismiss() }
+                        Button(S.commonDone) { dismiss() }
                     }
                 }
             }
             .overlay(alignment: .top) {
                 if let toast = vm.toast {
-                    Text(toast)
+                    Text(toast.text)
                         .padding(.horizontal, 12).padding(.vertical, 8)
                         .background(.ultraThinMaterial, in: Capsule())
                         .padding(.top, 8)
@@ -292,7 +327,7 @@ private struct FriendRow: View {
     // Issue #25: a pending request can be removed by either side - the
     // sender withdraws it, the receiver declines it.
     private var canDelete: Bool { f.status == .pending && !f.leaving }
-    private var deleteLabel: String { f.sent ? "Cancel request" : "Delete request" }
+    private var deleteLabel: String { f.sent ? S.appSocialFriendsCancelRequest : S.appSocialFriendsDeleteRequest }
     // Issue #174: an accepted or blocked friend can be removed, with a
     // choice of what gets deleted on each side.
     private var canRemove: Bool { !f.leaving && (f.status == .accepted || f.status == .blocked) }
@@ -305,13 +340,13 @@ private struct FriendRow: View {
             HStack(spacing: 12) {
                 avatarView(data: f.originProfile.hasImage ? f.originProfile.image : nil, size: 44)
                 VStack(alignment: .leading) {
-                    Text(f.originProfile.name.isEmpty ? "(no name)" : f.originProfile.name).font(.headline)
-                    Text(f.originProfile.domain.isEmpty ? "(no domain)" : f.originProfile.domain)
+                    Text(f.originProfile.name.isEmpty ? S.appSocialFriendsNoName : f.originProfile.name).font(.headline)
+                    Text(f.originProfile.domain.isEmpty ? S.appSocialFriendsNoDomain : f.originProfile.domain)
                         .font(.caption).foregroundColor(.secondary)
-                    Text(statusLabel + (f.sent && !f.leaving ? " (sent)" : ""))
+                    Text(statusLabel)
                         .font(.caption2).foregroundColor(.secondary)
                     if f.leaving {
-                        Text("Waiting for their device to delete what you shared.")
+                        Text(S.appSocialFriendsLeavingNote)
                             .font(.caption2).foregroundColor(.secondary)
                     }
                 }
@@ -322,7 +357,7 @@ private struct FriendRow: View {
                 if f.leaving {
                     // Issue #174: nothing else to do with a leaving friend
                     // but stop waiting for their device.
-                    Button("Remove Now", role: .destructive) { confirmingRemoveNow = true }
+                    Button(S.appSocialFriendsRemoveNow, role: .destructive) { confirmingRemoveNow = true }
                         .buttonStyle(.bordered)
                 } else {
                     ForEach(actionOptions, id: \.0) { opt in
@@ -333,11 +368,11 @@ private struct FriendRow: View {
                         }
                     }
                     if canDelete {
-                        Button(f.sent ? "Cancel Request" : "Decline", role: .destructive) { confirmingDelete = true }
+                        Button(f.sent ? S.appSocialFriendsCancelRequestButton : S.commonDecline, role: .destructive) { confirmingDelete = true }
                             .buttonStyle(.bordered)
                     }
                     if canRemove {
-                        Button("Remove…", role: .destructive) { removing = true }
+                        Button(S.appSocialFriendsRemoveButton, role: .destructive) { removing = true }
                             .buttonStyle(.bordered)
                     }
                 }
@@ -347,32 +382,32 @@ private struct FriendRow: View {
         }
         .padding(.vertical, 4)
         .confirmationDialog(
-            f.sent ? "Cancel this friend request?" : "Delete this friend request?",
+            f.sent ? S.appSocialFriendsCancelConfirmTitle : S.appSocialFriendsDeleteConfirmTitle,
             isPresented: $confirmingDelete,
             titleVisibility: .visible
         ) {
             Button(deleteLabel, role: .destructive) { onDelete() }
         } message: {
-            Text(f.sent
-                 ? "The request will be withdrawn on both devices."
-                 : "The request will be removed here and on the sender's device.")
+            Text(f.sent ? S.appSocialFriendsCancelConfirmText : S.appSocialFriendsDeleteConfirmText)
         }
-        .confirmationDialog("Remove \(name) now?", isPresented: $confirmingRemoveNow, titleVisibility: .visible) {
-            Button("Remove Now", role: .destructive) { onRemove(false, false) }
+        .confirmationDialog(S.appSocialFriendsRemoveNowTitle(name: name), isPresented: $confirmingRemoveNow, titleVisibility: .visible) {
+            Button(S.appSocialFriendsRemoveNow, role: .destructive) { onRemove(false, false) }
         } message: {
-            Text("Stops waiting for their device. Whatever it hasn't deleted yet stays there.")
+            Text(S.appSocialFriendsRemoveNowText)
         }
         .sheet(isPresented: $removing) {
             RemoveFriendSheet(name: name) { theirs, mine in onRemove(theirs, mine) }
         }
     }
 
+    /// The status line, " (sent)" included for a request this side sent:
+    /// one text per case, so a language can word each as a whole.
     private var statusLabel: String {
-        if f.leaving { return "Leaving" }
+        if f.leaving { return S.appSocialFriendsStatusLeaving }
         switch f.status {
-        case .accepted: return "Accepted"
-        case .blocked: return "Blocked"
-        default: return "Pending"
+        case .accepted: return f.sent ? S.appSocialFriendsStatusAcceptedSent : S.appSocialFriendsStatusAccepted
+        case .blocked: return f.sent ? S.appSocialFriendsStatusBlockedSent : S.appSocialFriendsStatusBlocked
+        default: return f.sent ? S.appSocialFriendsStatusPendingSent : S.appSocialFriendsStatusPending
         }
     }
 
@@ -380,9 +415,9 @@ private struct FriendRow: View {
         // The sender does not decide the status; the receiver does.
         if f.sent || f.leaving { return [] }
         switch f.status {
-        case .pending: return [("Accept", .accepted), ("Block", .blocked)]
-        case .accepted: return [("Set Pending", .pending), ("Block", .blocked)]
-        case .blocked: return [("Accept", .accepted), ("Set Pending", .pending)]
+        case .pending: return [(S.commonAccept, .accepted), (S.appSocialFriendsBlock, .blocked)]
+        case .accepted: return [(S.appSocialFriendsSetPending, .pending), (S.appSocialFriendsBlock, .blocked)]
+        case .blocked: return [(S.commonAccept, .accepted), (S.appSocialFriendsSetPending, .pending)]
         default: return []
         }
     }
@@ -401,28 +436,28 @@ private struct RemoveFriendSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Toggle("Delete everything from \(name) on this iPhone", isOn: $deleteTheirData)
+                    Toggle(S.iosFriendsDeleteTheirs(name: name), isOn: $deleteTheirData)
                 } footer: {
-                    Text("Their posts and photos, and their comments and likes on any post.")
+                    Text(S.appSocialFriendsDeleteTheirsText)
                 }
                 Section {
-                    Toggle("Ask \(name)'s device to delete what I shared", isOn: $askThemToDeleteMine)
+                    Toggle(S.appSocialFriendsAskTheirs(name: name), isOn: $askThemToDeleteMine)
                 } footer: {
-                    Text("Your posts, comments and likes on their device. If it's offline, it happens the next time it connects; until then they show as leaving.")
+                    Text(S.appSocialFriendsAskTheirsText)
                 }
                 Section {
-                    Button("Remove Friend", role: .destructive) {
+                    Button(S.iosFriendsRemoveFriend, role: .destructive) {
                         onConfirm(deleteTheirData, askThemToDeleteMine)
                         dismiss()
                     }
                     .frame(maxWidth: .infinity)
                 }
             }
-            .navigationTitle("Remove \(name)?")
+            .navigationTitle(S.appSocialFriendsRemoveTitle(name: name))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(S.commonCancel) { dismiss() }
                 }
             }
         }

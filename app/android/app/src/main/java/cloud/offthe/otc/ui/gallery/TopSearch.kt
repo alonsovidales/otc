@@ -112,7 +112,26 @@ import cloud.offthe.otc.ui.files.Span
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
+import cloud.offthe.otc.i18n.RichTag
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.androidPhotosSearchClose
+import cloud.offthe.otc.i18n.androidPhotosSearchInSearch
+import cloud.offthe.otc.i18n.appFilesSearchField
+import cloud.offthe.otc.i18n.appPhotosPeoplePhotoCount
+import cloud.offthe.otc.i18n.appPhotosSearchAlready
+import cloud.offthe.otc.i18n.appPhotosSearchDocuments
+import cloud.offthe.otc.i18n.appPhotosSearchFiles
+import cloud.offthe.otc.i18n.appPhotosSearchNothing
+import cloud.offthe.otc.i18n.appPhotosSearchPeople
+import cloud.offthe.otc.i18n.appPhotosSearchThings
+import cloud.offthe.otc.i18n.appShellSearchClear
+import cloud.offthe.otc.i18n.appShellSearchCloseCollection
+import cloud.offthe.otc.i18n.appShellSearchField
+import cloud.offthe.otc.i18n.appShellSearchPerson
+import cloud.offthe.otc.i18n.appShellSearchRemove
+import cloud.offthe.otc.i18n.appShellSearchRemovePerson
+import cloud.offthe.otc.i18n.appShellSearchUnnamed
 
 // Port of the web's TopSearch.tsx, at the top of Images where the tag
 // field was. The field holds what Images is narrowed to - people and
@@ -463,9 +482,9 @@ private fun kindIcon(k: FileKind) = when (k) {
     FileKind.DOC -> SearchIcons.Doc
 }
 
-private val numbers: NumberFormat get() = NumberFormat.getIntegerInstance()
-private fun photosLabel(n: Int) = "${numbers.format(n)} ${if (n == 1) "photo" else "photos"}"
-private fun personLabel(p: Person) = p.name.trim().ifEmpty { "Unnamed" }
+/** A person as the web's personLabel names them: their name, or Unnamed. */
+@Composable
+private fun personLabel(p: Person) = p.name.trim().ifEmpty { S.appShellSearchUnnamed().resolve() }
 
 /** A label with the part that matched in bold (and [markColor], for a dim line). */
 private fun marked(text: String, span: Span?, markColor: Color? = null): AnnotatedString = buildAnnotatedString {
@@ -495,7 +514,7 @@ private fun marked(text: String, span: Span?, markColor: Color? = null): Annotat
 fun TopSearchField(
     search: TopSearchViewModel, gallery: PhotoGalleryViewModel, st: PhotoGalleryViewModel.State, options: SearchOptions,
     modifier: Modifier = Modifier, onShowPhotos: () -> Unit = {}, showGroup: Boolean = false,
-) = SearchField(search, gallery, st, options, modifier, onShowPhotos, showGroup, PLACEHOLDER)
+) = SearchField(search, gallery, st, options, modifier, onShowPhotos, showGroup, S.appShellSearchField())
 
 /**
  * Files' own search field, in the narrow layout (FilesExplorerView): the
@@ -505,10 +524,7 @@ fun TopSearchField(
  */
 @Composable
 fun FilesSearchField(search: TopSearchViewModel, options: SearchOptions, modifier: Modifier = Modifier) =
-    SearchField(search, null, null, options, modifier, {}, false, FILES_PLACEHOLDER)
-
-private const val PLACEHOLDER = "Search photos and files"
-private const val FILES_PLACEHOLDER = "Search files"
+    SearchField(search, null, null, options, modifier, {}, false, S.appFilesSearchField())
 
 /**
  * The field of either search: Images' and the wide top bar's ([gallery]
@@ -518,8 +534,9 @@ private const val FILES_PLACEHOLDER = "Search files"
 @Composable
 private fun SearchField(
     search: TopSearchViewModel, gallery: PhotoGalleryViewModel?, st: PhotoGalleryViewModel.State?, options: SearchOptions,
-    modifier: Modifier, onShowPhotos: () -> Unit, showGroup: Boolean, placeholder: String,
+    modifier: Modifier, onShowPhotos: () -> Unit, showGroup: Boolean, placeholderText: UiText,
 ) {
+    val placeholder = placeholderText.resolve()
     val focus = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
     var focused by remember { mutableStateOf(false) }
@@ -603,7 +620,7 @@ private fun SearchField(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.size(36.dp).clip(CircleShape).let { if (shown) it.clickable(onClick = ::dismiss) else it }, contentAlignment = Alignment.Center) {
-                if (shown) Icon(SearchIcons.Back, "Close search", Modifier.size(22.dp), tint = colors.onSurface)
+                if (shown) Icon(SearchIcons.Back, S.androidPhotosSearchClose().resolve(), Modifier.size(22.dp), tint = colors.onSurface)
                 else Icon(SearchIcons.Search, null, Modifier.size(22.dp), tint = if (focused) colors.onSurface else colors.onSurfaceVariant)
             }
             if (chipCount > 0 && gallery != null && st != null) {
@@ -621,7 +638,7 @@ private fun SearchField(
                     // The open collection first, as the web's field has it.
                     if (group != null) {
                         val gold = menuColors().accent
-                        SearchChip(label = group.name, removeLabel = "Close the collection ${group.name}", onRemove = { gallery.leaveGroup() }, leadingPad = 8.dp) {
+                        SearchChip(label = group.name, removeLabel = S.appShellSearchCloseCollection(group.name).resolve(), onRemove = { gallery.leaveGroup() }, leadingPad = 8.dp) {
                             Icon(NavIcons.Collections, null, Modifier.size(18.dp), tint = gold)
                         }
                     }
@@ -629,12 +646,12 @@ private fun SearchField(
                     people.forEach { pid ->
                         val p = byId[pid]
                         SearchChip(
-                            label = p?.let(::personLabel) ?: "Person", dim = p?.name.isNullOrBlank(),
-                            removeLabel = p?.name?.trim()?.ifEmpty { null }?.let { "Remove $it" } ?: "Remove this person",
+                            label = if (p != null) personLabel(p) else S.appShellSearchPerson().resolve(), dim = p?.name.isNullOrBlank(),
+                            removeLabel = (p?.name?.trim()?.ifEmpty { null }?.let { S.appShellSearchRemove(it) } ?: S.appShellSearchRemovePerson()).resolve(),
                             onRemove = { gallery.togglePerson(pid) },
                         ) { PersonPic(p, 24) }
                     }
-                    st.chips.forEach { t -> SearchChip(label = t, removeLabel = "Remove $t", onRemove = { gallery.removeChip(t) }) }
+                    st.chips.forEach { t -> SearchChip(label = t, removeLabel = S.appShellSearchRemove(t).resolve(), onRemove = { gallery.removeChip(t) }) }
                 }
             }
             Box(Modifier.weight(1f).padding(horizontal = 8.dp), contentAlignment = Alignment.CenterStart) {
@@ -690,7 +707,7 @@ private fun SearchField(
                         gallery?.clearSearch()
                     },
                     contentAlignment = Alignment.Center,
-                ) { Icon(SearchIcons.Close, "Clear search", Modifier.size(20.dp), tint = colors.onSurfaceVariant) }
+                ) { Icon(SearchIcons.Close, S.appShellSearchClear().resolve(), Modifier.size(20.dp), tint = colors.onSurfaceVariant) }
             }
         }
     }
@@ -831,6 +848,14 @@ private fun SearchPanel(
         if (at >= 0) list.reveal(at)
     }
 
+    // The sections' headings, and the line when nothing matches.
+    val headings = mapOf(
+        "Things" to S.appPhotosSearchThings().resolve(),
+        "People" to S.appPhotosSearchPeople().resolve(),
+        "Files" to S.appPhotosSearchFiles().resolve(),
+    )
+    val inSearch = S.androidPhotosSearchInSearch().resolve()
+    val hint = (if (alreadyIn) S.appPhotosSearchAlready(typed) else S.appPhotosSearchNothing(typed)).resolve()
     BoxWithConstraints(modifier.fillMaxSize()) {
         Box(
             Modifier.fillMaxSize().background(if (dropdown) Color.Transparent else Color.Black.copy(alpha = 0.5f))
@@ -852,9 +877,10 @@ private fun SearchPanel(
             color = colors.surfaceContainer, tonalElevation = 3.dp, shadowElevation = 8.dp,
         ) {
             LazyColumn(Modifier.nestedScroll(keyboardAwayOnDrag), state = list, contentPadding = PaddingValues(top = 4.dp, bottom = 8.dp)) {
-                fun section(title: String) = item(key = "h:$title") { SectionHead(title) }
+                // Keyed by the English name, as `order` has them.
+                fun section(key: String) = item(key = "h:$key") { SectionHead(headings.getValue(key)) }
                 if (tags.isNotEmpty()) {
-                    section("Things")
+                    section("Things") // i18n-ignore: the list's key for the heading, not shown
                     items(tags, key = { it.key }) { o ->
                         OptionRow(o.key == active, { choose(o) }) {
                             RowIcon(SearchIcons.Tag)
@@ -863,22 +889,22 @@ private fun SearchPanel(
                     }
                 }
                 if (people.isNotEmpty()) {
-                    section("People")
+                    section("People") // i18n-ignore: the list's key for the heading, not shown
                     items(people, key = { it.key }) { o ->
                         val on = st?.selectedPeople?.contains(o.person.id) == true
                         OptionRow(o.key == active, { choose(o) }) {
                             Box(if (on) Modifier.border(2.dp, colors.primary, CircleShape).padding(2.dp) else Modifier) { PersonPic(o.person, 36) }
                             Column(Modifier.weight(1f)) {
                                 Text(marked(personLabel(o.person), o.span), style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(photosLabel(o.person.faceCount), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1)
+                                Text(S.appPhotosPeoplePhotoCount(o.person.faceCount).resolve(), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1)
                             }
-                            if (on) Icon(SearchIcons.Check, "In the search", Modifier.size(20.dp), tint = colors.primary)
+                            if (on) Icon(SearchIcons.Check, inSearch, Modifier.size(20.dp), tint = colors.primary)
                         }
                     }
                 }
                 if (docs != null && docsFirst) item(key = "docs") { DocsRow(docs, docs.key == active) { choose(docs) } }
                 if (files.isNotEmpty()) {
-                    section("Files")
+                    section("Files") // i18n-ignore: the list's key for the heading, not shown
                     items(files, key = { it.key }) { o ->
                         OptionRow(o.key == active, { choose(o) }) {
                             val folder = o.kind == FileKind.FOLDER
@@ -900,8 +926,7 @@ private fun SearchPanel(
                 if (docs != null && !docsFirst) item(key = "docs") { DocsRow(docs, docs.key == active) { choose(docs) } }
                 if (options.options.isEmpty()) item(key = "hint") {
                     Text(
-                        if (alreadyIn) "“$typed” is already in the search." else "Nothing matches “$typed”.",
-                        style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
+                        hint, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                     )
                 }
@@ -988,11 +1013,7 @@ private fun DocsRow(o: SearchOption.Docs, active: Boolean, onClick: () -> Unit) 
         OptionRow(active, onClick) {
             RowIcon(SearchIcons.DocSearch)
             Text(
-                buildAnnotatedString {
-                    append("Search documents for “")
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(o.text) }
-                    append("”")
-                },
+                S.appPhotosSearchDocuments(o.text).resolve(mapOf("b" to RichTag(SpanStyle(fontWeight = FontWeight.Bold)))),
                 style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
             )
         }

@@ -16,8 +16,20 @@ import CoreGraphics
 // title over rows of tiles, months sharing a line are one row.
 
 enum PhotoMonths {
-    private static let monthNames = ["January", "February", "March", "April", "May", "June", "July",
-                                     "August", "September", "October", "November", "December"]
+    /// The months' names, in the language the app shows (the catalog's
+    /// app.photos.months.*, so the English stays the web's "Sep", never
+    /// en-GB's "Sept"): whole, and short.
+    private static var monthNames: [String] {
+        [S.appPhotosMonthsJanuary, S.appPhotosMonthsFebruary, S.appPhotosMonthsMarch, S.appPhotosMonthsApril,
+         S.appPhotosMonthsMay, S.appPhotosMonthsJune, S.appPhotosMonthsJuly, S.appPhotosMonthsAugust,
+         S.appPhotosMonthsSeptember, S.appPhotosMonthsOctober, S.appPhotosMonthsNovember, S.appPhotosMonthsDecember]
+    }
+    private static var shortNames: [String] {
+        [S.appPhotosMonthsJanuaryShort, S.appPhotosMonthsFebruaryShort, S.appPhotosMonthsMarchShort,
+         S.appPhotosMonthsAprilShort, S.appPhotosMonthsMayShort, S.appPhotosMonthsJuneShort,
+         S.appPhotosMonthsJulyShort, S.appPhotosMonthsAugustShort, S.appPhotosMonthsSeptemberShort,
+         S.appPhotosMonthsOctoberShort, S.appPhotosMonthsNovemberShort, S.appPhotosMonthsDecemberShort]
+    }
 
     /// The calendar months are counted in: the Gregorian one, in the
     /// viewer's time zone. Never the phone's own calendar - a phone set to
@@ -74,26 +86,27 @@ enum PhotoMonths {
     /// bucket of photos without one (the web's DateScrubber monthLabel,
     /// Android's scrubLabel).
     static func scrubLabel(_ key: String) -> String {
-        guard let p = parts(key), p.year > 0 else { return "No date" }
-        return "\(p.name.prefix(3)) \(p.year)"
+        guard let p = parts(key), p.year > 0 else { return S.appPhotosMonthsNoDate }
+        return S.appPhotosMonthsShortTitle(month: shortNames[p.month - 1], year: String(p.year))
     }
 
-    private static func parts(_ key: String) -> (year: Int, name: String)? {
+    /// The year and month (1-12) a key names.
+    private static func parts(_ key: String) -> (year: Int, month: Int)? {
         let p = key.split(separator: "-")
         guard p.count == 2, let y = Int(p[0]), let m = Int(p[1]), (1...12).contains(m) else { return nil }
-        return (y, monthNames[m - 1])
+        return (y, m)
     }
 
-    /// "March 2024"
+    /// "March 2024". The year is written as it is, never grouped.
     static func title(_ key: String) -> String {
         guard let p = parts(key) else { return key }
-        return "\(p.name) \(p.year)"
+        return S.appPhotosMonthsTitle(month: monthNames[p.month - 1], year: String(p.year))
     }
 
     /// "Mar 2024", where "March 2024" doesn't fit (a month one tile wide).
     static func short(_ key: String) -> String {
         guard let p = parts(key) else { return key }
-        return "\(p.name.prefix(3)) \(p.year)"
+        return S.appPhotosMonthsShortTitle(month: shortNames[p.month - 1], year: String(p.year))
     }
 
     /// The months the photos span, from the date buckets (newest first):
@@ -101,43 +114,43 @@ enum PhotoMonths {
     /// with `years`, which fits a narrow header (the web's spanLabel).
     static func span(_ months: [String], years: Bool = false) -> String {
         guard let newest = months.first.flatMap(parts), let oldest = months.last.flatMap(parts) else { return "" }
-        let short = { (p: (year: Int, name: String)) in String(p.name.prefix(3)) }
-        if oldest.year == newest.year && oldest.name == newest.name { return "\(short(newest)) \(newest.year)" }
-        if oldest.year == newest.year { return "\(short(oldest)) – \(short(newest)) \(newest.year)" }
-        if years { return "\(oldest.year) – \(newest.year)" }
-        return "\(short(oldest)) \(oldest.year) – \(short(newest)) \(newest.year)"
+        let names = shortNames
+        let short = { (p: (year: Int, month: Int)) in names[p.month - 1] }
+        let shortTitle = { (p: (year: Int, month: Int)) in S.appPhotosMonthsShortTitle(month: short(p), year: String(p.year)) }
+        if oldest == newest { return shortTitle(newest) }
+        if oldest.year == newest.year {
+            return S.appPhotosMonthsRangeInYear(from: short(oldest), to: short(newest), year: String(newest.year))
+        }
+        if years { return S.appPhotosMonthsRange(from: String(oldest.year), to: String(newest.year)) }
+        return S.appPhotosMonthsRange(from: shortTitle(oldest), to: shortTitle(newest))
     }
 
-    private static let number: NumberFormatter = {
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.locale = Locale(identifier: "en")
-        return f
-    }()
-
-    /// "1 item", "1,234 items" - the web's count().
-    static func count(_ n: Int, _ one: String, _ many: String? = nil) -> String {
-        let num = number.string(from: NSNumber(value: n)) ?? "\(n)"
-        return "\(num) \(n == 1 ? one : (many ?? one + "s"))"
-    }
+    /// "1 item", "1,234 items" - the web's count(): how many photos and
+    /// videos an open collection holds.
+    static func items(_ n: Int) -> String { S.appShellCollectionItems(count: n) }
 
     /// "Photo, 5 October 2026", "Video" without a date: a tile as VoiceOver
-    /// reads it, the web's tile label (en-GB, Gregorian, the viewer's time
-    /// zone).
+    /// reads it, the web's tile label (Gregorian, the viewer's time zone;
+    /// the day's words from the catalog, so the English stays the web's
+    /// en-GB "5 October 2026").
     static func tileLabel(video: Bool, date: Date?, timeZone: TimeZone = .autoupdatingCurrent) -> String {
-        let kind = video ? "Video" : "Photo"
-        guard let date else { return kind }
-        let style = Date.FormatStyle(locale: Locale(identifier: "en_GB"), calendar: calendar(in: timeZone), timeZone: timeZone)
-            .day().month(.wide).year()
-        return "\(kind), \(date.formatted(style))"
+        guard let date else { return video ? S.appPhotosGridTileVideo : S.appPhotosGridTilePhoto }
+        let c = calendar(in: timeZone).dateComponents([.year, .month, .day], from: date)
+        guard let y = c.year, let m = c.month, let d = c.day, (1...12).contains(m) else {
+            return video ? S.appPhotosGridTileVideo : S.appPhotosGridTilePhoto
+        }
+        let day = S.appPhotosMonthsDay(day: d, month: monthNames[m - 1], year: String(y))
+        return video ? S.appPhotosGridTileVideoOn(date: day) : S.appPhotosGridTilePhotoOn(date: day)
     }
 
     /// "Ana", "Ana & Luis", "Ana, Luis & 2 others": the people a person
     /// filter shows, as the web's PersonHeader names them.
     static func peopleTitle(_ names: [String]) -> String {
-        names.count <= 2
-            ? names.joined(separator: " & ")
-            : "\(names.prefix(2).joined(separator: ", ")) & \(count(names.count - 2, "other"))"
+        switch names.count {
+        case 0...1: return names.first ?? ""
+        case 2: return S.appPhotosGridPeopleTwo(first: names[0], second: names[1])
+        default: return S.appPhotosGridPeopleMore(first: names[0], second: names[1], count: names.count - 2)
+        }
     }
 
     /// A run of photos in a row of the list that share a month. A photo

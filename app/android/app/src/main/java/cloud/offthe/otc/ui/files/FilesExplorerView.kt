@@ -33,7 +33,74 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.androidFilesAllowDeletions
+import cloud.offthe.otc.i18n.androidFilesCannotRead
+import cloud.offthe.otc.i18n.androidFilesFolderUpdateFailedDetail
+import cloud.offthe.otc.i18n.androidFilesInsideKeptOut
+import cloud.offthe.otc.i18n.androidFilesInsideKeptOutBanner
+import cloud.offthe.otc.i18n.androidFilesInsideKeptOutInfo
+import cloud.offthe.otc.i18n.androidFilesKeptOutSaid
+import cloud.offthe.otc.i18n.androidFilesShowNamed
+import cloud.offthe.otc.i18n.androidFilesShownSaid
+import cloud.offthe.otc.i18n.androidFilesWaitDownloadLink
+import cloud.offthe.otc.i18n.androidFilesWaitFolder
+import cloud.offthe.otc.i18n.androidFilesWaitShareLink
+import cloud.offthe.otc.i18n.appFilesAllowDeletionsMessage
+import cloud.offthe.otc.i18n.appFilesAllowDeletionsTitle
+import cloud.offthe.otc.i18n.appFilesBackToFiles
+import cloud.offthe.otc.i18n.appFilesBackToFolder
+import cloud.offthe.otc.i18n.appFilesClearUploadOnly
+import cloud.offthe.otc.i18n.appFilesDeleteConfirm
+import cloud.offthe.otc.i18n.appFilesDeleteRefused
+import cloud.offthe.otc.i18n.appFilesDownloadFailed
+import cloud.offthe.otc.i18n.appFilesDownloadLinkFailed
+import cloud.offthe.otc.i18n.appFilesFolderUpdateFailed
+import cloud.offthe.otc.i18n.appFilesInUploadOnly
+import cloud.offthe.otc.i18n.appFilesKeepOutMessage
+import cloud.offthe.otc.i18n.appFilesKeepOutTitle
+import cloud.offthe.otc.i18n.appFilesKeptOut
+import cloud.offthe.otc.i18n.appFilesKeptOutBanner
+import cloud.offthe.otc.i18n.appFilesKeptOutExplain
+import cloud.offthe.otc.i18n.appFilesListFailed
+import cloud.offthe.otc.i18n.appFilesMakeUploadOnly
+import cloud.offthe.otc.i18n.appFilesMakeUploadOnlyMessage
+import cloud.offthe.otc.i18n.appFilesMakeUploadOnlyTitle
+import cloud.offthe.otc.i18n.appFilesNoResults
+import cloud.offthe.otc.i18n.appFilesOpenFailed
+import cloud.offthe.otc.i18n.appFilesResultsCount
+import cloud.offthe.otc.i18n.appFilesResultsLimited
+import cloud.offthe.otc.i18n.appFilesResultsTitle
+import cloud.offthe.otc.i18n.appFilesSearchNoAnswer
+import cloud.offthe.otc.i18n.appFilesSearchTooOld
+import cloud.offthe.otc.i18n.appFilesSearchUnreached
+import cloud.offthe.otc.i18n.appFilesSearching
+import cloud.offthe.otc.i18n.appFilesSelectionUploadOnly
+import cloud.offthe.otc.i18n.appFilesShareLinkFailed
+import cloud.offthe.otc.i18n.appFilesShowAsGrid
+import cloud.offthe.otc.i18n.appFilesShowAsList
+import cloud.offthe.otc.i18n.appFilesShowMessage
+import cloud.offthe.otc.i18n.appFilesShowTitle
+import cloud.offthe.otc.i18n.appFilesUnexpectedResponse
+import cloud.offthe.otc.i18n.appFilesUploadFailed
+import cloud.offthe.otc.i18n.appFilesUploadOnly
+import cloud.offthe.otc.i18n.appFilesUploadOnlyFileInfo
+import cloud.offthe.otc.i18n.appFilesVersionCurrent
+import cloud.offthe.otc.i18n.appFilesVersionOpenFailed
+import cloud.offthe.otc.i18n.appFilesVersionReplaced
+import cloud.offthe.otc.i18n.appFilesVersionsExplain
+import cloud.offthe.otc.i18n.appFilesVersionsTitle
+import cloud.offthe.otc.i18n.appFilesVideo
+import cloud.offthe.otc.i18n.appShellKeepOutOfImages
+import cloud.offthe.otc.i18n.appShellShowInImages
+import cloud.offthe.otc.i18n.commonCancel
+import cloud.offthe.otc.i18n.commonDelete
+import cloud.offthe.otc.i18n.commonDeselect
+import cloud.offthe.otc.i18n.commonDone
+import cloud.offthe.otc.i18n.commonOk
+import cloud.offthe.otc.i18n.commonSelect
+import cloud.offthe.otc.i18n.commonTryAgain
 import cloud.offthe.otc.ui.common.LoadSubject
 import cloud.offthe.otc.ui.common.OTCTextField
 import androidx.compose.material3.Text
@@ -68,6 +135,7 @@ import cloud.offthe.otc.net.retryWaitMs
 import cloud.offthe.otc.net.sleepOrWake
 import cloud.offthe.otc.ui.common.DEVICE_UNREACHABLE
 import cloud.offthe.otc.ui.common.LoadProblem
+import cloud.offthe.otc.ui.common.TextIOException
 import cloud.offthe.otc.ui.common.backOnline
 import cloud.offthe.otc.ui.common.loadProblem
 import cloud.offthe.otc.ui.common.loadProblemText
@@ -83,6 +151,7 @@ import cloud.offthe.otc.proto.ListOfFiles
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.ShareFilesLink
 import cloud.offthe.otc.proto.SharedGallerySource
+import cloud.offthe.otc.ui.common.now
 import cloud.offthe.otc.ui.share.SharedGalleryShareFlow
 import cloud.offthe.otc.ui.common.SelectionActionBar
 import cloud.offthe.otc.ui.common.SelectionActionTask
@@ -215,11 +284,14 @@ internal fun setOutOfImagesRequest(full: String, out: Boolean): SetOutOfImages =
  * done. A refusal (a folder inside another one kept out: error_code
  * "out_of_images_by_parent") is the device's own sentence, shown as it is.
  */
-internal fun outOfImagesFailure(resp: RespEnvelope): String? = when {
-    resp.error -> resp.errorMessage.ifEmpty { "Could not update the folder" }
-    resp.payloadCase != RespEnvelope.PayloadCase.RESP_ACK || !resp.respAck.ok -> resp.respAck.errorMsg.ifEmpty { "Could not update the folder" }
+internal fun outOfImagesFailure(resp: RespEnvelope): UiText? = when {
+    resp.error -> deviceSays(resp.errorMessage) { S.appFilesFolderUpdateFailed() }
+    resp.payloadCase != RespEnvelope.PayloadCase.RESP_ACK || !resp.respAck.ok -> deviceSays(resp.respAck.errorMsg) { S.appFilesFolderUpdateFailed() }
     else -> null
 }
+
+/** The device's own words when it gave some (it wrote them in the app's language), else ours. */
+private inline fun deviceSays(words: String, ours: () -> UiText): UiText = if (words.isEmpty()) ours() else UiText.Raw(words)
 
 /**
  * Issue #192: of the folders kept out of Images (ListOutOfImages, each with
@@ -233,10 +305,10 @@ internal fun outermostKeptOut(kept: List<String>, folder: String): String? {
 }
 
 /** Issue #192: what to wait for before keeping a folder out of Images, or showing it, while [task] is under way. */
-internal fun outOfImagesWait(task: SelectionActionTask): String = when (task) {
-    SelectionActionTask.SHARE -> "Wait for the share link to be ready"
-    SelectionActionTask.DOWNLOAD -> "Wait for the download link to be ready"
-    SelectionActionTask.OUT_OF_IMAGES -> "Wait for the folder to be updated"
+internal fun outOfImagesWait(task: SelectionActionTask): UiText = when (task) {
+    SelectionActionTask.SHARE -> S.androidFilesWaitShareLink()
+    SelectionActionTask.DOWNLOAD -> S.androidFilesWaitDownloadLink()
+    SelectionActionTask.OUT_OF_IMAGES -> S.androidFilesWaitFolder()
 }
 
 private fun foundRow(f: PbFile) = FileRow(f.path, leafName(f.path), isDir(f), f.byteSize, f, f.uploadOnly, f.versions, f.outOfImages)
@@ -340,7 +412,7 @@ internal class FilesSearchHandOver : ViewModel() {
  * stays as it was for the way back. An error says what went wrong, and
  * whether trying again may help.
  */
-data class SearchResults(val text: String, val phase: Phase, val files: List<PbFile> = emptyList(), val error: String? = null, val retry: Boolean = true) {
+data class SearchResults(val text: String, val phase: Phase, val files: List<PbFile> = emptyList(), val error: UiText? = null, val retry: Boolean = true) {
     enum class Phase { LOADING, DONE, ERROR }
 }
 private const val SEARCH_LIMIT = 50
@@ -358,7 +430,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         val loading: Boolean = false,
         val error: UiText? = null,
         val selected: Set<String> = emptySet(),
-        val toast: String? = null,
+        val toast: UiText? = null,
         val openingPath: String? = null,
         val confirmDeleteSelected: Boolean = false,
         val preparing: SelectionActionTask? = null,
@@ -390,7 +462,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         val outOfImagesCover: String? = null,
         // Issue #192: said to TalkBack once a change is done ("Trips kept
         // out of Images"); the screen shows it by the mark and the banner.
-        val outOfImagesSaid: String? = null,
+        val outOfImagesSaid: UiText? = null,
     ) {
         /** The selection when it is one folder: what "Share as gallery" (issue #180) acts on. */
         val selectedFolder: FileRow? get() = selected.singleOrNull()?.let { p -> rows.firstOrNull { it.path == p && it.isDir && it.path != ".." } }
@@ -518,10 +590,10 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
             } else if (resp.error) {
                 if (mediaToOpen?.first == p) mediaToOpen = null
                 listingProblem = null
-                _state.update { it.copy(error = UiText.Raw(resp.errorMessage.ifEmpty { "Failed to list path" })) }
+                _state.update { it.copy(error = deviceSays(resp.errorMessage) { S.appFilesListFailed() }) }
             } else {
                 listingProblem = null
-                _state.update { it.copy(error = UiText.Raw("Unexpected response")) }
+                _state.update { it.copy(error = S.appFilesUnexpectedResponse()) }
             }
         } catch (e: CancellationException) {
             throw e
@@ -565,13 +637,13 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         val mine = ++searchSeq
         _state.update { it.copy(results = SearchResults(text, SearchResults.Phase.LOADING)) }
         viewModelScope.launch {
-            fun fail(error: String, retry: Boolean = true) {
+            fun fail(error: UiText, retry: Boolean = true) {
                 if (mine == searchSeq) _state.update { it.copy(results = SearchResults(text, SearchResults.Phase.ERROR, error = error, retry = retry)) }
             }
             val resp = try {
                 OTCConnection.request { it.setReqSearchFiles(SearchFiles.newBuilder().setQuery(text).setLimit(SEARCH_LIMIT)) }
             } catch (e: Exception) {
-                fail("The search didn't reach the device. Check the connection and try again.")
+                fail(S.appFilesSearchUnreached())
                 return@launch
             }
             // The Images search stops offering it on such a device.
@@ -583,8 +655,8 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
                     _state.update { it.copy(results = SearchResults(text, SearchResults.Phase.DONE, files)) }
                     resultThumbnails(files)
                 }
-                resp.isUnknownPayload() -> fail("This device can't search its files yet. Update it in Settings.", retry = false)
-                else -> fail(resp.errorMessage.ifEmpty { "The device didn't answer the search." })
+                resp.isUnknownPayload() -> fail(S.appFilesSearchTooOld(), retry = false)
+                else -> fail(deviceSays(resp.errorMessage) { S.appFilesSearchNoAnswer() })
             }
         }
     }
@@ -793,9 +865,9 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
             val (tmp, mime) = fetchToCache(context, row, "")
             Share.preview(context, tmp, mime)
         } catch (e: ChunkedDownload.Refused) {
-            showToast("Could not fetch file")
+            showToast(S.appFilesOpenFailed())
         } catch (e: Exception) {
-            showToast("Download failed: ${e.message}")
+            showToast(S.appFilesDownloadFailed(e.message.toString()))
         } finally {
             _state.update { it.copy(openingPath = null) }
         }
@@ -829,7 +901,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
                 val full = if (p.contains("/")) p else joinPath(path, p)
                 val resp = OTCConnection.request { it.setReqDelFile(DelFile.newBuilder().setPath(full)) }
                 if (resp.error && resp.errorCode == "upload_only") {
-                    showToast("${leafName(full)} is in an upload-only folder and cannot be deleted")
+                    showToast(S.appFilesDeleteRefused(leafName(full)))
                     break
                 }
                 // A file gone from the device: its thumbnail goes from the
@@ -844,8 +916,8 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     suspend fun toggleUploadOnly(row: FileRow) {
         try {
             val resp = OTCConnection.request { it.setReqSetUploadOnly(SetUploadOnly.newBuilder().setPath(fullPath(row)).setUploadOnly(!row.uploadOnly)) }
-            if (resp.error) showToast(resp.errorMessage.ifEmpty { "Could not update the folder" })
-        } catch (e: Exception) { showToast("Could not update the folder: ${e.message}") }
+            if (resp.error) showToast(deviceSays(resp.errorMessage) { S.appFilesFolderUpdateFailed() })
+        } catch (e: Exception) { showToast(S.androidFilesFolderUpdateFailedDetail(e.message.toString())) }
         load()
     }
 
@@ -879,7 +951,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                showToast("Could not update the folder: ${e.message}")
+                showToast(S.androidFilesFolderUpdateFailedDetail(e.message.toString()))
             } finally {
                 _state.update { it.copy(preparing = null) }
             }
@@ -888,7 +960,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     }
 
     /** Issue #192: [m] for TalkBack (State.outOfImagesSaid), for a few seconds, so the same words said again are heard again. */
-    private fun say(m: String) {
+    private fun say(m: UiText) {
         _state.update { it.copy(outOfImagesSaid = m) }
         viewModelScope.launch {
             delay(5000)
@@ -917,9 +989,9 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
             closeVersions()
             Share.preview(context, tmp, mime)
         } catch (e: ChunkedDownload.Refused) {
-            showToast("Could not fetch that version")
+            showToast(S.appFilesVersionOpenFailed())
         } catch (e: Exception) {
-            showToast("Download failed: ${e.message}")
+            showToast(S.appFilesDownloadFailed(e.message.toString()))
         }
     }
 
@@ -937,7 +1009,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     suspend fun downloadSelected(context: Context) {
         _state.update { it.copy(preparing = SelectionActionTask.DOWNLOAD) }
         try {
-            val link = shareLink() ?: run { showToast("Could not create download link"); return }
+            val link = shareLink() ?: run { showToast(S.appFilesDownloadLinkFailed()); return }
             Share.openInBrowser(context, link)
         } finally { _state.update { it.copy(preparing = null) } }
     }
@@ -945,7 +1017,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     suspend fun shareSelected(context: Context) {
         _state.update { it.copy(preparing = SelectionActionTask.SHARE) }
         try {
-            val link = shareLink() ?: run { showToast("Could not create share link"); return }
+            val link = shareLink() ?: run { showToast(S.appFilesShareLinkFailed()); return }
             Share.link(context, link)
         } finally { _state.update { it.copy(preparing = null) } }
     }
@@ -973,19 +1045,22 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
             } else {
                 ChunkedUpload.upload(target, digest.size, open, forceOverride = false, sha256 = hash)
             }
-            if (resp.error) showToast("Upload failed: ${resp.errorMessage}")
+            // The device's words, in the app's language, as the detail.
+            if (resp.error) showToast(S.appFilesUploadFailed(resp.errorMessage))
         } catch (e: Exception) {
-            showToast("Upload failed: ${e.message}")
+            showToast(S.appFilesUploadFailed(e.message.toString()))
         }
         load()
     }
 
-    fun showToast(m: String) {
+    fun showToast(m: UiText) {
         _state.update { it.copy(toast = m) }
+        // How long it stays goes by its length in the language shown now.
+        val length = m.now().length
         kotlinx.coroutines.GlobalScope.launch {
             // Long enough to read: a refusal naming two folders (issue
             // #186's and #192's) runs to a hundred characters or more.
-            delay((2500L + 50L * (m.length - 50).coerceAtLeast(0)).coerceAtMost(8000L))
+            delay((2500L + 50L * (length - 50).coerceAtLeast(0)).coerceAtMost(8000L))
             _state.update { if (it.toast == m) it.copy(toast = null) else it }
         }
     }
@@ -1006,7 +1081,7 @@ fun FilesExplorerView(initialPath: String) {
     // does - there is no hover tooltip here as on the web - and a lock that
     // only marks something explains itself.
     var lockPrompt by remember { mutableStateOf<FileRow?>(null) }
-    var lockInfo by remember { mutableStateOf<String?>(null) }
+    var lockInfo by remember { mutableStateOf<UiText?>(null) }
     // Issue #192: keeping a folder out of Images, or showing it there
     // again, asks first - keeping it out deletes the tags and faces found
     // in it, and showing it searches it for faces when that is on. The
@@ -1139,7 +1214,8 @@ fun FilesExplorerView(initialPath: String) {
         for (uri in uris) {
             scope.launch(Dispatchers.IO) {
                 val name = queryDisplayName(context, uri) ?: "file"
-                vm.upload({ context.contentResolver.openInputStream(uri) ?: throw java.io.IOException("cannot read $uri") }, name)
+                // Its message is the detail of Upload failed: worded when read.
+                vm.upload({ context.contentResolver.openInputStream(uri) ?: throw TextIOException(S.androidFilesCannotRead(uri.toString())) }, name)
             }
         }
     }
@@ -1158,7 +1234,7 @@ fun FilesExplorerView(initialPath: String) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 val results = st.results
                 if (results != null) SearchResultsView(
-                    results, folderLabel = if (st.path == "/") "Files" else leafName(st.path), thumbs = st.thumbs, openingPath = st.openingPath,
+                    results, back = if (st.path == "/") S.appFilesBackToFiles() else S.appFilesBackToFolder(leafName(st.path)), thumbs = st.thumbs, openingPath = st.openingPath,
                     thumbKey = vm::resultThumbKey, onBack = { vm.closeResults() }, onRetry = { vm.startSearch(results.text) }, onOpen = ::openFound,
                 ) else Column(Modifier.fillMaxSize()) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1171,7 +1247,7 @@ fun FilesExplorerView(initialPath: String) {
                         if (st.loading) { Spacer(Modifier.width(8.dp)); CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
                         // List <-> grid; the icon is the mode a tap switches to.
                         IconButton(onClick = { vm.setGrid(!st.grid) }) {
-                            Icon(if (st.grid) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView, if (st.grid) "Show as list" else "Show as grid")
+                            Icon(if (st.grid) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView, (if (st.grid) S.appFilesShowAsList() else S.appFilesShowAsGrid()).resolve())
                         }
                     }
                     // Said to TalkBack when it appears or changes.
@@ -1241,7 +1317,7 @@ fun FilesExplorerView(initialPath: String) {
                                 ) {
                                     if (row.path != "..") {
                                         IconButton(onClick = { vm.toggleSelect(row.path) }, modifier = Modifier.size(36.dp)) {
-                                            Icon(if (selected) Icons.Default.CheckCircle else Icons.Outlined.Circle, if (selected) "Deselect" else "Select",
+                                            Icon(if (selected) Icons.Default.CheckCircle else Icons.Outlined.Circle, (if (selected) S.commonDeselect() else S.commonSelect()).resolve(),
                                                 tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
                                     } else Spacer(Modifier.size(36.dp))
@@ -1273,18 +1349,18 @@ fun FilesExplorerView(initialPath: String) {
                                     // switch is in the selection's actions.
                                     if (row.path != ".." && row.isDir && row.outOfImages && st.outOfImagesSupported) {
                                         IconButton(onClick = { explainOutOfImages(row) }, modifier = Modifier.size(36.dp)) {
-                                            Icon(Icons.Outlined.HideImage, OutOfImagesText.STATE, tint = MaterialTheme.colorScheme.primary)
+                                            Icon(Icons.Outlined.HideImage, OutOfImagesText.STATE.resolve(), tint = MaterialTheme.colorScheme.primary)
                                         }
                                     }
                                     if (row.path != ".." && row.isDir) {
                                         IconButton(onClick = { lockPrompt = row }, modifier = Modifier.size(36.dp)) {
                                             Icon(if (row.uploadOnly) Icons.Default.Lock else Icons.Outlined.LockOpen,
-                                                if (row.uploadOnly) "Clear upload only" else "Make upload only",
+                                                (if (row.uploadOnly) S.appFilesClearUploadOnly() else S.appFilesMakeUploadOnly()).resolve(),
                                                 tint = if (row.uploadOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
                                     } else if (row.uploadOnly) {
                                         Box(Modifier.size(36.dp).clip(CircleShape).clickable { lockInfo = UploadOnlyText.FILE_INFO }, contentAlignment = Alignment.Center) {
-                                            Icon(Icons.Default.Lock, "In an upload-only folder", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                                            Icon(Icons.Default.Lock, S.appFilesInUploadOnly().resolve(), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                                         }
                                     }
                                 }
@@ -1298,7 +1374,7 @@ fun FilesExplorerView(initialPath: String) {
                         onShare = { scope.launch { vm.shareSelected(context) } },
                         onDownload = { scope.launch { vm.downloadSelected(context) } },
                         onDelete = {
-                            if (vm.selectionUploadOnly) vm.showToast("The selection is in an upload-only folder and cannot be deleted")
+                            if (vm.selectionUploadOnly) vm.showToast(S.appFilesSelectionUploadOnly())
                             else vm.setConfirmDelete(true)
                         },
                         onUpload = { importer.launch(arrayOf("*/*")) },
@@ -1316,12 +1392,13 @@ fun FilesExplorerView(initialPath: String) {
                 if (showSearch) FilesSearchPanel(fileSearch, fileOptions)
             }
         }
-        Toast(st.toast, Modifier.align(Alignment.TopCenter).padding(horizontal = 16.dp))
+        Toast(st.toast?.resolve(), Modifier.align(Alignment.TopCenter).padding(horizontal = 16.dp))
         // Issue #192: a change for Images, once done, said to TalkBack (the
         // web's status line). Nothing to see: the mark and the banner show it.
+        val said = st.outOfImagesSaid?.resolve() ?: ""
         Box(Modifier.align(Alignment.BottomStart).size(1.dp).semantics {
             liveRegion = LiveRegionMode.Polite
-            contentDescription = st.outOfImagesSaid ?: ""
+            contentDescription = said
         })
     }
 
@@ -1331,70 +1408,70 @@ fun FilesExplorerView(initialPath: String) {
     st.versionsOf?.let { (row, versions) ->
         AlertDialog(
             onDismissRequest = { vm.closeVersions() },
-            title = { Text("Versions of ${row.name}") },
+            title = { Text(S.appFilesVersionsTitle(row.name).resolve()) },
             text = {
                 Column {
-                    Text("The file is in an upload-only folder, so each upload to this path kept the one before it.",
+                    Text(S.appFilesVersionsExplain().resolve(),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.size(8.dp))
                     Row(Modifier.fillMaxWidth().clickable { scope.launch { vm.openVersion(context, row, "") } }.padding(vertical = 8.dp)) {
-                        Text("Current", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text(S.appFilesVersionCurrent().resolve(), fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                         Text(formatBytes(row.size), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (st.versionsLoading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     versions.forEach { v ->
                         Row(Modifier.fillMaxWidth().clickable { scope.launch { vm.openVersion(context, row, v.hash) } }.padding(vertical = 8.dp)) {
-                            Text("Replaced " + (if (v.hasModified()) DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(v.modified.seconds * 1000)) else "—"),
+                            Text(S.appFilesVersionReplaced(if (v.hasModified()) DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(v.modified.seconds * 1000)) else "—").resolve(),
                                 modifier = Modifier.weight(1f))
                             Text(formatBytes(v.byteSize), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { vm.closeVersions() }) { Text("Done") } },
+            confirmButton = { TextButton(onClick = { vm.closeVersions() }) { Text(S.commonDone().resolve()) } },
         )
     }
     gallerySource?.let { src -> SharedGalleryShareFlow(src, onDismiss = { gallerySource = null }) }
     lockPrompt?.let { row ->
         AlertDialog(
             onDismissRequest = { lockPrompt = null },
-            title = { Text(UploadOnlyText.promptTitle(row.name, row.uploadOnly)) },
-            text = { Text(if (row.uploadOnly) UploadOnlyText.CLEAR_MESSAGE else UploadOnlyText.MAKE_MESSAGE) },
+            title = { Text(UploadOnlyText.promptTitle(row.name, row.uploadOnly).resolve()) },
+            text = { Text((if (row.uploadOnly) UploadOnlyText.CLEAR_MESSAGE else UploadOnlyText.MAKE_MESSAGE).resolve()) },
             confirmButton = {
                 TextButton(onClick = { lockPrompt = null; scope.launch { vm.toggleUploadOnly(row) } }) {
-                    Text(if (row.uploadOnly) "Allow deletions" else "Make upload only")
+                    Text((if (row.uploadOnly) S.androidFilesAllowDeletions() else S.appFilesMakeUploadOnly()).resolve())
                 }
             },
-            dismissButton = { TextButton(onClick = { lockPrompt = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { lockPrompt = null }) { Text(S.commonCancel().resolve()) } },
         )
     }
     lockInfo?.let {
-        AlertDialog(onDismissRequest = { lockInfo = null }, title = { Text("Upload only") }, text = { Text(it) },
-            confirmButton = { TextButton(onClick = { lockInfo = null }) { Text("OK") } })
+        AlertDialog(onDismissRequest = { lockInfo = null }, title = { Text(S.appFilesUploadOnly().resolve()) }, text = { Text(it.resolve()) },
+            confirmButton = { TextButton(onClick = { lockInfo = null }) { Text(S.commonOk().resolve()) } })
     }
     outOfImagesAsk?.let { a ->
         AlertDialog(
             onDismissRequest = { outOfImagesAsk = null },
-            title = { Text(if (a.out) OutOfImagesText.showTitle(a.name) else OutOfImagesText.keepTitle(a.name)) },
-            text = { Text(if (a.out) OutOfImagesText.SHOW_MESSAGE else OutOfImagesText.KEEP_MESSAGE) },
+            title = { Text((if (a.out) OutOfImagesText.showTitle(a.name) else OutOfImagesText.keepTitle(a.name)).resolve()) },
+            text = { Text((if (a.out) OutOfImagesText.SHOW_MESSAGE else OutOfImagesText.KEEP_MESSAGE).resolve()) },
             confirmButton = {
                 // Not while a share or download link is being made: it
                 // would wait for that, so the button does.
                 TextButton(onClick = { outOfImagesAsk = null; vm.toggleOutOfImages(a.full, a.out) }, enabled = st.preparing == null) {
-                    Text(if (a.out) OutOfImagesText.SHOW else OutOfImagesText.KEEP)
+                    Text((if (a.out) OutOfImagesText.SHOW else OutOfImagesText.KEEP).resolve())
                 }
             },
-            dismissButton = { TextButton(onClick = { outOfImagesAsk = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { outOfImagesAsk = null }) { Text(S.commonCancel().resolve()) } },
         )
     }
     outOfImagesInfo?.let { info ->
         AlertDialog(
             onDismissRequest = { outOfImagesInfo = null },
-            title = { Text(OutOfImagesText.STATE) },
-            text = { Text(info.by?.let { OutOfImagesText.byParentInfo(it) } ?: OutOfImagesText.EXPLAIN) },
-            confirmButton = { TextButton(onClick = { outOfImagesInfo = null }) { Text("OK") } },
+            title = { Text(OutOfImagesText.STATE.resolve()) },
+            text = { Text((info.by?.let { OutOfImagesText.byParentInfo(it) } ?: OutOfImagesText.EXPLAIN).resolve()) },
+            confirmButton = { TextButton(onClick = { outOfImagesInfo = null }) { Text(S.commonOk().resolve()) } },
             dismissButton = if (info.by != null) null else {
-                { TextButton(onClick = { outOfImagesInfo = null; askOutOfImages(info.row) }, enabled = st.preparing == null) { Text(OutOfImagesText.SHOW) } }
+                { TextButton(onClick = { outOfImagesInfo = null; askOutOfImages(info.row) }, enabled = st.preparing == null) { Text(OutOfImagesText.SHOW.resolve()) } }
             },
         )
     }
@@ -1402,14 +1479,14 @@ fun FilesExplorerView(initialPath: String) {
         val n = st.selected.size
         AlertDialog(
             onDismissRequest = { vm.setConfirmDelete(false) },
-            title = { Text("Delete $n item${if (n == 1) "" else "s"}?") },
-            confirmButton = { TextButton(onClick = { vm.setConfirmDelete(false); scope.launch { vm.deleteSelected() } }) { Text("Delete", color = Color(0xFFE53935)) } },
-            dismissButton = { TextButton(onClick = { vm.setConfirmDelete(false) }) { Text("Cancel") } },
+            title = { Text(S.appFilesDeleteConfirm(n).resolve()) },
+            confirmButton = { TextButton(onClick = { vm.setConfirmDelete(false); scope.launch { vm.deleteSelected() } }) { Text(S.commonDelete().resolve(), color = Color(0xFFE53935)) } },
+            dismissButton = { TextButton(onClick = { vm.setConfirmDelete(false) }) { Text(S.commonCancel().resolve()) } },
         )
     }
     if (vst.openIndex != null) ImageModal(viewer, vst)
     vst.alert?.let {
-        AlertDialog(onDismissRequest = { viewer.dismissAlert() }, text = { Text(it) }, confirmButton = { TextButton(onClick = { viewer.dismissAlert() }) { Text("OK") } })
+        AlertDialog(onDismissRequest = { viewer.dismissAlert() }, text = { Text(it.resolve()) }, confirmButton = { TextButton(onClick = { viewer.dismissAlert() }) { Text(S.commonOk().resolve()) } })
     }
 }
 
@@ -1439,7 +1516,7 @@ private fun FileGridCell(
             if (!row.isDir && isVideo(row.raw) && thumb != null) {
                 Box(Modifier.align(Alignment.BottomStart).padding(6.dp).size(24.dp).background(Color.Black.copy(alpha = 0.55f), CircleShape),
                     contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.PlayArrow, "Video", tint = Color.White, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.PlayArrow, S.appFilesVideo().resolve(), tint = Color.White, modifier = Modifier.size(16.dp))
                 }
             }
             if (!row.isDir && row.versions > 0) {
@@ -1459,7 +1536,7 @@ private fun FileGridCell(
                 Box(Modifier.align(Alignment.TopEnd).padding(6.dp).size(24.dp).clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)).clickable(onClick = onLock),
                     contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Lock, "Upload only", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Default.Lock, S.appFilesUploadOnly().resolve(), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
                 }
             }
             // Issue #192: left of the lock, which keeps its corner.
@@ -1467,14 +1544,14 @@ private fun FileGridCell(
                 Box(Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = if (row.uploadOnly) 34.dp else 6.dp).size(24.dp).clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)).clickable(onClick = onOutOfImages),
                     contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.HideImage, OutOfImagesText.STATE, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Outlined.HideImage, OutOfImagesText.STATE.resolve(), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
                 }
             }
             if (row.path != "..") {
                 Box(Modifier.align(Alignment.TopStart).padding(4.dp).size(28.dp).clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)).clickable(onClick = onToggle),
                     contentAlignment = Alignment.Center) {
-                    Icon(if (selected) Icons.Default.CheckCircle else Icons.Outlined.Circle, if (selected) "Deselect" else "Select",
+                    Icon(if (selected) Icons.Default.CheckCircle else Icons.Outlined.Circle, (if (selected) S.commonDeselect() else S.commonSelect()).resolve(),
                         tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -1493,7 +1570,7 @@ private fun FileGridCell(
  */
 @Composable
 private fun SearchResultsView(
-    results: SearchResults, folderLabel: String, thumbs: Map<String, ImageBitmap>, openingPath: String?,
+    results: SearchResults, back: UiText, thumbs: Map<String, ImageBitmap>, openingPath: String?,
     thumbKey: (PbFile) -> String, onBack: () -> Unit, onRetry: () -> Unit, onOpen: (PbFile) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -1503,14 +1580,14 @@ private fun SearchResultsView(
         TextButton(onClick = onBack, modifier = Modifier.padding(start = 4.dp, top = 4.dp)) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Back to $folderLabel", maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(back.resolve(), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Text("Files matching \u201C${results.text}\u201D", style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis,
+        Text(S.appFilesResultsTitle(results.text).resolve(), style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 16.dp))
         // Its line kept while searching, so the list doesn't move.
         Text(
             if (results.phase == SearchResults.Phase.DONE && found.isNotEmpty())
-                (if (found.size == SEARCH_LIMIT) "Showing the first $SEARCH_LIMIT results" else "${found.size} ${if (found.size == 1) "result" else "results"}")
+                (if (found.size == SEARCH_LIMIT) S.appFilesResultsLimited(SEARCH_LIMIT) else S.appFilesResultsCount(found.size)).resolve()
             else "",
             style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
@@ -1518,14 +1595,14 @@ private fun SearchResultsView(
             SearchResults.Phase.LOADING -> Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(10.dp))
-                Text("Searching\u2026", color = colors.onSurfaceVariant)
+                Text(S.appFilesSearching().resolve(), color = colors.onSurfaceVariant)
             }
             SearchResults.Phase.ERROR -> Column(Modifier.padding(16.dp)) {
-                Text(results.error ?: "", color = colors.error)
-                if (results.retry) TextButton(onClick = onRetry) { Text("Try again") }
+                Text(results.error?.resolve() ?: "", color = colors.error)
+                if (results.retry) TextButton(onClick = onRetry) { Text(S.commonTryAgain().resolve()) }
             }
             SearchResults.Phase.DONE -> if (found.isEmpty()) {
-                Text("No files match \u201C${results.text}\u201D.", color = colors.onSurfaceVariant, modifier = Modifier.padding(16.dp))
+                Text(S.appFilesNoResults(results.text).resolve(), color = colors.onSurfaceVariant, modifier = Modifier.padding(16.dp))
             }
         }
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
@@ -1544,7 +1621,7 @@ private fun SearchResultsView(
                         }
                         if (thumb != null && isVideo(f)) {
                             Box(Modifier.align(Alignment.BottomStart).padding(3.dp).size(16.dp).background(Color.Black.copy(alpha = 0.55f), CircleShape),
-                                contentAlignment = Alignment.Center) { Icon(Icons.Default.PlayArrow, "Video", tint = Color.White, modifier = Modifier.size(11.dp)) }
+                                contentAlignment = Alignment.Center) { Icon(Icons.Default.PlayArrow, S.appFilesVideo().resolve(), tint = Color.White, modifier = Modifier.size(11.dp)) }
                         }
                         if (openingPath == f.path) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
                     }
@@ -1557,7 +1634,7 @@ private fun SearchResultsView(
                             Text(marked(parts.name, parts.nameSpan), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                             if (f.outOfImages) {
                                 Spacer(Modifier.width(6.dp))
-                                Icon(Icons.Outlined.HideImage, OutOfImagesText.STATE, Modifier.size(16.dp), tint = colors.primary)
+                                Icon(Icons.Outlined.HideImage, OutOfImagesText.STATE.resolve(), Modifier.size(16.dp), tint = colors.primary)
                             }
                         }
                         // Long folders lose their start, not the end nearest the file.
@@ -1583,13 +1660,13 @@ private fun marked(text: String, span: Span?, markColor: Color? = null) = buildA
 }
 
 /** What the upload-only lock says (issue #132). The same words as iOS's
- *  UploadOnlyText and the web lock's tooltip. */
+ *  UploadOnlyText and the web lock's tooltip, from the catalog (app.files). */
 private object UploadOnlyText {
     fun promptTitle(name: String, uploadOnly: Boolean) =
-        if (uploadOnly) "Allow deletions in \u201C$name\u201D again?" else "Make \u201C$name\u201D upload only?"
-    const val MAKE_MESSAGE = "Nothing in this folder can be deleted - from this phone, a computer or the web - and uploading a file again keeps its older version. Good for photo archives and backups."
-    const val CLEAR_MESSAGE = "Files in this folder can be deleted again, and uploading a file again replaces it. The older versions kept so far stay."
-    const val FILE_INFO = "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it."
+        if (uploadOnly) S.appFilesAllowDeletionsTitle(name) else S.appFilesMakeUploadOnlyTitle(name)
+    val MAKE_MESSAGE get() = S.appFilesMakeUploadOnlyMessage()
+    val CLEAR_MESSAGE get() = S.appFilesAllowDeletionsMessage()
+    val FILE_INFO get() = S.appFilesUploadOnlyFileInfo()
 }
 
 /** Issue #192: the folder a confirmation is for - its whole path, its name, and whether it is kept out of Images now. */
@@ -1599,31 +1676,33 @@ private data class OutOfImagesAsk(val full: String, val name: String, val out: B
 private data class OutOfImagesInfo(val row: FileRow, val by: String?)
 
 /** What keeping a folder out of Images says (issue #192). The same words as
- *  iOS's OutOfImagesText (in its Title Case for menus) and the web's. */
+ *  iOS's OutOfImagesText (in its Title Case for menus) and the web's, from
+ *  the catalog: UiText, worded when shown. */
 internal object OutOfImagesText {
-    const val KEEP = "Keep out of Images"
-    const val SHOW = "Show in Images"
-    const val STATE = "Kept out of Images"
-    const val EXPLAIN = "Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them."
-    fun keepTitle(name: String) = "Keep \u201C$name\u201D out of Images?"
-    const val KEEP_MESSAGE = "Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them."
-    fun showTitle(name: String) = "Show \u201C$name\u201D in Images?"
-    const val SHOW_MESSAGE = "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background."
-    const val BANNER = "Kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images."
+    val KEEP get() = S.appShellKeepOutOfImages()
+    val SHOW get() = S.appShellShowInImages()
+    val STATE get() = S.appFilesKeptOut()
+    val EXPLAIN get() = S.appFilesKeptOutExplain()
+    fun keepTitle(name: String) = S.appFilesKeepOutTitle(name)
+    val KEEP_MESSAGE get() = S.appFilesKeepOutMessage()
+    fun showTitle(name: String) = S.appFilesShowTitle(name)
+    val SHOW_MESSAGE get() = S.appFilesShowMessage()
+    val BANNER get() = S.appFilesKeptOutBanner()
     // Inside a folder kept out because one above it is (the web's words):
     // the banner names that one, and its button shows it.
-    fun bannerByParent(parent: String) = "Inside $parent, which is kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images."
-    fun showNamed(name: String) = "Show \u201C$name\u201D in Images"
-    fun byParent(parent: String) = "Inside $parent, which is kept out of Images"
-    fun byParentInfo(parent: String) = "${byParent(parent)}. $EXPLAIN"
+    fun bannerByParent(parent: String) = S.androidFilesInsideKeptOutBanner(parent)
+    fun showNamed(name: String) = S.androidFilesShowNamed(name)
+    fun byParent(parent: String) = S.androidFilesInsideKeptOut(parent)
+    // byParent and EXPLAIN as one text: two sentences, never joined here.
+    fun byParentInfo(parent: String) = S.androidFilesInsideKeptOutInfo(parent)
     // Said to TalkBack once a change is done.
-    fun keptSaid(name: String) = "$name kept out of Images"
-    fun shownSaid(name: String) = "$name shown in Images"
+    fun keptSaid(name: String) = S.androidFilesKeptOutSaid(name)
+    fun shownSaid(name: String) = S.androidFilesShownSaid(name)
 }
 
 /** Issue #192: over a folder kept out of Images - what that means, and the way to show it again ([show]: its label; none yet when null). */
 @Composable
-private fun OutOfImagesBanner(text: String, show: String?, busy: Boolean, enabled: Boolean, onShow: () -> Unit) {
+private fun OutOfImagesBanner(text: UiText, show: UiText?, busy: Boolean, enabled: Boolean, onShow: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     // The button under the words, at the end: beside them a folder's name
     // in it ("Show “Trips 2024” in Images") left the words a narrow column.
@@ -1635,11 +1714,11 @@ private fun OutOfImagesBanner(text: String, show: String?, busy: Boolean, enable
         Row(Modifier.padding(end = 8.dp)) {
             Icon(Icons.Outlined.HideImage, null, Modifier.padding(top = 1.dp).size(18.dp), tint = colors.primary)
             Spacer(Modifier.width(10.dp))
-            Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+            Text(text.resolve(), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
         }
         if (show != null) TextButton(onClick = onShow, enabled = enabled, modifier = Modifier.align(Alignment.End)) {
             if (busy) { CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp); Spacer(Modifier.width(6.dp)) }
-            Text(show, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End)
+            Text(show.resolve(), maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End)
         }
     }
 }

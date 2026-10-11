@@ -1,4 +1,17 @@
 {
+  "android.alerts_collapse": {
+    "text": "Collapse",
+    "note": "Screen-reader name of the arrow at the right of a row of the Alerts tab that groups the device's errors, while its list of errors is shown: hides it."
+  },
+  "android.alerts_expand": {
+    "text": "Expand",
+    "note": "Screen-reader name of the arrow at the right of a row of the Alerts tab that groups the device's errors, while its list of errors is hidden: shows it."
+  },
+  "android.alerts_friends": {
+    "text": "Friends ✓",
+    "note": "At the right of a friend request in the Alerts tab once you accepted it from there: you are friends now. Keep the check mark.",
+    "max": 16
+  },
   "android.ble_lost": {
     "text": "Lost the device - reconnecting",
     "note": "Set up a new device (over Bluetooth): error given to the setup page when the Bluetooth link dropped while a request was sent; the app reconnects."
@@ -23,6 +36,24 @@
     "args": [["count", "count"]],
     "note": "Settings > Thumbnail cache: a size below one kilobyte (Using 0 bytes of 1 GB for an empty cache); larger sizes use the units KB, MB, GB."
   },
+  "android.compose_move_left": {
+    "text": "Move left",
+    "note": "Screen-reader name of the left arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place earlier in the post."
+  },
+  "android.compose_move_right": {
+    "text": "Move right",
+    "note": "Screen-reader name of the right arrow under a picked photo in the New Post composer's strip of picked photos: moves it one place later in the post."
+  },
+  "android.compose_record_video": {
+    "text": "Record a video",
+    "note": "Item of the menu of the camera button in the New Post composer: opens the camera to record a video for the post.",
+    "max": 30
+  },
+  "android.compose_take_photo": {
+    "text": "Take a photo",
+    "note": "Item of the menu of the camera button in the New Post composer: opens the camera to take a photo for the post.",
+    "max": 30
+  },
   "android.download_changed": {
     "text": "the file changed on the device while downloading",
     "note": "Why opening or downloading a file failed, after Download failed: or similar (hence the lowercase start): the file was replaced on the device while it was being fetched."
@@ -34,6 +65,190 @@
   "android.download_wrong_piece": {
     "text": "the device sent the wrong piece of the file",
     "note": "Why opening or downloading a file failed, after Download failed: or similar (hence the lowercase start): a piece the device sent doesn't match the place asked for."
+  },
+  "android.files.allow_deletions": {
+    "text": "Allow deletions",
+    "note": "Confirm button of the question app.files.allow_deletions_title (Files, a tap on an upload-only folder's lock): lets the folder's files be deleted again.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #c0409da4"
+  },
+  "android.files.cannot_read": {
+    "text": "cannot read {uri}",
+    "args": [["uri", "text"]],
+    "note": "Why uploading a file picked on the phone failed, after Upload failed: (hence the lowercase start): the phone wouldn't open the picked file. {uri} is the file's address on the phone (content://...)."
+  },
+  "android.files.folder_update_failed_detail": {
+    "text": "Could not update the folder: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Short message (toast) at the top of Files when making a folder upload only (or allowing deletions again), keeping it out of Images or showing it there again failed on the way. {detail} is the reason, from the app or the phone (it may be in the phone's own language)."
+  },
+  "android.files.gallery_clip_label": {
+    "text": "Shared gallery link",
+    "note": "Label the phone may show for what Copy Link (app.files.gallery_copy_link) put on the clipboard: the gallery's link."
+  },
+  "android.files.gallery_copy_failed": {
+    "text": "The copy failed",
+    "note": "Error in the Share as Gallery dialog when the device stopped copying the photos and videos with an error and gave no reason (when it gives one, its own words are shown instead)."
+  },
+  "android.files.gallery_empty": {
+    "text": "There are no photos or videos here.",
+    "note": "Error in the Share as Gallery dialog when the folder or collection has nothing that can be shared."
+  },
+  "android.files.gallery_empty_skipped": {
+    "text": {
+      "one": "There are no photos or videos here ({count} other file).",
+      "other": "There are no photos or videos here ({count} other files)."
+    },
+    "args": [["count", "count"]],
+    "note": "Error in the Share as Gallery dialog when the folder has no photos or videos, only other files, which galleries can't hold. {count} is how many other files there are."
+  },
+  "android.files.gallery_expires": {
+    "text": "Link expires after",
+    "note": "Heading of the choices of how long the gallery's link works (1, 7 or 30 days) in the Share as Gallery dialog.",
+    "max": 30
+  },
+  "android.files.gallery_failed_title": {
+    "text": "Couldn't Share",
+    "note": "Title of the Share as Gallery dialog when making the gallery failed; the reason is under it. Title Case in English.",
+    "max": 30
+  },
+  "android.files.gallery_keep_open": {
+    "text": "Keep this open: the link is shown when the copy finishes.",
+    "note": "Under the progress bar of the Share as Gallery dialog while the device copies the photos and videos."
+  },
+  "android.files.gallery_link_copied": {
+    "text": "Link copied",
+    "note": "Shown under the gallery's link in the Share as Gallery dialog once Copy Link was tapped.",
+    "max": 30
+  },
+  "android.files.gallery_link_once": {
+    "text": "This link is shown only now - the device never stores it. Share it or copy it before closing.",
+    "note": "Text over the gallery's link in the Share as Gallery dialog once the gallery is ready.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #f6794bb9"
+  },
+  "android.files.gallery_looking": {
+    "text": "Looking at what will be shared…",
+    "note": "Shown with a spinner when the Share as Gallery dialog opens, while the device counts what will be shared."
+  },
+  "android.files.gallery_lost": {
+    "text": "Lost track of the copy",
+    "note": "Error in the Share as Gallery dialog when the app couldn't ask the device how the copy was going five times in a row."
+  },
+  "android.files.gallery_ready": {
+    "text": "Gallery Ready",
+    "note": "Title of the Share as Gallery dialog once the gallery is made and its link is shown. Title Case in English.",
+    "max": 30
+  },
+  "android.files.gallery_skipped": {
+    "text": {
+      "one": "{count} other file is not included",
+      "other": "{count} other files are not included"
+    },
+    "args": [["count", "count"]],
+    "note": "Second line of the Share as Gallery dialog, before sharing, when the folder holds files that aren't photos or videos: they won't be in the gallery. {count} is how many."
+  },
+  "android.files.inside_kept_out": {
+    "text": "Inside {folder}, which is kept out of Images",
+    "args": [["folder", "user"]],
+    "note": "Says that the folder shown in Files is inside another folder that is kept out of Images. {folder} is that other folder (a path such as /Photos/Private). Images is the photo section (app.shell.section_images)."
+  },
+  "android.files.inside_kept_out_banner": {
+    "text": "Inside {folder}, which is kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images.",
+    "args": [["folder", "user"]],
+    "note": "Banner at the top of Files over a folder inside another folder kept out of Images, with a button to show that one in Images under it. {folder} is that other folder (a path such as /Photos/Private). Images is the photo section (app.shell.section_images)."
+  },
+  "android.files.inside_kept_out_info": {
+    "text": "Inside {folder}, which is kept out of Images. Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them.",
+    "args": [["folder", "user"]],
+    "note": "Explanation shown (title app.files.kept_out) when the mark of a folder is tapped in Files while the folder shown is inside another one kept out of Images. {folder} is that other folder (a path such as /Photos/Private). Images is the photo section (app.shell.section_images)."
+  },
+  "android.files.kept_out_said": {
+    "text": "{name} kept out of Images",
+    "args": [["name", "user"]],
+    "note": "Said by the screen reader (not shown) once a folder has been kept out of Images. {name} is the folder's name. Images is the photo section (app.shell.section_images)."
+  },
+  "android.files.show_named": {
+    "text": "Show “{name}” in Images",
+    "args": [["name", "user"]],
+    "note": "Button of the banner at the top of Files (android.files.inside_kept_out_banner): asks whether to show the folder that keeps this one out of Images there again. {name} is that folder's name. Images is the photo section (app.shell.section_images). Write the quotes in your language's style."
+  },
+  "android.files.shown_said": {
+    "text": "{name} shown in Images",
+    "args": [["name", "user"]],
+    "note": "Said by the screen reader (not shown) once a folder kept out of Images is shown there again. {name} is the folder's name. Images is the photo section (app.shell.section_images)."
+  },
+  "android.files.wait_download_link": {
+    "text": "Wait for the download link to be ready",
+    "note": "Short message (toast) at the top of Files when keeping a folder out of Images (or showing it there) is asked while a download link for the selection is still being made. No full stop in English."
+  },
+  "android.files.wait_folder": {
+    "text": "Wait for the folder to be updated",
+    "note": "Short message (toast) at the top of Files when keeping a folder out of Images (or showing it there) is asked while another folder's change is still under way. No full stop in English."
+  },
+  "android.files.wait_share_link": {
+    "text": "Wait for the share link to be ready",
+    "note": "Short message (toast) at the top of Files when keeping a folder out of Images (or showing it there) is asked while a share link for the selection is still being made. No full stop in English."
+  },
+  "android.friends_ask_theirs_unnamed": {
+    "text": "Ask this friend's device to delete what I shared",
+    "note": "app.social.friends.ask_theirs for a friend with neither a profile name nor an address: a switch (off at first) when removing them that also asks their device to delete your posts, comments and likes there.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #807e9179"
+  },
+  "android.friends_delete_theirs": {
+    "text": "Delete everything from {name} on this phone",
+    "args": [["name", "user"]],
+    "note": "Check box (off at first) when removing a friend: also deletes everything of theirs from your device (explained by app.social.friends.delete_theirs_text). {name} is the friend's profile name (or their device's address when they have none).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #0d0ac6a4"
+  },
+  "android.friends_delete_theirs_unnamed": {
+    "text": "Delete everything from this friend on this phone",
+    "note": "android.friends_delete_theirs for a friend with neither a profile name nor an address: a check box (off at first) when removing them that also deletes everything of theirs from your device.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ce493468"
+  },
+  "android.friends_keep": {
+    "text": "Keep",
+    "note": "Button of the Remove (a friend)? dialog that closes it and keeps the friend.",
+    "max": 20,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #8a3dd9b3"
+  },
+  "android.friends_keep_waiting": {
+    "text": "Keep waiting",
+    "note": "Button of the confirmation app.social.friends.remove_now_title that closes it and keeps waiting for the friend's device.",
+    "max": 20,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d431bd0f"
+  },
+  "android.friends_remove_friend": {
+    "text": "Remove friend",
+    "note": "Button (in red) of the Remove (a friend)? dialog: removes the friend, deleting what its two check boxes say.",
+    "max": 20,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ba1a80e1"
+  },
+  "android.friends_remove_now": {
+    "text": "Remove now",
+    "note": "Button (in red) of the confirmation app.social.friends.remove_now_title: stops waiting for the friend's device and ends the friendship at once.",
+    "max": 20,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #19e243df"
+  },
+  "android.friends_remove_now_title_unnamed": {
+    "text": "Remove this friend now?",
+    "note": "app.social.friends.remove_now_title for a friend with neither a profile name nor an address: the confirmation asked before ending the friendship without waiting for their device.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #366644d6"
+  },
+  "android.friends_remove_title_unnamed": {
+    "text": "Remove this friend?",
+    "note": "app.social.friends.remove_title for a friend with neither a profile name nor an address: the title of the dialog for removing them.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #bf12f245"
   },
   "android.menu_sections": {
     "text": "Sections",
@@ -47,6 +262,168 @@
   "android.notification_channel_description": {
     "text": "Friend requests, new posts, likes and comments",
     "note": "Description of that notification channel, shown under its name in Android's notification settings."
+  },
+  "android.photos_open_in_maps": {
+    "text": "Open in Maps ({latitude}, {longitude})",
+    "args": [["latitude", "text"], ["longitude", "text"]],
+    "note": "Button under the map in the panel with a photo's camera details: opens the place in the phone's maps app. {latitude} and {longitude} are the place's coordinates (40.41678, -3.70379)."
+  },
+  "android.photos_people_back": {
+    "text": "Back to photos",
+    "note": "Screen-reader name of the back arrow at the start of the People page's bar: back to Images."
+  },
+  "android.photos_people_deleting": {
+    "text": "{current} of {total}",
+    "args": [["current", "int"], ["total", "int"]],
+    "note": "On the Delete button of the confirmation (People page) while several people are being deleted, beside a spinner: which one is being deleted ({current}) of how many ({total})."
+  },
+  "android.photos_people_keep": {
+    "text": {
+      "one": "Keep {name}, {count} photo",
+      "other": "Keep {name}, {count} photos"
+    },
+    "args": [["name", "user"], ["count", "count"]],
+    "note": "Screen-reader name of a face to choose in the merge's box (People page): choosing it keeps that person. {name} is their name (or app.shell.search_unnamed), {count} how many photos show them."
+  },
+  "android.photos_people_merge_dimmed": {
+    "text": "Merge (select 2 or more to merge)",
+    "note": "Screen-reader name of the dimmed Merge item (app.photos.people.merge) of the bar shown while only one face is picked on the People page."
+  },
+  "android.photos_search_close": {
+    "text": "Close search",
+    "note": "Screen-reader name of the back arrow at the start of the search field that closes the search suggestions."
+  },
+  "android.photos_search_in_search": {
+    "text": "In the search",
+    "note": "Screen-reader name of the check mark beside a person in the search suggestions who is already a chip in the search."
+  },
+  "android.settings.bridge_leave_delete": {
+    "text": "Leave and Delete",
+    "note": "Button (in red) of the confirmation Delete your account?: the device leaves the bridge, then the account page opens to delete the account.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #89148db9"
+  },
+  "android.settings.crop_hint": {
+    "text": "Drag the photo to centre your face",
+    "note": "Above the square on the screen that crops the new profile photo to a circle."
+  },
+  "android.settings.crop_zoom": {
+    "text": "Zoom",
+    "note": "Label of the zoom slider on the screen that crops the new profile photo.",
+    "max": 15
+  },
+  "android.settings.links_delete_text": {
+    "text": "The shared copies are deleted and the link stops working.",
+    "note": "Message of the confirmation Delete this link? (app.settings.links.delete_title).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #4ce6fa86"
+  },
+  "android.settings.links_empty_text": {
+    "text": "Links made with Share or Share as Gallery in Images and Files show up here until they expire.",
+    "note": "Under No shared links on the Shared Links screen. Share and Share as Gallery are the names of buttons in Images and Files."
+  },
+  "android.settings.logs_empty": {
+    "text": "Nothing logged yet.",
+    "note": "Shown on the Logs screen when the chosen log is empty."
+  },
+  "android.settings.logs_footer": {
+    "text": "What the device and its updates write down as they run - live, to read, share or send to us when something goes wrong.",
+    "note": "Under the Logs row in Settings: what the logs are."
+  },
+  "android.settings.logs_load_failed": {
+    "text": "Could not load the log",
+    "note": "Error on the Logs screen when the log couldn't be read and the device gave no reason; the app tries again."
+  },
+  "android.settings.logs_send_failed": {
+    "text": "Could not send the logs",
+    "note": "Error after Send in the form that sends the logs, when they couldn't be sent and the device gave no reason."
+  },
+  "android.settings.logs_send_title": {
+    "text": "Send logs to us",
+    "note": "Title of the form that sends the device's logs to Off The Cloud for help.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #526e155d"
+  },
+  "android.settings.picker_empty": {
+    "text": "No photos here yet.",
+    "note": "Shown on the screen Choose a photo when the chosen collection (or the device) has no photo."
+  },
+  "android.settings.picker_load_failed": {
+    "text": "Could not load your photos.",
+    "note": "Error on the screen Choose a photo when a page of photos couldn't be loaded; it is asked again."
+  },
+  "android.settings.picker_open_failed": {
+    "text": "Could not open that photo.",
+    "note": "Error on the screen Choose a photo when the tapped photo couldn't be fetched or read."
+  },
+  "android.settings.profile_description": {
+    "text": "Description",
+    "note": "Placeholder of the text field under the name in Settings > Profile: a few words about the user that friends see.",
+    "max": 30
+  },
+  "android.settings.profile_from_phone": {
+    "text": "From this phone",
+    "note": "Item of the Change photo menu in Settings > Profile: pick the profile photo among this phone's photos.",
+    "max": 30
+  },
+  "android.settings.sharing_footer": {
+    "text": "Galleries and download links you shared, until they expire. Deleting one removes the shared copies and the link stops working.",
+    "note": "Under the Shared Links row in Settings > Sharing."
+  },
+  "android.settings.sync_cloud": {
+    "text": "Sync from cloud",
+    "note": "Switch in Settings > Sync Options: also upload photos kept only in the cloud (the phone downloads them first).",
+    "max": 30
+  },
+  "android.settings.sync_title": {
+    "text": "Sync",
+    "note": "Heading of the section of Settings holding the Sync Now, Sync All and Sync From Now buttons.",
+    "max": 30
+  },
+  "android.settings.thumbs_change_size": {
+    "text": "Change the size",
+    "note": "What a screen reader says tapping does, on the Maximum size row of Settings > Thumbnail cache.",
+    "max": 30
+  },
+  "android.settings.thumbs_max_size_a11y": {
+    "text": "Maximum size, {size}",
+    "args": [["size", "text"]],
+    "note": "Screen-reader name of the Maximum size row of Settings > Thumbnail cache. {size} is the chosen size, already formatted (1 GB)."
+  },
+  "android.settings.thumbs_selected": {
+    "text": "Selected",
+    "note": "Screen-reader name of the check mark next to the chosen size in the Maximum size menu of Settings > Thumbnail cache.",
+    "max": 20
+  },
+  "android.settings.thumbs_title": {
+    "text": "Thumbnail cache",
+    "note": "Heading of the section of Settings about the small pictures of the photos kept on this phone so Images opens fast. Shown in capitals.",
+    "max": 30
+  },
+  "android.settings.update_version_unknown": {
+    "text": "Version —",
+    "note": "Settings > Device version before the device said which version it runs.",
+    "max": 20
+  },
+  "android.settings.upload_pending": {
+    "text": {
+      "one": "{count} pending",
+      "other": "{count} pending"
+    },
+    "args": [["count", "count"]],
+    "note": "Settings > Uploads, under the progress bar: how many photos and videos are still to be uploaded.",
+    "max": 20
+  },
+  "android.settings.upload_waiting": {
+    "text": "Waiting",
+    "note": "Settings > Uploads: photos are waiting to be uploaded and none is being uploaded right now.",
+    "max": 30
+  },
+  "android.settings.uploading": {
+    "text": "Uploading {name}",
+    "args": [["name", "user"]],
+    "note": "Settings > Uploads: the photo or video being uploaded now. {name} is its file name."
   },
   "android.signal_good": {
     "text": "Good signal",
@@ -62,6 +439,38 @@
     "text": "Weak signal",
     "note": "Set up a new device (over Bluetooth): at the right of a device in the list of devices waiting to be set up: its Bluetooth signal is weak.",
     "max": 20
+  },
+  "android.social_delete_comment": {
+    "text": "Delete comment",
+    "note": "Screen-reader name of the bin beside a comment in the Social feed (on your own post, or on a comment you wrote): asks to delete it."
+  },
+  "android.social_like": {
+    "text": "Like",
+    "note": "Screen-reader name of the empty heart under a post in the Social feed: likes the post."
+  },
+  "android.social_like_comment": {
+    "text": "Like comment",
+    "note": "Screen-reader name of the empty heart beside a comment in the Social feed: likes the comment."
+  },
+  "android.social_mute": {
+    "text": "Mute",
+    "note": "Screen-reader name of the sound button at the corner of a video in the Social feed: turns the sound of the feed's videos off or on."
+  },
+  "android.social_play": {
+    "text": "Play",
+    "note": "Screen-reader name of the play symbol over a video in the Social feed: plays it."
+  },
+  "android.social_replay": {
+    "text": "Replay",
+    "note": "Screen-reader name of the button over a video in the Social feed once it has played to the end: plays it again from the start."
+  },
+  "android.social_unlike": {
+    "text": "Unlike",
+    "note": "Screen-reader name of the filled heart under a post you liked in the Social feed: takes your like back."
+  },
+  "android.social_unlike_comment": {
+    "text": "Unlike comment",
+    "note": "Screen-reader name of the filled heart beside a comment you liked in the Social feed: takes your like back."
   },
   "android.storage_gauge": {
     "text": "Storage. Show details",
@@ -102,37 +511,15 @@
     "args": [["percent", "text"]],
     "note": "Screen-reader name of the bar at the foot of the left menu (on a wide screen) that shows how full the device's storage is. {percent} is a number already formatted (45 or 45.68). Write the percent sign as your language does."
   },
-  "android.time_days_ago": {
-    "text": {
-      "one": "{count}d ago",
-      "other": "{count}d ago"
-    },
-    "args": [["count", "count"]],
-    "note": "How long ago something happened, in days, in the Social feed, the alerts and Settings > Shared Links. Keep it as short as the English (d for days).",
-    "max": 16
+  "android.trim_cant": {
+    "text": "Can't trim this video: {reason}",
+    "args": [["reason", "text"]],
+    "note": "In the Trim video screen of the New Post composer when the video can't be opened. {reason} says why (app.social.trim.cant_open or app.social.trim.no_length)."
   },
-  "android.time_hours_ago": {
-    "text": {
-      "one": "{count}h ago",
-      "other": "{count}h ago"
-    },
-    "args": [["count", "count"]],
-    "note": "How long ago something happened, in hours, in the Social feed, the alerts and Settings > Shared Links. Keep it as short as the English (h for hours).",
-    "max": 16
-  },
-  "android.time_just_now": {
-    "text": "just now",
-    "note": "When something happened less than a minute ago, in the Social feed, the alerts and Settings > Shared Links (after last there, hence the lowercase start).",
-    "max": 16
-  },
-  "android.time_minutes_ago": {
-    "text": {
-      "one": "{count}m ago",
-      "other": "{count}m ago"
-    },
-    "args": [["count", "count"]],
-    "note": "How long ago something happened, in minutes, in the Social feed, the alerts and Settings > Shared Links. Keep it as short as the English (m for minutes).",
-    "max": 16
+  "android.trim_play_cut": {
+    "text": "▶ Play cut",
+    "note": "Button in the Trim video screen of the New Post composer: plays only the part of the video that will be kept. Keep the play symbol.",
+    "max": 20
   },
   "android.ws_connect_timeout": {
     "text": "The device didn't answer the connection in time",

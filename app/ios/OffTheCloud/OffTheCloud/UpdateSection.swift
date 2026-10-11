@@ -26,16 +26,20 @@ final class UpdateViewModel: ObservableObject {
     @Published var latestLabel = ""
     @Published var pending: [Msg_UpdateRelease] = []
     @Published var state = ""
+    /// The device's own words about the update in progress.
     @Published var message = ""
+    /// The update was just started from here and the device hasn't said
+    /// anything since: "Starting" stands in for its message.
+    @Published var startedHere = false
     @Published var checkError = ""
     @Published var lastUpdated = ""
     @Published var checking = false
     @Published var starting = false
-    @Published var error: String?
+    @Published var error: SettingsText?
     // Settings > Restart device: "" (nothing asked), "asking", "restarting",
     // "back" or "slow".
     @Published var restartPhase = ""
-    @Published var restartError: String?
+    @Published var restartError: SettingsText?
 
     private let ws = OTCConnection.shared
     private var pollTask: Task<Void, Never>?
@@ -49,11 +53,24 @@ final class UpdateViewModel: ObservableObject {
     /// Issue #183: "1.1 (build 42)", or "build 42" without a label.
     var installedText: String {
         guard currentVersion > 0 else { return "—" }
-        return currentLabel.isEmpty ? "build \(currentVersion)" : "\(currentLabel) (build \(currentVersion))"
+        return currentLabel.isEmpty
+            ? S.appSettingsUpdateBuild(build: "\(currentVersion)")
+            : S.appSettingsUpdateLabelBuild(label: currentLabel, build: "\(currentVersion)")
     }
 
     /// The newest release's name, and its kind when it is pending.
-    var latestText: String { latestLabel.isEmpty ? "build \(latestVersion)" : latestLabel }
+    var latestText: String { latestLabel.isEmpty ? S.appSettingsUpdateBuild(build: "\(latestVersion)") : latestLabel }
+
+    /// The update button: "Update to 1.2", or "Update to build 46".
+    var updateToText: String {
+        latestLabel.isEmpty
+            ? S.appSettingsUpdateUpdateToBuild(build: "\(latestVersion)")
+            : S.appSettingsUpdateUpdateTo(version: latestLabel)
+    }
+
+    /// What the update in progress is doing: the device's words, or
+    /// "Starting" right after it was started from here.
+    var statusMessage: String { startedHere ? S.appSettingsUpdateStartingStatus : message }
     var latestKind: String { pending.first { $0.version == latestVersion }?.kind ?? "" }
 
     func load() async {
@@ -79,7 +96,7 @@ final class UpdateViewModel: ObservableObject {
                 e.payload = .reqCheckUpdate(Msg_ReqCheckUpdate())
             }
             guard case .respUpdateInfo(let info) = resp.payload else {
-                if resp.error { error = resp.errorMessage }
+                if resp.error { error = .asIs(resp.errorMessage) }
                 return
             }
             currentVersion = info.currentVersion
@@ -89,6 +106,7 @@ final class UpdateViewModel: ObservableObject {
             pending = info.pending
             state = info.state
             message = info.message
+            startedHere = false
             checkError = info.checkError
             lastUpdated = info.lastUpdated
             error = nil
@@ -110,13 +128,14 @@ final class UpdateViewModel: ObservableObject {
             }
             if case .respAck(let ack) = resp.payload, ack.ok {
                 state = "running"
-                message = "Starting"
+                message = ""
+                startedHere = true
                 startPollingIfRunning()
             } else {
-                error = resp.error ? resp.errorMessage : "Could not start the update."
+                error = resp.error ? .asIs(resp.errorMessage) : .say { S.appSettingsUpdateStartFailed }
             }
         } catch {
-            self.error = error.localizedDescription
+            self.error = .error(error)
         }
     }
 
@@ -133,17 +152,17 @@ final class UpdateViewModel: ObservableObject {
             }
             guard case .respRestartingDevice = resp.payload else {
                 if resp.error && resp.errorCode == "unknown_payload" {
-                    restartError = "Your device needs an update before it can be restarted from here."
+                    restartError = .say { S.appSettingsUpdateRestartOld }
                 } else if resp.error && !resp.errorMessage.isEmpty {
-                    restartError = resp.errorMessage
+                    restartError = .asIs(resp.errorMessage)
                 } else {
-                    restartError = "Could not restart the device."
+                    restartError = .say { S.appSettingsUpdateRestartFailed }
                 }
                 restartPhase = ""
                 return
             }
         } catch {
-            restartError = error.localizedDescription
+            restartError = .error(error)
             restartPhase = ""
             return
         }
@@ -210,23 +229,23 @@ struct UpdateSection: View {
 
     var body: some View {
         if vm.isPrimary {
-            Section(header: Text("Device version")) {
+            Section(header: Text(S.appSettingsUpdateTitle)) {
                 HStack {
                     Text(vm.installedText)
                         .monospacedDigit()
                     if vm.hasUpdate {
-                        Text("→ \(vm.latestText)").monospacedDigit().bold()
+                        Text(verbatim: "→ \(vm.latestText)").monospacedDigit().bold()
                         ReleaseKindBadge(kind: vm.latestKind)
                     }
                     Spacer()
                     if !vm.hasUpdate && !vm.running && vm.checkError.isEmpty {
-                        Text("Up to date").foregroundStyle(.secondary).font(.caption)
+                        Text(S.appSettingsUpdateUpToDate).foregroundStyle(.secondary).font(.caption)
                     }
                 }
 
                 ForEach(Array(vm.pending.enumerated()), id: \.offset) { _, release in
                     HStack(alignment: .top, spacing: 6) {
-                        Text(release.label.isEmpty ? "build \(release.version)" : release.label)
+                        Text(release.label.isEmpty ? S.appSettingsUpdateBuild(build: "\(release.version)") : release.label)
                             .monospacedDigit().bold()
                         ReleaseKindBadge(kind: release.kind)
                         Text(release.summary).foregroundStyle(.secondary)
@@ -237,7 +256,7 @@ struct UpdateSection: View {
                 if vm.running {
                     HStack(spacing: 8) {
                         ProgressView()
-                        Text(vm.message.isEmpty ? "Updating…" : vm.message)
+                        Text(vm.statusMessage.isEmpty ? S.commonUpdating : vm.statusMessage)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -248,40 +267,40 @@ struct UpdateSection: View {
                     // ago would otherwise read as something that just
                     // happened.
                     Text(vm.lastUpdated.isEmpty
-                         ? "Update failed: \(vm.message)"
-                         : "Update failed on \(vm.lastUpdated): \(vm.message)")
+                         ? S.appSettingsUpdateFailed(message: vm.statusMessage)
+                         : S.appSettingsUpdateFailedOn(date: vm.lastUpdated, message: vm.statusMessage))
                         .font(.caption).foregroundStyle(.red)
                 }
 
                 if !vm.checkError.isEmpty {
-                    Text("Couldn't reach the update server just now, so this may be out of date.")
+                    Text(S.appSettingsUpdateCheckError)
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
-                Button(vm.checking ? "Checking…" : "Check again") {
+                Button(vm.checking ? S.appSettingsUpdateChecking : S.appSettingsUpdateCheckAgain) {
                     Task { await vm.check() }
                 }
                 .disabled(vm.checking || vm.running)
 
                 if vm.hasUpdate {
-                    Button(vm.starting ? "Starting…" : "Update to \(vm.latestText)") {
+                    Button(vm.starting ? S.appSettingsUpdateStarting : vm.updateToText) {
                         Task { await vm.apply() }
                     }
                     .disabled(vm.starting || vm.running)
                 }
 
                 if vm.hasUpdate || vm.running {
-                    Text("The device rebuilds itself and restarts, which takes a few minutes and drops this connection on the way. Your photos and settings are left alone.")
+                    Text(S.appSettingsUpdateRestartNote)
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
                 if let error = vm.error {
-                    Text(error).font(.caption).foregroundStyle(.red)
+                    Text(error.text).font(.caption).foregroundStyle(.red)
                 }
 
                 // Settings > Restart device: the whole machine, owner of
                 // the primary only.
-                Button(vm.restarting ? "Restarting…" : "Restart Device", role: .destructive) {
+                Button(vm.restarting ? S.appSettingsUpdateRestarting : S.appSettingsUpdateRestart, role: .destructive) {
                     confirmRestart = true
                 }
                 .disabled(vm.restarting || vm.running)
@@ -290,30 +309,30 @@ struct UpdateSection: View {
                 case "restarting":
                     HStack(spacing: 8) {
                         ProgressView()
-                        Text("Restarting… the device will be back in about a minute.")
+                        Text(S.appSettingsUpdateRestartingNote)
                             .foregroundStyle(.secondary)
                     }
                 case "back":
-                    Text("The device is back.").font(.caption).foregroundStyle(.secondary)
+                    Text(S.appSettingsUpdateBack).font(.caption).foregroundStyle(.secondary)
                 case "slow":
-                    Text("The device hasn't come back yet. It can take a little longer; if it doesn't come back, unplug it and plug it back in.")
+                    Text(S.appSettingsUpdateSlow)
                         .font(.caption).foregroundStyle(.orange)
                 default:
                     EmptyView()
                 }
 
                 if let error = vm.restartError {
-                    Text(error).font(.caption).foregroundStyle(.red)
+                    Text(error.text).font(.caption).foregroundStyle(.red)
                 }
             }
             .task { await vm.load() }
-            .alert("Restart the device?", isPresented: $confirmRestart) {
-                Button("Cancel", role: .cancel) {}
-                Button("Restart", role: .destructive) {
+            .alert(S.appSettingsUpdateRestartTitle, isPresented: $confirmRestart) {
+                Button(S.commonCancel, role: .cancel) {}
+                Button(S.appSettingsUpdateRestartConfirm, role: .destructive) {
                     Task { await vm.restart() }
                 }
             } message: {
-                Text("It will be unreachable for about a minute.")
+                Text(S.appSettingsUpdateRestartMessage)
             }
         } else {
             // Nothing to show, but the role still has to be asked for.
@@ -340,8 +359,8 @@ private struct ReleaseKindBadge: View {
 
     private var style: (String, Color)? {
         switch kind {
-        case "major": return ("Major", .orange)
-        case "critical": return ("Critical", .red)
+        case "major": return (S.appSettingsUpdateMajor, .orange)
+        case "critical": return (S.appSettingsUpdateCritical, .red)
         default: return nil
         }
     }

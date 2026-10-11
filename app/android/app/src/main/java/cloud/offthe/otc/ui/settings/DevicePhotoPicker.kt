@@ -71,6 +71,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.androidSettingsPickerEmpty
+import cloud.offthe.otc.i18n.androidSettingsPickerLoadFailed
+import cloud.offthe.otc.i18n.androidSettingsPickerOpenFailed
+import cloud.offthe.otc.i18n.appSettingsPickerAll
+import cloud.offthe.otc.i18n.appSettingsPickerTitle
+import cloud.offthe.otc.i18n.commonCancel
 
 /*
  * Issue #178: the profile photo can also come from the photos already on
@@ -96,12 +104,12 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
     // Bumped by a chip change so a page for the old group lands nowhere.
     var generation by remember { mutableIntStateOf(0) }
     var fetching by remember { mutableStateOf<String?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<UiText?>(null) }
     // Pages that failed in a row, so the grid's filling asks again after a
     // pause, twice at most, rather than in a tight loop.
     var failures by remember { mutableIntStateOf(0) }
     // A page that then comes through takes this away (not a failed pick's).
-    val pageError = "Could not load your photos."
+    val pageError = S.androidSettingsPickerLoadFailed()
     // Tiles whose bytes failed to decode in this grid: a second time, none.
     val undecodable = remember { HashSet<String>() }
     // The tiles' missing thumbnails (pages come without them, release 113),
@@ -195,7 +203,7 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
                 } else null
             } catch (e: Exception) { null }
             fetching = null
-            if (bmp != null) onPicked(bmp) else error = "Could not open that photo."
+            if (bmp != null) onPicked(bmp) else error = S.androidSettingsPickerOpenFailed()
         }
     }
 
@@ -225,16 +233,16 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
     Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).systemBarsPadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Choose a photo", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 8.dp))
-                TextButton(onClick = onCancel) { Text("Cancel") }
+                Text(S.appSettingsPickerTitle().resolve(), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 8.dp))
+                TextButton(onClick = onCancel) { Text(S.commonCancel().resolve()) }
             }
             LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                item { FilterChip(selected = groupId == "", onClick = { selectGroup("") }, label = { Text("All photos") }) }
+                item { FilterChip(selected = groupId == "", onClick = { selectGroup("") }, label = { Text(S.appSettingsPickerAll().resolve()) }) }
                 items(groups, key = { it.id }) { g ->
                     FilterChip(selected = groupId == g.id, onClick = { selectGroup(g.id) }, label = { Text(g.name, maxLines = 1, overflow = TextOverflow.Ellipsis) })
                 }
             }
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
+            error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                 // The tiles' side, as the grid lays them out: what thumbnails decode to.
                 val tilePx = if (constraints.hasBoundedWidth) gridCellPx(constraints.maxWidth, LocalDensity.current, 8.dp, 2.dp, minSize = 110.dp)
@@ -264,7 +272,7 @@ fun DevicePhotoPicker(onCancel: () -> Unit, onPicked: (Bitmap) -> Unit) {
                         }
                     } else if (items.isEmpty() && token == null) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
-                            Text("No photos here yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp))
+                            Text(S.androidSettingsPickerEmpty().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp))
                         }
                     }
                 }

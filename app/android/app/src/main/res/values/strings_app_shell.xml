@@ -146,6 +146,19 @@
     <string name="app_shell_storage_used">%1$s of %2$s used</string>
     <string name="app_shell_terms">Terms</string>
     <string name="app_shell_thumb_cache_usage">Using %1$s of %2$s</string>
+    <plurals name="app_shell_time_days_ago">
+        <item quantity="one">%1$sd ago</item>
+        <item quantity="other">%1$sd ago</item>
+    </plurals>
+    <plurals name="app_shell_time_hours_ago">
+        <item quantity="one">%1$sh ago</item>
+        <item quantity="other">%1$sh ago</item>
+    </plurals>
+    <string name="app_shell_time_just_now">just now</string>
+    <plurals name="app_shell_time_minutes_ago">
+        <item quantity="one">%1$sm ago</item>
+        <item quantity="other">%1$sm ago</item>
+    </plurals>
     <plurals name="app_shell_upload_left">
         <item quantity="one">%1$s left</item>
         <item quantity="other">%1$s left</item>

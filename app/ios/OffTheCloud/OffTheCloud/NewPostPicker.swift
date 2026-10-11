@@ -119,9 +119,88 @@ final class NewPostPickerVM: ObservableObject {
     }
     @Published var caption: String = ""
     @Published var publishing = false
-    @Published var publishStatus: String = ""
+    @Published var publishStatus: PublishStatus?
     @Published var showAlert = false
-    @Published var alertMessage = ""
+    @Published var alert: ComposerAlert?
+
+    /// The line above the composer bar while publishing (issue #49).
+    enum PublishStatus: Equatable {
+        /// Uploading the phone pick `done` of `total`.
+        case uploading(done: Int, total: Int)
+        case publishing
+
+        var text: String {
+            switch self {
+            case .uploading(let done, let total): return S.appSocialComposeUploading(done: done, total: total)
+            case .publishing: return S.appSocialComposePublishing
+            }
+        }
+    }
+
+    /// What the alert says, kept as what happened and worded when it shows.
+    /// An error's own description is read then too: the composer's own
+    /// (ComposeError) follow the app's language, the system's speak the
+    /// phone's.
+    enum ComposerAlert {
+        case photosAccess
+        case captureSaveFailed(any Error)
+        case captureUnreadable
+        case trimLoadFailed(any Error)
+        /// The device refused the post, with its own words (maybe none).
+        case publishRefused(String)
+        /// The device answered something else.
+        case publishFailed
+        case publishError(any Error)
+
+        var text: String {
+            switch self {
+            case .photosAccess: return S.appSocialComposePhotosAccess
+            case .captureSaveFailed(let e): return S.iosComposeCaptureSaveFailed(detail: e.localizedDescription)
+            case .captureUnreadable: return S.iosComposeCaptureUnreadable
+            case .trimLoadFailed(let e): return S.appSocialComposeTrimLoadFailed(detail: e.localizedDescription)
+            case .publishRefused(let words): return S.appSocialComposePublishFailedDetail(detail: words)
+            case .publishFailed: return S.appSocialComposePublishFailed
+            case .publishError(let e): return S.appSocialComposePublishFailedDetail(detail: e.localizedDescription)
+            }
+        }
+    }
+
+    /// The composer's own errors, worded when read (a computed
+    /// errorDescription), under the domain and codes of the NSErrors they
+    /// replaced.
+    enum ComposeError: LocalizedError, CustomNSError {
+        /// Photos couldn't hand over a picked video.
+        case videoUnavailable
+        /// A synced video came down empty.
+        case emptyResponse
+        /// A picked photo's file couldn't be read.
+        case unreadablePhoto
+        /// The device refused to link a picked photo, in its own words.
+        case refused(String)
+        /// The device refused an upload, in its own words (maybe none).
+        case uploadFailed(String)
+
+        static var errorDomain: String { "NewPostPicker" }
+
+        var errorCode: Int {
+            switch self {
+            case .unreadablePhoto: return -1
+            case .refused: return -2
+            case .videoUnavailable, .uploadFailed: return -3
+            case .emptyResponse: return -4
+            }
+        }
+
+        var errorDescription: String? {
+            switch self {
+            case .videoUnavailable: return S.iosComposeVideoUnavailable
+            case .emptyResponse: return S.appSocialComposeEmptyResponse
+            case .unreadablePhoto: return S.iosComposePhotoUnreadable
+            case .refused(let words): return words
+            case .uploadFailed(let words): return words.isEmpty ? S.iosComposeUploadFailed : words
+            }
+        }
+    }
 
     init() {
         thumbs = GridThumbLoader(maxPt: PickTile.side, request: GridThumbLoader.deviceRequest)
@@ -303,7 +382,7 @@ final class NewPostPickerVM: ObservableObject {
                 let granted = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
                 print("[phonepick] requested authorization, got = \(granted.rawValue)")
                 guard granted == .authorized || granted == .limited else {
-                    alertMessage = "Photos access is needed to pick from your phone."
+                    alert = .photosAccess
                     showAlert = true
                     endReached = true
                     return
@@ -365,12 +444,12 @@ final class NewPostPickerVM: ObservableObject {
                 localId = request?.placeholderForCreatedAsset?.localIdentifier
             }
         } catch {
-            alertMessage = "Couldn't save the capture to Photos: \(error.localizedDescription)"
+            alert = .captureSaveFailed(error)
             showAlert = true
             return
         }
         guard let localId, let asset = PHAsset.fetchAssets(withLocalIdentifiers: [localId], options: nil).firstObject else {
-            alertMessage = "The capture was saved to Photos but couldn't be read back."
+            alert = .captureUnreadable
             showAlert = true
             return
         }
@@ -434,7 +513,7 @@ final class NewPostPickerVM: ObservableObject {
                 trimPreviewURLs[item.id] = url
                 trimming = (item.id, url)
             } catch {
-                alertMessage = "Could not load that video to trim it: \(error.localizedDescription)"
+                alert = .trimLoadFailed(error)
                 showAlert = true
             }
         }
@@ -459,7 +538,7 @@ final class NewPostPickerVM: ObservableObject {
                     cont.resume(returning: urlAsset.url)
                 } else {
                     let err = info?[PHImageErrorKey] as? Error
-                        ?? NSError(domain: "NewPostPicker", code: -3, userInfo: [NSLocalizedDescriptionKey: "This video is not available on the phone"])
+                        ?? ComposeError.videoUnavailable
                     cont.resume(throwing: err)
                 }
             }
@@ -478,7 +557,7 @@ final class NewPostPickerVM: ObservableObject {
         let size = try await FileDownload.download(path: path, to: url).size
         guard size > 0 else {
             try? FileManager.default.removeItem(at: url)
-            throw NSError(domain: "NewPostPicker", code: -4, userInfo: [NSLocalizedDescriptionKey: "Empty response"])
+            throw ComposeError.emptyResponse
         }
         return url
     }
@@ -492,7 +571,7 @@ final class NewPostPickerVM: ObservableObject {
         guard !selectedOrder.isEmpty, !caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !publishing else { return }
         publishing = true
         Task {
-            defer { publishing = false; publishStatus = "" }
+            defer { publishing = false; publishStatus = nil }
             do {
                 // Issue #48: publish in selectedOrder's order, not
                 // items' own display order.
@@ -503,13 +582,13 @@ final class NewPostPickerVM: ObservableObject {
                 for item in selectedItems {
                     if let asset = item.asset {
                         uploadedCount += 1
-                        publishStatus = "Uploading \(uploadedCount) of \(selectedItems.filter { $0.asset != nil }.count)…"
+                        publishStatus = .uploading(done: uploadedCount, total: selectedItems.filter { $0.asset != nil }.count)
                         resolvedPaths.append(try await Self.uploadIfNeeded(asset))
                     } else {
                         resolvedPaths.append(item.path)
                     }
                 }
-                publishStatus = "Publishing…"
+                publishStatus = .publishing
 
                 // Issue #108: the trims are keyed by Item.id; the device
                 // only knows paths. resolvedPaths is index-aligned with
@@ -538,11 +617,11 @@ final class NewPostPickerVM: ObservableObject {
                 if case .respNewSocial = resp.payload, !resp.error {
                     onPosted()
                 } else {
-                    alertMessage = resp.error ? "Could not publish: \(resp.errorMessage)" : "Could not publish"
+                    alert = resp.error ? .publishRefused(resp.errorMessage) : .publishFailed
                     showAlert = true
                 }
             } catch {
-                alertMessage = "Could not publish: \(error.localizedDescription)"
+                alert = .publishError(error)
                 showAlert = true
             }
         }
@@ -563,7 +642,7 @@ final class NewPostPickerVM: ObservableObject {
             SecretsStore.loadOrCreate().deviceId
         }.value
         guard let rawName = PhotoSync.shared.resourceFilename(for: asset) else {
-            throw NSError(domain: "NewPostPicker", code: -1, userInfo: [NSLocalizedDescriptionKey: "Could not read this photo"])
+            throw ComposeError.unreadablePhoto
         }
         let cleanName = rawName.replacingOccurrences(of: "/", with: "_")
         let path = "/ios/\(deviceId)/\(cleanName)"
@@ -604,7 +683,7 @@ final class NewPostPickerVM: ObservableObject {
                     resp = try await link(cachedHash, at: target)
                 }
                 if case .respFile = resp.payload { return target }
-                if resp.error { throw NSError(domain: "NewPostPicker", code: -2, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage]) }
+                if resp.error { throw ComposeError.refused(resp.errorMessage) }
             }
         }
 
@@ -660,7 +739,7 @@ final class NewPostPickerVM: ObservableObject {
             AssetSyncCache.shared.record(localIdentifier: asset.localIdentifier, hash: hash)
             return target
         }
-        throw NSError(domain: "NewPostPicker", code: -3, userInfo: [NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "Upload failed" : resp.errorMessage])
+        throw ComposeError.uploadFailed(resp.errorMessage)
     }
 }
 
@@ -681,12 +760,12 @@ struct NewPostPickerView: View {
                 // comment), including anything PhotoSync hasn't gotten to
                 // yet; Synced is the original tag-searchable behavior,
                 // scoped to what's already on the device.
-                Picker("Source", selection: Binding(
+                Picker(S.iosComposeSource, selection: Binding(
                     get: { vm.source },
                     set: { vm.switchSource($0) }
                 )) {
-                    Text("Phone").tag(NewPostPickerVM.Source.phone)
-                    Text("Synced").tag(NewPostPickerVM.Source.synced)
+                    Text(S.appSocialComposeSourcePhone).tag(NewPostPickerVM.Source.phone)
+                    Text(S.appSocialComposeSourceSynced).tag(NewPostPickerVM.Source.synced)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal, 12)
@@ -713,11 +792,11 @@ struct NewPostPickerView: View {
                         }
                     }
                     HStack(spacing: 8) {
-                        TextField("Filter by tag…", text: $vm.queryInput, onEditingChanged: { showSuggest = $0 }) {
+                        TextField(S.appSocialComposeFilterPlaceholder, text: $vm.queryInput, onEditingChanged: { showSuggest = $0 }) {
                             acceptCurrentQuery()
                         }
                         .textFieldStyle(.roundedBorder)
-                        Button("Search") { acceptCurrentQuery() }
+                        Button(S.commonSearch) { acceptCurrentQuery() }
                     }
                     .padding(.horizontal, 12)
 
@@ -780,8 +859,8 @@ struct NewPostPickerView: View {
                 // first (see NewPostPickerVM.uploadIfNeeded) - can take a
                 // moment for a large photo, so this says so instead of
                 // just sitting on a static "Publishing…" the whole time.
-                if vm.publishing, !vm.publishStatus.isEmpty {
-                    Text(vm.publishStatus)
+                if vm.publishing, let status = vm.publishStatus {
+                    Text(status.text)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .padding(.top, 4)
@@ -793,12 +872,14 @@ struct NewPostPickerView: View {
                         Button { showCamera = true } label: {
                             Image(systemName: "camera").font(.title3)
                         }
-                        .accessibilityLabel("Take a photo or video")
+                        .accessibilityLabel(S.appSocialComposeCamera)
                         .disabled(vm.publishing)
                     }
-                    TextField("Write a caption…", text: $vm.caption)
+                    TextField(S.appSocialComposeCaptionPlaceholder, text: $vm.caption)
                         .textFieldStyle(.roundedBorder)
-                    Button(vm.publishing ? "Publishing…" : "Publish\(vm.selectedOrder.isEmpty ? "" : " (\(vm.selectedOrder.count))")") {
+                    Button(vm.publishing ? S.appSocialComposePublishing
+                           : vm.selectedOrder.isEmpty ? S.appSocialComposePublish
+                           : S.appSocialComposePublishCount(number: vm.selectedOrder.count)) {
                         vm.publish {
                             dismiss()
                             onPosted()
@@ -811,11 +892,11 @@ struct NewPostPickerView: View {
                 .background(.ultraThinMaterial)
                 .overlay(Divider(), alignment: .top)
             }
-            .navigationTitle("New Post")
+            .navigationTitle(S.appSocialComposeTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(S.commonCancel) { dismiss() }
                 }
             }
         }
@@ -828,7 +909,7 @@ struct NewPostPickerView: View {
             .ignoresSafeArea()
         }
         .onDisappear { vm.cleanUpTrimPreviews() }
-        .alert(vm.alertMessage, isPresented: $vm.showAlert) { Button("OK", role: .cancel) {} }
+        .alert(vm.alert?.text ?? "", isPresented: $vm.showAlert) { Button(S.commonOk, role: .cancel) {} }
         // Issue #108. Bound to an optional identified by the item's own id,
         // so reopening the trimmer on a different clip rebuilds the sheet
         // rather than reusing the previous video's player.
@@ -1062,7 +1143,7 @@ private struct SelectedOrderStrip: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Order in post").font(.caption).foregroundStyle(.secondary).padding(.horizontal, 12)
+            Text(S.appSocialComposeOrder).font(.caption).foregroundStyle(.secondary).padding(.horizontal, 12)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(Array(vm.selectedOrder.enumerated()), id: \.element) { index, id in
@@ -1162,7 +1243,7 @@ private struct SelectedThumb: View {
                                 if trimLoading {
                                     ProgressView().controlSize(.mini).tint(.white)
                                 } else {
-                                    Text(trimRange.map { "\u{2702} \(formatTimecode($0.length))" } ?? "\u{2702} Trim")
+                                    Text(trimRange.map { "\u{2702} \(formatTimecode($0.length))" } ?? S.appSocialComposeTrimBadge)
                                         .font(.system(size: 11, weight: .semibold))
                                         .foregroundStyle(trimRange == nil ? .white : Color.black)
                                 }

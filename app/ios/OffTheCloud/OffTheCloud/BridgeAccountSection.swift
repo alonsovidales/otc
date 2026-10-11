@@ -36,8 +36,8 @@ final class BridgeAccountViewModel: ObservableObject {
     /// The device's address at home, e.g. "192.168.1.20:8080".
     @Published var localAddress = ""
     @Published var busy = false
-    @Published var note: String?
-    @Published var error: String?
+    @Published var note: SettingsText?
+    @Published var error: SettingsText?
 
     private let ws = OTCConnection.shared
 
@@ -60,7 +60,7 @@ final class BridgeAccountViewModel: ObservableObject {
         pending = a.pending
         leftReason = a.leftReason
         if !a.localAddress.isEmpty { localAddress = a.localAddress }
-        if !a.error.isEmpty { error = a.error }
+        if !a.error.isEmpty { error = .asIs(a.error) }
     }
 
     /// Takes the device off the bridge and points the app at its local
@@ -73,17 +73,18 @@ final class BridgeAccountViewModel: ObservableObject {
         do {
             let resp = try await ws.request { $0.payload = .reqDisableBridge(Msg_ReqDisableBridge()) }
             guard case .respBridgeAccess(let a) = resp.payload else {
-                error = resp.errorMessage.isEmpty ? "Could not leave the bridge." : resp.errorMessage
+                error = .asIs(resp.errorMessage, or: { S.appSettingsBridgeLeaveFailed })
                 return false
             }
             apply(a)
             secrets.endpoint = localEndpoint(localAddress)
             secrets.persist()
             OTCConnection.shared.invalidate()
-            note = "The device is restarting off the bridge. From now on the app reaches it on your home network, at \(localAddress.isEmpty ? "otc.local" : localAddress)."
+            let address = localAddress.isEmpty ? "otc.local" : localAddress
+            note = .say { S.appSettingsBridgeLeft(address: address) }
             return true
         } catch {
-            self.error = error.localizedDescription
+            self.error = .error(error)
             return false
         }
     }
@@ -100,45 +101,45 @@ struct BridgeAccountSection: View {
         Group {
             if vm.visible {
                 Section(
-                    header: Text("Bridge and Account"),
+                    header: Text(S.appSettingsBridgeTitle),
                     footer: Text(footer)
                 ) {
                     if vm.enabled {
-                        Text("Reachable from anywhere at \(vm.domain)")
+                        Text(S.appSettingsBridgeReachable(domain: vm.domain))
                             .font(.caption).foregroundStyle(.secondary)
                         if !vm.localAddress.isEmpty {
-                            Text("At home: \(vm.localAddress)").font(.caption).foregroundStyle(.secondary)
+                            Text(S.appSettingsBridgeAtHome(address: vm.localAddress)).font(.caption).foregroundStyle(.secondary)
                         }
-                        Button("Leave the Bridge", role: .destructive) { confirmLeave = true }
+                        Button(S.appSettingsBridgeLeave, role: .destructive) { confirmLeave = true }
                             .disabled(vm.busy)
-                        Button("Delete My Account…", role: .destructive) { confirmDelete = true }
+                        Button(S.appSettingsBridgeDeleteAccount, role: .destructive) { confirmDelete = true }
                             .disabled(vm.busy)
                     } else {
                         if vm.leftReason == "released" {
-                            Text("This device left the bridge: \(vm.bridge) no longer knew its name (its account was deleted, or the name released). Everything on it is still there.")
+                            Text(S.appSettingsBridgeReleased(bridge: vm.bridge))
                                 .font(.caption).foregroundStyle(.orange)
                         }
-                        Text("Only reachable on your home network. Join the bridge from Settings in the device's web app.")
+                        Text(S.appSettingsBridgeLocalOnly)
                             .font(.caption).foregroundStyle(.secondary)
-                        Button("Your Account Page") { open("account") }
+                        Button(S.appSettingsBridgeAccountPage) { open("account") }
                     }
-                    Button("Privacy") { open("privacy") }
-                    if let n = vm.note { Text(n).font(.caption).foregroundStyle(.secondary) }
-                    if let e = vm.error { Text(e).font(.caption).foregroundStyle(.red) }
+                    Button(S.appShellPrivacy) { open("privacy") }
+                    if let n = vm.note { Text(n.text).font(.caption).foregroundStyle(.secondary) }
+                    if let e = vm.error { Text(e.text).font(.caption).foregroundStyle(.red) }
                 }
-                .confirmationDialog("Leave the bridge?", isPresented: $confirmLeave, titleVisibility: .visible) {
-                    Button("Leave the Bridge", role: .destructive) { Task { _ = await vm.leave(secrets: secrets) } }
+                .confirmationDialog(S.appSettingsBridgeLeaveTitle, isPresented: $confirmLeave, titleVisibility: .visible) {
+                    Button(S.appSettingsBridgeLeaveConfirm, role: .destructive) { Task { _ = await vm.leave(secrets: secrets) } }
                 } message: {
-                    Text("\(vm.domain) is given back and the device restarts. It keeps everything and works at home, but is no longer reachable from outside or by your friends. You can join again later.")
+                    Text(S.appSettingsBridgeLeaveMessage(domain: vm.domain))
                 }
-                .confirmationDialog("Delete your account?", isPresented: $confirmDelete, titleVisibility: .visible) {
-                    Button("Leave and Delete the Account", role: .destructive) {
+                .confirmationDialog(S.appSettingsBridgeDeleteTitle, isPresented: $confirmDelete, titleVisibility: .visible) {
+                    Button(S.iosSettingsBridgeLeaveDelete, role: .destructive) {
                         Task {
                             if await vm.leave(secrets: secrets) { open("account?delete=1") }
                         }
                     }
                 } message: {
-                    Text("This device leaves the bridge first and goes on working at home. Then your account page opens: sign in there and delete the account, which releases any other devices' names too.")
+                    Text(S.appSettingsBridgeDeleteMessage)
                 }
             } else {
                 // Something to hang the load on while hidden: a .task on an
@@ -151,7 +152,7 @@ struct BridgeAccountSection: View {
 
     private var footer: String {
         vm.enabled
-            ? "Leaving gives the name back; the device keeps working at home, at http://\(vm.localAddress.isEmpty ? "otc.local:8080" : vm.localAddress)."
+            ? S.appSettingsBridgeFooter(address: vm.localAddress.isEmpty ? "otc.local:8080" : vm.localAddress)
             : ""
     }
 

@@ -84,10 +84,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import cloud.offthe.otc.R
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -100,6 +98,34 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import cloud.offthe.otc.data.NotificationsModel
+import cloud.offthe.otc.i18n.RichTag
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.androidSocialDeleteComment
+import cloud.offthe.otc.i18n.androidSocialLike
+import cloud.offthe.otc.i18n.androidSocialLikeComment
+import cloud.offthe.otc.i18n.androidSocialMute
+import cloud.offthe.otc.i18n.androidSocialPlay
+import cloud.offthe.otc.i18n.androidSocialReplay
+import cloud.offthe.otc.i18n.androidSocialUnlike
+import cloud.offthe.otc.i18n.androidSocialUnlikeComment
+import cloud.offthe.otc.i18n.appShellNewPost
+import cloud.offthe.otc.i18n.appShellSectionFriends
+import cloud.offthe.otc.i18n.appSocialFeedEmptyText
+import cloud.offthe.otc.i18n.appSocialFeedEmptyTitle
+import cloud.offthe.otc.i18n.appSocialLikesEmpty
+import cloud.offthe.otc.i18n.appSocialLikesTitle
+import cloud.offthe.otc.i18n.appSocialPostComment
+import cloud.offthe.otc.i18n.appSocialPostCommentPlaceholder
+import cloud.offthe.otc.i18n.appSocialPostCommentUnnamed
+import cloud.offthe.otc.i18n.appSocialPostDeleteComment
+import cloud.offthe.otc.i18n.appSocialPostDeleteCommentTitle
+import cloud.offthe.otc.i18n.appSocialPostDeletePost
+import cloud.offthe.otc.i18n.appSocialPostDeletePostTitle
+import cloud.offthe.otc.i18n.appSocialPostLikes
+import cloud.offthe.otc.i18n.appSocialPostSendComment
+import cloud.offthe.otc.i18n.appSocialPostUnnamed
+import cloud.offthe.otc.i18n.commonCancel
+import cloud.offthe.otc.i18n.commonLoading
 import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.ui.common.loadProblemText
@@ -262,8 +288,8 @@ private fun Feed(
             expandedHeight = feedTopBarHeight,
             colors = TopAppBarDefaults.topAppBarColors(containerColor = if (underBar) solidBar else Color.Transparent),
             actions = {
-                IconButton(onClick = onFriends) { Icon(Icons.Default.Group, "Friends") }
-                IconButton(onClick = onNewPost) { Icon(Icons.Outlined.AddCircleOutline, "New post", tint = Ember) }
+                IconButton(onClick = onFriends) { Icon(Icons.Default.Group, S.appShellSectionFriends().resolve()) }
+                IconButton(onClick = onNewPost) { Icon(Icons.Outlined.AddCircleOutline, S.appShellNewPost().resolve(), tint = Ember) }
             },
         )
     }) { pad ->
@@ -281,7 +307,7 @@ private fun Feed(
                 st.posts.isEmpty() && (st.loading || !st.hasLoadedOnce) -> Column(Modifier.fillMaxSize()) {
                     LogoHeader(wide)
                     Column(Modifier.fillMaxSize().padding(horizontal = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
-                        CircularProgressIndicator(); Spacer(Modifier.height(8.dp)); Text("Loading…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        CircularProgressIndicator(); Spacer(Modifier.height(8.dp)); Text(S.commonLoading().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         st.problem?.let { p ->
                             Spacer(Modifier.height(8.dp))
                             Text(
@@ -365,13 +391,13 @@ private fun LogoHeader(wide: Boolean) {
 @Composable
 private fun EmptyFeed(onNewPost: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
-        Text("No social posts", fontSize = 30.sp, fontWeight = FontWeight.Black)
+        Text(S.appSocialFeedEmptyTitle().resolve(), fontSize = 30.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(14.dp))
-        Text("Share a photo or a video with your friends - it goes from your device to theirs, with no cloud in between.",
+        Text(S.appSocialFeedEmptyText().resolve(),
             color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 320.dp))
         Spacer(Modifier.height(24.dp))
         Box(Modifier.size(96.dp).shadow(12.dp, CircleShape).background(Ember, CircleShape).clickable(onClick = onNewPost), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.Add, "New post", tint = Color.White, modifier = Modifier.size(48.dp))
+            Icon(Icons.Default.Add, S.appShellNewPost().resolve(), tint = Color.White, modifier = Modifier.size(48.dp))
         }
     }
 }
@@ -398,6 +424,9 @@ private fun rememberPostCap(feedHeight: Dp, barHeight: Dp): Dp {
 }
 
 private data class LikersTarget(val isPublication: Boolean, val uuid: String)
+
+/** A comment's writer, in bold before the comment. */
+private val commentTags = mapOf("b" to RichTag(style = SpanStyle(fontWeight = FontWeight.Bold)))
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -431,14 +460,14 @@ private fun PostCard(
                 AvatarView(data = if (post.publisher.hasImage()) post.publisher.image.toByteArray() else null, size = 28.dp)
                 Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(post.publisher.name.ifEmpty { "User" }, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    Text(post.publisher.name.ifEmpty { S.appSocialPostUnnamed().resolve() }, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                     if (post.hasDateTime()) Text(relativeTime(post.dateTime.seconds * 1000), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (post.own) {
                     Box {
                         IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreHoriz, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(text = { Text("Delete Post", color = Color(0xFFE53935)) }, onClick = { menu = false; confirmDeletePost = true })
+                            DropdownMenuItem(text = { Text(S.appSocialPostDeletePost().resolve(), color = Color(0xFFE53935)) }, onClick = { menu = false; confirmDeletePost = true })
                         }
                     }
                 }
@@ -453,11 +482,11 @@ private fun PostCard(
 
         Row(Modifier.padding(horizontal = side).padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onLikePub, modifier = Modifier.size(36.dp)) {
-                Icon(if (post.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, if (post.liked) "Unlike" else "Like", tint = if (post.liked) Color.Red else MaterialTheme.colorScheme.onSurface)
+                Icon(if (post.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, (if (post.liked) S.androidSocialUnlike() else S.androidSocialLike()).resolve(), tint = if (post.liked) Color.Red else MaterialTheme.colorScheme.onSurface)
             }
         }
         if (post.likes > 0) {
-            Text("${post.likes} like${if (post.likes == 1) "" else "s"}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold,
+            Text(S.appSocialPostLikes(post.likes).resolve(), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = side).clickable { likersTarget = LikersTarget(true, post.uuid) })
         }
         if (post.text.isNotEmpty()) Text(post.text, modifier = Modifier.padding(horizontal = side, vertical = 4.dp))
@@ -469,24 +498,21 @@ private fun PostCard(
                     .padding(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(buildAnnotatedString {
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(c.publisher.ifEmpty { "User" }) }
-                    append(": " + c.comment)
-                }, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                Text((if (c.publisher.isEmpty()) S.appSocialPostCommentUnnamed(c.comment) else S.appSocialPostComment(c.publisher, c.comment)).resolve(commentTags), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                 if (c.likes > 0) Text("${c.likes}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.clickable { likersTarget = LikersTarget(false, c.commentUuid) }.padding(4.dp))
                 IconButton(onClick = { onLikeComment(c.commentUuid) }, modifier = Modifier.size(28.dp)) {
-                    Icon(if (c.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, if (c.liked) "Unlike comment" else "Like comment", tint = if (c.liked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                    Icon(if (c.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, (if (c.liked) S.androidSocialUnlikeComment() else S.androidSocialLikeComment()).resolve(), tint = if (c.liked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 }
                 if (post.own || c.own) IconButton(onClick = { commentPendingDelete = c.commentUuid }, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.Delete, "Delete comment", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Delete, S.androidSocialDeleteComment().resolve(), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 }
             }
         }
 
         Row(Modifier.padding(horizontal = side).padding(bottom = 10.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            OTCTextField(value = commentText, onValueChange = { commentText = it }, placeholder = { Text("Add a comment…") }, singleLine = true, modifier = Modifier.weight(1f))
-            TextButton(onClick = { onComment(commentText); commentText = "" }, enabled = commentText.isNotBlank()) { Text("Post") }
+            OTCTextField(value = commentText, onValueChange = { commentText = it }, placeholder = { Text(S.appSocialPostCommentPlaceholder().resolve()) }, singleLine = true, modifier = Modifier.weight(1f))
+            TextButton(onClick = { onComment(commentText); commentText = "" }, enabled = commentText.isNotBlank()) { Text(S.appSocialPostSendComment().resolve()) }
         }
     }
 
@@ -494,15 +520,15 @@ private fun PostCard(
         LikersSheet(target, fetchPublicationLikers, fetchCommentLikers) { likersTarget = null }
     }
     if (confirmDeletePost) AlertDialog(
-        onDismissRequest = { confirmDeletePost = false }, title = { Text("Delete this post?") },
-        confirmButton = { TextButton(onClick = { confirmDeletePost = false; onDeletePub() }) { Text("Delete Post", color = Color(0xFFE53935)) } },
-        dismissButton = { TextButton(onClick = { confirmDeletePost = false }) { Text("Cancel") } },
+        onDismissRequest = { confirmDeletePost = false }, title = { Text(S.appSocialPostDeletePostTitle().resolve()) },
+        confirmButton = { TextButton(onClick = { confirmDeletePost = false; onDeletePub() }) { Text(S.appSocialPostDeletePost().resolve(), color = Color(0xFFE53935)) } },
+        dismissButton = { TextButton(onClick = { confirmDeletePost = false }) { Text(S.commonCancel().resolve()) } },
     )
     commentPendingDelete?.let { uuid ->
         AlertDialog(
-            onDismissRequest = { commentPendingDelete = null }, title = { Text("Delete this comment?") },
-            confirmButton = { TextButton(onClick = { commentPendingDelete = null; onDeleteComment(uuid) }) { Text("Delete Comment", color = Color(0xFFE53935)) } },
-            dismissButton = { TextButton(onClick = { commentPendingDelete = null }) { Text("Cancel") } },
+            onDismissRequest = { commentPendingDelete = null }, title = { Text(S.appSocialPostDeleteCommentTitle().resolve()) },
+            confirmButton = { TextButton(onClick = { commentPendingDelete = null; onDeleteComment(uuid) }) { Text(S.appSocialPostDeleteComment().resolve(), color = Color(0xFFE53935)) } },
+            dismissButton = { TextButton(onClick = { commentPendingDelete = null }) { Text(S.commonCancel().resolve()) } },
         )
     }
 }
@@ -664,14 +690,14 @@ private fun VideoContent(post: SocialPublication, file: PbFile, playing: Boolean
                 else Box(Modifier.fillMaxSize().background(Color(0x14808080)))
             }
             when {
-                p == null && !loading -> Icon(Icons.Default.PlayCircle, "Play", tint = Color.White, modifier = Modifier.align(Alignment.Center).size(56.dp))
+                p == null && !loading -> Icon(Icons.Default.PlayCircle, S.androidSocialPlay().resolve(), tint = Color.White, modifier = Modifier.align(Alignment.Center).size(56.dp))
                 p == null || !firstFrame -> CircularProgressIndicator(color = Color.White, modifier = Modifier.align(Alignment.Center))
                 ended -> IconButton(onClick = { ended = false; p.seekTo(0); p.play() }, modifier = Modifier.align(Alignment.Center).size(72.dp)) {
-                    Icon(Icons.Default.Replay, "Replay", tint = Color.White, modifier = Modifier.size(56.dp))
+                    Icon(Icons.Default.Replay, S.androidSocialReplay().resolve(), tint = Color.White, modifier = Modifier.size(56.dp))
                 }
             }
             IconButton(onClick = { FeedAudio.muted = !FeedAudio.muted }, modifier = Modifier.align(Alignment.TopEnd).padding(10.dp).size(32.dp).background(Color(0x73000000), CircleShape)) {
-                Icon(if (muted) Icons.Default.VolumeOff else Icons.Default.VolumeUp, "Mute", tint = Color.White, modifier = Modifier.size(16.dp))
+                Icon(if (muted) Icons.Default.VolumeOff else Icons.Default.VolumeUp, S.androidSocialMute().resolve(), tint = Color.White, modifier = Modifier.size(16.dp))
             }
         }
     }
@@ -684,12 +710,12 @@ private fun LikersSheet(target: LikersTarget, fetchPub: suspend (String) -> List
     LaunchedEffect(target) { likers = if (target.isPublication) fetchPub(target.uuid) else fetchComment(target.uuid) }
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(16.dp).heightIn(min = 200.dp)) {
-            Text("Likes", style = MaterialTheme.typography.titleMedium)
+            Text(S.appSocialLikesTitle().resolve(), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(12.dp))
             val l = likers
             when {
                 l == null -> CircularProgressIndicator()
-                l.isEmpty() -> Text("No likes yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                l.isEmpty() -> Text(S.appSocialLikesEmpty().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 else -> l.forEach { liker ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         AvatarView(data = if (liker.hasImage()) liker.image.toByteArray() else null, size = 36.dp)

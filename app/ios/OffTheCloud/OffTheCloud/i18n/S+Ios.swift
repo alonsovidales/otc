@@ -6,6 +6,27 @@
 import Foundation
 
 extension S {
+    /// one: {title}, {count} error, collapse
+    /// other: {title}, {count} errors, collapse
+    ///
+    /// Screen-reader name of a row of the Alerts tab that groups the device's errors, while its list of errors is shown: tapping it hides the list. {title} is the first error's title, written by the device (already in the user's language); {count} is how many errors the row holds. Lowercase collapse, as the end of the phrase.
+    static func iosAlertsErrorsCollapse(title: String, count: Int) -> String {
+        L("ios.alerts_errors_collapse", table: "Ios", title, count)
+    }
+
+    /// one: {title}, {count} error, expand
+    /// other: {title}, {count} errors, expand
+    ///
+    /// Screen-reader name of a row of the Alerts tab that groups the device's errors, while its list of errors is hidden: tapping it shows the list. {title} is the first error's title, written by the device (already in the user's language); {count} is how many errors the row holds. Lowercase expand, as the end of the phrase.
+    static func iosAlertsErrorsExpand(title: String, count: Int) -> String {
+        L("ios.alerts_errors_expand", table: "Ios", title, count)
+    }
+
+    /// Friends
+    ///
+    /// Beside a check mark, at the right of a friend request in the Alerts tab once you accepted it from there: you are friends now.
+    static var iosAlertsFriends: String { L("ios.alerts_friends", table: "Ios") }
+
     /// Allow Bluetooth for Off The Cloud in Settings to set a device up this way.
     ///
     /// Set up a new device (over Bluetooth): under the heading Bluetooth access is needed. Settings is the iPhone's own Settings app: use its name in this language.
@@ -15,6 +36,38 @@ extension S {
     ///
     /// Set up a new device (over Bluetooth): under the heading Bluetooth is off. Control Centre is the iPhone's: use iOS's own name for it in this language.
     static var iosBluetoothOffHint: String { L("ios.bluetooth_off_hint", table: "Ios") }
+
+    /// Couldn't save the capture to Photos: {detail}
+    ///
+    /// Alert in the New Post composer when a photo or video just taken with the camera couldn't be saved to the iPhone's Photos library. {detail} is the system's reason (in the iPhone's language).
+    static func iosComposeCaptureSaveFailed(detail: String) -> String {
+        L("ios.compose_capture_save_failed", table: "Ios", detail)
+    }
+
+    /// The capture was saved to Photos but couldn't be read back.
+    ///
+    /// Alert in the New Post composer when a photo or video just taken with the camera was saved to the iPhone's Photos library but couldn't be added to the post.
+    static var iosComposeCaptureUnreadable: String { L("ios.compose_capture_unreadable", table: "Ios") }
+
+    /// Could not read this photo
+    ///
+    /// Why a post couldn't be published, after app.social.compose.publish_failed_detail: a photo picked from the iPhone couldn't be read to upload it.
+    static var iosComposePhotoUnreadable: String { L("ios.compose_photo_unreadable", table: "Ios") }
+
+    /// Source
+    ///
+    /// Screen-reader name of the Phone / Synced switch at the top of the New Post composer: where the photos shown come from.
+    static var iosComposeSource: String { L("ios.compose_source", table: "Ios") }
+
+    /// Upload failed
+    ///
+    /// Why a post couldn't be published, after app.social.compose.publish_failed_detail: a photo picked from the iPhone couldn't be uploaded to the device, which gave no reason.
+    static var iosComposeUploadFailed: String { L("ios.compose_upload_failed", table: "Ios") }
+
+    /// This video is not available on the phone
+    ///
+    /// Why a video picked from the iPhone couldn't be opened for trimming in the New Post composer (shown after app.social.compose.trim_load_failed): Photos couldn't hand it over (for example it is only in iCloud and couldn't be downloaded).
+    static var iosComposeVideoUnavailable: String { L("ios.compose_video_unavailable", table: "Ios") }
 
     /// The connection settings changed; try again.
     ///
@@ -38,6 +91,155 @@ extension S {
         L("ios.file_type_label", table: "Ios", type)
     }
 
+    /// Allow Deletions
+    ///
+    /// Confirm button of the question app.files.allow_deletions_title (Files, a tap on an upload-only folder's lock): lets the folder's files be deleted again. Title Case in English.
+    static var iosFilesAllowDeletions: String { L("ios.files.allow_deletions", table: "Ios") }
+
+    /// Copied
+    ///
+    /// What the Copy Link button (app.files.gallery_copy_link) of the Share as Gallery sheet says once the link was copied.
+    static var iosFilesGalleryCopied: String { L("ios.files.gallery_copied", table: "Ios") }
+
+    /// Counting photos and videos…
+    ///
+    /// Shown with a spinner when the Share as Gallery sheet opens, while the device counts what will be shared.
+    static var iosFilesGalleryCounting: String { L("ios.files.gallery_counting", table: "Ios") }
+
+    /// Expires after
+    ///
+    /// Heading of the choices of how long the gallery's link works (1, 7 or 30 days) in the Share as Gallery sheet, and the screen-reader name of those choices.
+    static var iosFilesGalleryExpires: String { L("ios.files.gallery_expires", table: "Ios") }
+
+    /// The gallery could not be created
+    ///
+    /// Error in the Share as Gallery sheet when the device stopped copying with an error and gave no reason (when it gives one, its own words are shown instead).
+    static var iosFilesGalleryJobFailed: String { L("ios.files.gallery_job_failed", table: "Ios") }
+
+    /// Keep this screen open: the link is shown here once the copy is done.
+    ///
+    /// Under the progress bar of the Share as Gallery sheet while the device copies the photos and videos.
+    static var iosFilesGalleryKeepOpen: String { L("ios.files.gallery_keep_open", table: "Ios") }
+
+    /// This link is shown only now - the device never stores it. Send or copy it before closing.
+    ///
+    /// Under the gallery's link in the Share as Gallery sheet once the gallery is ready.
+    static var iosFilesGalleryLinkOnce: String { L("ios.files.gallery_link_once", table: "Ios") }
+
+    /// There are no photos or videos to share here.
+    ///
+    /// Under the disabled Share button of the Share as Gallery sheet when the folder or collection has no photos or videos.
+    static var iosFilesGalleryNothing: String { L("ios.files.gallery_nothing", table: "Ios") }
+
+    /// one: {count} other files are not included
+    /// other: {count} other files are not included
+    ///
+    /// Second line of the Share as Gallery sheet, before sharing, when the folder holds files that aren't photos or videos: they won't be in the gallery. {count} is how many. In English both forms are the same.
+    static func iosFilesGallerySkipped(count: Int) -> String {
+        L("ios.files.gallery_skipped", table: "Ios", count)
+    }
+
+    /// Starting…
+    ///
+    /// Shown with a spinner in the Share as Gallery sheet right after Share is tapped, until the device starts copying.
+    static var iosFilesGalleryStarting: String { L("ios.files.gallery_starting", table: "Ios") }
+
+    /// Keep Out of Images
+    ///
+    /// Item of a folder's long-press menu in Files, and the confirm button of the question app.files.keep_out_title: keeps the folder's photos and videos out of Images (not tagged, not searched for faces; the tags and faces already found are deleted). Title Case in English. Images is the photo section (app.shell.section_images).
+    static var iosFilesKeepOutOfImages: String { L("ios.files.keep_out_of_images", table: "Ios") }
+
+    /// Make Upload Only
+    ///
+    /// Confirm button of the question app.files.make_upload_only_title (Files, a tap on a folder's open lock): makes the folder upload only. Title Case in English. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version.
+    static var iosFilesMakeUploadOnly: String { L("ios.files.make_upload_only", table: "Ios") }
+
+    /// one: {count} older version
+    /// other: {count} older versions
+    ///
+    /// Screen-reader name of the badge with a clock and a number on a file in Files: how many older versions the device keeps of it. A tap lists them.
+    static func iosFilesOlderVersions(count: Int) -> String {
+        L("ios.files.older_versions", table: "Ios", count)
+    }
+
+    /// {name}, file in {folder}
+    ///
+    /// Screen-reader name of a file (not a photo or video) in the results of a search in Files and in the search suggestions (Images, or the top bar on a wide screen). {name} is its file name, {folder} the folder it is in (a path such as /Photos/2024).
+    static func iosFilesResultFile(name: String, folder: String) -> String {
+        L("ios.files.result_file", table: "Ios", L10n.isolate(name), L10n.isolate(folder))
+    }
+
+    /// {name}, file in {folder}, kept out of Images
+    ///
+    /// Screen-reader name of a file (not a photo or video) in the results of a search in Files when its folder is kept out of Images. {name} is its file name, {folder} the folder it is in. Images is the photo section (app.shell.section_images).
+    static func iosFilesResultFileKeptOut(name: String, folder: String) -> String {
+        L("ios.files.result_file_kept_out", table: "Ios", L10n.isolate(name), L10n.isolate(folder))
+    }
+
+    /// {name}, folder in {folder}
+    ///
+    /// Screen-reader name of a folder in the results of a search in Files and in the search suggestions (Images, or the top bar on a wide screen). {name} is its name, {folder} the folder it is in (a path such as /Photos/2024).
+    static func iosFilesResultFolder(name: String, folder: String) -> String {
+        L("ios.files.result_folder", table: "Ios", L10n.isolate(name), L10n.isolate(folder))
+    }
+
+    /// {name}, folder in {folder}, kept out of Images
+    ///
+    /// Screen-reader name of a folder in the results of a search in Files when it is kept out of Images (its photos and videos aren't tagged, searched for faces or shown there). {name} is its name, {folder} the folder it is in. Images is the photo section (app.shell.section_images).
+    static func iosFilesResultFolderKeptOut(name: String, folder: String) -> String {
+        L("ios.files.result_folder_kept_out", table: "Ios", L10n.isolate(name), L10n.isolate(folder))
+    }
+
+    /// {name}, photo in {folder}
+    ///
+    /// Screen-reader name of a photo in the results of a search in Files and in the search suggestions (Images, or the top bar on a wide screen). {name} is its file name, {folder} the folder it is in (a path such as /Photos/2024).
+    static func iosFilesResultPhoto(name: String, folder: String) -> String {
+        L("ios.files.result_photo", table: "Ios", L10n.isolate(name), L10n.isolate(folder))
+    }
+
+    /// {name}, photo in {folder}, kept out of Images
+    ///
+    /// Screen-reader name of a photo in the results of a search in Files when its folder is kept out of Images. {name} is its file name, {folder} the folder it is in. Images is the photo section (app.shell.section_images).
+    static func iosFilesResultPhotoKeptOut(name: String, folder: String) -> String {
+        L("ios.files.result_photo_kept_out", table: "Ios", L10n.isolate(name), L10n.isolate(folder))
+    }
+
+    /// {name}, video in {folder}
+    ///
+    /// Screen-reader name of a video in the results of a search in Files and in the search suggestions (Images, or the top bar on a wide screen). {name} is its file name, {folder} the folder it is in (a path such as /Photos/2024).
+    static func iosFilesResultVideo(name: String, folder: String) -> String {
+        L("ios.files.result_video", table: "Ios", L10n.isolate(name), L10n.isolate(folder))
+    }
+
+    /// {name}, video in {folder}, kept out of Images
+    ///
+    /// Screen-reader name of a video in the results of a search in Files when its folder is kept out of Images. {name} is its file name, {folder} the folder it is in. Images is the photo section (app.shell.section_images).
+    static func iosFilesResultVideoKeptOut(name: String, folder: String) -> String {
+        L("ios.files.result_video_kept_out", table: "Ios", L10n.isolate(name), L10n.isolate(folder))
+    }
+
+    /// Try Again
+    ///
+    /// Button under the error shown in place of the results of a search in Files: searches again. Title Case in English.
+    static var iosFilesTryAgain: String { L("ios.files.try_again", table: "Ios") }
+
+    /// Nothing in this folder can be deleted, and uploading a file again keeps its older version. Long-press the folder to change it.
+    ///
+    /// Explanation shown (title app.files.upload_only) when the lock badge on an upload-only folder's tile is tapped in Files' grid.
+    static var iosFilesUploadOnlyFolderInfo: String { L("ios.files.upload_only_folder_info", table: "Ios") }
+
+    /// Delete everything from {name} on this iPhone
+    ///
+    /// Switch (off at first) when removing a friend: also deletes everything of theirs from your device (explained by app.social.friends.delete_theirs_text). {name} is the friend's profile name (or their device's address when they have none).
+    static func iosFriendsDeleteTheirs(name: String) -> String {
+        L("ios.friends_delete_theirs", table: "Ios", L10n.isolate(name))
+    }
+
+    /// Remove Friend
+    ///
+    /// Button (in red) at the foot of the Remove (a friend)? screen: removes the friend, deleting what its two switches say.
+    static var iosFriendsRemoveFriend: String { L("ios.friends_remove_friend", table: "Ios") }
+
     /// Close the menu
     ///
     /// Screen-reader name of the dimmed page behind the left menu laid over it (on a wide screen): tapping it closes the menu.
@@ -47,6 +249,154 @@ extension S {
     ///
     /// Why the app can't connect, on the card shown over the app: the connection to the device stopped answering while signing in.
     static var iosNoAnswerSlow: String { L("ios.no_answer_slow", table: "Ios") }
+
+    /// Photos access denied
+    ///
+    /// Alert in the full-screen photo viewer when Save was tapped but the app isn't allowed to add photos to the iPhone's Photos library.
+    static var iosPhotosAccessDenied: String { L("ios.photos_access_denied", table: "Ios") }
+
+    /// Download failed: {detail}
+    ///
+    /// Alert in Images when the link to download the selected photos as a zip (the selection bar's Download) couldn't be made. {detail} is the reason (the app's or the system's own words).
+    static func iosPhotosDownloadFailed(detail: String) -> String {
+        L("ios.photos_download_failed", table: "Ios", detail)
+    }
+
+    /// Deleting {current} of {total}…
+    ///
+    /// At the foot of the People page while several people are being deleted: which one is being deleted ({current}) of how many ({total}).
+    static func iosPhotosPeopleDeleting(current: Int, total: Int) -> String {
+        L("ios.photos_people_deleting", table: "Ios", current, total)
+    }
+
+    /// Face to keep
+    ///
+    /// Screen-reader name of the group of faces to choose from in the merge's box (People page).
+    static var iosPhotosPeopleFaceToKeep: String { L("ios.photos_people_face_to_keep", table: "Ios") }
+
+    /// Select 2 or more to merge
+    ///
+    /// Screen-reader hint on the dimmed Merge item of the bar shown while one face is picked on the People page.
+    static var iosPhotosPeopleMergeHint: String { L("ios.photos_people_merge_hint", table: "Ios") }
+
+    /// New name
+    ///
+    /// Screen-reader name of the field that renames a person who already has a name, under their face on the People page.
+    static var iosPhotosPeopleNewName: String { L("ios.photos_people_new_name", table: "Ios") }
+
+    /// Search documents for {text}
+    ///
+    /// Screen-reader name of the row of the search suggestions that lists, in Files, every file and folder whose path contains what was typed (app.photos.search.documents). {text} is the typed text.
+    static func iosPhotosSearchDocuments(text: String) -> String {
+        L("ios.photos_search_documents", table: "Ios", L10n.isolate(text))
+    }
+
+    /// What the Search key picks
+    ///
+    /// Screen-reader hint on the highlighted row of the search suggestions: the keyboard's Search key takes that row.
+    static var iosPhotosSearchKeyHint: String { L("ios.photos_search_key_hint", table: "Ios") }
+
+    /// one: {name}, {count} photo, in the search
+    /// other: {name}, {count} photos, in the search
+    ///
+    /// Screen-reader name of a person in the search suggestions who is already a chip in the search. {name} is their name, {count} how many photos show them. Otherwise it is app.photos.people.face_label.
+    static func iosPhotosSearchPersonIn(name: String, count: Int) -> String {
+        L("ios.photos_search_person_in", table: "Ios", L10n.isolate(name), count)
+    }
+
+    /// Suggestions
+    ///
+    /// Screen-reader name of the list of suggestions under the search field (Images, or the top bar on a wide screen).
+    static var iosPhotosSearchSuggestions: String { L("ios.photos_search_suggestions", table: "Ios") }
+
+    /// Upload failed: {detail}
+    ///
+    /// Alert in Images when a photo that is only on this iPhone couldn't be uploaded to the device before sharing it, downloading it or adding it to a collection. {detail} is the reason (the app's or the system's own words).
+    static func iosPhotosUploadFailed(detail: String) -> String {
+        L("ios.photos_upload_failed", table: "Ios", detail)
+    }
+
+    /// Leave and Delete the Account
+    ///
+    /// Button (in red) of the confirmation Delete your account?: the device leaves the bridge, then the account page opens to delete the account.
+    static var iosSettingsBridgeLeaveDelete: String { L("ios.settings.bridge_leave_delete", table: "Ios") }
+
+    /// Drag the photo to centre your face.
+    ///
+    /// Under the circle on the screen Crop photo.
+    static var iosSettingsCropHint: String { L("ios.settings.crop_hint", table: "Ios") }
+
+    /// Crop photo
+    ///
+    /// Title of the screen that crops the new profile photo to a circle.
+    static var iosSettingsCropTitle: String { L("ios.settings.crop_title", table: "Ios") }
+
+    /// Delete this link? The shared copies are deleted and the link stops working.
+    ///
+    /// Message of the confirmation asked before deleting a shared link (its title is app.settings.links.delete_title).
+    static var iosSettingsLinksDeleteMessage: String { L("ios.settings.links_delete_message", table: "Ios") }
+
+    /// Log
+    ///
+    /// Screen-reader name of the choice at the top of the Logs screen between the Device and Updates logs.
+    static var iosSettingsLogsPicker: String { L("ios.settings.logs_picker", table: "Ios") }
+
+    /// Could not read the logs.
+    ///
+    /// Error on the Logs screen when the log couldn't be read and the device gave no reason; the app tries again.
+    static var iosSettingsLogsReadFailed: String { L("ios.settings.logs_read_failed", table: "Ios") }
+
+    /// Could not send the logs.
+    ///
+    /// Error in the form that sends the logs when they couldn't be sent and the device gave no reason.
+    static var iosSettingsLogsSendFailed: String { L("ios.settings.logs_send_failed", table: "Ios") }
+
+    /// Troubleshooting
+    ///
+    /// Heading of the section of Settings holding the Logs row.
+    static var iosSettingsLogsTroubleshooting: String { L("ios.settings.logs_troubleshooting", table: "Ios") }
+
+    /// No photos here.
+    ///
+    /// Shown on the screen Choose a photo when the chosen collection (or the device) has no photo.
+    static var iosSettingsPickerEmpty: String { L("ios.settings.picker_empty", table: "Ios") }
+
+    /// Couldn't load that photo: {detail}
+    ///
+    /// Error on the screen Choose a photo when the tapped photo couldn't be fetched. {detail} is why, as the system or the connection words it.
+    static func iosSettingsPickerError(detail: String) -> String {
+        L("ios.settings.picker_error", table: "Ios", detail)
+    }
+
+    /// Couldn't load that photo from your device.
+    ///
+    /// Error on the screen Choose a photo when the tapped photo couldn't be fetched and the device gave no reason.
+    static var iosSettingsPickerLoadFailed: String { L("ios.settings.picker_load_failed", table: "Ios") }
+
+    /// That photo couldn't be opened.
+    ///
+    /// Error on the screen Choose a photo when the tapped photo arrived but couldn't be read as a picture.
+    static var iosSettingsPickerOpenFailed: String { L("ios.settings.picker_open_failed", table: "Ios") }
+
+    /// From this iPhone
+    ///
+    /// Item of the Change photo menu in Settings > Profile: pick the profile photo in the iPhone's Photos.
+    static var iosSettingsProfileFromIphone: String { L("ios.settings.profile_from_iphone", table: "Ios") }
+
+    /// Unexpected response while saving profile
+    ///
+    /// Shown for a few seconds in Settings > Profile when the device answered the save with something the app didn't expect.
+    static var iosSettingsProfileUnexpected: String { L("ios.settings.profile_unexpected", table: "Ios") }
+
+    /// Sync from iCloud
+    ///
+    /// Switch in Settings > Sync Options: also upload photos whose original is only in iCloud (the iPhone downloads them first).
+    static var iosSettingsSyncIcloud: String { L("ios.settings.sync_icloud", table: "Ios") }
+
+    /// Thumbnail Cache
+    ///
+    /// Heading of the section of Settings about the small pictures of the photos kept on this iPhone so Images opens fast.
+    static var iosSettingsThumbsTitle: String { L("ios.settings.thumbs_title", table: "Ios") }
 
     /// Sign-in cancelled
     ///
@@ -103,6 +453,26 @@ extension S {
     ///
     /// Screen-reader name of the bar at the foot of the left menu (on a wide screen) that shows how full the device's storage is.
     static var iosStorageUsed: String { L("ios.storage_used", table: "Ios") }
+
+    /// Can't trim this video
+    ///
+    /// Heading in the Trim video screen of the New Post composer when the video can't be opened; why follows under it (app.social.trim.cant_open or app.social.trim.no_length).
+    static var iosTrimCantTitle: String { L("ios.trim_cant_title", table: "Ios") }
+
+    /// End of the cut
+    ///
+    /// Screen-reader name of the right handle of the two-handle slider in the Trim video screen: where the part of the video kept for the post ends. Its value is read as a time (0:12.5).
+    static var iosTrimEndHandle: String { L("ios.trim_end_handle", table: "Ios") }
+
+    /// Play cut
+    ///
+    /// Button (with a play symbol) in the Trim video screen of the New Post composer: plays only the part of the video that will be kept.
+    static var iosTrimPlayCut: String { L("ios.trim_play_cut", table: "Ios") }
+
+    /// Start of the cut
+    ///
+    /// Screen-reader name of the left handle of the two-handle slider in the Trim video screen: where the part of the video kept for the post starts. Its value is read as a time (0:02.0).
+    static var iosTrimStartHandle: String { L("ios.trim_start_handle", table: "Ios") }
 
     /// The device didn't answer the connection in time.
     ///

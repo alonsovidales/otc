@@ -168,7 +168,7 @@ struct FilesSearchField: View {
             HStack(spacing: 6) {
                 NavIconView(.search, size: 18)
                     .foregroundStyle(.secondary)
-                TextField("Search files", text: $search.query)
+                TextField(S.appFilesSearchField, text: $search.query)
                     .focused(focused)
                     .submitLabel(.search)
                     .textInputAutocapitalization(.never)
@@ -179,7 +179,7 @@ struct FilesSearchField: View {
                     .onKeyPress(.upArrow) { actions.arrow(-1) }
                     .onKeyPress(.downArrow) { actions.arrow(1) }
                     .onKeyPress(.escape) { actions.escape() }
-                    .accessibilityLabel("Search files")
+                    .accessibilityLabel(S.appFilesSearchField)
                 if !search.query.isEmpty {
                     Button {
                         actions.clear()
@@ -190,7 +190,7 @@ struct FilesSearchField: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Clear search")
+                    .accessibilityLabel(S.appShellSearchClear)
                 }
             }
             .padding(.leading, 12)
@@ -200,7 +200,7 @@ struct FilesSearchField: View {
             .contentShape(Capsule())
             .onTapGesture { focused.wrappedValue = true }
             if active {
-                Button("Cancel") { actions.cancel() }
+                Button(S.commonCancel) { actions.cancel() }
             }
         }
     }

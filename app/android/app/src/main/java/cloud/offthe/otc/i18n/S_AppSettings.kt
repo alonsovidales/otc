@@ -6,6 +6,126 @@ package cloud.offthe.otc.i18n
 
 import cloud.offthe.otc.R
 
+/** "Your Account Page": Button in Settings > Bridge and Account that opens the Off The Cloud account page in the browser. */
+fun S.appSettingsBridgeAccountPage(): UiText =
+    UiText.Res(R.string.app_settings_bridge_account_page)
+
+/** "At home: {address}": Settings > Bridge and Account: the device's address on the home network (192.168.1.20:8080). */
+fun S.appSettingsBridgeAtHome(address: String): UiText =
+    UiText.Res(R.string.app_settings_bridge_at_home, listOf(address))
+
+/** "Delete My Account…": Button (in red) in Settings > Bridge and Account; asks Delete your account? first. */
+fun S.appSettingsBridgeDeleteAccount(): UiText =
+    UiText.Res(R.string.app_settings_bridge_delete_account)
+
+/** "This device leaves the bridge first and goes on working at home. Then your account page opens: sign in there and delete the account, which releases any other devices' names too.": Message of the confirmation Delete your account? */
+fun S.appSettingsBridgeDeleteMessage(): UiText =
+    UiText.Res(R.string.app_settings_bridge_delete_message)
+
+/** "Delete your account?": Title of the confirmation asked before deleting the Off The Cloud account from Settings > Bridge and Account. */
+fun S.appSettingsBridgeDeleteTitle(): UiText =
+    UiText.Res(R.string.app_settings_bridge_delete_title)
+
+/** "Leaving gives the name back; the device keeps working at home, at http://{address}.": Under Settings > Bridge and Account while the device is on the bridge. {address} is the device's address on the home network (192.168.1.20:8080 or otc.local:8080). */
+fun S.appSettingsBridgeFooter(address: String): UiText =
+    UiText.Res(R.string.app_settings_bridge_footer, listOf(address))
+
+/** "Leave the Bridge": Button (in red) in Settings > Bridge and Account; asks Leave the bridge? first. */
+fun S.appSettingsBridgeLeave(): UiText =
+    UiText.Res(R.string.app_settings_bridge_leave)
+
+/** "Leave the Bridge": Button (in red) of the confirmation Leave the bridge?: takes the device off the bridge. */
+fun S.appSettingsBridgeLeaveConfirm(): UiText =
+    UiText.Res(R.string.app_settings_bridge_leave_confirm)
+
+/** "Could not leave the bridge.": Error in Settings > Bridge and Account when the device didn't leave the bridge and gave no reason. */
+fun S.appSettingsBridgeLeaveFailed(): UiText =
+    UiText.Res(R.string.app_settings_bridge_leave_failed)
+
+/** "{domain} is given back and the device restarts. It keeps everything and works at home, but is no longer reachable from outside or by your friends. You can join again later.": Message of the confirmation Leave the bridge?. {domain} is the device's address on the bridge (cala.off-the.cloud). */
+fun S.appSettingsBridgeLeaveMessage(domain: String): UiText =
+    UiText.Res(R.string.app_settings_bridge_leave_message, listOf(domain))
+
+/** "Leave the bridge?": Title of the confirmation asked before taking the device off the bridge. */
+fun S.appSettingsBridgeLeaveTitle(): UiText =
+    UiText.Res(R.string.app_settings_bridge_leave_title)
+
+/** "The device is restarting off the bridge. From now on the app reaches it on your home network, at {address}.": Settings > Bridge and Account after leaving the bridge. {address} is the device's address on the home network (192.168.1.20:8080 or otc.local). */
+fun S.appSettingsBridgeLeft(address: String): UiText =
+    UiText.Res(R.string.app_settings_bridge_left, listOf(address))
+
+/** "Only reachable on your home network. Join the bridge from Settings in the device's web app.": Settings > Bridge and Account while the device isn't on the bridge. */
+fun S.appSettingsBridgeLocalOnly(): UiText =
+    UiText.Res(R.string.app_settings_bridge_local_only)
+
+/** "Reachable from anywhere at {domain}": Settings > Bridge and Account while the device is on the bridge. {domain} is its address (cala.off-the.cloud). */
+fun S.appSettingsBridgeReachable(domain: String): UiText =
+    UiText.Res(R.string.app_settings_bridge_reachable, listOf(domain))
+
+/** "This device left the bridge: {bridge} no longer knew its name (its account was deleted, or the name released). Everything on it is still there.": Settings > Bridge and Account, in orange: the device left the bridge by itself. {bridge} is the bridge's address (off-the.cloud). */
+fun S.appSettingsBridgeReleased(bridge: String): UiText =
+    UiText.Res(R.string.app_settings_bridge_released, listOf(bridge))
+
+/** "Bridge and Account": Heading of the section of Settings about the Off The Cloud bridge (the relay that makes the device reachable from anywhere) and the Off The Cloud account. */
+fun S.appSettingsBridgeTitle(): UiText =
+    UiText.Res(R.string.app_settings_bridge_title)
+
+/** "Device ID: {id}": Small line in Settings > Connection: this phone's identifier for the device. {id} is a long code, never translated. */
+fun S.appSettingsConnectionDeviceId(id: String): UiText =
+    UiText.Res(R.string.app_settings_connection_device_id, listOf(id))
+
+/** "Log Out": Button (in red) in Settings > Connection; asks Log out of this device? first. */
+fun S.appSettingsConnectionLogOut(): UiText =
+    UiText.Res(R.string.app_settings_connection_log_out)
+
+/** "Log Out": Button (in red) of the confirmation Log out of this device?: logs out. */
+fun S.appSettingsConnectionLogOutConfirm(): UiText =
+    UiText.Res(R.string.app_settings_connection_log_out_confirm)
+
+/** "The connection, the sync history and everything cached from the device are removed from this phone. Nothing on the device itself is deleted.": Message of the confirmation Log out of this device? */
+fun S.appSettingsConnectionLogOutMessage(): UiText =
+    UiText.Res(R.string.app_settings_connection_log_out_message)
+
+/** "Log out of this device?": Title of the confirmation asked before logging out of the device in Settings. Buttons: Log Out and Cancel. */
+fun S.appSettingsConnectionLogOutTitle(): UiText =
+    UiText.Res(R.string.app_settings_connection_log_out_title)
+
+/** "Save Connection": Button in Settings > Connection that saves the address and password and connects again. */
+fun S.appSettingsConnectionSave(): UiText =
+    UiText.Res(R.string.app_settings_connection_save)
+
+/** "Connection": Heading of the section of Settings with the device's address and password. */
+fun S.appSettingsConnectionTitle(): UiText =
+    UiText.Res(R.string.app_settings_connection_title)
+
+/** "Use photo": Button on the screen that crops the new profile photo to a circle: keeps the crop as the profile photo. */
+fun S.appSettingsCropUse(): UiText =
+    UiText.Res(R.string.app_settings_crop_use)
+
+/** "Error updating this setting": Shown for a few seconds in Settings when a switch (Image Tagging, Face Recognition) couldn't be changed because the device couldn't be reached; the switch goes back. */
+fun S.appSettingsErrorSetting(): UiText =
+    UiText.Res(R.string.app_settings_error_setting)
+
+/** "Unexpected response": Error in Settings when the device answered a request (saving the profile or a setting, changing the password, sending the logs, listing the shared links) with something the app didn't expect. */
+fun S.appSettingsErrorUnexpected(): UiText =
+    UiText.Res(R.string.app_settings_error_unexpected)
+
+/** "Update failed": Shown for a few seconds in Settings when the device refused to change a switch (Image Tagging, Face Recognition) without saying why; the switch goes back. Not about software updates. */
+fun S.appSettingsErrorUpdateFailed(): UiText =
+    UiText.Res(R.string.app_settings_error_update_failed)
+
+/** "Detect faces in newly uploaded photos so you can search by person. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media below to scan the ones you already have.": Under the Face Recognition switch in Settings: what turning it on means. Reprocess Media is the name of a section further down (app.settings.reprocess.title). */
+fun S.appSettingsFacesFooter(): UiText =
+    UiText.Res(R.string.app_settings_faces_footer)
+
+/** "People": Heading of the section of Settings holding the Face Recognition switch. */
+fun S.appSettingsFacesTitle(): UiText =
+    UiText.Res(R.string.app_settings_faces_title)
+
+/** "Face Recognition": Switch in Settings > People: the device detects faces in new photos so they can be searched by person. Off unless the owner turns it on. */
+fun S.appSettingsFacesToggle(): UiText =
+    UiText.Res(R.string.app_settings_faces_toggle)
+
 /** "Language": Row in Settings that opens the Language screen, and that screen's title. */
 fun S.appSettingsLanguage(): UiText =
     UiText.Res(R.string.app_settings_language)
@@ -25,3 +145,619 @@ fun S.appSettingsLanguageFooter(): UiText =
 /** "Your device needs a software update to share this choice with your other apps. Until then it applies to this phone only.": Shown under the list of languages on the Language screen when the device's software is too old to keep the language. */
 fun S.appSettingsLanguageThisPhone(): UiText =
     UiText.Res(R.string.app_settings_language_this_phone)
+
+/** "Created {date}": Line of a link on the Shared Links screen: when it was made. {date} is the date and time, already formatted (Oct 11, 2026 at 10:30). */
+fun S.appSettingsLinksCreated(date: String): UiText =
+    UiText.Res(R.string.app_settings_links_created, listOf(date))
+
+/** "Could not delete the link": Error on the Shared Links screen when a link couldn't be deleted and the device gave no reason. */
+fun S.appSettingsLinksDeleteFailed(): UiText =
+    UiText.Res(R.string.app_settings_links_delete_failed)
+
+/** "Delete link": Screen-reader name of the trash button of a link on the Shared Links screen; it asks for a confirmation first. */
+fun S.appSettingsLinksDeleteLink(): UiText =
+    UiText.Res(R.string.app_settings_links_delete_link)
+
+/** "Delete this link?": Title of the confirmation asked before deleting a shared link on the Shared Links screen. Buttons: Delete and Cancel. */
+fun S.appSettingsLinksDeleteTitle(): UiText =
+    UiText.Res(R.string.app_settings_links_delete_title)
+
+/** "No shared links": Shown on the Shared Links screen when the user has shared nothing that is still valid. */
+fun S.appSettingsLinksEmpty(): UiText =
+    UiText.Res(R.string.app_settings_links_empty)
+
+/** "Expires {date}": Line of a link on the Shared Links screen: when it stops working. {date} is the date and time, already formatted (Oct 18, 2026 at 10:30). */
+fun S.appSettingsLinksExpires(date: String): UiText =
+    UiText.Res(R.string.app_settings_links_expires, listOf(date))
+
+/** "Could not load the shared links": Error on the Shared Links screen when the list couldn't be loaded and the device gave no reason. */
+fun S.appSettingsLinksLoadFailed(): UiText =
+    UiText.Res(R.string.app_settings_links_load_failed)
+
+/** "Never opened": Line of a link on the Shared Links screen: nobody has opened it yet. */
+fun S.appSettingsLinksNeverOpened(): UiText =
+    UiText.Res(R.string.app_settings_links_never_opened)
+
+/** "Opened {count} times" (one: "Opened {count} time"): Line of a link on the Shared Links screen: how many times someone opened it. */
+fun S.appSettingsLinksOpened(count: Int): UiText =
+    UiText.Plural(R.plurals.app_settings_links_opened, count, listOf(count))
+
+/** "Opened {count} times, last {last}" (one: "Opened {count} time, last {last}"): Line of a link on the Shared Links screen: how many times someone opened it, and when it was last opened. {last} is already formatted: how long ago (2 hours ago on the iPhone, 2h ago on Android) or a date. */
+fun S.appSettingsLinksOpenedLast(count: Int, last: String): UiText =
+    UiText.Plural(R.plurals.app_settings_links_opened_last, count, listOf(count, last))
+
+/** "{size} · {count} files" (one: "{size} · {count} file"): Line of a link on the Shared Links screen: the space its copies take on the device and how many files it shares. {size} is a size, already formatted with its unit (4.6 GB, 820 MB). */
+fun S.appSettingsLinksSizeFiles(size: String, count: Int): UiText =
+    UiText.Plural(R.plurals.app_settings_links_size_files, count, listOf(size, count))
+
+/** "Shared Links": Row in Settings that opens the list of the galleries and download links the user shared, and that screen's title. */
+fun S.appSettingsLinksTitle(): UiText =
+    UiText.Res(R.string.app_settings_links_title)
+
+/** "Shared gallery": Name of a shared gallery (a web page of photos) on the Shared Links screen when it has no description. */
+fun S.appSettingsLinksUntitledGallery(): UiText =
+    UiText.Res(R.string.app_settings_links_untitled_gallery)
+
+/** "Shared files (zip)": Name of a download link on the Shared Links screen when it has no description: a ZIP archive of files shared from Files or Images. */
+fun S.appSettingsLinksUntitledZip(): UiText =
+    UiText.Res(R.string.app_settings_links_untitled_zip)
+
+/** "Device": One of the two choices at the top of the Logs screen: the log of the device's own service. */
+fun S.appSettingsLogsDevice(): UiText =
+    UiText.Res(R.string.app_settings_logs_device)
+
+/** "Note (optional)": Label (iPhone) or placeholder (Android) of the text field in the form that sends the logs: what the user wants to tell us. */
+fun S.appSettingsLogsNote(): UiText =
+    UiText.Res(R.string.app_settings_logs_note)
+
+/** "Sends the last part of your device's logs, your note and your account's email to info@off-the.cloud, so we can help. Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses.": In the form that sends the logs to Off The Cloud, before Send: what is sent and where. Keep the email address as it is. */
+fun S.appSettingsLogsSendExplain(): UiText =
+    UiText.Res(R.string.app_settings_logs_send_explain)
+
+/** "Send to us": Button on the Logs screen that opens a form to send the logs to Off The Cloud for help (on the iPhone also that form's title). */
+fun S.appSettingsLogsSendToUs(): UiText =
+    UiText.Res(R.string.app_settings_logs_send_to_us)
+
+/** "Sending…": The Send button (on Android the Send to us button) while the logs are being sent. */
+fun S.appSettingsLogsSending(): UiText =
+    UiText.Res(R.string.app_settings_logs_sending)
+
+/** "Sent - we'll answer at your account's email.": Shown on the Logs screen once the logs were sent to Off The Cloud: the answer will go to the email address of the user's Off The Cloud account. */
+fun S.appSettingsLogsSent(): UiText =
+    UiText.Res(R.string.app_settings_logs_sent)
+
+/** "Logs": Row in Settings that opens the device's logs, and that screen's title (on Android also the heading of the section holding the row). */
+fun S.appSettingsLogsTitle(): UiText =
+    UiText.Res(R.string.app_settings_logs_title)
+
+/** "Updates": One of the two choices at the top of the Logs screen: the log of the device's software updates. */
+fun S.appSettingsLogsUpdates(): UiText =
+    UiText.Res(R.string.app_settings_logs_updates)
+
+/** "Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses. Check them before you share them.": At the top of the Logs screen, with a warning sign. */
+fun S.appSettingsLogsWarning(): UiText =
+    UiText.Res(R.string.app_settings_logs_warning)
+
+/** "Change Password": Button of Settings > Change Password that changes the device's password; this phone keeps the new one to sign in. */
+fun S.appSettingsPasswordChange(): UiText =
+    UiText.Res(R.string.app_settings_password_change)
+
+/** "Password changed ✅": Shown for a few seconds in Settings > Change Password once the device changed its password. Keep the check mark. */
+fun S.appSettingsPasswordChanged(): UiText =
+    UiText.Res(R.string.app_settings_password_changed)
+
+/** "Changing…": The Change Password button while the password is being changed. */
+fun S.appSettingsPasswordChanging(): UiText =
+    UiText.Res(R.string.app_settings_password_changing)
+
+/** "Confirm new password": Placeholder of the third field of Settings > Change Password: the new password again. */
+fun S.appSettingsPasswordConfirm(): UiText =
+    UiText.Res(R.string.app_settings_password_confirm)
+
+/** "Current password": Placeholder of the first field of Settings > Change Password: the device's password now. */
+fun S.appSettingsPasswordCurrent(): UiText =
+    UiText.Res(R.string.app_settings_password_current)
+
+/** "Error changing password: {detail}": Shown for a few seconds in Settings > Change Password when the change couldn't reach the device. {detail} is why, as the system or the connection words it. */
+fun S.appSettingsPasswordError(detail: String): UiText =
+    UiText.Res(R.string.app_settings_password_error, listOf(detail))
+
+/** "Change failed": Shown for a few seconds in Settings > Change Password when the device refused the change without saying why (for example a wrong current password). */
+fun S.appSettingsPasswordFailed(): UiText =
+    UiText.Res(R.string.app_settings_password_failed)
+
+/** "Fill in all fields": Shown for a few seconds in Settings > Change Password when a field is empty. */
+fun S.appSettingsPasswordFillAll(): UiText =
+    UiText.Res(R.string.app_settings_password_fill_all)
+
+/** "Passwords don't match": Shown for a few seconds in Settings > Change Password when the new password and its confirmation differ. */
+fun S.appSettingsPasswordMismatch(): UiText =
+    UiText.Res(R.string.app_settings_password_mismatch)
+
+/** "New password": Placeholder of the second field of Settings > Change Password. */
+fun S.appSettingsPasswordNew(): UiText =
+    UiText.Res(R.string.app_settings_password_new)
+
+/** "Could not fetch the connection's public key": Shown for a few seconds in Settings > Change Password: the app couldn't get the key it encrypts the passwords with, so nothing was sent. */
+fun S.appSettingsPasswordNoKey(): UiText =
+    UiText.Res(R.string.app_settings_password_no_key)
+
+/** "Change Password": Heading of the section of Settings where the owner changes the device's password. */
+fun S.appSettingsPasswordTitle(): UiText =
+    UiText.Res(R.string.app_settings_password_title)
+
+/** "All photos": First chip at the top of the screen Choose a photo: every photo on the device (the other chips are the user's collections). */
+fun S.appSettingsPickerAll(): UiText =
+    UiText.Res(R.string.app_settings_picker_all)
+
+/** "Choose a photo": Title of the screen that lists the photos on the user's device to pick the profile photo from (Settings > Profile > Change photo > From your device). */
+fun S.appSettingsPickerTitle(): UiText =
+    UiText.Res(R.string.app_settings_picker_title)
+
+/** "Change photo": Button under the profile photo in Settings > Profile. It opens a menu: pick the photo on this phone, or among the photos on the user's device. */
+fun S.appSettingsProfileChangePhoto(): UiText =
+    UiText.Res(R.string.app_settings_profile_change_photo)
+
+/** "From your device": Item of the Change photo menu in Settings > Profile: pick the profile photo among the photos already stored on the user's Off The Cloud device. */
+fun S.appSettingsProfileFromDevice(): UiText =
+    UiText.Res(R.string.app_settings_profile_from_device)
+
+/** "Name": Placeholder of the name field in Settings > Profile: the name friends see. */
+fun S.appSettingsProfileName(): UiText =
+    UiText.Res(R.string.app_settings_profile_name)
+
+/** "Save Profile": Button in Settings > Profile that saves the photo, name and description on the device. */
+fun S.appSettingsProfileSave(): UiText =
+    UiText.Res(R.string.app_settings_profile_save)
+
+/** "Error saving profile": Shown for a few seconds in Settings > Profile when the profile couldn't reach the device (no connection, no answer). */
+fun S.appSettingsProfileSaveError(): UiText =
+    UiText.Res(R.string.app_settings_profile_save_error)
+
+/** "Profile update failed": Shown for a few seconds in Settings > Profile when the device refused to save the profile without saying why. */
+fun S.appSettingsProfileSaveFailed(): UiText =
+    UiText.Res(R.string.app_settings_profile_save_failed)
+
+/** "Profile updated ✅": Shown for a few seconds in Settings > Profile once the device saved the profile. Keep the check mark. */
+fun S.appSettingsProfileSaved(): UiText =
+    UiText.Res(R.string.app_settings_profile_saved)
+
+/** "Profile": Heading of the first section of Settings, where the owner edits the profile friends see: photo, name and description. */
+fun S.appSettingsProfileTitle(): UiText =
+    UiText.Res(R.string.app_settings_profile_title)
+
+/** "Reprocess All Media": Button of Settings > Reprocess Media that starts a run; asks for a confirmation first. */
+fun S.appSettingsReprocessAll(): UiText =
+    UiText.Res(R.string.app_settings_reprocess_all)
+
+/** "Last run completed — {count} file(s) processed." (one: "Last run completed — {count} file(s) processed."): Settings > Reprocess Media after a run finished. {count} is the number of files processed. */
+fun S.appSettingsReprocessCompleted(count: Int): UiText =
+    UiText.Plural(R.plurals.app_settings_reprocess_completed, count, listOf(count))
+
+/** "Reprocess every photo and video in your library? This deletes all existing tags and recognized people and rebuilds them from scratch. It can take a while and can't be undone.": Confirmation asked before starting Reprocess Media from the beginning. Buttons: Reprocess and Cancel. */
+fun S.appSettingsReprocessConfirmRestart(): UiText =
+    UiText.Res(R.string.app_settings_reprocess_confirm_restart)
+
+/** "Resume reprocessing where it left off? It can take a while.": Confirmation asked before continuing a stopped run of Reprocess Media. Buttons: Resume and Cancel. */
+fun S.appSettingsReprocessConfirmResume(): UiText =
+    UiText.Res(R.string.app_settings_reprocess_confirm_resume)
+
+/** "Last run failed after {count} file(s) — try again." (one: "Last run failed after {count} file(s) — try again."): Settings > Reprocess Media, in red, after a run failed. {count} is the number of files processed before it failed. */
+fun S.appSettingsReprocessFailed(count: Int): UiText =
+    UiText.Plural(R.plurals.app_settings_reprocess_failed, count, listOf(count))
+
+/** "Re-run tagging and face detection on every photo and video already in your library — useful after a detection fix or model update. This clears existing tags and recognized people first and rebuilds them from scratch.": Under Settings > Reprocess Media: what it does. */
+fun S.appSettingsReprocessFooter(): UiText =
+    UiText.Res(R.string.app_settings_reprocess_footer)
+
+/** "Reprocess": Button (in red) of the confirmation app.settings.reprocess.confirm_restart: deletes the tags and people and starts again. */
+fun S.appSettingsReprocessRestartButton(): UiText =
+    UiText.Res(R.string.app_settings_reprocess_restart_button)
+
+/** "Resume Reprocessing": Button of Settings > Reprocess Media that continues a stopped run from where it stopped. */
+fun S.appSettingsReprocessResume(): UiText =
+    UiText.Res(R.string.app_settings_reprocess_resume)
+
+/** "Resume": Button of the confirmation app.settings.reprocess.confirm_resume: continues the stopped run. */
+fun S.appSettingsReprocessResumeButton(): UiText =
+    UiText.Res(R.string.app_settings_reprocess_resume_button)
+
+/** "Reprocessing… {percent}% ({done} / {total})": Settings > Reprocess Media while it runs. {percent} is how far along it is; {done} and {total} are numbers of files. */
+fun S.appSettingsReprocessRunning(percent: Int, done: Int, total: Int): UiText =
+    UiText.Res(R.string.app_settings_reprocess_running, listOf(percent, done, total))
+
+/** "Error starting reprocessing": Shown for a few seconds in Settings > Reprocess Media when the request to start couldn't reach the device. */
+fun S.appSettingsReprocessStartError(): UiText =
+    UiText.Res(R.string.app_settings_reprocess_start_error)
+
+/** "Could not start reprocessing": Shown for a few seconds in Settings > Reprocess Media when the device didn't start the run and gave no reason. */
+fun S.appSettingsReprocessStartFailed(): UiText =
+    UiText.Res(R.string.app_settings_reprocess_start_failed)
+
+/** "Start Over": Button of Settings > Reprocess Media that runs everything again from the beginning instead of continuing. */
+fun S.appSettingsReprocessStartOver(): UiText =
+    UiText.Res(R.string.app_settings_reprocess_start_over)
+
+/** "Starting…": Button of Settings > Reprocess Media while the run is being started. */
+fun S.appSettingsReprocessStarting(): UiText =
+    UiText.Res(R.string.app_settings_reprocess_starting)
+
+/** "Error stopping reprocessing": Shown for a few seconds in Settings > Reprocess Media when the request to stop couldn't reach the device. */
+fun S.appSettingsReprocessStopError(): UiText =
+    UiText.Res(R.string.app_settings_reprocess_stop_error)
+
+/** "Could not stop reprocessing": Shown for a few seconds in Settings > Reprocess Media when the device didn't stop the run and gave no reason. */
+fun S.appSettingsReprocessStopFailed(): UiText =
+    UiText.Res(R.string.app_settings_reprocess_stop_failed)
+
+/** "Stopped at {percent}% ({done} / {total}).": Settings > Reprocess Media when a run was stopped before the end. {percent} is how far it got; {done} and {total} are numbers of files. */
+fun S.appSettingsReprocessStopped(percent: Int, done: Int, total: Int): UiText =
+    UiText.Res(R.string.app_settings_reprocess_stopped, listOf(percent, done, total))
+
+/** "Stopping…": The Cancel button of Settings > Reprocess Media while the run stops. */
+fun S.appSettingsReprocessStopping(): UiText =
+    UiText.Res(R.string.app_settings_reprocess_stopping)
+
+/** "Reprocess Media": Heading of the section of Settings that runs image tagging and face detection again on every photo and video. */
+fun S.appSettingsReprocessTitle(): UiText =
+    UiText.Res(R.string.app_settings_reprocess_title)
+
+/** "Sharing": Heading of the section of Settings holding the Shared Links row. */
+fun S.appSettingsSharingTitle(): UiText =
+    UiText.Res(R.string.app_settings_sharing_title)
+
+/** "CPU: {cpu}% · Mem: {used} of {total}": Line of Settings > Status: the processor's load and the memory in use (Mem is short for memory). {cpu} is a number with one decimal (12.5); {used} and {total} are sizes, already formatted with its unit (4.6 GB, 820 MB). */
+fun S.appSettingsStatusCpuMem(cpu: String, used: String, total: String): UiText =
+    UiText.Res(R.string.app_settings_status_cpu_mem, listOf(cpu, used, total))
+
+/** "Disk: {used} of {total}": Line of Settings > Status: how much of the device's system card is in use. {used} and {total} are sizes, already formatted with its unit (4.6 GB, 820 MB). */
+fun S.appSettingsStatusDisk(used: String, total: String): UiText =
+    UiText.Res(R.string.app_settings_status_disk, listOf(used, total))
+
+/** "RAID: {state} · Disks: {disks}": Line of Settings > Status: the state of the device's mirrored disks (RAID) and how many disks it has. {state} is one of No RAID, In sync, Syncing (45%), Degraded, Unknown (app.settings.status.raid_*); {disks} is a number. */
+fun S.appSettingsStatusRaid(state: String, disks: Int): UiText =
+    UiText.Res(R.string.app_settings_status_raid, listOf(state, disks))
+
+/** "Degraded": State of the device's disks in Settings > Status, after RAID: (app.settings.status.raid): one of the two disks stopped working. */
+fun S.appSettingsStatusRaidDegraded(): UiText =
+    UiText.Res(R.string.app_settings_status_raid_degraded)
+
+/** "In sync": State of the device's disks in Settings > Status, after RAID: (app.settings.status.raid): both disks hold the same data. */
+fun S.appSettingsStatusRaidInSync(): UiText =
+    UiText.Res(R.string.app_settings_status_raid_in_sync)
+
+/** "RAID: {level} — {state} · Disks: {disks}": The line app.settings.status.raid when the device names its RAID level. {level} is that name as the device gives it (raid1), never translated; {state} is one of app.settings.status.raid_*; {disks} is a number. */
+fun S.appSettingsStatusRaidLevel(level: String, state: String, disks: Int): UiText =
+    UiText.Res(R.string.app_settings_status_raid_level, listOf(level, state, disks))
+
+/** "No RAID": State of the device's disks in Settings > Status, after RAID: (app.settings.status.raid): the device has no mirror. */
+fun S.appSettingsStatusRaidNone(): UiText =
+    UiText.Res(R.string.app_settings_status_raid_none)
+
+/** "Syncing ({percent}%)": State of the device's disks in Settings > Status, after RAID: (app.settings.status.raid): one disk is being copied onto the other. {percent} is how far along it is, a whole number. */
+fun S.appSettingsStatusRaidSyncing(percent: Int): UiText =
+    UiText.Res(R.string.app_settings_status_raid_syncing, listOf(percent))
+
+/** "Unknown": State of the device's disks in Settings > Status, after RAID: (app.settings.status.raid): the device didn't say. */
+fun S.appSettingsStatusRaidUnknown(): UiText =
+    UiText.Res(R.string.app_settings_status_raid_unknown)
+
+/** "RAID used: {used} of {total}": Line of Settings > Status: how much of the device's mirrored disks (RAID) is in use. {used} and {total} are sizes, already formatted with its unit (4.6 GB, 820 MB). */
+fun S.appSettingsStatusRaidUsed(used: String, total: String): UiText =
+    UiText.Res(R.string.app_settings_status_raid_used, listOf(used, total))
+
+/** "Status": Heading of the section of Settings that shows how full the device's disks are and its processor and memory use. */
+fun S.appSettingsStatusTitle(): UiText =
+    UiText.Res(R.string.app_settings_status_title)
+
+/** "{percent}%": Inside the storage bar of Settings > Status: how full the device's mirrored disks are. {percent} is a whole number. Write the percent sign as your language does. */
+fun S.appSettingsStatusUsedPercent(percent: Int): UiText =
+    UiText.Res(R.string.app_settings_status_used_percent, listOf(percent))
+
+/** "Sync All": Button in Settings that goes through the whole photo library again, uploading whatever the device lacks. */
+fun S.appSettingsSyncAll(): UiText =
+    UiText.Res(R.string.app_settings_sync_all)
+
+/** "Authorize Photos Access": Button in Settings > Sync Options that asks the system for access to the phone's photos. */
+fun S.appSettingsSyncAuthorize(): UiText =
+    UiText.Res(R.string.app_settings_sync_authorize)
+
+/** "Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.": Under the Sync Now, Sync All and Sync From Now buttons in Settings: what the last two do. Use the same words as those buttons. */
+fun S.appSettingsSyncFooter(): UiText =
+    UiText.Res(R.string.app_settings_sync_footer)
+
+/** "Sync From Now": Button in Settings that skips the photos already on the phone: only those taken from now on are uploaded. */
+fun S.appSettingsSyncFromNow(): UiText =
+    UiText.Res(R.string.app_settings_sync_from_now)
+
+/** "Sync Now": Button in Settings that uploads the photos and videos not on the device yet, now. */
+fun S.appSettingsSyncNow(): UiText =
+    UiText.Res(R.string.app_settings_sync_now)
+
+/** "Sync Options": Heading of the section of Settings with the options of the photo sync from this phone to the device. */
+fun S.appSettingsSyncTitle(): UiText =
+    UiText.Res(R.string.app_settings_sync_title)
+
+/** "Include videos": Switch in Settings > Sync Options: upload videos too, not only photos. */
+fun S.appSettingsSyncVideos(): UiText =
+    UiText.Res(R.string.app_settings_sync_videos)
+
+/** "Wi-Fi only": Switch in Settings > Sync Options: upload photos only while the phone is on Wi-Fi. */
+fun S.appSettingsSyncWifiOnly(): UiText =
+    UiText.Res(R.string.app_settings_sync_wifi_only)
+
+/** "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.": Under the Image Tagging switch in Settings: what it does. */
+fun S.appSettingsTaggingFooter(): UiText =
+    UiText.Res(R.string.app_settings_tagging_footer)
+
+/** "Image Tagging": Heading of a section of Settings, and the label of its switch: the device recognises what photos show so they can be searched. */
+fun S.appSettingsTaggingTitle(): UiText =
+    UiText.Res(R.string.app_settings_tagging_title)
+
+/** "Auth key (optional)": Placeholder of a field in Settings > Tailscale Funnel: a key from the Tailscale admin console, which lets the device sign in to Tailscale by itself. */
+fun S.appSettingsTailscaleAuthKey(): UiText =
+    UiText.Res(R.string.app_settings_tailscale_auth_key)
+
+/** "Authorise this device in the page that just opened, then press Enable again.": Settings > Tailscale Funnel after Enable without a key: Tailscale's sign-in page was opened in the browser. Enable is the button Enable Tailscale Funnel. */
+fun S.appSettingsTailscaleAuthorise(): UiText =
+    UiText.Res(R.string.app_settings_tailscale_authorise)
+
+/** "Could not change the setting.": Error in Settings > Tailscale Funnel when the device didn't turn Funnel on or off and gave no reason. */
+fun S.appSettingsTailscaleChangeFailed(): UiText =
+    UiText.Res(R.string.app_settings_tailscale_change_failed)
+
+/** "Done — this device is reachable at {url}": Settings > Tailscale Funnel once it is on. {url} is the device's public address on Tailscale. */
+fun S.appSettingsTailscaleDone(url: String): UiText =
+    UiText.Res(R.string.app_settings_tailscale_done, listOf(url))
+
+/** "Enable Tailscale Funnel": Button in Settings > Tailscale Funnel while it is off. */
+fun S.appSettingsTailscaleEnable(): UiText =
+    UiText.Res(R.string.app_settings_tailscale_enable)
+
+/** "Tailscale Funnel is an alternative to the Off The Cloud bridge, it publishes this device on your own ts.net address but with the next limitations:": Settings > Tailscale Funnel: first paragraph, followed by a list of four limitations (app.settings.tailscale.limit_*). */
+fun S.appSettingsTailscaleIntro(): UiText =
+    UiText.Res(R.string.app_settings_tailscale_intro)
+
+/** "With a key from your Tailscale admin console this finishes on its own. Without one, you'll be taken to Tailscale to authorise this device.": Settings > Tailscale Funnel, under the Enable button. */
+fun S.appSettingsTailscaleKeyHint(): UiText =
+    UiText.Res(R.string.app_settings_tailscale_key_hint)
+
+/** "<b>You'll need a Tailscale account,</b> with Funnel enabled for your tailnet.": Settings > Tailscale Funnel: the last item of the list of limitations, after a bullet. <b>…</b> is the item's lead (shown in bold on the iPhone); the sentence goes on after it. Tags: b. */
+fun S.appSettingsTailscaleLimitAccount(): RichText =
+    RichText.Res(R.string.app_settings_tailscale_limit_account)
+
+/** "<b>Bandwidth is capped.</b> Tailscale limits what can pass through Funnel and doesn't publish the limit.": Settings > Tailscale Funnel: an item of the list of limitations, after a bullet. <b>…</b> is the item's short lead (shown in bold on the iPhone). Tags: b. */
+fun S.appSettingsTailscaleLimitBandwidth(): RichText =
+    RichText.Res(R.string.app_settings_tailscale_limit_bandwidth)
+
+/** "<b>One user only.</b> Extra users need a web address each, and Funnel gives this machine a single one.": Settings > Tailscale Funnel: an item of the list of limitations, after a bullet. <b>…</b> is the item's short lead (shown in bold on the iPhone). Tags: b. */
+fun S.appSettingsTailscaleLimitOneUser(): RichText =
+    RichText.Res(R.string.app_settings_tailscale_limit_one_user)
+
+/** "<b>The social side won't work.</b> Friends find each other through the bridge, so sharing and friends' timelines are unavailable.": Settings > Tailscale Funnel: an item of the list of limitations, after a bullet. <b>…</b> is the item's short lead (shown in bold on the iPhone). Tags: b. */
+fun S.appSettingsTailscaleLimitSocial(): RichText =
+    RichText.Res(R.string.app_settings_tailscale_limit_social)
+
+/** "Tailscale is connected, but Funnel didn't come up. Check that Funnel is enabled for your tailnet.": Settings > Tailscale Funnel after Enable: the device joined Tailscale but Funnel didn't start. */
+fun S.appSettingsTailscaleNoFunnel(): UiText =
+    UiText.Res(R.string.app_settings_tailscale_no_funnel)
+
+/** "Tailscale isn't installed on this device, so Funnel isn't available here.": Settings > Tailscale Funnel on a device without Tailscale. */
+fun S.appSettingsTailscaleNotInstalled(): UiText =
+    UiText.Res(R.string.app_settings_tailscale_not_installed)
+
+/** "Tailscale isn't installed on this device, so Funnel can't be turned on here.": Error in Settings > Tailscale Funnel after Enable, on a device without Tailscale. */
+fun S.appSettingsTailscaleNotInstalledOn(): UiText =
+    UiText.Res(R.string.app_settings_tailscale_not_installed_on)
+
+/** "Funnel is off. This device is reachable through the bridge again.": Settings > Tailscale Funnel, after it was turned off. */
+fun S.appSettingsTailscaleOff(): UiText =
+    UiText.Res(R.string.app_settings_tailscale_off)
+
+/** "Served over Tailscale Funnel at {url}": Settings > Tailscale Funnel, while it is on. {url} is the device's public address on Tailscale. */
+fun S.appSettingsTailscaleServed(url: String): UiText =
+    UiText.Res(R.string.app_settings_tailscale_served, listOf(url))
+
+/** "It suits a device you want purely as your own private NAS — your files and photos, reachable from anywhere, nothing shared with anyone.": Settings > Tailscale Funnel: after the list of limitations. */
+fun S.appSettingsTailscaleSuits(): UiText =
+    UiText.Res(R.string.app_settings_tailscale_suits)
+
+/** "Turn Funnel off": Button in Settings > Tailscale Funnel while it is on. */
+fun S.appSettingsTailscaleTurnOff(): UiText =
+    UiText.Res(R.string.app_settings_tailscale_turn_off)
+
+/** "Working…": The Tailscale Funnel button while the device turns it on or off. */
+fun S.appSettingsTailscaleWorking(): UiText =
+    UiText.Res(R.string.app_settings_tailscale_working)
+
+/** "Clear thumbnail cache": Button (in red) in Settings > Thumbnail cache that deletes every small picture of the photos kept on this phone; Images downloads them again from the device. */
+fun S.appSettingsThumbsClear(): UiText =
+    UiText.Res(R.string.app_settings_thumbs_clear)
+
+/** "Thumbnails are kept on this phone so Images opens without downloading them again.": Under the Thumbnail cache section of Settings: why the phone keeps the small pictures of the photos. */
+fun S.appSettingsThumbsFooter(): UiText =
+    UiText.Res(R.string.app_settings_thumbs_footer)
+
+/** "Maximum size": Label of the choice in Settings > Thumbnail cache of how much room the small pictures of the photos may take on this phone (250 MB to 5 GB). */
+fun S.appSettingsThumbsMaxSize(): UiText =
+    UiText.Res(R.string.app_settings_thumbs_max_size)
+
+/** "The device is back.": Settings > Device version: the device answers again after the restart. */
+fun S.appSettingsUpdateBack(): UiText =
+    UiText.Res(R.string.app_settings_update_back)
+
+/** "build {build}": A release of the device's software that has no version name, in Settings > Device version (lowercase in English). {build} is the release number (118). */
+fun S.appSettingsUpdateBuild(build: String): UiText =
+    UiText.Res(R.string.app_settings_update_build, listOf(build))
+
+/** "Check again": Button in Settings > Device version that makes the device check for new software. */
+fun S.appSettingsUpdateCheckAgain(): UiText =
+    UiText.Res(R.string.app_settings_update_check_again)
+
+/** "Couldn't reach the update server just now, so this may be out of date.": Settings > Device version: the device couldn't check for new software, so what is shown may be old. */
+fun S.appSettingsUpdateCheckError(): UiText =
+    UiText.Res(R.string.app_settings_update_check_error)
+
+/** "Checking…": Button in Settings > Device version while the device checks for new software (instead of Check again). */
+fun S.appSettingsUpdateChecking(): UiText =
+    UiText.Res(R.string.app_settings_update_checking)
+
+/** "Critical": Small red badge next to a release in Settings > Device version: an update to install as soon as possible. */
+fun S.appSettingsUpdateCritical(): UiText =
+    UiText.Res(R.string.app_settings_update_critical)
+
+/** "Update failed: {message}": Settings > Device version, in red: the last software update failed. {message} is the device's own explanation. */
+fun S.appSettingsUpdateFailed(message: String): UiText =
+    UiText.Res(R.string.app_settings_update_failed, listOf(message))
+
+/** "Update failed on {date}: {message}": Settings > Device version, in red: the last software update failed. {date} is when, as the device writes it; {message} is the device's own explanation. */
+fun S.appSettingsUpdateFailedOn(date: String, message: String): UiText =
+    UiText.Res(R.string.app_settings_update_failed_on, listOf(date, message))
+
+/** "{label} (build {build})": The device's installed software in Settings > Device version. {label} is its version (2.3), {build} its release number (118). */
+fun S.appSettingsUpdateLabelBuild(label: String, build: String): UiText =
+    UiText.Res(R.string.app_settings_update_label_build, listOf(label, build))
+
+/** "Major": Small orange badge next to a release in Settings > Device version: an important update (security, stability, durability). */
+fun S.appSettingsUpdateMajor(): UiText =
+    UiText.Res(R.string.app_settings_update_major)
+
+/** "Restart Device": Button (in red) in Settings > Device version that restarts the whole device; it asks for a confirmation first. */
+fun S.appSettingsUpdateRestart(): UiText =
+    UiText.Res(R.string.app_settings_update_restart)
+
+/** "Restart": Button (in red) of the confirmation Restart the device?: restarts it. */
+fun S.appSettingsUpdateRestartConfirm(): UiText =
+    UiText.Res(R.string.app_settings_update_restart_confirm)
+
+/** "Could not restart the device.": Error in Settings > Device version when the device didn't restart and gave no reason. */
+fun S.appSettingsUpdateRestartFailed(): UiText =
+    UiText.Res(R.string.app_settings_update_restart_failed)
+
+/** "It will be unreachable for about a minute.": Message of the confirmation Restart the device? */
+fun S.appSettingsUpdateRestartMessage(): UiText =
+    UiText.Res(R.string.app_settings_update_restart_message)
+
+/** "The device rebuilds itself and restarts, which takes a few minutes and drops this connection on the way. Your photos and settings are left alone.": Settings > Device version, under the Update button: what installing an update does. */
+fun S.appSettingsUpdateRestartNote(): UiText =
+    UiText.Res(R.string.app_settings_update_restart_note)
+
+/** "Your device needs an update before it can be restarted from here.": Error in Settings > Device version: the device's software is too old to be restarted from the app. */
+fun S.appSettingsUpdateRestartOld(): UiText =
+    UiText.Res(R.string.app_settings_update_restart_old)
+
+/** "Restart the device?": Title of the confirmation asked before restarting the device from Settings > Device version. Buttons: Restart and Cancel. */
+fun S.appSettingsUpdateRestartTitle(): UiText =
+    UiText.Res(R.string.app_settings_update_restart_title)
+
+/** "Restarting…": The Restart Device button while the device is restarting. */
+fun S.appSettingsUpdateRestarting(): UiText =
+    UiText.Res(R.string.app_settings_update_restarting)
+
+/** "Restarting… the device will be back in about a minute.": Settings > Device version, next to a spinner, while the device restarts. */
+fun S.appSettingsUpdateRestartingNote(): UiText =
+    UiText.Res(R.string.app_settings_update_restarting_note)
+
+/** "The device hasn't come back yet. It can take a little longer; if it doesn't come back, unplug it and plug it back in.": Settings > Device version, in orange: five minutes after the restart the device still doesn't answer. */
+fun S.appSettingsUpdateSlow(): UiText =
+    UiText.Res(R.string.app_settings_update_slow)
+
+/** "Could not start the update.": Error in Settings > Device version when the device didn't start the update and gave no reason. */
+fun S.appSettingsUpdateStartFailed(): UiText =
+    UiText.Res(R.string.app_settings_update_start_failed)
+
+/** "Starting…": Button in Settings > Device version while the software update is being started (instead of Update to ...). */
+fun S.appSettingsUpdateStarting(): UiText =
+    UiText.Res(R.string.app_settings_update_starting)
+
+/** "Starting": Settings > Device version, next to a spinner: the update was just started; the device's own progress replaces it. */
+fun S.appSettingsUpdateStartingStatus(): UiText =
+    UiText.Res(R.string.app_settings_update_starting_status)
+
+/** "Device version": Heading of the section of Settings about the device's software: its version, updates, and restarting the device. */
+fun S.appSettingsUpdateTitle(): UiText =
+    UiText.Res(R.string.app_settings_update_title)
+
+/** "Up to date": Settings > Device version, at the right of the installed version: no update is waiting. */
+fun S.appSettingsUpdateUpToDate(): UiText =
+    UiText.Res(R.string.app_settings_update_up_to_date)
+
+/** "Update to {version}": Button in Settings > Device version that installs the newest software. {version} is its version (2.4). */
+fun S.appSettingsUpdateUpdateTo(version: String): UiText =
+    UiText.Res(R.string.app_settings_update_update_to, listOf(version))
+
+/** "Update to build {build}": Button in Settings > Device version that installs the newest software, when it has no version name. {build} is its release number (118). */
+fun S.appSettingsUpdateUpdateToBuild(build: String): UiText =
+    UiText.Res(R.string.app_settings_update_update_to_build, listOf(build))
+
+/** "Uploads": Heading of the section of Settings that shows the photos and videos this phone is uploading to the device; shown only while there are some. */
+fun S.appSettingsUploadsTitle(): UiText =
+    UiText.Res(R.string.app_settings_uploads_title)
+
+/** "Confirm Delete": Button (in red) in Settings > Users that deletes the user once the name was typed. Nothing can be recovered. */
+fun S.appSettingsUsersConfirmDelete(): UiText =
+    UiText.Res(R.string.app_settings_users_confirm_delete)
+
+/** "Type "{name}" to confirm deletion.": Settings > Users, after Delete on a user, above a field: deleting a user deletes all of the user's data. {name} is the user's name, which must be typed exactly. Write the quotes in your language's style. */
+fun S.appSettingsUsersConfirmHint(name: String): UiText =
+    UiText.Res(R.string.app_settings_users_confirm_hint, listOf(name))
+
+/** "Could not create user.": Error in Settings > Users when the device didn't add the user and gave no reason. */
+fun S.appSettingsUsersCreateFailed(): UiText =
+    UiText.Res(R.string.app_settings_users_create_failed)
+
+/** "User "{name}" created.": Message in Settings > Users after a user was added. {name} is the user's name. Write the quotes in your language's style. */
+fun S.appSettingsUsersCreated(name: String): UiText =
+    UiText.Res(R.string.app_settings_users_created, listOf(name))
+
+/** "Could not delete user.": Error in Settings > Users when the device didn't delete the user and gave no reason. */
+fun S.appSettingsUsersDeleteFailed(): UiText =
+    UiText.Res(R.string.app_settings_users_delete_failed)
+
+/** "User "{name}" deleted.": Message in Settings > Users after a user was deleted. {name} is the user's name. Write the quotes in your language's style. */
+fun S.appSettingsUsersDeleted(name: String): UiText =
+    UiText.Res(R.string.app_settings_users_deleted, listOf(name))
+
+/** "Disable": Small button of a user in Settings > Users that switches the user off (reversible). */
+fun S.appSettingsUsersDisable(): UiText =
+    UiText.Res(R.string.app_settings_users_disable)
+
+/** "Enable": Small button of a disabled user in Settings > Users that switches the user on again. */
+fun S.appSettingsUsersEnable(): UiText =
+    UiText.Res(R.string.app_settings_users_enable)
+
+/** "INACTIVE": Small label in capitals next to a user's name in Settings > Users: the user is disabled. Write it in capitals. */
+fun S.appSettingsUsersInactive(): UiText =
+    UiText.Res(R.string.app_settings_users_inactive)
+
+/** "Each user runs as its own fully separate instance — own port, own database, own storage — managed only from here.": Settings > Users: first paragraph. */
+fun S.appSettingsUsersIntro(): UiText =
+    UiText.Res(R.string.app_settings_users_intro)
+
+/** "Load usage": Small button of a user in Settings > Users that shows the storage the user takes and its connections. */
+fun S.appSettingsUsersLoadUsage(): UiText =
+    UiText.Res(R.string.app_settings_users_load_usage)
+
+/** "port": Placeholder of the narrow field for a new user's network port in Settings > Users. */
+fun S.appSettingsUsersPort(): UiText =
+    UiText.Res(R.string.app_settings_users_port)
+
+/** "port {port} · {domain}": Small line under a user's name in Settings > Users. {port} is the user's network port (8081), {domain} the user's address. */
+fun S.appSettingsUsersPortDomain(port: String, domain: String): UiText =
+    UiText.Res(R.string.app_settings_users_port_domain, listOf(port, domain))
+
+/** "Users": Heading of the section of Settings where the owner adds and manages other users of the device. */
+fun S.appSettingsUsersTitle(): UiText =
+    UiText.Res(R.string.app_settings_users_title)
+
+/** "Could not update this user.": Error in Settings > Users when the device didn't enable or disable the user and gave no reason. */
+fun S.appSettingsUsersUpdateFailed(): UiText =
+    UiText.Res(R.string.app_settings_users_update_failed)
+
+/** "{size} MB ({percent}%) · {count} active" (one: "{size} MB ({percent}%) · {count} active"): Small line of a user in Settings > Users: the storage the user takes, in megabytes, its share of the disks, and how many connections are open now. {size} is a whole number, {percent} a number with one decimal. */
+fun S.appSettingsUsersUsage(size: String, percent: String, count: Int): UiText =
+    UiText.Plural(R.plurals.app_settings_users_usage, count, listOf(size, percent, count))
+
+/** "username": Placeholder of the field for a new user's name in Settings > Users (lowercase letters, digits and dashes only). */
+fun S.appSettingsUsersUsername(): UiText =
+    UiText.Res(R.string.app_settings_users_username)

@@ -49,8 +49,8 @@ struct PeopleOrderTests {
 
     @Test func wording() {
         #expect(PeopleOrder.andList(["Ana"]) == "Ana")
-        #expect(PeopleOrder.andList(["Ana", "Leo"]) == "Ana and Leo")
-        #expect(PeopleOrder.andList(["Ana", "Leo", "Rosa"]) == "Ana, Leo and Rosa")
+        #expect(PeopleOrder.andList(["Ana", "Leo"]) == "\u{2068}Ana\u{2069} and \u{2068}Leo\u{2069}")
+        #expect(PeopleOrder.andList(["Ana", "Leo", "Rosa"]) == "\u{2068}Ana\u{2069}, \u{2068}Leo\u{2069} and \u{2068}Rosa\u{2069}")
         #expect(PeopleOrder.photos(1) == "1 photo")
         #expect(PeopleOrder.photos(27) == "27 photos")
     }

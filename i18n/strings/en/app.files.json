@@ -1,0 +1,331 @@
+{
+  "app.files.allow_deletions_message": {
+    "text": "Files in this folder can be deleted again, and uploading a file again replaces it. The older versions kept so far stay.",
+    "note": "Text of the question app.files.allow_deletions_title: what clearing upload only on the folder does.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #855f6839"
+  },
+  "app.files.allow_deletions_title": {
+    "text": "Allow deletions in “{name}” again?",
+    "args": [["name", "user"]],
+    "note": "Title of the question asked when the closed lock of an upload-only folder is tapped in Files: whether to let its files be deleted again. {name} is the folder's name. The explanation (app.files.allow_deletions_message) follows. Write the quotes in your language's style.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #66fa21bf"
+  },
+  "app.files.back_to_files": {
+    "text": "Back to Files",
+    "note": "Button above the results of a search in Files: back to the folder under them, when that folder is the top one. Files is the section's name (app.shell.section_files).",
+    "max": 40
+  },
+  "app.files.back_to_folder": {
+    "text": "Back to {folder}",
+    "args": [["folder", "user"]],
+    "note": "Button above the results of a search in Files: back to the folder under them. {folder} is that folder's name.",
+    "max": 40
+  },
+  "app.files.clear_upload_only": {
+    "text": "Clear upload only",
+    "note": "Screen-reader name of the closed lock on an upload-only folder's row in Files, and item of such a folder's long-press menu (iPhone): asks whether to allow deletions in the folder again. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version.",
+    "max": 30
+  },
+  "app.files.delete_confirm": {
+    "text": {
+      "one": "Delete {count} item?",
+      "other": "Delete {count} items?"
+    },
+    "args": [["count", "count"]],
+    "note": "Title of the confirmation asked before deleting what is selected in Files: files and folders (a folder with everything in it). {count} is how many are selected. Buttons: Delete (common.delete) and Cancel.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #344930e0"
+  },
+  "app.files.delete_refused": {
+    "text": "{name} is in an upload-only folder and cannot be deleted",
+    "args": [["name", "user"]],
+    "note": "Short message (toast) at the top of Files when the device refused to delete something selected because it is in an upload-only folder (nothing in such a folder can be deleted). {name} is the file's or folder's name. No full stop in English."
+  },
+  "app.files.download_failed": {
+    "text": "Download failed: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Short message (toast) at the top of Files when a file (or one of its older versions) was tapped to open it and downloading it failed. {detail} is the reason, from the app or the phone (it may be in the phone's own language)."
+  },
+  "app.files.download_link_failed": {
+    "text": "Could not create download link",
+    "note": "Short message (toast) at the top of Files when Download on the selection bar failed: the device didn't make the link the download goes through."
+  },
+  "app.files.folder_update_failed": {
+    "text": "Could not update the folder",
+    "note": "Short message (toast) at the top of Files when making a folder upload only (or allowing deletions again), keeping it out of Images or showing it there again failed, and the device didn't say why (when it says why, its own words are shown instead)."
+  },
+  "app.files.gallery_bytes": {
+    "text": "{done} of {total}",
+    "args": [["done", "text"], ["total", "text"]],
+    "note": "Under the progress bar of the Share as Gallery sheet or dialog: how much has been copied so far. {done} and {total} are sizes (1.2 GB of 3.4 GB)."
+  },
+  "app.files.gallery_contents": {
+    "text": {
+      "one": "{count} photos and videos, {size}",
+      "other": "{count} photos and videos, {size}"
+    },
+    "args": [["count", "count"], ["size", "text"]],
+    "note": "First line of the Share as Gallery sheet or dialog, before sharing: how many photos and videos will be shared and their total size. {count} is the number of photos and videos together, {size} the size (2.5 GB). In English both forms are the same."
+  },
+  "app.files.gallery_copy_link": {
+    "text": "Copy Link",
+    "note": "Button in the Share as Gallery sheet or dialog once the gallery is ready: copies the gallery's link. Title Case in English.",
+    "max": 20
+  },
+  "app.files.gallery_copying": {
+    "text": "Copying {done} of {total}",
+    "args": [["done", "int"], ["total", "int"]],
+    "note": "Progress line in the Share as Gallery sheet or dialog while the device copies the photos and videos. {done} is the number copied (or being copied), {total} how many there are."
+  },
+  "app.files.gallery_create_failed": {
+    "text": "Could not create the gallery",
+    "note": "Error in the Share as Gallery sheet or dialog when the device didn't start copying the photos and videos and gave no reason (when it gives one, its own words are shown instead)."
+  },
+  "app.files.gallery_days": {
+    "text": {
+      "one": "{count} day",
+      "other": "{count} days"
+    },
+    "args": [["count", "count"]],
+    "note": "One of three choices of how long the gallery's link works, in the Share as Gallery sheet or dialog (1, 7 and 30 days), side by side in a segmented control.",
+    "max": 14
+  },
+  "app.files.gallery_default_description": {
+    "text": "Shared Media {date}",
+    "args": [["date", "text"]],
+    "note": "Starting text of the Description field when a gallery is being shared (app.files.gallery_title); the owner may change it, and whoever opens the link sees it. {date} is the day and time, always written as 11-10-2026 14:03.",
+    "max": 40
+  },
+  "app.files.gallery_description": {
+    "text": "Description",
+    "note": "Label and placeholder of the field where the owner writes the gallery's description in the Share as Gallery sheet or dialog. Whoever opens the link sees it.",
+    "max": 24
+  },
+  "app.files.gallery_full_res_note": {
+    "text": "The full-size originals are shared.",
+    "note": "Explanation under the switch Low resolution only (app.files.gallery_low_res), while it is off.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #36354301"
+  },
+  "app.files.gallery_low_res": {
+    "text": "Low resolution only",
+    "note": "Switch in the Share as Gallery sheet or dialog: share only small copies of the photos, and no videos.",
+    "max": 32
+  },
+  "app.files.gallery_low_res_note": {
+    "text": "Only small copies of the photos are shared (about 1000 pixels wide); the originals never leave your device.",
+    "note": "Explanation under the switch Low resolution only (app.files.gallery_low_res), while it is on and there are no videos.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ab069dc3"
+  },
+  "app.files.gallery_low_res_note_videos": {
+    "text": {
+      "one": "Only small copies of the photos are shared (about 1000 pixels wide); the originals never leave your device. {count} video is left out.",
+      "other": "Only small copies of the photos are shared (about 1000 pixels wide); the originals never leave your device. {count} videos are left out."
+    },
+    "args": [["count", "count"]],
+    "note": "Explanation under the switch Low resolution only (app.files.gallery_low_res), while it is on and there are videos. {count} is how many videos won't be shared.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #8c833a3b"
+  },
+  "app.files.gallery_no_link": {
+    "text": "The device did not return a link",
+    "note": "Error in the Share as Gallery sheet or dialog when the device finished copying without handing back the gallery's link."
+  },
+  "app.files.gallery_prepare_failed": {
+    "text": "Could not prepare the gallery",
+    "note": "Error in the Share as Gallery sheet or dialog when the device couldn't count what would be shared and gave no reason (when it gives one, its own words are shown instead)."
+  },
+  "app.files.gallery_privacy": {
+    "text": "They are copied and re-encrypted with a key of their own. Only people with the link can see them, until it expires.",
+    "note": "Explanation under the first line (app.files.gallery_contents) of the Share as Gallery sheet or dialog: what sharing as a gallery does with the photos and videos.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #1d62d4c5"
+  },
+  "app.files.gallery_share_link": {
+    "text": "Share Link",
+    "note": "Button in the Share as Gallery sheet or dialog once the gallery is ready: opens the phone's share sheet with the gallery's link. Title Case in English.",
+    "max": 20
+  },
+  "app.files.gallery_title": {
+    "text": "Share as Gallery",
+    "note": "Title of the sheet (iPhone) or dialog (Android) that shares a folder (from Files) or a collection (from Images) as a gallery: a web page anyone with its link can open, for a limited time. Title Case in English.",
+    "max": 30
+  },
+  "app.files.in_upload_only": {
+    "text": "In an upload-only folder",
+    "note": "Screen-reader name of the lock on a file's row in Files when the file is inside an upload-only folder; a tap explains it (app.files.upload_only_file_info). Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version."
+  },
+  "app.files.keep_out_message": {
+    "text": "Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them.",
+    "note": "Text of the question app.files.keep_out_title: what keeping the folder out of Images does. Images is the photo section (app.shell.section_images).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #4637a85f"
+  },
+  "app.files.keep_out_title": {
+    "text": "Keep “{name}” out of Images?",
+    "args": [["name", "user"]],
+    "note": "Title of the question asked before keeping a folder out of Images (from Keep out of Images in Files). {name} is the folder's name. The explanation (app.files.keep_out_message) follows. Images is the photo section (app.shell.section_images). Write the quotes in your language's style.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #3c742881"
+  },
+  "app.files.kept_out": {
+    "text": "Kept out of Images",
+    "note": "Screen-reader name of the mark (an eye crossed out, or a crossed-out picture) on a folder kept out of Images in Files, and on files and folders in a search's results; also the title of the explanation shown when the mark is tapped. Kept out: its photos and videos aren't tagged, searched for faces or shown in Images. Images is the photo section (app.shell.section_images).",
+    "max": 40
+  },
+  "app.files.kept_out_banner": {
+    "text": "Kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images.",
+    "note": "Banner at the top of Files over a folder kept out of Images (itself, or inside one that is), with a Show in Images button under it. Images is the photo section (app.shell.section_images)."
+  },
+  "app.files.kept_out_explain": {
+    "text": "Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them.",
+    "note": "Explanation shown (title app.files.kept_out) when the mark of a folder kept out of Images is tapped in Files. Images is the photo section (app.shell.section_images)."
+  },
+  "app.files.list_failed": {
+    "text": "Failed to list path",
+    "note": "Error line under the path field in Files when the device refused to list the folder without saying why (when it says why, its own words are shown instead)."
+  },
+  "app.files.make_upload_only": {
+    "text": "Make upload only",
+    "note": "Screen-reader name of the open lock on a folder's row in Files; item of a folder's long-press menu (iPhone); confirm button of the question app.files.make_upload_only_title (Android). Makes the folder upload only. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version.",
+    "max": 30
+  },
+  "app.files.make_upload_only_message": {
+    "text": "Nothing in this folder can be deleted - from this phone, a computer or the web - and uploading a file again keeps its older version. Good for photo archives and backups.",
+    "note": "Text of the question app.files.make_upload_only_title: what making the folder upload only does.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #71099301"
+  },
+  "app.files.make_upload_only_title": {
+    "text": "Make “{name}” upload only?",
+    "args": [["name", "user"]],
+    "note": "Title of the question asked when the open lock of a folder is tapped in Files. {name} is the folder's name. The explanation (app.files.make_upload_only_message) follows. Write the quotes in your language's style."
+  },
+  "app.files.no_results": {
+    "text": "No files match “{query}”.",
+    "args": [["query", "user"]],
+    "note": "Shown in place of the results of a search in Files when nothing was found. {query} is what was searched for. Write the quotes in your language's style."
+  },
+  "app.files.open_failed": {
+    "text": "Could not fetch file",
+    "note": "Short message (toast) at the top of Files when a file was tapped to open it and the device refused to send it."
+  },
+  "app.files.results_count": {
+    "text": {
+      "one": "{count} result",
+      "other": "{count} results"
+    },
+    "args": [["count", "count"]],
+    "note": "Line under the heading of a search's results in Files (app.files.results_title): how many files and folders were found.",
+    "max": 24
+  },
+  "app.files.results_limited": {
+    "text": "Showing the first {limit} results",
+    "args": [["limit", "int"]],
+    "note": "Line under the heading of a search's results in Files (app.files.results_title) when the device found as many as it lists ({limit}, 50): there may be more.",
+    "max": 40
+  },
+  "app.files.results_title": {
+    "text": "Files matching “{query}”",
+    "args": [["query", "user"]],
+    "note": "Heading over the results of a search in Files: every file and folder whose name or place holds the words searched for. {query} is what was searched for. Write the quotes in your language's style."
+  },
+  "app.files.search_field": {
+    "text": "Search files",
+    "note": "Placeholder and screen-reader name of the search field at the top of Files (on a phone held upright): it finds files and folders by name.",
+    "max": 30
+  },
+  "app.files.search_no_answer": {
+    "text": "The device didn't answer the search.",
+    "note": "Shown in place of the results of a search in Files when the device answered with an error without saying why (when it says why, its own words are shown instead). A Try again button follows."
+  },
+  "app.files.search_too_old": {
+    "text": "This device can't search its files yet. Update it in Settings.",
+    "note": "Shown in place of the results of a search in Files when the device's software is too old to search its files. Settings is the app's section (common.settings), where the device is updated."
+  },
+  "app.files.search_unreached": {
+    "text": "The search didn't reach the device. Check the connection and try again.",
+    "note": "Shown in place of the results of a search in Files when the request couldn't be sent or got no answer. A Try again button follows."
+  },
+  "app.files.searching": {
+    "text": "Searching…",
+    "note": "Shown with a spinner while a search in Files waits for the device's results.",
+    "max": 30
+  },
+  "app.files.selection_upload_only": {
+    "text": "The selection is in an upload-only folder and cannot be deleted",
+    "note": "Short message (toast) at the top of Files when Delete is tapped on the selection bar while something selected is in an upload-only folder (nothing in such a folder can be deleted). No full stop in English."
+  },
+  "app.files.share_link_failed": {
+    "text": "Could not create share link",
+    "note": "Short message (toast) at the top of Files when Share (on the selection bar) failed: the device didn't make a link to the selected files and folders."
+  },
+  "app.files.show_as_grid": {
+    "text": "Show as grid",
+    "note": "Screen-reader name of the button next to the path field in Files, while the folder is shown as a list: shows it as a grid of tiles."
+  },
+  "app.files.show_as_list": {
+    "text": "Show as list",
+    "note": "Screen-reader name of the button next to the path field in Files, while the folder is shown as a grid of tiles: shows it as a list."
+  },
+  "app.files.show_message": {
+    "text": "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background.",
+    "note": "Text of the question app.files.show_title: what showing the folder in Images again does. Images is the photo section (app.shell.section_images).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #f2c39b4c"
+  },
+  "app.files.show_title": {
+    "text": "Show “{name}” in Images?",
+    "args": [["name", "user"]],
+    "note": "Title of the question asked before showing a folder kept out of Images there again (from Show in Images in Files). {name} is the folder's name. The explanation (app.files.show_message) follows. Images is the photo section (app.shell.section_images). Write the quotes in your language's style."
+  },
+  "app.files.unexpected_response": {
+    "text": "Unexpected response",
+    "note": "Error shown when the device answered with something other than what was asked for: the line under the path field in Files (the folder couldn't be listed), and the Share as Gallery dialog (Android)."
+  },
+  "app.files.upload_failed": {
+    "text": "Upload failed: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Short message (toast) at the top of Files when a file picked on the phone couldn't be uploaded into the folder shown. {detail} is the reason: the device's own words, or the app's or the phone's."
+  },
+  "app.files.upload_only": {
+    "text": "Upload only",
+    "note": "Title of the explanation shown when the lock of an upload-only folder or file is tapped in Files, and screen-reader name of the lock badge on a folder's tile in the grid. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version.",
+    "max": 30
+  },
+  "app.files.upload_only_file_info": {
+    "text": "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it.",
+    "note": "Explanation shown (title app.files.upload_only) when the lock on a file's row in Files is tapped: the file is inside an upload-only folder."
+  },
+  "app.files.version_current": {
+    "text": "Current",
+    "note": "First row of the Versions list (app.files.versions_title): the file as it is now, with its size at the right. A tap opens it.",
+    "max": 20
+  },
+  "app.files.version_open_failed": {
+    "text": "Could not fetch that version",
+    "note": "Short message (toast) at the top of Files when an older version of a file was tapped in the Versions list and the device refused to send it."
+  },
+  "app.files.version_replaced": {
+    "text": "Replaced {date}",
+    "args": [["date", "text"]],
+    "note": "A row of the Versions list (app.files.versions_title): an older version of the file and when the next upload replaced it, with its size at the right. A tap opens it. {date} is the date and time, written by the phone for the app's language (for example 5 Oct 2026, 14:03), or a dash when unknown.",
+    "max": 50
+  },
+  "app.files.versions_explain": {
+    "text": "The file is in an upload-only folder, so each upload to this path kept the one before it.",
+    "note": "Explanation at the top (Android) or the foot (iPhone) of the Versions list (app.files.versions_title). Path means the file's place and name on the device."
+  },
+  "app.files.versions_title": {
+    "text": "Versions of {name}",
+    "args": [["name", "user"]],
+    "note": "Title of the list of a file's older versions, opened from the badge with a clock and a number on the file in Files. {name} is the file's name."
+  },
+  "app.files.video": {
+    "text": "Video",
+    "note": "Screen-reader name of the play badge on a video's thumbnail, in the grid of tiles in Files and in the results of a search in Files."
+  }
+}

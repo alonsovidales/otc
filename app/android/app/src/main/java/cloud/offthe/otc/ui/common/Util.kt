@@ -9,10 +9,10 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
-import cloud.offthe.otc.i18n.androidTimeDaysAgo
-import cloud.offthe.otc.i18n.androidTimeHoursAgo
-import cloud.offthe.otc.i18n.androidTimeJustNow
-import cloud.offthe.otc.i18n.androidTimeMinutesAgo
+import cloud.offthe.otc.i18n.appShellTimeDaysAgo
+import cloud.offthe.otc.i18n.appShellTimeHoursAgo
+import cloud.offthe.otc.i18n.appShellTimeJustNow
+import cloud.offthe.otc.i18n.appShellTimeMinutesAgo
 import java.text.DateFormat
 import java.util.Date
 
@@ -73,12 +73,12 @@ fun relativeTime(epochMs: Long): String = relativeTimeText(epochMs).resolve()
 /** [relativeTime] as text resolved where it is shown, for a view model; the date in the default locale's own format. */
 fun relativeTimeText(epochMs: Long): UiText {
     val mins = ((System.currentTimeMillis() - epochMs) / 60_000).toInt()
-    if (mins < 1) return S.androidTimeJustNow()
-    if (mins < 60) return S.androidTimeMinutesAgo(mins)
+    if (mins < 1) return S.appShellTimeJustNow()
+    if (mins < 60) return S.appShellTimeMinutesAgo(mins)
     val hours = mins / 60
-    if (hours < 24) return S.androidTimeHoursAgo(hours)
+    if (hours < 24) return S.appShellTimeHoursAgo(hours)
     val days = hours / 24
-    if (days < 7) return S.androidTimeDaysAgo(days)
+    if (days < 7) return S.appShellTimeDaysAgo(days)
     return UiText.Raw(DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(epochMs)))
 }
 

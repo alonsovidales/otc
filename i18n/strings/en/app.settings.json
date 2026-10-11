@@ -1,4 +1,173 @@
 {
+  "app.settings.bridge.account_page": {
+    "text": "Your Account Page",
+    "note": "Button in Settings > Bridge and Account that opens the Off The Cloud account page in the browser.",
+    "max": 40
+  },
+  "app.settings.bridge.at_home": {
+    "text": "At home: {address}",
+    "args": [["address", "text"]],
+    "note": "Settings > Bridge and Account: the device's address on the home network (192.168.1.20:8080)."
+  },
+  "app.settings.bridge.delete_account": {
+    "text": "Delete My Account…",
+    "note": "Button (in red) in Settings > Bridge and Account; asks Delete your account? first.",
+    "max": 40,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #bb2e8e42"
+  },
+  "app.settings.bridge.delete_message": {
+    "text": "This device leaves the bridge first and goes on working at home. Then your account page opens: sign in there and delete the account, which releases any other devices' names too.",
+    "note": "Message of the confirmation Delete your account?",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #072f5cc6"
+  },
+  "app.settings.bridge.delete_title": {
+    "text": "Delete your account?",
+    "note": "Title of the confirmation asked before deleting the Off The Cloud account from Settings > Bridge and Account.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #c6af02e0"
+  },
+  "app.settings.bridge.footer": {
+    "text": "Leaving gives the name back; the device keeps working at home, at http://{address}.",
+    "args": [["address", "text"]],
+    "note": "Under Settings > Bridge and Account while the device is on the bridge. {address} is the device's address on the home network (192.168.1.20:8080 or otc.local:8080).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #6a18db3b"
+  },
+  "app.settings.bridge.leave": {
+    "text": "Leave the Bridge",
+    "note": "Button (in red) in Settings > Bridge and Account; asks Leave the bridge? first.",
+    "max": 40,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #da06880d"
+  },
+  "app.settings.bridge.leave_confirm": {
+    "text": "Leave the Bridge",
+    "note": "Button (in red) of the confirmation Leave the bridge?: takes the device off the bridge.",
+    "max": 40,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #da06880d"
+  },
+  "app.settings.bridge.leave_failed": {
+    "text": "Could not leave the bridge.",
+    "note": "Error in Settings > Bridge and Account when the device didn't leave the bridge and gave no reason."
+  },
+  "app.settings.bridge.leave_message": {
+    "text": "{domain} is given back and the device restarts. It keeps everything and works at home, but is no longer reachable from outside or by your friends. You can join again later.",
+    "args": [["domain", "text"]],
+    "note": "Message of the confirmation Leave the bridge?. {domain} is the device's address on the bridge (cala.off-the.cloud).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #c33f4f3b"
+  },
+  "app.settings.bridge.leave_title": {
+    "text": "Leave the bridge?",
+    "note": "Title of the confirmation asked before taking the device off the bridge.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #47d6e4f4"
+  },
+  "app.settings.bridge.left": {
+    "text": "The device is restarting off the bridge. From now on the app reaches it on your home network, at {address}.",
+    "args": [["address", "text"]],
+    "note": "Settings > Bridge and Account after leaving the bridge. {address} is the device's address on the home network (192.168.1.20:8080 or otc.local)."
+  },
+  "app.settings.bridge.local_only": {
+    "text": "Only reachable on your home network. Join the bridge from Settings in the device's web app.",
+    "note": "Settings > Bridge and Account while the device isn't on the bridge."
+  },
+  "app.settings.bridge.reachable": {
+    "text": "Reachable from anywhere at {domain}",
+    "args": [["domain", "text"]],
+    "note": "Settings > Bridge and Account while the device is on the bridge. {domain} is its address (cala.off-the.cloud)."
+  },
+  "app.settings.bridge.released": {
+    "text": "This device left the bridge: {bridge} no longer knew its name (its account was deleted, or the name released). Everything on it is still there.",
+    "args": [["bridge", "text"]],
+    "note": "Settings > Bridge and Account, in orange: the device left the bridge by itself. {bridge} is the bridge's address (off-the.cloud)."
+  },
+  "app.settings.bridge.title": {
+    "text": "Bridge and Account",
+    "note": "Heading of the section of Settings about the Off The Cloud bridge (the relay that makes the device reachable from anywhere) and the Off The Cloud account.",
+    "max": 40
+  },
+  "app.settings.connection.device_id": {
+    "text": "Device ID: {id}",
+    "args": [["id", "text"]],
+    "note": "Small line in Settings > Connection: this phone's identifier for the device. {id} is a long code, never translated."
+  },
+  "app.settings.connection.log_out": {
+    "text": "Log Out",
+    "note": "Button (in red) in Settings > Connection; asks Log out of this device? first.",
+    "max": 20,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #bd83e320"
+  },
+  "app.settings.connection.log_out_confirm": {
+    "text": "Log Out",
+    "note": "Button (in red) of the confirmation Log out of this device?: logs out.",
+    "max": 20,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #bd83e320"
+  },
+  "app.settings.connection.log_out_message": {
+    "text": "The connection, the sync history and everything cached from the device are removed from this phone. Nothing on the device itself is deleted.",
+    "note": "Message of the confirmation Log out of this device?",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e0817a00"
+  },
+  "app.settings.connection.log_out_title": {
+    "text": "Log out of this device?",
+    "note": "Title of the confirmation asked before logging out of the device in Settings. Buttons: Log Out and Cancel.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #84968d00"
+  },
+  "app.settings.connection.save": {
+    "text": "Save Connection",
+    "note": "Button in Settings > Connection that saves the address and password and connects again.",
+    "max": 30
+  },
+  "app.settings.connection.title": {
+    "text": "Connection",
+    "note": "Heading of the section of Settings with the device's address and password.",
+    "max": 30
+  },
+  "app.settings.crop.use": {
+    "text": "Use photo",
+    "note": "Button on the screen that crops the new profile photo to a circle: keeps the crop as the profile photo.",
+    "max": 20
+  },
+  "app.settings.error.setting": {
+    "text": "Error updating this setting",
+    "note": "Shown for a few seconds in Settings when a switch (Image Tagging, Face Recognition) couldn't be changed because the device couldn't be reached; the switch goes back."
+  },
+  "app.settings.error.unexpected": {
+    "text": "Unexpected response",
+    "note": "Error in Settings when the device answered a request (saving the profile or a setting, changing the password, sending the logs, listing the shared links) with something the app didn't expect."
+  },
+  "app.settings.error.update_failed": {
+    "text": "Update failed",
+    "note": "Shown for a few seconds in Settings when the device refused to change a switch (Image Tagging, Face Recognition) without saying why; the switch goes back. Not about software updates."
+  },
+  "app.settings.faces.footer": {
+    "text": "Detect faces in newly uploaded photos so you can search by person. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media below to scan the ones you already have.",
+    "note": "Under the Face Recognition switch in Settings: what turning it on means. Reprocess Media is the name of a section further down (app.settings.reprocess.title).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #82531364"
+  },
+  "app.settings.faces.title": {
+    "text": "People",
+    "note": "Heading of the section of Settings holding the Face Recognition switch.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #dc8d383c"
+  },
+  "app.settings.faces.toggle": {
+    "text": "Face Recognition",
+    "note": "Switch in Settings > People: the device detects faces in new photos so they can be searched by person. Off unless the owner turns it on.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #cbfdb45f"
+  },
   "app.settings.language": {
     "text": "Language",
     "note": "Row in Settings that opens the Language screen, and that screen's title.",
@@ -22,5 +191,806 @@
   "app.settings.language_this_phone": {
     "text": "Your device needs a software update to share this choice with your other apps. Until then it applies to this phone only.",
     "note": "Shown under the list of languages on the Language screen when the device's software is too old to keep the language."
+  },
+  "app.settings.links.created": {
+    "text": "Created {date}",
+    "args": [["date", "text"]],
+    "note": "Line of a link on the Shared Links screen: when it was made. {date} is the date and time, already formatted (Oct 11, 2026 at 10:30)."
+  },
+  "app.settings.links.delete_failed": {
+    "text": "Could not delete the link",
+    "note": "Error on the Shared Links screen when a link couldn't be deleted and the device gave no reason."
+  },
+  "app.settings.links.delete_link": {
+    "text": "Delete link",
+    "note": "Screen-reader name of the trash button of a link on the Shared Links screen; it asks for a confirmation first.",
+    "max": 30
+  },
+  "app.settings.links.delete_title": {
+    "text": "Delete this link?",
+    "note": "Title of the confirmation asked before deleting a shared link on the Shared Links screen. Buttons: Delete and Cancel.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #14c3f89f"
+  },
+  "app.settings.links.empty": {
+    "text": "No shared links",
+    "note": "Shown on the Shared Links screen when the user has shared nothing that is still valid.",
+    "max": 40
+  },
+  "app.settings.links.expires": {
+    "text": "Expires {date}",
+    "args": [["date", "text"]],
+    "note": "Line of a link on the Shared Links screen: when it stops working. {date} is the date and time, already formatted (Oct 18, 2026 at 10:30)."
+  },
+  "app.settings.links.load_failed": {
+    "text": "Could not load the shared links",
+    "note": "Error on the Shared Links screen when the list couldn't be loaded and the device gave no reason."
+  },
+  "app.settings.links.never_opened": {
+    "text": "Never opened",
+    "note": "Line of a link on the Shared Links screen: nobody has opened it yet.",
+    "max": 40
+  },
+  "app.settings.links.opened": {
+    "text": {
+      "one": "Opened {count} time",
+      "other": "Opened {count} times"
+    },
+    "args": [["count", "count"]],
+    "note": "Line of a link on the Shared Links screen: how many times someone opened it."
+  },
+  "app.settings.links.opened_last": {
+    "text": {
+      "one": "Opened {count} time, last {last}",
+      "other": "Opened {count} times, last {last}"
+    },
+    "args": [["count", "count"], ["last", "text"]],
+    "note": "Line of a link on the Shared Links screen: how many times someone opened it, and when it was last opened. {last} is already formatted: how long ago (2 hours ago on the iPhone, 2h ago on Android) or a date."
+  },
+  "app.settings.links.size_files": {
+    "text": {
+      "one": "{size} · {count} file",
+      "other": "{size} · {count} files"
+    },
+    "args": [["size", "text"], ["count", "count"]],
+    "note": "Line of a link on the Shared Links screen: the space its copies take on the device and how many files it shares. {size} is a size, already formatted with its unit (4.6 GB, 820 MB)."
+  },
+  "app.settings.links.title": {
+    "text": "Shared Links",
+    "note": "Row in Settings that opens the list of the galleries and download links the user shared, and that screen's title.",
+    "max": 30
+  },
+  "app.settings.links.untitled_gallery": {
+    "text": "Shared gallery",
+    "note": "Name of a shared gallery (a web page of photos) on the Shared Links screen when it has no description.",
+    "max": 40
+  },
+  "app.settings.links.untitled_zip": {
+    "text": "Shared files (zip)",
+    "note": "Name of a download link on the Shared Links screen when it has no description: a ZIP archive of files shared from Files or Images.",
+    "max": 40
+  },
+  "app.settings.logs.device": {
+    "text": "Device",
+    "note": "One of the two choices at the top of the Logs screen: the log of the device's own service.",
+    "max": 15
+  },
+  "app.settings.logs.note": {
+    "text": "Note (optional)",
+    "note": "Label (iPhone) or placeholder (Android) of the text field in the form that sends the logs: what the user wants to tell us.",
+    "max": 40
+  },
+  "app.settings.logs.send_explain": {
+    "text": "Sends the last part of your device's logs, your note and your account's email to info@off-the.cloud, so we can help. Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses.",
+    "note": "In the form that sends the logs to Off The Cloud, before Send: what is sent and where. Keep the email address as it is.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e296eea3"
+  },
+  "app.settings.logs.send_to_us": {
+    "text": "Send to us",
+    "note": "Button on the Logs screen that opens a form to send the logs to Off The Cloud for help (on the iPhone also that form's title).",
+    "max": 20,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #2c7dc805"
+  },
+  "app.settings.logs.sending": {
+    "text": "Sending…",
+    "note": "The Send button (on Android the Send to us button) while the logs are being sent.",
+    "max": 20
+  },
+  "app.settings.logs.sent": {
+    "text": "Sent - we'll answer at your account's email.",
+    "note": "Shown on the Logs screen once the logs were sent to Off The Cloud: the answer will go to the email address of the user's Off The Cloud account."
+  },
+  "app.settings.logs.title": {
+    "text": "Logs",
+    "note": "Row in Settings that opens the device's logs, and that screen's title (on Android also the heading of the section holding the row).",
+    "max": 30
+  },
+  "app.settings.logs.updates": {
+    "text": "Updates",
+    "note": "One of the two choices at the top of the Logs screen: the log of the device's software updates.",
+    "max": 15
+  },
+  "app.settings.logs.warning": {
+    "text": "Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses. Check them before you share them.",
+    "note": "At the top of the Logs screen, with a warning sign.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #f5faacde"
+  },
+  "app.settings.password.change": {
+    "text": "Change Password",
+    "note": "Button of Settings > Change Password that changes the device's password; this phone keeps the new one to sign in.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #3515222d"
+  },
+  "app.settings.password.changed": {
+    "text": "Password changed ✅",
+    "note": "Shown for a few seconds in Settings > Change Password once the device changed its password. Keep the check mark.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #8f6dade9"
+  },
+  "app.settings.password.changing": {
+    "text": "Changing…",
+    "note": "The Change Password button while the password is being changed.",
+    "max": 30
+  },
+  "app.settings.password.confirm": {
+    "text": "Confirm new password",
+    "note": "Placeholder of the third field of Settings > Change Password: the new password again.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #01424429"
+  },
+  "app.settings.password.current": {
+    "text": "Current password",
+    "note": "Placeholder of the first field of Settings > Change Password: the device's password now.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #4d3d2289"
+  },
+  "app.settings.password.error": {
+    "text": "Error changing password: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Shown for a few seconds in Settings > Change Password when the change couldn't reach the device. {detail} is why, as the system or the connection words it.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #6618844e"
+  },
+  "app.settings.password.failed": {
+    "text": "Change failed",
+    "note": "Shown for a few seconds in Settings > Change Password when the device refused the change without saying why (for example a wrong current password).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ab15ffa5"
+  },
+  "app.settings.password.fill_all": {
+    "text": "Fill in all fields",
+    "note": "Shown for a few seconds in Settings > Change Password when a field is empty.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #3e8518aa"
+  },
+  "app.settings.password.mismatch": {
+    "text": "Passwords don't match",
+    "note": "Shown for a few seconds in Settings > Change Password when the new password and its confirmation differ.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #bf168377"
+  },
+  "app.settings.password.new": {
+    "text": "New password",
+    "note": "Placeholder of the second field of Settings > Change Password.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ae396ba9"
+  },
+  "app.settings.password.no_key": {
+    "text": "Could not fetch the connection's public key",
+    "note": "Shown for a few seconds in Settings > Change Password: the app couldn't get the key it encrypts the passwords with, so nothing was sent.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ffecdf5f"
+  },
+  "app.settings.password.title": {
+    "text": "Change Password",
+    "note": "Heading of the section of Settings where the owner changes the device's password.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #3515222d"
+  },
+  "app.settings.picker.all": {
+    "text": "All photos",
+    "note": "First chip at the top of the screen Choose a photo: every photo on the device (the other chips are the user's collections).",
+    "max": 20
+  },
+  "app.settings.picker.title": {
+    "text": "Choose a photo",
+    "note": "Title of the screen that lists the photos on the user's device to pick the profile photo from (Settings > Profile > Change photo > From your device).",
+    "max": 30
+  },
+  "app.settings.profile.change_photo": {
+    "text": "Change photo",
+    "note": "Button under the profile photo in Settings > Profile. It opens a menu: pick the photo on this phone, or among the photos on the user's device.",
+    "max": 30
+  },
+  "app.settings.profile.from_device": {
+    "text": "From your device",
+    "note": "Item of the Change photo menu in Settings > Profile: pick the profile photo among the photos already stored on the user's Off The Cloud device.",
+    "max": 30
+  },
+  "app.settings.profile.name": {
+    "text": "Name",
+    "note": "Placeholder of the name field in Settings > Profile: the name friends see.",
+    "max": 30
+  },
+  "app.settings.profile.save": {
+    "text": "Save Profile",
+    "note": "Button in Settings > Profile that saves the photo, name and description on the device.",
+    "max": 30
+  },
+  "app.settings.profile.save_error": {
+    "text": "Error saving profile",
+    "note": "Shown for a few seconds in Settings > Profile when the profile couldn't reach the device (no connection, no answer)."
+  },
+  "app.settings.profile.save_failed": {
+    "text": "Profile update failed",
+    "note": "Shown for a few seconds in Settings > Profile when the device refused to save the profile without saying why."
+  },
+  "app.settings.profile.saved": {
+    "text": "Profile updated ✅",
+    "note": "Shown for a few seconds in Settings > Profile once the device saved the profile. Keep the check mark."
+  },
+  "app.settings.profile.title": {
+    "text": "Profile",
+    "note": "Heading of the first section of Settings, where the owner edits the profile friends see: photo, name and description.",
+    "max": 30
+  },
+  "app.settings.reprocess.all": {
+    "text": "Reprocess All Media",
+    "note": "Button of Settings > Reprocess Media that starts a run; asks for a confirmation first.",
+    "max": 30
+  },
+  "app.settings.reprocess.completed": {
+    "text": {
+      "one": "Last run completed — {count} file(s) processed.",
+      "other": "Last run completed — {count} file(s) processed."
+    },
+    "args": [["count", "count"]],
+    "note": "Settings > Reprocess Media after a run finished. {count} is the number of files processed."
+  },
+  "app.settings.reprocess.confirm_restart": {
+    "text": "Reprocess every photo and video in your library? This deletes all existing tags and recognized people and rebuilds them from scratch. It can take a while and can't be undone.",
+    "note": "Confirmation asked before starting Reprocess Media from the beginning. Buttons: Reprocess and Cancel.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #efed027f"
+  },
+  "app.settings.reprocess.confirm_resume": {
+    "text": "Resume reprocessing where it left off? It can take a while.",
+    "note": "Confirmation asked before continuing a stopped run of Reprocess Media. Buttons: Resume and Cancel."
+  },
+  "app.settings.reprocess.failed": {
+    "text": {
+      "one": "Last run failed after {count} file(s) — try again.",
+      "other": "Last run failed after {count} file(s) — try again."
+    },
+    "args": [["count", "count"]],
+    "note": "Settings > Reprocess Media, in red, after a run failed. {count} is the number of files processed before it failed."
+  },
+  "app.settings.reprocess.footer": {
+    "text": "Re-run tagging and face detection on every photo and video already in your library — useful after a detection fix or model update. This clears existing tags and recognized people first and rebuilds them from scratch.",
+    "note": "Under Settings > Reprocess Media: what it does.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d96e7c95"
+  },
+  "app.settings.reprocess.restart_button": {
+    "text": "Reprocess",
+    "note": "Button (in red) of the confirmation app.settings.reprocess.confirm_restart: deletes the tags and people and starts again.",
+    "max": 20,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #3e9f3126"
+  },
+  "app.settings.reprocess.resume": {
+    "text": "Resume Reprocessing",
+    "note": "Button of Settings > Reprocess Media that continues a stopped run from where it stopped.",
+    "max": 30
+  },
+  "app.settings.reprocess.resume_button": {
+    "text": "Resume",
+    "note": "Button of the confirmation app.settings.reprocess.confirm_resume: continues the stopped run.",
+    "max": 20
+  },
+  "app.settings.reprocess.running": {
+    "text": "Reprocessing… {percent}% ({done} / {total})",
+    "args": [["percent", "int"], ["done", "int"], ["total", "int"]],
+    "note": "Settings > Reprocess Media while it runs. {percent} is how far along it is; {done} and {total} are numbers of files."
+  },
+  "app.settings.reprocess.start_error": {
+    "text": "Error starting reprocessing",
+    "note": "Shown for a few seconds in Settings > Reprocess Media when the request to start couldn't reach the device."
+  },
+  "app.settings.reprocess.start_failed": {
+    "text": "Could not start reprocessing",
+    "note": "Shown for a few seconds in Settings > Reprocess Media when the device didn't start the run and gave no reason."
+  },
+  "app.settings.reprocess.start_over": {
+    "text": "Start Over",
+    "note": "Button of Settings > Reprocess Media that runs everything again from the beginning instead of continuing.",
+    "max": 20
+  },
+  "app.settings.reprocess.starting": {
+    "text": "Starting…",
+    "note": "Button of Settings > Reprocess Media while the run is being started.",
+    "max": 30
+  },
+  "app.settings.reprocess.stop_error": {
+    "text": "Error stopping reprocessing",
+    "note": "Shown for a few seconds in Settings > Reprocess Media when the request to stop couldn't reach the device."
+  },
+  "app.settings.reprocess.stop_failed": {
+    "text": "Could not stop reprocessing",
+    "note": "Shown for a few seconds in Settings > Reprocess Media when the device didn't stop the run and gave no reason."
+  },
+  "app.settings.reprocess.stopped": {
+    "text": "Stopped at {percent}% ({done} / {total}).",
+    "args": [["percent", "int"], ["done", "int"], ["total", "int"]],
+    "note": "Settings > Reprocess Media when a run was stopped before the end. {percent} is how far it got; {done} and {total} are numbers of files."
+  },
+  "app.settings.reprocess.stopping": {
+    "text": "Stopping…",
+    "note": "The Cancel button of Settings > Reprocess Media while the run stops.",
+    "max": 20
+  },
+  "app.settings.reprocess.title": {
+    "text": "Reprocess Media",
+    "note": "Heading of the section of Settings that runs image tagging and face detection again on every photo and video.",
+    "max": 30
+  },
+  "app.settings.sharing.title": {
+    "text": "Sharing",
+    "note": "Heading of the section of Settings holding the Shared Links row.",
+    "max": 30
+  },
+  "app.settings.status.cpu_mem": {
+    "text": "CPU: {cpu}% · Mem: {used} of {total}",
+    "args": [["cpu", "text"], ["used", "text"], ["total", "text"]],
+    "note": "Line of Settings > Status: the processor's load and the memory in use (Mem is short for memory). {cpu} is a number with one decimal (12.5); {used} and {total} are sizes, already formatted with its unit (4.6 GB, 820 MB)."
+  },
+  "app.settings.status.disk": {
+    "text": "Disk: {used} of {total}",
+    "args": [["used", "text"], ["total", "text"]],
+    "note": "Line of Settings > Status: how much of the device's system card is in use. {used} and {total} are sizes, already formatted with its unit (4.6 GB, 820 MB)."
+  },
+  "app.settings.status.raid": {
+    "text": "RAID: {state} · Disks: {disks}",
+    "args": [["state", "text"], ["disks", "int"]],
+    "note": "Line of Settings > Status: the state of the device's mirrored disks (RAID) and how many disks it has. {state} is one of No RAID, In sync, Syncing (45%), Degraded, Unknown (app.settings.status.raid_*); {disks} is a number."
+  },
+  "app.settings.status.raid_degraded": {
+    "text": "Degraded",
+    "note": "State of the device's disks in Settings > Status, after RAID: (app.settings.status.raid): one of the two disks stopped working.",
+    "max": 30
+  },
+  "app.settings.status.raid_in_sync": {
+    "text": "In sync",
+    "note": "State of the device's disks in Settings > Status, after RAID: (app.settings.status.raid): both disks hold the same data.",
+    "max": 30
+  },
+  "app.settings.status.raid_level": {
+    "text": "RAID: {level} — {state} · Disks: {disks}",
+    "args": [["level", "text"], ["state", "text"], ["disks", "int"]],
+    "note": "The line app.settings.status.raid when the device names its RAID level. {level} is that name as the device gives it (raid1), never translated; {state} is one of app.settings.status.raid_*; {disks} is a number."
+  },
+  "app.settings.status.raid_none": {
+    "text": "No RAID",
+    "note": "State of the device's disks in Settings > Status, after RAID: (app.settings.status.raid): the device has no mirror.",
+    "max": 30
+  },
+  "app.settings.status.raid_syncing": {
+    "text": "Syncing ({percent}%)",
+    "args": [["percent", "int"]],
+    "note": "State of the device's disks in Settings > Status, after RAID: (app.settings.status.raid): one disk is being copied onto the other. {percent} is how far along it is, a whole number.",
+    "max": 30
+  },
+  "app.settings.status.raid_unknown": {
+    "text": "Unknown",
+    "note": "State of the device's disks in Settings > Status, after RAID: (app.settings.status.raid): the device didn't say.",
+    "max": 30
+  },
+  "app.settings.status.raid_used": {
+    "text": "RAID used: {used} of {total}",
+    "args": [["used", "text"], ["total", "text"]],
+    "note": "Line of Settings > Status: how much of the device's mirrored disks (RAID) is in use. {used} and {total} are sizes, already formatted with its unit (4.6 GB, 820 MB)."
+  },
+  "app.settings.status.title": {
+    "text": "Status",
+    "note": "Heading of the section of Settings that shows how full the device's disks are and its processor and memory use.",
+    "max": 30
+  },
+  "app.settings.status.used_percent": {
+    "text": "{percent}%",
+    "args": [["percent", "int"]],
+    "note": "Inside the storage bar of Settings > Status: how full the device's mirrored disks are. {percent} is a whole number. Write the percent sign as your language does.",
+    "max": 14
+  },
+  "app.settings.sync.all": {
+    "text": "Sync All",
+    "note": "Button in Settings that goes through the whole photo library again, uploading whatever the device lacks.",
+    "max": 30
+  },
+  "app.settings.sync.authorize": {
+    "text": "Authorize Photos Access",
+    "note": "Button in Settings > Sync Options that asks the system for access to the phone's photos.",
+    "max": 40
+  },
+  "app.settings.sync.footer": {
+    "text": "Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.",
+    "note": "Under the Sync Now, Sync All and Sync From Now buttons in Settings: what the last two do. Use the same words as those buttons."
+  },
+  "app.settings.sync.from_now": {
+    "text": "Sync From Now",
+    "note": "Button in Settings that skips the photos already on the phone: only those taken from now on are uploaded.",
+    "max": 30
+  },
+  "app.settings.sync.now": {
+    "text": "Sync Now",
+    "note": "Button in Settings that uploads the photos and videos not on the device yet, now.",
+    "max": 30
+  },
+  "app.settings.sync.title": {
+    "text": "Sync Options",
+    "note": "Heading of the section of Settings with the options of the photo sync from this phone to the device.",
+    "max": 30
+  },
+  "app.settings.sync.videos": {
+    "text": "Include videos",
+    "note": "Switch in Settings > Sync Options: upload videos too, not only photos.",
+    "max": 30
+  },
+  "app.settings.sync.wifi_only": {
+    "text": "Wi-Fi only",
+    "note": "Switch in Settings > Sync Options: upload photos only while the phone is on Wi-Fi.",
+    "max": 30
+  },
+  "app.settings.tagging.footer": {
+    "text": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.",
+    "note": "Under the Image Tagging switch in Settings: what it does.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ff6ddd62"
+  },
+  "app.settings.tagging.title": {
+    "text": "Image Tagging",
+    "note": "Heading of a section of Settings, and the label of its switch: the device recognises what photos show so they can be searched.",
+    "max": 30
+  },
+  "app.settings.tailscale.auth_key": {
+    "text": "Auth key (optional)",
+    "note": "Placeholder of a field in Settings > Tailscale Funnel: a key from the Tailscale admin console, which lets the device sign in to Tailscale by itself.",
+    "max": 40
+  },
+  "app.settings.tailscale.authorise": {
+    "text": "Authorise this device in the page that just opened, then press Enable again.",
+    "note": "Settings > Tailscale Funnel after Enable without a key: Tailscale's sign-in page was opened in the browser. Enable is the button Enable Tailscale Funnel."
+  },
+  "app.settings.tailscale.change_failed": {
+    "text": "Could not change the setting.",
+    "note": "Error in Settings > Tailscale Funnel when the device didn't turn Funnel on or off and gave no reason."
+  },
+  "app.settings.tailscale.done": {
+    "text": "Done — this device is reachable at {url}",
+    "args": [["url", "text"]],
+    "note": "Settings > Tailscale Funnel once it is on. {url} is the device's public address on Tailscale."
+  },
+  "app.settings.tailscale.enable": {
+    "text": "Enable Tailscale Funnel",
+    "note": "Button in Settings > Tailscale Funnel while it is off.",
+    "max": 40
+  },
+  "app.settings.tailscale.intro": {
+    "text": "Tailscale Funnel is an alternative to the Off The Cloud bridge, it publishes this device on your own ts.net address but with the next limitations:",
+    "note": "Settings > Tailscale Funnel: first paragraph, followed by a list of four limitations (app.settings.tailscale.limit_*).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #83f60557"
+  },
+  "app.settings.tailscale.key_hint": {
+    "text": "With a key from your Tailscale admin console this finishes on its own. Without one, you'll be taken to Tailscale to authorise this device.",
+    "note": "Settings > Tailscale Funnel, under the Enable button."
+  },
+  "app.settings.tailscale.limit_account": {
+    "text": "<b>You'll need a Tailscale account,</b> with Funnel enabled for your tailnet.",
+    "note": "Settings > Tailscale Funnel: the last item of the list of limitations, after a bullet. <b>…</b> is the item's lead (shown in bold on the iPhone); the sentence goes on after it.",
+    "rich": ["b"]
+  },
+  "app.settings.tailscale.limit_bandwidth": {
+    "text": "<b>Bandwidth is capped.</b> Tailscale limits what can pass through Funnel and doesn't publish the limit.",
+    "note": "Settings > Tailscale Funnel: an item of the list of limitations, after a bullet. <b>…</b> is the item's short lead (shown in bold on the iPhone).",
+    "rich": ["b"]
+  },
+  "app.settings.tailscale.limit_one_user": {
+    "text": "<b>One user only.</b> Extra users need a web address each, and Funnel gives this machine a single one.",
+    "note": "Settings > Tailscale Funnel: an item of the list of limitations, after a bullet. <b>…</b> is the item's short lead (shown in bold on the iPhone).",
+    "rich": ["b"]
+  },
+  "app.settings.tailscale.limit_social": {
+    "text": "<b>The social side won't work.</b> Friends find each other through the bridge, so sharing and friends' timelines are unavailable.",
+    "note": "Settings > Tailscale Funnel: an item of the list of limitations, after a bullet. <b>…</b> is the item's short lead (shown in bold on the iPhone).",
+    "rich": ["b"]
+  },
+  "app.settings.tailscale.no_funnel": {
+    "text": "Tailscale is connected, but Funnel didn't come up. Check that Funnel is enabled for your tailnet.",
+    "note": "Settings > Tailscale Funnel after Enable: the device joined Tailscale but Funnel didn't start."
+  },
+  "app.settings.tailscale.not_installed": {
+    "text": "Tailscale isn't installed on this device, so Funnel isn't available here.",
+    "note": "Settings > Tailscale Funnel on a device without Tailscale."
+  },
+  "app.settings.tailscale.not_installed_on": {
+    "text": "Tailscale isn't installed on this device, so Funnel can't be turned on here.",
+    "note": "Error in Settings > Tailscale Funnel after Enable, on a device without Tailscale."
+  },
+  "app.settings.tailscale.off": {
+    "text": "Funnel is off. This device is reachable through the bridge again.",
+    "note": "Settings > Tailscale Funnel, after it was turned off."
+  },
+  "app.settings.tailscale.served": {
+    "text": "Served over Tailscale Funnel at {url}",
+    "args": [["url", "text"]],
+    "note": "Settings > Tailscale Funnel, while it is on. {url} is the device's public address on Tailscale."
+  },
+  "app.settings.tailscale.suits": {
+    "text": "It suits a device you want purely as your own private NAS — your files and photos, reachable from anywhere, nothing shared with anyone.",
+    "note": "Settings > Tailscale Funnel: after the list of limitations."
+  },
+  "app.settings.tailscale.turn_off": {
+    "text": "Turn Funnel off",
+    "note": "Button in Settings > Tailscale Funnel while it is on.",
+    "max": 30
+  },
+  "app.settings.tailscale.working": {
+    "text": "Working…",
+    "note": "The Tailscale Funnel button while the device turns it on or off.",
+    "max": 30
+  },
+  "app.settings.thumbs.clear": {
+    "text": "Clear thumbnail cache",
+    "note": "Button (in red) in Settings > Thumbnail cache that deletes every small picture of the photos kept on this phone; Images downloads them again from the device.",
+    "max": 40,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e055a373"
+  },
+  "app.settings.thumbs.footer": {
+    "text": "Thumbnails are kept on this phone so Images opens without downloading them again.",
+    "note": "Under the Thumbnail cache section of Settings: why the phone keeps the small pictures of the photos."
+  },
+  "app.settings.thumbs.max_size": {
+    "text": "Maximum size",
+    "note": "Label of the choice in Settings > Thumbnail cache of how much room the small pictures of the photos may take on this phone (250 MB to 5 GB).",
+    "max": 30
+  },
+  "app.settings.update.back": {
+    "text": "The device is back.",
+    "note": "Settings > Device version: the device answers again after the restart."
+  },
+  "app.settings.update.build": {
+    "text": "build {build}",
+    "args": [["build", "text"]],
+    "note": "A release of the device's software that has no version name, in Settings > Device version (lowercase in English). {build} is the release number (118).",
+    "max": 20
+  },
+  "app.settings.update.check_again": {
+    "text": "Check again",
+    "note": "Button in Settings > Device version that makes the device check for new software.",
+    "max": 30
+  },
+  "app.settings.update.check_error": {
+    "text": "Couldn't reach the update server just now, so this may be out of date.",
+    "note": "Settings > Device version: the device couldn't check for new software, so what is shown may be old."
+  },
+  "app.settings.update.checking": {
+    "text": "Checking…",
+    "note": "Button in Settings > Device version while the device checks for new software (instead of Check again).",
+    "max": 30
+  },
+  "app.settings.update.critical": {
+    "text": "Critical",
+    "note": "Small red badge next to a release in Settings > Device version: an update to install as soon as possible.",
+    "max": 10
+  },
+  "app.settings.update.failed": {
+    "text": "Update failed: {message}",
+    "args": [["message", "text"]],
+    "note": "Settings > Device version, in red: the last software update failed. {message} is the device's own explanation."
+  },
+  "app.settings.update.failed_on": {
+    "text": "Update failed on {date}: {message}",
+    "args": [["date", "text"], ["message", "text"]],
+    "note": "Settings > Device version, in red: the last software update failed. {date} is when, as the device writes it; {message} is the device's own explanation."
+  },
+  "app.settings.update.label_build": {
+    "text": "{label} (build {build})",
+    "args": [["label", "text"], ["build", "text"]],
+    "note": "The device's installed software in Settings > Device version. {label} is its version (2.3), {build} its release number (118).",
+    "max": 30
+  },
+  "app.settings.update.major": {
+    "text": "Major",
+    "note": "Small orange badge next to a release in Settings > Device version: an important update (security, stability, durability).",
+    "max": 10
+  },
+  "app.settings.update.restart": {
+    "text": "Restart Device",
+    "note": "Button (in red) in Settings > Device version that restarts the whole device; it asks for a confirmation first.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #a0c7b43c"
+  },
+  "app.settings.update.restart_confirm": {
+    "text": "Restart",
+    "note": "Button (in red) of the confirmation Restart the device?: restarts it.",
+    "max": 20,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #7c6c3282"
+  },
+  "app.settings.update.restart_failed": {
+    "text": "Could not restart the device.",
+    "note": "Error in Settings > Device version when the device didn't restart and gave no reason."
+  },
+  "app.settings.update.restart_message": {
+    "text": "It will be unreachable for about a minute.",
+    "note": "Message of the confirmation Restart the device?",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #0eed889e"
+  },
+  "app.settings.update.restart_note": {
+    "text": "The device rebuilds itself and restarts, which takes a few minutes and drops this connection on the way. Your photos and settings are left alone.",
+    "note": "Settings > Device version, under the Update button: what installing an update does."
+  },
+  "app.settings.update.restart_old": {
+    "text": "Your device needs an update before it can be restarted from here.",
+    "note": "Error in Settings > Device version: the device's software is too old to be restarted from the app."
+  },
+  "app.settings.update.restart_title": {
+    "text": "Restart the device?",
+    "note": "Title of the confirmation asked before restarting the device from Settings > Device version. Buttons: Restart and Cancel.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #0fafc9b0"
+  },
+  "app.settings.update.restarting": {
+    "text": "Restarting…",
+    "note": "The Restart Device button while the device is restarting.",
+    "max": 30
+  },
+  "app.settings.update.restarting_note": {
+    "text": "Restarting… the device will be back in about a minute.",
+    "note": "Settings > Device version, next to a spinner, while the device restarts."
+  },
+  "app.settings.update.slow": {
+    "text": "The device hasn't come back yet. It can take a little longer; if it doesn't come back, unplug it and plug it back in.",
+    "note": "Settings > Device version, in orange: five minutes after the restart the device still doesn't answer."
+  },
+  "app.settings.update.start_failed": {
+    "text": "Could not start the update.",
+    "note": "Error in Settings > Device version when the device didn't start the update and gave no reason."
+  },
+  "app.settings.update.starting": {
+    "text": "Starting…",
+    "note": "Button in Settings > Device version while the software update is being started (instead of Update to ...).",
+    "max": 30
+  },
+  "app.settings.update.starting_status": {
+    "text": "Starting",
+    "note": "Settings > Device version, next to a spinner: the update was just started; the device's own progress replaces it.",
+    "max": 40
+  },
+  "app.settings.update.title": {
+    "text": "Device version",
+    "note": "Heading of the section of Settings about the device's software: its version, updates, and restarting the device.",
+    "max": 30
+  },
+  "app.settings.update.up_to_date": {
+    "text": "Up to date",
+    "note": "Settings > Device version, at the right of the installed version: no update is waiting.",
+    "max": 20
+  },
+  "app.settings.update.update_to": {
+    "text": "Update to {version}",
+    "args": [["version", "text"]],
+    "note": "Button in Settings > Device version that installs the newest software. {version} is its version (2.4).",
+    "max": 30
+  },
+  "app.settings.update.update_to_build": {
+    "text": "Update to build {build}",
+    "args": [["build", "text"]],
+    "note": "Button in Settings > Device version that installs the newest software, when it has no version name. {build} is its release number (118).",
+    "max": 30
+  },
+  "app.settings.uploads.title": {
+    "text": "Uploads",
+    "note": "Heading of the section of Settings that shows the photos and videos this phone is uploading to the device; shown only while there are some.",
+    "max": 30
+  },
+  "app.settings.users.confirm_delete": {
+    "text": "Confirm Delete",
+    "note": "Button (in red) in Settings > Users that deletes the user once the name was typed. Nothing can be recovered.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #791f3d61"
+  },
+  "app.settings.users.confirm_hint": {
+    "text": "Type \"{name}\" to confirm deletion.",
+    "args": [["name", "text"]],
+    "note": "Settings > Users, after Delete on a user, above a field: deleting a user deletes all of the user's data. {name} is the user's name, which must be typed exactly. Write the quotes in your language's style.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e075879e"
+  },
+  "app.settings.users.create_failed": {
+    "text": "Could not create user.",
+    "note": "Error in Settings > Users when the device didn't add the user and gave no reason."
+  },
+  "app.settings.users.created": {
+    "text": "User \"{name}\" created.",
+    "args": [["name", "text"]],
+    "note": "Message in Settings > Users after a user was added. {name} is the user's name. Write the quotes in your language's style."
+  },
+  "app.settings.users.delete_failed": {
+    "text": "Could not delete user.",
+    "note": "Error in Settings > Users when the device didn't delete the user and gave no reason."
+  },
+  "app.settings.users.deleted": {
+    "text": "User \"{name}\" deleted.",
+    "args": [["name", "text"]],
+    "note": "Message in Settings > Users after a user was deleted. {name} is the user's name. Write the quotes in your language's style."
+  },
+  "app.settings.users.disable": {
+    "text": "Disable",
+    "note": "Small button of a user in Settings > Users that switches the user off (reversible).",
+    "max": 16
+  },
+  "app.settings.users.enable": {
+    "text": "Enable",
+    "note": "Small button of a disabled user in Settings > Users that switches the user on again.",
+    "max": 16
+  },
+  "app.settings.users.inactive": {
+    "text": "INACTIVE",
+    "note": "Small label in capitals next to a user's name in Settings > Users: the user is disabled. Write it in capitals.",
+    "max": 16
+  },
+  "app.settings.users.intro": {
+    "text": "Each user runs as its own fully separate instance — own port, own database, own storage — managed only from here.",
+    "note": "Settings > Users: first paragraph."
+  },
+  "app.settings.users.load_usage": {
+    "text": "Load usage",
+    "note": "Small button of a user in Settings > Users that shows the storage the user takes and its connections.",
+    "max": 20
+  },
+  "app.settings.users.port": {
+    "text": "port",
+    "note": "Placeholder of the narrow field for a new user's network port in Settings > Users.",
+    "max": 8
+  },
+  "app.settings.users.port_domain": {
+    "text": "port {port} · {domain}",
+    "args": [["port", "text"], ["domain", "text"]],
+    "note": "Small line under a user's name in Settings > Users. {port} is the user's network port (8081), {domain} the user's address."
+  },
+  "app.settings.users.title": {
+    "text": "Users",
+    "note": "Heading of the section of Settings where the owner adds and manages other users of the device.",
+    "max": 30
+  },
+  "app.settings.users.update_failed": {
+    "text": "Could not update this user.",
+    "note": "Error in Settings > Users when the device didn't enable or disable the user and gave no reason."
+  },
+  "app.settings.users.usage": {
+    "text": {
+      "one": "{size} MB ({percent}%) · {count} active",
+      "other": "{size} MB ({percent}%) · {count} active"
+    },
+    "args": [["size", "text"], ["percent", "text"], ["count", "count"]],
+    "note": "Small line of a user in Settings > Users: the storage the user takes, in megabytes, its share of the disks, and how many connections are open now. {size} is a whole number, {percent} a number with one decimal."
+  },
+  "app.settings.users.username": {
+    "text": "username",
+    "note": "Placeholder of the field for a new user's name in Settings > Users (lowercase letters, digits and dashes only).",
+    "max": 20
   }
 }

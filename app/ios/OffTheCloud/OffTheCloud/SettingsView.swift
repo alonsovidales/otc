@@ -14,6 +14,32 @@
 import SwiftUI
 import Photos
 
+/// Text a Settings model keeps for its screen - a toast, an error, a note -
+/// worded each time the screen shows it, so it follows a change of language
+/// (docs/i18n.md, "Each platform"): a String in a @Published property stays
+/// in the language it was made in. `say` for our own words (an accessor),
+/// `asIs` for the device's (already in the request's language), `error` for
+/// an error's description (ours are LocalizedErrors worded when read). Two
+/// are equal when they read the same, like the Strings they replace.
+struct SettingsText: Equatable {
+    private let make: () -> String
+
+    var text: String { make() }
+
+    static func say(_ make: @escaping () -> String) -> SettingsText { SettingsText(make: make) }
+
+    static func asIs(_ text: String) -> SettingsText { SettingsText(make: { text }) }
+
+    /// The device's words, or ours when it gave none.
+    static func asIs(_ text: String, or ours: @escaping () -> String) -> SettingsText {
+        text.isEmpty ? say(ours) : asIs(text)
+    }
+
+    static func error(_ error: Error) -> SettingsText { SettingsText(make: { error.localizedDescription }) }
+
+    static func == (a: SettingsText, b: SettingsText) -> Bool { a.text == b.text }
+}
+
 @MainActor
 final class DeviceSettingsViewModel: ObservableObject {
     private let ws = OTCConnection.shared
@@ -23,7 +49,7 @@ final class DeviceSettingsViewModel: ObservableObject {
     @Published var confirmKey = ""
     @Published var savingKey = false
 
-    @Published var toast: String?
+    @Published var toast: SettingsText?
 
     // Issue #52: on by default - see db.sql's settings.face_recognition_
     // enabled doc comment for why turning this on never retroactively
@@ -108,10 +134,10 @@ final class DeviceSettingsViewModel: ObservableObject {
             if case .respAck(let ack) = resp.payload, ack.ok {
                 pollReprocessStatusWhileRunning()
             } else if case .respAck(let ack) = resp.payload {
-                showToast(ack.errorMsg.isEmpty ? "Could not start reprocessing" : ack.errorMsg)
+                showToast(.asIs(ack.errorMsg, or: { S.appSettingsReprocessStartFailed }))
             }
         } catch {
-            showToast("Error starting reprocessing")
+            showToast(.say { S.appSettingsReprocessStartError })
         }
     }
 
@@ -145,10 +171,10 @@ final class DeviceSettingsViewModel: ObservableObject {
                 // status is "running") keeps ticking every 1.5s and exits
                 // itself the moment it actually observes "stopped".
             } else if case .respAck(let ack) = resp.payload {
-                showToast(ack.errorMsg.isEmpty ? "Could not stop reprocessing" : ack.errorMsg)
+                showToast(.asIs(ack.errorMsg, or: { S.appSettingsReprocessStopFailed }))
             }
         } catch {
-            showToast("Error stopping reprocessing")
+            showToast(.say { S.appSettingsReprocessStopError })
         }
     }
 
@@ -180,12 +206,12 @@ final class DeviceSettingsViewModel: ObservableObject {
                 // Revert the optimistic toggle - see the Toggle binding below.
                 faceRecognitionEnabled = !enabled
                 if case .respAck(let ack) = resp.payload {
-                    showToast(ack.errorMsg.isEmpty ? "Update failed" : ack.errorMsg)
+                    showToast(.asIs(ack.errorMsg, or: { S.appSettingsErrorUpdateFailed }))
                 }
             }
         } catch {
             faceRecognitionEnabled = !enabled
-            showToast("Error updating this setting")
+            showToast(.say { S.appSettingsErrorSetting })
         }
     }
 
@@ -201,14 +227,14 @@ final class DeviceSettingsViewModel: ObservableObject {
             } else {
                 imageTaggingEnabled = !enabled
                 if case .respAck(let ack) = resp.payload {
-                    showToast(ack.errorMsg.isEmpty ? "Update failed" : ack.errorMsg)
+                    showToast(.asIs(ack.errorMsg, or: { S.appSettingsErrorUpdateFailed }))
                 } else if resp.error {
-                    showToast(resp.errorMessage.isEmpty ? "Update failed" : resp.errorMessage)
+                    showToast(.asIs(resp.errorMessage, or: { S.appSettingsErrorUpdateFailed }))
                 }
             }
         } catch {
             imageTaggingEnabled = !enabled
-            showToast("Error updating this setting")
+            showToast(.say { S.appSettingsErrorSetting })
         }
     }
 
@@ -217,15 +243,15 @@ final class DeviceSettingsViewModel: ObservableObject {
     /// updates the locally stored password on success so future
     /// reconnects authenticate with the new one.
     func changePassword(secrets: SecretsStore) async {
-        guard !oldKey.isEmpty, !newKey.isEmpty else { showToast("Fill in all fields"); return }
-        guard newKey == confirmKey else { showToast("Passwords don't match"); return }
+        guard !oldKey.isEmpty, !newKey.isEmpty else { showToast(.say { S.appSettingsPasswordFillAll }); return }
+        guard newKey == confirmKey else { showToast(.say { S.appSettingsPasswordMismatch }); return }
 
         savingKey = true
         defer { savingKey = false }
         do {
             let pubKeyResp = try await ws.request { $0.payload = .reqGetPubKey(Msg_GetPubKey()) }
             guard case .respPubKey(let pubKey) = pubKeyResp.payload else {
-                showToast("Could not fetch the connection's public key")
+                showToast(.say { S.appSettingsPasswordNoKey })
                 return
             }
             let encOld = try PwCrypto.encryptPassword(oldKey, pubKeyDER: pubKey.publicKey)
@@ -239,18 +265,18 @@ final class DeviceSettingsViewModel: ObservableObject {
                 secrets.password = newKey
                 secrets.persist()
                 oldKey = ""; newKey = ""; confirmKey = ""
-                showToast("Password changed ✅")
+                showToast(.say { S.appSettingsPasswordChanged })
             } else if case .respAck(let ack) = resp.payload {
-                showToast(ack.errorMsg.isEmpty ? "Change failed" : ack.errorMsg)
+                showToast(.asIs(ack.errorMsg, or: { S.appSettingsPasswordFailed }))
             } else {
-                showToast("Unexpected response")
+                showToast(.say { S.appSettingsErrorUnexpected })
             }
         } catch {
-            showToast("Error changing password: \(error.localizedDescription)")
+            showToast(.say { S.appSettingsPasswordError(detail: error.localizedDescription) })
         }
     }
 
-    private func showToast(_ m: String) {
+    private func showToast(_ m: SettingsText) {
         toast = m
         Task { [weak self] in
             try? await Task.sleep(nanoseconds: 2_500_000_000)
@@ -263,7 +289,9 @@ final class DeviceSettingsViewModel: ObservableObject {
 final class StatusViewModel: ObservableObject {
     private let ws = OTCConnection.shared
     @Published var status: Msg_Status?
-    @Published var errorText: String?
+    @Published var error: SettingsText?
+    /// The last ask's error, worded now (the menu's storage line reads it too).
+    var errorText: String? { error?.text }
     private var pollTask: Task<Void, Never>?
 
     func start() {
@@ -285,15 +313,15 @@ final class StatusViewModel: ObservableObject {
         do {
             let resp = try await ws.request { $0.payload = .reqGetStatus(Msg_GetStatus()) }
             if resp.error {
-                errorText = resp.errorMessage
+                error = .asIs(resp.errorMessage)
                 status = nil
             } else if case .respStatus(let s) = resp.payload {
                 status = s
-                errorText = nil
+                error = nil
                 LanguageSettings.shared.deviceSaid(status: s)
             }
         } catch {
-            errorText = error.localizedDescription
+            self.error = .error(error)
         }
     }
 }
@@ -333,7 +361,7 @@ struct SettingsView: View {
                     }
                 }
 
-                Section(header: Text("Status")) {
+                Section(header: Text(S.appSettingsStatusTitle)) {
                     StatusSectionContent(vm: status)
                 }
 
@@ -341,7 +369,7 @@ struct SettingsView: View {
                 // used to be a hairline over every tab as well (issue #14);
                 // a background sync isn't worth announcing everywhere.
                 if upload.totalPending > 0 || upload.isUploading {
-                    Section(header: Text("Uploads")) {
+                    Section(header: Text(S.appSettingsUploadsTitle)) {
                         UploadDetail(upload: upload)
                     }
                 }
@@ -349,8 +377,8 @@ struct SettingsView: View {
                 // Issue #180: galleries and zip links shared from Images
                 // and Files - when they expire, how often they were opened,
                 // and a delete that stops them working.
-                Section(header: Text("Sharing")) {
-                    NavigationLink("Shared Links") { SharedLinksView() }
+                Section(header: Text(S.appSettingsSharingTitle)) {
+                    NavigationLink(S.appSettingsLinksTitle) { SharedLinksView() }
                 }
 
                 // Issue #94: in-place updates. Renders nothing on a
@@ -358,33 +386,33 @@ struct SettingsView: View {
                 UpdateSection()
                     .id(Self.updateSectionID)
 
-                Section(header: Text("Change Password")) {
-                    SecureField("Current password", text: $device.oldKey)
-                    SecureField("New password", text: $device.newKey)
-                    SecureField("Confirm new password", text: $device.confirmKey)
-                    Button(device.savingKey ? "Changing…" : "Change Password") {
+                Section(header: Text(S.appSettingsPasswordTitle)) {
+                    SecureField(S.appSettingsPasswordCurrent, text: $device.oldKey)
+                    SecureField(S.appSettingsPasswordNew, text: $device.newKey)
+                    SecureField(S.appSettingsPasswordConfirm, text: $device.confirmKey)
+                    Button(device.savingKey ? S.appSettingsPasswordChanging : S.appSettingsPasswordChange) {
                         Task { await device.changePassword(secrets: secrets) }
                     }
                     .disabled(device.savingKey || device.oldKey.isEmpty || device.newKey.isEmpty)
                 }
 
-                Section(header: Text("Sync Options")) {
-                    Toggle("Wi-Fi only", isOn: $secrets.wifiOnly)
-                    Toggle("Include videos", isOn: $secrets.includeVideos)
-                    Toggle("Sync from iCloud", isOn: $secrets.downloadFromiCloud)
-                    Button("Authorize Photos Access") {
+                Section(header: Text(S.appSettingsSyncTitle)) {
+                    Toggle(S.appSettingsSyncWifiOnly, isOn: $secrets.wifiOnly)
+                    Toggle(S.appSettingsSyncVideos, isOn: $secrets.includeVideos)
+                    Toggle(S.iosSettingsSyncIcloud, isOn: $secrets.downloadFromiCloud)
+                    Button(S.appSettingsSyncAuthorize) {
                         Task { _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite) }
                     }
                 }
 
-                Section(footer: Text("Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.")) {
-                    Button("Sync Now") {
+                Section(footer: Text(S.appSettingsSyncFooter)) {
+                    Button(S.appSettingsSyncNow) {
                         Task {
                             secrets.persist()
                             try? await PhotoSync.shared.runForeground()
                         }
                     }
-                    Button("Sync All") {
+                    Button(S.appSettingsSyncAll) {
                         Task {
                             secrets.persist()
                             // The watermark PhotoSync syncs from - cleared,
@@ -395,7 +423,7 @@ struct SettingsView: View {
                             try? await PhotoSync.shared.runForeground()
                         }
                     }
-                    Button("Sync From Now") {
+                    Button(S.appSettingsSyncFromNow) {
                         secrets.persist()
                         PhotoSync.shared.syncFromNow()
                     }
@@ -406,11 +434,11 @@ struct SettingsView: View {
                 ThumbCacheSection()
 
                 Section(
-                    header: Text("Image Tagging"),
-                    footer: Text("Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.")
+                    header: Text(S.appSettingsTaggingTitle),
+                    footer: Text(S.appSettingsTaggingFooter)
                 ) {
                     Toggle(
-                        "Image Tagging",
+                        S.appSettingsTaggingTitle,
                         isOn: Binding(
                             get: { device.imageTaggingEnabled },
                             set: { newValue in Task { await device.toggleImageTagging(newValue) } }
@@ -420,11 +448,11 @@ struct SettingsView: View {
                 }
 
                 Section(
-                    header: Text("People"),
-                    footer: Text("Detect faces in newly uploaded photos so you can search by person. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media below to scan the ones you already have.")
+                    header: Text(S.appSettingsFacesTitle),
+                    footer: Text(S.appSettingsFacesFooter)
                 ) {
                     Toggle(
-                        "Face Recognition",
+                        S.appSettingsFacesToggle,
                         isOn: Binding(
                             get: { device.faceRecognitionEnabled },
                             set: { newValue in Task { await device.toggleFaceRecognition(newValue) } }
@@ -433,24 +461,24 @@ struct SettingsView: View {
                     .disabled(device.savingFaceRecognition)
                 }
 
-                Section(header: Text("Connection")) {
+                Section(header: Text(S.appSettingsConnectionTitle)) {
                     // Issue #121: name for the bridge, or a custom address.
                     ConnectionEndpointFields(endpoint: $secrets.endpoint)
-                    SecureField("Password", text: $secrets.password)
+                    SecureField(S.commonPassword, text: $secrets.password)
                     // Issue #190: which way the app reaches the device now.
                     if let route = connection.route {
                         Label(route.description, systemImage: route == .home ? "house" : "cloud")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    Text("Device ID: \(secrets.deviceId)")
+                    Text(S.appSettingsConnectionDeviceId(id: secrets.deviceId))
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Button("Save Connection") {
+                    Button(S.appSettingsConnectionSave) {
                         secrets.persist()
                         OTCConnection.shared.invalidate()
                     }
-                    Button("Log Out", role: .destructive) {
+                    Button(S.appSettingsConnectionLogOut, role: .destructive) {
                         confirmLogout = true
                     }
                 }
@@ -464,19 +492,19 @@ struct SettingsView: View {
                 UsersManagementSection()
 
                 Section(
-                    header: Text("Reprocess Media"),
-                    footer: Text("Re-run tagging and face detection on every photo and video already in your library — useful after a detection fix or model update. This clears existing tags and recognized people first and rebuilds them from scratch.")
+                    header: Text(S.appSettingsReprocessTitle),
+                    footer: Text(S.appSettingsReprocessFooter)
                 ) {
                     if device.reprocessStatus == "running" {
                         VStack(alignment: .leading, spacing: 6) {
                             ProgressView(value: device.reprocessTotal > 0 ? Double(device.reprocessProcessed) / Double(device.reprocessTotal) : 0)
                                 .progressViewStyle(.linear)
                             HStack {
-                                Text("Reprocessing… \(device.reprocessPercent)% (\(device.reprocessProcessed) / \(device.reprocessTotal))")
+                                Text(S.appSettingsReprocessRunning(percent: device.reprocessPercent, done: Int(device.reprocessProcessed), total: Int(device.reprocessTotal)))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                 Spacer()
-                                Button(device.cancellingReprocess ? "Stopping…" : "Cancel") {
+                                Button(device.cancellingReprocess ? S.appSettingsReprocessStopping : S.commonCancel) {
                                     Task { await device.stopReprocess() }
                                 }
                                 .font(.caption)
@@ -485,29 +513,29 @@ struct SettingsView: View {
                             }
                         }
                     } else if device.reprocessStatus == "stopped" {
-                        Text("Stopped at \(device.reprocessPercent)% (\(device.reprocessProcessed) / \(device.reprocessTotal)).")
+                        Text(S.appSettingsReprocessStopped(percent: device.reprocessPercent, done: Int(device.reprocessProcessed), total: Int(device.reprocessTotal)))
                             .font(.caption).foregroundColor(.secondary)
                         HStack {
-                            Button(device.startingReprocess ? "Starting…" : "Resume Reprocessing") {
+                            Button(device.startingReprocess ? S.appSettingsReprocessStarting : S.appSettingsReprocessResume) {
                                 device.reprocessConfirmAction = .resume
                             }
                             .disabled(device.startingReprocess)
                             Spacer()
-                            Button("Start Over") {
+                            Button(S.appSettingsReprocessStartOver) {
                                 device.reprocessConfirmAction = .restart
                             }
                             .disabled(device.startingReprocess)
                         }
                     } else {
-                        Button(device.startingReprocess ? "Starting…" : "Reprocess All Media") {
+                        Button(device.startingReprocess ? S.appSettingsReprocessStarting : S.appSettingsReprocessAll) {
                             device.reprocessConfirmAction = .restart
                         }
                         .disabled(device.startingReprocess)
                         if device.reprocessStatus == "completed" {
-                            Text("Last run completed — \(device.reprocessProcessed) file(s) processed.")
+                            Text(S.appSettingsReprocessCompleted(count: Int(device.reprocessProcessed)))
                                 .font(.caption).foregroundColor(.secondary)
                         } else if device.reprocessStatus == "failed" {
-                            Text("Last run failed after \(device.reprocessProcessed) file(s) — try again.")
+                            Text(S.appSettingsReprocessFailed(count: Int(device.reprocessProcessed)))
                                 .font(.caption).foregroundColor(.red)
                         }
                     }
@@ -527,7 +555,7 @@ struct SettingsView: View {
             .modifier(ScrollClearsWindowControls())
             .overlay(alignment: .top) {
                 if let toast = device.toast {
-                    Text(toast)
+                    Text(toast.text)
                         .padding(.horizontal, 12).padding(.vertical, 8)
                         .background(.ultraThinMaterial, in: Capsule())
                         .padding(.top, 8)
@@ -554,26 +582,26 @@ struct SettingsView: View {
             status.stop()
             device.stopPollingReprocessStatus()
         }
-        .alert("Log out of this device?", isPresented: $confirmLogout) {
-            Button("Log Out", role: .destructive) { logOut() }
-            Button("Cancel", role: .cancel) {}
+        .alert(S.appSettingsConnectionLogOutTitle, isPresented: $confirmLogout) {
+            Button(S.appSettingsConnectionLogOutConfirm, role: .destructive) { logOut() }
+            Button(S.commonCancel, role: .cancel) {}
         } message: {
-            Text("The connection, the sync history and everything cached from the device are removed from this phone. Nothing on the device itself is deleted.")
+            Text(S.appSettingsConnectionLogOutMessage)
         }
         .confirmationDialog(
             device.reprocessConfirmAction == .resume
-                ? "Resume reprocessing where it left off? It can take a while."
-                : "Reprocess every photo and video in your library? This deletes all existing tags and recognized people and rebuilds them from scratch. It can take a while and can't be undone.",
+                ? S.appSettingsReprocessConfirmResume
+                : S.appSettingsReprocessConfirmRestart,
             isPresented: Binding(
                 get: { device.reprocessConfirmAction != nil },
                 set: { if !$0 { device.reprocessConfirmAction = nil } }
             ),
             titleVisibility: .visible
         ) {
-            Button(device.reprocessConfirmAction == .resume ? "Resume" : "Reprocess", role: .destructive) {
+            Button(device.reprocessConfirmAction == .resume ? S.appSettingsReprocessResumeButton : S.appSettingsReprocessRestartButton, role: .destructive) {
                 Task { await device.startReprocess(forceRestart: device.reprocessConfirmAction == .restart) }
             }
-            Button("Cancel", role: .cancel) {}
+            Button(S.commonCancel, role: .cancel) {}
         }
     }
 }
@@ -737,10 +765,10 @@ struct ThumbCacheSection: View {
 
     var body: some View {
         Section(
-            header: Text("Thumbnail Cache"),
-            footer: Text("Thumbnails are kept on this phone so Images opens without downloading them again.")
+            header: Text(S.iosSettingsThumbsTitle),
+            footer: Text(S.appSettingsThumbsFooter)
         ) {
-            Picker("Maximum size", selection: Binding(
+            Picker(S.appSettingsThumbsMaxSize, selection: Binding(
                 get: { model.limit },
                 set: { v in Task { await model.choose(v) } }
             )) {
@@ -752,12 +780,13 @@ struct ThumbCacheSection: View {
                 Text(text).foregroundStyle(.secondary)
             } else {
                 HStack {
-                    Text("Using … of \(ThumbCacheLimit.text(model.limit))").foregroundStyle(.secondary)
+                    // Not counted yet: an ellipsis where the size goes.
+                    Text(S.appShellThumbCacheUsage(used: "…", limit: ThumbCacheLimit.text(model.limit))).foregroundStyle(.secondary)
                     Spacer()
                     ProgressView()
                 }
             }
-            Button("Clear thumbnail cache", role: .destructive) {
+            Button(S.appSettingsThumbsClear, role: .destructive) {
                 Task { await model.clearAll() }
             }
             .disabled(model.clearing || model.used == 0)
@@ -769,9 +798,9 @@ struct ThumbCacheSection: View {
 /// A size the device reports in MB, readable: "4.6 GB", "984 GB", "820 MB".
 /// Same as sizeText in Android's SettingsView.kt.
 func sizeText(_ mb: Double) -> String {
-    if mb >= 100_000 { return String(format: "%.0f GB", mb / 1000) }
-    if mb >= 1000 { return String(format: "%.1f GB", mb / 1000) }
-    return String(format: "%.0f MB", mb)
+    if mb >= 100_000 { return String(format: "%.0f GB", mb / 1000) } // i18n-ignore: a size, the unit's symbol in every language
+    if mb >= 1000 { return String(format: "%.1f GB", mb / 1000) } // i18n-ignore: a size, the unit's symbol in every language
+    return String(format: "%.0f MB", mb) // i18n-ignore: a size, the unit's symbol in every language
 }
 
 // Issue #65: a plain, always-visible read of the RAID's own health -
@@ -779,11 +808,11 @@ func sizeText(_ mb: Double) -> String {
 // infer from whether an error banner happens to be showing.
 private func raidStateLabel(_ s: Msg_Status) -> String {
     switch s.raidState {
-    case .raidNone: return "No RAID"
-    case .raidInSync: return "In sync"
-    case .raidSyncing: return "Syncing (\(Int(s.raidSyncPercent))%)"
-    case .raidDegraded: return "Degraded"
-    default: return "Unknown"
+    case .raidNone: return S.appSettingsStatusRaidNone
+    case .raidInSync: return S.appSettingsStatusRaidInSync
+    case .raidSyncing: return S.appSettingsStatusRaidSyncing(percent: Int(s.raidSyncPercent))
+    case .raidDegraded: return S.appSettingsStatusRaidDegraded
+    default: return S.appSettingsStatusRaidUnknown
     }
 }
 
@@ -802,16 +831,19 @@ private struct StatusSectionContent: View {
                 RaidUsageBar(percent: usedPct, tint: usedTint)
                 // The % now lives inside the bar itself - just the MB
                 // figures here, not a repeated "(Z%)" suffix.
-                Text("RAID used: \(sizeText(Double(s.raidUsage))) of \(sizeText(Double(s.raidSize)))")
+                Text(S.appSettingsStatusRaidUsed(used: sizeText(Double(s.raidUsage)), total: sizeText(Double(s.raidSize))))
                     .font(.caption)
-                Text("Disk: \(sizeText(Double(s.diskUsage))) of \(sizeText(Double(s.diskSize)))")
+                Text(S.appSettingsStatusDisk(used: sizeText(Double(s.diskUsage)), total: sizeText(Double(s.diskSize))))
                     .font(.caption)
-                Text("CPU: \(String(format: "%.1f", s.cpuUsagePrc))% · Mem: \(sizeText(Double(s.memUsage))) of \(sizeText(Double(s.memSize)))")
+                Text(S.appSettingsStatusCpuMem(cpu: String(format: "%.1f", s.cpuUsagePrc), used: sizeText(Double(s.memUsage)), total: sizeText(Double(s.memSize))))
                     .font(.caption)
-                Text("RAID: \(s.raidLevel.isEmpty ? raidStateLabel(s) : "\(s.raidLevel) — \(raidStateLabel(s))") · Disks: \(s.disks)")
+                Text(s.raidLevel.isEmpty
+                     ? S.appSettingsStatusRaid(state: raidStateLabel(s), disks: Int(s.disks))
+                     : S.appSettingsStatusRaidLevel(level: s.raidLevel, state: raidStateLabel(s), disks: Int(s.disks)))
                     .font(.caption)
                 ForEach(s.errors, id: \.message) { e in
-                    Text("⚠️ \(e.message)").font(.caption).foregroundColor(.red)
+                    // The device's own words (in the request's language) after a sign.
+                    Text(verbatim: "⚠️ \(e.message)").font(.caption).foregroundColor(.red)
                 }
             }
         } else if let err = vm.errorText {
@@ -841,7 +873,7 @@ private struct RaidUsageBar: View {
                     .frame(width: geo.size.width * clamped / 100)
                 HStack {
                     Spacer()
-                    Text("\(Int(clamped))%")
+                    Text(S.appSettingsStatusUsedPercent(percent: Int(clamped)))
                         .font(.system(size: 9, weight: .medium))
                         .monospacedDigit()
                         .foregroundColor(.white)

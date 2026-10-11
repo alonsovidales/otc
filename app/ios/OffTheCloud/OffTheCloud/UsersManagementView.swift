@@ -34,7 +34,7 @@ final class UsersManagementViewModel: ObservableObject {
     @Published var deleting = false
 
     @Published var busyActiveUuid: String?
-    @Published var toast: String?
+    @Published var toast: SettingsText?
 
     func checkRole() async {
         guard let resp = try? await ws.request({ e in
@@ -90,12 +90,13 @@ final class UsersManagementViewModel: ObservableObject {
                 users = r.users
                 newUsername = ""
                 newPort = ""
-                toast = "User \"\(req.username)\" created."
+                let name = req.username
+                toast = .say { S.appSettingsUsersCreated(name: name) }
             } else {
-                toast = resp.errorMessage.isEmpty ? "Could not create user." : resp.errorMessage
+                toast = .asIs(resp.errorMessage, or: { S.appSettingsUsersCreateFailed })
             }
         } catch {
-            toast = error.localizedDescription
+            toast = .error(error)
         }
     }
 
@@ -112,15 +113,16 @@ final class UsersManagementViewModel: ObservableObject {
                 e = env
             }
             if case .respAck(let ack) = resp.payload, ack.ok {
-                toast = "User \"\(u.username)\" deleted."
+                let name = u.username
+                toast = .say { S.appSettingsUsersDeleted(name: name) }
                 deleteTargetUuid = nil
                 deleteConfirmText = ""
                 await loadUsers()
             } else {
-                toast = resp.errorMessage.isEmpty ? "Could not delete user." : resp.errorMessage
+                toast = .asIs(resp.errorMessage, or: { S.appSettingsUsersDeleteFailed })
             }
         } catch {
-            toast = error.localizedDescription
+            toast = .error(error)
         }
     }
 
@@ -141,10 +143,10 @@ final class UsersManagementViewModel: ObservableObject {
             if case .respAck(let ack) = resp.payload, ack.ok {
                 await loadUsers()
             } else {
-                toast = resp.errorMessage.isEmpty ? "Could not update this user." : resp.errorMessage
+                toast = .asIs(resp.errorMessage, or: { S.appSettingsUsersUpdateFailed })
             }
         } catch {
-            toast = error.localizedDescription
+            toast = .error(error)
         }
     }
 }
@@ -163,8 +165,8 @@ struct UsersManagementSection: View {
 
     var body: some View {
         if vm.isPrimary {
-            Section(header: Text("Users")) {
-                Text("Each user runs as its own fully separate instance — own port, own database, own storage — managed only from here.")
+            Section(header: Text(S.appSettingsUsersTitle)) {
+                Text(S.appSettingsUsersIntro)
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -173,21 +175,21 @@ struct UsersManagementSection: View {
                 }
 
                 HStack {
-                    TextField("username", text: $vm.newUsername)
+                    TextField(S.appSettingsUsersUsername, text: $vm.newUsername)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
-                    TextField("port", text: $vm.newPort)
+                    TextField(S.appSettingsUsersPort, text: $vm.newPort)
                         .keyboardType(.numberPad)
                         .frame(width: 70)
-                    Button(vm.creating ? "…" : "Add") { Task { await vm.createUser() } }
+                    Button(vm.creating ? "…" : S.commonAdd) { Task { await vm.createUser() } } // i18n-ignore: an ellipsis while the user is being added
                         .disabled(vm.creating || !usernameValid)
                 }
             }
-            .alert(vm.toast ?? "", isPresented: Binding(
+            .alert(vm.toast?.text ?? "", isPresented: Binding(
                 get: { vm.toast != nil },
                 set: { if !$0 { vm.toast = nil } }
             )) {
-                Button("OK", role: .cancel) {}
+                Button(S.commonOk, role: .cancel) {}
             }
         } else {
             // The role check has to run while nothing is shown yet: a
@@ -205,27 +207,27 @@ struct UsersManagementSection: View {
                     HStack(spacing: 6) {
                         Text(u.username).bold()
                         if !u.active {
-                            Text("INACTIVE").font(.caption2).bold().foregroundStyle(.secondary)
+                            Text(S.appSettingsUsersInactive).font(.caption2).bold().foregroundStyle(.secondary)
                         }
                     }
-                    Text("port \(u.port) · \(u.subdomain)")
+                    Text(S.appSettingsUsersPortDomain(port: "\(u.port)", domain: u.subdomain))
                         .font(.caption2).foregroundStyle(.secondary)
                 }
                 Spacer()
                 if let m = vm.metrics[u.uuid] {
-                    Text("\(Int(m.storageMb)) MB (\(String(format: "%.1f", m.storagePct))%) · \(m.activeConnections) active")
+                    Text(S.appSettingsUsersUsage(size: "\(Int(m.storageMb))", percent: String(format: "%.1f", m.storagePct), count: Int(m.activeConnections)))
                         .font(.caption2).foregroundStyle(.secondary)
                 } else {
-                    Button("Load usage") { Task { await vm.fetchMetrics(u.uuid) } }
+                    Button(S.appSettingsUsersLoadUsage) { Task { await vm.fetchMetrics(u.uuid) } }
                         .font(.caption)
                 }
             }
             HStack {
-                Button(u.active ? "Disable" : "Enable") { Task { await vm.toggleActive(u) } }
+                Button(u.active ? S.appSettingsUsersDisable : S.appSettingsUsersEnable) { Task { await vm.toggleActive(u) } }
                     .font(.caption)
                     .disabled(vm.busyActiveUuid == u.uuid)
                 Spacer()
-                Button("Delete", role: .destructive) {
+                Button(S.commonDelete, role: .destructive) {
                     vm.deleteTargetUuid = (vm.deleteTargetUuid == u.uuid) ? nil : u.uuid
                     vm.deleteConfirmText = ""
                 }
@@ -237,13 +239,13 @@ struct UsersManagementSection: View {
             // directory with no way back.
             if vm.deleteTargetUuid == u.uuid {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Type \"\(u.username)\" to confirm deletion.")
+                    Text(S.appSettingsUsersConfirmHint(name: u.username))
                         .font(.caption2).foregroundStyle(.secondary)
                     TextField(u.username, text: $vm.deleteConfirmText)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
                         .textFieldStyle(.roundedBorder)
-                    Button(vm.deleting ? "Deleting…" : "Confirm Delete", role: .destructive) {
+                    Button(vm.deleting ? S.commonDeleting : S.appSettingsUsersConfirmDelete, role: .destructive) {
                         Task { await vm.confirmDelete(u) }
                     }
                     .disabled(vm.deleting || vm.deleteConfirmText != u.username)

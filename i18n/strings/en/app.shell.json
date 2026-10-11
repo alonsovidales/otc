@@ -631,6 +631,38 @@
     "args": [["used", "text"], ["limit", "text"]],
     "note": "Settings > Thumbnail cache: how much of its size the cache of photo thumbnails kept on this phone uses. {used} and {limit} are sizes with their unit, already formatted (120 MB, 1 GB)."
   },
+  "app.shell.time_days_ago": {
+    "text": {
+      "one": "{count}d ago",
+      "other": "{count}d ago"
+    },
+    "args": [["count", "count"]],
+    "note": "How long ago something happened, in days, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (d for days).",
+    "max": 16
+  },
+  "app.shell.time_hours_ago": {
+    "text": {
+      "one": "{count}h ago",
+      "other": "{count}h ago"
+    },
+    "args": [["count", "count"]],
+    "note": "How long ago something happened, in hours, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (h for hours).",
+    "max": 16
+  },
+  "app.shell.time_just_now": {
+    "text": "just now",
+    "note": "When something happened less than a minute ago, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links (after last there, hence the lowercase start).",
+    "max": 16
+  },
+  "app.shell.time_minutes_ago": {
+    "text": {
+      "one": "{count}m ago",
+      "other": "{count}m ago"
+    },
+    "args": [["count", "count"]],
+    "note": "How long ago something happened, in minutes, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (m for minutes).",
+    "max": 16
+  },
   "app.shell.upload_left": {
     "text": {
       "one": "{count} left",

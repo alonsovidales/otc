@@ -20,7 +20,7 @@ final class SharedLinksViewModel: ObservableObject {
     @Published var links: [Msg_SharedLinkInfo] = []
     @Published var loading = false
     @Published var loaded = false
-    @Published var error: String?
+    @Published var error: SettingsText?
     @Published var confirmDelete: Msg_SharedLinkInfo?
 
     func load() async {
@@ -32,10 +32,10 @@ final class SharedLinksViewModel: ObservableObject {
                 links = l.links
                 error = nil
             } else {
-                error = resp.errorMessage.isEmpty ? "Could not load the shared links" : resp.errorMessage
+                error = .asIs(resp.errorMessage, or: { S.appSettingsLinksLoadFailed })
             }
         } catch {
-            self.error = error.localizedDescription
+            self.error = .error(error)
         }
         loaded = true
     }
@@ -46,10 +46,10 @@ final class SharedLinksViewModel: ObservableObject {
         do {
             let resp = try await ws.request { $0.payload = .reqDeleteSharedLink(req) }
             if resp.error {
-                error = resp.errorMessage.isEmpty ? "Could not delete the link" : resp.errorMessage
+                error = .asIs(resp.errorMessage, or: { S.appSettingsLinksDeleteFailed })
             }
         } catch {
-            self.error = error.localizedDescription
+            self.error = .error(error)
         }
         await load()
     }
@@ -61,10 +61,10 @@ struct SharedLinksView: View {
     var body: some View {
         List {
             if let error = vm.error {
-                Text(error).font(.caption).foregroundColor(.red)
+                Text(error.text).font(.caption).foregroundColor(.red)
             }
             if vm.loaded && vm.links.isEmpty && vm.error == nil {
-                Text("No shared links").foregroundStyle(.secondary)
+                Text(S.appSettingsLinksEmpty).foregroundStyle(.secondary)
             }
             ForEach(vm.links, id: \.uuid) { link in
                 SharedLinkRow(link: link) { vm.confirmDelete = link }
@@ -73,20 +73,20 @@ struct SharedLinksView: View {
         .overlay {
             if vm.loading && !vm.loaded { ProgressView() }
         }
-        .navigationTitle("Shared Links")
+        .navigationTitle(S.appSettingsLinksTitle)
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await vm.load() }
         .task { await vm.load() }
         .confirmationDialog(
-            "Delete this link?",
+            S.appSettingsLinksDeleteTitle,
             isPresented: Binding(get: { vm.confirmDelete != nil }, set: { if !$0 { vm.confirmDelete = nil } }),
             titleVisibility: .visible,
             presenting: vm.confirmDelete
         ) { link in
-            Button("Delete", role: .destructive) { Task { await vm.delete(link) } }
-            Button("Cancel", role: .cancel) {}
+            Button(S.commonDelete, role: .destructive) { Task { await vm.delete(link) } }
+            Button(S.commonCancel, role: .cancel) {}
         } message: { _ in
-            Text("Delete this link? The shared copies are deleted and the link stops working.")
+            Text(S.iosSettingsLinksDeleteMessage)
         }
     }
 }
@@ -97,18 +97,22 @@ private struct SharedLinkRow: View {
 
     private var title: String {
         if !link.description_p.isEmpty { return link.description_p }
-        return link.kind == "archive" ? "Shared files (zip)" : "Shared gallery"
+        return link.kind == "archive" ? S.appSettingsLinksUntitledZip : S.appSettingsLinksUntitledGallery
     }
 
     private var opened: String {
-        guard link.opens > 0 else { return "Never opened" }
-        var s = "Opened \(link.opens) \(link.opens == 1 ? "time" : "times")"
-        if link.hasLastOpened {
-            let rel = RelativeDateTimeFormatter()
-            rel.unitsStyle = .full
-            s += ", last \(rel.localizedString(for: link.lastOpened.date, relativeTo: Date()))"
-        }
-        return s
+        guard link.opens > 0 else { return S.appSettingsLinksNeverOpened }
+        guard link.hasLastOpened else { return S.appSettingsLinksOpened(count: Int(link.opens)) }
+        let rel = RelativeDateTimeFormatter()
+        rel.unitsStyle = .full
+        rel.locale = L10n.shared.locale
+        let last = rel.localizedString(for: link.lastOpened.date, relativeTo: Date())
+        return S.appSettingsLinksOpenedLast(count: Int(link.opens), last: last)
+    }
+
+    /// A date and time as the row writes them ("Oct 11, 2026 at 10:30"), in the app's locale.
+    private func when(_ date: Date) -> String {
+        date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened).locale(L10n.shared.locale))
     }
 
     var body: some View {
@@ -116,15 +120,15 @@ private struct SharedLinkRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).fontWeight(.semibold).lineLimit(2)
                 if link.hasCreated {
-                    Text("Created \(link.created.date.formatted(date: .abbreviated, time: .shortened))")
+                    Text(S.appSettingsLinksCreated(date: when(link.created.date)))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 if link.hasExpires {
-                    Text("Expires \(link.expires.date.formatted(date: .abbreviated, time: .shortened))")
+                    Text(S.appSettingsLinksExpires(date: when(link.expires.date)))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Text(opened).font(.caption).foregroundStyle(.secondary)
-                Text("\(formatByteCount(link.bytes)) · \(link.files) \(link.files == 1 ? "file" : "files")")
+                Text(S.appSettingsLinksSizeFiles(size: formatByteCount(link.bytes), count: Int(link.files)))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
@@ -135,7 +139,7 @@ private struct SharedLinkRow: View {
             }
             .buttonStyle(.borderless)
             .foregroundColor(.red)
-            .accessibilityLabel("Delete link")
+            .accessibilityLabel(S.appSettingsLinksDeleteLink)
         }
         .padding(.vertical, 2)
     }

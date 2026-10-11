@@ -38,6 +38,18 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.androidTrimCant
+import cloud.offthe.otc.i18n.androidTrimPlayCut
+import cloud.offthe.otc.i18n.appSocialTrimCantOpen
+import cloud.offthe.otc.i18n.appSocialTrimKeeping
+import cloud.offthe.otc.i18n.appSocialTrimNoLength
+import cloud.offthe.otc.i18n.appSocialTrimReading
+import cloud.offthe.otc.i18n.appSocialTrimRemove
+import cloud.offthe.otc.i18n.appSocialTrimTitle
+import cloud.offthe.otc.i18n.commonApply
+import cloud.offthe.otc.i18n.commonCancel
 import kotlinx.coroutines.delay
 
 // Port of VideoTrimmerView.swift (issue #108): pick the start/end of the
@@ -60,7 +72,8 @@ fun VideoTrimmerView(uri: String, existing: TrimRange?, onApply: (TrimRange?) ->
     var start by remember { mutableStateOf(existing?.start ?: 0.0) }
     var end by remember { mutableStateOf(existing?.end ?: 0.0) }
     var playingCut by remember { mutableStateOf(false) }
-    var loadError by remember { mutableStateOf<String?>(null) }
+    // Why the clip can't be trimmed, worded when shown.
+    var loadError by remember { mutableStateOf<UiText?>(null) }
 
     DisposableEffect(Unit) {
         val l = object : Player.Listener {
@@ -68,10 +81,10 @@ fun VideoTrimmerView(uri: String, existing: TrimRange?, onApply: (TrimRange?) ->
                 if (state == Player.STATE_READY && duration == null) {
                     val d = player.duration
                     if (d > 0) { duration = d / 1000.0; if (end <= 0 || end > d / 1000.0) end = d / 1000.0 }
-                    else loadError = "This video's length could not be read."
+                    else loadError = S.appSocialTrimNoLength()
                 }
             }
-            override fun onPlayerError(error: androidx.media3.common.PlaybackException) { loadError = "This video could not be opened." }
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) { loadError = S.appSocialTrimCantOpen() }
         }
         player.addListener(l)
         onDispose { player.removeListener(l); player.release() }
@@ -89,14 +102,15 @@ fun VideoTrimmerView(uri: String, existing: TrimRange?, onApply: (TrimRange?) ->
 
     Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Scaffold(topBar = {
-            TopAppBar(title = { Text("Trim video") }, navigationIcon = { TextButton(onClick = onCancel) { Text("Cancel") } },
-                actions = { TextButton(onClick = { onApply(TrimRange(start, effectiveEnd)) }, enabled = !isWholeClip && cutLength >= minTrimSecs) { Text("Apply") } })
+            TopAppBar(title = { Text(S.appSocialTrimTitle().resolve()) }, navigationIcon = { TextButton(onClick = onCancel) { Text(S.commonCancel().resolve()) } },
+                actions = { TextButton(onClick = { onApply(TrimRange(start, effectiveEnd)) }, enabled = !isWholeClip && cutLength >= minTrimSecs) { Text(S.commonApply().resolve()) } })
         }) { pad ->
             Column(Modifier.padding(pad).padding(16.dp)) {
                 AndroidView(factory = { PlayerView(it).apply { this.player = player; useController = true } },
                     modifier = Modifier.fillMaxWidth().height(260.dp).clip(RoundedCornerShape(10.dp)))
                 Spacer(Modifier.height(14.dp))
                 val d = duration
+                val err = loadError
                 when {
                     d != null -> {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -113,15 +127,15 @@ fun VideoTrimmerView(uri: String, existing: TrimRange?, onApply: (TrimRange?) ->
                             )
                             Text(formatTimecode(effectiveEnd), style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(52.dp))
                         }
-                        Text("Keeping ${formatTimecode(cutLength)} of ${formatTimecode(d)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(S.appSocialTrimKeeping(formatTimecode(cutLength), formatTimecode(d)).resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(8.dp))
                         Row {
-                            OutlinedButton(onClick = { player.seekTo((start * 1000).toLong()); playingCut = true; player.play() }) { Text("▶ Play cut") }
-                            if (existing != null) { Spacer(Modifier.width(8.dp)); OutlinedButton(onClick = { onApply(null) }) { Text("Remove trim") } }
+                            OutlinedButton(onClick = { player.seekTo((start * 1000).toLong()); playingCut = true; player.play() }) { Text(S.androidTrimPlayCut().resolve()) }
+                            if (existing != null) { Spacer(Modifier.width(8.dp)); OutlinedButton(onClick = { onApply(null) }) { Text(S.appSocialTrimRemove().resolve()) } }
                         }
                     }
-                    loadError != null -> Text("Can't trim this video: $loadError", color = MaterialTheme.colorScheme.error)
-                    else -> Row { CircularProgressIndicator(Modifier.width(20.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Text("Reading the clip…") }
+                    err != null -> Text(S.androidTrimCant(err.resolve()).resolve(), color = MaterialTheme.colorScheme.error)
+                    else -> Row { CircularProgressIndicator(Modifier.width(20.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Text(S.appSocialTrimReading().resolve()) }
                 }
             }
         }

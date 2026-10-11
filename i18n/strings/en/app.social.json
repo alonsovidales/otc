@@ -1,0 +1,490 @@
+{
+  "app.social.alerts.commented": {
+    "text": "<b>{name}</b> commented on your post",
+    "args": [["name", "user"]],
+    "note": "A row of the Alerts tab (the list of notifications): a friend commented on one of your posts. {name} is the friend's profile name (or their device's address when they have none), shown in bold (<b>…</b>). A tap opens the post.",
+    "rich": ["b"]
+  },
+  "app.social.alerts.empty": {
+    "text": "Nothing yet",
+    "note": "Shown in the middle of the Alerts tab (the list of notifications: friends' likes, comments and requests, and the device's own alerts) while it has none."
+  },
+  "app.social.alerts.error_more": {
+    "text": {
+      "one": "<b>{title}</b> <dim>+{count} more</dim>",
+      "other": "<b>{title}</b> <dim>+{count} more</dim>"
+    },
+    "args": [["title", "text"], ["count", "count"]],
+    "note": "First line of a row of the Alerts tab that groups several errors of the device. {title} is the first error's title, written by the device (already in the user's language), shown in bold (<b>…</b>); {count} is how many more errors the group holds, shown in grey (<dim>…</dim>). A tap shows every error's line.",
+    "rich": ["b", "dim"]
+  },
+  "app.social.alerts.friend_accepted": {
+    "text": "<b>{name}</b> accepted your friend request",
+    "args": [["name", "user"]],
+    "note": "A row of the Alerts tab (the list of notifications): someone accepted the friend request you sent. {name} is their profile name (or their device's address when they have none), shown in bold (<b>…</b>).",
+    "rich": ["b"]
+  },
+  "app.social.alerts.friend_request": {
+    "text": "<b>{name}</b> sent you a friend request",
+    "args": [["name", "user"]],
+    "note": "A row of the Alerts tab (the list of notifications): someone sent you a friend request; an Accept button may follow on the row. {name} is their profile name (or their device's address when they have none), shown in bold (<b>…</b>).",
+    "rich": ["b"]
+  },
+  "app.social.alerts.liked_comment": {
+    "text": "<b>{name}</b> liked your comment",
+    "args": [["name", "user"]],
+    "note": "A row of the Alerts tab (the list of notifications): a friend liked one of your comments. {name} is the friend's profile name (or their device's address when they have none), shown in bold (<b>…</b>). A tap opens the post.",
+    "rich": ["b"]
+  },
+  "app.social.alerts.liked_post": {
+    "text": "<b>{name}</b> liked your post",
+    "args": [["name", "user"]],
+    "note": "A row of the Alerts tab (the list of notifications): a friend liked one of your posts. {name} is the friend's profile name (or their device's address when they have none), shown in bold (<b>…</b>). A tap opens the post.",
+    "rich": ["b"]
+  },
+  "app.social.alerts.title": {
+    "text": "Notifications",
+    "note": "Title in the top bar of the Alerts tab, the list of notifications (friends' likes, comments and requests, and the device's own alerts).",
+    "max": 24
+  },
+  "app.social.compose.camera": {
+    "text": "Take a photo or video",
+    "note": "Screen-reader name of the camera button at the left of the caption box in the New Post composer: takes a photo or records a video to add to the post."
+  },
+  "app.social.compose.caption_placeholder": {
+    "text": "Write a caption…",
+    "note": "Placeholder of the caption box at the foot of the New Post composer (the text that goes with the post's photos). A post needs one.",
+    "max": 40
+  },
+  "app.social.compose.empty_response": {
+    "text": "Empty response",
+    "note": "Why a synced video couldn't be opened for trimming in the New Post composer: the device sent back an empty file. Shown as the detail of app.social.compose.trim_load_failed."
+  },
+  "app.social.compose.filter_placeholder": {
+    "text": "Filter by tag…",
+    "note": "Placeholder of the search box over the Synced photos in the New Post composer: typing a tag (a word the device found in photos, such as beach) narrows the photos to those with it.",
+    "max": 30
+  },
+  "app.social.compose.order": {
+    "text": "Order in post",
+    "note": "Small heading of the strip of the photos picked for a new post, in the New Post composer: the order they will appear in the post (arrows under each move it).",
+    "max": 30
+  },
+  "app.social.compose.photos_access": {
+    "text": "Photos access is needed to pick from your phone.",
+    "note": "Alert in the New Post composer when the app isn't allowed to read the phone's photos, so the Phone source (the phone's own photos) can't show them."
+  },
+  "app.social.compose.publish": {
+    "text": "Publish",
+    "note": "Button at the right of the caption box in the New Post composer, while no photo is picked yet (it is disabled then): publishes the post to your friends.",
+    "max": 16
+  },
+  "app.social.compose.publish_count": {
+    "text": "Publish ({number})",
+    "args": [["number", "int"]],
+    "note": "Button at the right of the caption box in the New Post composer: publishes the post to your friends. {number} is how many photos and videos are picked for it.",
+    "max": 28
+  },
+  "app.social.compose.publish_failed": {
+    "text": "Could not publish",
+    "note": "Alert in the New Post composer when the device didn't accept the new post and gave no reason."
+  },
+  "app.social.compose.publish_failed_detail": {
+    "text": "Could not publish: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Alert in the New Post composer when the post couldn't be published. {detail} says why: the device's own words (already in the user's language), or the phone's reason (for example why a photo couldn't be uploaded)."
+  },
+  "app.social.compose.publishing": {
+    "text": "Publishing…",
+    "note": "In the New Post composer while the post is being made: the Publish button's label, and the status line above the caption box once the photos from the phone are uploaded.",
+    "max": 20
+  },
+  "app.social.compose.source_phone": {
+    "text": "Phone",
+    "note": "First half of the switch at the top of the New Post composer: shows this phone's own photos and videos (uploaded to the device when the post is published).",
+    "max": 16
+  },
+  "app.social.compose.source_synced": {
+    "text": "Synced",
+    "note": "Second half of the switch at the top of the New Post composer: shows the photos and videos already on the device, searchable by tag.",
+    "max": 16
+  },
+  "app.social.compose.title": {
+    "text": "New Post",
+    "note": "Title of the composer that makes a new post for your friends (pick photos or videos, write a caption, Publish).",
+    "max": 24
+  },
+  "app.social.compose.trim_badge": {
+    "text": "✂ Trim",
+    "note": "Small pill on a picked video in the New Post composer's strip of picked photos (60 points wide): tapping the video opens the trimmer, to post only part of it. Once trimmed the pill shows the length kept instead. Keep the scissors.",
+    "max": 10
+  },
+  "app.social.compose.trim_load_failed": {
+    "text": "Could not load that video to trim it: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Alert in the New Post composer when a picked video couldn't be opened for trimming. {detail} says why (the phone's reason, or app.social.compose.empty_response)."
+  },
+  "app.social.compose.uploading": {
+    "text": "Uploading {done} of {total}…",
+    "args": [["done", "int"], ["total", "int"]],
+    "note": "Status line above the caption box in the New Post composer while the photos picked from the phone are uploaded to the device before the post is made: {done} is the one being uploaded (1, 2…), {total} how many there are."
+  },
+  "app.social.feed.empty_text": {
+    "text": "Share a photo or a video with your friends - it goes from your device to theirs, with no cloud in between.",
+    "note": "Under the heading No social posts, on the Social feed when there are no posts yet; a big plus button under it opens the composer. The point: posts travel from your own device straight to your friends' devices."
+  },
+  "app.social.feed.empty_title": {
+    "text": "No social posts",
+    "note": "Big heading of the Social feed (posts shared with friends) when there are no posts yet.",
+    "max": 32
+  },
+  "app.social.friends.add_heading": {
+    "text": "Add a friend",
+    "note": "Heading of the section of the Friends screen where you type a friend's device name and send them a friend request.",
+    "max": 30
+  },
+  "app.social.friends.ask_theirs": {
+    "text": "Ask {name}'s device to delete what I shared",
+    "args": [["name", "user"]],
+    "note": "Switch (off at first) when removing a friend: also asks the friend's device to delete your posts, comments and likes there. {name} is the friend's profile name (or their device's address when they have none). Explained by app.social.friends.ask_theirs_text.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #a0091e41"
+  },
+  "app.social.friends.ask_theirs_text": {
+    "text": "Your posts, comments and likes on their device. If it's offline, it happens the next time it connects; until then they show as leaving.",
+    "note": "Explains the switch app.social.friends.ask_theirs when removing a friend: what their device is asked to delete, and that a friend whose device is offline is listed as Leaving (app.social.friends.status_leaving) until it has.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #7e00d0a5"
+  },
+  "app.social.friends.block": {
+    "text": "Block",
+    "note": "Button on a friend's row in the Friends screen (for a request you received, or a friend): blocks them.",
+    "max": 16
+  },
+  "app.social.friends.cancel_confirm_text": {
+    "text": "The request will be withdrawn on both devices.",
+    "note": "Message of the confirmation app.social.friends.cancel_confirm_title, before withdrawing a friend request you sent: it is removed from your device and from theirs.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #eff248aa"
+  },
+  "app.social.friends.cancel_confirm_title": {
+    "text": "Cancel this friend request?",
+    "note": "Title of the confirmation asked before withdrawing a friend request you sent. Buttons: app.social.friends.cancel_request (in red) and Cancel (which keeps the request).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #0c99f6ea"
+  },
+  "app.social.friends.cancel_request": {
+    "text": "Cancel request",
+    "note": "Button (in red) of the confirmation app.social.friends.cancel_confirm_title: withdraws the friend request you sent, on both devices.",
+    "max": 24,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #795f45c9"
+  },
+  "app.social.friends.cancel_request_button": {
+    "text": "Cancel Request",
+    "note": "Button (in red) on the row of a friend request you sent, in the Friends screen: asks to withdraw it (app.social.friends.cancel_confirm_title follows).",
+    "max": 24
+  },
+  "app.social.friends.delete_confirm_text": {
+    "text": "The request will be removed here and on the sender's device.",
+    "note": "Message of the confirmation app.social.friends.delete_confirm_title, before declining a friend request you received: it is removed from your device and from the device of the person who sent it.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #60b10590"
+  },
+  "app.social.friends.delete_confirm_title": {
+    "text": "Delete this friend request?",
+    "note": "Title of the confirmation asked before declining a friend request you received (from the Decline button on its row). Buttons: app.social.friends.delete_request (in red) and Cancel (which keeps the request).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #a7f36765"
+  },
+  "app.social.friends.delete_error": {
+    "text": "Error deleting request",
+    "note": "Short message at the top of the Friends screen when a friend request couldn't be withdrawn or declined because the device didn't answer."
+  },
+  "app.social.friends.delete_failed": {
+    "text": "Delete failed",
+    "note": "Short message at the top of the Friends screen when the device didn't withdraw or decline a friend request and gave no reason."
+  },
+  "app.social.friends.delete_request": {
+    "text": "Delete request",
+    "note": "Button (in red) of the confirmation app.social.friends.delete_confirm_title: declines the friend request you received, removing it on both devices.",
+    "max": 24,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #ffe69467"
+  },
+  "app.social.friends.delete_theirs_text": {
+    "text": "Their posts and photos, and their comments and likes on any post.",
+    "note": "Explains the switch Delete everything from (a friend) on this phone, when removing a friend: what of theirs is deleted from your device.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #c816a1ab"
+  },
+  "app.social.friends.empty": {
+    "text": "No friendships yet.",
+    "note": "Under the Friends heading of the Friends screen when you have no friends and no friend requests."
+  },
+  "app.social.friends.friends_again": {
+    "text": "You're friends again ✅",
+    "note": "Short message at the top of the Friends screen after sending a friend request to someone who already had you as a friend (for example after they set up their device again): you are friends at once."
+  },
+  "app.social.friends.leaving_note": {
+    "text": "Waiting for their device to delete what you shared.",
+    "note": "Under the status of a friend being removed (Leaving), in the Friends screen: you asked their device to delete your posts, comments and likes, and it hasn't confirmed yet (it may be offline)."
+  },
+  "app.social.friends.list_heading": {
+    "text": "Friends",
+    "note": "Heading of the section of the Friends screen that lists your friends and the requests you sent; a Refresh button is at its right.",
+    "max": 24
+  },
+  "app.social.friends.load_failed": {
+    "text": "Could not load friendships",
+    "note": "Short message at the top of the Friends screen when the list of friends couldn't be read from the device."
+  },
+  "app.social.friends.name_invalid": {
+    "text": "Enter the device's name, like pit - letters, digits and dashes.",
+    "note": "Short message at the top of the Friends screen when what was typed isn't a device name. A friend is added by their device's name (the part before .off-the.cloud); pit is an example of one: keep it as it is."
+  },
+  "app.social.friends.name_placeholder": {
+    "text": "name",
+    "note": "Placeholder of the box where you type a friend's device name to add them, in the Friends screen; the fixed .off-the.cloud follows the box. Lowercase in English, like the name it stands for.",
+    "max": 12
+  },
+  "app.social.friends.no_domain": {
+    "text": "(no domain)",
+    "note": "In a friend's row of the Friends screen, in place of their device's address when it is missing."
+  },
+  "app.social.friends.no_name": {
+    "text": "(no name)",
+    "note": "In a row of the Friends screen, in place of the person's profile name when they haven't set one."
+  },
+  "app.social.friends.remove_button": {
+    "text": "Remove…",
+    "note": "Button (in red) on a friend's row in the Friends screen: opens the choices for removing the friend (app.social.friends.remove_title).",
+    "max": 16
+  },
+  "app.social.friends.remove_error": {
+    "text": "Error removing friend",
+    "note": "Short message at the top of the Friends screen when a friend couldn't be removed because the device didn't answer."
+  },
+  "app.social.friends.remove_failed": {
+    "text": "Remove failed",
+    "note": "Short message at the top of the Friends screen when the device didn't remove a friend and gave no reason."
+  },
+  "app.social.friends.remove_now": {
+    "text": "Remove Now",
+    "note": "Button (in red) on the row of a friend being removed (Leaving) in the Friends screen, and on iPhone also the button of its confirmation (app.social.friends.remove_now_title): stops waiting for their device to delete what you shared and ends the friendship at once.",
+    "max": 20,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #95a8d96c"
+  },
+  "app.social.friends.remove_now_text": {
+    "text": "Stops waiting for their device. Whatever it hasn't deleted yet stays there.",
+    "note": "Message of the confirmation app.social.friends.remove_now_title: your posts, comments and likes that the friend's device hasn't deleted yet stay on it.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #03087f13"
+  },
+  "app.social.friends.remove_now_title": {
+    "text": "Remove {name} now?",
+    "args": [["name", "user"]],
+    "note": "Title of the confirmation asked before ending the friendship with a friend being removed (Leaving) without waiting for their device. {name} is the friend's profile name (or their device's address when they have none).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #81a20992"
+  },
+  "app.social.friends.remove_title": {
+    "text": "Remove {name}?",
+    "args": [["name", "user"]],
+    "note": "Title of the screen (or dialog) for removing a friend, with two switches (what to delete on each side) and the button to remove them. {name} is the friend's profile name (or their device's address when they have none).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #724e078c"
+  },
+  "app.social.friends.removed": {
+    "text": "Friend removed",
+    "note": "Short message at the top of the Friends screen once a friend has been removed."
+  },
+  "app.social.friends.request_cancelled": {
+    "text": "Request cancelled",
+    "note": "Short message at the top of the Friends screen once a friend request you sent has been withdrawn."
+  },
+  "app.social.friends.request_deleted": {
+    "text": "Request deleted",
+    "note": "Short message at the top of the Friends screen once a friend request you received has been declined."
+  },
+  "app.social.friends.request_failed": {
+    "text": "Request failed",
+    "note": "Short message at the top of the Friends screen when a friend request wasn't sent and the device gave no reason (when it gives one, its own words show instead)."
+  },
+  "app.social.friends.request_sent": {
+    "text": "Friend request sent ✅",
+    "note": "Short message at the top of the Friends screen once a friend request has been sent."
+  },
+  "app.social.friends.send_error": {
+    "text": "Error sending request",
+    "note": "Short message at the top of the Friends screen when a friend request couldn't be sent because the device didn't answer."
+  },
+  "app.social.friends.set_pending": {
+    "text": "Set Pending",
+    "note": "Button on a friend's row in the Friends screen (for an accepted or blocked friend): puts the friendship back to waiting for your answer.",
+    "max": 24
+  },
+  "app.social.friends.status_accepted": {
+    "text": "Accepted",
+    "note": "Status under a friend's address in the Friends screen: the friendship is accepted.",
+    "max": 24
+  },
+  "app.social.friends.status_accepted_sent": {
+    "text": "Accepted (sent)",
+    "note": "Status under a friend's address in the Friends screen: the friend request you sent was accepted.",
+    "max": 24
+  },
+  "app.social.friends.status_blocked": {
+    "text": "Blocked",
+    "note": "Status under a person's address in the Friends screen: you blocked them.",
+    "max": 24
+  },
+  "app.social.friends.status_blocked_sent": {
+    "text": "Blocked (sent)",
+    "note": "Status under a person's address in the Friends screen: the friend request you sent was blocked.",
+    "max": 24
+  },
+  "app.social.friends.status_leaving": {
+    "text": "Leaving",
+    "note": "Status under a friend's address in the Friends screen: you removed them and asked their device to delete what you shared, and it hasn't confirmed yet.",
+    "max": 24
+  },
+  "app.social.friends.status_pending": {
+    "text": "Pending",
+    "note": "Status under a person's address in the Friends screen: the friendship is waiting for your answer.",
+    "max": 24
+  },
+  "app.social.friends.status_pending_sent": {
+    "text": "Pending (sent)",
+    "note": "Status under a person's address in the Friends screen: the friend request you sent is waiting for their answer.",
+    "max": 24
+  },
+  "app.social.friends.status_updated": {
+    "text": "Status updated ✅",
+    "note": "Short message at the top of the Friends screen once a friendship was accepted, blocked or set back to pending."
+  },
+  "app.social.friends.title": {
+    "text": "Friends",
+    "note": "Title of the Friends screen (a sheet opened from the Social feed, closed with Done): add friends and answer or manage friend requests.",
+    "max": 24
+  },
+  "app.social.friends.unexpected_response": {
+    "text": "Unexpected response",
+    "note": "Short message at the top of the Friends screen when the device answered a friend request or a status change with something the app doesn't understand."
+  },
+  "app.social.friends.update_error": {
+    "text": "Error updating status",
+    "note": "Short message at the top of the Friends screen when a friendship couldn't be accepted, blocked or set back to pending because the device didn't answer."
+  },
+  "app.social.friends.update_failed": {
+    "text": "Update failed",
+    "note": "Short message at the top of the Friends screen when the device didn't change a friendship's status and gave no reason (when it gives one, its own words show instead)."
+  },
+  "app.social.friends.waiting_answer": {
+    "text": "Waiting for your answer",
+    "note": "Heading of the section at the top of the Friends screen with the friend requests you received and haven't answered (Decline and Accept on each).",
+    "max": 30
+  },
+  "app.social.friends.waiting_their_device": {
+    "text": "Waiting for their device",
+    "note": "Short message at the top of the Friends screen after removing a friend whose device was offline: it will be asked to delete what you shared the next time it connects."
+  },
+  "app.social.likes.empty": {
+    "text": "No likes yet",
+    "note": "In the list of who liked a post or a comment (opened from its like count), when it holds nobody."
+  },
+  "app.social.likes.title": {
+    "text": "Likes",
+    "note": "Title of the list of who liked a post or a comment, opened by tapping its number of likes in the Social feed.",
+    "max": 24
+  },
+  "app.social.post.comment": {
+    "text": "<b>{name}</b>: {comment}",
+    "args": [["name", "user"], ["comment", "user"]],
+    "note": "A comment under a post in the Social feed: {name} is who wrote it (their profile name), in bold (<b>…</b>), {comment} the comment itself.",
+    "rich": ["b"]
+  },
+  "app.social.post.comment_placeholder": {
+    "text": "Add a comment…",
+    "note": "Placeholder of the box under each post in the Social feed where you write a comment (sent with app.social.post.send_comment).",
+    "max": 30
+  },
+  "app.social.post.comment_unnamed": {
+    "text": "<b>User</b>: {comment}",
+    "args": [["comment", "user"]],
+    "note": "A comment under a post in the Social feed whose writer has no profile name: User (as app.social.post.unnamed) in bold (<b>…</b>), then {comment}, the comment itself.",
+    "rich": ["b"]
+  },
+  "app.social.post.delete_comment": {
+    "text": "Delete Comment",
+    "note": "Button (in red) of the confirmation app.social.post.delete_comment_title: deletes the comment.",
+    "max": 20,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #666cca87"
+  },
+  "app.social.post.delete_comment_title": {
+    "text": "Delete this comment?",
+    "note": "Title of the confirmation asked before deleting a comment (from the bin beside it, on your own post or on a comment you wrote). Buttons: app.social.post.delete_comment and Cancel.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #22e50516"
+  },
+  "app.social.post.delete_post": {
+    "text": "Delete Post",
+    "note": "Item (in red) of the menu of your own post in the Social feed, which asks app.social.post.delete_post_title, and the button (in red) of that confirmation, which deletes the post.",
+    "max": 20,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #a81c78a0"
+  },
+  "app.social.post.delete_post_title": {
+    "text": "Delete this post?",
+    "note": "Title of the confirmation asked before deleting one of your own posts. Buttons: app.social.post.delete_post and Cancel.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #29841c8c"
+  },
+  "app.social.post.likes": {
+    "text": {
+      "one": "{count} like",
+      "other": "{count} likes"
+    },
+    "args": [["count", "count"]],
+    "note": "Under a post's heart in the Social feed: how many people liked it. A tap lists who."
+  },
+  "app.social.post.send_comment": {
+    "text": "Post",
+    "note": "Button at the right of the comment box under a post in the Social feed: sends the comment (a verb).",
+    "max": 12
+  },
+  "app.social.post.unnamed": {
+    "text": "User",
+    "note": "In a post's header in the Social feed, in place of the name of whoever posted it when they have no profile name.",
+    "max": 24
+  },
+  "app.social.trim.cant_open": {
+    "text": "This video could not be opened.",
+    "note": "In the Trim video screen of the New Post composer: why the video can't be trimmed (the phone couldn't open it)."
+  },
+  "app.social.trim.keeping": {
+    "text": "Keeping {kept} of {total}",
+    "args": [["kept", "text"], ["total", "text"]],
+    "note": "Under the two-handle slider of the Trim video screen (New Post composer): {kept} is the length of the part of the video that goes into the post, {total} the whole video's length, both as minutes:seconds.tenths (0:12.5)."
+  },
+  "app.social.trim.no_length": {
+    "text": "This video's length could not be read.",
+    "note": "In the Trim video screen of the New Post composer: why the video can't be trimmed (the phone couldn't tell how long it is)."
+  },
+  "app.social.trim.reading": {
+    "text": "Reading the clip…",
+    "note": "Beside a spinner in the Trim video screen of the New Post composer, while the video is being opened."
+  },
+  "app.social.trim.remove": {
+    "text": "Remove trim",
+    "note": "Button of the Trim video screen (New Post composer), shown when the video was trimmed before: posts the whole video again.",
+    "max": 24
+  },
+  "app.social.trim.title": {
+    "text": "Trim video",
+    "note": "Title of the screen of the New Post composer where you choose the part of a video that goes into the post (Cancel and Apply in its bar).",
+    "max": 24
+  }
+}

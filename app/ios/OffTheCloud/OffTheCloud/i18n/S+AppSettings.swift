@@ -6,6 +6,170 @@
 import Foundation
 
 extension S {
+    /// Your Account Page
+    ///
+    /// Button in Settings > Bridge and Account that opens the Off The Cloud account page in the browser.
+    static var appSettingsBridgeAccountPage: String { L("app.settings.bridge.account_page", table: "AppSettings") }
+
+    /// At home: {address}
+    ///
+    /// Settings > Bridge and Account: the device's address on the home network (192.168.1.20:8080).
+    static func appSettingsBridgeAtHome(address: String) -> String {
+        L("app.settings.bridge.at_home", table: "AppSettings", address)
+    }
+
+    /// Delete My Account…
+    ///
+    /// Button (in red) in Settings > Bridge and Account; asks Delete your account? first.
+    static var appSettingsBridgeDeleteAccount: String { L("app.settings.bridge.delete_account", table: "AppSettings") }
+
+    /// This device leaves the bridge first and goes on working at home. Then your account page opens: sign in there and delete the account, which releases any other devices' names too.
+    ///
+    /// Message of the confirmation Delete your account?
+    static var appSettingsBridgeDeleteMessage: String { L("app.settings.bridge.delete_message", table: "AppSettings") }
+
+    /// Delete your account?
+    ///
+    /// Title of the confirmation asked before deleting the Off The Cloud account from Settings > Bridge and Account.
+    static var appSettingsBridgeDeleteTitle: String { L("app.settings.bridge.delete_title", table: "AppSettings") }
+
+    /// Leaving gives the name back; the device keeps working at home, at http://{address}.
+    ///
+    /// Under Settings > Bridge and Account while the device is on the bridge. {address} is the device's address on the home network (192.168.1.20:8080 or otc.local:8080).
+    static func appSettingsBridgeFooter(address: String) -> String {
+        L("app.settings.bridge.footer", table: "AppSettings", address)
+    }
+
+    /// Leave the Bridge
+    ///
+    /// Button (in red) in Settings > Bridge and Account; asks Leave the bridge? first.
+    static var appSettingsBridgeLeave: String { L("app.settings.bridge.leave", table: "AppSettings") }
+
+    /// Leave the Bridge
+    ///
+    /// Button (in red) of the confirmation Leave the bridge?: takes the device off the bridge.
+    static var appSettingsBridgeLeaveConfirm: String { L("app.settings.bridge.leave_confirm", table: "AppSettings") }
+
+    /// Could not leave the bridge.
+    ///
+    /// Error in Settings > Bridge and Account when the device didn't leave the bridge and gave no reason.
+    static var appSettingsBridgeLeaveFailed: String { L("app.settings.bridge.leave_failed", table: "AppSettings") }
+
+    /// {domain} is given back and the device restarts. It keeps everything and works at home, but is no longer reachable from outside or by your friends. You can join again later.
+    ///
+    /// Message of the confirmation Leave the bridge?. {domain} is the device's address on the bridge (cala.off-the.cloud).
+    static func appSettingsBridgeLeaveMessage(domain: String) -> String {
+        L("app.settings.bridge.leave_message", table: "AppSettings", domain)
+    }
+
+    /// Leave the bridge?
+    ///
+    /// Title of the confirmation asked before taking the device off the bridge.
+    static var appSettingsBridgeLeaveTitle: String { L("app.settings.bridge.leave_title", table: "AppSettings") }
+
+    /// The device is restarting off the bridge. From now on the app reaches it on your home network, at {address}.
+    ///
+    /// Settings > Bridge and Account after leaving the bridge. {address} is the device's address on the home network (192.168.1.20:8080 or otc.local).
+    static func appSettingsBridgeLeft(address: String) -> String {
+        L("app.settings.bridge.left", table: "AppSettings", address)
+    }
+
+    /// Only reachable on your home network. Join the bridge from Settings in the device's web app.
+    ///
+    /// Settings > Bridge and Account while the device isn't on the bridge.
+    static var appSettingsBridgeLocalOnly: String { L("app.settings.bridge.local_only", table: "AppSettings") }
+
+    /// Reachable from anywhere at {domain}
+    ///
+    /// Settings > Bridge and Account while the device is on the bridge. {domain} is its address (cala.off-the.cloud).
+    static func appSettingsBridgeReachable(domain: String) -> String {
+        L("app.settings.bridge.reachable", table: "AppSettings", domain)
+    }
+
+    /// This device left the bridge: {bridge} no longer knew its name (its account was deleted, or the name released). Everything on it is still there.
+    ///
+    /// Settings > Bridge and Account, in orange: the device left the bridge by itself. {bridge} is the bridge's address (off-the.cloud).
+    static func appSettingsBridgeReleased(bridge: String) -> String {
+        L("app.settings.bridge.released", table: "AppSettings", bridge)
+    }
+
+    /// Bridge and Account
+    ///
+    /// Heading of the section of Settings about the Off The Cloud bridge (the relay that makes the device reachable from anywhere) and the Off The Cloud account.
+    static var appSettingsBridgeTitle: String { L("app.settings.bridge.title", table: "AppSettings") }
+
+    /// Device ID: {id}
+    ///
+    /// Small line in Settings > Connection: this phone's identifier for the device. {id} is a long code, never translated.
+    static func appSettingsConnectionDeviceId(id: String) -> String {
+        L("app.settings.connection.device_id", table: "AppSettings", id)
+    }
+
+    /// Log Out
+    ///
+    /// Button (in red) in Settings > Connection; asks Log out of this device? first.
+    static var appSettingsConnectionLogOut: String { L("app.settings.connection.log_out", table: "AppSettings") }
+
+    /// Log Out
+    ///
+    /// Button (in red) of the confirmation Log out of this device?: logs out.
+    static var appSettingsConnectionLogOutConfirm: String { L("app.settings.connection.log_out_confirm", table: "AppSettings") }
+
+    /// The connection, the sync history and everything cached from the device are removed from this phone. Nothing on the device itself is deleted.
+    ///
+    /// Message of the confirmation Log out of this device?
+    static var appSettingsConnectionLogOutMessage: String { L("app.settings.connection.log_out_message", table: "AppSettings") }
+
+    /// Log out of this device?
+    ///
+    /// Title of the confirmation asked before logging out of the device in Settings. Buttons: Log Out and Cancel.
+    static var appSettingsConnectionLogOutTitle: String { L("app.settings.connection.log_out_title", table: "AppSettings") }
+
+    /// Save Connection
+    ///
+    /// Button in Settings > Connection that saves the address and password and connects again.
+    static var appSettingsConnectionSave: String { L("app.settings.connection.save", table: "AppSettings") }
+
+    /// Connection
+    ///
+    /// Heading of the section of Settings with the device's address and password.
+    static var appSettingsConnectionTitle: String { L("app.settings.connection.title", table: "AppSettings") }
+
+    /// Use photo
+    ///
+    /// Button on the screen that crops the new profile photo to a circle: keeps the crop as the profile photo.
+    static var appSettingsCropUse: String { L("app.settings.crop.use", table: "AppSettings") }
+
+    /// Error updating this setting
+    ///
+    /// Shown for a few seconds in Settings when a switch (Image Tagging, Face Recognition) couldn't be changed because the device couldn't be reached; the switch goes back.
+    static var appSettingsErrorSetting: String { L("app.settings.error.setting", table: "AppSettings") }
+
+    /// Unexpected response
+    ///
+    /// Error in Settings when the device answered a request (saving the profile or a setting, changing the password, sending the logs, listing the shared links) with something the app didn't expect.
+    static var appSettingsErrorUnexpected: String { L("app.settings.error.unexpected", table: "AppSettings") }
+
+    /// Update failed
+    ///
+    /// Shown for a few seconds in Settings when the device refused to change a switch (Image Tagging, Face Recognition) without saying why; the switch goes back. Not about software updates.
+    static var appSettingsErrorUpdateFailed: String { L("app.settings.error.update_failed", table: "AppSettings") }
+
+    /// Detect faces in newly uploaded photos so you can search by person. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media below to scan the ones you already have.
+    ///
+    /// Under the Face Recognition switch in Settings: what turning it on means. Reprocess Media is the name of a section further down (app.settings.reprocess.title).
+    static var appSettingsFacesFooter: String { L("app.settings.faces.footer", table: "AppSettings") }
+
+    /// People
+    ///
+    /// Heading of the section of Settings holding the Face Recognition switch.
+    static var appSettingsFacesTitle: String { L("app.settings.faces.title", table: "AppSettings") }
+
+    /// Face Recognition
+    ///
+    /// Switch in Settings > People: the device detects faces in new photos so they can be searched by person. Off unless the owner turns it on.
+    static var appSettingsFacesToggle: String { L("app.settings.faces.toggle", table: "AppSettings") }
+
     /// Language
     ///
     /// Row in Settings that opens the Language screen, and that screen's title.
@@ -32,4 +196,848 @@ extension S {
     ///
     /// Shown under the list of languages on the Language screen when the device's software is too old to keep the language.
     static var appSettingsLanguageThisPhone: String { L("app.settings.language_this_phone", table: "AppSettings") }
+
+    /// Created {date}
+    ///
+    /// Line of a link on the Shared Links screen: when it was made. {date} is the date and time, already formatted (Oct 11, 2026 at 10:30).
+    static func appSettingsLinksCreated(date: String) -> String {
+        L("app.settings.links.created", table: "AppSettings", date)
+    }
+
+    /// Could not delete the link
+    ///
+    /// Error on the Shared Links screen when a link couldn't be deleted and the device gave no reason.
+    static var appSettingsLinksDeleteFailed: String { L("app.settings.links.delete_failed", table: "AppSettings") }
+
+    /// Delete link
+    ///
+    /// Screen-reader name of the trash button of a link on the Shared Links screen; it asks for a confirmation first.
+    static var appSettingsLinksDeleteLink: String { L("app.settings.links.delete_link", table: "AppSettings") }
+
+    /// Delete this link?
+    ///
+    /// Title of the confirmation asked before deleting a shared link on the Shared Links screen. Buttons: Delete and Cancel.
+    static var appSettingsLinksDeleteTitle: String { L("app.settings.links.delete_title", table: "AppSettings") }
+
+    /// No shared links
+    ///
+    /// Shown on the Shared Links screen when the user has shared nothing that is still valid.
+    static var appSettingsLinksEmpty: String { L("app.settings.links.empty", table: "AppSettings") }
+
+    /// Expires {date}
+    ///
+    /// Line of a link on the Shared Links screen: when it stops working. {date} is the date and time, already formatted (Oct 18, 2026 at 10:30).
+    static func appSettingsLinksExpires(date: String) -> String {
+        L("app.settings.links.expires", table: "AppSettings", date)
+    }
+
+    /// Could not load the shared links
+    ///
+    /// Error on the Shared Links screen when the list couldn't be loaded and the device gave no reason.
+    static var appSettingsLinksLoadFailed: String { L("app.settings.links.load_failed", table: "AppSettings") }
+
+    /// Never opened
+    ///
+    /// Line of a link on the Shared Links screen: nobody has opened it yet.
+    static var appSettingsLinksNeverOpened: String { L("app.settings.links.never_opened", table: "AppSettings") }
+
+    /// one: Opened {count} time
+    /// other: Opened {count} times
+    ///
+    /// Line of a link on the Shared Links screen: how many times someone opened it.
+    static func appSettingsLinksOpened(count: Int) -> String {
+        L("app.settings.links.opened", table: "AppSettings", count)
+    }
+
+    /// one: Opened {count} time, last {last}
+    /// other: Opened {count} times, last {last}
+    ///
+    /// Line of a link on the Shared Links screen: how many times someone opened it, and when it was last opened. {last} is already formatted: how long ago (2 hours ago on the iPhone, 2h ago on Android) or a date.
+    static func appSettingsLinksOpenedLast(count: Int, last: String) -> String {
+        L("app.settings.links.opened_last", table: "AppSettings", count, last)
+    }
+
+    /// one: {size} · {count} file
+    /// other: {size} · {count} files
+    ///
+    /// Line of a link on the Shared Links screen: the space its copies take on the device and how many files it shares. {size} is a size, already formatted with its unit (4.6 GB, 820 MB).
+    static func appSettingsLinksSizeFiles(size: String, count: Int) -> String {
+        L("app.settings.links.size_files", table: "AppSettings", size, count)
+    }
+
+    /// Shared Links
+    ///
+    /// Row in Settings that opens the list of the galleries and download links the user shared, and that screen's title.
+    static var appSettingsLinksTitle: String { L("app.settings.links.title", table: "AppSettings") }
+
+    /// Shared gallery
+    ///
+    /// Name of a shared gallery (a web page of photos) on the Shared Links screen when it has no description.
+    static var appSettingsLinksUntitledGallery: String { L("app.settings.links.untitled_gallery", table: "AppSettings") }
+
+    /// Shared files (zip)
+    ///
+    /// Name of a download link on the Shared Links screen when it has no description: a ZIP archive of files shared from Files or Images.
+    static var appSettingsLinksUntitledZip: String { L("app.settings.links.untitled_zip", table: "AppSettings") }
+
+    /// Device
+    ///
+    /// One of the two choices at the top of the Logs screen: the log of the device's own service.
+    static var appSettingsLogsDevice: String { L("app.settings.logs.device", table: "AppSettings") }
+
+    /// Note (optional)
+    ///
+    /// Label (iPhone) or placeholder (Android) of the text field in the form that sends the logs: what the user wants to tell us.
+    static var appSettingsLogsNote: String { L("app.settings.logs.note", table: "AppSettings") }
+
+    /// Sends the last part of your device's logs, your note and your account's email to info@off-the.cloud, so we can help. Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses.
+    ///
+    /// In the form that sends the logs to Off The Cloud, before Send: what is sent and where. Keep the email address as it is.
+    static var appSettingsLogsSendExplain: String { L("app.settings.logs.send_explain", table: "AppSettings") }
+
+    /// Send to us
+    ///
+    /// Button on the Logs screen that opens a form to send the logs to Off The Cloud for help (on the iPhone also that form's title).
+    static var appSettingsLogsSendToUs: String { L("app.settings.logs.send_to_us", table: "AppSettings") }
+
+    /// Sending…
+    ///
+    /// The Send button (on Android the Send to us button) while the logs are being sent.
+    static var appSettingsLogsSending: String { L("app.settings.logs.sending", table: "AppSettings") }
+
+    /// Sent - we'll answer at your account's email.
+    ///
+    /// Shown on the Logs screen once the logs were sent to Off The Cloud: the answer will go to the email address of the user's Off The Cloud account.
+    static var appSettingsLogsSent: String { L("app.settings.logs.sent", table: "AppSettings") }
+
+    /// Logs
+    ///
+    /// Row in Settings that opens the device's logs, and that screen's title (on Android also the heading of the section holding the row).
+    static var appSettingsLogsTitle: String { L("app.settings.logs.title", table: "AppSettings") }
+
+    /// Updates
+    ///
+    /// One of the two choices at the top of the Logs screen: the log of the device's software updates.
+    static var appSettingsLogsUpdates: String { L("app.settings.logs.updates", table: "AppSettings") }
+
+    /// Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses. Check them before you share them.
+    ///
+    /// At the top of the Logs screen, with a warning sign.
+    static var appSettingsLogsWarning: String { L("app.settings.logs.warning", table: "AppSettings") }
+
+    /// Change Password
+    ///
+    /// Button of Settings > Change Password that changes the device's password; this phone keeps the new one to sign in.
+    static var appSettingsPasswordChange: String { L("app.settings.password.change", table: "AppSettings") }
+
+    /// Password changed ✅
+    ///
+    /// Shown for a few seconds in Settings > Change Password once the device changed its password. Keep the check mark.
+    static var appSettingsPasswordChanged: String { L("app.settings.password.changed", table: "AppSettings") }
+
+    /// Changing…
+    ///
+    /// The Change Password button while the password is being changed.
+    static var appSettingsPasswordChanging: String { L("app.settings.password.changing", table: "AppSettings") }
+
+    /// Confirm new password
+    ///
+    /// Placeholder of the third field of Settings > Change Password: the new password again.
+    static var appSettingsPasswordConfirm: String { L("app.settings.password.confirm", table: "AppSettings") }
+
+    /// Current password
+    ///
+    /// Placeholder of the first field of Settings > Change Password: the device's password now.
+    static var appSettingsPasswordCurrent: String { L("app.settings.password.current", table: "AppSettings") }
+
+    /// Error changing password: {detail}
+    ///
+    /// Shown for a few seconds in Settings > Change Password when the change couldn't reach the device. {detail} is why, as the system or the connection words it.
+    static func appSettingsPasswordError(detail: String) -> String {
+        L("app.settings.password.error", table: "AppSettings", detail)
+    }
+
+    /// Change failed
+    ///
+    /// Shown for a few seconds in Settings > Change Password when the device refused the change without saying why (for example a wrong current password).
+    static var appSettingsPasswordFailed: String { L("app.settings.password.failed", table: "AppSettings") }
+
+    /// Fill in all fields
+    ///
+    /// Shown for a few seconds in Settings > Change Password when a field is empty.
+    static var appSettingsPasswordFillAll: String { L("app.settings.password.fill_all", table: "AppSettings") }
+
+    /// Passwords don't match
+    ///
+    /// Shown for a few seconds in Settings > Change Password when the new password and its confirmation differ.
+    static var appSettingsPasswordMismatch: String { L("app.settings.password.mismatch", table: "AppSettings") }
+
+    /// New password
+    ///
+    /// Placeholder of the second field of Settings > Change Password.
+    static var appSettingsPasswordNew: String { L("app.settings.password.new", table: "AppSettings") }
+
+    /// Could not fetch the connection's public key
+    ///
+    /// Shown for a few seconds in Settings > Change Password: the app couldn't get the key it encrypts the passwords with, so nothing was sent.
+    static var appSettingsPasswordNoKey: String { L("app.settings.password.no_key", table: "AppSettings") }
+
+    /// Change Password
+    ///
+    /// Heading of the section of Settings where the owner changes the device's password.
+    static var appSettingsPasswordTitle: String { L("app.settings.password.title", table: "AppSettings") }
+
+    /// All photos
+    ///
+    /// First chip at the top of the screen Choose a photo: every photo on the device (the other chips are the user's collections).
+    static var appSettingsPickerAll: String { L("app.settings.picker.all", table: "AppSettings") }
+
+    /// Choose a photo
+    ///
+    /// Title of the screen that lists the photos on the user's device to pick the profile photo from (Settings > Profile > Change photo > From your device).
+    static var appSettingsPickerTitle: String { L("app.settings.picker.title", table: "AppSettings") }
+
+    /// Change photo
+    ///
+    /// Button under the profile photo in Settings > Profile. It opens a menu: pick the photo on this phone, or among the photos on the user's device.
+    static var appSettingsProfileChangePhoto: String { L("app.settings.profile.change_photo", table: "AppSettings") }
+
+    /// From your device
+    ///
+    /// Item of the Change photo menu in Settings > Profile: pick the profile photo among the photos already stored on the user's Off The Cloud device.
+    static var appSettingsProfileFromDevice: String { L("app.settings.profile.from_device", table: "AppSettings") }
+
+    /// Name
+    ///
+    /// Placeholder of the name field in Settings > Profile: the name friends see.
+    static var appSettingsProfileName: String { L("app.settings.profile.name", table: "AppSettings") }
+
+    /// Save Profile
+    ///
+    /// Button in Settings > Profile that saves the photo, name and description on the device.
+    static var appSettingsProfileSave: String { L("app.settings.profile.save", table: "AppSettings") }
+
+    /// Error saving profile
+    ///
+    /// Shown for a few seconds in Settings > Profile when the profile couldn't reach the device (no connection, no answer).
+    static var appSettingsProfileSaveError: String { L("app.settings.profile.save_error", table: "AppSettings") }
+
+    /// Profile update failed
+    ///
+    /// Shown for a few seconds in Settings > Profile when the device refused to save the profile without saying why.
+    static var appSettingsProfileSaveFailed: String { L("app.settings.profile.save_failed", table: "AppSettings") }
+
+    /// Profile updated ✅
+    ///
+    /// Shown for a few seconds in Settings > Profile once the device saved the profile. Keep the check mark.
+    static var appSettingsProfileSaved: String { L("app.settings.profile.saved", table: "AppSettings") }
+
+    /// Profile
+    ///
+    /// Heading of the first section of Settings, where the owner edits the profile friends see: photo, name and description.
+    static var appSettingsProfileTitle: String { L("app.settings.profile.title", table: "AppSettings") }
+
+    /// Reprocess All Media
+    ///
+    /// Button of Settings > Reprocess Media that starts a run; asks for a confirmation first.
+    static var appSettingsReprocessAll: String { L("app.settings.reprocess.all", table: "AppSettings") }
+
+    /// one: Last run completed — {count} file(s) processed.
+    /// other: Last run completed — {count} file(s) processed.
+    ///
+    /// Settings > Reprocess Media after a run finished. {count} is the number of files processed.
+    static func appSettingsReprocessCompleted(count: Int) -> String {
+        L("app.settings.reprocess.completed", table: "AppSettings", count)
+    }
+
+    /// Reprocess every photo and video in your library? This deletes all existing tags and recognized people and rebuilds them from scratch. It can take a while and can't be undone.
+    ///
+    /// Confirmation asked before starting Reprocess Media from the beginning. Buttons: Reprocess and Cancel.
+    static var appSettingsReprocessConfirmRestart: String { L("app.settings.reprocess.confirm_restart", table: "AppSettings") }
+
+    /// Resume reprocessing where it left off? It can take a while.
+    ///
+    /// Confirmation asked before continuing a stopped run of Reprocess Media. Buttons: Resume and Cancel.
+    static var appSettingsReprocessConfirmResume: String { L("app.settings.reprocess.confirm_resume", table: "AppSettings") }
+
+    /// one: Last run failed after {count} file(s) — try again.
+    /// other: Last run failed after {count} file(s) — try again.
+    ///
+    /// Settings > Reprocess Media, in red, after a run failed. {count} is the number of files processed before it failed.
+    static func appSettingsReprocessFailed(count: Int) -> String {
+        L("app.settings.reprocess.failed", table: "AppSettings", count)
+    }
+
+    /// Re-run tagging and face detection on every photo and video already in your library — useful after a detection fix or model update. This clears existing tags and recognized people first and rebuilds them from scratch.
+    ///
+    /// Under Settings > Reprocess Media: what it does.
+    static var appSettingsReprocessFooter: String { L("app.settings.reprocess.footer", table: "AppSettings") }
+
+    /// Reprocess
+    ///
+    /// Button (in red) of the confirmation app.settings.reprocess.confirm_restart: deletes the tags and people and starts again.
+    static var appSettingsReprocessRestartButton: String { L("app.settings.reprocess.restart_button", table: "AppSettings") }
+
+    /// Resume Reprocessing
+    ///
+    /// Button of Settings > Reprocess Media that continues a stopped run from where it stopped.
+    static var appSettingsReprocessResume: String { L("app.settings.reprocess.resume", table: "AppSettings") }
+
+    /// Resume
+    ///
+    /// Button of the confirmation app.settings.reprocess.confirm_resume: continues the stopped run.
+    static var appSettingsReprocessResumeButton: String { L("app.settings.reprocess.resume_button", table: "AppSettings") }
+
+    /// Reprocessing… {percent}% ({done} / {total})
+    ///
+    /// Settings > Reprocess Media while it runs. {percent} is how far along it is; {done} and {total} are numbers of files.
+    static func appSettingsReprocessRunning(percent: Int, done: Int, total: Int) -> String {
+        L("app.settings.reprocess.running", table: "AppSettings", percent, done, total)
+    }
+
+    /// Error starting reprocessing
+    ///
+    /// Shown for a few seconds in Settings > Reprocess Media when the request to start couldn't reach the device.
+    static var appSettingsReprocessStartError: String { L("app.settings.reprocess.start_error", table: "AppSettings") }
+
+    /// Could not start reprocessing
+    ///
+    /// Shown for a few seconds in Settings > Reprocess Media when the device didn't start the run and gave no reason.
+    static var appSettingsReprocessStartFailed: String { L("app.settings.reprocess.start_failed", table: "AppSettings") }
+
+    /// Start Over
+    ///
+    /// Button of Settings > Reprocess Media that runs everything again from the beginning instead of continuing.
+    static var appSettingsReprocessStartOver: String { L("app.settings.reprocess.start_over", table: "AppSettings") }
+
+    /// Starting…
+    ///
+    /// Button of Settings > Reprocess Media while the run is being started.
+    static var appSettingsReprocessStarting: String { L("app.settings.reprocess.starting", table: "AppSettings") }
+
+    /// Error stopping reprocessing
+    ///
+    /// Shown for a few seconds in Settings > Reprocess Media when the request to stop couldn't reach the device.
+    static var appSettingsReprocessStopError: String { L("app.settings.reprocess.stop_error", table: "AppSettings") }
+
+    /// Could not stop reprocessing
+    ///
+    /// Shown for a few seconds in Settings > Reprocess Media when the device didn't stop the run and gave no reason.
+    static var appSettingsReprocessStopFailed: String { L("app.settings.reprocess.stop_failed", table: "AppSettings") }
+
+    /// Stopped at {percent}% ({done} / {total}).
+    ///
+    /// Settings > Reprocess Media when a run was stopped before the end. {percent} is how far it got; {done} and {total} are numbers of files.
+    static func appSettingsReprocessStopped(percent: Int, done: Int, total: Int) -> String {
+        L("app.settings.reprocess.stopped", table: "AppSettings", percent, done, total)
+    }
+
+    /// Stopping…
+    ///
+    /// The Cancel button of Settings > Reprocess Media while the run stops.
+    static var appSettingsReprocessStopping: String { L("app.settings.reprocess.stopping", table: "AppSettings") }
+
+    /// Reprocess Media
+    ///
+    /// Heading of the section of Settings that runs image tagging and face detection again on every photo and video.
+    static var appSettingsReprocessTitle: String { L("app.settings.reprocess.title", table: "AppSettings") }
+
+    /// Sharing
+    ///
+    /// Heading of the section of Settings holding the Shared Links row.
+    static var appSettingsSharingTitle: String { L("app.settings.sharing.title", table: "AppSettings") }
+
+    /// CPU: {cpu}% · Mem: {used} of {total}
+    ///
+    /// Line of Settings > Status: the processor's load and the memory in use (Mem is short for memory). {cpu} is a number with one decimal (12.5); {used} and {total} are sizes, already formatted with its unit (4.6 GB, 820 MB).
+    static func appSettingsStatusCpuMem(cpu: String, used: String, total: String) -> String {
+        L("app.settings.status.cpu_mem", table: "AppSettings", cpu, used, total)
+    }
+
+    /// Disk: {used} of {total}
+    ///
+    /// Line of Settings > Status: how much of the device's system card is in use. {used} and {total} are sizes, already formatted with its unit (4.6 GB, 820 MB).
+    static func appSettingsStatusDisk(used: String, total: String) -> String {
+        L("app.settings.status.disk", table: "AppSettings", used, total)
+    }
+
+    /// RAID: {state} · Disks: {disks}
+    ///
+    /// Line of Settings > Status: the state of the device's mirrored disks (RAID) and how many disks it has. {state} is one of No RAID, In sync, Syncing (45%), Degraded, Unknown (app.settings.status.raid_*); {disks} is a number.
+    static func appSettingsStatusRaid(state: String, disks: Int) -> String {
+        L("app.settings.status.raid", table: "AppSettings", state, disks)
+    }
+
+    /// Degraded
+    ///
+    /// State of the device's disks in Settings > Status, after RAID: (app.settings.status.raid): one of the two disks stopped working.
+    static var appSettingsStatusRaidDegraded: String { L("app.settings.status.raid_degraded", table: "AppSettings") }
+
+    /// In sync
+    ///
+    /// State of the device's disks in Settings > Status, after RAID: (app.settings.status.raid): both disks hold the same data.
+    static var appSettingsStatusRaidInSync: String { L("app.settings.status.raid_in_sync", table: "AppSettings") }
+
+    /// RAID: {level} — {state} · Disks: {disks}
+    ///
+    /// The line app.settings.status.raid when the device names its RAID level. {level} is that name as the device gives it (raid1), never translated; {state} is one of app.settings.status.raid_*; {disks} is a number.
+    static func appSettingsStatusRaidLevel(level: String, state: String, disks: Int) -> String {
+        L("app.settings.status.raid_level", table: "AppSettings", level, state, disks)
+    }
+
+    /// No RAID
+    ///
+    /// State of the device's disks in Settings > Status, after RAID: (app.settings.status.raid): the device has no mirror.
+    static var appSettingsStatusRaidNone: String { L("app.settings.status.raid_none", table: "AppSettings") }
+
+    /// Syncing ({percent}%)
+    ///
+    /// State of the device's disks in Settings > Status, after RAID: (app.settings.status.raid): one disk is being copied onto the other. {percent} is how far along it is, a whole number.
+    static func appSettingsStatusRaidSyncing(percent: Int) -> String {
+        L("app.settings.status.raid_syncing", table: "AppSettings", percent)
+    }
+
+    /// Unknown
+    ///
+    /// State of the device's disks in Settings > Status, after RAID: (app.settings.status.raid): the device didn't say.
+    static var appSettingsStatusRaidUnknown: String { L("app.settings.status.raid_unknown", table: "AppSettings") }
+
+    /// RAID used: {used} of {total}
+    ///
+    /// Line of Settings > Status: how much of the device's mirrored disks (RAID) is in use. {used} and {total} are sizes, already formatted with its unit (4.6 GB, 820 MB).
+    static func appSettingsStatusRaidUsed(used: String, total: String) -> String {
+        L("app.settings.status.raid_used", table: "AppSettings", used, total)
+    }
+
+    /// Status
+    ///
+    /// Heading of the section of Settings that shows how full the device's disks are and its processor and memory use.
+    static var appSettingsStatusTitle: String { L("app.settings.status.title", table: "AppSettings") }
+
+    /// {percent}%
+    ///
+    /// Inside the storage bar of Settings > Status: how full the device's mirrored disks are. {percent} is a whole number. Write the percent sign as your language does.
+    static func appSettingsStatusUsedPercent(percent: Int) -> String {
+        L("app.settings.status.used_percent", table: "AppSettings", percent)
+    }
+
+    /// Sync All
+    ///
+    /// Button in Settings that goes through the whole photo library again, uploading whatever the device lacks.
+    static var appSettingsSyncAll: String { L("app.settings.sync.all", table: "AppSettings") }
+
+    /// Authorize Photos Access
+    ///
+    /// Button in Settings > Sync Options that asks the system for access to the phone's photos.
+    static var appSettingsSyncAuthorize: String { L("app.settings.sync.authorize", table: "AppSettings") }
+
+    /// Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.
+    ///
+    /// Under the Sync Now, Sync All and Sync From Now buttons in Settings: what the last two do. Use the same words as those buttons.
+    static var appSettingsSyncFooter: String { L("app.settings.sync.footer", table: "AppSettings") }
+
+    /// Sync From Now
+    ///
+    /// Button in Settings that skips the photos already on the phone: only those taken from now on are uploaded.
+    static var appSettingsSyncFromNow: String { L("app.settings.sync.from_now", table: "AppSettings") }
+
+    /// Sync Now
+    ///
+    /// Button in Settings that uploads the photos and videos not on the device yet, now.
+    static var appSettingsSyncNow: String { L("app.settings.sync.now", table: "AppSettings") }
+
+    /// Sync Options
+    ///
+    /// Heading of the section of Settings with the options of the photo sync from this phone to the device.
+    static var appSettingsSyncTitle: String { L("app.settings.sync.title", table: "AppSettings") }
+
+    /// Include videos
+    ///
+    /// Switch in Settings > Sync Options: upload videos too, not only photos.
+    static var appSettingsSyncVideos: String { L("app.settings.sync.videos", table: "AppSettings") }
+
+    /// Wi-Fi only
+    ///
+    /// Switch in Settings > Sync Options: upload photos only while the phone is on Wi-Fi.
+    static var appSettingsSyncWifiOnly: String { L("app.settings.sync.wifi_only", table: "AppSettings") }
+
+    /// Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.
+    ///
+    /// Under the Image Tagging switch in Settings: what it does.
+    static var appSettingsTaggingFooter: String { L("app.settings.tagging.footer", table: "AppSettings") }
+
+    /// Image Tagging
+    ///
+    /// Heading of a section of Settings, and the label of its switch: the device recognises what photos show so they can be searched.
+    static var appSettingsTaggingTitle: String { L("app.settings.tagging.title", table: "AppSettings") }
+
+    /// Auth key (optional)
+    ///
+    /// Placeholder of a field in Settings > Tailscale Funnel: a key from the Tailscale admin console, which lets the device sign in to Tailscale by itself.
+    static var appSettingsTailscaleAuthKey: String { L("app.settings.tailscale.auth_key", table: "AppSettings") }
+
+    /// Authorise this device in the page that just opened, then press Enable again.
+    ///
+    /// Settings > Tailscale Funnel after Enable without a key: Tailscale's sign-in page was opened in the browser. Enable is the button Enable Tailscale Funnel.
+    static var appSettingsTailscaleAuthorise: String { L("app.settings.tailscale.authorise", table: "AppSettings") }
+
+    /// Could not change the setting.
+    ///
+    /// Error in Settings > Tailscale Funnel when the device didn't turn Funnel on or off and gave no reason.
+    static var appSettingsTailscaleChangeFailed: String { L("app.settings.tailscale.change_failed", table: "AppSettings") }
+
+    /// Done — this device is reachable at {url}
+    ///
+    /// Settings > Tailscale Funnel once it is on. {url} is the device's public address on Tailscale.
+    static func appSettingsTailscaleDone(url: String) -> String {
+        L("app.settings.tailscale.done", table: "AppSettings", url)
+    }
+
+    /// Enable Tailscale Funnel
+    ///
+    /// Button in Settings > Tailscale Funnel while it is off.
+    static var appSettingsTailscaleEnable: String { L("app.settings.tailscale.enable", table: "AppSettings") }
+
+    /// Tailscale Funnel is an alternative to the Off The Cloud bridge, it publishes this device on your own ts.net address but with the next limitations:
+    ///
+    /// Settings > Tailscale Funnel: first paragraph, followed by a list of four limitations (app.settings.tailscale.limit_*).
+    static var appSettingsTailscaleIntro: String { L("app.settings.tailscale.intro", table: "AppSettings") }
+
+    /// With a key from your Tailscale admin console this finishes on its own. Without one, you'll be taken to Tailscale to authorise this device.
+    ///
+    /// Settings > Tailscale Funnel, under the Enable button.
+    static var appSettingsTailscaleKeyHint: String { L("app.settings.tailscale.key_hint", table: "AppSettings") }
+
+    /// <b>You'll need a Tailscale account,</b> with Funnel enabled for your tailnet.
+    ///
+    /// Settings > Tailscale Funnel: the last item of the list of limitations, after a bullet. <b>…</b> is the item's lead (shown in bold on the iPhone); the sentence goes on after it.
+    static func appSettingsTailscaleLimitAccount(b: AttributeContainer) -> AttributedString {
+        LRich("app.settings.tailscale.limit_account", table: "AppSettings", tags: ["b": b], [])
+    }
+
+    /// <b>Bandwidth is capped.</b> Tailscale limits what can pass through Funnel and doesn't publish the limit.
+    ///
+    /// Settings > Tailscale Funnel: an item of the list of limitations, after a bullet. <b>…</b> is the item's short lead (shown in bold on the iPhone).
+    static func appSettingsTailscaleLimitBandwidth(b: AttributeContainer) -> AttributedString {
+        LRich("app.settings.tailscale.limit_bandwidth", table: "AppSettings", tags: ["b": b], [])
+    }
+
+    /// <b>One user only.</b> Extra users need a web address each, and Funnel gives this machine a single one.
+    ///
+    /// Settings > Tailscale Funnel: an item of the list of limitations, after a bullet. <b>…</b> is the item's short lead (shown in bold on the iPhone).
+    static func appSettingsTailscaleLimitOneUser(b: AttributeContainer) -> AttributedString {
+        LRich("app.settings.tailscale.limit_one_user", table: "AppSettings", tags: ["b": b], [])
+    }
+
+    /// <b>The social side won't work.</b> Friends find each other through the bridge, so sharing and friends' timelines are unavailable.
+    ///
+    /// Settings > Tailscale Funnel: an item of the list of limitations, after a bullet. <b>…</b> is the item's short lead (shown in bold on the iPhone).
+    static func appSettingsTailscaleLimitSocial(b: AttributeContainer) -> AttributedString {
+        LRich("app.settings.tailscale.limit_social", table: "AppSettings", tags: ["b": b], [])
+    }
+
+    /// Tailscale is connected, but Funnel didn't come up. Check that Funnel is enabled for your tailnet.
+    ///
+    /// Settings > Tailscale Funnel after Enable: the device joined Tailscale but Funnel didn't start.
+    static var appSettingsTailscaleNoFunnel: String { L("app.settings.tailscale.no_funnel", table: "AppSettings") }
+
+    /// Tailscale isn't installed on this device, so Funnel isn't available here.
+    ///
+    /// Settings > Tailscale Funnel on a device without Tailscale.
+    static var appSettingsTailscaleNotInstalled: String { L("app.settings.tailscale.not_installed", table: "AppSettings") }
+
+    /// Tailscale isn't installed on this device, so Funnel can't be turned on here.
+    ///
+    /// Error in Settings > Tailscale Funnel after Enable, on a device without Tailscale.
+    static var appSettingsTailscaleNotInstalledOn: String { L("app.settings.tailscale.not_installed_on", table: "AppSettings") }
+
+    /// Funnel is off. This device is reachable through the bridge again.
+    ///
+    /// Settings > Tailscale Funnel, after it was turned off.
+    static var appSettingsTailscaleOff: String { L("app.settings.tailscale.off", table: "AppSettings") }
+
+    /// Served over Tailscale Funnel at {url}
+    ///
+    /// Settings > Tailscale Funnel, while it is on. {url} is the device's public address on Tailscale.
+    static func appSettingsTailscaleServed(url: String) -> String {
+        L("app.settings.tailscale.served", table: "AppSettings", url)
+    }
+
+    /// It suits a device you want purely as your own private NAS — your files and photos, reachable from anywhere, nothing shared with anyone.
+    ///
+    /// Settings > Tailscale Funnel: after the list of limitations.
+    static var appSettingsTailscaleSuits: String { L("app.settings.tailscale.suits", table: "AppSettings") }
+
+    /// Turn Funnel off
+    ///
+    /// Button in Settings > Tailscale Funnel while it is on.
+    static var appSettingsTailscaleTurnOff: String { L("app.settings.tailscale.turn_off", table: "AppSettings") }
+
+    /// Working…
+    ///
+    /// The Tailscale Funnel button while the device turns it on or off.
+    static var appSettingsTailscaleWorking: String { L("app.settings.tailscale.working", table: "AppSettings") }
+
+    /// Clear thumbnail cache
+    ///
+    /// Button (in red) in Settings > Thumbnail cache that deletes every small picture of the photos kept on this phone; Images downloads them again from the device.
+    static var appSettingsThumbsClear: String { L("app.settings.thumbs.clear", table: "AppSettings") }
+
+    /// Thumbnails are kept on this phone so Images opens without downloading them again.
+    ///
+    /// Under the Thumbnail cache section of Settings: why the phone keeps the small pictures of the photos.
+    static var appSettingsThumbsFooter: String { L("app.settings.thumbs.footer", table: "AppSettings") }
+
+    /// Maximum size
+    ///
+    /// Label of the choice in Settings > Thumbnail cache of how much room the small pictures of the photos may take on this phone (250 MB to 5 GB).
+    static var appSettingsThumbsMaxSize: String { L("app.settings.thumbs.max_size", table: "AppSettings") }
+
+    /// The device is back.
+    ///
+    /// Settings > Device version: the device answers again after the restart.
+    static var appSettingsUpdateBack: String { L("app.settings.update.back", table: "AppSettings") }
+
+    /// build {build}
+    ///
+    /// A release of the device's software that has no version name, in Settings > Device version (lowercase in English). {build} is the release number (118).
+    static func appSettingsUpdateBuild(build: String) -> String {
+        L("app.settings.update.build", table: "AppSettings", build)
+    }
+
+    /// Check again
+    ///
+    /// Button in Settings > Device version that makes the device check for new software.
+    static var appSettingsUpdateCheckAgain: String { L("app.settings.update.check_again", table: "AppSettings") }
+
+    /// Couldn't reach the update server just now, so this may be out of date.
+    ///
+    /// Settings > Device version: the device couldn't check for new software, so what is shown may be old.
+    static var appSettingsUpdateCheckError: String { L("app.settings.update.check_error", table: "AppSettings") }
+
+    /// Checking…
+    ///
+    /// Button in Settings > Device version while the device checks for new software (instead of Check again).
+    static var appSettingsUpdateChecking: String { L("app.settings.update.checking", table: "AppSettings") }
+
+    /// Critical
+    ///
+    /// Small red badge next to a release in Settings > Device version: an update to install as soon as possible.
+    static var appSettingsUpdateCritical: String { L("app.settings.update.critical", table: "AppSettings") }
+
+    /// Update failed: {message}
+    ///
+    /// Settings > Device version, in red: the last software update failed. {message} is the device's own explanation.
+    static func appSettingsUpdateFailed(message: String) -> String {
+        L("app.settings.update.failed", table: "AppSettings", message)
+    }
+
+    /// Update failed on {date}: {message}
+    ///
+    /// Settings > Device version, in red: the last software update failed. {date} is when, as the device writes it; {message} is the device's own explanation.
+    static func appSettingsUpdateFailedOn(date: String, message: String) -> String {
+        L("app.settings.update.failed_on", table: "AppSettings", date, message)
+    }
+
+    /// {label} (build {build})
+    ///
+    /// The device's installed software in Settings > Device version. {label} is its version (2.3), {build} its release number (118).
+    static func appSettingsUpdateLabelBuild(label: String, build: String) -> String {
+        L("app.settings.update.label_build", table: "AppSettings", label, build)
+    }
+
+    /// Major
+    ///
+    /// Small orange badge next to a release in Settings > Device version: an important update (security, stability, durability).
+    static var appSettingsUpdateMajor: String { L("app.settings.update.major", table: "AppSettings") }
+
+    /// Restart Device
+    ///
+    /// Button (in red) in Settings > Device version that restarts the whole device; it asks for a confirmation first.
+    static var appSettingsUpdateRestart: String { L("app.settings.update.restart", table: "AppSettings") }
+
+    /// Restart
+    ///
+    /// Button (in red) of the confirmation Restart the device?: restarts it.
+    static var appSettingsUpdateRestartConfirm: String { L("app.settings.update.restart_confirm", table: "AppSettings") }
+
+    /// Could not restart the device.
+    ///
+    /// Error in Settings > Device version when the device didn't restart and gave no reason.
+    static var appSettingsUpdateRestartFailed: String { L("app.settings.update.restart_failed", table: "AppSettings") }
+
+    /// It will be unreachable for about a minute.
+    ///
+    /// Message of the confirmation Restart the device?
+    static var appSettingsUpdateRestartMessage: String { L("app.settings.update.restart_message", table: "AppSettings") }
+
+    /// The device rebuilds itself and restarts, which takes a few minutes and drops this connection on the way. Your photos and settings are left alone.
+    ///
+    /// Settings > Device version, under the Update button: what installing an update does.
+    static var appSettingsUpdateRestartNote: String { L("app.settings.update.restart_note", table: "AppSettings") }
+
+    /// Your device needs an update before it can be restarted from here.
+    ///
+    /// Error in Settings > Device version: the device's software is too old to be restarted from the app.
+    static var appSettingsUpdateRestartOld: String { L("app.settings.update.restart_old", table: "AppSettings") }
+
+    /// Restart the device?
+    ///
+    /// Title of the confirmation asked before restarting the device from Settings > Device version. Buttons: Restart and Cancel.
+    static var appSettingsUpdateRestartTitle: String { L("app.settings.update.restart_title", table: "AppSettings") }
+
+    /// Restarting…
+    ///
+    /// The Restart Device button while the device is restarting.
+    static var appSettingsUpdateRestarting: String { L("app.settings.update.restarting", table: "AppSettings") }
+
+    /// Restarting… the device will be back in about a minute.
+    ///
+    /// Settings > Device version, next to a spinner, while the device restarts.
+    static var appSettingsUpdateRestartingNote: String { L("app.settings.update.restarting_note", table: "AppSettings") }
+
+    /// The device hasn't come back yet. It can take a little longer; if it doesn't come back, unplug it and plug it back in.
+    ///
+    /// Settings > Device version, in orange: five minutes after the restart the device still doesn't answer.
+    static var appSettingsUpdateSlow: String { L("app.settings.update.slow", table: "AppSettings") }
+
+    /// Could not start the update.
+    ///
+    /// Error in Settings > Device version when the device didn't start the update and gave no reason.
+    static var appSettingsUpdateStartFailed: String { L("app.settings.update.start_failed", table: "AppSettings") }
+
+    /// Starting…
+    ///
+    /// Button in Settings > Device version while the software update is being started (instead of Update to ...).
+    static var appSettingsUpdateStarting: String { L("app.settings.update.starting", table: "AppSettings") }
+
+    /// Starting
+    ///
+    /// Settings > Device version, next to a spinner: the update was just started; the device's own progress replaces it.
+    static var appSettingsUpdateStartingStatus: String { L("app.settings.update.starting_status", table: "AppSettings") }
+
+    /// Device version
+    ///
+    /// Heading of the section of Settings about the device's software: its version, updates, and restarting the device.
+    static var appSettingsUpdateTitle: String { L("app.settings.update.title", table: "AppSettings") }
+
+    /// Up to date
+    ///
+    /// Settings > Device version, at the right of the installed version: no update is waiting.
+    static var appSettingsUpdateUpToDate: String { L("app.settings.update.up_to_date", table: "AppSettings") }
+
+    /// Update to {version}
+    ///
+    /// Button in Settings > Device version that installs the newest software. {version} is its version (2.4).
+    static func appSettingsUpdateUpdateTo(version: String) -> String {
+        L("app.settings.update.update_to", table: "AppSettings", version)
+    }
+
+    /// Update to build {build}
+    ///
+    /// Button in Settings > Device version that installs the newest software, when it has no version name. {build} is its release number (118).
+    static func appSettingsUpdateUpdateToBuild(build: String) -> String {
+        L("app.settings.update.update_to_build", table: "AppSettings", build)
+    }
+
+    /// Uploads
+    ///
+    /// Heading of the section of Settings that shows the photos and videos this phone is uploading to the device; shown only while there are some.
+    static var appSettingsUploadsTitle: String { L("app.settings.uploads.title", table: "AppSettings") }
+
+    /// Confirm Delete
+    ///
+    /// Button (in red) in Settings > Users that deletes the user once the name was typed. Nothing can be recovered.
+    static var appSettingsUsersConfirmDelete: String { L("app.settings.users.confirm_delete", table: "AppSettings") }
+
+    /// Type "{name}" to confirm deletion.
+    ///
+    /// Settings > Users, after Delete on a user, above a field: deleting a user deletes all of the user's data. {name} is the user's name, which must be typed exactly. Write the quotes in your language's style.
+    static func appSettingsUsersConfirmHint(name: String) -> String {
+        L("app.settings.users.confirm_hint", table: "AppSettings", name)
+    }
+
+    /// Could not create user.
+    ///
+    /// Error in Settings > Users when the device didn't add the user and gave no reason.
+    static var appSettingsUsersCreateFailed: String { L("app.settings.users.create_failed", table: "AppSettings") }
+
+    /// User "{name}" created.
+    ///
+    /// Message in Settings > Users after a user was added. {name} is the user's name. Write the quotes in your language's style.
+    static func appSettingsUsersCreated(name: String) -> String {
+        L("app.settings.users.created", table: "AppSettings", name)
+    }
+
+    /// Could not delete user.
+    ///
+    /// Error in Settings > Users when the device didn't delete the user and gave no reason.
+    static var appSettingsUsersDeleteFailed: String { L("app.settings.users.delete_failed", table: "AppSettings") }
+
+    /// User "{name}" deleted.
+    ///
+    /// Message in Settings > Users after a user was deleted. {name} is the user's name. Write the quotes in your language's style.
+    static func appSettingsUsersDeleted(name: String) -> String {
+        L("app.settings.users.deleted", table: "AppSettings", name)
+    }
+
+    /// Disable
+    ///
+    /// Small button of a user in Settings > Users that switches the user off (reversible).
+    static var appSettingsUsersDisable: String { L("app.settings.users.disable", table: "AppSettings") }
+
+    /// Enable
+    ///
+    /// Small button of a disabled user in Settings > Users that switches the user on again.
+    static var appSettingsUsersEnable: String { L("app.settings.users.enable", table: "AppSettings") }
+
+    /// INACTIVE
+    ///
+    /// Small label in capitals next to a user's name in Settings > Users: the user is disabled. Write it in capitals.
+    static var appSettingsUsersInactive: String { L("app.settings.users.inactive", table: "AppSettings") }
+
+    /// Each user runs as its own fully separate instance — own port, own database, own storage — managed only from here.
+    ///
+    /// Settings > Users: first paragraph.
+    static var appSettingsUsersIntro: String { L("app.settings.users.intro", table: "AppSettings") }
+
+    /// Load usage
+    ///
+    /// Small button of a user in Settings > Users that shows the storage the user takes and its connections.
+    static var appSettingsUsersLoadUsage: String { L("app.settings.users.load_usage", table: "AppSettings") }
+
+    /// port
+    ///
+    /// Placeholder of the narrow field for a new user's network port in Settings > Users.
+    static var appSettingsUsersPort: String { L("app.settings.users.port", table: "AppSettings") }
+
+    /// port {port} · {domain}
+    ///
+    /// Small line under a user's name in Settings > Users. {port} is the user's network port (8081), {domain} the user's address.
+    static func appSettingsUsersPortDomain(port: String, domain: String) -> String {
+        L("app.settings.users.port_domain", table: "AppSettings", port, domain)
+    }
+
+    /// Users
+    ///
+    /// Heading of the section of Settings where the owner adds and manages other users of the device.
+    static var appSettingsUsersTitle: String { L("app.settings.users.title", table: "AppSettings") }
+
+    /// Could not update this user.
+    ///
+    /// Error in Settings > Users when the device didn't enable or disable the user and gave no reason.
+    static var appSettingsUsersUpdateFailed: String { L("app.settings.users.update_failed", table: "AppSettings") }
+
+    /// one: {size} MB ({percent}%) · {count} active
+    /// other: {size} MB ({percent}%) · {count} active
+    ///
+    /// Small line of a user in Settings > Users: the storage the user takes, in megabytes, its share of the disks, and how many connections are open now. {size} is a whole number, {percent} a number with one decimal.
+    static func appSettingsUsersUsage(size: String, percent: String, count: Int) -> String {
+        L("app.settings.users.usage", table: "AppSettings", size, percent, count)
+    }
+
+    /// username
+    ///
+    /// Placeholder of the field for a new user's name in Settings > Users (lowercase letters, digits and dashes only).
+    static var appSettingsUsersUsername: String { L("app.settings.users.username", table: "AppSettings") }
 }

@@ -711,6 +711,35 @@ extension S {
         L("app.shell.thumb_cache_usage", table: "AppShell", used, limit)
     }
 
+    /// one: {count}d ago
+    /// other: {count}d ago
+    ///
+    /// How long ago something happened, in days, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (d for days).
+    static func appShellTimeDaysAgo(count: Int) -> String {
+        L("app.shell.time_days_ago", table: "AppShell", count)
+    }
+
+    /// one: {count}h ago
+    /// other: {count}h ago
+    ///
+    /// How long ago something happened, in hours, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (h for hours).
+    static func appShellTimeHoursAgo(count: Int) -> String {
+        L("app.shell.time_hours_ago", table: "AppShell", count)
+    }
+
+    /// just now
+    ///
+    /// When something happened less than a minute ago, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links (after last there, hence the lowercase start).
+    static var appShellTimeJustNow: String { L("app.shell.time_just_now", table: "AppShell") }
+
+    /// one: {count}m ago
+    /// other: {count}m ago
+    ///
+    /// How long ago something happened, in minutes, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (m for minutes).
+    static func appShellTimeMinutesAgo(count: Int) -> String {
+        L("app.shell.time_minutes_ago", table: "AppShell", count)
+    }
+
     /// one: {count} left
     /// other: {count} left
     ///

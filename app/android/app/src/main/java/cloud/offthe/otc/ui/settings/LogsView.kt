@@ -51,6 +51,7 @@ import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SendLogs
 import cloud.offthe.otc.ui.common.OTCTextField
 import cloud.offthe.otc.ui.common.Share
+import cloud.offthe.otc.ui.common.TextIOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -60,6 +61,29 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.androidSettingsLogsEmpty
+import cloud.offthe.otc.i18n.androidSettingsLogsLoadFailed
+import cloud.offthe.otc.i18n.androidSettingsLogsSendFailed
+import cloud.offthe.otc.i18n.androidSettingsLogsSendTitle
+import cloud.offthe.otc.i18n.appSettingsErrorUnexpected
+import cloud.offthe.otc.i18n.appSettingsLogsDevice
+import cloud.offthe.otc.i18n.appSettingsLogsNote
+import cloud.offthe.otc.i18n.appSettingsLogsSendExplain
+import cloud.offthe.otc.i18n.appSettingsLogsSendToUs
+import cloud.offthe.otc.i18n.appSettingsLogsSending
+import cloud.offthe.otc.i18n.appSettingsLogsSent
+import cloud.offthe.otc.i18n.appSettingsLogsTitle
+import cloud.offthe.otc.i18n.appSettingsLogsUpdates
+import cloud.offthe.otc.i18n.appSettingsLogsWarning
+import cloud.offthe.otc.i18n.commonCancel
+import cloud.offthe.otc.i18n.commonDone
+import cloud.offthe.otc.i18n.commonOk
+import cloud.offthe.otc.i18n.commonPause
+import cloud.offthe.otc.i18n.commonResume
+import cloud.offthe.otc.i18n.commonSend
+import cloud.offthe.otc.i18n.commonShare
 
 /*
  * Settings > Logs (primary instance only), the same screen as the web's and
@@ -76,9 +100,9 @@ class LogsViewModel : ViewModel() {
         val lines: List<String> = emptyList(),
         val paused: Boolean = false,
         val loading: Boolean = false,
-        val error: String? = null,
+        val error: UiText? = null,
         val sending: Boolean = false,
-        val sendResult: String? = null,
+        val sendResult: UiText? = null,
     )
     val state = MutableStateFlow(State())
 
@@ -148,11 +172,11 @@ class LogsViewModel : ViewModel() {
                     else req.setMaxBytes(262144).setWaitSeconds(25)
                     val resp = OTCConnection.request { it.setReqGetLogs(req) }
                     if (resp.payloadCase != RespEnvelope.PayloadCase.RESP_LOGS)
-                        throw OTCConnection.RequestError(resp.errorMessage.ifEmpty { "Could not load the log" })
+                        throw TextIOException(deviceOr(resp.errorMessage, S.androidSettingsLogsLoadFailed()))
                     val logs = resp.respLogs
                     synchronized(lock) {
                         if (gen != generation) return@launch
-                        if (from >= 0 && logs.size < from) append("\n— log rotated —\n", forceNewLine = true)
+                        if (from >= 0 && logs.size < from) append("\n— log rotated —\n", forceNewLine = true) // i18n-ignore: a marker inside the log text, English like the lines around it (and shared with them)
                         if (logs.text.isNotEmpty()) append(logs.text)
                         nextOffset = logs.nextOffset
                         state.update { it.copy(loading = false, error = null) }
@@ -161,7 +185,7 @@ class LogsViewModel : ViewModel() {
                     throw e
                 } catch (e: Exception) {
                     if (gen != generation) break
-                    state.update { it.copy(loading = false, error = e.message ?: "Could not load the log") }
+                    state.update { it.copy(loading = false, error = e.shownText() ?: S.androidSettingsLogsLoadFailed()) }
                     delay(5_000)
                 }
             }
@@ -199,13 +223,13 @@ class LogsViewModel : ViewModel() {
             val result = try {
                 val resp = OTCConnection.request { it.setReqSendLogs(SendLogs.newBuilder().setNote(note.trim())) }
                 when {
-                    resp.error -> resp.errorMessage.ifEmpty { "Could not send the logs" }
-                    resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && resp.respAck.ok -> "Sent - we'll answer at your account's email."
-                    resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK -> resp.respAck.errorMsg.ifEmpty { "Could not send the logs" }
-                    else -> "Unexpected response"
+                    resp.error -> deviceOr(resp.errorMessage, S.androidSettingsLogsSendFailed())
+                    resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && resp.respAck.ok -> S.appSettingsLogsSent()
+                    resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK -> deviceOr(resp.respAck.errorMsg, S.androidSettingsLogsSendFailed())
+                    else -> S.appSettingsErrorUnexpected()
                 }
             } catch (e: Exception) {
-                e.message ?: "Could not send the logs"
+                e.shownText() ?: S.androidSettingsLogsSendFailed()
             }
             state.update { it.copy(sending = false, sendResult = result) }
         }
@@ -254,30 +278,30 @@ fun LogsView(onClose: () -> Unit) {
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).systemBarsPadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Logs", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 8.dp))
+                Text(S.appSettingsLogsTitle().resolve(), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 8.dp))
                 if (st.loading) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                TextButton(onClick = onClose) { Text("Done") }
+                TextButton(onClick = onClose) { Text(S.commonDone().resolve()) }
             }
-            Text("Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses. Check them before you share them.",
+            Text(S.appSettingsLogsWarning().resolve(),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
-                listOf("app" to "Device", "update" to "Updates").forEachIndexed { i, (source, label) ->
+                listOf("app" to S.appSettingsLogsDevice(), "update" to S.appSettingsLogsUpdates()).forEachIndexed { i, (source, label) ->
                     SegmentedButton(selected = st.source == source, onClick = { follow = true; vm.setSource(source) }, shape = SegmentedButtonDefaults.itemShape(i, 2)) {
-                        Text(label)
+                        Text(label.resolve())
                     }
                 }
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { vm.togglePause() }) { Text(if (st.paused) "Resume" else "Pause") }
+                TextButton(onClick = { vm.togglePause() }) { Text((if (st.paused) S.commonResume() else S.commonPause()).resolve()) }
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = { shareLog(context, st.source, vm.text()) }, enabled = st.lines.isNotEmpty()) { Text("Share") }
-                TextButton(onClick = { note = ""; showSend = true }, enabled = !st.sending) { Text(if (st.sending) "Sending…" else "Send to us") }
+                TextButton(onClick = { shareLog(context, st.source, vm.text()) }, enabled = st.lines.isNotEmpty()) { Text(S.commonShare().resolve()) }
+                TextButton(onClick = { note = ""; showSend = true }, enabled = !st.sending) { Text((if (st.sending) S.appSettingsLogsSending() else S.appSettingsLogsSendToUs()).resolve()) }
             }
-            st.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
+            st.error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
             Box(Modifier.weight(1f).fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))) {
                 if (st.lines.isEmpty() && !st.loading && st.error == null) {
-                    Text("Nothing logged yet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Text(S.androidSettingsLogsEmpty().resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.align(Alignment.Center))
                 }
                 SelectionContainer {
@@ -293,20 +317,20 @@ fun LogsView(onClose: () -> Unit) {
 
     if (showSend) AlertDialog(
         onDismissRequest = { showSend = false },
-        title = { Text("Send logs to us") },
+        title = { Text(S.androidSettingsLogsSendTitle().resolve()) },
         text = {
             Column {
-                Text("Sends the last part of your device's logs, your note and your account's email to info@off-the.cloud, so we can help. Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses.",
+                Text(S.appSettingsLogsSendExplain().resolve(),
                     style = MaterialTheme.typography.bodySmall)
-                OTCTextField(value = note, onValueChange = { note = it }, placeholder = { Text("Note (optional)") },
+                OTCTextField(value = note, onValueChange = { note = it }, placeholder = { Text(S.appSettingsLogsNote().resolve()) },
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp))
             }
         },
-        confirmButton = { TextButton(onClick = { showSend = false; vm.send(note) }) { Text("Send") } },
-        dismissButton = { TextButton(onClick = { showSend = false }) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = { showSend = false; vm.send(note) }) { Text(S.commonSend().resolve()) } },
+        dismissButton = { TextButton(onClick = { showSend = false }) { Text(S.commonCancel().resolve()) } },
     )
     st.sendResult?.let {
-        AlertDialog(onDismissRequest = { vm.dismissSendResult() }, text = { Text(it) },
-            confirmButton = { TextButton(onClick = { vm.dismissSendResult() }) { Text("OK") } })
+        AlertDialog(onDismissRequest = { vm.dismissSendResult() }, text = { Text(it.resolve()) },
+            confirmButton = { TextButton(onClick = { vm.dismissSendResult() }) { Text(S.commonOk().resolve()) } })
     }
 }

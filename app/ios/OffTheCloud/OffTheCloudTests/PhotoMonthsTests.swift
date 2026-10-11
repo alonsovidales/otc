@@ -85,9 +85,9 @@ struct PhotoMonthsTests {
 
     @Test func peopleAreNamedAsTheWebsHeader() {
         #expect(PhotoMonths.peopleTitle(["Ana"]) == "Ana")
-        #expect(PhotoMonths.peopleTitle(["Ana", "Luis"]) == "Ana & Luis")
-        #expect(PhotoMonths.peopleTitle(["Ana", "Luis", "Rosa"]) == "Ana, Luis & 1 other")
-        #expect(PhotoMonths.peopleTitle(["Ana", "Luis", "Rosa", "Unnamed"]) == "Ana, Luis & 2 others")
+        #expect(PhotoMonths.peopleTitle(["Ana", "Luis"]) == "\u{2068}Ana\u{2069} & \u{2068}Luis\u{2069}")
+        #expect(PhotoMonths.peopleTitle(["Ana", "Luis", "Rosa"]) == "\u{2068}Ana\u{2069}, \u{2068}Luis\u{2069} & 1 other")
+        #expect(PhotoMonths.peopleTitle(["Ana", "Luis", "Rosa", "Unnamed"]) == "\u{2068}Ana\u{2069}, \u{2068}Luis\u{2069} & 2 others")
     }
 
     @Test func titlesAreTheWebs() {
@@ -122,9 +122,9 @@ struct PhotoMonthsTests {
         #expect(PhotoMonths.span(["2026-10", "2024-03"], years: true) == "2024 – 2026")
         #expect(PhotoMonths.span(["2024-10", "2024-03"], years: true) == "Mar – Oct 2024")
         #expect(PhotoMonths.span([]) == "")
-        #expect(PhotoMonths.count(1, "item") == "1 item")
-        #expect(PhotoMonths.count(0, "item") == "0 items")
-        #expect(PhotoMonths.count(1234, "item") == "1,234 items")
+        #expect(PhotoMonths.items(1) == "1 item")
+        #expect(PhotoMonths.items(0) == "0 items")
+        #expect(PhotoMonths.items(1234) == "1,234 items")
     }
 
     @Test func scrubberTargetsTheMonthUnderIt() {

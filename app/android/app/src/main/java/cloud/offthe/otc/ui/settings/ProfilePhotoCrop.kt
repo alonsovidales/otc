@@ -45,6 +45,11 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.androidSettingsCropHint
+import cloud.offthe.otc.i18n.androidSettingsCropZoom
+import cloud.offthe.otc.i18n.appSettingsCropUse
+import cloud.offthe.otc.i18n.commonCancel
 
 /*
  * The profile photo's circle crop - it mirrors the setup wizard's crop
@@ -140,11 +145,11 @@ fun ProfilePhotoCropDialog(bitmap: Bitmap, onCancel: () -> Unit, onUse: (side: F
     Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true, dismissOnClickOutside = false)) {
         Column(Modifier.fillMaxSize().background(Color(0xFF111214)).systemBarsPadding().padding(16.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onCancel) { Text("Cancel") }
+                TextButton(onClick = onCancel) { Text(S.commonCancel().resolve()) }
                 Spacer(Modifier.weight(1f))
-                Button(onClick = { if (side > 0f) onUse(side, zoom, Offset(panX, panY)) }) { Text("Use photo") }
+                Button(onClick = { if (side > 0f) onUse(side, zoom, Offset(panX, panY)) }) { Text(S.appSettingsCropUse().resolve()) }
             }
-            Text("Drag the photo to centre your face", color = Color.White, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp))
+            Text(S.androidSettingsCropHint().resolve(), color = Color.White, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp))
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
                 Canvas(
                     // Clipped: a Canvas draws past its bounds, so the zoomed
@@ -168,7 +173,7 @@ fun ProfilePhotoCropDialog(bitmap: Bitmap, onCancel: () -> Unit, onUse: (side: F
                 }
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Zoom", color = Color.White, modifier = Modifier.padding(end = 12.dp))
+                Text(S.androidSettingsCropZoom().resolve(), color = Color.White, modifier = Modifier.padding(end = 12.dp))
                 Slider(value = zoom, onValueChange = { if (side > 0f) zoomTo(it) }, valueRange = 1f..4f, modifier = Modifier.weight(1f))
             }
         }

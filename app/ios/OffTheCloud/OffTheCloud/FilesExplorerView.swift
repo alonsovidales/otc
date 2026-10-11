@@ -112,9 +112,16 @@ final class FilesExplorerViewModel: ObservableObject {
     @Published var path: String
     @Published var rows: [FileRow] = []
     @Published var loading = false
-    @Published var error: String?
+    /// The line under the path field, kept as what to say and worded as
+    /// it is shown, so it follows a change of language (docs/i18n.md).
+    @Published private var errorText: (() -> String)?
+    var error: String? { errorText?() }
     @Published var selected: Set<String> = []
-    @Published var toast: String?
+    /// The toast at the top, worded as it is shown (errorText).
+    @Published private var toastText: (() -> String)?
+    var toast: String? { toastText?() }
+    /// Bumped by every toast: only the last one's timer takes it away.
+    private var toasts = 0
     @Published var previewURL: URL?
     @Published var shareURL: URL?
     // Issue #71: the only feedback a tap on a file used to get was however
@@ -261,8 +268,19 @@ final class FilesExplorerViewModel: ObservableObject {
     /// again rather than flickering away at each try - and the neutral
     /// line once the phone is back `online`; nothing for another folder.
     nonisolated static func errorWhileAsking(_ problem: LoadProblem?, failedPath: String?, _ p: String, online: Bool) -> String? {
+        problemWhileAsking(problem, failedPath: failedPath, p, online: online)?.text(.files)
+    }
+
+    /// The problem errorWhileAsking words, kept until it is shown.
+    nonisolated static func problemWhileAsking(_ problem: LoadProblem?, failedPath: String?, _ p: String, online: Bool) -> LoadProblem? {
         guard let problem, failedPath == p else { return nil }
-        return problem.backOnline(online).text(.files)
+        return problem.backOnline(online)
+    }
+
+    /// The device's own words when it gave some (it wrote them in the
+    /// app's language), else ours.
+    static func say(_ words: String, or ours: @escaping () -> String) -> () -> String {
+        words.isEmpty ? ours : { words }
     }
 
     /// The listing failed on the way (`problem`: why): said in plain words,
@@ -270,7 +288,7 @@ final class FilesExplorerViewModel: ObservableObject {
     private func listingFailed(_ asked: String, _ problem: LoadProblem) {
         listingProblem = problem
         failedPath = asked
-        error = problem.text(.files)
+        errorText = { problem.text(.files) }
         let ask = listingAsks
         listRetry.failed { [weak self] in
             guard let self, self.listingAsks == ask, self.path == asked else { return }
@@ -286,7 +304,8 @@ final class FilesExplorerViewModel: ObservableObject {
         listingAsks += 1
         loading = true
         defer { if asked == path { loading = false } }
-        error = Self.errorWhileAsking(listingProblem, failedPath: failedPath, asked, online: online())
+        let still = Self.problemWhileAsking(listingProblem, failedPath: failedPath, asked, online: online())
+        errorText = still.map { problem in { problem.text(.files) } }
         var req = Msg_ListFiles()
         req.path = asked
         do {
@@ -299,7 +318,7 @@ final class FilesExplorerViewModel: ObservableObject {
             if case .respListOfFiles(let lof) = resp.payload {
                 listRetry.reset()
                 listingProblem = nil
-                error = nil
+                errorText = nil
                 outOfImagesSupported = lof.outOfImagesSupported
                 folderOutOfImages = lof.folderOutOfImages
                 listedPath = asked
@@ -315,11 +334,11 @@ final class FilesExplorerViewModel: ObservableObject {
             } else if resp.error {
                 folderOutOfImages = false
                 listingProblem = nil
-                error = resp.errorMessage.isEmpty ? "Failed to list path" : resp.errorMessage
+                errorText = Self.say(resp.errorMessage) { S.appFilesListFailed }
             } else {
                 folderOutOfImages = false
                 listingProblem = nil
-                error = "Unexpected response"
+                errorText = { S.appFilesUnexpectedResponse }
             }
         } catch {
             guard asked == path else { return }
@@ -343,7 +362,24 @@ final class FilesExplorerViewModel: ObservableObject {
         enum State: Equatable {
             case loading
             case done
-            case failed(String, retry: Bool)
+            case failed(Failure, retry: Bool)
+        }
+        /// Why a search failed, worded when it is shown: the device's own
+        /// words, or ours.
+        enum Failure: Equatable {
+            case unreached
+            case tooOld
+            case noAnswer
+            case device(String)
+
+            var text: String {
+                switch self {
+                case .unreached: return S.appFilesSearchUnreached
+                case .tooOld: return S.appFilesSearchTooOld
+                case .noAnswer: return S.appFilesSearchNoAnswer
+                case .device(let words): return words
+                }
+            }
         }
         let text: String
         var state: State
@@ -368,7 +404,7 @@ final class FilesExplorerViewModel: ObservableObject {
             resp = try await ws.request { $0.payload = .reqSearchFiles(req) }
         } catch {
             guard mine == searchSeq else { return }
-            results?.state = .failed("The search didn't reach the device. Check the connection and try again.", retry: true)
+            results?.state = .failed(.unreached, retry: true)
             return
         }
         let tooOld = resp.error && resp.errorCode == "unknown_payload"
@@ -379,9 +415,9 @@ final class FilesExplorerViewModel: ObservableObject {
             results = SearchResults(text: text, state: .done, files: lof.files)
             await loadResultThumbs(lof.files, seq: mine)
         } else if tooOld {
-            results?.state = .failed("This device can't search its files yet. Update it in Settings.", retry: false)
+            results?.state = .failed(.tooOld, retry: false)
         } else {
-            results?.state = .failed(resp.errorMessage.isEmpty ? "The device didn't answer the search." : resp.errorMessage, retry: true)
+            results?.state = .failed(resp.errorMessage.isEmpty ? .noAnswer : .device(resp.errorMessage), retry: true)
         }
     }
 
@@ -707,9 +743,9 @@ final class FilesExplorerViewModel: ObservableObject {
             try await FileDownload.download(path: full, mime: row.raw.mime, to: tmp)
             previewURL = tmp
         } catch is FileDownload.Refused {
-            showToast("Could not fetch file")
+            showToast { S.appFilesOpenFailed }
         } catch {
-            showToast("Download failed: \(error.localizedDescription)")
+            showToast { S.appFilesDownloadFailed(detail: error.localizedDescription) }
         }
     }
 
@@ -725,7 +761,8 @@ final class FilesExplorerViewModel: ObservableObject {
             req.path = p.contains("/") ? p : joinPath(path, p)
             guard let resp = try? await ws.request({ $0.payload = .reqDelFile(req) }) else { continue }
             if resp.error && resp.errorCode == "upload_only" {
-                showToast("\(leafName(req.path)) is in an upload-only folder and cannot be deleted")
+                let name = leafName(req.path)
+                showToast { S.appFilesDeleteRefused(name: name) }
                 break
             }
             // A deleted photo's thumbnail doesn't stay on the phone either.
@@ -742,7 +779,7 @@ final class FilesExplorerViewModel: ObservableObject {
         req.path = fullPath(for: row)
         req.uploadOnly = !row.uploadOnly
         if let resp = try? await request(.reqSetUploadOnly(req)), resp.error {
-            showToast(resp.errorMessage.isEmpty ? "Could not update the folder" : resp.errorMessage)
+            showToast(Self.say(resp.errorMessage) { S.appFilesFolderUpdateFailed })
         }
         await load()
     }
@@ -767,10 +804,10 @@ final class FilesExplorerViewModel: ObservableObject {
             if case .respAck(let ack) = resp.payload, ack.ok, !resp.error {
                 NotificationCenter.default.post(name: .otcImagesChanged, object: nil)
             } else {
-                showToast(resp.errorMessage.isEmpty ? "Could not update the folder" : resp.errorMessage)
+                showToast(Self.say(resp.errorMessage) { S.appFilesFolderUpdateFailed })
             }
         } catch {
-            showToast("Could not update the folder")
+            showToast { S.appFilesFolderUpdateFailed }
         }
         await load()
     }
@@ -831,9 +868,9 @@ final class FilesExplorerViewModel: ObservableObject {
             versionsOf = nil
             previewURL = tmp
         } catch is FileDownload.Refused {
-            showToast("Could not fetch that version")
+            showToast { S.appFilesVersionOpenFailed }
         } catch {
-            showToast("Download failed: \(error.localizedDescription)")
+            showToast { S.appFilesDownloadFailed(detail: error.localizedDescription) }
         }
     }
 
@@ -843,7 +880,7 @@ final class FilesExplorerViewModel: ObservableObject {
         preparing = .download
         defer { preparing = nil }
         guard let link = await shareLink(), let url = URL(string: link) else {
-            showToast("Could not create download link")
+            showToast { S.appFilesDownloadLinkFailed }
             return
         }
         await UIApplication.shared.open(url)
@@ -853,7 +890,7 @@ final class FilesExplorerViewModel: ObservableObject {
         preparing = .share
         defer { preparing = nil }
         guard let link = await shareLink(), let url = URL(string: link) else {
-            showToast("Could not create share link")
+            showToast { S.appFilesShareLinkFailed }
             return
         }
         shareURL = url
@@ -905,9 +942,13 @@ final class FilesExplorerViewModel: ObservableObject {
                 resp = try await ws.uploadChunked(path: path, source: .file(url),
                                                   forceOverride: false, sha256: hash)
             }
-            if resp.error { showToast("Upload failed: \(resp.errorMessage)") }
+            if resp.error {
+                // The device's words, in the app's language, as the detail.
+                let words = resp.errorMessage
+                showToast { S.appFilesUploadFailed(detail: words) }
+            }
         } catch {
-            showToast("Upload failed: \(error.localizedDescription)")
+            showToast { S.appFilesUploadFailed(detail: error.localizedDescription) }
         }
         await load()
     }
@@ -917,15 +958,20 @@ final class FilesExplorerViewModel: ObservableObject {
     /// look as if it did nothing. Tests listen in its place.
     var announce: @MainActor (String) -> Void = { AccessibilityNotification.Announcement($0).post() }
 
-    func showToast(_ m: String) {
-        toast = m
+    /// Shows `say` as the toast: worded as it is drawn, and in the language
+    /// shown now for VoiceOver and for how long it stays.
+    func showToast(_ say: @escaping () -> String) {
+        toasts += 1
+        let mine = toasts
+        toastText = say
+        let m = say()
         announce(m)
         // Long enough to read: 2.5 s, longer for a sentence (issue #192's
         // refusal names two folders).
         let seconds = max(2.5, Double(m.count) / 18)
         Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-            if self?.toast == m { self?.toast = nil }
+            if self?.toasts == mine { self?.toastText = nil }
         }
     }
 }
@@ -943,7 +989,7 @@ struct FilesExplorerView: View {
     // does - there is no hover tooltip here as on the web - and a lock that
     // only marks something explains itself.
     @State private var lockPrompt: FileRow?
-    @State private var lockInfo: String?
+    @State private var lockInfo: UploadOnlyText.Info?
     // Issue #192: keeping a folder out of Images asks first too (it deletes
     // the tags and faces found in it), and the mark on a folder kept out
     // says what that means, with the way back.
@@ -1026,7 +1072,7 @@ struct FilesExplorerView: View {
                                     .frame(width: 28, height: 28)
                                     .contentShape(Rectangle())
                             }
-                            .accessibilityLabel(viewMode == "grid" ? "Show as list" : "Show as grid")
+                            .accessibilityLabel(viewMode == "grid" ? S.appFilesShowAsList : S.appFilesShowAsGrid)
                         }
                         .padding(.horizontal)
                         // Closer under the search field than under the bar.
@@ -1074,7 +1120,7 @@ struct FilesExplorerView: View {
                                             // claims the whole row's tap, and the row
                                             // tap below has to stay "open".
                                             .buttonStyle(.plain)
-                                            .accessibilityLabel(vm.selected.contains(row.path) ? "Deselect" : "Select")
+                                            .accessibilityLabel(vm.selected.contains(row.path) ? S.commonDeselect : S.commonSelect)
                                         } else {
                                             Color.clear.frame(width: 28, height: 28)
                                         }
@@ -1110,7 +1156,7 @@ struct FilesExplorerView: View {
                                                     .background(Color.secondary.opacity(0.15), in: Capsule())
                                             }
                                             .buttonStyle(.plain)
-                                            .accessibilityLabel("\(row.versions) older version\(row.versions == 1 ? "" : "s")")
+                                            .accessibilityLabel(S.iosFilesOlderVersions(count: Int(row.versions)))
                                         }
                                         // Issue #192: a folder kept out of Images says
                                         // so; a tap says what that means. Changed from
@@ -1138,16 +1184,16 @@ struct FilesExplorerView: View {
                                                     .contentShape(Rectangle())
                                             }
                                             .buttonStyle(.plain)
-                                            .accessibilityLabel(row.uploadOnly ? "Clear upload only" : "Make upload only")
+                                            .accessibilityLabel(row.uploadOnly ? S.appFilesClearUploadOnly : S.appFilesMakeUploadOnly)
                                         } else if row.uploadOnly {
                                             Button {
-                                                lockInfo = UploadOnlyText.fileInfo
+                                                lockInfo = .file
                                             } label: {
                                                 Image(systemName: "lock.fill").foregroundColor(.secondary).frame(width: 28, height: 28)
                                                     .contentShape(Rectangle())
                                             }
                                             .buttonStyle(.plain)
-                                            .accessibilityLabel("In an upload-only folder")
+                                            .accessibilityLabel(S.appFilesInUploadOnly)
                                         }
                                     }
                                     .contentShape(Rectangle())
@@ -1175,7 +1221,7 @@ struct FilesExplorerView: View {
                             onDownload: { Task { await vm.downloadSelected() } },
                             onDelete: {
                                 if vm.selectionUploadOnly {
-                                    vm.showToast("The selection is in an upload-only folder and cannot be deleted")
+                                    vm.showToast { S.appFilesSelectionUploadOnly }
                                 } else {
                                     vm.confirmDeleteSelected = true
                                 }
@@ -1272,12 +1318,12 @@ struct FilesExplorerView: View {
             if let (row, versions) = vm.versionsOf {
                 NavigationStack {
                     List {
-                        Section(footer: Text("The file is in an upload-only folder, so each upload to this path kept the one before it.")) {
+                        Section(footer: Text(S.appFilesVersionsExplain)) {
                             Button {
                                 Task { await vm.openVersion(row, hash: "") }
                             } label: {
                                 HStack {
-                                    Text("Current").fontWeight(.semibold)
+                                    Text(S.appFilesVersionCurrent).fontWeight(.semibold)
                                     Spacer()
                                     Text(formatByteCount(row.size)).foregroundColor(.secondary)
                                 }
@@ -1290,7 +1336,11 @@ struct FilesExplorerView: View {
                                     Task { await vm.openVersion(row, hash: v.hash) }
                                 } label: {
                                     HStack {
-                                        Text("Replaced \(v.hasModified ? v.modified.date.formatted(date: .abbreviated, time: .shortened) : "—")")
+                                        // The app's formatting locale: the system's own
+                                        // while the app speaks its language.
+                                        Text(S.appFilesVersionReplaced(date: v.hasModified
+                                            ? v.modified.date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: L10n.shared.locale))
+                                            : "—"))
                                         Spacer()
                                         Text(formatByteCount(v.fileSize)).foregroundColor(.secondary)
                                     }
@@ -1298,9 +1348,9 @@ struct FilesExplorerView: View {
                             }
                         }
                     }
-                    .navigationTitle("Versions of \(row.name)")
+                    .navigationTitle(S.appFilesVersionsTitle(name: row.name))
                     .navigationBarTitleDisplayMode(.inline)
-                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { vm.versionsOf = nil } } }
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button(S.commonDone) { vm.versionsOf = nil } } }
                 }
             }
         }
@@ -1309,15 +1359,15 @@ struct FilesExplorerView: View {
             isPresented: Binding(get: { lockPrompt != nil }, set: { if !$0 { lockPrompt = nil } }),
             presenting: lockPrompt
         ) { row in
-            Button(row.uploadOnly ? "Allow Deletions" : "Make Upload Only") { Task { await vm.toggleUploadOnly(row) } }
-            Button("Cancel", role: .cancel) {}
+            Button(row.uploadOnly ? S.iosFilesAllowDeletions : S.iosFilesMakeUploadOnly) { Task { await vm.toggleUploadOnly(row) } }
+            Button(S.commonCancel, role: .cancel) {}
         } message: { row in
             Text(row.uploadOnly ? UploadOnlyText.clearMessage : UploadOnlyText.makeMessage)
         }
-        .alert("Upload only", isPresented: Binding(get: { lockInfo != nil }, set: { if !$0 { lockInfo = nil } })) {
-            Button("OK", role: .cancel) {}
+        .alert(S.appFilesUploadOnly, isPresented: Binding(get: { lockInfo != nil }, set: { if !$0 { lockInfo = nil } })) {
+            Button(S.commonOk, role: .cancel) {}
         } message: {
-            Text(lockInfo ?? "")
+            Text(lockInfo?.text ?? "")
         }
         // Issue #192: keep a folder out of Images, or show it there again.
         .alert(
@@ -1330,7 +1380,7 @@ struct FilesExplorerView: View {
             }
             // One switch at a time (setOutOfImages).
             .disabled(!vm.outOfImagesIdle)
-            Button("Cancel", role: .cancel) {}
+            Button(S.commonCancel, role: .cancel) {}
         } message: { ask in
             Text(ask.outOfImages ? OutOfImagesText.showMessage : OutOfImagesText.keepMessage)
         }
@@ -1343,17 +1393,17 @@ struct FilesExplorerView: View {
         ) { ask in
             Button(OutOfImagesText.show) { outOfImagesPrompt = ask }
                 .disabled(!vm.outOfImagesIdle)
-            Button("OK", role: .cancel) {}
+            Button(S.commonOk, role: .cancel) {}
         } message: { _ in
             Text(OutOfImagesText.explain)
         }
         .confirmationDialog(
-            "Delete \(vm.selected.count) item\(vm.selected.count == 1 ? "" : "s")?",
+            S.appFilesDeleteConfirm(count: vm.selected.count),
             isPresented: $vm.confirmDeleteSelected,
             titleVisibility: .visible
         ) {
-            Button("Delete", role: .destructive) { Task { await vm.deleteSelected() } }
-            Button("Cancel", role: .cancel) {}
+            Button(S.commonDelete, role: .destructive) { Task { await vm.deleteSelected() } }
+            Button(S.commonCancel, role: .cancel) {}
         }
         // Presented exactly as PhotoGalleryView presents it.
         .fullScreenCover(isPresented: Binding(
@@ -1446,9 +1496,24 @@ struct FilesExplorerView: View {
         }
     }
 
-    /// Where Back goes: the folder under the results.
-    private var folderLabel: String {
-        vm.path == "/" ? "Files" : leafName(vm.path)
+    /// Back to where it goes: the folder under the results.
+    private var backLabel: String {
+        vm.path == "/" ? S.appFilesBackToFiles : S.appFilesBackToFolder(folder: leafName(vm.path))
+    }
+
+    /// A result's name for VoiceOver: what it is, where, and whether it is
+    /// kept out of Images - each a sentence of its own.
+    private static func resultLabel(_ kind: FoundKind, name: String, folder: String, keptOut: Bool) -> String {
+        switch (kind, keptOut) {
+        case (.folder, false): return S.iosFilesResultFolder(name: name, folder: folder)
+        case (.photo, false): return S.iosFilesResultPhoto(name: name, folder: folder)
+        case (.video, false): return S.iosFilesResultVideo(name: name, folder: folder)
+        case (.doc, false): return S.iosFilesResultFile(name: name, folder: folder)
+        case (.folder, true): return S.iosFilesResultFolderKeptOut(name: name, folder: folder)
+        case (.photo, true): return S.iosFilesResultPhotoKeptOut(name: name, folder: folder)
+        case (.video, true): return S.iosFilesResultVideoKeptOut(name: name, folder: folder)
+        case (.doc, true): return S.iosFilesResultFileKeptOut(name: name, folder: folder)
+        }
     }
 
     private func resultsView(_ r: FilesExplorerViewModel.SearchResults) -> some View {
@@ -1459,21 +1524,21 @@ struct FilesExplorerView: View {
                 Button {
                     vm.closeResults()
                 } label: {
-                    Label("Back to \(folderLabel)", systemImage: "arrow.left")
+                    Label(backLabel, systemImage: "arrow.left")
                         .font(.subheadline.weight(.medium))
                         .lineLimit(1)
                         // A finger's worth of height, not just the text's.
                         .frame(minHeight: 44)
                         .contentShape(Rectangle())
                 }
-                Text("Files matching \u{201C}\(r.text)\u{201D}")
+                Text(S.appFilesResultsTitle(query: r.text))
                     .font(.title3.weight(.semibold))
                     .accessibilityAddTraits(.isHeader)
                 // Its line kept while searching, so the list doesn't move.
                 Text(r.state == .done && count > 0
                      ? (count == FilesExplorerViewModel.searchLimit
-                        ? "Showing the first \(count) results"
-                        : "\(count) \(count == 1 ? "result" : "results")")
+                        ? S.appFilesResultsLimited(limit: count)
+                        : S.appFilesResultsCount(count: count))
                      : " ")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -1487,22 +1552,22 @@ struct FilesExplorerView: View {
             case .loading:
                 HStack(spacing: 8) {
                     ProgressView()
-                    Text("Searching…").foregroundStyle(.secondary)
+                    Text(S.appFilesSearching).foregroundStyle(.secondary)
                 }
                 .padding()
                 Spacer()
-            case .failed(let message, let retry):
+            case .failed(let failure, let retry):
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(message).foregroundStyle(.secondary)
+                    Text(failure.text).foregroundStyle(.secondary)
                     if retry {
-                        Button("Try Again") { Task { await vm.startSearch(r.text) } }
+                        Button(S.iosFilesTryAgain) { Task { await vm.startSearch(r.text) } }
                             .buttonStyle(.bordered)
                     }
                 }
                 .padding()
                 Spacer()
             case .done where r.files.isEmpty:
-                Text("No files match \u{201C}\(r.text)\u{201D}.")
+                Text(S.appFilesNoResults(query: r.text))
                     .foregroundStyle(.secondary)
                     .padding()
                 Spacer()
@@ -1578,7 +1643,7 @@ struct FilesExplorerView: View {
         .contentShape(Rectangle())
         .onTapGesture { openFound(f) }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(name), \(FoundKind(f).word) in \(dir)\(row.outOfImages ? ", kept out of Images" : "")")
+        .accessibilityLabel(Self.resultLabel(FoundKind(f), name: name, folder: dir, keptOut: row.outOfImages))
         .accessibilityAddTraits(.isButton)
     }
 
@@ -1651,7 +1716,7 @@ struct FilesExplorerView: View {
                     }
                 }
             } label: {
-                Label("Share", systemImage: "square.and.arrow.up")
+                Label(S.commonShare, systemImage: "square.and.arrow.up")
             }
             if row.isDir {
                 // Issue #180: the folder's photos and
@@ -1659,12 +1724,12 @@ struct FilesExplorerView: View {
                 Button {
                     gallerySource = .directory(vm.fullPath(for: row))
                 } label: {
-                    Label("Share as Gallery", systemImage: "photo.on.rectangle.angled")
+                    Label(S.appShellShareAsGalleryMenu, systemImage: "photo.on.rectangle.angled")
                 }
                 Button {
                     lockPrompt = row
                 } label: {
-                    Label(row.uploadOnly ? "Clear upload only" : "Make upload only", systemImage: row.uploadOnly ? "lock.open" : "lock")
+                    Label(row.uploadOnly ? S.appFilesClearUploadOnly : S.appFilesMakeUploadOnly, systemImage: row.uploadOnly ? "lock.open" : "lock")
                 }
                 // Issue #192: not on a device too old to do it, and greyed
                 // out while another folder's switch is under way.
@@ -1683,7 +1748,7 @@ struct FilesExplorerView: View {
                     vm.selected = [row.path]
                     vm.confirmDeleteSelected = true
                 } label: {
-                    Label("Delete", systemImage: "trash")
+                    Label(S.commonDelete, systemImage: "trash")
                 }
             }
         }
@@ -1801,7 +1866,7 @@ struct FilesExplorerView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(vm.selected.contains(row.path) ? "Deselect" : "Select")
+                    .accessibilityLabel(vm.selected.contains(row.path) ? S.commonDeselect : S.commonSelect)
                 }
             }
             .overlay(alignment: .topTrailing) {
@@ -1826,7 +1891,7 @@ struct FilesExplorerView: View {
                         }
                         if row.uploadOnly {
                             Button {
-                                lockInfo = UploadOnlyText.folderInfo
+                                lockInfo = .folder
                             } label: {
                                 Image(systemName: "lock.fill")
                                     .font(.caption)
@@ -1836,7 +1901,7 @@ struct FilesExplorerView: View {
                                     .padding(5)
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("Upload only")
+                            .accessibilityLabel(S.appFilesUploadOnly)
                         }
                     }
                 }
@@ -1849,7 +1914,7 @@ struct FilesExplorerView: View {
                         .padding(6)
                         .background(Color.black.opacity(0.55), in: Circle())
                         .padding(5)
-                        .accessibilityLabel("Video")
+                        .accessibilityLabel(S.appFilesVideo)
                 }
             }
             .overlay(alignment: .bottomTrailing) {
@@ -1865,39 +1930,50 @@ struct FilesExplorerView: View {
                     }
                     .buttonStyle(.plain)
                     .padding(5)
-                    .accessibilityLabel("\(row.versions) older version\(row.versions == 1 ? "" : "s")")
+                    .accessibilityLabel(S.iosFilesOlderVersions(count: Int(row.versions)))
                 }
             }
     }
 }
 
 /// What the upload-only lock says (issue #132). The same words as
-/// Android's UploadOnlyText and the web lock's tooltip.
+/// Android's UploadOnlyText and the web lock's tooltip, from the catalog
+/// (app.files.*) in the language shown when read.
 enum UploadOnlyText {
     static func promptTitle(name: String, uploadOnly: Bool) -> String {
-        uploadOnly ? "Allow deletions in \u{201C}\(name)\u{201D} again?" : "Make \u{201C}\(name)\u{201D} upload only?"
+        uploadOnly ? S.appFilesAllowDeletionsTitle(name: name) : S.appFilesMakeUploadOnlyTitle(name: name)
     }
-    static let makeMessage = "Nothing in this folder can be deleted - from this phone, a computer or the web - and uploading a file again keeps its older version. Good for photo archives and backups."
-    static let clearMessage = "Files in this folder can be deleted again, and uploading a file again replaces it. The older versions kept so far stay."
-    static let folderInfo = "Nothing in this folder can be deleted, and uploading a file again keeps its older version. Long-press the folder to change it."
-    static let fileInfo = "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it."
+    static var makeMessage: String { S.appFilesMakeUploadOnlyMessage }
+    static var clearMessage: String { S.appFilesAllowDeletionsMessage }
+    static var folderInfo: String { S.iosFilesUploadOnlyFolderInfo }
+    static var fileInfo: String { S.appFilesUploadOnlyFileInfo }
+
+    /// Which lock was tapped, for its explanation: a folder's tile, or a
+    /// file inside an upload-only folder.
+    enum Info {
+        case folder
+        case file
+
+        var text: String { self == .folder ? UploadOnlyText.folderInfo : UploadOnlyText.fileInfo }
+    }
 }
 
 /// What keeping a folder out of Images says (issue #192). The same words
 /// as Android's OutOfImagesText, the web's and the computer apps', with
-/// iOS's Title Case on its menu item and buttons.
+/// iOS's Title Case on its menu item and buttons; from the catalog in the
+/// language shown when read.
 enum OutOfImagesText {
     /// The menu item and the prompt's button.
-    static let keep = "Keep Out of Images"
-    static let show = "Show in Images"
-    static let state = "Kept out of Images"
-    static let explain = "Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them."
+    static var keep: String { S.iosFilesKeepOutOfImages }
+    static var show: String { S.appShellShowInImages }
+    static var state: String { S.appFilesKeptOut }
+    static var explain: String { S.appFilesKeptOutExplain }
     static func promptTitle(name: String, outOfImages: Bool) -> String {
-        outOfImages ? "Show \u{201C}\(name)\u{201D} in Images?" : "Keep \u{201C}\(name)\u{201D} out of Images?"
+        outOfImages ? S.appFilesShowTitle(name: name) : S.appFilesKeepOutTitle(name: name)
     }
-    static let keepMessage = "Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them."
-    static let showMessage = "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background."
-    static let banner = "Kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images."
+    static var keepMessage: String { S.appFilesKeepOutMessage }
+    static var showMessage: String { S.appFilesShowMessage }
+    static var banner: String { S.appFilesKeptOutBanner }
 }
 
 /// A folder the out-of-Images prompt asks about (issue #192): a row, or

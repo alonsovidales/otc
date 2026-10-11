@@ -23,7 +23,7 @@ final class ProfileEditorViewModel: ObservableObject {
     @Published var bio = ""
     @Published var imageData: Data?
     @Published var saving = false
-    @Published var toast: String?
+    @Published var toast: SettingsText?
 
     func load() async {
         do {
@@ -48,16 +48,16 @@ final class ProfileEditorViewModel: ObservableObject {
         do {
             let resp = try await ws.request { $0.payload = .reqSetProfile(p) }
             if case .respAck(let ack) = resp.payload {
-                showToast(ack.ok ? "Profile updated ✅" : (ack.errorMsg.isEmpty ? "Profile update failed" : ack.errorMsg))
+                showToast(ack.ok ? .say { S.appSettingsProfileSaved } : .asIs(ack.errorMsg, or: { S.appSettingsProfileSaveFailed }))
             } else {
-                showToast("Unexpected response while saving profile")
+                showToast(.say { S.iosSettingsProfileUnexpected })
             }
         } catch {
-            showToast("Error saving profile")
+            showToast(.say { S.appSettingsProfileSaveError })
         }
     }
 
-    private func showToast(_ m: String) {
+    private func showToast(_ m: SettingsText) {
         toast = m
         Task { [weak self] in
             try? await Task.sleep(nanoseconds: 2_500_000_000)
@@ -85,30 +85,30 @@ struct ProfileEditorSection: View {
     @State private var pendingDeviceCrop: ProfilePhotoCropItem?
 
     var body: some View {
-        Section(header: Text("Profile")) {
+        Section(header: Text(S.appSettingsProfileTitle)) {
             // Issue #23: photo + "Change photo" as a centered block of
             // their own, with name/description stacked below at full
             // section width instead of squeezed into a narrow column
             // beside a small avatar.
             VStack(spacing: 8) {
                 avatarView(data: vm.imageData, size: 96)
-                Menu("Change photo") {
+                Menu(S.appSettingsProfileChangePhoto) {
                     Button {
                         showPhonePicker = true
                     } label: {
-                        Label("From this iPhone", systemImage: "iphone")
+                        Label(S.iosSettingsProfileFromIphone, systemImage: "iphone")
                     }
                     Button {
                         showDevicePicker = true
                     } label: {
-                        Label("From your device", systemImage: "externaldrive")
+                        Label(S.appSettingsProfileFromDevice, systemImage: "externaldrive")
                     }
                 }
                 .font(.footnote)
             }
             .frame(maxWidth: .infinity)
 
-            TextField("Name", text: $vm.name)
+            TextField(S.appSettingsProfileName, text: $vm.name)
                 .textFieldStyle(.roundedBorder)
             TextEditor(text: $vm.bio)
                 .frame(height: 90)
@@ -117,12 +117,12 @@ struct ProfileEditorSection: View {
             Button {
                 Task { await vm.save() }
             } label: {
-                if vm.saving { ProgressView() } else { Text("Save Profile") }
+                if vm.saving { ProgressView() } else { Text(S.appSettingsProfileSave) }
             }
             .disabled(vm.saving)
 
             if let toast = vm.toast {
-                Text(toast).font(.caption).foregroundColor(.secondary)
+                Text(toast.text).font(.caption).foregroundColor(.secondary)
             }
         }
         .task { await vm.load() }

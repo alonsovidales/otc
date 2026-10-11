@@ -47,6 +47,74 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.androidFriendsAskTheirsUnnamed
+import cloud.offthe.otc.i18n.androidFriendsDeleteTheirs
+import cloud.offthe.otc.i18n.androidFriendsDeleteTheirsUnnamed
+import cloud.offthe.otc.i18n.androidFriendsKeep
+import cloud.offthe.otc.i18n.androidFriendsKeepWaiting
+import cloud.offthe.otc.i18n.androidFriendsRemoveFriend
+import cloud.offthe.otc.i18n.androidFriendsRemoveNow
+import cloud.offthe.otc.i18n.androidFriendsRemoveNowTitleUnnamed
+import cloud.offthe.otc.i18n.androidFriendsRemoveTitleUnnamed
+import cloud.offthe.otc.i18n.appSocialFriendsAddHeading
+import cloud.offthe.otc.i18n.appSocialFriendsAskTheirs
+import cloud.offthe.otc.i18n.appSocialFriendsAskTheirsText
+import cloud.offthe.otc.i18n.appSocialFriendsBlock
+import cloud.offthe.otc.i18n.appSocialFriendsCancelConfirmText
+import cloud.offthe.otc.i18n.appSocialFriendsCancelConfirmTitle
+import cloud.offthe.otc.i18n.appSocialFriendsCancelRequest
+import cloud.offthe.otc.i18n.appSocialFriendsCancelRequestButton
+import cloud.offthe.otc.i18n.appSocialFriendsDeleteConfirmText
+import cloud.offthe.otc.i18n.appSocialFriendsDeleteConfirmTitle
+import cloud.offthe.otc.i18n.appSocialFriendsDeleteError
+import cloud.offthe.otc.i18n.appSocialFriendsDeleteFailed
+import cloud.offthe.otc.i18n.appSocialFriendsDeleteRequest
+import cloud.offthe.otc.i18n.appSocialFriendsDeleteTheirsText
+import cloud.offthe.otc.i18n.appSocialFriendsEmpty
+import cloud.offthe.otc.i18n.appSocialFriendsFriendsAgain
+import cloud.offthe.otc.i18n.appSocialFriendsLeavingNote
+import cloud.offthe.otc.i18n.appSocialFriendsListHeading
+import cloud.offthe.otc.i18n.appSocialFriendsLoadFailed
+import cloud.offthe.otc.i18n.appSocialFriendsNameInvalid
+import cloud.offthe.otc.i18n.appSocialFriendsNamePlaceholder
+import cloud.offthe.otc.i18n.appSocialFriendsNoDomain
+import cloud.offthe.otc.i18n.appSocialFriendsNoName
+import cloud.offthe.otc.i18n.appSocialFriendsRemoveButton
+import cloud.offthe.otc.i18n.appSocialFriendsRemoveError
+import cloud.offthe.otc.i18n.appSocialFriendsRemoveFailed
+import cloud.offthe.otc.i18n.appSocialFriendsRemoveNow
+import cloud.offthe.otc.i18n.appSocialFriendsRemoveNowText
+import cloud.offthe.otc.i18n.appSocialFriendsRemoveNowTitle
+import cloud.offthe.otc.i18n.appSocialFriendsRemoveTitle
+import cloud.offthe.otc.i18n.appSocialFriendsRemoved
+import cloud.offthe.otc.i18n.appSocialFriendsRequestCancelled
+import cloud.offthe.otc.i18n.appSocialFriendsRequestDeleted
+import cloud.offthe.otc.i18n.appSocialFriendsRequestFailed
+import cloud.offthe.otc.i18n.appSocialFriendsRequestSent
+import cloud.offthe.otc.i18n.appSocialFriendsSendError
+import cloud.offthe.otc.i18n.appSocialFriendsSetPending
+import cloud.offthe.otc.i18n.appSocialFriendsStatusAccepted
+import cloud.offthe.otc.i18n.appSocialFriendsStatusAcceptedSent
+import cloud.offthe.otc.i18n.appSocialFriendsStatusBlocked
+import cloud.offthe.otc.i18n.appSocialFriendsStatusBlockedSent
+import cloud.offthe.otc.i18n.appSocialFriendsStatusLeaving
+import cloud.offthe.otc.i18n.appSocialFriendsStatusPending
+import cloud.offthe.otc.i18n.appSocialFriendsStatusPendingSent
+import cloud.offthe.otc.i18n.appSocialFriendsStatusUpdated
+import cloud.offthe.otc.i18n.appSocialFriendsTitle
+import cloud.offthe.otc.i18n.appSocialFriendsUnexpectedResponse
+import cloud.offthe.otc.i18n.appSocialFriendsUpdateError
+import cloud.offthe.otc.i18n.appSocialFriendsUpdateFailed
+import cloud.offthe.otc.i18n.appSocialFriendsWaitingAnswer
+import cloud.offthe.otc.i18n.appSocialFriendsWaitingTheirDevice
+import cloud.offthe.otc.i18n.commonAccept
+import cloud.offthe.otc.i18n.commonCancel
+import cloud.offthe.otc.i18n.commonDecline
+import cloud.offthe.otc.i18n.commonDone
+import cloud.offthe.otc.i18n.commonRefresh
+import cloud.offthe.otc.i18n.commonSend
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.ChangeFriendStatus
 import cloud.offthe.otc.proto.DeleteFriendship
@@ -72,7 +140,8 @@ class FriendshipsViewModel : ViewModel() {
         val sendingRequest: Boolean = false,
         val friendships: List<Friendship> = emptyList(),
         val loading: Boolean = false,
-        val toast: String? = null,
+        /** A short message at the top, worded when it shows. */
+        val toast: UiText? = null,
     )
     private val _state = MutableStateFlow(State())
     val state = _state
@@ -86,7 +155,7 @@ class FriendshipsViewModel : ViewModel() {
             if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FRIENDSHIPS) {
                 _state.update { it.copy(friendships = resp.respFriendships.friendshipsList) }
             }
-        } catch (e: Exception) { toast("Could not load friendships") }
+        } catch (e: Exception) { toast(S.appSocialFriendsLoadFailed()) }
         finally { _state.update { it.copy(loading = false) } }
     }
 
@@ -94,7 +163,7 @@ class FriendshipsViewModel : ViewModel() {
         if (_state.value.targetDomain.isBlank()) return
         val domain = friendDomain(_state.value.targetDomain)
         if (domain == null) {
-            toast("Enter the device's name, like pit - letters, digits and dashes.")
+            toast(S.appSocialFriendsNameInvalid())
             return
         }
         _state.update { it.copy(sendingRequest = true) }
@@ -102,11 +171,12 @@ class FriendshipsViewModel : ViewModel() {
             val resp = OTCConnection.request { it.setReqFriendshipRequest(FriendshipRequest.newBuilder().setDomain(domain)) }
             val ack = if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) resp.respAck else null
             when {
-                ack?.ok == true -> { toast(if (ack.code == "accepted") "You're friends again ✅" else "Friend request sent ✅"); _state.update { it.copy(targetDomain = "") }; reload() }
-                ack != null -> toast(ack.errorMsg.ifEmpty { "Request failed" })
-                else -> toast("Unexpected response")
+                ack?.ok == true -> { toast(if (ack.code == "accepted") S.appSocialFriendsFriendsAgain() else S.appSocialFriendsRequestSent()); _state.update { it.copy(targetDomain = "") }; reload() }
+                // The device's own words, already in the app's language.
+                ack != null -> toast(if (ack.errorMsg.isEmpty()) S.appSocialFriendsRequestFailed() else UiText.Raw(ack.errorMsg))
+                else -> toast(S.appSocialFriendsUnexpectedResponse())
             }
-        } catch (e: Exception) { toast("Error sending request") }
+        } catch (e: Exception) { toast(S.appSocialFriendsSendError()) }
         finally { _state.update { it.copy(sendingRequest = false) } }
     }
 
@@ -115,11 +185,11 @@ class FriendshipsViewModel : ViewModel() {
             val resp = OTCConnection.request { it.setReqChangeFriendStatus(ChangeFriendStatus.newBuilder().setDomain(f.originProfile.domain).setStatus(status)) }
             val ack = if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) resp.respAck else null
             when {
-                ack?.ok == true -> { reload(); toast("Status updated ✅") }
-                ack != null -> toast(ack.errorMsg.ifEmpty { "Update failed" })
-                else -> toast("Unexpected response")
+                ack?.ok == true -> { reload(); toast(S.appSocialFriendsStatusUpdated()) }
+                ack != null -> toast(if (ack.errorMsg.isEmpty()) S.appSocialFriendsUpdateFailed() else UiText.Raw(ack.errorMsg))
+                else -> toast(S.appSocialFriendsUnexpectedResponse())
             }
-        } catch (e: Exception) { toast("Error updating status") }
+        } catch (e: Exception) { toast(S.appSocialFriendsUpdateError()) }
     }
 
     suspend fun delete(f: Friendship) {
@@ -127,11 +197,11 @@ class FriendshipsViewModel : ViewModel() {
             val resp = OTCConnection.request { it.setReqDeleteFriendship(DeleteFriendship.newBuilder().setDomain(f.originProfile.domain)) }
             val ack = if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) resp.respAck else null
             when {
-                ack?.ok == true -> { reload(); toast(if (f.sent) "Request cancelled" else "Request deleted") }
-                resp.error -> toast(resp.errorMessage)
-                else -> toast("Delete failed")
+                ack?.ok == true -> { reload(); toast(if (f.sent) S.appSocialFriendsRequestCancelled() else S.appSocialFriendsRequestDeleted()) }
+                resp.error -> toast(UiText.Raw(resp.errorMessage))
+                else -> toast(S.appSocialFriendsDeleteFailed())
             }
-        } catch (e: Exception) { toast("Error deleting request") }
+        } catch (e: Exception) { toast(S.appSocialFriendsDeleteError()) }
     }
 
     // Issue #174: remove an accepted or blocked friend, optionally deleting
@@ -149,15 +219,15 @@ class FriendshipsViewModel : ViewModel() {
                 ack?.ok == true -> {
                     reload()
                     val leaving = _state.value.friendships.any { it.originProfile.domain == f.originProfile.domain && it.leaving }
-                    toast(if (leaving) "Waiting for their device" else "Friend removed")
+                    toast(if (leaving) S.appSocialFriendsWaitingTheirDevice() else S.appSocialFriendsRemoved())
                 }
-                resp.error -> toast(resp.errorMessage)
-                else -> toast("Remove failed")
+                resp.error -> toast(UiText.Raw(resp.errorMessage))
+                else -> toast(S.appSocialFriendsRemoveFailed())
             }
-        } catch (e: Exception) { toast("Error removing friend") }
+        } catch (e: Exception) { toast(S.appSocialFriendsRemoveError()) }
     }
 
-    private fun toast(m: String) {
+    private fun toast(m: UiText) {
         _state.update { it.copy(toast = m) }
         GlobalScope.launch { delay(2500); _state.update { if (it.toast == m) it.copy(toast = null) else it } }
     }
@@ -177,8 +247,8 @@ fun FriendshipsView(onDone: (() -> Unit)?) {
     // (MainView): no Done there ([onDone] null).
     Scaffold(contentWindowInsets = WindowInsets(0), topBar = {
         TopAppBar(
-            title = { Text("Friends") }, windowInsets = WindowInsets(0),
-            navigationIcon = { if (onDone != null) TextButton(onClick = onDone) { Text("Done") } },
+            title = { Text(S.appSocialFriendsTitle().resolve()) }, windowInsets = WindowInsets(0),
+            navigationIcon = { if (onDone != null) TextButton(onClick = onDone) { Text(S.commonDone().resolve()) } },
         )
     }) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
@@ -188,45 +258,45 @@ fun FriendshipsView(onDone: (() -> Unit)?) {
                 val waiting = st.friendships.filter { it.status == FriendShipStatus.Pending && !it.sent && !it.leaving }
                 if (waiting.isNotEmpty()) {
                     item {
-                        Text("Waiting for your answer", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 4.dp))
+                        Text(S.appSocialFriendsWaitingAnswer().resolve(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 4.dp))
                     }
                     items(waiting, key = { "w-" + it.originProfile.domain }) { f ->
                         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             AvatarView(data = if (f.originProfile.hasImage()) f.originProfile.image.toByteArray() else null, size = 44.dp)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(f.originProfile.name.ifEmpty { "(no name)" }, style = MaterialTheme.typography.titleSmall)
+                                Text(f.originProfile.name.ifEmpty { S.appSocialFriendsNoName().resolve() }, style = MaterialTheme.typography.titleSmall)
                                 Text(f.originProfile.domain, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            androidx.compose.material3.OutlinedButton(onClick = { scope.launch { vm.delete(f) } }) { Text("Decline") }
+                            androidx.compose.material3.OutlinedButton(onClick = { scope.launch { vm.delete(f) } }) { Text(S.commonDecline().resolve()) }
                             Spacer(Modifier.width(8.dp))
-                            androidx.compose.material3.Button(onClick = { scope.launch { vm.changeStatus(f, FriendShipStatus.Accepted) } }) { Text("Accept") }
+                            androidx.compose.material3.Button(onClick = { scope.launch { vm.changeStatus(f, FriendShipStatus.Accepted) } }) { Text(S.commonAccept().resolve()) }
                         }
                     }
                 }
                 item {
-                    Text("Add a friend", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 4.dp))
+                    Text(S.appSocialFriendsAddHeading().resolve(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 4.dp))
                     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         // Issue #142: the name only; the suffix is fixed.
                         OTCTextField(
                             value = st.targetDomain, onValueChange = vm::setTarget, singleLine = true,
-                            placeholder = { Text("name") },
+                            placeholder = { Text(S.appSocialFriendsNamePlaceholder().resolve()) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
                             modifier = Modifier.weight(1f),
                         )
                         Text(".${SecretsStore.bridgeDomain}", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
-                        TextButton(onClick = { scope.launch { vm.sendRequest() } }, enabled = !st.sendingRequest && st.targetDomain.isNotBlank()) { Text("Send") }
+                        TextButton(onClick = { scope.launch { vm.sendRequest() } }, enabled = !st.sendingRequest && st.targetDomain.isNotBlank()) { Text(S.commonSend().resolve()) }
                     }
                 }
                 item {
                     Row(Modifier.fillMaxWidth().padding(16.dp, 20.dp, 16.dp, 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Friends", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                        Text(S.appSocialFriendsListHeading().resolve(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
                         if (st.loading) CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp)
-                        else TextButton(onClick = { scope.launch { vm.reload() } }) { Text("Refresh") }
+                        else TextButton(onClick = { scope.launch { vm.reload() } }) { Text(S.commonRefresh().resolve()) }
                     }
                 }
                 if (st.friendships.isEmpty()) {
-                    item { Text("No friendships yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp)) }
+                    item { Text(S.appSocialFriendsEmpty().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp)) }
                 }
                 items(st.friendships.filter { it.leaving || !(it.status == FriendShipStatus.Pending && !it.sent) }, key = { it.originProfile.domain }) { f ->
                     FriendRow(
@@ -237,7 +307,7 @@ fun FriendshipsView(onDone: (() -> Unit)?) {
                     )
                 }
             }
-            Toast(st.toast, Modifier.align(Alignment.TopCenter))
+            Toast(st.toast?.resolve(), Modifier.align(Alignment.TopCenter))
         }
     }
 }
@@ -251,13 +321,21 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
     // delete what was shared there; its only action is to stop waiting.
     val canDelete = !f.leaving && f.status == FriendShipStatus.Pending
     val canRemove = !f.leaving && (f.status == FriendShipStatus.Accepted || f.status == FriendShipStatus.Blocked)
-    val deleteLabel = if (f.sent) "Cancel request" else "Delete request"
-    val statusLabel = if (f.leaving) "Leaving" else when (f.status) { FriendShipStatus.Accepted -> "Accepted"; FriendShipStatus.Blocked -> "Blocked"; else -> "Pending" }
-    val name = f.originProfile.name.ifEmpty { f.originProfile.domain.ifEmpty { "this friend" } }
-    val options: List<Pair<String, FriendShipStatus>> = if (f.sent || f.leaving) emptyList() else when (f.status) {
-        FriendShipStatus.Pending -> listOf("Accept" to FriendShipStatus.Accepted, "Block" to FriendShipStatus.Blocked)
-        FriendShipStatus.Accepted -> listOf("Set Pending" to FriendShipStatus.Pending, "Block" to FriendShipStatus.Blocked)
-        FriendShipStatus.Blocked -> listOf("Accept" to FriendShipStatus.Accepted, "Set Pending" to FriendShipStatus.Pending)
+    val deleteLabel = if (f.sent) S.appSocialFriendsCancelRequest() else S.appSocialFriendsDeleteRequest()
+    // " (sent)" for a request this side sent: one text per case, so a
+    // language can word each as a whole.
+    val statusLabel = if (f.leaving) S.appSocialFriendsStatusLeaving() else when (f.status) {
+        FriendShipStatus.Accepted -> if (f.sent) S.appSocialFriendsStatusAcceptedSent() else S.appSocialFriendsStatusAccepted()
+        FriendShipStatus.Blocked -> if (f.sent) S.appSocialFriendsStatusBlockedSent() else S.appSocialFriendsStatusBlocked()
+        else -> if (f.sent) S.appSocialFriendsStatusPendingSent() else S.appSocialFriendsStatusPending()
+    }
+    // Who the dialogs name; null - neither a name nor an address - has
+    // sentences of its own ("Remove this friend?").
+    val name: String? = f.originProfile.name.ifEmpty { f.originProfile.domain }.ifEmpty { null }
+    val options: List<Pair<UiText, FriendShipStatus>> = if (f.sent || f.leaving) emptyList() else when (f.status) {
+        FriendShipStatus.Pending -> listOf(S.commonAccept() to FriendShipStatus.Accepted, S.appSocialFriendsBlock() to FriendShipStatus.Blocked)
+        FriendShipStatus.Accepted -> listOf(S.appSocialFriendsSetPending() to FriendShipStatus.Pending, S.appSocialFriendsBlock() to FriendShipStatus.Blocked)
+        FriendShipStatus.Blocked -> listOf(S.commonAccept() to FriendShipStatus.Accepted, S.appSocialFriendsSetPending() to FriendShipStatus.Pending)
         else -> emptyList()
     }
 
@@ -266,10 +344,10 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
             AvatarView(data = if (f.originProfile.hasImage()) f.originProfile.image.toByteArray() else null, size = 44.dp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(f.originProfile.name.ifEmpty { "(no name)" }, style = MaterialTheme.typography.titleSmall)
-                Text(f.originProfile.domain.ifEmpty { "(no domain)" }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(statusLabel + if (f.sent && !f.leaving) " (sent)" else "", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (f.leaving) Text("Waiting for their device to delete what you shared.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(f.originProfile.name.ifEmpty { S.appSocialFriendsNoName().resolve() }, style = MaterialTheme.typography.titleSmall)
+                Text(f.originProfile.domain.ifEmpty { S.appSocialFriendsNoDomain().resolve() }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(statusLabel.resolve(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (f.leaving) Text(S.appSocialFriendsLeavingNote().resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         // Issue #179: every action is a button on the row, as on the web and iOS.
@@ -277,14 +355,14 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
         val pad = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
         FlowRow(Modifier.padding(start = 56.dp, top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (f.leaving) {
-                OutlinedButton(onClick = { confirmingRemoveNow = true }, colors = danger, contentPadding = pad) { Text("Remove Now") }
+                OutlinedButton(onClick = { confirmingRemoveNow = true }, colors = danger, contentPadding = pad) { Text(S.appSocialFriendsRemoveNow().resolve()) }
             } else {
                 options.forEach { (label, s) ->
-                    if (s == FriendShipStatus.Accepted) Button(onClick = { onChange(s) }, contentPadding = pad) { Text(label) }
-                    else OutlinedButton(onClick = { onChange(s) }, contentPadding = pad) { Text(label) }
+                    if (s == FriendShipStatus.Accepted) Button(onClick = { onChange(s) }, contentPadding = pad) { Text(label.resolve()) }
+                    else OutlinedButton(onClick = { onChange(s) }, contentPadding = pad) { Text(label.resolve()) }
                 }
-                if (canDelete) OutlinedButton(onClick = { confirmingDelete = true }, colors = danger, contentPadding = pad) { Text(if (f.sent) "Cancel Request" else "Decline") }
-                if (canRemove) OutlinedButton(onClick = { confirmingRemove = true }, colors = danger, contentPadding = pad) { Text("Remove…") }
+                if (canDelete) OutlinedButton(onClick = { confirmingDelete = true }, colors = danger, contentPadding = pad) { Text((if (f.sent) S.appSocialFriendsCancelRequestButton() else S.commonDecline()).resolve()) }
+                if (canRemove) OutlinedButton(onClick = { confirmingRemove = true }, colors = danger, contentPadding = pad) { Text(S.appSocialFriendsRemoveButton().resolve()) }
             }
         }
     }
@@ -293,19 +371,19 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
     if (confirmingRemoveNow) {
         AlertDialog(
             onDismissRequest = { confirmingRemoveNow = false },
-            title = { Text("Remove $name now?") },
-            text = { Text("Stops waiting for their device. Whatever it hasn't deleted yet stays there.") },
-            confirmButton = { TextButton(onClick = { confirmingRemoveNow = false; onRemove(false, false) }) { Text("Remove now", color = Color(0xFFE53935)) } },
-            dismissButton = { TextButton(onClick = { confirmingRemoveNow = false }) { Text("Keep waiting") } },
+            title = { Text((if (name != null) S.appSocialFriendsRemoveNowTitle(name) else S.androidFriendsRemoveNowTitleUnnamed()).resolve()) },
+            text = { Text(S.appSocialFriendsRemoveNowText().resolve()) },
+            confirmButton = { TextButton(onClick = { confirmingRemoveNow = false; onRemove(false, false) }) { Text(S.androidFriendsRemoveNow().resolve(), color = Color(0xFFE53935)) } },
+            dismissButton = { TextButton(onClick = { confirmingRemoveNow = false }) { Text(S.androidFriendsKeepWaiting().resolve()) } },
         )
     }
     if (confirmingDelete) {
         AlertDialog(
             onDismissRequest = { confirmingDelete = false },
-            title = { Text(if (f.sent) "Cancel this friend request?" else "Delete this friend request?") },
-            text = { Text(if (f.sent) "The request will be withdrawn on both devices." else "The request will be removed here and on the sender's device.") },
-            confirmButton = { TextButton(onClick = { confirmingDelete = false; onDelete() }) { Text(deleteLabel, color = Color(0xFFE53935)) } },
-            dismissButton = { TextButton(onClick = { confirmingDelete = false }) { Text("Cancel") } },
+            title = { Text((if (f.sent) S.appSocialFriendsCancelConfirmTitle() else S.appSocialFriendsDeleteConfirmTitle()).resolve()) },
+            text = { Text((if (f.sent) S.appSocialFriendsCancelConfirmText() else S.appSocialFriendsDeleteConfirmText()).resolve()) },
+            confirmButton = { TextButton(onClick = { confirmingDelete = false; onDelete() }) { Text(deleteLabel.resolve(), color = Color(0xFFE53935)) } },
+            dismissButton = { TextButton(onClick = { confirmingDelete = false }) { Text(S.commonCancel().resolve()) } },
         )
     }
     if (confirmingRemove) {
@@ -313,23 +391,23 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
         var askThem by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { confirmingRemove = false },
-            title = { Text("Remove $name?") },
+            title = { Text((if (name != null) S.appSocialFriendsRemoveTitle(name) else S.androidFriendsRemoveTitleUnnamed()).resolve()) },
             text = {
                 Column {
                     RemoveOption(
                         checked = deleteTheirs, onChange = { deleteTheirs = it },
-                        title = "Delete everything from $name on this phone",
-                        detail = "Their posts and photos, and their comments and likes on any post.",
+                        title = (if (name != null) S.androidFriendsDeleteTheirs(name) else S.androidFriendsDeleteTheirsUnnamed()).resolve(),
+                        detail = S.appSocialFriendsDeleteTheirsText().resolve(),
                     )
                     RemoveOption(
                         checked = askThem, onChange = { askThem = it },
-                        title = "Ask $name's device to delete what I shared",
-                        detail = "Your posts, comments and likes on their device. If it's offline, it happens the next time it connects; until then they show as leaving.",
+                        title = (if (name != null) S.appSocialFriendsAskTheirs(name) else S.androidFriendsAskTheirsUnnamed()).resolve(),
+                        detail = S.appSocialFriendsAskTheirsText().resolve(),
                     )
                 }
             },
-            confirmButton = { TextButton(onClick = { confirmingRemove = false; onRemove(deleteTheirs, askThem) }) { Text("Remove friend", color = MaterialTheme.colorScheme.error) } },
-            dismissButton = { TextButton(onClick = { confirmingRemove = false }) { Text("Keep") } },
+            confirmButton = { TextButton(onClick = { confirmingRemove = false; onRemove(deleteTheirs, askThem) }) { Text(S.androidFriendsRemoveFriend().resolve(), color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { TextButton(onClick = { confirmingRemove = false }) { Text(S.androidFriendsKeep().resolve()) } },
         )
     }
 }

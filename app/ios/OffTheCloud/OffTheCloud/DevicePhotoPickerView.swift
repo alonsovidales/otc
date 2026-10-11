@@ -38,7 +38,7 @@ final class DevicePhotoPickerVM: ObservableObject {
     @Published var endReached = false
     /// Path of the photo whose full-size fetch is in flight (spinner).
     @Published var fetchingPath: String?
-    @Published var errorText: String?
+    @Published var errorText: SettingsText?
 
     private var token = ""
     /// Bumped on every reset so a page answered for the previous chip
@@ -189,16 +189,16 @@ final class DevicePhotoPickerVM: ObservableObject {
             }
             guard case .respFile(let f) = resp.payload, !f.content.isEmpty else {
                 errorText = resp.error && !resp.errorMessage.isEmpty
-                    ? resp.errorMessage : "Couldn't load that photo from your device."
+                    ? .asIs(resp.errorMessage) : .say { S.iosSettingsPickerLoadFailed }
                 return nil
             }
             guard let crop = ProfilePhotoCropItem(data: f.content) else {
-                errorText = "That photo couldn't be opened."
+                errorText = .say { S.iosSettingsPickerOpenFailed }
                 return nil
             }
             return crop
         } catch {
-            errorText = "Couldn't load that photo: \(error.localizedDescription)"
+            errorText = .say { S.iosSettingsPickerError(detail: error.localizedDescription) }
             return nil
         }
     }
@@ -218,7 +218,7 @@ struct DevicePhotoPickerView: View {
             VStack(spacing: 0) {
                 chips
                 if let err = vm.errorText {
-                    Text(err)
+                    Text(err.text)
                         .font(.footnote)
                         .foregroundColor(.red)
                         .padding(.horizontal)
@@ -238,18 +238,18 @@ struct DevicePhotoPickerView: View {
                         }
                     }
                     if !vm.loading && vm.items.isEmpty {
-                        Text("No photos here.")
+                        Text(S.iosSettingsPickerEmpty)
                             .font(.footnote)
                             .foregroundColor(.secondary)
                             .padding(.top, 40)
                     }
                 }
             }
-            .navigationTitle("Choose a photo")
+            .navigationTitle(S.appSettingsPickerTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(S.commonCancel) { dismiss() }
                 }
             }
         }
@@ -263,7 +263,7 @@ struct DevicePhotoPickerView: View {
     private var chips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                chip("All photos", id: "")
+                chip(S.appSettingsPickerAll, id: "")
                 ForEach(vm.groups, id: \.id) { g in
                     chip(g.name, id: g.id)
                 }

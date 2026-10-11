@@ -165,6 +165,61 @@ import cloud.offthe.otc.ui.common.photosProblemText
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.compose.ui.platform.LocalResources
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.androidPhotosOpenInMaps
+import cloud.offthe.otc.i18n.appPhotosCollectionsAddTitle
+import cloud.offthe.otc.i18n.appPhotosCollectionsDelete
+import cloud.offthe.otc.i18n.appPhotosCollectionsDeleteMessage
+import cloud.offthe.otc.i18n.appPhotosCollectionsDeleteTitle
+import cloud.offthe.otc.i18n.appPhotosCollectionsNamePlaceholder
+import cloud.offthe.otc.i18n.appPhotosCollectionsNewItem
+import cloud.offthe.otc.i18n.appPhotosCollectionsNewMessage
+import cloud.offthe.otc.i18n.appPhotosCollectionsNewTitle
+import cloud.offthe.otc.i18n.appPhotosCollectionsPictures
+import cloud.offthe.otc.i18n.appPhotosCollectionsRename
+import cloud.offthe.otc.i18n.appPhotosCollectionsSheetEmpty
+import cloud.offthe.otc.i18n.appPhotosGridCollectionItemsSpan
+import cloud.offthe.otc.i18n.appPhotosGridEmptyCollectionText
+import cloud.offthe.otc.i18n.appPhotosGridEmptyCollectionTitle
+import cloud.offthe.otc.i18n.appPhotosGridNoMatchIn
+import cloud.offthe.otc.i18n.appPhotosGridNoMatchText
+import cloud.offthe.otc.i18n.appPhotosGridNoMatchTitle
+import cloud.offthe.otc.i18n.appPhotosGridNoPhotosText
+import cloud.offthe.otc.i18n.appPhotosGridNoPhotosTitle
+import cloud.offthe.otc.i18n.appPhotosGridPersonItems
+import cloud.offthe.otc.i18n.appPhotosSelectionDeleteTitle
+import cloud.offthe.otc.i18n.appPhotosViewerDelete
+import cloud.offthe.otc.i18n.appPhotosViewerDeleteTitle
+import cloud.offthe.otc.i18n.appPhotosViewerInfoAperture
+import cloud.offthe.otc.i18n.appPhotosViewerInfoCamera
+import cloud.offthe.otc.i18n.appPhotosViewerInfoDimensions
+import cloud.offthe.otc.i18n.appPhotosViewerInfoExposure
+import cloud.offthe.otc.i18n.appPhotosViewerInfoFocalLength
+import cloud.offthe.otc.i18n.appPhotosViewerInfoIso
+import cloud.offthe.otc.i18n.appPhotosViewerInfoLocation
+import cloud.offthe.otc.i18n.appPhotosViewerInfoNoExif
+import cloud.offthe.otc.i18n.appPhotosViewerInfoNone
+import cloud.offthe.otc.i18n.appPhotosViewerInfoTaken
+import cloud.offthe.otc.i18n.appPhotosViewerInfoTitle
+import cloud.offthe.otc.i18n.appPhotosViewerLowRes
+import cloud.offthe.otc.i18n.appPhotosViewerMoreInfo
+import cloud.offthe.otc.i18n.appShellCollectionsGoToImages
+import cloud.offthe.otc.i18n.appShellSearchClear
+import cloud.offthe.otc.i18n.appShellSearchUnnamed
+import cloud.offthe.otc.i18n.appShellSectionCollections
+import cloud.offthe.otc.i18n.appShellSectionPeople
+import cloud.offthe.otc.i18n.appShellShareAsGallery
+import cloud.offthe.otc.i18n.commonCancel
+import cloud.offthe.otc.i18n.commonClose
+import cloud.offthe.otc.i18n.commonCreate
+import cloud.offthe.otc.i18n.commonDelete
+import cloud.offthe.otc.i18n.commonDeselect
+import cloud.offthe.otc.i18n.commonDone
+import cloud.offthe.otc.i18n.commonOk
+import cloud.offthe.otc.i18n.commonSave
+import cloud.offthe.otc.i18n.commonSelect
+import cloud.offthe.otc.i18n.commonShare
 
 // Port of PhotoGalleryView (PhotoGallery.swift): the search (TopSearch.kt:
 // tags, people and files, as the web's top bar), the People button and page
@@ -270,12 +325,14 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                 // the icons for sighted users too.
                 if (faces == true) {
                     val people: PeopleViewModel = viewModel(key = "people")
-                    TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = { PlainTooltip { Text("People") } }, state = rememberTooltipState()) {
-                        IconButton(onClick = { people.enter(); onPage(GalleryPage.PEOPLE) }) { Icon(NavIcons.People, "People") }
+                    val peopleLabel = S.appShellSectionPeople().resolve()
+                    TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = { PlainTooltip { Text(peopleLabel) } }, state = rememberTooltipState()) {
+                        IconButton(onClick = { people.enter(); onPage(GalleryPage.PEOPLE) }) { Icon(NavIcons.People, peopleLabel) }
                     }
                 }
-                TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = { PlainTooltip { Text("Collections") } }, state = rememberTooltipState()) {
-                    IconButton(onClick = { onPage(GalleryPage.COLLECTIONS) }) { Icon(NavIcons.Collections, "Collections") }
+                val collectionsLabel = S.appShellSectionCollections().resolve()
+                TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = { PlainTooltip { Text(collectionsLabel) } }, state = rememberTooltipState()) {
+                    IconButton(onClick = { onPage(GalleryPage.COLLECTIONS) }) { Icon(NavIcons.Collections, collectionsLabel) }
                 }
             }
         }
@@ -386,7 +443,7 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                 if (group != null) item(key = "head:group", contentType = "head") {
                     CollectionHeader(
-                        group, span = spanLabel(buckets, years = compact), compact = compact, metrics = metrics,
+                        group, span = spanLabel(buckets, years = compact).resolve(), compact = compact, metrics = metrics,
                         // Leaving it, not just looking away: the search is the
                         // whole library again.
                         onBack = { vm.leaveGroup(); onPage(GalleryPage.COLLECTIONS) },
@@ -487,10 +544,10 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
         ModalBottomSheet(onDismissRequest = { onPage(GalleryPage.PHOTOS) }) {
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Collections", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { onPage(GalleryPage.PHOTOS) }) { Text("Done") }
+                    Text(S.appShellSectionCollections().resolve(), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { onPage(GalleryPage.PHOTOS) }) { Text(S.commonDone().resolve()) }
                 }
-                if (st.groups.isEmpty()) Text("No collections yet — select some pictures and choose Add to collection.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (st.groups.isEmpty()) Text(S.appPhotosCollectionsSheetEmpty().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 st.groups.forEach { g ->
                     Row(Modifier.fillMaxWidth().clickable { onPage(GalleryPage.PHOTOS); vm.openGroup(g) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         val cover = rememberTileThumb(
@@ -502,12 +559,12 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(g.name)
-                            Text("${g.fileCount} ${if (g.fileCount == 1) "picture" else "pictures"}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(S.appPhotosCollectionsPictures(g.fileCount).resolve(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         IconButton(onClick = {
                             onPage(GalleryPage.PHOTOS)
                             gallerySource = SharedGallerySource.newBuilder().setGroupId(g.id).build()
-                        }) { Icon(Icons.Default.Share, "Share as gallery", tint = MaterialTheme.colorScheme.primary) }
+                        }) { Icon(Icons.Default.Share, S.appShellShareAsGallery().resolve(), tint = MaterialTheme.colorScheme.primary) }
                     }
                 }
             }
@@ -516,39 +573,41 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
     if (showGroupPicker) {
         ModalBottomSheet(onDismissRequest = { showGroupPicker = false }) {
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                Text("Add ${st.selected.size} to a collection", style = MaterialTheme.typography.titleMedium)
+                Text(S.appPhotosCollectionsAddTitle(st.selected.size).resolve(), style = MaterialTheme.typography.titleMedium)
                 st.groups.forEach { g -> TextButton(onClick = { showGroupPicker = false; scope.launch { vm.addSelectionToGroup(g) } }) { Text(g.name) } }
-                TextButton(onClick = { showGroupPicker = false; newGroupName = "" }) { Text("New collection…") }
+                TextButton(onClick = { showGroupPicker = false; newGroupName = "" }) { Text(S.appPhotosCollectionsNewItem().resolve()) }
             }
         }
     }
     newGroupName?.let { name ->
         TextDialog(
-            "New collection", "${st.selected.size} ${if (st.selected.size == 1) "picture" else "pictures"} will be added to it.", name, "Collection name", "Create",
+            S.appPhotosCollectionsNewTitle().resolve(), S.appPhotosCollectionsNewMessage(st.selected.size).resolve(), name,
+            S.appPhotosCollectionsNamePlaceholder().resolve(), S.commonCreate().resolve(),
             onChange = { newGroupName = it }, onConfirm = { newGroupName = null; scope.launch { vm.createGroupFromSelection(name) } }, onDismiss = { newGroupName = null },
         )
     }
     renameGroupName?.let { name ->
         TextDialog(
-            "Rename collection", null, name, "Collection name", "Save",
+            S.appPhotosCollectionsRename().resolve(), null, name, S.appPhotosCollectionsNamePlaceholder().resolve(), S.commonSave().resolve(),
             onChange = { renameGroupName = it }, onConfirm = { renameGroupName = null; scope.launch { vm.renameActiveGroup(name) } }, onDismiss = { renameGroupName = null },
         )
     }
     gallerySource?.let { src -> SharedGalleryShareFlow(src, onDismiss = { gallerySource = null }) }
     if (confirmDeleteGroup) {
         ConfirmDialog(
-            "Delete the collection \"${st.activeGroup?.name ?: ""}\"?", "The pictures themselves are kept.", "Delete collection",
+            S.appPhotosCollectionsDeleteTitle(st.activeGroup?.name ?: "").resolve(), S.appPhotosCollectionsDeleteMessage().resolve(),
+            S.appPhotosCollectionsDelete().resolve(),
             onConfirm = { confirmDeleteGroup = false; scope.launch { vm.deleteActiveGroup() } }, onDismiss = { confirmDeleteGroup = false },
         )
     }
     if (confirmDeleteSelected) {
         ConfirmDialog(
-            "Delete ${st.selected.size} item${if (st.selected.size == 1) "" else "s"}?", null, "Delete",
+            S.appPhotosSelectionDeleteTitle(st.selected.size).resolve(), null, S.commonDelete().resolve(),
             onConfirm = { confirmDeleteSelected = false; vm.deleteSelected() }, onDismiss = { confirmDeleteSelected = false },
         )
     }
     st.alert?.let {
-        AlertDialog(onDismissRequest = { vm.dismissAlert() }, text = { Text(it) }, confirmButton = { TextButton(onClick = { vm.dismissAlert() }) { Text("OK") } })
+        AlertDialog(onDismissRequest = { vm.dismissAlert() }, text = { Text(it.resolve()) }, confirmButton = { TextButton(onClick = { vm.dismissAlert() }) { Text(S.commonOk().resolve()) } })
     }
 
     if (st.openIndex != null) ImageModal(vm, st)
@@ -568,7 +627,7 @@ fun TextDialog(
             }
         },
         confirmButton = { TextButton(onClick = onConfirm, enabled = value.isNotBlank()) { Text(confirmLabel) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(S.commonCancel().resolve()) } },
     )
 }
 
@@ -577,7 +636,7 @@ fun ConfirmDialog(title: String, message: String?, confirmLabel: String, onConfi
     AlertDialog(
         onDismissRequest = onDismiss, title = { Text(title) }, text = message?.let { m -> { Text(m) } },
         confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel, color = Color(0xFFE53935)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(S.commonCancel().resolve()) } },
     )
 }
 
@@ -599,7 +658,10 @@ private fun PhotoTile(
         thumbKey?.let { k -> vm.loadThumb(k) ?: run { vm.thumbLost(path); null } }
     }
     val video = item.mime.startsWith("video/")
-    val pick = if (isSelected) "Deselect" else "Select"
+    val pick = if (isSelected) S.commonDeselect().resolve() else S.commonSelect().resolve()
+    // The tile's label is worked out only when TalkBack asks for it, in the
+    // language of the composition's resources.
+    val resources = LocalResources.current
     Box(
         modifier.aspectRatio(1f).clip(TILE_SHAPE).background(tileBackground())
             .combinedClickable(
@@ -610,7 +672,7 @@ private fun PhotoTile(
             // and while photos are being picked whether it is one of them
             // (the web's aria-pressed). Worked out only when asked for.
             .semantics {
-                contentDescription = tileLabel(video, item.created, ZoneId.systemDefault())
+                contentDescription = tileLabel(video, item.created, ZoneId.systemDefault()).resolve(resources)
                 if (hasSelection) selected = isSelected
             },
     ) {
@@ -650,16 +712,16 @@ private fun PhotosProblem(problem: LoadProblem, retrying: Boolean, onRetry: () -
 @Composable
 private fun PhotosEmpty(kind: EmptyKind, groupName: String?, onLeaveGroup: () -> Unit, onClearSearch: () -> Unit) {
     when (kind) {
-        EmptyKind.COLLECTION -> GridMessage(NavIcons.Collections, "This collection is empty", "Select photos in Images, then choose Add to collection.") {
-            OutlinedButton(onClick = onLeaveGroup) { Text("Go to Images") }
+        EmptyKind.COLLECTION -> GridMessage(NavIcons.Collections, S.appPhotosGridEmptyCollectionTitle().resolve(), S.appPhotosGridEmptyCollectionText().resolve()) {
+            OutlinedButton(onClick = onLeaveGroup) { Text(S.appShellCollectionsGoToImages().resolve()) }
         }
         EmptyKind.NO_MATCH -> GridMessage(
-            Icons.Outlined.Search, "No photos match",
-            if (groupName != null) "Nothing in \u201c$groupName\u201d matches this search." else "Try other words, or fewer of them.",
+            Icons.Outlined.Search, S.appPhotosGridNoMatchTitle().resolve(),
+            (if (groupName != null) S.appPhotosGridNoMatchIn(groupName) else S.appPhotosGridNoMatchText()).resolve(),
         ) {
-            OutlinedButton(onClick = onClearSearch) { Text("Clear search") }
+            OutlinedButton(onClick = onClearSearch) { Text(S.appShellSearchClear().resolve()) }
         }
-        EmptyKind.NO_PHOTOS -> GridMessage(NavIcons.Images, "No photos yet", "Photos from the phone and computer apps appear here.")
+        EmptyKind.NO_PHOTOS -> GridMessage(NavIcons.Images, S.appPhotosGridNoPhotosTitle().resolve(), S.appPhotosGridNoPhotosText().resolve())
     }
 }
 
@@ -845,14 +907,14 @@ private fun MonthTitle(month: String?, oneTile: Boolean, m: GridMetrics, skeleto
         }
         if (month == null) return@Box
         val style = TextStyle(fontSize = m.titleSp.sp, fontWeight = FontWeight.SemiBold, lineHeight = 20.sp, color = MaterialTheme.colorScheme.onSurface)
-        val whole = monthTitle(month)
+        val whole = monthTitle(month).resolve()
         val heading = Modifier.semantics { heading(); contentDescription = whole }
         if (!oneTile) {
             Text(whole, heading, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis)
         } else {
             var short by remember(month) { mutableStateOf(false) }
             Text(
-                if (short) monthShort(month) else whole, heading, style = style, maxLines = 1, softWrap = false,
+                if (short) monthShort(month).resolve() else whole, heading, style = style, maxLines = 1, softWrap = false,
                 overflow = if (short) TextOverflow.Ellipsis else TextOverflow.Clip,
                 onTextLayout = { if (!short && it.hasVisualOverflow) short = true },
             )
@@ -873,6 +935,9 @@ private fun CollectionHeader(
 ) {
     val colors = MaterialTheme.colorScheme
     val danger = Color(0xFFE53935)
+    val rename = S.appPhotosCollectionsRename().resolve()
+    val share = S.appShellShareAsGallery().resolve()
+    val delete = S.appPhotosCollectionsDelete().resolve()
     Column(Modifier.fillMaxWidth().padding(start = metrics.pad, end = metrics.pad, top = if (metrics.phone) 8.dp else 16.dp, bottom = 4.dp)) {
         Row(
             Modifier.offset(x = (-8).dp).height(36.dp).clip(CircleShape).clickable(onClick = onBack).padding(start = 8.dp, end = 14.dp),
@@ -880,7 +945,7 @@ private fun CollectionHeader(
         ) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(20.dp), tint = colors.onSurfaceVariant)
             Spacer(Modifier.width(6.dp))
-            Text("Collections", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.onSurfaceVariant)
+            Text(S.appShellSectionCollections().resolve(), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.onSurfaceVariant)
         }
         Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (metrics.phone) 12.dp else 16.dp)) {
@@ -890,27 +955,27 @@ private fun CollectionHeader(
                     Text(
                         g.name,
                         Modifier.weight(1f, fill = false).clip(RoundedCornerShape(8.dp))
-                            .clickable(onClickLabel = "Rename collection", onClick = onRename).semantics { heading() },
+                            .clickable(onClickLabel = rename, onClick = onRename).semantics { heading() },
                         style = headerTitleStyle(metrics), maxLines = 2, overflow = TextOverflow.Ellipsis,
                     )
                     IconButton(onClick = onRename, Modifier.size(if (metrics.phone) 30.dp else 36.dp)) {
-                        Icon(Icons.Outlined.Edit, "Rename collection", Modifier.size(20.dp), tint = colors.onSurfaceVariant)
+                        Icon(Icons.Outlined.Edit, rename, Modifier.size(20.dp), tint = colors.onSurfaceVariant)
                     }
                 }
                 Text(
-                    countLabel(g.fileCount, "item") + if (span.isNotEmpty()) " · $span" else "",
+                    (if (span.isEmpty()) itemsLabel(g.fileCount) else S.appPhotosGridCollectionItemsSpan(g.fileCount, span)).resolve(),
                     Modifier.padding(top = 2.dp), fontSize = 14.sp, lineHeight = 20.sp, color = colors.onSurfaceVariant,
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
             if (compact) Row {
-                IconButton(onClick = onShare) { Icon(Icons.Outlined.Public, "Share as gallery", tint = colors.onSurfaceVariant) }
-                IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, "Delete collection", tint = danger) }
+                IconButton(onClick = onShare) { Icon(Icons.Outlined.Public, share, tint = colors.onSurfaceVariant) }
+                IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, delete, tint = danger) }
             } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onShare, contentPadding = PaddingValues(start = 14.dp, end = 18.dp)) {
                     Icon(Icons.Outlined.Public, null, Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Share as gallery")
+                    Text(share)
                 }
                 OutlinedButton(
                     onClick = onDelete, contentPadding = PaddingValues(start = 14.dp, end = 18.dp),
@@ -918,7 +983,7 @@ private fun CollectionHeader(
                 ) {
                     Icon(Icons.Outlined.Delete, null, Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Delete collection")
+                    Text(delete)
                 }
             }
         }
@@ -951,11 +1016,12 @@ private fun PersonHeader(people: List<Person>, loaded: Boolean, ids: List<String
                 Box(Modifier.padding(vertical = 7.dp).width(160.dp).height(16.dp).clip(RoundedCornerShape(8.dp)).background(tileBackground()))
                 Box(Modifier.padding(top = 6.dp, bottom = 4.dp).width(72.dp).height(12.dp).clip(RoundedCornerShape(6.dp)).background(tileBackground()))
             } else {
+                val unnamed = S.appShellSearchUnnamed().resolve()
                 Text(
-                    peopleTitle(picked.map { it.name.trim().ifEmpty { "Unnamed" } }), Modifier.semantics { heading() },
+                    peopleTitle(picked.map { it.name.trim().ifEmpty { unnamed } }).resolve(), Modifier.semantics { heading() },
                     style = headerTitleStyle(metrics), maxLines = 2, overflow = TextOverflow.Ellipsis,
                 )
-                Text(total?.let { countLabel(it, "item") } ?: "\u00a0", Modifier.padding(top = 2.dp), fontSize = 14.sp, lineHeight = 20.sp, color = colors.onSurfaceVariant, maxLines = 1)
+                Text(total?.let { S.appPhotosGridPersonItems(it).resolve() } ?: "\u00a0", Modifier.padding(top = 2.dp), fontSize = 14.sp, lineHeight = 20.sp, color = colors.onSurfaceVariant, maxLines = 1)
             }
         }
     }
@@ -1009,7 +1075,7 @@ private fun PhotoDateScrubber(vm: PhotoGalleryViewModel, st: PhotoGalleryViewMod
             val frac = st.scrubFrac
             if (target != null && frac != null) {
                 Text(
-                    scrubLabel(target.month), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
+                    scrubLabel(target.month).resolve(), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
                     modifier = Modifier.align(Alignment.TopEnd).padding(end = 16.dp).offset { IntOffset(0, (heightPx * frac - 12.dp.toPx()).toInt()) }
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
                 )
@@ -1110,7 +1176,10 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
         }
     }
     if (confirmDelete) {
-        ConfirmDialog("Delete this photo?", null, "Delete Photo", onConfirm = { confirmDelete = false; vm.deleteCurrentPhoto() }, onDismiss = { confirmDelete = false })
+        ConfirmDialog(
+            S.appPhotosViewerDeleteTitle().resolve(), null, S.appPhotosViewerDelete().resolve(),
+            onConfirm = { confirmDelete = false; vm.deleteCurrentPhoto() }, onDismiss = { confirmDelete = false },
+        )
     }
     // Fully open, and scrollable (FileInfoView): half-open, the location
     // map - the last thing in the sheet - sat below the visible part, so
@@ -1144,20 +1213,20 @@ private fun controlsBeside(width: Dp, height: Dp): Boolean {
 
 @Composable
 private fun ViewerInfoButton(vm: PhotoGalleryViewModel) {
-    IconButton(onClick = { vm.openInfo() }) { Icon(Icons.Default.Info, "More info", tint = Color.White) }
+    IconButton(onClick = { vm.openInfo() }) { Icon(Icons.Default.Info, S.appPhotosViewerMoreInfo().resolve(), tint = Color.White) }
 }
 
 @Composable
 private fun ViewerCloseButton(vm: PhotoGalleryViewModel) {
-    IconButton(onClick = { vm.closeModal() }) { Icon(Icons.Default.Cancel, "Close", tint = Color.White) }
+    IconButton(onClick = { vm.closeModal() }) { Icon(Icons.Default.Cancel, S.commonClose().resolve(), tint = Color.White) }
 }
 
 /** Share, save and delete: a row under the photo in portrait, a column beside it in landscape. */
 @Composable
 private fun ViewerActions(onShare: () -> Unit, onSave: () -> Unit, onDelete: () -> Unit) {
-    IconButton(onClick = onShare) { Icon(Icons.Default.Share, "Share", tint = Color.White) }
-    IconButton(onClick = onSave) { Icon(Icons.Default.ArrowCircleDown, "Save", tint = Color.White) }
-    IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Delete", tint = Color.White) }
+    IconButton(onClick = onShare) { Icon(Icons.Default.Share, S.commonShare().resolve(), tint = Color.White) }
+    IconButton(onClick = onSave) { Icon(Icons.Default.ArrowCircleDown, S.commonSave().resolve(), tint = Color.White) }
+    IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, S.commonDelete().resolve(), tint = Color.White) }
 }
 
 @Composable
@@ -1263,7 +1332,7 @@ internal fun LowResPill(loading: Boolean, modifier: Modifier = Modifier) {
             CircularProgressIndicator(color = Color.White, strokeWidth = 1.5.dp, modifier = Modifier.size(10.dp))
             Spacer(Modifier.width(6.dp))
         }
-        Text("Low res", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Text(S.appPhotosViewerLowRes().resolve(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -1280,32 +1349,32 @@ private fun InfoRow(label: String, value: String) {
 private fun FileInfoView(loading: Boolean, info: FileExifInfo?) {
     val context = LocalContext.current
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
-        Text("More Info", style = MaterialTheme.typography.titleMedium)
+        Text(S.appPhotosViewerInfoTitle().resolve(), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(12.dp))
         when {
             loading -> CircularProgressIndicator()
-            info == null -> Text("No metadata found", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            info == null -> Text(S.appPhotosViewerInfoNone().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             else -> {
                 val cam = listOf(info.cameraMake, info.cameraModel).filter { it.isNotEmpty() }.joinToString(" ")
-                if (cam.isNotEmpty()) InfoRow("Camera", cam)
-                if (info.hasTakenAt()) InfoRow("Taken", DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(info.takenAt.seconds * 1000)))
-                if (info.width > 0 && info.height > 0) InfoRow("Dimensions", "${info.width} × ${info.height}")
-                if (info.exposureTime.isNotEmpty()) InfoRow("Exposure", info.exposureTime)
-                if (info.fNumber.isNotEmpty()) InfoRow("Aperture", info.fNumber)
-                if (info.iso > 0) InfoRow("ISO", "${info.iso}")
-                if (info.focalLength.isNotEmpty()) InfoRow("Focal length", info.focalLength)
+                if (cam.isNotEmpty()) InfoRow(S.appPhotosViewerInfoCamera().resolve(), cam)
+                if (info.hasTakenAt()) InfoRow(S.appPhotosViewerInfoTaken().resolve(), DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(info.takenAt.seconds * 1000)))
+                if (info.width > 0 && info.height > 0) InfoRow(S.appPhotosViewerInfoDimensions().resolve(), "${info.width} × ${info.height}")
+                if (info.exposureTime.isNotEmpty()) InfoRow(S.appPhotosViewerInfoExposure().resolve(), info.exposureTime)
+                if (info.fNumber.isNotEmpty()) InfoRow(S.appPhotosViewerInfoAperture().resolve(), info.fNumber)
+                if (info.iso > 0) InfoRow(S.appPhotosViewerInfoIso().resolve(), "${info.iso}")
+                if (info.focalLength.isNotEmpty()) InfoRow(S.appPhotosViewerInfoFocalLength().resolve(), info.focalLength)
                 val loc = listOf(info.city, info.country).filter { it.isNotEmpty() }.joinToString(", ")
-                if (loc.isNotEmpty()) InfoRow("Location", loc)
+                if (loc.isNotEmpty()) InfoRow(S.appPhotosViewerInfoLocation().resolve(), loc)
                 if (info.hasGps) {
                     // Issue #127: the same 0.05° region around the point the iOS
                     // panel shows, on OpenStreetMap; a tap on the caption opens
                     // the point in the phone's maps app.
                     LocationMap(info.latitude, info.longitude)
                     TextButton(onClick = { Share.openInBrowser(context, "geo:${info.latitude},${info.longitude}?q=${info.latitude},${info.longitude}") }) {
-                        Text("Open in Maps (%.5f, %.5f)".format(info.latitude, info.longitude))
+                        Text(S.androidPhotosOpenInMaps("%.5f".format(info.latitude), "%.5f".format(info.longitude)).resolve())
                     }
                 }
-                if (cam.isEmpty() && !info.hasGps && info.exposureTime.isEmpty()) Text("No EXIF metadata in this file", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (cam.isEmpty() && !info.hasGps && info.exposureTime.isEmpty()) Text(S.appPhotosViewerInfoNoExif().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Spacer(Modifier.height(24.dp))

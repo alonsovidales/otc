@@ -82,7 +82,7 @@ struct ProfilePhotoCropView: View {
                 }
                 .padding(.horizontal)
 
-                Text("Drag the photo to centre your face.")
+                Text(S.iosSettingsCropHint)
                     .font(.footnote)
                     .foregroundColor(.secondary)
                 Spacer()
@@ -90,14 +90,14 @@ struct ProfilePhotoCropView: View {
             .padding(.top)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemBackground))
-            .navigationTitle("Crop photo")
+            .navigationTitle(S.iosSettingsCropTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button(S.commonCancel, action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Use photo") {
+                    Button(S.appSettingsCropUse) {
                         if let data = renderJPEG() { onUse(data) } else { onCancel() }
                     }
                 }

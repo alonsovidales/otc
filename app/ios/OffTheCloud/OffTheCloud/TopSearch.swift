@@ -171,12 +171,14 @@ enum FoundKind {
         }
     }
 
-    var word: String {
+    /// How VoiceOver names a found item of this kind, `name`, in the folder
+    /// `dir` (the search's suggestions; Files' search results say the same).
+    func spoken(name: String, dir: String) -> String {
         switch self {
-        case .folder: return "folder"
-        case .photo: return "photo"
-        case .video: return "video"
-        case .doc: return "file"
+        case .folder: return S.iosFilesResultFolder(name: name, folder: dir)
+        case .photo: return S.iosFilesResultPhoto(name: name, folder: dir)
+        case .video: return S.iosFilesResultVideo(name: name, folder: dir)
+        case .doc: return S.iosFilesResultFile(name: name, folder: dir)
         }
     }
 }
@@ -723,13 +725,13 @@ struct TopSearchPanel: View {
             // has to measure them all.
             VStack(alignment: .leading, spacing: 0) {
                 Color.clear.frame(height: 0).id(Self.topID)
-                if !suggestions.tags.isEmpty { section("Things", suggestions.tags) }
-                if !suggestions.people.isEmpty { section("People", suggestions.people) }
+                if !suggestions.tags.isEmpty { section(S.appPhotosSearchThings, suggestions.tags) }
+                if !suggestions.people.isEmpty { section(S.appPhotosSearchPeople, suggestions.people) }
                 if suggestions.docsFirst, let docs = suggestions.docs { row(docs).padding(.top, 6) }
-                if !suggestions.files.isEmpty { section("Files", suggestions.files) }
+                if !suggestions.files.isEmpty { section(S.appPhotosSearchFiles, suggestions.files) }
                 if !suggestions.docsFirst, let docs = suggestions.docs { row(docs).padding(.top, 6) }
                 if suggestions.isEmpty {
-                    Text(alreadyIn ? "\u{201C}\(typed)\u{201D} is already in the search." : "Nothing matches \u{201C}\(typed)\u{201D}.")
+                    Text(alreadyIn ? S.appPhotosSearchAlready(text: typed) : S.appPhotosSearchNothing(text: typed))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 20)
@@ -745,7 +747,7 @@ struct TopSearchPanel: View {
         .scrollDismissesKeyboard(.immediately)
         .background(background)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Suggestions")
+        .accessibilityLabel(S.iosPhotosSearchSuggestions)
     }
 
     private func section(_ title: String, _ options: [SearchOption]) -> some View {
@@ -824,30 +826,30 @@ struct TopSearchPanel: View {
         }
         .buttonStyle(SearchRowStyle())
         .accessibilityLabel(accessibilityLabel(o))
-        .accessibilityHint(o.id == active ? "What the Search key picks" : "")
+        .accessibilityHint(o.id == active ? S.iosPhotosSearchKeyHint : "")
         .id(o.id)
     }
 
     private func docsLabel(_ text: String) -> AttributedString {
-        var out = AttributedString("Search documents for \u{201C}")
-        var t = AttributedString(text)
-        t.inlinePresentationIntent = .stronglyEmphasized
-        out += t
-        out += AttributedString("\u{201D}")
-        return out
+        var bold = AttributeContainer()
+        bold.inlinePresentationIntent = .stronglyEmphasized
+        return S.appPhotosSearchDocuments(text: text, b: bold)
     }
 
     private func accessibilityLabel(_ o: SearchOption) -> String {
         switch o {
         case .tag(let t, _): return t
         case .person(let p, let label, _):
-            return "\(label), \(Self.photos(Int(p.faceCount)))\(selectedPeople.contains(p.id) ? ", in the search" : "")"
-        case .docs(let text): return "Search documents for \(text)"
-        case .file(_, let kind, let name, let dir, _, _): return "\(name), \(kind.word) in \(dir)"
+            let n = Int(p.faceCount)
+            return selectedPeople.contains(p.id)
+                ? S.iosPhotosSearchPersonIn(name: label, count: n)
+                : S.appPhotosPeopleFaceLabel(name: label, count: n)
+        case .docs(let text): return S.iosPhotosSearchDocuments(text: text)
+        case .file(_, let kind, let name, let dir, _, _): return kind.spoken(name: name, dir: dir)
         }
     }
 
-    static func photos(_ n: Int) -> String { "\(n.formatted()) \(n == 1 ? "photo" : "photos")" }
+    static func photos(_ n: Int) -> String { S.appPhotosPeoplePhotoCount(count: n) }
 }
 
 // MARK: - Where the panel goes

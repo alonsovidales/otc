@@ -474,7 +474,9 @@ final class PhotoGalleryVM: ObservableObject {
     /// poster stays, saying so, with Try again.
     @Published private(set) var unplayable = Set<String>()
     @Published var showAlert = false
-    @Published var alertMessage = ""
+    /// What the alert says, kept as what happened and worded when it shows
+    /// (GalleryNotice.text), so it follows a change of language.
+    @Published var notice: GalleryNotice?
     // Issue #9: the system share sheet for the currently-open photo. A file
     // URL, not the raw UIImage — handing UIActivityViewController a large
     // in-memory UIImage directly is what made the share sheet visibly slow
@@ -1150,7 +1152,7 @@ final class PhotoGalleryVM: ObservableObject {
             req.payload = .reqRenameImageGroup(r)
             e = req
         }), case .respAck(let ack) = resp.payload, ack.ok else {
-            alertMessage = "Could not rename the collection."; showAlert = true
+            notice = .renameFailed; showAlert = true
             return
         }
         activeGroup?.name = name
@@ -1167,7 +1169,7 @@ final class PhotoGalleryVM: ObservableObject {
             req.payload = .reqDeleteImageGroup(d)
             e = req
         }), case .respAck(let ack) = resp.payload, ack.ok else {
-            alertMessage = "Could not delete the collection."; showAlert = true
+            notice = .deleteCollectionFailed; showAlert = true
             return
         }
         groups.removeAll { $0.id == g.id }
@@ -1188,12 +1190,12 @@ final class PhotoGalleryVM: ObservableObject {
         c.smallThumbnails = true
         guard let resp = try? await libraryRequest(.reqCreateImageGroup(c), nil),
               case .respImageGroup(let r) = resp.payload else {
-            alertMessage = "Could not create the collection."; showAlert = true
+            notice = .createFailed; showAlert = true
             return
         }
         groups.insert(r.group, at: 0)
         selected.removeAll()
-        alertMessage = "Collection \"\(name)\" created."; showAlert = true
+        notice = .created(name); showAlert = true
     }
 
     func addSelectionToGroup(_ g: Msg_ImageGroup) async {
@@ -1207,14 +1209,14 @@ final class PhotoGalleryVM: ObservableObject {
             req.payload = .reqAddToImageGroup(a)
             e = req
         }), case .respAck(let ack) = resp.payload, ack.ok else {
-            alertMessage = "Could not add to the collection."; showAlert = true
+            notice = .addFailed; showAlert = true
             return
         }
         selected.removeAll()
         await loadGroups()
         // If that was the open group, its grid has new members to show.
         if activeGroup?.id == g.id { restartSearch() }
-        alertMessage = "Added to \"\(g.name)\"."; showAlert = true
+        notice = .added(g.name); showAlert = true
     }
 
     func togglePerson(_ id: String) {
@@ -1859,7 +1861,7 @@ final class PhotoGalleryVM: ObservableObject {
     // only the (near-instant) file write's result touches published state.
     func shareCurrentPhoto(_ image: UIImage?) {
         guard let image else {
-            alertMessage = "Image isn't loaded yet"
+            notice = .notLoaded
             showAlert = true
             return
         }
@@ -1873,7 +1875,7 @@ final class PhotoGalleryVM: ObservableObject {
                 await MainActor.run { self.shareURL = tmp }
             } catch {
                 await MainActor.run {
-                    self.alertMessage = "Share failed: \(error.localizedDescription)"
+                    self.notice = .shareFailed(error)
                     self.showAlert = true
                 }
             }
@@ -1884,7 +1886,7 @@ final class PhotoGalleryVM: ObservableObject {
     // image straight to the Photos library — no re-download, no zip.
     func saveToPhotos(_ image: UIImage?) {
         guard let image else {
-            alertMessage = "Image isn't loaded yet"
+            notice = .notLoaded
             showAlert = true
             return
         }
@@ -1894,7 +1896,7 @@ final class PhotoGalleryVM: ObservableObject {
                 ? await PHPhotoLibrary.requestAuthorization(for: .addOnly)
                 : current
             guard status == .authorized || status == .limited else {
-                alertMessage = "Photos access denied"
+                notice = .photosDenied
                 showAlert = true
                 return
             }
@@ -1902,9 +1904,9 @@ final class PhotoGalleryVM: ObservableObject {
                 try await PHPhotoLibrary.shared().performChanges {
                     PHAssetChangeRequest.creationRequestForAsset(from: image)
                 }
-                alertMessage = "Saved to Photos ✅"
+                notice = .saved
             } catch {
-                alertMessage = "Save failed: \(error.localizedDescription)"
+                notice = .saveFailed(error)
             }
             showAlert = true
         }
@@ -1922,12 +1924,12 @@ final class PhotoGalleryVM: ObservableObject {
                 del.path = item.path
                 let resp = try await photoRequest(.reqDelFile(del), nil)
                 if resp.error {
-                    alertMessage = "Delete failed: \(resp.errorMessage)"
+                    notice = .deleteRefused(resp.errorMessage)
                     showAlert = true
                     return
                 }
             } catch {
-                alertMessage = "Delete failed: \(error.localizedDescription)"
+                notice = .deleteFailed(error)
                 showAlert = true
                 return
             }
@@ -2130,7 +2132,7 @@ final class PhotoGalleryVM: ObservableObject {
                     }
                     items[idx].isLocalOnly = false
                 } catch {
-                    alertMessage = "Upload failed: \(error.localizedDescription)"
+                    notice = .uploadFailed(error)
                     showAlert = true
                     return false
                 }
@@ -2161,12 +2163,12 @@ final class PhotoGalleryVM: ObservableObject {
                     del.path = path
                     let resp = try await photoRequest(.reqDelFile(del), nil)
                     if resp.error {
-                        alertMessage = "Delete failed: \(resp.errorMessage)"
+                        notice = .deleteRefused(resp.errorMessage)
                         showAlert = true
                         continue
                     }
                 } catch {
-                    alertMessage = "Delete failed: \(error.localizedDescription)"
+                    notice = .deleteFailed(error)
                     showAlert = true
                     continue
                 }
@@ -2225,11 +2227,11 @@ final class PhotoGalleryVM: ObservableObject {
                 if case .respShareLink(let link) = r.payload, let url = URL(string: link.link) {
                     selectionShareURL = url
                 } else {
-                    alertMessage = "Could not create share link."
+                    notice = .noShareLink
                     showAlert = true
                 }
             } catch {
-                alertMessage = "Share failed: \(error.localizedDescription)"
+                notice = .shareFailed(error)
                 showAlert = true
             }
         }
@@ -2251,11 +2253,49 @@ final class PhotoGalleryVM: ObservableObject {
                 }
                 if case .respShareLink(let link) = r.payload, let url = URL(string: link.link) {
                     await UIApplication.shared.open(url)
-                } else { alertMessage = "Could not create download link."; showAlert = true }
-            } catch { alertMessage = "Download failed: \(error.localizedDescription)"; showAlert = true }
+                } else { notice = .noDownloadLink; showAlert = true }
+            } catch { notice = .downloadFailed(error); showAlert = true }
         }
     }
 
+}
+
+/// What the gallery's alert says: what happened, worded only when the alert
+/// shows (docs/i18n.md, "Each platform") - in the language shown then, and
+/// with an error's own description read then. The device's words are
+/// shown as they come (it writes them in the request's language).
+enum GalleryNotice {
+    case renameFailed, deleteCollectionFailed, createFailed, addFailed
+    /// A new collection, by its name.
+    case created(String)
+    /// Added to the collection of this name.
+    case added(String)
+    case notLoaded, photosDenied, saved, noShareLink, noDownloadLink
+    case shareFailed(Error), saveFailed(Error), deleteFailed(Error), uploadFailed(Error), downloadFailed(Error)
+    /// The device refused a delete: its own explanation.
+    case deleteRefused(String)
+
+    var text: String {
+        switch self {
+        case .renameFailed: return S.appPhotosNoticeRenameFailed
+        case .deleteCollectionFailed: return S.appPhotosNoticeDeleteCollectionFailed
+        case .createFailed: return S.appPhotosNoticeCreateFailed
+        case .addFailed: return S.appPhotosNoticeAddFailed
+        case .created(let name): return S.appPhotosNoticeCreated(name: name)
+        case .added(let name): return S.appPhotosNoticeAdded(name: name)
+        case .notLoaded: return S.appPhotosNoticeNotLoaded
+        case .photosDenied: return S.iosPhotosAccessDenied
+        case .saved: return S.appPhotosNoticeSaved
+        case .noShareLink: return S.appPhotosNoticeNoShareLink
+        case .noDownloadLink: return S.appPhotosNoticeNoDownloadLink
+        case .shareFailed(let e): return S.appPhotosNoticeShareFailed(detail: e.localizedDescription)
+        case .saveFailed(let e): return S.appPhotosNoticeSaveFailed(detail: e.localizedDescription)
+        case .deleteFailed(let e): return S.appPhotosNoticeDeleteFailed(detail: e.localizedDescription)
+        case .uploadFailed(let e): return S.iosPhotosUploadFailed(detail: e.localizedDescription)
+        case .downloadFailed(let e): return S.iosPhotosDownloadFailed(detail: e.localizedDescription)
+        case .deleteRefused(let message): return S.appPhotosNoticeDeleteFailed(detail: message)
+        }
+    }
 }
 
 // MARK: - SwiftUI View (iOS)
@@ -2452,7 +2492,7 @@ struct PhotoGalleryView: View {
             NavigationStack {
                 List {
                     if vm.groups.isEmpty {
-                        Text("No collections yet — select some pictures and choose Add to collection.")
+                        Text(S.appPhotosCollectionsSheetEmpty)
                             .foregroundStyle(.secondary)
                     }
                     ForEach(vm.groups, id: \.id) { g in
@@ -2471,7 +2511,7 @@ struct PhotoGalleryView: View {
                                 }
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(g.name).foregroundStyle(.primary)
-                                    Text("\(g.fileCount) \(g.fileCount == 1 ? "picture" : "pictures")")
+                                    Text(S.appPhotosCollectionsPictures(count: Int(g.fileCount)))
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
                             }
@@ -2481,69 +2521,69 @@ struct PhotoGalleryView: View {
                             Button {
                                 groupsSheetGallerySource = .group(g.id)
                             } label: {
-                                Label("Share as Gallery", systemImage: "photo.on.rectangle.angled")
+                                Label(S.appShellShareAsGalleryMenu, systemImage: "photo.on.rectangle.angled")
                             }
                         }
                         .swipeActions(edge: .trailing) {
                             Button {
                                 groupsSheetGallerySource = .group(g.id)
                             } label: {
-                                Label("Share", systemImage: "square.and.arrow.up")
+                                Label(S.commonShare, systemImage: "square.and.arrow.up")
                             }
                             .tint(.accentColor)
                         }
                     }
                 }
-                .navigationTitle("Collections")
+                .navigationTitle(S.appShellSectionCollections)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Done") { vm.showGroups = false }
+                        Button(S.commonDone) { vm.showGroups = false }
                     }
                 }
             }
             .sharedGalleryShareFlow(source: $groupsSheetGallerySource)
         }
         // The selection bar's "Add to collection": pick an existing group or start a new one.
-        .confirmationDialog("Add \(vm.selected.count) to a collection", isPresented: $vm.showGroupPicker, titleVisibility: .visible) {
+        .confirmationDialog(S.appPhotosCollectionsAddTitle(count: vm.selected.count), isPresented: $vm.showGroupPicker, titleVisibility: .visible) {
             ForEach(vm.groups, id: \.id) { g in
                 Button(g.name) { Task { await vm.addSelectionToGroup(g) } }
             }
-            Button("New collection…") { vm.showNewGroupName = true }
-            Button("Cancel", role: .cancel) {}
+            Button(S.appPhotosCollectionsNewItem) { vm.showNewGroupName = true }
+            Button(S.commonCancel, role: .cancel) {}
         }
-        .alert("New collection", isPresented: $vm.showNewGroupName) {
-            TextField("Collection name", text: $vm.newGroupName)
-            Button("Create") { Task { await vm.createGroupFromSelection() } }
-            Button("Cancel", role: .cancel) { vm.newGroupName = "" }
+        .alert(S.appPhotosCollectionsNewTitle, isPresented: $vm.showNewGroupName) {
+            TextField(S.appPhotosCollectionsNamePlaceholder, text: $vm.newGroupName)
+            Button(S.commonCreate) { Task { await vm.createGroupFromSelection() } }
+            Button(S.commonCancel, role: .cancel) { vm.newGroupName = "" }
         } message: {
-            Text("\(vm.selected.count) \(vm.selected.count == 1 ? "picture" : "pictures") will be added to it.")
+            Text(S.appPhotosCollectionsNewMessage(count: vm.selected.count))
         }
-        .alert("Rename collection", isPresented: $vm.showRenameGroup) {
-            TextField("Collection name", text: $vm.renameGroupName)
-            Button("Save") { Task { await vm.renameActiveGroup() } }
-            Button("Cancel", role: .cancel) {}
+        .alert(S.appPhotosCollectionsRename, isPresented: $vm.showRenameGroup) {
+            TextField(S.appPhotosCollectionsNamePlaceholder, text: $vm.renameGroupName)
+            Button(S.commonSave) { Task { await vm.renameActiveGroup() } }
+            Button(S.commonCancel, role: .cancel) {}
         }
         .confirmationDialog(
-            "Delete the collection \"\(vm.activeGroup?.name ?? "")\"?",
+            S.appPhotosCollectionsDeleteTitle(name: vm.activeGroup?.name ?? ""),
             isPresented: $vm.confirmDeleteGroup, titleVisibility: .visible
         ) {
-            Button("Delete collection", role: .destructive) { Task { await vm.deleteActiveGroup() } }
-            Button("Cancel", role: .cancel) {}
+            Button(S.appPhotosCollectionsDelete, role: .destructive) { Task { await vm.deleteActiveGroup() } }
+            Button(S.commonCancel, role: .cancel) {}
         } message: {
-            Text("The pictures themselves are kept.")
+            Text(S.appPhotosCollectionsDeleteMessage)
         }
         .sharedGalleryShareFlow(source: $gallerySource)
         .onAppear { vm.onAppearInitial() }
         .confirmationDialog(
-            "Delete \(vm.selected.count) item\(vm.selected.count == 1 ? "" : "s")?",
+            S.appPhotosSelectionDeleteTitle(count: vm.selected.count),
             isPresented: $vm.confirmDeleteSelected,
             titleVisibility: .visible
         ) {
-            Button("Delete", role: .destructive, action: vm.deleteSelected)
-            Button("Cancel", role: .cancel) {}
+            Button(S.commonDelete, role: .destructive, action: vm.deleteSelected)
+            Button(S.commonCancel, role: .cancel) {}
         }
-        .alert(vm.alertMessage, isPresented: $vm.showAlert) { Button("OK", role: .cancel) {} }
+        .alert(vm.notice?.text ?? "", isPresented: $vm.showAlert) { Button(S.commonOk, role: .cancel) {} }
         // Presented once and left up while paging: the previous sheet was
         // keyed by the index, so every swipe dismissed it and presented a
         // new one - the "closes and reopens" the viewer used to do. Full
@@ -2691,7 +2731,7 @@ struct PhotoGalleryView: View {
         HStack(spacing: 8) {
             searchField
             if searchActive {
-                Button("Cancel") { actions.cancel() }
+                Button(S.commonCancel) { actions.cancel() }
             } else {
                 // People, as the web's menu has it before
                 // Collections - only while face recognition is on.
@@ -2703,7 +2743,7 @@ struct PhotoGalleryView: View {
                             .frame(width: 34, height: 34)
                             .contentShape(Rectangle())
                     }
-                    .accessibilityLabel("People")
+                    .accessibilityLabel(S.appShellSectionPeople)
                 }
                 // Issue #115: the collections list.
                 Button {
@@ -2714,7 +2754,7 @@ struct PhotoGalleryView: View {
                         .frame(width: 34, height: 34)
                         .contentShape(Rectangle())
                 }
-                .accessibilityLabel("Collections")
+                .accessibilityLabel(S.appShellSectionCollections)
             }
         }
         .padding(.horizontal, 8)
@@ -2724,9 +2764,10 @@ struct PhotoGalleryView: View {
     /// months from the date buckets once they are this collection's, and
     /// only the years below 900 wide, as there.
     private func collectionLine(_ g: Msg_ImageGroup) -> String {
-        let items = PhotoMonths.count(Int(g.fileCount), "item")
         let span = PhotoMonths.span(vm.freshBuckets.map(\.month), years: (windowWidth > 0 ? windowWidth : 390) < 900)
-        return span.isEmpty ? items : "\(items) · \(span)"
+        return span.isEmpty
+            ? PhotoMonths.items(Int(g.fileCount))
+            : S.appPhotosGridCollectionItemsSpan(count: Int(g.fileCount), span: span)
     }
 
     private func collectionChip(_ g: Msg_ImageGroup) -> some View {
@@ -2740,19 +2781,20 @@ struct PhotoGalleryView: View {
             .lineLimit(1)
             // The name keeps the room; its line gives way first.
             .layoutPriority(1)
-            Text("· \(collectionLine(g))").foregroundStyle(.secondary).font(.caption).lineLimit(1)
+            // The dot only sets the line apart from the name: no words.
+            Text(verbatim: "· \(collectionLine(g))").foregroundStyle(.secondary).font(.caption).lineLimit(1)
             // Issue #180: the group as a gallery behind a link.
             Button {
                 gallerySource = .group(g.id)
             } label: { Image(systemName: "square.and.arrow.up").font(.caption) }
-            .accessibilityLabel("Share as Gallery")
+            .accessibilityLabel(S.appShellShareAsGalleryMenu)
             Button {
                 vm.confirmDeleteGroup = true
             } label: { Image(systemName: "trash").font(.caption) }
-            .accessibilityLabel("Delete collection")
+            .accessibilityLabel(S.appPhotosCollectionsDelete)
             .foregroundStyle(.red)
             Button("×") { vm.leaveGroup() }
-                .accessibilityLabel("Close the collection \(g.name)")
+                .accessibilityLabel(S.appShellSearchCloseCollection(name: g.name))
         }
         .padding(.horizontal, 10).padding(.vertical, 5)
         .background(Color.orange.opacity(0.15))
@@ -2797,7 +2839,7 @@ struct PhotoGalleryView: View {
             NavIconView(.search, size: 18)
                 .foregroundStyle(.secondary)
             TextField(
-                vm.chips.isEmpty && vm.selectedPeople.isEmpty ? "Search photos and files" : "Search",
+                vm.chips.isEmpty && vm.selectedPeople.isEmpty ? S.appShellSearchField : S.commonSearch,
                 text: $search.query
             )
             .focused($searchFocused)
@@ -2810,7 +2852,7 @@ struct PhotoGalleryView: View {
             .onKeyPress(.upArrow) { actions.arrow(-1) }
             .onKeyPress(.downArrow) { actions.arrow(1) }
             .onKeyPress(.escape) { actions.escape() }
-            .accessibilityLabel("Search photos and files")
+            .accessibilityLabel(S.appShellSearchField)
             if !search.query.isEmpty || !vm.chips.isEmpty || !vm.selectedPeople.isEmpty {
                 // Everything typed and picked goes - not an open collection.
                 Button {
@@ -2822,7 +2864,7 @@ struct PhotoGalleryView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Clear search")
+                .accessibilityLabel(S.appShellSearchClear)
             }
         }
         .padding(.leading, 12)
@@ -2850,10 +2892,10 @@ struct PhotoGalleryView: View {
                         }
                         .frame(width: 24, height: 24)
                         .clipShape(Circle())
-                        Text(person == nil ? "Person" : (name.isEmpty ? "Unnamed" : name))
+                        Text(person == nil ? S.appShellSearchPerson : (name.isEmpty ? S.appShellSearchUnnamed : name))
                             .font(.subheadline)
                             .lineLimit(1)
-                        chipRemove(name.isEmpty ? "Remove this person" : "Remove \(name)") { vm.togglePerson(pid) }
+                        chipRemove(name.isEmpty ? S.appShellSearchRemovePerson : S.appShellSearchRemove(name: name)) { vm.togglePerson(pid) }
                     }
                     .padding(.leading, 3)
                     .padding(.trailing, 4)
@@ -2863,7 +2905,7 @@ struct PhotoGalleryView: View {
                 ForEach(vm.chips, id: \.self) { chip in
                     HStack(spacing: 4) {
                         Text(chip).font(.subheadline).lineLimit(1)
-                        chipRemove("Remove \(chip)") { vm.removeChip(chip) }
+                        chipRemove(S.appShellSearchRemove(name: chip)) { vm.removeChip(chip) }
                     }
                     .padding(.leading, 12)
                     .padding(.trailing, 4)
@@ -2928,22 +2970,22 @@ struct PhotoGalleryView: View {
         case .collection:
             PhotosStateView(
                 art: AnyView(NavIconView(.collections, size: 40, stroke: 1.2)),
-                title: "This collection is empty",
-                text: "Select photos in Images, then choose Add to collection.",
-                button: "Go to Images"
+                title: S.appPhotosGridEmptyCollectionTitle,
+                text: S.appPhotosGridEmptyCollectionText,
+                button: S.appShellCollectionsGoToImages
             ) { vm.leaveGroup() }
         case .noMatch:
             PhotosStateView(
                 art: AnyView(NavIconView(.search, size: 40, stroke: 1.2)),
-                title: "No photos match",
-                text: vm.activeGroup.map { "Nothing in \u{201C}\($0.name)\u{201D} matches this search." } ?? "Try other words, or fewer of them.",
-                button: "Clear search"
+                title: S.appPhotosGridNoMatchTitle,
+                text: vm.activeGroup.map { S.appPhotosGridNoMatchIn(name: $0.name) } ?? S.appPhotosGridNoMatchText,
+                button: S.appShellSearchClear
             ) { vm.clearSearch() }
         case .noPhotos:
             PhotosStateView(
                 art: AnyView(NavIconView(.images, size: 40, stroke: 1.2)),
-                title: "No photos yet",
-                text: "Photos from the phone and computer apps appear here."
+                title: S.appPhotosGridNoPhotosTitle,
+                text: S.appPhotosGridNoPhotosText
             )
         }
     }
@@ -3148,7 +3190,7 @@ private struct PersonHeader: View {
                         .font(phone ? .title2.weight(.semibold) : .title.weight(.semibold))
                         .lineLimit(2)
                         .accessibilityAddTraits(.isHeader)
-                    Text(filter.total.map { PhotoMonths.count($0, "item") } ?? " ")
+                    Text(filter.total.map { S.appPhotosGridPersonItems(count: $0) } ?? " ")
                         .font(.subheadline)
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
@@ -3176,7 +3218,7 @@ private struct PersonHeader: View {
     /// A person as the web's personLabel names them.
     private static func name(_ p: Msg_Person) -> String {
         let n = p.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return n.isEmpty ? "Unnamed" : n
+        return n.isEmpty ? S.appShellSearchUnnamed : n
     }
 
     private func faceView(_ img: UIImage?) -> some View {
@@ -3269,7 +3311,7 @@ private struct PhotoTile: View {
         .accessibilityAction {
             if hasSelection { onLongPress() } else { onTap() }
         }
-        .accessibilityAction(named: isSelected ? "Deselect" : "Select") { onLongPress() }
+        .accessibilityAction(named: isSelected ? S.commonDeselect : S.commonSelect) { onLongPress() }
     }
 
     private var thumb: some View {
@@ -3395,9 +3437,9 @@ struct ImageModal: View {
                 }
             }
         }
-        .confirmationDialog("Delete this photo?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Delete Photo", role: .destructive, action: delete)
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog(S.appPhotosViewerDeleteTitle, isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button(S.appPhotosViewerDelete, role: .destructive, action: delete)
+            Button(S.commonCancel, role: .cancel) {}
         }
         // Nested here rather than on PhotoGalleryView: a second sheet on the
         // presenting view can't show while this cover is up.
@@ -3441,7 +3483,7 @@ struct ImageModal: View {
                 .frame(width: landscape ? 44 : nil, height: landscape ? 44 : nil)
                 .contentShape(Rectangle())
         }
-        .accessibilityLabel("More info")
+        .accessibilityLabel(S.appPhotosViewerMoreInfo)
     }
 
     private func closeButton(landscape: Bool) -> some View {
@@ -3450,7 +3492,7 @@ struct ImageModal: View {
                 .frame(width: landscape ? 44 : nil, height: landscape ? 44 : nil)
                 .contentShape(Rectangle())
         }
-        .accessibilityLabel("Close")
+        .accessibilityLabel(S.commonClose)
     }
 
     /// Share, save and delete: a row under the photo in portrait, a
@@ -3462,15 +3504,15 @@ struct ImageModal: View {
             Button { share() } label: {
                 Image(systemName: "square.and.arrow.up").frame(width: side, height: side).contentShape(Rectangle())
             }
-            .accessibilityLabel("Share")
+            .accessibilityLabel(S.commonShare)
             Button { save() } label: {
                 Image(systemName: "arrow.down.circle").frame(width: side, height: side).contentShape(Rectangle())
             }
-            .accessibilityLabel("Save")
+            .accessibilityLabel(S.commonSave)
             Button(role: .destructive) { confirmDelete = true } label: {
                 Image(systemName: "trash").frame(width: side, height: side).contentShape(Rectangle())
             }
-            .accessibilityLabel("Delete")
+            .accessibilityLabel(S.commonDelete)
         }
         .font(.title2)
         .foregroundStyle(.white)
@@ -3651,7 +3693,7 @@ private struct LowResBadge: View {
             if loading {
                 ProgressView().tint(.white).controlSize(.mini)
             }
-            Text("Low res").font(.system(size: 11, weight: .semibold))
+            Text(S.appPhotosViewerLowRes).font(.system(size: 11, weight: .semibold))
         }
         .foregroundStyle(.white)
         .padding(.horizontal, 8)
@@ -3674,20 +3716,20 @@ private struct FileInfoView: View {
                 } else if let info {
                     List {
                         if !info.cameraMake.isEmpty || !info.cameraModel.isEmpty {
-                            row("Camera", [info.cameraMake, info.cameraModel].filter { !$0.isEmpty }.joined(separator: " "))
+                            row(S.appPhotosViewerInfoCamera, [info.cameraMake, info.cameraModel].filter { !$0.isEmpty }.joined(separator: " "))
                         }
                         if info.hasTakenAt {
-                            row("Taken", info.takenAt.date.formatted(date: .abbreviated, time: .shortened))
+                            row(S.appPhotosViewerInfoTaken, info.takenAt.date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: L10n.shared.locale)))
                         }
                         if info.width > 0 && info.height > 0 {
-                            row("Dimensions", "\(info.width) × \(info.height)")
+                            row(S.appPhotosViewerInfoDimensions, "\(info.width) × \(info.height)")
                         }
-                        if !info.exposureTime.isEmpty { row("Exposure", info.exposureTime) }
-                        if !info.fNumber.isEmpty { row("Aperture", info.fNumber) }
-                        if info.iso > 0 { row("ISO", "\(info.iso)") }
-                        if !info.focalLength.isEmpty { row("Focal length", info.focalLength) }
+                        if !info.exposureTime.isEmpty { row(S.appPhotosViewerInfoExposure, info.exposureTime) }
+                        if !info.fNumber.isEmpty { row(S.appPhotosViewerInfoAperture, info.fNumber) }
+                        if info.iso > 0 { row(S.appPhotosViewerInfoIso, "\(info.iso)") }
+                        if !info.focalLength.isEmpty { row(S.appPhotosViewerInfoFocalLength, info.focalLength) }
                         if !info.city.isEmpty || !info.country.isEmpty {
-                            row("Location", [info.city, info.country].filter { !$0.isEmpty }.joined(separator: ", "))
+                            row(S.appPhotosViewerInfoLocation, [info.city, info.country].filter { !$0.isEmpty }.joined(separator: ", "))
                         }
                         if info.hasGps_p {
                             Map(initialPosition: .region(MKCoordinateRegion(
@@ -3700,18 +3742,18 @@ private struct FileInfoView: View {
                             .listRowInsets(EdgeInsets())
                         }
                         if info.cameraMake.isEmpty && info.cameraModel.isEmpty && !info.hasGps_p && info.exposureTime.isEmpty {
-                            Text("No EXIF metadata in this file").foregroundColor(.secondary)
+                            Text(S.appPhotosViewerInfoNoExif).foregroundColor(.secondary)
                         }
                     }
                 } else {
-                    Text("No metadata found").foregroundColor(.secondary)
+                    Text(S.appPhotosViewerInfoNone).foregroundColor(.secondary)
                 }
             }
-            .navigationTitle("More Info")
+            .navigationTitle(S.appPhotosViewerInfoTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button(S.commonDone) { dismiss() }
                 }
             }
         }

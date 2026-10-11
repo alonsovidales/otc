@@ -92,6 +92,33 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.androidComposeMoveLeft
+import cloud.offthe.otc.i18n.androidComposeMoveRight
+import cloud.offthe.otc.i18n.androidComposeRecordVideo
+import cloud.offthe.otc.i18n.androidComposeTakePhoto
+import cloud.offthe.otc.i18n.appSocialComposeCamera
+import cloud.offthe.otc.i18n.appSocialComposeCaptionPlaceholder
+import cloud.offthe.otc.i18n.appSocialComposeEmptyResponse
+import cloud.offthe.otc.i18n.appSocialComposeFilterPlaceholder
+import cloud.offthe.otc.i18n.appSocialComposeOrder
+import cloud.offthe.otc.i18n.appSocialComposePhotosAccess
+import cloud.offthe.otc.i18n.appSocialComposePublish
+import cloud.offthe.otc.i18n.appSocialComposePublishCount
+import cloud.offthe.otc.i18n.appSocialComposePublishFailed
+import cloud.offthe.otc.i18n.appSocialComposePublishFailedDetail
+import cloud.offthe.otc.i18n.appSocialComposePublishing
+import cloud.offthe.otc.i18n.appSocialComposeSourcePhone
+import cloud.offthe.otc.i18n.appSocialComposeSourceSynced
+import cloud.offthe.otc.i18n.appSocialComposeTitle
+import cloud.offthe.otc.i18n.appSocialComposeTrimBadge
+import cloud.offthe.otc.i18n.appSocialComposeTrimLoadFailed
+import cloud.offthe.otc.i18n.appSocialComposeUploading
+import cloud.offthe.otc.i18n.commonCancel
+import cloud.offthe.otc.i18n.commonOk
+import cloud.offthe.otc.i18n.commonRemove
+import cloud.offthe.otc.i18n.commonSearch
 import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.net.byteSize
@@ -106,6 +133,7 @@ import cloud.offthe.otc.ui.common.FIRST_PAGE_LIMIT_WITHOUT_THUMBS
 import cloud.offthe.otc.ui.common.GridThumbFetcher
 import cloud.offthe.otc.ui.common.NEXT_PAGE_LIMIT_WITHOUT_THUMBS
 import cloud.offthe.otc.ui.common.TILES_KIND
+import cloud.offthe.otc.ui.common.TextIOException
 import cloud.offthe.otc.ui.common.ThumbCache
 import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.common.land
@@ -149,8 +177,9 @@ class NewPostPickerViewModel : ViewModel() {
         val trimLoadingId: String? = null,
         val caption: String = "",
         val publishing: Boolean = false,
-        val publishStatus: String = "",
-        val alert: String? = null,
+        /** The line above the composer bar while publishing (issue #49); null: none. */
+        val publishStatus: UiText? = null,
+        val alert: UiText? = null,
     )
 
     private val _state = MutableStateFlow(State())
@@ -387,7 +416,7 @@ class NewPostPickerViewModel : ViewModel() {
         _state.update { it.copy(loading = true) }
         try {
             if (!PhotoSync.hasPermission()) {
-                _state.update { it.copy(alert = "Photos access is needed to pick from your phone.", endReached = true) }
+                _state.update { it.copy(alert = S.appSocialComposePhotosAccess(), endReached = true) }
                 return
             }
             val all = localAssets ?: withContext(Dispatchers.IO) { PhotoSync.fetchNewAssets(includeVideos = true, sinceMs = 0, newestFirst = true) }
@@ -426,7 +455,9 @@ class NewPostPickerViewModel : ViewModel() {
                 trimPreviewUrls[item.id] = url
                 _state.update { it.copy(trimming = item.id to url) }
             } catch (e: Exception) {
-                _state.update { it.copy(alert = "Could not load that video to trim it: ${e.message}") }
+                // An error of ours is worded now (TextIOException), the
+                // device's or the system's as they come.
+                _state.update { it.copy(alert = S.appSocialComposeTrimLoadFailed("${e.message}")) }
             } finally {
                 _state.update { it.copy(trimLoadingId = null) }
             }
@@ -447,9 +478,11 @@ class NewPostPickerViewModel : ViewModel() {
         val meta = try {
             ChunkedDownload.download(path, "", f)
         } catch (e: ChunkedDownload.Refused) {
-            throw IllegalStateException(e.message?.ifEmpty { null } ?: "Empty response")
+            // The device's own words, or ours when it gave none.
+            val words = e.message?.ifEmpty { null }
+            throw if (words != null) IllegalStateException(words) else TextIOException(S.appSocialComposeEmptyResponse())
         }
-        if (meta.size == 0L) { f.delete(); throw IllegalStateException("Empty response") }
+        if (meta.size == 0L) { f.delete(); throw TextIOException(S.appSocialComposeEmptyResponse()) }
         return f.toURI().toString()
     }
 
@@ -469,24 +502,25 @@ class NewPostPickerViewModel : ViewModel() {
                 for (item in selectedItems) {
                     if (item.asset != null) {
                         uploaded += 1
-                        _state.update { it.copy(publishStatus = "Uploading $uploaded of $phoneCount…") }
+                        _state.update { it.copy(publishStatus = S.appSocialComposeUploading(uploaded, phoneCount)) }
                         resolved += withContext(Dispatchers.IO) { PhotoSync.uploadIfNeeded(item.asset, targetDir) }
                     } else {
                         resolved += item.path
                     }
                 }
-                _state.update { it.copy(publishStatus = "Publishing…") }
+                _state.update { it.copy(publishStatus = S.appSocialComposePublishing()) }
                 val pbTrims = selectedItems.mapIndexedNotNull { i, item ->
                     val r = st.trims[item.id] ?: return@mapIndexedNotNull null
                     VideoTrim.newBuilder().setPath(resolved[i]).setStartSecs(r.start).setEndSecs(r.end).build()
                 }
                 val resp = OTCConnection.request { it.setReqNewSocialPublication(NewSocialPublication.newBuilder().setText(st.caption).addAllPaths(resolved).addAllTrims(pbTrims)) }
                 if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_NEW_SOCIAL && !resp.error) onPosted()
-                else _state.update { it.copy(alert = if (resp.error) "Could not publish: ${resp.errorMessage}" else "Could not publish") }
+                // The device's own words, already in the app's language.
+                else _state.update { it.copy(alert = if (resp.error) S.appSocialComposePublishFailedDetail(resp.errorMessage) else S.appSocialComposePublishFailed()) }
             } catch (e: Exception) {
-                _state.update { it.copy(alert = "Could not publish: ${e.message}") }
+                _state.update { it.copy(alert = S.appSocialComposePublishFailedDetail("${e.message}")) }
             } finally {
-                _state.update { it.copy(publishing = false, publishStatus = "") }
+                _state.update { it.copy(publishing = false, publishStatus = null) }
             }
         }
     }
@@ -547,13 +581,13 @@ fun NewPostPickerView(onDismiss: () -> Unit, onPosted: () -> Unit) {
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Scaffold(topBar = {
-            TopAppBar(title = { Text("New Post") }, navigationIcon = { TextButton(onClick = onDismiss) { Text("Cancel") } })
+            TopAppBar(title = { Text(S.appSocialComposeTitle().resolve()) }, navigationIcon = { TextButton(onClick = onDismiss) { Text(S.commonCancel().resolve()) } })
         }) { pad ->
             Column(Modifier.padding(pad).fillMaxSize()) {
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
                     NewPostPickerViewModel.Source.values().forEachIndexed { i, s ->
                         SegmentedButton(selected = st.source == s, onClick = { vm.switchSource(s) }, shape = SegmentedButtonDefaults.itemShape(i, 2)) {
-                            Text(if (s == NewPostPickerViewModel.Source.PHONE) "Phone" else "Synced")
+                            Text((if (s == NewPostPickerViewModel.Source.PHONE) S.appSocialComposeSourcePhone() else S.appSocialComposeSourceSynced()).resolve())
                         }
                     }
                 }
@@ -570,11 +604,11 @@ fun NewPostPickerView(onDismiss: () -> Unit, onPosted: () -> Unit) {
                         }
                         Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             OTCTextField(
-                                value = query, onValueChange = { query = it; showSuggest = true }, singleLine = true, placeholder = { Text("Filter by tag…") },
+                                value = query, onValueChange = { query = it; showSuggest = true }, singleLine = true, placeholder = { Text(S.appSocialComposeFilterPlaceholder().resolve()) },
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { acceptQuery() }),
                                 modifier = Modifier.weight(1f),
                             )
-                            TextButton(onClick = { acceptQuery() }) { Text("Search") }
+                            TextButton(onClick = { acceptQuery() }) { Text(S.commonSearch().resolve()) }
                         }
                         if (showSuggest && suggestions.isNotEmpty()) {
                             Column(Modifier.padding(horizontal = 12.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x14808080))) {
@@ -609,30 +643,37 @@ fun NewPostPickerView(onDismiss: () -> Unit, onPosted: () -> Unit) {
                 }
 
                 if (st.selectedOrder.isNotEmpty()) SelectedOrderStrip(vm, st)
-                if (st.publishing && st.publishStatus.isNotEmpty()) {
-                    Text(st.publishStatus, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+                val status = st.publishStatus
+                if (st.publishing && status != null) {
+                    Text(status.resolve(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
                 }
                 HorizontalDivider()
                 Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box {
                         IconButton(onClick = { captureMenu = true }, enabled = !st.publishing) {
-                            Icon(Icons.Default.PhotoCamera, contentDescription = "Take a photo or video")
+                            Icon(Icons.Default.PhotoCamera, contentDescription = S.appSocialComposeCamera().resolve())
                         }
                         DropdownMenu(expanded = captureMenu, onDismissRequest = { captureMenu = false }) {
-                            DropdownMenuItem(text = { Text("Take a photo") }, onClick = { captureMenu = false; capture(video = false) })
-                            DropdownMenuItem(text = { Text("Record a video") }, onClick = { captureMenu = false; capture(video = true) })
+                            DropdownMenuItem(text = { Text(S.androidComposeTakePhoto().resolve()) }, onClick = { captureMenu = false; capture(video = false) })
+                            DropdownMenuItem(text = { Text(S.androidComposeRecordVideo().resolve()) }, onClick = { captureMenu = false; capture(video = true) })
                         }
                     }
-                    OTCTextField(value = st.caption, onValueChange = vm::setCaption, placeholder = { Text("Write a caption…") }, modifier = Modifier.weight(1f))
+                    OTCTextField(value = st.caption, onValueChange = vm::setCaption, placeholder = { Text(S.appSocialComposeCaptionPlaceholder().resolve()) }, modifier = Modifier.weight(1f))
                     Button(onClick = { vm.publish { onDismiss(); onPosted() } }, enabled = st.selectedOrder.isNotEmpty() && st.caption.isNotBlank() && !st.publishing) {
-                        Text(if (st.publishing) "Publishing…" else "Publish" + if (st.selectedOrder.isEmpty()) "" else " (${st.selectedOrder.size})")
+                        Text(
+                            when {
+                                st.publishing -> S.appSocialComposePublishing()
+                                st.selectedOrder.isEmpty() -> S.appSocialComposePublish()
+                                else -> S.appSocialComposePublishCount(st.selectedOrder.size)
+                            }.resolve()
+                        )
                     }
                 }
             }
         }
     }
 
-    st.alert?.let { AlertDialog(onDismissRequest = { vm.dismissAlert() }, text = { Text(it) }, confirmButton = { TextButton(onClick = { vm.dismissAlert() }) { Text("OK") } }) }
+    st.alert?.let { AlertDialog(onDismissRequest = { vm.dismissAlert() }, text = { Text(it.resolve()) }, confirmButton = { TextButton(onClick = { vm.dismissAlert() }) { Text(S.commonOk().resolve()) } }) }
     st.trimming?.let { (id, url) ->
         VideoTrimmerView(uri = url, existing = st.trims[id], onApply = { vm.applyTrim(it) }, onCancel = { vm.closeTrimmer() })
     }
@@ -696,7 +737,7 @@ private fun PickTile(
 @Composable
 private fun SelectedOrderStrip(vm: NewPostPickerViewModel, st: NewPostPickerViewModel.State) {
     Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow).padding(vertical = 6.dp)) {
-        Text("Order in post", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp))
+        Text(S.appSocialComposeOrder().resolve(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp))
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             st.selectedOrder.forEachIndexed { index, id ->
                 val item = st.items.firstOrNull { it.id == id } ?: return@forEachIndexed
@@ -723,16 +764,16 @@ private fun SelectedThumb(
                 if (trim != null) {
                     Box(Modifier.align(Alignment.BottomStart).padding(2.dp).background(if (trimRange == null) Color(0x99000000) else MaterialTheme.colorScheme.primary, CircleShape).padding(horizontal = 6.dp, vertical = 2.dp)) {
                         if (trimLoading) CircularProgressIndicator(Modifier.size(10.dp), strokeWidth = 1.dp, color = Color.White)
-                        else Text(trimRange?.let { "✂ ${formatTimecode(it.length)}" } ?: "✂ Trim", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                        else Text(trimRange?.let { "✂ ${formatTimecode(it.length)}" } ?: S.appSocialComposeTrimBadge().resolve(), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                     }
                 }
             }
-            Icon(Icons.Default.Cancel, "Remove", Modifier.align(Alignment.TopEnd).offset(x = 2.dp, y = (-2).dp).size(18.dp).clickable(onClick = remove), tint = Color.White)
+            Icon(Icons.Default.Cancel, S.commonRemove().resolve(), Modifier.align(Alignment.TopEnd).offset(x = 2.dp, y = (-2).dp).size(18.dp).clickable(onClick = remove), tint = Color.White)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = moveLeft, enabled = canMoveLeft, modifier = Modifier.size(22.dp)) { Icon(Icons.Default.ChevronLeft, "Move left", Modifier.size(18.dp)) }
+            IconButton(onClick = moveLeft, enabled = canMoveLeft, modifier = Modifier.size(22.dp)) { Icon(Icons.Default.ChevronLeft, S.androidComposeMoveLeft().resolve(), Modifier.size(18.dp)) }
             Text("$position", style = MaterialTheme.typography.labelSmall)
-            IconButton(onClick = moveRight, enabled = canMoveRight, modifier = Modifier.size(22.dp)) { Icon(Icons.Default.ChevronRight, "Move right", Modifier.size(18.dp)) }
+            IconButton(onClick = moveRight, enabled = canMoveRight, modifier = Modifier.size(22.dp)) { Icon(Icons.Default.ChevronRight, S.androidComposeMoveRight().resolve(), Modifier.size(18.dp)) }
         }
     }
 }

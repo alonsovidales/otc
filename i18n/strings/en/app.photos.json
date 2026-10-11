@@ -1,0 +1,719 @@
+{
+  "app.photos.collections.add_title": {
+    "text": {
+      "one": "Add {count} to a collection",
+      "other": "Add {count} to a collection"
+    },
+    "args": [["count", "count"]],
+    "note": "Title of the list that opens from the selection bar's Add to collection: the collections to add the selected photos to, and New collection…. {count} is how many photos and videos are selected."
+  },
+  "app.photos.collections.delete": {
+    "text": "Delete collection",
+    "note": "Button that deletes the collection open in Images (its photos stay): in the bar over its photos (a button, or the screen-reader name of a bin icon on a narrow screen), and the confirming button of app.photos.collections.delete_title.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #afa8476d"
+  },
+  "app.photos.collections.delete_message": {
+    "text": "The pictures themselves are kept.",
+    "note": "Under the title of the confirmation asked before deleting a collection (app.photos.collections.delete_title): deleting it doesn't delete its photos and videos.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #1953dfa8"
+  },
+  "app.photos.collections.delete_title": {
+    "text": "Delete the collection \"{name}\"?",
+    "args": [["name", "user"]],
+    "note": "Title of the confirmation asked before deleting the collection open in Images. {name} is its name. Only the collection goes; its photos stay (app.photos.collections.delete_message). Buttons: Delete collection and Cancel.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #4ffcfbd0"
+  },
+  "app.photos.collections.name_placeholder": {
+    "text": "Collection name",
+    "note": "Placeholder of the field for a collection's name, when making a new collection or renaming one.",
+    "max": 30
+  },
+  "app.photos.collections.new_item": {
+    "text": "New collection…",
+    "note": "Last item of the list that opens from the selection bar's Add to collection: makes a new collection (asks for its name) with the selected photos.",
+    "max": 30
+  },
+  "app.photos.collections.new_message": {
+    "text": {
+      "one": "{count} picture will be added to it.",
+      "other": "{count} pictures will be added to it."
+    },
+    "args": [["count", "count"]],
+    "note": "In the box that asks for a new collection's name, under its title: the selected photos go into the new collection. {count} is how many photos and videos are selected."
+  },
+  "app.photos.collections.new_title": {
+    "text": "New collection",
+    "note": "Title of the box that asks for a new collection's name, made from the selected photos.",
+    "max": 40
+  },
+  "app.photos.collections.pictures": {
+    "text": {
+      "one": "{count} picture",
+      "other": "{count} pictures"
+    },
+    "args": [["count", "count"]],
+    "note": "Under a collection's name in the list of collections opened from Images' Collections button: how many photos and videos it holds.",
+    "max": 24
+  },
+  "app.photos.collections.rename": {
+    "text": "Rename collection",
+    "note": "Title of the box that renames the collection open in Images, and the screen-reader name of the pencil beside its name (and of a tap on its name) that opens that box.",
+    "max": 40
+  },
+  "app.photos.collections.sheet_empty": {
+    "text": "No collections yet — select some pictures and choose Add to collection.",
+    "note": "In the list of collections opened from Images' Collections button (on a phone held upright) when there is none. Add to collection is the name of the selection bar's item (app.shell.add_to_collection): use the same words."
+  },
+  "app.photos.grid.collection_items_span": {
+    "text": {
+      "one": "{count} item · {span}",
+      "other": "{count} items · {span}"
+    },
+    "args": [["count", "count"], ["span", "text"]],
+    "note": "Under an open collection's name, over its photos in Images: how many photos and videos it holds, then the months they span (app.photos.months.short_title, range_in_year or range). Without the months it is app.shell.collection_items."
+  },
+  "app.photos.grid.empty_collection_text": {
+    "text": "Select photos in Images, then choose Add to collection.",
+    "note": "Under the heading This collection is empty. Add to collection is the name of the selection bar's item (app.shell.add_to_collection) and Images the photo section (app.shell.section_images): use the same words. The same sentence as app.shell.collections_empty_text, without the bold. A Go to Images button follows."
+  },
+  "app.photos.grid.empty_collection_title": {
+    "text": "This collection is empty",
+    "note": "Heading in the place of the photos when the collection open in Images has none."
+  },
+  "app.photos.grid.no_match_in": {
+    "text": "Nothing in “{name}” matches this search.",
+    "args": [["name", "user"]],
+    "note": "Under the heading No photos match, while a collection is open in Images. {name} is the collection's name. Write the quotes in your language's style. A Clear search button follows."
+  },
+  "app.photos.grid.no_match_text": {
+    "text": "Try other words, or fewer of them.",
+    "note": "Under the heading No photos match, in Images. A Clear search button follows."
+  },
+  "app.photos.grid.no_match_title": {
+    "text": "No photos match",
+    "note": "Heading in the place of the photos in Images when no photo matches the search."
+  },
+  "app.photos.grid.no_photos_text": {
+    "text": "Photos from the phone and computer apps appear here.",
+    "note": "Under the heading No photos yet, in Images: photos uploaded by the phone apps and the computer apps of Off The Cloud show here."
+  },
+  "app.photos.grid.no_photos_title": {
+    "text": "No photos yet",
+    "note": "Heading in the place of the photos in Images when the device has none."
+  },
+  "app.photos.grid.people_more": {
+    "text": {
+      "one": "{first}, {second} & {count} other",
+      "other": "{first}, {second} & {count} others"
+    },
+    "args": [["first", "user"], ["second", "user"], ["count", "count"]],
+    "note": "Heading over the photos in Images while three or more people are searched for (photos showing all of them). {first} and {second} are the first two names (or app.shell.search_unnamed), {count} how many more people there are."
+  },
+  "app.photos.grid.people_two": {
+    "text": "{first} & {second}",
+    "args": [["first", "user"], ["second", "user"]],
+    "note": "Heading over the photos in Images while two people are searched for (photos showing both of them). {first} and {second} are their names (or app.shell.search_unnamed). Keep it short: it is a heading."
+  },
+  "app.photos.grid.person_items": {
+    "text": {
+      "one": "{count} item",
+      "other": "{count} items"
+    },
+    "args": [["count", "count"]],
+    "note": "Under the names of the people searched for, over their photos in Images: how many photos and videos show them.",
+    "max": 24
+  },
+  "app.photos.grid.tile_photo": {
+    "text": "Photo",
+    "note": "Screen-reader name of a photo's tile in Images when the photo has no date."
+  },
+  "app.photos.grid.tile_photo_on": {
+    "text": "Photo, {date}",
+    "args": [["date", "text"]],
+    "note": "Screen-reader name of a photo's tile in Images: the day it was taken. {date} is app.photos.months.day (5 October 2026)."
+  },
+  "app.photos.grid.tile_video": {
+    "text": "Video",
+    "note": "Screen-reader name of a video's tile in Images when the video has no date."
+  },
+  "app.photos.grid.tile_video_on": {
+    "text": "Video, {date}",
+    "args": [["date", "text"]],
+    "note": "Screen-reader name of a video's tile in Images: the day it was taken. {date} is app.photos.months.day (5 October 2026)."
+  },
+  "app.photos.months.april": {
+    "text": "April",
+    "note": "The month April, written in full: in a month's title over its photos in Images (app.photos.months.title) and in the date screen readers read on a photo's tile (app.photos.months.day). Write it as your language does inside a date, with the capital letter it takes there.",
+    "max": 16
+  },
+  "app.photos.months.april_short": {
+    "text": "Apr",
+    "note": "The month April, shortened as calendars shorten it (Apr): where the whole name doesn't fit (a month one photo wide, app.photos.months.short_title), in the bubble of the date slider beside Images, and in the months an open collection spans (app.photos.months.range_in_year).",
+    "max": 8
+  },
+  "app.photos.months.august": {
+    "text": "August",
+    "note": "The month August, written in full: in a month's title over its photos in Images (app.photos.months.title) and in the date screen readers read on a photo's tile (app.photos.months.day). Write it as your language does inside a date, with the capital letter it takes there.",
+    "max": 16
+  },
+  "app.photos.months.august_short": {
+    "text": "Aug",
+    "note": "The month August, shortened as calendars shorten it (Aug): where the whole name doesn't fit (a month one photo wide, app.photos.months.short_title), in the bubble of the date slider beside Images, and in the months an open collection spans (app.photos.months.range_in_year).",
+    "max": 8
+  },
+  "app.photos.months.day": {
+    "text": "{day} {month} {year}",
+    "args": [["day", "int"], ["month", "text"], ["year", "text"]],
+    "note": "A day as screen readers read it on a photo's tile in Images (5 October 2026), after app.photos.grid.tile_photo_on or tile_video_on. {day} is the day of the month (1 to 31), {month} the month's full name (app.photos.months.january...), {year} the year in four digits."
+  },
+  "app.photos.months.december": {
+    "text": "December",
+    "note": "The month December, written in full: in a month's title over its photos in Images (app.photos.months.title) and in the date screen readers read on a photo's tile (app.photos.months.day). Write it as your language does inside a date, with the capital letter it takes there.",
+    "max": 16
+  },
+  "app.photos.months.december_short": {
+    "text": "Dec",
+    "note": "The month December, shortened as calendars shorten it (Dec): where the whole name doesn't fit (a month one photo wide, app.photos.months.short_title), in the bubble of the date slider beside Images, and in the months an open collection spans (app.photos.months.range_in_year).",
+    "max": 8
+  },
+  "app.photos.months.february": {
+    "text": "February",
+    "note": "The month February, written in full: in a month's title over its photos in Images (app.photos.months.title) and in the date screen readers read on a photo's tile (app.photos.months.day). Write it as your language does inside a date, with the capital letter it takes there.",
+    "max": 16
+  },
+  "app.photos.months.february_short": {
+    "text": "Feb",
+    "note": "The month February, shortened as calendars shorten it (Feb): where the whole name doesn't fit (a month one photo wide, app.photos.months.short_title), in the bubble of the date slider beside Images, and in the months an open collection spans (app.photos.months.range_in_year).",
+    "max": 8
+  },
+  "app.photos.months.january": {
+    "text": "January",
+    "note": "The month January, written in full: in a month's title over its photos in Images (app.photos.months.title) and in the date screen readers read on a photo's tile (app.photos.months.day). Write it as your language does inside a date, with the capital letter it takes there.",
+    "max": 16
+  },
+  "app.photos.months.january_short": {
+    "text": "Jan",
+    "note": "The month January, shortened as calendars shorten it (Jan): where the whole name doesn't fit (a month one photo wide, app.photos.months.short_title), in the bubble of the date slider beside Images, and in the months an open collection spans (app.photos.months.range_in_year).",
+    "max": 8
+  },
+  "app.photos.months.july": {
+    "text": "July",
+    "note": "The month July, written in full: in a month's title over its photos in Images (app.photos.months.title) and in the date screen readers read on a photo's tile (app.photos.months.day). Write it as your language does inside a date, with the capital letter it takes there.",
+    "max": 16
+  },
+  "app.photos.months.july_short": {
+    "text": "Jul",
+    "note": "The month July, shortened as calendars shorten it (Jul): where the whole name doesn't fit (a month one photo wide, app.photos.months.short_title), in the bubble of the date slider beside Images, and in the months an open collection spans (app.photos.months.range_in_year).",
+    "max": 8
+  },
+  "app.photos.months.june": {
+    "text": "June",
+    "note": "The month June, written in full: in a month's title over its photos in Images (app.photos.months.title) and in the date screen readers read on a photo's tile (app.photos.months.day). Write it as your language does inside a date, with the capital letter it takes there.",
+    "max": 16
+  },
+  "app.photos.months.june_short": {
+    "text": "Jun",
+    "note": "The month June, shortened as calendars shorten it (Jun): where the whole name doesn't fit (a month one photo wide, app.photos.months.short_title), in the bubble of the date slider beside Images, and in the months an open collection spans (app.photos.months.range_in_year).",
+    "max": 8
+  },
+  "app.photos.months.march": {
+    "text": "March",
+    "note": "The month March, written in full: in a month's title over its photos in Images (app.photos.months.title) and in the date screen readers read on a photo's tile (app.photos.months.day). Write it as your language does inside a date, with the capital letter it takes there.",
+    "max": 16
+  },
+  "app.photos.months.march_short": {
+    "text": "Mar",
+    "note": "The month March, shortened as calendars shorten it (Mar): where the whole name doesn't fit (a month one photo wide, app.photos.months.short_title), in the bubble of the date slider beside Images, and in the months an open collection spans (app.photos.months.range_in_year).",
+    "max": 8
+  },
+  "app.photos.months.may": {
+    "text": "May",
+    "note": "The month May, written in full: in a month's title over its photos in Images (app.photos.months.title) and in the date screen readers read on a photo's tile (app.photos.months.day). Write it as your language does inside a date, with the capital letter it takes there.",
+    "max": 16
+  },
+  "app.photos.months.may_short": {
+    "text": "May",
+    "note": "The month May, shortened as calendars shorten it (May): where the whole name doesn't fit (a month one photo wide, app.photos.months.short_title), in the bubble of the date slider beside Images, and in the months an open collection spans (app.photos.months.range_in_year).",
+    "max": 8
+  },
+  "app.photos.months.no_date": {
+    "text": "No date",
+    "note": "The bubble of the date slider beside Images while it is on the photos that have no date.",
+    "max": 16
+  },
+  "app.photos.months.november": {
+    "text": "November",
+    "note": "The month November, written in full: in a month's title over its photos in Images (app.photos.months.title) and in the date screen readers read on a photo's tile (app.photos.months.day). Write it as your language does inside a date, with the capital letter it takes there.",
+    "max": 16
+  },
+  "app.photos.months.november_short": {
+    "text": "Nov",
+    "note": "The month November, shortened as calendars shorten it (Nov): where the whole name doesn't fit (a month one photo wide, app.photos.months.short_title), in the bubble of the date slider beside Images, and in the months an open collection spans (app.photos.months.range_in_year).",
+    "max": 8
+  },
+  "app.photos.months.october": {
+    "text": "October",
+    "note": "The month October, written in full: in a month's title over its photos in Images (app.photos.months.title) and in the date screen readers read on a photo's tile (app.photos.months.day). Write it as your language does inside a date, with the capital letter it takes there.",
+    "max": 16
+  },
+  "app.photos.months.october_short": {
+    "text": "Oct",
+    "note": "The month October, shortened as calendars shorten it (Oct): where the whole name doesn't fit (a month one photo wide, app.photos.months.short_title), in the bubble of the date slider beside Images, and in the months an open collection spans (app.photos.months.range_in_year).",
+    "max": 8
+  },
+  "app.photos.months.range": {
+    "text": "{from} – {to}",
+    "args": [["from", "text"], ["to", "text"]],
+    "note": "Under an open collection's name, after how many items it holds: the time its photos span across years. {from} and {to} are each a short month and year (app.photos.months.short_title: Mar 2024 – Oct 2026), the oldest first, or only the years on a narrow screen (2024 – 2026).",
+    "max": 24
+  },
+  "app.photos.months.range_in_year": {
+    "text": "{from} – {to} {year}",
+    "args": [["from", "text"], ["to", "text"], ["year", "text"]],
+    "note": "Under an open collection's name, after how many items it holds: the months its photos span when they are all from one year (Mar – Oct 2024). {from} and {to} are short month names (app.photos.months.january_short...), the oldest first; {year} the year in four digits.",
+    "max": 24
+  },
+  "app.photos.months.september": {
+    "text": "September",
+    "note": "The month September, written in full: in a month's title over its photos in Images (app.photos.months.title) and in the date screen readers read on a photo's tile (app.photos.months.day). Write it as your language does inside a date, with the capital letter it takes there.",
+    "max": 16
+  },
+  "app.photos.months.september_short": {
+    "text": "Sep",
+    "note": "The month September, shortened as calendars shorten it (Sep): where the whole name doesn't fit (a month one photo wide, app.photos.months.short_title), in the bubble of the date slider beside Images, and in the months an open collection spans (app.photos.months.range_in_year).",
+    "max": 8
+  },
+  "app.photos.months.short_title": {
+    "text": "{month} {year}",
+    "args": [["month", "text"], ["year", "text"]],
+    "note": "A month and its year, short (Mar 2024): the title of a month one photo wide in Images, where the whole title doesn't fit; the bubble of the date slider beside Images; the months an open collection spans (app.photos.months.range). {month} is the month's short name (app.photos.months.january_short...), {year} the year in four digits.",
+    "max": 16
+  },
+  "app.photos.months.title": {
+    "text": "{month} {year}",
+    "args": [["month", "text"], ["year", "text"]],
+    "note": "Title over a month's photos in Images (photos in date order): {month} is the month's full name (app.photos.months.january...), {year} the year in four digits (2024). Also what screen readers read for it.",
+    "max": 30
+  },
+  "app.photos.notice.add_failed": {
+    "text": "Could not add to the collection.",
+    "note": "Alert in Images when the device didn't add the selected photos to the chosen collection."
+  },
+  "app.photos.notice.added": {
+    "text": "Added to \"{name}\".",
+    "args": [["name", "user"]],
+    "note": "Alert in Images once the selected photos were added to a collection. {name} is the collection's name."
+  },
+  "app.photos.notice.create_failed": {
+    "text": "Could not create the collection.",
+    "note": "Alert in Images when the device didn't make the new collection from the selected photos."
+  },
+  "app.photos.notice.created": {
+    "text": "Collection \"{name}\" created.",
+    "args": [["name", "user"]],
+    "note": "Alert in Images once a new collection was made from the selected photos. {name} is its name."
+  },
+  "app.photos.notice.delete_collection_failed": {
+    "text": "Could not delete the collection.",
+    "note": "Alert in Images when the device didn't delete the open collection."
+  },
+  "app.photos.notice.delete_failed": {
+    "text": "Delete failed: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Alert when deleting a photo (the one open in the viewer, or one of the selected ones) failed. {detail} is the device's own explanation (already in the user's language) or the phone's."
+  },
+  "app.photos.notice.no_download_link": {
+    "text": "Could not create download link.",
+    "note": "Alert when the device didn't make the link to download the selected photos as a zip (the selection bar's Download)."
+  },
+  "app.photos.notice.no_share_link": {
+    "text": "Could not create share link.",
+    "note": "Alert when the device didn't make the link to share the selected photos (the selection bar's Share)."
+  },
+  "app.photos.notice.not_loaded": {
+    "text": "Image isn't loaded yet",
+    "note": "Alert in the full-screen photo viewer when Share or Save is tapped before the photo has loaded."
+  },
+  "app.photos.notice.rename_failed": {
+    "text": "Could not rename the collection.",
+    "note": "Alert in Images when the device didn't rename the open collection."
+  },
+  "app.photos.notice.save_failed": {
+    "text": "Save failed: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Alert when saving the photo open in the viewer to the phone's photo library failed. {detail} is the reason as the phone's system words it."
+  },
+  "app.photos.notice.saved": {
+    "text": "Saved to Photos ✅",
+    "note": "Alert once the photo open in the viewer was saved to the phone's own photo library (Photos on an iPhone, the gallery on Android). Keep the check mark."
+  },
+  "app.photos.notice.share_failed": {
+    "text": "Share failed: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Alert when sharing the photo open in the viewer, or a link to the selected photos, failed. {detail} is the reason as the phone's system words it (often in the phone's language)."
+  },
+  "app.photos.people.add_name": {
+    "text": "Add a name",
+    "note": "Item of a face's menu, and the tappable line under a face without a name, on the People page: opens a field to name the person.",
+    "max": 24
+  },
+  "app.photos.people.clear_selection": {
+    "text": "Clear selection",
+    "note": "Screen-reader name of the × at the start of the bar shown while faces are picked on the People page: unpicks them all."
+  },
+  "app.photos.people.delete_failed": {
+    "text": "They couldn't be deleted. Try again.",
+    "note": "Error on the People page when the device deleted none of the people asked (two or more)."
+  },
+  "app.photos.people.delete_many": {
+    "text": {
+      "one": "Delete {count} people?",
+      "other": "Delete {count} people?"
+    },
+    "args": [["count", "count"]],
+    "note": "Title of the confirmation asked before deleting the people picked on the People page (two or more). {count} is how many. The explanation is app.photos.people.delete_text. Buttons: Delete and Cancel.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #e6ce4aa1"
+  },
+  "app.photos.people.delete_named": {
+    "text": "Delete {name}?",
+    "args": [["name", "user"]],
+    "note": "Title of the confirmation asked before deleting a person (the People page: a face's menu or the selection bar). {name} is their name. The explanation is app.photos.people.delete_text. Buttons: Delete and Cancel.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #c44e8671"
+  },
+  "app.photos.people.delete_one": {
+    "text": "Delete this person?",
+    "note": "Title of the confirmation asked before deleting a person without a name (the People page: a face's menu or the selection bar). The explanation is app.photos.people.delete_text. Buttons: Delete and Cancel.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d0d44d1d"
+  },
+  "app.photos.people.delete_one_failed": {
+    "text": "This person couldn't be deleted. Try again.",
+    "note": "Error on the People page when the device didn't delete the one person asked."
+  },
+  "app.photos.people.delete_partly": {
+    "text": {
+      "one": "{count} of {total} people couldn't be deleted and is still selected. Try again.",
+      "other": "{count} of {total} people couldn't be deleted and are still selected. Try again."
+    },
+    "args": [["count", "count"], ["total", "int"]],
+    "note": "Error note at the foot of the People page when some of the picked people were deleted and others not: those stay picked, to try again. {count} is how many couldn't be deleted, {total} how many were asked (two or more)."
+  },
+  "app.photos.people.delete_text": {
+    "text": "Their photos stay; only the faces matched to them are forgotten. This can't be undone, and they'll come back as new people in photos added later.",
+    "note": "Explanation in the confirmation asked before deleting people on the People page: what deleting a person does (face recognition forgets them; their photos aren't deleted).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #1efd0591"
+  },
+  "app.photos.people.deleted_many": {
+    "text": {
+      "one": "Deleted {count} person",
+      "other": "Deleted {count} people"
+    },
+    "args": [["count", "count"]],
+    "note": "Note at the foot of the People page once the picked people were deleted. {count} is how many (two or more)."
+  },
+  "app.photos.people.deleted_one": {
+    "text": "Person deleted",
+    "note": "Note at the foot of the People page once a person was deleted."
+  },
+  "app.photos.people.face_label": {
+    "text": {
+      "one": "{name}, {count} photo",
+      "other": "{name}, {count} photos"
+    },
+    "args": [["name", "user"], ["count", "count"]],
+    "note": "Screen-reader name of a person's face (People page, the merge's choice of faces, search suggestions). {name} is their name (or app.shell.search_unnamed), {count} how many photos show them."
+  },
+  "app.photos.people.face_label_unnamed": {
+    "text": {
+      "one": "Unnamed person, {count} photo",
+      "other": "Unnamed person, {count} photos"
+    },
+    "args": [["count", "count"]],
+    "note": "Screen-reader name of the face of a person without a name on the People page. {count} is how many photos show them."
+  },
+  "app.photos.people.failed_title": {
+    "text": "Couldn't load people",
+    "note": "Heading of the People page when the list of people couldn't be loaded from the device. Under it app.shell.collections_failed_text, then a Try again button."
+  },
+  "app.photos.people.keep": {
+    "text": "Keep",
+    "note": "Small badge on the face chosen to keep in the merge's box (People page).",
+    "max": 10
+  },
+  "app.photos.people.list_more": {
+    "text": "{first}, {rest}",
+    "args": [["first", "user"], ["rest", "text"]],
+    "note": "A list of three or more people's names, one name at a time: {first} is a name, {rest} the rest of the list (itself list_more, or list_two for its last two names: Ana, Leo and Rosa)."
+  },
+  "app.photos.people.list_two": {
+    "text": "{first} and {second}",
+    "args": [["first", "user"], ["second", "user"]],
+    "note": "A list of two people's names (Ana and Leo), in app.photos.people.merge_drops_names; also the end of a longer list (app.photos.people.list_more)."
+  },
+  "app.photos.people.loading": {
+    "text": "Loading people",
+    "note": "Screen-reader name of the grey placeholder faces on the People page while the people load."
+  },
+  "app.photos.people.merge": {
+    "text": "Merge",
+    "note": "Item of the bar shown while faces are picked on the People page, and the confirming button of the merge (app.photos.people.merge_title): makes the picked faces one person (face recognition split one person in several).",
+    "max": 16
+  },
+  "app.photos.people.merge_called": {
+    "text": "The merged person will be called <b>{name}</b>.",
+    "args": [["name", "user"]],
+    "note": "In the merge's box (People page), under the faces: the name the merged person keeps. {name} is that name, in bold (<b>…</b>).",
+    "rich": ["b"]
+  },
+  "app.photos.people.merge_drops_name": {
+    "text": "The name {name} will be dropped.",
+    "args": [["name", "user"]],
+    "note": "In the merge's box (People page), after app.photos.people.merge_called when one of the merged people had another name, which goes. {name} is that name."
+  },
+  "app.photos.people.merge_drops_names": {
+    "text": "The names {names} will be dropped.",
+    "args": [["names", "text"]],
+    "note": "In the merge's box (People page), after app.photos.people.merge_called when several of the merged people had other names, which go. {names} is the list of those names (app.photos.people.list_two and list_more)."
+  },
+  "app.photos.people.merge_failed": {
+    "text": "They couldn't be merged. Try again.",
+    "note": "Error in the merge's box (People page) when the device didn't merge the picked faces."
+  },
+  "app.photos.people.merge_hint": {
+    "text": "Select the faces of the same person",
+    "note": "Hint shown with the bar of picked faces on the People page after a face's Merge with others…, until a second face is picked."
+  },
+  "app.photos.people.merge_name_label": {
+    "text": "Name <dim>(optional)</dim>",
+    "note": "Label over the name field in the merge's box (People page), when the merged person has no name yet. <dim>…</dim> is shown in grey: the name may be left empty.",
+    "max": 30,
+    "rich": ["dim"]
+  },
+  "app.photos.people.merge_name_not_saved": {
+    "text": "The name couldn't be saved, so nothing was merged. Try again.",
+    "note": "Error in the merge's box (People page) when the device didn't give the kept face its name: the merge was not sent."
+  },
+  "app.photos.people.merge_name_placeholder": {
+    "text": "Add a name",
+    "note": "Placeholder of the name field in the merge's box (People page), when the merged person has no name yet.",
+    "max": 30
+  },
+  "app.photos.people.merge_need_two": {
+    "text": "Select 2 or more faces to merge them into one.",
+    "note": "Note at the foot of the People page when Merge is tapped with only one face picked."
+  },
+  "app.photos.people.merge_pick": {
+    "text": "They have different names, and only one can stay. Pick the face to keep.",
+    "note": "In the merge's box (People page), under the faces, when the people picked have different names and none is chosen yet."
+  },
+  "app.photos.people.merge_text": {
+    "text": "Pick the face to keep: it keeps its name and picture, and gets the photos of the others. This can't be undone.",
+    "note": "Under the title of the merge's box (People page), over the faces to choose from.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d8c59932"
+  },
+  "app.photos.people.merge_title": {
+    "text": {
+      "one": "Merge {count} people into one?",
+      "other": "Merge {count} people into one?"
+    },
+    "args": [["count", "count"]],
+    "note": "Title of the box that merges the faces picked on the People page into one person. {count} is how many (two or more). Merging can't be undone (app.photos.people.merge_text).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #3da86e6f"
+  },
+  "app.photos.people.merge_with_others": {
+    "text": "Merge with others…",
+    "note": "Item of a face's menu on the People page: starts picking the other faces of the same person, to merge them into one.",
+    "max": 30
+  },
+  "app.photos.people.merged_faces": {
+    "text": {
+      "one": "Merged {count} faces",
+      "other": "Merged {count} faces"
+    },
+    "args": [["count", "count"]],
+    "note": "Note at the foot of the People page once faces were merged into one person without a name. {count} is how many faces were merged (two or more)."
+  },
+  "app.photos.people.merged_into": {
+    "text": {
+      "one": "Merged {count} into {name}",
+      "other": "Merged {count} into {name}"
+    },
+    "args": [["count", "count"], ["name", "user"]],
+    "note": "Note at the foot of the People page once faces were merged into one person. {count} is how many faces were merged (two or more), {name} the merged person's name."
+  },
+  "app.photos.people.more_options": {
+    "text": "More options for {name}",
+    "args": [["name", "user"]],
+    "note": "Screen-reader name of the … button on a face on the People page (its menu: rename, merge, delete). {name} is the person's name."
+  },
+  "app.photos.people.more_options_unnamed": {
+    "text": "More options for this person",
+    "note": "Screen-reader name of the … button on the face of a person without a name on the People page (its menu: add a name, merge, delete)."
+  },
+  "app.photos.people.name_not_saved": {
+    "text": "The name couldn't be saved. Try again.",
+    "note": "Error note at the foot of the People page when the device didn't save a person's new name."
+  },
+  "app.photos.people.name_placeholder": {
+    "text": "Name",
+    "note": "Placeholder of the field that names a person on the People page.",
+    "max": 24
+  },
+  "app.photos.people.name_this_person": {
+    "text": "Name this person",
+    "note": "Naming a person without a name on the People page: the title of the box with the name field (Android), or the screen-reader name of the field (iPhone).",
+    "max": 40
+  },
+  "app.photos.people.no_answer": {
+    "text": "Your device didn't answer. Try again.",
+    "note": "Error on the People page (in the merge's or the deletion's box) when the device didn't answer at all."
+  },
+  "app.photos.people.no_faces_text": {
+    "text": "Face recognition runs on the device after photos are uploaded. You can switch it on in Settings.",
+    "note": "Under the heading No faces found yet, on the People page. Says where face recognition runs (on the user's own device, never elsewhere) and that it can be turned on in the app's Settings (common.settings).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #53edb429"
+  },
+  "app.photos.people.no_faces_title": {
+    "text": "No faces found yet",
+    "note": "Heading of the People page when face recognition hasn't found anyone."
+  },
+  "app.photos.people.photo_count": {
+    "text": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    },
+    "args": [["count", "count"]],
+    "note": "Under a person's face on the People page, in the merge's choice of faces and in the search suggestions: how many photos show them (face recognition).",
+    "max": 24
+  },
+  "app.photos.people.slow_text": {
+    "text": "People are taking longer than usual to load.",
+    "note": "Under the heading Still waiting for your device (app.shell.collections_slow_title), on the People page after 10 seconds without an answer; a Try again button follows."
+  },
+  "app.photos.search.already": {
+    "text": "“{text}” is already in the search.",
+    "args": [["text", "user"]],
+    "note": "Under the search field when the thing typed is already a chip in it. {text} is what was typed. Write the quotes in your language's style."
+  },
+  "app.photos.search.documents": {
+    "text": "Search documents for “<b>{text}</b>”",
+    "args": [["text", "user"]],
+    "note": "Row in the search suggestions that lists, in Files, every file and folder whose path contains what was typed. {text} is the typed text, in bold (<b>…</b>). Write the quotes in your language's style.",
+    "rich": ["b"]
+  },
+  "app.photos.search.files": {
+    "text": "Files",
+    "note": "Heading of the search suggestions that are files and folders whose name or path matches. Shown in capitals.",
+    "max": 24
+  },
+  "app.photos.search.nothing": {
+    "text": "Nothing matches “{text}”.",
+    "args": [["text", "user"]],
+    "note": "Under the search field when nothing matches what was typed. {text} is what was typed. Write the quotes in your language's style."
+  },
+  "app.photos.search.people": {
+    "text": "People",
+    "note": "Heading of the search suggestions that are people found by face recognition. Shown in capitals.",
+    "max": 24
+  },
+  "app.photos.search.things": {
+    "text": "Things",
+    "note": "Heading of the search suggestions that are things recognised in photos (tags such as beach or dog). Shown in capitals.",
+    "max": 24
+  },
+  "app.photos.selection.delete_title": {
+    "text": {
+      "one": "Delete {count} item?",
+      "other": "Delete {count} items?"
+    },
+    "args": [["count", "count"]],
+    "note": "Title of the confirmation asked before deleting the selected photos and videos from the device (the selection bar's Delete). {count} is how many are selected. Buttons: Delete and Cancel.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #344930e0"
+  },
+  "app.photos.viewer.delete": {
+    "text": "Delete Photo",
+    "note": "Confirming button of app.photos.viewer.delete_title: deletes the photo open in the viewer from the device. Title Case in English buttons.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #060e9da2"
+  },
+  "app.photos.viewer.delete_title": {
+    "text": "Delete this photo?",
+    "note": "Title of the confirmation asked before deleting the photo (or video) open in the full-screen viewer from the device. Buttons: Delete Photo and Cancel.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #d40d2513"
+  },
+  "app.photos.viewer.info_aperture": {
+    "text": "Aperture",
+    "note": "Label of a row in the panel with a photo's camera details (app.photos.viewer.info_title): the aperture (f/1.8).",
+    "max": 20
+  },
+  "app.photos.viewer.info_camera": {
+    "text": "Camera",
+    "note": "Label of a row in the panel with a photo's camera details (app.photos.viewer.info_title): the make and model of the camera or phone that took it.",
+    "max": 20
+  },
+  "app.photos.viewer.info_dimensions": {
+    "text": "Dimensions",
+    "note": "Label of a row in the panel with a photo's camera details (app.photos.viewer.info_title): its width × height in pixels.",
+    "max": 20
+  },
+  "app.photos.viewer.info_exposure": {
+    "text": "Exposure",
+    "note": "Label of a row in the panel with a photo's camera details (app.photos.viewer.info_title): the exposure time (1/250).",
+    "max": 20
+  },
+  "app.photos.viewer.info_focal_length": {
+    "text": "Focal length",
+    "note": "Label of a row in the panel with a photo's camera details (app.photos.viewer.info_title): the lens's focal length (26 mm).",
+    "max": 20
+  },
+  "app.photos.viewer.info_iso": {
+    "text": "ISO",
+    "note": "Label of a row in the panel with a photo's camera details (app.photos.viewer.info_title): the ISO sensitivity (100).",
+    "max": 20
+  },
+  "app.photos.viewer.info_location": {
+    "text": "Location",
+    "note": "Label of a row in the panel with a photo's camera details (app.photos.viewer.info_title): the city and country where it was taken.",
+    "max": 20
+  },
+  "app.photos.viewer.info_no_exif": {
+    "text": "No EXIF metadata in this file",
+    "note": "In the panel with a photo's camera details when the file has none (no camera, exposure or location). EXIF is the standard name of these details."
+  },
+  "app.photos.viewer.info_none": {
+    "text": "No metadata found",
+    "note": "In the panel with a photo's camera details when the device couldn't read any."
+  },
+  "app.photos.viewer.info_taken": {
+    "text": "Taken",
+    "note": "Label of a row in the panel with a photo's camera details (app.photos.viewer.info_title): when it was taken (a date and time).",
+    "max": 20
+  },
+  "app.photos.viewer.info_title": {
+    "text": "More Info",
+    "note": "Title of the panel with a photo's camera details (EXIF), opened from the viewer's (i) button. Title Case in English titles.",
+    "max": 30
+  },
+  "app.photos.viewer.low_res": {
+    "text": "Low res",
+    "note": "Small pill on the corner of a photo open in the viewer while only its preview is shown (the full photo is loading, or couldn't be loaded).",
+    "max": 12
+  },
+  "app.photos.viewer.more_info": {
+    "text": "More info",
+    "note": "Screen-reader name of the (i) button of the full-screen photo viewer: shows the photo's camera details (app.photos.viewer.info_title)."
+  }
+}

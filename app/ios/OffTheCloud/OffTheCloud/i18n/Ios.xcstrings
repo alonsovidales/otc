@@ -1,6 +1,83 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "ios.alerts_errors_collapse" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@, %arg error, collapse"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@, %arg errors, collapse"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ios.alerts_errors_expand" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@, %arg error, expand"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@, %arg errors, expand"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ios.alerts_friends" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Friends"
+          }
+        }
+      }
+    },
     "ios.bluetooth_needed_hint" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -19,6 +96,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Turn Bluetooth on in Control Centre to find the device."
+          }
+        }
+      }
+    },
+    "ios.compose_capture_save_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't save the capture to Photos: %1$@"
+          }
+        }
+      }
+    },
+    "ios.compose_capture_unreadable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The capture was saved to Photos but couldn't be read back."
+          }
+        }
+      }
+    },
+    "ios.compose_photo_unreadable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not read this photo"
+          }
+        }
+      }
+    },
+    "ios.compose_source" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source"
+          }
+        }
+      }
+    },
+    "ios.compose_upload_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upload failed"
+          }
+        }
+      }
+    },
+    "ios.compose_video_unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This video is not available on the phone"
           }
         }
       }
@@ -67,6 +210,325 @@
         }
       }
     },
+    "ios.files.allow_deletions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow Deletions"
+          }
+        }
+      }
+    },
+    "ios.files.gallery_copied" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copied"
+          }
+        }
+      }
+    },
+    "ios.files.gallery_counting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Counting photos and videos…"
+          }
+        }
+      }
+    },
+    "ios.files.gallery_expires" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expires after"
+          }
+        }
+      }
+    },
+    "ios.files.gallery_job_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The gallery could not be created"
+          }
+        }
+      }
+    },
+    "ios.files.gallery_keep_open" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep this screen open: the link is shown here once the copy is done."
+          }
+        }
+      }
+    },
+    "ios.files.gallery_link_once" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This link is shown only now - the device never stores it. Send or copy it before closing."
+          }
+        }
+      }
+    },
+    "ios.files.gallery_nothing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There are no photos or videos to share here."
+          }
+        }
+      }
+    },
+    "ios.files.gallery_skipped" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg other files are not included"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg other files are not included"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ios.files.gallery_starting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starting…"
+          }
+        }
+      }
+    },
+    "ios.files.keep_out_of_images" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep Out of Images"
+          }
+        }
+      }
+    },
+    "ios.files.make_upload_only" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make Upload Only"
+          }
+        }
+      }
+    },
+    "ios.files.older_versions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg older version"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg older versions"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ios.files.result_file" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, file in %2$@"
+          }
+        }
+      }
+    },
+    "ios.files.result_file_kept_out" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, file in %2$@, kept out of Images"
+          }
+        }
+      }
+    },
+    "ios.files.result_folder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, folder in %2$@"
+          }
+        }
+      }
+    },
+    "ios.files.result_folder_kept_out" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, folder in %2$@, kept out of Images"
+          }
+        }
+      }
+    },
+    "ios.files.result_photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, photo in %2$@"
+          }
+        }
+      }
+    },
+    "ios.files.result_photo_kept_out" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, photo in %2$@, kept out of Images"
+          }
+        }
+      }
+    },
+    "ios.files.result_video" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, video in %2$@"
+          }
+        }
+      }
+    },
+    "ios.files.result_video_kept_out" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, video in %2$@, kept out of Images"
+          }
+        }
+      }
+    },
+    "ios.files.try_again" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        }
+      }
+    },
+    "ios.files.upload_only_folder_info" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing in this folder can be deleted, and uploading a file again keeps its older version. Long-press the folder to change it."
+          }
+        }
+      }
+    },
+    "ios.friends_delete_theirs" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete everything from %1$@ on this iPhone"
+          }
+        }
+      }
+    },
+    "ios.friends_remove_friend" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Friend"
+          }
+        }
+      }
+    },
     "ios.menu_close" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -85,6 +547,325 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The device isn't answering. It may be off, or the connection may be too slow."
+          }
+        }
+      }
+    },
+    "ios.photos_access_denied" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos access denied"
+          }
+        }
+      }
+    },
+    "ios.photos_download_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download failed: %1$@"
+          }
+        }
+      }
+    },
+    "ios.photos_people_deleting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleting %1$lld of %2$lld…"
+          }
+        }
+      }
+    },
+    "ios.photos_people_face_to_keep" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Face to keep"
+          }
+        }
+      }
+    },
+    "ios.photos_people_merge_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select 2 or more to merge"
+          }
+        }
+      }
+    },
+    "ios.photos_people_new_name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New name"
+          }
+        }
+      }
+    },
+    "ios.photos_search_documents" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search documents for %1$@"
+          }
+        }
+      }
+    },
+    "ios.photos_search_key_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What the Search key picks"
+          }
+        }
+      }
+    },
+    "ios.photos_search_person_in" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@, %arg photo, in the search"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@, %arg photos, in the search"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ios.photos_search_suggestions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suggestions"
+          }
+        }
+      }
+    },
+    "ios.photos_upload_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upload failed: %1$@"
+          }
+        }
+      }
+    },
+    "ios.settings.bridge_leave_delete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leave and Delete the Account"
+          }
+        }
+      }
+    },
+    "ios.settings.crop_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag the photo to centre your face."
+          }
+        }
+      }
+    },
+    "ios.settings.crop_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crop photo"
+          }
+        }
+      }
+    },
+    "ios.settings.links_delete_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete this link? The shared copies are deleted and the link stops working."
+          }
+        }
+      }
+    },
+    "ios.settings.logs_picker" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log"
+          }
+        }
+      }
+    },
+    "ios.settings.logs_read_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not read the logs."
+          }
+        }
+      }
+    },
+    "ios.settings.logs_send_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not send the logs."
+          }
+        }
+      }
+    },
+    "ios.settings.logs_troubleshooting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Troubleshooting"
+          }
+        }
+      }
+    },
+    "ios.settings.picker_empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No photos here."
+          }
+        }
+      }
+    },
+    "ios.settings.picker_error" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load that photo: %1$@"
+          }
+        }
+      }
+    },
+    "ios.settings.picker_load_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load that photo from your device."
+          }
+        }
+      }
+    },
+    "ios.settings.picker_open_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That photo couldn't be opened."
+          }
+        }
+      }
+    },
+    "ios.settings.profile_from_iphone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From this iPhone"
+          }
+        }
+      }
+    },
+    "ios.settings.profile_unexpected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unexpected response while saving profile"
+          }
+        }
+      }
+    },
+    "ios.settings.sync_icloud" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync from iCloud"
+          }
+        }
+      }
+    },
+    "ios.settings.thumbs_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thumbnail Cache"
           }
         }
       }
@@ -195,6 +976,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Storage used"
+          }
+        }
+      }
+    },
+    "ios.trim_cant_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't trim this video"
+          }
+        }
+      }
+    },
+    "ios.trim_end_handle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "End of the cut"
+          }
+        }
+      }
+    },
+    "ios.trim_play_cut" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play cut"
+          }
+        }
+      }
+    },
+    "ios.trim_start_handle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start of the cut"
           }
         }
       }

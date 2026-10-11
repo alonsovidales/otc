@@ -63,17 +63,50 @@ enum PeopleOrder {
         return from.dropFirst().reduce(first) { $1.faceCount > $0.faceCount ? $1 : $0 }.id
     }
 
-    /// "Ana", "Ana and Leo", "Ana, Leo and Rosa".
+    /// "Ana", "Ana and Leo", "Ana, Leo and Rosa": the last two joined by
+    /// app.photos.people.list_two, each name before them by list_more, so
+    /// a language words its own lists.
     static func andList(_ xs: [String]) -> String {
         guard xs.count > 1 else { return xs.first ?? "" }
-        return xs.dropLast().joined(separator: ", ") + " and " + xs[xs.count - 1]
+        var out = S.appPhotosPeopleListTwo(first: xs[xs.count - 2], second: xs[xs.count - 1])
+        for x in xs.dropLast(2).reversed() { out = S.appPhotosPeopleListMore(first: x, rest: out) }
+        return out
     }
 
-    static func counted(_ n: Int, _ one: String, _ many: String) -> String {
-        "\(n.formatted()) \(n == 1 ? one : many)"
-    }
+    static func photos(_ n: Int32) -> String { S.appPhotosPeoplePhotoCount(count: Int(n)) }
+}
 
-    static func photos(_ n: Int32) -> String { counted(Int(n), "photo", "photos") }
+/// What the People page says in its notes and in the merge's box: what
+/// happened, worded when it shows (docs/i18n.md, "Each platform").
+enum PeopleNote: Equatable {
+    case nameNotSaved
+    case mergeNeedsTwo
+    /// Merged `count` faces, into one called `name` ("" without one).
+    case merged(count: Int, name: String)
+    case mergeNameNotSaved
+    case notMerged
+    case unanswered
+    /// Nothing was deleted: one person, or several.
+    case notDeleted(several: Bool)
+    /// Every one of `count` people deleted.
+    case deleted(count: Int)
+    /// `failed` of `total` people couldn't be deleted.
+    case partlyDeleted(failed: Int, total: Int)
+
+    var text: String {
+        switch self {
+        case .nameNotSaved: return S.appPhotosPeopleNameNotSaved
+        case .mergeNeedsTwo: return S.appPhotosPeopleMergeNeedTwo
+        case .merged(let n, let name):
+            return name.isEmpty ? S.appPhotosPeopleMergedFaces(count: n) : S.appPhotosPeopleMergedInto(count: n, name: name)
+        case .mergeNameNotSaved: return S.appPhotosPeopleMergeNameNotSaved
+        case .notMerged: return S.appPhotosPeopleMergeFailed
+        case .unanswered: return S.appPhotosPeopleNoAnswer
+        case .notDeleted(let several): return several ? S.appPhotosPeopleDeleteFailed : S.appPhotosPeopleDeleteOneFailed
+        case .deleted(let n): return n == 1 ? S.appPhotosPeopleDeletedOne : S.appPhotosPeopleDeletedMany(count: n)
+        case .partlyDeleted(let failed, let total): return S.appPhotosPeopleDeletePartly(count: failed, total: total)
+        }
+    }
 }
 
 // MARK: - What outlives the page
@@ -97,7 +130,7 @@ final class PeoplePageState: ObservableObject {
 
     struct Toast: Equatable {
         let id = UUID()
-        let text: String
+        let note: PeopleNote
         let error: Bool
     }
 
@@ -117,7 +150,7 @@ final class PeoplePageState: ObservableObject {
     /// again after the phone turned, so the merge can't be sent twice.
     @Published private(set) var merging: MergeSent?
     /// What went wrong with the last merge, for the sheet to say.
-    @Published var mergeError: String?
+    @Published var mergeError: PeopleNote?
     @Published var deleteAsk: [String]?
     @Published var deleteProgress: DeleteProgress?
     @Published var toast: Toast?
@@ -200,7 +233,7 @@ final class PeoplePageState: ObservableObject {
     /// The device answered the merge: nil once merged - the question closes
     /// (in whichever copy asks it, or is about to after a turn) and nothing
     /// stays picked; else what went wrong, for the sheet to say.
-    func mergeAnswered(_ error: String?) {
+    func mergeAnswered(_ error: PeopleNote?) {
         merging = nil
         if let error {
             mergeError = error
@@ -283,8 +316,6 @@ struct PeopleView: View {
     }
 
     private static let cols = [GridItem(.adaptive(minimum: 108, maximum: 168), spacing: 8, alignment: .top)]
-    private static let deleteText = "Their photos stay; only the faces matched to them are forgotten. This can't be undone, and they'll come back as new people in photos added later."
-
     private var people: [Msg_Person] { PeopleOrder.shown(vm.allPeople) }
     private var selPeople: [Msg_Person] {
         let picked = Set(sel)
@@ -296,13 +327,13 @@ struct PeopleView: View {
 
     var body: some View {
         content
-            .navigationTitle(selecting ? "\(sel.count.formatted()) selected" : "People")
+            .navigationTitle(selecting ? S.appShellSelected(count: sel.count) : S.appShellSectionPeople)
             .navigationBarTitleDisplayMode(.inline)
             // The wide layout's menu names the page, as the web's does: no
             // title bar there, but for the count and the X while picking.
             .toolbar(wide && !selecting ? .hidden : .automatic, for: .navigationBar)
             .overlay(alignment: .topLeading) {
-                if wide && !selecting { HiddenPageHeading(title: "People") }
+                if wide && !selecting { HiddenPageHeading(title: S.appShellSectionPeople) }
             }
             .toolbar {
                 if selecting {
@@ -312,19 +343,19 @@ struct PeopleView: View {
                         } label: {
                             Image(systemName: "xmark")
                         }
-                        .accessibilityLabel("Clear selection")
+                        .accessibilityLabel(S.appPhotosPeopleClearSelection)
                         .disabled(busy)
                     }
                 } else if let onClose {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("Done", action: onClose)
+                        Button(S.commonDone, action: onClose)
                     }
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 8) {
                     if let toast {
-                        Text(toast.text)
+                        Text(toast.note.text)
                             .font(.subheadline)
                             .multilineTextAlignment(.center)
                             .foregroundStyle(toast.error ? Color.red : Color.primary)
@@ -337,7 +368,7 @@ struct PeopleView: View {
                     if let p = deleteProgress {
                         HStack(spacing: 10) {
                             ProgressView()
-                            Text(p.total > 1 ? "Deleting \(min(p.done + 1, p.total)) of \(p.total)…" : "Deleting…")
+                            Text(p.total > 1 ? S.iosPhotosPeopleDeleting(current: min(p.done + 1, p.total), total: p.total) : S.commonDeleting)
                                 .font(.subheadline)
                                 .monospacedDigit()
                         }
@@ -427,12 +458,12 @@ struct PeopleView: View {
                 isPresented: Binding(get: { deleteAsk != nil }, set: { if !$0 { deleteAsk = nil } }),
                 presenting: deleteAsk
             ) { ids in
-                Button("Delete", role: .destructive) {
+                Button(S.commonDelete, role: .destructive) {
                     Task { await remove(ids) }
                 }
-                Button("Cancel", role: .cancel) {}
+                Button(S.commonCancel, role: .cancel) {}
             } message: { _ in
-                Text(Self.deleteText)
+                Text(S.appPhotosPeopleDeleteText)
             }
     }
 
@@ -443,8 +474,8 @@ struct PeopleView: View {
         if vm.peopleLoaded && people.isEmpty {
             stateView(
                 art: AnyView(NavIconView(.people, size: 72, stroke: 1.2)),
-                title: "No faces found yet",
-                text: "Face recognition runs on the device after photos are uploaded. You can switch it on in Settings."
+                title: S.appPhotosPeopleNoFacesTitle,
+                text: S.appPhotosPeopleNoFacesText
             )
         } else if vm.peopleLoaded {
             grid
@@ -452,8 +483,8 @@ struct PeopleView: View {
             let failed = askedOnce && !asking
             stateView(
                 art: AnyView(Image(systemName: "exclamationmark.circle").font(.system(size: 40, weight: .light))),
-                title: failed ? "Couldn't load people" : "Still waiting for your device",
-                text: failed ? "Check that your device is online, then try again." : "People are taking longer than usual to load.",
+                title: failed ? S.appPhotosPeopleFailedTitle : S.appShellCollectionsSlowTitle,
+                text: failed ? S.appShellCollectionsFailedText : S.appPhotosPeopleSlowText,
                 retry: true
             )
         } else {
@@ -470,7 +501,7 @@ struct PeopleView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             if retry {
-                Button("Try again") {
+                Button(S.commonTryAgain) {
                     slow = false
                     Task { await ask() }
                 }
@@ -500,7 +531,7 @@ struct PeopleView: View {
             .modifier(Pulse())
         }
         .scrollDisabled(true)
-        .accessibilityLabel("Loading people")
+        .accessibilityLabel(S.appPhotosPeopleLoading)
     }
 
     private var grid: some View {
@@ -546,25 +577,25 @@ struct PeopleView: View {
     private var selectionBar: some View {
         VStack(spacing: 6) {
             if mergeHint && !canMerge {
-                Text("Select the faces of the same person")
+                Text(S.appPhotosPeopleMergeHint)
                     .font(.caption)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 5)
                     .modifier(CapsuleBarBackground())
             }
             HStack(spacing: 0) {
-                barItem("Merge", tint: .accentColor, dimmed: !canMerge) {
+                barItem(S.appPhotosPeopleMerge, tint: .accentColor, dimmed: !canMerge) {
                     NavIconView(.merge, size: 24)
                 } action: {
                     guard canMerge else {
-                        say("Select 2 or more faces to merge them into one.")
+                        say(.mergeNeedsTwo)
                         return
                     }
                     state.mergeError = nil
                     mergeAsk = PeoplePageState.MergeAsk(people: selPeople)
                 }
-                .accessibilityHint(canMerge ? "" : "Select 2 or more to merge")
-                barItem("Delete", tint: .red, dimmed: false) {
+                .accessibilityHint(canMerge ? "" : S.iosPhotosPeopleMergeHint)
+                barItem(S.commonDelete, tint: .red, dimmed: false) {
                     Image(systemName: "trash").font(.system(size: 20))
                 } action: {
                     deleteAsk = selPeople.map(\.id)
@@ -636,9 +667,9 @@ struct PeopleView: View {
         mergeHint = true
     }
 
-    private func say(_ text: String, error: Bool = false) {
-        toast = PeoplePageState.Toast(text: text, error: error)
-        AccessibilityNotification.Announcement(text).post()
+    private func say(_ note: PeopleNote, error: Bool = false) {
+        toast = PeoplePageState.Toast(note: note, error: error)
+        AccessibilityNotification.Announcement(note.text).post()
     }
 
     // MARK: The list
@@ -688,7 +719,7 @@ struct PeopleView: View {
         Task {
             let res = await vm.renamePerson(id, to: name)
             state.saving[id] = nil
-            if res != .ok { say("The name couldn't be saved. Try again.", error: true) }
+            if res != .ok { say(.nameNotSaved, error: true) }
         }
     }
 
@@ -705,16 +736,15 @@ struct PeopleView: View {
             switch await vm.mergePeople(keep: keep, sources: sources, name: name) {
             case .merged:
                 state.mergeAnswered(nil)
-                let n = sources.count + 1
-                let text = name.isEmpty ? "Merged \(n) faces" : "Merged \(n) into \(name)"
-                state.toast = PeoplePageState.Toast(text: text, error: false)
-                AccessibilityNotification.Announcement(text).post()
+                let note = PeopleNote.merged(count: sources.count + 1, name: name)
+                state.toast = PeoplePageState.Toast(note: note, error: false)
+                AccessibilityNotification.Announcement(note.text).post()
             case .nameNotSaved:
-                state.mergeAnswered("The name couldn't be saved, so nothing was merged. Try again.")
+                state.mergeAnswered(.mergeNameNotSaved)
             case .notMerged:
-                state.mergeAnswered("They couldn't be merged. Try again.")
+                state.mergeAnswered(.notMerged)
             case .unanswered:
-                state.mergeAnswered("Your device didn't answer. Try again.")
+                state.mergeAnswered(.unanswered)
             }
         }
     }
@@ -723,9 +753,9 @@ struct PeopleView: View {
         guard let ids = deleteAsk else { return "" }
         if ids.count == 1 {
             let name = PeopleOrder.tidy(vm.allPeople.first { $0.id == ids[0] }?.name ?? "")
-            return name.isEmpty ? "Delete this person?" : "Delete \(name)?"
+            return name.isEmpty ? S.appPhotosPeopleDeleteOne : S.appPhotosPeopleDeleteNamed(name: name)
         }
-        return "Delete \(ids.count.formatted()) people?"
+        return S.appPhotosPeopleDeleteMany(count: ids.count)
     }
 
     /// What couldn't be deleted stays picked, to try again.
@@ -735,19 +765,17 @@ struct PeopleView: View {
         let (deleted, unanswered) = await vm.deletePeople(ids) { deleteProgress?.done += 1 }
         deleteProgress = nil
         if deleted.isEmpty {
-            say(unanswered == ids.count
-                ? "Your device didn't answer. Try again."
-                : ids.count == 1 ? "This person couldn't be deleted. Try again." : "They couldn't be deleted. Try again.",
-                error: true)
+            say(unanswered == ids.count ? .unanswered : .notDeleted(several: ids.count > 1), error: true)
             return
         }
         sel.removeAll { deleted.contains($0) }
         let failed = ids.count - deleted.count
         if failed == 0 {
-            say(ids.count == 1 ? "Person deleted" : "Deleted \(PeopleOrder.counted(ids.count, "person", "people"))")
+            say(.deleted(count: ids.count))
         } else {
-            // "1 of 2 people couldn't be deleted and is still selected."
-            say("\(failed.formatted()) of \(PeopleOrder.counted(ids.count, "person", "people")) couldn't be deleted and \(failed == 1 ? "is" : "are") still selected. Try again.", error: true)
+            // "1 of 2 people couldn't be deleted and is still selected." Only
+            // a deletion of several gets here: something was deleted.
+            say(.partlyDeleted(failed: failed, total: ids.count), error: true)
         }
     }
 }
@@ -778,7 +806,9 @@ private struct PersonTile: View {
     let onCancelName: () -> Void
 
     private var faceLabel: String {
-        "\(name.isEmpty ? "Unnamed person" : name), \(PeopleOrder.photos(person.faceCount))"
+        name.isEmpty
+            ? S.appPhotosPeopleFaceLabelUnnamed(count: Int(person.faceCount))
+            : S.appPhotosPeopleFaceLabel(name: name, count: Int(person.faceCount))
     }
 
     var body: some View {
@@ -827,7 +857,7 @@ private struct PersonTile: View {
         .accessibilityElement()
         .accessibilityLabel(faceLabel)
         .accessibilityAddTraits(selecting && selected ? [.isButton, .isSelected] : .isButton)
-        .accessibilityAction(named: selecting ? (selected ? "Deselect" : "Select") : "Select", selecting ? onTap : onLongPress)
+        .accessibilityAction(named: selecting && selected ? S.commonDeselect : S.commonSelect, selecting ? onTap : onLongPress)
     }
 
     private var check: some View {
@@ -851,15 +881,15 @@ private struct PersonTile: View {
     private var more: some View {
         Menu {
             Button(action: onRename) {
-                Label(name.isEmpty ? "Add a name" : "Rename", systemImage: "pencil")
+                Label(name.isEmpty ? S.appPhotosPeopleAddName : S.commonRename, systemImage: "pencil")
             }
             if canMerge {
                 Button(action: onMergeWithOthers) {
-                    Label { Text("Merge with others…") } icon: { NavIcon.merge.image(size: 22) }
+                    Label { Text(S.appPhotosPeopleMergeWithOthers) } icon: { NavIcon.merge.image(size: 22) }
                 }
             }
             Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
+                Label(S.commonDelete, systemImage: "trash")
             }
         } label: {
             Image(systemName: "ellipsis")
@@ -873,13 +903,13 @@ private struct PersonTile: View {
                 .contentShape(Circle())
         }
         .tint(.primary)
-        .accessibilityLabel("More options for \(name.isEmpty ? "this person" : name)")
+        .accessibilityLabel(name.isEmpty ? S.appPhotosPeopleMoreOptionsUnnamed : S.appPhotosPeopleMoreOptions(name: name))
     }
 
     @ViewBuilder
     private var label: some View {
         if editing {
-            TextField("Name", text: $editText, selection: $editSelection)
+            TextField(S.appPhotosPeopleNamePlaceholder, text: $editText, selection: $editSelection)
                 .focused(nameFocus, equals: person.id)
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
@@ -900,7 +930,7 @@ private struct PersonTile: View {
                 .frame(maxWidth: 168)
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
                 .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.accentColor, lineWidth: 1))
-                .accessibilityLabel(name.isEmpty ? "Name this person" : "New name")
+                .accessibilityLabel(name.isEmpty ? S.appPhotosPeopleNameThisPerson : S.iosPhotosPeopleNewName)
         } else if !name.isEmpty {
             Text(name)
                 .font(.subheadline.weight(.semibold))
@@ -909,13 +939,13 @@ private struct PersonTile: View {
                 .truncationMode(.tail)
                 .opacity(pending ? 0.55 : 1)
         } else if selecting {
-            Text("Unnamed")
+            Text(S.appShellSearchUnnamed)
                 .font(.subheadline)
                 .italic()
                 .foregroundStyle(.secondary)
         } else {
             Button(action: onRename) {
-                Text("Add a name")
+                Text(S.appPhotosPeopleAddName)
                     .font(.subheadline)
                     .italic()
                     .foregroundStyle(.secondary)
@@ -977,7 +1007,13 @@ private struct MergeSheet: View {
     }
 
     private var busy: Bool { state.merging != nil }
-    private var error: String? { state.mergeError }
+    private var error: String? { state.mergeError?.text }
+    /// The name field's label's "(optional)", in grey.
+    private static var dim: AttributeContainer {
+        var c = AttributeContainer()
+        c.foregroundColor = .secondary
+        return c
+    }
 
     private var keep: Msg_Person? { people.first { $0.id == keepID } }
     private var names: [String] { PeopleOrder.names(people) }
@@ -998,13 +1034,17 @@ private struct MergeSheet: View {
     private var note: Text? {
         var t: Text?
         if keep == nil {
-            t = Text("They have different names, and only one can stay. Pick the face to keep.")
+            t = Text(S.appPhotosPeopleMergePick)
         } else if !name.isEmpty && !askName {
-            t = Text("The merged person will be called ") + Text(name).bold() + Text(".")
+            var bold = AttributeContainer()
+            bold.inlinePresentationIntent = .stronglyEmphasized
+            t = Text(S.appPhotosPeopleMergeCalled(name: name, b: bold))
         }
         if !dropped.isEmpty {
-            let d = Text("\(dropped.count == 1 ? "The name" : "The names") \(PeopleOrder.andList(dropped)) will be dropped.")
-            t = t.map { $0 + Text(" ") + d } ?? d
+            let d = Text(dropped.count == 1
+                ? S.appPhotosPeopleMergeDropsName(name: dropped[0])
+                : S.appPhotosPeopleMergeDropsNames(names: PeopleOrder.andList(dropped)))
+            t = t.map { $0 + Text(verbatim: " ") + d } ?? d
         }
         return t
     }
@@ -1014,24 +1054,24 @@ private struct MergeSheet: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Merge \(people.count.formatted()) people into one?")
+                        Text(S.appPhotosPeopleMergeTitle(count: people.count))
                             .font(.title3.weight(.semibold))
-                        Text("Pick the face to keep: it keeps its name and picture, and gets the photos of the others. This can't be undone.")
+                        Text(S.appPhotosPeopleMergeText)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 8, alignment: .top)], spacing: 16) {
                             ForEach(people, id: \.id) { p in option(p) }
                         }
                         .accessibilityElement(children: .contain)
-                        .accessibilityLabel("Face to keep")
+                        .accessibilityLabel(S.iosPhotosPeopleFaceToKeep)
                         if let note {
                             note.font(.subheadline)
                         }
                         if askName {
                             VStack(alignment: .leading, spacing: 6) {
-                                (Text("Name ") + Text("(optional)").foregroundStyle(.secondary))
+                                Text(S.appPhotosPeopleMergeNameLabel(dim: Self.dim))
                                     .font(.subheadline.weight(.medium))
-                                TextField("Add a name", text: $typed)
+                                TextField(S.appPhotosPeopleMergeNamePlaceholder, text: $typed)
                                     .textInputAutocapitalization(.words)
                                     .autocorrectionDisabled()
                                     .submitLabel(.done)
@@ -1062,13 +1102,13 @@ private struct MergeSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel).disabled(busy)
+                    Button(S.commonCancel, action: onCancel).disabled(busy)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     if busy {
                         ProgressView()
                     } else {
-                        Button("Merge", action: go)
+                        Button(S.appPhotosPeopleMerge, action: go)
                             .fontWeight(.semibold)
                             .disabled(keep == nil)
                     }
@@ -1107,7 +1147,7 @@ private struct MergeSheet: View {
                     if chosen {
                         HStack(spacing: 2) {
                             Image(systemName: "checkmark").font(.system(size: 9, weight: .bold))
-                            Text("Keep").font(.caption2.weight(.semibold))
+                            Text(S.appPhotosPeopleKeep).font(.caption2.weight(.semibold))
                         }
                         .foregroundStyle(.white)
                         .padding(.horizontal, 6)
@@ -1115,7 +1155,7 @@ private struct MergeSheet: View {
                         .background(Color.accentColor, in: Capsule())
                     }
                 }
-                Text(label.isEmpty ? "Unnamed" : label)
+                Text(label.isEmpty ? S.appShellSearchUnnamed : label)
                     .font(.subheadline.weight(label.isEmpty ? .regular : .semibold))
                     .italic(label.isEmpty)
                     .foregroundStyle(label.isEmpty ? Color.secondary : Color.primary)
@@ -1131,7 +1171,7 @@ private struct MergeSheet: View {
             .contentShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(label.isEmpty ? "Unnamed" : label), \(PeopleOrder.photos(p.faceCount))")
+        .accessibilityLabel(S.appPhotosPeopleFaceLabel(name: label.isEmpty ? S.appShellSearchUnnamed : label, count: Int(p.faceCount)))
         .accessibilityAddTraits(chosen ? [.isSelected] : [])
     }
 

@@ -42,11 +42,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import cloud.offthe.otc.data.NotificationsModel
+import cloud.offthe.otc.i18n.RichTag
+import cloud.offthe.otc.i18n.RichText
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.androidAlertsCollapse
+import cloud.offthe.otc.i18n.androidAlertsExpand
+import cloud.offthe.otc.i18n.androidAlertsFriends
+import cloud.offthe.otc.i18n.appSocialAlertsCommented
+import cloud.offthe.otc.i18n.appSocialAlertsEmpty
+import cloud.offthe.otc.i18n.appSocialAlertsErrorMore
+import cloud.offthe.otc.i18n.appSocialAlertsFriendAccepted
+import cloud.offthe.otc.i18n.appSocialAlertsFriendRequest
+import cloud.offthe.otc.i18n.appSocialAlertsLikedComment
+import cloud.offthe.otc.i18n.appSocialAlertsLikedPost
+import cloud.offthe.otc.i18n.appSocialAlertsTitle
+import cloud.offthe.otc.i18n.commonAccept
 import cloud.offthe.otc.proto.Notification
 import cloud.offthe.otc.proto.NotificationType
 import cloud.offthe.otc.ui.common.decodeBitmap
@@ -69,7 +82,7 @@ fun NotificationsListView(model: NotificationsModel = NotificationsModel) {
 
     LaunchedEffect(Unit) { model.openPanel() }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Notifications") }) }) { pad ->
+    Scaffold(topBar = { TopAppBar(title = { Text(S.appSocialAlertsTitle().resolve()) }) }) { pad ->
         PullToRefreshBox(
             isRefreshing = refreshing,
             onRefresh = { scope.launch { refreshing = true; model.openPanel(); refreshing = false } },
@@ -78,7 +91,7 @@ fun NotificationsListView(model: NotificationsModel = NotificationsModel) {
             when {
                 loading && list.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 list.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Nothing yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(S.appSocialAlertsEmpty().resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     items(list, key = { it.uuid }) { n ->
@@ -92,13 +105,20 @@ fun NotificationsListView(model: NotificationsModel = NotificationsModel) {
     }
 }
 
-private fun describe(n: Notification): String = when (n.type) {
-    NotificationType.NotificationLikePublication -> "liked your post"
-    NotificationType.NotificationLikeComment -> "liked your comment"
-    NotificationType.NotificationNewComment -> "commented on your post"
-    NotificationType.NotificationFriendRequest -> "sent you a friend request"
-    NotificationType.NotificationFriendAccepted -> "accepted your friend request"
-    else -> ""
+/** Bold, for who did it and an error group's title. */
+private val boldTag = RichTag(style = SpanStyle(fontWeight = FontWeight.Bold))
+
+/** Who did it (in bold) and what, one sentence per kind; null for a kind this app doesn't know, which shows only who. */
+private fun describe(n: Notification): RichText? {
+    val name = n.actorName.ifEmpty { n.actorDomain }
+    return when (n.type) {
+        NotificationType.NotificationLikePublication -> S.appSocialAlertsLikedPost(name)
+        NotificationType.NotificationLikeComment -> S.appSocialAlertsLikedComment(name)
+        NotificationType.NotificationNewComment -> S.appSocialAlertsCommented(name)
+        NotificationType.NotificationFriendRequest -> S.appSocialAlertsFriendRequest(name)
+        NotificationType.NotificationFriendAccepted -> S.appSocialAlertsFriendAccepted(name)
+        else -> null
+    }
 }
 
 @Composable
@@ -114,19 +134,18 @@ private fun NotificationRow(n: Notification, model: NotificationsModel, onTap: (
         AvatarView(data = if (n.hasActorImage()) n.actorImage.toByteArray() else null, size = 40.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(n.actorName.ifEmpty { n.actorDomain }) }
-                append(" " + describe(n))
-            }, style = MaterialTheme.typography.bodyMedium)
+            val line = describe(n)
+            if (line != null) Text(line.resolve(mapOf("b" to boldTag)), style = MaterialTheme.typography.bodyMedium)
+            else Text(n.actorName.ifEmpty { n.actorDomain }, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
             if (n.hasDt()) {
                 Text(relativeTime(n.dt.seconds * 1000), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         if (n.type == NotificationType.NotificationFriendRequest) {
             if (n.actorDomain in awaiting) {
-                androidx.compose.material3.Button(onClick = { scope.launch { model.accept(n.actorDomain) } }) { Text("Accept") }
+                androidx.compose.material3.Button(onClick = { scope.launch { model.accept(n.actorDomain) } }) { Text(S.commonAccept().resolve()) }
             } else if (n.actorDomain in accepted) {
-                Text("Friends ✓", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(S.androidAlertsFriends().resolve(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         if (n.hasThumbnail()) {
@@ -155,10 +174,12 @@ private fun ErrorRow(n: Notification) {
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(n.title) }
-                if (n.occurrences > 1) withStyle(SpanStyle(color = Color.Gray)) { append(" +${n.occurrences - 1} more") }
-            }, style = MaterialTheme.typography.bodyMedium)
+            // The title is the device's, already in the app's language.
+            if (n.occurrences > 1) Text(
+                S.appSocialAlertsErrorMore(n.title, n.occurrences - 1).resolve(mapOf("b" to boldTag, "dim" to RichTag(style = SpanStyle(color = Color.Gray)))),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            else Text(n.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
             if (n.hasDt()) {
                 Text(relativeTime(n.dt.seconds * 1000), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -167,7 +188,7 @@ private fun ErrorRow(n: Notification) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
             }
         }
-        Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, if (expanded) "Collapse" else "Expand",
+        Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, (if (expanded) S.androidAlertsCollapse() else S.androidAlertsExpand()).resolve(),
             tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

@@ -91,7 +91,6 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -125,6 +124,68 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.text.NumberFormat
+import cloud.offthe.otc.i18n.RichTag
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.androidPhotosPeopleBack
+import cloud.offthe.otc.i18n.androidPhotosPeopleDeleting
+import cloud.offthe.otc.i18n.androidPhotosPeopleKeep
+import cloud.offthe.otc.i18n.androidPhotosPeopleMergeDimmed
+import cloud.offthe.otc.i18n.appPhotosPeopleAddName
+import cloud.offthe.otc.i18n.appPhotosPeopleClearSelection
+import cloud.offthe.otc.i18n.appPhotosPeopleDeleteFailed
+import cloud.offthe.otc.i18n.appPhotosPeopleDeleteMany
+import cloud.offthe.otc.i18n.appPhotosPeopleDeleteNamed
+import cloud.offthe.otc.i18n.appPhotosPeopleDeleteOne
+import cloud.offthe.otc.i18n.appPhotosPeopleDeleteOneFailed
+import cloud.offthe.otc.i18n.appPhotosPeopleDeletePartly
+import cloud.offthe.otc.i18n.appPhotosPeopleDeleteText
+import cloud.offthe.otc.i18n.appPhotosPeopleDeletedMany
+import cloud.offthe.otc.i18n.appPhotosPeopleDeletedOne
+import cloud.offthe.otc.i18n.appPhotosPeopleFaceLabel
+import cloud.offthe.otc.i18n.appPhotosPeopleFaceLabelUnnamed
+import cloud.offthe.otc.i18n.appPhotosPeopleFailedTitle
+import cloud.offthe.otc.i18n.appPhotosPeopleKeep
+import cloud.offthe.otc.i18n.appPhotosPeopleListMore
+import cloud.offthe.otc.i18n.appPhotosPeopleListTwo
+import cloud.offthe.otc.i18n.appPhotosPeopleLoading
+import cloud.offthe.otc.i18n.appPhotosPeopleMerge
+import cloud.offthe.otc.i18n.appPhotosPeopleMergeCalled
+import cloud.offthe.otc.i18n.appPhotosPeopleMergeDropsName
+import cloud.offthe.otc.i18n.appPhotosPeopleMergeDropsNames
+import cloud.offthe.otc.i18n.appPhotosPeopleMergeFailed
+import cloud.offthe.otc.i18n.appPhotosPeopleMergeHint
+import cloud.offthe.otc.i18n.appPhotosPeopleMergeNameLabel
+import cloud.offthe.otc.i18n.appPhotosPeopleMergeNameNotSaved
+import cloud.offthe.otc.i18n.appPhotosPeopleMergeNamePlaceholder
+import cloud.offthe.otc.i18n.appPhotosPeopleMergeNeedTwo
+import cloud.offthe.otc.i18n.appPhotosPeopleMergePick
+import cloud.offthe.otc.i18n.appPhotosPeopleMergeText
+import cloud.offthe.otc.i18n.appPhotosPeopleMergeTitle
+import cloud.offthe.otc.i18n.appPhotosPeopleMergeWithOthers
+import cloud.offthe.otc.i18n.appPhotosPeopleMergedFaces
+import cloud.offthe.otc.i18n.appPhotosPeopleMergedInto
+import cloud.offthe.otc.i18n.appPhotosPeopleMoreOptions
+import cloud.offthe.otc.i18n.appPhotosPeopleMoreOptionsUnnamed
+import cloud.offthe.otc.i18n.appPhotosPeopleNameNotSaved
+import cloud.offthe.otc.i18n.appPhotosPeopleNamePlaceholder
+import cloud.offthe.otc.i18n.appPhotosPeopleNameThisPerson
+import cloud.offthe.otc.i18n.appPhotosPeopleNoAnswer
+import cloud.offthe.otc.i18n.appPhotosPeopleNoFacesText
+import cloud.offthe.otc.i18n.appPhotosPeopleNoFacesTitle
+import cloud.offthe.otc.i18n.appPhotosPeoplePhotoCount
+import cloud.offthe.otc.i18n.appPhotosPeopleSlowText
+import cloud.offthe.otc.i18n.appShellCollectionsFailedText
+import cloud.offthe.otc.i18n.appShellCollectionsSlowTitle
+import cloud.offthe.otc.i18n.appShellSearchUnnamed
+import cloud.offthe.otc.i18n.appShellSectionPeople
+import cloud.offthe.otc.i18n.appShellSelected
+import cloud.offthe.otc.i18n.commonCancel
+import cloud.offthe.otc.i18n.commonDelete
+import cloud.offthe.otc.i18n.commonRename
+import cloud.offthe.otc.i18n.commonSave
+import cloud.offthe.otc.i18n.commonSelect
+import cloud.offthe.otc.i18n.commonTryAgain
 
 // Port of the web's PeopleView.tsx, opened from Images' People button (next
 // to Collections) while face recognition is on: the faces the device found,
@@ -144,15 +205,19 @@ private const val MAX_NAME = 100
 private const val DELETE_PARALLEL = 3
 private const val SKELETON_FACES = 12
 
-private val numbers: NumberFormat get() = NumberFormat.getIntegerInstance()
-private fun counted(n: Int, one: String, many: String) = "${numbers.format(n)} ${if (n == 1) one else many}"
-private fun photosLabel(n: Int) = counted(n, "photo", "photos")
 private fun tidy(s: String) = s.replace(Regex("\\s+"), " ").trim()
 private fun fold(s: String) = tidy(s).lowercase()
 
-// "Ana", "Ana and Leo", "Ana, Leo and Rosa".
-private fun andList(xs: List<String>) =
-    if (xs.size < 2) xs.firstOrNull() ?: "" else xs.dropLast(1).joinToString(", ") + " and " + xs.last()
+// "Ana", "Ana and Leo", "Ana, Leo and Rosa": the last two joined by
+// app.photos.people.list_two, each name before them by list_more, so a
+// language words its own lists.
+@Composable
+private fun andList(xs: List<String>): String {
+    if (xs.size < 2) return xs.firstOrNull() ?: ""
+    var out = S.appPhotosPeopleListTwo(xs[xs.size - 2], xs[xs.size - 1]).resolve()
+    for (x in xs.dropLast(2).asReversed()) out = S.appPhotosPeopleListMore(x, out).resolve()
+    return out
+}
 
 /** The different names among some people, each once (Ana and ana are one). */
 internal fun namesOf(list: List<Person>): List<String> {
@@ -207,7 +272,7 @@ class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(
         data class Delete(val ids: List<String>) : Confirm
     }
     enum class Listing { NO, RUNNING, DONE }
-    data class Toast(val text: String, val error: Boolean, val at: Long = System.nanoTime())
+    data class Toast(val text: UiText, val error: Boolean, val at: Long = System.nanoTime())
 
     data class State(
         /** Picked, in the order they were picked; the page shows them in its own. */
@@ -216,7 +281,7 @@ class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(
         val mergeHint: Boolean = false,
         val confirm: Confirm? = null,
         val busy: Boolean = false,
-        val confirmError: String? = null,
+        val confirmError: UiText? = null,
         /** How far a deletion of several has got. */
         val progress: Pair<Int, Int>? = null,
         val toast: Toast? = null,
@@ -274,7 +339,7 @@ class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(
     // ---- questions ----
 
     fun askMerge() {
-        if (_state.value.selection.size < 2) { say("Select 2 or more faces to merge them into one."); return }
+        if (_state.value.selection.size < 2) { say(S.appPhotosPeopleMergeNeedTwo()); return }
         _state.update { it.copy(confirm = Confirm.Merge, confirmError = null) }
     }
 
@@ -283,7 +348,7 @@ class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(
     /** Cancel, back, or a tap outside: not while the device is at work, so its answer has somewhere to show. */
     fun dismissConfirm() { if (!_state.value.busy) _state.update { it.copy(confirm = null, confirmError = null) } }
 
-    fun say(text: String, error: Boolean = false) = _state.update { it.copy(toast = Toast(text, error)) }
+    fun say(text: UiText, error: Boolean = false) = _state.update { it.copy(toast = Toast(text, error)) }
     fun toastShown(t: Toast) = _state.update { if (it.toast == t) it.copy(toast = null) else it }
 
     // ---- the device ----
@@ -314,7 +379,7 @@ class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) { false }
-        if (ok) store.renamePersonLocally(id, name) else say("The name couldn't be saved. Try again.", error = true)
+        if (ok) store.renamePersonLocally(id, name) else say(S.appPhotosPeopleNameNotSaved(), error = true)
         _state.update { it.copy(saving = it.saving - id) }
     }
 
@@ -339,24 +404,24 @@ class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(
         try {
             if (name.isNotEmpty() && name != tidy(keep.name)) {
                 if (!ack { it.setReqRenamePerson(RenamePerson.newBuilder().setId(keep.id).setName(name)) }) {
-                    _state.update { it.copy(confirmError = "The name couldn't be saved, so nothing was merged. Try again.") }
+                    _state.update { it.copy(confirmError = S.appPhotosPeopleMergeNameNotSaved()) }
                     return false
                 }
                 store.renamePersonLocally(keep.id, name)
             }
             if (!ack { it.setReqMergePeople(MergePeople.newBuilder().setTargetId(keep.id).addAllSourceIds(sources)) }) {
-                _state.update { it.copy(confirmError = "They couldn't be merged. Try again.") }
+                _state.update { it.copy(confirmError = S.appPhotosPeopleMergeFailed()) }
                 return false
             }
             store.forgetPeople(sources.toSet())
             _state.update { it.copy(gone = it.gone + sources, confirm = null, selection = emptyList(), mergeHint = false) }
             val n = sources.size + 1
-            say(if (name.isNotEmpty()) "Merged $n into $name" else "Merged $n faces")
+            say(if (name.isNotEmpty()) S.appPhotosPeopleMergedInto(n, name) else S.appPhotosPeopleMergedFaces(n))
             return true
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
-            _state.update { it.copy(confirmError = "Your device didn't answer. Try again.") }
+            _state.update { it.copy(confirmError = S.appPhotosPeopleNoAnswer()) }
             return false
         } finally {
             _state.update { it.copy(busy = false) }
@@ -405,9 +470,9 @@ class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(
         }
         if (deleted.isEmpty()) {
             val why = when {
-                unanswered == ids.size -> "Your device didn't answer. Try again."
-                ids.size == 1 -> "This person couldn't be deleted. Try again."
-                else -> "They couldn't be deleted. Try again."
+                unanswered == ids.size -> S.appPhotosPeopleNoAnswer()
+                ids.size == 1 -> S.appPhotosPeopleDeleteOneFailed()
+                else -> S.appPhotosPeopleDeleteFailed()
             }
             _state.update { it.copy(confirmError = why) }
             return false
@@ -419,12 +484,11 @@ class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(
         }
         val failed = ids.size - deleted.size
         if (failed == 0) {
-            say(if (ids.size == 1) "Person deleted" else "Deleted ${counted(ids.size, "person", "people")}")
+            say(if (ids.size == 1) S.appPhotosPeopleDeletedOne() else S.appPhotosPeopleDeletedMany(ids.size))
         } else {
             // "1 of 2 people couldn't be deleted and is still selected."
             // Only a deletion of several gets here: one is all or nothing.
-            val verb = if (failed == 1) "is" else "are"
-            say("${numbers.format(failed)} of ${counted(ids.size, "person", "people")} couldn't be deleted and $verb still selected. Try again.", error = true)
+            say(S.appPhotosPeopleDeletePartly(failed, ids.size), error = true)
         }
         return true
     }
@@ -508,21 +572,21 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
                 Modifier.fillMaxWidth().height(64.dp).background(colors.surfaceContainerLow).padding(start = 4.dp, end = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onBack) { Icon(PeopleIcons.Back, "Back to photos") }
+                IconButton(onClick = onBack) { Icon(PeopleIcons.Back, S.androidPhotosPeopleBack().resolve()) }
                 Spacer(Modifier.width(4.dp))
-                Text("People", style = MaterialTheme.typography.titleLarge)
+                Text(S.appShellSectionPeople().resolve(), style = MaterialTheme.typography.titleLarge)
             }
         } else {
             // The wide layout's menu names the page, as the web's does: no
             // title on screen, only for TalkBack.
-            HiddenPageHeading("People")
+            HiddenPageHeading(S.appShellSectionPeople().resolve())
         }
 
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 loaded && people.isEmpty() -> StateMessage(
-                    art = { EmptyArt() }, title = "No faces found yet",
-                    text = "Face recognition runs on the device after photos are uploaded. You can switch it on in Settings.",
+                    art = { EmptyArt() }, title = S.appPhotosPeopleNoFacesTitle().resolve(),
+                    text = S.appPhotosPeopleNoFacesText().resolve(),
                 )
                 loaded -> BoxWithConstraints(Modifier.fillMaxSize()) {
                     val density = LocalDensity.current
@@ -557,9 +621,9 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
                     val failed = st.listing == PeopleViewModel.Listing.DONE
                     StateMessage(
                         art = { Icon(PeopleIcons.Problem, null, Modifier.size(40.dp), tint = colors.onSurfaceVariant) },
-                        title = if (failed) "Couldn't load people" else "Still waiting for your device",
-                        text = if (failed) "Check that your device is online, then try again." else "People are taking longer than usual to load.",
-                        action = "Try again", onAction = { vm.reload(gallery) },
+                        title = (if (failed) S.appPhotosPeopleFailedTitle() else S.appShellCollectionsSlowTitle()).resolve(),
+                        text = (if (failed) S.appShellCollectionsFailedText() else S.appPhotosPeopleSlowText()).resolve(),
+                        action = S.commonTryAgain().resolve(), onAction = { vm.reload(gallery) },
                     )
                 }
                 else -> Skeleton()
@@ -571,7 +635,7 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
                     color = if (t.error) colors.errorContainer else colors.inverseSurface,
                 ) {
                     Text(
-                        t.text, Modifier.padding(horizontal = 16.dp, vertical = 12.dp), style = MaterialTheme.typography.bodyMedium,
+                        t.text.resolve(), Modifier.padding(horizontal = 16.dp, vertical = 12.dp), style = MaterialTheme.typography.bodyMedium,
                         color = if (t.error) colors.onErrorContainer else colors.inverseOnSurface,
                     )
                 }
@@ -589,7 +653,7 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
     }
     if (st.confirm == PeopleViewModel.Confirm.Merge && canMerge) {
         MergeDialog(
-            selPeople, busy = st.busy, error = st.confirmError,
+            selPeople, busy = st.busy, error = st.confirmError?.resolve(),
             onCancel = { vm.dismissConfirm() }, onConfirm = { keep, name -> vm.merge(gallery, keep, name) },
         )
     }
@@ -598,17 +662,17 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
         ConfirmPeopleDialog(
             art = { FaceStack(deletePeople) },
             title = when {
-                one == null -> "Delete ${numbers.format(deletePeople.size)} people?"
-                tidy(one.name).isNotEmpty() -> "Delete ${tidy(one.name)}?"
-                else -> "Delete this person?"
-            },
+                one == null -> S.appPhotosPeopleDeleteMany(deletePeople.size)
+                tidy(one.name).isNotEmpty() -> S.appPhotosPeopleDeleteNamed(tidy(one.name))
+                else -> S.appPhotosPeopleDeleteOne()
+            }.resolve(),
             // What DeletePerson does: the person and every face matched to
             // them go, the photos stay, and a face in a photo added later
             // is found as someone new.
-            text = "Their photos stay; only the faces matched to them are forgotten. This can't be undone, and they'll come back as new people in photos added later.",
-            action = "Delete", danger = true, busy = st.busy,
-            busyText = st.progress?.takeIf { it.second > 1 }?.let { (d, t) -> "${minOf(d + 1, t)} of $t" },
-            error = st.confirmError,
+            text = S.appPhotosPeopleDeleteText().resolve(),
+            action = S.commonDelete().resolve(), danger = true, busy = st.busy,
+            busyText = st.progress?.takeIf { it.second > 1 }?.let { (d, t) -> S.androidPhotosPeopleDeleting(minOf(d + 1, t), t).resolve() },
+            error = st.confirmError?.resolve(),
             onCancel = { vm.dismissConfirm() }, onConfirm = { vm.remove(gallery, deletePeople.map { it.id }) },
         )
     }
@@ -622,25 +686,31 @@ private fun SelectionBar(count: Int, hint: Boolean, canMerge: Boolean, onClose: 
         // Narrow: the actions are icons (named for TalkBack).
         val compact = maxWidth < 360.dp
         Row(Modifier.fillMaxSize().padding(start = 4.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onClose) { Icon(PeopleIcons.Close, "Clear selection") }
+            IconButton(onClick = onClose) { Icon(PeopleIcons.Close, S.appPhotosPeopleClearSelection().resolve()) }
             Column(Modifier.weight(1f).padding(start = 4.dp)) {
-                Text("${numbers.format(count)} selected", style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(S.appShellSelected(count).resolve(), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (hint) Text(
-                    "Select the faces of the same person", style = MaterialTheme.typography.bodySmall,
+                    S.appPhotosPeopleMergeHint().resolve(), style = MaterialTheme.typography.bodySmall,
                     color = colors.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis,
                 )
             }
             // Merge with one face picked: there, dimmed, and saying why when pressed.
-            BarButton("Merge", PeopleIcons.Merge, compact, dimmed = !canMerge, tint = colors.onSurface, onClick = onMerge)
-            BarButton("Delete", PeopleIcons.Trash, compact, tint = Danger, onClick = onDelete)
+            BarButton(
+                S.appPhotosPeopleMerge().resolve(), PeopleIcons.Merge, compact, dimmed = !canMerge, tint = colors.onSurface,
+                dimmedLabel = S.androidPhotosPeopleMergeDimmed().resolve(), onClick = onMerge,
+            )
+            BarButton(S.commonDelete().resolve(), PeopleIcons.Trash, compact, tint = Danger, onClick = onDelete)
         }
     }
 }
 
 @Composable
-private fun BarButton(label: String, icon: ImageVector, compact: Boolean, tint: Color, dimmed: Boolean = false, onClick: () -> Unit) {
+private fun BarButton(
+    label: String, icon: ImageVector, compact: Boolean, tint: Color, dimmed: Boolean = false, dimmedLabel: String = label, onClick: () -> Unit,
+) {
     val a = if (dimmed) 0.45f else 1f
-    val description = if (dimmed) "$label (select 2 or more to merge)" else label
+    // Dimmed, TalkBack says why ([dimmedLabel]).
+    val description = if (dimmed) dimmedLabel else label
     if (compact) {
         IconButton(onClick = onClick) { Icon(icon, description, Modifier.alpha(a), tint = tint) }
     } else {
@@ -661,7 +731,9 @@ private fun PersonTile(
 ) {
     val colors = MaterialTheme.colorScheme
     var menu by remember { mutableStateOf(false) }
-    val label = "${name.ifEmpty { "Unnamed person" }}, ${photosLabel(p.faceCount)}"
+    val label = (if (name.isEmpty()) S.appPhotosPeopleFaceLabelUnnamed(p.faceCount) else S.appPhotosPeopleFaceLabel(name, p.faceCount)).resolve()
+    val select = S.commonSelect().resolve()
+    val moreOptions = (if (name.isEmpty()) S.appPhotosPeopleMoreOptionsUnnamed() else S.appPhotosPeopleMoreOptions(name)).resolve()
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(face)) {
             // Picked: a ring around a face that steps back a little.
@@ -669,7 +741,7 @@ private fun PersonTile(
                 Modifier.fillMaxSize().scale(if (selected) 0.9f else 1f)
                     .let { if (selected) it.border(3.dp, colors.primary, CircleShape).padding(5.dp) else it }
                     .clip(CircleShape)
-                    .combinedClickable(onClick = onTap, onLongClick = onLongPress, onLongClickLabel = "Select")
+                    .combinedClickable(onClick = onTap, onLongClick = onLongPress, onLongClickLabel = select)
                     .semantics {
                         contentDescription = label
                         if (selecting) this.selected = selected
@@ -686,21 +758,21 @@ private fun PersonTile(
                 Box(Modifier.align(Alignment.TopEnd).offset(4.dp, (-4).dp)) {
                     Surface(
                         onClick = { menu = true }, shape = CircleShape, color = colors.surfaceContainerHighest,
-                        shadowElevation = 3.dp, modifier = Modifier.size(32.dp).semantics { contentDescription = "More options for ${name.ifEmpty { "this person" }}" },
+                        shadowElevation = 3.dp, modifier = Modifier.size(32.dp).semantics { contentDescription = moreOptions },
                     ) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.MoreHoriz, null, Modifier.size(20.dp)) } }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         DropdownMenuItem(
-                            text = { Text(if (name.isNotEmpty()) "Rename" else "Add a name") },
+                            text = { Text((if (name.isNotEmpty()) S.commonRename() else S.appPhotosPeopleAddName()).resolve()) },
                             leadingIcon = { Icon(PeopleIcons.Pencil, null) },
                             onClick = { menu = false; onRename() },
                         )
                         if (canMerge) DropdownMenuItem(
-                            text = { Text("Merge with others…") },
+                            text = { Text(S.appPhotosPeopleMergeWithOthers().resolve()) },
                             leadingIcon = { Icon(PeopleIcons.Merge, null) },
                             onClick = { menu = false; onMergeWithOthers() },
                         )
                         DropdownMenuItem(
-                            text = { Text("Delete", color = Danger) },
+                            text = { Text(S.commonDelete().resolve(), color = Danger) },
                             leadingIcon = { Icon(PeopleIcons.Trash, null, tint = Danger) },
                             onClick = { menu = false; onDelete() },
                         )
@@ -716,14 +788,14 @@ private fun PersonTile(
                     name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     color = if (selected) colors.primary else colors.onSurface, modifier = Modifier.alpha(if (pending) 0.55f else 1f),
                 )
-                selecting -> Text("Unnamed", style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic, color = colors.onSurfaceVariant)
+                selecting -> Text(S.appShellSearchUnnamed().resolve(), style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic, color = colors.onSurfaceVariant)
                 else -> Text(
-                    "Add a name", style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic, color = colors.onSurfaceVariant,
+                    S.appPhotosPeopleAddName().resolve(), style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic, color = colors.onSurfaceVariant,
                     modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button, onClick = onRename).padding(horizontal = 8.dp, vertical = 2.dp),
                 )
             }
         }
-        Text(photosLabel(p.faceCount), style = MaterialTheme.typography.bodySmall, fontSize = 12.sp, color = colors.onSurfaceVariant)
+        Text(S.appPhotosPeoplePhotoCount(p.faceCount).resolve(), style = MaterialTheme.typography.bodySmall, fontSize = 12.sp, color = colors.onSurfaceVariant)
     }
 }
 
@@ -746,10 +818,11 @@ private fun Skeleton() {
         0.35f, 0.8f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "alpha",
     )
     val fill = MaterialTheme.colorScheme.surfaceContainerHighest
+    val loading = S.appPhotosPeopleLoading().resolve()
     LazyVerticalGrid(
         columns = GridCells.Adaptive(112.dp), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(20.dp), userScrollEnabled = false,
-        modifier = Modifier.fillMaxSize().semantics { contentDescription = "Loading people" },
+        modifier = Modifier.fillMaxSize().semantics { contentDescription = loading },
     ) {
         items(SKELETON_FACES) { i ->
             Column(Modifier.fillMaxWidth().alpha(pulse), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -797,7 +870,7 @@ private fun NameDialog(current: String, onDismiss: () -> Unit, onSave: (String) 
     val changed = typed != current
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (current.isNotEmpty()) "Rename" else "Name this person") },
+        title = { Text((if (current.isNotEmpty()) S.commonRename() else S.appPhotosPeopleNameThisPerson()).resolve()) },
         text = {
             // The field takes the focus (and the keyboard comes up) once
             // the dialog's window has it: opened from a face's menu, the
@@ -808,14 +881,14 @@ private fun NameDialog(current: String, onDismiss: () -> Unit, onSave: (String) 
             LaunchedEffect(windowFocused) { if (windowFocused && !asked) { asked = true; focus.requestFocus() } }
             OTCTextField(
                 value = value, onValueChange = { if (it.text.length <= MAX_NAME) value = it },
-                placeholder = { Text("Name") }, singleLine = true,
+                placeholder = { Text(S.appPhotosPeopleNamePlaceholder().resolve()) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, autoCorrectEnabled = false, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { if (changed) onSave(typed) else onDismiss() }),
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
             )
         },
-        confirmButton = { TextButton(onClick = { onSave(typed) }, enabled = changed) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = { onSave(typed) }, enabled = changed) { Text(S.commonSave().resolve()) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(S.commonCancel().resolve()) } },
     )
 }
 
@@ -838,10 +911,11 @@ private fun MergeDialog(people: List<Person>, busy: Boolean, error: String?, onC
     val name = carried.ifEmpty { tidy(typed) }
     val dropped = if (keep != null) names.filter { fold(it) != fold(name) } else emptyList()
 
+    val unnamed = S.appShellSearchUnnamed().resolve()
     ConfirmPeopleDialog(
-        title = "Merge ${numbers.format(people.size)} people into one?",
-        text = "Pick the face to keep: it keeps its name and picture, and gets the photos of the others. This can't be undone.",
-        action = "Merge", danger = false, ready = keep != null, busy = busy, error = error,
+        title = S.appPhotosPeopleMergeTitle(people.size).resolve(),
+        text = S.appPhotosPeopleMergeText().resolve(),
+        action = S.appPhotosPeopleMerge().resolve(), danger = false, ready = keep != null, busy = busy, error = error,
         onCancel = onCancel, onConfirm = { keep?.let { onConfirm(it, name) } },
     ) {
         FlowRow(
@@ -851,11 +925,12 @@ private fun MergeDialog(people: List<Person>, busy: Boolean, error: String?, onC
             people.forEach { p ->
                 val chosen = p.id == keepId
                 val label = tidy(p.name)
+                val spoken = S.androidPhotosPeopleKeep(label.ifEmpty { unnamed }, p.faceCount).resolve()
                 Column(
                     Modifier.width(92.dp).clip(RoundedCornerShape(12.dp))
                         .background(if (chosen) colors.primary.copy(alpha = 0.12f) else Color.Transparent)
                         .clickable(enabled = !busy, role = Role.RadioButton) { keepId = p.id }
-                        .semantics { this.selected = chosen; contentDescription = "Keep ${label.ifEmpty { "Unnamed" }}, ${photosLabel(p.faceCount)}" }
+                        .semantics { this.selected = chosen; contentDescription = spoken }
                         .padding(vertical = 8.dp, horizontal = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
@@ -867,45 +942,43 @@ private fun MergeDialog(people: List<Person>, busy: Boolean, error: String?, onC
                         ) {
                             Icon(PeopleIcons.Check, null, Modifier.size(12.dp), tint = colors.onPrimary)
                             Spacer(Modifier.width(2.dp))
-                            Text("Keep", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = colors.onPrimary)
+                            Text(S.appPhotosPeopleKeep().resolve(), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = colors.onPrimary)
                         }
                     }
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        label.ifEmpty { "Unnamed" }, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        label.ifEmpty { unnamed }, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         fontWeight = if (label.isEmpty()) FontWeight.Normal else FontWeight.SemiBold, fontStyle = if (label.isEmpty()) FontStyle.Italic else FontStyle.Normal,
                         color = if (label.isEmpty()) colors.onSurfaceVariant else colors.onSurface,
                     )
-                    Text(photosLabel(p.faceCount), fontSize = 11.sp, color = colors.onSurfaceVariant, maxLines = 1)
+                    Text(S.appPhotosPeoplePhotoCount(p.faceCount).resolve(), fontSize = 11.sp, color = colors.onSurfaceVariant, maxLines = 1)
                 }
             }
         }
+        val pick = S.appPhotosPeopleMergePick().resolve()
+        val called = S.appPhotosPeopleMergeCalled(name).resolve(mapOf("b" to RichTag(SpanStyle(fontWeight = FontWeight.Bold))))
+        val drops = when (dropped.size) {
+            0 -> null
+            1 -> S.appPhotosPeopleMergeDropsName(dropped[0]).resolve()
+            else -> S.appPhotosPeopleMergeDropsNames(andList(dropped)).resolve()
+        }
         val note = buildAnnotatedString {
-            if (keep == null) append("They have different names, and only one can stay. Pick the face to keep.")
-            else if (name.isNotEmpty() && !askName) {
-                append("The merged person will be called ")
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(name) }
-                append(".")
-            }
-            if (dropped.isNotEmpty()) {
+            if (keep == null) append(pick)
+            else if (name.isNotEmpty() && !askName) append(called)
+            if (drops != null) {
                 if (length > 0) append(" ")
-                append(if (dropped.size == 1) "The name " else "The names ")
-                append(andList(dropped))
-                append(" will be dropped.")
+                append(drops)
             }
         }
         if (note.isNotEmpty()) Text(note, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
         if (askName) {
             Text(
-                buildAnnotatedString {
-                    append("Name ")
-                    withStyle(SpanStyle(color = colors.onSurfaceVariant, fontWeight = FontWeight.Normal)) { append("(optional)") }
-                },
+                S.appPhotosPeopleMergeNameLabel().resolve(mapOf("dim" to RichTag(SpanStyle(color = colors.onSurfaceVariant, fontWeight = FontWeight.Normal)))),
                 style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 16.dp, bottom = 6.dp),
             )
             OTCTextField(
                 value = typed, onValueChange = { if (!busy && it.length <= MAX_NAME) typed = it },
-                placeholder = { Text("Add a name") }, singleLine = true, enabled = !busy,
+                placeholder = { Text(S.appPhotosPeopleMergeNamePlaceholder().resolve()) }, singleLine = true, enabled = !busy,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, autoCorrectEnabled = false, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { if (!busy) keep?.let { onConfirm(it, name) } }),
                 modifier = Modifier.fillMaxWidth(),
@@ -950,9 +1023,12 @@ private fun ConfirmPeopleDialog(
                 } else Text(action)
             }
         },
-        dismissButton = { TextButton(onClick = { if (!busy) onCancel() }, enabled = !busy) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = { if (!busy) onCancel() }, enabled = !busy) { Text(S.commonCancel().resolve()) } },
     )
 }
+
+// "+3": how many more faces than the stack shows.
+private val numbers: NumberFormat get() = NumberFormat.getIntegerInstance()
 
 /** The faces a deletion is about: one large, or a few overlapping with how many more there are. */
 @Composable

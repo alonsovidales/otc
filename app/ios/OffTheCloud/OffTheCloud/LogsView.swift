@@ -32,12 +32,12 @@ final class LogsViewModel: ObservableObject {
     @Published private(set) var chunks: [LogChunk] = []
     /// What came after the last finished piece.
     @Published private(set) var tail = ""
-    @Published private(set) var error: String?
+    @Published private(set) var error: SettingsText?
     @Published private(set) var paused = false
 
     @Published var sending = false
-    @Published var sendResult: String?
-    @Published var sendError: String?
+    @Published var sendResult: SettingsText?
+    @Published var sendError: SettingsText?
 
     private let ws = OTCConnection.shared
     private var loop: Task<Void, Never>?
@@ -114,26 +114,22 @@ final class LogsViewModel: ObservableObject {
                 }
                 guard !Task.isCancelled, gen == generation else { return }
                 if resp.error {
-                    throw NSError(domain: "logs", code: -1, userInfo: [
-                        NSLocalizedDescriptionKey: resp.errorMessage.isEmpty ? "Could not read the logs." : resp.errorMessage,
-                    ])
+                    throw resp.errorMessage.isEmpty ? LogReadError.unreadable : LogReadError.device(resp.errorMessage)
                 }
                 guard case .respLogs(let logs) = resp.payload else {
-                    throw NSError(domain: "logs", code: -1, userInfo: [
-                        NSLocalizedDescriptionKey: "Could not read the logs.",
-                    ])
+                    throw LogReadError.unreadable
                 }
                 error = nil
                 // Smaller than where we asked from: the log was rotated and
                 // the text starts again from its beginning.
                 if !first && logs.size < from {
-                    append((tail.isEmpty || tail.hasSuffix("\n") ? "" : "\n") + "— log rotated —\n")
+                    append((tail.isEmpty || tail.hasSuffix("\n") ? "" : "\n") + "— log rotated —\n") // i18n-ignore: a marker inside the log text, English like the lines around it (and shared with them)
                 }
                 append(logs.text)
                 offset = logs.nextOffset
             } catch {
                 guard !Task.isCancelled, gen == generation else { return }
-                self.error = error.localizedDescription
+                self.error = .error(error)
                 try? await Task.sleep(for: .seconds(5))
             }
         }
@@ -182,20 +178,34 @@ final class LogsViewModel: ObservableObject {
                 e.payload = .reqSendLogs(m)
             }
             if case .respAck(let ack) = resp.payload, ack.ok, !resp.error {
-                sendResult = "Sent - we'll answer at your account's email."
+                sendResult = .say { S.appSettingsLogsSent }
                 return true
             }
             if !resp.errorMessage.isEmpty {
-                sendError = resp.errorMessage
+                sendError = .asIs(resp.errorMessage)
             } else if case .respAck(let ack) = resp.payload, !ack.errorMsg.isEmpty {
-                sendError = ack.errorMsg
+                sendError = .asIs(ack.errorMsg)
             } else {
-                sendError = "Could not send the logs."
+                sendError = .say { S.iosSettingsLogsSendFailed }
             }
         } catch {
-            sendError = error.localizedDescription
+            sendError = .error(error)
         }
         return false
+    }
+}
+
+/// Why reading the log failed: the device's words, or ours when it gave
+/// none - worded when shown, like the errors of the connection.
+private enum LogReadError: LocalizedError {
+    case device(String)
+    case unreadable
+
+    var errorDescription: String? {
+        switch self {
+        case .device(let message): return message
+        case .unreadable: return S.iosSettingsLogsReadFailed
+        }
     }
 }
 
@@ -208,19 +218,19 @@ struct LogsView: View {
     var body: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
-                Label("Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses. Check them before you share them.", systemImage: "exclamationmark.triangle")
+                Label(S.appSettingsLogsWarning, systemImage: "exclamationmark.triangle")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Picker("Log", selection: $vm.source) {
-                    Text("Device").tag("app")
-                    Text("Updates").tag("update")
+                Picker(S.iosSettingsLogsPicker, selection: $vm.source) {
+                    Text(S.appSettingsLogsDevice).tag("app")
+                    Text(S.appSettingsLogsUpdates).tag("update")
                 }
                 .pickerStyle(.segmented)
                 if let error = vm.error {
-                    Text(error).font(.caption).foregroundStyle(.red)
+                    Text(error.text).font(.caption).foregroundStyle(.red)
                 }
                 if let result = vm.sendResult {
-                    Text(result).font(.caption).foregroundStyle(.secondary)
+                    Text(result.text).font(.caption).foregroundStyle(.secondary)
                 }
             }
             .padding()
@@ -239,7 +249,7 @@ struct LogsView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         if vm.isEmpty {
-                            Text(vm.error == nil ? "Loading…" : "")
+                            Text(vm.error == nil ? S.commonLoading : "")
                                 .foregroundStyle(.secondary)
                         }
                         Color.clear.frame(height: 1).id("bottom")
@@ -262,25 +272,25 @@ struct LogsView: View {
                 }
             }
         }
-        .navigationTitle("Logs")
+        .navigationTitle(S.appSettingsLogsTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button {
                     vm.togglePause()
                 } label: {
-                    Label(vm.paused ? "Resume" : "Pause", systemImage: vm.paused ? "play.fill" : "pause.fill")
+                    Label(vm.paused ? S.commonResume : S.commonPause, systemImage: vm.paused ? "play.fill" : "pause.fill")
                 }
                 Button {
                     shareText = vm.fullText
                 } label: {
-                    Label("Share", systemImage: "square.and.arrow.up")
+                    Label(S.commonShare, systemImage: "square.and.arrow.up")
                 }
                 .disabled(vm.isEmpty)
                 Button {
                     showSend = true
                 } label: {
-                    Label("Send to us", systemImage: "paperplane")
+                    Label(S.appSettingsLogsSendToUs, systemImage: "paperplane")
                 }
             }
         }
@@ -311,27 +321,27 @@ private struct SendLogsSheet: View {
         NavigationStack {
             Form {
                 Section(
-                    header: Text("Note (optional)"),
-                    footer: Text("Sends the last part of your device's logs, your note and your account's email to info@off-the.cloud, so we can help. Logs can include file and folder names, search words, Wi-Fi network names and your device's addresses.")
+                    header: Text(S.appSettingsLogsNote),
+                    footer: Text(S.appSettingsLogsSendExplain)
                 ) {
                     TextEditor(text: $note)
                         .frame(minHeight: 120)
                 }
                 if let error = vm.sendError {
                     Section {
-                        Text(error).font(.caption).foregroundStyle(.red)
+                        Text(error.text).font(.caption).foregroundStyle(.red)
                     }
                 }
             }
-            .navigationTitle("Send to us")
+            .navigationTitle(S.appSettingsLogsSendToUs)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(S.commonCancel) { dismiss() }
                         .disabled(vm.sending)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(vm.sending ? "Sending…" : "Send") {
+                    Button(vm.sending ? S.appSettingsLogsSending : S.commonSend) {
                         Task {
                             if await vm.send(note: note) { dismiss() }
                         }
@@ -368,8 +378,8 @@ struct LogsSection: View {
 
     var body: some View {
         if vm.isPrimary {
-            Section(header: Text("Troubleshooting")) {
-                NavigationLink("Logs") { LogsView() }
+            Section(header: Text(S.iosSettingsLogsTroubleshooting)) {
+                NavigationLink(S.appSettingsLogsTitle) { LogsView() }
             }
             .task { await vm.load() }
         } else {

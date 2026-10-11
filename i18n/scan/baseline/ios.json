@@ -1,28 +1,5 @@
 {
   "surface": "ios",
-  "total": 617,
-  "files": {
-    "app/ios/OffTheCloud/OffTheCloud/BridgeAccountSection.swift": 17,
-    "app/ios/OffTheCloud/OffTheCloud/DevicePhotoPickerView.swift": 7,
-    "app/ios/OffTheCloud/OffTheCloud/FilesExplorerView.swift": 73,
-    "app/ios/OffTheCloud/OffTheCloud/FilesSearch.swift": 4,
-    "app/ios/OffTheCloud/OffTheCloud/FriendshipsView.swift": 57,
-    "app/ios/OffTheCloud/OffTheCloud/LogsView.swift": 23,
-    "app/ios/OffTheCloud/OffTheCloud/NewPostPicker.swift": 26,
-    "app/ios/OffTheCloud/OffTheCloud/NotificationsBellView.swift": 12,
-    "app/ios/OffTheCloud/OffTheCloud/PeopleView.swift": 60,
-    "app/ios/OffTheCloud/OffTheCloud/PhotoGallery.swift": 88,
-    "app/ios/OffTheCloud/OffTheCloud/PhotoMonths.swift": 1,
-    "app/ios/OffTheCloud/OffTheCloud/ProfileEditor.swift": 10,
-    "app/ios/OffTheCloud/OffTheCloud/ProfilePhotoCropView.swift": 4,
-    "app/ios/OffTheCloud/OffTheCloud/SettingsView.swift": 82,
-    "app/ios/OffTheCloud/OffTheCloud/SharedGalleryShareFlow.swift": 33,
-    "app/ios/OffTheCloud/OffTheCloud/SharedLinksView.swift": 14,
-    "app/ios/OffTheCloud/OffTheCloud/SocialFeedView.swift": 21,
-    "app/ios/OffTheCloud/OffTheCloud/TailscaleSection.swift": 23,
-    "app/ios/OffTheCloud/OffTheCloud/TopSearch.swift": 6,
-    "app/ios/OffTheCloud/OffTheCloud/UpdateSection.swift": 25,
-    "app/ios/OffTheCloud/OffTheCloud/UsersManagementView.swift": 19,
-    "app/ios/OffTheCloud/OffTheCloud/VideoTrimmerView.swift": 12
-  }
+  "total": 0,
+  "files": {}
 }

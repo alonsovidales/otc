@@ -56,8 +56,20 @@ struct VideoTrimmerView: View {
     /// AVFoundation can fail to read a clip's length (a format it can't
     /// demux, an iCloud fetch that didn't complete), and without this the
     /// sheet sits on "Reading the clip…" with no explanation - the same
-    /// dead end the web trimmer had before it grew this.
-    @State private var loadError: String?
+    /// dead end the web trimmer had before it grew this. Kept as the
+    /// reason and worded when shown.
+    @State private var loadError: LoadError?
+
+    private enum LoadError {
+        case cantOpen, noLength
+
+        var text: String {
+            switch self {
+            case .cantOpen: return S.appSocialTrimCantOpen
+            case .noLength: return S.appSocialTrimNoLength
+            }
+        }
+    }
 
     private var effectiveEnd: Double { end > 0 ? end : (duration ?? 0) }
     private var cutLength: Double { max(0, effectiveEnd - start) }
@@ -100,7 +112,7 @@ struct VideoTrimmerView: View {
                             .frame(width: 52, alignment: .trailing)
                     }
 
-                    Text("Keeping \(formatTimecode(cutLength)) of \(formatTimecode(d))")
+                    Text(S.appSocialTrimKeeping(kept: formatTimecode(cutLength), total: formatTimecode(d)))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -108,31 +120,31 @@ struct VideoTrimmerView: View {
                     Button {
                         playCut()
                     } label: {
-                        Label("Play cut", systemImage: "play.fill")
+                        Label(S.iosTrimPlayCut, systemImage: "play.fill")
                     }
                     .buttonStyle(.bordered)
 
                     if existing != nil {
-                        Button("Remove trim", role: .destructive) { onApply(nil) }
+                        Button(S.appSocialTrimRemove, role: .destructive) { onApply(nil) }
                             .buttonStyle(.bordered)
                     }
                 } else if let loadError {
-                    ContentUnavailableView("Can't trim this video", systemImage: "exclamationmark.triangle", description: Text(loadError))
+                    ContentUnavailableView(S.iosTrimCantTitle, systemImage: "exclamationmark.triangle", description: Text(loadError.text))
                 } else {
-                    ProgressView("Reading the clip…")
+                    ProgressView(S.appSocialTrimReading)
                 }
 
                 Spacer(minLength: 0)
             }
             .padding()
-            .navigationTitle("Trim video")
+            .navigationTitle(S.appSocialTrimTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { onCancel() }
+                    Button(S.commonCancel) { onCancel() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Apply") { onApply(TrimRange(start: start, end: effectiveEnd)) }
+                    Button(S.commonApply) { onApply(TrimRange(start: start, end: effectiveEnd)) }
                         .disabled(isWholeClip || cutLength < cMinTrimSecs)
                 }
             }
@@ -161,12 +173,12 @@ struct VideoTrimmerView: View {
         }
 
         guard let d = try? await asset.load(.duration) else {
-            loadError = "This video could not be opened."
+            loadError = .cantOpen
             return
         }
         let secs = d.seconds
         guard secs.isFinite, secs > 0 else {
-            loadError = "This video's length could not be read."
+            loadError = .noLength
             return
         }
         duration = secs
@@ -247,12 +259,12 @@ private struct DualRangeSlider: View {
                 handle
                     .offset(x: startX)
                     .gesture(drag(usable: usable) { start = $0 })
-                    .accessibilityLabel("Start of the cut")
+                    .accessibilityLabel(S.iosTrimStartHandle)
                     .accessibilityValue(formatTimecode(start))
                 handle
                     .offset(x: endX)
                     .gesture(drag(usable: usable) { end = $0 })
-                    .accessibilityLabel("End of the cut")
+                    .accessibilityLabel(S.iosTrimEndHandle)
                     .accessibilityValue(formatTimecode(end))
             }
             .frame(height: handleSize)

@@ -22,9 +22,9 @@ import UIKit
 /// what a gallery or a link holds, all 64-bit.
 func formatByteCount(_ n: Int64) -> String {
     let bytes = Double(n)
-    if bytes >= Double(1 << 30) { return String(format: "%.1f GB", bytes / Double(1 << 30)) }
-    if bytes >= Double(1 << 20) { return String(format: "%.1f MB", bytes / Double(1 << 20)) }
-    if bytes >= Double(1 << 10) { return String(format: "%.1f KB", bytes / Double(1 << 10)) }
+    if bytes >= Double(1 << 30) { return String(format: "%.1f GB", bytes / Double(1 << 30)) } // i18n-ignore: a size, kept as written today (sizes keep their formatter)
+    if bytes >= Double(1 << 20) { return String(format: "%.1f MB", bytes / Double(1 << 20)) } // i18n-ignore: a size, kept as written today (sizes keep their formatter)
+    if bytes >= Double(1 << 10) { return String(format: "%.1f KB", bytes / Double(1 << 10)) } // i18n-ignore: a size, kept as written today (sizes keep their formatter)
     return "\(n) B"
 }
 
@@ -34,13 +34,8 @@ enum SharedGalleryExpiry: Int32, CaseIterable, Identifiable {
     case sevenDays = 168
     case thirtyDays = 720
     var id: Int32 { rawValue }
-    var label: String {
-        switch self {
-        case .oneDay: return "1 day"
-        case .sevenDays: return "7 days"
-        case .thirtyDays: return "30 days"
-        }
-    }
+    /// "1 day", "7 days", "30 days", in the language shown when read.
+    var label: String { S.appFilesGalleryDays(count: Int(rawValue / 24)) }
 }
 
 @MainActor
@@ -52,7 +47,34 @@ final class SharedGalleryShareModel: ObservableObject {
         case creating
         case copying(Msg_SharedGalleryJob)
         case done(String)
-        case failed(String)
+        case failed(Failure)
+    }
+
+    /// Why the share stopped, worded when it is shown: the device's own
+    /// words (it wrote them in the app's language), the phone's, or ours.
+    enum Failure {
+        case words(String)
+        case error(Error)
+        case prepare
+        case create
+        case job
+        case noLink
+
+        var text: String {
+            switch self {
+            case .words(let words): return words
+            case .error(let error): return error.localizedDescription
+            case .prepare: return S.appFilesGalleryPrepareFailed
+            case .create: return S.appFilesGalleryCreateFailed
+            case .job: return S.iosFilesGalleryJobFailed
+            case .noLink: return S.appFilesGalleryNoLink
+            }
+        }
+
+        /// The device's words when it gave some, else ours.
+        static func device(_ words: String, or ours: Failure) -> Failure {
+            words.isEmpty ? ours : .words(words)
+        }
     }
 
     private let ws = OTCConnection.shared
@@ -82,12 +104,14 @@ final class SharedGalleryShareModel: ObservableObject {
         }
     }
 
+    /// The description a share starts with, in the language shown then:
+    /// from there on it is the owner's text, which they may change.
     static func defaultDescription(_ now: Date = Date()) -> String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.timeZone = .current
         f.dateFormat = "dd-MM-yyyy HH:mm"
-        return "Shared Media \(f.string(from: now))"
+        return S.appFilesGalleryDefaultDescription(date: f.string(from: now))
     }
 
     func start(_ source: Msg_SharedGallerySource) {
@@ -109,10 +133,10 @@ final class SharedGalleryShareModel: ObservableObject {
             if case .respSharedGalleryPreview(let p) = resp.payload {
                 stage = .confirm(p)
             } else {
-                stage = .failed(resp.errorMessage.isEmpty ? "Could not prepare the gallery" : resp.errorMessage)
+                stage = .failed(.device(resp.errorMessage, or: .prepare))
             }
         } catch {
-            stage = .failed(error.localizedDescription)
+            stage = .failed(.error(error))
         }
     }
 
@@ -127,13 +151,13 @@ final class SharedGalleryShareModel: ObservableObject {
             do {
                 let resp = try await ws.request { $0.payload = .reqCreateSharedGallery(req) }
                 guard case .respSharedGalleryJob(let job) = resp.payload else {
-                    stage = .failed(resp.errorMessage.isEmpty ? "Could not create the gallery" : resp.errorMessage)
+                    stage = .failed(.device(resp.errorMessage, or: .create))
                     return
                 }
                 handle(job)
                 if !job.finished { poll(job.jobID) }
             } catch {
-                stage = .failed(error.localizedDescription)
+                stage = .failed(.error(error))
             }
         }
     }
@@ -151,7 +175,7 @@ final class SharedGalleryShareModel: ObservableObject {
                 guard let resp = try? await self.ws.request({ $0.payload = .reqGetSharedGalleryJob(req) }) else { continue }
                 guard case .respSharedGalleryJob(let job) = resp.payload else {
                     if resp.error {
-                        self.stage = .failed(resp.errorMessage.isEmpty ? "The gallery could not be created" : resp.errorMessage)
+                        self.stage = .failed(.device(resp.errorMessage, or: .job))
                         return
                     }
                     continue
@@ -168,9 +192,9 @@ final class SharedGalleryShareModel: ObservableObject {
             return
         }
         if !job.error.isEmpty {
-            stage = .failed(job.error)
+            stage = .failed(.words(job.error))
         } else if job.link.isEmpty {
-            stage = .failed("The device did not return a link")
+            stage = .failed(.noLink)
         } else {
             stage = .done(job.link)
             showActivity = true
@@ -197,17 +221,17 @@ struct SharedGalleryShareSheet: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle("Share as Gallery")
+                .navigationTitle(S.appFilesGalleryTitle)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         switch model.stage {
                         case .done:
-                            Button("Done") { model.close() }
+                            Button(S.commonDone) { model.close() }
                         case .creating, .copying:
                             EmptyView()
                         default:
-                            Button("Cancel") { model.close() }
+                            Button(S.commonCancel) { model.close() }
                         }
                     }
                 }
@@ -226,30 +250,30 @@ struct SharedGalleryShareSheet: View {
         case .idle, .previewing:
             VStack(spacing: 12) {
                 ProgressView()
-                Text("Counting photos and videos…").foregroundStyle(.secondary)
+                Text(S.iosFilesGalleryCounting).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
         case .confirm(let p):
             Form {
-                Section(footer: Text("They are copied and re-encrypted with a key of their own. Only people with the link can see them, until it expires.")) {
-                    Text("\(p.files) photos and videos, \(formatByteCount(p.bytes))")
+                Section(footer: Text(S.appFilesGalleryPrivacy)) {
+                    Text(S.appFilesGalleryContents(count: Int(p.files), size: formatByteCount(p.bytes)))
                         .fontWeight(.semibold)
                     if p.skipped > 0 {
-                        Text("\(p.skipped) other files are not included")
+                        Text(S.iosFilesGallerySkipped(count: Int(p.skipped)))
                             .foregroundStyle(.secondary)
                     }
                 }
-                Section(header: Text("Description")) {
-                    TextField("Description", text: $model.description)
+                Section(header: Text(S.appFilesGalleryDescription)) {
+                    TextField(S.appFilesGalleryDescription, text: $model.description)
                 }
                 Section(footer: Text(model.lowRes
-                    ? "Only small copies of the photos are shared (about 1000 pixels wide); the originals never leave your device." + (p.videos > 0 ? " \(p.videos) video\(p.videos == 1 ? " is" : "s are") left out." : "")
-                    : "The full-size originals are shared.")) {
-                    Toggle("Low resolution only", isOn: $model.lowRes)
+                    ? (p.videos > 0 ? S.appFilesGalleryLowResNoteVideos(count: Int(p.videos)) : S.appFilesGalleryLowResNote)
+                    : S.appFilesGalleryFullResNote)) {
+                    Toggle(S.appFilesGalleryLowRes, isOn: $model.lowRes)
                 }
-                Section(header: Text("Expires after")) {
-                    Picker("Expires after", selection: $model.expiry) {
+                Section(header: Text(S.iosFilesGalleryExpires)) {
+                    Picker(S.iosFilesGalleryExpires, selection: $model.expiry) {
                         ForEach(SharedGalleryExpiry.allCases) { e in
                             Text(e.label).tag(e)
                         }
@@ -257,10 +281,10 @@ struct SharedGalleryShareSheet: View {
                     .pickerStyle(.segmented)
                 }
                 Section {
-                    Button("Share") { model.share() }
+                    Button(S.commonShare) { model.share() }
                         .disabled(p.files == 0 || (model.lowRes && p.files == p.videos))
                     if p.files == 0 {
-                        Text("There are no photos or videos to share here.")
+                        Text(S.iosFilesGalleryNothing)
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
@@ -269,18 +293,18 @@ struct SharedGalleryShareSheet: View {
         case .creating:
             VStack(spacing: 12) {
                 ProgressView()
-                Text("Starting…").foregroundStyle(.secondary)
+                Text(S.iosFilesGalleryStarting).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
         case .copying(let job):
             VStack(alignment: .leading, spacing: 12) {
-                Text("Copying \(job.done) of \(job.total)")
+                Text(S.appFilesGalleryCopying(done: Int(job.done), total: Int(job.total)))
                 ProgressView(value: job.bytesTotal > 0 ? min(1, Double(job.bytesDone) / Double(job.bytesTotal)) : 0)
                     .progressViewStyle(.linear)
-                Text("\(formatByteCount(job.bytesDone)) of \(formatByteCount(job.bytesTotal))")
+                Text(S.appFilesGalleryBytes(done: formatByteCount(job.bytesDone), total: formatByteCount(job.bytesTotal)))
                     .font(.caption).foregroundStyle(.secondary)
-                Text("Keep this screen open: the link is shown here once the copy is done.")
+                Text(S.iosFilesGalleryKeepOpen)
                     .font(.caption).foregroundStyle(.secondary)
             }
             .padding()
@@ -288,7 +312,7 @@ struct SharedGalleryShareSheet: View {
 
         case .done(let link):
             Form {
-                Section(footer: Text("This link is shown only now - the device never stores it. Send or copy it before closing.")) {
+                Section(footer: Text(S.iosFilesGalleryLinkOnce)) {
                     Text(link)
                         .font(.callout.monospaced())
                         .textSelection(.enabled)
@@ -297,20 +321,20 @@ struct SharedGalleryShareSheet: View {
                     Button {
                         model.showActivity = true
                     } label: {
-                        Label("Share Link", systemImage: "square.and.arrow.up")
+                        Label(S.appFilesGalleryShareLink, systemImage: "square.and.arrow.up")
                     }
                     Button {
                         model.copyLink(link)
                     } label: {
-                        Label(model.copied ? "Copied" : "Copy Link", systemImage: model.copied ? "checkmark" : "doc.on.doc")
+                        Label(model.copied ? S.iosFilesGalleryCopied : S.appFilesGalleryCopyLink, systemImage: model.copied ? "checkmark" : "doc.on.doc")
                     }
                 }
             }
 
-        case .failed(let message):
+        case .failed(let failure):
             VStack(spacing: 12) {
                 Image(systemName: "exclamationmark.triangle").font(.largeTitle).foregroundStyle(.red)
-                Text(message).multilineTextAlignment(.center)
+                Text(failure.text).multilineTextAlignment(.center)
             }
             .padding()
             .frame(maxWidth: .infinity, maxHeight: .infinity)

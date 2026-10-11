@@ -66,6 +66,21 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.ZoneId
 import java.util.UUID
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.appPhotosNoticeAddFailed
+import cloud.offthe.otc.i18n.appPhotosNoticeAdded
+import cloud.offthe.otc.i18n.appPhotosNoticeCreateFailed
+import cloud.offthe.otc.i18n.appPhotosNoticeCreated
+import cloud.offthe.otc.i18n.appPhotosNoticeDeleteCollectionFailed
+import cloud.offthe.otc.i18n.appPhotosNoticeDeleteFailed
+import cloud.offthe.otc.i18n.appPhotosNoticeNoDownloadLink
+import cloud.offthe.otc.i18n.appPhotosNoticeNoShareLink
+import cloud.offthe.otc.i18n.appPhotosNoticeNotLoaded
+import cloud.offthe.otc.i18n.appPhotosNoticeRenameFailed
+import cloud.offthe.otc.i18n.appPhotosNoticeSaveFailed
+import cloud.offthe.otc.i18n.appPhotosNoticeSaved
+import cloud.offthe.otc.i18n.appPhotosNoticeShareFailed
 
 // SearchPhotos.limit for the request that starts a photo search (no
 // token) on a device not known to leave thumbnails out of pages (before
@@ -238,7 +253,8 @@ class PhotoGalleryViewModel(
         // Videos the player couldn't play: their poster stays, saying so.
         val unplayable: Set<String> = emptySet(),
         val videoUrl: String? = null,
-        val alert: String? = null,
+        // The alert's text, worded when it shows (the device's words as they came).
+        val alert: UiText? = null,
         val preparing: SelectionActionTask? = null,
         val selected: Set<String> = emptySet(),
         val infoOpen: Boolean = false,
@@ -703,7 +719,7 @@ class PhotoGalleryViewModel(
             val r = call { it.setReqRenameImageGroup(RenameImageGroup.newBuilder().setId(g.id).setName(name)) }
             r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok
         } catch (e: Exception) { false }
-        if (!ok) { alert("Could not rename the collection."); return }
+        if (!ok) { alert(S.appPhotosNoticeRenameFailed()); return }
         val renamed = g.toBuilder().setName(name).build()
         _state.update { st -> st.copy(activeGroup = renamed, groups = st.groups.map { if (it.id == g.id) renamed else it }) }
     }
@@ -714,7 +730,7 @@ class PhotoGalleryViewModel(
             val r = call { it.setReqDeleteImageGroup(DeleteImageGroup.newBuilder().setId(g.id)) }
             r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok
         } catch (e: Exception) { false }
-        if (!ok) { alert("Could not delete the collection."); return }
+        if (!ok) { alert(S.appPhotosNoticeDeleteCollectionFailed()); return }
         _state.update { st -> st.copy(groups = st.groups.filter { it.id != g.id }) }
         leaveGroup()
     }
@@ -725,10 +741,10 @@ class PhotoGalleryViewModel(
         val paths = _state.value.selected.toList()
         try {
             val r = call { it.setReqCreateImageGroup(CreateImageGroup.newBuilder().setName(name).addAllPaths(paths).setSmallThumbnails(true)) }
-            if (r.payloadCase != RespEnvelope.PayloadCase.RESP_IMAGE_GROUP) { alert("Could not create the collection."); return }
+            if (r.payloadCase != RespEnvelope.PayloadCase.RESP_IMAGE_GROUP) { alert(S.appPhotosNoticeCreateFailed()); return }
             _state.update { st -> st.copy(groups = listOf(r.respImageGroup.group) + st.groups, selected = emptySet()) }
-            alert("Collection \"$name\" created.")
-        } catch (e: Exception) { alert("Could not create the collection.") }
+            alert(S.appPhotosNoticeCreated(name))
+        } catch (e: Exception) { alert(S.appPhotosNoticeCreateFailed()) }
     }
 
     suspend fun addSelectionToGroup(g: ImageGroup) {
@@ -737,11 +753,11 @@ class PhotoGalleryViewModel(
             val r = call { it.setReqAddToImageGroup(AddToImageGroup.newBuilder().setGroupId(g.id).addAllPaths(paths)) }
             r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok
         } catch (e: Exception) { false }
-        if (!ok) { alert("Could not add to the collection."); return }
+        if (!ok) { alert(S.appPhotosNoticeAddFailed()); return }
         _state.update { it.copy(selected = emptySet()) }
         loadGroups()
         if (_state.value.activeGroup?.id == g.id) restartSearch()
-        alert("Added to \"${g.name}\".")
+        alert(S.appPhotosNoticeAdded(g.name))
     }
 
     fun togglePerson(id: String) {
@@ -1297,17 +1313,17 @@ class PhotoGalleryViewModel(
 
     /** Issue #9: write the loaded image to a temp file and hand it to the share sheet. */
     suspend fun shareCurrentPhoto(context: Context) {
-        val img = currentImage() ?: run { alert("Image isn't loaded yet"); return }
+        val img = currentImage() ?: run { alert(S.appPhotosNoticeNotLoaded()); return }
         try {
             val tmp = File(context.cacheDir, "${UUID.randomUUID()}.jpg")
             withContext(Dispatchers.IO) { tmp.outputStream().use { img.compress(Bitmap.CompressFormat.JPEG, 90, it) } }
             Share.file(context, tmp, "image/jpeg")
-        } catch (e: Exception) { alert("Share failed: ${e.message}") }
+        } catch (e: Exception) { alert(S.appPhotosNoticeShareFailed("${e.message}")) }
     }
 
     /** Issue #9: save to the phone's gallery through MediaStore (no permission needed on API 29+). */
     suspend fun saveToPhotos(context: Context) {
-        val img = currentImage() ?: run { alert("Image isn't loaded yet"); return }
+        val img = currentImage() ?: run { alert(S.appPhotosNoticeNotLoaded()); return }
         try {
             withContext(Dispatchers.IO) {
                 val values = ContentValues().apply {
@@ -1318,8 +1334,8 @@ class PhotoGalleryViewModel(
                 val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: throw IllegalStateException("insert failed")
                 context.contentResolver.openOutputStream(uri)?.use { img.compress(Bitmap.CompressFormat.JPEG, 92, it) }
             }
-            alert("Saved to Photos ✅")
-        } catch (e: Exception) { alert("Save failed: ${e.message}") }
+            alert(S.appPhotosNoticeSaved())
+        } catch (e: Exception) { alert(S.appPhotosNoticeSaveFailed("${e.message}")) }
     }
 
     fun deleteCurrentPhoto() = scope.launch {
@@ -1327,8 +1343,8 @@ class PhotoGalleryViewModel(
         val item = _state.value.items.getOrNull(idx) ?: return@launch
         try {
             val resp = call { it.setReqDelFile(DelFile.newBuilder().setPath(item.path)) }
-            if (resp.error) { alert("Delete failed: ${resp.errorMessage}"); return@launch }
-        } catch (e: Exception) { alert("Delete failed: ${e.message}"); return@launch }
+            if (resp.error) { alert(S.appPhotosNoticeDeleteFailed(resp.errorMessage)); return@launch }
+        } catch (e: Exception) { alert(S.appPhotosNoticeDeleteFailed("${e.message}")); return@launch }
         _state.update { st -> st.copy(items = st.items.filterIndexed { i, _ -> i != idx }, selected = st.selected - item.path) }
         // Gone from the device: its thumbnail goes from the phone too.
         if (item.hash.isNotEmpty()) thumbs.discard(item.hash)
@@ -1358,8 +1374,8 @@ class PhotoGalleryViewModel(
         for (p in paths) {
             try {
                 val resp = call { it.setReqDelFile(DelFile.newBuilder().setPath(p)) }
-                if (resp.error) { alert("Delete failed: ${resp.errorMessage}"); continue }
-            } catch (e: Exception) { alert("Delete failed: ${e.message}"); continue }
+                if (resp.error) { alert(S.appPhotosNoticeDeleteFailed(resp.errorMessage)); continue }
+            } catch (e: Exception) { alert(S.appPhotosNoticeDeleteFailed("${e.message}")); continue }
             deleted += p
         }
         if (deleted.isNotEmpty()) {
@@ -1380,17 +1396,17 @@ class PhotoGalleryViewModel(
 
     fun shareSelected(context: Context) = scope.launch {
         _state.update { it.copy(preparing = SelectionActionTask.SHARE) }
-        try { shareLink()?.let { Share.link(context, it) } ?: alert("Could not create share link.") }
+        try { shareLink()?.let { Share.link(context, it) } ?: alert(S.appPhotosNoticeNoShareLink()) }
         finally { _state.update { it.copy(preparing = null) } }
     }
 
     fun downloadZip(context: Context) = scope.launch {
         _state.update { it.copy(preparing = SelectionActionTask.DOWNLOAD) }
-        try { shareLink()?.let { Share.openInBrowser(context, it) } ?: alert("Could not create download link.") }
+        try { shareLink()?.let { Share.openInBrowser(context, it) } ?: alert(S.appPhotosNoticeNoDownloadLink()) }
         finally { _state.update { it.copy(preparing = null) } }
     }
 
-    fun alert(m: String) = _state.update { it.copy(alert = m) }
+    fun alert(m: UiText) = _state.update { it.copy(alert = m) }
     fun dismissAlert() = _state.update { it.copy(alert = null) }
 
     companion object {

@@ -6,6 +6,7 @@ import cloud.offthe.otc.proto.Person
 import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.RespEnvelope
 import kotlinx.coroutines.runBlocking
+import cloud.offthe.otc.i18n.english
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -88,7 +89,7 @@ class PeopleViewModelTest {
         assertEquals(emptyList<String>(), st.selection)
         assertNull(st.confirm)
         assertEquals(setOf("a", "c"), st.gone)
-        assertEquals("Merged 3 into Ana", st.toast?.text)
+        assertEquals("Merged 3 into \u2068Ana\u2069", st.toast?.text?.english())
     }
 
     @Test fun mergeKeepingANamedFaceSendsNoRename() = runBlocking {
@@ -97,7 +98,7 @@ class PeopleViewModelTest {
         picked(vm, "a", "b")
         assertTrue(vm.mergeNow(Store(), p("a", "Leo", 5), "Leo"))
         assertEquals(listOf(ReqEnvelope.PayloadCase.REQ_MERGE_PEOPLE), dev.sent.map { it.payloadCase })
-        assertEquals("Merged 2 into Leo", vm.state.value.toast?.text)
+        assertEquals("Merged 2 into \u2068Leo\u2069", vm.state.value.toast?.text?.english())
     }
 
     @Test fun aRefusedNameMergesNothing() = runBlocking {
@@ -109,7 +110,7 @@ class PeopleViewModelTest {
         assertFalse(vm.mergeNow(store, p("a", "", 5), "Ana"))
         assertEquals(listOf(ReqEnvelope.PayloadCase.REQ_RENAME_PERSON), dev.sent.map { it.payloadCase })
         val st = vm.state.value
-        assertEquals("The name couldn't be saved, so nothing was merged. Try again.", st.confirmError)
+        assertEquals("The name couldn't be saved, so nothing was merged. Try again.", st.confirmError?.english())
         assertEquals(PeopleViewModel.Confirm.Merge, st.confirm)
         assertEquals(listOf("a", "b"), st.selection)
         assertTrue(store.forgotten.isEmpty())
@@ -119,7 +120,7 @@ class PeopleViewModelTest {
         val vm = PeopleViewModel(Device { null }.send)
         picked(vm, "a", "b")
         assertFalse(vm.mergeNow(Store(), p("a", "Leo", 5), "Leo"))
-        assertEquals("Your device didn't answer. Try again.", vm.state.value.confirmError)
+        assertEquals("Your device didn't answer. Try again.", vm.state.value.confirmError?.english())
         assertFalse(vm.state.value.busy)
     }
 
@@ -136,7 +137,7 @@ class PeopleViewModelTest {
         assertEquals(listOf("b"), st.selection)
         assertNull(st.confirm)
         assertNull(st.progress)
-        assertEquals("1 of 4 people couldn't be deleted and is still selected. Try again.", st.toast?.text)
+        assertEquals("1 of 4 people couldn't be deleted and is still selected. Try again.", st.toast?.text?.english())
         assertTrue(st.toast!!.error)
     }
 
@@ -147,7 +148,7 @@ class PeopleViewModelTest {
         vm.askDelete(listOf("a", "b"))
         assertFalse(vm.removeNow(store, listOf("a", "b")))
         val st = vm.state.value
-        assertEquals("Your device didn't answer. Try again.", st.confirmError)
+        assertEquals("Your device didn't answer. Try again.", st.confirmError?.english())
         assertEquals(PeopleViewModel.Confirm.Delete(listOf("a", "b")), st.confirm)
         assertEquals(listOf("a", "b"), st.selection)
         assertTrue(store.forgotten.isEmpty())
@@ -157,7 +158,7 @@ class PeopleViewModelTest {
         val vm = PeopleViewModel(Device { ack(true) }.send)
         vm.askDelete(listOf("a"))
         assertTrue(vm.removeNow(Store(), listOf("a")))
-        assertEquals("Person deleted", vm.state.value.toast?.text)
+        assertEquals("Person deleted", vm.state.value.toast?.text?.english())
     }
 
     @Test fun aRefusedNameIsReported() = runBlocking {
@@ -165,6 +166,6 @@ class PeopleViewModelTest {
         val store = Store()
         vm.renameNow(store, "a", "Ana")
         assertTrue(store.renamed.isEmpty())
-        assertEquals("The name couldn't be saved. Try again.", vm.state.value.toast?.text)
+        assertEquals("The name couldn't be saved. Try again.", vm.state.value.toast?.text?.english())
     }
 }

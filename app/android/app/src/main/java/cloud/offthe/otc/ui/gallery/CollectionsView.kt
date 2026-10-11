@@ -66,7 +66,21 @@ import cloud.offthe.otc.ui.common.outlineIcon
 import cloud.offthe.otc.ui.common.rememberTileThumb
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
+import androidx.compose.ui.text.AnnotatedString
+import cloud.offthe.otc.i18n.RichTag
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.appShellCollectionCard
+import cloud.offthe.otc.i18n.appShellCollectionUntitled
+import cloud.offthe.otc.i18n.appShellCollectionsEmptyText
+import cloud.offthe.otc.i18n.appShellCollectionsEmptyTitle
+import cloud.offthe.otc.i18n.appShellCollectionsFailedText
+import cloud.offthe.otc.i18n.appShellCollectionsFailedTitle
+import cloud.offthe.otc.i18n.appShellCollectionsGoToImages
+import cloud.offthe.otc.i18n.appShellCollectionsLoading
+import cloud.offthe.otc.i18n.appShellCollectionsSlowText
+import cloud.offthe.otc.i18n.appShellCollectionsSlowTitle
+import cloud.offthe.otc.i18n.appShellSectionCollections
+import cloud.offthe.otc.i18n.commonTryAgain
 
 // Port of the web's CollectionsView.tsx: the Collections page of the wide
 // layout (MainView), where the menu has Collections as a section of its
@@ -79,9 +93,8 @@ private const val SKELETON_CARDS = 8
 // How long the first listing may take before the page offers to ask again.
 private const val SLOW_MS = 10_000L
 
-private val numbers: NumberFormat get() = NumberFormat.getIntegerInstance()
-private fun itemsLabel(n: Int) = "${numbers.format(n)} ${if (n == 1) "item" else "items"}"
-private fun nameOf(g: ImageGroup) = g.name.trim().ifEmpty { "Untitled collection" }
+@Composable
+private fun nameOf(g: ImageGroup) = g.name.trim().ifEmpty { S.appShellCollectionUntitled().resolve() }
 
 private val ProblemIcon by lazy { outlineIcon("Problem", circlePath(12f, 12f, 9f), "M12 7.5V13M12 16.5h.01", stroke = 1.4f) }
 
@@ -116,14 +129,16 @@ fun CollectionsView(gallery: PhotoGalleryViewModel, onOpen: () -> Unit, onShowPh
     Column(Modifier.fillMaxSize()) {
         // The menu names the page, as the web's does: no title on screen,
         // only for TalkBack.
-        HiddenPageHeading("Collections")
+        HiddenPageHeading(S.appShellSectionCollections().resolve())
 
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 loaded && st.groups.isEmpty() -> StateMessage(
                     art = { Icon(NavIcons.Collections, null, Modifier.size(80.dp), tint = colors.onSurfaceVariant) },
-                    title = "No collections yet", text = "Select photos in Images, then choose Add to collection.",
-                    action = "Go to Images", onAction = { gallery.showAll(); onShowPhotos() },
+                    title = S.appShellCollectionsEmptyTitle().resolve(),
+                    // Plain, as it has always been here: the bold tag styles nothing.
+                    text = S.appShellCollectionsEmptyText().resolve(mapOf("b" to RichTag())),
+                    action = S.appShellCollectionsGoToImages().resolve(), onAction = { gallery.showAll(); onShowPhotos() },
                 )
                 loaded -> BoxWithConstraints(Modifier.fillMaxSize()) {
                     val density = LocalDensity.current
@@ -145,9 +160,9 @@ fun CollectionsView(gallery: PhotoGalleryViewModel, onOpen: () -> Unit, onShowPh
                 }
                 failed || slow -> StateMessage(
                     art = { Icon(ProblemIcon, null, Modifier.size(40.dp), tint = colors.onSurfaceVariant) },
-                    title = if (failed) "Couldn't load your collections" else "Still waiting for your device",
-                    text = if (failed) "Check that your device is online, then try again." else "Your collections are taking longer than usual to load.",
-                    action = "Try again", onAction = { tries++ },
+                    title = (if (failed) S.appShellCollectionsFailedTitle() else S.appShellCollectionsSlowTitle()).resolve(),
+                    text = AnnotatedString((if (failed) S.appShellCollectionsFailedText() else S.appShellCollectionsSlowText()).resolve()),
+                    action = S.commonTryAgain().resolve(), onAction = { tries++ },
                 )
                 else -> Skeleton()
             }
@@ -160,12 +175,13 @@ fun CollectionsView(gallery: PhotoGalleryViewModel, onOpen: () -> Unit, onShowPh
 private fun CollectionCard(g: ImageGroup, coverPx: Int, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val name = nameOf(g)
+    val spoken = S.appShellCollectionCard(name, g.fileCount).resolve()
     val cover = rememberTileThumb(
         if (g.coverThumbnail.isEmpty) null else "g:${g.id}:${g.coverThumbnail.hashCode()}", coverPx,
     ) { g.coverThumbnail.toByteArray() }
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick)
-            .semantics(mergeDescendants = true) { contentDescription = "$name, ${itemsLabel(g.fileCount)}" },
+            .semantics(mergeDescendants = true) { contentDescription = spoken },
     ) {
         Box(
             Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(12.dp)).background(colors.surfaceContainerHighest),
@@ -178,7 +194,7 @@ private fun CollectionCard(g: ImageGroup, coverPx: Int, onClick: () -> Unit) {
             name, Modifier.padding(top = 8.dp), fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold,
             maxLines = 1, overflow = TextOverflow.Ellipsis, color = colors.onSurface,
         )
-        Text(itemsLabel(g.fileCount), fontSize = 13.sp, lineHeight = 20.sp, color = colors.onSurfaceVariant, maxLines = 1)
+        Text(itemsLabel(g.fileCount).resolve(), fontSize = 13.sp, lineHeight = 20.sp, color = colors.onSurfaceVariant, maxLines = 1)
     }
 }
 
@@ -189,10 +205,11 @@ private fun Skeleton() {
         0.35f, 0.8f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "alpha",
     )
     val fill = MaterialTheme.colorScheme.surfaceContainerHighest
+    val loading = S.appShellCollectionsLoading().resolve()
     LazyVerticalGrid(
         columns = GridCells.Adaptive(180.dp), contentPadding = PaddingValues(24.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(24.dp), userScrollEnabled = false,
-        modifier = Modifier.fillMaxSize().semantics { contentDescription = "Loading collections" },
+        modifier = Modifier.fillMaxSize().semantics { contentDescription = loading },
     ) {
         items(SKELETON_CARDS) { i ->
             Column(Modifier.fillMaxWidth().alpha(pulse)) {
@@ -205,7 +222,7 @@ private fun Skeleton() {
 }
 
 @Composable
-private fun StateMessage(art: @Composable () -> Unit, title: String, text: String, action: String, onAction: () -> Unit) {
+private fun StateMessage(art: @Composable () -> Unit, title: String, text: AnnotatedString, action: String, onAction: () -> Unit) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 32.dp, vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

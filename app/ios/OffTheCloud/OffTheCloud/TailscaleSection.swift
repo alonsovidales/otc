@@ -31,8 +31,8 @@ final class TailscaleViewModel: ObservableObject {
     @Published var loginURL = ""
     @Published var authKey = ""
     @Published var busy = false
-    @Published var note: String?
-    @Published var error: String?
+    @Published var note: SettingsText?
+    @Published var error: SettingsText?
 
     private let ws = OTCConnection.shared
 
@@ -56,7 +56,7 @@ final class TailscaleViewModel: ObservableObject {
             }
             apply(resp)
         } catch {
-            self.error = error.localizedDescription
+            self.error = .error(error)
         }
     }
 
@@ -73,22 +73,23 @@ final class TailscaleViewModel: ObservableObject {
                 e.payload = .reqSetupTailscale(m)
             }
             guard apply(resp) else {
-                error = resp.error ? resp.errorMessage : "Could not change the setting."
+                error = resp.error ? .asIs(resp.errorMessage) : .say { S.appSettingsTailscaleChangeFailed }
                 return
             }
             if !enable {
-                note = "Funnel is off. This device is reachable through the bridge again."
+                note = .say { S.appSettingsTailscaleOff }
             } else if !installed {
-                error = "Tailscale isn't installed on this device, so Funnel can't be turned on here."
+                error = .say { S.appSettingsTailscaleNotInstalledOn }
             } else if !loginURL.isEmpty {
-                note = "Authorise this device in the page that just opened, then press Enable again."
+                note = .say { S.appSettingsTailscaleAuthorise }
             } else if funnelOn {
-                note = "Done — this device is reachable at \(publicURL)"
+                let url = publicURL
+                note = .say { S.appSettingsTailscaleDone(url: url) }
             } else {
-                note = "Tailscale is connected, but Funnel didn't come up. Check that Funnel is enabled for your tailnet."
+                note = .say { S.appSettingsTailscaleNoFunnel }
             }
         } catch {
-            self.error = error.localizedDescription
+            self.error = .error(error)
         }
     }
 
@@ -100,7 +101,7 @@ final class TailscaleViewModel: ObservableObject {
         funnelOn = s.funnelOn
         publicURL = s.publicURL
         loginURL = s.loginURL
-        if !s.error.isEmpty { error = s.error }
+        if !s.error.isEmpty { error = .asIs(s.error) }
 
         return true
     }
@@ -112,29 +113,29 @@ struct TailscaleSection: View {
 
     var body: some View {
         if vm.isPrimary {
-            Section(header: Text("Tailscale Funnel")) {
+            Section(header: Text(verbatim: "Tailscale Funnel")) {
                 if vm.funnelOn {
-                    Text("Served over Tailscale Funnel at \(vm.publicURL)")
+                    Text(S.appSettingsTailscaleServed(url: vm.publicURL))
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
                 if vm.installed {
-                    Text("Tailscale Funnel is an alternative to the Off The Cloud bridge, it publishes this device on your own ts.net address but with the next limitations:")
+                    Text(S.appSettingsTailscaleIntro)
                         .font(.caption).foregroundStyle(.secondary)
-                    limitation("The social side won't work.", "Friends find each other through the bridge, so sharing and friends' timelines are unavailable.")
-                    limitation("One user only.", "Extra users need a web address each, and Funnel gives this machine a single one.")
-                    limitation("Bandwidth is capped.", "Tailscale limits what can pass through Funnel and doesn't publish the limit.")
-                    limitation("You'll need a Tailscale account,", "with Funnel enabled for your tailnet.")
-                    Text("It suits a device you want purely as your own private NAS — your files and photos, reachable from anywhere, nothing shared with anyone.")
+                    limitation(S.appSettingsTailscaleLimitSocial(b: Self.lead))
+                    limitation(S.appSettingsTailscaleLimitOneUser(b: Self.lead))
+                    limitation(S.appSettingsTailscaleLimitBandwidth(b: Self.lead))
+                    limitation(S.appSettingsTailscaleLimitAccount(b: Self.lead))
+                    Text(S.appSettingsTailscaleSuits)
                         .font(.caption).foregroundStyle(.secondary)
 
                     if !vm.funnelOn {
-                        TextField("Auth key (optional)", text: $vm.authKey)
+                        TextField(S.appSettingsTailscaleAuthKey, text: $vm.authKey)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                     }
 
-                    Button(vm.busy ? "Working…" : (vm.funnelOn ? "Turn Funnel off" : "Enable Tailscale Funnel")) {
+                    Button(vm.busy ? S.appSettingsTailscaleWorking : (vm.funnelOn ? S.appSettingsTailscaleTurnOff : S.appSettingsTailscaleEnable)) {
                         Task {
                             await vm.configure(enable: !vm.funnelOn)
                             // Take them straight to the authorisation page
@@ -147,19 +148,19 @@ struct TailscaleSection: View {
                     .disabled(vm.busy)
 
                     if !vm.funnelOn {
-                        Text("With a key from your Tailscale admin console this finishes on its own. Without one, you'll be taken to Tailscale to authorise this device.")
+                        Text(S.appSettingsTailscaleKeyHint)
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 } else {
-                    Text("Tailscale isn't installed on this device, so Funnel isn't available here.")
+                    Text(S.appSettingsTailscaleNotInstalled)
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
                 if let note = vm.note {
-                    Text(note).font(.caption).foregroundStyle(.secondary)
+                    Text(note.text).font(.caption).foregroundStyle(.secondary)
                 }
                 if let error = vm.error {
-                    Text(error).font(.caption).foregroundStyle(.red)
+                    Text(error.text).font(.caption).foregroundStyle(.red)
                 }
             }
             .task { await vm.load() }
@@ -175,11 +176,18 @@ struct TailscaleSection: View {
         }
     }
 
+    /// A limitation's lead (its <b> span), in bold.
+    private static var lead: AttributeContainer {
+        var c = AttributeContainer()
+        c.inlinePresentationIntent = .stronglyEmphasized
+        return c
+    }
+
     @ViewBuilder
-    private func limitation(_ lead: String, _ rest: String) -> some View {
+    private func limitation(_ text: AttributedString) -> some View {
         HStack(alignment: .top, spacing: 4) {
-            Text("•")
-            Text("\(Text(lead).bold()) \(rest)")
+            Text(verbatim: "•")
+            Text(text)
         }
         .font(.caption)
         .foregroundStyle(.secondary)

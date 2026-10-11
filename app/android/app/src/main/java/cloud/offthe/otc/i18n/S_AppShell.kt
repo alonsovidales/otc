@@ -538,6 +538,22 @@ fun S.appShellTerms(): UiText =
 fun S.appShellThumbCacheUsage(used: String, limit: String): UiText =
     UiText.Res(R.string.app_shell_thumb_cache_usage, listOf(used, limit))
 
+/** "{count}d ago" (one: "{count}d ago"): How long ago something happened, in days, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (d for days). */
+fun S.appShellTimeDaysAgo(count: Int): UiText =
+    UiText.Plural(R.plurals.app_shell_time_days_ago, count, listOf(count))
+
+/** "{count}h ago" (one: "{count}h ago"): How long ago something happened, in hours, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (h for hours). */
+fun S.appShellTimeHoursAgo(count: Int): UiText =
+    UiText.Plural(R.plurals.app_shell_time_hours_ago, count, listOf(count))
+
+/** "just now": When something happened less than a minute ago, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links (after last there, hence the lowercase start). */
+fun S.appShellTimeJustNow(): UiText =
+    UiText.Res(R.string.app_shell_time_just_now)
+
+/** "{count}m ago" (one: "{count}m ago"): How long ago something happened, in minutes, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (m for minutes). */
+fun S.appShellTimeMinutesAgo(count: Int): UiText =
+    UiText.Plural(R.plurals.app_shell_time_minutes_ago, count, listOf(count))
+
 /** "{count} left" (one: "{count} left"): Settings > Uploads, at the right of the upload status: how many photos and videos are still to be uploaded. */
 fun S.appShellUploadLeft(count: Int): UiText =
     UiText.Plural(R.plurals.app_shell_upload_left, count, listOf(count))

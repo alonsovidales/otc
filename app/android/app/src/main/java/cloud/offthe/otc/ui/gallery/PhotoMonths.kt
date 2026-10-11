@@ -1,13 +1,47 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.gallery
 
+import androidx.annotation.StringRes
+import cloud.offthe.otc.R
+import cloud.offthe.otc.i18n.UiText
 import java.time.Instant
 import java.time.YearMonth
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
+import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.appPhotosGridPeopleMore
+import cloud.offthe.otc.i18n.appPhotosGridPeopleTwo
+import cloud.offthe.otc.i18n.appPhotosGridTilePhoto
+import cloud.offthe.otc.i18n.appPhotosGridTileVideo
+import cloud.offthe.otc.i18n.appPhotosMonthsApril
+import cloud.offthe.otc.i18n.appPhotosMonthsAprilShort
+import cloud.offthe.otc.i18n.appPhotosMonthsAugust
+import cloud.offthe.otc.i18n.appPhotosMonthsAugustShort
+import cloud.offthe.otc.i18n.appPhotosMonthsDecember
+import cloud.offthe.otc.i18n.appPhotosMonthsDecemberShort
+import cloud.offthe.otc.i18n.appPhotosMonthsFebruary
+import cloud.offthe.otc.i18n.appPhotosMonthsFebruaryShort
+import cloud.offthe.otc.i18n.appPhotosMonthsJanuary
+import cloud.offthe.otc.i18n.appPhotosMonthsJanuaryShort
+import cloud.offthe.otc.i18n.appPhotosMonthsJuly
+import cloud.offthe.otc.i18n.appPhotosMonthsJulyShort
+import cloud.offthe.otc.i18n.appPhotosMonthsJune
+import cloud.offthe.otc.i18n.appPhotosMonthsJuneShort
+import cloud.offthe.otc.i18n.appPhotosMonthsMarch
+import cloud.offthe.otc.i18n.appPhotosMonthsMarchShort
+import cloud.offthe.otc.i18n.appPhotosMonthsMay
+import cloud.offthe.otc.i18n.appPhotosMonthsMayShort
+import cloud.offthe.otc.i18n.appPhotosMonthsNoDate
+import cloud.offthe.otc.i18n.appPhotosMonthsNovember
+import cloud.offthe.otc.i18n.appPhotosMonthsNovemberShort
+import cloud.offthe.otc.i18n.appPhotosMonthsOctober
+import cloud.offthe.otc.i18n.appPhotosMonthsOctoberShort
+import cloud.offthe.otc.i18n.appPhotosMonthsRange
+import cloud.offthe.otc.i18n.appPhotosMonthsSeptember
+import cloud.offthe.otc.i18n.appPhotosMonthsSeptemberShort
+import cloud.offthe.otc.i18n.appPhotosMonthsTitle
+import cloud.offthe.otc.i18n.appShellCollectionItems
 
 // Images by month, as the web's PhotoGallery.tsx lays them out: newest
 // first under month titles ("March 2024"), a photo without a date staying
@@ -19,10 +53,30 @@ import kotlin.math.min
 // the grid (PhotoGalleryView) only draws what this works out, once per
 // page or change of width - never per frame - and the tests can check it.
 
-private val MONTH_NAMES = listOf(
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
+// The months' names, whole and short, from the catalog (app.photos.months.*,
+// the iOS app's keys): its English is the web's ("Sep", where en-GB writes
+// "Sept"), and a translation brings its own.
+private val MONTH_NAMES: List<UiText> = listOf(
+    S.appPhotosMonthsJanuary(), S.appPhotosMonthsFebruary(), S.appPhotosMonthsMarch(), S.appPhotosMonthsApril(),
+    S.appPhotosMonthsMay(), S.appPhotosMonthsJune(), S.appPhotosMonthsJuly(), S.appPhotosMonthsAugust(),
+    S.appPhotosMonthsSeptember(), S.appPhotosMonthsOctober(), S.appPhotosMonthsNovember(), S.appPhotosMonthsDecember(),
 )
+private val MONTH_SHORT: List<UiText> = listOf(
+    S.appPhotosMonthsJanuaryShort(), S.appPhotosMonthsFebruaryShort(), S.appPhotosMonthsMarchShort(),
+    S.appPhotosMonthsAprilShort(), S.appPhotosMonthsMayShort(), S.appPhotosMonthsJuneShort(),
+    S.appPhotosMonthsJulyShort(), S.appPhotosMonthsAugustShort(), S.appPhotosMonthsSeptemberShort(),
+    S.appPhotosMonthsOctoberShort(), S.appPhotosMonthsNovemberShort(), S.appPhotosMonthsDecemberShort(),
+)
+
+/**
+ * A key whose text arguments include a month's name, with the name as a
+ * UiText: the generated accessors (S.appPhotosMonthsTitle(month, year)...)
+ * take text arguments as Strings, which these pure functions can't word
+ * yet, and UiText words a nested one along with the rest when it is shown
+ * (UiTextFormat.values). [args] go in the key's declared order;
+ * PhotoTextTest checks each against its accessor.
+ */
+private fun nested(@StringRes id: Int, vararg args: Any): UiText = UiText.Res(id, args.toList())
 
 /**
  * "2024-03" for a photo's date in [zone] - the phone's own time zone, as
@@ -35,55 +89,65 @@ fun monthOf(epochSeconds: Long, nanos: Int, zone: ZoneId): String {
     return "${d.year.toString().padStart(4, '0')}-${d.monthValue.toString().padStart(2, '0')}"
 }
 
-private fun monthParts(key: String): Pair<Int, String>? {
+/** The year and month (1-12) a key names. */
+private fun monthParts(key: String): Pair<Int, Int>? {
     val p = key.split("-")
     val y = p.getOrNull(0)?.toIntOrNull() ?: return null
     val m = p.getOrNull(1)?.toIntOrNull() ?: 0
     // The web's (m || 1): a month 0 reads as January.
-    val name = MONTH_NAMES.getOrNull((if (m == 0) 1 else m) - 1) ?: return null
-    return y to name
+    val month = if (m == 0) 1 else m
+    if (month !in 1..12) return null
+    return y to month
 }
 
+/** "Mar 2024": a month's short name and its year (the year as it is, never grouped). */
+private fun shortTitle(p: Pair<Int, Int>): UiText = nested(R.string.app_photos_months_short_title, MONTH_SHORT[p.second - 1], "${p.first}")
+
 /** "March 2024" - a month's title. */
-fun monthTitle(key: String): String = monthParts(key)?.let { (y, name) -> "$name $y" } ?: key
+fun monthTitle(key: String): UiText =
+    monthParts(key)?.let { (y, m) -> nested(R.string.app_photos_months_title, MONTH_NAMES[m - 1], "$y") } ?: UiText.Raw(key)
 
 /** "Mar 2024" - where "September 2026" doesn't fit (a month one tile wide). */
-fun monthShort(key: String): String = monthParts(key)?.let { (y, name) -> "${name.take(3)} $y" } ?: key
+fun monthShort(key: String): UiText = monthParts(key)?.let(::shortTitle) ?: UiText.Raw(key)
 
 /**
  * The scrubber's bubble: "Mar 2024", or "No date" for the device's bucket
  * of photos without one (a zero month) - the web's DateScrubber monthLabel.
  */
-fun scrubLabel(month: String): String {
+fun scrubLabel(month: String): UiText {
     val m = month.drop(5).take(2).toIntOrNull()
     val y = month.take(4).toIntOrNull()
-    return if (m != null && m in 1..12 && y != null && y > 0) "${MONTH_NAMES[m - 1].take(3)} $y" else "No date"
+    return if (m != null && m in 1..12 && y != null && y > 0) shortTitle(y to m) else S.appPhotosMonthsNoDate()
 }
 
 /**
  * The months the photos span, from the date buckets (newest first): "Mar
  * 2024", "Mar – Oct 2024" or "Mar 2024 – Oct 2026" ("2024 – 2026" with
  * [years], which fits a narrow header's line). The web's spanLabel.
+ * Nothing (an empty text) without buckets.
  */
-fun spanLabel(buckets: List<PhotoGalleryViewModel.DateBucket>, years: Boolean = false): String {
-    if (buckets.isEmpty()) return ""
-    val from = monthParts(buckets.last().month) ?: return ""
-    val to = monthParts(buckets.first().month) ?: return ""
-    fun short(p: Pair<Int, String>) = p.second.take(3)
-    if (from == to) return "${short(to)} ${to.first}"
-    if (from.first == to.first) return "${short(from)} – ${short(to)} ${to.first}"
-    if (years) return "${from.first} – ${to.first}"
-    return "${short(from)} ${from.first} – ${short(to)} ${to.first}"
+fun spanLabel(buckets: List<PhotoGalleryViewModel.DateBucket>, years: Boolean = false): UiText {
+    val none = UiText.Raw("")
+    if (buckets.isEmpty()) return none
+    val from = monthParts(buckets.last().month) ?: return none
+    val to = monthParts(buckets.first().month) ?: return none
+    if (from == to) return shortTitle(to)
+    if (from.first == to.first) {
+        return nested(R.string.app_photos_months_range_in_year, MONTH_SHORT[from.second - 1], MONTH_SHORT[to.second - 1], "${to.first}")
+    }
+    if (years) return S.appPhotosMonthsRange("${from.first}", "${to.first}")
+    return nested(R.string.app_photos_months_range, shortTitle(from), shortTitle(to))
 }
 
-/** "1 item", "1,234 items" - the web's count(), in English as the rest of the app. */
-fun countLabel(n: Int, one: String, many: String = "${one}s"): String =
-    "${String.format(Locale.US, "%,d", n)} ${if (n == 1) one else many}"
+/** "1 item", "1,234 items" - the web's count(): how many photos and videos an open collection holds. */
+fun itemsLabel(n: Int): UiText = S.appShellCollectionItems(n)
 
 /** A person filter's title: "Ana", "Ana & Leo", "Ana, Leo & 2 others". */
-fun peopleTitle(names: List<String>): String =
-    if (names.size <= 2) names.joinToString(" & ")
-    else "${names.take(2).joinToString(", ")} & ${countLabel(names.size - 2, "other")}"
+fun peopleTitle(names: List<String>): UiText = when (names.size) {
+    0, 1 -> UiText.Raw(names.firstOrNull() ?: "")
+    2 -> S.appPhotosGridPeopleTwo(names[0], names[1])
+    else -> S.appPhotosGridPeopleMore(names[0], names[1], names.size - 2)
+}
 
 /**
  * The scrubber's jump: the last instant of [month] in [zone] (epoch ms), so
@@ -105,18 +169,18 @@ fun jumpCutoffMs(month: String, zone: ZoneId): Long? {
     return ym.atEndOfMonth().atTime(23, 59, 59, 999_000_000).atZone(zone).toInstant().toEpochMilli()
 }
 
-// The web's tile label date (Intl en-GB: day, long month, year): "5 October 2026".
-private val TILE_DAY: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMMM y", Locale.UK)
-
 /**
  * A tile as TalkBack reads it, the web's tile label: "Photo, 5 October
  * 2026", "Video, ..." - the day in [zone], the phone's own - or "Photo"
- * alone without a date. [createdMs]: the photo's date, epoch ms.
+ * alone without a date. [createdMs]: the photo's date, epoch ms. The day's
+ * words come from the catalog (app.photos.months.day), so the English stays
+ * the web's en-GB "5 October 2026".
  */
-fun tileLabel(video: Boolean, createdMs: Long?, zone: ZoneId): String {
-    val kind = if (video) "Video" else "Photo"
-    if (createdMs == null) return kind
-    return "$kind, ${TILE_DAY.format(Instant.ofEpochMilli(createdMs).atZone(zone))}"
+fun tileLabel(video: Boolean, createdMs: Long?, zone: ZoneId): UiText {
+    if (createdMs == null) return if (video) S.appPhotosGridTileVideo() else S.appPhotosGridTilePhoto()
+    val d = Instant.ofEpochMilli(createdMs).atZone(zone)
+    val day = nested(R.string.app_photos_months_day, d.dayOfMonth, MONTH_NAMES[d.monthValue - 1], "${d.year}")
+    return nested(if (video) R.string.app_photos_grid_tile_video_on else R.string.app_photos_grid_tile_photo_on, day)
 }
 
 /** The bucket under the scrubber at [frac] of the track (0 = the newest photo). */

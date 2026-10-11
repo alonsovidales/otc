@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.gallery
 
+import cloud.offthe.otc.i18n.english
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -142,22 +143,22 @@ class PhotoMonthsTest {
     // ---- headers --------------------------------------------------------------------
 
     @Test fun wordsAsTheWebSaysThem() {
-        assertEquals("September 2024", monthTitle("2024-09"))
-        assertEquals("Sep 2024", monthShort("2024-09"))
-        assertEquals("1 item", countLabel(1, "item"))
-        assertEquals("1,234 items", countLabel(1234, "item"))
-        assertEquals("Ana", peopleTitle(listOf("Ana")))
-        assertEquals("Ana & Leo", peopleTitle(listOf("Ana", "Leo")))
-        assertEquals("Ana, Leo & 2 others", peopleTitle(listOf("Ana", "Leo", "Rosa", "Unnamed")))
-        assertEquals("Ana, Leo & 1 other", peopleTitle(listOf("Ana", "Leo", "Rosa")))
+        assertEquals("September 2024", monthTitle("2024-09").english())
+        assertEquals("Sep 2024", monthShort("2024-09").english())
+        assertEquals("1 item", itemsLabel(1).english())
+        assertEquals("1,234 items", itemsLabel(1234).english())
+        assertEquals("Ana", peopleTitle(listOf("Ana")).english())
+        assertEquals("\u2068Ana\u2069 & \u2068Leo\u2069", peopleTitle(listOf("Ana", "Leo")).english())
+        assertEquals("\u2068Ana\u2069, \u2068Leo\u2069 & 2 others", peopleTitle(listOf("Ana", "Leo", "Rosa", "Unnamed")).english())
+        assertEquals("\u2068Ana\u2069, \u2068Leo\u2069 & 1 other", peopleTitle(listOf("Ana", "Leo", "Rosa")).english())
     }
 
     @Test fun theSpanOfACollection() {
-        assertEquals("", spanLabel(emptyList()))
-        assertEquals("Mar 2024", spanLabel(buckets("2024-03" to 5)))
-        assertEquals("Mar – Oct 2024", spanLabel(buckets("2024-10" to 1, "2024-03" to 5)))
-        assertEquals("Mar 2024 – Oct 2026", spanLabel(buckets("2026-10" to 1, "2025-01" to 2, "2024-03" to 5)))
-        assertEquals("2024 – 2026", spanLabel(buckets("2026-10" to 1, "2024-03" to 5), years = true))
+        assertEquals("", spanLabel(emptyList()).english())
+        assertEquals("Mar 2024", spanLabel(buckets("2024-03" to 5)).english())
+        assertEquals("Mar – Oct 2024", spanLabel(buckets("2024-10" to 1, "2024-03" to 5)).english())
+        assertEquals("Mar 2024 – Oct 2026", spanLabel(buckets("2026-10" to 1, "2025-01" to 2, "2024-03" to 5)).english())
+        assertEquals("2024 – 2026", spanLabel(buckets("2026-10" to 1, "2024-03" to 5), years = true).english())
     }
 
     @Test fun theCountsComeFromThisFiltersBuckets() {
@@ -185,8 +186,8 @@ class PhotoMonthsTest {
         assertEquals("2023-07", scrubBucketAt(list, 0.39f)?.month)
         assertEquals("2019-03", scrubBucketAt(list, 0.4f)?.month)
         assertEquals("2019-03", scrubBucketAt(list, 1f)?.month)
-        assertEquals("Mar 2019", scrubLabel("2019-03"))
-        assertEquals("No date", scrubLabel("0000-00"))
+        assertEquals("Mar 2019", scrubLabel("2019-03").english())
+        assertEquals("No date", scrubLabel("0000-00").english())
     }
 
     @Test fun aJumpLandsOnItsMonthsTitle() {
@@ -212,7 +213,7 @@ class PhotoMonthsTest {
         // The device's bucket of zero dates: before every real date, as the
         // web's Date(0, 0, 0, 23, 59, 59, 999) - never no jump at all, which
         // left the scrubber's grey tiles standing.
-        assertEquals("No date", scrubLabel("0000-00"))
+        assertEquals("No date", scrubLabel("0000-00").english())
         assertEquals(Instant.parse("1899-12-31T23:59:59.999Z").toEpochMilli(), jumpCutoffMs("0000-00", utc))
         assertEquals(Instant.parse("1899-12-31T22:59:59.999Z").toEpochMilli(), jumpCutoffMs("0000-00", ZoneId.of("+01:00")))
         assertTrue(jumpCutoffMs("0000-00", madrid)!! < jumpCutoffMs("1900-01", madrid)!!)
@@ -222,13 +223,13 @@ class PhotoMonthsTest {
 
     @Test fun aTileReadsAsTheWebsLabel() {
         val t = Instant.parse("2026-10-05T10:00:00Z").toEpochMilli()
-        assertEquals("Photo, 5 October 2026", tileLabel(false, t, utc))
-        assertEquals("Video, 5 October 2026", tileLabel(true, t, utc))
+        assertEquals("Photo, 5 October 2026", tileLabel(false, t, utc).english())
+        assertEquals("Video, 5 October 2026", tileLabel(true, t, utc).english())
         // The day in the phone's time zone: New Year's morning in UTC is New Year's Eve in New York.
-        assertEquals("Photo, 1 January 2024", tileLabel(false, Instant.parse("2024-01-01T02:00:00Z").toEpochMilli(), utc))
-        assertEquals("Photo, 31 December 2023", tileLabel(false, Instant.parse("2024-01-01T02:00:00Z").toEpochMilli(), newYork))
-        assertEquals("Photo", tileLabel(false, null, utc))
-        assertEquals("Video", tileLabel(true, null, utc))
+        assertEquals("Photo, 1 January 2024", tileLabel(false, Instant.parse("2024-01-01T02:00:00Z").toEpochMilli(), utc).english())
+        assertEquals("Photo, 31 December 2023", tileLabel(false, Instant.parse("2024-01-01T02:00:00Z").toEpochMilli(), newYork).english())
+        assertEquals("Photo", tileLabel(false, null, utc).english())
+        assertEquals("Video", tileLabel(true, null, utc).english())
     }
 
     // ---- asking again -----------------------------------------------------------------

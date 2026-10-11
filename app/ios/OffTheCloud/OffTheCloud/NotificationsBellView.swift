@@ -14,21 +14,41 @@ import SwiftUI
 struct NotificationsListView: View {
     @ObservedObject var model: NotificationsModel
 
-    private static let relativeFormatter: RelativeDateTimeFormatter = {
+    /// When it happened, in the app's language: made when shown (the
+    /// formatter is cheap, and a kept one would stay in the language it was
+    /// made in).
+    private static func relativeTime(_ date: Date) -> String {
         let f = RelativeDateTimeFormatter()
         f.unitsStyle = .abbreviated
-        return f
-    }()
+        f.locale = L10n.shared.locale
+        return f.localizedString(for: date, relativeTo: Date())
+    }
 
-    private static func describe(_ n: Msg_Notification) -> String {
+    /// Who did it (in bold) and what, as one sentence per kind; nil for a
+    /// kind this app doesn't know, which shows only who.
+    private static func describe(_ n: Msg_Notification) -> AttributedString? {
+        let name = n.actorName.isEmpty ? n.actorDomain : n.actorName
         switch n.type {
-        case .notificationLikePublication: return "liked your post"
-        case .notificationLikeComment: return "liked your comment"
-        case .notificationNewComment: return "commented on your post"
-        case .notificationFriendRequest: return "sent you a friend request"
-        case .notificationFriendAccepted: return "accepted your friend request"
-        case .notificationError, .notificationUpdate, .UNRECOGNIZED: return ""
+        case .notificationLikePublication: return S.appSocialAlertsLikedPost(name: name, b: bold)
+        case .notificationLikeComment: return S.appSocialAlertsLikedComment(name: name, b: bold)
+        case .notificationNewComment: return S.appSocialAlertsCommented(name: name, b: bold)
+        case .notificationFriendRequest: return S.appSocialAlertsFriendRequest(name: name, b: bold)
+        case .notificationFriendAccepted: return S.appSocialAlertsFriendAccepted(name: name, b: bold)
+        case .notificationError, .notificationUpdate, .UNRECOGNIZED: return nil
         }
+    }
+
+    private static var bold: AttributeContainer {
+        var b = AttributeContainer()
+        b.inlinePresentationIntent = .stronglyEmphasized
+        return b
+    }
+
+    /// The "+N more" of a group of errors, in grey after its title.
+    private static var dim: AttributeContainer {
+        var d = AttributeContainer()
+        d.foregroundColor = .secondary
+        return d
     }
 
     // Issue #64: which error rows show their full list of errors - a tap
@@ -42,7 +62,7 @@ struct NotificationsListView: View {
                 if model.loadingList && model.notifications.isEmpty {
                     ProgressView()
                 } else if model.notifications.isEmpty {
-                    Text("Nothing yet").foregroundStyle(.secondary)
+                    Text(S.appSocialAlertsEmpty).foregroundStyle(.secondary)
                 } else {
                     List(model.notifications, id: \.uuid) { n in
                         if n.type == .notificationError {
@@ -60,12 +80,17 @@ struct NotificationsListView: View {
                                 // Social feed/likers list.
                                 avatarView(data: n.hasActorImage ? n.actorImage : nil, size: 40)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    (Text(n.actorName.isEmpty ? n.actorDomain : n.actorName).bold()
-                                        + Text(" " + Self.describe(n)))
+                                    Group {
+                                        if let line = Self.describe(n) {
+                                            Text(line)
+                                        } else {
+                                            Text(n.actorName.isEmpty ? n.actorDomain : n.actorName).bold()
+                                        }
+                                    }
                                         .foregroundStyle(.primary)
                                         .font(.subheadline)
                                     if n.hasDt {
-                                        Text(Self.relativeFormatter.localizedString(for: n.dt.date, relativeTo: Date()))
+                                        Text(Self.relativeTime(n.dt.date))
                                             .font(.caption2)
                                             .foregroundStyle(.secondary)
                                     }
@@ -90,11 +115,11 @@ struct NotificationsListView: View {
                         .buttonStyle(.plain)
                         if n.type == .notificationFriendRequest {
                             if model.awaitingAnswer.contains(n.actorDomain) {
-                                Button("Accept") { Task { await model.accept(domain: n.actorDomain) } }
+                                Button(S.commonAccept) { Task { await model.accept(domain: n.actorDomain) } }
                                     .buttonStyle(.borderedProminent)
                                     .controlSize(.small)
                             } else if model.acceptedHere.contains(n.actorDomain) {
-                                Label("Friends", systemImage: "checkmark").font(.caption).foregroundStyle(.secondary)
+                                Label(S.iosAlertsFriends, systemImage: "checkmark").font(.caption).foregroundStyle(.secondary)
                             }
                         }
                         }
@@ -105,12 +130,12 @@ struct NotificationsListView: View {
                     .refreshable { await model.openPanel() }
                 }
             }
-            .navigationTitle("Notifications")
+            .navigationTitle(S.appSocialAlertsTitle)
             // The wide layout's menu names the page, as the web's does:
             // no title bar there (AppMenu.swift).
             .toolbar(wide ? .hidden : .automatic, for: .navigationBar)
             .overlay(alignment: .topLeading) {
-                if wide { HiddenPageHeading(title: "Alerts") }
+                if wide { HiddenPageHeading(title: S.appShellSectionAlerts) }
             }
         }
         .task { await model.openPanel() }
@@ -134,7 +159,7 @@ struct NotificationsListView: View {
                         .foregroundStyle(.primary)
                         .font(.subheadline)
                     if n.hasDt {
-                        Text(Self.relativeFormatter.localizedString(for: n.dt.date, relativeTo: Date()))
+                        Text(Self.relativeTime(n.dt.date))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -169,12 +194,18 @@ struct NotificationsListView: View {
                     .font(.title3)
                     .frame(width: 40, height: 40)
                 VStack(alignment: .leading, spacing: 2) {
-                    (Text(n.title).bold()
-                        + Text(n.occurrences > 1 ? " +\(n.occurrences - 1) more" : "").foregroundStyle(.secondary))
+                    // The title is the device's, already in the app's language.
+                    Group {
+                        if n.occurrences > 1 {
+                            Text(S.appSocialAlertsErrorMore(title: n.title, count: Int(n.occurrences - 1), b: Self.bold, dim: Self.dim))
+                        } else {
+                            Text(n.title).bold()
+                        }
+                    }
                         .foregroundStyle(.primary)
                         .font(.subheadline)
                     if n.hasDt {
-                        Text(Self.relativeFormatter.localizedString(for: n.dt.date, relativeTo: Date()))
+                        Text(Self.relativeTime(n.dt.date))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -194,6 +225,8 @@ struct NotificationsListView: View {
             .listRowBackground(n.acknowledged ? Color.clear : Color.yellow.opacity(0.08))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(n.title), \(n.occurrences) error\(n.occurrences == 1 ? "" : "s"), \(expanded ? "collapse" : "expand")")
+        .accessibilityLabel(expanded
+            ? S.iosAlertsErrorsCollapse(title: n.title, count: Int(n.occurrences))
+            : S.iosAlertsErrorsExpand(title: n.title, count: Int(n.occurrences)))
     }
 }

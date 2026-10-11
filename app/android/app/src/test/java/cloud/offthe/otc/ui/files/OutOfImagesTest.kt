@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.files
 
+import cloud.offthe.otc.i18n.english
 import cloud.offthe.otc.proto.Ack
 import cloud.offthe.otc.proto.File as PbFile
 import cloud.offthe.otc.proto.ListOfFiles
@@ -71,11 +72,11 @@ class OutOfImagesTest {
         val byParent = "Trip is inside /Photos, which is kept out of Images - show /Photos in Images to show Trip"
         assertEquals(byParent, outOfImagesFailure(
             RespEnvelope.newBuilder().setError(true).setErrorCode("out_of_images_by_parent").setErrorMessage(byParent).build(),
-        ))
-        assertEquals("Could not update the folder", outOfImagesFailure(RespEnvelope.newBuilder().setError(true).build()))
+        )?.english())
+        assertEquals("Could not update the folder", outOfImagesFailure(RespEnvelope.newBuilder().setError(true).build())?.english())
         assertNull(outOfImagesFailure(RespEnvelope.newBuilder().setRespAck(Ack.newBuilder().setOk(true)).build()))
-        assertEquals("no", outOfImagesFailure(RespEnvelope.newBuilder().setRespAck(Ack.newBuilder().setOk(false).setErrorMsg("no")).build()))
-        assertEquals("Could not update the folder", outOfImagesFailure(RespEnvelope.getDefaultInstance()))
+        assertEquals("no", outOfImagesFailure(RespEnvelope.newBuilder().setRespAck(Ack.newBuilder().setOk(false).setErrorMsg("no")).build())?.english())
+        assertEquals("Could not update the folder", outOfImagesFailure(RespEnvelope.getDefaultInstance())?.english())
     }
 
     @Test fun theFolderWhoseShowTheDeviceTakesIsTheOutermostKeptOut() {
@@ -125,25 +126,25 @@ class OutOfImagesTest {
     }
 
     @Test fun aChangeWaitsForAShareOrDownloadAndSaysSo() {
-        assertEquals("Wait for the share link to be ready", outOfImagesWait(SelectionActionTask.SHARE))
-        assertEquals("Wait for the download link to be ready", outOfImagesWait(SelectionActionTask.DOWNLOAD))
-        assertEquals("Wait for the folder to be updated", outOfImagesWait(SelectionActionTask.OUT_OF_IMAGES))
+        assertEquals("Wait for the share link to be ready", outOfImagesWait(SelectionActionTask.SHARE).english())
+        assertEquals("Wait for the download link to be ready", outOfImagesWait(SelectionActionTask.DOWNLOAD).english())
+        assertEquals("Wait for the folder to be updated", outOfImagesWait(SelectionActionTask.OUT_OF_IMAGES).english())
     }
 
     @Test fun theSpecsWords() {
-        assertEquals("Keep out of Images", OutOfImagesText.KEEP)
-        assertEquals("Show in Images", OutOfImagesText.SHOW)
-        assertEquals("Kept out of Images", OutOfImagesText.STATE)
-        assertEquals("Keep “Trip” out of Images?", OutOfImagesText.keepTitle("Trip"))
-        assertEquals("Show “Trip” in Images?", OutOfImagesText.showTitle("Trip"))
-        assertEquals("Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them.", OutOfImagesText.EXPLAIN)
-        assertTrue(OutOfImagesText.BANNER.startsWith("Kept out of Images - "))
+        assertEquals("Keep out of Images", OutOfImagesText.KEEP.english())
+        assertEquals("Show in Images", OutOfImagesText.SHOW.english())
+        assertEquals("Kept out of Images", OutOfImagesText.STATE.english())
+        assertEquals("Keep “\u2068Trip\u2069” out of Images?", OutOfImagesText.keepTitle("Trip").english())
+        assertEquals("Show “\u2068Trip\u2069” in Images?", OutOfImagesText.showTitle("Trip").english())
+        assertEquals("Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them.", OutOfImagesText.EXPLAIN.english())
+        assertTrue(OutOfImagesText.BANNER.english().startsWith("Kept out of Images - "))
         // The web's words inside a folder kept out by one above it.
-        assertEquals("Inside /Photos, which is kept out of Images", OutOfImagesText.byParent("/Photos"))
-        assertEquals("Inside /Photos, which is kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images.",
-            OutOfImagesText.bannerByParent("/Photos"))
-        assertEquals("Show “Photos” in Images", OutOfImagesText.showNamed("Photos"))
-        assertEquals("Trip kept out of Images", OutOfImagesText.keptSaid("Trip"))
-        assertEquals("Trip shown in Images", OutOfImagesText.shownSaid("Trip"))
+        assertEquals("Inside \u2068/Photos\u2069, which is kept out of Images", OutOfImagesText.byParent("/Photos").english())
+        assertEquals("Inside \u2068/Photos\u2069, which is kept out of Images - photos and videos here aren't tagged, searched for faces or shown in Images.",
+            OutOfImagesText.bannerByParent("/Photos").english())
+        assertEquals("Show “\u2068Photos\u2069” in Images", OutOfImagesText.showNamed("Photos").english())
+        assertEquals("\u2068Trip\u2069 kept out of Images", OutOfImagesText.keptSaid("Trip").english())
+        assertEquals("\u2068Trip\u2069 shown in Images", OutOfImagesText.shownSaid("Trip").english())
     }
 }
