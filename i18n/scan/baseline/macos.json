@@ -1,9 +1,5 @@
 {
   "surface": "macos",
-  "total": 93,
-  "files": {
-    "app/macos/OffTheCloud/OffTheCloud/BluetoothSetupView.swift": 28,
-    "app/macos/OffTheCloud/OffTheCloud/RemoteFolderPickerView.swift": 5,
-    "app/macos/OffTheCloud/OffTheCloud/SetupWizardView.swift": 60
-  }
+  "total": 0,
+  "files": {}
 }

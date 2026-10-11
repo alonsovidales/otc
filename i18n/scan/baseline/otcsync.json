@@ -1,18 +1,5 @@
 {
   "surface": "otcsync",
-  "total": 123,
-  "files": {
-    "app/desktop/internal/engine/out_of_images.go": 5,
-    "app/desktop/internal/engine/upload_only.go": 8,
-    "app/desktop/internal/flasher/disks_linux.go": 3,
-    "app/desktop/internal/flasher/disks_other.go": 1,
-    "app/desktop/internal/flasher/disks_windows.go": 7,
-    "app/desktop/internal/flasher/flasher.go": 25,
-    "app/desktop/internal/tray/addfolder.go": 23,
-    "app/desktop/internal/tray/images.go": 16,
-    "app/desktop/internal/tray/picker_other.go": 8,
-    "app/desktop/internal/tray/picker_windows.go": 1,
-    "app/desktop/internal/tray/setup.go": 24,
-    "app/desktop/internal/tray/uploadonly.go": 2
-  }
+  "total": 0,
+  "files": {}
 }

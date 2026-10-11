@@ -10,6 +10,7 @@ import (
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
 	"github.com/alonsovidales/otc/app/desktop/internal/engine"
+	"github.com/alonsovidales/otc/i18n"
 )
 
 // Issue #192: keeping a folder out of Images - an option when a folder
@@ -19,36 +20,25 @@ import (
 // AddFolderChooser toggle and the eye button on each folder's row
 // (PopoverView.swift).
 
-const (
-	imagesKeepMessage = "Its photos and videos won't be tagged, searched for faces or shown in Images, and the tags and faces already found in them are deleted. Files still shows them."
-	imagesShowMessage = "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background."
-	// imagesExplainKinds closes "What Do These Do?": the one explanation,
-	// with the folder it is about named - "here" points at nothing there.
-	imagesExplainKinds = "Keep out of Images (an option for a folder from this computer)\n" +
-		"Photos and videos in a folder kept out of Images aren't tagged, searched for faces or shown in Images. Files still shows them. " +
-		"Any tags and faces already found in them are deleted. You can change this later from the folder's menu. " +
-		"A folder renamed later is a new folder on the device: keep it out of Images again."
-)
+// imagesExplainKinds closes "What Do These Do?" (explainText's last
+// paragraph, desk.main.explain_images): the one explanation, with the
+// folder it is about named - "here" points at nothing there. Its English,
+// which the tests read.
+var imagesExplainKinds = i18n.DeskMainExplainImages().Render("")
 
-func imagesKeepTitle(name string) string { return "Keep “" + name + "” out of Images?" }
-
-func imagesShowTitle(name string) string { return "Show “" + name + "” in Images?" }
-
-func imagesByParentTip(parent string) string {
-	return "Inside " + parent + ", which is kept out of Images"
-}
-
-// imagesSuffix ends a folder's title with how it stands with Images.
+// imagesSuffix ends a folder's title with how it stands with Images, in the
+// menu's language.
 func imagesSuffix(f config.FolderStatus) string {
+	l := lang()
 	switch engine.ImagesState(f.OutOfImages) {
 	case engine.ImagesKeptOut, engine.ImagesKeptOutByParent:
-		return " · Kept out of Images"
+		return " · " + i18n.DeskFoldersImagesKeptOut().Render(l)
 	case engine.ImagesKeeping:
-		return " · Keeping out of Images…"
+		return " · " + i18n.DeskFoldersImagesKeeping().Render(l)
 	case engine.ImagesShowing:
-		return " · Showing in Images…"
+		return " · " + i18n.DeskFoldersImagesShowing().Render(l)
 	case engine.ImagesUnsupported:
-		return " · " + engine.OutOfImagesNeedsUpdate
+		return " · " + i18n.DeskMainImagesNeedsUpdate().Render(l)
 	}
 
 	return ""
@@ -58,27 +48,33 @@ func imagesSuffix(f config.FolderStatus) string {
 // under it from its status (u.mu held). Hidden while unknown - and on a
 // device that can't, unless a request is waiting for its update.
 func (u *ui) applyImages(fi *folderItem, f config.FolderStatus) {
+	l := lang()
+	// The checkbox's own words too: a language picked meanwhile shows at
+	// this apply (only a change is written).
+	u.setTitle(fi.images, i18n.DeskFoldersImagesCheckbox().Render(l))
 	info := ""
 	switch state := engine.ImagesState(f.OutOfImages); state {
 	case engine.ImagesUnknown:
 		u.setShown(fi.images, false)
 	case engine.ImagesUnsupported:
+		needs := i18n.DeskMainImagesNeedsUpdate().Render(l)
 		u.setChecked(fi.images, false)
 		u.setEnabled(fi.images, false)
-		u.setTip(fi.images, engine.OutOfImagesNeedsUpdate)
+		u.setTip(fi.images, needs)
 		u.setShown(fi.images, true)
-		info = engine.OutOfImagesNeedsUpdate
+		info = needs
 	case engine.ImagesKeptOutByParent:
 		// Showing it is refused until the folder above is shown.
+		by := i18n.DeskMainImagesByParent(f.OutOfImagesBy).Render(l)
 		u.setChecked(fi.images, true)
 		u.setEnabled(fi.images, false)
-		u.setTip(fi.images, imagesByParentTip(f.OutOfImagesBy))
+		u.setTip(fi.images, by)
 		u.setShown(fi.images, true)
-		info = imagesByParentTip(f.OutOfImagesBy)
+		info = by
 	default:
 		u.setChecked(fi.images, state.Kept())
 		u.setEnabled(fi.images, true)
-		u.setTip(fi.images, engine.OutOfImagesExplain)
+		u.setTip(fi.images, i18n.DeskFoldersImagesExplain().Render(l))
 		u.setShown(fi.images, true)
 	}
 	if f.OutOfImagesNote != "" {
@@ -113,11 +109,13 @@ func (u *ui) toggleImages(fi *folderItem) {
 	}
 	name := filepath.Base(f.Path)
 	keepOut := !state.Kept()
-	title, message, ok := imagesShowTitle(name), imagesShowMessage, "Show in Images"
+	l := lang()
+	title, message, ok := i18n.DeskMainImagesShowTitle(name), i18n.DeskMainImagesShowMessage(), i18n.DeskMainImagesShowButton()
 	if keepOut {
-		title, message, ok = imagesKeepTitle(name), imagesKeepMessage, "Keep Out of Images"
+		title, message, ok = i18n.DeskMainImagesKeepTitle(name), i18n.DeskMainImagesKeepMessage(), i18n.DeskMainImagesKeepButton()
 	}
-	if zenity.Question(message, zenity.Title(title), zenity.OKLabel(ok), zenity.CancelLabel("Cancel")) != nil {
+	if zenity.Question(message.Render(l), zenity.Title(title.Render(l)), zenity.OKLabel(ok.Render(l)),
+		zenity.CancelLabel(i18n.CommonCancel().Render(l))) != nil {
 		return
 	}
 	cfg := u.editConfig()
@@ -128,15 +126,17 @@ func (u *ui) toggleImages(fi *folderItem) {
 		return // removed meanwhile
 	}
 	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+		_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
 	}
 	Refresh()
 }
 
 // addImagesItems adds a folder's checkbox and the line under it to its
-// submenu, both hidden until apply knows its state.
+// submenu, both hidden until apply knows its state (and writes their words
+// in the language then in effect).
 func addImagesItems(mi *systray.MenuItem) (images, info *systray.MenuItem) {
-	images = mi.AddSubMenuItemCheckbox("Kept Out of Images", engine.OutOfImagesExplain, false)
+	l := lang()
+	images = mi.AddSubMenuItemCheckbox(i18n.DeskFoldersImagesCheckbox().Render(l), i18n.DeskFoldersImagesExplain().Render(l), false)
 	images.Hide()
 	info = mi.AddSubMenuItem("", "")
 	info.Disable()

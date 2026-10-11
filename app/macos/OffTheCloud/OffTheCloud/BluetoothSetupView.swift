@@ -72,6 +72,13 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
         case starting, off, unauthorized, scanning, choosing, connecting, ready(String), lost
     }
 
+    /// The language the wizard speaks (docs/i18n.md, "Setup wizard"): the
+    /// app's when this setup started, sent as ?lang= with the page and with
+    /// every /api call forwarded to it - Bluetooth carries the path, not
+    /// headers. Kept for the whole setup, so the page and its answers speak
+    /// one language.
+    let lang = L10n.shared.code
+
     @Published var phase: Phase = .starting
     /// Set from the wizard's /api/state once the install is online: the
     /// device's domain, or "" for a device set up without the bridge.
@@ -142,6 +149,18 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
 
     // MARK: requests
 
+    /// path with the wizard's language: the page ("/") and every /api call
+    /// carry ?lang=, unless the page already put one there. The query the
+    /// page wrote is kept byte for byte (only appended to).
+    static func withLanguage(_ path: String, _ lang: String) -> String {
+        guard path == "/" || path.hasPrefix("/?") || path.hasPrefix("/api"),
+              var parts = URLComponents(string: path),
+              !(parts.queryItems ?? []).contains(where: { $0.name == "lang" }),
+              let code = lang.addingPercentEncoding(withAllowedCharacters: .alphanumerics) else { return path }
+        parts.percentEncodedQuery = (parts.percentEncodedQuery.map { $0 + "&" } ?? "") + "lang=" + code
+        return parts.string ?? path
+    }
+
     @MainActor
     func request(method: String, path: String, body: Data?) async throws -> BLESetupAnswer {
         guard let peripheral, let requestChrc, isReady else {
@@ -150,7 +169,9 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
         }
         nextStream &+= 1
         let stream = nextStream
-        var message: [String: Any] = ["m": method, "p": path, "k": Self.setupKey]
+        // The language goes to the wizard only; the log lines keep the path
+        // the page asked for.
+        var message: [String: Any] = ["m": method, "p": Self.withLanguage(path, lang), "k": Self.setupKey]
         if let body, !body.isEmpty { message["b"] = String(decoding: body, as: UTF8.self) }
         // The biggest notification this phone takes whole: MTU-3, and
         // never more than the 512 bytes an attribute value can hold.
@@ -377,10 +398,10 @@ enum BLESetupError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notConnected: return "Not connected to the device"
-        case .timeout: return "The device did not answer in time"
-        case .badAnswer: return "The device sent an answer this app could not read"
-        case .closed: return "Setup was closed"
+        case .notConnected: return S.macosBluetoothNotConnected
+        case .timeout: return S.macosBluetoothTimedOut
+        case .badAnswer: return S.macosBluetoothBadAnswer
+        case .closed: return S.macosBluetoothClosed
         }
     }
 }
@@ -525,7 +546,11 @@ struct BLESetupWebView: NSViewRepresentable {
         view.navigationDelegate = context.coordinator
         view.uiDelegate = context.coordinator
         view.underPageBackgroundColor = NSColor(red: 0.118, green: 0.122, blue: 0.133, alpha: 1) // the wizard's own background
-        view.load(URLRequest(url: URL(string: "\(BLESetupSchemeHandler.scheme)://device/")!))
+        // The page in the wizard's language; its own /api calls get it too
+        // (BLESetupTransport.withLanguage).
+        var page = URLComponents(string: "\(BLESetupSchemeHandler.scheme)://device/")!
+        page.queryItems = [URLQueryItem(name: "lang", value: transport.lang)]
+        view.load(URLRequest(url: page.url!))
         return view
     }
 
@@ -549,7 +574,7 @@ struct BluetoothSetupView: View {
                     // where it left off once the link is back.
                     HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
-                        Text("Connection to the device lost - reconnecting. Keep this Mac near it.")
+                        Text(S.macosBluetoothReconnecting)
                             .font(.footnote)
                     }
                     .frame(maxWidth: .infinity)
@@ -561,19 +586,19 @@ struct BluetoothSetupView: View {
                 waiting
             }
             if let domain = transport.readyDomain {
-                useDevice(domain: domain, note: domain.isEmpty ? "The device is ready on your home network." : "The device is ready as \(domain).")
+                useDevice(domain: domain, note: domain.isEmpty ? S.macosBluetoothReadyHome : S.macosBluetoothReadyAs(device: domain))
             } else if transport.everReady, !transport.isReady, let domain = transport.setupDomain, !transport.chosenPassword.isEmpty {
                 // The iPhone app keeps a "pending setup" for this case (a
                 // locked phone that never sees "online"): a device stops
                 // answering over Bluetooth once installed, so offer it here.
-                useDevice(domain: domain, note: "If the device has finished installing it no longer answers over Bluetooth - you can use it now.")
+                useDevice(domain: domain, note: S.macosBluetoothReadyMaybe)
             }
         }
         .frame(minWidth: 520, minHeight: 620)
         // The install takes about 20 minutes: keep the Mac awake, since
         // sleeping drops the Bluetooth link.
         .onAppear {
-            activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated], reason: "Setting up a device over Bluetooth")
+            activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated], reason: "Setting up a device over Bluetooth") // i18n-ignore: a power assertion's reason, shown only by pmset
         }
         .onDisappear {
             if let activity { ProcessInfo.processInfo.endActivity(activity) }
@@ -590,18 +615,18 @@ struct BluetoothSetupView: View {
         return VStack(alignment: .leading, spacing: 8) {
             Text(note).font(.footnote).foregroundStyle(.secondary)
             if known.isEmpty {
-                Text("Enter the device's password").font(.headline)
-                SecureField("Password", text: $password)
+                Text(S.macosBluetoothEnterPassword).font(.headline)
+                SecureField(S.commonPassword, text: $password)
                     .textContentType(.password)
                     .textFieldStyle(.roundedBorder)
             } else {
-                Text("This Mac signs in with the password you chose in the setup.")
+                Text(S.macosBluetoothPasswordKnown)
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Button {
                 onUseDevice(Self.settingsDomain(forDomain: domain), known.isEmpty ? password : known)
             } label: {
-                Text("Sync this Mac with my device").frame(maxWidth: .infinity)
+                Text(S.macosBluetoothUseDevice).frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .disabled(!valid)
@@ -616,19 +641,19 @@ struct BluetoothSetupView: View {
             switch transport.phase {
             case .starting, .scanning, .lost:
                 ProgressView()
-                Text("Looking for a device to set up…").font(.headline)
-                Text("Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep this Mac near it.")
+                Text(S.macosBluetoothLooking).font(.headline)
+                Text(S.macosBluetoothLookingDetail)
                     .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
             case .choosing:
-                Text("Which device?").font(.headline)
-                Text("Several devices are waiting to be set up. Each one's ID is on its setup page, where \"Blink its light\" shows which box it is. The strongest signal is usually the closest.")
+                Text(S.macosBluetoothWhich).font(.headline)
+                Text(S.macosBluetoothWhichDetail)
                     .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 VStack(spacing: 8) {
                     ForEach(transport.found.sorted { $0.rssi > $1.rssi }) { dev in
                         Button { transport.choose(dev.id) } label: {
                             HStack {
                                 Image(systemName: "externaldrive.connected.to.line.below")
-                                Text(dev.shortID.isEmpty ? "Device (older image)" : "Device \(dev.shortID)").font(.body.monospacedDigit())
+                                Text(dev.shortID.isEmpty ? S.macosBluetoothDeviceOlder : S.macosBluetoothDeviceId(id: dev.shortID)).font(.body.monospacedDigit())
                                 Spacer()
                                 Image(systemName: "cellularbars", variableValue: min(1, max(0, Double(dev.rssi + 95) / 45)))
                             }
@@ -641,15 +666,15 @@ struct BluetoothSetupView: View {
                 }
             case .connecting:
                 ProgressView()
-                Text("Connecting…").font(.headline)
+                Text(S.commonConnecting).font(.headline)
             case .off:
                 Image(systemName: "antenna.radiowaves.left.and.right.slash").font(.largeTitle)
-                Text("Bluetooth is off").font(.headline)
-                Text("Turn Bluetooth on in Control Centre to find the device.").font(.footnote).foregroundStyle(.secondary)
+                Text(S.macosBluetoothOff).font(.headline)
+                Text(S.macosBluetoothOffDetail).font(.footnote).foregroundStyle(.secondary)
             case .unauthorized:
                 Image(systemName: "lock").font(.largeTitle)
-                Text("Bluetooth access is needed").font(.headline)
-                Text("Allow Bluetooth for Off The Cloud in System Settings > Privacy & Security > Bluetooth to set a device up this way.")
+                Text(S.macosBluetoothUnauthorized).font(.headline)
+                Text(S.macosBluetoothUnauthorizedDetail)
                     .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
             case .ready:
                 EmptyView()
@@ -685,7 +710,7 @@ final class BLESetupSignIn: NSObject, WKScriptMessageHandlerWithReply, ASWebAuth
         guard isFromSetupPage(message) else { return replyHandler(nil, "not allowed") }
         guard let body = message.body as? [String: Any], let provider = body["p"] as? String,
               provider == "apple" || provider == "google" else {
-            return replyHandler(nil, "Unknown sign-in provider")
+            return replyHandler(nil, S.macosBluetoothUnknownProvider)
         }
         let verifier = Self.randomVerifier()
         let challenge = Data(SHA256.hash(data: Data(verifier.utf8))).base64URLEncoded
@@ -694,11 +719,11 @@ final class BLESetupSignIn: NSObject, WKScriptMessageHandlerWithReply, ASWebAuth
         let session = ASWebAuthenticationSession(url: start.url!, callbackURLScheme: "otcsetup") { [weak self] callback, error in
             self?.session = nil
             if let error = error as? ASWebAuthenticationSessionError, error.code == .canceledLogin {
-                return replyHandler(nil, "Sign-in cancelled")
+                return replyHandler(nil, S.macosBluetoothSignInCancelled)
             }
             guard let callback, let code = URLComponents(url: callback, resolvingAgainstBaseURL: false)?
                     .queryItems?.first(where: { $0.name == "code" })?.value else {
-                return replyHandler(nil, error?.localizedDescription ?? "The sign-in did not finish")
+                return replyHandler(nil, error?.localizedDescription ?? S.macosBluetoothSignInUnfinished)
             }
             Task {
                 do {
@@ -732,7 +757,7 @@ final class BLESetupSignIn: NSObject, WKScriptMessageHandlerWithReply, ASWebAuth
         let (data, resp) = try await URLSession.shared.data(for: req)
         let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         guard (resp as? HTTPURLResponse)?.statusCode == 200, let token = obj?["setup_token"] as? String else {
-            throw NSError(domain: "signin", code: 1, userInfo: [NSLocalizedDescriptionKey: obj?["error"] as? String ?? "Could not finish the sign-in"])
+            throw NSError(domain: "signin", code: 1, userInfo: [NSLocalizedDescriptionKey: obj?["error"] as? String ?? S.macosBluetoothSignInFailed])
         }
         return token
     }

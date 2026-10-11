@@ -12,7 +12,7 @@ import (
 // On macOS the App Store app's wizard hands the image to Raspberry Pi
 // Imager instead (a sandboxed app can't write raw disks); otc-sync on a Mac
 // is a development build only.
-var errUnsupported = errors.New("writing SD cards is supported on Windows and Linux")
+var errUnsupported = errors.New("writing SD cards is supported on Windows and Linux") // i18n-ignore: development builds on a Mac only
 
 func ListDisks() ([]Disk, error)                     { return nil, errUnsupported }
 func openDisk(Disk) (device, error)                  { return nil, errUnsupported }

@@ -368,7 +368,7 @@ enum OutOfImagesText {
     static var toggle: String { S.deskMainImagesKeepOut }
     static var keep: String { S.deskMainImagesKeepButton }
     static var show: String { S.deskMainImagesShowButton }
-    static var state: String { S.macosImagesState }
+    static var state: String { S.deskFoldersImagesKeptOut }
     /// The add flow's: the folder may be on the device already (one synced
     /// from it, or added again), and keeping it out deletes the tags and
     /// faces found there (otc-sync's engine.OutOfImagesAddCaption).
@@ -462,8 +462,8 @@ struct OutOfImagesButton: View {
         switch state {
         case .keptOutBy(let parent): return note ?? OutOfImagesText.byParent(parent)
         case .keptOut: return OutOfImagesText.state
-        case .keeping: return S.macosImagesKeeping
-        case .showing: return S.macosImagesShowing
+        case .keeping: return S.deskFoldersImagesKeeping
+        case .showing: return S.deskFoldersImagesShowing
         default: return OutOfImagesText.keep
         }
     }

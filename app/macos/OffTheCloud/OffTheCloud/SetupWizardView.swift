@@ -43,14 +43,38 @@ enum SetupImage {
     static var file: URL { downloadsFolder.appendingPathComponent(name) }
 }
 
-enum SetupImageError: LocalizedError {
+enum SetupImageError: LocalizedError, Equatable {
     case badSignature, badHash, http(Int)
 
     var errorDescription: String? {
         switch self {
-        case .badSignature: return "The image's checksum is not signed with the Off The Cloud release key. Nothing was kept."
-        case .badHash: return "The downloaded image does not match its signed checksum, so it was deleted. Try again."
-        case .http(let code): return "The download failed (HTTP \(code)). Try again in a moment."
+        case .badSignature: return S.macosSetupBadSignature
+        case .badHash: return S.macosSetupBadHash
+        // The status code as digits, as before ("HTTP 404").
+        case .http(let code): return S.macosSetupHttpFailed(code: String(code))
+        }
+    }
+}
+
+/// Why the download stopped, kept as data so the step shows it in the
+/// language in effect: one of ours (worded when shown), or the system's
+/// own words (a URLError's, already in the system's language).
+enum SetupDownloadFailure: Equatable {
+    case image(SetupImageError)
+    case system(String)
+
+    init(_ error: Error) {
+        if let e = error as? SetupImageError {
+            self = .image(e)
+        } else {
+            self = .system(error.localizedDescription)
+        }
+    }
+
+    var text: String {
+        switch self {
+        case .image(let e): return e.errorDescription ?? ""
+        case .system(let message): return message
         }
     }
 }
@@ -65,7 +89,7 @@ final class SetupImageModel: ObservableObject {
         case downloading(done: Int64, total: Int64)
         case verifying(Double)
         case ready
-        case failed(String)
+        case failed(SetupDownloadFailure)
     }
 
     @Published var state: State = .idle
@@ -81,7 +105,7 @@ final class SetupImageModel: ObservableObject {
             } catch is CancellationError {
                 self?.state = .idle
             } catch {
-                self?.state = .failed(error.localizedDescription)
+                self?.state = .failed(SetupDownloadFailure(error))
             }
             self?.task = nil
             self?.downloader = nil
@@ -331,7 +355,7 @@ struct SetupWizardView: View {
                         step = .done
                     }
                     HStack {
-                        Button("Back") { step = .continueSetup }
+                        Button(S.commonBack) { step = .continueSetup }
                         Spacer()
                     }
                     .padding(10)
@@ -342,7 +366,7 @@ struct SetupWizardView: View {
                     .padding(28)
             }
         }
-        .navigationTitle("Set Up a New Device")
+        .navigationTitle(S.deskFoldersSetupTitle)
         // A menu bar app has no Dock icon, so its window is hard to find
         // again after switching to Imager: while the wizard is open the app
         // is a regular one, in the Dock and in ⌘-Tab.
@@ -386,10 +410,10 @@ struct SetupWizardView: View {
         guard settings.ready, settings.domain != domain else { return true }
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Switch this Mac to the new device?"
-        alert.informativeText = "This Mac is connected to \(settings.domain). Switching removes all your synced folders from this app, so none of them starts syncing with the new device by mistake. The files themselves stay on this Mac and on the old device."
-        alert.addButton(withTitle: "Switch")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = S.macosSetupSwitchTitle
+        alert.informativeText = S.macosSetupSwitchMessage(device: settings.domain)
+        alert.addButton(withTitle: S.macosSetupSwitchButton)
+        alert.addButton(withTitle: S.commonCancel)
         guard alert.runModal() == .alertFirstButtonReturn else { return false }
         SyncModel.shared.disconnect()
         return true
@@ -399,18 +423,18 @@ struct SetupWizardView: View {
 
     private var intro: some View {
         Group {
-            header("Set up a new device", "A Raspberry Pi 5 (8 GB) with a microSD card and two USB disks becomes your Off The Cloud device.")
+            header(S.macosSetupIntroTitle, S.macosSetupIntroSubtitle)
             VStack(alignment: .leading, spacing: 10) {
-                bullet("1", "Download the Off The Cloud image (about 550 MB).")
-                bullet("2", "Write it to the microSD card with Raspberry Pi Imager.")
-                bullet("3", "Put the card in the Pi, connect the disks, power it on and finish the setup here over Bluetooth, or on your phone.")
+                bullet("1", S.macosSetupIntroStep1)
+                bullet("2", S.macosSetupIntroStep2)
+                bullet("3", S.macosSetupIntroStep3)
             }
-            Text("The download is deleted once the card is written.")
+            Text(S.macosSetupIntroNote)
                 .font(.footnote).foregroundStyle(.secondary)
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }
-                Button("Download the Image") {
+                Button(S.commonCancel) { dismiss() }
+                Button(S.macosSetupDownloadButton) {
                     step = .download
                     image.start()
                 }
@@ -422,42 +446,42 @@ struct SetupWizardView: View {
 
     private var download: some View {
         Group {
-            header("Downloading the image", "Into your Downloads folder.")
+            header(S.macosSetupDownloadTitle, S.macosSetupDownloadSubtitle)
             switch image.state {
             case .idle, .checkingRelease:
                 ProgressView().progressViewStyle(.linear)
-                Text("Checking the latest image…").font(.footnote).foregroundStyle(.secondary)
+                Text(S.macosSetupCheckingRelease).font(.footnote).foregroundStyle(.secondary)
             case .downloading(let done, let total):
                 if total > 0 {
                     ProgressView(value: Double(done), total: Double(total))
-                    Text("\(Self.mb(done)) of \(Self.mb(total))").font(.footnote.monospacedDigit()).foregroundStyle(.secondary)
+                    Text(S.macosSetupDownloadProgress(done: Self.mb(done), total: Self.mb(total))).font(.footnote.monospacedDigit()).foregroundStyle(.secondary)
                 } else {
                     ProgressView().progressViewStyle(.linear)
                     Text(Self.mb(done)).font(.footnote.monospacedDigit()).foregroundStyle(.secondary)
                 }
             case .verifying(let p):
                 ProgressView(value: p)
-                Text("Checking the download…").font(.footnote).foregroundStyle(.secondary)
+                Text(S.macosSetupVerifying).font(.footnote).foregroundStyle(.secondary)
             case .ready:
-                Label("Downloaded: \(SetupImage.name)", systemImage: "checkmark.circle.fill")
+                Label(S.macosSetupDownloaded(file: SetupImage.name), systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
-            case .failed(let message):
-                Label(message, systemImage: "exclamationmark.triangle.fill")
+            case .failed(let failure):
+                Label(failure.text, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
             }
             HStack {
                 Spacer()
                 switch image.state {
                 case .ready:
-                    Button("Next") { step = .write }
+                    Button(S.commonNext) { step = .write }
                         .buttonStyle(.borderedProminent)
                         .keyboardShortcut(.defaultAction)
                 case .failed:
-                    Button("Cancel") { dismiss() }
-                    Button("Try Again") { image.start() }
+                    Button(S.commonCancel) { dismiss() }
+                    Button(S.deskFoldersTryAgain) { image.start() }
                         .buttonStyle(.borderedProminent)
                 default:
-                    Button("Cancel") {
+                    Button(S.commonCancel) {
                         image.cancel()
                         image.deleteDownload()
                         step = .intro
@@ -469,37 +493,37 @@ struct SetupWizardView: View {
 
     private var write: some View {
         Group {
-            header("Write the card", "macOS only lets apps outside the App Store write SD cards, so Raspberry Pi Imager does this step.")
+            header(S.macosSetupWriteTitle, S.macosSetupWriteSubtitle)
             if imagerURL != nil {
                 VStack(alignment: .leading, spacing: 10) {
-                    bullet("1", "Insert the microSD card and click Open Raspberry Pi Imager below.")
-                    bullet("2", "Choose Device: Raspberry Pi 5.")
-                    bullet("3", "Choose OS: scroll down to Use custom and pick \(SetupImage.name) in your Downloads folder (it is selected in Finder) - unless Imager already shows it.")
-                    bullet("4", "Choose Storage: your SD card. Everything on it is erased.")
-                    bullet("5", "Click Next and answer No to \"apply OS customisation settings\": the device is set up from this Mac or your phone.")
+                    bullet("1", S.macosSetupWriteStep1(button: S.macosSetupOpenImager))
+                    bullet("2", S.macosSetupWriteStep2)
+                    bullet("3", S.macosSetupWriteStep3(file: SetupImage.name))
+                    bullet("4", S.macosSetupWriteStep4)
+                    bullet("5", S.macosSetupWriteStep5)
                 }
                 HStack {
-                    Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([SetupImage.file]) }
+                    Button(S.macosSetupShowInFinder) { NSWorkspace.shared.activateFileViewerSelecting([SetupImage.file]) }
                     Spacer()
-                    Button("Open Raspberry Pi Imager") {
+                    Button(S.macosSetupOpenImager) {
                         PiImager.open(image: SetupImage.file)
                         NSWorkspace.shared.activateFileViewerSelecting([SetupImage.file])
                     }
                 }
             } else {
-                Text("Raspberry Pi Imager isn't installed. It's free, from the Raspberry Pi Foundation.")
+                Text(S.macosSetupImagerMissing)
                 HStack {
-                    Button("Get Raspberry Pi Imager") { NSWorkspace.shared.open(PiImager.website) }
-                    Button("Check Again") { imagerURL = PiImager.appURL }
+                    Button(S.macosSetupGetImager) { NSWorkspace.shared.open(PiImager.website) }
+                    Button(S.macosSetupCheckAgain) { imagerURL = PiImager.appURL }
                     Spacer()
                 }
             }
             Divider()
             HStack {
-                Text("When Imager says the card is written, come back here.")
+                Text(S.macosSetupComeBack)
                     .font(.footnote).foregroundStyle(.secondary)
                 Spacer()
-                Button("I've Written the Card") {
+                Button(S.macosSetupCardWritten) {
                     image.deleteDownload()
                     deleted = true
                     step = .continueSetup
@@ -511,35 +535,35 @@ struct SetupWizardView: View {
 
     private var continueSetup: some View {
         Group {
-            header("Start the device", "Put the card in the Pi, connect the two USB disks, and power it on. It takes a minute or two to start.")
+            header(S.macosSetupStartTitle, S.macosSetupStartSubtitle)
             if deleted {
-                Label("The downloaded image was deleted from your Downloads folder.", systemImage: "trash")
+                Label(S.macosSetupImageDeleted, systemImage: "trash")
                     .font(.footnote).foregroundStyle(.secondary)
             }
-            Text("Then finish the setup - WiFi, the device's name, its disks and your password:")
+            Text(S.macosSetupFinishPrompt)
             HStack(alignment: .top, spacing: 12) {
-                choice(icon: "laptopcomputer", title: "On this Mac", text: "Over Bluetooth, with this Mac near the device.") { step = .bluetooth }
-                choice(icon: "iphone", title: "On my phone", text: "In the Off The Cloud app for iPhone or Android.") { step = .phone }
+                choice(icon: "laptopcomputer", title: S.macosSetupOnThisMac, text: S.macosSetupOnThisMacDetail) { step = .bluetooth }
+                choice(icon: "iphone", title: S.macosSetupOnMyPhone, text: S.macosSetupOnMyPhoneDetail) { step = .phone }
             }
             HStack {
                 Spacer()
-                Button("Close") { dismiss() }
+                Button(S.commonClose) { dismiss() }
             }
         }
     }
 
     private var phone: some View {
         Group {
-            header("Continue on your phone", "Keep the phone near the device.")
+            header(S.macosSetupPhoneTitle, S.macosSetupPhoneSubtitle)
             VStack(alignment: .leading, spacing: 10) {
-                bullet("•", "In the Off The Cloud app for iPhone or Android, tap Set up a new device. The app finds the device over Bluetooth and shows its setup.")
+                bullet("•", S.macosSetupPhoneStep)
             }
-            Text("Once it is installed, add the device to this Mac from the menu bar: Settings, then its name and password.")
+            Text(S.macosSetupPhoneThen)
                 .font(.footnote).foregroundStyle(.secondary)
             HStack {
-                Button("Back") { step = .continueSetup }
+                Button(S.commonBack) { step = .continueSetup }
                 Spacer()
-                Button("Done") { dismiss() }
+                Button(S.commonDone) { dismiss() }
                     .buttonStyle(.borderedProminent)
             }
         }
@@ -547,8 +571,8 @@ struct SetupWizardView: View {
 
     private var done: some View {
         Group {
-            header("Your device is ready", usedDomain.isEmpty ? "" : "This Mac now syncs with \(usedDomain).")
-            Text("Add folders to back up or keep in sync from the Off The Cloud menu bar icon. The device's own page, in a browser, has your photos, files and settings.")
+            header(S.macosSetupDoneTitle, usedDomain.isEmpty ? "" : S.macosSetupDoneSubtitle(device: usedDomain))
+            Text(S.macosSetupDoneText)
             // This Mac was just pointed at the device: the natural moment
             // for the one-time start-at-login offer - the same one the
             // popover shows, so answering either hides both. Not prominent:
@@ -558,7 +582,7 @@ struct SetupWizardView: View {
             }
             HStack {
                 Spacer()
-                Button("Done") { dismiss() }
+                Button(S.commonDone) { dismiss() }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
             }
@@ -598,8 +622,17 @@ struct SetupWizardView: View {
         .buttonStyle(.plain)
     }
 
+    /// A size for the download's progress. ByteCountFormatter speaks the
+    /// system's language (it has no locale) and keeps today's words ("Zero
+    /// KB", "999 bytes"), so it formats while the app speaks that language;
+    /// in another one the size is formatted for the app's language instead
+    /// (L10n.locale).
     private static func mb(_ bytes: Int64) -> String {
-        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+        let locale = L10n.shared.locale
+        if locale.language.languageCode == Locale.autoupdatingCurrent.language.languageCode {
+            return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+        }
+        return bytes.formatted(.byteCount(style: .file).locale(locale))
     }
 }
 

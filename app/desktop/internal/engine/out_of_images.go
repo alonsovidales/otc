@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
+	"github.com/alonsovidales/otc/i18n"
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
 
@@ -21,16 +22,18 @@ import (
 // device acknowledges it and then never again. As SyncModel's Images
 // request on the Mac.
 
-// The words every client uses for it (OutOfImagesText on the Mac).
-const (
+// The words every client uses for it (OutOfImagesText on the Mac), in
+// English: the command line's, which stays English (docs/i18n.md). The tray
+// renders the same catalog keys in the user's language.
+var (
 	// OutOfImagesExplain is the one explanation, wherever it is offered.
-	OutOfImagesExplain = "Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them."
+	OutOfImagesExplain = i18n.DeskFoldersImagesExplain().Render("")
 	// OutOfImagesAddCaption is the add flow's: the folder may be on the
 	// device already (one synced from it, or added again), and keeping it
 	// out deletes the tags and faces found there.
-	OutOfImagesAddCaption = "Photos and videos in it aren't tagged, searched for faces or shown in Images. Files still has them. Any tags and faces already found in them are deleted."
+	OutOfImagesAddCaption = i18n.DeskMainImagesAddCaption().Render("")
 	// OutOfImagesNeedsUpdate: a device before release 108.
-	OutOfImagesNeedsUpdate = "Your device needs an update to keep folders out of Images."
+	OutOfImagesNeedsUpdate = i18n.DeskMainImagesNeedsUpdate().Render("")
 )
 
 // ImagesState is how a synced folder stands with Images on the device
@@ -108,8 +111,8 @@ func OutOfImagesState(devicePath string, folders []string, pending, supported *b
 // (requests.go).
 var imagesRequest = &requestKind{
 	field:       config.OutOfImagesRequest,
-	failure:     "keep %s out of Images, or show it there",
-	unsupported: "the device can't keep folders out of Images yet (it needs an update)",
+	failure:     "keep %s out of Images, or show it there",                              // i18n-ignore: a log line
+	unsupported: "the device can't keep folders out of Images yet (it needs an update)", // i18n-ignore: a log line
 	// Keeping a folder out deletes its tags and faces before the device
 	// answers, which takes seconds even for a large library.
 	timeout:  imagesTimeout,

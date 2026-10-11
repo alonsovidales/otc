@@ -51,6 +51,135 @@ extension S {
     /// Mac app: tooltip of the (i) button next to each kind of folder and option when adding a folder.
     static var macosAddWhatThisDoes: String { L("macos.add.what_this_does", table: "Macos") }
 
+    /// The device sent an answer this app could not read
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: error given to the setup page when the device's answer over Bluetooth couldn't be read.
+    static var macosBluetoothBadAnswer: String { L("macos.bluetooth.bad_answer", table: "Macos") }
+
+    /// Setup was closed
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: error given to requests still waiting when the Bluetooth setup screen was left.
+    static var macosBluetoothClosed: String { L("macos.bluetooth.closed", table: "Macos") }
+
+    /// Device {id}
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: a row of the list of devices waiting to be set up. {id} is the device's short ID (four letters and digits, such as 04B6), shown on its setup page.
+    static func macosBluetoothDeviceId(id: String) -> String {
+        L("macos.bluetooth.device_id", table: "Macos", id)
+    }
+
+    /// Device (older image)
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: a row of the list of devices waiting to be set up, for a device whose image announces no ID.
+    static var macosBluetoothDeviceOlder: String { L("macos.bluetooth.device_older", table: "Macos") }
+
+    /// Enter the device's password
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: heading above the password field, for a recovered device that keeps the password it had.
+    static var macosBluetoothEnterPassword: String { L("macos.bluetooth.enter_password", table: "Macos") }
+
+    /// Looking for a device to set up…
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: heading while it looks for a device announcing its setup over Bluetooth.
+    static var macosBluetoothLooking: String { L("macos.bluetooth.looking", table: "Macos") }
+
+    /// Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep this Mac near it.
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: under the heading Looking for a device to set up….
+    static var macosBluetoothLookingDetail: String { L("macos.bluetooth.looking_detail", table: "Macos") }
+
+    /// Not connected to the device
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: error given to the setup page when a request can't be sent because the Bluetooth link is down.
+    static var macosBluetoothNotConnected: String { L("macos.bluetooth.not_connected", table: "Macos") }
+
+    /// Bluetooth is off
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: heading when this Mac's Bluetooth is off.
+    static var macosBluetoothOff: String { L("macos.bluetooth.off", table: "Macos") }
+
+    /// Turn Bluetooth on in Control Centre to find the device.
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: under the heading Bluetooth is off. "Control Centre" is the Mac's: use macOS's own name for it in this language.
+    static var macosBluetoothOffDetail: String { L("macos.bluetooth.off_detail", table: "Macos") }
+
+    /// This Mac signs in with the password you chose in the setup.
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: small print above the button that syncs this Mac with the new device, when the setup page handed over the password chosen in it.
+    static var macosBluetoothPasswordKnown: String { L("macos.bluetooth.password_known", table: "Macos") }
+
+    /// The device is ready as {device}.
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: once the device is installed; the button to sync this Mac with it follows. {device} is its address (for example cala.off-the.cloud).
+    static func macosBluetoothReadyAs(device: String) -> String {
+        L("macos.bluetooth.ready_as", table: "Macos", device)
+    }
+
+    /// The device is ready on your home network.
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: once the device is installed without the Off The Cloud bridge (it is reached on the home network only); the button to sync this Mac with it follows.
+    static var macosBluetoothReadyHome: String { L("macos.bluetooth.ready_home", table: "Macos") }
+
+    /// If the device has finished installing it no longer answers over Bluetooth - you can use it now.
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: when the Bluetooth link dropped near the end of the install (a device stops answering over Bluetooth once installed); the button to sync this Mac with it follows.
+    static var macosBluetoothReadyMaybe: String { L("macos.bluetooth.ready_maybe", table: "Macos") }
+
+    /// Connection to the device lost - reconnecting. Keep this Mac near it.
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: banner above the setup page while the Bluetooth link to the device is being restored.
+    static var macosBluetoothReconnecting: String { L("macos.bluetooth.reconnecting", table: "Macos") }
+
+    /// Sign-in cancelled
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: error given to the setup page when the person closed the Apple or Google sign-in.
+    static var macosBluetoothSignInCancelled: String { L("macos.bluetooth.sign_in_cancelled", table: "Macos") }
+
+    /// Could not finish the sign-in
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: error given to the setup page when the Apple or Google sign-in couldn't be completed with Off The Cloud.
+    static var macosBluetoothSignInFailed: String { L("macos.bluetooth.sign_in_failed", table: "Macos") }
+
+    /// The sign-in did not finish
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: error given to the setup page when the Apple or Google sign-in came back without a result.
+    static var macosBluetoothSignInUnfinished: String { L("macos.bluetooth.sign_in_unfinished", table: "Macos") }
+
+    /// The device did not answer in time
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: error given to the setup page when the device didn't answer a request over Bluetooth within 90 seconds.
+    static var macosBluetoothTimedOut: String { L("macos.bluetooth.timed_out", table: "Macos") }
+
+    /// Bluetooth access is needed
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: heading when the app isn't allowed to use Bluetooth.
+    static var macosBluetoothUnauthorized: String { L("macos.bluetooth.unauthorized", table: "Macos") }
+
+    /// Allow Bluetooth for Off The Cloud in System Settings > Privacy & Security > Bluetooth to set a device up this way.
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: under the heading Bluetooth access is needed. "System Settings > Privacy & Security > Bluetooth" is the path in macOS's settings: use macOS's own names for them in this language.
+    static var macosBluetoothUnauthorizedDetail: String { L("macos.bluetooth.unauthorized_detail", table: "Macos") }
+
+    /// Unknown sign-in provider
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: error given to the setup page when it asks to sign in with a provider other than Apple or Google.
+    static var macosBluetoothUnknownProvider: String { L("macos.bluetooth.unknown_provider", table: "Macos") }
+
+    /// Sync this Mac with my device
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: button, once the device is installed, that makes this Mac sync with it.
+    static var macosBluetoothUseDevice: String { L("macos.bluetooth.use_device", table: "Macos") }
+
+    /// Which device?
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: heading when several devices are waiting to be set up; a list of them follows.
+    static var macosBluetoothWhich: String { L("macos.bluetooth.which", table: "Macos") }
+
+    /// Several devices are waiting to be set up. Each one's ID is on its setup page, where "Blink its light" shows which box it is. The strongest signal is usually the closest.
+    ///
+    /// Mac app, Set Up a New Device over Bluetooth: under the heading Which device?. "Blink its light" is the setup page's link (use its translation, wiz.*).
+    static var macosBluetoothWhichDetail: String { L("macos.bluetooth.which_detail", table: "Macos") }
+
     /// Cancelled
     ///
     /// Mac app: a folder's error when a request was dropped because the connection to the device was replaced (for example by a faster route).
@@ -122,21 +251,6 @@ extension S {
     /// Mac app: the (i) explanation of the Keep out of Images option when adding a folder.
     static var macosImagesAddInfo: String { L("macos.images.add_info", table: "Macos") }
 
-    /// Keeping out of Images…
-    ///
-    /// Mac app: tooltip of the eye on a folder's row while the request to keep it out of Images is on its way to the device.
-    static var macosImagesKeeping: String { L("macos.images.keeping", table: "Macos") }
-
-    /// Showing in Images…
-    ///
-    /// Mac app: tooltip of the eye on a folder's row while the request to show it in Images again is on its way to the device.
-    static var macosImagesShowing: String { L("macos.images.showing", table: "Macos") }
-
-    /// Kept out of Images
-    ///
-    /// Mac app: tooltip of the crossed-out eye on a folder's row: the folder is kept out of Images, the app's photo section.
-    static var macosImagesState: String { L("macos.images.state", table: "Macos") }
-
     /// CPU
     ///
     /// Mac app: label of a row in the pop-up over the storage line: how busy the device's processor is.
@@ -166,6 +280,11 @@ extension S {
     ///
     /// Mac app: link next to that note, opening System Settings at Login Items (use macOS's own name for Login Items).
     static var macosLoginOpenLoginItems: String { L("macos.login.open_login_items", table: "Macos") }
+
+    /// No subfolders here.
+    ///
+    /// Mac app: in the device folder picker, when the folder being looked at has no folders in it.
+    static var macosPickerNoSubfolders: String { L("macos.picker.no_subfolders", table: "Macos") }
 
     /// Back Up
     ///
@@ -233,6 +352,260 @@ extension S {
     ///
     /// Mac app: small button in Settings, shown while not connected, that tries to connect again now.
     static var macosSettingsRetry: String { L("macos.settings.retry", table: "Macos") }
+
+    /// The downloaded image does not match its signed checksum, so it was deleted. Try again.
+    ///
+    /// Mac app, Set Up a New Device window: error when the downloaded image isn't the signed one (damaged or tampered with): it was deleted.
+    static var macosSetupBadHash: String { L("macos.setup.bad_hash", table: "Macos") }
+
+    /// The image's checksum is not signed with the Off The Cloud release key. Nothing was kept.
+    ///
+    /// Mac app, Set Up a New Device window: error when the device image's SHA-256 file doesn't carry a valid signature of Off The Cloud's release key: the image can't be trusted, so nothing was downloaded.
+    static var macosSetupBadSignature: String { L("macos.setup.bad_signature", table: "Macos") }
+
+    /// I've Written the Card
+    ///
+    /// Mac app, Set Up a New Device window: write step's main button, once Raspberry Pi Imager has written the card: goes on (and deletes the download).
+    static var macosSetupCardWritten: String { L("macos.setup.card_written", table: "Macos") }
+
+    /// Check Again
+    ///
+    /// Mac app, Set Up a New Device window: button that looks again for Raspberry Pi Imager on this Mac, once it is installed.
+    static var macosSetupCheckAgain: String { L("macos.setup.check_again", table: "Macos") }
+
+    /// Checking the latest image…
+    ///
+    /// Mac app, Set Up a New Device window: under the progress bar before the download starts (the image's signed checksum is fetched first).
+    static var macosSetupCheckingRelease: String { L("macos.setup.checking_release", table: "Macos") }
+
+    /// When Imager says the card is written, come back here.
+    ///
+    /// Mac app, Set Up a New Device window: small print at the foot of the write step. "Imager" is Raspberry Pi Imager.
+    static var macosSetupComeBack: String { L("macos.setup.come_back", table: "Macos") }
+
+    /// This Mac now syncs with {device}.
+    ///
+    /// Mac app, Set Up a New Device window: under the last step's heading, after this Mac was pointed at the new device. {device} is its address (for example cala.off-the.cloud).
+    static func macosSetupDoneSubtitle(device: String) -> String {
+        L("macos.setup.done_subtitle", table: "Macos", device)
+    }
+
+    /// Add folders to back up or keep in sync from the Off The Cloud menu bar icon. The device's own page, in a browser, has your photos, files and settings.
+    ///
+    /// Mac app, Set Up a New Device window: the last step's text: what to do next.
+    static var macosSetupDoneText: String { L("macos.setup.done_text", table: "Macos") }
+
+    /// Your device is ready
+    ///
+    /// Mac app, Set Up a New Device window: heading of the last step.
+    static var macosSetupDoneTitle: String { L("macos.setup.done_title", table: "Macos") }
+
+    /// Download the Image
+    ///
+    /// Mac app, Set Up a New Device window: first step's main button: starts downloading the device image. Title Case, as the Mac's buttons.
+    static var macosSetupDownloadButton: String { L("macos.setup.download_button", table: "Macos") }
+
+    /// {done} of {total}
+    ///
+    /// Mac app, Set Up a New Device window: under the download's progress bar: {done} downloaded of {total}, both sizes already formatted ("120 MB", "560.1 MB").
+    static func macosSetupDownloadProgress(done: String, total: String) -> String {
+        L("macos.setup.download_progress", table: "Macos", done, total)
+    }
+
+    /// Into your Downloads folder.
+    ///
+    /// Mac app, Set Up a New Device window: under the download step's heading: where the image goes (the Mac's Downloads folder).
+    static var macosSetupDownloadSubtitle: String { L("macos.setup.download_subtitle", table: "Macos") }
+
+    /// Downloading the image
+    ///
+    /// Mac app, Set Up a New Device window: heading of the download step.
+    static var macosSetupDownloadTitle: String { L("macos.setup.download_title", table: "Macos") }
+
+    /// Downloaded: {file}
+    ///
+    /// Mac app, Set Up a New Device window: once the image is downloaded and checked. {file} is the image's file name (off-the-cloud-rpi-lite-arm64.img.xz).
+    static func macosSetupDownloaded(file: String) -> String {
+        L("macos.setup.downloaded", table: "Macos", file)
+    }
+
+    /// Then finish the setup - WiFi, the device's name, its disks and your password:
+    ///
+    /// Mac app, Set Up a New Device window: above the two ways of finishing the setup (on this Mac, on a phone). Ends with a colon: the choices follow.
+    static var macosSetupFinishPrompt: String { L("macos.setup.finish_prompt", table: "Macos") }
+
+    /// Get Raspberry Pi Imager
+    ///
+    /// Mac app, Set Up a New Device window: button that opens the Raspberry Pi website, where Raspberry Pi Imager is downloaded.
+    static var macosSetupGetImager: String { L("macos.setup.get_imager", table: "Macos") }
+
+    /// The download failed (HTTP {code}). Try again in a moment.
+    ///
+    /// Mac app, Set Up a New Device window: error when the server refused the image's download. {code} is the HTTP status code, a number (404).
+    static func macosSetupHttpFailed(code: String) -> String {
+        L("macos.setup.http_failed", table: "Macos", code)
+    }
+
+    /// The downloaded image was deleted from your Downloads folder.
+    ///
+    /// Mac app, Set Up a New Device window: small print once the card is written: the download is gone.
+    static var macosSetupImageDeleted: String { L("macos.setup.image_deleted", table: "Macos") }
+
+    /// Raspberry Pi Imager isn't installed. It's free, from the Raspberry Pi Foundation.
+    ///
+    /// Mac app, Set Up a New Device window: write step, when this Mac doesn't have the program Raspberry Pi Imager.
+    static var macosSetupImagerMissing: String { L("macos.setup.imager_missing", table: "Macos") }
+
+    /// The download is deleted once the card is written.
+    ///
+    /// Mac app, Set Up a New Device window: small print under the first step's list.
+    static var macosSetupIntroNote: String { L("macos.setup.intro_note", table: "Macos") }
+
+    /// Download the Off The Cloud image (about 550 MB).
+    ///
+    /// Mac app, Set Up a New Device window: first step's numbered list, item 1.
+    static var macosSetupIntroStep1: String { L("macos.setup.intro_step1", table: "Macos") }
+
+    /// Write it to the microSD card with Raspberry Pi Imager.
+    ///
+    /// Mac app, Set Up a New Device window: first step's numbered list, item 2. Raspberry Pi Imager is a program's name.
+    static var macosSetupIntroStep2: String { L("macos.setup.intro_step2", table: "Macos") }
+
+    /// Put the card in the Pi, connect the disks, power it on and finish the setup here over Bluetooth, or on your phone.
+    ///
+    /// Mac app, Set Up a New Device window: first step's numbered list, item 3. "the Pi" is the Raspberry Pi.
+    static var macosSetupIntroStep3: String { L("macos.setup.intro_step3", table: "Macos") }
+
+    /// A Raspberry Pi 5 (8 GB) with a microSD card and two USB disks becomes your Off The Cloud device.
+    ///
+    /// Mac app, Set Up a New Device window: the sentence under the first step's heading: what the device is made of.
+    static var macosSetupIntroSubtitle: String { L("macos.setup.intro_subtitle", table: "Macos") }
+
+    /// Set up a new device
+    ///
+    /// Mac app, Set Up a New Device window: heading of the first step.
+    static var macosSetupIntroTitle: String { L("macos.setup.intro_title", table: "Macos") }
+
+    /// On my phone
+    ///
+    /// Mac app, Set Up a New Device window: title of the choice that finishes the setup in the phone app.
+    static var macosSetupOnMyPhone: String { L("macos.setup.on_my_phone", table: "Macos") }
+
+    /// In the Off The Cloud app for iPhone or Android.
+    ///
+    /// Mac app, Set Up a New Device window: under the choice On my phone.
+    static var macosSetupOnMyPhoneDetail: String { L("macos.setup.on_my_phone_detail", table: "Macos") }
+
+    /// On this Mac
+    ///
+    /// Mac app, Set Up a New Device window: title of the choice that finishes the setup here, over Bluetooth.
+    static var macosSetupOnThisMac: String { L("macos.setup.on_this_mac", table: "Macos") }
+
+    /// Over Bluetooth, with this Mac near the device.
+    ///
+    /// Mac app, Set Up a New Device window: under the choice On this Mac.
+    static var macosSetupOnThisMacDetail: String { L("macos.setup.on_this_mac_detail", table: "Macos") }
+
+    /// Open Raspberry Pi Imager
+    ///
+    /// Mac app, Set Up a New Device window: button that opens the program Raspberry Pi Imager with the image.
+    static var macosSetupOpenImager: String { L("macos.setup.open_imager", table: "Macos") }
+
+    /// In the Off The Cloud app for iPhone or Android, tap Set up a new device. The app finds the device over Bluetooth and shows its setup.
+    ///
+    /// Mac app, Set Up a New Device window: the phone step's instruction. "Set up a new device" is the phone app's button: use its translation (app.*).
+    static var macosSetupPhoneStep: String { L("macos.setup.phone_step", table: "Macos") }
+
+    /// Keep the phone near the device.
+    ///
+    /// Mac app, Set Up a New Device window: under the heading Continue on your phone.
+    static var macosSetupPhoneSubtitle: String { L("macos.setup.phone_subtitle", table: "Macos") }
+
+    /// Once it is installed, add the device to this Mac from the menu bar: Settings, then its name and password.
+    ///
+    /// Mac app, Set Up a New Device window: small print of the phone step: how to sync this Mac with the new device afterwards. "Settings" is the menu bar app's Settings.
+    static var macosSetupPhoneThen: String { L("macos.setup.phone_then", table: "Macos") }
+
+    /// Continue on your phone
+    ///
+    /// Mac app, Set Up a New Device window: heading of the step for finishing the setup on a phone.
+    static var macosSetupPhoneTitle: String { L("macos.setup.phone_title", table: "Macos") }
+
+    /// Show in Finder
+    ///
+    /// Mac app, Set Up a New Device window: button that shows the downloaded image in a Finder window. Use the Mac's usual wording.
+    static var macosSetupShowInFinder: String { L("macos.setup.show_in_finder", table: "Macos") }
+
+    /// Put the card in the Pi, connect the two USB disks, and power it on. It takes a minute or two to start.
+    ///
+    /// Mac app, Set Up a New Device window: under the heading Start the device. "the Pi" is the Raspberry Pi.
+    static var macosSetupStartSubtitle: String { L("macos.setup.start_subtitle", table: "Macos") }
+
+    /// Start the device
+    ///
+    /// Mac app, Set Up a New Device window: heading of the step after the card is written.
+    static var macosSetupStartTitle: String { L("macos.setup.start_title", table: "Macos") }
+
+    /// Switch
+    ///
+    /// Mac app, Set Up a New Device window: button of the warning that switches this Mac to the new device, removing its synced folders from the app.
+    static var macosSetupSwitchButton: String { L("macos.setup.switch_button", table: "Macos") }
+
+    /// This Mac is connected to {device}. Switching removes all your synced folders from this app, so none of them starts syncing with the new device by mistake. The files themselves stay on this Mac and on the old device.
+    ///
+    /// Mac app, Set Up a New Device window: the warning's message before switching this Mac to the new device. {device} is the address of the device it is connected to now (for example cala.off-the.cloud).
+    static func macosSetupSwitchMessage(device: String) -> String {
+        L("macos.setup.switch_message", table: "Macos", device)
+    }
+
+    /// Switch this Mac to the new device?
+    ///
+    /// Mac app, Set Up a New Device window: title of the warning shown before this Mac starts syncing with the new device while it is connected to another one; answered Switch or Cancel.
+    static var macosSetupSwitchTitle: String { L("macos.setup.switch_title", table: "Macos") }
+
+    /// Checking the download…
+    ///
+    /// Mac app, Set Up a New Device window: under the progress bar while the downloaded image is checked against its signed checksum.
+    static var macosSetupVerifying: String { L("macos.setup.verifying", table: "Macos") }
+
+    /// Insert the microSD card and click {button} below.
+    ///
+    /// Mac app, Set Up a New Device window: write step's numbered list, item 1. {button} is the button's name, "Open Raspberry Pi Imager".
+    static func macosSetupWriteStep1(button: String) -> String {
+        L("macos.setup.write_step1", table: "Macos", button)
+    }
+
+    /// Choose Device: Raspberry Pi 5.
+    ///
+    /// Mac app, Set Up a New Device window: write step's numbered list, item 2: what to choose in Raspberry Pi Imager. "Choose Device" is Imager's own button: use Imager's wording in this language.
+    static var macosSetupWriteStep2: String { L("macos.setup.write_step2", table: "Macos") }
+
+    /// Choose OS: scroll down to Use custom and pick {file} in your Downloads folder (it is selected in Finder) - unless Imager already shows it.
+    ///
+    /// Mac app, Set Up a New Device window: write step's numbered list, item 3: what to choose in Raspberry Pi Imager. "Choose OS" and "Use custom" are Imager's own buttons: use Imager's wording in this language. {file} is the image's file name.
+    static func macosSetupWriteStep3(file: String) -> String {
+        L("macos.setup.write_step3", table: "Macos", file)
+    }
+
+    /// Choose Storage: your SD card. Everything on it is erased.
+    ///
+    /// Mac app, Set Up a New Device window: write step's numbered list, item 4: what to choose in Raspberry Pi Imager, and that the card is erased. "Choose Storage" is Imager's own button: use Imager's wording in this language.
+    static var macosSetupWriteStep4: String { L("macos.setup.write_step4", table: "Macos") }
+
+    /// Click Next and answer No to "apply OS customisation settings": the device is set up from this Mac or your phone.
+    ///
+    /// Mac app, Set Up a New Device window: write step's numbered list, item 5. "Next", "No" and "apply OS customisation settings" are Raspberry Pi Imager's own words: use Imager's wording in this language.
+    static var macosSetupWriteStep5: String { L("macos.setup.write_step5", table: "Macos") }
+
+    /// macOS only lets apps outside the App Store write SD cards, so Raspberry Pi Imager does this step.
+    ///
+    /// Mac app, Set Up a New Device window: under the write step's heading: why another program writes the card.
+    static var macosSetupWriteSubtitle: String { L("macos.setup.write_subtitle", table: "Macos") }
+
+    /// Write the card
+    ///
+    /// Mac app, Set Up a New Device window: heading of the step that writes the image to the microSD card.
+    static var macosSetupWriteTitle: String { L("macos.setup.write_title", table: "Macos") }
 
     /// Files you delete on this Mac stay on the device and aren't downloaded again; files added or changed on the device still come down. You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this Mac while it was on then come back here.
     ///

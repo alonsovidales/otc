@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
+	"github.com/alonsovidales/otc/i18n"
 	pb "github.com/alonsovidales/otc/proto/generated"
 )
 
@@ -20,22 +21,24 @@ import (
 // reconcileRemoteFolder (keptOnDevice). As SyncModel's upload-only
 // request on the Mac.
 
-// The words every client uses for it (UploadOnlyText on the Mac).
-const (
+// The words every client uses for it (UploadOnlyText on the Mac), in
+// English: the command line's, which stays English (docs/i18n.md). The tray
+// renders the same catalog keys in the user's language.
+var (
 	// UploadOnlyLabel is the option's name.
-	UploadOnlyLabel = "Upload only"
+	UploadOnlyLabel = i18n.DeskMainUploadOnly().Render("")
 	// UploadOnlyCaption says what it is.
-	UploadOnlyCaption = "The device keeps every older version of a file, and nothing in the folder can be deleted on the device."
+	UploadOnlyCaption = i18n.DeskMainUploadOnlyCaption().Render("")
 	// UploadOnlyTwoWay says what it means for a two-way folder, in one
 	// sentence.
-	UploadOnlyTwoWay = "Files you delete on this computer stay on the device and aren't downloaded again; files added or changed on the device still come down."
+	UploadOnlyTwoWay = i18n.DeskFoldersUploadOnlyTwoWay().Render("")
 	// UploadOnlyLater says how it is undone, and what that brings back
 	// (baselinesFor).
-	UploadOnlyLater = "You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this computer while it was on then come back here."
+	UploadOnlyLater = i18n.DeskFoldersUploadOnlyLater().Render("")
 	// UploadOnlyBackup is the backup's fixed line: always on.
-	UploadOnlyBackup = "Always on for a backup."
+	UploadOnlyBackup = i18n.DeskMainUploadOnlyBackup().Render("")
 	// UploadOnlyNeedsUpdate: a device that answers unknown_payload.
-	UploadOnlyNeedsUpdate = "Your device needs an update to make folders upload only."
+	UploadOnlyNeedsUpdate = i18n.DeskMainUploadOnlyNeedsUpdate().Render("")
 )
 
 // UploadOnlyState is how a folder's upload-only request stands, for the
@@ -73,8 +76,8 @@ func UploadOnlyRequestState(pending, supported *bool) UploadOnlyState {
 // uploadOnlyRequest is Upload only among a folder's requests.
 var uploadOnlyRequest = &requestKind{
 	field:       config.UploadOnlyRequest,
-	failure:     "make %s upload only",
-	unsupported: "the device can't make folders upload only yet (it needs an update)",
+	failure:     "make %s upload only",                                                // i18n-ignore: a log line
+	unsupported: "the device can't make folders upload only yet (it needs an update)", // i18n-ignore: a log line
 	timeout:     uploadOnlyTimeout,
 	// Only lifting it is refused that way (issue #186); never asked here.
 	byParent: "locked_by_parent",

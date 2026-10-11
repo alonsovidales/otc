@@ -14,6 +14,8 @@ import (
 	"syscall"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/alonsovidales/otc/i18n"
 )
 
 // Never offered: virtual devices, RAID/LVM, optical drives, internal NVMe.
@@ -67,7 +69,7 @@ func ListDisks() ([]Disk, error) {
 	if t := os.Getenv("OTC_FLASH_TEST_DISK"); t != "" && os.Geteuid() == 0 {
 		name := filepath.Base(t)
 		sectors, _ := strconv.ParseInt(sysRead(name, "size"), 10, 64)
-		out = append(out, Disk{ID: t, Name: "Test disk", Size: sectors * 512})
+		out = append(out, Disk{ID: t, Name: "Test disk", Size: sectors * 512}) // i18n-ignore: tests only (OTC_FLASH_TEST_DISK, as root)
 	}
 	return out, nil
 }
@@ -150,13 +152,19 @@ func openDisk(d Disk) (device, error) {
 	for _, m := range mounts() {
 		if strings.HasPrefix(m.source, "/dev/") && baseDisk(m.source) == name {
 			if err := unix.Unmount(m.target, 0); err != nil {
-				return nil, fmt.Errorf("the card is in use (%s): close any window or program using it and try again", m.target)
+				// The mount point is the user's (a volume's name): isolated
+				// where the tray shows it, as it is in the English.
+				return nil, &msgError{
+					english: fmt.Sprintf("the card is in use (%s): close any window or program using it and try again", m.target), // i18n-ignore: Error's English (the command line's); Msg is the tray's
+					m:       i18n.DeskFoldersFlashCardInUse(m.target),
+					err:     err,
+				}
 			}
 		}
 	}
 	f, err := os.OpenFile(d.ID, os.O_RDWR|unix.O_EXCL|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return nil, fmt.Errorf("opening %s: %w", d.ID, err)
+		return nil, wrapped(i18n.DeskFoldersFlashOpenFailed(d.ID, err.Error()), err)
 	}
 	return linuxDisk{f}, nil
 }
@@ -196,7 +204,7 @@ func elevate(exe string, args []string) (func() error, error) {
 	} else {
 		pk, err := exec.LookPath("pkexec")
 		if err != nil {
-			return nil, errors.New("pkexec is not installed - run `sudo otc-sync flash` in a terminal instead")
+			return nil, failure(i18n.DeskFoldersFlashNoPkexec())
 		}
 		cmd = exec.Command(pk, append([]string{exe}, args...)...)
 	}

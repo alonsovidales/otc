@@ -100,6 +100,281 @@
         }
       }
     },
+    "macos.bluetooth.bad_answer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The device sent an answer this app could not read"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.closed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Setup was closed"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.device_id" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device %1$@"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.device_older" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device (older image)"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.enter_password" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the device's password"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.looking" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Looking for a device to set up…"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.looking_detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Power the device on with its disks connected. Until it is set up it announces itself over Bluetooth; keep this Mac near it."
+          }
+        }
+      }
+    },
+    "macos.bluetooth.not_connected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not connected to the device"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bluetooth is off"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.off_detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn Bluetooth on in Control Centre to find the device."
+          }
+        }
+      }
+    },
+    "macos.bluetooth.password_known" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Mac signs in with the password you chose in the setup."
+          }
+        }
+      }
+    },
+    "macos.bluetooth.ready_as" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The device is ready as %1$@."
+          }
+        }
+      }
+    },
+    "macos.bluetooth.ready_home" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The device is ready on your home network."
+          }
+        }
+      }
+    },
+    "macos.bluetooth.ready_maybe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If the device has finished installing it no longer answers over Bluetooth - you can use it now."
+          }
+        }
+      }
+    },
+    "macos.bluetooth.reconnecting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection to the device lost - reconnecting. Keep this Mac near it."
+          }
+        }
+      }
+    },
+    "macos.bluetooth.sign_in_cancelled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign-in cancelled"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.sign_in_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not finish the sign-in"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.sign_in_unfinished" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The sign-in did not finish"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.timed_out" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The device did not answer in time"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.unauthorized" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bluetooth access is needed"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.unauthorized_detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow Bluetooth for Off The Cloud in System Settings > Privacy & Security > Bluetooth to set a device up this way."
+          }
+        }
+      }
+    },
+    "macos.bluetooth.unknown_provider" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown sign-in provider"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.use_device" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync this Mac with my device"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.which" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Which device?"
+          }
+        }
+      }
+    },
+    "macos.bluetooth.which_detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Several devices are waiting to be set up. Each one's ID is on its setup page, where \"Blink its light\" shows which box it is. The strongest signal is usually the closest."
+          }
+        }
+      }
+    },
     "macos.connection.cancelled" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -243,39 +518,6 @@
         }
       }
     },
-    "macos.images.keeping" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Keeping out of Images…"
-          }
-        }
-      }
-    },
-    "macos.images.showing" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Showing in Images…"
-          }
-        }
-      }
-    },
-    "macos.images.state" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kept out of Images"
-          }
-        }
-      }
-    },
     "macos.load.cpu" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -338,6 +580,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open Login Items…"
+          }
+        }
+      }
+    },
+    "macos.picker.no_subfolders" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No subfolders here."
           }
         }
       }
@@ -481,6 +734,534 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Retry"
+          }
+        }
+      }
+    },
+    "macos.setup.bad_hash" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The downloaded image does not match its signed checksum, so it was deleted. Try again."
+          }
+        }
+      }
+    },
+    "macos.setup.bad_signature" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The image's checksum is not signed with the Off The Cloud release key. Nothing was kept."
+          }
+        }
+      }
+    },
+    "macos.setup.card_written" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I've Written the Card"
+          }
+        }
+      }
+    },
+    "macos.setup.check_again" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check Again"
+          }
+        }
+      }
+    },
+    "macos.setup.checking_release" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking the latest image…"
+          }
+        }
+      }
+    },
+    "macos.setup.come_back" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When Imager says the card is written, come back here."
+          }
+        }
+      }
+    },
+    "macos.setup.done_subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Mac now syncs with %1$@."
+          }
+        }
+      }
+    },
+    "macos.setup.done_text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add folders to back up or keep in sync from the Off The Cloud menu bar icon. The device's own page, in a browser, has your photos, files and settings."
+          }
+        }
+      }
+    },
+    "macos.setup.done_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your device is ready"
+          }
+        }
+      }
+    },
+    "macos.setup.download_button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download the Image"
+          }
+        }
+      }
+    },
+    "macos.setup.download_progress" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ of %2$@"
+          }
+        }
+      }
+    },
+    "macos.setup.download_subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Into your Downloads folder."
+          }
+        }
+      }
+    },
+    "macos.setup.download_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloading the image"
+          }
+        }
+      }
+    },
+    "macos.setup.downloaded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloaded: %1$@"
+          }
+        }
+      }
+    },
+    "macos.setup.finish_prompt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Then finish the setup - WiFi, the device's name, its disks and your password:"
+          }
+        }
+      }
+    },
+    "macos.setup.get_imager" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get Raspberry Pi Imager"
+          }
+        }
+      }
+    },
+    "macos.setup.http_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The download failed (HTTP %1$@). Try again in a moment."
+          }
+        }
+      }
+    },
+    "macos.setup.image_deleted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The downloaded image was deleted from your Downloads folder."
+          }
+        }
+      }
+    },
+    "macos.setup.imager_missing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raspberry Pi Imager isn't installed. It's free, from the Raspberry Pi Foundation."
+          }
+        }
+      }
+    },
+    "macos.setup.intro_note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The download is deleted once the card is written."
+          }
+        }
+      }
+    },
+    "macos.setup.intro_step1" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download the Off The Cloud image (about 550 MB)."
+          }
+        }
+      }
+    },
+    "macos.setup.intro_step2" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write it to the microSD card with Raspberry Pi Imager."
+          }
+        }
+      }
+    },
+    "macos.setup.intro_step3" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Put the card in the Pi, connect the disks, power it on and finish the setup here over Bluetooth, or on your phone."
+          }
+        }
+      }
+    },
+    "macos.setup.intro_subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A Raspberry Pi 5 (8 GB) with a microSD card and two USB disks becomes your Off The Cloud device."
+          }
+        }
+      }
+    },
+    "macos.setup.intro_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set up a new device"
+          }
+        }
+      }
+    },
+    "macos.setup.on_my_phone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On my phone"
+          }
+        }
+      }
+    },
+    "macos.setup.on_my_phone_detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In the Off The Cloud app for iPhone or Android."
+          }
+        }
+      }
+    },
+    "macos.setup.on_this_mac" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On this Mac"
+          }
+        }
+      }
+    },
+    "macos.setup.on_this_mac_detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Over Bluetooth, with this Mac near the device."
+          }
+        }
+      }
+    },
+    "macos.setup.open_imager" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Raspberry Pi Imager"
+          }
+        }
+      }
+    },
+    "macos.setup.phone_step" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In the Off The Cloud app for iPhone or Android, tap Set up a new device. The app finds the device over Bluetooth and shows its setup."
+          }
+        }
+      }
+    },
+    "macos.setup.phone_subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep the phone near the device."
+          }
+        }
+      }
+    },
+    "macos.setup.phone_then" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Once it is installed, add the device to this Mac from the menu bar: Settings, then its name and password."
+          }
+        }
+      }
+    },
+    "macos.setup.phone_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue on your phone"
+          }
+        }
+      }
+    },
+    "macos.setup.show_in_finder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show in Finder"
+          }
+        }
+      }
+    },
+    "macos.setup.start_subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Put the card in the Pi, connect the two USB disks, and power it on. It takes a minute or two to start."
+          }
+        }
+      }
+    },
+    "macos.setup.start_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start the device"
+          }
+        }
+      }
+    },
+    "macos.setup.switch_button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch"
+          }
+        }
+      }
+    },
+    "macos.setup.switch_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Mac is connected to %1$@. Switching removes all your synced folders from this app, so none of them starts syncing with the new device by mistake. The files themselves stay on this Mac and on the old device."
+          }
+        }
+      }
+    },
+    "macos.setup.switch_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch this Mac to the new device?"
+          }
+        }
+      }
+    },
+    "macos.setup.verifying" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking the download…"
+          }
+        }
+      }
+    },
+    "macos.setup.write_step1" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insert the microSD card and click %1$@ below."
+          }
+        }
+      }
+    },
+    "macos.setup.write_step2" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Device: Raspberry Pi 5."
+          }
+        }
+      }
+    },
+    "macos.setup.write_step3" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose OS: scroll down to Use custom and pick %1$@ in your Downloads folder (it is selected in Finder) - unless Imager already shows it."
+          }
+        }
+      }
+    },
+    "macos.setup.write_step4" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Storage: your SD card. Everything on it is erased."
+          }
+        }
+      }
+    },
+    "macos.setup.write_step5" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click Next and answer No to \"apply OS customisation settings\": the device is set up from this Mac or your phone."
+          }
+        }
+      }
+    },
+    "macos.setup.write_subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS only lets apps outside the App Store write SD cards, so Raspberry Pi Imager does this step."
+          }
+        }
+      }
+    },
+    "macos.setup.write_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write the card"
           }
         }
       }

@@ -17,6 +17,8 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/alonsovidales/otc/i18n"
 )
 
 func hidden(cmd *exec.Cmd) *exec.Cmd {
@@ -41,7 +43,7 @@ func ListDisks() ([]Disk, error) {
 	cmd.Env = env
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("listing the disks: %w", err)
+		return nil, wrapped(i18n.DeskFoldersFlashListingFailed(err.Error()), err)
 	}
 	var rows []struct {
 		Number       int
@@ -50,7 +52,7 @@ func ListDisks() ([]Disk, error) {
 	}
 	if s := strings.TrimSpace(string(out)); s != "" {
 		if err := json.Unmarshal([]byte(s), &rows); err != nil {
-			return nil, fmt.Errorf("listing the disks: %w", err)
+			return nil, wrapped(i18n.DeskFoldersFlashListingFailed(err.Error()), err)
 		}
 	}
 	var disks []Disk
@@ -102,7 +104,7 @@ func openDisk(d Disk) (device, error) {
 		diskpart = filepath.Join(sys, "diskpart.exe")
 	}
 	if out, err := hidden(exec.Command(diskpart, "/s", script)).CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("preparing the card (diskpart): %v: %s", err, strings.TrimSpace(string(out)))
+		return nil, failure(i18n.DeskFoldersFlashDiskpartFailed(err.Error(), strings.TrimSpace(string(out))))
 	}
 	p, err := windows.UTF16PtrFromString(d.ID)
 	if err != nil {
@@ -111,7 +113,7 @@ func openDisk(d Disk) (device, error) {
 	h, err := windows.CreateFile(p, windows.GENERIC_READ|windows.GENERIC_WRITE, windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE,
 		nil, windows.OPEN_EXISTING, windows.FILE_FLAG_NO_BUFFERING|windows.FILE_FLAG_WRITE_THROUGH, 0)
 	if err != nil {
-		return nil, fmt.Errorf("opening %s: %w", d.ID, err)
+		return nil, wrapped(i18n.DeskFoldersFlashOpenFailed(d.ID, err.Error()), err)
 	}
 	return os.NewFile(uintptr(h), d.ID), nil
 }
@@ -134,7 +136,7 @@ func adminTempDir() (string, error) {
 		bases = append(bases, filepath.Join(win, "Temp"))
 	}
 	bases = append(bases, os.TempDir())
-	lastErr := errors.New("no temporary directory")
+	lastErr := errors.New("no temporary directory") // i18n-ignore: never returned (os.TempDir is always tried), and openDisk falls back
 	for _, base := range bases {
 		for try := 0; try < 5; try++ {
 			var b [8]byte
@@ -187,7 +189,7 @@ func openStatus(path string) (*os.File, error) {
 	if fi.FileAttributes&(windows.FILE_ATTRIBUTE_REPARSE_POINT|windows.FILE_ATTRIBUTE_DIRECTORY) != 0 ||
 		fi.NumberOfLinks != 1 || fi.FileSizeHigh != 0 || fi.FileSizeLow != 0 {
 		_ = windows.CloseHandle(h)
-		return nil, errors.New("the progress file is not the one the wizard made")
+		return nil, errors.New("the progress file is not the one the wizard made") // i18n-ignore: the elevated writer's own exit; the tray sees its exit code
 	}
 	return os.NewFile(uintptr(h), path), nil
 }
@@ -232,7 +234,7 @@ func elevate(exe string, args []string) (func() error, error) {
 		return nil, err
 	}
 	if info.hProcess == 0 {
-		return nil, errors.New("the card writer did not start")
+		return nil, failure(i18n.DeskFoldersFlashWriterNotStarted())
 	}
 	return func() error {
 		defer windows.CloseHandle(info.hProcess)
@@ -244,7 +246,7 @@ func elevate(exe string, args []string) (func() error, error) {
 			return err
 		}
 		if code != 0 {
-			return fmt.Errorf("exit code %d", code)
+			return failure(i18n.DeskFoldersFlashExitCode(strconv.FormatUint(uint64(code), 10)))
 		}
 		return nil
 	}, nil

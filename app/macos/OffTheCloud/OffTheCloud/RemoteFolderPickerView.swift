@@ -15,7 +15,9 @@ struct RemoteFolderPickerView: View {
     @State private var currentPath: String = "/"
     @State private var entries: [SyncModel.RemoteEntry] = []
     @State private var loading = false
-    @State private var errorMessage: String?
+    /// Kept as the error, not its words: the view words it when it draws,
+    /// in the language in effect (docs/i18n.md).
+    @State private var loadError: (any Error)?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -23,15 +25,15 @@ struct RemoteFolderPickerView: View {
                 Button {
                     onCancel()
                 } label: {
-                    Text("Cancel")
+                    Text(S.commonCancel)
                 }
                 .buttonStyle(.plain)
                 Spacer()
-                Text("Choose a Remote Folder")
+                Text(S.deskFoldersRemoteTitle)
                     .font(.headline)
                 Spacer()
                 // Balances the Cancel button so the title stays centered.
-                Text("Cancel").hidden()
+                Text(S.commonCancel).hidden()
             }
             .padding(12)
 
@@ -59,11 +61,11 @@ struct RemoteFolderPickerView: View {
             if loading {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let errorMessage {
+            } else if let loadError {
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.red)
-                    Text(errorMessage)
+                    Text(loadError.localizedDescription)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -89,7 +91,7 @@ struct RemoteFolderPickerView: View {
                         .buttonStyle(.plain)
                     }
                     if entries.filter(\.isDir).isEmpty {
-                        Text("No subfolders here.")
+                        Text(S.macosPickerNoSubfolders)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -104,7 +106,7 @@ struct RemoteFolderPickerView: View {
                 Button {
                     onChoose(currentPath)
                 } label: {
-                    Text("Choose “\((currentPath as NSString).lastPathComponent.isEmpty ? "/" : (currentPath as NSString).lastPathComponent)”")
+                    Text(S.deskFoldersChooseNamed(name: (currentPath as NSString).lastPathComponent.isEmpty ? "/" : (currentPath as NSString).lastPathComponent))
                 }
                 .buttonStyle(.borderedProminent)
             }
@@ -128,11 +130,11 @@ struct RemoteFolderPickerView: View {
 
     private func load() async {
         loading = true
-        errorMessage = nil
+        loadError = nil
         do {
             entries = try await SyncModel.shared.listRemoteDirectory(currentPath)
         } catch {
-            errorMessage = error.localizedDescription
+            loadError = error
         }
         loading = false
     }

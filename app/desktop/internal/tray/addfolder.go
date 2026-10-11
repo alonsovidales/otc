@@ -3,6 +3,7 @@
 package tray
 
 import (
+	"encoding/xml"
 	"errors"
 	"runtime"
 	"slices"
@@ -11,7 +12,7 @@ import (
 	"github.com/ncruces/zenity"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
-	"github.com/alonsovidales/otc/app/desktop/internal/engine"
+	"github.com/alonsovidales/otc/i18n"
 )
 
 // "Add Folder…" in two steps, as the Mac's AddFolderChooser: first the
@@ -30,17 +31,18 @@ const (
 	kindDevice
 )
 
-// The kinds' words, the Mac's with "this computer" for "this Mac".
-var kindTitles = map[folderKind]string{
-	kindBackup: "Back up a folder from this computer",
-	kindLocal:  "Sync a folder from this computer",
-	kindDevice: "Sync a folder from the device",
+// The kinds' words, the Mac's with "this computer" for "this Mac": the
+// catalog's messages, rendered in the menu's language as a dialog opens.
+var kindTitles = map[folderKind]i18n.Msg{
+	kindBackup: i18n.DeskFoldersKindBackup(),
+	kindLocal:  i18n.DeskFoldersKindLocal(),
+	kindDevice: i18n.DeskMainKindDevice(),
 }
 
-var kindSubtitles = map[folderKind]string{
-	kindBackup: "One way: this computer → device (upload only, no deletes)",
-	kindLocal:  "Two ways: starts from this computer",
-	kindDevice: "Two ways: starts from the device",
+var kindSubtitles = map[folderKind]i18n.Msg{
+	kindBackup: i18n.DeskFoldersKindBackupSubtitle(),
+	kindLocal:  i18n.DeskFoldersKindLocalSubtitle(),
+	kindDevice: i18n.DeskMainKindDeviceSubtitle(),
 }
 
 // addOption is one of step 2's checkboxes.
@@ -51,23 +53,23 @@ const (
 	optKeepOut
 )
 
-var optionLabels = map[addOption]string{
-	optUploadOnly: engine.UploadOnlyLabel,
-	optKeepOut:    "Keep out of Images",
+var optionLabels = map[addOption]i18n.Msg{
+	optUploadOnly: i18n.DeskMainUploadOnly(),
+	optKeepOut:    i18n.DeskMainImagesKeepOut(),
 }
 
-// optionExplain is what an option does, as the Mac's caption and (i)
-// together.
-func optionExplain(o addOption) string {
+// optionExplain is what an option does in lang, as the Mac's caption and
+// (i) together: whole sentences, each a key of its own (the caption is
+// the Mac's too).
+func optionExplain(lang string, o addOption) string {
 	if o == optUploadOnly {
-		return engine.UploadOnlyCaption + " " + engine.UploadOnlyTwoWay + " " + engine.UploadOnlyLater
+		return i18n.DeskMainUploadOnlyCaption().Render(lang) + " " +
+			i18n.DeskFoldersUploadOnlyTwoWay().Render(lang) + " " +
+			i18n.DeskFoldersUploadOnlyLater().Render(lang)
 	}
 
-	return engine.OutOfImagesAddCaption + " " + imagesAddLater
+	return i18n.DeskMainImagesAddCaption().Render(lang) + " " + i18n.DeskFoldersImagesAddLater().Render(lang)
 }
-
-// imagesAddLater is Keep out of Images' (i) in the add flow.
-const imagesAddLater = "You can change it later from the folder's menu. A folder renamed later is a new folder on the device: keep it out of Images again."
 
 // kindOptions is what step 2 offers for kind k: nothing a device known to
 // be unable can take, and nothing for a folder from the device.
@@ -83,31 +85,34 @@ func kindOptions(k folderKind, st config.State) []addOption {
 	return opts
 }
 
-// optionsText is the checklist's text: the kind, then each option said in
-// full - and for a backup, that it is always upload only.
+// optionsText is the checklist's text, in the menu's language: the kind,
+// then each option said in full - and for a backup, that it is always
+// upload only. One paragraph each.
 func optionsText(k folderKind, opts []addOption) string {
+	l := lang()
 	var b strings.Builder
-	b.WriteString(kindTitles[k] + ". " + kindSubtitles[k] + ".\n\nTick what you want, then choose the folder.")
+	b.WriteString(i18n.DeskFoldersOptionsIntro(kindTitles[k].Render(l), kindSubtitles[k].Render(l)).Render(l))
 	if k == kindBackup {
-		b.WriteString("\n\n" + engine.UploadOnlyLabel + ": " + strings.ToLower(engine.UploadOnlyBackup[:1]) + engine.UploadOnlyBackup[1:] + " " + engine.UploadOnlyCaption)
+		b.WriteString("\n\n" + i18n.DeskFoldersOptionsBackupLine(optionLabels[optUploadOnly].Render(l), i18n.DeskMainUploadOnlyCaption().Render(l)).Render(l))
 	}
 	for _, o := range opts {
-		b.WriteString("\n\n" + optionLabels[o] + ": " + optionExplain(o))
+		b.WriteString("\n\n" + i18n.DeskFoldersOptionsLine(optionLabels[o].Render(l), optionExplain(l, o)).Render(l))
 	}
 
 	return b.String()
 }
 
 // optionQuestion is an option asked on its own, where the desktop's list
-// has no checkboxes (Windows).
+// has no checkboxes (Windows), in the menu's language.
 func optionQuestion(k folderKind, o addOption) string {
-	q := "Keep the folder out of Images?"
+	l := lang()
+	q := i18n.DeskFoldersAskKeepOut().Render(l)
 	if o == optUploadOnly {
-		q = "Make the folder upload only?"
+		q = i18n.DeskFoldersAskUploadOnly().Render(l)
 	}
-	q += "\n\n" + optionExplain(o)
+	q += "\n\n" + optionExplain(l, o)
 	if k == kindBackup {
-		q += "\n\n(" + engine.UploadOnlyLabel + " is always on for a backup.)"
+		q += "\n\n" + i18n.DeskFoldersQuestionBackupNote(optionLabels[optUploadOnly].Render(l)).Render(l)
 	}
 
 	return q
@@ -133,6 +138,24 @@ var errBack = errors.New("back")
 // checklists: the desktop's list dialog has checkboxes (zenity on Linux);
 // Windows' has none, so each option is a question of its own there.
 var checklists = runtime.GOOS != "windows" && runtime.GOOS != "darwin"
+
+// listText is a list dialog's text as zenity takes it. On Linux zenity
+// reads it as Pango markup - ncruces/zenity opens its message dialogs with
+// --no-markup, not its lists - so a folder name or a translation holding
+// & or < is escaped there (docs/i18n.md, "Rendering contract"); Windows
+// shows it as it is. Rows are plain text, and a pick maps back to its row
+// by index.
+func listText(s string) string {
+	if !checklists {
+		return s
+	}
+	var b strings.Builder
+	if err := xml.EscapeText(&b, []byte(s)); err != nil {
+		return s
+	}
+
+	return b.String()
+}
 
 // addFolder is "Add Folder…": the kind, its options, then the folder.
 func (u *ui) addFolder() {
@@ -161,18 +184,13 @@ func (u *ui) addFolder() {
 
 // chooseKind is step 1.
 func chooseKind() (folderKind, bool) {
+	l := lang()
 	kinds := []folderKind{kindBackup, kindLocal, kindDevice}
-	items := make([]string, len(kinds))
-	for i, k := range kinds {
-		items[i] = kindTitles[k]
-		if checklists {
-			// Room for the subtitle; Windows' list is too narrow for it.
-			items[i] += " — " + kindSubtitles[k]
-		}
-	}
+	items := kindItems(l, kinds, checklists)
 	for {
-		pick, err := zenity.List("Choose what kind of folder to add:", items,
-			zenity.Title("Add a Folder"), zenity.OKLabel("Next"), zenity.CancelLabel("Cancel"),
+		pick, err := zenity.List(listText(i18n.DeskFoldersAddPrompt().Render(l)), items,
+			zenity.Title(i18n.DeskFoldersAddTitle().Render(l)), zenity.OKLabel(i18n.CommonNext().Render(l)),
+			zenity.CancelLabel(i18n.CommonCancel().Render(l)),
 			zenity.DisallowEmpty(), zenity.Width(620), zenity.Height(260))
 		if err != nil {
 			return 0, false
@@ -184,6 +202,20 @@ func chooseKind() (folderKind, bool) {
 	}
 }
 
+// kindItems are step 1's rows in lang: each kind's title, with its
+// subtitle where the list has room for it (Windows' is too narrow).
+func kindItems(lang string, kinds []folderKind, withSubtitles bool) []string {
+	items := make([]string, len(kinds))
+	for i, k := range kinds {
+		items[i] = kindTitles[k].Render(lang)
+		if withSubtitles {
+			items[i] = i18n.DeskFoldersKindRow(items[i], kindSubtitles[k].Render(lang)).Render(lang)
+		}
+	}
+
+	return items
+}
+
 // chooseOptions is step 2: the options ticked, errBack for Back, or an
 // error (Cancel) to stop. With no option to offer it asks nothing.
 func chooseOptions(k folderKind, opts []addOption) (map[addOption]bool, error) {
@@ -191,13 +223,15 @@ func chooseOptions(k folderKind, opts []addOption) (map[addOption]bool, error) {
 	if len(opts) == 0 {
 		return chosen, nil
 	}
+	l := lang()
 	if !checklists {
 		for _, o := range opts {
 			// Yes, No and Cancel (MB_YESNOCANCEL): Cancel is the dialog's
 			// own cancel button, so closing it or Esc stops too, rather
 			// than meaning No.
-			yes, err := questionAnswer(zenity.Question(optionQuestion(k, o), zenity.Title(kindTitles[k]),
-				zenity.OKLabel("Yes"), zenity.ExtraButton("No"), zenity.CancelLabel("Cancel")))
+			yes, err := questionAnswer(zenity.Question(optionQuestion(k, o), zenity.Title(kindTitles[k].Render(l)),
+				zenity.OKLabel(i18n.DeskFoldersYes().Render(l)), zenity.ExtraButton(i18n.DeskFoldersNo().Render(l)),
+				zenity.CancelLabel(i18n.CommonCancel().Render(l))))
 			if err != nil {
 				return nil, err
 			}
@@ -208,11 +242,12 @@ func chooseOptions(k folderKind, opts []addOption) (map[addOption]bool, error) {
 	}
 	items := make([]string, len(opts))
 	for i, o := range opts {
-		items[i] = optionLabels[o]
+		items[i] = optionLabels[o].Render(l)
 	}
-	picked, err := zenity.ListMultiple(optionsText(k, opts), items, zenity.CheckList(),
-		zenity.Title(kindTitles[k]), zenity.OKLabel("Choose Folder…"), zenity.CancelLabel("Cancel"),
-		zenity.ExtraButton("Back"), zenity.Width(620), zenity.Height(480))
+	picked, err := zenity.ListMultiple(listText(optionsText(k, opts)), items, zenity.CheckList(),
+		zenity.Title(kindTitles[k].Render(l)), zenity.OKLabel(i18n.DeskMainChooseFolder().Render(l)),
+		zenity.CancelLabel(i18n.CommonCancel().Render(l)),
+		zenity.ExtraButton(i18n.CommonBack().Render(l)), zenity.Width(620), zenity.Height(480))
 	if errors.Is(err, zenity.ErrExtraButton) {
 		return nil, errBack
 	}
@@ -229,11 +264,11 @@ func chooseOptions(k folderKind, opts []addOption) (map[addOption]bool, error) {
 // addLocalFolder is the end of the flow for a folder from this computer:
 // the folder chooser, then the folder and its requests in config.json.
 func (u *ui) addLocalFolder(k folderKind, chosen map[addOption]bool) {
-	title := "Choose a folder to keep in sync"
+	title := i18n.DeskFoldersChooseSyncFolder()
 	if k == kindBackup {
-		title = "Choose a folder to back up to the device"
+		title = i18n.DeskFoldersChooseBackupFolder()
 	}
-	dir, err := zenity.SelectFile(zenity.Directory(), zenity.Title(title))
+	dir, err := zenity.SelectFile(zenity.Directory(), zenity.Title(title.Render(lang())))
 	if err != nil || dir == "" {
 		return
 	}
@@ -245,7 +280,7 @@ func (u *ui) addLocalFolder(k folderKind, chosen map[addOption]bool) {
 	// (migrateFolders), its requests with it.
 	cfg.Folders = append(cfg.Folders, newLocalFolder(dir, k, chosen))
 	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+		_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
 	}
 	Refresh()
 }

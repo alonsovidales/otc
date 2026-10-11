@@ -1,0 +1,400 @@
+{
+  "desk.folders.add_prompt": {
+    "text": "Choose what kind of folder to add:",
+    "note": "otc-sync: text above the list of kinds of folder in the first dialog when adding a folder. Ends with a colon: the list follows."
+  },
+  "desk.folders.add_title": {
+    "text": "Add a Folder",
+    "note": "otc-sync: title of the first dialog when adding a folder, which lists the kinds of folder. Title Case, as a window title.",
+    "max": 30
+  },
+  "desk.folders.ask_keep_out": {
+    "text": "Keep the folder out of Images?",
+    "note": "otc-sync (Windows): question asked when adding a folder, answered Yes, No or Cancel; what the option does follows (its photos aren't tagged or searched for faces, and the tags and faces already found are deleted). \"Images\" is the photo section of the apps.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #140a8ee8"
+  },
+  "desk.folders.ask_upload_only": {
+    "text": "Make the folder upload only?",
+    "note": "otc-sync (Windows): question asked when adding a folder synced both ways, answered Yes, No or Cancel; what upload only means follows (the device keeps every version and deletes nothing in it)."
+  },
+  "desk.folders.choose_backup_folder": {
+    "text": "Choose a folder to back up to the device",
+    "note": "otc-sync: title of the system's folder chooser when adding a backup (a folder copied one way to the device)."
+  },
+  "desk.folders.choose_named": {
+    "text": "Choose “{name}”",
+    "args": [["name", "user"]],
+    "note": "Both apps: button of the device folder picker that picks the folder being looked at. {name} is that folder's name, or / for the device's top folder.",
+    "max": 40
+  },
+  "desk.folders.choose_sync_folder": {
+    "text": "Choose a folder to keep in sync",
+    "note": "otc-sync: title of the system's folder chooser when adding a folder from this computer synced both ways."
+  },
+  "desk.folders.flash_card_in_use": {
+    "text": "the card is in use ({mount}): close any window or program using it and try again",
+    "args": [["mount", "user"]],
+    "note": "otc-sync (Linux): reason Set Up a New Device stopped, after \"The setup stopped:\": a partition of the SD card couldn't be unmounted. {mount} is where it is mounted (a folder, such as /media/ana/boot). Lower case: it follows a colon."
+  },
+  "desk.folders.flash_card_too_small": {
+    "text": "the card is too small ({size}) - it needs 8 GB or more",
+    "args": [["size", "text"]],
+    "note": "otc-sync: reason Set Up a New Device stopped, after \"The setup stopped:\". {size} is the card's size (\"4.0 GB\"). Lower case: it follows a colon."
+  },
+  "desk.folders.flash_checksum_malformed": {
+    "text": "the image's checksum file is malformed",
+    "note": "otc-sync: reason Set Up a New Device stopped, after \"The setup stopped:\": the file with the image's signed SHA-256 can't be read, so the image can't be trusted. Lower case: it follows a colon.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #2067fa27"
+  },
+  "desk.folders.flash_decompress_failed": {
+    "text": "decompressing the image: {detail}",
+    "args": [["detail", "text"]],
+    "note": "otc-sync: reason Set Up a New Device stopped, after \"The setup stopped:\": the compressed image couldn't be read while it was written. {detail} is the reason. Lower case: it follows a colon."
+  },
+  "desk.folders.flash_disk_changed": {
+    "text": "the disk {disk} changed after it was chosen (now {now}) - nothing was written; choose the card again",
+    "args": [["disk", "text"], ["now", "text"]],
+    "note": "otc-sync: reason Set Up a New Device stopped, after \"The setup stopped:\": the disk chosen was replaced by another one under the same system name (a card pulled out, another disk plugged in), so nothing was written. {disk} is its short name (\"sdb\", \"disk 2\"); {now} describes the disk there now: name, size and short name. Lower case: it follows a colon.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #a51c026b"
+  },
+  "desk.folders.flash_disk_number": {
+    "text": "disk {number}",
+    "args": [["number", "text"]],
+    "note": "otc-sync (Windows): Set Up a New Device, a disk's short name, in parentheses after its name and size (\"SanDisk Ultra · 32.0 GB (disk 2)\"). {number} is Windows's disk number. Lower case.",
+    "max": 20
+  },
+  "desk.folders.flash_diskpart_failed": {
+    "text": "preparing the card (diskpart): {detail}: {output}",
+    "args": [["detail", "text"], ["output", "text"]],
+    "note": "otc-sync (Windows): reason Set Up a New Device stopped, after \"The setup stopped:\": Windows's diskpart couldn't clear the SD card. {detail} is the system's reason, {output} what diskpart printed. Keep \"diskpart\". Lower case: it follows a colon."
+  },
+  "desk.folders.flash_download_failed": {
+    "text": "downloading the image: {status}",
+    "args": [["status", "text"]],
+    "note": "otc-sync: reason Set Up a New Device stopped, after \"The setup stopped:\": the server refused the image's download. {status} is the HTTP status as the server sent it (\"404 Not Found\"). Lower case: it follows a colon."
+  },
+  "desk.folders.flash_download_mismatch": {
+    "text": "the downloaded image does not match its signed checksum - try again",
+    "note": "otc-sync: reason Set Up a New Device stopped, after \"The setup stopped:\": the downloaded image isn't the signed one (damaged or tampered with), so it isn't used. Lower case: it follows a colon.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #839d80b0"
+  },
+  "desk.folders.flash_exit_code": {
+    "text": "exit code {code}",
+    "args": [["code", "text"]],
+    "note": "otc-sync (Windows): the reason the card writer gave when it ended with an error, after \"the card writer stopped:\". {code} is the program's exit code, a number."
+  },
+  "desk.folders.flash_image_changed": {
+    "text": "the image changed while it was written - download it again",
+    "note": "otc-sync: reason Set Up a New Device stopped, after \"The setup stopped:\": the image file was no longer the signed one by the end of the writing (changed on disk meanwhile). Lower case: it follows a colon.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #183a5c3c"
+  },
+  "desk.folders.flash_image_mismatch": {
+    "text": "the image does not match its signed checksum - download it again",
+    "note": "otc-sync: reason Set Up a New Device stopped before writing anything, after \"The setup stopped:\": the image on this computer isn't the signed one (damaged or tampered with). Lower case: it follows a colon.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #59f44968"
+  },
+  "desk.folders.flash_image_too_large": {
+    "text": "the image is larger than the card",
+    "note": "otc-sync: reason Set Up a New Device stopped, after \"The setup stopped:\": the decompressed image doesn't fit on the SD card. Lower case: it follows a colon."
+  },
+  "desk.folders.flash_listing_failed": {
+    "text": "listing the disks: {detail}",
+    "args": [["detail", "text"]],
+    "note": "otc-sync (Windows): reason Set Up a New Device stopped, after \"The setup stopped:\": Windows couldn't list the removable disks. {detail} is the system's reason. Lower case: it follows a colon."
+  },
+  "desk.folders.flash_next_steps": {
+    "text": "The card is ready. Put it in the Raspberry Pi 5, plug in the two USB disks and power it on.\n\nThen, in the Off The Cloud app on your phone (iOS or Android), tap \"Set up a new device\": it finds the Pi over Bluetooth and walks you through the rest.",
+    "note": "otc-sync: Set Up a New Device's last dialog, once the card is written: two paragraphs. \"Set up a new device\" is the phone app's button (use its translation, app.*). Keep the blank line."
+  },
+  "desk.folders.flash_no_pkexec": {
+    "text": "pkexec is not installed - run `sudo otc-sync flash` in a terminal instead",
+    "note": "otc-sync (Linux): reason Set Up a New Device stopped, after \"The setup stopped:\": the program that asks for the administrator's password (pkexec) is missing. Keep pkexec and the command `sudo otc-sync flash` exactly as they are. Lower case: it follows a colon."
+  },
+  "desk.folders.flash_not_removable": {
+    "text": "{disk} is not a removable disk (or is no longer connected)",
+    "args": [["disk", "text"]],
+    "note": "otc-sync: reason Set Up a New Device stopped, after \"The setup stopped:\": the disk chosen isn't (or is no longer) among the removable disks it may write, so nothing was written. {disk} is its system name (/dev/sdb, \\\\.\\PhysicalDrive2).",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #0d9ef5b5"
+  },
+  "desk.folders.flash_open_failed": {
+    "text": "opening {disk}: {detail}",
+    "args": [["disk", "text"], ["detail", "text"]],
+    "note": "otc-sync: reason Set Up a New Device stopped, after \"The setup stopped:\": the SD card couldn't be opened for writing. {disk} is its system name (/dev/sdb, \\\\.\\PhysicalDrive2), {detail} the system's reason. Lower case: it follows a colon."
+  },
+  "desk.folders.flash_read_back_failed": {
+    "text": "reading the card back: {detail}",
+    "args": [["detail", "text"]],
+    "note": "otc-sync: reason Set Up a New Device stopped, after \"The setup stopped:\": the written SD card couldn't be read back to check it. {detail} is the system's reason. Lower case: it follows a colon."
+  },
+  "desk.folders.flash_step_check": {
+    "text": "Checking the image…",
+    "note": "otc-sync: Set Up a New Device's progress dialog while the downloaded image is checked against its signed checksum, before the card is written.",
+    "max": 60
+  },
+  "desk.folders.flash_step_done": {
+    "text": "Done.",
+    "note": "otc-sync: Set Up a New Device's progress dialog once the card is written and ejected. A short sentence, with its full stop.",
+    "max": 60
+  },
+  "desk.folders.flash_step_eject": {
+    "text": "Ejecting the card…",
+    "note": "otc-sync: Set Up a New Device's progress dialog while the written SD card is ejected.",
+    "max": 60
+  },
+  "desk.folders.flash_step_prepare": {
+    "text": "Preparing the card…",
+    "note": "otc-sync: Set Up a New Device's progress dialog while the SD card is unmounted and cleared before it is written.",
+    "max": 60
+  },
+  "desk.folders.flash_step_verify": {
+    "text": "Checking what was written…",
+    "note": "otc-sync: Set Up a New Device's progress dialog while the SD card is read back and compared with the image.",
+    "max": 60
+  },
+  "desk.folders.flash_step_write": {
+    "text": "Writing the card…",
+    "note": "otc-sync: Set Up a New Device's progress dialog while the image is written to the SD card.",
+    "max": 60
+  },
+  "desk.folders.flash_unnamed_disk": {
+    "text": "Unnamed disk",
+    "note": "otc-sync: Set Up a New Device, in the list of removable disks: a disk that reports no name, before its size and short name (\"Unnamed disk · 32.0 GB (sdb)\").",
+    "max": 30
+  },
+  "desk.folders.flash_verify_failed": {
+    "text": "the card does not read back what was written - it may be faulty; try another card",
+    "note": "otc-sync: reason Set Up a New Device stopped, after \"The setup stopped:\": the SD card, read back, isn't the image just written. Lower case: it follows a colon."
+  },
+  "desk.folders.flash_write_failed": {
+    "text": "writing the card: {detail}",
+    "args": [["detail", "text"]],
+    "note": "otc-sync: reason Set Up a New Device stopped, after \"The setup stopped:\": writing to the SD card failed. {detail} is the system's reason. Lower case: it follows a colon."
+  },
+  "desk.folders.flash_writer_not_started": {
+    "text": "the card writer did not start",
+    "note": "otc-sync (Windows): reason Set Up a New Device stopped, after \"The setup stopped:\": the program that writes the card as administrator didn't start. Lower case: it follows a colon."
+  },
+  "desk.folders.flash_writer_stopped": {
+    "text": "the card writer stopped: {detail}",
+    "args": [["detail", "text"]],
+    "note": "otc-sync: reason Set Up a New Device stopped, after \"The setup stopped:\": the program writing the card as administrator ended with an error. {detail} is the system's reason (for example \"exit code 1\"). Lower case: it follows a colon."
+  },
+  "desk.folders.flash_writer_stopped_early": {
+    "text": "the card writer stopped before it finished",
+    "note": "otc-sync: reason Set Up a New Device stopped, after \"The setup stopped:\": the program writing the card as administrator ended without saying it was done. Lower case: it follows a colon."
+  },
+  "desk.folders.images_add_later": {
+    "text": "You can change it later from the folder's menu. A folder renamed later is a new folder on the device: keep it out of Images again.",
+    "note": "otc-sync: when adding a folder, the sentences after what the option Keep out of Images does: it can be changed from the folder's submenu in the tray menu, and a renamed folder must be kept out again. \"Images\" is the photo section of the apps."
+  },
+  "desk.folders.images_checkbox": {
+    "text": "Kept Out of Images",
+    "note": "otc-sync: checkbox in a folder's submenu of the tray menu: ticked while the folder is kept out of Images; a click asks first, then changes it. Title Case, as a menu item.",
+    "max": 30
+  },
+  "desk.folders.images_explain": {
+    "text": "Photos and videos here aren't tagged, searched for faces or shown in Images. Files still shows them.",
+    "note": "otc-sync: tooltip of the Kept Out of Images checkbox in a folder's submenu: what keeping the folder out does. \"here\" is the folder; \"Images\" and \"Files\" are sections of the apps."
+  },
+  "desk.folders.images_keeping": {
+    "text": "Keeping out of Images…",
+    "note": "The tooltip of the eye on a folder's row in the Mac app, and the text after a folder's name and state in otc-sync's tray menu, while the request to keep the folder out of Images is on its way to the device.",
+    "max": 40
+  },
+  "desk.folders.images_kept_out": {
+    "text": "Kept out of Images",
+    "note": "A folder's state for Images: the tooltip of the crossed-out eye on the folder's row in the Mac app, and the text after a folder's name and state in otc-sync's tray menu (\"Photos — Synced · Kept out of Images\"). The device doesn't tag its photos or show them in Images, the apps' photo section.",
+    "max": 40
+  },
+  "desk.folders.images_showing": {
+    "text": "Showing in Images…",
+    "note": "The tooltip of the eye on a folder's row in the Mac app, and the text after a folder's name and state in otc-sync's tray menu, while the request to show the folder in Images again is on its way to the device.",
+    "max": 40
+  },
+  "desk.folders.kind_backup": {
+    "text": "Back up a folder from this computer",
+    "note": "otc-sync: one of the kinds of folder offered when adding a folder (a row of the list, and the title of the next dialog): a folder on this computer copied to the device one way. The Mac says \"this Mac\" (macos.add.backup_title).",
+    "max": 45
+  },
+  "desk.folders.kind_backup_subtitle": {
+    "text": "One way: this computer → device (upload only, no deletes)",
+    "note": "otc-sync: what the kind Back up a folder from this computer does, in short: files go only from this computer to the device, which keeps every version and deletes nothing. Shown after the kind's title.",
+    "max": 60
+  },
+  "desk.folders.kind_local": {
+    "text": "Sync a folder from this computer",
+    "note": "otc-sync: one of the kinds of folder offered when adding a folder (a row of the list, and the title of the next dialog): a folder on this computer, kept the same on the device both ways.",
+    "max": 45
+  },
+  "desk.folders.kind_local_subtitle": {
+    "text": "Two ways: starts from this computer",
+    "note": "otc-sync: what the kind Sync a folder from this computer does, in short: changes go both ways, and the first copy comes from this computer. Shown after the kind's title.",
+    "max": 45
+  },
+  "desk.folders.kind_row": {
+    "text": "{kind} — {details}",
+    "args": [["kind", "text"], ["details", "text"]],
+    "note": "otc-sync (Linux): a row of the list of kinds of folder when adding one: {kind} is the kind's title (for example \"Sync a folder from this computer\"), {details} what it does in short (for example \"Two ways: starts from this computer\").",
+    "max": 100
+  },
+  "desk.folders.no": {
+    "text": "No",
+    "note": "otc-sync (Windows): button that answers no to a question when adding a folder (keep it out of Images, make it upload only); Cancel stops adding the folder.",
+    "max": 12
+  },
+  "desk.folders.options_backup_line": {
+    "text": "{option}: always on for a backup. {caption}",
+    "args": [["option", "text"], ["caption", "text"]],
+    "note": "otc-sync (Linux): a paragraph of the options dialog of the kind Back up a folder, which is always upload only: {option} is the option's name (\"Upload only\") and {caption} what it means (\"The device keeps every older version of a file, …\")."
+  },
+  "desk.folders.options_intro": {
+    "text": "{kind}. {details}.\n\nTick what you want, then choose the folder.",
+    "args": [["kind", "text"], ["details", "text"]],
+    "note": "otc-sync (Linux): start of the dialog with the options of a kind of folder, ticked in a checklist below it. {kind} is the kind's title (for example \"Sync a folder from this computer\") and {details} what it does in short (for example \"Two ways: starts from this computer\"); each closes a sentence. Then a blank line and the instruction; the button that follows is \"Choose Folder…\"."
+  },
+  "desk.folders.options_line": {
+    "text": "{option}: {explain}",
+    "args": [["option", "text"], ["explain", "text"]],
+    "note": "otc-sync (Linux): a paragraph of the dialog with the options of a kind of folder: {option} is the option's name (\"Upload only\", \"Keep out of Images\"), then what it does ({explain}, a few sentences)."
+  },
+  "desk.folders.picker_empty": {
+    "text": "(no subfolders here)",
+    "note": "otc-sync: the only row of the device folder picker's list when the folder being looked at has no folders in it. In parentheses, lower case.",
+    "max": 40
+  },
+  "desk.folders.picker_list_failed": {
+    "text": "Could not list the device's folders: {detail}",
+    "args": [["detail", "text"]],
+    "note": "otc-sync (Linux): error dialog when the device folder picker couldn't get a folder's contents. {detail} is the reason (for example \"not connected\")."
+  },
+  "desk.folders.picker_prompt": {
+    "text": "Remote folder: {path} — double-click a folder to open it, or choose “{name}” to keep it in sync with a folder on this computer.",
+    "args": [["path", "user"], ["name", "user"]],
+    "note": "otc-sync (Linux): text above the device folder picker's list. {path} is the device folder being looked at (/Photos/2024), {name} its name (2024, or /); the button \"Choose “{name}”\" picks it, and double-clicking a row opens that folder."
+  },
+  "desk.folders.picker_prompt_windows": {
+    "text": "Remote folder: {path}\nDouble-click a folder to open it; the button keeps “{name}” in sync with a folder here.",
+    "args": [["path", "user"], ["name", "user"]],
+    "note": "otc-sync (Windows): two lines above the device folder picker's list. {path} is the device folder being looked at (/Photos/2024), {name} its name (2024, or /); \"the button\" is \"Choose “{name}”\" below the list, and \"here\" is this computer. Keep the line break."
+  },
+  "desk.folders.picker_up": {
+    "text": "‹ Up",
+    "note": "otc-sync: first row of the list in the device folder picker, which goes back to the folder above. Keep the arrow.",
+    "max": 20
+  },
+  "desk.folders.question_backup_note": {
+    "text": "({option} is always on for a backup.)",
+    "args": [["option", "text"]],
+    "note": "otc-sync (Windows): last line of an option's question when adding a backup, in parentheses. {option} is the option's name, \"Upload only\"."
+  },
+  "desk.folders.remote_title": {
+    "text": "Choose a Remote Folder",
+    "note": "Both apps: title of the view (Mac popover) or window and dialog (otc-sync) that browses the device's folders, one level at a time, to pick one to keep in sync with a folder on this computer.",
+    "max": 40
+  },
+  "desk.folders.setup_card_ready_title": {
+    "text": "Your SD Card Is Ready",
+    "note": "otc-sync: title of Set Up a New Device's last dialog, which says what to do with the written card. Title Case, as a window title.",
+    "max": 40
+  },
+  "desk.folders.setup_card_too_small": {
+    "text": "{disk} is too small: the device needs a card of 8 GB or more.",
+    "args": [["disk", "text"]],
+    "note": "otc-sync: Set Up a New Device, warning when the disk chosen is too small. {disk} describes it: its name, size and short name (\"SanDisk Ultra · 4.0 GB (sdb)\")."
+  },
+  "desk.folders.setup_choose_card": {
+    "text": "Choose the SD card:",
+    "note": "otc-sync: Set Up a New Device, text above the list of removable disks the image can be written to. Ends with a colon: the list follows."
+  },
+  "desk.folders.setup_downloading": {
+    "text": "Downloading… {done} of {total} MB",
+    "args": [["done", "int"], ["total", "int"]],
+    "note": "otc-sync: Set Up a New Device's progress dialog while the device image downloads: {done} megabytes of {total}.",
+    "max": 60
+  },
+  "desk.folders.setup_erase": {
+    "text": "Erase",
+    "note": "otc-sync: button of the confirmation before the SD card is written: erases everything on it and writes the device image.",
+    "max": 16,
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #c0655c58"
+  },
+  "desk.folders.setup_erase_question": {
+    "text": "Everything on this disk will be erased:\n\n{disk}\n\nWrite the Off The Cloud image to it?",
+    "args": [["disk", "text"]],
+    "note": "otc-sync: Set Up a New Device, the confirmation before the card is written, answered Erase or Cancel. {disk} describes the disk on a line of its own: its name, size and short name (\"SanDisk Ultra · 32.0 GB (sdb)\"). Keep the blank lines.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #eb2b9c4a"
+  },
+  "desk.folders.setup_insert_card": {
+    "text": "Insert the SD card (in the computer's card slot or a USB card reader), then try again.",
+    "note": "otc-sync: Set Up a New Device, when no SD card is found; the buttons are Try Again and Cancel."
+  },
+  "desk.folders.setup_intro": {
+    "text": "This prepares the SD card for a new Off The Cloud device:\n\n1. Download the device image (about 560 MB).\n2. Write it to an SD card of 8 GB or more - everything on the card is erased.\n3. Delete the download.\n\nYou need a Raspberry Pi 5 with 8 GB of RAM, the SD card and two USB disks.",
+    "note": "otc-sync: first dialog of Set Up a New Device, answered Start or Cancel: the three steps, numbered one per line, then what is needed. Step 2 warns that the card is erased. Keep the line breaks and the numbering.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #6bbf5390"
+  },
+  "desk.folders.setup_not_written": {
+    "text": "The card was not written: writing an SD card needs administrator permission. Choose {item} again when you are ready (the download is kept).",
+    "args": [["item", "text"]],
+    "note": "otc-sync: Set Up a New Device, after the administrator's password was not given. {item} is the tray menu item that starts the wizard, \"Set Up a New Device…\"."
+  },
+  "desk.folders.setup_preparing_download": {
+    "text": "Preparing the download…",
+    "note": "otc-sync: Set Up a New Device's progress dialog before the image's download starts (its signed checksum is fetched first).",
+    "max": 60
+  },
+  "desk.folders.setup_start": {
+    "text": "Start",
+    "note": "otc-sync: button of Set Up a New Device's first dialog that starts the download.",
+    "max": 16
+  },
+  "desk.folders.setup_stopped": {
+    "text": "The setup stopped:\n\n{detail}",
+    "args": [["detail", "text"]],
+    "note": "otc-sync: error dialog of Set Up a New Device. {detail} is the reason on its own paragraph (for example \"the card is too small (4.0 GB) - it needs 8 GB or more\")."
+  },
+  "desk.folders.setup_title": {
+    "text": "Set Up a New Device",
+    "note": "Both apps: title of the window (Mac) or of every dialog (otc-sync) of the wizard that downloads the device image and puts it on an SD card for a new Raspberry Pi device. Title Case, as a window title.",
+    "max": 40
+  },
+  "desk.folders.setup_waiting_permission": {
+    "text": "Waiting for permission…",
+    "note": "otc-sync: Set Up a New Device's progress dialog while the system asks for the administrator's password (writing an SD card needs it).",
+    "max": 60
+  },
+  "desk.folders.setup_windows_format": {
+    "text": "If Windows offers to format the card, choose Cancel: Windows can't read the device's Linux partition, and that is expected.",
+    "note": "otc-sync (Windows): last paragraph of Set Up a New Device's last dialog. Windows may offer to format the written card, which would erase it: \"Cancel\" is the button of Windows's own message, in the language Windows shows it in.",
+    "review": "required",
+    "reviewed": "shipped 2026-10-11 #540aed11"
+  },
+  "desk.folders.try_again": {
+    "text": "Try Again",
+    "note": "Both apps, new-device wizard: button that repeats a step that failed - the image download (Mac), or looking for an SD card after none was found (otc-sync). Title Case, as the computer apps' other buttons.",
+    "max": 20
+  },
+  "desk.folders.upload_only_later": {
+    "text": "You can turn it off later from the web app or the phone app (the lock on the folder in Files); the files you deleted on this computer while it was on then come back here.",
+    "note": "otc-sync: when adding a folder, the sentence after what the option Upload only means: how it is turned off later, and what that brings back. \"Files\" is the Files section of the web and phone apps."
+  },
+  "desk.folders.upload_only_two_way": {
+    "text": "Files you delete on this computer stay on the device and aren't downloaded again; files added or changed on the device still come down.",
+    "note": "otc-sync: when adding a folder, a sentence of what the option Upload only means for a folder synced both ways, after \"The device keeps every older version of a file, and nothing in the folder can be deleted on the device.\" The Mac says \"this Mac\" (macos.upload_only.add_info)."
+  },
+  "desk.folders.yes": {
+    "text": "Yes",
+    "note": "otc-sync (Windows): button that answers yes to a question when adding a folder (keep it out of Images, make it upload only).",
+    "max": 12
+  }
+}

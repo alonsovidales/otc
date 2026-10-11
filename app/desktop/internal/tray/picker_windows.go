@@ -11,6 +11,7 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/engine"
+	"github.com/alonsovidales/otc/i18n"
 )
 
 // The remote folder picker on Windows is a small native window of our own
@@ -126,6 +127,7 @@ type picker struct {
 	chosen  string
 	ok      bool
 	font    windows.Handle
+	lang    string // the language its words are in
 }
 
 var (
@@ -167,7 +169,8 @@ func pickRemoteFolder(list func(string) ([]engine.RemoteEntry, error)) (string, 
 		pickerClassOnce = true
 	}
 
-	p := &picker{list: list, current: "/"}
+	// The menu's language, for the whole time the window is open.
+	p := &picker{list: list, current: "/", lang: lang()}
 	activePicker = p
 	defer func() { activePicker = nil }()
 
@@ -184,7 +187,7 @@ func pickRemoteFolder(list func(string) ([]engine.RemoteEntry, error)) (string, 
 	x := (int(sx) - ww) / 2
 	y := (int(sy) - wh) / 2
 	hwnd, _, _ := pCreateWindowExW.Call(
-		exStyle, uintptr(unsafe.Pointer(className)), uintptr(unsafe.Pointer(utf16("Choose a Remote Folder"))),
+		exStyle, uintptr(unsafe.Pointer(className)), uintptr(unsafe.Pointer(utf16(i18n.DeskFoldersRemoteTitle().Render(p.lang)))),
 		style, uintptr(x), uintptr(y), uintptr(ww), uintptr(wh), 0, 0, hInst, 0)
 	if hwnd == 0 {
 		return "", false
@@ -203,8 +206,8 @@ func pickRemoteFolder(list func(string) ([]engine.RemoteEntry, error)) (string, 
 	}
 	p.hLabel = child("STATIC", "", ssLeft, idLabel, 14, 12, w-28, 44)
 	p.hList = child("LISTBOX", "", wsBorder|wsVScroll|wsTabStop|lbsNotify|lbsNoIntegral, idList, 14, 62, w-28, h-62-58)
-	p.hChoose = child("BUTTON", "Choose", wsTabStop|bsDefPushButton, idChoose, w-14-150-8-100, h-44, 150, 30)
-	child("BUTTON", "Cancel", wsTabStop, idCancel, w-14-100, h-44, 100, 30)
+	p.hChoose = child("BUTTON", i18n.CommonChoose().Render(p.lang), wsTabStop|bsDefPushButton, idChoose, w-14-150-8-100, h-44, 150, 30)
+	child("BUTTON", i18n.CommonCancel().Render(p.lang), wsTabStop, idCancel, w-14-100, h-44, 100, 30)
 
 	p.load()
 	_, _, _ = pShowWindow.Call(hwnd, swShow)
@@ -233,19 +236,21 @@ func (p *picker) load() {
 	if label == "" {
 		label = "/"
 	}
-	_, _, _ = pSetWindowTextW.Call(uintptr(p.hLabel), uintptr(unsafe.Pointer(utf16("Remote folder: "+p.current+"\r\nDouble-click a folder to open it; the button keeps “"+label+"” in sync with a folder here."))))
-	_, _, _ = pSetWindowTextW.Call(uintptr(p.hChoose), uintptr(unsafe.Pointer(utf16("Choose “"+label+"”"))))
+	// A static control breaks lines at CR LF; the catalog writes LF.
+	prompt := strings.ReplaceAll(i18n.DeskFoldersPickerPromptWindows(p.current, label).Render(p.lang), "\n", "\r\n")
+	_, _, _ = pSetWindowTextW.Call(uintptr(p.hLabel), uintptr(unsafe.Pointer(utf16(prompt))))
+	_, _, _ = pSetWindowTextW.Call(uintptr(p.hChoose), uintptr(unsafe.Pointer(utf16(i18n.DeskFoldersChooseNamed(label).Render(p.lang)))))
 	_, _, _ = pSendMessageW.Call(uintptr(p.hList), lbResetContent, 0, 0)
 	p.rows = nil
 	entries, err := p.list(p.current)
 	if err != nil {
-		p.addRow("⚠ "+err.Error(), "")
+		p.addRow("⚠ "+errorText(p.lang, err), "")
 
 		return
 	}
 	p.entries = entries
 	if p.current != "/" {
-		p.addRow("‹ Up", "")
+		p.addRow(i18n.DeskFoldersPickerUp().Render(p.lang), "")
 	}
 	for _, e := range entries {
 		if e.IsDir {
@@ -253,7 +258,7 @@ func (p *picker) load() {
 		}
 	}
 	if len(p.rows) == 0 {
-		p.addRow("(no subfolders here)", "")
+		p.addRow(i18n.DeskFoldersPickerEmpty().Render(p.lang), "")
 	}
 	_, _, _ = pSendMessageW.Call(uintptr(p.hList), lbSetCurSel, ^uintptr(0), 0)
 }

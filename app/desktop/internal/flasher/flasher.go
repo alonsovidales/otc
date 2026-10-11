@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/selfupdate"
+	"github.com/alonsovidales/otc/i18n"
 	"github.com/ulikunitz/xz"
 )
 
@@ -46,7 +47,7 @@ const (
 
 // ErrCancelled is returned when the person declines the administrator
 // prompt.
-var ErrCancelled = errors.New("cancelled")
+var ErrCancelled = errors.New("cancelled") // i18n-ignore: a sentinel; the tray says it in its own words
 
 // Disk is a removable disk the image can be written to.
 type Disk struct {
@@ -55,21 +56,12 @@ type Disk struct {
 	Size int64
 }
 
-func (d Disk) Label() string {
-	name := d.Name
-	if name == "" {
-		name = "Unnamed disk"
-	}
-	return fmt.Sprintf("%s · %s (%s)", name, HumanSize(d.Size), d.ShortID())
-}
+// Label describes the disk for the dialogs, in English (LabelIn).
+func (d Disk) Label() string { return d.LabelIn("") }
 
-// ShortID names the disk briefly for the dialogs: sdb, disk 2.
-func (d Disk) ShortID() string {
-	if n, ok := strings.CutPrefix(d.ID, `\\.\PhysicalDrive`); ok {
-		return "disk " + n
-	}
-	return filepath.Base(d.ID)
-}
+// ShortID names the disk briefly for the dialogs: sdb, disk 2 (in English;
+// ShortIDIn).
+func (d Disk) ShortID() string { return d.ShortIDIn("") }
 
 func HumanSize(n int64) string {
 	if n >= 1e12 {
@@ -96,7 +88,7 @@ func SignedHash() (string, error) {
 	}
 	f := strings.Fields(string(body))
 	if len(f) == 0 || len(f[0]) != 64 {
-		return "", errors.New("the image's checksum file is malformed")
+		return "", failure(i18n.DeskFoldersFlashChecksumMalformed())
 	}
 	return strings.ToLower(f[0]), nil
 }
@@ -152,7 +144,7 @@ func Download(ctx context.Context, progress func(done, total int64)) (string, er
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("downloading the image: %s", resp.Status)
+		return "", failure(i18n.DeskFoldersFlashDownloadFailed(resp.Status))
 	}
 	part := path + ".part"
 	f, err := os.OpenFile(part, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
@@ -170,7 +162,7 @@ func Download(ctx context.Context, progress func(done, total int64)) (string, er
 		return "", err
 	}
 	if got := hex.EncodeToString(h.Sum(nil)); got != want {
-		return "", errors.New("the downloaded image does not match its signed checksum - try again")
+		return "", failure(i18n.DeskFoldersFlashDownloadMismatch())
 	}
 	if err := os.Rename(part, path); err != nil {
 		return "", err
@@ -201,7 +193,12 @@ type Progress struct {
 	Phase string `json:"phase"` // check, prepare, write, verify, eject, done, error
 	Done  int64  `json:"done,omitempty"`
 	Total int64  `json:"total,omitempty"`
-	Error string `json:"error,omitempty"`
+	Error string `json:"error,omitempty"` // English
+	// ErrorKey and ErrorArgs word Error as a catalog message (key and
+	// i18n.MarshalArgs), when it is one of ours, for the tray to show it in
+	// the user's language; absent for the system's own errors.
+	ErrorKey  string          `json:"error_key,omitempty"`
+	ErrorArgs json.RawMessage `json:"error_args,omitempty"`
 }
 
 // Text is the step and its own percentage (for a terminal).
@@ -212,24 +209,9 @@ func (p Progress) Text() string {
 	return p.Step()
 }
 
-// Step names the step (for a dialog whose bar shows Percent).
-func (p Progress) Step() string {
-	switch p.Phase {
-	case "check":
-		return "Checking the image…"
-	case "prepare":
-		return "Preparing the card…"
-	case "write":
-		return "Writing the card…"
-	case "verify":
-		return "Checking what was written…"
-	case "eject":
-		return "Ejecting the card…"
-	case "done":
-		return "Done."
-	}
-	return p.Phase
-}
+// Step names the step (for a dialog whose bar shows Percent), in English
+// (StepIn).
+func (p Progress) Step() string { return p.StepIn("") }
 
 // Percent maps the phases onto one bar: writing is most of it.
 func (p Progress) Percent() int {
@@ -257,8 +239,15 @@ func (p Progress) Percent() int {
 // WriteElevated writes image to disk through an elevated copy of this
 // program, calling onProgress as it goes. The disk's confirmed size and
 // name go along with its ID, for the writer to check it still is that
-// disk (see Write).
+// disk (see Write). Its errors are worded in English (WriteElevatedIn).
 func WriteElevated(image string, disk Disk, onProgress func(Progress)) error {
+	return WriteElevatedIn("", image, disk, onProgress)
+}
+
+// WriteElevatedIn is WriteElevated for the tray: the writer words its
+// errors' arguments (a disk's label, a size) in lang, and the errors carry
+// their message for the tray to show in lang; their English stays Error's.
+func WriteElevatedIn(lang string, image string, disk Disk, onProgress func(Progress)) error {
 	exe, err := selfupdate.Executable()
 	if err != nil {
 		return err
@@ -272,8 +261,14 @@ func WriteElevated(image string, disk Disk, onProgress func(Progress)) error {
 	if err := os.WriteFile(status, nil, 0o600); err != nil {
 		return err
 	}
-	wait, err := elevate(exe, []string{"flash-device", "--image", image, "--disk", disk.ID,
-		"--size", strconv.FormatInt(disk.Size, 10), "--name", disk.Name, "--status", status})
+	args := []string{"flash-device", "--image", image, "--disk", disk.ID,
+		"--size", strconv.FormatInt(disk.Size, 10), "--name", disk.Name, "--status", status}
+	// English needs no flag: the writer's command line (which pkexec shows)
+	// stays what it was for it.
+	if l := i18n.Normalize(lang); l != "" && l != "en" {
+		args = append(args, "--lang", l)
+	}
+	wait, err := elevate(exe, args)
 	if err != nil {
 		return err
 	}
@@ -316,13 +311,15 @@ func WriteElevated(image string, disk Disk, onProgress func(Progress)) error {
 			case last.Phase == "done":
 				return nil
 			case last.Phase == "error":
-				return errors.New(last.Error)
+				return last.failed()
 			case errors.Is(werr, ErrCancelled):
 				return ErrCancelled
 			case werr != nil:
-				return fmt.Errorf("the card writer stopped: %w", werr)
+				return failureIn(lang, func(l string) i18n.Msg {
+					return i18n.DeskFoldersFlashWriterStopped(textIn(l, werr))
+				}, werr)
 			}
-			return errors.New("the card writer stopped before it finished")
+			return failure(i18n.DeskFoldersFlashWriterStoppedEarly())
 		}
 	}
 }
@@ -336,6 +333,9 @@ func HelperMain(args []string) error {
 	size := fs.Int64("size", 0, "")
 	name := fs.String("name", "", "")
 	status := fs.String("status", "", "")
+	// The tray's language, for the words of the errors' arguments; English
+	// without it (the command line).
+	lang := fs.String("lang", "", "")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -350,9 +350,9 @@ func HelperMain(args []string) error {
 	} else {
 		rep.w = os.Stdout
 	}
-	err := Write(*image, Disk{ID: *diskID, Name: *name, Size: *size}, rep.report)
+	err := writeIn(i18n.Normalize(*lang), *image, Disk{ID: *diskID, Name: *name, Size: *size}, rep.report)
 	if err != nil {
-		rep.final(Progress{Phase: "error", Error: err.Error()})
+		rep.final(errorProgress(err))
 		return err
 	}
 	rep.final(Progress{Phase: "done"})
@@ -381,12 +381,19 @@ func (r *reporter) final(p Progress) {
 // Write puts the image on the disk; it must run as administrator. chosen
 // is the disk as the person confirmed it (see sameDisk).
 func Write(image string, chosen Disk, report func(Progress)) error {
-	disk, err := sameDisk(chosen)
+	return writeIn("", image, chosen, report)
+}
+
+// writeIn is Write with its errors' arguments worded in lang as well.
+func writeIn(lang string, image string, chosen Disk, report func(Progress)) error {
+	disk, err := sameDisk(lang, chosen)
 	if err != nil {
 		return err
 	}
 	if disk.Size < MinCardSize {
-		return fmt.Errorf("the card is too small (%s) - it needs 8 GB or more", HumanSize(disk.Size))
+		return failureIn(lang, func(l string) i18n.Msg {
+			return i18n.DeskFoldersFlashCardTooSmall(HumanSizeIn(l, disk.Size))
+		}, nil)
 	}
 
 	// The image must be the signed one: checked here, by the administrator
@@ -410,14 +417,14 @@ func Write(image string, chosen Disk, report func(Progress)) error {
 		return err
 	}
 	if hex.EncodeToString(h.Sum(nil)) != want {
-		return errors.New("the image does not match its signed checksum - download it again")
+		return failure(i18n.DeskFoldersFlashImageMismatch())
 	}
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
 		return err
 	}
 	// Checking the image took a while: still the same disk, just before
 	// anything on it is touched.
-	if disk, err = sameDisk(chosen); err != nil {
+	if disk, err = sameDisk(lang, chosen); err != nil {
 		return err
 	}
 
@@ -432,7 +439,7 @@ func Write(image string, chosen Disk, report func(Progress)) error {
 	// never taken for a bootable one.
 	zero := alignedBuf(cFirstPart)
 	if _, err := dev.WriteAt(zero, 0); err != nil {
-		return fmt.Errorf("writing the card: %w", err)
+		return wrapped(i18n.DeskFoldersFlashWriteFailed(err.Error()), err)
 	}
 
 	compHash := sha256.New()
@@ -451,13 +458,13 @@ func Write(image string, chosen Disk, report func(Progress)) error {
 		if n > 0 {
 			imgHash.Write(buf[:n])
 			if written+int64(n) > disk.Size {
-				return errors.New("the image is larger than the card")
+				return failure(i18n.DeskFoldersFlashImageTooLarge())
 			}
 			if written == 0 {
 				copy(first, buf[:n])
 				firstLen = n
 			} else if _, err := dev.WriteAt(padded(buf, n), written); err != nil {
-				return fmt.Errorf("writing the card: %w", err)
+				return wrapped(i18n.DeskFoldersFlashWriteFailed(err.Error()), err)
 			}
 			written += int64(n)
 		}
@@ -465,7 +472,7 @@ func Write(image string, chosen Disk, report func(Progress)) error {
 			break
 		}
 		if rerr != nil {
-			return fmt.Errorf("decompressing the image: %w", rerr)
+			return wrapped(i18n.DeskFoldersFlashDecompressFailed(rerr.Error()), rerr)
 		}
 	}
 	// Whatever was read must still be the signed image.
@@ -473,13 +480,13 @@ func Write(image string, chosen Disk, report func(Progress)) error {
 		return err
 	}
 	if hex.EncodeToString(compHash.Sum(nil)) != want {
-		return errors.New("the image changed while it was written - download it again")
+		return failure(i18n.DeskFoldersFlashImageChanged())
 	}
 	if _, err := dev.WriteAt(padded(first, firstLen), 0); err != nil {
-		return fmt.Errorf("writing the card: %w", err)
+		return wrapped(i18n.DeskFoldersFlashWriteFailed(err.Error()), err)
 	}
 	if err := dev.Sync(); err != nil {
-		return fmt.Errorf("writing the card: %w", err)
+		return wrapped(i18n.DeskFoldersFlashWriteFailed(err.Error()), err)
 	}
 	dropCache(dev)
 
@@ -490,7 +497,7 @@ func Write(image string, chosen Disk, report func(Progress)) error {
 	for read < written {
 		n := int(min(int64(cChunk), written-read))
 		if _, err := dev.ReadAt(buf[:roundUp(n)], read); err != nil && !errors.Is(err, io.EOF) {
-			return fmt.Errorf("reading the card back: %w", err)
+			return wrapped(i18n.DeskFoldersFlashReadBackFailed(err.Error()), err)
 		}
 		back.Write(buf[:n])
 		read += int64(n)
@@ -500,7 +507,7 @@ func Write(image string, chosen Disk, report func(Progress)) error {
 		}
 	}
 	if !equalHash(back, imgHash) {
-		return errors.New("the card does not read back what was written - it may be faulty; try another card")
+		return failure(i18n.DeskFoldersFlashVerifyFailed())
 	}
 	report(Progress{Phase: "eject"})
 	dev.Close()
@@ -513,27 +520,31 @@ func Write(image string, chosen Disk, report func(Progress)) error {
 // another disk by now - a card pulled during the administrator prompt and
 // a USB backup drive plugged in. With the size it was confirmed with
 // (older trays send only the ID), the disk must also still have that size
-// and name, or nothing is written.
-func sameDisk(want Disk) (*Disk, error) {
+// and name, or nothing is written. Its refusals word the disks in lang too.
+func sameDisk(lang string, want Disk) (*Disk, error) {
 	disks, err := ListDisks()
 	if err != nil {
 		return nil, err
 	}
-	return matchDisk(disks, want)
+	return matchDiskIn(lang, disks, want)
 }
 
-func matchDisk(disks []Disk, want Disk) (*Disk, error) {
+func matchDisk(disks []Disk, want Disk) (*Disk, error) { return matchDiskIn("", disks, want) }
+
+func matchDiskIn(lang string, disks []Disk, want Disk) (*Disk, error) {
 	for i := range disks {
 		d := &disks[i]
 		if d.ID != want.ID {
 			continue
 		}
 		if want.Size != 0 && (d.Size != want.Size || strings.TrimSpace(d.Name) != strings.TrimSpace(want.Name)) {
-			return nil, fmt.Errorf("the disk %s changed after it was chosen (now %s) - nothing was written; choose the card again", want.ShortID(), d.Label())
+			return nil, failureIn(lang, func(l string) i18n.Msg {
+				return i18n.DeskFoldersFlashDiskChanged(want.ShortIDIn(l), d.LabelIn(l))
+			}, nil)
 		}
 		return d, nil
 	}
-	return nil, fmt.Errorf("%s is not a removable disk (or is no longer connected)", want.ID)
+	return nil, failure(i18n.DeskFoldersFlashNotRemovable(want.ID))
 }
 
 func equalHash(a, b interface{ Sum([]byte) []byte }) bool {
@@ -571,7 +582,6 @@ type device interface {
 	Close() error
 }
 
-// NextSteps is what to do once the card is written.
-const NextSteps = `The card is ready. Put it in the Raspberry Pi 5, plug in the two USB disks and power it on.
-
-Then, in the Off The Cloud app on your phone (iOS or Android), tap "Set up a new device": it finds the Pi over Bluetooth and walks you through the rest.`
+// NextSteps is what to do once the card is written, in English, for the
+// command line (NextStepsIn).
+var NextSteps = NextStepsIn("")
