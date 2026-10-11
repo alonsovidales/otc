@@ -204,8 +204,9 @@ fun MainView(secrets: SecretsStore) {
     // launch the first try often goes out before the network is up, and
     // the next one works. The card with the connection settings is shown
     // only once connecting has kept failing for a few seconds, retried
-    // meanwhile.
-    var showConnectionProblem by remember { mutableStateOf(false) }
+    // meanwhile. Saveable: a language picked on the card recreates the
+    // Activity, and the card must stay up through it.
+    var showConnectionProblem by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(connectionFailed) {
         if (!connectionFailed) { showConnectionProblem = false; return@LaunchedEffect }
         repeat(3) {

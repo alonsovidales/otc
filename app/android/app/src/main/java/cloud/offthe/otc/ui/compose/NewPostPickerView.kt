@@ -52,6 +52,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import cloud.offthe.otc.ui.common.OTCTextField
 import androidx.compose.material3.Scaffold
@@ -93,6 +94,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.ui.common.FitText
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.androidComposeMoveLeft
 import cloud.offthe.otc.i18n.androidComposeMoveRight
@@ -478,9 +480,9 @@ class NewPostPickerViewModel : ViewModel() {
         val meta = try {
             ChunkedDownload.download(path, "", f)
         } catch (e: ChunkedDownload.Refused) {
-            // The device's own words, or ours when it gave none.
-            val words = e.message?.ifEmpty { null }
-            throw if (words != null) IllegalStateException(words) else TextIOException(S.appSocialComposeEmptyResponse())
+            // The device's own words, or "Unexpected response" when it gave
+            // none (as iOS) - worded when the alert shows it.
+            throw TextIOException(e.text)
         }
         if (meta.size == 0L) { f.delete(); throw TextIOException(S.appSocialComposeEmptyResponse()) }
         return f.toURI().toString()
@@ -658,7 +660,9 @@ fun NewPostPickerView(onDismiss: () -> Unit, onPosted: () -> Unit) {
                             DropdownMenuItem(text = { Text(S.androidComposeRecordVideo().resolve()) }, onClick = { captureMenu = false; capture(video = true) })
                         }
                     }
-                    OTCTextField(value = st.caption, onValueChange = vm::setCaption, placeholder = { Text(S.appSocialComposeCaptionPlaceholder().resolve()) }, modifier = Modifier.weight(1f))
+                    // The placeholder smaller rather than broken beside a long
+                    // Publish ("Bildunterschrift…" beside "Veröffentlichen (3)").
+                    OTCTextField(value = st.caption, onValueChange = vm::setCaption, placeholder = { FitText(S.appSocialComposeCaptionPlaceholder().resolve(), minScale = 0.8f) }, modifier = Modifier.weight(1f))
                     Button(onClick = { vm.publish { onDismiss(); onPosted() } }, enabled = st.selectedOrder.isNotEmpty() && st.caption.isNotBlank() && !st.publishing) {
                         Text(
                             when {
@@ -764,7 +768,10 @@ private fun SelectedThumb(
                 if (trim != null) {
                     Box(Modifier.align(Alignment.BottomStart).padding(2.dp).background(if (trimRange == null) Color(0x99000000) else MaterialTheme.colorScheme.primary, CircleShape).padding(horizontal = 6.dp, vertical = 2.dp)) {
                         if (trimLoading) CircularProgressIndicator(Modifier.size(10.dp), strokeWidth = 1.dp, color = Color.White)
-                        else Text(trimRange?.let { "✂ ${formatTimecode(it.length)}" } ?: S.appSocialComposeTrimBadge().resolve(), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                        // Smaller rather than broken inside the word, in the
+                        // thumbnail's width (FitText).
+                        else FitText(trimRange?.let { "✂ ${formatTimecode(it.length)}" } ?: S.appSocialComposeTrimBadge().resolve(),
+                            style = LocalTextStyle.current.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold), color = Color.White, minScale = 0.7f)
                     }
                 }
             }

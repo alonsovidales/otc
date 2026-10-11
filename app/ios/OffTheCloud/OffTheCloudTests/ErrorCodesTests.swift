@@ -64,3 +64,18 @@ struct ErrorCodesTests {
         #expect(!ErrorCodes.isDuplicatedFile(other))
     }
 }
+
+/// A download the device refused (FileDownload.Refused): its own words as
+/// they come, else ours in the language shown - as Android's
+/// ChunkedDownload.Refused. On the main actor, so never while
+/// StorageSummaryLanguageTests has the app in Spanish.
+@MainActor
+struct DownloadRefusalTests {
+    @Test func theDevicesWordsElseUnexpectedResponse() {
+        #expect(FileDownload.Refused(message: "").errorDescription == "Unexpected response")
+        #expect(FileDownload.Refused(message: "").localizedDescription == "Unexpected response")
+        let words = FileDownload.Refused(message: "No hay espacio en el disco")
+        #expect(words.errorDescription == "No hay espacio en el disco")
+        #expect(words.localizedDescription == "No hay espacio en el disco")
+    }
+}

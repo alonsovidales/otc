@@ -2783,6 +2783,9 @@ struct PhotoGalleryView: View {
             .layoutPriority(1)
             // The dot only sets the line apart from the name: no words.
             Text(verbatim: "· \(collectionLine(g))").foregroundStyle(.secondary).font(.caption).lineLimit(1)
+                // A little smaller rather than cut ("120 elementos · feb. –
+                // oct. 20…" on an iPhone SE); English fits as it was.
+                .minimumScaleFactor(0.75)
             // Issue #180: the group as a gallery behind a link.
             Button {
                 gallerySource = .group(g.id)

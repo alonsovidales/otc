@@ -1017,7 +1017,9 @@ private fun DocsRow(o: SearchOption.Docs, active: Boolean, onClick: () -> Unit) 
             RowIcon(SearchIcons.DocSearch)
             Text(
                 S.appPhotosSearchDocuments(o.text).resolve(mapOf("b" to RichTag(SpanStyle(fontWeight = FontWeight.Bold)))),
-                style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                // Two lines: what was typed stays readable (French cut even
+                // a two-letter word at 360 dp).
+                style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
             )
         }
     }

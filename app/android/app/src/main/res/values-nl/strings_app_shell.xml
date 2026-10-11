@@ -148,17 +148,17 @@
     <string name="app_shell_terms">Voorwaarden</string>
     <string name="app_shell_thumb_cache_usage">%1$s van %2$s in gebruik</string>
     <plurals name="app_shell_time_days_ago">
-        <item quantity="one">%1$sd geleden</item>
-        <item quantity="other">%1$sd geleden</item>
+        <item quantity="one">%1$s dag geleden</item>
+        <item quantity="other">%1$s dagen geleden</item>
     </plurals>
     <plurals name="app_shell_time_hours_ago">
-        <item quantity="one">%1$sh geleden</item>
-        <item quantity="other">%1$sh geleden</item>
+        <item quantity="one">%1$s uur geleden</item>
+        <item quantity="other">%1$s uur geleden</item>
     </plurals>
     <string name="app_shell_time_just_now">zojuist</string>
     <plurals name="app_shell_time_minutes_ago">
-        <item quantity="one">%1$sm geleden</item>
-        <item quantity="other">%1$sm geleden</item>
+        <item quantity="one">%1$s min. geleden</item>
+        <item quantity="other">%1$s min. geleden</item>
     </plurals>
     <plurals name="app_shell_upload_left">
         <item quantity="one">Nog %1$s</item>

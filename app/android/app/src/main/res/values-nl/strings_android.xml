@@ -102,6 +102,7 @@
     </plurals>
     <string name="android_settings_upload_waiting">Wachten</string>
     <string name="android_settings_uploading">\u2068%1$s\u2069 wordt geüpload</string>
+    <string name="android_setup_language_later">De configuratiepagina schakelt over naar %1$s zodra de installatie begint.</string>
     <string name="android_signal_good">Goed signaal</string>
     <string name="android_signal_strong">Sterk signaal</string>
     <string name="android_signal_weak">Zwak signaal</string>

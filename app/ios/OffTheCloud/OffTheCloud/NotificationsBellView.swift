@@ -17,9 +17,12 @@ struct NotificationsListView: View {
     /// When it happened, in the app's language: made when shown (the
     /// formatter is cheap, and a kept one would stay in the language it was
     /// made in).
+    /// English keeps its abbreviated style ("7 hr ago"); the other
+    /// languages take the short one, because the abbreviated French and
+    /// Portuguese read "-5 h" and German "vor 5 m".
     private static func relativeTime(_ date: Date) -> String {
         let f = RelativeDateTimeFormatter()
-        f.unitsStyle = .abbreviated
+        f.unitsStyle = L10n.shared.code == "en" ? .abbreviated : .short
         f.locale = L10n.shared.locale
         return f.localizedString(for: date, relativeTo: Date())
     }

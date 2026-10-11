@@ -322,6 +322,9 @@ final class OTCConnection: ObservableObject {
         // Media URLs are resolved against the endpoint; it may just have
         // changed.
         MediaStream.reset()
+        // The session is over: a language picked before the next sign-in
+        // isn't compared with what this one saw (LanguageSettings).
+        LanguageSettings.shared.sessionEnded()
     }
 
     /// Log Out: drop the connection and forget what went wrong with the
@@ -570,6 +573,10 @@ final class OTCConnection: ObservableObject {
             if let rejectedFor {
                 authRejection = AuthRejection(credKey: credKey, error: err, notBefore: Date() + rejectedFor)
                 authBackoff = min(authBackoff * 2, maxAuthBackoff)
+                // The device ended the session (the password turned down;
+                // a re-imaged device keeps ""): the language value seen
+                // goes, so one picked before the next sign-in goes as is.
+                LanguageSettings.shared.sessionEnded()
             }
             throw err
         }
@@ -597,7 +604,9 @@ final class OTCConnection: ObservableObject {
         homeNetwork = home != nil ? NetworkWatch.shared.localNetwork : nil
         route = home != nil ? .home : .remote(host: URL(string: endpoint)?.host ?? "")
         registerPushToken()
-        // A language chosen while the device couldn't take it goes now.
+        // A language chosen while the device couldn't take it, or before
+        // any device was signed in to, goes now - ahead of this session's
+        // first Status or Settings value (LanguageSettings).
         LanguageSettings.shared.connected()
         // Back after a drop: what failed meanwhile is asked for again now.
         wake()

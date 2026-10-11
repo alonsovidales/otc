@@ -28,7 +28,7 @@
     <string name="app_social_compose_source_phone">Teléfono</string>
     <string name="app_social_compose_source_synced">Sincronizadas</string>
     <string name="app_social_compose_title">Nueva publicación</string>
-    <string name="app_social_compose_trim_badge">✂ Recortar</string>
+    <string name="app_social_compose_trim_badge">✂ Cortar</string>
     <string name="app_social_compose_trim_load_failed">No se ha podido cargar ese vídeo para recortarlo: %1$s</string>
     <string name="app_social_compose_uploading">Subiendo %1$s de %2$s…</string>
     <string name="app_social_feed_empty_text">Comparte una foto o un vídeo con tus amigos: va de tu dispositivo a los suyos, sin ninguna nube de por medio.</string>
@@ -62,7 +62,7 @@
     <string name="app_social_friends_remove_now">Eliminar ya</string>
     <string name="app_social_friends_remove_now_text">Se dejará de esperar a su dispositivo. Lo que aún no haya eliminado se quedará allí.</string>
     <string name="app_social_friends_remove_now_title">¿Eliminar ya la amistad con \u2068%1$s\u2069?</string>
-    <string name="app_social_friends_remove_title">¿Eliminar la amistad con \u2068%1$s\u2069?</string>
+    <string name="app_social_friends_remove_title">¿Eliminar a \u2068%1$s\u2069?</string>
     <string name="app_social_friends_removed">Amistad eliminada</string>
     <string name="app_social_friends_request_cancelled">Solicitud cancelada</string>
     <string name="app_social_friends_request_deleted">Solicitud eliminada</string>

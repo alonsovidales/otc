@@ -285,7 +285,7 @@
     "en": "The file is in an upload-only folder, so each upload to this path kept the one before it."
   },
   "app.files.versions_title": {
-    "text": "Versioni del file {name}",
+    "text": "Versioni di {name}",
     "en": "Versions of {name}"
   },
   "app.files.video": {

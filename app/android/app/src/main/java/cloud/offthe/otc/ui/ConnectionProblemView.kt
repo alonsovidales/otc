@@ -64,6 +64,8 @@ import androidx.compose.ui.unit.dp
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.ui.common.ConnectionEndpointFields
+import cloud.offthe.otc.ui.common.rememberConnectionForm
+import cloud.offthe.otc.ui.settings.LanguageMenu
 import kotlinx.coroutines.launch
 
 // Port of ConnectionProblemView.swift: shown over the tabs when the app
@@ -75,8 +77,11 @@ fun ConnectionProblemView(secrets: SecretsStore, onLeave: ((endpoint: String, pa
     // store's values, and pollers keep retrying while this card shows, so a
     // half-typed device name would hand the password to whichever device
     // has that name.
-    var endpoint by remember { mutableStateOf(secrets.endpoint.value) }
-    var password by remember { mutableStateOf(secrets.password.value) }
+    // What is typed survives the recreation a pick in the language menu
+    // brings.
+    val form = rememberConnectionForm("connection-problem", endpoint = { secrets.endpoint.value }, password = { secrets.password.value })
+    val endpoint by form::endpoint
+    var password by form::password
     var retrying by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     // Leaving this device for the start screen - how a phone moves on to
@@ -107,7 +112,7 @@ fun ConnectionProblemView(secrets: SecretsStore, onLeave: ((endpoint: String, pa
                 Spacer(Modifier.height(18.dp))
                 Column(Modifier.fillMaxWidth()) {
                     Text(S.appShellConnectionHeading().resolve(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    ConnectionEndpointFields(endpoint = endpoint, onEndpointChange = { endpoint = it })
+                    ConnectionEndpointFields(form.entry)
                     Spacer(Modifier.height(8.dp))
                     OTCTextField(
                         value = password, onValueChange = { password = it }, label = { Text(S.commonPassword().resolve()) },
@@ -141,6 +146,9 @@ fun ConnectionProblemView(secrets: SecretsStore, onLeave: ((endpoint: String, pa
                     Spacer(Modifier.height(4.dp))
                     TextButton(onClick = { confirmLeave = true }) { Text(S.appShellLeaveButton().resolve()) }
                 }
+                // The language, while this covers the app and Settings with
+                // it: shown at once, and sent at the next sign-in.
+                LanguageMenu()
             }
         }
     }
@@ -188,6 +196,12 @@ fun DeviceUnreachableView(message: String, code: String, onClose: (() -> Unit)? 
                         Text(S.appShellStillTrying().resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
+                // The language, while this covers the app and Settings with
+                // it: shown at once, and sent once the device answers again
+                // (or to the next device, when this one is left). At the
+                // bottom: the close button has the card's top corner.
+                Spacer(Modifier.height(4.dp))
+                LanguageMenu()
             }
           }
         }

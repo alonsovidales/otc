@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import cloud.offthe.otc.i18n.LanguageSettings
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.appShellTimeDaysAgo
@@ -15,6 +16,7 @@ import cloud.offthe.otc.i18n.appShellTimeJustNow
 import cloud.offthe.otc.i18n.appShellTimeMinutesAgo
 import java.text.DateFormat
 import java.util.Date
+import java.util.Locale
 
 /**
  * Decodes an image, scaled down by a power of two until its longest side is
@@ -82,9 +84,18 @@ fun relativeTimeText(epochMs: Long): UiText {
     return UiText.Raw(DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(epochMs)))
 }
 
+/** A file's size: "4.6 MB", "820 KB" ("4,6 MB" in Spanish, decimalText). */
 fun formatBytes(bytes: Long): String = when {
-    bytes >= 1L shl 30 -> String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024))
-    bytes >= 1L shl 20 -> String.format("%.1f MB", bytes / (1024.0 * 1024))
-    bytes >= 1L shl 10 -> String.format("%.0f KB", bytes / 1024.0)
+    bytes >= 1L shl 30 -> decimalText("%.1f GB", bytes / (1024.0 * 1024 * 1024)) // i18n-ignore: a size, the unit's symbol in every language
+    bytes >= 1L shl 20 -> decimalText("%.1f MB", bytes / (1024.0 * 1024)) // i18n-ignore: a size, the unit's symbol in every language
+    bytes >= 1L shl 10 -> decimalText("%.0f KB", bytes / 1024.0) // i18n-ignore: a size, the unit's symbol in every language
     else -> "$bytes B"
 }
+
+/**
+ * A number the app writes by hand ("%.1f"), with the decimal mark of the
+ * app's language: "177,7 KB" in Spanish or German. The language's own tag,
+ * not the region's (LanguageSettings.numberLocale), so English stays
+ * "177.7 KB" on every phone - as iOS's decimalText.
+ */
+fun decimalText(format: String, value: Double, locale: Locale = LanguageSettings.numberLocale): String = String.format(locale, format, value)

@@ -383,6 +383,10 @@
     "text": "A carregar {name}",
     "en": "Uploading {name}"
   },
+  "android.setup_language_later": {
+    "text": "A página de configuração passa a aparecer em {language} quando a instalação começar.",
+    "en": "The setup page will switch to {language} once the installation starts."
+  },
   "android.signal_good": {
     "text": "Sinal bom",
     "en": "Good signal"

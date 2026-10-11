@@ -4,6 +4,7 @@ package cloud.offthe.otc
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
@@ -11,6 +12,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.os.ConfigurationCompat
+import androidx.core.os.LocaleListCompat
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.i18n.LanguageSettings
 import cloud.offthe.otc.push.FCMPush
@@ -21,14 +24,20 @@ import cloud.offthe.otc.ui.theme.OTCTheme
 // whole Compose tree, the same way the SwiftUI App hosts RootView. An
 // AppCompatActivity for AppCompat's per-app language (docs/i18n.md, spike
 // S2): a change of language recreates it, so state that must survive one
-// is kept with rememberSaveable or in a view model.
+// is kept with rememberSaveable or in a view model. The manifest declares
+// locale changes handled only so that the one screen that can't be
+// recreated keeps them in place (onConfigurationChanged).
 class MainActivity : AppCompatActivity() {
     // Issue #125: Android 13+ asks before an app may show notifications -
     // at launch, like the iOS app. Declining only means pushes aren't shown.
     private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
+    // The languages the screen was drawn in.
+    private var shownLocales: LocaleListCompat? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        shownLocales = ConfigurationCompat.getLocales(resources.configuration)
         enableEdgeToEdge()
         // Only at a real launch: a change of language recreates the
         // Activity, and someone who declined must not be asked again then.
@@ -51,6 +60,25 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         LanguageSettings.atActivityStart(this)
+    }
+
+    // A new language - the app's, or the system's under Automatic -
+    // recreates the Activity, as it always did, except while a screen
+    // follows it in place (LanguageSettings.holdInPlace): the Bluetooth
+    // setup, whose link to the device and wizard page a recreation would
+    // tear down. There Compose re-reads the resources, which Android (and
+    // below API 33 AppCompat) has already updated; below 33 the views are
+    // told here, as only the resources changed.
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        val locales = ConfigurationCompat.getLocales(newConfig)
+        if (locales == shownLocales) return
+        if (!LanguageSettings.followsInPlace) {
+            recreate()
+            return
+        }
+        shownLocales = locales
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) window.decorView.dispatchConfigurationChanged(newConfig)
     }
 
     // Issue #152: opening the app is reading what arrived.

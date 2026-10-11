@@ -6845,7 +6845,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ utilisés sur %2$@"
+            "value" : "Utilisation : %1$@ sur %2$@"
           }
         },
         "it" : {
@@ -6885,13 +6885,13 @@
                   "one" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "vor %arg T."
+                      "value" : "vor %arg Tag"
                     }
                   },
                   "other" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "vor %arg T."
+                      "value" : "vor %arg Tagen"
                     }
                   }
                 }
@@ -6969,13 +6969,13 @@
                   "one" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%arg j"
+                      "value" : "il y a %arg j"
                     }
                   },
                   "other" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%arg j"
+                      "value" : "il y a %arg j"
                     }
                   }
                 }
@@ -7025,13 +7025,13 @@
                   "one" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%argd geleden"
+                      "value" : "%arg dag geleden"
                     }
                   },
                   "other" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%argd geleden"
+                      "value" : "%arg dagen geleden"
                     }
                   }
                 }
@@ -7170,13 +7170,13 @@
                   "one" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%arg h"
+                      "value" : "il y a %arg h"
                     }
                   },
                   "other" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%arg h"
+                      "value" : "il y a %arg h"
                     }
                   }
                 }
@@ -7226,13 +7226,13 @@
                   "one" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%argh geleden"
+                      "value" : "%arg uur geleden"
                     }
                   },
                   "other" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%argh geleden"
+                      "value" : "%arg uur geleden"
                     }
                   }
                 }
@@ -7418,13 +7418,13 @@
                   "one" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%arg min"
+                      "value" : "il y a %arg min"
                     }
                   },
                   "other" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%arg min"
+                      "value" : "il y a %arg min"
                     }
                   }
                 }
@@ -7474,13 +7474,13 @@
                   "one" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%argm geleden"
+                      "value" : "%arg min. geleden"
                     }
                   },
                   "other" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%argm geleden"
+                      "value" : "%arg min. geleden"
                     }
                   }
                 }

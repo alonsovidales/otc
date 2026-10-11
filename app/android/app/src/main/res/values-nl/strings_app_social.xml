@@ -27,7 +27,7 @@
     <string name="app_social_compose_source_phone">Telefoon</string>
     <string name="app_social_compose_source_synced">Gesynchroniseerd</string>
     <string name="app_social_compose_title">Nieuw bericht</string>
-    <string name="app_social_compose_trim_badge">✂ Inkorten</string>
+    <string name="app_social_compose_trim_badge">✂ Knippen</string>
     <string name="app_social_compose_trim_load_failed">Kan die video niet laden om hem in te korten: %1$s</string>
     <string name="app_social_compose_uploading">Uploaden (%1$s van %2$s)…</string>
     <string name="app_social_feed_empty_text">Deel een foto of video met je vrienden: die gaat van jouw apparaat naar dat van hen, zonder cloud ertussen.</string>

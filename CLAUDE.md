@@ -881,7 +881,7 @@ the web, `app.photos.months.*` on the phones); a sentence that would need two pl
 counted pieces, each its own plural key, as a `{what}` text argument; name lists are two recursive
 keys ("{first} and {second}", "{first}, {rest}"), never `Intl.ListFormat`; a number written by
 hand follows the language's canonical tag, never the region (web `plainNumber`/`percentText`, iOS
-`decimalText`, the Mac's and otc-sync's `desk.main.percent`), so English stays byte for byte; a typed confirmation
+and Android `decimalText`, the Mac's and otc-sync's `desk.main.percent`), so English stays byte for byte; a typed confirmation
 sends the code constant (the account page shows and accepts `site.account.delete.word`, and
 `delete`, but always sends `{"confirm": "delete"}`; deleting a user in Settings asks for the
 username). The setup wizard (`wiz.*`) takes `?lang=` from the apps (iOS `BLESetupLang`, Android
@@ -915,18 +915,33 @@ The stored choice (`docs/i18n.md`, "The stored choice"; every client follows the
   account or domain.
 - Apps: a local copy plus a pending change, sent with SetLanguage against the device value seen
   when it was made. Sign-out, Log Out, Disconnect or another device/password keeps the copy and
-  drops the pending change - except one made for the next device (no device set up; on macOS
-  and otc-sync also none of its values seen yet, e.g. a wrong password; or picked in the Mac's
-  setup wizard; macOS `languageForNextDevice`, otc-sync `language_next_device`), which the next
-  sign-in sends without `expected`. The 30 s window runs from the change or its last send.
+  drops the pending change - except one made for the next device (no device set up; on macOS,
+  otc-sync and the phones also none of its values seen yet, e.g. a wrong password - the phones
+  keep `seen` in memory only, forgotten when the device turns the password down and at
+  `OTCConnection.invalidate()`; picked in the Mac's setup wizard; or still pending when a phone
+  leaves a device from the "isn't available"/"can't connect" card, `loggedOut(carryPending:)`;
+  macOS `languageForNextDevice`, otc-sync `language_next_device`, iOS/Android `forNextDevice`),
+  which the next sign-in sends without `expected`. The web and the phones send nothing before a
+  sign-in is accepted (phones: `Device.signedIn` / `LanguageDevice.signedIn()`) and send at every
+  accepted one, also on an already-open socket, ahead of its first Status/Settings (phones:
+  `LanguageSettings.connected()` from `OTCConnection`). On the phones new credentials alone only
+  forget `seen` (a change made signed in keeps its `expected`; "changed" adopts the device's
+  value), Settings' Log Out drops a change made signed in, and a relaunch keeps a pending one.
+  The phones' `LanguageMenu` (a globe and the language's own name, Settings' list) is on Welcome,
+  the Bluetooth setup and the two cards; the setup page is asked with `window.otcSetupLang`, and an
+  older wizard is reloaded once installing (`ios.`/`android.setup_language_later` until then).
+  The 30 s window runs from the change or its last send.
   `unknown_payload` keeps it pending until the next connection. `lang` is set only in
   iOS/Android `WSClient.exchange`, macOS `WSClient.envelope`, otc-sync `Client.Request` and web
   `ws.ts`. The Language row/panel/picker/tray submenu is hidden while
   English is the only shipping language. Parity: iOS `LanguageSettings.swift` <-> Android
-  `i18n/LanguageSettings.kt`; macOS `LanguageSettings.swift` <-> otc-sync `engine/language.go` +
-  `internal/oslang`; `otc-sync language [auto|<code>]` (English output). Android recreates the
-  Activity on a change: state that must survive uses `rememberSaveable`, and launch-time prompts
-  ask only on a fresh create. `node web/scripts/i18n-test.mjs` tests the web runtime and choice.
+  `i18n/LanguageSettings.kt` (rules in `LanguageSync`); macOS `LanguageSettings.swift` <-> otc-sync
+  `engine/language.go` + `internal/oslang`; `otc-sync language [auto|<code>]` (English output).
+  Android recreates the Activity on a change, except on the Bluetooth setup (the manifest's
+  `locale|layoutDirection` plus `LanguageSettings.holdInPlace()`, so its link and page survive):
+  state that must survive uses `rememberSaveable` or a view model (the connection forms'
+  `ConnectionFormModel`; never a password in saved state), and launch-time prompts ask only on a
+  fresh create. `node web/scripts/i18n-test.mjs` tests the web runtime and choice.
 - New web text goes through `useT()` / `<Trans>` from `web/src/i18n` with an entry in
   `i18n/strings/en/web.<area>.json`; never keep translated text at module level or in state
   (keep a key or a `UiText`). A `UiText` is a function, so never hand one bare to React:

@@ -94,7 +94,7 @@
     "en": "New Post"
   },
   "app.social.compose.trim_badge": {
-    "text": "✂ Découper",
+    "text": "✂ Couper",
     "en": "✂ Trim"
   },
   "app.social.compose.trim_load_failed": {
@@ -242,9 +242,9 @@
     "reviewed": "claude-backtranslation 2026-10-11 #1098ec49"
   },
   "app.social.friends.remove_title": {
-    "text": "Retirer {name} de vos amis ?",
+    "text": "Retirer {name} ?",
     "en": "Remove {name}?",
-    "reviewed": "claude-backtranslation 2026-10-11 #19a2cd7d"
+    "reviewed": "claude-backtranslation 2026-10-11 #d40482a2"
   },
   "app.social.friends.removed": {
     "text": "Personne retirée de vos amis",

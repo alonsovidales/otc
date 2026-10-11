@@ -77,6 +77,11 @@ struct ConnectionProblemView: View {
                     Button(S.appShellLeaveButton) { confirmLeave = true }
                         .font(.subheadline)
                 }
+
+                // The language, while this covers the app and Settings with
+                // it: shown at once, and sent at the next sign-in.
+                LanguageMenu()
+                    .font(.subheadline)
             }
             .padding(24)
             .frame(maxWidth: 420)

@@ -342,6 +342,10 @@
     "text": "Cache des vignettes",
     "en": "Thumbnail Cache"
   },
+  "ios.setup_language_later": {
+    "text": "La page de configuration s’affichera en {language} dès le début de l’installation.",
+    "en": "The setup page will switch to {language} once the installation starts."
+  },
   "ios.setup_signin_cancelled": {
     "text": "Connexion annulée",
     "en": "Sign-in cancelled"

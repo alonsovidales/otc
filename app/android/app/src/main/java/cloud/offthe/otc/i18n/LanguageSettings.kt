@@ -30,6 +30,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 // The language the app shows (docs/i18n.md, "The stored choice"). The
 // user's choice lives on the device, per user - Settings.language and
@@ -50,8 +52,31 @@ import java.util.Locale
 // localizedContext. A device too old to keep it (unknown_payload) leaves the
 // change pending and nothing more is sent until the next connection, when
 // the device may have been updated.
+//
+// A change is sent as SetLanguage once a sign-in is accepted - never
+// before: the device answers not_authenticated, and asking would only
+// start a sign-in of its own (OTCConnection.request connects first). It
+// goes expecting the device value this phone saw when the change was made,
+// so a change made meanwhile from another app isn't overwritten: the device
+// answers "changed" and that one is adopted.
+//
+// A change made before any value of a device was seen - no device set up
+// (the welcome screen, a fresh install, after Log Out), the session ended
+// by the device (a password it turned down) or new credentials saved, not
+// signed in since launch, a device that predates the field - is for the
+// next device: nothing was seen to compare it with, so it goes without
+// `expected` (never "") at the next sign-in the device accepts, which makes
+// it that device's, whatever another app set there (a new device has
+// Automatic). Log Out and a relaunch keep it; values a device reports
+// before that sign-in don't replace it. Leaving a device from the "isn't
+// available" and "can't connect" cards carries a change still pending to
+// the next device the same way: it never reached the one left.
+//
+// A change of language recreates the Activity, except while a screen
+// follows it in place (LanguageSettings.holdInPlace: the Bluetooth setup,
+// whose link and page a recreation would tear down; MainActivity).
 
-/** The choice and what the device's answers do to it, as plain values. */
+/** The choice and what the device's answers do to it, as plain values (LanguageChoice in LanguageSettings.swift). */
 data class LanguageChoice(
     /** The local copy: "" (Automatic) or a language code - possibly one this build doesn't have, which shows English and is kept as chosen. */
     val language: String = "",
@@ -63,17 +88,42 @@ data class LanguageChoice(
      * ours was applied, and ignored.
      */
     val pendingAt: Long = 0L,
-    /** The device's value this phone last saw, SetLanguage's expected; null when it never saw one. */
+    /** The device value the pending change was made against, SetLanguage's expected; null when none had been seen (left out, never ""). */
+    val expected: String? = null,
+    /**
+     * The pending change is for the device this phone signs in to next:
+     * made before any value of a device was seen, or carried from a device
+     * left. Log Out keeps it; the next accepted sign-in ([connected]) makes
+     * it that device's.
+     */
+    val forNextDevice: Boolean = false,
+    /**
+     * The device's value this phone last saw in this session; null when it
+     * has seen none since launch, the last sign-in ended, or Log Out. Kept
+     * in memory only.
+     */
     val seen: String? = null,
 ) {
-    /** Chosen on this phone: shown at once, and pending until the device takes it. */
-    fun chosen(code: String, nowMs: Long) = copy(language = code, pending = true, pendingAt = nowMs)
+    /**
+     * Chosen on this phone: shown at once, and pending until the device
+     * takes it - against the value seen, or for the next device when none
+     * was (or a change for the next device is still waiting).
+     */
+    fun chosen(code: String, nowMs: Long): LanguageChoice {
+        val next = seen == null || (forNextDevice && pending)
+        return copy(language = code, pending = true, pendingAt = nowMs, expected = if (next) null else seen, forNextDevice = next)
+    }
 
     /** Being sent: the window counts from now. */
     fun sending(nowMs: Long) = copy(pendingAt = nowMs)
 
-    /** The device took [sent]. */
-    fun taken(sent: String) = copy(seen = sent, pending = pending && language != sent)
+    /** The device took [sent]. A change made while it was on its way goes next, against [sent]. */
+    fun taken(sent: String) = when {
+        // pendingAt stays: it starts the window.
+        language == sent -> copy(seen = sent, pending = false, expected = null, forNextDevice = false)
+        pending -> copy(seen = sent, expected = sent, forNextDevice = false)
+        else -> copy(seen = sent)
+    }
 
     /**
      * The device refused [sent] because its value had changed meanwhile (Ack
@@ -81,27 +131,57 @@ data class LanguageChoice(
      * chosen again since - that one goes next, expecting [value].
      */
     fun refused(sent: String, value: String) =
-        if (language == sent) copy(language = value, pending = false, pendingAt = 0L, seen = value)
-        else copy(seen = value)
+        if (language == sent) copy(language = value, seen = value).cleared()
+        else copy(seen = value, expected = value, forNextDevice = false)
+
+    /** "changed" with the device's value unread: [sent] is no longer pending, and the device's next Status or Settings value is adopted. */
+    fun refused(sent: String) = if (language == sent) copy(seen = null).cleared() else copy(seen = null)
 
     /**
      * The device's value, from its Status or Settings (null: a device that
      * predates the field): adopted, unless it is an older answer to a change
-     * of ours still within [WINDOW_MS].
+     * of ours still within [WINDOW_MS], or a change for the next device
+     * waits for its sign-in.
      */
     fun deviceSaid(value: String?, nowMs: Long): LanguageChoice {
         if (value == null) return this
+        // Waiting for the next device's sign-in: what a device says before it doesn't count.
+        if (pending && forNextDevice) return this
         // Ours, seen: nothing left to wait for.
-        if (value == language) return copy(seen = value, pending = false, pendingAt = 0L)
+        if (value == language) return copy(seen = value).cleared()
         if (pendingAt != 0L) {
             val age = nowMs - pendingAt
             if (age in 0 until WINDOW_MS) return this
         }
-        return copy(language = value, seen = value, pending = false, pendingAt = 0L)
+        return copy(language = value, seen = value).cleared()
     }
 
-    /** Log Out: the copy stays; what belonged to the device signed in to goes. */
-    fun loggedOut() = copy(pending = false, pendingAt = 0L, seen = null)
+    /**
+     * A sign-in the device accepted: a change for the next device is this
+     * device's from now on (sent to it now, and dropped like any other by a
+     * later Log Out).
+     */
+    fun connected() = copy(forNextDevice = false)
+
+    /**
+     * The session ended without Log Out (the device turned the password
+     * down, or new credentials were saved): the value seen goes with it, so
+     * a change made before the next sign-in goes without expected. A change
+     * already pending keeps its own.
+     */
+    fun sessionEnded() = copy(seen = null)
+
+    /**
+     * Log Out: the copy stays; what belonged to the device signed in to goes
+     * - a change for the next device stays, and so does one still pending
+     * when [carryPending] (leaving from the cards: it never reached the
+     * device left), as one for the next device.
+     */
+    fun loggedOut(carryPending: Boolean = false) =
+        if (pending && (forNextDevice || carryPending)) copy(seen = null, expected = null, forNextDevice = true)
+        else copy(seen = null).cleared()
+
+    private fun cleared() = copy(pending = false, pendingAt = 0L, expected = null, forNextDevice = false)
 
     companion object {
         const val WINDOW_MS = 30_000L
@@ -158,7 +238,39 @@ data class LanguageChoice(
             val w = Locale.forLanguageTag(want)
             return p.language == w.language && p.script == w.script
         }
+
+        // The prefs file's keys (LanguageSettings.PREFS).
+        internal const val KEY_LANGUAGE = "language"
+        internal const val KEY_PENDING = "pending"
+        internal const val KEY_PENDING_AT = "pendingAt"
+        internal const val KEY_EXPECTED = "expected"
+        internal const val KEY_FOR_NEXT_DEVICE = "forNextDevice"
+        /** Written by builds before the next-device rule: seen is kept in memory only now. */
+        internal const val KEY_SEEN_BEFORE = "seen"
+
+        /**
+         * A choice as kept across launches, from the prefs file's values
+         * ([toStored]): expected and forNextDevice only while pending, and
+         * never seen. A relaunch is no change of device: a pending change
+         * stays so.
+         */
+        fun stored(values: Map<String, *>): LanguageChoice {
+            val pending = values[KEY_PENDING] as? Boolean ?: false
+            return LanguageChoice(
+                language = values[KEY_LANGUAGE] as? String ?: "",
+                pending = pending,
+                pendingAt = values[KEY_PENDING_AT] as? Long ?: 0L,
+                expected = if (pending) values[KEY_EXPECTED] as? String else null,
+                forNextDevice = pending && values[KEY_FOR_NEXT_DEVICE] == true,
+            )
+        }
     }
+
+    /** What is kept of it across launches, read back by [stored]: everything but [seen]. A null value is a key removed. */
+    fun toStored(): Map<String, Any?> = mapOf(
+        KEY_LANGUAGE to language, KEY_PENDING to pending, KEY_PENDING_AT to pendingAt,
+        KEY_EXPECTED to expected, KEY_FOR_NEXT_DEVICE to forNextDevice,
+    )
 }
 
 /** What the device answered to SetLanguage. */
@@ -180,23 +292,31 @@ enum class LanguageAnswer {
     }
 }
 
-/** The app's choice of language: kept here, shown through AppCompat, told to the device. */
-object LanguageSettings {
-    /** The prefs file: outside SecretsStore's Log Out wipe and outside backup (data_extraction_rules.xml lists otc_settings.xml only). */
-    const val PREFS = "otc_language"
-    private const val KEY_LANGUAGE = "language"
-    private const val KEY_PENDING = "pending"
-    private const val KEY_PENDING_AT = "pendingAt"
-    private const val KEY_SEEN = "seen"
-    /** The tags last handed to Android ("" for the system's), and the API level then. */
-    private const val KEY_APPLIED = "applied"
-    private const val KEY_APPLIED_SDK = "appliedSdk"
-    private const val TAG = "OTC/Language"
 
-    /** The language the app shows, as every request's lang says it (WSClient.exchange). */
-    @Volatile var wireCode: String = Languages.SOURCE
-        internal set
+/** What the device is told and asked (LanguageSettings.Device on iOS); JVM tests stand in for it. */
+interface LanguageDevice {
+    /** Whether a sign-in has been accepted and holds: nothing is sent before (the connection would start one of its own). */
+    fun signedIn(): Boolean
 
+    /** SetLanguage: [expected] null is left out. Throws when the request fails. */
+    suspend fun setLanguage(language: String, expected: String?): RespEnvelope
+
+    /** The device's value now, read from its Settings after a "changed"; null when it didn't say. */
+    suspend fun language(): String?
+}
+
+/**
+ * The rules of [LanguageSettings] that need no Android: the choice, the
+ * device's answers to it and the sends (LanguageSettings.swift's class).
+ * [save] keeps every change, [log] says why a send failed.
+ */
+internal class LanguageSync(
+    private val device: LanguageDevice,
+    private val save: (LanguageChoice) -> Unit,
+    private val scope: CoroutineScope,
+    private val now: () -> Long = System::currentTimeMillis,
+    private val log: (String) -> Unit = {},
+) {
     private val _choice = MutableStateFlow(LanguageChoice())
     val choice: StateFlow<LanguageChoice> = _choice
 
@@ -207,23 +327,194 @@ object LanguageSettings {
     /** unknown_payload on this connection: nothing is sent until the next, and what was chosen stays pending. */
     @Volatile private var tooOld = false
     private val lock = Any()
+    // One SetLanguage at a time. A send asked for while one is on its way
+    // (a newer choice, a sign-in accepted meanwhile) waits its turn, and
+    // goes if something is still pending then: a send that failed on the
+    // session that ended goes again on the one that signed in, once.
     private val sendLock = Mutex()
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** At launch, the copy as kept ([LanguageChoice.stored]). */
+    fun restore(c: LanguageChoice) {
+        synchronized(lock) { _choice.value = c }
+    }
+
+    /** Picked on the Language screen or a screen's language menu: sent now if signed in, else at the next sign-in. */
+    fun choose(code: String) {
+        update { it.chosen(code, now()) }
+        sendPending()
+    }
+
+    /**
+     * The device's value (null: a device that predates it), from a Status
+     * poll or a Settings fetch: adopted, unless it is an older answer to a
+     * change of ours still on its way, or a change for the next device waits
+     * for its sign-in.
+     */
+    fun deviceSaid(value: String?) {
+        if (value == null) {
+            _deviceKeepsIt.value = false
+            return
+        }
+        _deviceKeepsIt.value = true
+        update { it.deviceSaid(value, now()) }
+    }
+
+    /**
+     * A sign-in the device accepted (a password, stored credentials, a
+     * reconnect; OTCConnection, before that session's first Status or
+     * Settings): a device that was too old may have been updated, and a
+     * change that didn't reach it - or one made for the next device - goes
+     * now.
+     */
+    fun connected() {
+        tooOld = false
+        update { if (it.forNextDevice) it.connected() else it }
+        sendPending()
+    }
+
+    /** The session ended without Log Out (the device turned the password down, or new credentials were saved): the device value seen goes. */
+    fun sessionEnded() = update { it.sessionEnded() }
+
+    /**
+     * Log Out: the copy stays. [carryPending]: leaving a device from the
+     * cards that say it can't be reached or signed in to - a change still
+     * pending goes to the next device.
+     */
+    fun loggedOut(carryPending: Boolean) {
+        update { it.loggedOut(carryPending) }
+        tooOld = false
+        _deviceKeepsIt.value = null
+    }
+
+    fun update(f: (LanguageChoice) -> LanguageChoice) {
+        synchronized(lock) {
+            val before = _choice.value
+            val after = f(before)
+            if (after == before) return
+            _choice.value = after
+            save(after)
+        }
+    }
+
+    private fun sendPending() {
+        if (tooOld || !_choice.value.pending || !device.signedIn()) return
+        // The window counts from now, before the coroutine runs: a Status
+        // answered meanwhile (at a connection, the first poll) doesn't undo
+        // a change made long ago that is only now being sent.
+        update { if (it.pending) it.sending(now()) else it }
+        scope.launch { sendLock.withLock { sendLoop() } }
+    }
+
+    /** Again while a newer choice waits (at most three in a row; the rest goes at the next connection). */
+    private suspend fun sendLoop() {
+        repeat(3) {
+            val st = _choice.value
+            if (!st.pending || tooOld || !device.signedIn()) return
+            val sent = st.language
+            val expected = st.expected
+            update { it.sending(now()) }
+            val answer = try {
+                LanguageAnswer.of(device.setLanguage(sent, expected))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log("could not send the language: $e")
+                LanguageAnswer.FAILED
+            }
+            when (answer) {
+                LanguageAnswer.TAKEN -> {
+                    _deviceKeepsIt.value = true
+                    update { it.taken(sent) }
+                }
+                LanguageAnswer.CHANGED -> {
+                    val value = device.language()
+                    update { if (value != null) it.refused(sent, value) else it.refused(sent) }
+                }
+                // Still pending: sent again at the next connection.
+                LanguageAnswer.TOO_OLD -> {
+                    tooOld = true
+                    _deviceKeepsIt.value = false
+                    return
+                }
+                // Still pending: sent again at the next connection (or now,
+                // by a send asked for meanwhile by a sign-in).
+                LanguageAnswer.FAILED -> return
+            }
+        }
+    }
+}
+
+/** The app's choice of language: kept here, shown through AppCompat, told to the device. */
+object LanguageSettings {
+    /** The prefs file: outside SecretsStore's Log Out wipe and outside backup (data_extraction_rules.xml lists otc_settings.xml only). */
+    const val PREFS = "otc_language"
+    /** The tags last handed to Android ("" for the system's), and the API level then. */
+    private const val KEY_APPLIED = "applied"
+    private const val KEY_APPLIED_SDK = "appliedSdk"
+    private const val TAG = "OTC/Language"
+
+    private val _wire = MutableStateFlow(Languages.SOURCE)
+    /** The language the app shows, as every request's lang says it: what the Bluetooth setup's page follows. */
+    val wire: StateFlow<String> = _wire
+
+    /** The language the app shows, as every request's lang says it (WSClient.exchange). */
+    var wireCode: String
+        get() = _wire.value
+        internal set(value) { _wire.value = value }
+
+    /**
+     * The app's language as a locale for the numbers the app writes by hand
+     * (decimalText, the side menu's percentages): the language's own tag,
+     * not the region's, so English stays "45.5" on every phone (iOS's
+     * L10n.current.locale).
+     */
+    val numberLocale: Locale get() = Locale.forLanguageTag(Languages.forCode(wireCode)?.tag ?: Languages.SOURCE)
+
+    private val sync = LanguageSync(LiveDevice, save = ::save, scope = CoroutineScope(SupervisorJob() + Dispatchers.IO), log = { Log.w(TAG, it) })
+
+    val choice: StateFlow<LanguageChoice> get() = sync.choice
+
+    /** Whether the device keeps the choice for every app: null until it has said, false for one too old to (the Language screen says so). */
+    val deviceKeepsIt: StateFlow<Boolean?> get() = sync.deviceKeepsIt
 
     /** The picker is offered only while the build has more than one language: English alone has nothing to choose. */
     val pickerShown: Boolean get() = Languages.all.size > 1
 
+    // Screens open that follow a change of language in place (holdInPlace).
+    private val inPlace = AtomicInteger()
+
+    /**
+     * Whether a change of language is shown where the app is, without
+     * recreating the Activity (MainActivity.onConfigurationChanged).
+     */
+    val followsInPlace: Boolean get() = inPlace.get() > 0
+
+    /**
+     * For as long as a screen is open whose state a recreation of the
+     * Activity would tear down - the Bluetooth setup: its link to the
+     * device and the wizard's page with what was typed in it - a change of
+     * language is shown in place (Compose re-reads the resources, and the
+     * page is asked to follow). The returned call ends the hold.
+     */
+    fun holdInPlace(): () -> Unit {
+        inPlace.incrementAndGet()
+        val held = AtomicBoolean(true)
+        return { if (held.getAndSet(false)) inPlace.decrementAndGet() }
+    }
+
     private fun prefs(ctx: Context): SharedPreferences = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     /**
-     * Application.onCreate: the copy, and below API 33 the language handed
-     * to AppCompat again (it only keeps it in memory; from 33 the system
-     * keeps it). Only sets a static there: the first Activity applies it.
+     * Application.onCreate: the copy (a change still pending stays so: a
+     * relaunch is no change of device), and below API 33 the language
+     * handed to AppCompat again (it only keeps it in memory; from 33 the
+     * system keeps it). Only sets a static there: the first Activity
+     * applies it.
      */
     fun start(ctx: Context) {
-        _choice.value = load(ctx)
+        sync.restore(LanguageChoice.stored(prefs(ctx).all))
         if (Build.VERSION.SDK_INT < 33) {
-            val tag = LanguageChoice.tagFor(_choice.value.language)
+            val tag = LanguageChoice.tagFor(choice.value.language)
             AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
             saveApplied(ctx, tag)
         }
@@ -247,7 +538,7 @@ object LanguageSettings {
                 // Picked in Settings > Apps > Languages: this phone's change,
                 // shown already, and sent to the device.
                 saveApplied(activity, platform)
-                choose(LanguageChoice.codeFor(platform))
+                sync.choose(LanguageChoice.codeFor(platform))
                 refreshWire(activity, notify = true)
                 return
             }
@@ -256,14 +547,14 @@ object LanguageSettings {
                 // phone, or picked before the app first ran. The phone's
                 // language until the device says, not sent to it.
                 saveApplied(activity, platform)
-                update { it.copy(language = LanguageChoice.codeFor(platform)) }
+                sync.update { it.copy(language = LanguageChoice.codeFor(platform)) }
                 refreshWire(activity, notify = true)
                 return
             }
             // Recorded on another API level (an OS upgrade): what the system
             // reports now says nothing about a choice.
         }
-        val want = LanguageChoice.tagFor(_choice.value.language)
+        val want = LanguageChoice.tagFor(choice.value.language)
         if (!LanguageChoice.showsAlready(platform, want)) {
             saveApplied(activity, want)
             AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(want))
@@ -274,13 +565,18 @@ object LanguageSettings {
         }
     }
 
-    /** Picked on the Language screen: shown at once (the Activity is recreated) and sent to the device. */
+    /**
+     * Picked on the Language screen or a screen's language menu
+     * (LanguageMenu): shown at once (the Activity is recreated, or the
+     * screen follows in place) and sent to the device now if signed in,
+     * else at the next sign-in.
+     */
     fun choose(context: Context, code: String) {
         val tag = LanguageChoice.tagFor(code)
         saveApplied(context, tag)
         AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
         refreshWire(context, notify = true, tags = tag)
-        choose(code)
+        sync.choose(code)
     }
 
     /**
@@ -289,16 +585,11 @@ object LanguageSettings {
      * no form to lose there.
      */
     fun applyFromLanguageScreen(context: Context) {
-        val want = LanguageChoice.tagFor(_choice.value.language)
+        val want = LanguageChoice.tagFor(choice.value.language)
         if (LanguageChoice.showsAlready(platformTags(context), want)) return
         saveApplied(context, want)
         AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(want))
         refreshWire(context, notify = true, tags = want)
-    }
-
-    private fun choose(code: String) {
-        update { it.chosen(code, System.currentTimeMillis()) }
-        sendPending()
     }
 
     fun deviceSaid(status: Status) = deviceSaid(if (status.hasLanguage()) status.language else null)
@@ -310,27 +601,26 @@ object LanguageSettings {
      * poll or a Settings fetch: kept as the copy, and shown from
      * MainActivity's next start.
      */
-    fun deviceSaid(value: String?) {
-        if (value == null) {
-            _deviceKeepsIt.value = false
-            return
-        }
-        _deviceKeepsIt.value = true
-        update { it.deviceSaid(value, System.currentTimeMillis()) }
-    }
+    fun deviceSaid(value: String?) = sync.deviceSaid(value)
 
-    /** Signed in (again): a device that was too old may have been updated, and a change that didn't reach it goes now. */
-    fun connected() {
-        tooOld = false
-        sendPending()
-    }
+    /**
+     * A sign-in the device accepted (OTCConnection.signedIn, right after
+     * authenticated is set, so ahead of that session's first Status or
+     * Settings): a change that didn't reach the device, or one made for the
+     * next device, goes now.
+     */
+    fun connected() = sync.connected()
 
-    /** Log Out: the copy stays, and with it the language shown. */
-    fun loggedOut() {
-        update { it.loggedOut() }
-        tooOld = false
-        _deviceKeepsIt.value = null
-    }
+    /** The session ended without Log Out (the device turned the password down, or new credentials were saved): the device value seen goes. */
+    fun sessionEnded() = sync.sessionEnded()
+
+    /**
+     * Log Out: the copy stays, and with it the language shown.
+     * [carryPending]: leaving a device from the cards that say it can't be
+     * reached or signed in to - a change still pending goes to the next
+     * device.
+     */
+    fun loggedOut(carryPending: Boolean = false) = sync.loggedOut(carryPending)
 
     /** A configuration change reached the Application: a new system language (Automatic) or per-app one. */
     fun configurationChanged(ctx: Context) {
@@ -392,94 +682,38 @@ object LanguageSettings {
         if (OTCConnection.authenticated.value) FCMPush.registerKnown(app)
     }
 
-    private fun sendPending() {
-        if (tooOld || !_choice.value.pending) return
-        // The window counts from now, before the coroutine runs: a Status
-        // answered meanwhile (at a connection, the first poll) doesn't undo
-        // a change made long ago that is only now being sent.
-        update { if (it.pending) it.sending(System.currentTimeMillis()) else it }
-        scope.launch { sendLock.withLock { sendLoop() } }
-    }
+    /** Through the app's connection. */
+    private object LiveDevice : LanguageDevice {
+        override fun signedIn(): Boolean = OTCConnection.authenticated.value
 
-    /** One SetLanguage at a time, again while a newer choice waits (at most three in a row; the rest goes at the next connection). */
-    private suspend fun sendLoop() {
-        repeat(3) {
-            val st = _choice.value
-            if (!st.pending || tooOld) return
-            val sent = st.language
-            val expected = st.seen
-            update { it.sending(System.currentTimeMillis()) }
-            val answer = try {
-                LanguageAnswer.of(
-                    OTCConnection.request(timeoutMs = 60_000L) {
-                        val m = SetLanguage.newBuilder().setLanguage(sent)
-                        if (expected != null) m.expected = expected
-                        it.setReqSetLanguage(m)
-                    },
-                )
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "could not send the language: $e")
-                LanguageAnswer.FAILED
+        override suspend fun setLanguage(language: String, expected: String?): RespEnvelope =
+            OTCConnection.request(timeoutMs = 60_000L) {
+                val m = SetLanguage.newBuilder().setLanguage(language)
+                if (expected != null) m.expected = expected
+                it.setReqSetLanguage(m)
             }
-            when (answer) {
-                LanguageAnswer.TAKEN -> {
-                    _deviceKeepsIt.value = true
-                    update { it.taken(sent) }
-                }
-                LanguageAnswer.CHANGED -> {
-                    val value = deviceValue() ?: return
-                    update { it.refused(sent, value) }
-                }
-                // Still pending: sent again at the next connection.
-                LanguageAnswer.TOO_OLD -> {
-                    tooOld = true
-                    _deviceKeepsIt.value = false
-                    return
-                }
-                // Still pending: sent again at the next connection.
-                LanguageAnswer.FAILED -> return
-            }
+
+        override suspend fun language(): String? = try {
+            val resp = OTCConnection.request(timeoutMs = 60_000L) { it.setReqGetSettings(GetSettings.getDefaultInstance()) }
+            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_SETTINGS && resp.respSettings.hasLanguage()) resp.respSettings.language else null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
         }
-    }
-
-    /** The device's value now (after a "changed"); null when it didn't say. */
-    private suspend fun deviceValue(): String? = try {
-        val resp = OTCConnection.request(timeoutMs = 60_000L) { it.setReqGetSettings(GetSettings.getDefaultInstance()) }
-        if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_SETTINGS && resp.respSettings.hasLanguage()) resp.respSettings.language else null
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        null
-    }
-
-    private fun update(f: (LanguageChoice) -> LanguageChoice) {
-        synchronized(lock) {
-            val before = _choice.value
-            val after = f(before)
-            if (after == before) return
-            _choice.value = after
-            save(after)
-        }
-    }
-
-    private fun load(ctx: Context): LanguageChoice {
-        val p = prefs(ctx)
-        return LanguageChoice(
-            language = p.getString(KEY_LANGUAGE, "") ?: "",
-            pending = p.getBoolean(KEY_PENDING, false),
-            pendingAt = p.getLong(KEY_PENDING_AT, 0L),
-            seen = if (p.contains(KEY_SEEN)) p.getString(KEY_SEEN, null) else null,
-        )
     }
 
     private fun save(c: LanguageChoice) {
         prefs(cloud.offthe.otc.OTCApp.instance).edit {
-            putString(KEY_LANGUAGE, c.language)
-            putBoolean(KEY_PENDING, c.pending)
-            putLong(KEY_PENDING_AT, c.pendingAt)
-            if (c.seen != null) putString(KEY_SEEN, c.seen) else remove(KEY_SEEN)
+            for ((key, value) in c.toStored()) {
+                when (value) {
+                    null -> remove(key)
+                    is String -> putString(key, value)
+                    is Boolean -> putBoolean(key, value)
+                    is Long -> putLong(key, value)
+                }
+            }
+            remove(LanguageChoice.KEY_SEEN_BEFORE)
         }
     }
 

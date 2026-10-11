@@ -84,6 +84,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -684,12 +686,31 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
 private fun SelectionBar(count: Int, hint: Boolean, canMerge: Boolean, onClose: () -> Unit, onMerge: () -> Unit, onDelete: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     BoxWithConstraints(Modifier.fillMaxWidth().height(64.dp).background(colors.surfaceContainerHigh)) {
-        // Narrow: the actions are icons (named for TalkBack).
-        val compact = maxWidth < 360.dp
+        // Narrow, or when the labelled buttons would leave the count no room
+        // ("2 ausgewählt" beside Zusammenführen and Löschen at 360 dp): the
+        // actions are icons (named for TalkBack).
+        val countLabel = S.appShellSelected(count).resolve()
+        val mergeLabel = S.appPhotosPeopleMerge().resolve()
+        val deleteLabel = S.commonDelete().resolve()
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val titleStyle = MaterialTheme.typography.titleMedium
+        val buttonStyle = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+        val labelsFit = remember(countLabel, mergeLabel, deleteLabel, maxWidth, density, titleStyle, buttonStyle) {
+            with(density) {
+                fun width(text: String, style: TextStyle) = measurer.measure(text, style, softWrap = false, maxLines = 1, density = density).size.width.toDp()
+                // A labelled BarButton: its padding, icon and gap around the label.
+                fun button(label: String) = 10.dp + 22.dp + 8.dp + width(label, buttonStyle) + 14.dp
+                // What the row leaves between its padding, the close button and the column's start.
+                val room = maxWidth - 4.dp - 8.dp - 48.dp - 4.dp
+                width(countLabel, titleStyle) + button(mergeLabel) + button(deleteLabel) <= room
+            }
+        }
+        val compact = maxWidth < 360.dp || !labelsFit
         Row(Modifier.fillMaxSize().padding(start = 4.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onClose) { Icon(PeopleIcons.Close, S.appPhotosPeopleClearSelection().resolve()) }
             Column(Modifier.weight(1f).padding(start = 4.dp)) {
-                Text(S.appShellSelected(count).resolve(), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(countLabel, style = titleStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (hint) Text(
                     S.appPhotosPeopleMergeHint().resolve(), style = MaterialTheme.typography.bodySmall,
                     color = colors.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis,
@@ -697,10 +718,10 @@ private fun SelectionBar(count: Int, hint: Boolean, canMerge: Boolean, onClose: 
             }
             // Merge with one face picked: there, dimmed, and saying why when pressed.
             BarButton(
-                S.appPhotosPeopleMerge().resolve(), PeopleIcons.Merge, compact, dimmed = !canMerge, tint = colors.onSurface,
+                mergeLabel, PeopleIcons.Merge, compact, dimmed = !canMerge, tint = colors.onSurface,
                 dimmedLabel = S.androidPhotosPeopleMergeDimmed().resolve(), onClick = onMerge,
             )
-            BarButton(S.commonDelete().resolve(), PeopleIcons.Trash, compact, tint = Danger, onClick = onDelete)
+            BarButton(deleteLabel, PeopleIcons.Trash, compact, tint = Danger, onClick = onDelete)
         }
     }
 }

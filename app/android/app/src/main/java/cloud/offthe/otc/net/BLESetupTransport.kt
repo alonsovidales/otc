@@ -116,6 +116,14 @@ class BLESetupTransport(private val context: Context) {
     private val _everReady = MutableStateFlow(false)
     val everReady: StateFlow<Boolean> = _everReady
 
+    /**
+     * The device is installing, or was installed already (its /api/state):
+     * a reload of the wizard's page loses nothing, as it then shows only
+     * the device's state (SetupPage, in another language).
+     */
+    private val _installStarted = MutableStateFlow(false)
+    val installStarted: StateFlow<Boolean> = _installStarted
+
     private val adapter: BluetoothAdapter? =
         (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
     private var gatt: BluetoothGatt? = null
@@ -453,13 +461,21 @@ class BLESetupTransport(private val context: Context) {
         return answer
     }
 
-    /** The wizard's own state tells when the device is ready for the app. */
+    /**
+     * The wizard's own state tells when the device is ready for the app,
+     * and when its page can be reloaded in another language.
+     */
     private fun noteState(body: String) {
         val st = runCatching { JSONObject(body) }.getOrNull() ?: return
         if (st.optString("name").isNotEmpty()) {
             val d = st.optString("domain")
             if (_setupDomain.value != d) _setupDomain.value = d
         }
+        if (!_installStarted.value && cloud.offthe.otc.ui.BLESetupLang.installStarted(
+                alreadyInstalled = st.optBoolean("already_installed", false),
+                phase = st.optJSONObject("install")?.optString("phase", "idle"),
+            )
+        ) _installStarted.value = true
         val install = st.optJSONObject("install") ?: return
         if (install.optString("phase") != "online") return
         val domain = install.optString("domain").ifEmpty { st.optString("domain") }

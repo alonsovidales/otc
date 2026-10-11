@@ -799,7 +799,9 @@ struct TopSearchPanel: View {
                     NavIconView(.docSearch, size: 20)
                         .foregroundStyle(.secondary)
                         .frame(width: 32, height: 32)
-                    Text(docsLabel(text)).lineLimit(1)
+                    // Two lines: French and Portuguese cut "Rechercher « plan »
+                    // dans les docum…" on an iPhone SE.
+                    Text(docsLabel(text)).lineLimit(2)
                     Spacer(minLength: 0)
                 case .file(_, let kind, let name, let dir, let nameSpan, let dirSpan):
                     NavIconView(kind.icon, size: 20)

@@ -94,7 +94,7 @@
     "en": "New Post"
   },
   "app.social.compose.trim_badge": {
-    "text": "✂ Recortar",
+    "text": "✂ Cortar",
     "en": "✂ Trim"
   },
   "app.social.compose.trim_load_failed": {
@@ -242,9 +242,9 @@
     "reviewed": "claude-backtranslation 2026-10-11 #22d3ae3f"
   },
   "app.social.friends.remove_title": {
-    "text": "¿Eliminar la amistad con {name}?",
+    "text": "¿Eliminar a {name}?",
     "en": "Remove {name}?",
-    "reviewed": "claude-backtranslation 2026-10-11 #2d7a1010"
+    "reviewed": "claude-backtranslation 2026-10-11 #0adf72c4"
   },
   "app.social.friends.removed": {
     "text": "Amistad eliminada",

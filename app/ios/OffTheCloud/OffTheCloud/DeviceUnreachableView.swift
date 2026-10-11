@@ -58,6 +58,13 @@ struct DeviceUnreachableView: View {
                 }
                 .padding(.top, 4)
             }
+
+            // The language, while this covers the app and Settings with it:
+            // shown at once, and sent once the device answers again (or to
+            // the next device, when this one is left).
+            LanguageMenu()
+                .font(.subheadline)
+                .padding(.top, 4)
         }
         .padding(28)
         .frame(maxWidth: 360)

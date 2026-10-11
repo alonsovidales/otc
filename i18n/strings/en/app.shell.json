@@ -637,8 +637,8 @@
       "other": "{count}d ago"
     },
     "args": [["count", "count"]],
-    "note": "How long ago something happened, in days, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (d for days).",
-    "max": 16
+    "note": "How long ago something happened, in days, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Short: the English abbreviates (d for days); a language may use its own \"ago\" wording (il y a, vor, geleden) within the max, with its usual short units.",
+    "max": 24
   },
   "app.shell.time_hours_ago": {
     "text": {
@@ -646,8 +646,8 @@
       "other": "{count}h ago"
     },
     "args": [["count", "count"]],
-    "note": "How long ago something happened, in hours, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (h for hours).",
-    "max": 16
+    "note": "How long ago something happened, in hours, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Short: the English abbreviates (h for hours); a language may use its own \"ago\" wording (il y a, vor, geleden) within the max, with its usual short units.",
+    "max": 24
   },
   "app.shell.time_just_now": {
     "text": "just now",
@@ -660,8 +660,8 @@
       "other": "{count}m ago"
     },
     "args": [["count", "count"]],
-    "note": "How long ago something happened, in minutes, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (m for minutes).",
-    "max": 16
+    "note": "How long ago something happened, in minutes, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Short: the English abbreviates (m for minutes); a language may use its own \"ago\" wording (il y a, vor, geleden) within the max, with its usual short units.",
+    "max": 24
   },
   "app.shell.upload_left": {
     "text": {

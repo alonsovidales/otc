@@ -82,6 +82,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import cloud.offthe.otc.i18n.LanguageSettings
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.androidMenuSections
@@ -134,6 +135,8 @@ import cloud.offthe.otc.ui.settings.sizeText
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import java.text.NumberFormat
+import java.util.Locale
 
 // Port of the web's Sidebar.tsx and Sidebar.css: the left menu of the wide
 // layout (MainView, a window 600dp or more across - a phone turned
@@ -246,10 +249,18 @@ data class StorageSummary(
 /** Rounded to two decimals, kept within 0-100 (the web's round). */
 internal fun pctRound(x: Double): Double = (Math.round(x * 100) / 100.0).coerceIn(0.0, 100.0)
 
-/** A percentage as the web writes it: "45", "45.5", "45.67". */
-internal fun pctText(x: Double): String {
+/**
+ * A percentage as the web writes it: "45", "45.5", "45.67" - with the
+ * decimal mark of the app's language ("45,5" in Spanish), as iOS's
+ * StorageSummary and the Settings status line (decimalText) write it.
+ */
+internal fun pctText(x: Double, locale: Locale = LanguageSettings.numberLocale): String {
     val r = pctRound(x)
-    return if (r == Math.floor(r)) r.toLong().toString() else r.toString().trimEnd('0').trimEnd('.')
+    if (r == Math.floor(r)) return r.toLong().toString()
+    return NumberFormat.getNumberInstance(locale).apply {
+        isGroupingUsed = false
+        maximumFractionDigits = 2
+    }.format(r)
 }
 
 internal fun usedPct(used: Int, total: Int): Double = if (used <= 0 || total <= 0) 0.0 else pctRound(used.toDouble() / total * 100)

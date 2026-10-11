@@ -14,12 +14,26 @@
 //  same.
 //
 //  A change made here is shown at once (L10n.shared.set: SwiftUI follows
-//  live, spike S1) and sent as SetLanguage, expecting the device value this
-//  phone last saw, so a change made meanwhile from another app isn't
-//  overwritten: the device answers "changed" and that one is adopted. A
-//  device too old to keep it (unknown_payload) leaves the change pending
-//  and nothing more is sent until the next connection, when the device may
-//  have been updated.
+//  live, spike S1) and sent as SetLanguage once a sign-in is accepted -
+//  never before: the device answers not_authenticated, and asking would
+//  only start a sign-in of its own. It goes expecting the device value this
+//  phone last saw when the change was made, so a change made meanwhile from
+//  another app isn't overwritten: the device answers "changed" and that one
+//  is adopted. A device too old to keep it (unknown_payload) leaves the
+//  change pending and nothing more is sent until the next connection, when
+//  the device may have been updated.
+//
+//  A change made before any value of a device was seen - no device set up
+//  (the welcome screen, a fresh install, after Log Out), the session ended
+//  by the device (a password it turned down) or new credentials saved, not
+//  signed in since launch, a device that predates the field - is for the
+//  next device: nothing was seen to compare it with, so it goes without
+//  `expected` (never "") at the next sign-in the device accepts, which
+//  makes it that device's, whatever another app set there (a new device
+//  has Automatic). Log Out and a relaunch keep it; values a device reports
+//  before that sign-in don't replace it. Leaving a device from the
+//  "isn't available" and "can't connect" cards carries a change still
+//  pending to the next device the same way: it never reached the one left.
 //
 
 import Foundation
@@ -36,8 +50,17 @@ struct LanguageChoice: Equatable, Sendable {
     /// different value from the device is an answer given before ours was
     /// applied, and ignored.
     var pendingAt: Date?
-    /// The device's value this phone last saw, SetLanguage's `expected`;
-    /// nil when it never saw one.
+    /// The device value the pending change was made against, SetLanguage's
+    /// `expected`; nil when none had been seen (left out, never "").
+    var expected: String?
+    /// The pending change is for the device this phone signs in to next:
+    /// made before any value of a device was seen, or carried from a device
+    /// left. Log Out keeps it; the next accepted sign-in (connected) makes
+    /// it that device's.
+    var forNextDevice = false
+    /// The device's value this phone last saw in this session; nil when it
+    /// has seen none since launch, the last sign-in ended, or Log Out.
+    /// Kept in memory only.
     var seen: String?
 
     static let window: TimeInterval = 30
@@ -52,8 +75,11 @@ struct LanguageChoice: Equatable, Sendable {
     }
 
     /// Chosen on this phone: shown at once, and pending until the device
-    /// takes it.
+    /// takes it - against the value seen, or for the next device when none
+    /// was (or a change for the next device is still waiting).
     mutating func choose(_ code: String, at now: Date) {
+        forNextDevice = seen == nil || (forNextDevice && pending)
+        expected = forNextDevice ? nil : seen
         language = code
         pending = true
         pendingAt = now
@@ -64,10 +90,18 @@ struct LanguageChoice: Equatable, Sendable {
         pendingAt = now
     }
 
-    /// The device took `sent`.
+    /// The device took `sent`. A change made while it was on its way goes
+    /// next, against `sent`.
     mutating func taken(_ sent: String) {
         seen = sent
-        if language == sent { pending = false }
+        if language == sent {
+            pending = false
+            expected = nil
+            forNextDevice = false
+        } else if pending {
+            expected = sent
+            forNextDevice = false
+        }
     }
 
     /// The device refused `sent` because its value had changed meanwhile
@@ -75,10 +109,20 @@ struct LanguageChoice: Equatable, Sendable {
     /// has chosen again since - that one goes next, expecting `value`.
     mutating func refused(_ sent: String, deviceHolds value: String) {
         seen = value
-        guard language == sent else { return }
+        guard language == sent else {
+            expected = value
+            forNextDevice = false
+            return
+        }
         language = value
-        pending = false
-        pendingAt = nil
+        clearPending()
+    }
+
+    /// "changed" with the device's value unread: `sent` is no longer
+    /// pending, and the device's next Status or Settings value is adopted.
+    mutating func refused(_ sent: String) {
+        seen = nil
+        if language == sent { clearPending() }
     }
 
     /// The device's value, from its Status or Settings (nil: a device that
@@ -86,11 +130,13 @@ struct LanguageChoice: Equatable, Sendable {
     @discardableResult
     mutating func deviceSaid(_ value: String?, at now: Date) -> Bool {
         guard let value else { return false }
+        // Waiting for the next device's sign-in: what a device says before
+        // it doesn't count.
+        if pending && forNextDevice { return false }
         if value == language {
             // Ours, seen: nothing left to wait for.
             seen = value
-            pending = false
-            pendingAt = nil
+            clearPending()
             return false
         }
         if let at = pendingAt {
@@ -99,16 +145,44 @@ struct LanguageChoice: Equatable, Sendable {
         }
         seen = value
         language = value
-        pending = false
-        pendingAt = nil
+        clearPending()
         return true
     }
 
-    /// Log Out: the copy stays; what belonged to the device signed in to goes.
-    mutating func loggedOut() {
+    /// A sign-in the device accepted: a change for the next device is this
+    /// device's from now on (sent to it now, and dropped like any other by
+    /// a later Log Out).
+    mutating func connected() {
+        forNextDevice = false
+    }
+
+    /// The session ended without Log Out (the device turned the password
+    /// down, or new credentials were saved): the value seen goes with it,
+    /// so a change made before the next sign-in goes without `expected`. A
+    /// change already pending keeps its own.
+    mutating func sessionEnded() {
+        seen = nil
+    }
+
+    /// Log Out: the copy stays; what belonged to the device signed in to
+    /// goes - a change for the next device stays, and so does one still
+    /// pending when `carryPending` (leaving from the cards: it never reached
+    /// the device left), as one for the next device.
+    mutating func loggedOut(carryPending: Bool = false) {
+        seen = nil
+        if pending && (forNextDevice || carryPending) {
+            expected = nil
+            forNextDevice = true
+        } else {
+            clearPending()
+        }
+    }
+
+    private mutating func clearPending() {
         pending = false
         pendingAt = nil
-        seen = nil
+        expected = nil
+        forNextDevice = false
     }
 }
 
@@ -143,6 +217,9 @@ final class LanguageSettings: ObservableObject {
     /// What the device is told and asked, and what a new language means for
     /// the connection.
     struct Device {
+        /// Whether a sign-in has been accepted and holds: nothing is sent
+        /// before (the connection would start one of its own).
+        var signedIn: @MainActor () -> Bool
         var setLanguage: (_ language: String, _ expected: String?) async throws -> Msg_RespEnvelope
         var settings: () async -> Msg_Settings?
         /// The language shown changed: the push token goes again, so the
@@ -167,6 +244,9 @@ final class LanguageSettings: ObservableObject {
     /// and what was chosen stays pending.
     private var tooOld = false
     private var sending = false
+    /// Signed in again while a SetLanguage was on its way: if that one
+    /// fails (it went on the session that ended), it goes again at once.
+    private var signedInWhileSending = false
 
     init(defaults: UserDefaults = UserDefaults(suiteName: LanguageSettings.suiteName) ?? .standard,
          device: Device = .live,
@@ -208,7 +288,8 @@ final class LanguageSettings: ObservableObject {
         choice.language.isEmpty ? S.appSettingsLanguageAutomatic : name(of: effective)
     }
 
-    /// At launch, before the first view: the language the copy says.
+    /// At launch, before the first view: the language the copy says. A
+    /// change still pending stays so (a relaunch is no change of device).
     func start() {
         showChoice()
     }
@@ -218,7 +299,8 @@ final class LanguageSettings: ObservableObject {
         showChoice()
     }
 
-    /// Picked on the Language screen.
+    /// Picked on the Language screen or a screen's language menu: shown at
+    /// once, and sent now if signed in, else at the next sign-in.
     func choose(_ code: String) {
         choice.choose(code, at: now())
         save()
@@ -236,7 +318,8 @@ final class LanguageSettings: ObservableObject {
 
     /// The device's value (nil: a device that predates it), from a Status
     /// poll or a Settings fetch: adopted, unless it is an older answer to a
-    /// change of ours still on its way.
+    /// change of ours still on its way, or a change for the next device
+    /// waits for its sign-in.
     func deviceSaid(_ value: String?) {
         guard let value else {
             deviceKeepsIt = false
@@ -249,16 +332,32 @@ final class LanguageSettings: ObservableObject {
         if changed { showChoice() }
     }
 
-    /// Signed in (again): a device that was too old may have been updated,
-    /// and a change that didn't reach it goes now.
+    /// A sign-in the device accepted (a password, stored credentials, a
+    /// reconnect; OTCConnection, before that session's first Status or
+    /// Settings): a device that was too old may have been updated, and a
+    /// change that didn't reach it - or one made for the next device - goes
+    /// now.
     func connected() {
         tooOld = false
+        if choice.forNextDevice {
+            choice.connected()
+            save()
+        }
+        if sending { signedInWhileSending = true }
         sendPending()
     }
 
-    /// Log Out: the copy stays, and with it the language shown.
-    func loggedOut() {
-        choice.loggedOut()
+    /// The session ended without Log Out (the device turned the password
+    /// down, or new credentials were saved): the device value seen goes.
+    func sessionEnded() {
+        choice.sessionEnded()
+    }
+
+    /// Log Out: the copy stays, and with it the language shown. `carryPending`:
+    /// leaving a device from the cards that say it can't be reached or
+    /// signed in to - a change still pending goes to the next device.
+    func loggedOut(carryPending: Bool = false) {
+        choice.loggedOut(carryPending: carryPending)
         tooOld = false
         deviceKeepsIt = nil
         save()
@@ -275,8 +374,9 @@ final class LanguageSettings: ObservableObject {
     }
 
     private func sendPending() {
-        guard !sending, choice.pending, !tooOld else { return }
+        guard !sending, choice.pending, !tooOld, device.signedIn() else { return }
         sending = true
+        signedInWhileSending = false
         // The window counts from now, before the task runs: a Status
         // answered meanwhile (at a connection, the first poll) doesn't
         // undo a change made long ago that is only now being sent.
@@ -285,14 +385,16 @@ final class LanguageSettings: ObservableObject {
         Task { await sendLoop() }
     }
 
-    /// One SetLanguage at a time, again while a newer choice waits (at most
-    /// three in a row; the rest goes at the next connection).
+    /// One SetLanguage at a time, again while a newer choice waits or a
+    /// sign-in came while one failed (at most three in a row; the rest goes
+    /// at the next connection).
     private func sendLoop() async {
         defer { sending = false }
         for _ in 0..<3 {
-            guard choice.pending, !tooOld else { return }
+            guard choice.pending, !tooOld, device.signedIn() else { return }
             let sent = choice.language
-            let expected = choice.seen
+            let expected = choice.expected
+            signedInWhileSending = false
             choice.sending(at: now())
             save()
             let answer: LanguageAnswer
@@ -306,16 +408,20 @@ final class LanguageSettings: ObservableObject {
                 deviceKeepsIt = true
                 choice.taken(sent)
             case .changed:
-                guard let s = await device.settings(), s.hasLanguage else { return }
-                choice.refused(sent, deviceHolds: s.language)
+                if let s = await device.settings(), s.hasLanguage {
+                    choice.refused(sent, deviceHolds: s.language)
+                } else {
+                    choice.refused(sent)
+                }
             case .tooOld:
                 // Still pending: sent again at the next connection.
                 tooOld = true
                 deviceKeepsIt = false
                 return
             case .failed:
-                // Still pending: sent again at the next connection.
-                return
+                // Still pending: sent again at the next connection - now,
+                // when one came while this was on its way.
+                guard signedInWhileSending else { return }
             }
             save()
             showChoice()
@@ -328,7 +434,8 @@ final class LanguageSettings: ObservableObject {
         static let language = "language"
         static let pending = "pending"
         static let pendingAt = "pendingAt"
-        static let seen = "seen"
+        static let expected = "expected"
+        static let forNextDevice = "forNextDevice"
     }
 
     private static func load(_ d: UserDefaults) -> LanguageChoice {
@@ -336,7 +443,10 @@ final class LanguageSettings: ObservableObject {
         c.language = d.string(forKey: Key.language) ?? ""
         c.pending = d.bool(forKey: Key.pending)
         if let at = d.object(forKey: Key.pendingAt) as? Double { c.pendingAt = Date(timeIntervalSince1970: at) }
-        c.seen = d.string(forKey: Key.seen)
+        if c.pending {
+            c.expected = d.string(forKey: Key.expected)
+            c.forNextDevice = d.bool(forKey: Key.forNextDevice)
+        }
         return c
     }
 
@@ -348,17 +458,19 @@ final class LanguageSettings: ObservableObject {
         } else {
             defaults.removeObject(forKey: Key.pendingAt)
         }
-        if let seen = choice.seen {
-            defaults.set(seen, forKey: Key.seen)
+        if let expected = choice.expected {
+            defaults.set(expected, forKey: Key.expected)
         } else {
-            defaults.removeObject(forKey: Key.seen)
+            defaults.removeObject(forKey: Key.expected)
         }
+        defaults.set(choice.forNextDevice, forKey: Key.forNextDevice)
     }
 }
 
 extension LanguageSettings.Device {
     /// Through the app's connection.
     static let live = Self(
+        signedIn: { OTCConnection.shared.authenticated },
         setLanguage: { language, expected in
             try await OTCConnection.shared.request(timeout: 60) { e in
                 var m = Msg_SetLanguage()

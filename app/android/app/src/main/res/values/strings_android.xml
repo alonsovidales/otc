@@ -101,6 +101,7 @@
     </plurals>
     <string name="android_settings_upload_waiting">Waiting</string>
     <string name="android_settings_uploading">Uploading \u2068%1$s\u2069</string>
+    <string name="android_setup_language_later">The setup page will switch to %1$s once the installation starts.</string>
     <string name="android_signal_good">Good signal</string>
     <string name="android_signal_strong">Strong signal</string>
     <string name="android_signal_weak">Weak signal</string>

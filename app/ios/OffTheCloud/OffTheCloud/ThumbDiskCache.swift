@@ -752,7 +752,16 @@ enum ThumbCacheLimit {
     }
 
     /// "250 MB", "1 GB", "12.3 MB" (ByteCountFormatter's file sizes).
+    /// ByteCountFormatter speaks the system's language (it has no locale),
+    /// so it formats while the app speaks that language, keeping today's
+    /// text; in another one the size is formatted for the app's language
+    /// (L10n.locale), as the Mac setup's sizes are (SetupWizardView.mb). An
+    /// English phone with the app in German read "0 bytes von 1 GB belegt".
     static func text(_ bytes: Int64) -> String {
+        let locale = L10n.shared.locale
+        if locale.language.languageCode != Locale.autoupdatingCurrent.language.languageCode {
+            return bytes.formatted(.byteCount(style: .file, spellsOutZero: false).locale(locale))
+        }
         let f = ByteCountFormatter()
         f.countStyle = .file
         f.allowsNonnumericFormatting = false

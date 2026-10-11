@@ -83,6 +83,21 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
     /// instead of throwing the install's progress away.
     @Published var everReady = false
 
+    /// The web view showing the wizard's page (BLESetupWebView), to ask it
+    /// to re-word itself when the app's language changes.
+    weak var page: WKWebView?
+    /// The page has finished loading (its script runs), not just been
+    /// asked for (BLESetupNavigationGuard).
+    var pageLoaded = false
+    /// The language of the page on screen: its address's lang=.
+    var pageLang: String?
+    /// The app's language, waiting for the moment an older wizard's page
+    /// can be reloaded in it (appLanguageChanged); nil when nothing waits.
+    @Published private(set) var waitingLang: String?
+    /// The device is installing, or was installed already: a reload of the
+    /// page loses nothing (it then shows only the device's state).
+    @Published private(set) var installStarted = false
+
     /// A device in range announcing the setup service: its short ID (the
     /// "OTC 04B6" it advertises; an older image's announces none) and how
     /// strong its signal is, so the owner can tell several apart.
@@ -129,6 +144,42 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
     var isReady: Bool {
         if case .ready = phase { return true }
         return false
+    }
+
+    /// The app's language changed (the toolbar's language menu) while the
+    /// wizard's page is up (docs/i18n.md, "Setup wizard"). A page not loaded
+    /// yet holds nothing typed: it loads again in the new language. A loaded
+    /// page is asked to re-word itself (setup_wizard.py's
+    /// window.otcSetupLang): it reloads on the same step, keeping what was
+    /// entered there but passwords, and asks first when some are typed. An
+    /// older image's wizard has no such call and keeps what was typed or
+    /// picked before the install only in the page: it is reloaded once the
+    /// device is installing, when it shows only what the device reports and
+    /// a reload loses nothing (a line over it says so until then). With no
+    /// page up yet, the page loads in the language of that moment.
+    func appLanguageChanged(_ code: String) {
+        waitingLang = nil
+        guard let page else { return }
+        guard pageLoaded else {
+            page.load(URLRequest(url: BLESetupLang.pageURL(code: code)))
+            return
+        }
+        page.evaluateJavaScript(BLESetupLang.switchScript(code: code)) { [weak self] result, _ in
+            guard let self, BLESetupLang.code == code else { return }
+            // The page goes to it by itself, or is in it already.
+            if BLESetupLang.pageSwitches(result) { return }
+            guard code != self.pageLang else { return }
+            self.waitingLang = code
+            self.reloadWhenSafe()
+        }
+    }
+
+    /// The language an older wizard's page waits for, now that a reload
+    /// loses nothing: the device is installing and the link is up.
+    private func reloadWhenSafe() {
+        guard let code = waitingLang, installStarted, isReady, let page else { return }
+        waitingLang = nil
+        page.load(URLRequest(url: BLESetupLang.pageURL(code: code)))
     }
 
     // MARK: requests
@@ -187,12 +238,20 @@ final class BLESetupTransport: NSObject, ObservableObject, CBCentralManagerDeleg
         return answer
     }
 
-    /// The wizard's own state tells when the device is ready for the app.
+    /// The wizard's own state tells when the device is ready for the app,
+    /// and when its page can be reloaded in another language.
     private func noteState(_ json: String) {
         guard let st = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any] else { return }
         if !(st["name"] as? String ?? "").isEmpty {
             let d = st["domain"] as? String ?? ""
             if setupDomain != d { setupDomain = d }
+        }
+        if !installStarted, BLESetupLang.installStarted(st) {
+            installStarted = true
+        }
+        if waitingLang != nil {
+            // After this answer has gone back to the page.
+            Task { @MainActor [weak self] in self?.reloadWhenSafe() }
         }
         guard let install = st["install"] as? [String: Any], install["phase"] as? String == "online" else { return }
         let domain = (install["domain"] as? String ?? "").isEmpty ? (st["domain"] as? String ?? "") : install["domain"] as? String ?? ""
@@ -400,6 +459,38 @@ enum BLESetupLang {
         let item = "lang=" + (code.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "en")
         return path + (path.contains("?") ? "&" : "?") + item
     }
+
+    /// What asks an open page to re-word itself in `code`: the wizard's
+    /// window.otcSetupLang, which answers true or false; undefined on an
+    /// older image's wizard, which has none.
+    static func switchScript(code: String) -> String {
+        let quoted = (try? JSONSerialization.data(withJSONObject: code, options: .fragmentsAllowed))
+            .flatMap { String(data: $0, encoding: .utf8) } ?? "\"en\""
+        return "window.otcSetupLang&&window.otcSetupLang(\(quoted))"
+    }
+
+    /// Whether the page answered switchScript (true: it goes to the
+    /// language; false: nothing to do). Anything else - undefined, null, an
+    /// error - is a wizard without the call.
+    static func pageSwitches(_ result: Any?) -> Bool {
+        guard let n = result as? NSNumber else { return false }
+        return CFGetTypeID(n) == CFBooleanGetTypeID()
+    }
+
+    /// From the wizard's /api/state: the device is installing (or has
+    /// finished, or failed), or was installed already - its page then shows
+    /// only the device's state, and a reload loses nothing typed.
+    static func installStarted(_ state: [String: Any]) -> Bool {
+        if state["already_installed"] as? Bool == true { return true }
+        let phase = (state["install"] as? [String: Any])?["phase"] as? String ?? "idle"
+        return phase != "idle"
+    }
+
+    /// The language a page was loaded in: its address's lang=.
+    static func lang(of url: URL?) -> String? {
+        guard let url, let c = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
+        return c.queryItems?.first { $0.name == "lang" }?.value
+    }
 }
 
 /// Serves the wizard's page to the web view under otc-setup://device/,
@@ -495,6 +586,19 @@ func isFromSetupPage(_ message: WKScriptMessage) -> Bool {
 /// at opens in the phone's browser, never inside this view (where the
 /// native calls above live).
 final class BLESetupNavigationGuard: NSObject, WKNavigationDelegate {
+    /// Told when the page has loaded, and in which language
+    /// (BLESetupTransport.appLanguageChanged).
+    weak var transport: BLESetupTransport?
+
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        transport?.pageLoaded = false
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        transport?.pageLoaded = true
+        transport?.pageLang = BLESetupLang.lang(of: webView.url)
+    }
+
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = action.request.url else { return decisionHandler(.cancel) }
         if url.scheme == BLESetupSchemeHandler.scheme || url.absoluteString == "about:blank" {
@@ -522,6 +626,11 @@ struct BLESetupWebView: UIViewRepresentable {
         view.navigationDelegate = context.coordinator
         view.isOpaque = false
         view.backgroundColor = UIColor(red: 0.118, green: 0.122, blue: 0.133, alpha: 1) // the wizard's own background
+        context.coordinator.transport = transport
+        transport.page = view
+        transport.pageLoaded = false
+        // In the app's language now; a change later is
+        // BLESetupTransport.appLanguageChanged.
         view.load(URLRequest(url: BLESetupLang.pageURL()))
         return view
     }
@@ -552,6 +661,16 @@ struct BluetoothSetupView: View {
                     .frame(maxWidth: .infinity)
                     .padding(10)
                     .background(Color.orange.opacity(0.25))
+                }
+                if let code = transport.waitingLang, !transport.installStarted {
+                    // The app speaks another language now; an older
+                    // wizard's page follows once it loses nothing by it.
+                    Text(S.iosSetupLanguageLater(language: LanguageSettings.shared.name(of: code)))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
                 }
                 BLESetupWebView(transport: transport)
                     .ignoresSafeArea(edges: .bottom)
@@ -596,6 +715,23 @@ struct BluetoothSetupView: View {
         }
         .navigationTitle(S.appShellSetupNewDevice)
         .navigationBarTitleDisplayMode(.inline)
+        // The wizard's own language list is hidden in the app: this one
+        // counts, and the device set up gets it at the first sign-in.
+        .toolbar {
+            // The title on two lines rather than cut short beside the
+            // language menu ("Configurar dispositivo nuevo").
+            ToolbarItem(placement: .principal) {
+                Text(S.appShellSetupNewDevice)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+            }
+            ToolbarItem(placement: .topBarTrailing) { LanguageMenu() }
+        }
+        // The page follows the app's language.
+        .onChange(of: L10n.shared.code) { _, code in transport.appLanguageChanged(code) }
         .onChange(of: transport.chosenPassword) { _, _ in savePending() }
         .onChange(of: transport.setupDomain) { _, _ in savePending() }
         // The install takes about 20 minutes: a locked phone suspends the

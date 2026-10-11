@@ -227,9 +227,9 @@ struct FriendshipsView: View {
                                 }
                             }
                             let answer = Group {
-                                Button { Task { await vm.deleteFriendship(f) } } label: { WholeWordText(S.commonDecline) }
+                                Button { Task { await vm.deleteFriendship(f) } } label: { WholeWordText(S.commonDecline, twoLines: true) }
                                     .buttonStyle(.bordered).controlSize(.small)
-                                Button { Task { await vm.changeStatus(f, to: .accepted) } } label: { WholeWordText(S.commonAccept) }
+                                Button { Task { await vm.changeStatus(f, to: .accepted) } } label: { WholeWordText(S.commonAccept, twoLines: true) }
                                     .buttonStyle(.borderedProminent).controlSize(.small)
                             }
                             // Beside the name while every word fits; else on a
@@ -377,24 +377,24 @@ private struct FriendRow: View {
                 if f.leaving {
                     // Issue #174: nothing else to do with a leaving friend
                     // but stop waiting for their device.
-                    Button(role: .destructive) { confirmingRemoveNow = true } label: { WholeWordText(S.appSocialFriendsRemoveNow) }
+                    Button(role: .destructive) { confirmingRemoveNow = true } label: { WholeWordText(S.appSocialFriendsRemoveNow, twoLines: true) }
                         .buttonStyle(.bordered)
                 } else {
                     ForEach(actionOptions, id: \.0) { opt in
                         if opt.1 == .accepted {
-                            Button { onChange(opt.1) } label: { WholeWordText(opt.0) }.buttonStyle(.borderedProminent)
+                            Button { onChange(opt.1) } label: { WholeWordText(opt.0, twoLines: true) }.buttonStyle(.borderedProminent)
                         } else {
-                            Button { onChange(opt.1) } label: { WholeWordText(opt.0) }.buttonStyle(.bordered)
+                            Button { onChange(opt.1) } label: { WholeWordText(opt.0, twoLines: true) }.buttonStyle(.bordered)
                         }
                     }
                     if canDelete {
                         Button(role: .destructive) { confirmingDelete = true } label: {
-                            WholeWordText(f.sent ? S.appSocialFriendsCancelRequestButton : S.commonDecline)
+                            WholeWordText(f.sent ? S.appSocialFriendsCancelRequestButton : S.commonDecline, twoLines: true)
                         }
                             .buttonStyle(.bordered)
                     }
                     if canRemove {
-                        Button(role: .destructive) { removing = true } label: { WholeWordText(S.appSocialFriendsRemoveButton) }
+                        Button(role: .destructive) { removing = true } label: { WholeWordText(S.appSocialFriendsRemoveButton, twoLines: true) }
                             .buttonStyle(.bordered)
                     }
                 }
@@ -508,22 +508,69 @@ private struct WholeWordButtons<Content: View>: View {
 /// words, each on one line, hold it open. Squeezed, Text hyphenates German,
 /// French, Spanish and Dutch (An-nehmen, So-phie), which let a row "fit" by
 /// splitting its words; English isn't hyphenated, so it lays out as before.
-private struct WholeWordText: View {
+/// Also the selection bar's labels (SelectionActionBar.swift).
+///
+/// With twoLines, a label of three words or more is held open at its best
+/// split into two lines instead, so a row of buttons "fits" only while no
+/// label needs a third line (French "Remettre / en / attente" was a word a
+/// line on an iPhone SE); one or two words lay out as before.
+struct WholeWordText: View {
     let text: String
     var alignment: Alignment = .center
+    var twoLines = false
 
-    init(_ text: String, alignment: Alignment = .center) {
+    init(_ text: String, alignment: Alignment = .center, twoLines: Bool = false) {
         self.text = text
         self.alignment = alignment
+        self.twoLines = twoLines
     }
 
+    private var words: [String] { text.split(separator: " ").map(String.init) }
+
     var body: some View {
-        ZStack(alignment: alignment) {
-            ForEach(Array(Set(text.split(separator: " ").map(String.init))).sorted(), id: \.self) { word in
-                Text(word).fixedSize().hidden()
+        if twoLines && words.count > 2 {
+            TwoLineFloor {
+                ForEach(1..<words.count, id: \.self) { i in
+                    Text(words[..<i].joined(separator: " ")).fixedSize().hidden()
+                    Text(words[i...].joined(separator: " ")).fixedSize().hidden()
+                }
+                Text(text)
             }
-            Text(text)
+        } else {
+            ZStack(alignment: alignment) {
+                ForEach(Array(Set(words)).sorted(), id: \.self) { word in
+                    Text(word).fixedSize().hidden()
+                }
+                Text(text)
+            }
         }
+    }
+}
+
+/// WholeWordText's two-line hold: the subviews are each split's two halves,
+/// on one line each, then the text. Its smallest width is the narrowest
+/// split's wider half - the narrowest the text can be in two lines without
+/// breaking a word - and the text is laid out in the width it gets.
+private struct TwoLineFloor: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let text = subviews.last else { return .zero }
+        let halves = subviews.dropLast().map { $0.sizeThatFits(.unspecified).width }
+        let floor = stride(from: 0, to: halves.count - 1, by: 2)
+            .map { max(halves[$0], halves[$0 + 1]) }
+            .min() ?? 0
+        guard let width = proposal.width else { return text.sizeThatFits(proposal) }
+        // The text's own width in what it gets, never below the floor: a
+        // label offered a whole line stays as wide as its words.
+        let size = text.sizeThatFits(ProposedViewSize(width: max(width, floor), height: proposal.height))
+        return CGSize(width: max(size.width, floor), height: size.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for view in subviews.dropLast() {
+            view.place(at: bounds.origin, proposal: .zero)
+        }
+        subviews.last?.place(at: CGPoint(x: bounds.midX, y: bounds.midY), anchor: .center,
+                             proposal: ProposedViewSize(width: bounds.width, height: bounds.height))
     }
 }
 
@@ -531,7 +578,7 @@ private struct WholeWordText: View {
 /// otherwise lays the content out as it is. A Text's smallest width is its
 /// longest unbreakable piece - a whole word, with WholeWordText - so an HStack
 /// of buttons "fits" exactly when no label in it has to break inside a word.
-private struct SmallestIsIdeal: Layout {
+struct SmallestIsIdeal: Layout {
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         guard let content = subviews.first else { return .zero }
         if proposal.width == nil {

@@ -20,7 +20,10 @@ import androidx.compose.ui.semantics.semantics
 import cloud.offthe.otc.ui.common.THUMB_CACHE_CHOICES
 import cloud.offthe.otc.ui.common.ThumbStore
 import cloud.offthe.otc.ui.common.formatCacheBytes
+import cloud.offthe.otc.ui.common.decimalText
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -62,6 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,6 +82,7 @@ import cloud.offthe.otc.proto.User
 import cloud.offthe.otc.sync.PhotoSync
 import cloud.offthe.otc.ui.AvatarView
 import cloud.offthe.otc.ui.common.ConnectionEndpointFields
+import cloud.offthe.otc.ui.common.EndpointEntry
 import cloud.offthe.otc.ui.common.Share
 import cloud.offthe.otc.ui.common.Toast
 import cloud.offthe.otc.ui.compose.mediaPermissions
@@ -395,15 +400,18 @@ fun SettingsView(secrets: SecretsStore) {
                 // Edits stay here until Save Connection: a reconnect (a socket
                 // drop while typing) dials the store's values. Keyed on the
                 // saved ones, so a password change or leaving the bridge still
-                // shows up in the fields.
-                var editEndpoint by remember(endpoint) { mutableStateOf(endpoint) }
+                // shows up in the fields. The address is saveable with the
+                // device name it stands for, one holder for both, as Settings >
+                // Language recreates the Activity with this screen open; the
+                // password never goes into saved state.
+                val editEntry = rememberSaveable(endpoint, saver = EndpointEntry.Saver) { EndpointEntry(endpoint) }
                 var editPassword by remember(password) { mutableStateOf(password) }
-                ConnectionEndpointFields(endpoint = editEndpoint, onEndpointChange = { editEndpoint = it })
+                ConnectionEndpointFields(editEntry)
                 PasswordField(editPassword, S.commonPassword().resolve()) { editPassword = it }
                 routeLine(signedIn, route, endpoint)?.let { Caption(it.resolve()) }
                 Caption(S.appSettingsConnectionDeviceId(deviceId).resolve())
                 RowButton(S.appSettingsConnectionSave().resolve()) {
-                    secrets.setEndpoint(editEndpoint); secrets.setPassword(editPassword)
+                    secrets.setEndpoint(editEntry.endpoint); secrets.setPassword(editPassword)
                     secrets.persist(); OTCConnection.invalidate()
                 }
                 RowButton(S.appSettingsConnectionLogOut().resolve(), destructive = true) { confirmLogout = true }
@@ -420,16 +428,21 @@ fun SettingsView(secrets: SecretsStore) {
                     "running" -> {
                         LinearProgressIndicator(progress = { if (dst.reprocessTotal > 0) dst.reprocessProcessed.toFloat() / dst.reprocessTotal else 0f }, modifier = Modifier.fillMaxWidth())
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Caption(S.appSettingsReprocessRunning(dst.reprocessPercent, dst.reprocessProcessed, dst.reprocessTotal).resolve())
-                            Spacer(Modifier.weight(1f))
+                            // The rest of the row, wrapping, so the button keeps its
+                            // room ("Wird neu verarbeitet… 42 % (…)" beside Abbrechen).
+                            Text(S.appSettingsReprocessRunning(dst.reprocessPercent, dst.reprocessProcessed, dst.reprocessTotal).resolve(),
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f).padding(vertical = 2.dp))
                             RowButton((if (dst.cancellingReprocess) S.appSettingsReprocessStopping() else S.commonCancel()).resolve(), enabled = !dst.cancellingReprocess, destructive = true) { scope.launch { device.stopReprocess() } }
                         }
                     }
                     "stopped" -> {
                         Caption(S.appSettingsReprocessStopped(dst.reprocessPercent, dst.reprocessProcessed, dst.reprocessTotal).resolve())
-                        Row(Modifier.fillMaxWidth()) {
+                        // At both ends of one line while they fit, else Start Over
+                        // on a line of its own (Neuverarbeitung fortsetzen, Von vorn
+                        // beginnen at 360 dp).
+                        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             RowButton((if (dst.startingReprocess) S.appSettingsReprocessStarting() else S.appSettingsReprocessResume()).resolve(), enabled = !dst.startingReprocess) { device.setReprocessConfirm(DeviceSettingsViewModel.ReprocessConfirm.RESUME) }
-                            Spacer(Modifier.weight(1f))
                             RowButton(S.appSettingsReprocessStartOver().resolve(), enabled = !dst.startingReprocess) { device.setReprocessConfirm(DeviceSettingsViewModel.ReprocessConfirm.RESTART) }
                         }
                     }
@@ -631,7 +644,7 @@ private fun StatusSectionContent(vm: StatusViewModel) {
             RaidUsageBar(usedPct, tint)
             Caption(S.appSettingsStatusRaidUsed(sizeText(s.raidUsage.toDouble()), sizeText(s.raidSize.toDouble())).resolve())
             Caption(S.appSettingsStatusDisk(sizeText(s.diskUsage.toDouble()), sizeText(s.diskSize.toDouble())).resolve())
-            Caption(S.appSettingsStatusCpuMem("%.1f".format(s.cpuUsagePrc), sizeText(s.memUsage.toDouble()), sizeText(s.memSize.toDouble())).resolve())
+            Caption(S.appSettingsStatusCpuMem(decimalText("%.1f", s.cpuUsagePrc.toDouble()), sizeText(s.memUsage.toDouble()), sizeText(s.memSize.toDouble())).resolve())
             val state = raidStateLabel(s).resolve()
             Caption((if (s.raidLevel.isEmpty()) S.appSettingsStatusRaid(state, s.disks) else S.appSettingsStatusRaidLevel(s.raidLevel, state, s.disks)).resolve())
             // The device's own words (in the request's language) after a sign.
@@ -647,7 +660,8 @@ private fun RaidUsageBar(percent: Double, tint: Color) {
     val clamped = percent.coerceIn(0.0, 100.0)
     Box(Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(7.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
         Box(Modifier.fillMaxWidth(clamped.toFloat() / 100f).height(14.dp).background(tint, RoundedCornerShape(7.dp)))
-        Text(S.appSettingsStatusUsedPercent(clamped.toInt()).resolve(), fontSize = 9.sp, color = Color.White, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 3.dp).background(Color(0x59000000), RoundedCornerShape(4.dp)).padding(horizontal = 4.dp))
+        // A line as tall as the bar: the inherited 24sp line cut the digits' lower half.
+        Text(S.appSettingsStatusUsedPercent(clamped.toInt()).resolve(), fontSize = 9.sp, lineHeight = 12.sp, color = Color.White, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 3.dp).background(Color(0x59000000), RoundedCornerShape(4.dp)).padding(horizontal = 4.dp))
     }
 }
 
@@ -838,7 +852,14 @@ private fun UserRow(vm: UsersManagementViewModel, st: UsersManagementViewModel.S
                 Caption(S.appSettingsUsersPortDomain("${u.port}", u.subdomain).resolve())
             }
             val m = st.metrics[u.uuid]
-            if (m != null) Caption(S.appSettingsUsersUsage("${m.storageMb.toInt()}", "%.1f".format(m.storagePct), m.activeConnections).resolve())
+            // Half the row at most, right-aligned, wrapping inside it: measured
+            // first at its whole width ("2 connessioni attive"), it left the name
+            // a sliver and its INACTIVE label broke letter by letter.
+            if (m != null) Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                Text(S.appSettingsUsersUsage("${m.storageMb.toInt()}", decimalText("%.1f", m.storagePct), m.activeConnections).resolve(),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.End,
+                    modifier = Modifier.padding(vertical = 2.dp))
+            }
             else RowButton(S.appSettingsUsersLoadUsage().resolve()) { scope.launch { vm.fetchMetrics(u.uuid) } }
         }
         Row(Modifier.fillMaxWidth()) {
@@ -857,9 +878,12 @@ private fun UserRow(vm: UsersManagementViewModel, st: UsersManagementViewModel.S
 }
 
 
-/** A size the device reports in MB, readable: "4.6 GB", "984 GB", "820 MB". Same as iOS's sizeText. */
+/**
+ * A size the device reports in MB, readable: "4.6 GB", "984 GB", "820 MB"
+ * ("4,6 GB" in Spanish: decimalText). Same as iOS's sizeText.
+ */
 internal fun sizeText(mb: Double): String = when {
-    mb >= 100_000 -> "%.0f GB".format(mb / 1000) // i18n-ignore: a size, the unit's symbol in every language
-    mb >= 1000 -> "%.1f GB".format(mb / 1000) // i18n-ignore: a size, the unit's symbol in every language
-    else -> "%.0f MB".format(mb) // i18n-ignore: a size, the unit's symbol in every language
+    mb >= 100_000 -> decimalText("%.0f GB", mb / 1000) // i18n-ignore: a size, the unit's symbol in every language
+    mb >= 1000 -> decimalText("%.1f GB", mb / 1000) // i18n-ignore: a size, the unit's symbol in every language
+    else -> decimalText("%.0f MB", mb) // i18n-ignore: a size, the unit's symbol in every language
 }

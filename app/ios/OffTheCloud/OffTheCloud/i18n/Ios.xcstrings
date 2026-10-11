@@ -4014,6 +4014,53 @@
         }
       }
     },
+    "ios.setup_language_later" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Einrichtungsseite wird auf %1$@ umgestellt, sobald die Installation beginnt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The setup page will switch to %1$@ once the installation starts."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La página de configuración cambiará a %1$@ cuando empiece la instalación."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La page de configuration s’affichera en %1$@ dès le début de l’installation."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La pagina di configurazione verrà mostrata in %1$@ all’avvio dell’installazione."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De configuratiepagina schakelt over naar %1$@ zodra de installatie begint."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A página de configuração passa a aparecer em %1$@ quando a instalação começar."
+          }
+        }
+      }
+    },
     "ios.setup_signin_cancelled" : {
       "extractionState" : "manual",
       "localizations" : {

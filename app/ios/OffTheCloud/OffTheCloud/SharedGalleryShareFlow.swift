@@ -22,10 +22,18 @@ import UIKit
 /// what a gallery or a link holds, all 64-bit.
 func formatByteCount(_ n: Int64) -> String {
     let bytes = Double(n)
-    if bytes >= Double(1 << 30) { return String(format: "%.1f GB", bytes / Double(1 << 30)) } // i18n-ignore: a size, kept as written today (sizes keep their formatter)
-    if bytes >= Double(1 << 20) { return String(format: "%.1f MB", bytes / Double(1 << 20)) } // i18n-ignore: a size, kept as written today (sizes keep their formatter)
-    if bytes >= Double(1 << 10) { return String(format: "%.1f KB", bytes / Double(1 << 10)) } // i18n-ignore: a size, kept as written today (sizes keep their formatter)
+    if bytes >= Double(1 << 30) { return decimalText("%.1f GB", bytes / Double(1 << 30)) } // i18n-ignore: a size, kept as written today (sizes keep their formatter)
+    if bytes >= Double(1 << 20) { return decimalText("%.1f MB", bytes / Double(1 << 20)) } // i18n-ignore: a size, kept as written today (sizes keep their formatter)
+    if bytes >= Double(1 << 10) { return decimalText("%.1f KB", bytes / Double(1 << 10)) } // i18n-ignore: a size, kept as written today (sizes keep their formatter)
     return "\(n) B"
+}
+
+/// A number the app writes by hand ("%.1f"), with the decimal mark of the
+/// app's language, as Android's String.format writes it: "177,7 KB" in
+/// Spanish or German. The language's own tag, not the region's, so English
+/// stays "177.7 KB" byte for byte on every phone.
+func decimalText(_ format: String, _ value: Double) -> String {
+    String(format: format, locale: L10n.shared.current.locale, value)
 }
 
 /// The expiry choices; ttlHours as CreateSharedGallery takes them.

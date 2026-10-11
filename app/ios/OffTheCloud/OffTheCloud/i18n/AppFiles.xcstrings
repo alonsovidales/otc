@@ -3668,7 +3668,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Versioni del file %1$@"
+            "value" : "Versioni di %1$@"
           }
         },
         "nl" : {
@@ -3680,7 +3680,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Versões do ficheiro %1$@"
+            "value" : "Versões de %1$@"
           }
         }
       }

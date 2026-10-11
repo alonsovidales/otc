@@ -538,11 +538,11 @@ fun S.appShellTerms(): UiText =
 fun S.appShellThumbCacheUsage(used: String, limit: String): UiText =
     UiText.Res(R.string.app_shell_thumb_cache_usage, listOf(used, limit))
 
-/** "{count}d ago" (one: "{count}d ago"): How long ago something happened, in days, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (d for days). */
+/** "{count}d ago" (one: "{count}d ago"): How long ago something happened, in days, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Short: the English abbreviates (d for days); a language may use its own "ago" wording (il y a, vor, geleden) within the max, with its usual short units. */
 fun S.appShellTimeDaysAgo(count: Int): UiText =
     UiText.Plural(R.plurals.app_shell_time_days_ago, count, listOf(count))
 
-/** "{count}h ago" (one: "{count}h ago"): How long ago something happened, in hours, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (h for hours). */
+/** "{count}h ago" (one: "{count}h ago"): How long ago something happened, in hours, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Short: the English abbreviates (h for hours); a language may use its own "ago" wording (il y a, vor, geleden) within the max, with its usual short units. */
 fun S.appShellTimeHoursAgo(count: Int): UiText =
     UiText.Plural(R.plurals.app_shell_time_hours_ago, count, listOf(count))
 
@@ -550,7 +550,7 @@ fun S.appShellTimeHoursAgo(count: Int): UiText =
 fun S.appShellTimeJustNow(): UiText =
     UiText.Res(R.string.app_shell_time_just_now)
 
-/** "{count}m ago" (one: "{count}m ago"): How long ago something happened, in minutes, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (m for minutes). */
+/** "{count}m ago" (one: "{count}m ago"): How long ago something happened, in minutes, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Short: the English abbreviates (m for minutes); a language may use its own "ago" wording (il y a, vor, geleden) within the max, with its usual short units. */
 fun S.appShellTimeMinutesAgo(count: Int): UiText =
     UiText.Plural(R.plurals.app_shell_time_minutes_ago, count, listOf(count))
 

@@ -442,7 +442,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Se liberará %1$@ y el dispositivo se reiniciará. Lo conservará todo y seguirá funcionando en casa, pero ya no será accesible desde fuera ni para tus amigos. Puedes volver a unirte más adelante."
+            "value" : "%1$@ quedará libre y el dispositivo se reiniciará. Lo conservará todo y seguirá funcionando en casa, pero ya no será accesible desde fuera ni para tus amigos. Puedes volver a unirte más adelante."
           }
         },
         "fr" : {

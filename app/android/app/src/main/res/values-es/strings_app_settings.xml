@@ -11,7 +11,7 @@
     <string name="app_settings_bridge_leave">Salir del puente</string>
     <string name="app_settings_bridge_leave_confirm">Salir del puente</string>
     <string name="app_settings_bridge_leave_failed">No se ha podido salir del puente.</string>
-    <string name="app_settings_bridge_leave_message">Se liberará %1$s y el dispositivo se reiniciará. Lo conservará todo y seguirá funcionando en casa, pero ya no será accesible desde fuera ni para tus amigos. Puedes volver a unirte más adelante.</string>
+    <string name="app_settings_bridge_leave_message">%1$s quedará libre y el dispositivo se reiniciará. Lo conservará todo y seguirá funcionando en casa, pero ya no será accesible desde fuera ni para tus amigos. Puedes volver a unirte más adelante.</string>
     <string name="app_settings_bridge_leave_title">¿Salir del puente?</string>
     <string name="app_settings_bridge_left">El dispositivo se está reiniciando fuera del puente. A partir de ahora, la app se conecta a él a través de tu red doméstica, en %1$s.</string>
     <string name="app_settings_bridge_local_only">Solo es accesible desde tu red doméstica. Únete al puente desde Ajustes en la app web del dispositivo.</string>

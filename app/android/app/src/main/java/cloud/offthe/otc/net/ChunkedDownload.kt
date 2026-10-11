@@ -2,6 +2,8 @@
 package cloud.offthe.otc.net
 
 import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.appFilesUnexpectedResponse
 import cloud.offthe.otc.i18n.androidDownloadChanged
 import cloud.offthe.otc.i18n.androidDownloadEmptyPiece
 import cloud.offthe.otc.i18n.androidDownloadWrongPiece
@@ -9,6 +11,7 @@ import cloud.offthe.otc.proto.GetFile
 import cloud.offthe.otc.proto.ReadFile
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.ui.common.TextIOException
+import cloud.offthe.otc.ui.common.now
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -27,8 +30,21 @@ import java.nio.file.StandardCopyOption
 // written out as they arrive - the way otc-sync and the macOS app download.
 // Not for photos shown as images: GetFile turns a HEIC into a JPEG.
 object ChunkedDownload {
-    /** The device answered with an error, or not with a chunk; its message, maybe empty. */
-    class Refused(message: String) : IOException(message)
+    /**
+     * The device answered with an error, or with something else than the
+     * file. Worded when read: the device's own [words], else the app's
+     * "Unexpected response" in the language shown (the trimmer's alert
+     * shows it after its own sentence) - as FileDownload.Refused on iOS.
+     * Files shows its own "could not open" text for it instead.
+     */
+    class Refused(val words: String) : IOException(words) {
+        val text: UiText get() = if (words.isEmpty()) S.appFilesUnexpectedResponse() else UiText.Raw(words)
+
+        override val message: String get() = text.now()
+
+        // What a log line prints: never the rendered text.
+        override fun toString(): String = "Refused(empty=${words.isEmpty()})"
+    }
 
     /** What the device says the file is. */
     data class Meta(val mime: String, val size: Long)

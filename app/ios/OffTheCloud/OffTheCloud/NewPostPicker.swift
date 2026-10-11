@@ -1195,6 +1195,20 @@ private struct SelectedThumb: View {
 
     @State private var phoneThumb: UIImage?
 
+    /// The trim pill's words: the length kept once trimmed, else "✂ Trim".
+    private var trimLabel: some View {
+        Text(trimRange.map { "\u{2702} \(formatTimecode($0.length))" } ?? S.appSocialComposeTrimBadge)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(trimRange == nil ? .white : Color.black)
+    }
+
+    private func trimPill<Content: View>(inset: CGFloat, @ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .padding(.horizontal, inset)
+            .padding(.vertical, 2)
+            .background(trimRange == nil ? AnyShapeStyle(.black.opacity(0.6)) : AnyShapeStyle(Color.accentColor), in: Capsule())
+    }
+
     var body: some View {
         let img = phoneThumb ?? tileImage(item, maxPt: 60)
         VStack(spacing: 2) {
@@ -1239,18 +1253,18 @@ private struct SelectedThumb: View {
                     VStack {
                         Spacer()
                         HStack {
-                            Group {
-                                if trimLoading {
-                                    ProgressView().controlSize(.mini).tint(.white)
-                                } else {
-                                    Text(trimRange.map { "\u{2702} \(formatTimecode($0.length))" } ?? S.appSocialComposeTrimBadge)
-                                        .font(.system(size: 11, weight: .semibold))
-                                        .foregroundStyle(trimRange == nil ? .white : Color.black)
+                            if trimLoading {
+                                trimPill(inset: 6) { ProgressView().controlSize(.mini).tint(.white) }
+                            } else {
+                                // One line in the 60-point tile: as it was while
+                                // the label fits, else a slimmer pill and a
+                                // smaller label rather than a word broken over
+                                // two lines (Recort-ar, Décou-per, Inkorte-n).
+                                ViewThatFits(in: .horizontal) {
+                                    trimPill(inset: 6) { trimLabel.fixedSize() }
+                                    trimPill(inset: 3) { trimLabel.lineLimit(1).minimumScaleFactor(0.65) }
                                 }
                             }
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(trimRange == nil ? AnyShapeStyle(.black.opacity(0.6)) : AnyShapeStyle(Color.accentColor), in: Capsule())
                             Spacer()
                         }
                     }

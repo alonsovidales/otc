@@ -112,6 +112,35 @@ struct StorageSummaryTests {
     }
 }
 
+/// The storage in another language: its decimal mark and its percent
+/// (StorageSummary.trim, decimalText's rule: the language's tag, never the
+/// region), English byte for byte. The app's language is global, so it is
+/// Spanish only while the summaries are made - on the main actor, with no
+/// suspension - and back before anything is compared.
+@MainActor
+@Suite(.serialized)
+struct StorageSummaryLanguageTests {
+    @Test func spanishWritesADecimalCommaAndEnglishStaysAsItWas() {
+        var s = Msg_Status()
+        s.raidUsage = 1
+        s.raidSize = 100
+        s.raidState = .raidSyncing
+        s.raidSyncPercent = 42.5
+        s.cpuUsagePrc = 3.5
+        let was = L10n.shared.code
+        L10n.shared.set("es")
+        let spanish = StorageSummary(status: s, error: nil)
+        L10n.shared.set("en")
+        let english = StorageSummary(status: s, error: nil)
+        L10n.shared.set(was)
+
+        #expect(spanish.details[3] == .init(label: "CPU", value: "3,5\u{a0}%"))
+        #expect(spanish.mirrorText == "Sincronizando espejo (42,5\u{a0}%)")
+        #expect(english.details[3] == .init(label: "CPU", value: "3.5%"))
+        #expect(english.mirrorText == "Mirror syncing (42.5%)")
+    }
+}
+
 /// What the search does from either field (TopSearch.swift).
 @MainActor
 struct TopSearchActionsTests {

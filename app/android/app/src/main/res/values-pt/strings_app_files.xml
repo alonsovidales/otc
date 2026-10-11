@@ -83,6 +83,6 @@
     <string name="app_files_version_open_failed">Não foi possível obter essa versão</string>
     <string name="app_files_version_replaced">Substituída em %1$s</string>
     <string name="app_files_versions_explain">O ficheiro está numa pasta em apenas carregamento, por isso cada carregamento para este caminho guardou o anterior.</string>
-    <string name="app_files_versions_title">Versões do ficheiro \u2068%1$s\u2069</string>
+    <string name="app_files_versions_title">Versões de \u2068%1$s\u2069</string>
     <string name="app_files_video">Vídeo</string>
 </resources>

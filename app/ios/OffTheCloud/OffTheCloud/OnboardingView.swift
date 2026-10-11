@@ -67,6 +67,11 @@ struct OnboardingView: View {
                 }
             }
             .navigationTitle(S.appShellWelcome)
+            // The language, before any device: Settings, where it lives,
+            // needs one. Kept for the device signed in to next.
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) { LanguageMenu() }
+            }
         }
         .onAppear {
             endpoint = secrets.endpoint

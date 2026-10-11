@@ -42,9 +42,9 @@
     "en": "Could not leave the bridge."
   },
   "app.settings.bridge.leave_message": {
-    "text": "Se liberará {domain} y el dispositivo se reiniciará. Lo conservará todo y seguirá funcionando en casa, pero ya no será accesible desde fuera ni para tus amigos. Puedes volver a unirte más adelante.",
+    "text": "{domain} quedará libre y el dispositivo se reiniciará. Lo conservará todo y seguirá funcionando en casa, pero ya no será accesible desde fuera ni para tus amigos. Puedes volver a unirte más adelante.",
     "en": "{domain} is given back and the device restarts. It keeps everything and works at home, but is no longer reachable from outside or by your friends. You can join again later.",
-    "reviewed": "claude-backtranslation 2026-10-11 #6a168ed6"
+    "reviewed": "claude-backtranslation 2026-10-11 #bd702fd4"
   },
   "app.settings.bridge.leave_title": {
     "text": "¿Salir del puente?",

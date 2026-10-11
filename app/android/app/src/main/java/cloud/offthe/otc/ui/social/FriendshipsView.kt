@@ -2,6 +2,7 @@
 package cloud.offthe.otc.ui.social
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -42,7 +43,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -261,17 +265,11 @@ fun FriendshipsView(onDone: (() -> Unit)?) {
                         Text(S.appSocialFriendsWaitingAnswer().resolve(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 4.dp))
                     }
                     items(waiting, key = { "w-" + it.originProfile.domain }) { f ->
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            AvatarView(data = if (f.originProfile.hasImage()) f.originProfile.image.toByteArray() else null, size = 44.dp)
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(f.originProfile.name.ifEmpty { S.appSocialFriendsNoName().resolve() }, style = MaterialTheme.typography.titleSmall)
-                                Text(f.originProfile.domain, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            androidx.compose.material3.OutlinedButton(onClick = { scope.launch { vm.delete(f) } }) { Text(S.commonDecline().resolve()) }
-                            Spacer(Modifier.width(8.dp))
-                            androidx.compose.material3.Button(onClick = { scope.launch { vm.changeStatus(f, FriendShipStatus.Accepted) } }) { Text(S.commonAccept().resolve()) }
-                        }
+                        WaitingRow(
+                            f,
+                            onDecline = { scope.launch { vm.delete(f) } },
+                            onAccept = { scope.launch { vm.changeStatus(f, FriendShipStatus.Accepted) } },
+                        )
                     }
                 }
                 item {
@@ -308,6 +306,59 @@ fun FriendshipsView(onDone: (() -> Unit)?) {
                 }
             }
             Toast(st.toast?.resolve(), Modifier.align(Alignment.TopCenter))
+        }
+    }
+}
+
+/**
+ * A request waiting for an answer: who sent it, and Decline and Accept -
+ * beside the name while its words and the address fit whole, else on a
+ * line of their own under it (the address broke as "sophie.off-th" /
+ * "e.cloud" at 360 dp, and the name with it in longer languages). As
+ * iOS's FriendshipsView.
+ */
+@Composable
+private fun WaitingRow(f: Friendship, onDecline: () -> Unit, onAccept: () -> Unit) {
+    val name = f.originProfile.name.ifEmpty { S.appSocialFriendsNoName().resolve() }
+    val decline = S.commonDecline().resolve()
+    val accept = S.commonAccept().resolve()
+    val who: @Composable () -> Unit = {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AvatarView(data = if (f.originProfile.hasImage()) f.originProfile.image.toByteArray() else null, size = 44.dp)
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(name, style = MaterialTheme.typography.titleSmall)
+                Text(f.originProfile.domain, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+    val answer: @Composable () -> Unit = {
+        OutlinedButton(onClick = onDecline) { Text(decline, maxLines = 1) }
+        Spacer(Modifier.width(8.dp))
+        Button(onClick = onAccept) { Text(accept, maxLines = 1) }
+    }
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val nameStyle = MaterialTheme.typography.titleSmall
+    val domainStyle = MaterialTheme.typography.bodySmall
+    val buttonStyle = MaterialTheme.typography.labelLarge
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        val beside = remember(name, f.originProfile.domain, decline, accept, maxWidth, density) {
+            with(density) {
+                fun width(text: String, style: TextStyle) = measurer.measure(text, style, softWrap = false, maxLines = 1, density = density).size.width.toDp()
+                // Material's buttons: 24dp each side of the label, 58dp at least.
+                fun button(label: String) = maxOf(58.dp, width(label, buttonStyle) + 48.dp)
+                val words = name.split(' ').filter { it.isNotEmpty() }.maxOfOrNull { width(it, nameStyle) } ?: 0.dp
+                val column = maxOf(words, width(f.originProfile.domain, domainStyle))
+                44.dp + 12.dp + column + button(decline) + 8.dp + button(accept) <= maxWidth
+            }
+        }
+        if (beside) Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) { who() }
+            answer()
+        } else Column {
+            who()
+            Row(Modifier.padding(start = 56.dp, top = 6.dp)) { answer() }
         }
     }
 }

@@ -148,8 +148,8 @@
     <string name="app_shell_terms">Nutzungsbedingungen</string>
     <string name="app_shell_thumb_cache_usage">%1$s von %2$s belegt</string>
     <plurals name="app_shell_time_days_ago">
-        <item quantity="one">vor %1$s T.</item>
-        <item quantity="other">vor %1$s T.</item>
+        <item quantity="one">vor %1$s Tag</item>
+        <item quantity="other">vor %1$s Tagen</item>
     </plurals>
     <plurals name="app_shell_time_hours_ago">
         <item quantity="one">vor %1$s Std.</item>

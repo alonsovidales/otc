@@ -564,13 +564,13 @@
     "reviewed": "claude-backtranslation 2026-10-11 #7a8116aa"
   },
   "app.shell.thumb_cache_usage": {
-    "text": "{used} utilisés sur {limit}",
+    "text": "Utilisation : {used} sur {limit}",
     "en": "Using {used} of {limit}"
   },
   "app.shell.time_days_ago": {
     "text": {
-      "one": "{count} j",
-      "other": "{count} j"
+      "one": "il y a {count} j",
+      "other": "il y a {count} j"
     },
     "en": {
       "one": "{count}d ago",
@@ -579,8 +579,8 @@
   },
   "app.shell.time_hours_ago": {
     "text": {
-      "one": "{count} h",
-      "other": "{count} h"
+      "one": "il y a {count} h",
+      "other": "il y a {count} h"
     },
     "en": {
       "one": "{count}h ago",
@@ -593,8 +593,8 @@
   },
   "app.shell.time_minutes_ago": {
     "text": {
-      "one": "{count} min",
-      "other": "{count} min"
+      "one": "il y a {count} min",
+      "other": "il y a {count} min"
     },
     "en": {
       "one": "{count}m ago",

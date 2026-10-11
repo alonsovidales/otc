@@ -305,6 +305,9 @@ object OTCConnection {
         authRejection = null
         authBackoffMs = 5_000L
         MediaStream.reset()
+        // The session is over: a language picked before the next sign-in
+        // isn't compared with what this one saw (LanguageSettings).
+        cloud.offthe.otc.i18n.LanguageSettings.sessionEnded()
     }
 
     /** Log Out: drop the connection and forget what went wrong with the last one. */
@@ -514,6 +517,10 @@ object OTCConnection {
         }
         authRejection = AuthRejection(credKey, r.text, SystemClock.elapsedRealtime() + rejectedForMs)
         authBackoffMs = minOf(authBackoffMs * 2, maxAuthBackoffMs)
+        // The device ended the session (the password turned down; a
+        // re-imaged device keeps ""): the language value seen goes, so one
+        // picked before the next sign-in goes as it is.
+        cloud.offthe.otc.i18n.LanguageSettings.sessionEnded()
     }
 
     /** Signed in through the configured endpoint [url] (or at home for it). */
@@ -532,7 +539,10 @@ object OTCConnection {
         // device set up (or reinstalled) while the app was running would
         // otherwise never learn this phone's token.
         cloud.offthe.otc.push.FCMPush.registerKnown(cloud.offthe.otc.OTCApp.instance)
-        // A language chosen while the device couldn't take it goes now.
+        // A language chosen while the device couldn't take it, or before
+        // any device was signed in to, goes now - ahead of this session's
+        // first Status or Settings value (LanguageSettings). On every
+        // accepted sign-in, also one on a socket that was already open.
         cloud.offthe.otc.i18n.LanguageSettings.connected()
         // Back after a drop: what failed meanwhile is asked for again now.
         Wake.fire()

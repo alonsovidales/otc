@@ -290,7 +290,16 @@ struct StorageSummary: Equatable {
     }
 
     private static func trim(_ x: Double) -> String {
-        x == x.rounded() ? String(Int(x)) : String(x)
+        if x == x.rounded() { return String(Int(x)) }
+        // The decimal mark of the app's language ("3,5" in Spanish), as
+        // the Settings status line writes it (decimalText); English keeps
+        // "3.5" (the language's own tag, not the region's).
+        let f = NumberFormatter()
+        f.locale = L10n.shared.current.locale
+        f.numberStyle = .decimal
+        f.usesGroupingSeparator = false
+        f.maximumFractionDigits = 2
+        return f.string(from: NSNumber(value: x)) ?? String(x)
     }
 
     /// The mirror's health, worded as the web's raidStateLabel.
@@ -524,7 +533,10 @@ struct SideMenu: View {
                         HStack {
                             Text(r.label)
                             Spacer(minLength: 8)
-                            Text(r.value)
+                            // The figure keeps one line; the label gives
+                            // way first (Italian "240 GB di 474 GB" was
+                            // broken over two lines).
+                            Text(r.value).lineLimit(1).layoutPriority(1)
                         }
                     }
                     ForEach(storage.errors, id: \.self) { e in
@@ -852,8 +864,12 @@ struct ScrollClearsWindowControls: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content
-                .onGeometryChange(for: CGFloat.self) { $0.containerCornerInsets.topLeading.height } action: { top = $0 }
                 .safeAreaPadding(.top, top)
+                // Measured outside the padding it sets: measured inside, each
+                // padding moved what was measured, and the two chased each
+                // other for ever - Settings froze (100% CPU) on opening it on
+                // an iPhone 17e, whose rounded corners give a non-zero inset.
+                .onGeometryChange(for: CGFloat.self) { $0.containerCornerInsets.topLeading.height } action: { top = $0 }
         } else {
             content
         }

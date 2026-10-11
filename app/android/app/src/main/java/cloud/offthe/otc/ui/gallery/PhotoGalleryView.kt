@@ -1312,8 +1312,10 @@ private fun VideoUnplayable(modifier: Modifier, onRetry: () -> Unit) {
         modifier.padding(16.dp).background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(50)).padding(start = 16.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(VIDEO_UNPLAYABLE.resolve(), color = Color.White, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-        TextButton(onClick = onRetry) { Text(TRY_AGAIN.resolve(), color = Color.White) }
+        // The message wraps rather than squeezing the button: measured first
+        // at its whole width, it left "Erneut versuchen" no room at all.
+        Text(VIDEO_UNPLAYABLE.resolve(), color = Color.White, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f, fill = false).semantics { liveRegion = LiveRegionMode.Polite })
+        TextButton(onClick = onRetry) { Text(TRY_AGAIN.resolve(), color = Color.White, maxLines = 1) }
     }
 }
 

@@ -74,8 +74,10 @@ fun logOut(
             ThumbStore.logOut()
             if (keepDevice) SecretsStore.saveLastDevice(last.first, last.second) else SecretsStore.clearLastDevice()
             // The language stays as chosen (otc_language isn't wiped); only
-            // what belonged to this device goes.
-            LanguageSettings.loggedOut()
+            // what belonged to this device goes. Leaving from the cards, a
+            // change the device never got goes to the next device (a new
+            // one set up from the connection screen).
+            LanguageSettings.loggedOut(carryPending = keepDevice)
         }
         val activity = context as? Activity ?: return@launch
         activity.startActivity(Intent(activity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))

@@ -38,6 +38,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -93,36 +94,44 @@ fun SelectionActionBar(
         if (onGroup != null) add(BarItem(S.appShellAddToCollection().resolve(), NavIcons.AddToCollection, count > 0 && busy == null, onGroup))
         add(BarItem(S.commonDelete().resolve(), Icons.Default.Delete, count > 0 && busy == null, onDelete, tint = Color(0xFFE53935)))
     }
-    Column(Modifier.padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        if (count > 0) {
-            Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 3.dp, shadowElevation = 2.dp) {
-                Text(S.appShellSelected(count).resolve(), style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp))
+    BoxWithConstraints {
+        // Five or six items share a phone's width, and a label word wider
+        // than its slot ("Download", "collection") used to break mid-word:
+        // every label gets one size, the largest at which each word fits on
+        // a line and each label in two (barFit). Where none does - six
+        // items at 360 dp in Spanish, German or Dutch ("Compartir como
+        // galería", "Herunterladen", "Buiten Afbeeldingen houden") - the bar
+        // takes nearly the whole width, and its labels three lines if need be.
+        val labelStyle = barLabelStyle()
+        val fit = barFit(items.map { it.title }, maxWidth, labelStyle)
+        // Its lines as close as the style's: a smaller size in the style's
+        // line height left a gap in two-line labels.
+        val itemStyle = labelStyle.copy(fontSize = fit.size, lineHeight = labelStyle.lineHeight * (fit.size.value / labelStyle.fontSize.value))
+        Column(Modifier.padding(horizontal = fit.inset), horizontalAlignment = Alignment.CenterHorizontally) {
+            if (count > 0) {
+                Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 3.dp, shadowElevation = 2.dp) {
+                    Text(S.appShellSelected(count).resolve(), style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp))
+                }
+                Spacer(Modifier.height(6.dp))
             }
-            Spacer(Modifier.height(6.dp))
-        }
-        Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 3.dp, shadowElevation = 4.dp) {
-            BoxWithConstraints {
-                // Five or six items share a phone's width, and a label word
-                // wider than its slot ("Download", "collection") used to
-                // break mid-word: every label gets one size, the largest at
-                // which each word fits on a line and each label in two.
-                // (A pixel to spare: the row may hand a slot a pixel less.)
-                val labelStyle = barLabelStyle()
-                val labelWidth = with(LocalDensity.current) { ((maxWidth - BarSidePadding * 2) / items.size - ItemSidePadding * 2).toPx().toInt() - 1 }
-                val labelSize = barLabelSize(items.map { it.title }, labelWidth, labelStyle)
-                // Its lines as close as the style's: a smaller size in the
-                // style's line height left a gap in two-line labels.
-                val itemStyle = labelStyle.copy(fontSize = labelSize, lineHeight = labelStyle.lineHeight * (labelSize.value / labelStyle.fontSize.value))
-                Row(Modifier.padding(vertical = 6.dp, horizontal = BarSidePadding)) {
-                    for (item in items) Item(item, itemStyle, Modifier.weight(1f))
+            Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 3.dp, shadowElevation = 4.dp) {
+                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp, horizontal = fit.side)) {
+                    for (item in items) Item(item, itemStyle, fit.lines, Modifier.weight(1f))
                 }
             }
         }
     }
 }
 
+/** How the bar is laid out: its inset from the sides, its own padding, the labels' size and lines. */
+private class BarFit(val inset: Dp, val side: Dp, val size: TextUnit, val lines: Int)
+
+private val BarInset = 24.dp
 private val BarSidePadding = 8.dp
+// Where the labels don't fit otherwise: nearly the whole width.
+private val BarTightInset = 8.dp
+private val BarTightSidePadding = 4.dp
 private val ItemSidePadding = 2.dp
 
 // The label style without its letter spacing, so the labels take less room.
@@ -130,27 +139,38 @@ private val ItemSidePadding = 2.dp
 private fun barLabelStyle(): TextStyle = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp, textAlign = TextAlign.Center)
 
 /**
- * The size every label of the bar is drawn at: the label style's own, or
- * smaller when a word of one of [titles] wouldn't fit on a line of [width]
- * pixels, or a label in two lines. Never below 8sp as drawn at the
- * default font size (with the largest font sizes the user's choice gives
- * way to the words staying whole); words wider than that break after all.
+ * The bar's layout for [titles] in [width]: inset [BarInset] from the
+ * sides, every label at one size - the label style's own, or smaller
+ * when a word of one of them wouldn't fit on a line of its slot, or a
+ * label in two lines; never below 8sp as drawn at the default font size.
+ * When even that doesn't fit, the bar is inset [BarTightInset] only, with
+ * less padding of its own, and then, if they need it, its labels take
+ * three lines (words wider than that break after all). With the largest font sizes the user's
+ * choice gives way to the words staying whole.
  */
 @Composable
-private fun barLabelSize(titles: List<String>, width: Int, style: TextStyle): TextUnit {
+private fun barFit(titles: List<String>, width: Dp, style: TextStyle): BarFit {
     val measurer = rememberTextMeasurer(cacheSize = 0)
     val density = LocalDensity.current
     return remember(titles, width, style, density) {
         val max = style.fontSize.value
-        sharedLabelSize(
-            titles, max = max, min = minOf(max, BAR_LABEL_MIN_SP / density.fontScale),
-            wordFits = { word, size ->
-                measurer.measure(word, style.copy(fontSize = size.sp), softWrap = false, maxLines = 1, density = density).size.width <= width
-            },
-            lines = { title, size ->
-                measurer.measure(title, style.copy(fontSize = size.sp), constraints = Constraints(maxWidth = maxOf(width, 1)), density = density).lineCount
-            },
-        ).sp
+        val min = minOf(max, BAR_LABEL_MIN_SP / density.fontScale)
+        fun attempt(inset: Dp, side: Dp, maxLines: Int): BarFit? {
+            // A pixel to spare: the row may hand a slot a pixel less.
+            val labelWidth = with(density) { ((width - inset * 2 - side * 2) / titles.size - ItemSidePadding * 2).toPx().toInt() - 1 }
+            val wordFits = { word: String, size: Float ->
+                measurer.measure(word, style.copy(fontSize = size.sp), softWrap = false, maxLines = 1, density = density).size.width <= labelWidth
+            }
+            val lines = { title: String, size: Float ->
+                measurer.measure(title, style.copy(fontSize = size.sp), constraints = Constraints(maxWidth = maxOf(labelWidth, 1)), density = density).lineCount
+            }
+            val size = sharedLabelSize(titles, max = max, min = min, maxLines = maxLines, wordFits = wordFits, lines = lines)
+            return if (labelsFit(titles, size, maxLines, wordFits, lines)) BarFit(inset, side, size.sp, maxLines) else null
+        }
+        attempt(BarInset, BarSidePadding, 2)
+            ?: attempt(BarTightInset, BarTightSidePadding, 2)
+            ?: attempt(BarTightInset, BarTightSidePadding, 3)
+            ?: BarFit(BarTightInset, BarTightSidePadding, min.sp, 3)
     }
 }
 
@@ -159,29 +179,37 @@ internal const val BAR_LABEL_MIN_SP = 8f
 
 /**
  * The largest size, from [max] down to [min] in [step]s, at which every
- * word of [titles] fits on one line ([wordFits]) and every title takes two
- * [lines] at most; [min] when none does. One size for them all: labels
- * side by side at different sizes look like a mistake.
+ * word of [titles] fits on one line ([wordFits]) and every title takes
+ * [maxLines] [lines] at most; [min] when none does. One size for them all:
+ * labels side by side at different sizes look like a mistake.
  */
 internal fun sharedLabelSize(
-    titles: List<String>, max: Float, min: Float, step: Float = 0.5f,
+    titles: List<String>, max: Float, min: Float, step: Float = 0.5f, maxLines: Int = 2,
     wordFits: (word: String, size: Float) -> Boolean, lines: (title: String, size: Float) -> Int,
 ): Float {
-    val words = titles.flatMap { it.split(' ') }.filter { it.isNotEmpty() }.distinct()
     var size = max
     while (size > min) {
-        if (words.all { wordFits(it, size) } && titles.all { lines(it, size) <= 2 }) return size
+        if (labelsFit(titles, size, maxLines, wordFits, lines)) return size
         size = maxOf(min, size - step)
     }
     return min
 }
 
+/** Whether, at [size], every word of [titles] fits on a line and every title in [maxLines]. */
+internal fun labelsFit(
+    titles: List<String>, size: Float, maxLines: Int,
+    wordFits: (word: String, size: Float) -> Boolean, lines: (title: String, size: Float) -> Int,
+): Boolean {
+    val words = titles.flatMap { it.split(' ') }.filter { it.isNotEmpty() }.distinct()
+    return words.all { wordFits(it, size) } && titles.all { lines(it, size) <= maxLines }
+}
+
 @Composable
-private fun Item(item: BarItem, labelStyle: TextStyle, modifier: Modifier = Modifier) {
+private fun Item(item: BarItem, labelStyle: TextStyle, lines: Int, modifier: Modifier = Modifier) {
     val tint = item.tint ?: MaterialTheme.colorScheme.primary
     val color = if (item.enabled) tint else tint.copy(alpha = 0.4f)
     // Inside TextButton's own 12dp sides there was no room for a word: the
-    // label gets nearly the whole slot (barLabelSize measures that). Not
+    // label gets nearly the whole slot (barFit measures that). Not
     // the button's pill shape either: it clips what it holds, and its
     // round ends cut off the last letter of a label as wide as the slot.
     TextButton(onClick = item.onClick, enabled = item.enabled, modifier = modifier, shape = RoundedCornerShape(8.dp),
@@ -191,7 +219,7 @@ private fun Item(item: BarItem, labelStyle: TextStyle, modifier: Modifier = Modi
                 if (item.busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 else Icon(item.icon, contentDescription = item.title, tint = color)
             }
-            Text(item.title, style = labelStyle, color = color, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
+            Text(item.title, style = labelStyle, color = color, maxLines = lines, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
         }
     }
 }

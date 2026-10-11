@@ -83,6 +83,6 @@
     <string name="app_files_version_open_failed">Impossibile recuperare quella versione</string>
     <string name="app_files_version_replaced">Sostituita: %1$s</string>
     <string name="app_files_versions_explain">Il file si trova in una cartella in solo caricamento, quindi ogni caricamento in questo percorso ha conservato la versione precedente.</string>
-    <string name="app_files_versions_title">Versioni del file \u2068%1$s\u2069</string>
+    <string name="app_files_versions_title">Versioni di \u2068%1$s\u2069</string>
     <string name="app_files_video">Video</string>
 </resources>

@@ -714,7 +714,7 @@ extension S {
     /// one: {count}d ago
     /// other: {count}d ago
     ///
-    /// How long ago something happened, in days, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (d for days).
+    /// How long ago something happened, in days, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Short: the English abbreviates (d for days); a language may use its own "ago" wording (il y a, vor, geleden) within the max, with its usual short units.
     static func appShellTimeDaysAgo(count: Int) -> String {
         L("app.shell.time_days_ago", table: "AppShell", count)
     }
@@ -722,7 +722,7 @@ extension S {
     /// one: {count}h ago
     /// other: {count}h ago
     ///
-    /// How long ago something happened, in hours, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (h for hours).
+    /// How long ago something happened, in hours, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Short: the English abbreviates (h for hours); a language may use its own "ago" wording (il y a, vor, geleden) within the max, with its usual short units.
     static func appShellTimeHoursAgo(count: Int) -> String {
         L("app.shell.time_hours_ago", table: "AppShell", count)
     }
@@ -735,7 +735,7 @@ extension S {
     /// one: {count}m ago
     /// other: {count}m ago
     ///
-    /// How long ago something happened, in minutes, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Keep it as short as the English (m for minutes).
+    /// How long ago something happened, in minutes, in the Social feed on both phones, and on Android also in the alerts and Settings > Shared Links. Short: the English abbreviates (m for minutes); a language may use its own "ago" wording (il y a, vor, geleden) within the max, with its usual short units.
     static func appShellTimeMinutesAgo(count: Int) -> String {
         L("app.shell.time_minutes_ago", table: "AppShell", count)
     }

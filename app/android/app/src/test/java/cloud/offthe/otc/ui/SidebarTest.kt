@@ -98,4 +98,24 @@ class SidebarTest {
         assertEquals("0.3", pctText(0.3))
         assertEquals("100", pctText(123.0))
     }
+
+    @Test fun percentagesTakeTheAppLanguagesDecimalMark() {
+        // English as before, whatever the region.
+        assertEquals("45.5", pctText(45.5, Locale.forLanguageTag("en")))
+        val es = Locale.forLanguageTag("es")
+        assertEquals("45,5", pctText(45.5, es))
+        assertEquals("45,68", pctText(45.678, es))
+        assertEquals("0,3", pctText(0.3, es))
+        // Whole numbers unchanged.
+        assertEquals("45", pctText(45.0, es))
+        assertEquals("100", pctText(123.0, es))
+        assertEquals("12,5", pctText(12.5, Locale.forLanguageTag("pt-PT")))
+    }
+
+    @Test fun sizesAndFiguresTakeTheAppLanguagesDecimalMark() {
+        assertEquals("4.6 GB", cloud.offthe.otc.ui.common.decimalText("%.1f GB", 4.56, Locale.forLanguageTag("en")))
+        assertEquals("4,6 GB", cloud.offthe.otc.ui.common.decimalText("%.1f GB", 4.56, Locale.forLanguageTag("de")))
+        // No grouping: "%.0f" stays as it was.
+        assertEquals("100000 MB", cloud.offthe.otc.ui.common.decimalText("%.0f MB", 100_000.0, Locale.forLanguageTag("fr")))
+    }
 }

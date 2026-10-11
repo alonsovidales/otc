@@ -115,8 +115,21 @@ struct SelectionActionBar: View {
                 }
                 .frame(height: 22)
                 // "Share as gallery" and "Add to collection" wrap onto two
-                // lines in a full bar.
-                Text(title).font(.caption2).multilineTextAlignment(.center).lineLimit(2)
+                // lines in a full bar. Whole words only: a label with more
+                // words takes a third line rather than an ellipsis (Zur
+                // Sammlung hinzufügen, Ajouter à une collection on an iPhone
+                // SE), and one word wider than its share of the bar gets
+                // smaller on one line rather than broken (Herunter-laden,
+                // Download-en). English keeps its one or two lines.
+                ViewThatFits(in: .horizontal) {
+                    SmallestIsIdeal {
+                        WholeWordText(title)
+                            .font(.caption2)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(3)
+                    }
+                    Text(title).font(.caption2).lineLimit(1).minimumScaleFactor(0.6)
+                }
             }
             // Equal shares of the bar, and the whole share is tappable -
             // not just the glyph and its label.

@@ -271,7 +271,7 @@
     "en": "Error sending request"
   },
   "app.social.friends.set_pending": {
-    "text": "Marcar como pendente",
+    "text": "Tornar pendente",
     "en": "Set Pending"
   },
   "app.social.friends.status_accepted": {

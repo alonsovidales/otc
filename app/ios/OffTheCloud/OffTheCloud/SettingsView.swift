@@ -689,8 +689,10 @@ enum AppLogOut {
             GridThumbCache.removeAll()
             secrets.logOut()
             // The language stays as chosen (its own defaults survive the
-            // wipe); only what belonged to this device goes.
-            LanguageSettings.shared.loggedOut()
+            // wipe); only what belonged to this device goes. Leaving from
+            // the cards, a change the device never got goes to the next
+            // device (a new one set up from the connection screen).
+            LanguageSettings.shared.loggedOut(carryPending: keepDevice)
             // Its size went with the defaults: back to 1 GB.
             ThumbDiskCache.shared.limitBytes = ThumbCacheLimit.stored()
             if keepDevice {
@@ -795,12 +797,12 @@ struct ThumbCacheSection: View {
     }
 }
 
-/// A size the device reports in MB, readable: "4.6 GB", "984 GB", "820 MB".
-/// Same as sizeText in Android's SettingsView.kt.
+/// A size the device reports in MB, readable: "4.6 GB", "984 GB", "820 MB"
+/// ("4,6 GB" in Spanish). Same as sizeText in Android's SettingsView.kt.
 func sizeText(_ mb: Double) -> String {
-    if mb >= 100_000 { return String(format: "%.0f GB", mb / 1000) } // i18n-ignore: a size, the unit's symbol in every language
-    if mb >= 1000 { return String(format: "%.1f GB", mb / 1000) } // i18n-ignore: a size, the unit's symbol in every language
-    return String(format: "%.0f MB", mb) // i18n-ignore: a size, the unit's symbol in every language
+    if mb >= 100_000 { return decimalText("%.0f GB", mb / 1000) } // i18n-ignore: a size, the unit's symbol in every language
+    if mb >= 1000 { return decimalText("%.1f GB", mb / 1000) } // i18n-ignore: a size, the unit's symbol in every language
+    return decimalText("%.0f MB", mb) // i18n-ignore: a size, the unit's symbol in every language
 }
 
 // Issue #65: a plain, always-visible read of the RAID's own health -
@@ -835,7 +837,7 @@ private struct StatusSectionContent: View {
                     .font(.caption)
                 Text(S.appSettingsStatusDisk(used: sizeText(Double(s.diskUsage)), total: sizeText(Double(s.diskSize))))
                     .font(.caption)
-                Text(S.appSettingsStatusCpuMem(cpu: String(format: "%.1f", s.cpuUsagePrc), used: sizeText(Double(s.memUsage)), total: sizeText(Double(s.memSize))))
+                Text(S.appSettingsStatusCpuMem(cpu: decimalText("%.1f", Double(s.cpuUsagePrc)), used: sizeText(Double(s.memUsage)), total: sizeText(Double(s.memSize))))
                     .font(.caption)
                 Text(s.raidLevel.isEmpty
                      ? S.appSettingsStatusRaid(state: raidStateLabel(s), disks: Int(s.disks))

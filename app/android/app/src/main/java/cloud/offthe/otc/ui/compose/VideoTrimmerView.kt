@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.compose
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -129,9 +131,11 @@ fun VideoTrimmerView(uri: String, existing: TrimRange?, onApply: (TrimRange?) ->
                         }
                         Text(S.appSocialTrimKeeping(formatTimecode(cutLength), formatTimecode(d)).resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(8.dp))
-                        Row {
+                        // Whole buttons on a second line when both don't fit
+                        // (Dutch, French at 360 dp), rather than one squeezed.
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = { player.seekTo((start * 1000).toLong()); playingCut = true; player.play() }) { Text(S.androidTrimPlayCut().resolve()) }
-                            if (existing != null) { Spacer(Modifier.width(8.dp)); OutlinedButton(onClick = { onApply(null) }) { Text(S.appSocialTrimRemove().resolve()) } }
+                            if (existing != null) OutlinedButton(onClick = { onApply(null) }) { Text(S.appSocialTrimRemove().resolve()) }
                         }
                     }
                     err != null -> Text(S.androidTrimCant(err.resolve()).resolve(), color = MaterialTheme.colorScheme.error)

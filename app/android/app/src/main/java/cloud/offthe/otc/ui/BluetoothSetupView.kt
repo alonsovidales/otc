@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -26,6 +28,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -44,8 +48,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.i18n.LanguageSettings
@@ -53,6 +61,7 @@ import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.androidBluetoothNeededHint
 import cloud.offthe.otc.i18n.androidBluetoothOffHint
+import cloud.offthe.otc.i18n.androidSetupLanguageLater
 import cloud.offthe.otc.i18n.androidSignalGood
 import cloud.offthe.otc.i18n.androidSignalStrong
 import cloud.offthe.otc.i18n.androidSignalWeak
@@ -77,13 +86,17 @@ import cloud.offthe.otc.i18n.commonConnecting
 import cloud.offthe.otc.i18n.commonPassword
 import cloud.offthe.otc.net.BLESetupTransport
 import cloud.offthe.otc.ui.common.now
+import cloud.offthe.otc.ui.settings.LanguageMenu
 import java.io.ByteArrayInputStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.net.URLDecoder
 import java.net.URLEncoder
 
 // Port of BluetoothSetupView.swift (issue #137): the device's own setup
@@ -93,7 +106,8 @@ import java.net.URLEncoder
 // interface (a WebView interceptor never sees POST bodies), the same
 // split as the iOS script bridge. Once the wizard reports the install
 // online, "Use this device" hands the address back to the onboarding
-// form; the first sign in sets the owner password.
+// form; the first sign in sets the owner password. The top bar's language
+// menu re-words the screen in place, and the page follows (SetupPage).
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,6 +115,7 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val transport = remember { BLESetupTransport(context) }
+    val page = remember { SetupPage(transport) }
     val phase by transport.phase.collectAsState()
     val readyDomain by transport.readyDomain.collectAsState()
     val chosenPassword by transport.chosenPassword.collectAsState()
@@ -121,10 +136,30 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
         if (BLESetupTransport.hasPermissions(context)) transport.start() else permissions.launch(BLESetupTransport.permissions())
     }
     DisposableEffect(Unit) {
+        // A change of language is shown here in place: recreating the
+        // Activity would drop the link and the page with what was typed in
+        // it (LanguageSettings.holdInPlace).
+        val release = LanguageSettings.holdInPlace()
         onDispose {
+            release()
+            page.view = null
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { transport.releaseAndStop() }
         }
     }
+    // The page follows the app's language (the top bar's language menu).
+    val code by LanguageSettings.wire.collectAsState()
+    var pageCode by remember { mutableStateOf(code) }
+    LaunchedEffect(code) {
+        if (code != pageCode) {
+            pageCode = code
+            page.appLanguageChanged(code)
+        }
+    }
+    val waitingLang by page.waitingLang.collectAsState()
+    val installStarted by transport.installStarted.collectAsState()
+    // An older wizard's page, reloaded in the app's language once that
+    // loses nothing: the device installing and the link up.
+    LaunchedEffect(waitingLang, installStarted, phase is BLESetupTransport.Phase.Ready) { page.reloadWhenSafe() }
     // The page's profile-picture field (issue #178): a WebView opens no
     // file picker on its own, so the chooser request comes here.
     val pendingFile = remember { arrayOfNulls<ValueCallback<Array<Uri>>>(1) }
@@ -135,8 +170,22 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
 
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text(S.appShellSetupNewDevice().resolve()) },
+            title = {
+                // On two lines, and smaller if need be, rather than cut short
+                // beside the language menu ("Configurar dispositivo nuevo").
+                val style = LocalTextStyle.current
+                BasicText(
+                    S.appShellSetupNewDevice().resolve(),
+                    style = style.merge(color = LocalContentColor.current),
+                    maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    autoSize = TextAutoSize.StepBased(minFontSize = style.fontSize * 0.7f, maxFontSize = style.fontSize, stepSize = 0.5.sp),
+                    modifier = Modifier.semantics { heading() },
+                )
+            },
             navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = S.commonBack().resolve()) } },
+            // The wizard's own language list is hidden in the app: this one
+            // counts, and the device set up gets it at the first sign-in.
+            actions = { LanguageMenu() },
         )
     }) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
@@ -151,9 +200,19 @@ fun BluetoothSetupView(onUseDevice: (String, String) -> Unit, onClose: () -> Uni
                         )
                     }
                 }
+                val waiting = waitingLang
+                if (waiting != null && !installStarted) {
+                    // The app speaks another language now; an older
+                    // wizard's page follows once it loses nothing by it.
+                    Text(
+                        S.androidSetupLanguageLater(LanguageSettings.nameOf(waiting)).resolve(),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
                 // The install takes about 20 minutes: keepScreenOn stops a
                 // locked phone from dropping the Bluetooth link.
-                AndroidView(factory = { makeWebView(it, transport, scope) { cb ->
+                AndroidView(factory = { makeWebView(it, transport, page, scope) { cb ->
                     pendingFile[0]?.onReceiveValue(null)
                     pendingFile[0] = cb
                     pickImage.launch("image/*")
@@ -279,6 +338,103 @@ internal fun withLang(path: String, code: String = LanguageSettings.wireCode): S
     return path + (if ('?' in path) "&" else "?") + "lang=" + URLEncoder.encode(code, "UTF-8")
 }
 
+/**
+ * The wizard's page and the app's language (docs/i18n.md, "Setup wizard"),
+ * as BLESetupTransport.appLanguageChanged in BluetoothSetupView.swift. On
+ * the main thread.
+ */
+internal class SetupPage(private val transport: BLESetupTransport) {
+    /** The web view showing the page, to ask it to re-word itself. */
+    var view: WebView? = null
+
+    /** The page has finished loading (its script runs), not just been asked for. */
+    var loaded = false
+
+    /** The language of the page on screen: its address's lang=. */
+    var lang: String? = null
+
+    private val _waitingLang = MutableStateFlow<String?>(null)
+
+    /** The app's language, waiting for the moment an older wizard's page can be reloaded in it; null when nothing waits. */
+    val waitingLang: StateFlow<String?> = _waitingLang
+
+    /**
+     * The app's language changed while the wizard's page is up. A page not
+     * loaded yet holds nothing typed: it loads again in the new language. A
+     * loaded page is asked to re-word itself (setup_wizard.py's
+     * window.otcSetupLang): it reloads on the same step, keeping what was
+     * entered there but passwords, and asks first when some are typed. An
+     * older image's wizard has no such call and keeps what was typed or
+     * picked before the install only in the page: it is reloaded once the
+     * device is installing, when it shows only what the device reports and
+     * a reload loses nothing (a line over it says so until then). With no
+     * page up yet, the page loads in the language of that moment.
+     */
+    fun appLanguageChanged(code: String) {
+        _waitingLang.value = null
+        val view = view ?: return
+        if (!loaded) {
+            view.loadUrl(BLESetupLang.pageUrl(code))
+            return
+        }
+        view.evaluateJavascript(BLESetupLang.switchScript(code)) { result ->
+            // Changed again meanwhile: the newer one counts.
+            if (LanguageSettings.wireCode != code) return@evaluateJavascript
+            // The page goes to it by itself, or is in it already.
+            if (BLESetupLang.pageSwitches(result)) return@evaluateJavascript
+            if (code == lang) return@evaluateJavascript
+            _waitingLang.value = code
+            reloadWhenSafe()
+        }
+    }
+
+    /** The language an older wizard's page waits for, now if a reload loses nothing: the device is installing and the link is up. */
+    fun reloadWhenSafe() {
+        val code = _waitingLang.value ?: return
+        val view = view ?: return
+        if (!transport.installStarted.value || !transport.isReady) return
+        _waitingLang.value = null
+        view.loadUrl(BLESetupLang.pageUrl(code))
+    }
+}
+
+/** The setup page's language, as BLESetupLang in BluetoothSetupView.swift. */
+internal object BLESetupLang {
+    /** The wizard's page in [code], as the web view loads it (shouldInterceptRequest serves it). */
+    fun pageUrl(code: String): String = "https://device/?lang=" + URLEncoder.encode(code, "UTF-8")
+
+    /**
+     * What asks an open page to re-word itself in [code]: the wizard's
+     * window.otcSetupLang, which answers true or false; an older image's
+     * wizard has none. [quote] makes the code a JavaScript string
+     * (JSONObject.quote; JVM tests, which have no org.json, stand in for it).
+     */
+    fun switchScript(code: String, quote: (String) -> String = { JSONObject.quote(it) }): String =
+        "window.otcSetupLang&&window.otcSetupLang(" + quote(code) + ")"
+
+    /**
+     * Whether the page answered [switchScript] with a boolean, which
+     * evaluateJavascript hands over as JSON: "true" (it goes to the
+     * language) or "false" (nothing to do). Anything else - "null" for
+     * undefined or null, a string, nothing - is a wizard without the call.
+     */
+    fun pageSwitches(result: String?): Boolean = result == "true" || result == "false"
+
+    /**
+     * From the wizard's /api/state: the device is installing (or has
+     * finished, or failed), or was installed already - its page then shows
+     * only the device's state, and a reload loses nothing typed.
+     */
+    fun installStarted(alreadyInstalled: Boolean, phase: String?): Boolean = alreadyInstalled || (phase ?: "idle") != "idle"
+
+    /** The language a page was loaded in: its address's lang=. */
+    fun lang(url: String?): String? {
+        val query = url?.substringBefore('#')?.substringAfter('?', "") ?: return null
+        val item = query.split('&').firstOrNull { it.startsWith("lang=") } ?: return null
+        return URLDecoder.decode(item.removePrefix("lang="), "UTF-8")
+    }
+}
+
 private fun pathOf(url: String): String =
     if (url.contains("://")) Uri.parse(url).let { (it.encodedPath.orEmpty().ifEmpty { "/" }) + (it.encodedQuery?.let { q -> "?$q" } ?: "") } else url
 
@@ -318,9 +474,11 @@ private class Bridge(private val webView: WebView, private val transport: BLESet
 
 @SuppressLint("SetJavaScriptEnabled")
 private fun makeWebView(
-    context: Context, transport: BLESetupTransport, scope: CoroutineScope,
+    context: Context, transport: BLESetupTransport, page: SetupPage, scope: CoroutineScope,
     chooseFile: (ValueCallback<Array<Uri>>) -> Unit,
 ): WebView = WebView(context).apply {
+    page.view = this
+    page.loaded = false
     settings.javaScriptEnabled = true
     settings.domStorageEnabled = true
     setBackgroundColor(0xFF1E1F22.toInt()) // the wizard's own background
@@ -332,6 +490,17 @@ private fun makeWebView(
         }
     }
     webViewClient = object : WebViewClient() {
+        // Told when the page has loaded, and in which language
+        // (SetupPage.appLanguageChanged).
+        override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+            page.loaded = false
+        }
+
+        override fun onPageFinished(view: WebView, url: String?) {
+            page.loaded = true
+            page.lang = BLESetupLang.lang(url)
+        }
+
         // Runs on a background thread, so blocking on the round trip is fine.
         // The setup page never leaves itself: a link elsewhere opens in the
         // phone's browser, never in this view, where OTCSetup lives.
@@ -361,7 +530,8 @@ private fun makeWebView(
             return WebResourceResponse(mime, "utf-8", a.status, reason(a.status), mapOf("Cache-Control" to "no-store"), ByteArrayInputStream(body.toByteArray()))
         }
     }
-    loadUrl(Uri.Builder().scheme("https").authority("device").path("/").appendQueryParameter("lang", LanguageSettings.wireCode).build().toString())
+    // In the app's language now; a change later is SetupPage.appLanguageChanged.
+    loadUrl(BLESetupLang.pageUrl(LanguageSettings.wireCode))
 }
 
 private fun reason(status: Int): String = when (status) {

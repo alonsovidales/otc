@@ -398,6 +398,13 @@ extension S {
     /// Heading of the section of Settings about the small pictures of the photos kept on this iPhone so Images opens fast.
     static var iosSettingsThumbsTitle: String { L("ios.settings.thumbs_title", table: "Ios") }
 
+    /// The setup page will switch to {language} once the installation starts.
+    ///
+    /// iPhone app, setting up a device over Bluetooth: a line over the setup page (the web page the device serves) after the language was changed with the screen's language menu while that page was already open. The page of a device with older software changes language only once the device starts installing, so that nothing typed on it is lost; until then it stays in the language it opened in. {language} is the newly chosen language, written by its own name (for example Español, Deutsch); language names are never translated.
+    static func iosSetupLanguageLater(language: String) -> String {
+        L("ios.setup_language_later", table: "Ios", language)
+    }
+
     /// Sign-in cancelled
     ///
     /// Set up a new device (over Bluetooth): error given to the setup page when the person closed the Apple or Google sign-in.

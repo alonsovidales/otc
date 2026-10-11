@@ -1207,13 +1207,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "✂ Recortar"
+            "value" : "✂ Cortar"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "✂ Découper"
+            "value" : "✂ Couper"
           }
         },
         "it" : {
@@ -1225,7 +1225,7 @@
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "✂ Inkorten"
+            "value" : "✂ Knippen"
           }
         },
         "pt-PT" : {
@@ -2805,13 +2805,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿Eliminar la amistad con %1$@?"
+            "value" : "¿Eliminar a %1$@?"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Retirer %1$@ de vos amis ?"
+            "value" : "Retirer %1$@ ?"
           }
         },
         "it" : {
@@ -3158,7 +3158,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Marcar como pendente"
+            "value" : "Tornar pendente"
           }
         }
       }

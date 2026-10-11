@@ -28,7 +28,7 @@
     <string name="app_social_compose_source_phone">Téléphone</string>
     <string name="app_social_compose_source_synced">Synchronisées</string>
     <string name="app_social_compose_title">Nouvelle publication</string>
-    <string name="app_social_compose_trim_badge">✂ Découper</string>
+    <string name="app_social_compose_trim_badge">✂ Couper</string>
     <string name="app_social_compose_trim_load_failed">Impossible de charger cette vidéo pour la découper : %1$s</string>
     <string name="app_social_compose_uploading">Envoi %1$s sur %2$s…</string>
     <string name="app_social_feed_empty_text">Partagez une photo ou une vidéo avec vos amis : elle passe de votre appareil au leur, sans aucun cloud entre les deux.</string>
@@ -62,7 +62,7 @@
     <string name="app_social_friends_remove_now">Retirer maintenant</string>
     <string name="app_social_friends_remove_now_text">Cela met fin à l’attente de son appareil. Ce qu’il n’a pas encore supprimé y reste.</string>
     <string name="app_social_friends_remove_now_title">Retirer \u2068%1$s\u2069 maintenant ?</string>
-    <string name="app_social_friends_remove_title">Retirer \u2068%1$s\u2069 de vos amis ?</string>
+    <string name="app_social_friends_remove_title">Retirer \u2068%1$s\u2069 ?</string>
     <string name="app_social_friends_removed">Personne retirée de vos amis</string>
     <string name="app_social_friends_request_cancelled">Demande annulée</string>
     <string name="app_social_friends_request_deleted">Demande supprimée</string>

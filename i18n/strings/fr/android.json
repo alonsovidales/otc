@@ -383,6 +383,10 @@
     "text": "Envoi de {name}",
     "en": "Uploading {name}"
   },
+  "android.setup_language_later": {
+    "text": "La page de configuration s’affichera en {language} dès le début de l’installation.",
+    "en": "The setup page will switch to {language} once the installation starts."
+  },
   "android.signal_good": {
     "text": "Bon signal",
     "en": "Good signal"

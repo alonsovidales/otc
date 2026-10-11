@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.ui.common.ConnectionEndpointFields
+import cloud.offthe.otc.ui.common.rememberConnectionForm
+import cloud.offthe.otc.ui.settings.LanguageMenu
 
 // Port of OnboardingView.swift: the first-run connection form.
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,8 +49,15 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
     val pending = remember { if (secrets.isConfigured) null else SecretsStore.pendingSetup() }
     // Or the device this phone left while it was down (logOut keepDevice).
     val last = remember { if (secrets.isConfigured || pending != null) null else SecretsStore.lastDevice() }
-    var endpoint by remember { mutableStateOf(pending?.first ?: last?.first ?: secrets.endpoint.value) }
-    var password by remember { mutableStateOf(pending?.second ?: last?.second ?: secrets.password.value) }
+    // What is typed survives the recreation a pick in the language menu
+    // brings (a view model: the password stays out of saved state).
+    val form = rememberConnectionForm(
+        "onboarding",
+        endpoint = { pending?.first ?: last?.first ?: secrets.endpoint.value },
+        password = { pending?.second ?: last?.second ?: secrets.password.value },
+    )
+    val endpoint by form::endpoint
+    var password by form::password
     // Issue #137: a brand-new device is set up from here over Bluetooth;
     // when it is done its address lands in the form and the first sign in
     // sets the owner password.
@@ -69,11 +78,18 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
         return
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text(S.appShellWelcome().resolve()) }) }) { pad ->
+    Scaffold(topBar = {
+        TopAppBar(
+            title = { Text(S.appShellWelcome().resolve()) },
+            // The language, before any device: Settings, where it lives,
+            // needs one. Kept for the device signed in to next.
+            actions = { LanguageMenu() },
+        )
+    }) { pad ->
         Column(Modifier.padding(pad).fillMaxSize().padding(16.dp)) {
             Text(S.appShellConnectTitle().resolve(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
-            ConnectionEndpointFields(endpoint = endpoint, onEndpointChange = { endpoint = it })
+            ConnectionEndpointFields(form.entry)
             Spacer(Modifier.height(8.dp))
             OTCTextField(
                 value = password, onValueChange = { password = it }, label = { Text(S.commonPassword().resolve()) },

@@ -175,6 +175,67 @@ struct LanguageChoiceTests {
         #expect(c == LanguageChoice(language: "it", pending: false, pendingAt: nil, seen: nil))
     }
 
+    @Test func aChoiceWithNoValueSeenIsForTheNextDeviceWithoutExpected() {
+        var c = LanguageChoice(language: "en")
+        c.choose("es", at: t0)
+        #expect(c.pending && c.forNextDevice)
+        // Left out, never "": a device holding a language would refuse "".
+        #expect(c.expected == nil)
+        // Seen "" (a device on Automatic): a change against that.
+        var d = LanguageChoice(language: "", seen: "")
+        d.choose("es", at: t0)
+        #expect(!d.forNextDevice && d.expected == "")
+    }
+
+    @Test func aChoiceForTheNextDeviceIgnoresWhatADeviceSaysUntilTheSignIn() {
+        var c = LanguageChoice(language: "en")
+        c.choose("es", at: t0)
+        // Long after the window: still waiting for the next sign-in.
+        let took = c.deviceSaid("fr", at: t0 + 3600)
+        #expect(!took)
+        #expect(c.language == "es" && c.pending && c.seen == nil)
+        c.connected()
+        #expect(c.pending && !c.forNextDevice && c.expected == nil)
+    }
+
+    @Test func logOutAndADroppedSessionKeepAChoiceForTheNextDevice() {
+        var c = LanguageChoice(language: "en")
+        c.choose("nl", at: t0)
+        c.sessionEnded()
+        c.loggedOut()
+        #expect(c.language == "nl" && c.pending && c.forNextDevice && c.expected == nil)
+    }
+
+    @Test func aSignedInChangeKeepsItsExpectedWhenTheSessionEnds() {
+        var c = LanguageChoice(language: "en", seen: "en")
+        c.choose("es", at: t0)
+        c.sessionEnded()
+        #expect(c.seen == nil)
+        #expect(c.pending && !c.forNextDevice && c.expected == "en")
+        // Picked again before the next sign-in: for the next device.
+        c.choose("de", at: t0 + 1)
+        #expect(c.forNextDevice && c.expected == nil)
+    }
+
+    @Test func leavingFromTheCardsCarriesAPendingChangeToTheNextDevice() {
+        var c = LanguageChoice(language: "en", seen: "en")
+        c.choose("pt", at: t0)
+        c.loggedOut(carryPending: true)
+        #expect(c.language == "pt" && c.pending && c.forNextDevice && c.expected == nil && c.seen == nil)
+        // Nothing pending: nothing to carry.
+        var d = LanguageChoice(language: "pt", seen: "pt")
+        d.loggedOut(carryPending: true)
+        #expect(!d.pending && !d.forNextDevice)
+    }
+
+    @Test func aChangeMadeWhileOneWasOnItsWayGoesNextAgainstTheValueSent() {
+        var c = LanguageChoice(language: "en")
+        c.choose("es", at: t0)
+        c.choose("de", at: t0 + 1)
+        c.taken("es")
+        #expect(c.language == "de" && c.pending && c.expected == "es" && !c.forNextDevice)
+    }
+
     @Test func answersAreReadCodesFirst() {
         func ack(_ ok: Bool, _ code: String = "") -> Msg_RespEnvelope {
             var a = Msg_Ack()
@@ -204,19 +265,49 @@ struct LanguageChoiceTests {
 }
 
 /// A device stand-in for LanguageSettings: answers SetLanguage from a
-/// queue, and records what it was sent.
+/// queue - or, with `stored` set and nothing queued, as the device does
+/// (settings.SetLanguage: written when `expected` is left out or matches,
+/// else "changed") - and records what it was sent.
 @MainActor
 private final class FakeDevice {
     var answers: [Result<Msg_RespEnvelope, Error>] = []
     var sent: [(language: String, expected: String?)] = []
     var settingsLanguage: String? = nil
     var languageChanges = 0
+    /// Whether a sign-in has been accepted (OTCConnection.authenticated).
+    var signedIn = true
+    /// The device's own value, when it answers as the device does.
+    var stored: String?
+    /// Holds each SetLanguage until released (one in flight).
+    var held: [CheckedContinuation<Void, Never>] = []
+    var holding = false
+
+    func release() {
+        let h = held
+        held = []
+        h.forEach { $0.resume() }
+    }
 
     var device: LanguageSettings.Device {
         LanguageSettings.Device(
+            signedIn: { [unowned self] in self.signedIn },
             setLanguage: { [unowned self] language, expected in
-                try await MainActor.run {
+                let hold = await MainActor.run { () -> Bool in
                     self.sent.append((language, expected))
+                    return self.holding
+                }
+                if hold {
+                    await withCheckedContinuation { c in
+                        Task { @MainActor in self.held.append(c) }
+                    }
+                }
+                return try await MainActor.run {
+                    if self.answers.isEmpty, let value = self.stored {
+                        if let expected, expected != value { return try FakeDevice.ack(false, "changed").get() }
+                        self.stored = language
+                        self.settingsLanguage = language
+                        return try FakeDevice.ack(true).get()
+                    }
                     guard !self.answers.isEmpty else { throw URLError(.notConnectedToInternet) }
                     return try self.answers.removeFirst().get()
                 }
@@ -224,7 +315,7 @@ private final class FakeDevice {
             settings: { [unowned self] in
                 await MainActor.run {
                     var s = Msg_Settings()
-                    if let l = self.settingsLanguage { s.language = l }
+                    if let l = self.stored ?? self.settingsLanguage { s.language = l }
                     return s
                 }
             },
@@ -409,6 +500,214 @@ struct LanguageSettingsTests {
         #expect(relaunched.choice.language == "pt")
         #expect(!relaunched.choice.pending)
         #expect(relaunched.effective == "pt")
+    }
+
+    // MARK: picked with no device signed in (docs/i18n.md, the next device)
+
+    @Test func aChoiceMadeSignedOutIsSentAtTheFirstSignInWithoutExpected() async {
+        let suite = TempDefaults(), fake = FakeDevice(), shown = Shown()
+        var now = t0
+        fake.signedIn = false
+        let s = make(suite, fake, clock: { now }, shown: shown)
+        s.start()
+        s.choose("es")
+        // Shown at once, kept, and nothing sent before a sign-in.
+        #expect(shown.codes == ["en", "es"])
+        await settle()
+        #expect(fake.sent.isEmpty)
+        #expect(s.choice.pending && s.choice.forNextDevice && s.choice.expected == nil)
+        // Signed in long after; the session's first Status still holds the
+        // device's older value and must not undo the choice.
+        now = t0 + 3600
+        fake.signedIn = true
+        fake.answers = [FakeDevice.ack(true)]
+        s.connected()
+        s.deviceSaid("fr")
+        #expect(s.choice.language == "es")
+        await settle()
+        #expect(fake.sent.count == 1)
+        #expect(fake.sent.first?.language == "es")
+        #expect(fake.sent.first?.expected == nil)
+        #expect(!s.choice.pending)
+        // An older Status answered after the ok is still ignored.
+        now = t0 + 3605
+        s.deviceSaid("fr")
+        #expect(s.choice.language == "es")
+        #expect(shown.codes.last == "es")
+    }
+
+    @Test func aChoiceForTheNextDeviceReachesANewDeviceAndOneAnotherAppSet() async {
+        for held in ["", "it"] {
+            let suite = TempDefaults(), fake = FakeDevice()
+            // Signed in to another device before: Log Out, then picked on
+            // the welcome screen.
+            let s = make(suite, fake)
+            s.deviceSaid("nl")
+            s.loggedOut()
+            fake.signedIn = false
+            s.choose("de")
+            // The next device: a new one ("", Automatic) or one where
+            // another app set a language.
+            fake.stored = held
+            fake.signedIn = true
+            s.connected()
+            await settle()
+            #expect(fake.sent.count == 1)
+            #expect(fake.sent.first?.expected == nil)
+            #expect(fake.stored == "de")
+            #expect(!s.choice.pending && s.choice.language == "de")
+        }
+    }
+
+    @Test func unknownPayloadKeepsAChoiceMadeSignedOutPending() async {
+        let suite = TempDefaults(), fake = FakeDevice()
+        fake.signedIn = false
+        let s = make(suite, fake)
+        s.choose("it")
+        fake.signedIn = true
+        fake.answers = [FakeDevice.unknownPayload]
+        s.connected()
+        await settle()
+        #expect(s.choice.language == "it" && s.choice.pending)
+        #expect(s.deviceKeepsIt == false)
+        // A Status of that device (no field) changes nothing; the next
+        // connection sends it again.
+        s.deviceSaid(nil)
+        #expect(s.choice.pending)
+        fake.answers = [FakeDevice.ack(true)]
+        s.connected()
+        await settle()
+        #expect(fake.sent.count == 2)
+        #expect(fake.sent.last?.language == "it" && fake.sent.last?.expected == nil)
+        #expect(!s.choice.pending)
+    }
+
+    @Test func aSignInWhileASendIsInFlightDoesntSendTwice() async {
+        let suite = TempDefaults(), fake = FakeDevice()
+        fake.signedIn = false
+        let s = make(suite, fake)
+        s.choose("fr")
+        fake.signedIn = true
+        fake.holding = true
+        fake.answers = [FakeDevice.ack(true)]
+        s.connected()
+        await settle()
+        #expect(fake.sent.count == 1)
+        // Another accepted sign-in (a reconnect) while it is on its way.
+        s.connected()
+        await settle()
+        #expect(fake.sent.count == 1)
+        fake.release()
+        await settle()
+        #expect(fake.sent.count == 1)
+        #expect(!s.choice.pending)
+    }
+
+    @Test func aSendThatFailsAfterASignInCameMeanwhileGoesAgainOnce() async {
+        let suite = TempDefaults(), fake = FakeDevice()
+        let s = make(suite, fake)
+        s.deviceSaid("en")
+        fake.holding = true
+        // The first one fails (the session it went on ended)...
+        fake.answers = [.failure(URLError(.networkConnectionLost)), FakeDevice.ack(true)]
+        s.choose("pt")
+        await settle()
+        // ...after the connection signed in again.
+        s.connected()
+        fake.holding = false
+        fake.release()
+        await settle()
+        #expect(fake.sent.count == 2)
+        #expect(fake.sent.allSatisfy { $0.language == "pt" && $0.expected == "en" })
+        #expect(!s.choice.pending)
+    }
+
+    @Test func aDroppedSessionForgetsTheDeviceValue() async {
+        let suite = TempDefaults(), fake = FakeDevice()
+        let s = make(suite, fake)
+        s.deviceSaid("es")
+        // The device turned the password down: re-imaged, it holds "".
+        s.sessionEnded()
+        fake.signedIn = false
+        s.choose("fr")
+        #expect(s.choice.expected == nil && s.choice.forNextDevice)
+        fake.stored = ""
+        fake.signedIn = true
+        s.connected()
+        await settle()
+        #expect(fake.sent.count == 1 && fake.sent.first?.expected == nil)
+        // Not refused against the "es" of the session that ended.
+        #expect(fake.stored == "fr")
+        #expect(s.choice.language == "fr" && !s.choice.pending)
+    }
+
+    @Test func aSignedInChangeKeepsItsExpectedAndChangedAdoptsTheOtherAppsValue() async {
+        let suite = TempDefaults(), fake = FakeDevice(), shown = Shown()
+        let s = make(suite, fake, shown: shown)
+        s.start()
+        s.deviceSaid("en")
+        // Made signed in; its send fails.
+        s.choose("es")
+        await settle()
+        #expect(fake.sent.count == 1 && fake.sent.first?.expected == "en")
+        #expect(s.choice.pending)
+        // The session drops, and meanwhile another app sets Italiano.
+        s.sessionEnded()
+        fake.signedIn = false
+        fake.stored = "it"
+        fake.signedIn = true
+        s.connected()
+        await settle()
+        #expect(fake.sent.count == 2)
+        #expect(fake.sent.last?.language == "es" && fake.sent.last?.expected == "en")
+        // "changed": the other app's value wins, read again.
+        #expect(fake.stored == "it")
+        #expect(s.choice.language == "it" && !s.choice.pending)
+        #expect(shown.codes.last == "it")
+    }
+
+    @Test func aRelaunchDoesntDropAChoiceMadeSignedOut() async {
+        let suite = TempDefaults(), fake = FakeDevice()
+        fake.signedIn = false
+        let s = make(suite, fake)
+        s.choose("nl")
+        // Relaunched: the copy, still pending and for the next device.
+        let again = make(suite, fake)
+        again.start()
+        #expect(again.choice.language == "nl")
+        #expect(again.choice.pending && again.choice.forNextDevice && again.choice.expected == nil)
+        #expect(again.effective == "nl")
+        fake.stored = "en"
+        fake.signedIn = true
+        again.connected()
+        again.deviceSaid("en")
+        await settle()
+        #expect(fake.sent.count == 1 && fake.sent.first?.expected == nil)
+        #expect(fake.stored == "nl" && again.choice.language == "nl")
+    }
+
+    @Test func logOutKeepsAChoiceForTheNextDeviceAndDropsOneMadeSignedIn() async {
+        let suite = TempDefaults(), fake = FakeDevice()
+        // Signed in: the send fails, Log Out drops it.
+        let s = make(suite, fake)
+        s.deviceSaid("en")
+        s.choose("es")
+        await settle()
+        s.loggedOut()
+        #expect(s.choice.language == "es" && !s.choice.pending)
+        // Picked on the welcome screen: Log Out keeps it.
+        fake.signedIn = false
+        s.choose("de")
+        s.loggedOut()
+        #expect(s.choice.pending && s.choice.forNextDevice)
+        // Leaving from the cards carries one made signed in.
+        let other = make(TempDefaults(), fake)
+        fake.signedIn = true
+        other.deviceSaid("en")
+        other.choose("fr")
+        await settle()
+        other.loggedOut(carryPending: true)
+        #expect(other.choice.pending && other.choice.forNextDevice && other.choice.expected == nil)
     }
 
     @Test func automaticFollowsTheSystemAndNamesWhatItGives() {

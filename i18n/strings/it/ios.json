@@ -342,6 +342,10 @@
     "text": "Cache delle miniature",
     "en": "Thumbnail Cache"
   },
+  "ios.setup_language_later": {
+    "text": "La pagina di configurazione verrà mostrata in {language} all’avvio dell’installazione.",
+    "en": "The setup page will switch to {language} once the installation starts."
+  },
   "ios.setup_signin_cancelled": {
     "text": "Accesso annullato",
     "en": "Sign-in cancelled"

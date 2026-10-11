@@ -150,22 +150,22 @@
     <string name="app_shell_storage_unavailable">Stockage actuellement indisponible</string>
     <string name="app_shell_storage_used">%1$s utilisés sur %2$s</string>
     <string name="app_shell_terms">Conditions</string>
-    <string name="app_shell_thumb_cache_usage">%1$s utilisés sur %2$s</string>
+    <string name="app_shell_thumb_cache_usage">Utilisation : %1$s sur %2$s</string>
     <plurals name="app_shell_time_days_ago">
-        <item quantity="one">%1$s j</item>
-        <item quantity="many">%1$s j</item>
-        <item quantity="other">%1$s j</item>
+        <item quantity="one">il y a %1$s j</item>
+        <item quantity="many">il y a %1$s j</item>
+        <item quantity="other">il y a %1$s j</item>
     </plurals>
     <plurals name="app_shell_time_hours_ago">
-        <item quantity="one">%1$s h</item>
-        <item quantity="many">%1$s h</item>
-        <item quantity="other">%1$s h</item>
+        <item quantity="one">il y a %1$s h</item>
+        <item quantity="many">il y a %1$s h</item>
+        <item quantity="other">il y a %1$s h</item>
     </plurals>
     <string name="app_shell_time_just_now">à l’instant</string>
     <plurals name="app_shell_time_minutes_ago">
-        <item quantity="one">%1$s min</item>
-        <item quantity="many">%1$s min</item>
-        <item quantity="other">%1$s min</item>
+        <item quantity="one">il y a %1$s min</item>
+        <item quantity="many">il y a %1$s min</item>
+        <item quantity="other">il y a %1$s min</item>
     </plurals>
     <plurals name="app_shell_upload_left">
         <item quantity="one">%1$s restant</item>

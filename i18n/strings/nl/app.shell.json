@@ -569,8 +569,8 @@
   },
   "app.shell.time_days_ago": {
     "text": {
-      "one": "{count}d geleden",
-      "other": "{count}d geleden"
+      "one": "{count} dag geleden",
+      "other": "{count} dagen geleden"
     },
     "en": {
       "one": "{count}d ago",
@@ -579,8 +579,8 @@
   },
   "app.shell.time_hours_ago": {
     "text": {
-      "one": "{count}h geleden",
-      "other": "{count}h geleden"
+      "one": "{count} uur geleden",
+      "other": "{count} uur geleden"
     },
     "en": {
       "one": "{count}h ago",
@@ -593,8 +593,8 @@
   },
   "app.shell.time_minutes_ago": {
     "text": {
-      "one": "{count}m geleden",
-      "other": "{count}m geleden"
+      "one": "{count} min. geleden",
+      "other": "{count} min. geleden"
     },
     "en": {
       "one": "{count}m ago",

@@ -346,6 +346,10 @@ fun S.androidSettingsUploadWaiting(): UiText =
 fun S.androidSettingsUploading(name: String): UiText =
     UiText.Res(R.string.android_settings_uploading, listOf(name))
 
+/** "The setup page will switch to {language} once the installation starts.": Android app, setting up a device over Bluetooth: a line over the setup page (the web page the device serves) after the language was changed with the screen's language menu while that page was already open. The page of a device with older software changes language only once the device starts installing, so that nothing typed on it is lost; until then it stays in the language it opened in. {language} is the newly chosen language, written by its own name (for example Español, Deutsch); language names are never translated. */
+fun S.androidSetupLanguageLater(language: String): UiText =
+    UiText.Res(R.string.android_setup_language_later, listOf(language))
+
 /** "Good signal": Set up a new device (over Bluetooth): at the right of a device in the list of devices waiting to be set up: its Bluetooth signal is good. */
 fun S.androidSignalGood(): UiText =
     UiText.Res(R.string.android_signal_good)

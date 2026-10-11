@@ -383,6 +383,10 @@
     "text": "{name} wordt geüpload",
     "en": "Uploading {name}"
   },
+  "android.setup_language_later": {
+    "text": "De configuratiepagina schakelt over naar {language} zodra de installatie begint.",
+    "en": "The setup page will switch to {language} once the installation starts."
+  },
   "android.signal_good": {
     "text": "Goed signaal",
     "en": "Good signal"

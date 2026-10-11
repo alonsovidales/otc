@@ -215,7 +215,7 @@ struct UsersManagementSection: View {
                 }
                 Spacer()
                 if let m = vm.metrics[u.uuid] {
-                    Text(S.appSettingsUsersUsage(size: "\(Int(m.storageMb))", percent: String(format: "%.1f", m.storagePct), count: Int(m.activeConnections)))
+                    Text(S.appSettingsUsersUsage(size: "\(Int(m.storageMb))", percent: decimalText("%.1f", m.storagePct), count: Int(m.activeConnections)))
                         .font(.caption2).foregroundStyle(.secondary)
                 } else {
                     Button(S.appSettingsUsersLoadUsage) { Task { await vm.fetchMetrics(u.uuid) } }

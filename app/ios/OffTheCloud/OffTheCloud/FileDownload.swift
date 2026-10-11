@@ -17,12 +17,14 @@
 import Foundation
 
 enum FileDownload {
-    /// The device answered with an error, or with something else than the
-    /// file. Callers show their own "could not fetch" text for it, as they
-    /// did for a GetFile that didn't answer with the file.
+    /// The device answered with an error or with something else. Worded
+    /// when read: the device's own words, else the app's "Unexpected
+    /// response" in the language shown (the trimmer's alert shows it after
+    /// its own sentence; it was English in every language).
     struct Refused: LocalizedError {
+        /// The device's own words; empty when it gave none.
         let message: String
-        var errorDescription: String? { message }
+        var errorDescription: String? { message.isEmpty ? S.appFilesUnexpectedResponse : message }
     }
 
     /// The device's pieces don't make one file (domain "FileDownload", codes
@@ -86,7 +88,7 @@ enum FileDownload {
                 return try await getFile(path: path, hash: hash, to: dest)
             }
             guard !resp.error, case .respFileChunk(let chunk) = resp.payload else {
-                throw Refused(message: resp.errorMessage.isEmpty ? "Unexpected response" : resp.errorMessage) // i18n-ignore: callers show their own text for Refused, never this
+                throw Refused(message: resp.errorMessage)
             }
             if let first, chunk.hash != first.hash {
                 throw Failure.changed
@@ -117,7 +119,7 @@ enum FileDownload {
             e.payload = .reqGetFile(gf)
         }
         guard case .respFile(let f) = resp.payload else {
-            throw Refused(message: resp.errorMessage.isEmpty ? "Unexpected response" : resp.errorMessage) // i18n-ignore: callers show their own text for Refused, never this
+            throw Refused(message: resp.errorMessage)
         }
         let content = f.content
         try await Task.detached(priority: .utility) { try content.write(to: dest) }.value

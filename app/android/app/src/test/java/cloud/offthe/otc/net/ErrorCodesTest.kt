@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.net
 
+import cloud.offthe.otc.i18n.english
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.ui.gallery.isUnknownPayload
 import org.junit.Assert.assertEquals
@@ -51,5 +52,14 @@ class ErrorCodesTest {
         val e = OTCConnection.RequestError("error finishing the upload: Duplicated file", "duplicated_file")
         assertTrue(ErrorCodes.isDuplicatedFile(e.code, e.message))
         assertEquals("error finishing the upload: Duplicated file", e.message)
+    }
+
+    // A download the device refused (ChunkedDownload.Refused): its own words
+    // as they come, else ours, worded when shown - as iOS's FileDownload.Refused.
+    @Test fun aRefusedDownloadSaysTheDevicesWordsElseUnexpectedResponse() {
+        assertEquals("Unexpected response", ChunkedDownload.Refused("").text.english())
+        assertEquals("No hay espacio en el disco", ChunkedDownload.Refused("No hay espacio en el disco").text.english())
+        // A log line names it without the device's words.
+        assertEquals("Refused(empty=false)", ChunkedDownload.Refused("No hay espacio en el disco").toString())
     }
 }
