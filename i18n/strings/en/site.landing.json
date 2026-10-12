@@ -887,9 +887,9 @@
     "note": "Website landing page: link in the top bar that jumps to the section explaining what the product is.",
     "max": 18
   },
-  "site.landing.phone.android_soon": {
-    "text": "Coming soon to Google Play",
-    "note": "Website landing page: greyed-out button on the Android card while the app isn't on Google Play yet.",
+  "site.landing.phone.android_button": {
+    "text": "Get it on Google Play",
+    "note": "Website landing page: button on the Android card that opens the app on Google Play. Use Google's own badge wording in your language if it has one (Google Play's localized \"Get it on Google Play\").",
     "max": 36
   },
   "site.landing.phone.android_text": {

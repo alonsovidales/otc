@@ -459,7 +459,8 @@ func jsonBlock(t *testing.T, page []byte, id string) string {
 // text and text attributes, their links and images, line by line
 // (testdata/*.golden were extracted from bridge/static/landing.html,
 // disabled.html, unavailable.html and account.html before they moved into
-// the binary, with the year the footer's script filled in). The account
+// the binary, with the year the footer's script filled in; since then the
+// Android card links to Google Play instead of "Coming soon"). The account
 // page writes the rest of its text from its script:
 // TestAccountScriptTextsUnchanged.
 func TestEnglishUnchanged(t *testing.T) {

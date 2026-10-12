@@ -174,7 +174,7 @@
   "site.landing.nav.get_started": {"text": "Get started"},
   "site.landing.nav.sign_in": {"text": "Sign in"},
   "site.landing.nav.what": {"text": "What it is"},
-  "site.landing.phone.android_soon": {"text": "Coming soon to Google Play"},
+  "site.landing.phone.android_button": {"text": "Get it on Google Play"},
   "site.landing.phone.android_text": {"text": "The same app for Android phones and tablets: photo backup, your device's files and photos, and friends' posts."},
   "site.landing.phone.eyebrow": {"text": "Phone apps"},
   "site.landing.phone.ios_soon": {"text": "Coming soon to the App Store"},

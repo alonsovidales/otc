@@ -736,9 +736,9 @@
     "text": "Qué es",
     "en": "What it is"
   },
-  "site.landing.phone.android_soon": {
-    "text": "Muy pronto en Google Play",
-    "en": "Coming soon to Google Play"
+  "site.landing.phone.android_button": {
+    "text": "Disponible en Google Play",
+    "en": "Get it on Google Play"
   },
   "site.landing.phone.android_text": {
     "text": "La misma app para teléfonos y tabletas Android: copia de seguridad de fotos, los archivos y las fotos de tu dispositivo, y las publicaciones de tus amigos.",

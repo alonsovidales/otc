@@ -879,9 +879,9 @@ func SiteLandingNavWhat() Msg {
 	return Msg{Key: "site.landing.nav.what"}
 }
 
-// SiteLandingPhoneAndroidSoon is site.landing.phone.android_soon: "Coming soon to Google Play".
-func SiteLandingPhoneAndroidSoon() Msg {
-	return Msg{Key: "site.landing.phone.android_soon"}
+// SiteLandingPhoneAndroidButton is site.landing.phone.android_button: "Get it on Google Play".
+func SiteLandingPhoneAndroidButton() Msg {
+	return Msg{Key: "site.landing.phone.android_button"}
 }
 
 // SiteLandingPhoneAndroidText is site.landing.phone.android_text: "The same app for Android phones and tablets: photo backup, your device's files a…".

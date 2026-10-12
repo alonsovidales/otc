@@ -174,7 +174,7 @@
   "site.landing.nav.get_started": {"text": "Inizia"},
   "site.landing.nav.sign_in": {"text": "Accedi"},
   "site.landing.nav.what": {"text": "Cos’è"},
-  "site.landing.phone.android_soon": {"text": "Presto su Google Play"},
+  "site.landing.phone.android_button": {"text": "Disponibile su Google Play"},
   "site.landing.phone.android_text": {"text": "La stessa app per telefoni e tablet Android: backup delle foto, i file e le foto del tuo dispositivo e i post degli amici."},
   "site.landing.phone.eyebrow": {"text": "App per telefono"},
   "site.landing.phone.ios_soon": {"text": "Presto su App Store"},

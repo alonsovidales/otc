@@ -736,9 +736,9 @@
     "text": "Présentation",
     "en": "What it is"
   },
-  "site.landing.phone.android_soon": {
-    "text": "Bientôt sur Google Play",
-    "en": "Coming soon to Google Play"
+  "site.landing.phone.android_button": {
+    "text": "Disponible sur Google Play",
+    "en": "Get it on Google Play"
   },
   "site.landing.phone.android_text": {
     "text": "La même app pour les téléphones et tablettes Android : sauvegarde des photos, fichiers et photos de votre appareil, et publications de vos amis.",

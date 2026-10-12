@@ -174,7 +174,7 @@
   "site.landing.nav.get_started": {"text": "Loslegen"},
   "site.landing.nav.sign_in": {"text": "Anmelden"},
   "site.landing.nav.what": {"text": "Was es ist"},
-  "site.landing.phone.android_soon": {"text": "Bald bei Google Play"},
+  "site.landing.phone.android_button": {"text": "Jetzt bei Google Play"},
   "site.landing.phone.android_text": {"text": "Dieselbe App für Android-Handys und -Tablets: Foto-Backup, die Dateien und Fotos deines Geräts und die Beiträge deiner Freunde."},
   "site.landing.phone.eyebrow": {"text": "Handy-Apps"},
   "site.landing.phone.ios_soon": {"text": "Bald im App Store"},

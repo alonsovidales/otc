@@ -174,7 +174,7 @@
   "site.landing.nav.get_started": {"text": "Commencer"},
   "site.landing.nav.sign_in": {"text": "Se connecter"},
   "site.landing.nav.what": {"text": "Présentation"},
-  "site.landing.phone.android_soon": {"text": "Bientôt sur Google Play"},
+  "site.landing.phone.android_button": {"text": "Disponible sur Google Play"},
   "site.landing.phone.android_text": {"text": "La même app pour les téléphones et tablettes Android : sauvegarde des photos, fichiers et photos de votre appareil, et publications de vos amis."},
   "site.landing.phone.eyebrow": {"text": "Apps pour téléphone"},
   "site.landing.phone.ios_soon": {"text": "Bientôt sur l’App Store"},

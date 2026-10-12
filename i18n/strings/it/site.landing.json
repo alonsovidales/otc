@@ -736,9 +736,9 @@
     "text": "Cos’è",
     "en": "What it is"
   },
-  "site.landing.phone.android_soon": {
-    "text": "Presto su Google Play",
-    "en": "Coming soon to Google Play"
+  "site.landing.phone.android_button": {
+    "text": "Disponibile su Google Play",
+    "en": "Get it on Google Play"
   },
   "site.landing.phone.android_text": {
     "text": "La stessa app per telefoni e tablet Android: backup delle foto, i file e le foto del tuo dispositivo e i post degli amici.",
