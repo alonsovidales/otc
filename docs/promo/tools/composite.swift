@@ -3,6 +3,7 @@
 // Puts a screen capture on the blank white screen of a generated photo (docs/promo).
 //   composite base.jpg content.png out.png seedX seedY [--aspect A] [--toph H] [--blur R]
 //             [--expand 5] [--reach 4] [--lift 0.05] [--soft 0] [--th 190] [--chroma 35]
+//             [--hole x y r]
 //  1. flood-fills the white region around the seed (the screen inside its bezel);
 //  2. fits a straight line to each of its four edges (total least squares, trimmed, away
 //     from the rounded corners) and intersects them for sub-pixel corners;
@@ -14,7 +15,8 @@
 //     share becomes page - no light seam, and the photo's own antialiasing at the edge;
 //  6. never covers anything colourful standing in front of the screen (a hue other than the
 //     screen white's own tint); its edge is un-mixed into screen, bezel and object shares,
-//     so it keeps a clean outline over the page.
+//     so it keeps a clean outline over the page;
+//  7. with --hole, puts a phone's camera hole back over the page (step 1 filled it in).
 // A screen cut off by the top of the frame gets its top edge from --toph (its height as a
 // fraction of its bottom width). Build: swiftc -O composite.swift -o composite
 import AppKit
@@ -25,6 +27,11 @@ func opt(_ k: String) -> Double? { if let i = args.firstIndex(of: k), i + 1 < ar
 let th = opt("--th") ?? 190, aspectOverride = opt("--aspect"), blurR = opt("--blur") ?? 0, expand = opt("--expand") ?? 5, topH = opt("--toph")
 let reach = Int(opt("--reach") ?? 4), lift = opt("--lift") ?? 0.05, soft = opt("--soft") ?? 0
 let chromaT = opt("--chroma") ?? 35
+// --hole x y r: a phone's camera hole in the screen, within r px of (x, y): kept, over the page.
+var hole: (Double, Double, Double)? = nil
+if let i = args.firstIndex(of: "--hole"), i + 3 < args.count, let hx = Double(args[i+1]), let hy = Double(args[i+2]), let hr = Double(args[i+3]) {
+    hole = (hx, hy, hr); args.removeSubrange(i...i+3)
+}
 let (basePath, contentPath, outPath) = (args[0], args[1], args[2])
 let seed = (Int(args[3])!, Int(args[4])!)
 
@@ -320,6 +327,29 @@ for y in max(8, minY)..<min(H-8, maxY) { for x in max(8, minX)..<min(W-8, maxX) 
     matted += 1
 } }
 FileHandle.standardError.write("un-mixed \(matted) edge px\n".data(using: .utf8)!)
+// 7. A camera hole in the screen (--hole): the flood fill took it in, so the page covered it.
+// Each pixel there is part hole, part screen white (aH from its brightness between the
+// hole's darkest pixels and the white beside it); only the white's share stays page:
+// c' = c + (1-aH) (page - Wh). The hole keeps its own pixels and antialiased rim.
+if let (hx, hy, hr) = hole {
+    var near: [(Double, Int, Int)] = []
+    for y in max(0, Int(hy - hr))...min(H-1, Int(hy + hr)) { for x in max(0, Int(hx - hr))...min(W-1, Int(hx + hr)) where hypot(Double(x) - hx, Double(y) - hy) <= hr {
+        near.append((lum(x, y), x, y)) } }
+    near.sort { $0.0 < $1.0 }
+    let darkest = near.prefix(max(1, near.count / 5))
+    let dL = darkest.map { $0.0 }.reduce(0, +) / Double(darkest.count)
+    var kept = 0
+    for (L, x, y) in near {
+        guard let w = localWhite(x, y), w.3 - dL > 40 else { continue }
+        let aH = max(0, min(1, (w.3 - L) / (w.3 - dL)))
+        if aH <= 0.02 { continue }
+        let i = (y * W + x) * 4
+        let wh = [w.0, w.1, w.2]
+        for c in 0..<3 { bp[i+c] = UInt8(max(0, min(255, (Double(orig[i+c]) + (1 - aH) * (Double(bp[i+c]) - wh[c])).rounded()))) }
+        kept += 1
+    }
+    FileHandle.standardError.write(String(format: "camera hole: kept %d px (darkest lum %.0f)\n", kept, dL).data(using: .utf8)!)
+}
 let outCG = baseCtx.makeImage()!
 let rep = NSBitmapImageRep(cgImage: outCG)
 let data = outPath.hasSuffix(".jpg") ? rep.representation(using: .jpeg, properties: [.compressionFactor: 0.93])! : rep.representation(using: .png, properties: [:])!
