@@ -140,7 +140,13 @@ type ui struct {
 	// changes nothing is skipped. Emptied with the menu (build).
 	titles, tips            map[*systray.MenuItem]string
 	shown, checked, enabled map[*systray.MenuItem]bool
-	lastTrayTip             string
+	// Items hidden with writes held back (setShown): on Windows any write
+	// to a hidden item - its title, tip, check or state - puts it back in
+	// the menu (fyne systray inserts every item it isn't showing), which
+	// is how "No folders yet" came back above the folders. Emptied with
+	// the menu.
+	held        map[*systray.MenuItem]bool
+	lastTrayTip string
 }
 
 // Run blocks until the tray quits.
@@ -189,14 +195,36 @@ func (u *ui) onReady() {
 	}()
 }
 
+// The writes the helpers below make, as variables so a test can watch
+// them without a tray.
+var (
+	writeTitle   = setItemTitle
+	writeTip     = setItemTip
+	writeShown   = func(mi *systray.MenuItem, on bool) { onOff(on, mi.Show, mi.Hide) }
+	writeChecked = func(mi *systray.MenuItem, on bool) { onOff(on, mi.Check, mi.Uncheck) }
+	writeEnabled = func(mi *systray.MenuItem, on bool) { onOff(on, mi.Enable, mi.Disable) }
+)
+
+func onOff(on bool, yes, no func()) {
+	if on {
+		yes()
+	} else {
+		no()
+	}
+}
+
 // setTitle, setTip, setShown, setChecked and setEnabled write an item only
-// when the value changed since the last write (u.mu held).
+// when the value changed since the last write (u.mu held). An item hidden
+// here gets no writes until it is shown again, when what it was set to
+// meanwhile is written (u.held).
 func (u *ui) setTitle(mi *systray.MenuItem, s string) {
 	if v, ok := u.titles[mi]; ok && v == s {
 		return
 	}
 	u.titles[mi] = s
-	setItemTitle(mi, s)
+	if !u.hold(mi) {
+		writeTitle(mi, s)
+	}
 }
 
 func (u *ui) setTip(mi *systray.MenuItem, s string) {
@@ -204,7 +232,9 @@ func (u *ui) setTip(mi *systray.MenuItem, s string) {
 		return
 	}
 	u.tips[mi] = s
-	setItemTip(mi, s)
+	if !u.hold(mi) {
+		writeTip(mi, s)
+	}
 }
 
 func (u *ui) setShown(mi *systray.MenuItem, on bool) {
@@ -212,10 +242,24 @@ func (u *ui) setShown(mi *systray.MenuItem, on bool) {
 		return
 	}
 	u.shown[mi] = on
-	if on {
-		mi.Show()
-	} else {
-		mi.Hide()
+	writeShown(mi, on)
+	if !on || !u.held[mi] {
+		return
+	}
+	// Shown with its old words (Windows inserts the item as it last
+	// wrote it): now the ones it was given while hidden.
+	delete(u.held, mi)
+	if s, ok := u.titles[mi]; ok {
+		writeTitle(mi, s)
+	}
+	if s, ok := u.tips[mi]; ok {
+		writeTip(mi, s)
+	}
+	if v, ok := u.checked[mi]; ok {
+		writeChecked(mi, v)
+	}
+	if v, ok := u.enabled[mi]; ok {
+		writeEnabled(mi, v)
 	}
 }
 
@@ -224,10 +268,8 @@ func (u *ui) setChecked(mi *systray.MenuItem, on bool) {
 		return
 	}
 	u.checked[mi] = on
-	if on {
-		mi.Check()
-	} else {
-		mi.Uncheck()
+	if !u.hold(mi) {
+		writeChecked(mi, on)
 	}
 }
 
@@ -236,10 +278,26 @@ func (u *ui) setEnabled(mi *systray.MenuItem, on bool) {
 		return
 	}
 	u.enabled[mi] = on
-	if on {
-		mi.Enable()
-	} else {
-		mi.Disable()
+	if !u.hold(mi) {
+		writeEnabled(mi, on)
+	}
+}
+
+// hold reports whether mi is hidden (setShown, or hidden as built), noting
+// that a write was held back if so.
+func (u *ui) hold(mi *systray.MenuItem) bool {
+	if v, ok := u.shown[mi]; ok && !v {
+		u.held[mi] = true
+		return true
+	}
+	return false
+}
+
+// hidden records that build hid mi as it made it, so the helpers treat it
+// as hidden (no second Hide, and no write that would show it on Windows).
+func (u *ui) hidden(mi ...*systray.MenuItem) {
+	for _, m := range mi {
+		u.shown[m] = false
 	}
 }
 
@@ -253,6 +311,7 @@ func (u *ui) forget(mi *systray.MenuItem) {
 	delete(u.shown, mi)
 	delete(u.checked, mi)
 	delete(u.enabled, mi)
+	delete(u.held, mi)
 }
 
 // build lays the whole menu out in the macOS popover's order - status,
@@ -266,6 +325,7 @@ func (u *ui) build(folders []config.FolderStatus) {
 	// Every item is new: the first apply writes them all, as before.
 	u.titles, u.tips = map[*systray.MenuItem]string{}, map[*systray.MenuItem]string{}
 	u.shown, u.checked, u.enabled = map[*systray.MenuItem]bool{}, map[*systray.MenuItem]bool{}, map[*systray.MenuItem]bool{}
+	u.held = map[*systray.MenuItem]bool{}
 	// The texts are the menu's language now; apply writes them again
 	// (applyTexts), in the language then in effect.
 	l := lang()
@@ -279,7 +339,6 @@ func (u *ui) build(folders []config.FolderStatus) {
 	// device's storage in GB, CPU and memory - would never open; clicking
 	// it does nothing. Storage first, as it details the line itself.
 	u.raid = addMenuItem("", "")
-	u.raid.Hide()
 	u.store = addSubMenuItem(u.raid, "", "")
 	u.store.Disable()
 	u.store.Hide()
@@ -287,6 +346,10 @@ func (u *ui) build(folders []config.FolderStatus) {
 	u.cpu.Disable()
 	u.mem = addSubMenuItem(u.raid, "", "")
 	u.mem.Disable()
+	// Hidden only now: on Windows an item's submenu can only be made while
+	// the item is in the menu (it is kept, hidden or not, once made), so
+	// hiding it first lost its three lines and logged errors.
+	u.raid.Hide()
 	u.update = addMenuItem("", "")
 	u.update.Disable()
 	u.update.Hide()
@@ -294,6 +357,7 @@ func (u *ui) build(folders []config.FolderStatus) {
 	// once a device is set (apply).
 	u.web = addMenuItem(i18n.DeskMainOpenWebApp().Render(l), "")
 	u.web.Hide()
+	u.hidden(u.appUpdate, u.raid, u.store, u.update, u.web)
 	systray.AddSeparator()
 	u.empty = addMenuItem(i18n.DeskMainNoFolders().Render(l), "")
 	u.empty.Disable()
@@ -304,10 +368,12 @@ func (u *ui) build(folders []config.FolderStatus) {
 		img, info := addImagesItems(mi)
 		upInfo := addUploadOnlyInfo(mi)
 		rm := addSubMenuItem(mi, i18n.CommonRemove().Render(l), i18n.DeskMainRemoveTip().Render(l))
+		u.hidden(img, info, upInfo)
 		u.folders = append(u.folders, &folderItem{item: mi, open: open, remove: rm, images: img, imagesInfo: info, uploadInfo: upInfo, id: f.ID, remote: f.RemotePath != ""})
 	}
 	if len(folders) > 0 {
 		u.empty.Hide()
+		u.hidden(u.empty)
 	}
 	systray.AddSeparator()
 	// The macOS app's "Add Folder…" (AddFolderChooser): the kind, its
