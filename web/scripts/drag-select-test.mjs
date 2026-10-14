@@ -340,4 +340,42 @@ describe("where the item under the pointer is looked for", () => {
     assert.deepEqual(d.hitPoint(400, 10, grid, 64, 800), { x: 400, y: 65 });
     assert.deepEqual(d.hitPoint(400, 950, grid, 64, 800), { x: 400, y: 799 });
   });
+  test("over what sticks under the top bar (Files' column headings): the first row in sight below it", () => {
+    assert.deepEqual(d.hitPoint(400, 140, grid, d.stuckTop(64, [{ top: 64, bottom: 118 }, { top: 118, bottom: 163 }]), 800), { x: 400, y: 164 });
+  });
+});
+
+describe("where what can be seen of the items starts (Files' stuck bars)", () => {
+  test("nothing stuck: under the top bar", () => {
+    assert.equal(d.stuckTop(64, []), 64);
+  });
+  test("the column headings stuck under the top bar: under them", () => {
+    assert.equal(d.stuckTop(64, [{ top: 64, bottom: 109 }]), 109);
+  });
+  test("the selection bar, then the headings under it: under both", () => {
+    assert.equal(d.stuckTop(64, [{ top: 64, bottom: 120 }, { top: 120, bottom: 165 }]), 165);
+  });
+  test("a fraction of a pixel apart still counts as stuck", () => {
+    assert.equal(d.stuckTop(64, [{ top: 64.4, bottom: 120.2 }, { top: 120.6, bottom: 165.6 }]), 165.6);
+  });
+  test("at rest, still in the page lower down: under the top bar", () => {
+    assert.equal(d.stuckTop(64, [{ top: 150, bottom: 206 }, { top: 214, bottom: 259 }]), 64);
+  });
+  test("the bar stuck, the list's headings still lower down: under the bar", () => {
+    assert.equal(d.stuckTop(64, [{ top: 64, bottom: 120 }, { top: 180, bottom: 225 }]), 120);
+  });
+  test("one not shown (no height) is passed by", () => {
+    assert.equal(d.stuckTop(64, [{ top: 0, bottom: 0 }, { top: 64, bottom: 109 }]), 109);
+  });
+  test("headings pushed up by the end of their list: what is left of them", () => {
+    assert.equal(d.stuckTop(64, [{ top: 40, bottom: 85 }]), 85);
+    assert.equal(d.stuckTop(64, [{ top: 10, bottom: 55 }]), 64);
+  });
+  test("the edges' band starts under them", () => {
+    const top = d.stuckTop(64, [{ top: 64, bottom: 120 }, { top: 120, bottom: 165 }]);
+    assert.equal(d.edgeSpeed(165 + 56, top, 844), 0);
+    assert.equal(d.edgeSpeed(165 + 28, top, 844), -600);
+    // Over the headings: as fast as at the edge.
+    assert.equal(d.edgeSpeed(140, top, 844), -1200);
+  });
 });

@@ -12,6 +12,16 @@
 .fb-table { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
 .fb-head, .fb-row { display: grid; grid-template-columns: 26px 1fr 140px 220px 220px; align-items: center; }
 .fb-head { background: var(--ink-2); border-bottom: 1px solid var(--line); font-weight: 600; color: var(--mist); }
+/* The column headings of the list, a search's results and Storage stay in
+   sight while their rows scroll: stuck under the top bar, and under the
+   selection bar while it shows (--fb-sel-h, its height, measured onto
+   .fb-wrap), with the rows going under them; a heading still sorts from
+   there. The table clips to its rounded corners without becoming a box
+   of its own that scrolls (clip, not hidden, which keeps them from
+   sticking); a browser without clip keeps the corners and the headings
+   scroll away as they did. */
+.fb-table { overflow: clip; }
+.fb-head { position: sticky; top: calc(var(--topbar-h) + var(--fb-sel-h, 0px)); z-index: 2; }
 .c { padding: 10px 12px; }
 .fb-body .fb-row { border-top: 1px solid var(--line); color: var(--mist); }
 /* Issue #200: a picked row shows it across, as a picked tile does - a drag
@@ -33,7 +43,14 @@
 
 .fb-tip { margin-top: 8px; color: var(--mist-dim); font-size: 13px; }
 
-.fb-actions { position: sticky; bottom: 12px; display: flex; justify-content: center; width: 100%; }
+/* The selection's actions, above the list or the grid (or in a phone's
+   width, the same). Scrolled down, they stick under the top bar, over the
+   column headings stuck under them (or the tiles), on the page's colour
+   across the whole width so nothing shows round the bar as rows go by. */
+.fb-actions {
+  position: sticky; top: var(--topbar-h); z-index: 3; display: flex; justify-content: center;
+  margin: 0 -10px; padding: 6px 10px 8px; background: var(--ink);
+}
 .fb-actions-inner { display: flex; align-items: center; gap: 8px; background: var(--ink-2); border: 1px solid var(--line); color: var(--mist); padding: 2px 12px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
 /* Never wider than the page: what doesn't fit on a phone (a folder adds
    "Share as gallery"; longer languages need more room) scrolls inside the
@@ -216,8 +233,9 @@
 }
 .fb-res-open::after { content: ""; position: absolute; inset: 0; }
 /* Brought into view by the keyboard (Shift+Tab up the list) below the
-   fixed top bar, its whole row and focus ring showing, not behind it. */
-.fb-res-open { scroll-margin: calc(var(--topbar-h) + 16px) 0 16px; }
+   fixed top bar and the column headings stuck under it (--fb-head-h, their
+   height), its whole row and focus ring showing, not behind them. */
+.fb-res-open { scroll-margin: calc(var(--topbar-h) + var(--fb-head-h, 0px) + 16px) 0 16px; }
 .fb-res-open:hover { filter: none; }
 .fb-res-open:focus-visible { outline: none; }
 .fb-res-open:focus-visible::after { outline: 2px solid var(--gold); outline-offset: -2px; border-radius: 10px; }
@@ -245,8 +263,13 @@
 
 /* The folder's contents take the focus back from the results. */
 .fb-contents:focus { outline: none; }
-/* Its rows and tiles too come into view below the top bar, not under it. */
-.fb-contents :is(.fb-row, .fb-tile) :is(button, input) { scroll-margin: calc(var(--topbar-h) + 12px) 0 12px; }
+/* Its rows and tiles too come into view below the top bar, the selection
+   bar and the column headings stuck under it, not under them (--fb-head-h
+   is 0 in Grid, which has none): the whole row, whose controls sit up to
+   about 16px inside it. */
+.fb-contents :is(.fb-row, .fb-tile) :is(button, input) {
+  scroll-margin: calc(var(--topbar-h) + var(--fb-sel-h, 0px) + var(--fb-head-h, 0px) + 20px) 0 20px;
+}
 
 @media (max-width: 800px) {
   .fb-results-table .fb-head,

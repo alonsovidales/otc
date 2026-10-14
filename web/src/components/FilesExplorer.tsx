@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useWS } from "../net/useWS";
 import { uploadFile } from "../net/upload";
 import { fileSize } from "../net/fileSize";
@@ -867,6 +868,21 @@ export default function FilesExplorer({
     setSortSaid(next);
   };
   const pickSort = (key: SortKey) => chooseOrder(pickOrder(order, key));
+  // A heading clicked with its list scrolled down (the headings stuck under
+  // the top bar): the new order shows from its first row, right under them,
+  // rather than wherever one row of the old order went (the browser's
+  // scroll anchoring follows one). Where the list's start is in sight,
+  // nothing scrolls.
+  const sortFromHeading = (key: SortKey, heading: HTMLElement) => {
+    const table = heading.closest(".fb-table");
+    const head = heading.closest<HTMLElement>(".fb-head");
+    const stuckAt = head ? parseFloat(getComputedStyle(head).top) || 0 : 0;
+    const scrolledDown = !!table && table.getBoundingClientRect().top < stuckAt - 1;
+    flushSync(() => pickSort(key));
+    // The heading, not the table's border above it, lines up under the
+    // top bar, as when it sticks by scrolling.
+    if (scrolledDown && table.isConnected) window.scrollBy(0, table.getBoundingClientRect().top + table.clientTop - stuckAt);
+  };
 
   // ---- rows prepared for display, in that order ----
   const rows = useMemo(() => sortEntries(listing.map((f) => {
@@ -1021,7 +1037,12 @@ export default function FilesExplorer({
     setMediaViewer(null);
     const el = viewerOpener.current;
     viewerOpener.current = null;
-    if (el?.isConnected) el.focus({ preventScroll: true });
+    if (!el?.isConnected) return;
+    el.focus({ preventScroll: true });
+    // A row or tile partly under the top bar, or under the selection bar
+    // and column headings stuck below it, comes fully into sight (its
+    // scroll-margin); one in sight stays where it is.
+    if (el.closest(".fb-row, .fb-tile")) el.scrollIntoView({ block: "nearest", inline: "nearest" });
   };
   const openMedia = (f: PbFile) => {
     // In the order on screen (issue #196).
@@ -1050,6 +1071,8 @@ export default function FilesExplorer({
   const afterResults = useRef<{ y: number; focus: boolean } | null>(null);
   const resultsHeadRef = useRef<HTMLHeadingElement>(null);
   const folderViewRef = useRef<HTMLDivElement>(null);
+  // The whole section: what sticks under the top bar is measured onto it.
+  const wrapRef = useRef<HTMLDivElement>(null);
   const uid = useId();
 
   const startSearch = useCallback((text: string) => {
@@ -1264,6 +1287,9 @@ export default function FilesExplorer({
     selection: selectedRows,
     setSelection: setSelectedRows,
     onEnd: (r) => { anchorRef.current = r.k; },
+    // The selection bar and the column headings, once stuck under the top
+    // bar, lie over the rows: the top edge's band starts below them.
+    stuckOver: () => wrapRef.current?.querySelectorAll(".fb-actions, .fb-contents .fb-head") ?? [],
   });
   const dragRef = dragSel.ref;
   const setGridEl = useCallback((el: HTMLDivElement | null) => {
@@ -1277,6 +1303,28 @@ export default function FilesExplorer({
   // the bar, goes to the folder's contents.
   const actionsRef = useRef<HTMLDivElement>(null);
   const endDrag = dragSel.interrupt;
+  // Scrolled down, what sticks under the top bar over the list: the
+  // selection bar while something is picked (never over a search's
+  // results, nor in Storage), then the column headings. Their heights,
+  // on the page for the headings' place under the bar (--fb-sel-h) and
+  // for the room a row brought into view keeps above it (scroll-margin).
+  const barShown = selected.length > 0 && viewMode !== "storage" && !inResults;
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const heads = wrap.querySelectorAll<HTMLElement>(".fb-head");
+    const measure = () => {
+      let head = 0;
+      heads.forEach((h) => { head = Math.max(head, h.getBoundingClientRect().height); });
+      wrap.style.setProperty("--fb-sel-h", `${actionsRef.current?.getBoundingClientRect().height ?? 0}px`);
+      wrap.style.setProperty("--fb-head-h", `${head}px`);
+    };
+    measure();
+    const watch = new ResizeObserver(measure);
+    if (actionsRef.current) watch.observe(actionsRef.current);
+    heads.forEach((h) => watch.observe(h));
+    return () => watch.disconnect();
+  }, [barShown, viewMode, inResults]);
   const clearSelection = useCallback(() => {
     endDrag();
     if (actionsRef.current?.contains(document.activeElement)) folderViewRef.current?.focus({ preventScroll: true });
@@ -1427,7 +1475,7 @@ export default function FilesExplorer({
     return (
       <div className={`c c-${key}`} role={inTable ? "columnheader" : undefined}
         aria-sort={inTable && on ? (order.dir === "asc" ? "ascending" : "descending") : undefined}>
-        <button type="button" className={`fb-sort-btn${on ? " on" : ""}`} onClick={() => pickSort(key)}
+        <button type="button" className={`fb-sort-btn${on ? " on" : ""}`} onClick={(e) => sortFromHeading(key, e.currentTarget)}
           title={on ? orderText(t, order) : undefined} tabIndex={inTable ? undefined : -1}>
           <span className="fb-sort-name">{label}</span>
           {on && <SortArrow dir={order.dir} />}
@@ -1565,6 +1613,7 @@ export default function FilesExplorer({
 
   return (
     <div
+      ref={wrapRef}
       className={`fb-wrap ${dragOver ? "drag" : ""}`}
       onDrop={onDrop}
       onDragOver={onDragOver}
@@ -1621,34 +1670,6 @@ export default function FilesExplorer({
             </button>
           </div>
         </div>
-      {selected.length > 0 && viewMode !== "storage" && (
-        <div className="fb-actions" ref={actionsRef}>
-          <div className="fb-actions-inner">
-            {/* Out of the selection: nothing picked (Escape too). */}
-            <button type="button" className="fb-sel-clear" onClick={clearSelection}
-              aria-label={t("web.files.selection.clear")} data-tip={t("web.files.selection.clear")}>
-              <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none" />
-              </svg>
-            </button>
-            <div><Trans k="web.files.selection.selected" args={{ count: selected.length }} parts={{ b: (s) => <strong>{s}</strong> }} /></div>
-            <div className="grow" />
-            <button className="btn danger" onClick={() => void delSelected()} disabled={selectedUploadOnly}
-              title={selectedUploadOnly ? t("web.files.selection.upload_only") : undefined}>{t("common.delete")}</button>
-            <button className="btn" onClick={() => void shareOrZip(false)} disabled={!!preparing}>
-              {preparing === "share" ? <Spinner label={t("web.files.selection.preparing")} /> : t("common.share")}
-            </button>
-            <button className="btn" onClick={() => void shareOrZip(true)} disabled={!!preparing}>
-              {preparing === "zip" ? <Spinner label={t("web.files.selection.preparing_zip")} /> : t("web.files.selection.download_zip")}
-            </button>
-            {singleFolder && (
-              <button className="btn" onClick={() => setSharingFolder(singleFolder)} title={t("web.files.selection.share_gallery_tip")}>
-                {t("web.files.selection.share_gallery")}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
 
         {/* Storage keeps the device's order, largest first, and its own
             totals (issue #195). */}
@@ -1811,6 +1832,39 @@ export default function FilesExplorer({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* The selection's actions, above the list or the grid: scrolled
+          down, they stick under the top bar, over the column headings
+          stuck under them (FilesExplorer.css). Not over a search's
+          results, which hide the folder and what is picked there. */}
+      {barShown && (
+        <div className="fb-actions" ref={actionsRef}>
+          <div className="fb-actions-inner">
+            {/* Out of the selection: nothing picked (Escape too). */}
+            <button type="button" className="fb-sel-clear" onClick={clearSelection}
+              aria-label={t("web.files.selection.clear")} data-tip={t("web.files.selection.clear")}>
+              <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+              </svg>
+            </button>
+            <div><Trans k="web.files.selection.selected" args={{ count: selected.length }} parts={{ b: (s) => <strong>{s}</strong> }} /></div>
+            <div className="grow" />
+            <button className="btn danger" onClick={() => void delSelected()} disabled={selectedUploadOnly}
+              title={selectedUploadOnly ? t("web.files.selection.upload_only") : undefined}>{t("common.delete")}</button>
+            <button className="btn" onClick={() => void shareOrZip(false)} disabled={!!preparing}>
+              {preparing === "share" ? <Spinner label={t("web.files.selection.preparing")} /> : t("common.share")}
+            </button>
+            <button className="btn" onClick={() => void shareOrZip(true)} disabled={!!preparing}>
+              {preparing === "zip" ? <Spinner label={t("web.files.selection.preparing_zip")} /> : t("web.files.selection.download_zip")}
+            </button>
+            {singleFolder && (
+              <button className="btn" onClick={() => setSharingFolder(singleFolder)} title={t("web.files.selection.share_gallery_tip")}>
+                {t("web.files.selection.share_gallery")}
+              </button>
+            )}
+          </div>
         </div>
       )}
 

@@ -151,6 +151,22 @@ export function movePointer(p: DragPointer, x: number, y: number): void {
 export const pointerSpeed = (p: DragPointer, top: number, bottom: number): number =>
   (p.armed ? edgeSpeed(p.y, top, bottom) : 0);
 
+/** Where what can be seen of the items starts: `top` (the bottom of the
+ *  window's fixed top bar) or, when bars stick under it one below the
+ *  other (Files' selection bar, then its column headings), the bottom of
+ *  the last of them. `boxes` are their edges on the screen, in page order;
+ *  one with no height (not shown) or not up against the ones above (still
+ *  in the page's flow, lower down) is passed by, and one pushed out above
+ *  them (its list scrolled away) adds nothing. The phones' lists have only
+ *  their top bar over them: this is the web's. */
+export function stuckTop(top: number, boxes: readonly { top: number; bottom: number }[]): number {
+  let at = top;
+  for (const b of boxes) {
+    if (b.bottom > b.top && b.top <= at + 1 && b.bottom > at) at = b.bottom;
+  }
+  return at;
+}
+
 /** The point to look for an item under: the pointer, kept within the grid
  *  across (a pointer beside it still runs along its rows) and within what
  *  can be seen from top to bottom (above the window, the first row in

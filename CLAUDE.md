@@ -1140,8 +1140,10 @@ is never picked, Escape takes the drag back, and the click it ends with is swall
 on an item itself starts one (`indexAt(el, true)`): a gap, the empty end of a short row, a month's
 title, Files' header or `..`, or a face's name, count or "Add a name" (People's `faceAt`: the
 picture and its circle only) start nothing, and the page scrolls. Each move
-hit-tests with `elementFromPoint` (clamped into the grid and below `--topbar-h`), and again on
-every scroll: the window scrolls in bands at the top and bottom (56 px, or a third of what can be
+hit-tests with `elementFromPoint` (clamped into the grid and below `--topbar-h` - in Files below
+the selection bar and column headings stuck under it, `stuckOver`/`stuckTop`, so the pointer over
+them counts as above the window), and again on every scroll: the window scrolls in bands at the top
+(from there too) and bottom (56 px, or a third of what can be
 seen when that is less, none when that is under 8 px; up to 1200 px/s), but only once the pointer
 has moved more than 8 px since the drag began (`DragPointer.armed`: at once for a mouse drag, for a
 touch measured from where the long press fired - a long press held still in a band never
@@ -1176,6 +1178,18 @@ top bar or a text field has it. `clearSelection` unpicks everything, ends a drag
 (`useDragSelect`'s `interrupt`) and moves the focus from the bar to the folder's contents; a tap
 then opens again. Over a search's results the first Escape closes them and the next clears
 the selection made in the folder underneath (its bar hidden with it), as Android's Back does.
+
+Files' sticky strip on the web (web only: the phones have no column headings): scrolled down, the
+column headings of List, a search's results and Storage (`.fb-head`, `position: sticky`) stay under
+the top bar - `.fb-table` clips its rounded corners with `overflow: clip`, as `hidden` would stop
+them sticking - and while something is picked the actions bar (`.fb-actions`, in the page just above
+the list or grid, no longer in the toolbar) sticks between the two, alone in Grid. `FilesExplorer`
+measures their heights onto `.fb-wrap` (`--fb-sel-h`, `--fb-head-h`) for the headings' `top` and the
+rows' `scroll-margin` (keyboard focus; the viewer's return scrolls its row fully into sight). A
+heading clicked while its list is scrolled down shows the new order from its first row
+(`sortFromHeading`). Scrolled down or mid-drag, the bar coming or going doesn't move the rows (the
+browser's scroll anchoring; mid-drag `useDragSelect`'s own measure); at the list's top a tick still
+pushes them down by the bar's height, as before the bar stuck.
 
 Copies on the web (issue #201, `components/photoCopies.ts`, `node web/scripts/photo-copies-test.mjs`,
 the phones' `DeleteCopies` rules): Images' Delete (selection bar and viewer) asks about copies when

@@ -19,8 +19,10 @@
 //   selection back as it was before the drag. The page scrolls near the
 //   window's top and bottom, but only once the pointer has moved more than
 //   cDragThresholdPx since the drag began (a mouse drag has; a long press
-//   held still near an edge never scrolls). The click a drag or a long
-//   press ends with goes nowhere.
+//   held still near an edge never scrolls). The top is under the top bar
+//   and what sticks below it (`stuckOver`: Files' selection bar and column
+//   headings): over those, as above the window, the first item in sight
+//   counts. The click a drag or a long press ends with goes nowhere.
 // - The item pressed going away mid-drag ends the drag with the selection
 //   as it stands: later moves change nothing, and the release is still no
 //   click. The item under the pointer going away leaves the selection as it
@@ -40,7 +42,7 @@ import { flushSync } from "react-dom";
 import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import {
   cLongPressMs, dragPointer, dragSelection, findItem, hitPoint, keptBase, movePointer, pastThreshold, pointerSpeed,
-  relocate, sameSelection,
+  relocate, sameSelection, stuckTop,
 } from "./dragSelect";
 import type { DragEnds, DragPointer } from "./dragSelect";
 import "./dragSelect.css";
@@ -64,6 +66,11 @@ export type DragSelectOptions<T> = {
   // A drag (or long press) ended on this item (its index in `items`):
   // Shift+click goes on from there.
   onEnd?: (last: T, index: number) => void;
+  // What may stick over the top of the items under the top bar, in page
+  // order (Files' selection bar and column headings): what can be seen of
+  // the items starts below the last of them that does (stuckTop) - the
+  // top edge's band and the highest point the pointer is looked for at.
+  stuckOver?: () => Iterable<Element>;
 };
 
 // (x, y): where the press began; (cx, cy): where the pointer is now, which
@@ -114,6 +121,13 @@ function swallowClick() {
 
 const topBarHeight = () =>
   parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--topbar-h")) || 64;
+
+// Where what can be seen of the items starts: under the top bar, and under
+// whatever of `over` sticks below it.
+const visibleTop = (over: Iterable<Element> | undefined) => {
+  const top = topBarHeight();
+  return over ? stuckTop(top, Array.from(over, (el) => el.getBoundingClientRect())) : top;
+};
 
 export function useDragSelect<T>(options: DragSelectOptions<T>) {
   const opts = useRef(options);
@@ -216,7 +230,7 @@ export function useDragSelect<T>(options: DragSelectOptions<T>) {
       const el = container.current;
       if (!d || d.cancelled || d.over || !el) return;
       const rect = el.getBoundingClientRect();
-      const p = hitPoint(d.pointer.x, d.pointer.y, rect, topBarHeight(), window.innerHeight);
+      const p = hitPoint(d.pointer.x, d.pointer.y, rect, visibleTop(opts.current.stuckOver?.()), window.innerHeight);
       const under = document.elementFromPoint(p.x, p.y);
       // Over a gap, a month's title or past the last item: the last item
       // the pointer was on still counts.
@@ -237,7 +251,7 @@ export function useDragSelect<T>(options: DragSelectOptions<T>) {
       if (!d || d.cancelled || d.over) return;
       const dt = d.lastTs ? Math.min(50, ts - d.lastTs) : 16;
       d.lastTs = ts;
-      const speed = pointerSpeed(d.pointer, topBarHeight(), window.innerHeight);
+      const speed = pointerSpeed(d.pointer, visibleTop(opts.current.stuckOver?.()), window.innerHeight);
       if (speed !== 0) {
         const before = window.scrollY;
         window.scrollBy(0, (speed * dt) / 1000);

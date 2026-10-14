@@ -163,7 +163,11 @@ a:hover {
 }
 
 body {
+  /* clip, not hidden, where it is known: hidden would make the body the
+     scrolling box under the fallback above (html overflow-y: scroll), and
+     nothing (Files' headings) could stick to the window. */
   overflow-x: hidden;
+  overflow-x: clip;
   margin: 0;
   display: flex;
   place-items: top;
