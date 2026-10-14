@@ -75,6 +75,13 @@ object OTCConnection {
     /** Set whenever connecting or signing in fails; MainView shows the connection form while set. */
     val connectionFailed: StateFlow<Boolean> = _connectionFailed
 
+    // Counts the accepted sign-ins: what a device was found unable to do
+    // (an answer of the kind a device before an issue gives - Images'
+    // newer_than, issue #194; Files' folder sizes, #195) holds until the
+    // next one, which may be to an updated device.
+    private val _signIns = MutableStateFlow(0)
+    val signIns: StateFlow<Int> = _signIns
+
     /** Issue #190: which way the socket in use reaches the device; BRIDGE is the configured endpoint, whatever it is. */
     enum class Route { HOME, BRIDGE }
     private val _route = MutableStateFlow<Route?>(null)
@@ -531,6 +538,7 @@ object OTCConnection {
         backoffMs = 1_000L
         authRejection = null
         authBackoffMs = 5_000L
+        _signIns.value += 1
         _authenticated.value = true
         // The thumbnail cache is this device's (and account's) from now on:
         // bound on a sign-in, never on an address merely saved.

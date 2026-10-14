@@ -54,12 +54,14 @@ enum FileDownload {
 
     /// Writes `path` (or its older version `hash`; "" is the current one)
     /// to `dest`, replacing it. Returns the file's mime and size.
+    /// `original`: the file's own bytes whatever it is (issue #201's Save
+    /// to Photos) - a HEIC's too, which otherwise comes as GetFile's JPEG.
     @discardableResult
-    static func download(path: String, hash: String = "", mime: String = "", to dest: URL) async throws -> (mime: String, size: Int64) {
+    static func download(path: String, hash: String = "", mime: String = "", to dest: URL, original: Bool = false) async throws -> (mime: String, size: Int64) {
         // Issue #190: no route switch while this runs.
         TransferActivity.shared.begin()
         defer { TransferActivity.shared.end() }
-        if isConvertedByGetFile(path: path, mime: mime) {
+        if !original && isConvertedByGetFile(path: path, mime: mime) {
             return try await getFile(path: path, hash: hash, to: dest)
         }
 

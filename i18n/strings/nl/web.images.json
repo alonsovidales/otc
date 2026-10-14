@@ -131,6 +131,54 @@
     "text": "Naamloze collectie",
     "en": "Untitled collection"
   },
+  "web.images.copies.all": {
+    "text": {
+      "one": "Alle {count} kopieën verwijderen",
+      "other": "Alle {count} kopieën verwijderen"
+    },
+    "en": {
+      "one": "Delete all {count} copies",
+      "other": "Delete all {count} copies"
+    },
+    "reviewed": "claude-backtranslation 2026-10-14 #df2f1b03"
+  },
+  "web.images.copies.every": {
+    "text": "Alle kopieën verwijderen",
+    "en": "Delete every copy",
+    "reviewed": "claude-backtranslation 2026-10-14 #5d6ef2c2"
+  },
+  "web.images.copies.only_these": {
+    "text": "Alleen deze kopieën verwijderen",
+    "en": "Delete only these copies",
+    "reviewed": "claude-backtranslation 2026-10-14 #eaacd520"
+  },
+  "web.images.copies.only_this": {
+    "text": "Alleen deze kopie verwijderen",
+    "en": "Delete only this copy",
+    "reviewed": "claude-backtranslation 2026-10-14 #819dbf47"
+  },
+  "web.images.copies.several_text": {
+    "text": {
+      "one": "{count} item uit de selectie heeft ook kopieën elders op je apparaat. Alleen deze kopieën verwijderen of alle kopieën? Dit kan niet ongedaan worden gemaakt.",
+      "other": "{count} items uit de selectie hebben ook kopieën elders op je apparaat. Alleen deze kopieën verwijderen of alle kopieën? Dit kan niet ongedaan worden gemaakt."
+    },
+    "en": {
+      "one": "{count} of them also has copies elsewhere on your device. Delete only these copies, or every copy? This can't be undone.",
+      "other": "{count} of them also have copies elsewhere on your device. Delete only these copies, or every copy? This can't be undone."
+    },
+    "reviewed": "claude-backtranslation 2026-10-14 #c621864e"
+  },
+  "web.images.copies.single_text": {
+    "text": {
+      "one": "Je apparaat bevat {count} kopieën hiervan. Alleen deze kopie verwijderen of allemaal? Dit kan niet ongedaan worden gemaakt.",
+      "other": "Je apparaat bevat {count} kopieën hiervan. Alleen deze kopie verwijderen of allemaal? Dit kan niet ongedaan worden gemaakt."
+    },
+    "en": {
+      "one": "There are {count} copies of it on your device. Delete only this copy, or all of them? This can't be undone.",
+      "other": "There are {count} copies of it on your device. Delete only this copy, or all of them? This can't be undone."
+    },
+    "reviewed": "claude-backtranslation 2026-10-14 #c33828a9"
+  },
   "web.images.count.items": {
     "text": {
       "one": "{count} item",
@@ -192,6 +240,26 @@
   "web.images.crop.zoom": {
     "text": "Zoomen",
     "en": "Zoom"
+  },
+  "web.images.delete.changed": {
+    "text": {
+      "one": "{count} item is op je apparaat gewijzigd sinds het werd getoond en is daarom niet verwijderd. Controleer het en probeer het opnieuw.",
+      "other": "{count} items zijn op je apparaat gewijzigd sinds ze werden getoond en zijn daarom niet verwijderd. Controleer ze en probeer het opnieuw."
+    },
+    "en": {
+      "one": "{count} item changed on your device since it was shown, so it wasn't deleted. Check it and try again.",
+      "other": "{count} items changed on your device since they were shown, so they weren't deleted. Check them and try again."
+    }
+  },
+  "web.images.delete.copy_upload_only": {
+    "text": {
+      "one": "{count} item is niet verwijderd: een kopie ervan staat in een map met “Alleen uploaden”",
+      "other": "{count} items zijn niet verwijderd: ze hebben kopieën in een map met “Alleen uploaden”"
+    },
+    "en": {
+      "one": "{count} item wasn't deleted: a copy of it is in an upload-only folder",
+      "other": "{count} items weren't deleted: they have copies in an upload-only folder"
+    }
   },
   "web.images.delete.done": {
     "text": "{what} verwijderd",

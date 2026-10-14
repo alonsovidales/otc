@@ -351,7 +351,7 @@ extension S {
 
     /// Couldn't load more photos.
     ///
-    /// Row at the end of the grid in Images when the next photos couldn't be loaded; a Try again button follows.
+    /// Row at the end of the grid in Images, or at the top after jumping to a date, when the next photos couldn't be loaded; a Try again button follows.
     static var appShellProblemMorePhotos: String { L("app.shell.problem_more_photos", table: "AppShell") }
 
     /// Couldn't load more posts.

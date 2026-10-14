@@ -131,6 +131,54 @@
     "text": "Unbenannte Sammlung",
     "en": "Untitled collection"
   },
+  "web.images.copies.all": {
+    "text": {
+      "one": "Alle {count} Kopien löschen",
+      "other": "Alle {count} Kopien löschen"
+    },
+    "en": {
+      "one": "Delete all {count} copies",
+      "other": "Delete all {count} copies"
+    },
+    "reviewed": "claude-backtranslation 2026-10-14 #c98d1a25"
+  },
+  "web.images.copies.every": {
+    "text": "Alle Kopien löschen",
+    "en": "Delete every copy",
+    "reviewed": "claude-backtranslation 2026-10-14 #e14f4943"
+  },
+  "web.images.copies.only_these": {
+    "text": "Nur diese Kopien löschen",
+    "en": "Delete only these copies",
+    "reviewed": "claude-backtranslation 2026-10-14 #956e5039"
+  },
+  "web.images.copies.only_this": {
+    "text": "Nur diese Kopie löschen",
+    "en": "Delete only this copy",
+    "reviewed": "claude-backtranslation 2026-10-14 #7ee8a960"
+  },
+  "web.images.copies.several_text": {
+    "text": {
+      "one": "{count} Element der Auswahl hat auch Kopien an anderen Orten auf deinem Gerät. Nur diese Kopien löschen oder alle Kopien? Das kann nicht rückgängig gemacht werden.",
+      "other": "{count} Elemente der Auswahl haben auch Kopien an anderen Orten auf deinem Gerät. Nur diese Kopien löschen oder alle Kopien? Das kann nicht rückgängig gemacht werden."
+    },
+    "en": {
+      "one": "{count} of them also has copies elsewhere on your device. Delete only these copies, or every copy? This can't be undone.",
+      "other": "{count} of them also have copies elsewhere on your device. Delete only these copies, or every copy? This can't be undone."
+    },
+    "reviewed": "claude-backtranslation 2026-10-14 #fc095f0c"
+  },
+  "web.images.copies.single_text": {
+    "text": {
+      "one": "Auf deinem Gerät gibt es {count} Kopien davon. Nur diese Kopie löschen oder alle? Das kann nicht rückgängig gemacht werden.",
+      "other": "Auf deinem Gerät gibt es {count} Kopien davon. Nur diese Kopie löschen oder alle? Das kann nicht rückgängig gemacht werden."
+    },
+    "en": {
+      "one": "There are {count} copies of it on your device. Delete only this copy, or all of them? This can't be undone.",
+      "other": "There are {count} copies of it on your device. Delete only this copy, or all of them? This can't be undone."
+    },
+    "reviewed": "claude-backtranslation 2026-10-14 #8137ae9a"
+  },
   "web.images.count.items": {
     "text": {
       "one": "{count} Element",
@@ -192,6 +240,26 @@
   "web.images.crop.zoom": {
     "text": "Zoom",
     "en": "Zoom"
+  },
+  "web.images.delete.changed": {
+    "text": {
+      "one": "{count} Element hat sich auf deinem Gerät geändert, seit es angezeigt wurde, und wurde deshalb nicht gelöscht. Prüfe es und versuche es erneut.",
+      "other": "{count} Elemente haben sich auf deinem Gerät geändert, seit sie angezeigt wurden, und wurden deshalb nicht gelöscht. Prüfe sie und versuche es erneut."
+    },
+    "en": {
+      "one": "{count} item changed on your device since it was shown, so it wasn't deleted. Check it and try again.",
+      "other": "{count} items changed on your device since they were shown, so they weren't deleted. Check them and try again."
+    }
+  },
+  "web.images.delete.copy_upload_only": {
+    "text": {
+      "one": "{count} Element wurde nicht gelöscht: Eine Kopie davon liegt in einem Ordner mit „Nur hochladen“",
+      "other": "{count} Elemente wurden nicht gelöscht: Sie haben Kopien in einem Ordner mit „Nur hochladen“"
+    },
+    "en": {
+      "one": "{count} item wasn't deleted: a copy of it is in an upload-only folder",
+      "other": "{count} items weren't deleted: they have copies in an upload-only folder"
+    }
   },
   "web.images.delete.done": {
     "text": "{what} gelöscht",

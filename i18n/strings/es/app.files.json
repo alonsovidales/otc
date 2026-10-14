@@ -308,6 +308,48 @@
     "text": "Está en una carpeta de solo subida: no se puede eliminar, y al volver a subirlo se conserva su versión anterior. El candado de la carpeta lo cambia.",
     "en": "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it."
   },
+  "app.files.usage_empty": {
+    "text": "Nada de esta carpeta ocupa espacio.",
+    "en": "Nothing in this folder takes up space."
+  },
+  "app.files.usage_failed": {
+    "text": "No se ha podido calcular cuánto espacio ocupa esta carpeta.",
+    "en": "Couldn't find out how much space this folder takes."
+  },
+  "app.files.usage_needs_update": {
+    "text": "Tu dispositivo necesita una actualización para mostrar cuánto espacio ocupan las carpetas.",
+    "en": "Your device needs an update to show how much space folders take."
+  },
+  "app.files.usage_note": {
+    "text": "Los tamaños se cuentan archivo por archivo: un archivo guardado en dos sitios cuenta dos veces, aunque el dispositivo lo almacena una sola vez. Las miniaturas y el cifrado no se cuentan, así que los totales no coincidirán con la barra de almacenamiento.",
+    "en": "Sizes are counted file by file: a file kept in two places counts twice, though the device stores it once. Thumbnails and encryption aren't counted, so the totals won't match the storage bar."
+  },
+  "app.files.usage_row": {
+    "text": "{size} · {share}",
+    "en": "{size} · {share}"
+  },
+  "app.files.usage_row_label": {
+    "text": "{name}, {size}, {share} de esta carpeta",
+    "en": "{name}, {size}, {share} of this folder"
+  },
+  "app.files.usage_share_small": {
+    "text": "menos del 1 %",
+    "en": "under 1%"
+  },
+  "app.files.usage_total": {
+    "text": {
+      "one": "Esta carpeta: {size} en {count} archivo",
+      "other": "Esta carpeta: {size} en {count} archivos"
+    },
+    "en": {
+      "one": "This folder: {size} in {count} file",
+      "other": "This folder: {size} in {count} files"
+    }
+  },
+  "app.files.usage_versions": {
+    "text": "Incluye {size} de versiones anteriores",
+    "en": "{size} of it in older versions"
+  },
   "app.files.version_current": {
     "text": "Actual",
     "en": "Current"
@@ -343,5 +385,9 @@
   "app.files.view_options": {
     "text": "Opciones de vista",
     "en": "View options"
+  },
+  "app.files.view_storage": {
+    "text": "Almacenamiento",
+    "en": "Storage"
   }
 }

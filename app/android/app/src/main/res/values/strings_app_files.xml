@@ -83,6 +83,18 @@
     <string name="app_files_upload_failed">Upload failed: %1$s</string>
     <string name="app_files_upload_only">Upload only</string>
     <string name="app_files_upload_only_file_info">This is in an upload-only folder: it can\'t be deleted, and uploading it again keeps its older version. The lock on the folder changes it.</string>
+    <string name="app_files_usage_empty">Nothing in this folder takes up space.</string>
+    <string name="app_files_usage_failed">Couldn\'t find out how much space this folder takes.</string>
+    <string name="app_files_usage_needs_update">Your device needs an update to show how much space folders take.</string>
+    <string name="app_files_usage_note">Sizes are counted file by file: a file kept in two places counts twice, though the device stores it once. Thumbnails and encryption aren\'t counted, so the totals won\'t match the storage bar.</string>
+    <string name="app_files_usage_row">%1$s · %2$s</string>
+    <string name="app_files_usage_row_label">\u2068%1$s\u2069, %2$s, %3$s of this folder</string>
+    <string name="app_files_usage_share_small" formatted="false">under 1%</string>
+    <plurals name="app_files_usage_total">
+        <item quantity="one">This folder: %1$s in %2$s file</item>
+        <item quantity="other">This folder: %1$s in %2$s files</item>
+    </plurals>
+    <string name="app_files_usage_versions">%1$s of it in older versions</string>
     <string name="app_files_version_current">Current</string>
     <string name="app_files_version_open_failed">Could not fetch that version</string>
     <string name="app_files_version_replaced">Replaced %1$s</string>
@@ -92,4 +104,5 @@
     <string name="app_files_view_grid">Grid</string>
     <string name="app_files_view_list">List</string>
     <string name="app_files_view_options">View options</string>
+    <string name="app_files_view_storage">Storage</string>
 </resources>

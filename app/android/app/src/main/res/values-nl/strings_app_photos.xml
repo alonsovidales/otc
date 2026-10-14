@@ -22,6 +22,21 @@
     </plurals>
     <string name="app_photos_collections_rename">Naam van collectie wijzigen</string>
     <string name="app_photos_collections_sheet_empty">Nog geen collecties: selecteer wat foto’s en kies “Toevoegen aan collectie”.</string>
+    <plurals name="app_photos_copies_all">
+        <item quantity="one">Alle %1$s kopieën verwijderen</item>
+        <item quantity="other">Alle %1$s kopieën verwijderen</item>
+    </plurals>
+    <string name="app_photos_copies_every">Alle kopieën verwijderen</string>
+    <string name="app_photos_copies_only_these">Alleen deze kopieën verwijderen</string>
+    <string name="app_photos_copies_only_this">Alleen deze kopie verwijderen</string>
+    <plurals name="app_photos_copies_several_text">
+        <item quantity="one">%1$s item uit de selectie heeft ook kopieën elders op je apparaat. Alleen deze kopieën verwijderen of alle kopieën? Dit kan niet ongedaan worden gemaakt.</item>
+        <item quantity="other">%1$s items uit de selectie hebben ook kopieën elders op je apparaat. Alleen deze kopieën verwijderen of alle kopieën? Dit kan niet ongedaan worden gemaakt.</item>
+    </plurals>
+    <plurals name="app_photos_copies_single_text">
+        <item quantity="one">Je apparaat bevat %1$s kopieën hiervan. Alleen deze kopie verwijderen of allemaal? Dit kan niet ongedaan worden gemaakt.</item>
+        <item quantity="other">Je apparaat bevat %1$s kopieën hiervan. Alleen deze kopie verwijderen of allemaal? Dit kan niet ongedaan worden gemaakt.</item>
+    </plurals>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s item · %2$s</item>
         <item quantity="other">%1$s items · %2$s</item>
@@ -80,7 +95,15 @@
     <string name="app_photos_notice_added">Toegevoegd aan “\u2068%1$s\u2069”.</string>
     <string name="app_photos_notice_create_failed">Kan de collectie niet maken.</string>
     <string name="app_photos_notice_created">Collectie “\u2068%1$s\u2069” gemaakt.</string>
+    <plurals name="app_photos_notice_delete_changed">
+        <item quantity="one">%1$s item is op je apparaat gewijzigd sinds het werd getoond en is daarom niet verwijderd. Controleer het en probeer het opnieuw.</item>
+        <item quantity="other">%1$s items zijn op je apparaat gewijzigd sinds ze werden getoond en zijn daarom niet verwijderd. Controleer ze en probeer het opnieuw.</item>
+    </plurals>
     <string name="app_photos_notice_delete_collection_failed">Kan de collectie niet verwijderen.</string>
+    <plurals name="app_photos_notice_delete_copy_upload_only">
+        <item quantity="one">%1$s item is niet verwijderd: een kopie ervan staat in een map met “Alleen uploaden”</item>
+        <item quantity="other">%1$s items zijn niet verwijderd: ze hebben kopieën in een map met “Alleen uploaden”</item>
+    </plurals>
     <string name="app_photos_notice_delete_failed">Verwijderen mislukt: %1$s</string>
     <string name="app_photos_notice_no_download_link">Kan geen downloadlink maken.</string>
     <string name="app_photos_notice_no_share_link">Kan geen deellink maken.</string>
@@ -187,4 +210,5 @@
     <string name="app_photos_viewer_info_title">Meer info</string>
     <string name="app_photos_viewer_low_res">Voorbeeld</string>
     <string name="app_photos_viewer_more_info">Meer info</string>
+    <string name="app_photos_viewer_saving">Opslaan…</string>
 </resources>

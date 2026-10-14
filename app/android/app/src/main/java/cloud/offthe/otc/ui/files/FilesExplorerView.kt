@@ -79,8 +79,10 @@ import cloud.offthe.otc.i18n.appFilesSearching
 import cloud.offthe.otc.i18n.appFilesSelectionUploadOnly
 import cloud.offthe.otc.i18n.appFilesShareLinkFailed
 import cloud.offthe.otc.i18n.appFilesSortBy
+import cloud.offthe.otc.i18n.appPhotosNoticeDeleteFailed
 import cloud.offthe.otc.i18n.appFilesViewGrid
 import cloud.offthe.otc.i18n.appFilesViewList
+import cloud.offthe.otc.i18n.appFilesViewStorage
 import cloud.offthe.otc.i18n.appFilesViewOptions
 import cloud.offthe.otc.i18n.LanguageSettings
 import androidx.core.content.edit
@@ -159,6 +161,7 @@ import cloud.offthe.otc.ui.common.loadProblem
 import cloud.offthe.otc.ui.common.loadProblemText
 import cloud.offthe.otc.net.byteSize
 import cloud.offthe.otc.proto.DelFile
+import cloud.offthe.otc.proto.GetFolderUsage
 import cloud.offthe.otc.proto.File as PbFile
 import cloud.offthe.otc.proto.GetFile
 import cloud.offthe.otc.proto.GetThumbnails
@@ -216,6 +219,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.ui.draw.clip
@@ -327,6 +331,18 @@ internal fun outOfImagesWait(task: SelectionActionTask): UiText = when (task) {
     SelectionActionTask.SHARE -> S.androidFilesWaitShareLink()
     SelectionActionTask.DOWNLOAD -> S.androidFilesWaitDownloadLink()
     SelectionActionTask.OUT_OF_IMAGES -> S.androidFilesWaitFolder()
+}
+
+/**
+ * Issue #201: a row's delete - with the content the row showed (DelFile.hash)
+ * for a file whose hash the listing gave, so one changed since (synced over,
+ * edited) is refused as "changed" rather than deleted unseen. A folder's
+ * path goes alone, as before.
+ */
+internal fun filesDelete(full: String, row: FileRow?): DelFile {
+    val b = DelFile.newBuilder().setPath(full)
+    if (row != null && !row.isDir && row.raw.hash.isNotEmpty()) b.hash = row.raw.hash
+    return b.build()
 }
 
 private fun foundRow(f: PbFile) = FileRow(f.path, leafName(f.path), isDir(f), f.byteSize, f, f.uploadOnly, f.versions, f.outOfImages)
@@ -466,8 +482,11 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         // Issue #132: the versions pop-up - the file and its older versions.
         val versionsOf: Pair<FileRow, List<PbFile>>? = null,
         val versionsLoading: Boolean = false,
-        // List or grid, kept across launches ("files_view_mode").
-        val grid: Boolean = prefs.getString(VIEW_MODE_KEY, "list") == "grid",
+        // List, grid or (issue #195) Storage, kept across launches ("files_view_mode").
+        val view: FilesView = FilesView.parse(prefs.getString(VIEW_MODE_KEY, null)),
+        // Issue #195: the Storage view's answer for the folder shown (null
+        // in the list and the grid, which never ask for it).
+        val usage: UsageState? = null,
         // Grid thumbnails by thumbKey: what the bounded cache below holds.
         val thumbs: Map<String, ImageBitmap> = emptyMap(),
         // Bumped by load(): tiles ask again for thumbnails that failed, as a
@@ -493,6 +512,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         // out of Images"); the screen shows it by the mark and the banner.
         val outOfImagesSaid: UiText? = null,
     ) {
+        val grid: Boolean get() = view == FilesView.GRID
         /** The selection when it is one folder: what "Share as gallery" (issue #180) acts on. */
         val selectedFolder: FileRow? get() = selected.singleOrNull()?.let { p -> rows.firstOrNull { it.path == p && it.isDir && it.path != ".." } }
         /**
@@ -599,6 +619,9 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         // folder was opened (the search opening one as Files appears) is
         // not that folder's, and is dropped.
         val p = path
+        // Issue #195: in the Storage view, its sizes too - the folder
+        // opened, a refresh, an upload done.
+        if (_state.value.view == FilesView.STORAGE) askUsage()
         listingAsks.incrementAndGet()
         val still = listingErrorWhileAsking(listingProblem, failedPath, p, NetworkWatch.online())
         _state.update { it.copy(loading = true, error = still) }
@@ -829,9 +852,48 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
 
     fun thumbKey(row: FileRow) = fullPath(row) + "\u0000" + row.raw.hash
 
-    fun setGrid(grid: Boolean) {
-        prefs.edit().putString(VIEW_MODE_KEY, if (grid) "grid" else "list").apply()
-        _state.update { it.copy(grid = grid) }
+    /**
+     * List, grid or Storage (issue #195), kept. Storage asks for the open
+     * folder's sizes and has no selection (the list is for that); leaving
+     * it drops what it showed.
+     */
+    fun setView(view: FilesView) {
+        if (view == _state.value.view) return
+        prefs.edit { putString(VIEW_MODE_KEY, view.stored) }
+        if (view == FilesView.STORAGE) dragSelection = null
+        _state.update { it.copy(view = view, usage = null, selected = if (view == FilesView.STORAGE) emptySet() else it.selected) }
+        if (view == FilesView.STORAGE) askUsage()
+    }
+
+    // Issue #195: only the last GetFolderUsage asked for lands, and only
+    // for the folder still shown (FolderUsage.path, usageFits). A device
+    // before it answers unknown_payload: not asked again until the next
+    // sign-in (OTCConnection.signIns).
+    private val usageAsks = java.util.concurrent.atomic.AtomicInteger()
+    @Volatile private var usageUnsupportedAt: Int? = null
+
+    /** The Storage view's sizes for the folder shown: asked now (Try again, too). */
+    fun askUsage() {
+        if (_state.value.view != FilesView.STORAGE) return
+        if (usageUnsupportedAt == OTCConnection.signIns.value) { _state.update { it.copy(usage = UsageState.NeedsUpdate) }; return }
+        val p = path
+        val mine = usageAsks.incrementAndGet()
+        _state.update { it.copy(usage = UsageState.Loading) }
+        viewModelScope.launch {
+            val resp = try {
+                OTCConnection.ask("usage", OTCConnection.LIST_TIMEOUT_MS) { it.setReqGetFolderUsage(GetFolderUsage.newBuilder().setPath(p)) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) { null }
+            if (usageAsks.get() != mine || path != p || _state.value.view != FilesView.STORAGE) return@launch
+            val next = if (resp?.payloadCase == RespEnvelope.PayloadCase.RESP_FOLDER_USAGE) {
+                // Another folder's (requests overlap): not this one's.
+                if (!usageFits(resp.respFolderUsage.path, p)) return@launch
+                UsageState.Shown(resp.respFolderUsage)
+            } else usageFailure(resp)
+            if (next == UsageState.NeedsUpdate) usageUnsupportedAt = OTCConnection.signIns.value
+            _state.update { it.copy(usage = next) }
+        }
     }
 
     /**
@@ -1025,10 +1087,17 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         for (p in _state.value.selected) {
             try {
                 val full = if (p.contains("/")) p else joinPath(path, p)
-                val resp = OTCConnection.request { it.setReqDelFile(DelFile.newBuilder().setPath(full)) }
+                val resp = OTCConnection.request { it.setReqDelFile(filesDelete(full, rows.firstOrNull { r -> r.path == p })) }
                 if (resp.error && resp.errorCode == "upload_only") {
                     showToast(S.appFilesDeleteRefused(leafName(full)))
                     break
+                }
+                // Issue #201: the file holds other content than the row
+                // showed: nothing was deleted - the device says so, and the
+                // folder is listed again below.
+                if (resp.error && resp.errorCode == "changed") {
+                    showToast(deviceSays(resp.errorMessage) { S.appPhotosNoticeDeleteFailed(resp.errorCode) })
+                    continue
                 }
                 // A file gone from the device: its thumbnail goes from the
                 // phone's cache too (a folder's contents aren't followed).
@@ -1274,6 +1343,7 @@ fun FilesExplorerView(initialPath: String) {
     // results show over it.
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
+    val storageState = rememberLazyListState()
 
     // The Images search sent Files here (FilesNav): to a folder, and maybe
     // to a file in it, opened as a tap on it would; or to the files and
@@ -1294,6 +1364,7 @@ fun FilesExplorerView(initialPath: String) {
                 vm.navigate(dir)
                 listState.requestScrollToItem(0)
                 gridState.requestScrollToItem(0)
+                storageState.requestScrollToItem(0)
                 if (f != null && !isMediaFile(f)) scope.launch { vm.open(context, foundRow(f)) }
             }
         }
@@ -1372,7 +1443,7 @@ fun FilesExplorerView(initialPath: String) {
                             modifier = Modifier.weight(1f),
                         )
                         if (st.loading || st.sorting) { Spacer(Modifier.width(8.dp)); CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
-                        ViewOptionsMenu(grid = st.grid, sort = st.sort, onGrid = vm::setGrid, onSort = vm::pickSort)
+                        ViewOptionsMenu(view = st.view, sort = st.sort, onView = vm::setView, onSort = vm::pickSort)
                     }
                     // Said to TalkBack when it appears or changes.
                     st.error?.let {
@@ -1411,7 +1482,21 @@ fun FilesExplorerView(initialPath: String) {
                         onRefresh = { scope.launch { refreshing = true; vm.load(); refreshing = false } },
                         modifier = Modifier.weight(1f),
                     ) {
-                        if (st.grid) {
+                        if (st.view == FilesView.STORAGE) {
+                            // Issue #195: what takes the space here. A folder
+                            // opens in this view; a file as a tap in the list.
+                            FilesStorageView(
+                                st.usage, st.rows, st.path, st.listedPath, st.openingPath, storageState,
+                                onUp = if (st.path == "/") null else { { vm.navigate(dirnamePath(st.path)) } },
+                                onOpen = { r ->
+                                    val row = r.listed
+                                    if (r.isDir) vm.navigate(normPath(r.path))
+                                    else if (row != null) openRow(row)
+                                    else openRow(FileRow(r.path, r.name, false, r.size, PbFile.newBuilder().setPath(r.path).build()))
+                                },
+                                onRetry = vm::askUsage,
+                            )
+                        } else if (st.grid) {
                             val left = with(LocalDensity.current) { FILES_GRID_SIDE.toPx() }
                             val drag = rememberDragSelect(
                                 gridState, hit = { p -> selectable(gridState.layoutInfo.keyAt(p.x, p.y, left)) },
@@ -1642,33 +1727,43 @@ fun FilesExplorerView(initialPath: String) {
 }
 
 /**
- * List or grid, and the order (issue #196), in one menu, as iOS's View
- * options: the button shows the view in use. The view in use and the
- * order in use have the check; the order its arrow and, under its name,
- * its direction in words. Picking that order again reverses it.
+ * List, grid or Storage (issue #195), and the order (issue #196), in one
+ * menu, as iOS's View options: the button shows the view in use. The view
+ * in use and the order in use have the check; the order its arrow and,
+ * under its name, its direction in words. Picking that order again
+ * reverses it. Storage keeps the device's order (largest first): no order
+ * to pick there.
  */
 @Composable
-private fun ViewOptionsMenu(grid: Boolean, sort: FilesSortOrder, onGrid: (Boolean) -> Unit, onSort: (FilesSortKey) -> Unit) {
+private fun ViewOptionsMenu(view: FilesView, sort: FilesSortOrder, onView: (FilesView) -> Unit, onSort: (FilesSortKey) -> Unit) {
     var open by remember { mutableStateOf(false) }
     val colors = MaterialTheme.colorScheme
     val sorted = FilesSortText.sorted(sort).resolve()
+    fun iconOf(v: FilesView) = when (v) {
+        FilesView.LIST -> Icons.AutoMirrored.Filled.ViewList
+        FilesView.GRID -> Icons.Default.GridView
+        FilesView.STORAGE -> Icons.Default.PieChart
+    }
     Box {
-        IconButton(onClick = { open = true }, modifier = Modifier.semantics { stateDescription = sorted }) {
-            Icon(if (grid) Icons.Default.GridView else Icons.AutoMirrored.Filled.ViewList, S.appFilesViewOptions().resolve())
+        IconButton(onClick = { open = true }, modifier = Modifier.semantics { if (view != FilesView.STORAGE) stateDescription = sorted }) {
+            Icon(iconOf(view), S.appFilesViewOptions().resolve())
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             @Composable
             fun check(on: Boolean) = if (on) Icon(Icons.Default.Check, null) else Spacer(Modifier.size(24.dp))
-            DropdownMenuItem(
-                text = { Text(S.appFilesViewList().resolve()) }, onClick = { open = false; onGrid(false) },
-                leadingIcon = { check(!grid) }, trailingIcon = { Icon(Icons.AutoMirrored.Filled.ViewList, null) },
-                modifier = Modifier.semantics { selected = !grid },
-            )
-            DropdownMenuItem(
-                text = { Text(S.appFilesViewGrid().resolve()) }, onClick = { open = false; onGrid(true) },
-                leadingIcon = { check(grid) }, trailingIcon = { Icon(Icons.Default.GridView, null) },
-                modifier = Modifier.semantics { selected = grid },
-            )
+            for (v in FilesView.entries) {
+                val name = when (v) {
+                    FilesView.LIST -> S.appFilesViewList()
+                    FilesView.GRID -> S.appFilesViewGrid()
+                    FilesView.STORAGE -> S.appFilesViewStorage()
+                }
+                DropdownMenuItem(
+                    text = { Text(name.resolve()) }, onClick = { open = false; onView(v) },
+                    leadingIcon = { check(view == v) }, trailingIcon = { Icon(iconOf(v), null) },
+                    modifier = Modifier.semantics { selected = view == v },
+                )
+            }
+            if (view == FilesView.STORAGE) return@DropdownMenu
             HorizontalDivider()
             Text(
                 S.appFilesSortBy().resolve(), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant,

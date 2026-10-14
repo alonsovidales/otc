@@ -326,4 +326,88 @@ class PhotoMonthsTest {
         }
         assertEquals((0 until 7).toList(), found)
     }
+
+    // ---- issue #194: the room kept above a jump's photos ---------------------------
+
+    /** Rows with their grey tiles: "month[start-end/slots]+lead" or "tiles[start-end]+lead". */
+    private fun describeLead(l: GalleryLayout): List<String> = l.rows.map { r ->
+        when (r) {
+            is TitledRow -> r.segments.joinToString(" + ") { "${it.month ?: "-"}[${it.start}-${it.end}/${it.slots}]+${it.lead}" }
+            is TileRow -> "tiles[${r.start}-${r.end}]+${r.lead}"
+        }
+    }
+
+    @Test fun theRoomAboveIsTheFirstMonthsCountOnlyWhenItCameFromAbove() {
+        val b = buckets("2024-07" to 2, "2024-06" to 7, "2024-05" to 4)
+        // The jump's month (it came from the jump, complete at its top):
+        // nothing above it - no grey room for the month newer than it.
+        assertEquals(RoomAbove(null), roomAbove("2024-05", firstUp = false, b))
+        // Photos of June came from above: June keeps the room its bucket says.
+        assertEquals(RoomAbove(7), roomAbove("2024-06", firstUp = true, b))
+        assertEquals(RoomAbove(2), roomAbove("2024-07", firstUp = true, b))
+        // A month the buckets don't have, or no month: nothing.
+        assertEquals(RoomAbove(null), roomAbove("2024-08", firstUp = true, b))
+        assertEquals(RoomAbove(null), roomAbove(null, firstUp = true, b))
+    }
+
+    @Test fun aCompleteFirstMonthHasNothingAboveIt() {
+        // The jump's May (4 photos, more to come below): its title first.
+        val l = layoutGallery(monthRuns(months("2024-05" to 4)), true, phone, mapOf("2024-05" to 9), more = true, above = RoomAbove(null))
+        assertEquals(listOf("2024-05[0-3/3]+0", "tiles[3-4]+0"), describeLead(l))
+        assertEquals(0, l.rowOf(0))
+        assertEquals("2024-05#0", l.keyOf(0))
+    }
+
+    @Test fun photosLandingFromAboveFillTheGreyTilesWithoutARowMoving() {
+        val above = RoomAbove(7)
+        // June's two oldest came first (oldest first, turned round), then three more.
+        fun june(n: Int) = layoutGallery(monthRuns(months("2024-06" to n, "2024-05" to 4)), true, phone, mapOf("2024-05" to 4), above = above)
+        val two = june(2)
+        val five = june(5)
+        assertEquals(listOf("2024-06[0-0/3]+3", "tiles[0-1]+2", "tiles[1-2]+0", "2024-05[2-5/3]+0", "tiles[5-6]+0"), describeLead(two))
+        assertEquals(listOf("2024-06[0-1/3]+2", "tiles[1-4]+0", "tiles[4-5]+0", "2024-05[5-8/3]+0", "tiles[8-9]+0"), describeLead(five))
+        // The same rows under the same keys: nothing on screen moves.
+        assertEquals(two.rows.indices.map { two.keyOf(it) }, five.rows.indices.map { five.keyOf(it) })
+        // June complete: nothing above it (July comes with the next page),
+        // and its rows keep their keys.
+        val seven = june(7)
+        assertEquals(two.rows.indices.map { two.keyOf(it) }, seven.rows.indices.map { seven.keyOf(it) })
+        assertEquals(
+            listOf("2024-06[0-3/3]+0", "tiles[3-6]+0", "tiles[6-7]+0", "2024-05[7-10/3]+0", "tiles[10-11]+0"),
+            describeLead(seven),
+        )
+    }
+
+    @Test fun aMonthTheBucketsUndercountedLaysOutFromItsFirstPhoto() {
+        // The bucket said 3, 5 came: no grey tiles, laid out as a month is.
+        val l = layoutGallery(monthRuns(months("2024-06" to 5)), true, phone, above = RoomAbove(3))
+        assertEquals(listOf("2024-06[0-3/3]+0", "tiles[3-5]+0"), describeLead(l))
+    }
+
+    @Test fun aSmallMonthFillingFromAboveSitsBesideTheNextOneAsAnyMonthDoes() {
+        // June's bucket says 2, one came from above; May's 1 from the jump.
+        val l = layoutGallery(monthRuns(months("2024-06" to 1, "2024-05" to 1)), true, phone, above = RoomAbove(2))
+        assertEquals(listOf("2024-06[0-1/2]+1 + 2024-05[1-2/1]+0"), describeLead(l))
+        assertEquals(0, l.rowOf(0))
+    }
+
+    @Test fun aGreyTileAboveIsNoPhotoUnderAFinger() {
+        val px = GridGeometry(cols = 3, tile = 100f, gap = 2f, secGap = 2f)
+        // One grey tile, then photos 0 and 1.
+        val row = TileRow(0, 2, lead = 1)
+        assertNull(row.itemAt(50f, 52f, px, top = 2f, title = 30f))
+        assertEquals(0, row.itemAt(150f, 52f, px, top = 2f, title = 30f))
+        assertEquals(1, row.itemAt(250f, 52f, px, top = 2f, title = 30f))
+        val titled = TitledRow(listOf(Segment("2024-06", 0, 1, 3, lead = 2)))
+        val y = 14f + 30f + 50f
+        assertNull(titled.itemAt(50f, y, px, top = 14f, title = 30f))
+        assertNull(titled.itemAt(150f, y, px, top = 14f, title = 30f))
+        assertEquals(0, titled.itemAt(250f, y, px, top = 14f, title = 30f))
+    }
+
+    @Test fun aTagSearchLeavesItsRowsKeysToTheGrid() {
+        val l = layoutGallery(listOf(MonthRun(null, 0, 5)), titled = false, g = phone)
+        assertNull(l.keyOf(0))
+        assertEquals(-1, l.rowWithKey("x"))
+    }
 }

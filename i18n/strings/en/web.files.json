@@ -14,6 +14,11 @@
     "note": "Files: column heading in the folder's list and in the search results.",
     "max": 20
   },
+  "web.files.column.share": {
+    "text": "Share of folder",
+    "note": "Column heading in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first. The column holds each row's bar and percentage. The other columns are Name and Size (web.files.column.name, web.files.column.size).",
+    "max": 24
+  },
   "web.files.column.size": {
     "text": "Size",
     "note": "Files: column heading in the folder's list and in the search results.",
@@ -654,6 +659,11 @@
     "note": "Files: label before the field holding the folder shown (/Photos/2024/). Keep the colon if your language uses one there.",
     "max": 12
   },
+  "web.files.toolbar.storage": {
+    "text": "Storage",
+    "note": "Tooltip and screen-reader name of the third view button in Files' toolbar, next to List (web.files.toolbar.list) and Grid (web.files.toolbar.grid): shows the Storage view, what takes space in the open folder. Use your language's word for storage space; a short word.",
+    "max": 16
+  },
   "web.files.toolbar.view": {
     "text": "View",
     "note": "Files: accessibility name of the pair of buttons that switch between the list and the grid of thumbnails."
@@ -695,6 +705,45 @@
     "text": "Uploading…",
     "note": "Files: status shown on each row of the upload panel.",
     "max": 16
+  },
+  "web.files.usage.empty": {
+    "text": "Nothing in this folder takes up space.",
+    "note": "Shown in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first. in place of the rows when nothing in the folder takes space: it is empty, or holds only empty folders."
+  },
+  "web.files.usage.failed": {
+    "text": "Couldn't find out how much space this folder takes.",
+    "note": "Shown in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first. in place of the rows when the device didn't answer (no connection, no reply) and gave no reason of its own; a Try again button (common.try_again) follows."
+  },
+  "web.files.usage.needs_update": {
+    "text": "Your device needs an update to show how much space folders take.",
+    "note": "Shown in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first. in place of the rows when the device's software is too old to say how much space folders take."
+  },
+  "web.files.usage.note": {
+    "text": "Sizes are counted file by file: a file kept in two places counts twice, though the device stores it once. Thumbnails and encryption aren't counted, so the totals won't match the storage bar.",
+    "note": "Footnote under the rows of Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first.: the sizes are each file's own size. Content stored at two paths is kept once on the device but counted at both; thumbnails (the small previews) and the space encryption adds aren't counted. So the totals differ from the bar that shows how full the device's storage is (in the menu and Settings)."
+  },
+  "web.files.usage.row_label": {
+    "text": "{name}, {size}, {share} of this folder",
+    "args": [["name", "user"], ["size", "text"], ["share", "text"]],
+    "note": "Screen-reader name of a row in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first.. {name} is the file's or folder's name; {size} its size, already formatted with its unit (1.2 GB); {share} is the row's share of the folder, already formatted as a percentage (45%), or web.files.usage.share_small when it is under one per cent. When the folder takes no space at all, {share} is 0%."
+  },
+  "web.files.usage.share_small": {
+    "text": "under 1%",
+    "note": "In Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first.: the share of a file or folder that takes some space but less than one per cent of the folder, in place of a percentage like 45%. Write the per cent sign as your language does. Starts in lowercase in English: it is a value, and it is also put inside web.files.usage.row_label.",
+    "max": 16
+  },
+  "web.files.usage.total": {
+    "text": {
+      "one": "This folder: {size} in {count} file",
+      "other": "This folder: {size} in {count} files"
+    },
+    "args": [["size", "text"], ["count", "count"]],
+    "note": "First line above the rows of Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first. {size} is the folder's whole size, older versions included (the base of the rows' percentages), already formatted with its unit (1.2 TB); {count} is how many files are under it, at any depth."
+  },
+  "web.files.usage.versions": {
+    "text": "{size} of it in older versions",
+    "args": [["size", "text"]],
+    "note": "Second line above the rows of Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first., under web.files.usage.total, shown only when the folder keeps older versions of files (in upload-only folders). {size} is how much of the folder's size they take, already formatted with its unit (3.4 GB)."
   },
   "web.files.versions.count": {
     "text": {

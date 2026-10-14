@@ -253,6 +253,13 @@ struct PhotoGridMetrics: Equatable {
 }
 
 /// The grid as rows for a LazyVStack.
+///
+/// Rows are named by where they are in their month - its title, its rows of
+/// tiles by their place in it, or the line it starts - never by the index
+/// of their first photo: a page put above the grid (issue #194, the newer
+/// photos over a jump) shifts every index, and the rows on the screen keep
+/// their names, so they stay where they are. Each tile is named by its
+/// photo (PhotoGalleryView.tile).
 struct PhotoGridLayout: Equatable {
     /// A month in a line it shares with others: its title over one row of
     /// tiles, `room` tiles wide (more than it has when more are on their
@@ -275,7 +282,8 @@ struct PhotoGridLayout: Equatable {
         let id: String
         let kind: Kind
         /// The first photo it shows, or for a title the first of its month:
-        /// where the scroll position is kept when the width changes.
+        /// where the scroll position is kept when the width changes. Below
+        /// 0 for the grey tiles kept for the top month's newer photos.
         let first: Int
         /// The room above it.
         let top: CGFloat
@@ -295,6 +303,10 @@ struct PhotoGridLayout: Equatable {
     var metrics: PhotoGridMetrics
     var rows: [Row] = []
     var placeholder: Placeholder = .none
+    /// The first tile's index: below 0 when the top month keeps room for
+    /// its newer photos still to come (firstRoom), whose grey tiles are the
+    /// indices from here to 0.
+    var firstSlot = 0
 
     /// Grey tiles shown while the first page is on its way (the web's
     /// cSkeletonTiles).
@@ -304,21 +316,32 @@ struct PhotoGridLayout: Equatable {
     /// `dated` false (a tag search) has no titles, one block of rows.
     /// `lastRoom` is how many photos the last month will have once every
     /// page is in (its date bucket), while more are on their way.
-    /// `ids` names the rows after their first photo, so a page that adds
-    /// photos keeps the rows that were there.
-    static func build(months: [String?], ids: [String], dated: Bool, lastRoom: Int?, metrics m: PhotoGridMetrics) -> PhotoGridLayout {
+    /// `firstRoom` is the same for the first month while its newer photos
+    /// are on their way (issue #194: above a jump): grey tiles stand for
+    /// them before the photos it has, which the next page fills in place.
+    /// `breaks` are the months a line of short months never continues
+    /// into (each page put above the grid starts lines of its own, so the
+    /// lines under it stay as they are). `ids` are the photos' ids (only
+    /// their count is used: rows are named by their place).
+    static func build(months: [String?], ids: [String], dated: Bool, lastRoom: Int?, firstRoom: Int? = nil,
+                      breaks: Set<String> = [], metrics m: PhotoGridMetrics) -> PhotoGridLayout {
         var out = PhotoGridLayout(metrics: m)
         let n = min(months.count, ids.count)
         guard n > 0 else { return out }
         guard dated else {
-            out.addTileRows(0..<n, startsLine: true, idOf: { ids[$0] })
+            out.addTileRows(0..<n, startsLine: true, name: "t@", from: 0)
             return out
         }
         let runs = PhotoMonths.runs(Array(months.prefix(n)))
-        out.addMonths(runs.enumerated().map { i, r in
+        let pieces = runs.enumerated().map { i, r -> Piece in
+            if i == 0, r.month != nil, let room = firstRoom, room > r.count {
+                return Piece(month: r.month, tiles: (r.start - (room - r.count))..<r.end, room: room)
+            }
             let room = i == runs.count - 1 && r.month != nil ? max(r.count, lastRoom ?? 0) : r.count
             return Piece(month: r.month, tiles: r.start..<r.end, room: room)
-        }, idOf: { ids[$0] })
+        }
+        out.firstSlot = pieces.first?.tiles.lowerBound ?? 0
+        out.addMonths(pieces, breaks: breaks, prefix: "")
         return out
     }
 
@@ -327,45 +350,59 @@ struct PhotoGridLayout: Equatable {
     static func placeholder(_ kind: Placeholder, count: Int, metrics m: PhotoGridMetrics) -> PhotoGridLayout {
         var out = PhotoGridLayout(metrics: m, placeholder: kind)
         let n = max(0, count)
-        let idOf = { (i: Int) in "ph\(i)" }
         switch kind {
         case .none:
             break
         case .skeleton(let titled):
             if titled {
-                out.addMonths([Piece(month: nil, tiles: 0..<n, room: n)], idOf: idOf)
+                out.addMonths([Piece(month: nil, tiles: 0..<n, room: n)], breaks: [], prefix: "ph")
             } else {
-                out.addTileRows(0..<n, startsLine: true, idOf: idOf)
+                out.addTileRows(0..<n, startsLine: true, name: "pht@", from: 0)
             }
         case .month(let month):
-            out.addMonths([Piece(month: month, tiles: 0..<n, room: n)], idOf: idOf)
+            out.addMonths([Piece(month: month, tiles: 0..<n, room: n)], breaks: [], prefix: "ph")
         }
         return out
     }
 
+    /// A month's name in its rows' ids ("-" without a date).
+    private static func key(_ month: String?) -> String { month ?? "-" }
+
     /// Months as the web's flex-wrap lays its sections: one of a row or
     /// more takes the whole width (its title, then rows of tiles), shorter
-    /// ones share a line while they fit beside each other.
-    private mutating func addMonths(_ pieces: [Piece], idOf: (Int) -> String) {
+    /// ones share a line while they fit beside each other - and a line
+    /// stops at a month in `breaks`.
+    private mutating func addMonths(_ pieces: [Piece], breaks: Set<String>, prefix: String) {
         var line: [Piece] = []
         var used: CGFloat = 0
+        // A month twice (never in date order): its rows still have names
+        // of their own.
+        var seen: [String: Int] = [:]
+        func name(_ month: String?) -> String {
+            let k = Self.key(month)
+            let n = seen[k, default: 0]
+            seen[k] = n + 1
+            return n == 0 ? k : "\(k)~\(n)"
+        }
+        var lineName = ""
         func flush() {
             guard let first = line.first else { return }
-            let start = first.tiles.lowerBound
-            rows.append(Row(id: "l\(start):\(idOf(start))", kind: .line(line), first: start, top: lineTop))
+            rows.append(Row(id: "\(prefix)l\(lineName)", kind: .line(line), first: first.tiles.lowerBound, top: lineTop))
             line = []
             used = 0
         }
         for p in pieces {
             let w = metrics.sectionWidth(p.room)
+            let k = name(p.month)
             if p.room >= metrics.cols {
                 flush()
                 let start = p.tiles.lowerBound
-                rows.append(Row(id: "h\(start):\(idOf(start))", kind: .title(p.month), first: start, top: lineTop))
-                addTileRows(p.tiles, startsLine: false, idOf: idOf)
+                rows.append(Row(id: "\(prefix)h\(k)", kind: .title(p.month), first: start, top: lineTop))
+                addTileRows(p.tiles, startsLine: false, name: "\(prefix)t\(k)@", from: start)
                 continue
             }
-            if !line.isEmpty && used + metrics.secGap + w > metrics.content + 0.5 { flush() }
+            if !line.isEmpty && (breaks.contains(Self.key(p.month)) || used + metrics.secGap + w > metrics.content + 0.5) { flush() }
+            if line.isEmpty { lineName = k }
             used += (line.isEmpty ? 0 : metrics.secGap) + w
             line.append(p)
         }
@@ -375,13 +412,14 @@ struct PhotoGridLayout: Equatable {
     /// The room above the next line: the grid's top, or the gap between lines.
     private var lineTop: CGFloat { rows.isEmpty ? metrics.top : metrics.lineGap }
 
-    private mutating func addTileRows(_ range: Range<Int>, startsLine: Bool, idOf: (Int) -> String) {
+    /// Rows of tiles over `range`, named `name` and their place from `from`.
+    private mutating func addTileRows(_ range: Range<Int>, startsLine: Bool, name: String, from: Int) {
         var i = range.lowerBound
         var firstRow = true
         while i < range.upperBound {
             let end = min(range.upperBound, i + metrics.cols)
             let top = firstRow && startsLine ? lineTop : metrics.gap
-            rows.append(Row(id: "t\(i):\(idOf(i))", kind: .tiles(i..<end), first: i, top: top))
+            rows.append(Row(id: "\(name)\(i - from)", kind: .tiles(i..<end), first: i, top: top))
             firstRow = false
             i = end
         }
@@ -404,9 +442,12 @@ struct PhotoGridLayout: Equatable {
         return lo
     }
 
-    /// The first photo a row of this layout shows, from its id.
-    static func firstItem(ofRowID id: String) -> Int? {
-        guard let colon = id.firstIndex(of: ":") else { return nil }
-        return Int(id[id.index(after: id.startIndex)..<colon])
+    /// The first photo of the topmost of these rows (by their ids; the
+    /// rows on the screen), 0 for grey tiles over the first photo; nil
+    /// when none is a row of this layout.
+    func topItem(ofRows ids: [String]) -> Int? {
+        guard !ids.isEmpty else { return nil }
+        let wanted = Set(ids)
+        return rows.lazy.filter { wanted.contains($0.id) }.map(\.first).min().map { max(0, $0) }
     }
 }

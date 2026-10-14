@@ -89,6 +89,19 @@
     <string name="app_files_upload_failed">O carregamento falhou: %1$s</string>
     <string name="app_files_upload_only">Apenas carregamento</string>
     <string name="app_files_upload_only_file_info">Este item está numa pasta em apenas carregamento: não pode ser eliminado, e carregá-lo novamente mantém a versão anterior. O cadeado da pasta altera isto.</string>
+    <string name="app_files_usage_empty">Nada nesta pasta ocupa espaço.</string>
+    <string name="app_files_usage_failed">Não foi possível calcular quanto espaço ocupa esta pasta.</string>
+    <string name="app_files_usage_needs_update">O teu dispositivo precisa de uma atualização para mostrar quanto espaço ocupam as pastas.</string>
+    <string name="app_files_usage_note">Os tamanhos são contados ficheiro a ficheiro: um ficheiro guardado em dois sítios conta duas vezes, embora o dispositivo o armazene só uma vez. As miniaturas e a encriptação não são contadas, por isso os totais não vão coincidir com a barra de armazenamento.</string>
+    <string name="app_files_usage_row">%1$s · %2$s</string>
+    <string name="app_files_usage_row_label">\u2068%1$s\u2069, %2$s, %3$s desta pasta</string>
+    <string name="app_files_usage_share_small" formatted="false">menos de 1%</string>
+    <plurals name="app_files_usage_total">
+        <item quantity="one">Esta pasta: %1$s em %2$s ficheiro</item>
+        <item quantity="many">Esta pasta: %1$s em %2$s ficheiros</item>
+        <item quantity="other">Esta pasta: %1$s em %2$s ficheiros</item>
+    </plurals>
+    <string name="app_files_usage_versions">Inclui %1$s de versões anteriores</string>
     <string name="app_files_version_current">Atual</string>
     <string name="app_files_version_open_failed">Não foi possível obter essa versão</string>
     <string name="app_files_version_replaced">Substituída em %1$s</string>
@@ -98,4 +111,5 @@
     <string name="app_files_view_grid">Grelha</string>
     <string name="app_files_view_list">Lista</string>
     <string name="app_files_view_options">Opções de visualização</string>
+    <string name="app_files_view_storage">Armazenamento</string>
 </resources>

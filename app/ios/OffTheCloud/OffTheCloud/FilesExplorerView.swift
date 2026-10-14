@@ -314,7 +314,97 @@ final class FilesExplorerViewModel: ObservableObject {
         }
     }
 
+    /// Lists the folder - and, while the Storage view shows (issue #195),
+    /// asks what takes space in it alongside.
     func load() async {
+        if storageShown {
+            async let usage: Void = loadUsage()
+            await loadListing()
+            await usage
+        } else {
+            await loadListing()
+        }
+    }
+
+    // MARK: The Storage view (issue #195, FolderUsage.swift)
+
+    /// The Storage view shows: GetFolderUsage is asked for the open folder
+    /// (when it opens, as the folder changes, on a refresh or after a
+    /// delete there) - only then: List and Grid never size folders.
+    private(set) var storageShown = false
+    /// What it shows for the open folder; nil while it doesn't show.
+    @Published private(set) var usage: FolderUsageState?
+    /// The folder `usage` is for: another folder's rows don't stay up while
+    /// the next one's are asked for.
+    private var usageFolder: String?
+    /// Bumped by every ask: an error for an older one is dropped.
+    private var usageAsks = 0
+    /// What the signed-in device is known not to do (tests use their own).
+    var support = DeviceSupport.shared
+
+    /// The Storage view shows (`on`) or no longer does. Shown, the
+    /// selection goes (it has none: List has), and true: its sizes are to
+    /// be asked for.
+    @discardableResult
+    func showStorage(_ on: Bool) -> Bool {
+        guard on != storageShown else { return false }
+        storageShown = on
+        if on {
+            selected.removeAll()
+            dragSelection = nil
+        } else {
+            usageAsks += 1
+            usage = nil
+            usageFolder = nil
+        }
+        return on
+    }
+
+    /// Asks the device what takes space in the open folder. An answer for
+    /// another folder is dropped (FolderUsageModel.answers); a device too
+    /// old to say isn't asked again until the next sign-in.
+    func loadUsage() async {
+        guard storageShown else { return }
+        let asked = path
+        usageAsks += 1
+        let mine = usageAsks
+        if usageFolder != asked {
+            usageFolder = asked
+            usage = .loading
+        }
+        guard support.folderUsage else {
+            usage = .needsUpdate
+            return
+        }
+        var req = Msg_GetFolderUsage()
+        req.path = asked
+        do {
+            let resp = try await request(.reqGetFolderUsage(req))
+            guard storageShown else { return }
+            if case .respFolderUsage(let u) = resp.payload {
+                // The latest ask's, for the folder shown: an older answer
+                // for it (from before a delete or a refresh) that lands
+                // last doesn't put back what it said.
+                guard FolderUsageModel.takes(u.path, folder: path, ask: mine, latest: usageAsks) else { return }
+                usage = .loaded(u)
+                return
+            }
+            guard mine == usageAsks, asked == path else { return }
+            if ErrorCodes.isUnknownPayload(code: resp.errorCode, message: resp.errorMessage) {
+                support.folderUsage = false
+                usage = .needsUpdate
+            } else if case .respAck(let ack) = resp.payload, ack.code == LoadProblem.deviceUnreachable {
+                usage = .failed(nil)
+            } else {
+                usage = .failed(resp.errorMessage.isEmpty ? nil : resp.errorMessage)
+            }
+        } catch {
+            guard storageShown, mine == usageAsks, asked == path else { return }
+            usage = .failed(nil)
+        }
+    }
+
+    private func loadListing() async {
         // The folder this listing is for: one that comes back after the
         // screen moved on (the search sending it to another folder while
         // the first listing was on its way) is dropped.
@@ -887,13 +977,24 @@ final class FilesExplorerViewModel: ObservableObject {
 
     func deleteSelected() async {
         for p in selected {
-            var req = Msg_DelFile()
-            req.path = p.contains("/") ? p : joinPath(path, p)
-            guard let resp = try? await ws.request({ $0.payload = .reqDelFile(req) }) else { continue }
+            // Issue #201: with the content the row was listed with, so the
+            // device deletes nothing that changed since ("changed").
+            let row = rows.first { $0.path == p }
+            let req = DeleteCopies.request(path: p.contains("/") ? p : joinPath(path, p),
+                                           hash: row.map { $0.isDir ? "" : $0.raw.hash } ?? "",
+                                           copies: nil, everyCopy: false)
+            guard let resp = try? await request(.reqDelFile(req)) else { continue }
             if resp.error && resp.errorCode == "upload_only" {
                 let name = leafName(req.path)
                 showToast { S.appFilesDeleteRefused(name: name) }
                 break
+            }
+            // It changed on the device since it was listed: the device's
+            // words; the listing is read again below.
+            if resp.error && resp.errorCode == "changed" {
+                let words = resp.errorMessage
+                showToast { words }
+                continue
             }
             // A deleted photo's thumbnail doesn't stay on the phone either.
             if !resp.error, let row = rows.first(where: { $0.path == p }), !row.isDir {
@@ -1125,8 +1226,9 @@ struct FilesExplorerView: View {
     // says what that means, with the way back.
     @State private var outOfImagesPrompt: OutOfImagesAsk?
     @State private var outOfImagesInfo: OutOfImagesAsk?
-    // List or grid ("list"/"grid"), remembered across launches - the web and
-    // Android explorers keep theirs under the same key.
+    // List, grid or (issue #195) Storage ("list"/"grid"/"storage"),
+    // remembered across launches - the web and Android explorers keep
+    // theirs under the same key.
     @AppStorage("files.viewMode") private var viewMode = "list"
     // The Images search sends Files to a folder, a file in it, or a list
     // of results (TopSearch.swift's FilesNav).
@@ -1228,6 +1330,9 @@ struct FilesExplorerView: View {
 
                         if viewMode == "grid" {
                             grid
+                        } else if viewMode == "storage" {
+                            // Issue #195: what takes space in the folder.
+                            FolderUsageList(vm: vm, open: tap)
                         } else {
                             List {
                                 ForEach(vm.rows) { row in
@@ -1377,6 +1482,9 @@ struct FilesExplorerView: View {
                 .accessibilityHidden(searchPanelShown)
             }
             .coordinateSpace(.named(Self.bodySpace))
+            // What the viewer says (saved to Photos, a delete refused - issue
+            // #201's "changed" among them), as Images says it.
+            .modifier(ViewerNotice(viewer: viewer))
             // The search's suggestions, over the folder (or the results)
             // while something is typed, as Images' over its photos.
             .overlay {
@@ -1401,7 +1509,15 @@ struct FilesExplorerView: View {
                 }
             }
         }
-        .task { await vm.load() }
+        .task {
+            vm.showStorage(viewMode == "storage")
+            await vm.load()
+        }
+        // Issue #195: the Storage view chosen asks for the folder's sizes;
+        // List and Grid never do.
+        .onChange(of: viewMode) { _, mode in
+            if vm.showStorage(mode == "storage") { Task { await vm.loadUsage() } }
+        }
         // A request already waiting when Files is first shown comes too:
         // the publisher starts with what it holds. Taken on the next turn,
         // not while the view is being updated.
@@ -1556,14 +1672,20 @@ struct FilesExplorerView: View {
             ImageModal(
                 vm: viewer,
                 save: {
+                    // Issue #201: the original, as Images saves it.
+                    let path = viewer.openPath
                     let fallback = viewerThumb()
-                    Task { viewer.saveToPhotos(await viewer.fullImageForOpen() ?? fallback) }
+                    viewer.saveOriginalToPhotos {
+                        guard let path else { return fallback }
+                        return await viewer.fullImage(of: path) ?? fallback
+                    }
                 },
                 share: {
                     let fallback = viewerThumb()
                     Task { viewer.shareCurrentPhoto(await viewer.fullImageForOpen() ?? fallback) }
                 },
-                delete: { viewer.deleteCurrentPhoto() }
+                // Files' items have no copies: always "only this one".
+                delete: { viewer.deleteCurrentPhoto(everyCopy: $0) }
             )
         }
     }
@@ -1630,9 +1752,11 @@ struct FilesExplorerView: View {
                     viewer.showFiles(items, startAt: start)
                 } else {
                     // Not in the listing (it failed, or the file went): the file alone.
+                    // Its content goes with its Delete (issue #201).
                     viewer.showFiles([PhotoGalleryVM.Item(
                         id: "\(file.path)#\(file.hash)", path: file.path, mime: file.mime,
-                        size: Int(file.fileSize), thumbData: nil, localURL: nil, isLocalOnly: false
+                        size: Int(file.fileSize), thumbData: nil, localURL: nil, isLocalOnly: false,
+                        hash: file.hash
                     )], startAt: 0)
                 }
             }
@@ -1879,31 +2003,38 @@ struct FilesExplorerView: View {
             Picker(selection: $viewMode) {
                 Label(S.appFilesViewList, systemImage: "list.bullet").tag("list")
                 Label(S.appFilesViewGrid, systemImage: "square.grid.2x2").tag("grid")
+                Label(S.appFilesViewStorage, systemImage: Self.storageIcon).tag("storage")
             } label: {
                 EmptyView()
             }
             .pickerStyle(.inline)
-            Section(S.appFilesSortBy) {
-                ForEach(FilesSortKey.allCases) { key in
-                    // The menu shows the first Text as the item's title, the
-                    // second under it, and the Image as its icon.
-                    Toggle(isOn: Binding(get: { vm.sort.key == key }, set: { _ in Task { await vm.pickSort(key) } })) {
-                        Text(FilesSortText.name(key))
-                        if vm.sort.key == key {
-                            Text(FilesSortText.direction(vm.sort))
-                            Image(systemName: vm.sort.ascending ? "chevron.up" : "chevron.down")
+            // Storage keeps the device's order, largest first: no sort.
+            if viewMode != "storage" {
+                Section(S.appFilesSortBy) {
+                    ForEach(FilesSortKey.allCases) { key in
+                        // The menu shows the first Text as the item's title, the
+                        // second under it, and the Image as its icon.
+                        Toggle(isOn: Binding(get: { vm.sort.key == key }, set: { _ in Task { await vm.pickSort(key) } })) {
+                            Text(FilesSortText.name(key))
+                            if vm.sort.key == key {
+                                Text(FilesSortText.direction(vm.sort))
+                                Image(systemName: vm.sort.ascending ? "chevron.up" : "chevron.down")
+                            }
                         }
                     }
                 }
             }
         } label: {
-            Image(systemName: viewMode == "grid" ? "square.grid.2x2" : "list.bullet")
+            Image(systemName: viewMode == "grid" ? "square.grid.2x2" : viewMode == "storage" ? Self.storageIcon : "list.bullet")
                 .frame(width: 28, height: 28)
                 .contentShape(Rectangle())
         }
         .accessibilityLabel(S.appFilesViewOptions)
-        .accessibilityValue(FilesSortText.sorted(vm.sort))
+        .accessibilityValue(viewMode == "storage" ? S.appFilesViewStorage : FilesSortText.sorted(vm.sort))
     }
+
+    /// Issue #195: the Storage view's mark, in the menu and on its button.
+    private static let storageIcon = "chart.bar.xaxis"
 
     /// Issue #192: the folder being browsed is kept out of Images (itself,
     /// or inside one that is) - the way back is here too. Showing a folder
@@ -2088,6 +2219,18 @@ struct FilesExplorerView: View {
                     .accessibilityLabel(S.iosFilesOlderVersions(count: Int(row.versions)))
                 }
             }
+    }
+}
+
+/// The viewer's alert (PhotoGalleryVM.notice) over Files, as Images shows
+/// its own.
+private struct ViewerNotice: ViewModifier {
+    @ObservedObject var viewer: PhotoGalleryVM
+
+    func body(content: Content) -> some View {
+        content.alert(viewer.notice?.text ?? "", isPresented: $viewer.showAlert) {
+            Button(S.commonOk, role: .cancel) {}
+        }
     }
 }
 

@@ -25,6 +25,24 @@
     </plurals>
     <string name="app_photos_collections_rename">Renommer la collection</string>
     <string name="app_photos_collections_sheet_empty">Pas encore de collections : sélectionnez des photos et choisissez « Ajouter à une collection ».</string>
+    <plurals name="app_photos_copies_all">
+        <item quantity="one">Supprimer les %1$s copies</item>
+        <item quantity="many">Supprimer les %1$s copies</item>
+        <item quantity="other">Supprimer les %1$s copies</item>
+    </plurals>
+    <string name="app_photos_copies_every">Supprimer toutes les copies</string>
+    <string name="app_photos_copies_only_these">Supprimer uniquement ces copies</string>
+    <string name="app_photos_copies_only_this">Supprimer uniquement cette copie</string>
+    <plurals name="app_photos_copies_several_text">
+        <item quantity="one">%1$s élément de la sélection a aussi des copies ailleurs sur votre appareil. Supprimer uniquement ces copies ou toutes les copies ? Cette action est irréversible.</item>
+        <item quantity="many">%1$s éléments de la sélection ont aussi des copies ailleurs sur votre appareil. Supprimer uniquement ces copies ou toutes les copies ? Cette action est irréversible.</item>
+        <item quantity="other">%1$s éléments de la sélection ont aussi des copies ailleurs sur votre appareil. Supprimer uniquement ces copies ou toutes les copies ? Cette action est irréversible.</item>
+    </plurals>
+    <plurals name="app_photos_copies_single_text">
+        <item quantity="one">Votre appareil en contient %1$s copies. Supprimer uniquement cette copie ou toutes ? Cette action est irréversible.</item>
+        <item quantity="many">Votre appareil en contient %1$s copies. Supprimer uniquement cette copie ou toutes ? Cette action est irréversible.</item>
+        <item quantity="other">Votre appareil en contient %1$s copies. Supprimer uniquement cette copie ou toutes ? Cette action est irréversible.</item>
+    </plurals>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s élément · %2$s</item>
         <item quantity="many">%1$s éléments · %2$s</item>
@@ -86,7 +104,17 @@
     <string name="app_photos_notice_added">Ajout à « \u2068%1$s\u2069 » effectué.</string>
     <string name="app_photos_notice_create_failed">Impossible de créer la collection.</string>
     <string name="app_photos_notice_created">Collection « \u2068%1$s\u2069 » créée.</string>
+    <plurals name="app_photos_notice_delete_changed">
+        <item quantity="one">%1$s élément a changé sur votre appareil depuis son affichage : il n’a donc pas été supprimé. Vérifiez-le et réessayez.</item>
+        <item quantity="many">%1$s éléments ont changé sur votre appareil depuis leur affichage : ils n’ont donc pas été supprimés. Vérifiez-les et réessayez.</item>
+        <item quantity="other">%1$s éléments ont changé sur votre appareil depuis leur affichage : ils n’ont donc pas été supprimés. Vérifiez-les et réessayez.</item>
+    </plurals>
     <string name="app_photos_notice_delete_collection_failed">Impossible de supprimer la collection.</string>
+    <plurals name="app_photos_notice_delete_copy_upload_only">
+        <item quantity="one">%1$s élément n’a pas été supprimé : une de ses copies se trouve dans un dossier en envoi uniquement</item>
+        <item quantity="many">%1$s éléments n’ont pas été supprimés : ils ont des copies dans un dossier en envoi uniquement</item>
+        <item quantity="other">%1$s éléments n’ont pas été supprimés : ils ont des copies dans un dossier en envoi uniquement</item>
+    </plurals>
     <string name="app_photos_notice_delete_failed">Échec de la suppression : %1$s</string>
     <string name="app_photos_notice_no_download_link">Impossible de créer le lien de téléchargement.</string>
     <string name="app_photos_notice_no_share_link">Impossible de créer le lien de partage.</string>
@@ -203,4 +231,5 @@
     <string name="app_photos_viewer_info_title">Plus d’infos</string>
     <string name="app_photos_viewer_low_res">Aperçu</string>
     <string name="app_photos_viewer_more_info">Plus d’infos</string>
+    <string name="app_photos_viewer_saving">Enregistrement…</string>
 </resources>

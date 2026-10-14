@@ -352,6 +352,50 @@
     "text": "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it.",
     "note": "Explanation shown (title app.files.upload_only) when the lock on a file's row in Files is tapped: the file is inside an upload-only folder."
   },
+  "app.files.usage_empty": {
+    "text": "Nothing in this folder takes up space.",
+    "note": "Shown in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first. in place of the rows when nothing in the folder takes space: it is empty, or holds only empty folders."
+  },
+  "app.files.usage_failed": {
+    "text": "Couldn't find out how much space this folder takes.",
+    "note": "Shown in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first. in place of the rows when the device didn't answer (no connection, no reply) and gave no reason of its own; a Try again button (common.try_again) follows."
+  },
+  "app.files.usage_needs_update": {
+    "text": "Your device needs an update to show how much space folders take.",
+    "note": "Shown in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first. in place of the rows when the device's software is too old to say how much space folders take."
+  },
+  "app.files.usage_note": {
+    "text": "Sizes are counted file by file: a file kept in two places counts twice, though the device stores it once. Thumbnails and encryption aren't counted, so the totals won't match the storage bar.",
+    "note": "Footnote under the rows of Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first.: the sizes are each file's own size. Content stored at two paths is kept once on the device but counted at both; thumbnails (the small previews) and the space encryption adds aren't counted. So the totals differ from the bar that shows how full the device's storage is (in the menu and Settings)."
+  },
+  "app.files.usage_row": {
+    "text": "{size} · {share}",
+    "args": [["size", "text"], ["share", "text"]],
+    "note": "Line under a file's or folder's name in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first., by its bar. {size} is its size, already formatted with its unit (1.2 GB); {share} is the row's share of the folder, already formatted as a percentage (45%), or app.files.usage_share_small when it is under one per cent. Keep the middle dot unless your language separates such values otherwise."
+  },
+  "app.files.usage_row_label": {
+    "text": "{name}, {size}, {share} of this folder",
+    "args": [["name", "user"], ["size", "text"], ["share", "text"]],
+    "note": "Screen-reader name of a row in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first.. {name} is the file's or folder's name; {size} its size, already formatted with its unit (1.2 GB); {share} is the row's share of the folder, already formatted as a percentage (45%), or app.files.usage_share_small when it is under one per cent. When the folder takes no space at all, {share} is 0%."
+  },
+  "app.files.usage_share_small": {
+    "text": "under 1%",
+    "note": "In Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first.: the share of a file or folder that takes some space but less than one per cent of the folder, in place of a percentage like 45%. Write the per cent sign as your language does. Starts in lowercase in English: it is a value, and it is also put inside app.files.usage_row_label.",
+    "max": 16
+  },
+  "app.files.usage_total": {
+    "text": {
+      "one": "This folder: {size} in {count} file",
+      "other": "This folder: {size} in {count} files"
+    },
+    "args": [["size", "text"], ["count", "count"]],
+    "note": "First line above the rows of Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first. {size} is the folder's whole size, older versions included (the base of the rows' percentages), already formatted with its unit (1.2 TB); {count} is how many files are under it, at any depth."
+  },
+  "app.files.usage_versions": {
+    "text": "{size} of it in older versions",
+    "args": [["size", "text"]],
+    "note": "Second line above the rows of Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first., under app.files.usage_total, shown only when the folder keeps older versions of files (in upload-only folders). {size} is how much of the folder's size they take, already formatted with its unit (3.4 GB)."
+  },
   "app.files.version_current": {
     "text": "Current",
     "note": "First row of the Versions list (app.files.versions_title): the file as it is now, with its size at the right. A tap opens it.",
@@ -394,5 +438,10 @@
     "text": "View options",
     "note": "Files: accessibility name of the button beside the path field that opens a menu: the folder as a list or a grid (app.files.view_list, app.files.view_grid), and the order of its files and folders (app.files.sort_by).",
     "max": 30
+  },
+  "app.files.view_storage": {
+    "text": "Storage",
+    "note": "Third choice of Files' view menu, next to List (app.files.view_list) and Grid (app.files.view_grid): shows the Storage view, what takes space in the open folder. Use your language's word for storage space; a short word.",
+    "max": 20
   }
 }

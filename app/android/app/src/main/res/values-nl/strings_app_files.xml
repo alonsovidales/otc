@@ -84,6 +84,18 @@
     <string name="app_files_upload_failed">Uploaden mislukt: %1$s</string>
     <string name="app_files_upload_only">Alleen uploaden</string>
     <string name="app_files_upload_only_file_info">Dit staat in een map met “Alleen uploaden”: het kan niet worden verwijderd, en als je het opnieuw uploadt, wordt de oudere versie bewaard. Met het slotje op de map wijzig je dit.</string>
+    <string name="app_files_usage_empty">Niets in deze map neemt ruimte in.</string>
+    <string name="app_files_usage_failed">Kan niet bepalen hoeveel ruimte deze map inneemt.</string>
+    <string name="app_files_usage_needs_update">Je apparaat heeft een update nodig om te laten zien hoeveel ruimte mappen innemen.</string>
+    <string name="app_files_usage_note">Groottes worden per bestand geteld: een bestand dat op twee plekken staat, telt twee keer mee, ook al bewaart het apparaat het maar één keer. Miniaturen en versleuteling worden niet meegeteld, dus de totalen komen niet overeen met de opslagbalk.</string>
+    <string name="app_files_usage_row">%1$s · %2$s</string>
+    <string name="app_files_usage_row_label">\u2068%1$s\u2069, %2$s, %3$s van deze map</string>
+    <string name="app_files_usage_share_small" formatted="false">minder dan 1%</string>
+    <plurals name="app_files_usage_total">
+        <item quantity="one">Deze map: %1$s in %2$s bestand</item>
+        <item quantity="other">Deze map: %1$s in %2$s bestanden</item>
+    </plurals>
+    <string name="app_files_usage_versions">Waarvan %1$s in oudere versies</string>
     <string name="app_files_version_current">Huidige versie</string>
     <string name="app_files_version_open_failed">Kan die versie niet ophalen</string>
     <string name="app_files_version_replaced">Vervangen: %1$s</string>
@@ -93,4 +105,5 @@
     <string name="app_files_view_grid">Raster</string>
     <string name="app_files_view_list">Lijst</string>
     <string name="app_files_view_options">Weergaveopties</string>
+    <string name="app_files_view_storage">Opslag</string>
 </resources>

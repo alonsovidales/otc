@@ -218,23 +218,56 @@ fun monthRuns(months: List<String?>): List<MonthRun> {
     return runs
 }
 
-/** One month's part of a titled row: its title over its tiles [start, end), [slots] tiles wide. */
-data class Segment(val month: String?, val start: Int, val end: Int, val slots: Int)
+/**
+ * One month's part of a titled row: its title over its tiles [start, end),
+ * [slots] tiles wide - after [lead] grey tiles (issue #194: a month still
+ * filling from above, RoomAbove).
+ */
+data class Segment(val month: String?, val start: Int, val end: Int, val slots: Int, val lead: Int = 0)
 
-/** A row of the list: tiles [start, end) of the photos. */
+/** A row of the list: tiles [start, end) of the photos, after [lead] grey tiles. */
 sealed interface GalleryRow {
     val start: Int
     val end: Int
+    val lead: Int
 }
 
 /** Months side by side, each its title over one row of its tiles; or a month's first row under its title. */
 data class TitledRow(val segments: List<Segment>) : GalleryRow {
     override val start get() = segments.first().start
     override val end get() = segments.last().end
+    // Only a line's first month can be the one filling from above.
+    override val lead get() = segments.first().lead
 }
 
-/** A full-width row of tiles: a long month's next ones, or a tag search's. */
-data class TileRow(override val start: Int, override val end: Int) : GalleryRow
+/**
+ * A full-width row of tiles: a long month's next ones, or a tag search's -
+ * [lead] grey ones first in a month still filling from above (issue #194).
+ */
+data class TileRow(override val start: Int, override val end: Int, override val lead: Int = 0) : GalleryRow
+
+/**
+ * Issue #194: the room the top of the grid keeps while newer photos are
+ * still to come above a jump, from the date buckets. [firstRoom]: the first
+ * month's count when its photos came from the upward search - they arrive
+ * oldest first, so they fill it from its end and its first slots stay grey
+ * until they come, without a tile moving (as iOS's firstRoom and the web's
+ * topReserve). Nothing is kept above a month that is complete - the
+ * jump's own: the newer photos show they are coming with the spinner at
+ * the top, and land above it.
+ */
+data class RoomAbove(val firstRoom: Int?)
+
+/**
+ * Issue #194: the room to keep above the photos ([firstMonth]: the first
+ * photo's month; [firstUp]: it came from the upward search) while newer
+ * ones are to come, from the date buckets (newest first). A month the
+ * buckets don't have keeps nothing.
+ */
+fun roomAbove(firstMonth: String?, firstUp: Boolean, buckets: List<PhotoGalleryViewModel.DateBucket>): RoomAbove {
+    if (firstMonth == null || !firstUp) return RoomAbove(null)
+    return RoomAbove(buckets.firstOrNull { it.month == firstMonth }?.count)
+}
 
 /**
  * The tiles' grid: [cols] across, each [tile] wide, [gap] between tiles,
@@ -254,9 +287,21 @@ data class GridGeometry(val cols: Int, val tile: Float, val gap: Float, val secG
     }
 }
 
-class GalleryLayout(val rows: List<GalleryRow>, private val rowOfItem: IntArray, val cols: Int) {
+/**
+ * The rows, and in date order each row's key for the list: its month and
+ * its place in the month ("2024-03#0" is the month's title row), so a row
+ * keeps its key while photos land above it or fill its grey tiles (issue
+ * #194). Null keys: the caller keys the rows (a tag search's).
+ */
+class GalleryLayout(val rows: List<GalleryRow>, private val rowOfItem: IntArray, val cols: Int, private val keys: List<String>? = null) {
     /** The row a photo is in, or -1. */
     fun rowOf(item: Int): Int = rowOfItem.getOrElse(item) { -1 }
+
+    /** Row [i]'s key for the list, null where the caller keys the rows. */
+    fun keyOf(i: Int): String? = keys?.getOrNull(i)
+
+    /** The row with [key], or -1. */
+    fun rowWithKey(key: Any?): Int = keys?.indexOf(key) ?: -1
 }
 
 /**
@@ -265,14 +310,19 @@ class GalleryLayout(val rows: List<GalleryRow>, private val rowOfItem: IntArray,
  * per month, and [more]: more pages to come - the last month then takes
  * the room its photos will need now (as wide as the device says it is), so
  * the next page fills it in instead of moving it off a row it shared.
+ * [above] (issue #194, newer photos to come above a jump): the first month
+ * keeps the room the buckets give it, its first slots grey until its
+ * photos come.
  */
 fun layoutGallery(
     runs: List<MonthRun>, titled: Boolean, g: GridGeometry,
     monthCounts: Map<String, Int>? = null, more: Boolean = false,
+    above: RoomAbove? = null,
 ): GalleryLayout {
     val cols = g.cols
     val total = runs.lastOrNull()?.end ?: 0
     val rows = ArrayList<GalleryRow>()
+    val keys = ArrayList<String>()
     fun fullRows(from: Int, to: Int) {
         var s = from
         while (s < to) {
@@ -284,36 +334,67 @@ fun layoutGallery(
     if (!titled) {
         if (total > 0) fullRows(runs.first().start, total)
     } else {
+        // Issue #194: grey slots before the first month's photos, while
+        // it is still filling from above.
+        val leads = IntArray(runs.size)
+        if (above != null && runs.isNotEmpty() && runs.first().month != null) {
+            val first = runs.first()
+            leads[0] = max(0, (above.firstRoom ?: 0) - (first.end - first.start))
+        }
+        val used = HashSet<String>()
+        fun keyFor(month: String?, idx: Int, run: Int): String {
+            val k = "${month ?: "-"}#$idx"
+            // A month is one run; should one come twice, its rows still get keys of their own.
+            return if (used.add(k)) k else "$k~$run".also { used.add(it) }
+        }
         val line = ArrayList<Segment>()
+        var lineKey = ""
         var lineWidth = 0f
         fun flush() {
             if (line.isEmpty()) return
             rows += TitledRow(line.toList())
+            keys += lineKey
             line.clear()
             lineWidth = 0f
         }
         runs.forEachIndexed { r, run ->
             val n = run.end - run.start
-            val room = if (r == runs.lastIndex && more && run.month != null) max(n, monthCounts?.get(run.month) ?: 0) else n
+            val lead = leads[r]
+            // The places of the month: [lead] grey slots, then its photos.
+            val places = n + lead
+            val room = if (r == runs.lastIndex && more && run.month != null) max(places, monthCounts?.get(run.month) ?: 0) else places
+            // Places [from, to) of this run as tiles: its photos and the grey slots before them.
+            fun part(from: Int, to: Int) = Triple(run.start + max(0, from - lead), run.start + max(0, to - lead), max(0, min(to, lead) - from))
             if (room >= cols) {
                 flush()
-                val firstEnd = min(run.start + cols, run.end)
-                rows += TitledRow(listOf(Segment(run.month, run.start, firstEnd, cols)))
-                fullRows(firstEnd, run.end)
+                var idx = 0
+                val firstEnd = min(cols, places)
+                val (s0, e0, l0) = part(0, firstEnd)
+                rows += TitledRow(listOf(Segment(run.month, s0, e0, cols, l0)))
+                keys += keyFor(run.month, idx++, r)
+                var at = firstEnd
+                while (at < places) {
+                    val to = min(at + cols, places)
+                    val (s, e, l) = part(at, to)
+                    rows += TileRow(s, e, l)
+                    keys += keyFor(run.month, idx++, r)
+                    at = to
+                }
             } else {
                 val w = g.widthOf(room)
                 // Half a unit of slack, as the web's tiles are half a pixel
                 // narrower: rounding never pushes a month that fits off the row.
                 if (line.isNotEmpty() && lineWidth + g.secGap + w > g.width + 0.5f) flush()
+                if (line.isEmpty()) lineKey = keyFor(run.month, 0, r)
                 lineWidth = if (line.isEmpty()) w else lineWidth + g.secGap + w
-                line += Segment(run.month, run.start, run.end, room)
+                line += Segment(run.month, run.start, run.end, room, lead)
             }
         }
         flush()
     }
     val rowOf = IntArray(total) { -1 }
     rows.forEachIndexed { i, row -> for (k in row.start until row.end) rowOf[k] = i }
-    return GalleryLayout(rows, rowOf, cols)
+    return GalleryLayout(rows, rowOf, cols, if (titled) keys else null)
 }
 
 // ---- the photo under a finger (issue #200) ---------------------------------------
@@ -329,7 +410,7 @@ fun layoutGallery(
 fun GalleryRow.itemAt(x: Float, y: Float, g: GridGeometry, top: Float, title: Float): Int? {
     val ty = y - top
     return when (this) {
-        is TileRow -> cellAt(start, end, g.cols, g.width, x, ty, g.gap)
+        is TileRow -> cellAt(start, end, g.cols, g.width, x, ty, g.gap, lead)
         is TitledRow -> {
             // Months side by side, each as wide as its own tiles
             // (MonthsSideBySide), [secGap] apart.
@@ -338,7 +419,7 @@ fun GalleryRow.itemAt(x: Float, y: Float, g: GridGeometry, top: Float, title: Fl
                 val slots = min(seg.slots, g.cols)
                 val w = if (slots >= g.cols) g.width else slots * g.tile + (slots - 1) * g.gap
                 if (x < sx) return null
-                if (x < sx + w) return cellAt(seg.start, seg.end, slots, w, x - sx, ty - title, g.gap)
+                if (x < sx + w) return cellAt(seg.start, seg.end, slots, w, x - sx, ty - title, g.gap, seg.lead)
                 sx += w + g.secGap
             }
             null
@@ -346,13 +427,15 @@ fun GalleryRow.itemAt(x: Float, y: Float, g: GridGeometry, top: Float, title: Fl
     }
 }
 
-// Tiles [start, end) in a row [slots] wide and [width] across, [gap] apart:
-// the one at ([x], [y]) from the row's corner, null over a gap or an empty slot.
-private fun cellAt(start: Int, end: Int, slots: Int, width: Float, x: Float, y: Float, gap: Float): Int? {
+// Tiles [start, end) after [lead] grey ones in a row [slots] wide and
+// [width] across, [gap] apart: the one at ([x], [y]) from the row's corner,
+// null over a gap, a grey tile or an empty slot.
+private fun cellAt(start: Int, end: Int, slots: Int, width: Float, x: Float, y: Float, gap: Float, lead: Int = 0): Int? {
     if (slots <= 0 || x < 0f || x >= width || y < 0f) return null
     val tile = (width - (slots - 1) * gap) / slots
     if (y >= tile) return null
     val col = (x / (tile + gap)).toInt()
     if (x - col * (tile + gap) >= tile) return null
-    return if (col < end - start) start + col else null
+    if (col < lead) return null
+    return if (col - lead < end - start) start + col - lead else null
 }

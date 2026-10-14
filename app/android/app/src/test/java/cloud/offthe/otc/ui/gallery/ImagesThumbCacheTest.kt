@@ -88,7 +88,7 @@ class ImagesThumbCacheTest {
     }
 
     /** The grid shows every row, as far as the tiles go: what a page lacks is asked for at once. */
-    private fun showsEverything(vm: PhotoGalleryViewModel) = on { vm.rowShown(0, 1_000) }
+    private fun showsEverything(vm: PhotoGalleryViewModel) = on { vm.rowShown("r:0", 0, 1_000) }
 
     private fun keys(vm: PhotoGalleryViewModel) = vm.state.value.let { st -> st.items.associate { it.path to st.thumbKeyOf(it) } }
 
@@ -196,7 +196,7 @@ class ImagesThumbCacheTest {
         // Nothing on screen yet: nothing asked for.
         assertTrue(thumbAsks().isEmpty())
         // The first rows show (tiles 0-8): those, and the ones within reach (to 38).
-        on { vm.rowShown(0, 3); vm.rowShown(3, 6); vm.rowShown(6, 9) }
+        on { vm.rowShown("r:0", 0, 3); vm.rowShown("r:3", 3, 6); vm.rowShown("r:6", 6, 9) }
         await("within reach") { thumbAsks().sumOf { it.size } == 39 }
         Thread.sleep(100)
         assertEquals(39, thumbAsks().sumOf { it.size })

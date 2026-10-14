@@ -313,7 +313,7 @@
   },
   "app.shell.problem_more_photos": {
     "text": "Couldn't load more photos.",
-    "note": "Row at the end of the grid in Images when the next photos couldn't be loaded; a Try again button follows."
+    "note": "Row at the end of the grid in Images, or at the top after jumping to a date, when the next photos couldn't be loaded; a Try again button follows."
   },
   "app.shell.problem_more_posts": {
     "text": "Couldn't load more posts.",

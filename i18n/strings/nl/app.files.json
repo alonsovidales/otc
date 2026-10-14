@@ -308,6 +308,48 @@
     "text": "Dit staat in een map met “Alleen uploaden”: het kan niet worden verwijderd, en als je het opnieuw uploadt, wordt de oudere versie bewaard. Met het slotje op de map wijzig je dit.",
     "en": "This is in an upload-only folder: it can't be deleted, and uploading it again keeps its older version. The lock on the folder changes it."
   },
+  "app.files.usage_empty": {
+    "text": "Niets in deze map neemt ruimte in.",
+    "en": "Nothing in this folder takes up space."
+  },
+  "app.files.usage_failed": {
+    "text": "Kan niet bepalen hoeveel ruimte deze map inneemt.",
+    "en": "Couldn't find out how much space this folder takes."
+  },
+  "app.files.usage_needs_update": {
+    "text": "Je apparaat heeft een update nodig om te laten zien hoeveel ruimte mappen innemen.",
+    "en": "Your device needs an update to show how much space folders take."
+  },
+  "app.files.usage_note": {
+    "text": "Groottes worden per bestand geteld: een bestand dat op twee plekken staat, telt twee keer mee, ook al bewaart het apparaat het maar één keer. Miniaturen en versleuteling worden niet meegeteld, dus de totalen komen niet overeen met de opslagbalk.",
+    "en": "Sizes are counted file by file: a file kept in two places counts twice, though the device stores it once. Thumbnails and encryption aren't counted, so the totals won't match the storage bar."
+  },
+  "app.files.usage_row": {
+    "text": "{size} · {share}",
+    "en": "{size} · {share}"
+  },
+  "app.files.usage_row_label": {
+    "text": "{name}, {size}, {share} van deze map",
+    "en": "{name}, {size}, {share} of this folder"
+  },
+  "app.files.usage_share_small": {
+    "text": "minder dan 1%",
+    "en": "under 1%"
+  },
+  "app.files.usage_total": {
+    "text": {
+      "one": "Deze map: {size} in {count} bestand",
+      "other": "Deze map: {size} in {count} bestanden"
+    },
+    "en": {
+      "one": "This folder: {size} in {count} file",
+      "other": "This folder: {size} in {count} files"
+    }
+  },
+  "app.files.usage_versions": {
+    "text": "Waarvan {size} in oudere versies",
+    "en": "{size} of it in older versions"
+  },
   "app.files.version_current": {
     "text": "Huidige versie",
     "en": "Current"
@@ -343,5 +385,9 @@
   "app.files.view_options": {
     "text": "Weergaveopties",
     "en": "View options"
+  },
+  "app.files.view_storage": {
+    "text": "Opslag",
+    "en": "Storage"
   }
 }

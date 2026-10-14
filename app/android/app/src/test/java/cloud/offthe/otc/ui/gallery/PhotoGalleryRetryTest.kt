@@ -453,7 +453,7 @@ class PhotoGalleryRetryTest {
         }
         val vm = vm(dev)
         // The grid's rows on screen: their tiles' thumbnails are asked for.
-        on { vm.rowShown(0, 1_000) }
+        on { vm.rowShown("r:0", 0, 1_000) }
         start(vm)
         await("the first page") { vm.state.value.items.size == 12 }
         on { vm.loadMoreIfNeeded(11) }

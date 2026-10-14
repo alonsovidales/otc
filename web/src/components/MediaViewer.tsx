@@ -17,7 +17,8 @@ import { usePageRetry } from "./usePageRetry";
 import { startDownload, readFileInPieces, leafName, useDownloadState, useDownloadFailure, useDownloadHost } from "./mediaDownload";
 import { DownloadButton, DownloadNote } from "./DownloadButton";
 import { ConfirmDialog } from "./ConfirmDialog";
-import type { UiText } from "./uiText";
+import { asIs, type UiText } from "./uiText";
+import { copiesChoice, delFileFields, deleteOutcome } from "./photoCopies";
 
 // How long a video may show no sign of life before it's called stalled.
 const cVideoStallMs = 30000;
@@ -32,8 +33,19 @@ const cFocusable = "button, [href], input, video[controls], iframe, [tabindex]:n
 // Whether el has stops of its own (above).
 const hasInnerStops = (el: Element) => el instanceof HTMLVideoElement || el instanceof HTMLIFrameElement;
 
-/** One item: its path and mime, and its thumbnail (JPEG) if there is one. */
-export type ViewerItem = { path: string; mime?: string; content?: Uint8Array | number[] | null; thumbURL?: string };
+/** One item: its path and mime, and its thumbnail (JPEG) if there is one.
+ *  Issue #201: the content hash it was shown with (sent with a delete, so
+ *  a path holding other content by then is refused, not deleted), and for
+ *  Images how many paths hold that content (File.copies; unset where the
+ *  device didn't say). */
+export type ViewerItem = {
+  path: string;
+  mime?: string;
+  content?: Uint8Array | number[] | null;
+  thumbURL?: string;
+  hash?: string;
+  copies?: number;
+};
 
 const isVideoFile = (f: { mime?: string }) => (f.mime || "").startsWith("video/");
 const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
@@ -42,21 +54,31 @@ const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg")
   return URL.createObjectURL(new Blob([u8 as BlobPart], { type: mime }));
 };
 
-// Issue #199: deletes one file on the device (DelFile): null once it is
-// gone, else what the confirmation says instead - the device keeps
+// Issue #199: deletes one file on the device (DelFile): no error once it
+// is gone, else what the confirmation says instead - the device keeps
 // everything in an upload-only folder (error_code "upload_only"), and any
-// other refusal or no answer is a failure to try again.
-async function deleteOnDevice(path: string): Promise<UiText | null> {
+// other refusal or no answer is a failure to try again. Issue #201: with
+// the hash it was shown with, and every copy of it when `every` (Images,
+// for an item with copies); "every copy" refused for a copy in an
+// upload-only folder ("copy_upload_only") and a path that holds other
+// content now ("changed") are said in the device's own words.
+async function deleteOnDevice(it: ViewerItem, every: boolean): Promise<{ error: UiText | null; changed: string | null }> {
   try {
     const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-      e.payload = { $case: "reqDelFile", reqDelFile: { path } };
+      e.payload = { $case: "reqDelFile", reqDelFile: delFileFields(it, every) };
     });
-    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) return null;
-    if (resp.errorCode === "upload_only") return (t) => t("web.images.delete.upload_only", { count: 1 });
+    const outcome = deleteOutcome(resp.payload?.$case === "respAck" && resp.payload.respAck.ok, resp.errorCode);
+    if (outcome === "deleted") return { error: null, changed: null };
+    if (outcome === "upload_only") return { error: (t) => t("web.images.delete.upload_only", { count: 1 }), changed: null };
+    if (outcome === "changed") {
+      const said = resp.errorMessage;
+      return { error: said ? asIs(said) : (t) => t("web.images.delete.changed", { count: 1 }), changed: said };
+    }
+    if (outcome === "copy_upload_only" && resp.errorMessage) return { error: asIs(resp.errorMessage), changed: null };
   } catch {
     // No connection: as a refusal.
   }
-  return (t) => t("web.images.delete.failed", { count: 1 });
+  return { error: (t) => t("web.images.delete.failed", { count: 1 }), changed: null };
 }
 
 // The Delete button's trash can (Images' selection bar draws the same).
@@ -82,7 +104,7 @@ function downloadItem(it: ViewerItem) {
   });
 }
 
-export default function MediaViewer({ items, index, onIndexChange, onClose, onDeleted, deleteBlocked, inCollection = false }: {
+export default function MediaViewer({ items, index, onIndexChange, onClose, onDeleted, onDeleteChanged, deleteBlocked, inCollection = false }: {
   items: ViewerItem[];
   index: number;
   onIndexChange: (i: number) => void;
@@ -92,6 +114,12 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
    *  same update, moves `index` on (the item after it, the one before at
    *  the end) or closes the viewer when none is left. */
   onDeleted?: (item: ViewerItem) => void;
+  /** Issue #201: the device refused to delete the item because its path
+   *  holds other content now ("changed"; `said`: its words, "" if none).
+   *  The caller closes the viewer, says so in those words and lists its
+   *  photos or files again (Images and Files, as the phones do); without
+   *  a caller that closes it, the dialog shows the words. */
+  onDeleteChanged?: (item: ViewerItem, said: string) => void;
   /** Why the item can't be deleted (an upload-only folder), when the
    *  caller knows: Delete is greyed out, with this as its tooltip. */
   deleteBlocked?: (item: ViewerItem) => UiText | null;
@@ -323,10 +351,14 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   });
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
-  const confirmDelete = async (): Promise<UiText | null> => {
+  const onDeleteChangedRef = useRef(onDeleteChanged);
+  useLayoutEffect(() => { onDeleteChangedRef.current = onDeleteChanged; });
+  // `every`: issue #201's "Delete all {count} copies".
+  const confirmDelete = async (every: boolean): Promise<UiText | null> => {
     const it = asking;
     if (!it) return null;
-    const err = await deleteOnDevice(it.path);
+    const { error: err, changed } = await deleteOnDevice(it, every);
+    if (changed != null && mountedRef.current) onDeleteChangedRef.current?.(it, changed);
     if (err || !mountedRef.current) return err;
     // One update with the caller's: the next item, or the viewer closed.
     if (itemsRef.current.every((x) => x.path === it.path)) restoreFocusRef.current = false;
@@ -685,16 +717,23 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
         )}
 
         <DownloadNote failed={saveError} />
-        {asking && (
-          <ConfirmDialog
-            title={isVideoFile(asking) ? t("web.images.viewer.delete_video_title") : t("web.images.viewer.delete_photo_title")}
-            text={inCollection ? t("web.images.viewer.delete_text_collection") : t("web.images.viewer.delete_text")}
-            confirm={t("common.delete")}
-            busyText={t("common.deleting")}
-            onConfirm={confirmDelete}
-            onCancel={() => setAsking(null)}
-          />
-        )}
+        {asking && (() => {
+          // Issue #201: a photo the device holds at several paths asks
+          // whether to delete only this copy or all of them.
+          const copies = copiesChoice([asking]);
+          return (
+            <ConfirmDialog
+              title={isVideoFile(asking) ? t("web.images.viewer.delete_video_title") : t("web.images.viewer.delete_photo_title")}
+              text={copies.kind === "single" ? t("web.images.copies.single_text", { count: copies.count })
+                : inCollection ? t("web.images.viewer.delete_text_collection") : t("web.images.viewer.delete_text")}
+              confirm={copies.kind === "single" ? t("web.images.copies.all", { count: copies.count }) : t("common.delete")}
+              busyText={t("common.deleting")}
+              onConfirm={() => confirmDelete(copies.kind === "single")}
+              other={copies.kind === "single" ? { label: t("web.images.copies.only_this"), onConfirm: () => confirmDelete(false) } : undefined}
+              onCancel={() => setAsking(null)}
+            />
+          );
+        })()}
         {/* Last of all: see onGuardFocus. */}
         <span ref={guardRef} className="pg-modal-sr" tabIndex={0} onFocus={onGuardFocus} />
       </div>

@@ -22,6 +22,21 @@
     </plurals>
     <string name="app_photos_collections_rename">Sammlung umbenennen</string>
     <string name="app_photos_collections_sheet_empty">Noch keine Sammlungen – wähle Fotos aus und tippe auf „Zur Sammlung hinzufügen“.</string>
+    <plurals name="app_photos_copies_all">
+        <item quantity="one">Alle %1$s Kopien löschen</item>
+        <item quantity="other">Alle %1$s Kopien löschen</item>
+    </plurals>
+    <string name="app_photos_copies_every">Alle Kopien löschen</string>
+    <string name="app_photos_copies_only_these">Nur diese Kopien löschen</string>
+    <string name="app_photos_copies_only_this">Nur diese Kopie löschen</string>
+    <plurals name="app_photos_copies_several_text">
+        <item quantity="one">%1$s Element der Auswahl hat auch Kopien an anderen Orten auf deinem Gerät. Nur diese Kopien löschen oder alle Kopien? Das kann nicht rückgängig gemacht werden.</item>
+        <item quantity="other">%1$s Elemente der Auswahl haben auch Kopien an anderen Orten auf deinem Gerät. Nur diese Kopien löschen oder alle Kopien? Das kann nicht rückgängig gemacht werden.</item>
+    </plurals>
+    <plurals name="app_photos_copies_single_text">
+        <item quantity="one">Auf deinem Gerät gibt es %1$s Kopien davon. Nur diese Kopie löschen oder alle? Das kann nicht rückgängig gemacht werden.</item>
+        <item quantity="other">Auf deinem Gerät gibt es %1$s Kopien davon. Nur diese Kopie löschen oder alle? Das kann nicht rückgängig gemacht werden.</item>
+    </plurals>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s Element · %2$s</item>
         <item quantity="other">%1$s Elemente · %2$s</item>
@@ -80,7 +95,15 @@
     <string name="app_photos_notice_added">Zu „\u2068%1$s\u2069“ hinzugefügt.</string>
     <string name="app_photos_notice_create_failed">Die Sammlung konnte nicht erstellt werden.</string>
     <string name="app_photos_notice_created">Sammlung „\u2068%1$s\u2069“ erstellt.</string>
+    <plurals name="app_photos_notice_delete_changed">
+        <item quantity="one">%1$s Element hat sich auf deinem Gerät geändert, seit es angezeigt wurde, und wurde deshalb nicht gelöscht. Prüfe es und versuche es erneut.</item>
+        <item quantity="other">%1$s Elemente haben sich auf deinem Gerät geändert, seit sie angezeigt wurden, und wurden deshalb nicht gelöscht. Prüfe sie und versuche es erneut.</item>
+    </plurals>
     <string name="app_photos_notice_delete_collection_failed">Die Sammlung konnte nicht gelöscht werden.</string>
+    <plurals name="app_photos_notice_delete_copy_upload_only">
+        <item quantity="one">%1$s Element wurde nicht gelöscht: Eine Kopie davon liegt in einem Ordner mit „Nur hochladen“</item>
+        <item quantity="other">%1$s Elemente wurden nicht gelöscht: Sie haben Kopien in einem Ordner mit „Nur hochladen“</item>
+    </plurals>
     <string name="app_photos_notice_delete_failed">Löschen fehlgeschlagen: %1$s</string>
     <string name="app_photos_notice_no_download_link">Der Download-Link konnte nicht erstellt werden.</string>
     <string name="app_photos_notice_no_share_link">Der Freigabelink konnte nicht erstellt werden.</string>
@@ -187,4 +210,5 @@
     <string name="app_photos_viewer_info_title">Weitere Infos</string>
     <string name="app_photos_viewer_low_res">Vorschau</string>
     <string name="app_photos_viewer_more_info">Weitere Infos</string>
+    <string name="app_photos_viewer_saving">Wird gespeichert…</string>
 </resources>

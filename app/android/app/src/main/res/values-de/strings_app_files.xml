@@ -84,6 +84,18 @@
     <string name="app_files_upload_failed">Upload fehlgeschlagen: %1$s</string>
     <string name="app_files_upload_only">Nur hochladen</string>
     <string name="app_files_upload_only_file_info">Dies liegt in einem Ordner mit „Nur hochladen“: Es kann nicht gelöscht werden, und beim erneuten Hochladen bleibt die ältere Version erhalten. Das Schloss am Ordner ändert das.</string>
+    <string name="app_files_usage_empty">Nichts in diesem Ordner belegt Speicherplatz.</string>
+    <string name="app_files_usage_failed">Der belegte Speicherplatz dieses Ordners konnte nicht ermittelt werden.</string>
+    <string name="app_files_usage_needs_update">Dein Gerät braucht ein Update, um anzuzeigen, wie viel Speicherplatz Ordner belegen.</string>
+    <string name="app_files_usage_note">Größen werden Datei für Datei gezählt: Eine Datei, die an zwei Orten liegt, zählt doppelt, auch wenn das Gerät sie nur einmal speichert. Miniaturen und Verschlüsselung werden nicht mitgezählt, deshalb stimmen die Summen nicht mit der Speicheranzeige überein.</string>
+    <string name="app_files_usage_row">%1$s · %2$s</string>
+    <string name="app_files_usage_row_label">\u2068%1$s\u2069, %2$s, %3$s dieses Ordners</string>
+    <string name="app_files_usage_share_small" formatted="false">unter 1 %</string>
+    <plurals name="app_files_usage_total">
+        <item quantity="one">Dieser Ordner: %1$s in %2$s Datei</item>
+        <item quantity="other">Dieser Ordner: %1$s in %2$s Dateien</item>
+    </plurals>
+    <string name="app_files_usage_versions">Davon %1$s in älteren Versionen</string>
     <string name="app_files_version_current">Aktuell</string>
     <string name="app_files_version_open_failed">Diese Version konnte nicht abgerufen werden</string>
     <string name="app_files_version_replaced">Ersetzt: %1$s</string>
@@ -93,4 +105,5 @@
     <string name="app_files_view_grid">Raster</string>
     <string name="app_files_view_list">Liste</string>
     <string name="app_files_view_options">Ansichtsoptionen</string>
+    <string name="app_files_view_storage">Speicher</string>
 </resources>

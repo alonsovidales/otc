@@ -21,6 +21,21 @@
     </plurals>
     <string name="app_photos_collections_rename">Rename collection</string>
     <string name="app_photos_collections_sheet_empty">No collections yet — select some pictures and choose Add to collection.</string>
+    <plurals name="app_photos_copies_all">
+        <item quantity="one">Delete all %1$s copies</item>
+        <item quantity="other">Delete all %1$s copies</item>
+    </plurals>
+    <string name="app_photos_copies_every">Delete every copy</string>
+    <string name="app_photos_copies_only_these">Delete only these copies</string>
+    <string name="app_photos_copies_only_this">Delete only this copy</string>
+    <plurals name="app_photos_copies_several_text">
+        <item quantity="one">%1$s of them also has copies elsewhere on your device. Delete only these copies, or every copy? This can\'t be undone.</item>
+        <item quantity="other">%1$s of them also have copies elsewhere on your device. Delete only these copies, or every copy? This can\'t be undone.</item>
+    </plurals>
+    <plurals name="app_photos_copies_single_text">
+        <item quantity="one">There are %1$s copies of it on your device. Delete only this copy, or all of them? This can\'t be undone.</item>
+        <item quantity="other">There are %1$s copies of it on your device. Delete only this copy, or all of them? This can\'t be undone.</item>
+    </plurals>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s item · %2$s</item>
         <item quantity="other">%1$s items · %2$s</item>
@@ -79,7 +94,15 @@
     <string name="app_photos_notice_added">Added to \"\u2068%1$s\u2069\".</string>
     <string name="app_photos_notice_create_failed">Could not create the collection.</string>
     <string name="app_photos_notice_created">Collection \"\u2068%1$s\u2069\" created.</string>
+    <plurals name="app_photos_notice_delete_changed">
+        <item quantity="one">%1$s item changed on your device since it was shown, so it wasn\'t deleted. Check it and try again.</item>
+        <item quantity="other">%1$s items changed on your device since they were shown, so they weren\'t deleted. Check them and try again.</item>
+    </plurals>
     <string name="app_photos_notice_delete_collection_failed">Could not delete the collection.</string>
+    <plurals name="app_photos_notice_delete_copy_upload_only">
+        <item quantity="one">%1$s item wasn\'t deleted: a copy of it is in an upload-only folder</item>
+        <item quantity="other">%1$s items weren\'t deleted: they have copies in an upload-only folder</item>
+    </plurals>
     <string name="app_photos_notice_delete_failed">Delete failed: %1$s</string>
     <string name="app_photos_notice_no_download_link">Could not create download link.</string>
     <string name="app_photos_notice_no_share_link">Could not create share link.</string>
@@ -186,4 +209,5 @@
     <string name="app_photos_viewer_info_title">More Info</string>
     <string name="app_photos_viewer_low_res">Low res</string>
     <string name="app_photos_viewer_more_info">More info</string>
+    <string name="app_photos_viewer_saving">Saving…</string>
 </resources>

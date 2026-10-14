@@ -310,6 +310,50 @@
   animation: pg-pulse 1.6s ease-in-out infinite;
 }
 
+/* Issue #194: whole rows of the grey tiles kept for the month at the top of
+   a jump's grid while newer photos are still to come, drawn as one block
+   (a month of thousands would otherwise be thousands of nodes). */
+.pg-skel-rows {
+  grid-column: 1 / -1;
+  height: calc(var(--pg-rows) * (var(--pg-tile) + var(--pg-gap)) - var(--pg-gap));
+  border-radius: 2px;
+  background: var(--ink-2);
+  animation: pg-pulse 1.6s ease-in-out infinite;
+}
+
+/* Issue #194: the top of a jump's grid. The mark, of no height, is what
+   asks for the page above as it nears the screen; the pill shows that
+   page's spinner, or its error, under the top bar over the photos - it
+   takes no room, so it moves nothing coming or going. It is rendered only
+   while the mark is within reach of the screen (upNear), so it never
+   stays pinned while the grid is scrolled elsewhere. */
+.pg-up-mark { height: 1px; margin-bottom: -1px; }
+.pg-up {
+  position: sticky;
+  top: calc(var(--topbar-h) + 8px);
+  z-index: 3;
+  height: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.pg-up-pill {
+  pointer-events: auto;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: calc(100% - 2 * var(--pg-pad));
+  min-height: 40px;
+  padding: 4px 14px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--ink-2);
+  color: var(--mist);
+  font-size: 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+}
+
 /* The end of the grid: where the next page is asked for. A fixed height,
    so the spinner coming and going moves nothing. */
 .pg-foot {
@@ -861,7 +905,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pg-tile, .pg-tile::before, .pg-tile-open, .pg-tile-img, .pg-tile-check, .pg-tile-circle,
-  .pg-tile-skel, .pg-month-skel span, .pg-title-skel, .pg-sub-skel, .pg-pick-skel .pg-pick-cover, .pg-pick-skel .pg-pick-text span,
+  .pg-tile-skel, .pg-skel-rows, .pg-month-skel span, .pg-title-skel, .pg-sub-skel, .pg-pick-skel .pg-pick-cover, .pg-pick-skel .pg-pick-text span,
   .pg-selbar, .pg-menu, .pg-dlg-backdrop, .pg-dlg, .pg-toast,
   .pg-icon-btn, .pg-btn, .pg-bar-btn, .pg-back, .pg-title-text, .pg-menu-item, .pg-pick,
   .pg-strip-remove, .pg-strip-btn, .pg-toast-action, .pg-input {

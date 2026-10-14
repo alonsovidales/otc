@@ -599,6 +599,9 @@ final class OTCConnection: ObservableObject {
         // The grids' thumbnails kept on the phone are this device's (and
         // account's): another one's go (ThumbDiskCache).
         ThumbDiskCache.shared.use(endpoint: endpoint)
+        // What the device was found not to do is asked again: it may have
+        // been updated (issues #194, #195).
+        DeviceSupport.shared.signedIn()
         authenticated = true
         homeLink = home
         homeNetwork = home != nil ? NetworkWatch.shared.localNetwork : nil

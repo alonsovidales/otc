@@ -72,6 +72,45 @@ extension S {
     /// In the list of collections opened from Images' Collections button (on a phone held upright) when there is none. Add to collection is the name of the selection bar's item (app.shell.add_to_collection): use the same words.
     static var appPhotosCollectionsSheetEmpty: String { L("app.photos.collections.sheet_empty", table: "AppPhotos") }
 
+    /// one: Delete all {count} copies
+    /// other: Delete all {count} copies
+    ///
+    /// Button of the confirmation app.photos.copies.single_text: deletes every copy of the photo or video from the device, in every folder (also from computers and phones that sync those folders). {count} is how many copies: always 2 or more, so both forms are the plural.
+    static func appPhotosCopiesAll(count: Int) -> String {
+        L("app.photos.copies.all", table: "AppPhotos", count)
+    }
+
+    /// Delete every copy
+    ///
+    /// Button of the confirmation app.photos.copies.several_text: deletes the selected photos and videos and every other copy of them on the device, in every folder (also from computers and phones that sync those folders).
+    static var appPhotosCopiesEvery: String { L("app.photos.copies.every", table: "AppPhotos") }
+
+    /// Delete only these copies
+    ///
+    /// Button of the confirmation app.photos.copies.several_text: deletes only the selected photos and videos (the copies shown in Images); their other copies stay on the device.
+    static var appPhotosCopiesOnlyThese: String { L("app.photos.copies.only_these", table: "AppPhotos") }
+
+    /// Delete only this copy
+    ///
+    /// Button of the confirmation app.photos.copies.single_text: deletes only the copy shown in Images (the one this photo or video was opened from). The other copies stay on the device, and Images goes on showing the picture at one of them.
+    static var appPhotosCopiesOnlyThis: String { L("app.photos.copies.only_this", table: "AppPhotos") }
+
+    /// one: {count} of them also has copies elsewhere on your device. Delete only these copies, or every copy? This can't be undone.
+    /// other: {count} of them also have copies elsewhere on your device. Delete only these copies, or every copy? This can't be undone.
+    ///
+    /// Text of the confirmation asked before deleting several selected photos and videos in Images (the selection bar's Delete) when some of them are also stored as other copies on the device, under the title app.photos.selection.delete_title. Copies are the same picture stored at more than one path on the device: in another folder, or downloaded to a phone or computer and synced back. Images shows it once. {count} is how many of the selected items have other copies (1 or more, at most all of them). "These copies" are the selected items themselves. Buttons: app.photos.copies.only_these, app.photos.copies.every and Cancel. The web say the same (web.images.copies.several_text).
+    static func appPhotosCopiesSeveralText(count: Int) -> String {
+        L("app.photos.copies.several_text", table: "AppPhotos", count)
+    }
+
+    /// one: There are {count} copies of it on your device. Delete only this copy, or all of them? This can't be undone.
+    /// other: There are {count} copies of it on your device. Delete only this copy, or all of them? This can't be undone.
+    ///
+    /// Text of the confirmation asked before deleting one photo or video in Images that the device holds as several copies (the viewer's Delete, or the selection bar's Delete with one item selected), under the title app.photos.viewer.delete_title (or app.photos.viewer.delete_video_title) or app.photos.selection.delete_title. Copies are the same picture stored at more than one path on the device: in another folder, or downloaded to a phone or computer and synced back. Images shows it once. {count} is how many copies there are, this one included: always 2 or more, so both forms are the plural. "It" is the photo or video named in the title: word it to fit either (the copies can carry the gender). Buttons: app.photos.copies.only_this, app.photos.copies.all and Cancel. The web say the same (web.images.copies.single_text).
+    static func appPhotosCopiesSingleText(count: Int) -> String {
+        L("app.photos.copies.single_text", table: "AppPhotos", count)
+    }
+
     /// one: {count} item · {span}
     /// other: {count} items · {span}
     ///
@@ -348,10 +387,26 @@ extension S {
         L("app.photos.notice.created", table: "AppPhotos", L10n.isolate(name))
     }
 
+    /// one: {count} item changed on your device since it was shown, so it wasn't deleted. Check it and try again.
+    /// other: {count} items changed on your device since they were shown, so they weren't deleted. Check them and try again.
+    ///
+    /// Alert in Images (or the photo viewer) after deleting several photos or videos when the device refused two or more of them because the file at their path now holds other content (replaced or synced over since the app showed it): the summed-up message for those refusals (a single refusal shows the device's own message instead). Nothing of those was deleted, they stay selected, and the photos are loaded again. An item is a photo or a video. Same text as web.images.delete.changed.
+    static func appPhotosNoticeDeleteChanged(count: Int) -> String {
+        L("app.photos.notice.delete_changed", table: "AppPhotos", count)
+    }
+
     /// Could not delete the collection.
     ///
     /// Alert in Images when the device didn't delete the open collection.
     static var appPhotosNoticeDeleteCollectionFailed: String { L("app.photos.notice.delete_collection_failed", table: "AppPhotos") }
+
+    /// one: {count} item wasn't deleted: a copy of it is in an upload-only folder
+    /// other: {count} items weren't deleted: they have copies in an upload-only folder
+    ///
+    /// Alert in Images after deleting every copy of several photos or videos when the device refused two or more of them because one of their copies is in a folder set to upload only: the summed-up message for those refusals (a single refusal shows the device's own message instead). Nothing of those was deleted, and they stay selected. An item is a photo or a video. Same text as web.images.delete.copy_upload_only.
+    static func appPhotosNoticeDeleteCopyUploadOnly(count: Int) -> String {
+        L("app.photos.notice.delete_copy_upload_only", table: "AppPhotos", count)
+    }
 
     /// Delete failed: {detail}
     ///
@@ -382,7 +437,7 @@ extension S {
 
     /// Save failed: {detail}
     ///
-    /// Alert when saving the photo open in the viewer to the phone's photo library failed. {detail} is the reason as the phone's system words it.
+    /// Alert when saving the photo or video open in the viewer to the phone's photo library failed. {detail} is the reason: the phone's system's words, or why the original couldn't be downloaded from the device (the device's own words, already in the user's language, or the phone's).
     static func appPhotosNoticeSaveFailed(detail: String) -> String {
         L("app.photos.notice.save_failed", table: "AppPhotos", detail)
     }
@@ -790,4 +845,9 @@ extension S {
     ///
     /// Screen-reader name of the (i) button of the full-screen photo viewer: shows the photo's camera details (app.photos.viewer.info_title).
     static var appPhotosViewerMoreInfo: String { L("app.photos.viewer.more_info", table: "AppPhotos") }
+
+    /// Saving…
+    ///
+    /// Screen-reader name of the viewer's Save button while it shows a spinner: the original photo or video is being downloaded from the device and saved to the phone's own photo library (Photos on an iPhone, the gallery on Android).
+    static var appPhotosViewerSaving: String { L("app.photos.viewer.saving", table: "AppPhotos") }
 }

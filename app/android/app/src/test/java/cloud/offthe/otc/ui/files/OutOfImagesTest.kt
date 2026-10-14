@@ -22,7 +22,7 @@ class OutOfImagesTest {
         PbFile.newBuilder().setPath(path).setMime("image/jpeg").setOutOfImages(out).build()
     private fun state(path: String, listed: String?, supported: Boolean, folderOut: Boolean, rows: List<FileRow> = emptyList(), selected: Set<String> = emptySet()) =
         FilesExplorerViewModel.State(
-            path = path, rows = rows, selected = selected, grid = false, listedPath = listed,
+            path = path, rows = rows, selected = selected, view = FilesView.LIST, listedPath = listed,
             outOfImagesSupported = supported, folderOutOfImages = folderOut,
         )
 

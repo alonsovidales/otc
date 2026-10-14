@@ -9,6 +9,7 @@ import type {
   RespEnvelope,
   ListOfFiles,
   File as PbFile,
+  FolderUsage,
 } from "../proto/messages";
 import { loadFilesPath, saveFilesPath } from "../net/uiState";
 import { deviceCantSearchFiles, fold, foundParts, takeFilesRequest, useFilesRequest, type Span } from "./filesNav";
@@ -24,6 +25,7 @@ import { sizeText } from "./sizeText";
 import { dateMs, formatOrder, loadOrder, nameCollator, parseOrder, pickOrder, saveOrder, sortEntries, sortKeys, type SortFields, type SortKey, type SortOrder } from "./filesSort";
 import { dragSelection } from "./dragSelect";
 import { useDragSelect } from "./useDragSelect";
+import { labelShare, shareShown, usageAnswerFits, usageRows, type Share, type UsageRow } from "./folderUsage";
 
 type Props = {
   wsUrl?: string;            // defaults to VITE_WS_URL
@@ -41,12 +43,34 @@ const isVideo = (f: PbFile) => !!f.mime?.startsWith("video/");
 const keyOfRow = (r: { k: string }) => r.k;
 const isUp = (r: { name: string }) => r.name === "..";
 
-// The Files list or grid, remembered in this browser.
-type ViewMode = "list" | "grid";
+// The Files list, grid or Storage view (issue #195), remembered in this
+// browser.
+type ViewMode = "list" | "grid" | "storage";
 const cViewModeKey = "otc.files.viewMode";
 function loadViewMode(): ViewMode {
-  try { return localStorage.getItem(cViewModeKey) === "grid" ? "grid" : "list"; } catch { return "list"; }
+  try {
+    const m = localStorage.getItem(cViewModeKey);
+    return m === "grid" || m === "storage" ? m : "list";
+  } catch { return "list"; }
 }
+
+// Issue #195: the Storage view's answer for a folder (GetFolderUsage):
+// on its way, in, a failure (the device's words, or ours with Try again),
+// or a device before #195 ("old": it needs an update).
+type UsageState =
+  | { path: string; state: "loading" }
+  | { path: string; state: "done"; usage: FolderUsage }
+  | { path: string; state: "error"; error: UiText; retry: boolean }
+  | { path: string; state: "old" };
+// A device that answered GetFolderUsage "unknown_payload" isn't asked again
+// while this page is open (signing out reloads it).
+let noFolderUsage = false;
+// An entry the listing doesn't have, as one of its own (issue #195: a
+// folder holding only older versions).
+const cNoFile: PbFile = {
+  hash: "", mime: "", created: undefined, modified: undefined, path: "", size: 0, content: undefined,
+  uploadOnly: false, versions: 0, size64: 0n, outOfImages: false,
+};
 // The grid asks for thumbnails this many paths at a time.
 const cThumbBatch = 24;
 
@@ -338,6 +362,47 @@ export default function FilesExplorer({
   };
   useEffect(() => () => { if (uploadsTimer.current !== null) window.clearTimeout(uploadsTimer.current); }, []);
 
+  // List, grid or Storage (issue #195). The Storage view asks the device
+  // what each entry takes (GetFolderUsage) whenever the folder is listed
+  // while it shows - opened, another folder, a refresh, a delete - and
+  // only then: List and Grid never size folders.
+  const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
+  const viewModeRef = useRef(viewMode);
+  viewModeRef.current = viewMode;
+  const [usage, setUsage] = useState<UsageState | null>(null);
+  const usageSeq = useRef(0);
+  const loadUsage = useCallback(async (p: string) => {
+    const seq = ++usageSeq.current;
+    if (noFolderUsage) { setUsage({ path: p, state: "old" }); return; }
+    setUsage({ path: p, state: "loading" });
+    const failed = (error: UiText, retry: boolean) => {
+      if (seq === usageSeq.current) setUsage({ path: p, state: "error", error, retry });
+    };
+    try {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        e.payload = { $case: "reqGetFolderUsage", reqGetFolderUsage: { path: p } };
+      });
+      if (seq !== usageSeq.current) return;
+      if (resp.payload?.$case === "respFolderUsage") {
+        const u = resp.payload.respFolderUsage;
+        // Requests overlap when the folder changes: only the latest
+        // request's answer, and never one for another folder, is shown.
+        if (usageAnswerFits(seq, usageSeq.current, u, p)) setUsage({ path: p, state: "done", usage: u });
+        else failed(say("web.files.usage.failed"), true);
+      } else if (resp.errorCode === "unknown_payload") {
+        noFolderUsage = true;
+        setUsage({ path: p, state: "old" });
+      } else if (resp.error && resp.errorMessage) {
+        failed(asIs(resp.errorMessage), false);
+      } else {
+        failed(say("web.files.usage.failed"), true);
+      }
+    } catch {
+      // No connection, or no answer.
+      failed(say("web.files.usage.failed"), true);
+    }
+  }, []);
+
   // -------- load list (1, 3, 4) ----------
   // Only the last listing asked for lands: another folder opened (or the
   // search sending Files elsewhere) while one was on its way would
@@ -355,6 +420,7 @@ export default function FilesExplorer({
     // photo is not opened, then or when that folder is shown again later.
     if (mediaToOpen.current && mediaToOpen.current.dir !== p) mediaToOpen.current = null;
     setLoading(true); setError(null);
+    if (viewModeRef.current === "storage") void loadUsage(p);
     try {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         console.log('Listing path:', p);
@@ -426,7 +492,7 @@ export default function FilesExplorer({
         setLoading(false);
       }
     }
-  }, []);
+  }, [loadUsage]);
 
   useEffect(() => { void loadList(path); }, [path, loadList]);
   useEffect(() => { saveFilesPath(path); }, [path]);
@@ -604,19 +670,25 @@ export default function FilesExplorer({
   const [sharingFolder, setSharingFolder] = useState<string | null>(null);
   const singleFolder = selected.length === 1 && isDir(selected[0]) ? selected[0].path : null;
 
+  // Issue #201: each with the hash its row showed (a folder has none), so
+  // a file synced over since is refused ("changed") rather than deleted;
+  // the device's words then say so, once, and the folder is listed again.
   const delSelected = async () => {
     if (!selected.length || selectedUploadOnly) return;
     if (!window.confirm(t("web.files.selection.confirm_delete", { count: selected.length }))) return;
+    let changed = "";
     for (const f of selected) {
       const full = f.path.includes("/") ? f.path : joinPath(path, f.path);
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
-        (e as any).payload = { $case: "reqDelFile", reqDelFile: { path: full } };
+        (e as any).payload = { $case: "reqDelFile", reqDelFile: f.hash ? { path: full, hash: f.hash } : { path: full } };
       });
       if (resp.error && resp.errorCode === "upload_only") {
         alert(t("web.files.list.upload_only_refused", { name: leafName(full) }));
         break;
       }
+      if (resp.error && resp.errorCode === "changed" && resp.errorMessage) changed = resp.errorMessage;
     }
+    if (changed) alert(changed);
     await loadList(path);
   };
 
@@ -837,10 +909,18 @@ export default function FilesExplorer({
   };
 
   // -------- grid view ----------
-  const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
   const switchView = (m: ViewMode) => {
+    if (m === viewMode) return;
     setViewMode(m);
+    viewModeRef.current = m;
     try { localStorage.setItem(cViewModeKey, m); } catch { /* remembered for this visit only */ }
+    // Issue #195: nothing is picked in Storage (List picks), and it asks
+    // the device what the folder's entries take as it opens.
+    if (m === "storage") {
+      setSel({});
+      anchorRef.current = null;
+      void loadUsage(path);
+    }
   };
   // Thumbnails by full path ("" for one the device has none of), kept
   // while the page is open; object URLs are released on the way out.
@@ -946,7 +1026,7 @@ export default function FilesExplorer({
     const media = rows.map(r => r.file).filter(x => !isDir(x) && isMedia(x));
     const items: ViewerItem[] = media.map(x => {
       const full = fullPathOf(x);
-      return { path: full, mime: x.mime, thumbURL: thumbs[full] || undefined };
+      return { path: full, mime: x.mime, thumbURL: thumbs[full] || undefined, hash: x.hash };
     });
     const index = Math.max(0, media.findIndex(x => x.path === f.path));
     showViewer({ items, index });
@@ -1063,7 +1143,7 @@ export default function FilesExplorer({
       // In the order on screen (issue #196).
       const media = found.filter(x => x.media).map(x => x.file);
       showViewer({
-        items: media.map(x => ({ path: x.path, mime: x.mime, thumbURL: thumbs[x.path] || undefined })),
+        items: media.map(x => ({ path: x.path, mime: x.mime, thumbURL: thumbs[x.path] || undefined, hash: x.hash })),
         index: Math.max(0, media.findIndex(x => x.path === f.path)),
       });
       return;
@@ -1117,8 +1197,8 @@ export default function FilesExplorer({
     const index = media.findIndex(x => full(x) === want.file.path);
     // Not in the listing (it failed, or the file went): the file alone.
     const items: ViewerItem[] = index >= 0
-      ? media.map(x => ({ path: full(x), mime: x.mime, thumbURL: thumbsRef.current[full(x)] || undefined }))
-      : [{ path: want.file.path, mime: want.file.mime }];
+      ? media.map(x => ({ path: full(x), mime: x.mime, thumbURL: thumbsRef.current[full(x)] || undefined, hash: x.hash }))
+      : [{ path: want.file.path, mime: want.file.mime, hash: want.file.hash }];
     viewerOpener.current = null;
     setMediaViewer({ items, index: Math.max(0, index) });
   }, [listed, rows]);
@@ -1185,7 +1265,7 @@ export default function FilesExplorer({
   // screen a long press picks the row first. Once something is picked a tap
   // there picks or unpicks a row, where a click opens it.
   const dragSel = useDragSelect<Row>({
-    enabled: !loading && !inResults && !mediaViewer && !viewer && !versionsOf && !sharingFolder,
+    enabled: !loading && !inResults && !mediaViewer && !viewer && !versionsOf && !sharingFolder && viewMode !== "storage",
     items: rows,
     keyOf: keyOfRow,
     indexAt: (el) => {
@@ -1328,6 +1408,133 @@ export default function FilesExplorer({
     );
   };
 
+  // ---- Issue #195: the Storage view ----
+  // The folder's direct children as the device sized them (GetFolderUsage),
+  // largest first in its own order: each with its icon, its name (a folder
+  // opens in Storage, a file as a click in the list opens it), a bar of its
+  // share of the folder and its size, older versions included. Above them
+  // the folder's total and how much of it is older versions; under them
+  // what the sizes count. Nothing is picked here: List does that.
+  const folderIcon = (
+    <svg viewBox="0 0 64 52" width="22" height="18" aria-hidden="true"><path d="M4 6a4 4 0 0 1 4-4h16l6 6h26a4 4 0 0 1 4 4v34a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" /></svg>
+  );
+  // A row's share in words, for its label too: 0% when the folder takes
+  // no space, though no share shows then (labelShare).
+  const shareWords = (s: Share) => {
+    const share = labelShare(s);
+    return share.kind === "small" ? t("web.files.usage.share_small") : percentText(t, share.value);
+  };
+  const openUsageRow = (r: UsageRow<PbFile>) => {
+    if (r.file) { void openEntry(r.file); return; }
+    // Not in the listing (a folder holding only older versions): opened
+    // as one would be.
+    void openEntry({ ...cNoFile, path: r.path, mime: r.isDir ? "inode/directory" : "" });
+  };
+  const storageView = () => {
+    const u = usage?.path === path ? usage : null;
+    const up = path !== "/" ? listing.find((f) => f.path === "..") : undefined;
+    let summary: React.ReactNode = null;
+    let body: React.ReactNode;
+    if (!u || u.state === "loading") {
+      body = <div className="fb-row" role="row"><span className="c fb-usage-wide" role="cell">{t("common.loading")}</span></div>;
+    } else if (u.state === "old" || u.state === "error") {
+      body = (
+        <div className="fb-row" role="row">
+          <div className="c fb-usage-wide fb-usage-note-cell" role="cell">
+            <span>{u.state === "old" ? t("web.files.usage.needs_update") : u.error(t)}</span>
+            {u.state === "error" && u.retry && (
+              <button type="button" className="btn" onClick={() => void loadUsage(path)}>{t("common.try_again")}</button>
+            )}
+          </div>
+        </div>
+      );
+    } else {
+      const { rows: uRows, total, versions, files } = usageRows(u.usage, listing.filter((f) => f.path !== ".."), fullPathOf);
+      summary = (
+        <div className="fb-usage-summary">
+          <p>{t("web.files.usage.total", { size: fmtBytes(t, total), count: files })}</p>
+          {versions > 0 && <p className="fb-usage-versions">{t("web.files.usage.versions", { size: fmtBytes(t, versions) })}</p>}
+        </div>
+      );
+      body = uRows.length === 0
+        ? <div className="fb-row" role="row"><span className="c fb-usage-wide" role="cell">{t("web.files.usage.empty")}</span></div>
+        : uRows.map((r) => {
+          const size = fmtBytes(t, r.total);
+          const share = shareWords(r.share);
+          const label = t("web.files.usage.row_label", { name: r.name, size, share });
+          const f = r.file;
+          return (
+            <div className="fb-row fb-usage-row" role="row" key={r.key} data-key={r.key}>
+              <div className="c c-name" role="cell">
+                <span className={`fb-usage-art${r.isDir ? " is-folder" : ""}`} aria-hidden="true">
+                  {r.isDir ? folderIcon : <FileTypeIcon name={r.name} size={22} />}
+                </span>
+                <button className={r.isDir ? "link" : "file"} title={r.name} onClick={() => openUsageRow(r)} disabled={openingPath !== null}>
+                  {f && openingPath === f.path ? <span className="fb-opening">{t("web.files.list.opening")}</span> : r.name}
+                </button>
+                {/* The folder's lock and switch for Images, as in the list;
+                    a file in an upload-only folder its lock. */}
+                {f && r.isDir && (
+                  <button
+                    className={`fb-lock${f.uploadOnly ? " on" : ""}`}
+                    onClick={() => void toggleUploadOnly(f)}
+                    data-tip={f.uploadOnly ? t("web.files.lock.on_tip") : t("web.files.lock.off_tip")}
+                    aria-label={f.uploadOnly ? t("web.files.lock.clear") : t("web.files.lock.make")}
+                    aria-pressed={!!f.uploadOnly}
+                  >
+                    {lockIcon(!!f.uploadOnly)}
+                  </button>
+                )}
+                {f && r.isDir && noImgShown && noImgButton({ name: r.name, file: f, outOfImages: !!f.outOfImages })}
+                {f && !r.isDir && f.uploadOnly && (
+                  <span className="fb-lock on static" data-tip={t("web.files.lock.file")} role="img" aria-label={t("web.files.lock.file")}>{lockIcon(true)}</span>
+                )}
+              </div>
+              <div className="c c-share" role="cell">
+                {!shareShown(r.share)
+                  ? <span className="fb-sr">{label}</span>
+                  : (
+                    <>
+                      <span className="fb-usage-bar" role="img" aria-label={label}>
+                        <span className="fb-usage-fill" style={{ width: `${r.bar}%` }} />
+                      </span>
+                      <span className="fb-usage-share" aria-hidden="true">{share}</span>
+                    </>
+                  )}
+              </div>
+              <div className="c c-size" role="cell">{size}</div>
+            </div>
+          );
+        });
+    }
+    return (
+      <div className="fb-usage">
+        {summary}
+        <div className="fb-table fb-usage-table" role="table" aria-busy={!u || u.state === "loading"}>
+          <div className="fb-head" role="row">
+            <div className="c c-name" role="columnheader">{t("web.files.column.name")}</div>
+            <div className="c c-share" role="columnheader">{t("web.files.column.share")}</div>
+            <div className="c c-size" role="columnheader">{t("web.files.column.size")}</div>
+          </div>
+          <div className="fb-body" role="rowgroup">
+            {up && (
+              <div className="fb-row fb-usage-row" role="row" data-key="..">
+                <div className="c c-name" role="cell">
+                  <span className="fb-usage-art is-folder" aria-hidden="true">{folderIcon}</span>
+                  <button className="link" title=".." onClick={() => openEntry(up)} disabled={openingPath !== null}>..</button>
+                </div>
+                <div className="c c-share" role="cell" />
+                <div className="c c-size" role="cell" />
+              </div>
+            )}
+            {body}
+          </div>
+        </div>
+        {u?.state === "done" && <p className="fb-usage-note">{t("web.files.usage.note")}</p>}
+      </div>
+    );
+  };
+
   return (
     <div
       className={`fb-wrap ${dragOver ? "drag" : ""}`}
@@ -1376,9 +1583,17 @@ export default function FilesExplorer({
                 <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" fill="currentColor" /><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" fill="currentColor" />
               </svg>
             </button>
+            {/* Issue #195: what takes the space in the folder. */}
+            <button className={viewMode === "storage" ? "on" : ""} aria-pressed={viewMode === "storage"} title={t("web.files.toolbar.storage")}
+              aria-label={t("web.files.toolbar.storage")} onClick={() => switchView("storage")}>
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="4" rx="1.5" fill="currentColor" /><rect x="3" y="10" width="12" height="4" rx="1.5" fill="currentColor" />
+                <rect x="3" y="16" width="6" height="4" rx="1.5" fill="currentColor" />
+              </svg>
+            </button>
           </div>
         </div>
-      {selected.length > 0 && (
+      {selected.length > 0 && viewMode !== "storage" && (
         <div className="fb-actions">
           <div className="fb-actions-inner">
             <div><Trans k="web.files.selection.selected" args={{ count: selected.length }} parts={{ b: (s) => <strong>{s}</strong> }} /></div>
@@ -1400,8 +1615,12 @@ export default function FilesExplorer({
         </div>
       )}
 
-        {sortSelect}
-        <div className="fb-total"><Trans k="web.files.list.total" args={{ count: rows.length }} parts={{ b: (s) => <strong>{s}</strong> }} /></div>
+        {/* Storage keeps the device's order, largest first, and its own
+            totals (issue #195). */}
+        {viewMode !== "storage" && sortSelect}
+        {viewMode !== "storage" && (
+          <div className="fb-total"><Trans k="web.files.list.total" args={{ count: rows.length }} parts={{ b: (s) => <strong>{s}</strong> }} /></div>
+        )}
       </div>
 
       {error && <div className="fb-error">{error(t)}</div>}
@@ -1561,7 +1780,7 @@ export default function FilesExplorer({
       )}
 
       <div ref={folderViewRef} className="fb-contents" hidden={inResults} tabIndex={-1} role="region" aria-label={t("web.files.list.contents", { folder: path })}>
-      {viewMode === "grid" ? (
+      {viewMode === "storage" ? storageView() : viewMode === "grid" ? (
         <div className="fb-grid" ref={setGridEl} onClickCapture={onItemsClickCapture}
           onPointerDown={dragSel.onPointerDown} onContextMenu={dragSel.onContextMenu} onDragStart={dragSel.onDragStart}>
           {loading && <div className="fb-grid-note">{t("common.loading")}</div>}
@@ -1690,6 +1909,17 @@ export default function FilesExplorer({
           onIndexChange={i => setMediaViewer(v => (v ? { ...v, index: i } : v))}
           onClose={closeViewer}
           onDeleted={onViewerDeleted}
+          // Issue #201: refused as "changed" - the file holds other
+          // content now. The viewer closes, as Images' and the phones' do,
+          // the device's words say so (an alert, as Files says the
+          // selection's refusals) and the folder is listed again.
+          onDeleteChanged={(_it, said) => {
+            closeViewer();
+            void loadList(pathRef.current);
+            const words = said || t("web.images.delete.changed", { count: 1 });
+            // Once the viewer has gone from the screen.
+            window.setTimeout(() => alert(words), 0);
+          }}
           deleteBlocked={viewerDeleteBlocked}
         />
       )}

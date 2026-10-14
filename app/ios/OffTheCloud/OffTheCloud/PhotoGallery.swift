@@ -56,6 +56,15 @@ final class PhotoGalleryVM: ObservableObject {
         // The content hash its page gave it: its thumbnail's key in the
         // cache on this phone (ThumbDiskCache). "" for a local file.
         var hash: String = ""
+        /// Issue #201: at how many paths the device holds it (File.copies,
+        /// its kept-out folders included); nil where the device didn't say
+        /// (before #201, a page whose count failed, Files' viewer).
+        var copies: Int? = nil
+        /// Issue #194: brought by the search upward from a jump
+        /// (newer_than), not the downward one: each search's `have`
+        /// counts only the photos it brought, so a delete lowers the
+        /// right one.
+        var up = false
     }
 
     // Shared, already-authenticated connection (see OTCConnection.swift)
@@ -264,6 +273,8 @@ final class PhotoGalleryVM: ObservableObject {
         var metrics: PhotoGridMetrics
         var dated: Bool
         var lastRoom: Int?
+        var firstRoom: Int?
+        var breaks: Int
         var placeholder: PhotoGridLayout.Placeholder
         var placeholderCount: Int
     }
@@ -294,12 +305,21 @@ final class PhotoGalleryVM: ObservableObject {
         if dated, placeholder == .none, !endReached, let month = items.last(where: { $0.month != nil })?.month {
             lastRoom = freshBuckets.first { $0.month == month }?.count
         }
+        // Issue #194: the first month's, while its newer photos are on
+        // their way from above a jump - grey tiles before the photos it
+        // has, filled in place as they come. Not the jump's own month,
+        // which starts complete (the cutoff is its end).
+        var firstRoom: Int?
+        if dated, placeholder == .none, !upEnd, let first = items.first, first.up, let month = first.month {
+            firstRoom = freshBuckets.first { $0.month == month }?.count
+        }
         let key = LayoutKey(items: itemsVersion, metrics: metrics, dated: dated, lastRoom: lastRoom,
+                            firstRoom: firstRoom, breaks: upBreaks.count,
                             placeholder: placeholder, placeholderCount: count)
         if let c = layoutCache, c.key == key { return c.layout }
         let layout = placeholder == .none
             ? PhotoGridLayout.build(months: items.map(\.month), ids: items.map(\.id), dated: dated,
-                                    lastRoom: lastRoom, metrics: metrics)
+                                    lastRoom: lastRoom, firstRoom: firstRoom, breaks: upBreaks, metrics: metrics)
             : PhotoGridLayout.placeholder(placeholder, count: count, metrics: metrics)
         layoutCache = (key, layout)
         return layout
@@ -393,6 +413,53 @@ final class PhotoGalleryVM: ObservableObject {
     @Published private(set) var searchStarts = 0
     @Published var endReached = false
     private var token: String? = nil
+
+    // Issue #194: the second cursor, for the photos newer than a jump's
+    // cutoff (SearchPhotos.newer_than), asked for as the grid's top comes
+    // near. A search that isn't a jump has none: nothing is newer than its
+    // first photo (upEnd from the start). Never mixed with the downward
+    // one: upToken goes only with newer_than, the downward token never.
+    private var upToken = ""
+    /// Issue #194: what each search brought that the grid shows already
+    /// from the other one (by content: PhotoPaging.hidden) - still part of
+    /// its `have`, as the device counts them.
+    private var upHidden = 0
+    private var downHidden = 0
+    /// Nothing more above: not a jump, the upward search's last page came,
+    /// or the device can't (before #194).
+    @Published private(set) var upEnd = true
+    /// An upward page is on its way.
+    @Published private(set) var upLoading = false
+    /// The last upward page failed, and why: asked again meanwhile
+    /// (upRetry), or now with Try again - shown at the grid's top as a
+    /// later page's failure is at its end.
+    @Published private(set) var upProblem: LoadProblem?
+    let upRetry = PageRetry()
+    private var upTask: Task<Void, Never>?
+    /// The nearest tile to the top (its index) that asked while an upward
+    /// page was on its way (morePendingAt's twin).
+    private var upPendingAt: Int?
+    /// The grid was scrolled up since the jump (pulled down at its top, or
+    /// scrolled back up to it): only from then on are the newer photos
+    /// asked for - never at the jump itself, which lands at the top (the
+    /// web's first upward gesture; Android's first grey tile drawn).
+    private(set) var upArmed = false
+    /// The months a line of short months never continues into: the top of
+    /// the grid each time a page was put above it, so the lines on the
+    /// screen stay as they are (PhotoGridLayout.build).
+    private var upBreaks: Set<String> = []
+    /// What the signed-in device is known not to do (tests use their own).
+    var support = DeviceSupport.shared
+    /// Issue #194: told right before photos are put above the grid (or the
+    /// top month's room changes), so the view notes which row is on the
+    /// screen; aboveChanges is bumped right after, for it to keep that row
+    /// where it was.
+    var willChangeAbove: (() -> Void)?
+    @Published private(set) var aboveChanges = 0
+    /// Right after photos were put above, until the view has put the row
+    /// it showed back in place, the tiles drawn for a moment at the grid's
+    /// top (its very first frame) don't ask for more.
+    private var upQuietUntil = Date.distantPast
     // Bumped every time a fresh search starts (resetAndLoadFirstPage) -
     // fetchPage captures the value at call time and checks it's unchanged
     // before applying its response. Toggling a person filter (or a tag)
@@ -563,6 +630,7 @@ final class PhotoGalleryVM: ObservableObject {
     func wake() {
         guard !fixedList else { return }
         if pageProblem != nil { retryPage() }
+        if upProblem != nil { retryNewer() }
         bucketRetry.wake()
         tagsRetry.wake()
         peopleRetry.wake()
@@ -573,8 +641,9 @@ final class PhotoGalleryVM: ObservableObject {
     // an instance made with init() only ever shows the list handed to
     // showFiles - no search, no paging, no local merge.
     private var fixedList = false
-    /// Called with the path after the viewer deleted a file, so the screen
-    /// that opened it can re-read its listing.
+    /// Called with the path after the viewer deleted a file - or found it
+    /// holds other content than was shown (issue #201's "changed") - so the
+    /// screen that opened it can re-read its listing.
     var onDeleted: ((String) -> Void)?
 
     init() {
@@ -919,6 +988,7 @@ final class PhotoGalleryVM: ObservableObject {
     private func performJump(_ before: Date) async {
         searchGeneration += 1
         let myGeneration = searchGeneration
+        keepPicks()
         startSearchState(jump: before)
         await fetchUntilProgress()
         // placeholderCount is left showing until this resolves (or is
@@ -946,6 +1016,20 @@ final class PhotoGalleryVM: ObservableObject {
         morePendingAt = nil
         endReached = false
         token = ""
+        // Issue #194: both cursors start again - the upward one only for a
+        // jump, on a device that can.
+        upTask?.cancel()
+        upTask = nil
+        upRetry.reset()
+        upToken = ""
+        upHidden = 0
+        downHidden = 0
+        upEnd = jump == nil || !support.newerThan
+        upLoading = false
+        upProblem = nil
+        upPendingAt = nil
+        upArmed = false
+        upBreaks = []
         items = []
         jumpBefore = jump
         pageProblem = nil
@@ -1246,14 +1330,34 @@ final class PhotoGalleryVM: ObservableObject {
     // (searchGeneration). The grid says so meanwhile (pageProblem), never a
     // blank page - as Android's PhotoGalleryViewModel.
     func resetAndLoadFirstPage() async {
+        await resetAndLoadFirstPage(jump: nil)
+    }
+
+    /// Issue #201: what the grid shows is out of date (a delete answered
+    /// "changed": a path holds other content now): its search again from
+    /// the start, at the top - a jump's at its month again. The selection
+    /// stays (as on the web and Android): the photos refused are still
+    /// picked, by their paths, to try again once seen.
+    func reloadSearch() {
+        guard !fixedList else { return }
+        searchTask?.cancel()
+        let jump = jumpBefore
+        searchTask = Task { await resetAndLoadFirstPage(jump: jump, keepSelection: true) }
+    }
+
+    private func resetAndLoadFirstPage(jump: Date?, keepSelection: Bool = false) async {
         guard !fixedList else { return }
         // Invalidates any still-in-flight fetchPage from the *previous*
         // selection before this one's own request even goes out - see
         // searchGeneration's doc comment.
         searchGeneration += 1
         searchStarts += 1
-        startSearchState(jump: nil)
-        selected.removeAll()
+        if keepSelection { keepPicks() }
+        startSearchState(jump: jump)
+        if !keepSelection {
+            selected.removeAll()
+            pickedAway = [:]
+        }
         dragSelection = nil
         // A filter change makes any scrub in progress meaningless (its
         // target bucket was computed against the *previous* filter's
@@ -1273,12 +1377,16 @@ final class PhotoGalleryVM: ObservableObject {
     /// the next page, once it is near the end.
     func loadMoreIfNeeded(index idx: Int, id: String) async {
         guard !fixedList else { return }
+        // A tile of a grid that has been replaced since (a new search)
+        // asks nothing.
+        guard items.indices.contains(idx), items[idx].id == id else { return }
+        // Issue #194: near the top after a jump, the photos newer than it.
+        if idx < 12 { loadNewerIfNeeded(at: idx) }
         guard !endReached else { return }
         // Near the end is the only thing worth acting on - checked before
         // the in-flight case below so a tile appearing at the top of the
-        // grid can't queue up a page nobody needs yet. A tile of a grid
-        // that has been replaced since (a new search) asks nothing.
-        guard idx >= items.count - 12, items.indices.contains(idx), items[idx].id == id else { return }
+        // grid can't queue up a page nobody needs yet.
+        guard idx >= items.count - 12 else { return }
         // A page that failed waits for its retry (or Try again, or a wake),
         // not for the next tile drawn: the web's retryReady().
         guard pageProblem == nil else { return }
@@ -1304,6 +1412,203 @@ final class PhotoGalleryVM: ObservableObject {
         backOnline()
         pageRetry.reset()
         askForPages()
+    }
+
+    // MARK: Newer photos above a jump (issue #194)
+    //
+    // Only after a jump (a search started with `before`, in date order):
+    // as the grid's top comes near (a tile in the first 12, or the grey
+    // tiles kept for the top month's newer photos), the photos newer than
+    // the jump's cutoff, oldest first, put above the grid newest first.
+    // Never at the jump itself: the device runs a whole-library query to
+    // start an upward search. A page that fails is asked again (upRetry,
+    // as a later page's, at once on a wake or Try again) with the same
+    // token and `have`.
+
+    /// The grid wants the photos above it: after a jump, in date order,
+    /// once its first page is in and while there are more.
+    var upWanted: Bool {
+        !fixedList && jumpBefore != nil && chips.isEmpty && !upEnd && placeholderCount == nil && !items.isEmpty
+    }
+
+    /// A tile near the grid's top (at `idx`; below 0 for the grey tiles
+    /// over the first photo) came on screen: the next upward page, unless
+    /// one is on its way (then it is remembered) or failed (it waits for
+    /// its retry).
+    func loadNewerIfNeeded(at idx: Int) {
+        guard upWanted, upArmed, upProblem == nil, Date() >= upQuietUntil else { return }
+        guard !upLoading else {
+            upPendingAt = min(upPendingAt ?? idx, idx)
+            return
+        }
+        askForNewer()
+    }
+
+    /// The grid was scrolled up (the view saw its offset go up): the newer
+    /// photos may be asked for from now on, as the top comes near.
+    func armNewer() {
+        guard upWanted else { return }
+        upArmed = true
+    }
+
+    /// Try again at the top (and a wake): the upward page that failed,
+    /// asked for now with the same token and `have`.
+    func retryNewer() {
+        guard upWanted else { return }
+        upRetry.reset()
+        askForNewer()
+    }
+
+    @discardableResult
+    private func askForNewer() -> Task<Void, Never> {
+        let gen = searchGeneration
+        let t = Task { [weak self] in
+            guard let self, gen == self.searchGeneration else { return }
+            await self.fetchNewerUntilProgress()
+        }
+        upTask = t
+        return t
+    }
+
+    /// How many photos the upward search brought that the grid still has
+    /// (a delete lowers it).
+    private var upShown: Int { items.reduce(0) { $1.up ? $0 + 1 : $0 } }
+    /// Its `have`: those, and those it brought that show from the downward
+    /// search.
+    private var upHave: Int { upShown + upHidden }
+
+    /// The contents the grid shows (local files have none).
+    private func shownHashes() -> Set<String> {
+        Set(items.lazy.map(\.hash).filter { !$0.isEmpty })
+    }
+
+    /// Upward pages until one adds something, the top is reached, or (a
+    /// device starting the search over and over) a dozen added nothing.
+    private func fetchNewerUntilProgress() async {
+        let gen = searchGeneration
+        for _ in 0..<cMaxPagesWithoutProgress {
+            let before = upShown
+            guard case .loaded = await fetchNewerPage() else { return }
+            if gen != searchGeneration || upEnd || upShown > before { return }
+        }
+        newerFailed(.failed, generation: gen, noProgress: true)
+    }
+
+    private func newerFailed(_ problem: LoadProblem, generation gen: Int, noProgress: Bool = false) {
+        guard gen == searchGeneration else { return }
+        upProblem = problem
+        upRetry.failed(noProgress: noProgress) { [weak self] in
+            guard let self, gen == self.searchGeneration, self.upWanted else { return }
+            self.askForNewer()
+        }
+    }
+
+    /// Asks for the next upward page: SearchPhotos with the jump's filters
+    /// and newer_than its cutoff (on every page, retries too), upToken and
+    /// upHave - never `before`, never the downward token.
+    @discardableResult
+    private func fetchNewerPage() async -> PageOutcome {
+        guard upWanted, !upLoading, let cutoff = jumpBefore else { return .skipped }
+        let gen = searchGeneration
+        upLoading = true
+        var added = 0
+        defer {
+            if gen == searchGeneration {
+                upLoading = false
+                // A tile that asked meanwhile, if it is still near the top
+                // (the photos put above moved it down by `added`).
+                let at = upPendingAt
+                upPendingAt = nil
+                if let at, upWanted, upProblem == nil, at + added < 12 { askForNewer() }
+            }
+        }
+        var sp = SearchPhotosMsg()
+        sp.personIds = selectedPeople
+        sp.groupID = activeGroup?.id ?? ""
+        sp.includeVideos = true
+        sp.newerThan = SwiftProtobuf.Google_Protobuf_Timestamp(date: cutoff)
+        let tok = upToken
+        sp.token = tok
+        sp.limit = tok.isEmpty ? PhotoPageLimit.first(deviceOmits: thumbs.cache.deviceOmits) : PhotoPageLimit.next
+        sp.have = Int32(upHave)
+        sp.smallThumbnails = true
+        sp.omitThumbnails = true
+        var resp: Msg_RespEnvelope?
+        var failure: Error?
+        do {
+            resp = try await ask(.page, .reqSearchPhotos(sp), via: photoRequest)
+        } catch {
+            failure = error
+        }
+        guard gen == searchGeneration, !Task.isCancelled else { return .skipped }
+        // An error answer has no page: a failed page, never an old device.
+        guard let got = resp, case .respListOfFiles(let lof) = got.payload else {
+            let problem = problemOf(resp, failure)
+            print("[PhotoGallery] newer page failed (\(problem)): \(failure.map { "\($0)" } ?? resp?.errorMessage ?? "")")
+            newerFailed(problem, generation: gen)
+            return .failed
+        }
+        upRetry.reset()
+        upProblem = nil
+        let page = PhotoPaging.newer(files: lof.files, oldestFirst: lof.oldestFirst,
+                                     shownIDs: Set(items.map(\.id)), shownHashes: shownHashes())
+        guard case .files(let fresh) = page else {
+            // A device before #194: its newest photos, dropped; not asked
+            // again until the next sign-in.
+            support.newerThan = false
+            upEnd = true
+            return .loaded
+        }
+        let ids = fresh.map(PhotoPaging.itemID)
+        let keep = await thumbs.takePage(fresh, ids: ids)
+        guard gen == searchGeneration, !Task.isCancelled else { return .skipped }
+        let calendar = PhotoMonths.calendar()
+        // A downward page may have landed meanwhile.
+        let own = Set(items.lazy.filter(\.up).map(\.id))
+        let new: [Item] = PhotoPaging.notShown(fresh, shownIDs: Set(items.map(\.id)), shownHashes: shownHashes()).map { i in
+            let f = fresh[i]
+            return Item(
+                id: ids[i],
+                path: f.path,
+                mime: f.mime,
+                size: Int(f.fileSize),
+                thumbData: keep.indices.contains(i) ? keep[i] : nil,
+                localURL: nil,
+                isLocalOnly: false,
+                month: f.hasCreated ? PhotoMonths.key(for: f.created.date, calendar: calendar) : nil,
+                created: f.hasCreated ? f.created.date : nil,
+                hash: f.hash,
+                copies: f.hasCopies ? Int(f.copies) : nil,
+                up: true
+            )
+        }
+        upHidden += PhotoPaging.hidden(lof.files, own: own, added: new.count)
+        let ended = PhotoPaging.newerEnded(token: lof.token, files: lof.files.count)
+        // What is above the photos on the screen changes: photos put there,
+        // or the top month's grey tiles going (the top reached).
+        let changes = !new.isEmpty || (ended && items.first?.up == true)
+        if changes { willChangeAbove?() }
+        upToken = lof.token
+        if ended { upEnd = true }
+        if !new.isEmpty {
+            putAbove(new)
+            added = new.count
+        }
+        if changes {
+            aboveChanges &+= 1
+            if willChangeAbove != nil { upQuietUntil = Date() + 0.3 }
+        }
+        return .loaded
+    }
+
+    /// Photos put above the grid: what is kept by index moves down with
+    /// the photos it was on (the viewer's open photo, a page asked for),
+    /// and the lines of short months under them stay as they were.
+    private func putAbove(_ new: [Item]) {
+        if let top = items.first { upBreaks.insert(top.month ?? "-") }
+        items.insert(contentsOf: new, at: 0)
+        if let i = openIndex { openIndex = i + new.count }
+        if let m = morePendingAt { morePendingAt = m + new.count }
     }
 
     /// Pages in a task of the model's own (pageTask): a tile's task that
@@ -1457,7 +1762,10 @@ final class PhotoGalleryVM: ObservableObject {
         let people = selectedPeople
         let group = activeGroup?.id ?? ""
         let requestToken = token ?? ""
-        let have = items.count
+        // Issue #194: only what this (downward) search brought - not the
+        // photos put above a jump by the upward one - those it brought
+        // that show from the upward one included (downHidden).
+        let have = items.reduce(0) { $1.up || $1.isLocalOnly ? $0 : $0 + 1 } + downHidden
         let shown = Set(items.map(\.path))
         let cutoff = jumpBefore
         // What came instead of a page (nil: nothing came), and what was
@@ -1539,16 +1847,11 @@ final class PhotoGalleryVM: ObservableObject {
         }
 
         // Every entry is a photo of the grid, with its content or without
-        // (`have` counts them all); those it already has are left out.
-        let existing = Set(items.map(\.id))
-        var fresh: [Msg_File] = []
-        var ids: [String] = []
-        for f in lof.files {
-            let id = "\(f.path)#\(f.hash)#\(f.fileSize)"
-            guard !existing.contains(id) else { continue }
-            fresh.append(f)
-            ids.append(id)
-        }
+        // (`have` counts them all); those it already shows are left out -
+        // by content too (issue #194: one whose oldest copy changed can
+        // come from the upward search as well), as the upward pages are.
+        let fresh = PhotoPaging.notShown(lof.files, shownIDs: Set(items.map(\.id)), shownHashes: shownHashes()).map { lof.files[$0] }
+        let ids = fresh.map(PhotoPaging.itemID)
         // Content kept in the cache on this phone, the tiles that show
         // first decoded off the main thread before they draw (see
         // GridThumbCache), what the cache lacks asked for.
@@ -1556,8 +1859,11 @@ final class PhotoGalleryVM: ObservableObject {
         guard myGeneration == searchGeneration, !Task.isCancelled else { return .skipped }
         // Gregorian, in the viewer's time zone: the device's buckets'.
         let calendar = PhotoMonths.calendar()
-        let filtered = fresh.enumerated().map { i, f in
-            Item(
+        // An upward page may have landed meanwhile.
+        let own = Set(items.lazy.filter { !$0.up && !$0.isLocalOnly }.map(\.id))
+        let filtered = PhotoPaging.notShown(fresh, shownIDs: Set(items.map(\.id)), shownHashes: shownHashes()).map { i in
+            let f = fresh[i]
+            return Item(
                 id: ids[i],
                 path: f.path,
                 mime: f.mime,
@@ -1567,9 +1873,11 @@ final class PhotoGalleryVM: ObservableObject {
                 isLocalOnly: false,
                 month: f.hasCreated ? PhotoMonths.key(for: f.created.date, calendar: calendar) : nil,
                 created: f.hasCreated ? f.created.date : nil,
-                hash: f.hash
+                hash: f.hash,
+                copies: f.hasCopies ? Int(f.copies) : nil
             )
         }
+        downHidden += PhotoPaging.hidden(lof.files, own: own, added: filtered.count)
         if !filtered.isEmpty { items.append(contentsOf: filtered) }
 
         self.token = lof.token.isEmpty ? nil : lof.token
@@ -1892,15 +2200,25 @@ final class PhotoGalleryVM: ObservableObject {
         }
     }
 
-    // Issue #9: save the already-loaded (hi-res, or thumb as a fallback)
-    // image straight to the Photos library — no re-download, no zip.
-    func saveToPhotos(_ image: UIImage?) {
-        guard let image else {
-            notice = .notLoaded
-            showAlert = true
-            return
-        }
+    /// Issue #201: the viewer's Save is saving the original at this path:
+    /// its button shows a spinner ("Saving…") until it is done.
+    @Published private(set) var savingPath: String?
+
+    /// Issue #201: Save to Photos saves the original file - its own bytes,
+    /// so its date, place and content stay, and the next sync of the phone
+    /// finds the same content and links it, where a picture re-encoded
+    /// from the screen came back as a new photo dated today. Downloaded in
+    /// 4 MiB pieces (FileDownload, a HEIC's original too) to a temporary
+    /// file, added to the library as a photo or a video resource, dated as
+    /// Images dates it. Only if Photos refuses a photo's format is the
+    /// picture on screen saved instead (`fallback`), as before. Asks for
+    /// add-only access to the library, as before.
+    func saveOriginalToPhotos(fallback: @escaping @MainActor () async -> UIImage?) {
+        guard savingPath == nil, let i = openIndex, items.indices.contains(i) else { return }
+        let it = items[i]
+        savingPath = it.path
         Task {
+            defer { savingPath = nil }
             let current = PHPhotoLibrary.authorizationStatus(for: .addOnly)
             let status = current == .notDetermined
                 ? await PHPhotoLibrary.requestAuthorization(for: .addOnly)
@@ -1910,41 +2228,128 @@ final class PhotoGalleryVM: ObservableObject {
                 showAlert = true
                 return
             }
-            do {
-                try await PHPhotoLibrary.shared().performChanges {
-                    PHAssetChangeRequest.creationRequestForAsset(from: image)
+            let video = it.mime.hasPrefix("video/")
+            let name = Self.originalName(path: it.path, mime: it.mime)
+            var folder: URL?
+            defer { if let folder { try? FileManager.default.removeItem(at: folder) } }
+            let file: URL
+            if let local = it.localURL {
+                file = local
+            } else {
+                let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+                folder = dir
+                do {
+                    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                    file = dir.appendingPathComponent(name)
+                    try await FileDownload.download(path: it.path, mime: it.mime, to: file, original: true)
+                } catch {
+                    notice = .saveFailed(error)
+                    showAlert = true
+                    return
                 }
+            }
+            do {
+                try await Self.addToPhotos(file, video: video, created: it.created, name: name)
                 notice = .saved
             } catch {
-                notice = .saveFailed(error)
+                // A format Photos takes no original of: the picture shown.
+                if !video, let img = await fallback() {
+                    do {
+                        try await PHPhotoLibrary.shared().performChanges {
+                            PHAssetChangeRequest.creationRequestForAsset(from: img)
+                        }
+                        notice = .saved
+                    } catch {
+                        notice = .saveFailed(error)
+                    }
+                } else {
+                    notice = .saveFailed(error)
+                }
             }
             showAlert = true
         }
     }
 
+    /// The original's name in the library (and its temporary file's, whose
+    /// extension tells Photos the format): the file's own, given an
+    /// extension from its type when it has none.
+    nonisolated static func originalName(path: String, mime: String) -> String {
+        let leaf = (path as NSString).lastPathComponent
+        let base = leaf.isEmpty ? "photo" : leaf
+        guard (base as NSString).pathExtension.isEmpty else { return base }
+        switch mime.lowercased() {
+        case "image/jpeg": return base + ".jpg"
+        case "image/heic", "image/heif": return base + ".heic"
+        case "image/png": return base + ".png"
+        case "image/gif": return base + ".gif"
+        case "video/quicktime": return base + ".mov"
+        case "video/mp4", "video/x-m4v": return base + ".mp4"
+        default: return base
+        }
+    }
+
+    /// Adds the file at `url` to the photo library as it is: a photo or a
+    /// video, named `name`, taken at `created` when known.
+    nonisolated private static func addToPhotos(_ url: URL, video: Bool, created: Date?, name: String) async throws {
+        try await PHPhotoLibrary.shared().performChanges {
+            let request = PHAssetCreationRequest.forAsset()
+            let options = PHAssetResourceCreationOptions()
+            options.originalFilename = name
+            request.addResource(with: video ? .video : .photo, fileURL: url, options: options)
+            if let created { request.creationDate = created }
+        }
+    }
+
+    /// The photo at `path` at full resolution, if its full size is still
+    /// here: Save's fallback, for the photo it was tapped on.
+    func fullImage(of path: String) async -> UIImage? {
+        guard let src = hiResSource[path] else { return nil }
+        return await Task.detached(priority: .userInitiated) { () -> UIImage? in
+            switch src {
+            case .data(let d): return UIImage(data: d)
+            case .file(let u): return UIImage(contentsOfFile: u.path)
+            }
+        }.value
+    }
+
+    /// Issue #201: the open item's copies, for the viewer's Delete: how
+    /// many paths hold it when there is more than one, else nil (asked as
+    /// before).
+    var openCopies: Int? {
+        guard let i = openIndex, items.indices.contains(i), let n = items[i].copies, n > 1 else { return nil }
+        return n
+    }
+
     // Issue #9: delete the currently-open photo, iOS Photos app-style —
     // removes it from the server and advances to the next one (or closes
-    // the viewer if it was the last one left).
-    func deleteCurrentPhoto() {
+    // the viewer if it was the last one left). Issue #201: `everyCopy`
+    // deletes every copy of it (the question's "all"), and the content it
+    // was shown with goes along (DeleteCopies.request).
+    func deleteCurrentPhoto(everyCopy: Bool = false) {
         guard let idx = openIndex, items.indices.contains(idx) else { return }
         let item = items[idx]
         Task {
+            let outcome: DeleteCopies.Outcome
             do {
-                var del = Msg_DelFile()
-                del.path = item.path
-                let resp = try await photoRequest(.reqDelFile(del), nil)
-                if resp.error {
-                    notice = .deleteRefused(resp.errorMessage)
-                    showAlert = true
-                    return
-                }
+                let del = DeleteCopies.request(path: item.path, hash: item.hash, copies: item.copies, everyCopy: everyCopy)
+                outcome = DeleteCopies.outcome(try await photoRequest(.reqDelFile(del), nil))
             } catch {
                 notice = .deleteFailed(error)
                 showAlert = true
                 return
             }
+            if case .refused(let message, let reason) = outcome {
+                // Nothing was deleted: the device's words, the tile stays.
+                notice = .deleteRefused(message)
+                showAlert = true
+                if reason == .changed { contentChanged(item.path) }
+                return
+            }
 
-            items.remove(at: idx)
+            // Found again by its id: photos put above the grid meanwhile
+            // (issue #194) moved it.
+            guard let at = items.firstIndex(where: { $0.id == item.id }) else { return }
+            items.remove(at: at)
             selected.remove(item.path)
             // Nothing of it stays on the phone either.
             forgetThumbnails(of: [item])
@@ -1952,10 +2357,23 @@ final class PhotoGalleryVM: ObservableObject {
             countsChanged()
             if items.isEmpty {
                 closeModal()
-            } else {
-                let nextIdx = min(idx, items.count - 1)
-                open(index: nextIdx)
+            } else if openIndex != nil {
+                open(index: min(at, items.count - 1))
             }
+        }
+    }
+
+    /// Issue #201: a delete was refused because `path` holds other content
+    /// than was shown: the viewer closes (its photos are out of date), its
+    /// alert says why, and Images reads its search again (at the jump, if
+    /// there was one) - Files (the viewer's own list) its listing. The
+    /// same on the web and Android.
+    private func contentChanged(_ path: String) {
+        closeModal()
+        if fixedList {
+            onDeleted?(path)
+        } else {
+            reloadSearch()
         }
     }
 
@@ -2187,11 +2605,55 @@ final class PhotoGalleryVM: ObservableObject {
         return true
     }
 
+    /// Issue #201: picked photos the grid no longer holds - a jump or a
+    /// reload replaced it while the selection stayed - as they were last
+    /// shown: what their delete sends (the content they were shown with,
+    /// their copies) until the grid shows them again. A photo that
+    /// changed meanwhile is refused again ("changed") rather than deleted
+    /// unseen, as on the web.
+    private var pickedAway: [String: Item] = [:]
+
+    /// The grid is about to be replaced and the selection stays: the
+    /// picked photos it shows are remembered (pickedAway).
+    private func keepPicks() {
+        guard !selected.isEmpty else {
+            pickedAway = [:]
+            return
+        }
+        pickedAway = pickedAway.filter { selected.contains($0.key) }
+        for it in items where selected.contains(it.path) && !it.isLocalOnly { pickedAway[it.path] = it }
+    }
+
+    /// The picked photos by path: as the grid shows them now (a page that
+    /// brought one back after a reload: its content now), else as they
+    /// were last shown.
+    private func pickedItems() -> [String: Item] {
+        var picked: [String: Item] = [:]
+        for it in items where selected.contains(it.path) && picked[it.path] == nil { picked[it.path] = it }
+        for (path, it) in pickedAway where picked[path] == nil && selected.contains(path) { picked[path] = it }
+        return picked
+    }
+
+    /// Issue #201: what the selection bar's Delete asks - about the copies
+    /// when any of the picked photos has some - taken when it is tapped,
+    /// so the words don't change under the question.
+    @Published private(set) var deleteAsk: CopiesAsk = .plain
+
+    /// The selection bar's Delete: asks first (issue #45).
+    func askDeleteSelected() {
+        let picked = pickedItems()
+        deleteAsk = CopiesAsk.of(selected.map { picked[$0]?.copies })
+        confirmDeleteSelected = true
+    }
+
     // Issue #45: delete every currently-selected photo/video from the grid,
-    // mirroring deleteCurrentPhoto()'s single-item flow above.
-    func deleteSelected() {
+    // mirroring deleteCurrentPhoto()'s single-item flow above. Issue #201:
+    // `everyCopy` (the question's "every copy") deletes every copy of the
+    // picked photos that have other copies; the rest as before.
+    func deleteSelected(everyCopy: Bool = false) {
         let paths = Array(selected)
         guard !paths.isEmpty else { return }
+        let picked = pickedItems()
         Task {
             // Collect the successes and apply them as one batch at the end,
             // rather than mutating `items` (and so re-rendering the grid)
@@ -2203,29 +2665,43 @@ final class PhotoGalleryVM: ObservableObject {
             // deletes silently failed) until the view reloaded from the
             // server, even though every delete had actually succeeded.
             var deletedPaths = Set<String>()
+            // Those still there, and why: said once all are done (issue
+            // #201: one in the device's words, several summed up).
+            var kept: [DeleteCopies.Kept] = []
             for path in paths {
+                let it = picked[path]
+                let del = DeleteCopies.request(path: path, hash: it?.hash ?? "", copies: it?.copies, everyCopy: everyCopy)
                 do {
-                    var del = Msg_DelFile()
-                    del.path = path
-                    let resp = try await photoRequest(.reqDelFile(del), nil)
-                    if resp.error {
-                        notice = .deleteRefused(resp.errorMessage)
-                        showAlert = true
+                    let outcome = DeleteCopies.outcome(try await photoRequest(.reqDelFile(del), nil))
+                    if case .refused(let message, let reason) = outcome {
+                        kept.append(.refused(message, reason))
                         continue
                     }
                 } catch {
-                    notice = .deleteFailed(error)
-                    showAlert = true
+                    kept.append(.failed(error))
                     continue
                 }
                 deletedPaths.insert(path)
             }
             if !deletedPaths.isEmpty {
                 // Nothing of them stays on the phone either.
-                forgetThumbnails(of: items.filter { deletedPaths.contains($0.path) })
+                forgetThumbnails(of: items.filter { deletedPaths.contains($0.path) }
+                                 + pickedAway.values.filter { deletedPaths.contains($0.path) })
                 items.removeAll { deletedPaths.contains($0.path) }
                 selected.subtract(deletedPaths)
+                pickedAway = pickedAway.filter { !deletedPaths.contains($0.key) }
+                // The months' and the open collection's counts, whatever
+                // else happened.
                 countsChanged()
+            }
+            if !kept.isEmpty {
+                notice = .deletesKept(kept)
+                showAlert = true
+            }
+            // Something shown is out of date: the grid is read again, at
+            // the jump if there was one; what was refused stays picked.
+            if kept.contains(where: { if case .refused(_, .changed) = $0 { return true } else { return false } }) {
+                reloadSearch()
             }
         }
     }
@@ -2320,6 +2796,9 @@ enum GalleryNotice {
     case shareFailed(Error), saveFailed(Error), deleteFailed(Error), uploadFailed(Error), downloadFailed(Error)
     /// The device refused a delete: its own explanation.
     case deleteRefused(String)
+    /// Issue #201: a delete of several left some: each one's words, or
+    /// several summed up (DeleteCopies.keptText).
+    case deletesKept([DeleteCopies.Kept])
 
     var text: String {
         switch self {
@@ -2340,6 +2819,7 @@ enum GalleryNotice {
         case .uploadFailed(let e): return S.iosPhotosUploadFailed(detail: e.localizedDescription)
         case .downloadFailed(let e): return S.iosPhotosDownloadFailed(detail: e.localizedDescription)
         case .deleteRefused(let message): return S.appPhotosNoticeDeleteFailed(detail: message)
+        case .deletesKept(let kept): return DeleteCopies.keptText(kept) ?? ""
         }
     }
 }
@@ -2377,6 +2857,12 @@ struct PhotoGalleryView: View {
     @State private var gridWidth: CGFloat = 0
     /// The first photo of the row at the top of the grid (see widthChanged).
     @State private var scrollMemo = GridScrollMemo()
+    /// Issue #194: where the rows on the screen are, so that photos put
+    /// above them leave them where they are (GridAnchor).
+    @State private var anchor = GridAnchor()
+    /// The grid's first row is on the screen: the newer photos' status
+    /// shows over it.
+    @State private var atGridTop = false
     /// Issue #198: the date scrubber out at the screen's side when the
     /// grid stops short of it (a phone on its side): how far short it
     /// stops, and which way round the phone is turned - so which side its
@@ -2452,6 +2938,9 @@ struct PhotoGalleryView: View {
                             ForEach(layout.rows) { row in
                                 gridRow(row, layout: layout)
                                     .padding(.top, row.top)
+                                    // Issue #194: where it is on the screen.
+                                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .scrollView) } action: { anchor.record(row.id, $0) }
+                                    .onDisappear { anchor.gone(row.id) }
                             }
                         }
                         .scrollTargetLayout()
@@ -2465,6 +2954,41 @@ struct PhotoGalleryView: View {
                     }
                     .padding(.horizontal, layout.metrics.pad)
                     .padding(.bottom, 8)
+                }
+                // Issue #194: scrolled up (not at the jump, which lands at the
+                // top): the newer photos above may come.
+                .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { old, new in
+                    guard PhotoPaging.scrolledUp(from: old, to: new), !vm.upEnd, !vm.upArmed else { return }
+                    vm.armNewer()
+                    newerIfNearTop()
+                }
+                // Where its rows show.
+                .onScrollGeometryChange(for: GridAnchor.Viewport.self) { g in
+                    GridAnchor.Viewport(height: g.containerSize.height, top: g.contentInsets.top, bottom: g.contentInsets.bottom)
+                } action: { _, v in anchor.viewport = v }
+                // Issue #194: photos put above the grid - the row that was
+                // at the top of the screen goes back where it was.
+                .onChange(of: vm.aboveChanges) { _, _ in
+                    if let kept = anchor.taken() {
+                        proxy.scrollTo(kept.id, anchor: kept.unitPoint)
+                    }
+                    // Still near the top once that is done (the top month's
+                    // grey tiles on the screen): the next page.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { newerIfNearTop() }
+                }
+                .onAppear {
+                    vm.willChangeAbove = { [anchor, vm] in
+                        let now = vm.gridLayout(metrics)
+                        anchor.take(first: now.rows.first?.id, grows: now.metrics.lineGap - now.metrics.top)
+                    }
+                }
+                // The newer photos on their way, or that they failed (with
+                // Try again), over the grid's first row - laid over it, so
+                // nothing under it moves.
+                .overlay(alignment: .top) {
+                    if atGridTop && layout.placeholder == .none {
+                        newerStatus.padding(.top, 8)
+                    }
                 }
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { w in
                     widthChanged(to: w, proxy: proxy)
@@ -2490,6 +3014,9 @@ struct PhotoGalleryView: View {
                 // in state: nothing needs drawing again for it.
                 .onScrollTargetVisibilityChange(idType: String.self, threshold: 0.5) { ids in
                     scrollMemo.visible(ids)
+                    let top = layout.rows.first.map { ids.contains($0.id) } ?? false
+                    if top != atGridTop { atGridTop = top }
+                    newerIfNearTop()
                 }
                 // The first page is slow to come (a slow link, a busy
                 // device): over the grey tiles, that it is still on its way.
@@ -2524,7 +3051,7 @@ struct PhotoGalleryView: View {
                         busy: vm.preparing,
                         onShare: vm.shareSelected,
                         onDownload: vm.downloadZip,
-                        onDelete: { vm.confirmDeleteSelected = true },
+                        onDelete: { vm.askDeleteSelected() },
                         onGroup: {
                             Task { await vm.loadGroups() }
                             vm.showGroupPicker = true
@@ -2666,8 +3193,17 @@ struct PhotoGalleryView: View {
             isPresented: $vm.confirmDeleteSelected,
             titleVisibility: .visible
         ) {
-            Button(S.commonDelete, role: .destructive, action: vm.deleteSelected)
+            // Issue #201: picked photos held at several paths - only the
+            // copies shown, or every copy.
+            if let only = vm.deleteAsk.onlyShown, let every = vm.deleteAsk.everyCopy {
+                Button(only, role: .destructive) { vm.deleteSelected() }
+                Button(every, role: .destructive) { vm.deleteSelected(everyCopy: true) }
+            } else {
+                Button(S.commonDelete, role: .destructive) { vm.deleteSelected() }
+            }
             Button(S.commonCancel, role: .cancel) {}
+        } message: {
+            if let text = vm.deleteAsk.text { Text(text) }
         }
         .alert(vm.notice?.text ?? "", isPresented: $vm.showAlert) { Button(S.commonOk, role: .cancel) {} }
         // Presented once and left up while paging: the previous sheet was
@@ -2681,14 +3217,20 @@ struct PhotoGalleryView: View {
             ImageModal(
                 vm: vm,
                 save: {
+                    // Issue #201: the original; the picture shown only if
+                    // Photos refuses its format.
+                    let path = vm.openPath
                     let fallback = vm.openIndex.flatMap { idxFromThumb($0) }
-                    Task { vm.saveToPhotos(await vm.fullImageForOpen() ?? fallback) }
+                    vm.saveOriginalToPhotos {
+                        guard let path else { return fallback }
+                        return await vm.fullImage(of: path) ?? fallback
+                    }
                 },
                 share: {
                     let fallback = vm.openIndex.flatMap { idxFromThumb($0) }
                     Task { vm.shareCurrentPhoto(await vm.fullImageForOpen() ?? fallback) }
                 },
-                delete: { vm.deleteCurrentPhoto() }
+                delete: { vm.deleteCurrentPhoto(everyCopy: $0) }
             )
         }
     }
@@ -2710,7 +3252,7 @@ struct PhotoGalleryView: View {
         gridWidth = width
         let after = metrics
         guard before.cols != after.cols || abs(before.tile - after.tile) > 0.5,
-              let item = scrollMemo.topItem, item > 0 else { return }
+              let item = vm.gridLayout(before).topItem(ofRows: scrollMemo.rows), item > 0 else { return }
         scrollMemo.restoring = true
         // Once the rows at the new width are there.
         DispatchQueue.main.async {
@@ -2739,6 +3281,15 @@ struct PhotoGalleryView: View {
             moved: { vm.dragSelect(to: frames.item(at: $0)) },
             ended: { vm.endDragSelect() }
         )
+    }
+
+    /// Issue #194: the rows on the screen are near the grid's top (their
+    /// first photo among the first 12, or the top month's grey tiles):
+    /// the newer photos above them are asked for - as the user scrolls up,
+    /// and again once a page put above has settled while they stay there.
+    private func newerIfNearTop() {
+        guard !vm.upEnd, let top = vm.gridLayout(metrics).topItem(ofRows: scrollMemo.rows), top < 12 else { return }
+        vm.loadNewerIfNeeded(at: top)
     }
 
     /// How much of the grid's bottom the selection bar covers.
@@ -2791,21 +3342,31 @@ struct PhotoGalleryView: View {
             // Its thumbnail asked for first while it shows (GridThumbLoader).
             .onAppear { vm.tileShown(i) }
             .onDisappear { vm.tileHidden(it) }
+            // Named by its photo: where another photo comes to this place
+            // (a delete before it), the tile is a new one, whose tasks run.
+            .id(it.id)
         } else {
-            // The first page on its way, or the scrubber's month. Grey
-            // tiles say nothing to VoiceOver but, once, that photos are on
-            // their way (the web's aria-busy "Loading photos", Android's
-            // PHOTOS_LOADING).
+            // The first page on its way, the scrubber's month, or (issue
+            // #194) the top month's newer photos on their way above a
+            // jump. Grey tiles say nothing to VoiceOver but, once, that
+            // photos are on their way (the web's aria-busy "Loading
+            // photos", Android's PHOTOS_LOADING).
             let grey = RoundedRectangle(cornerRadius: PhotoTile.corner)
                 .fill(Color(.secondarySystemFill))
                 .frame(width: side, height: side)
-            if i == 0 {
-                grey
-                    .accessibilityElement()
-                    .accessibilityLabel(LoadProblem.photosLoading)
-                    .accessibilityAddTraits(.updatesFrequently)
-            } else {
-                grey.accessibilityHidden(true)
+            Group {
+                if i == layout.firstSlot {
+                    grey
+                        .accessibilityElement()
+                        .accessibilityLabel(LoadProblem.photosLoading)
+                        .accessibilityAddTraits(.updatesFrequently)
+                } else {
+                    grey.accessibilityHidden(true)
+                }
+            }
+            // The top month's grey tiles on screen ask for its photos.
+            .task {
+                if layout.placeholder == .none { vm.loadNewerIfNeeded(at: i) }
             }
         }
     }
@@ -3064,6 +3625,25 @@ struct PhotoGalleryView: View {
             ProgressView().frame(height: 60)
         } else if vm.pageProblem != nil {
             MorePhotosProblem(retry: vm.retryPage)
+        }
+    }
+
+    /// Issue #194: the top of the grid after a jump - where the newer
+    /// photos show they are coming, or that they failed, with its Try
+    /// again (they are asked again meanwhile): a later page's treatment, on
+    /// a bar of its own.
+    @ViewBuilder
+    private var newerStatus: some View {
+        if vm.upProblem != nil {
+            MorePhotosProblem(retry: vm.retryNewer)
+                .frame(minHeight: 44)
+                .fixedSize(horizontal: false, vertical: true)
+                .background(.regularMaterial, in: Capsule())
+                .padding(.horizontal, 16)
+        } else if vm.upLoading {
+            ProgressView()
+                .padding(10)
+                .background(.regularMaterial, in: Circle())
         }
     }
 
@@ -3349,18 +3929,72 @@ private struct PersonHeader: View {
     }
 }
 
-/// The first photo of the row at the top of the grid, as it scrolls: where
-/// the grid goes back to when its width changes. A plain object, so that
-/// scrolling changes no state and draws nothing again.
+/// Issue #194: where the grid's rows on the screen are (their frames in the
+/// scroll view, as they are drawn), so that photos put above them leave the
+/// one at the top where it was: noted right before (take), and scrolled
+/// back to by its name right after (PhotoGalleryView). A plain object, so
+/// scrolling draws nothing again.
+final class GridAnchor {
+    /// The scroll view's height - what scrollTo lines rows up in, the part
+    /// under the tab bar included - and its insets: a row only under them
+    /// isn't on the screen.
+    struct Viewport: Equatable {
+        var height: CGFloat = 0
+        var top: CGFloat = 0
+        var bottom: CGFloat = 0
+    }
+    private var rows: [String: CGRect] = [:]
+    var viewport = Viewport()
+    private var kept: (id: String, unitPoint: UnitPoint)?
+
+    func record(_ id: String, _ frame: CGRect) { rows[id] = frame }
+    func gone(_ id: String) { rows[id] = nil }
+
+    /// Notes the row at the top of the screen and how far it is from the
+    /// screen's top: where it goes back to. The grid's first row (`first`)
+    /// gets `grows` more room above it once rows are put above it (a line's
+    /// gap, not the grid's top): it goes back that much higher, so its
+    /// photos stay where they were.
+    func take(first: String?, grows: CGFloat) {
+        let v = viewport
+        let shown = rows.filter { $0.value.maxY > v.top + 0.5 && $0.value.minY < v.height - v.bottom }
+        guard let top = shown.min(by: { $0.value.minY < $1.value.minY }) else {
+            kept = nil
+            return
+        }
+        let extra = top.key == first ? grows : 0
+        kept = (top.key, Self.unitPoint(y: top.value.minY - extra, rowHeight: top.value.height + extra, height: v.height))
+    }
+
+    /// The row noted, and where it goes (once).
+    func taken() -> (id: String, unitPoint: UnitPoint)? {
+        defer { kept = nil }
+        return kept
+    }
+
+    /// The anchor that puts a row `rowHeight` tall at `y` from the top of a
+    /// scroll view `height` tall: scrollTo lines up the row's point at this
+    /// fraction of its height with the same fraction of the view's.
+    static func unitPoint(y: CGFloat, rowHeight: CGFloat, height: CGFloat) -> UnitPoint {
+        let room = height - rowHeight
+        guard abs(room) > 1 else { return .top }
+        return UnitPoint(x: 0, y: y / room)
+    }
+}
+
+/// The rows on the screen, as the grid scrolls: where the grid goes back
+/// to when its width changes (their first photo, PhotoGridLayout.topItem).
+/// A plain object, so that scrolling changes no state and draws nothing
+/// again.
 final class GridScrollMemo {
-    private(set) var topItem: Int?
+    private(set) var rows: [String] = []
     /// While the grid is being brought back: the rows seen meanwhile are
     /// the new width's at the old offset, not where the user was.
     var restoring = false
 
     func visible(_ ids: [String]) {
         guard !restoring else { return }
-        topItem = ids.compactMap(PhotoGridLayout.firstItem(ofRowID:)).min()
+        rows = ids
     }
 }
 
@@ -3480,13 +4114,17 @@ struct ImageModal: View {
     @ObservedObject var vm: PhotoGalleryVM
     let save: () -> Void
     let share: () -> Void
-    let delete: () -> Void
+    /// Delete the open item: true for every copy of it (issue #201).
+    let delete: (Bool) -> Void
 
     @State private var confirmDelete = false
     /// The item Delete asks about is a video: the question says so (the
     /// web's delete_video_title). Taken when Delete is tapped, so the words
     /// don't change under the question.
     @State private var confirmDeleteVideo = false
+    /// Issue #201: the item Delete asks about is held at this many paths
+    /// (more than one): only this copy, or all of them. Taken with it.
+    @State private var confirmCopies: Int?
     // The strip's horizontal offset while a finger drags it or it animates
     // to the neighbour; zero when at rest on the open photo.
     @State private var dragOffset: CGFloat = 0
@@ -3550,8 +4188,16 @@ struct ImageModal: View {
             }
         }
         .confirmationDialog(Self.deleteTitle(video: confirmDeleteVideo), isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button(Self.deleteButton(video: confirmDeleteVideo), role: .destructive, action: delete)
+            let ask = confirmCopies.map { CopiesAsk.one(count: $0) } ?? .plain
+            if let only = ask.onlyShown, let all = ask.everyCopy {
+                Button(only, role: .destructive) { delete(false) }
+                Button(all, role: .destructive) { delete(true) }
+            } else {
+                Button(Self.deleteButton(video: confirmDeleteVideo), role: .destructive) { delete(false) }
+            }
             Button(S.commonCancel, role: .cancel) {}
+        } message: {
+            if let n = confirmCopies, let text = CopiesAsk.one(count: n).text { Text(text) }
         }
         // Nested here rather than on PhotoGalleryView: a second sheet on the
         // presenting view can't show while this cover is up.
@@ -3626,12 +4272,24 @@ struct ImageModal: View {
                 Image(systemName: "square.and.arrow.up").frame(width: side, height: side).contentShape(Rectangle())
             }
             .accessibilityLabel(S.commonShare)
+            // Issue #201: a spinner while the original downloads and is
+            // saved.
+            let saving = vm.savingPath != nil && vm.savingPath == vm.openPath
             Button { save() } label: {
-                Image(systemName: "arrow.down.circle").frame(width: side, height: side).contentShape(Rectangle())
+                Group {
+                    if saving {
+                        ProgressView().tint(.white)
+                    } else {
+                        Image(systemName: "arrow.down.circle")
+                    }
+                }
+                .frame(width: side, height: side).contentShape(Rectangle())
             }
-            .accessibilityLabel(S.commonSave)
+            .disabled(vm.savingPath != nil)
+            .accessibilityLabel(saving ? S.appPhotosViewerSaving : S.commonSave)
             Button(role: .destructive) {
                 confirmDeleteVideo = vm.openIndex.map { vm.items.indices.contains($0) && vm.items[$0].mime.hasPrefix("video/") } ?? false
+                confirmCopies = vm.openCopies
                 confirmDelete = true
             } label: {
                 Image(systemName: "trash").frame(width: side, height: side).contentShape(Rectangle())

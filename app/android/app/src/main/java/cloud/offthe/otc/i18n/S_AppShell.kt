@@ -266,7 +266,7 @@ fun S.appShellProblemFilesSlow(): UiText =
 fun S.appShellProblemFilesUnreachable(): UiText =
     UiText.Res(R.string.app_shell_problem_files_unreachable)
 
-/** "Couldn't load more photos.": Row at the end of the grid in Images when the next photos couldn't be loaded; a Try again button follows. */
+/** "Couldn't load more photos.": Row at the end of the grid in Images, or at the top after jumping to a date, when the next photos couldn't be loaded; a Try again button follows. */
 fun S.appShellProblemMorePhotos(): UiText =
     UiText.Res(R.string.app_shell_problem_more_photos)
 

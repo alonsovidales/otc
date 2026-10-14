@@ -34,6 +34,24 @@
   "web.images.collections.slow": "Le tue raccolte stanno impiegando più del solito a caricarsi.",
   "web.images.collections.title": "Raccolte",
   "web.images.collections.untitled": "Raccolta senza nome",
+  "web.images.copies.all": {
+    "one": "Elimina tutte le {count} copie",
+    "other": "Elimina tutte le {count} copie",
+    "arg": "count"
+  },
+  "web.images.copies.every": "Elimina tutte le copie",
+  "web.images.copies.only_these": "Elimina solo queste copie",
+  "web.images.copies.only_this": "Elimina solo questa copia",
+  "web.images.copies.several_text": {
+    "one": "{count} elemento della selezione ha anche copie altrove sul tuo dispositivo. Eliminare solo queste copie o tutte le copie? L’operazione non può essere annullata.",
+    "other": "{count} elementi della selezione hanno anche copie altrove sul tuo dispositivo. Eliminare solo queste copie o tutte le copie? L’operazione non può essere annullata.",
+    "arg": "count"
+  },
+  "web.images.copies.single_text": {
+    "one": "Sul tuo dispositivo ce ne sono {count} copie. Eliminare solo questa copia o tutte? L’operazione non può essere annullata.",
+    "other": "Sul tuo dispositivo ce ne sono {count} copie. Eliminare solo questa copia o tutte? L’operazione non può essere annullata.",
+    "arg": "count"
+  },
   "web.images.count.items": {
     "one": "{count} elemento",
     "other": "{count} elementi",
@@ -57,6 +75,16 @@
   "web.images.crop.unsupported": "Questa immagine non si può aprire qui: prova con un JPEG o un PNG.",
   "web.images.crop.use": "Usa foto",
   "web.images.crop.zoom": "Zoom",
+  "web.images.delete.changed": {
+    "one": "{count} elemento è cambiato sul tuo dispositivo da quando è stato mostrato, quindi non è stato eliminato. Controllalo e riprova.",
+    "other": "{count} elementi sono cambiati sul tuo dispositivo da quando sono stati mostrati, quindi non sono stati eliminati. Controllali e riprova.",
+    "arg": "count"
+  },
+  "web.images.delete.copy_upload_only": {
+    "one": "{count} elemento non è stato eliminato: una sua copia si trova in una cartella in solo caricamento",
+    "other": "{count} elementi non sono stati eliminati: hanno copie in una cartella in solo caricamento",
+    "arg": "count"
+  },
   "web.images.delete.done": "Hai eliminato {what}",
   "web.images.delete.failed": {
     "one": "Impossibile eliminare {count} elemento. Riprova.",

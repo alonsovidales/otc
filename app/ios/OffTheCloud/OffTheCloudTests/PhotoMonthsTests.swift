@@ -282,7 +282,7 @@ struct PhotoGridLayoutTests {
         let b = PhotoGridLayout.build(months: more, ids: ids(more.count), dated: true, lastRoom: 9, metrics: phone)
         // Every row there was is still there, under the same id.
         #expect(Set(a.rows.map(\.id)).isSubset(of: Set(b.rows.map(\.id))))
-        #expect(PhotoGridLayout.firstItem(ofRowID: b.rows[5].id) == 7)
+        #expect(b.topItem(ofRows: [b.rows[5].id]) == 7)
     }
 
     @Test func scrollingBackToAPhotoFindsItsRow() {

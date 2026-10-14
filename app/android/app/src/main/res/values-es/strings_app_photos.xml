@@ -25,6 +25,24 @@
     </plurals>
     <string name="app_photos_collections_rename">Renombrar colección</string>
     <string name="app_photos_collections_sheet_empty">Aún no hay colecciones: selecciona algunas fotos y elige “Añadir a una colección”.</string>
+    <plurals name="app_photos_copies_all">
+        <item quantity="one">Eliminar las %1$s copias</item>
+        <item quantity="many">Eliminar las %1$s copias</item>
+        <item quantity="other">Eliminar las %1$s copias</item>
+    </plurals>
+    <string name="app_photos_copies_every">Eliminar todas las copias</string>
+    <string name="app_photos_copies_only_these">Eliminar solo estas copias</string>
+    <string name="app_photos_copies_only_this">Eliminar solo esta copia</string>
+    <plurals name="app_photos_copies_several_text">
+        <item quantity="one">%1$s de la selección también tiene copias en otros lugares de tu dispositivo. ¿Eliminar solo estas copias o todas sus copias? Esto no se puede deshacer.</item>
+        <item quantity="many">%1$s de la selección también tienen copias en otros lugares de tu dispositivo. ¿Eliminar solo estas copias o todas sus copias? Esto no se puede deshacer.</item>
+        <item quantity="other">%1$s de la selección también tienen copias en otros lugares de tu dispositivo. ¿Eliminar solo estas copias o todas sus copias? Esto no se puede deshacer.</item>
+    </plurals>
+    <plurals name="app_photos_copies_single_text">
+        <item quantity="one">Hay %1$s copias en tu dispositivo. ¿Eliminar solo esta copia o todas? Esto no se puede deshacer.</item>
+        <item quantity="many">Hay %1$s copias en tu dispositivo. ¿Eliminar solo esta copia o todas? Esto no se puede deshacer.</item>
+        <item quantity="other">Hay %1$s copias en tu dispositivo. ¿Eliminar solo esta copia o todas? Esto no se puede deshacer.</item>
+    </plurals>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s elemento · %2$s</item>
         <item quantity="many">%1$s elementos · %2$s</item>
@@ -86,7 +104,17 @@
     <string name="app_photos_notice_added">Se han añadido a la colección “\u2068%1$s\u2069”.</string>
     <string name="app_photos_notice_create_failed">No se ha podido crear la colección.</string>
     <string name="app_photos_notice_created">Se ha creado la colección “\u2068%1$s\u2069”.</string>
+    <plurals name="app_photos_notice_delete_changed">
+        <item quantity="one">%1$s elemento ha cambiado en tu dispositivo desde que se mostró, así que no se ha eliminado. Revísalo y vuelve a intentarlo.</item>
+        <item quantity="many">%1$s elementos han cambiado en tu dispositivo desde que se mostraron, así que no se han eliminado. Revísalos y vuelve a intentarlo.</item>
+        <item quantity="other">%1$s elementos han cambiado en tu dispositivo desde que se mostraron, así que no se han eliminado. Revísalos y vuelve a intentarlo.</item>
+    </plurals>
     <string name="app_photos_notice_delete_collection_failed">No se ha podido eliminar la colección.</string>
+    <plurals name="app_photos_notice_delete_copy_upload_only">
+        <item quantity="one">%1$s elemento no se ha eliminado: tiene una copia en una carpeta de solo subida</item>
+        <item quantity="many">%1$s elementos no se han eliminado: tienen copias en una carpeta de solo subida</item>
+        <item quantity="other">%1$s elementos no se han eliminado: tienen copias en una carpeta de solo subida</item>
+    </plurals>
     <string name="app_photos_notice_delete_failed">No se ha podido eliminar: %1$s</string>
     <string name="app_photos_notice_no_download_link">No se ha podido crear el enlace de descarga.</string>
     <string name="app_photos_notice_no_share_link">No se ha podido crear el enlace para compartir.</string>
@@ -203,4 +231,5 @@
     <string name="app_photos_viewer_info_title">Más información</string>
     <string name="app_photos_viewer_low_res">Baja calidad</string>
     <string name="app_photos_viewer_more_info">Más información</string>
+    <string name="app_photos_viewer_saving">Guardando…</string>
 </resources>

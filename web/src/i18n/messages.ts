@@ -101,6 +101,7 @@ export type MessageKey =
   | "web.files.column.created"
   | "web.files.column.modified"
   | "web.files.column.name"
+  | "web.files.column.share"
   | "web.files.column.size"
   | "web.files.gallery.cant_show"
   | "web.files.gallery.download_all"
@@ -222,6 +223,7 @@ export type MessageKey =
   | "web.files.toolbar.grid"
   | "web.files.toolbar.list"
   | "web.files.toolbar.path"
+  | "web.files.toolbar.storage"
   | "web.files.toolbar.view"
   | "web.files.upload.done"
   | "web.files.upload.failed"
@@ -230,6 +232,14 @@ export type MessageKey =
   | "web.files.upload.reading"
   | "web.files.upload.uploaded"
   | "web.files.upload.uploading"
+  | "web.files.usage.empty"
+  | "web.files.usage.failed"
+  | "web.files.usage.needs_update"
+  | "web.files.usage.note"
+  | "web.files.usage.row_label"
+  | "web.files.usage.share_small"
+  | "web.files.usage.total"
+  | "web.files.usage.versions"
   | "web.files.versions.count"
   | "web.files.versions.current"
   | "web.files.versions.hint"
@@ -266,6 +276,12 @@ export type MessageKey =
   | "web.images.collections.slow"
   | "web.images.collections.title"
   | "web.images.collections.untitled"
+  | "web.images.copies.all"
+  | "web.images.copies.every"
+  | "web.images.copies.only_these"
+  | "web.images.copies.only_this"
+  | "web.images.copies.several_text"
+  | "web.images.copies.single_text"
   | "web.images.count.items"
   | "web.images.count.photos"
   | "web.images.count.photos_and_videos"
@@ -277,6 +293,8 @@ export type MessageKey =
   | "web.images.crop.unsupported"
   | "web.images.crop.use"
   | "web.images.crop.zoom"
+  | "web.images.delete.changed"
+  | "web.images.delete.copy_upload_only"
   | "web.images.delete.done"
   | "web.images.delete.failed"
   | "web.images.delete.progress"
@@ -961,6 +979,7 @@ export interface MessageArgs {
   "web.files.column.created": undefined;
   "web.files.column.modified": undefined;
   "web.files.column.name": undefined;
+  "web.files.column.share": undefined;
   "web.files.column.size": undefined;
   "web.files.gallery.cant_show": undefined;
   "web.files.gallery.download_all": undefined;
@@ -1087,6 +1106,7 @@ export interface MessageArgs {
   "web.files.toolbar.grid": undefined;
   "web.files.toolbar.list": undefined;
   "web.files.toolbar.path": undefined;
+  "web.files.toolbar.storage": undefined;
   "web.files.toolbar.view": undefined;
   "web.files.upload.done": undefined;
   "web.files.upload.failed": undefined;
@@ -1095,6 +1115,14 @@ export interface MessageArgs {
   "web.files.upload.reading": undefined;
   "web.files.upload.uploaded": { count: number };
   "web.files.upload.uploading": undefined;
+  "web.files.usage.empty": undefined;
+  "web.files.usage.failed": undefined;
+  "web.files.usage.needs_update": undefined;
+  "web.files.usage.note": undefined;
+  "web.files.usage.row_label": { name: string; size: string; share: string };
+  "web.files.usage.share_small": undefined;
+  "web.files.usage.total": { size: string; count: number };
+  "web.files.usage.versions": { size: string };
   "web.files.versions.count": { count: number };
   "web.files.versions.current": undefined;
   "web.files.versions.hint": undefined;
@@ -1132,6 +1160,12 @@ export interface MessageArgs {
   "web.images.collections.slow": undefined;
   "web.images.collections.title": undefined;
   "web.images.collections.untitled": undefined;
+  "web.images.copies.all": { count: number };
+  "web.images.copies.every": undefined;
+  "web.images.copies.only_these": undefined;
+  "web.images.copies.only_this": undefined;
+  "web.images.copies.several_text": { count: number };
+  "web.images.copies.single_text": { count: number };
   "web.images.count.items": { count: number };
   "web.images.count.photos": { count: number };
   "web.images.count.photos_and_videos": { photos: string; videos: string };
@@ -1143,6 +1177,8 @@ export interface MessageArgs {
   "web.images.crop.unsupported": undefined;
   "web.images.crop.use": undefined;
   "web.images.crop.zoom": undefined;
+  "web.images.delete.changed": { count: number };
+  "web.images.delete.copy_upload_only": { count: number };
   "web.images.delete.done": { what: string };
   "web.images.delete.failed": { count: number };
   "web.images.delete.progress": { done: number; total: number };

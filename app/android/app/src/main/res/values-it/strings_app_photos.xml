@@ -25,6 +25,24 @@
     </plurals>
     <string name="app_photos_collections_rename">Rinomina raccolta</string>
     <string name="app_photos_collections_sheet_empty">Non ci sono ancora raccolte: seleziona alcune foto e scegli “Aggiungi a una raccolta”.</string>
+    <plurals name="app_photos_copies_all">
+        <item quantity="one">Elimina tutte le %1$s copie</item>
+        <item quantity="many">Elimina tutte le %1$s copie</item>
+        <item quantity="other">Elimina tutte le %1$s copie</item>
+    </plurals>
+    <string name="app_photos_copies_every">Elimina tutte le copie</string>
+    <string name="app_photos_copies_only_these">Elimina solo queste copie</string>
+    <string name="app_photos_copies_only_this">Elimina solo questa copia</string>
+    <plurals name="app_photos_copies_several_text">
+        <item quantity="one">%1$s elemento della selezione ha anche copie altrove sul tuo dispositivo. Eliminare solo queste copie o tutte le copie? L’operazione non può essere annullata.</item>
+        <item quantity="many">%1$s elementi della selezione hanno anche copie altrove sul tuo dispositivo. Eliminare solo queste copie o tutte le copie? L’operazione non può essere annullata.</item>
+        <item quantity="other">%1$s elementi della selezione hanno anche copie altrove sul tuo dispositivo. Eliminare solo queste copie o tutte le copie? L’operazione non può essere annullata.</item>
+    </plurals>
+    <plurals name="app_photos_copies_single_text">
+        <item quantity="one">Sul tuo dispositivo ce ne sono %1$s copie. Eliminare solo questa copia o tutte? L’operazione non può essere annullata.</item>
+        <item quantity="many">Sul tuo dispositivo ce ne sono %1$s copie. Eliminare solo questa copia o tutte? L’operazione non può essere annullata.</item>
+        <item quantity="other">Sul tuo dispositivo ce ne sono %1$s copie. Eliminare solo questa copia o tutte? L’operazione non può essere annullata.</item>
+    </plurals>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s elemento · %2$s</item>
         <item quantity="many">%1$s elementi · %2$s</item>
@@ -86,7 +104,17 @@
     <string name="app_photos_notice_added">Selezione aggiunta alla raccolta “\u2068%1$s\u2069”.</string>
     <string name="app_photos_notice_create_failed">Impossibile creare la raccolta.</string>
     <string name="app_photos_notice_created">Raccolta “\u2068%1$s\u2069” creata.</string>
+    <plurals name="app_photos_notice_delete_changed">
+        <item quantity="one">%1$s elemento è cambiato sul tuo dispositivo da quando è stato mostrato, quindi non è stato eliminato. Controllalo e riprova.</item>
+        <item quantity="many">%1$s elementi sono cambiati sul tuo dispositivo da quando sono stati mostrati, quindi non sono stati eliminati. Controllali e riprova.</item>
+        <item quantity="other">%1$s elementi sono cambiati sul tuo dispositivo da quando sono stati mostrati, quindi non sono stati eliminati. Controllali e riprova.</item>
+    </plurals>
     <string name="app_photos_notice_delete_collection_failed">Impossibile eliminare la raccolta.</string>
+    <plurals name="app_photos_notice_delete_copy_upload_only">
+        <item quantity="one">%1$s elemento non è stato eliminato: una sua copia si trova in una cartella in solo caricamento</item>
+        <item quantity="many">%1$s elementi non sono stati eliminati: hanno copie in una cartella in solo caricamento</item>
+        <item quantity="other">%1$s elementi non sono stati eliminati: hanno copie in una cartella in solo caricamento</item>
+    </plurals>
     <string name="app_photos_notice_delete_failed">Eliminazione non riuscita: %1$s</string>
     <string name="app_photos_notice_no_download_link">Impossibile creare il link di download.</string>
     <string name="app_photos_notice_no_share_link">Impossibile creare il link di condivisione.</string>
@@ -203,4 +231,5 @@
     <string name="app_photos_viewer_info_title">Altre informazioni</string>
     <string name="app_photos_viewer_low_res">Anteprima</string>
     <string name="app_photos_viewer_more_info">Altre informazioni</string>
+    <string name="app_photos_viewer_saving">Salvataggio…</string>
 </resources>

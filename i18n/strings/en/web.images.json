@@ -150,6 +150,58 @@
     "note": "Shown on the Collections page for a collection without a name.",
     "max": 32
   },
+  "web.images.copies.all": {
+    "text": {
+      "one": "Delete all {count} copies",
+      "other": "Delete all {count} copies"
+    },
+    "args": [["count", "count"]],
+    "note": "Button of the confirmation web.images.copies.single_text: deletes every copy of the photo or video from the device, in every folder (also from computers and phones that sync those folders). {count} is how many copies: always 2 or more, so both forms are the plural.",
+    "max": 40,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-14 #f84a1851"
+  },
+  "web.images.copies.every": {
+    "text": "Delete every copy",
+    "note": "Button of the confirmation web.images.copies.several_text: deletes the selected photos and videos and every other copy of them on the device, in every folder (also from computers and phones that sync those folders).",
+    "max": 40,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-14 #f53e339c"
+  },
+  "web.images.copies.only_these": {
+    "text": "Delete only these copies",
+    "note": "Button of the confirmation web.images.copies.several_text: deletes only the selected photos and videos (the copies shown in Images); their other copies stay on the device.",
+    "max": 40,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-14 #24f07bf9"
+  },
+  "web.images.copies.only_this": {
+    "text": "Delete only this copy",
+    "note": "Button of the confirmation web.images.copies.single_text: deletes only the copy shown in Images (the one this photo or video was opened from). The other copies stay on the device, and Images goes on showing the picture at one of them.",
+    "max": 40,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-14 #5bede938"
+  },
+  "web.images.copies.several_text": {
+    "text": {
+      "one": "{count} of them also has copies elsewhere on your device. Delete only these copies, or every copy? This can't be undone.",
+      "other": "{count} of them also have copies elsewhere on your device. Delete only these copies, or every copy? This can't be undone."
+    },
+    "args": [["count", "count"]],
+    "note": "Text of the confirmation asked before deleting several selected photos and videos in Images (the selection bar's Delete) when some of them are also stored as other copies on the device, under the title web.images.delete.title. Copies are the same picture stored at more than one path on the device: in another folder, or downloaded to a phone or computer and synced back. Images shows it once. {count} is how many of the selected items have other copies (1 or more, at most all of them). \"These copies\" are the selected items themselves. Buttons: web.images.copies.only_these, web.images.copies.every and Cancel. The phones say the same (app.photos.copies.several_text).",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-14 #a8323a8e"
+  },
+  "web.images.copies.single_text": {
+    "text": {
+      "one": "There are {count} copies of it on your device. Delete only this copy, or all of them? This can't be undone.",
+      "other": "There are {count} copies of it on your device. Delete only this copy, or all of them? This can't be undone."
+    },
+    "args": [["count", "count"]],
+    "note": "Text of the confirmation asked before deleting one photo or video in Images that the device holds as several copies (the viewer's Delete, or the selection bar's Delete with one item selected), under the title web.images.viewer.delete_photo_title (or web.images.viewer.delete_video_title) or web.images.delete.title. Copies are the same picture stored at more than one path on the device: in another folder, or downloaded to a phone or computer and synced back. Images shows it once. {count} is how many copies there are, this one included: always 2 or more, so both forms are the plural. \"It\" is the photo or video named in the title: word it to fit either (the copies can carry the gender). Buttons: web.images.copies.only_this, web.images.copies.all and Cancel. The phones say the same (app.photos.copies.single_text).",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-14 #f5a9b9c0"
+  },
   "web.images.count.items": {
     "text": {
       "one": "{count} item",
@@ -209,6 +261,22 @@
     "text": "Zoom",
     "note": "Label of the zoom slider under the photo in the profile picture's crop dialog.",
     "max": 16
+  },
+  "web.images.delete.changed": {
+    "text": {
+      "one": "{count} item changed on your device since it was shown, so it wasn't deleted. Check it and try again.",
+      "other": "{count} items changed on your device since they were shown, so they weren't deleted. Check them and try again."
+    },
+    "args": [["count", "count"]],
+    "note": "Error at the bottom of Images when the device refused to delete some selected photos or videos because the file at their path now holds other content (replaced or synced over since the page showed it): nothing of those was deleted, they stay selected, and the photos are loaded again. An item is a photo or a video."
+  },
+  "web.images.delete.copy_upload_only": {
+    "text": {
+      "one": "{count} item wasn't deleted: a copy of it is in an upload-only folder",
+      "other": "{count} items weren't deleted: they have copies in an upload-only folder"
+    },
+    "args": [["count", "count"]],
+    "note": "Error at the bottom of Images after Delete every copy (web.images.copies.every or web.images.copies.all) when the device refused some of the selected photos or videos because one of their copies is in a folder set to upload only: nothing of those was deleted, and they stay selected. An item is a photo or a video. The form of web.images.delete.upload_only for copies."
   },
   "web.images.delete.done": {
     "text": "Deleted {what}",
@@ -314,7 +382,7 @@
   },
   "web.images.grid.more_failed": {
     "text": "Couldn't load more photos.",
-    "note": "At the end of the photos in Images when the next ones could not be fetched; a Try again button follows it."
+    "note": "At the end of the photos in Images, or at the top after jumping to a date, when the next ones could not be fetched; a Try again button follows it."
   },
   "web.images.grid.no_match_in": {
     "text": "Nothing in “{name}” matches this search.",

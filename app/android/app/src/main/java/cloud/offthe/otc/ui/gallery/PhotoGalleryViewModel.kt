@@ -67,6 +67,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.ZoneId
+import cloud.offthe.otc.proto.File as PbFile
 import java.util.UUID
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
@@ -75,14 +76,18 @@ import cloud.offthe.otc.i18n.appPhotosNoticeAdded
 import cloud.offthe.otc.i18n.appPhotosNoticeCreateFailed
 import cloud.offthe.otc.i18n.appPhotosNoticeCreated
 import cloud.offthe.otc.i18n.appPhotosNoticeDeleteCollectionFailed
+import cloud.offthe.otc.i18n.appPhotosNoticeDeleteChanged
+import cloud.offthe.otc.i18n.appPhotosNoticeDeleteCopyUploadOnly
 import cloud.offthe.otc.i18n.appPhotosNoticeDeleteFailed
 import cloud.offthe.otc.i18n.appPhotosNoticeNoDownloadLink
 import cloud.offthe.otc.i18n.appPhotosNoticeNoShareLink
 import cloud.offthe.otc.i18n.appPhotosNoticeNotLoaded
 import cloud.offthe.otc.i18n.appPhotosNoticeRenameFailed
-import cloud.offthe.otc.i18n.appPhotosNoticeSaveFailed
 import cloud.offthe.otc.i18n.appPhotosNoticeSaved
 import cloud.offthe.otc.i18n.appPhotosNoticeShareFailed
+import cloud.offthe.otc.i18n.appFilesUnexpectedResponse
+import cloud.offthe.otc.R
+import cloud.offthe.otc.ui.common.TextIOException
 
 // SearchPhotos.limit for the request that starts a photo search (no
 // token) on a device not known to leave thumbnails out of pages (before
@@ -170,6 +175,9 @@ class PhotoGalleryViewModel(
     private val thumbs: GridThumbStore = ThumbStore,
     // Where its work runs: the view model's own scope, a test's in tests.
     scope: CoroutineScope? = null,
+    // How many sign-ins there have been (OTCConnection.signIns): what a
+    // device was found unable to do holds until the next one.
+    private val signIns: () -> Int = { OTCConnection.signIns.value },
 ) : ViewModel(), PeopleStore {
     private val scope: CoroutineScope = scope ?: viewModelScope
 
@@ -188,10 +196,14 @@ class PhotoGalleryViewModel(
     // month: "2024-03" in the phone's time zone, null without a date
     // (monthOf) - the Images grid's month titles. created: the photo's
     // date (epoch ms, null without one), for the tile's label (tileLabel).
-    // hash: its content's, as the page listed it.
+    // hash: its content's, as the page listed it. copies (issue #201): how
+    // many paths on the device hold it (File.copies), null when the device
+    // didn't say - then deleting never offers "every copy". up (issue
+    // #194): the upward search above a jump brought it, not the downward one.
     data class Item(
         val id: String, val path: String, val mime: String, val size: Long, val thumbKey: String?,
         val preview: Bitmap? = null, val month: String? = null, val created: Long? = null, val hash: String = "",
+        val copies: Int? = null, val up: Boolean = false,
     )
     data class DateBucket(val month: String, val count: Int, val start: Int, val end: Int)
 
@@ -255,13 +267,27 @@ class PhotoGalleryViewModel(
         // Videos the player couldn't play: their poster stays, saying so.
         val unplayable: Set<String> = emptySet(),
         val videoUrl: String? = null,
-        // The alert's text, worded when it shows (the device's words as they came).
+        // The alert's text, worded when it shows (the device's words as they
+        // came), and its further paragraphs (issue #201: a delete's
+        // refusals summed up per kind).
         val alert: UiText? = null,
+        val alertMore: List<UiText> = emptyList(),
         val preparing: SelectionActionTask? = null,
         val selected: Set<String> = emptySet(),
         val infoOpen: Boolean = false,
         val infoLoading: Boolean = false,
         val infoData: FileExifInfo? = null,
+        // Issue #194, after a jump: newer photos are still to come above
+        // (the top keeps their room, RoomAbove), one of their pages is on
+        // its way, or the last one failed (and is asked again meanwhile).
+        // upLanded counts the pages added above: the grid keeps the photos
+        // on screen where they were.
+        val upOn: Boolean = false,
+        val upLoading: Boolean = false,
+        val upProblem: LoadProblem? = null,
+        val upLanded: Int = 0,
+        // Issue #201: the viewer's Save is downloading an original (its spinner).
+        val saving: Boolean = false,
     ) {
         /** A tag search is sorted by how well photos match: no month titles, no scrubber (the web's isDateOrdered). */
         val dateOrdered get() = chips.isEmpty()
@@ -326,6 +352,27 @@ class PhotoGalleryViewModel(
     private var fixedList = false
     private var onDeleted: (() -> Unit)? = null
 
+    // Issue #194: each search's own `have` - the photos the downward search
+    // (the one every grid has) delivered, less those deleted since - and,
+    // after a jump, the upward one's cursor: its token, its `have`, whether
+    // it reached the newest photo, and its page's retry. Never mixed: the
+    // device takes a token of the other direction for one it doesn't hold.
+    private var downHave = 0
+    private var upToken = ""
+    private var upHave = 0
+    private var upEnd = true
+    // The person scrolled up since the jump (scrolledUp): from then on, the
+    // rows near the top ask for the newer photos. Never at the jump itself,
+    // which lands at the top: a new upward search costs the device a
+    // whole-library query.
+    private var upArmed = false
+    private var upJob: Job? = null
+    private var upRetryJob: Job? = null
+    private var upFailures = 0
+    // The sign-in (signIns) at which the device answered newer_than with an
+    // ordinary page (a device before #194): no upward search until the next.
+    private var newerUnsupportedAt: Int? = null
+
     /** Files section: view [items] (a folder's photos and videos, in its order) starting at [startAt]. */
     fun showFiles(items: List<Item>, startAt: Int, onDeleted: () -> Unit) {
         fixedList = true
@@ -333,11 +380,33 @@ class PhotoGalleryViewModel(
         searchJob?.cancel()
         searchGeneration += 1
         stopPageRetry()
+        resetCursors(jump = false)
         tiles.reset()
         undecodable.clear()
         token = null
-        _state.update { it.copy(items = items, thumbKeys = emptyMap(), endReached = true, loading = false, selected = emptySet(), pageProblem = null, slowFirstPage = false) }
+        _state.update {
+            it.copy(items = items, thumbKeys = emptyMap(), endReached = true, loading = false, selected = emptySet(), pageProblem = null, slowFirstPage = false,
+                upOn = false, upLoading = false, upProblem = null)
+        }
         open(startAt)
+    }
+
+    /**
+     * Issue #194: a new search or a jump - both searches' counts and the
+     * upward cursor start over; only a jump in date order, on a device not
+     * found unable since this sign-in, has newer photos to bring above.
+     */
+    private fun resetCursors(jump: Boolean) {
+        downHave = 0
+        upToken = ""
+        upHave = 0
+        upArmed = false
+        upFailures = 0
+        upJob?.cancel()
+        upJob = null
+        upRetryJob?.cancel()
+        upRetryJob = null
+        upEnd = !(jump && !fixedList && _state.value.dateOrdered && newerUnsupportedAt != signIns())
     }
 
     // The first page goes out at once: the tags and people come alongside,
@@ -468,6 +537,7 @@ class PhotoGalleryViewModel(
     /** A Wake: a page that failed is asked for again now, not at the end of its wait. */
     internal fun wake() {
         if (_state.value.pageProblem != null) retryPage()
+        if (_state.value.upProblem != null) retryUp()
     }
 
     // The phone is online again: "This phone is offline" no longer says
@@ -648,9 +718,15 @@ class PhotoGalleryViewModel(
         jumpBefore = before
         jumpLanding = true
         morePendingAt = null
+        // Issue #194: the photos newer than the jump come above it, asked
+        // for only once the person scrolls up to them (loadNewerIfNeeded).
+        resetCursors(jump = true)
         tiles.reset()
         undecodable.clear()
-        _state.update { it.copy(loading = false, endReached = false, items = emptyList(), thumbKeys = emptyMap(), pageProblem = null, slowFirstPage = false) }
+        _state.update {
+            it.copy(loading = false, endReached = false, items = emptyList(), thumbKeys = emptyMap(), pageProblem = null, slowFirstPage = false,
+                upOn = !upEnd, upLoading = false, upProblem = null)
+        }
         watchSlowFirstPage(mine)
         fetchUntilProgress()
         if (mine == searchGeneration && _state.value.scrubFrac == null) _state.update { it.copy(placeholderCount = null, placeholderMonth = null) }
@@ -794,6 +870,7 @@ class PhotoGalleryViewModel(
         jumpBefore = null
         jumpLanding = false
         morePendingAt = null
+        resetCursors(jump = false)
         tiles.reset()
         undecodable.clear()
         // The selection stays, as the web's does across a filter change
@@ -803,6 +880,7 @@ class PhotoGalleryViewModel(
             it.copy(
                 loading = false, endReached = false, items = emptyList(), thumbKeys = emptyMap(), pageProblem = null, slowFirstPage = false,
                 scrubFrac = null, placeholderCount = null, placeholderMonth = null, searchesStarted = it.searchesStarted + 1,
+                upOn = false, upLoading = false, upProblem = null,
             )
         }
         reloadDateBuckets()
@@ -822,27 +900,194 @@ class PhotoGalleryViewModel(
         askForPages()
     }
 
-    // The rows of tiles the grid has composed (first item -> end), for the
-    // tiles within reach of the scroll (GridThumbFetcher.near).
-    private val composedRows = HashMap<Int, Int>()
+    // The rows of tiles the grid has composed, by the row's key: their
+    // photos [start, end), for the tiles within reach of the scroll
+    // (GridThumbFetcher.near) and for knowing the person is near the top.
+    private class ComposedRow(val start: Int, val end: Int)
+    private val composedRows = HashMap<Any, ComposedRow>()
 
-    /** A row of tiles (items [start] until [end]) is on screen or about to be. */
-    fun rowShown(start: Int, end: Int) {
+    /**
+     * A row of tiles (items [start] until [end]) is on screen or about to
+     * be. Near the top after a jump, once the person scrolled up (issue
+     * #194), it asks for the newer photos.
+     */
+    fun rowShown(key: Any, start: Int, end: Int) {
         if (fixedList) return
-        composedRows[start] = end
+        composedRows[key] = ComposedRow(start, end)
         nearChanged()
+        loadNewerIfNeeded()
     }
 
-    fun rowGone(start: Int) { composedRows.remove(start) }
+    /**
+     * Issue #194: the grid was scrolled up - however the person scrolls (a
+     * drag or fling, at the top too, the wheel, TalkBack, a key): after a
+     * jump, from now on the rows near the top ask for the newer photos,
+     * these first if they are near it. Not before the jump's photos are
+     * there, nor while the scrubber is dragged or its jump is on its way
+     * (it scrolls the grid itself).
+     */
+    fun scrolledUp() {
+        val st = _state.value
+        if (fixedList || upEnd || !st.upOn || st.items.isEmpty() || st.scrubFrac != null || st.placeholderCount != null) return
+        upArmed = true
+        loadNewerIfNeeded()
+    }
+
+    fun rowGone(key: Any) { composedRows.remove(key) }
 
     // About 12 tiles before the first row composed and 30 after the last:
     // their thumbnails are asked for, after the tiles on screen.
     private fun nearChanged() {
         if (composedRows.isEmpty()) return
         val items = _state.value.items
-        val from = maxOf(0, composedRows.keys.min() - GridThumbFetcher.REACH_BEFORE)
-        val to = minOf(items.size, composedRows.values.max() + GridThumbFetcher.REACH_AFTER)
+        val from = maxOf(0, composedRows.values.minOf { it.start } - GridThumbFetcher.REACH_BEFORE)
+        val to = minOf(items.size, composedRows.values.maxOf { it.end } + GridThumbFetcher.REACH_AFTER)
         if (from < to) tiles.near(items.subList(from, to).map { it.path })
+    }
+
+    // Issue #194: the person scrolled up since the jump, and the grid is
+    // drawn near its top - a row of the first photos (or of the grey tiles
+    // before them, in a month still filling from above).
+    private fun nearTop(): Boolean = upArmed && composedRows.values.any { it.start < UP_NEAR }
+
+    /**
+     * Issue #194: the next page of newer photos, when the person is near
+     * the top of a jump's photos and more are to come. Never at the jump
+     * itself: only once the person scrolled up (scrolledUp).
+     */
+    fun loadNewerIfNeeded() {
+        val st = _state.value
+        if (fixedList || upEnd || !st.upOn || st.upLoading || st.upProblem != null) return
+        // Not before the jump's own photos are there, nor over the scrubber's grey tiles.
+        if (st.items.isEmpty() || st.placeholderCount != null) return
+        if (!nearTop()) return
+        askUp()
+    }
+
+    // On its way from here (upLoading), so a second ask meanwhile is none.
+    private fun askUp() {
+        if (_state.value.upLoading) return
+        val gen = searchGeneration
+        _state.update { it.copy(upLoading = true) }
+        upJob = scope.launch {
+            try {
+                if (gen == searchGeneration) fetchUpPage()
+            } finally {
+                if (gen == searchGeneration) _state.update { it.copy(upLoading = false) }
+            }
+        }
+    }
+
+    /** The newer photos' Try again (and a Wake): asked for now, the wait started over. */
+    fun retryUp() {
+        if (fixedList || upEnd || _state.value.upProblem == null) return
+        backOnline()
+        upFailures = 0
+        upRetryJob?.cancel()
+        upRetryJob = null
+        _state.update { it.copy(upProblem = it.upProblem?.backOnline(online())) }
+        askUp()
+    }
+
+    // A page of newer photos failed while its jump is the current search:
+    // the top says so, and it is asked again, 1 s doubling to 10 s, with the
+    // same token and have.
+    private fun upFailed(gen: Int, problem: LoadProblem) {
+        if (gen != searchGeneration) return
+        _state.update { it.copy(upProblem = problem) }
+        upRetryJob?.cancel()
+        val wait = retryWaitMs(++upFailures)
+        upRetryJob = scope.launch {
+            pause(wait)
+            if (gen == searchGeneration && !upEnd) askUp()
+        }
+    }
+
+    /**
+     * Issue #194: the next page of the photos newer than the jump's cutoff
+     * (SearchPhotos.newer_than, the same filters), oldest first: turned
+     * round and put above the photos, without one already there. A device
+     * before #194 answers an ordinary page (oldest_first false): dropped,
+     * and not asked again until the next sign-in. An error is a failed page.
+     */
+    private suspend fun fetchUpPage() {
+        val cutoff = jumpBefore ?: return
+        val st0 = _state.value
+        if (upEnd || fixedList) return
+        val mine = searchGeneration
+        val tok = upToken
+        val have = upHave
+        val firstLimit = if (thumbs.omitsThumbnails()) FIRST_PAGE_LIMIT_WITHOUT_THUMBS else FIRST_PHOTO_PAGE_LIMIT
+        val thumbScope = thumbs.scope()
+        var resp: RespEnvelope? = null
+        var error: Exception? = null
+        try {
+            resp = ask("page", OTCConnection.PAGE_TIMEOUT_MS) { e ->
+                val sp = SearchPhotos.newBuilder().addAllTags(st0.chips).addAllPersonIds(st0.selectedPeople).setGroupId(st0.activeGroup?.id ?: "")
+                    .setIncludeVideos(true).setToken(tok).setHave(have).setSmallThumbnails(true).setOmitThumbnails(true)
+                sp.limit = if (tok.isEmpty()) firstLimit else NEXT_PAGE_LIMIT_WITHOUT_THUMBS
+                // On every page of it, retries too; never `before`.
+                sp.newerThan = timestampOf(cutoff)
+                e.setReqSearchPhotos(sp)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            error = e
+        }
+        if (mine != searchGeneration) return
+        val got = resp
+        if (got == null || got.payloadCase != RespEnvelope.PayloadCase.RESP_LIST_OF_FILES) {
+            upFailed(mine, problemOf(got, error))
+            return
+        }
+        val lof = got.respListOfFiles
+        if (!lof.oldestFirst) {
+            newerUnsupportedAt = signIns()
+            upEnd = true
+            upRetryJob?.cancel()
+            _state.update { it.copy(upOn = false, upProblem = null) }
+            return
+        }
+        val landed = thumbs.land(lof.filesList, thumbScope)
+        if (mine != searchGeneration) return
+        val zone = ZoneId.systemDefault()
+        val newer = lof.filesList.asReversed().map { itemOf(it, landed.keys[it.path], zone, up = true) }
+        upHave += lof.filesCount
+        upToken = lof.token
+        upEnd = lof.token.isEmpty() || lof.filesCount == 0
+        upFailures = 0
+        upRetryJob?.cancel()
+        upRetryJob = null
+        var added = 0
+        // Done with it in the same change: the rows drawn again then
+        // (upLanded) may ask for the next page at once.
+        _state.update { st ->
+            val fresh = withoutShown(newer, st.items)
+            added = fresh.size
+            st.copy(
+                items = fresh + st.items, upOn = !upEnd, upProblem = null, upLanded = st.upLanded + 1, upLoading = false,
+                // The viewer stays on its photo.
+                openIndex = st.openIndex?.let { it + fresh.size },
+            )
+        }
+        morePendingAt = morePendingAt?.let { it + added }
+        // The rows drawn are of the grid before these: each one drawn now
+        // says what it is again (its effect is keyed on upLanded), with its
+        // photos' places as they are now - still near the top, the next
+        // page is asked for.
+        composedRows.clear()
+        tiles.note(landed.fetch, landed.refetch)
+    }
+
+    /** A page's File as a tile (its month and date worked out once, here). */
+    private fun itemOf(f: PbFile, thumbKey: String?, zone: ZoneId, up: Boolean = false): Item {
+        val month = if (f.hasCreated()) monthOf(f.created.seconds, f.created.nanos, zone) else null
+        val created = if (f.hasCreated()) f.created.seconds * 1000 + f.created.nanos / 1_000_000 else null
+        return Item(
+            "${f.path}#${f.hash}#${f.byteSize}", f.path, f.mime, f.byteSize, thumbKey, month = month, created = created, hash = f.hash,
+            copies = if (f.hasCopies()) f.copies else null, up = up,
+        )
     }
 
     /** A tile is on screen ([needsThumb]: without a thumbnail): its thumbnail is fetched before the others. */
@@ -971,7 +1216,9 @@ class PhotoGalleryViewModel(
             val people = st0.selectedPeople
             val group = st0.activeGroup?.id ?: ""
             val requestToken = overrideToken ?: token ?: ""
-            val have = st0.items.size
+            // What this search brought, not what the grid holds: photos
+            // above a jump came from another one (issue #194).
+            val have = downHave
             // A device known to leave the thumbnails out gets a bigger first
             // page: its rows are ~200 bytes each, the tiles come from the
             // cache or GetThumbnails. One that sends them (before release
@@ -997,7 +1244,7 @@ class PhotoGalleryViewModel(
                         // scrubber's jump) gets a first page of its own size;
                         // scrolling on, a bigger one.
                         sp.limit = if (tok.isEmpty()) firstLimit else NEXT_PAGE_LIMIT_WITHOUT_THUMBS
-                        if (cutoffMs != null) sp.before = Timestamp.newBuilder().setSeconds(Math.floorDiv(cutoffMs, 1000L)).setNanos(Math.floorMod(cutoffMs, 1000L).toInt() * 1_000_000).build()
+                        if (cutoffMs != null) sp.before = timestampOf(cutoffMs)
                         e.setReqSearchPhotos(sp)
                     }
                 } catch (e: CancellationException) {
@@ -1039,12 +1286,11 @@ class PhotoGalleryViewModel(
             // Each photo's month, once, here: the grid lays the months out
             // from these (PhotoMonths.kt) without looking at a date again.
             val zone = ZoneId.systemDefault()
-            val newItems = lof.filesList.map { f ->
-                val month = if (f.hasCreated()) monthOf(f.created.seconds, f.created.nanos, zone) else null
-                val created = if (f.hasCreated()) f.created.seconds * 1000 + f.created.nanos / 1_000_000 else null
-                Item("${f.path}#${f.hash}#${f.byteSize}", f.path, f.mime, f.byteSize, landed.keys[f.path], month = month, created = created, hash = f.hash)
-            }
+            val newItems = lof.filesList.map { f -> itemOf(f, landed.keys[f.path], zone) }
             token = lof.token.ifEmpty { null }
+            // The device counts every photo of the page as delivered, one
+            // already shown above a jump too (its `after`).
+            downHave += lof.filesCount
             // A jump's first page (asked again after a failure too): the grid
             // goes to its month's title.
             val jumped = jumpLanding && requestToken.isEmpty()
@@ -1054,9 +1300,8 @@ class PhotoGalleryViewModel(
             retryJob = null
             slowJob?.cancel()
             _state.update { st ->
-                val existing = st.items.map { it.id }.toSet()
                 st.copy(
-                    items = st.items + newItems.filter { it.id !in existing }, endReached = token == null,
+                    items = st.items + withoutShown(newItems, st.items), endReached = token == null,
                     pageProblem = null, slowFirstPage = false, jumpsLanded = if (jumped) st.jumpsLanded + 1 else st.jumpsLanded,
                 )
             }
@@ -1306,9 +1551,15 @@ class PhotoGalleryViewModel(
 
     suspend fun currentImage(): Bitmap? {
         val st = _state.value
-        st.hiRes?.let { return it }
         val idx = st.openIndex ?: return null
-        val item = st.items.getOrNull(idx) ?: return null
+        return imageOf(st.items.getOrNull(idx) ?: return null)
+    }
+
+    // The best picture of [item] the phone has: its full size, its big
+    // thumbnail, its tile.
+    private suspend fun imageOf(item: Item): Bitmap? {
+        val st = _state.value
+        st.hiResImages[item.path]?.let { return it }
         st.bigThumbs[item.path]?.let { b -> withContext(Dispatchers.Default) { decodeBitmap(b) } }?.let { return it }
         return st.thumbKeyOf(item)?.let { thumbs.load(it) }?.let { decodeBitmap(it) } ?: item.preview
     }
@@ -1323,37 +1574,157 @@ class PhotoGalleryViewModel(
         } catch (e: Exception) { alert(S.appPhotosNoticeShareFailed("${e.message}")) }
     }
 
-    /** Issue #9: save to the phone's gallery through MediaStore (no permission needed on API 29+). */
-    suspend fun saveToPhotos(context: Context) {
-        val img = currentImage() ?: run { alert(S.appPhotosNoticeNotLoaded()); return }
-        try {
-            withContext(Dispatchers.IO) {
-                val values = ContentValues().apply {
-                    put(MediaStore.Images.Media.DISPLAY_NAME, "otc-${System.currentTimeMillis()}.jpg")
-                    put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-                    put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Off The Cloud")
+    /**
+     * Issue #9, #201: the open photo or video saved to the phone's own
+     * library (MediaStore, no permission needed on API 29+) as the original
+     * file - its bytes as the device keeps them, in 4 MiB ReadFile pieces
+     * (ChunkedDownload) - so it keeps its date, place and content: the
+     * photo sync then finds the same hash and Images still shows it once,
+     * at its own date. DATE_TAKEN is the photo's date, as Images shows it.
+     * The Save button spins meanwhile (State.saving); the view model's own
+     * work, so closing the viewer doesn't cut a big video short. Only a
+     * type the phone's library refuses is saved as the picture shown, as
+     * a JPEG, as before.
+     */
+    fun saveToPhotos(context: Context) {
+        val st = _state.value
+        if (st.saving) return
+        val item = st.openIndex?.let { st.items.getOrNull(it) } ?: return
+        val app = context.applicationContext
+        _state.update { it.copy(saving = true) }
+        scope.launch {
+            val tmp = File(app.cacheDir, "save-${UUID.randomUUID()}")
+            try {
+                val meta = ChunkedDownload.download(item.path, "", tmp)
+                val mime = meta.mime.ifEmpty { item.mime }
+                val name = item.path.substringAfterLast('/').ifEmpty { "otc-${System.currentTimeMillis()}" }
+                val saved = withContext(Dispatchers.IO) {
+                    try {
+                        insertIntoLibrary(app, name, mime, item.created) { out -> tmp.inputStream().use { it.copyTo(out) } }
+                        true
+                    } catch (_: UnsupportedType) { false }
                 }
-                val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: throw IllegalStateException("insert failed")
-                context.contentResolver.openOutputStream(uri)?.use { img.compress(Bitmap.CompressFormat.JPEG, 92, it) }
+                if (!saved) saveShownImage(app, item)
+                else alert(S.appPhotosNoticeSaved())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                alert(saveFailed(e))
+            } finally {
+                tmp.delete()
+                _state.update { it.copy(saving = false) }
             }
-            alert(S.appPhotosNoticeSaved())
-        } catch (e: Exception) { alert(S.appPhotosNoticeSaveFailed("${e.message}")) }
+        }
     }
 
-    fun deleteCurrentPhoto() = scope.launch {
+    // The library won't take a file of this type.
+    private class UnsupportedType : Exception()
+
+    /**
+     * A new entry in the phone's library - hidden (IS_PENDING) until
+     * [write] has written all of it, removed if that fails - named [name],
+     * of [mime], taken at [takenMs], in Pictures (or Movies) / Off The Cloud.
+     */
+    private fun insertIntoLibrary(context: Context, name: String, mime: String, takenMs: Long?, write: (java.io.OutputStream) -> Unit) {
+        val video = mime.startsWith("video/")
+        val collection = if (video) MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            else MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(MediaStore.MediaColumns.MIME_TYPE, mime)
+            put(MediaStore.MediaColumns.RELATIVE_PATH, saveFolder(mime))
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+            if (takenMs != null) put(MediaStore.MediaColumns.DATE_TAKEN, takenMs)
+        }
+        val resolver = context.contentResolver
+        val uri = try {
+            resolver.insert(collection, values)
+        } catch (_: IllegalArgumentException) {
+            throw UnsupportedType()
+        } ?: throw TextIOException(S.appFilesUnexpectedResponse())
+        try {
+            // No entry, or no way to write it, and no word why: the
+            // library answered other than asked.
+            val out = resolver.openOutputStream(uri) ?: throw TextIOException(S.appFilesUnexpectedResponse())
+            out.use(write)
+            resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+        } catch (e: Exception) {
+            resolver.delete(uri, null, null)
+            throw e
+        }
+    }
+
+    // A type the library refuses: the picture shown, as a JPEG (the save
+    // before #201) - [item]'s, whichever photo the viewer shows by now.
+    private suspend fun saveShownImage(context: Context, item: Item) {
+        val img = if (item.mime.startsWith("video/")) null else imageOf(item)
+        if (img == null) { alert(S.appPhotosNoticeNotLoaded()); return }
+        withContext(Dispatchers.IO) {
+            val stem = item.path.substringAfterLast('/').substringBeforeLast('.').ifEmpty { "otc-${System.currentTimeMillis()}" }
+            insertIntoLibrary(context, "$stem.jpg", "image/jpeg", item.created) { img.compress(Bitmap.CompressFormat.JPEG, 92, it) }
+        }
+        alert(S.appPhotosNoticeSaved())
+    }
+
+    /**
+     * The viewer's Delete. Issue #201: [everyCopy] - "Delete all N copies",
+     * for a photo the device holds at several paths. A refusal (a copy in
+     * an upload-only folder, content changed since it was shown) deletes
+     * nothing: the device's words say why, and the photo stays; changed,
+     * the photos are asked for again.
+     */
+    fun deleteCurrentPhoto(everyCopy: Boolean = false) = scope.launch {
         val idx = _state.value.openIndex ?: return@launch
         val item = _state.value.items.getOrNull(idx) ?: return@launch
         try {
-            val resp = call { it.setReqDelFile(DelFile.newBuilder().setPath(item.path)) }
-            if (resp.error) { alert(S.appPhotosNoticeDeleteFailed(resp.errorMessage)); return@launch }
+            val resp = call { it.setReqDelFile(delFileFor(item, everyCopy)) }
+            if (resp.error) {
+                alert(S.appPhotosNoticeDeleteFailed(resp.errorMessage))
+                if (deleteChanged(resp)) contentChanged()
+                return@launch
+            }
         } catch (e: Exception) { alert(S.appPhotosNoticeDeleteFailed("${e.message}")); return@launch }
-        _state.update { st -> st.copy(items = st.items.filterIndexed { i, _ -> i != idx }, selected = st.selected - item.path) }
-        dragSelection?.forget { it == item.path }
-        // Gone from the device: its thumbnail goes from the phone too.
-        if (item.hash.isNotEmpty()) thumbs.discard(item.hash)
-        if (_state.value.items.isEmpty()) closeModal() else open(minOf(idx, _state.value.items.size - 1))
+        val at = _state.value.items.indexOfFirst { it.id == item.id }
+        removeDeleted(setOf(item.path))
+        if (_state.value.items.isEmpty()) closeModal() else open(minOf(if (at >= 0) at else idx, _state.value.items.size - 1))
         onDeleted?.invoke()
         countsChanged()
+    }
+
+    /**
+     * Issue #201: a path held other content than its tile showed, so
+     * nothing was deleted: the viewer closes and Images is asked for again
+     * from where its search started - the jump's month after a jump (its
+     * newer photos above it start over too), else the newest photo - with
+     * its months and the open collection's count (the web's reloadGrid).
+     * The selection stays. In Files, its folder is listed again.
+     */
+    private fun contentChanged() {
+        if (_state.value.openIndex != null) closeModal()
+        if (fixedList) { onDeleted?.invoke(); return }
+        val jump = jumpBefore
+        if (jump != null) {
+            searchJob?.cancel()
+            searchJob = scope.launch { performJump(jump) }
+            reloadDateBuckets()
+        } else restartSearch()
+        if (_state.value.activeGroup != null) scope.launch { loadGroups() }
+    }
+
+    /**
+     * Photos the device deleted ([paths]): off the grid and the selection,
+     * their thumbnails off the phone, and each one's search (issue #194)
+     * counts one photo fewer - one tile per photo since #201.
+     */
+    private suspend fun removeDeleted(paths: Set<String>) {
+        val gone = _state.value.items.filter { it.path in paths }
+        for (i in gone) {
+            if (i.hash.isNotEmpty()) thumbs.discard(i.hash)
+            if (i.up) upHave = maxOf(0, upHave - 1) else downHave = maxOf(0, downHave - 1)
+        }
+        _state.update { st -> st.copy(items = st.items.filter { it.path !in paths }, selected = st.selected - paths) }
+        // A drag begun meanwhile doesn't bring them back (issue #200).
+        dragSelection?.forget { it in paths }
     }
 
     // Photos deleted from Images: the months' counts (the headers, the
@@ -1404,25 +1775,44 @@ class PhotoGalleryViewModel(
         if (_state.value.selected.isNotEmpty()) _state.update { it.copy(selected = emptySet()) }
     }
 
-    fun deleteSelected() = scope.launch {
-        val paths = _state.value.selected.toList()
+    /**
+     * The selection's Delete. Issue #201: [everyCopy] - "Delete all N
+     * copies" (one photo) or "Delete every copy" (several): every_copy for
+     * those the device holds at several paths, a plain delete for the rest.
+     * Each sends the content its tile showed. A refusal deletes nothing of
+     * that photo: its tile stays, picked, and once all are done the alert
+     * says why (deleteRefusalNotes). One whose content changed has the
+     * photos asked for again - at the jump after one - with the months and
+     * the open collection's count; else what was deleted updates them.
+     */
+    fun deleteSelected(everyCopy: Boolean = false) = scope.launch {
+        val st = _state.value
+        val paths = st.selected.toList()
         if (paths.isEmpty()) return@launch
+        val shown = st.items.associateBy { it.path }
         val deleted = mutableSetOf<String>()
+        val refusals = mutableListOf<DeleteRefusal>()
         for (p in paths) {
+            // A pick no longer on the grid (another search since): its path alone.
+            val req = shown[p]?.let { delFileFor(it, everyCopy) } ?: DelFile.newBuilder().setPath(p).build()
             try {
-                val resp = call { it.setReqDelFile(DelFile.newBuilder().setPath(p)) }
-                if (resp.error) { alert(S.appPhotosNoticeDeleteFailed(resp.errorMessage)); continue }
-            } catch (e: Exception) { alert(S.appPhotosNoticeDeleteFailed("${e.message}")); continue }
+                val resp = call { it.setReqDelFile(req) }
+                if (resp.error) {
+                    refusals += DeleteRefusal(resp.errorCode, resp.errorMessage)
+                    continue
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) { refusals += DeleteRefusal("", "${e.message}"); continue }
             deleted += p
         }
-        if (deleted.isNotEmpty()) {
-            // Gone from the device: their thumbnails go from the phone too.
-            for (i in _state.value.items) if (i.path in deleted && i.hash.isNotEmpty()) thumbs.discard(i.hash)
-            _state.update { st -> st.copy(items = st.items.filter { it.path !in deleted }, selected = st.selected - deleted) }
-            // A drag begun meanwhile doesn't bring them back (issue #200).
-            dragSelection?.forget { it in deleted }
-            countsChanged()
-        }
+        if (deleted.isNotEmpty()) removeDeleted(deleted)
+        val notes = deleteRefusalNotes(refusals)
+        if (notes.isNotEmpty()) _state.update { it.copy(alert = notes.first(), alertMore = notes.drop(1)) }
+        // The grid again (it reloads the counts too), or what was deleted
+        // off the counts.
+        if (refusals.any { it.code == DELETE_CHANGED }) contentChanged()
+        else if (deleted.isNotEmpty()) countsChanged()
     }
 
     private suspend fun shareLink(): String? {
@@ -1445,8 +1835,20 @@ class PhotoGalleryViewModel(
         finally { _state.update { it.copy(preparing = null) } }
     }
 
-    fun alert(m: UiText) = _state.update { it.copy(alert = m) }
-    fun dismissAlert() = _state.update { it.copy(alert = null) }
+    fun alert(m: UiText) = _state.update { it.copy(alert = m, alertMore = emptyList()) }
+    fun dismissAlert() = _state.update { it.copy(alert = null, alertMore = emptyList()) }
+
+    // Save failed, and why: our words, the system's or the device's - and
+    // where none came, that the answer wasn't what was asked for.
+    private fun saveFailed(e: Exception): UiText {
+        val why = when (e) {
+            is TextIOException -> e.text
+            is WSClient.RequestTimeout -> e.text
+            else -> e.message?.takeIf { it.isNotEmpty() }?.let { UiText.Raw(it) } ?: S.appFilesUnexpectedResponse()
+        }
+        // app.photos.notice.save_failed, with a detail that is ours to word.
+        return UiText.Res(R.string.app_photos_notice_save_failed, listOf(why))
+    }
 
     companion object {
         // While the scrubber is dragged, a month that hasn't loaded shows
@@ -1498,6 +1900,103 @@ fun lostCutoff(files: List<Pair<Long?, String>>, token: String, sent: String, cu
     if (files.any { (created, _) -> created != null && created > cutoffMs }) return true
     return files.any { (_, path) -> path in shown }
 }
+
+/** An instant (epoch ms) as the protocol's Timestamp. */
+internal fun timestampOf(ms: Long): Timestamp =
+    Timestamp.newBuilder().setSeconds(Math.floorDiv(ms, 1000L)).setNanos(Math.floorMod(ms, 1000L).toInt() * 1_000_000).build()
+
+// Issue #194: once the person has scrolled up after a jump, a row with a
+// photo among the first this many drawn asks for newer ones (the downward
+// search's 12 from the end, iOS's and the web's 12 from the top).
+internal const val UP_NEAR = 12
+
+/**
+ * [page]'s photos not on the grid already ([shown]) - by content where its
+ * hash is known (issue #194: between searches a photo's oldest copy can
+ * change, and it can then come from either half), else as the same entry.
+ */
+internal fun withoutShown(page: List<PhotoGalleryViewModel.Item>, shown: List<PhotoGalleryViewModel.Item>): List<PhotoGalleryViewModel.Item> {
+    val ids = shown.mapTo(HashSet()) { it.id }
+    val hashes = shown.mapNotNullTo(HashSet()) { it.hash.ifEmpty { null } }
+    // Nor twice from one page.
+    return page.filter { it.id !in ids && (it.hash.isEmpty() || it.hash !in hashes) }.distinctBy { it.hash.ifEmpty { it.id } }
+}
+
+/**
+ * Issue #201: what deleting [items] from Images asks. PLAIN - the usual
+ * confirmation (no copies, or a device that doesn't count them); SINGLE -
+ * one photo held at several paths: only this copy, or all of them;
+ * SEVERAL - a selection where some have copies: only these, or every copy.
+ */
+enum class CopiesAsk { PLAIN, SINGLE, SEVERAL }
+
+fun copiesAsk(items: List<PhotoGalleryViewModel.Item>, count: Int = items.size): CopiesAsk = when {
+    // [count]: how many are being deleted - a selection can hold picks no
+    // longer on the grid (another search since), of which nothing is known.
+    count == 1 && items.size == 1 && (items[0].copies ?: 0) > 1 -> CopiesAsk.SINGLE
+    count > 1 && items.any { (it.copies ?: 0) > 1 } -> CopiesAsk.SEVERAL
+    else -> CopiesAsk.PLAIN
+}
+
+/** Issue #201: how many of [items] have other copies on the device (the several-text's count). */
+fun withCopies(items: List<PhotoGalleryViewModel.Item>): Int = items.count { (it.copies ?: 0) > 1 }
+
+/**
+ * Issue #201: the delete for [item]: its path, with the content shown for
+ * it (DelFile.hash: the device refuses it as "changed" if the path holds
+ * other content now), and [everyCopy] only where the device counted copies
+ * - a device that doesn't would delete just the path while the dialog said all.
+ */
+fun delFileFor(item: PhotoGalleryViewModel.Item, everyCopy: Boolean): DelFile {
+    val b = DelFile.newBuilder().setPath(item.path)
+    if (item.hash.isNotEmpty()) b.hash = item.hash
+    if (everyCopy && (item.copies ?: 0) > 1) b.everyCopy = true
+    return b.build()
+}
+
+/** Issue #201: the path holds other content than the tile showed: the grid is asked for again. */
+internal fun deleteChanged(resp: RespEnvelope): Boolean = resp.error && resp.errorCode == DELETE_CHANGED
+
+// Issue #201: DelFile's refusals - the path holds other content than the
+// tile showed; a copy is in an upload-only folder (every_copy).
+internal const val DELETE_CHANGED = "changed"
+internal const val DELETE_COPY_UPLOAD_ONLY = "copy_upload_only"
+
+/**
+ * Issue #201: a photo of the selection's Delete that wasn't deleted: the
+ * device's error_code ("" when no answer came) and its words (or the
+ * phone's, when none came).
+ */
+data class DeleteRefusal(val code: String, val said: String)
+
+/**
+ * Issue #201: what the selection's Delete says about the photos it
+ * couldn't delete ([refusals]), as the web's: one - its own words, the
+ * device's message as it came ("Delete failed: …"); two or more - summed
+ * up per kind: those whose content changed since they were shown and
+ * those with a copy in an upload-only folder, each counted
+ * (app.photos.notice.delete_changed, delete_copy_upload_only); any other
+ * refusal in the device's words (the last one's). One paragraph each, in
+ * that order; none when everything was deleted.
+ */
+fun deleteRefusalNotes(refusals: List<DeleteRefusal>): List<UiText> {
+    if (refusals.isEmpty()) return emptyList()
+    if (refusals.size == 1) return listOf(S.appPhotosNoticeDeleteFailed(refusals[0].said))
+    val changed = refusals.count { it.code == DELETE_CHANGED }
+    val copies = refusals.count { it.code == DELETE_COPY_UPLOAD_ONLY }
+    val other = refusals.lastOrNull { it.code != DELETE_CHANGED && it.code != DELETE_COPY_UPLOAD_ONLY }
+    return buildList {
+        if (changed > 0) add(S.appPhotosNoticeDeleteChanged(changed))
+        if (copies > 0) add(S.appPhotosNoticeDeleteCopyUploadOnly(copies))
+        if (other != null) add(S.appPhotosNoticeDeleteFailed(other.said))
+    }
+}
+
+/**
+ * Issue #201: where the viewer's Save puts an original of [mime] in the
+ * phone's own library - a video with the videos, as the camera's are.
+ */
+internal fun saveFolder(mime: String): String = if (mime.startsWith("video/")) "Movies/Off The Cloud" else "Pictures/Off The Cloud"
 
 /**
  * What Images shows in the grid's place (the web's PhotoGallery body):

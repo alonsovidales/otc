@@ -89,6 +89,19 @@
     <string name="app_files_upload_failed">No se ha podido subir: %1$s</string>
     <string name="app_files_upload_only">Solo subida</string>
     <string name="app_files_upload_only_file_info">Está en una carpeta de solo subida: no se puede eliminar, y al volver a subirlo se conserva su versión anterior. El candado de la carpeta lo cambia.</string>
+    <string name="app_files_usage_empty">Nada de esta carpeta ocupa espacio.</string>
+    <string name="app_files_usage_failed">No se ha podido calcular cuánto espacio ocupa esta carpeta.</string>
+    <string name="app_files_usage_needs_update">Tu dispositivo necesita una actualización para mostrar cuánto espacio ocupan las carpetas.</string>
+    <string name="app_files_usage_note">Los tamaños se cuentan archivo por archivo: un archivo guardado en dos sitios cuenta dos veces, aunque el dispositivo lo almacena una sola vez. Las miniaturas y el cifrado no se cuentan, así que los totales no coincidirán con la barra de almacenamiento.</string>
+    <string name="app_files_usage_row">%1$s · %2$s</string>
+    <string name="app_files_usage_row_label">\u2068%1$s\u2069, %2$s, %3$s de esta carpeta</string>
+    <string name="app_files_usage_share_small" formatted="false">menos del 1 %</string>
+    <plurals name="app_files_usage_total">
+        <item quantity="one">Esta carpeta: %1$s en %2$s archivo</item>
+        <item quantity="many">Esta carpeta: %1$s en %2$s archivos</item>
+        <item quantity="other">Esta carpeta: %1$s en %2$s archivos</item>
+    </plurals>
+    <string name="app_files_usage_versions">Incluye %1$s de versiones anteriores</string>
     <string name="app_files_version_current">Actual</string>
     <string name="app_files_version_open_failed">No se ha podido obtener esa versión</string>
     <string name="app_files_version_replaced">Sustituida: %1$s</string>
@@ -98,4 +111,5 @@
     <string name="app_files_view_grid">Cuadrícula</string>
     <string name="app_files_view_list">Lista</string>
     <string name="app_files_view_options">Opciones de vista</string>
+    <string name="app_files_view_storage">Almacenamiento</string>
 </resources>

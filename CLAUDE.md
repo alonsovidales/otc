@@ -1168,6 +1168,50 @@ drag's end. The edge scroll waiting for a move, the band depth, starting only on
 item going mid-drag and a new listing ending a drag follow the phones' rules: change all three together. Tested in headless
 Chrome with CDP mouse and touch input against a mock `useWS`.
 
+Copies on the web (issue #201, `components/photoCopies.ts`, `node web/scripts/photo-copies-test.mjs`,
+the phones' `DeleteCopies` rules): Images' Delete (selection bar and viewer) asks about copies when
+a photo's `File.copies` is above 1 - one photo: `web.images.copies.single_text`, "Delete only this
+copy" / "Delete all {count} copies"; several: `several_text`, "only these" / "every copy"
+(`ConfirmDialog`'s outlined `other` button) - else, and always with `copies` unset, as before.
+Every `DelFile` sends the tile's (or a Files row's) `hash`, and `every_copy` only for a photo with
+copies (`delFileFields`). A single refusal (`copy_upload_only`/`changed`, whatever the others did)
+shows the device's words; two or more are summed up (`deleteNotice`/`deleteSummary`,
+`web.images.delete.*`; the phones' `app.photos.notice.delete_*`). Refused photos stay picked;
+`changed` reloads the grid from where its search began (`reloadGrid`: a jump at its month, both
+cursors reset) and a page refreshes a picked photo's hash (`refreshPicked`). The viewer closes on
+`changed` (toast, reload, as the phones); so does Files' viewer (an alert with the words, as
+Files' selection says them, and the folder listed again).
+
+Newer photos above a jump on the web (issue #194, `components/newerPhotos.ts`,
+`node web/scripts/newer-photos-test.mjs`): after a scrubber jump (`cutoff`), `PhotoGallery` keeps an
+upward cursor - `upRef` (token, end), `upMapRef` (its `have`; `mapRef` is the jump's search alone,
+`dropDeleted` lowers whichever brought a photo), `upLoading`, its own `usePageRetry`. Nothing is
+asked at the jump: the first scroll up near the top arms `.pg-up-mark`, however made (the phones'
+rule): any scroll event that lowers `scrollY` by more than a pixel with the page's height unchanged
+(the jump, photos put above and a new width change it) while the mark is within `cUpReach` (600px)
+- the scrollbar dragged too (`scrollArmsUp`) - or, as the page can't scroll above its top, a wheel
+up, Arrow Up/Page Up/Home/Shift+Space or a finger drawn down while it is (`nearTop`); a new search
+(`searchGenRef`) drops what the old one saw. The mark then asks `upwardRequest` (`newer_than` = the
+cutoff, never `before`) once within 600px of the screen.
+`oldest_first` false drops the page and stops it while the page is open. A page goes above newest
+first, without hashes shown (`notShown`), inside `keepTopTile`: the first tile below the bar
+(`data-key`) is measured around a `flushSync` and the window scrolled by what it moved (Chrome's
+anchoring leaves 0; Safari has none), and `openIdx`/`anchorRef`/`topTileRef` shift. The top month
+(not the jump's) keeps its bucket's room, grey before its photos (`topReserve`, whole rows past 4
+one `.pg-skel-rows` block); spinner and error float in `.pg-up`, a sticky 0-height pill rendered
+only while the mark is within reach (`upNear`, its own observer), never pinned over the whole grid.
+
+Files' Storage view on the web (issue #195, `components/folderUsage.ts`,
+`node web/scripts/folder-usage-test.mjs`): the third `fb-viewmode` button, remembered in
+`otc.files.viewMode`. Only there `loadUsage` asks `GetFolderUsage` - on switching to it and with
+every listing while it shows (`loadList` checks `viewModeRef`) - dropping answers for another folder
+(`usageAnswerFits`: the latest request's, for the folder shown). `unknown_payload`: `web.files.usage.needs_update`, not asked again
+while the page is open; other errors the device's words; no answer `usage.failed` + Try again. Rows
+are the answer's order (no Sort by), joined with the listing by (path, is_dir) for List's lock and
+Images switch; a versions-only child is a plain folder row. Bar and share of files + versions
+(`shareOf`: "under 1%", no bar at a 0 total; `row_label` on the bar), size, `..` on top; the total
+and versions lines above, the note below; nothing is picked. Below 560px the bar has its own line.
+
 Issue #182 (and #175/#176): accounts can be deleted - `DELETE /api/account/me` (`{"confirm":
 "delete", "password"}`, or a sign-in within 15 minutes for Google/Apple-only accounts;
 `dao.DeleteAccount` removes the account, its logins, tokens and app codes, releases its domains
@@ -1734,6 +1778,93 @@ and the lift is still no tap; the item under the finger gone keeps the selection
 finger is over another (`range` is null). A pick that goes mid-drag (People's `keepOnly`,
 Images' deletes) leaves the drag's base too (`DragSelection.forget`), so the range doesn't
 bring it back. Tests: `DragSelectTest.kt`, `PeopleViewTest.kt`, `PhotoGalleryRetryTest.kt`.
+
+**Copies on Android** (issue #201, `PhotoGalleryViewModel.kt`): `Item.copies` is `File.copies`
+(null when unset); `copiesAsk` picks the dialog (`CopiesDialog`: one photo with copies above 1,
+`app.photos.copies.single_text`, "Delete only this copy" / "Delete all N copies"; a selection with
+any, `several_text`, "only these" / "every copy"; else the old confirmation). `delFileFor` sends
+the tile's `hash` on every delete and `every_copy` only where copies is above 1; Files' rows send
+their hash (`filesDelete`, files only). A refusal keeps the tile and shows the device's words in
+`app.photos.notice.delete_failed`; `changed` closes the viewer and starts the search again (the
+Files viewer lists its folder again; Files' own delete toasts the words). `removeDeleted` lowers
+the `have` of the search that brought the photo. The viewer's Save downloads the original with
+`ChunkedDownload` and inserts the bytes as they are through MediaStore (`IS_PENDING`, `DATE_TAKEN`
+= the photo's date, its name and MIME, `saveFolder`: `Pictures/Off The Cloud`, a video
+`Movies/Off The Cloud`), in the view model's scope; Save spins meanwhile (`State.saving`); only a
+type the library refuses is saved as the shown picture in JPEG, as before.
+
+**Newer photos above a jump on Android** (issue #194): a jump sets `State.upOn` and a second
+cursor (`upToken`, `upHave`, `upEnd`; `askUp`/`fetchUpPage`, `upFailed`'s backoff, `retryUp`, a
+Wake); the downward `have` is `downHave`, never `items.size`. The room above (`roomAbove`,
+`layoutGallery(above =)`): a first month from the upward search keeps its bucket's count with
+grey slots first (`lead` on `TileRow`/`Segment`), a complete one gets the next newer bucket's
+month in grey above it. Rows are keyed by month and place (`GalleryLayout.keyOf`, "2024-03#0"), so
+photos land in the grey tiles with no key changing and the LazyColumn keeps what is on screen;
+`keepRowsInPlace` (the frame before, `DrawnRows`) holds the first row still there when one went
+(a miscounted bucket, the room dropped). Nothing is asked at the jump - its landing puts its
+month's title at the top in the SideEffect (`requestScrollToItem`), so the room is never drawn -
+only once a grey tile is (`rowShown(key, start, end, lead)`), and after that for the first
+`UP_NEAR` (12) photos too; each page redraws the rows' effects (keyed on `upLanded`,
+`composedRows` cleared). `oldest_first` false drops the page and the room, not asked again until
+the next sign-in (`OTCConnection.signIns`). A failed page is the foot's words and Try again in a
+pill at the top while near it. The viewer's pager is keyed by item id.
+
+**Storage view on Android** (issue #195, `ui/files/FilesUsage.kt`): `FilesView` (List, Grid,
+Storage) in View options, kept in `files_view_mode` ("storage"; older builds read it as the
+list). `askUsage` runs on `setView` and every `load()` while Storage shows, never from List or
+Grid; answers for another folder are dropped (`usageFits`, a sequence); `unknown_payload` shows
+`app.files.usage_needs_update` until the next sign-in. Rows keep the device's order, joined with
+the listing by (path, is_dir) for the icon, lock and eye; size is files + versions, the share a
+whole percentage, rounded (`usageShareText`: "under 1%", no bar at a 0 total); the total
+and versions lines above, `..`, the note below; no selection, no Sort by; a folder opens in
+Storage, a file as in the list. Tests: `PhotoGalleryUpTest.kt`, `PhotoMonthsTest.kt`,
+`FilesUsageTest.kt`.
+
+**Copies on iOS** (issue #201, `DeleteCopies.swift`, `DeleteCopiesTests.swift`): `Item.copies`
+is `File.copies` (nil when unset); `CopiesAsk.of` picks the question - one photo above 1 copy
+(the viewer's Delete, or one picked): `app.photos.copies.single_text`, "Delete only this copy" /
+"Delete all N copies"; several with any: `several_text`, "only these" / "every copy"; else the
+old one - taken when Delete is tapped (`confirmCopies`, `deleteAsk`). `DeleteCopies.request`
+sends the tile's `hash` on every delete (Files' rows too, files only) and `every_copy` only
+where copies is above 1. A refusal keeps the tile and shows the device's words in
+`app.photos.notice.delete_failed`; `changed` closes the viewer and runs the search again from
+where it began (`reloadSearch`: a jump at its month), the Files viewer lists its folder again
+(`onDeleted`), Files' own delete toasts the words; Files now shows its viewer's alerts too
+(`ViewerNotice`). Save downloads the original (`FileDownload.download(original:)`, ReadFile
+even for HEIC) and adds it as it is (`PHAssetCreationRequest` `.photo`/`.video` resource,
+`creationDate` = the item's date), add-only access as before; Save spins (`savingPath`,
+`app.photos.viewer.saving`); only a photo Photos refuses is saved as the picture shown.
+
+**Newer photos above a jump on iOS** (issue #194, `NewerPhotos.swift`, `NewerPhotosTests.swift`):
+after a jump `PhotoGalleryVM` keeps a second cursor (`upToken`, `upEnd`, `upLoading`,
+`upProblem`, `upRetry`, a wake); each search's `have` counts its own items (`Item.up`), so a
+delete lowers the right one. Nothing is asked at the jump: the view arms it when the grid is
+scrolled up (`onScrollGeometryChange`, `armNewer` - a pull at the top counts), then rows near
+the top on screen (`newerIfNearTop`: first photo under 12, or the top month's grey tiles) ask.
+`oldest_first` false drops the page; `DeviceSupport.newerThan` stays off until the next sign-in
+(`OTCConnection.connected`). A page goes above newest first, less what is shown by id or hash
+(`PhotoPaging.newer`); `openIndex`/`morePendingAt` shift. Rows are named by month and place
+(`PhotoGridLayout`, "t2024-03@6"), tiles by photo (`.id`), so the rows on screen keep their
+names; `GridAnchor` notes the top row's frame (`.scrollView` space) right before
+(`willChangeAbove`) and `proxy.scrollTo(row, anchor:)` puts it back right after
+(`aboveChanges`; scrollTo lines anchors up in the whole container height, the tab bar's inset
+included), with 0.3 s in which the rows drawn for that moment ask nothing. The top month from
+the upward search keeps its bucket's room with grey tiles before its photos (`firstRoom`,
+negative indices from `firstSlot`), and a page's months never join the lines under them
+(`upBreaks`). Spinner and failure float over the first row (`newerStatus`).
+
+**Storage view on iOS** (issue #195, `FolderUsage.swift`, `FolderUsageTests.swift`): the third
+choice of Files' view menu, `files.viewMode` "storage" (older builds read it as the list), no
+Sort by there. `FilesExplorerViewModel.load()` asks `loadUsage()` alongside the listing only
+while `storageShown` (on opening it, each folder, a refresh, after a delete); answers for
+another folder are dropped (`FolderUsageModel.answers`), errors by a sequence;
+`unknown_payload` shows `app.files.usage_needs_update` without asking until the next sign-in
+(`DeviceSupport.folderUsage`); no answer `usage_failed` + Try again; other errors the device's
+words. Rows keep the device's order, joined with the listing by (path, is_dir) for the icon and
+the lock / eye marks (by the name; read as the row's value); size is files + versions, the
+share a whole percentage in the app's locale or "under 1%", no bar at a 0 total; the total and
+versions lines above, `..`, the note below; no selection; a folder opens in Storage, a file as
+in the list. No per-folder file count (no catalog key; the web and Android show none).
 
 **Known gaps left by the 2026-10 hardening pass.** `network/network.go` `RequestJoin` writes `wifi_join_request.json` with a plain `os.WriteFile`, not
 temp + fsync + rename. iOS `FileDownload` falls back to `GetFile` only on `error_code =

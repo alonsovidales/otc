@@ -2,6 +2,7 @@
   "web.files.column.created": "Gemaakt",
   "web.files.column.modified": "Gewijzigd",
   "web.files.column.name": "Naam",
+  "web.files.column.share": "Aandeel in de map",
   "web.files.column.size": "Grootte",
   "web.files.gallery.cant_show": "Dit bestand kan hier niet worden getoond: download het in plaats daarvan.",
   "web.files.gallery.download_all": "Alles downloaden",
@@ -172,6 +173,7 @@
   "web.files.toolbar.grid": "Raster",
   "web.files.toolbar.list": "Lijst",
   "web.files.toolbar.path": "Pad:",
+  "web.files.toolbar.storage": "Opslag",
   "web.files.toolbar.view": "Weergave",
   "web.files.upload.done": "✓ Klaar",
   "web.files.upload.failed": "✕ Mislukt",
@@ -184,6 +186,18 @@
     "arg": "count"
   },
   "web.files.upload.uploading": "Uploaden…",
+  "web.files.usage.empty": "Niets in deze map neemt ruimte in.",
+  "web.files.usage.failed": "Kan niet bepalen hoeveel ruimte deze map inneemt.",
+  "web.files.usage.needs_update": "Je apparaat heeft een update nodig om te laten zien hoeveel ruimte mappen innemen.",
+  "web.files.usage.note": "Groottes worden per bestand geteld: een bestand dat op twee plekken staat, telt twee keer mee, ook al bewaart het apparaat het maar één keer. Miniaturen en versleuteling worden niet meegeteld, dus de totalen komen niet overeen met de opslagbalk.",
+  "web.files.usage.row_label": "\u2068{name}\u2069, {size}, {share} van deze map",
+  "web.files.usage.share_small": "minder dan 1%",
+  "web.files.usage.total": {
+    "one": "Deze map: {size} in {count} bestand",
+    "other": "Deze map: {size} in {count} bestanden",
+    "arg": "count"
+  },
+  "web.files.usage.versions": "Waarvan {size} in oudere versies",
   "web.files.versions.count": {
     "one": "{count} versie",
     "other": "{count} versies",

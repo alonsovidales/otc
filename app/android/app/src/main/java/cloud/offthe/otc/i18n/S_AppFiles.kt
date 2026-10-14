@@ -274,6 +274,42 @@ fun S.appFilesUploadOnly(): UiText =
 fun S.appFilesUploadOnlyFileInfo(): UiText =
     UiText.Res(R.string.app_files_upload_only_file_info)
 
+/** "Nothing in this folder takes up space.": Shown in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first. in place of the rows when nothing in the folder takes space: it is empty, or holds only empty folders. */
+fun S.appFilesUsageEmpty(): UiText =
+    UiText.Res(R.string.app_files_usage_empty)
+
+/** "Couldn't find out how much space this folder takes.": Shown in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first. in place of the rows when the device didn't answer (no connection, no reply) and gave no reason of its own; a Try again button (common.try_again) follows. */
+fun S.appFilesUsageFailed(): UiText =
+    UiText.Res(R.string.app_files_usage_failed)
+
+/** "Your device needs an update to show how much space folders take.": Shown in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first. in place of the rows when the device's software is too old to say how much space folders take. */
+fun S.appFilesUsageNeedsUpdate(): UiText =
+    UiText.Res(R.string.app_files_usage_needs_update)
+
+/** "Sizes are counted file by file: a file kept in two places counts twice, though the device stores it once. Thumbnails and encryption aren't counted, so the totals won't match the storage bar.": Footnote under the rows of Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first.: the sizes are each file's own size. Content stored at two paths is kept once on the device but counted at both; thumbnails (the small previews) and the space encryption adds aren't counted. So the totals differ from the bar that shows how full the device's storage is (in the menu and Settings). */
+fun S.appFilesUsageNote(): UiText =
+    UiText.Res(R.string.app_files_usage_note)
+
+/** "{size} · {share}": Line under a file's or folder's name in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first., by its bar. {size} is its size, already formatted with its unit (1.2 GB); {share} is the row's share of the folder, already formatted as a percentage (45%), or app.files.usage_share_small when it is under one per cent. Keep the middle dot unless your language separates such values otherwise. */
+fun S.appFilesUsageRow(size: String, share: String): UiText =
+    UiText.Res(R.string.app_files_usage_row, listOf(size, share))
+
+/** "{name}, {size}, {share} of this folder": Screen-reader name of a row in Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first.. {name} is the file's or folder's name; {size} its size, already formatted with its unit (1.2 GB); {share} is the row's share of the folder, already formatted as a percentage (45%), or app.files.usage_share_small when it is under one per cent. When the folder takes no space at all, {share} is 0%. */
+fun S.appFilesUsageRowLabel(name: String, size: String, share: String): UiText =
+    UiText.Res(R.string.app_files_usage_row_label, listOf(name, size, share))
+
+/** "under 1%": In Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first.: the share of a file or folder that takes some space but less than one per cent of the folder, in place of a percentage like 45%. Write the per cent sign as your language does. Starts in lowercase in English: it is a value, and it is also put inside app.files.usage_row_label. */
+fun S.appFilesUsageShareSmall(): UiText =
+    UiText.Res(R.string.app_files_usage_share_small)
+
+/** "This folder: {size} in {count} files" (one: "This folder: {size} in {count} file"): First line above the rows of Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first. {size} is the folder's whole size, older versions included (the base of the rows' percentages), already formatted with its unit (1.2 TB); {count} is how many files are under it, at any depth. */
+fun S.appFilesUsageTotal(size: String, count: Int): UiText =
+    UiText.Plural(R.plurals.app_files_usage_total, count, listOf(size, count))
+
+/** "{size} of it in older versions": Second line above the rows of Files' Storage view (the third view, next to List and Grid), which shows what takes space in the open folder: each file and folder in it with a bar, its share of the folder and its size, largest first., under app.files.usage_total, shown only when the folder keeps older versions of files (in upload-only folders). {size} is how much of the folder's size they take, already formatted with its unit (3.4 GB). */
+fun S.appFilesUsageVersions(size: String): UiText =
+    UiText.Res(R.string.app_files_usage_versions, listOf(size))
+
 /** "Current": First row of the Versions list (app.files.versions_title): the file as it is now, with its size at the right. A tap opens it. */
 fun S.appFilesVersionCurrent(): UiText =
     UiText.Res(R.string.app_files_version_current)
@@ -309,3 +345,7 @@ fun S.appFilesViewList(): UiText =
 /** "View options": Files: accessibility name of the button beside the path field that opens a menu: the folder as a list or a grid (app.files.view_list, app.files.view_grid), and the order of its files and folders (app.files.sort_by). */
 fun S.appFilesViewOptions(): UiText =
     UiText.Res(R.string.app_files_view_options)
+
+/** "Storage": Third choice of Files' view menu, next to List (app.files.view_list) and Grid (app.files.view_grid): shows the Storage view, what takes space in the open folder. Use your language's word for storage space; a short word. */
+fun S.appFilesViewStorage(): UiText =
+    UiText.Res(R.string.app_files_view_storage)

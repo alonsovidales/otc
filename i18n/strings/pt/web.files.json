@@ -11,6 +11,10 @@
     "text": "Nome",
     "en": "Name"
   },
+  "web.files.column.share": {
+    "text": "Parte da pasta",
+    "en": "Share of folder"
+  },
   "web.files.column.size": {
     "text": "Tamanho",
     "en": "Size"
@@ -588,6 +592,10 @@
     "text": "Caminho:",
     "en": "Path:"
   },
+  "web.files.toolbar.storage": {
+    "text": "Armazenamento",
+    "en": "Storage"
+  },
   "web.files.toolbar.view": {
     "text": "Vista",
     "en": "View"
@@ -625,6 +633,44 @@
   "web.files.upload.uploading": {
     "text": "A carregar…",
     "en": "Uploading…"
+  },
+  "web.files.usage.empty": {
+    "text": "Nada nesta pasta ocupa espaço.",
+    "en": "Nothing in this folder takes up space."
+  },
+  "web.files.usage.failed": {
+    "text": "Não foi possível calcular quanto espaço ocupa esta pasta.",
+    "en": "Couldn't find out how much space this folder takes."
+  },
+  "web.files.usage.needs_update": {
+    "text": "O teu dispositivo precisa de uma atualização para mostrar quanto espaço ocupam as pastas.",
+    "en": "Your device needs an update to show how much space folders take."
+  },
+  "web.files.usage.note": {
+    "text": "Os tamanhos são contados ficheiro a ficheiro: um ficheiro guardado em dois sítios conta duas vezes, embora o dispositivo o armazene só uma vez. As miniaturas e a encriptação não são contadas, por isso os totais não vão coincidir com a barra de armazenamento.",
+    "en": "Sizes are counted file by file: a file kept in two places counts twice, though the device stores it once. Thumbnails and encryption aren't counted, so the totals won't match the storage bar."
+  },
+  "web.files.usage.row_label": {
+    "text": "{name}, {size}, {share} desta pasta",
+    "en": "{name}, {size}, {share} of this folder"
+  },
+  "web.files.usage.share_small": {
+    "text": "menos de 1%",
+    "en": "under 1%"
+  },
+  "web.files.usage.total": {
+    "text": {
+      "one": "Esta pasta: {size} em {count} ficheiro",
+      "other": "Esta pasta: {size} em {count} ficheiros"
+    },
+    "en": {
+      "one": "This folder: {size} in {count} file",
+      "other": "This folder: {size} in {count} files"
+    }
+  },
+  "web.files.usage.versions": {
+    "text": "Inclui {size} de versões anteriores",
+    "en": "{size} of it in older versions"
   },
   "web.files.versions.count": {
     "text": {

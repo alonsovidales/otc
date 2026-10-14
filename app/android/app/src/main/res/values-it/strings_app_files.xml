@@ -89,6 +89,19 @@
     <string name="app_files_upload_failed">Caricamento non riuscito: %1$s</string>
     <string name="app_files_upload_only">Solo caricamento</string>
     <string name="app_files_upload_only_file_info">Questo file si trova in una cartella in solo caricamento: non può essere eliminato, e caricarlo di nuovo ne conserva la versione precedente. Il lucchetto sulla cartella cambia questa impostazione.</string>
+    <string name="app_files_usage_empty">Nulla in questa cartella occupa spazio.</string>
+    <string name="app_files_usage_failed">Impossibile calcolare quanto spazio occupa questa cartella.</string>
+    <string name="app_files_usage_needs_update">Il tuo dispositivo deve essere aggiornato per mostrare quanto spazio occupano le cartelle.</string>
+    <string name="app_files_usage_note">Le dimensioni sono contate file per file: un file presente in due posizioni conta due volte, anche se il dispositivo lo memorizza una sola volta. Miniature e crittografia non sono contate, quindi i totali non corrisponderanno alla barra dello spazio di archiviazione.</string>
+    <string name="app_files_usage_row">%1$s · %2$s</string>
+    <string name="app_files_usage_row_label">\u2068%1$s\u2069, %2$s, %3$s di questa cartella</string>
+    <string name="app_files_usage_share_small" formatted="false">meno dell’1%</string>
+    <plurals name="app_files_usage_total">
+        <item quantity="one">Questa cartella: %1$s in %2$s file</item>
+        <item quantity="many">Questa cartella: %1$s in %2$s file</item>
+        <item quantity="other">Questa cartella: %1$s in %2$s file</item>
+    </plurals>
+    <string name="app_files_usage_versions">Di cui %1$s in versioni precedenti</string>
     <string name="app_files_version_current">Attuale</string>
     <string name="app_files_version_open_failed">Impossibile recuperare quella versione</string>
     <string name="app_files_version_replaced">Sostituita: %1$s</string>
@@ -98,4 +111,5 @@
     <string name="app_files_view_grid">Griglia</string>
     <string name="app_files_view_list">Elenco</string>
     <string name="app_files_view_options">Opzioni di visualizzazione</string>
+    <string name="app_files_view_storage">Spazio</string>
 </resources>

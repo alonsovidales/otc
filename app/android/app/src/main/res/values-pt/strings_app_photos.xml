@@ -25,6 +25,24 @@
     </plurals>
     <string name="app_photos_collections_rename">Mudar o nome da coleção</string>
     <string name="app_photos_collections_sheet_empty">Ainda não há coleções: seleciona algumas fotos e escolhe «Adicionar a uma coleção».</string>
+    <plurals name="app_photos_copies_all">
+        <item quantity="one">Eliminar as %1$s cópias</item>
+        <item quantity="many">Eliminar as %1$s cópias</item>
+        <item quantity="other">Eliminar as %1$s cópias</item>
+    </plurals>
+    <string name="app_photos_copies_every">Eliminar todas as cópias</string>
+    <string name="app_photos_copies_only_these">Eliminar só estas cópias</string>
+    <string name="app_photos_copies_only_this">Eliminar só esta cópia</string>
+    <plurals name="app_photos_copies_several_text">
+        <item quantity="one">%1$s item da seleção também tem cópias noutros locais do teu dispositivo. Eliminar só estas cópias ou todas as cópias? Esta ação não pode ser anulada.</item>
+        <item quantity="many">%1$s itens da seleção também têm cópias noutros locais do teu dispositivo. Eliminar só estas cópias ou todas as cópias? Esta ação não pode ser anulada.</item>
+        <item quantity="other">%1$s itens da seleção também têm cópias noutros locais do teu dispositivo. Eliminar só estas cópias ou todas as cópias? Esta ação não pode ser anulada.</item>
+    </plurals>
+    <plurals name="app_photos_copies_single_text">
+        <item quantity="one">Há %1$s cópias no teu dispositivo. Eliminar só esta cópia ou todas? Esta ação não pode ser anulada.</item>
+        <item quantity="many">Há %1$s cópias no teu dispositivo. Eliminar só esta cópia ou todas? Esta ação não pode ser anulada.</item>
+        <item quantity="other">Há %1$s cópias no teu dispositivo. Eliminar só esta cópia ou todas? Esta ação não pode ser anulada.</item>
+    </plurals>
     <plurals name="app_photos_grid_collection_items_span">
         <item quantity="one">%1$s item · %2$s</item>
         <item quantity="many">%1$s itens · %2$s</item>
@@ -86,7 +104,17 @@
     <string name="app_photos_notice_added">Adicionado à coleção «\u2068%1$s\u2069».</string>
     <string name="app_photos_notice_create_failed">Não foi possível criar a coleção.</string>
     <string name="app_photos_notice_created">Coleção «\u2068%1$s\u2069» criada.</string>
+    <plurals name="app_photos_notice_delete_changed">
+        <item quantity="one">%1$s item mudou no teu dispositivo desde que foi mostrado, por isso não foi eliminado. Verifica-o e tenta novamente.</item>
+        <item quantity="many">%1$s itens mudaram no teu dispositivo desde que foram mostrados, por isso não foram eliminados. Verifica-os e tenta novamente.</item>
+        <item quantity="other">%1$s itens mudaram no teu dispositivo desde que foram mostrados, por isso não foram eliminados. Verifica-os e tenta novamente.</item>
+    </plurals>
     <string name="app_photos_notice_delete_collection_failed">Não foi possível eliminar a coleção.</string>
+    <plurals name="app_photos_notice_delete_copy_upload_only">
+        <item quantity="one">%1$s item não foi eliminado: tem uma cópia numa pasta em apenas carregamento</item>
+        <item quantity="many">%1$s itens não foram eliminados: têm cópias numa pasta em apenas carregamento</item>
+        <item quantity="other">%1$s itens não foram eliminados: têm cópias numa pasta em apenas carregamento</item>
+    </plurals>
     <string name="app_photos_notice_delete_failed">A eliminação falhou: %1$s</string>
     <string name="app_photos_notice_no_download_link">Não foi possível criar a ligação de transferência.</string>
     <string name="app_photos_notice_no_share_link">Não foi possível criar a ligação de partilha.</string>
@@ -203,4 +231,5 @@
     <string name="app_photos_viewer_info_title">Mais informações</string>
     <string name="app_photos_viewer_low_res">Baixa res.</string>
     <string name="app_photos_viewer_more_info">Mais informações</string>
+    <string name="app_photos_viewer_saving">A guardar…</string>
 </resources>

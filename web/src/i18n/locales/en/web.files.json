@@ -2,6 +2,7 @@
   "web.files.column.created": "Created",
   "web.files.column.modified": "Modified",
   "web.files.column.name": "Name",
+  "web.files.column.share": "Share of folder",
   "web.files.column.size": "Size",
   "web.files.gallery.cant_show": "This file could not be shown here - download it instead.",
   "web.files.gallery.download_all": "Download all",
@@ -172,6 +173,7 @@
   "web.files.toolbar.grid": "Grid",
   "web.files.toolbar.list": "List",
   "web.files.toolbar.path": "Path:",
+  "web.files.toolbar.storage": "Storage",
   "web.files.toolbar.view": "View",
   "web.files.upload.done": "✓ Done",
   "web.files.upload.failed": "✕ Failed",
@@ -184,6 +186,18 @@
     "arg": "count"
   },
   "web.files.upload.uploading": "Uploading…",
+  "web.files.usage.empty": "Nothing in this folder takes up space.",
+  "web.files.usage.failed": "Couldn't find out how much space this folder takes.",
+  "web.files.usage.needs_update": "Your device needs an update to show how much space folders take.",
+  "web.files.usage.note": "Sizes are counted file by file: a file kept in two places counts twice, though the device stores it once. Thumbnails and encryption aren't counted, so the totals won't match the storage bar.",
+  "web.files.usage.row_label": "\u2068{name}\u2069, {size}, {share} of this folder",
+  "web.files.usage.share_small": "under 1%",
+  "web.files.usage.total": {
+    "one": "This folder: {size} in {count} file",
+    "other": "This folder: {size} in {count} files",
+    "arg": "count"
+  },
+  "web.files.usage.versions": "{size} of it in older versions",
   "web.files.versions.count": {
     "one": "{count} version",
     "other": "{count} versions",

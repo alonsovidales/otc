@@ -34,6 +34,24 @@
   "web.images.collections.slow": "As tuas coleções estão a demorar mais do que o habitual a carregar.",
   "web.images.collections.title": "Coleções",
   "web.images.collections.untitled": "Coleção sem nome",
+  "web.images.copies.all": {
+    "one": "Eliminar as {count} cópias",
+    "other": "Eliminar as {count} cópias",
+    "arg": "count"
+  },
+  "web.images.copies.every": "Eliminar todas as cópias",
+  "web.images.copies.only_these": "Eliminar só estas cópias",
+  "web.images.copies.only_this": "Eliminar só esta cópia",
+  "web.images.copies.several_text": {
+    "one": "{count} item da seleção também tem cópias noutros locais do teu dispositivo. Eliminar só estas cópias ou todas as cópias? Esta ação não pode ser anulada.",
+    "other": "{count} itens da seleção também têm cópias noutros locais do teu dispositivo. Eliminar só estas cópias ou todas as cópias? Esta ação não pode ser anulada.",
+    "arg": "count"
+  },
+  "web.images.copies.single_text": {
+    "one": "Há {count} cópias no teu dispositivo. Eliminar só esta cópia ou todas? Esta ação não pode ser anulada.",
+    "other": "Há {count} cópias no teu dispositivo. Eliminar só esta cópia ou todas? Esta ação não pode ser anulada.",
+    "arg": "count"
+  },
   "web.images.count.items": {
     "one": "{count} item",
     "other": "{count} itens",
@@ -57,6 +75,16 @@
   "web.images.crop.unsupported": "Não é possível abrir esta foto aqui: experimenta um JPEG ou PNG.",
   "web.images.crop.use": "Usar foto",
   "web.images.crop.zoom": "Zoom",
+  "web.images.delete.changed": {
+    "one": "{count} item mudou no teu dispositivo desde que foi mostrado, por isso não foi eliminado. Verifica-o e tenta novamente.",
+    "other": "{count} itens mudaram no teu dispositivo desde que foram mostrados, por isso não foram eliminados. Verifica-os e tenta novamente.",
+    "arg": "count"
+  },
+  "web.images.delete.copy_upload_only": {
+    "one": "{count} item não foi eliminado: tem uma cópia numa pasta em apenas carregamento",
+    "other": "{count} itens não foram eliminados: têm cópias numa pasta em apenas carregamento",
+    "arg": "count"
+  },
   "web.images.delete.done": "Eliminaste {what}",
   "web.images.delete.failed": {
     "one": "Não foi possível eliminar {count} item. Tenta novamente.",

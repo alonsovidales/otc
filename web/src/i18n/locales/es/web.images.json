@@ -34,6 +34,24 @@
   "web.images.collections.slow": "Tus colecciones están tardando más de lo habitual en cargarse.",
   "web.images.collections.title": "Colecciones",
   "web.images.collections.untitled": "Colección sin nombre",
+  "web.images.copies.all": {
+    "one": "Eliminar las {count} copias",
+    "other": "Eliminar las {count} copias",
+    "arg": "count"
+  },
+  "web.images.copies.every": "Eliminar todas las copias",
+  "web.images.copies.only_these": "Eliminar solo estas copias",
+  "web.images.copies.only_this": "Eliminar solo esta copia",
+  "web.images.copies.several_text": {
+    "one": "{count} de la selección también tiene copias en otros lugares de tu dispositivo. ¿Eliminar solo estas copias o todas sus copias? Esto no se puede deshacer.",
+    "other": "{count} de la selección también tienen copias en otros lugares de tu dispositivo. ¿Eliminar solo estas copias o todas sus copias? Esto no se puede deshacer.",
+    "arg": "count"
+  },
+  "web.images.copies.single_text": {
+    "one": "Hay {count} copias en tu dispositivo. ¿Eliminar solo esta copia o todas? Esto no se puede deshacer.",
+    "other": "Hay {count} copias en tu dispositivo. ¿Eliminar solo esta copia o todas? Esto no se puede deshacer.",
+    "arg": "count"
+  },
   "web.images.count.items": {
     "one": "{count} elemento",
     "other": "{count} elementos",
@@ -57,6 +75,16 @@
   "web.images.crop.unsupported": "Esta imagen no se puede abrir aquí: prueba con un JPEG o un PNG.",
   "web.images.crop.use": "Usar foto",
   "web.images.crop.zoom": "Zoom",
+  "web.images.delete.changed": {
+    "one": "{count} elemento ha cambiado en tu dispositivo desde que se mostró, así que no se ha eliminado. Revísalo y vuelve a intentarlo.",
+    "other": "{count} elementos han cambiado en tu dispositivo desde que se mostraron, así que no se han eliminado. Revísalos y vuelve a intentarlo.",
+    "arg": "count"
+  },
+  "web.images.delete.copy_upload_only": {
+    "one": "{count} elemento no se ha eliminado: tiene una copia en una carpeta de solo subida",
+    "other": "{count} elementos no se han eliminado: tienen copias en una carpeta de solo subida",
+    "arg": "count"
+  },
   "web.images.delete.done": "Has eliminado {what}",
   "web.images.delete.failed": {
     "one": "No se ha podido eliminar {count} elemento. Vuelve a intentarlo.",

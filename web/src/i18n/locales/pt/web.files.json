@@ -2,6 +2,7 @@
   "web.files.column.created": "Criado",
   "web.files.column.modified": "Modificado",
   "web.files.column.name": "Nome",
+  "web.files.column.share": "Parte da pasta",
   "web.files.column.size": "Tamanho",
   "web.files.gallery.cant_show": "Não foi possível mostrar este ficheiro aqui: transfere-o.",
   "web.files.gallery.download_all": "Transferir tudo",
@@ -172,6 +173,7 @@
   "web.files.toolbar.grid": "Grelha",
   "web.files.toolbar.list": "Lista",
   "web.files.toolbar.path": "Caminho:",
+  "web.files.toolbar.storage": "Armazenamento",
   "web.files.toolbar.view": "Vista",
   "web.files.upload.done": "✓ Concluído",
   "web.files.upload.failed": "✕ Falhou",
@@ -184,6 +186,18 @@
     "arg": "count"
   },
   "web.files.upload.uploading": "A carregar…",
+  "web.files.usage.empty": "Nada nesta pasta ocupa espaço.",
+  "web.files.usage.failed": "Não foi possível calcular quanto espaço ocupa esta pasta.",
+  "web.files.usage.needs_update": "O teu dispositivo precisa de uma atualização para mostrar quanto espaço ocupam as pastas.",
+  "web.files.usage.note": "Os tamanhos são contados ficheiro a ficheiro: um ficheiro guardado em dois sítios conta duas vezes, embora o dispositivo o armazene só uma vez. As miniaturas e a encriptação não são contadas, por isso os totais não vão coincidir com a barra de armazenamento.",
+  "web.files.usage.row_label": "\u2068{name}\u2069, {size}, {share} desta pasta",
+  "web.files.usage.share_small": "menos de 1%",
+  "web.files.usage.total": {
+    "one": "Esta pasta: {size} em {count} ficheiro",
+    "other": "Esta pasta: {size} em {count} ficheiros",
+    "arg": "count"
+  },
+  "web.files.usage.versions": "Inclui {size} de versões anteriores",
   "web.files.versions.count": {
     "one": "{count} versão",
     "other": "{count} versões",

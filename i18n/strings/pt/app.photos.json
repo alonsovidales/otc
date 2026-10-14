@@ -64,6 +64,54 @@
     "text": "Ainda não há coleções: seleciona algumas fotos e escolhe «Adicionar a uma coleção».",
     "en": "No collections yet — select some pictures and choose Add to collection."
   },
+  "app.photos.copies.all": {
+    "text": {
+      "one": "Eliminar as {count} cópias",
+      "other": "Eliminar as {count} cópias"
+    },
+    "en": {
+      "one": "Delete all {count} copies",
+      "other": "Delete all {count} copies"
+    },
+    "reviewed": "claude-backtranslation 2026-10-14 #504498f0"
+  },
+  "app.photos.copies.every": {
+    "text": "Eliminar todas as cópias",
+    "en": "Delete every copy",
+    "reviewed": "claude-backtranslation 2026-10-14 #88aab2a4"
+  },
+  "app.photos.copies.only_these": {
+    "text": "Eliminar só estas cópias",
+    "en": "Delete only these copies",
+    "reviewed": "claude-backtranslation 2026-10-14 #616ef46c"
+  },
+  "app.photos.copies.only_this": {
+    "text": "Eliminar só esta cópia",
+    "en": "Delete only this copy",
+    "reviewed": "claude-backtranslation 2026-10-14 #80893bac"
+  },
+  "app.photos.copies.several_text": {
+    "text": {
+      "one": "{count} item da seleção também tem cópias noutros locais do teu dispositivo. Eliminar só estas cópias ou todas as cópias? Esta ação não pode ser anulada.",
+      "other": "{count} itens da seleção também têm cópias noutros locais do teu dispositivo. Eliminar só estas cópias ou todas as cópias? Esta ação não pode ser anulada."
+    },
+    "en": {
+      "one": "{count} of them also has copies elsewhere on your device. Delete only these copies, or every copy? This can't be undone.",
+      "other": "{count} of them also have copies elsewhere on your device. Delete only these copies, or every copy? This can't be undone."
+    },
+    "reviewed": "claude-backtranslation 2026-10-14 #17e5903d"
+  },
+  "app.photos.copies.single_text": {
+    "text": {
+      "one": "Há {count} cópias no teu dispositivo. Eliminar só esta cópia ou todas? Esta ação não pode ser anulada.",
+      "other": "Há {count} cópias no teu dispositivo. Eliminar só esta cópia ou todas? Esta ação não pode ser anulada."
+    },
+    "en": {
+      "one": "There are {count} copies of it on your device. Delete only this copy, or all of them? This can't be undone.",
+      "other": "There are {count} copies of it on your device. Delete only this copy, or all of them? This can't be undone."
+    },
+    "reviewed": "claude-backtranslation 2026-10-14 #8d4ba6de"
+  },
   "app.photos.grid.collection_items_span": {
     "text": {
       "one": "{count} item · {span}",
@@ -278,9 +326,29 @@
     "text": "Coleção «{name}» criada.",
     "en": "Collection \"{name}\" created."
   },
+  "app.photos.notice.delete_changed": {
+    "text": {
+      "one": "{count} item mudou no teu dispositivo desde que foi mostrado, por isso não foi eliminado. Verifica-o e tenta novamente.",
+      "other": "{count} itens mudaram no teu dispositivo desde que foram mostrados, por isso não foram eliminados. Verifica-os e tenta novamente."
+    },
+    "en": {
+      "one": "{count} item changed on your device since it was shown, so it wasn't deleted. Check it and try again.",
+      "other": "{count} items changed on your device since they were shown, so they weren't deleted. Check them and try again."
+    }
+  },
   "app.photos.notice.delete_collection_failed": {
     "text": "Não foi possível eliminar a coleção.",
     "en": "Could not delete the collection."
+  },
+  "app.photos.notice.delete_copy_upload_only": {
+    "text": {
+      "one": "{count} item não foi eliminado: tem uma cópia numa pasta em apenas carregamento",
+      "other": "{count} itens não foram eliminados: têm cópias numa pasta em apenas carregamento"
+    },
+    "en": {
+      "one": "{count} item wasn't deleted: a copy of it is in an upload-only folder",
+      "other": "{count} items weren't deleted: they have copies in an upload-only folder"
+    }
   },
   "app.photos.notice.delete_failed": {
     "text": "A eliminação falhou: {detail}",
@@ -657,5 +725,9 @@
   "app.photos.viewer.more_info": {
     "text": "Mais informações",
     "en": "More info"
+  },
+  "app.photos.viewer.saving": {
+    "text": "A guardar…",
+    "en": "Saving…"
   }
 }

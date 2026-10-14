@@ -89,6 +89,19 @@
     <string name="app_files_upload_failed">Échec de l’envoi : %1$s</string>
     <string name="app_files_upload_only">Envoi uniquement</string>
     <string name="app_files_upload_only_file_info">Cet élément se trouve dans un dossier en envoi uniquement : il ne peut pas être supprimé, et l’envoyer de nouveau conserve son ancienne version. Le cadenas sur le dossier permet de changer cela.</string>
+    <string name="app_files_usage_empty">Rien dans ce dossier n’occupe d’espace.</string>
+    <string name="app_files_usage_failed">Impossible de calculer l’espace occupé par ce dossier.</string>
+    <string name="app_files_usage_needs_update">Votre appareil doit être mis à jour pour afficher l’espace occupé par les dossiers.</string>
+    <string name="app_files_usage_note">Les tailles sont comptées fichier par fichier : un fichier conservé à deux endroits compte deux fois, même si l’appareil ne le stocke qu’une fois. Les vignettes et le chiffrement ne sont pas comptés, les totaux ne correspondront donc pas à la barre de stockage.</string>
+    <string name="app_files_usage_row">%1$s · %2$s</string>
+    <string name="app_files_usage_row_label">\u2068%1$s\u2069, %2$s, %3$s de ce dossier</string>
+    <string name="app_files_usage_share_small" formatted="false">moins de 1 %</string>
+    <plurals name="app_files_usage_total">
+        <item quantity="one">Ce dossier : %1$s pour %2$s fichier</item>
+        <item quantity="many">Ce dossier : %1$s pour %2$s fichiers</item>
+        <item quantity="other">Ce dossier : %1$s pour %2$s fichiers</item>
+    </plurals>
+    <string name="app_files_usage_versions">Dont %1$s d’anciennes versions</string>
     <string name="app_files_version_current">Version actuelle</string>
     <string name="app_files_version_open_failed">Impossible de récupérer cette version</string>
     <string name="app_files_version_replaced">Remplacée : %1$s</string>
@@ -98,4 +111,5 @@
     <string name="app_files_view_grid">Grille</string>
     <string name="app_files_view_list">Liste</string>
     <string name="app_files_view_options">Options d\'affichage</string>
+    <string name="app_files_view_storage">Stockage</string>
 </resources>

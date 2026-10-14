@@ -34,6 +34,24 @@
   "web.images.collections.slow": "Deine Sammlungen brauchen länger als sonst zum Laden.",
   "web.images.collections.title": "Sammlungen",
   "web.images.collections.untitled": "Unbenannte Sammlung",
+  "web.images.copies.all": {
+    "one": "Alle {count} Kopien löschen",
+    "other": "Alle {count} Kopien löschen",
+    "arg": "count"
+  },
+  "web.images.copies.every": "Alle Kopien löschen",
+  "web.images.copies.only_these": "Nur diese Kopien löschen",
+  "web.images.copies.only_this": "Nur diese Kopie löschen",
+  "web.images.copies.several_text": {
+    "one": "{count} Element der Auswahl hat auch Kopien an anderen Orten auf deinem Gerät. Nur diese Kopien löschen oder alle Kopien? Das kann nicht rückgängig gemacht werden.",
+    "other": "{count} Elemente der Auswahl haben auch Kopien an anderen Orten auf deinem Gerät. Nur diese Kopien löschen oder alle Kopien? Das kann nicht rückgängig gemacht werden.",
+    "arg": "count"
+  },
+  "web.images.copies.single_text": {
+    "one": "Auf deinem Gerät gibt es {count} Kopien davon. Nur diese Kopie löschen oder alle? Das kann nicht rückgängig gemacht werden.",
+    "other": "Auf deinem Gerät gibt es {count} Kopien davon. Nur diese Kopie löschen oder alle? Das kann nicht rückgängig gemacht werden.",
+    "arg": "count"
+  },
   "web.images.count.items": {
     "one": "{count} Element",
     "other": "{count} Elemente",
@@ -57,6 +75,16 @@
   "web.images.crop.unsupported": "Dieses Bild kann hier nicht geöffnet werden – versuche es mit einem JPEG oder PNG.",
   "web.images.crop.use": "Foto verwenden",
   "web.images.crop.zoom": "Zoom",
+  "web.images.delete.changed": {
+    "one": "{count} Element hat sich auf deinem Gerät geändert, seit es angezeigt wurde, und wurde deshalb nicht gelöscht. Prüfe es und versuche es erneut.",
+    "other": "{count} Elemente haben sich auf deinem Gerät geändert, seit sie angezeigt wurden, und wurden deshalb nicht gelöscht. Prüfe sie und versuche es erneut.",
+    "arg": "count"
+  },
+  "web.images.delete.copy_upload_only": {
+    "one": "{count} Element wurde nicht gelöscht: Eine Kopie davon liegt in einem Ordner mit „Nur hochladen“",
+    "other": "{count} Elemente wurden nicht gelöscht: Sie haben Kopien in einem Ordner mit „Nur hochladen“",
+    "arg": "count"
+  },
   "web.images.delete.done": "{what} gelöscht",
   "web.images.delete.failed": {
     "one": "{count} Element konnte nicht gelöscht werden. Versuche es erneut.",

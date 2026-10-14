@@ -2,6 +2,7 @@
   "web.files.column.created": "Date de création",
   "web.files.column.modified": "Date de modification",
   "web.files.column.name": "Nom",
+  "web.files.column.share": "Part du dossier",
   "web.files.column.size": "Taille",
   "web.files.gallery.cant_show": "Impossible d’afficher ce fichier ici : téléchargez-le plutôt.",
   "web.files.gallery.download_all": "Tout télécharger",
@@ -172,6 +173,7 @@
   "web.files.toolbar.grid": "Grille",
   "web.files.toolbar.list": "Liste",
   "web.files.toolbar.path": "Chemin :",
+  "web.files.toolbar.storage": "Stockage",
   "web.files.toolbar.view": "Affichage",
   "web.files.upload.done": "✓ Terminé",
   "web.files.upload.failed": "✕ Échec",
@@ -184,6 +186,18 @@
     "arg": "count"
   },
   "web.files.upload.uploading": "Envoi…",
+  "web.files.usage.empty": "Rien dans ce dossier n’occupe d’espace.",
+  "web.files.usage.failed": "Impossible de calculer l’espace occupé par ce dossier.",
+  "web.files.usage.needs_update": "Votre appareil doit être mis à jour pour afficher l’espace occupé par les dossiers.",
+  "web.files.usage.note": "Les tailles sont comptées fichier par fichier : un fichier conservé à deux endroits compte deux fois, même si l’appareil ne le stocke qu’une fois. Les vignettes et le chiffrement ne sont pas comptés, les totaux ne correspondront donc pas à la barre de stockage.",
+  "web.files.usage.row_label": "\u2068{name}\u2069, {size}, {share} de ce dossier",
+  "web.files.usage.share_small": "moins de 1 %",
+  "web.files.usage.total": {
+    "one": "Ce dossier : {size} pour {count} fichier",
+    "other": "Ce dossier : {size} pour {count} fichiers",
+    "arg": "count"
+  },
+  "web.files.usage.versions": "Dont {size} d’anciennes versions",
   "web.files.versions.count": {
     "one": "{count} version",
     "other": "{count} versions",

@@ -892,6 +892,8 @@ private final class FakeDevice {
     }
     var pages: [Page] = []
     var searches: [Msg_SearchPhotos] = []
+    /// Issue #194: the searches upward from a jump (newer_than).
+    var newer: [Msg_SearchPhotos] = []
     /// The kind each request was asked as (nil: the socket's own time),
     /// in order, by what it asked.
     var kinds: [(String, PhotoGalleryVM.AskKind?)] = []
@@ -945,6 +947,16 @@ private final class FakeDevice {
         vm.photoRequest = { [weak self] payload, kind in
             guard let self else { throw CancellationError() }
             switch payload {
+            // Issue #194: after a jump, a tile near the top asks for the
+            // photos above it - none here (the top, oldest first): kept
+            // apart from the pages these tests count.
+            case .reqSearchPhotos(let sp) where sp.hasNewerThan:
+                self.newer.append(sp)
+                var lof = Msg_ListOfFiles()
+                lof.oldestFirst = true
+                var r = Msg_RespEnvelope()
+                r.payload = .respListOfFiles(lof)
+                return r
             case .reqSearchPhotos(let sp):
                 self.searches.append(sp)
                 self.kinds.append(("page", kind))

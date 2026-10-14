@@ -2,6 +2,7 @@
   "web.files.column.created": "Creado",
   "web.files.column.modified": "Modificado",
   "web.files.column.name": "Nombre",
+  "web.files.column.share": "Parte de la carpeta",
   "web.files.column.size": "Tamaño",
   "web.files.gallery.cant_show": "Este archivo no se puede mostrar aquí: descárgalo.",
   "web.files.gallery.download_all": "Descargar todo",
@@ -172,6 +173,7 @@
   "web.files.toolbar.grid": "Cuadrícula",
   "web.files.toolbar.list": "Lista",
   "web.files.toolbar.path": "Ruta:",
+  "web.files.toolbar.storage": "Almacenamiento",
   "web.files.toolbar.view": "Vista",
   "web.files.upload.done": "✓ Subido",
   "web.files.upload.failed": "✕ Error",
@@ -184,6 +186,18 @@
     "arg": "count"
   },
   "web.files.upload.uploading": "Subiendo…",
+  "web.files.usage.empty": "Nada de esta carpeta ocupa espacio.",
+  "web.files.usage.failed": "No se ha podido calcular cuánto espacio ocupa esta carpeta.",
+  "web.files.usage.needs_update": "Tu dispositivo necesita una actualización para mostrar cuánto espacio ocupan las carpetas.",
+  "web.files.usage.note": "Los tamaños se cuentan archivo por archivo: un archivo guardado en dos sitios cuenta dos veces, aunque el dispositivo lo almacena una sola vez. Las miniaturas y el cifrado no se cuentan, así que los totales no coincidirán con la barra de almacenamiento.",
+  "web.files.usage.row_label": "\u2068{name}\u2069, {size}, {share} de esta carpeta",
+  "web.files.usage.share_small": "menos del 1 %",
+  "web.files.usage.total": {
+    "one": "Esta carpeta: {size} en {count} archivo",
+    "other": "Esta carpeta: {size} en {count} archivos",
+    "arg": "count"
+  },
+  "web.files.usage.versions": "Incluye {size} de versiones anteriores",
   "web.files.versions.count": {
     "one": "{count} versión",
     "other": "{count} versiones",

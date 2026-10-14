@@ -84,6 +84,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -98,6 +99,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -131,6 +135,7 @@ import kotlin.math.abs
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
@@ -197,6 +202,12 @@ import cloud.offthe.otc.i18n.appPhotosCollectionsNewTitle
 import cloud.offthe.otc.i18n.appPhotosCollectionsPictures
 import cloud.offthe.otc.i18n.appPhotosCollectionsRename
 import cloud.offthe.otc.i18n.appPhotosCollectionsSheetEmpty
+import cloud.offthe.otc.i18n.appPhotosCopiesAll
+import cloud.offthe.otc.i18n.appPhotosCopiesEvery
+import cloud.offthe.otc.i18n.appPhotosCopiesOnlyThese
+import cloud.offthe.otc.i18n.appPhotosCopiesOnlyThis
+import cloud.offthe.otc.i18n.appPhotosCopiesSeveralText
+import cloud.offthe.otc.i18n.appPhotosCopiesSingleText
 import cloud.offthe.otc.i18n.appPhotosGridCollectionItemsSpan
 import cloud.offthe.otc.i18n.appPhotosGridEmptyCollectionText
 import cloud.offthe.otc.i18n.appPhotosGridEmptyCollectionTitle
@@ -224,6 +235,7 @@ import cloud.offthe.otc.i18n.appPhotosViewerInfoTaken
 import cloud.offthe.otc.i18n.appPhotosViewerInfoTitle
 import cloud.offthe.otc.i18n.appPhotosViewerLowRes
 import cloud.offthe.otc.i18n.appPhotosViewerMoreInfo
+import cloud.offthe.otc.i18n.appPhotosViewerSaving
 import cloud.offthe.otc.i18n.appShellCollectionsGoToImages
 import cloud.offthe.otc.i18n.appShellSearchClear
 import cloud.offthe.otc.i18n.appShellSearchUnnamed
@@ -381,10 +393,19 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             // The months' layout: once per page, filter or width - the
             // photos' months were worked out as they came (Item.month).
             val monthCounts = remember(buckets) { if (buckets.isEmpty()) null else buckets.associate { it.month to it.count } }
-            val layout = remember(st.items, dated, geo, monthCounts, st.endReached) {
+            // Issue #194: after a jump, while newer photos are to come, the
+            // room the top month keeps for those of it still to come (from
+            // the buckets), so they land there without moving what is on
+            // screen. Nothing above a complete month: the spinner says more
+            // are coming.
+            val above = remember(st.items, dated, st.upOn, buckets) {
+                val first = st.items.firstOrNull()
+                if (dated && st.upOn && first != null) roomAbove(first.month, first.up, buckets) else null
+            }
+            val layout = remember(st.items, dated, geo, monthCounts, st.endReached, above) {
                 val n = st.items.size
                 val runs = if (dated) monthRuns(st.items.map { it.month }) else if (n > 0) listOf(MonthRun(null, 0, n)) else emptyList()
-                layoutGallery(runs, dated, geo, monthCounts, more = !st.endReached)
+                layoutGallery(runs, dated, geo, monthCounts, more = !st.endReached, above = above)
             }
             // Grey tiles: the scrubber's month under its title, or the first
             // page on its way (a grey title too, in date order) - from the
@@ -408,6 +429,15 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             val group = st.activeGroup
             val personHeader = group == null && st.selectedPeople.isNotEmpty() && st.chips.isEmpty() && faces == true
             val headerCount = (if (group != null) 1 else 0) + (if (personHeader) 1 else 0)
+            // Each row's key: its month and place in it in date order (stable
+            // while photos land above or fill its grey tiles, issue #194),
+            // else its first photo; the grey tiles' own.
+            fun rowKey(i: Int): Any {
+                val r = shown.rows[i]
+                val tag = if (r is TitledRow) "l" else "r"
+                if (greyLayout != null) return "g:$tag:${r.start}"
+                return layout.keyOf(i)?.let { "m:$it" } ?: "$tag:${st.items.getOrNull(r.start)?.id ?: r.start}"
+            }
 
             // A change of width (turned, unfolded, the menu) changes the
             // columns and so every row: the photo that was first on screen
@@ -431,18 +461,41 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             // Asked for again at each recomposition until the list is there
             // (the window settles over a few frames), or the person scrolls.
             val lastGeo = remember { arrayOfNulls<GridGeometry>(1) }
+            // Issue #194: the rows as the last frame drew them, to keep the
+            // ones on screen in place when photos land above them.
+            val drawn = remember { DrawnRows(st.jumpsLanded, st.upLanded) }
             SideEffect {
                 // Grey tiles stand for no photo: no place is read off them.
-                if (greyLayout != null) { anchor.layout = null; return@SideEffect }
+                if (greyLayout != null) { anchor.layout = null; drawn.layout = null; return@SideEffect }
+                // A jump's photos landed (the scrubber's grey tiles gone): at
+                // the top, its month's title. The newer photos come above it
+                // once the person scrolls up (PhotoGalleryViewModel.scrolledUp).
+                if (st.jumpsLanded != drawn.jumps && st.items.isNotEmpty()) {
+                    drawn.jumps = st.jumpsLanded
+                    listState.requestScrollToItem(headerCount + layout.rowOf(st.items.indexOfFirst { !it.up }.coerceAtLeast(0)).coerceAtLeast(0))
+                } else if (st.upLanded != drawn.ups || st.upOn != drawn.upOn) {
+                    // The room over a row (px): the grid's top over its first, a
+                    // line's gap over a title, a tile's gap over a row of tiles.
+                    val padPx: (GalleryLayout, Int) -> Int = { l, i ->
+                        with(density) { (if (i == 0) metrics.top else if (l.rows.getOrNull(i) is TitledRow) metrics.lineGap else metrics.gap).roundToPx() }
+                    }
+                    keepRowsInPlace(listState, drawn, layout, st.items, headerCount, padPx)
+                }
+                drawn.ups = st.upLanded
+                drawn.upOn = st.upOn
+                drawn.layout = layout
+                drawn.items = st.items
+                drawn.headerCount = headerCount
                 // What the list's place is read against, when it scrolls.
                 anchor.layout = layout
+                anchor.items = st.items
                 anchor.headerCount = headerCount
                 anchor.tilePx = geo.tile * density.density
                 val oldGeo = lastGeo[0]
                 lastGeo[0] = geo
                 if (oldGeo != null && oldGeo != geo) anchor.pending = anchor.place
-                val (item, tiles) = anchor.pending ?: return@SideEffect
-                val row = layout.rowOf(item)
+                val (id, tiles) = anchor.pending ?: return@SideEffect
+                val row = layout.rowOf(st.items.indexOfFirst { it.id == id })
                 if (row < 0 || listState.isScrollInProgress) { anchor.pending = null; return@SideEffect }
                 val index = headerCount + row
                 val offset = (tiles * geo.tile * density.density).roundToInt()
@@ -451,11 +504,26 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             }
             // A new list (a search, a jump): no place in it yet but its top.
             LaunchedEffect(st.searchesStarted, st.jumpsLanded) { anchor.place = null; anchor.pending = null }
-            // A jump's photos landed: at the top, its month's title. A new
-            // search (a filter) starts at the top of the page.
-            var jumpsSeen by remember { mutableIntStateOf(st.jumpsLanded) }
-            LaunchedEffect(st.jumpsLanded) {
-                if (st.jumpsLanded != jumpsSeen) { jumpsSeen = st.jumpsLanded; listState.scrollToItem(headerCount) }
+            // Issue #194: scrolled up after a jump - the newer photos above
+            // may come. However the person scrolls: a drag or fling (at the
+            // very top too, where the list itself can't move: its nested
+            // scroll still sees it), and anything else that scrolls the list
+            // up (TalkBack's scroll, a key), never the grid's own moves.
+            val upScroll = remember(vm) {
+                object : NestedScrollConnection {
+                    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                        if (available.y > 0f) vm.scrolledUp()
+                        return Offset.Zero
+                    }
+                }
+            }
+            LaunchedEffect(listState) {
+                var last = listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+                snapshotFlow { Triple(listState.isScrollInProgress, listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) }
+                    .collect { (moving, index, offset) ->
+                        if (moving && (index < last.first || (index == last.first && offset < last.second))) vm.scrolledUp()
+                        last = index to offset
+                    }
             }
             var searchesSeen by remember { mutableIntStateOf(st.searchesStarted) }
             LaunchedEffect(st.searchesStarted) {
@@ -499,7 +567,7 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                 onBegin = { vm.beginDragSelect(it) }, onMove = { vm.dragSelect(it) }, onEnd = { vm.endDragSelect() }, goesOn = { vm.dragGoesOn() },
                 bottomInset = if (hasSelection) barHeight.toFloat() else 0f,
             )
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().dragSelect(drag, enabled = greyLayout == null)) {
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().nestedScroll(upScroll).dragSelect(drag, enabled = greyLayout == null)) {
                 if (group != null) item(key = "head:group", contentType = "head") {
                     CollectionHeader(
                         group, span = spanLabel(buckets, years = compact).resolve(), compact = compact, metrics = metrics,
@@ -518,11 +586,7 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                 val grey = greyLayout != null
                 items(
                     count = rows.size,
-                    key = { i ->
-                        val r = rows[i]
-                        val tag = if (r is TitledRow) "l" else "r"
-                        if (grey) "g:$tag:${r.start}" else "$tag:${st.items.getOrNull(r.start)?.id ?: r.start}"
-                    },
+                    key = ::rowKey,
                     contentType = { i -> if (rows[i] is TitledRow) "line" else "tiles" },
                 ) { i ->
                     val row = rows[i]
@@ -532,16 +596,26 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                         else -> metrics.gap
                     }
                     if (!grey) LaunchedEffect(row.end) { vm.loadMoreIfNeeded(row.end - 1) }
-                    // Its tiles and those within reach of the scroll get their thumbnails.
-                    if (!grey) DisposableEffect(row.start, row.end) {
-                        vm.rowShown(row.start, row.end)
-                        onDispose { vm.rowGone(row.start) }
+                    // Its tiles and those within reach of the scroll get their
+                    // thumbnails; near the top after a jump (issue #194), once
+                    // the person scrolled up, it asks for the newer photos -
+                    // again after each page of them.
+                    if (!grey) {
+                        val key = rowKey(i)
+                        DisposableEffect(key, row.start, row.end, st.upLanded) {
+                            vm.rowShown(key, row.start, row.end)
+                            onDispose { vm.rowGone(key) }
+                        }
                     }
                     // Grey tiles say nothing to TalkBack but, once, that
                     // photos are on their way (the web's aria-busy "Loading photos").
                     val loading = PHOTOS_LOADING.resolve()
                     val rowSemantics = if (!grey) Modifier else Modifier.clearAndSetSemantics { if (i == 0) contentDescription = loading }
-                    GalleryRowView(row, geo, metrics, Modifier.padding(start = metrics.pad, end = metrics.pad, top = top).then(rowSemantics), titleSkeleton = skeleton && ph == null) { k, cell ->
+                    GalleryRowView(
+                        row, geo, metrics, Modifier.padding(start = metrics.pad, end = metrics.pad, top = top).then(rowSemantics), titleSkeleton = skeleton && ph == null,
+                        // Issue #194: the top month's room for its newer photos, said as the grey tiles are.
+                        greyTile = { first, cell -> Box(cell.aspectRatio(1f).clip(TILE_SHAPE).background(tileColor).clearAndSetSemantics { if (first) contentDescription = loading }) },
+                    ) { k, cell ->
                         if (grey) Box(cell.aspectRatio(1f).clip(TILE_SHAPE).background(tileColor))
                         else {
                             val item = st.items[k]
@@ -576,6 +650,31 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             // over the grey tiles, that it is still on its way.
             if (st.slowFirstPage && (body == GalleryBody.SKELETON || (body == GalleryBody.GREY && st.scrubFrac == null))) {
                 StillWaiting(Modifier.align(Alignment.BottomCenter).padding(bottom = if (st.selected.isNotEmpty()) 104.dp else 24.dp))
+            }
+            // Issue #194: the newer photos above a jump - a page on its way
+            // (a small spinner, as the web's and iOS's), or one that failed
+            // (the foot's words and Try again; it is asked again meanwhile):
+            // laid over the top of the grid, so nothing under it moves, and
+            // only while the top is in sight.
+            val upProblem = st.upProblem
+            if ((upProblem != null || st.upLoading) && body == GalleryBody.PHOTOS) {
+                // Near the top: the first photos (or the top month's grey tiles) on screen.
+                val topRow = headerCount + layout.rowOf(minOf(UP_NEAR, st.items.lastIndex)).coerceAtLeast(0)
+                val nearTop by remember(topRow) { derivedStateOf { listState.firstVisibleItemIndex <= topRow } }
+                if (nearTop && upProblem == null) Surface(
+                    Modifier.align(Alignment.TopCenter).padding(top = 8.dp),
+                    shape = CircleShape, tonalElevation = 6.dp, shadowElevation = 3.dp,
+                ) {
+                    CircularProgressIndicator(Modifier.padding(8.dp).size(24.dp), strokeWidth = 2.dp)
+                } else if (nearTop) Surface(
+                    Modifier.align(Alignment.TopCenter).padding(top = 8.dp, start = 16.dp, end = 16.dp),
+                    shape = RoundedCornerShape(24.dp), tonalElevation = 6.dp, shadowElevation = 3.dp,
+                ) {
+                    Box(Modifier.padding(horizontal = 12.dp, vertical = 2.dp)) {
+                        if (st.upLoading) CircularProgressIndicator(Modifier.padding(8.dp).size(24.dp), strokeWidth = 2.dp)
+                        else MorePhotosProblem { vm.retryUp() }
+                    }
+                }
             }
             if (st.showScrubber) {
                 PhotoDateScrubber(
@@ -664,13 +763,36 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
         )
     }
     if (confirmDeleteSelected) {
-        ConfirmDialog(
-            S.appPhotosSelectionDeleteTitle(st.selected.size).resolve(), null, S.commonDelete().resolve(),
-            onConfirm = { confirmDeleteSelected = false; vm.deleteSelected() }, onDismiss = { confirmDeleteSelected = false },
-        )
+        // Issue #201: photos the device holds at several paths ask which
+        // to delete: only these, or every copy (only a device that counts them).
+        val picked = st.items.filter { it.path in st.selected }
+        val title = S.appPhotosSelectionDeleteTitle(st.selected.size).resolve()
+        when (copiesAsk(picked, st.selected.size)) {
+            CopiesAsk.SINGLE -> CopiesDialog(
+                title, S.appPhotosCopiesSingleText(picked[0].copies ?: 2).resolve(),
+                S.appPhotosCopiesOnlyThis().resolve(), S.appPhotosCopiesAll(picked[0].copies ?: 2).resolve(),
+                onOnly = { confirmDeleteSelected = false; vm.deleteSelected() }, onAll = { confirmDeleteSelected = false; vm.deleteSelected(everyCopy = true) },
+                onDismiss = { confirmDeleteSelected = false },
+            )
+            CopiesAsk.SEVERAL -> CopiesDialog(
+                title, S.appPhotosCopiesSeveralText(withCopies(picked)).resolve(),
+                S.appPhotosCopiesOnlyThese().resolve(), S.appPhotosCopiesEvery().resolve(),
+                onOnly = { confirmDeleteSelected = false; vm.deleteSelected() }, onAll = { confirmDeleteSelected = false; vm.deleteSelected(everyCopy = true) },
+                onDismiss = { confirmDeleteSelected = false },
+            )
+            CopiesAsk.PLAIN -> ConfirmDialog(
+                title, null, S.commonDelete().resolve(),
+                onConfirm = { confirmDeleteSelected = false; vm.deleteSelected() }, onDismiss = { confirmDeleteSelected = false },
+            )
+        }
     }
     st.alert?.let {
-        AlertDialog(onDismissRequest = { vm.dismissAlert() }, text = { Text(it.resolve()) }, confirmButton = { TextButton(onClick = { vm.dismissAlert() }) { Text(S.commonOk().resolve()) } })
+        AlertDialog(
+            onDismissRequest = { vm.dismissAlert() },
+            // Issue #201: a delete's refusals, one paragraph per kind.
+            text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { Text(it.resolve()); for (m in st.alertMore) Text(m.resolve()) } },
+            confirmButton = { TextButton(onClick = { vm.dismissAlert() }) { Text(S.commonOk().resolve()) } },
+        )
     }
 
     if (st.openIndex != null) ImageModal(vm, st)
@@ -700,6 +822,27 @@ fun ConfirmDialog(title: String, message: String?, confirmLabel: String, onConfi
         onDismissRequest = onDismiss, title = { Text(title) }, text = message?.let { m -> { Text(m) } },
         confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel, color = Color(0xFFE53935)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(S.commonCancel().resolve()) } },
+    )
+}
+
+/**
+ * Issue #201: deleting a photo the device holds at several paths (or a
+ * selection with some): [text] says so, and the two deletes - only what
+ * Images shows ([onOnly]) or every copy ([onAll]) - stand one above the
+ * other with Cancel, their labels being long.
+ */
+@Composable
+private fun CopiesDialog(title: String, text: String, onlyLabel: String, allLabel: String, onOnly: () -> Unit, onAll: () -> Unit, onDismiss: () -> Unit) {
+    val danger = Color(0xFFE53935)
+    AlertDialog(
+        onDismissRequest = onDismiss, title = { Text(title) }, text = { Text(text) },
+        confirmButton = {
+            Column(horizontalAlignment = Alignment.End) {
+                TextButton(onClick = onOnly) { Text(onlyLabel, color = danger, textAlign = TextAlign.End) }
+                TextButton(onClick = onAll) { Text(allLabel, color = danger, textAlign = TextAlign.End) }
+                TextButton(onClick = onDismiss) { Text(S.commonCancel().resolve()) }
+            }
+        },
     )
 }
 
@@ -848,17 +991,82 @@ private fun StillWaiting(modifier: Modifier) {
  */
 private class GridAnchor {
     var layout: GalleryLayout? = null
+    var items: List<PhotoGalleryViewModel.Item> = emptyList()
     var headerCount = 0
     var tilePx = 1f
-    // The photo's index and the offset into its row, in tiles; null at the top.
-    var place: Pair<Int, Float>? = null
+    // The photo (its id: photos landing above it move its index, issue
+    // #194) and the offset into its row, in tiles; null at the top.
+    var place: Pair<String, Float>? = null
     // The place a change of width is still taking the list back to.
-    var pending: Pair<Int, Float>? = null
+    var pending: Pair<String, Float>? = null
 
     fun capture(index: Int, offset: Int) {
         val row = layout?.rows?.getOrNull(index - headerCount)
-        place = row?.let { it.start to offset / tilePx.coerceAtLeast(1f) }
+        place = row?.let { r -> items.getOrNull(r.start)?.let { it.id to offset / tilePx.coerceAtLeast(1f) } }
         pending = null
+    }
+}
+
+/**
+ * Issue #194: the grid's rows as the last frame drew them (PhotoGalleryView's
+ * SideEffect): the jumps and pages above already handled, and the layout,
+ * photos and headers they were drawn with.
+ */
+private class DrawnRows(var jumps: Int, var ups: Int) {
+    var upOn = false
+    var layout: GalleryLayout? = null
+    var items: List<PhotoGalleryViewModel.Item> = emptyList()
+    var headerCount = 0
+}
+
+/**
+ * Issue #194: newer photos landed above the rows on screen, or the top
+ * month's room for them went (the top reached, or a device that can't).
+ * The list keeps its first row where it was by its key - a row keeps its
+ * key while photos land above it or fill its grey tiles - but where that
+ * row is gone (a month the buckets miscounted laid out again, grey tiles no
+ * photo came for), or is a header (the list would keep the header and push
+ * the photos under it down), the first row of photos on screen that is
+ * still there - by its key, or the row its first photo is in now - stays
+ * where the frame before ([drawn]) had it: never a jump to other photos.
+ * (Nothing left above it, it goes to the top.) A row that was the grid's
+ * first has a line's gap over it now, not the grid's top ([padPx]): its
+ * photos stay where they were all the same.
+ */
+private fun keepRowsInPlace(
+    list: LazyListState, drawn: DrawnRows, layout: GalleryLayout, items: List<PhotoGalleryViewModel.Item>, headerCount: Int,
+    padPx: (GalleryLayout, Int) -> Int,
+) {
+    val old = drawn.layout ?: return
+    val shown = list.layoutInfo.visibleItemsInfo
+    val first = shown.firstOrNull() ?: return
+    fun rowNow(key: Any): Int = layout.rowWithKey((key as? String)?.removePrefix("m:"))
+    // How much more room the row now has over it than it had.
+    fun grows(oldRow: Int, row: Int) = padPx(layout, row) - padPx(old, oldRow)
+    // A row still there: the list keeps it in place by its key (its top;
+    // the photos, should the room over it change).
+    val overHeader = first.index < drawn.headerCount
+    if (!overHeader) {
+        val row = rowNow(first.key)
+        if (row >= 0) {
+            val more = grows(first.index - drawn.headerCount, row)
+            if (more != 0) list.requestScrollToItem(headerCount + row, -first.offset + more)
+            return
+        }
+    }
+    for (v in shown) {
+        val oldRow = v.index - drawn.headerCount
+        if (oldRow !in old.rows.indices) continue
+        var row = rowNow(v.key)
+        if (row < 0) {
+            val r = old.rows[oldRow]
+            val id = if (r.end > r.start) drawn.items.getOrNull(r.start)?.id else null
+            if (id != null) row = layout.rowOf(items.indexOfFirst { it.id == id })
+        }
+        if (row < 0) continue
+        // Under a header, nothing landed above it: all stays as it is.
+        if (!overHeader || headerCount + row != v.index) list.requestScrollToItem(headerCount + row, -v.offset + grows(oldRow, row))
+        return
     }
 }
 
@@ -905,10 +1113,12 @@ internal fun gridMetrics(wide: Boolean, windowDp: Int): GridMetrics = if (!wide)
 @Composable
 private fun GalleryRowView(
     row: GalleryRow, geo: GridGeometry, m: GridMetrics, modifier: Modifier, titleSkeleton: Boolean,
+    // Issue #194: a grey tile of the room kept above (the row's first one: [first]).
+    greyTile: @Composable RowScope.(first: Boolean, Modifier) -> Unit = { _, _ -> },
     cell: @Composable RowScope.(Int, Modifier) -> Unit,
 ) {
     when (row) {
-        is TileRow -> TileCells(row.start, row.end, geo.cols, m.gap, modifier.fillMaxWidth(), cell)
+        is TileRow -> TileCells(row.start, row.end, geo.cols, m.gap, modifier.fillMaxWidth(), row.lead, greyTile, cell)
         is TitledRow -> MonthsSideBySide(row.segments, geo.cols, m, modifier.fillMaxWidth()) { seg ->
             val slots = minOf(seg.slots, geo.cols)
             // One group per month, so TalkBack reads a month's title and
@@ -916,7 +1126,7 @@ private fun GalleryRowView(
             // web's order) - not both titles, which share a line, first.
             Column(Modifier.semantics { isTraversalGroup = true }) {
                 MonthTitle(seg.month, oneTile = slots == 1, m, skeleton = titleSkeleton)
-                TileCells(seg.start, seg.end, slots, m.gap, Modifier.fillMaxWidth(), cell)
+                TileCells(seg.start, seg.end, slots, m.gap, Modifier.fillMaxWidth(), seg.lead, greyTile, cell)
             }
         }
     }
@@ -946,12 +1156,19 @@ private fun MonthsSideBySide(segments: List<Segment>, cols: Int, m: GridMetrics,
     }
 }
 
-/** Tiles [start, end) in a row [slots] wide: the empty slots keep every tile the size of a full row's. */
+/**
+ * Tiles [start, end) in a row [slots] wide, after [lead] grey ones (issue
+ * #194): the empty slots keep every tile the size of a full row's.
+ */
 @Composable
-private fun TileCells(start: Int, end: Int, slots: Int, gap: Dp, modifier: Modifier, cell: @Composable RowScope.(Int, Modifier) -> Unit) {
+private fun TileCells(
+    start: Int, end: Int, slots: Int, gap: Dp, modifier: Modifier, lead: Int,
+    greyTile: @Composable RowScope.(first: Boolean, Modifier) -> Unit, cell: @Composable RowScope.(Int, Modifier) -> Unit,
+) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(gap)) {
+        for (g in 0 until lead) greyTile(g == 0, Modifier.weight(1f))
         for (k in start until end) cell(k, Modifier.weight(1f))
-        repeat(slots - (end - start)) { Spacer(Modifier.weight(1f)) }
+        repeat(slots - lead - (end - start)) { Spacer(Modifier.weight(1f)) }
     }
 }
 
@@ -1384,6 +1601,8 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
     var confirmDelete by remember { mutableStateOf(false) }
     val idx = st.openIndex ?: return
     val pagerState = rememberPagerState(initialPage = idx) { st.items.size }
+    // By the photo, not its place: newer ones landing above it (issue #194) leave it open.
+    val pageKey: (Int) -> Any = { st.items.getOrNull(it)?.id ?: it }
     // The pager owns the swipe; the view model follows it (so the hi-res
     // fetch and the video start when a page settles), and is followed by
     // it when the index changes for another reason (a delete).
@@ -1415,7 +1634,7 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
                         if (landscape) Box(Modifier.width(VIEWER_SIDE_COLUMN).fillMaxHeight().padding(top = 8.dp), contentAlignment = Alignment.TopCenter) {
                             ViewerInfoButton(vm)
                         }
-                        HorizontalPager(state = pagerState, modifier = Modifier.weight(1f).fillMaxHeight(), beyondViewportPageCount = 1) { page ->
+                        HorizontalPager(state = pagerState, modifier = Modifier.weight(1f).fillMaxHeight(), beyondViewportPageCount = 1, key = pageKey) { page ->
                             ViewerPage(vm, st, page, isCurrent = page == idx)
                         }
                         // Trailing column: close at the top, share, save and
@@ -1423,12 +1642,12 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
                         if (landscape) Box(Modifier.width(VIEWER_SIDE_COLUMN).fillMaxHeight()) {
                             Box(Modifier.align(Alignment.TopCenter).padding(top = 8.dp)) { ViewerCloseButton(vm) }
                             Column(Modifier.align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                ViewerActions(onShare = { scope.launch { vm.shareCurrentPhoto(context) } }, onSave = { scope.launch { vm.saveToPhotos(context) } }, onDelete = { confirmDelete = true })
+                                ViewerActions(st.saving, onShare = { scope.launch { vm.shareCurrentPhoto(context) } }, onSave = { vm.saveToPhotos(context) }, onDelete = { confirmDelete = true })
                             }
                         }
                     }
                     if (!landscape) Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(48.dp, Alignment.CenterHorizontally)) {
-                        ViewerActions(onShare = { scope.launch { vm.shareCurrentPhoto(context) } }, onSave = { scope.launch { vm.saveToPhotos(context) } }, onDelete = { confirmDelete = true })
+                        ViewerActions(st.saving, onShare = { scope.launch { vm.shareCurrentPhoto(context) } }, onSave = { vm.saveToPhotos(context) }, onDelete = { confirmDelete = true })
                     }
                 }
             }
@@ -1436,10 +1655,19 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
     }
     if (confirmDelete) {
         // A video's says so (issue #199's follow-up), as the web's viewer does.
-        val video = st.items.getOrNull(idx)?.mime?.startsWith("video/") == true
-        ConfirmDialog(
-            (if (video) S.appPhotosViewerDeleteVideoTitle() else S.appPhotosViewerDeleteTitle()).resolve(), null,
-            (if (video) S.appPhotosViewerDeleteVideo() else S.appPhotosViewerDelete()).resolve(),
+        val item = st.items.getOrNull(idx)
+        val video = item?.mime?.startsWith("video/") == true
+        val title = (if (video) S.appPhotosViewerDeleteVideoTitle() else S.appPhotosViewerDeleteTitle()).resolve()
+        // Issue #201: held at several paths, it asks which to delete.
+        if (item != null && copiesAsk(listOf(item)) == CopiesAsk.SINGLE) {
+            val copies = item.copies ?: 2
+            CopiesDialog(
+                title, S.appPhotosCopiesSingleText(copies).resolve(), S.appPhotosCopiesOnlyThis().resolve(), S.appPhotosCopiesAll(copies).resolve(),
+                onOnly = { confirmDelete = false; vm.deleteCurrentPhoto() }, onAll = { confirmDelete = false; vm.deleteCurrentPhoto(everyCopy = true) },
+                onDismiss = { confirmDelete = false },
+            )
+        } else ConfirmDialog(
+            title, null, (if (video) S.appPhotosViewerDeleteVideo() else S.appPhotosViewerDelete()).resolve(),
             onConfirm = { confirmDelete = false; vm.deleteCurrentPhoto() }, onDismiss = { confirmDelete = false },
         )
     }
@@ -1483,11 +1711,20 @@ private fun ViewerCloseButton(vm: PhotoGalleryViewModel) {
     IconButton(onClick = { vm.closeModal() }) { Icon(Icons.Default.Cancel, S.commonClose().resolve(), tint = Color.White) }
 }
 
-/** Share, save and delete: a row under the photo in portrait, a column beside it in landscape. */
+/**
+ * Share, save and delete: a row under the photo in portrait, a column
+ * beside it in landscape. [saving] (issue #201): the original is on its
+ * way to the phone's library - Save spins, and waits.
+ */
 @Composable
-private fun ViewerActions(onShare: () -> Unit, onSave: () -> Unit, onDelete: () -> Unit) {
+private fun ViewerActions(saving: Boolean, onShare: () -> Unit, onSave: () -> Unit, onDelete: () -> Unit) {
     IconButton(onClick = onShare) { Icon(Icons.Default.Share, S.commonShare().resolve(), tint = Color.White) }
-    IconButton(onClick = onSave) { Icon(Icons.Default.ArrowCircleDown, S.commonSave().resolve(), tint = Color.White) }
+    if (saving) {
+        val label = S.appPhotosViewerSaving().resolve()
+        IconButton(onClick = {}, enabled = false, modifier = Modifier.semantics { contentDescription = label }) {
+            CircularProgressIndicator(Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
+        }
+    } else IconButton(onClick = onSave) { Icon(Icons.Default.ArrowCircleDown, S.commonSave().resolve(), tint = Color.White) }
     IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, S.commonDelete().resolve(), tint = Color.White) }
 }
 

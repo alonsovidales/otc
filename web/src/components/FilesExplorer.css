@@ -141,8 +141,8 @@
   /* A folder's name shares its cell with the lock and the switch for
      Images (issue #192): the size needs less than 140px, as in a
      search's results. */
-  .fb-table:not(.fb-results-table) :is(.fb-head, .fb-row) { grid-template-columns: 26px minmax(0, 1fr) 84px; }
-  .fb-table:not(.fb-results-table) .c-size { padding-left: 0; text-align: right; }
+  .fb-table:not(.fb-results-table, .fb-usage-table) :is(.fb-head, .fb-row) { grid-template-columns: 26px minmax(0, 1fr) 84px; }
+  .fb-table:not(.fb-results-table, .fb-usage-table) .c-size { padding-left: 0; text-align: right; }
 }
 
 /* Issue #192: over a folder kept out of Images (or inside one), what that
@@ -279,3 +279,34 @@
 .fb-sort select:focus-visible { outline: 2px solid var(--ember); outline-offset: 1px; }
 .fb-results-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; width: 100%; }
 .fb-results-meta .fb-sort select { height: 32px; }
+
+/* ---- Issue #195: the Storage view ----
+   What takes the space in the folder: its total above, then a row per
+   entry, largest first - name, a bar of its share of the folder with the
+   percentage, and its size - and what the sizes count under them. Below
+   560px the bar takes a line of its own under the name and size. */
+.fb-usage-summary { margin: 0 0 10px; color: var(--mist); }
+.fb-usage-summary p { margin: 0; line-height: 22px; }
+.fb-usage-summary .fb-usage-versions { color: var(--mist-dim); font-size: 14px; }
+.fb-usage-table .fb-head,
+.fb-usage-table .fb-row { grid-template-columns: minmax(0, 1fr) minmax(140px, 32%) 110px; }
+.fb-usage-art { flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; }
+.fb-usage-art.is-folder { fill: var(--gold); }
+.fb-usage-table .c-share { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.fb-usage-bar { flex: 1; min-width: 40px; height: 8px; border-radius: 4px; background: var(--ink-2); overflow: hidden; }
+.fb-usage-fill { display: block; height: 100%; border-radius: inherit; background: var(--ember); }
+/* As wide as "under 1%" in every language, so the bars line up. */
+.fb-usage-share { flex: 0 0 6.5em; text-align: right; color: var(--mist-dim); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fb-usage-table .c-size { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fb-usage-wide { grid-column: 1 / -1; }
+.fb-usage-note-cell { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.fb-usage-note { margin: 8px 0 0; color: var(--mist-dim); font-size: 13px; line-height: 18px; }
+@media (max-width: 560px) {
+  .fb-usage-table .fb-head,
+  .fb-usage-table .fb-row { grid-template-columns: minmax(0, 1fr) 84px; grid-template-areas: "name size" "share share"; }
+  .fb-usage-table .c-name { grid-area: name; }
+  .fb-usage-table .c-size { grid-area: size; padding-left: 0; }
+  .fb-usage-table .c-share { grid-area: share; padding-top: 0; }
+  .fb-usage-table .fb-head .c-share,
+  .fb-usage-table .c-share:empty { display: none; }
+}

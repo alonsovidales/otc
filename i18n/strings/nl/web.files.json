@@ -11,6 +11,10 @@
     "text": "Naam",
     "en": "Name"
   },
+  "web.files.column.share": {
+    "text": "Aandeel in de map",
+    "en": "Share of folder"
+  },
   "web.files.column.size": {
     "text": "Grootte",
     "en": "Size"
@@ -588,6 +592,10 @@
     "text": "Pad:",
     "en": "Path:"
   },
+  "web.files.toolbar.storage": {
+    "text": "Opslag",
+    "en": "Storage"
+  },
   "web.files.toolbar.view": {
     "text": "Weergave",
     "en": "View"
@@ -625,6 +633,44 @@
   "web.files.upload.uploading": {
     "text": "Uploaden…",
     "en": "Uploading…"
+  },
+  "web.files.usage.empty": {
+    "text": "Niets in deze map neemt ruimte in.",
+    "en": "Nothing in this folder takes up space."
+  },
+  "web.files.usage.failed": {
+    "text": "Kan niet bepalen hoeveel ruimte deze map inneemt.",
+    "en": "Couldn't find out how much space this folder takes."
+  },
+  "web.files.usage.needs_update": {
+    "text": "Je apparaat heeft een update nodig om te laten zien hoeveel ruimte mappen innemen.",
+    "en": "Your device needs an update to show how much space folders take."
+  },
+  "web.files.usage.note": {
+    "text": "Groottes worden per bestand geteld: een bestand dat op twee plekken staat, telt twee keer mee, ook al bewaart het apparaat het maar één keer. Miniaturen en versleuteling worden niet meegeteld, dus de totalen komen niet overeen met de opslagbalk.",
+    "en": "Sizes are counted file by file: a file kept in two places counts twice, though the device stores it once. Thumbnails and encryption aren't counted, so the totals won't match the storage bar."
+  },
+  "web.files.usage.row_label": {
+    "text": "{name}, {size}, {share} van deze map",
+    "en": "{name}, {size}, {share} of this folder"
+  },
+  "web.files.usage.share_small": {
+    "text": "minder dan 1%",
+    "en": "under 1%"
+  },
+  "web.files.usage.total": {
+    "text": {
+      "one": "Deze map: {size} in {count} bestand",
+      "other": "Deze map: {size} in {count} bestanden"
+    },
+    "en": {
+      "one": "This folder: {size} in {count} file",
+      "other": "This folder: {size} in {count} files"
+    }
+  },
+  "web.files.usage.versions": {
+    "text": "Waarvan {size} in oudere versies",
+    "en": "{size} of it in older versions"
   },
   "web.files.versions.count": {
     "text": {

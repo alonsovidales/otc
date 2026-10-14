@@ -9,7 +9,10 @@
 // pointer (issue #200, useDragSelect.ts). A bar over the top bar then
 // posts them, puts them in a collection, shares or deletes them. A
 // collection is an image group in the protocol (ImageGroup, groupId), so
-// the code says group where it talks to the device.
+// the code says group where it talks to the device. After a jump to a date
+// the photos newer than it load above as the page is scrolled up (issue
+// #194, newerPhotos.ts), and deleting a photo the device holds at several
+// paths asks about its other copies (issue #201, photoCopies.ts).
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, Ref, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
@@ -29,7 +32,12 @@ import { useDragSelect } from "./useDragSelect";
 import { usePageRetry } from "./usePageRetry";
 import { clearSearch, isDateOrdered, isFiltered, leaveGroup, openGroup, updateOpenGroup, usePhotoFilter, type OpenGroup } from "./photoFilter";
 import { dropGroupLocally, personLabel, reloadGroups, renameGroupLocally, useGroups, usePeople } from "./libraryStore";
-import { say, type UiText } from "./uiText";
+import { asIs, say, type UiText } from "./uiText";
+import { copiesChoice, delFileFields, deleteNotice, deleteOutcome, type DeleteOutcome } from "./photoCopies";
+import {
+  cUpReach, cUpStart, deviceIgnoresNewerThan, nearTop, notShown, readUpward, scrollArmsUp, shiftIndex, topReserve, upwardApplies, upwardRequest,
+  type ScrollAt, type UpCursor,
+} from "./newerPhotos";
 
 // A search's first page asks for only this many photos (SearchPhotos.limit):
 // a full page of ~30 thumbnails took 5-45 s over a slow home upload, and the
@@ -75,6 +83,36 @@ function lostCutoff(files: MsgFile[], token: string, sent: string, cutoff: Date,
   if (files.some((f) => f.created != null && f.created.getTime() > cutoff.getTime())) return true;
   const paths = new Set([...shown.values()].map((f) => f.path));
   return files.some((f) => paths.has(f.path));
+}
+
+// The top bar's height (--topbar-h): what is under it isn't on screen.
+const topBarHeight = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--topbar-h")) || 64;
+
+// The first of `kids` whose bottom is below `y`. Their bottoms only grow
+// in document order (months, and a month's rows), so a binary search finds
+// it in a dozen reads however long the grid.
+function firstBelow(kids: HTMLCollection, y: number): number {
+  let lo = 0;
+  let hi = kids.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (kids[mid].getBoundingClientRect().bottom > y) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
+}
+
+// The first photo (a tile with a key, not a grey one) below `y` on screen.
+function tileBelow(grid: HTMLElement, y: number): HTMLElement | null {
+  const secs = grid.children;
+  for (let i = firstBelow(secs, y); i < secs.length; i++) {
+    const kids = secs[i].children;
+    for (let j = kids.length ? firstBelow(kids, y) : 0; j < kids.length; j++) {
+      const k = kids[j] as HTMLElement;
+      if (k.dataset.key != null && k.getBoundingClientRect().bottom > y) return k;
+    }
+  }
+  return null;
 }
 
 // ---- requests --------------------------------------------------------------
@@ -165,6 +203,14 @@ function whatLabel(t: TFunction, files: MsgFile[]): string {
     photos: t("web.images.count.photos", { count: photos }),
     videos: t("web.images.count.videos", { count: videos }),
   });
+}
+
+/** Why `count` photos and videos of a delete are still there (issue #201). */
+function keptText(t: TFunction, kind: "upload_only" | "copy_upload_only" | "changed" | "failed", count: number): string {
+  if (kind === "upload_only") return t("web.images.delete.upload_only", { count });
+  if (kind === "copy_upload_only") return t("web.images.delete.copy_upload_only", { count });
+  if (kind === "changed") return t("web.images.delete.changed", { count });
+  return t("web.images.delete.failed", { count });
 }
 
 // ---- icons (24px outlines, like NavIcons) -----------------------------------
@@ -313,7 +359,62 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
 
   // -------- data & paging ---------------------------------------------------
   const [items, setItems] = useState<MsgFile[]>([]);
-  const mapRef = useRef<Map<string, MsgFile>>(new Map()); // dedupe, and `have`
+  // The grid as last rendered, for a page that goes above it (issue #194).
+  const itemsRef = useRef<MsgFile[]>([]);
+  useLayoutEffect(() => { itemsRef.current = items; });
+  // What the (downward) search brought: dedupe, and its `have`. After a
+  // jump, what the upward search brought is upMapRef's (issue #194): each
+  // search's `have` counts only its own photos, and a delete lowers the one
+  // that brought the photo.
+  const mapRef = useRef<Map<string, MsgFile>>(new Map());
+  // The selection, in the order picked (see below). Here, so a page can
+  // refresh what it holds.
+  const [sel, setSel] = useState<MsgFile[]>([]);
+  // A picked photo whose path came back in a page with other content (a
+  // delete refused as "changed" loaded the grid again) is picked as it is
+  // now, so the next delete sends the hash shown.
+  const refreshPicked = useCallback((files: MsgFile[]) => {
+    const byPath = new Map(files.map((f) => [f.path, f]));
+    setSel((prev) => {
+      let changed = false;
+      const next = prev.map((f) => {
+        const now = byPath.get(f.path);
+        if (!now || now.hash === f.hash) return f;
+        changed = true;
+        return now;
+      });
+      return changed ? next : prev;
+    });
+  }, []);
+
+  // Issue #194: after a jump, the photos newer than its cutoff, loaded
+  // above as the page is scrolled up (newerPhotos.ts). `cutoff` is the
+  // jump's while its search is the grid's (null for a plain search); the
+  // upward search keeps its own token and end (upRef), its own `have`
+  // (upMapRef.size), its own loading flag and its own retry.
+  const [cutoff, setCutoff] = useState<Date | null>(null);
+  const upRef = useRef<{ token: string; end: boolean }>({ token: cUpStart.token, end: cUpStart.end });
+  const upMapRef = useRef<Map<string, MsgFile>>(new Map());
+  const upLoadingRef = useRef(false);
+  const [upLoading, setUpLoading] = useState(false);
+  const [upEnd, setUpEnd] = useState(false);
+  const [upError, setUpError] = useState(false);
+  // Not until the page is scrolled up near the top after the jump (see
+  // the arming below): a new upward search costs the device a query over
+  // the whole library, so a jump never starts one by itself.
+  const [upArmed, setUpArmed] = useState(false);
+  const { tick: upRetryTick, failed: upRetryLater, reset: resetUpRetry, ready: upRetryReady } = usePageRetry();
+  // A new search, a jump or a reload starts both cursors again.
+  const resetUp = useCallback(() => {
+    upRef.current = { token: cUpStart.token, end: cUpStart.end };
+    upMapRef.current = new Map();
+    upLoadingRef.current = false;
+    setUpLoading(false);
+    setUpEnd(false);
+    setUpError(false);
+    setUpArmed(false);
+    resetUpRetry();
+  }, [resetUpRetry]);
   // One object URL per loaded item, freed once it leaves `items` (a new
   // search, a jump to a date, a delete) - see useObjectURLs.
   const thumbFor = useObjectURLs(items, thumbOf);
@@ -411,7 +512,12 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
           }
         });
         mapRef.current = map;
-        if (added.length) setItems((prev) => prev.concat(added));
+        if (added.length) {
+          // Each photo once: after a jump, one that came from the upward
+          // search too (its oldest copy changed between them) stays above.
+          setItems((prev) => prev.concat(notShown(added, prev)));
+          refreshPicked(added);
+        }
         const nextToken = lof.token || null;
         setToken(nextToken);
         setEndReached(!nextToken);
@@ -427,7 +533,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
         if (myGen === searchGenRef.current) setLoading(false);
       }
     },
-    [tags, personIds, groupId, token, loading, endReached, retryLater, resetRetry]
+    [tags, personIds, groupId, token, loading, endReached, retryLater, resetRetry, refreshPicked]
   );
 
   // -------- date buckets and the scrubber (issue #77) -------------------------
@@ -524,6 +630,8 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     const myGen = searchGenRef.current;
     jumpGenRef.current = myGen;
     beforeRef.current = before;
+    setCutoff(before);
+    resetUp();
     resetRetry();
     setItems([]);
     mapRef.current = new Map();
@@ -540,7 +648,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
       // cancel, clears them.
       if (myGen === searchGenRef.current && !scrubbingRef.current) setPlaceholderCount(null);
     }
-  }, [fetchPage, resetRetry]);
+  }, [fetchPage, resetRetry, resetUp]);
   const jumpRef = useRef(jumpToDate);
   useLayoutEffect(() => { jumpRef.current = jumpToDate; });
 
@@ -600,7 +708,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   // and the first photo there (topTileRef).
   const [currentMonth, setCurrentMonth] = useState<string | null>(null);
   useEffect(() => {
-    const barHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--topbar-h")) || 64;
+    const barHeight = topBarHeight();
     // The first of `kids` still below the top bar. Months run in document
     // order, and the ones sharing a row (each a single row of tiles) end
     // level, so their bottoms only grow, as a month's rows do: a binary
@@ -655,6 +763,9 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   // grid's own height changes with the size it is given.
   const rootRef = useRef<HTMLDivElement | null>(null);
   const rulerRef = useRef<HTMLDivElement | null>(null);
+  // How many tiles a full row has (issue #194: the grey rows kept for the
+  // month at the top are drawn from it).
+  const [cols, setCols] = useState(0);
   useLayoutEffect(() => {
     const root = rootRef.current;
     const ruler = rulerRef.current;
@@ -668,6 +779,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
       const min = parseFloat(css.getPropertyValue("--pg-tile-min")) || 150;
       const cols = fixed > 0 ? fixed : Math.max(1, Math.floor((width + gap) / (min + gap)));
       root.style.setProperty("--pg-tile", `${(width - (cols - 1) * gap) / cols}px`);
+      setCols(cols);
       // Every row moves when the tiles change size (the menu switched, the
       // window resized, a phone turned), and the browser's own scroll
       // anchoring stands aside when a width changes: the photo that was
@@ -694,6 +806,8 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   useEffect(() => {
     searchGenRef.current += 1;
     beforeRef.current = undefined;
+    setCutoff(null);
+    resetUp();
     resetRetry();
     setItems([]);
     mapRef.current = new Map();
@@ -763,13 +877,104 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   // The viewer shows the grid's own thumbnail while the full size loads.
   const viewerOpen = openIdx != null;
   const viewerItems = useMemo(
-    () => (viewerOpen ? items.map((f) => ({ path: f.path, mime: f.mime, thumbURL: thumbFor(f) })) : []),
+    () => (viewerOpen ? items.map((f) => ({ path: f.path, mime: f.mime, thumbURL: thumbFor(f), hash: f.hash, copies: f.copies })) : []),
     [viewerOpen, items, thumbFor]
   );
 
+  // -------- newer photos above a jump (issue #194) ------------------------------
+  // `update` adds photos above what is on screen: the first photo below the
+  // top bar stays where it is, whatever the browser's own scroll anchoring
+  // did (Chrome and Firefox keep it in place themselves, Safari doesn't),
+  // by scrolling as much as it moved.
+  const keepTopTile = (update: () => void) => {
+    const bar = topBarHeight();
+    const anchor = gridRef.current ? tileBelow(gridRef.current, bar) : null;
+    const key = anchor?.dataset.key;
+    const top = anchor?.getBoundingClientRect().top ?? 0;
+    flushSync(update);
+    const after = key != null ? gridRef.current?.querySelector<HTMLElement>(`.pg-tile[data-key="${CSS.escape(key)}"]`) : null;
+    if (after) {
+      const d = after.getBoundingClientRect().top - top;
+      if (Math.abs(d) > 0.5) window.scrollBy(0, d);
+    }
+    measureRef.current();
+  };
+  const keepTopTileRef = useRef(keepTopTile);
+  useLayoutEffect(() => { keepTopTileRef.current = keepTopTile; });
+
+  // The next page above: SearchPhotos with newer_than = the jump's cutoff,
+  // the upward token and have. Oldest first from a device that honours it;
+  // a device before #194 answers an ordinary page instead, which is
+  // dropped, and it isn't asked again. A failed page waits for its retry
+  // and is asked again with the same token and have.
+  const fetchUp = useCallback(async () => {
+    const cut = beforeRef.current;
+    if (!cut || upLoadingRef.current || upRef.current.end) return;
+    const myGen = searchGenRef.current;
+    upLoadingRef.current = true;
+    setUpLoading(true);
+    const failed = () => {
+      upRetryLater();
+      setUpError(true);
+    };
+    try {
+      const cursor: UpCursor = { token: upRef.current.token, have: upMapRef.current.size, end: false };
+      const resp = await ask({ $case: "reqSearchPhotos", reqSearchPhotos: upwardRequest({ personIds, groupId }, cut, cursor, cFirstPagePhotos) });
+      if (myGen !== searchGenRef.current) return;
+      if (resp.payload?.$case !== "respListOfFiles") { failed(); return; }
+      const answer = readUpward(resp.payload.respListOfFiles);
+      if (answer.kind === "old") {
+        deviceIgnoresNewerThan();
+        upRef.current = { ...upRef.current, end: true };
+        setUpEnd(true);
+        setUpError(false);
+        resetUpRetry();
+        return;
+      }
+      const delivered = new Map(upMapRef.current);
+      answer.files.forEach((f, i) => delivered.set(fileKey(f, i), f));
+      // Newest first already; each photo once (by hash) across both halves.
+      const added = notShown(answer.files, itemsRef.current);
+      const n = added.length;
+      keepTopTileRef.current(() => {
+        upMapRef.current = delivered;
+        upRef.current = { token: answer.token, end: answer.end };
+        if (n) {
+          setItems((prev) => added.concat(prev));
+          // What is kept by its place in the grid moves down with it: the
+          // photo open in the viewer, a shift-click's start, the photo kept
+          // in place when the width changes.
+          openIdxRef.current = shiftIndex(openIdxRef.current, n);
+          setOpenIdx((i) => shiftIndex(i, n));
+          anchorRef.current = shiftIndex(anchorRef.current, n);
+          const top = topTileRef.current;
+          if (top) topTileRef.current = { ...top, idx: top.idx + n };
+        }
+        setUpEnd(answer.end);
+        setUpError(false);
+      });
+      if (n) refreshPicked(added);
+      resetUpRetry();
+    } catch (err) {
+      console.warn("Photo search page above a jump failed:", err);
+      if (myGen === searchGenRef.current) failed();
+    } finally {
+      if (myGen === searchGenRef.current) {
+        upLoadingRef.current = false;
+        setUpLoading(false);
+      }
+    }
+  }, [personIds, groupId, upRetryLater, resetUpRetry, refreshPicked]);
+
+  // "Try again" at the top, without waiting for the retry's pause.
+  const retryUp = () => {
+    resetUpRetry();
+    setUpError(false);
+    void fetchUp();
+  };
+
   // -------- selection (issue #48: ordered - a post shows its photos in the
   // order they were picked, and the post dialog can change it) ---------------
-  const [sel, setSel] = useState<MsgFile[]>([]);
   const selecting = sel.length > 0;
   const selNo = useMemo(() => new Map(sel.map((f, i) => [f.path, i + 1])), [sel]);
   // The post dialog's thumbnails: a picked photo may have left the grid
@@ -932,8 +1137,10 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   const dropDeleted = (gone: Set<string>) => {
     setItems((prev) => prev.filter((f) => !gone.has(f.path)));
     // `have` must count what is on screen, or a search the device
-    // resumes would skip as many photos as were deleted.
+    // resumes would skip as many photos as were deleted: the `have` of the
+    // search that brought each one (issue #194).
     for (const [k, f] of mapRef.current) if (gone.has(f.path)) mapRef.current.delete(k);
+    for (const [k, f] of upMapRef.current) if (gone.has(f.path)) upMapRef.current.delete(k);
     void loadDateBuckets();
     if (group) void reloadGroups().catch(() => {});
     setSel((prev) => prev.filter((f) => !gone.has(f.path)));
@@ -954,24 +1161,59 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     openAt(Math.min(at - before, rest.length - 1));
   };
 
+  // Issue #201: a delete refused because a photo's path holds other content
+  // now ("changed") loads the grid again, from where its search started:
+  // the newest photo, or the jump's month. Both cursors start again, and
+  // the months and the open collection's count with them.
+  const reloadGrid = () => {
+    const cut = beforeRef.current;
+    const month = monthOf(cut);
+    if (cut && month) {
+      gridRef.current?.scrollIntoView({ block: "start" });
+      void jumpRef.current(month);
+    } else {
+      searchGenRef.current += 1;
+      resetUp();
+      resetRetry();
+      setItems([]);
+      mapRef.current = new Map();
+      setToken(null);
+      setEndReached(false);
+      setPageError(false);
+      anchorRef.current = null;
+      topTileRef.current = null;
+      void fetchPage("", true);
+      window.scrollTo(0, 0);
+    }
+    void loadDateBuckets();
+    if (group) void reloadGroups().catch(() => {});
+  };
+
   // Issue #45: delete every selected photo and video, one request each.
+  // Issue #201: each with the hash its tile showed, and with `every` (the
+  // copies question's "all" or "every copy") every copy of each one that
+  // has copies.
   const [deleting, setDeleting] = useState<{ done: number; total: number } | null>(null);
-  const deleteSelected = async (): Promise<UiText | null> => {
+  const deleteSelected = async (every: boolean): Promise<UiText | null> => {
     const files = sel;
     if (!files.length) return null;
     setDeleting({ done: 0, total: files.length });
     const gone = new Set<string>();
-    let uploadOnly = 0;
-    let failed = 0;
+    const outcomes: DeleteOutcome[] = [];
+    // The device's own words for the last refusal it explained (the only
+    // one, when a single photo was refused).
+    let said = "";
     for (const f of files) {
+      let outcome: DeleteOutcome = "failed";
       try {
-        const resp = await ask({ $case: "reqDelFile", reqDelFile: { path: f.path } });
-        if (acked(resp)) gone.add(f.path);
-        else if (resp.errorCode === "upload_only") uploadOnly += 1;
-        else failed += 1;
+        const resp = await ask({ $case: "reqDelFile", reqDelFile: delFileFields(f, every) });
+        outcome = deleteOutcome(acked(resp), resp.errorCode);
+        if ((outcome === "copy_upload_only" || outcome === "changed") && resp.errorMessage) said = resp.errorMessage;
       } catch {
-        failed += 1;
+        // No connection: a failure.
       }
+      if (outcome === "deleted") gone.add(f.path);
+      outcomes.push(outcome);
       setDeleting((d) => (d ? { ...d, done: d.done + 1 } : d));
     }
     setDeleting(null);
@@ -984,14 +1226,19 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     // What couldn't be deleted stays selected, to try again or keep.
     anchorRef.current = null;
     setDialog(null);
-    const kept = uploadOnly + failed;
-    if (!kept) {
+    // A single refusal in the device's words, which name the folder; two
+    // or more summed up (deleteNotice, as the phones say them).
+    const sum = deleteNotice(outcomes, said);
+    if (sum.kind === "done") {
       showToast({ text: (t) => t("web.images.delete.done", { what: whatLabel(t, files) }) });
-    } else if (kept === uploadOnly) {
-      showToast({ text: (t) => t("web.images.delete.upload_only", { count: kept }), error: true });
+    } else if (sum.kind === "said") {
+      showToast({ text: asIs(sum.text), error: true });
     } else {
-      showToast({ text: (t) => t("web.images.delete.failed", { count: kept }), error: true });
+      const kind = sum.kind;
+      const count = sum.count;
+      showToast({ text: (t) => keptText(t, kind, count), error: true });
     }
+    if (sum.reload) reloadGrid();
     return null;
   };
 
@@ -1076,6 +1323,14 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   // In date order, a section per month: its title over its own tiles (a
   // photo without a date stays with the month before it). By relevance,
   // one section without a title.
+  //
+  // Issue #194: after a jump, while newer photos are still to come above,
+  // the month at the top - unless it is the jump's own, which its cutoff
+  // ends and is whole - keeps the room its date bucket says it needs, grey
+  // before its photos (the newest of it are the ones still to come).
+  const upOn = upwardApplies({ cutoff, dateOrdered, scrubber: dateOrdered && dateBuckets.length > 0 }) && items.length > 0 && !previewing;
+  const reserveTop = upOn && !upEnd;
+  const jumpMonth = monthOf(cutoff ?? undefined);
   const gridChildren = useMemo(() => {
     const keys = new Set<string>();
     // A restarted search can send a photo twice: React keys stay unique.
@@ -1107,20 +1362,119 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
       // The last month may have more photos on the way: it takes the room
       // they will need now, so the next page fills it in instead of moving
       // it off a row it shared.
-      const room = r === runs.length - 1 && !endReached && month
+      const last = r === runs.length - 1 && !endReached;
+      let room = last && month
         ? Math.max(tiles.length, monthCounts?.get(month) ?? 0)
         : tiles.length;
+      // So does the month at the top, above a jump (issue #194).
+      let lead: ReactNode = null;
+      if (r === 0 && !last && reserveTop && month && month !== jumpMonth) {
+        room = Math.max(tiles.length, monthCounts?.get(month) ?? 0);
+        const { spacerRows, greys } = topReserve(room, tiles.length, cols);
+        lead = (
+          <>
+            {spacerRows > 0 && <div className="pg-skel-rows" style={rowsStyle(spacerRows)} aria-hidden="true" />}
+            {Array.from({ length: greys }, (_, i) => <div key={`grey-${i}`} className="pg-tile pg-tile-skel" aria-hidden="true" />)}
+          </>
+        );
+      }
       return (
         <section key={unique(`month-${month ?? ""}`)} className="pg-sec" data-month={month ?? undefined} style={sectionStyle(room)}>
           <MonthTitle month={month} oneTile={room === 1} />
+          {lead}
           {tiles}
         </section>
       );
     });
-  }, [items, dateOrdered, endReached, monthCounts, thumbFor, selNo, selecting]);
+  }, [items, dateOrdered, endReached, monthCounts, thumbFor, selNo, selecting, reserveTop, jumpMonth, cols]);
 
   const bucketTotal = dateBuckets.reduce((sum, b) => sum + b.count, 0);
   const showScrubber = dateOrdered && dateBuckets.length > 0;
+
+  // Issue #194: the top of a jump's grid (.pg-up-mark), and whether it is
+  // within reach of the screen (cUpReach above it, or on it): only then
+  // does the top show that newer photos are on their way, or that they
+  // failed - not pinned under the bar wherever the grid is scrolled.
+  const topRef = useRef<HTMLDivElement | null>(null);
+  const [upNear, setUpNear] = useState(false);
+  useEffect(() => {
+    const node = topRef.current;
+    if (!node || !upOn || upEnd) return;
+    const obs = new IntersectionObserver(
+      (entries) => setUpNear(!!entries[entries.length - 1]?.isIntersecting),
+      { root: null, rootMargin: `${cUpReach}px 0px 0px 0px` }
+    );
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, [upOn, upEnd]);
+
+  // Issue #194: the first scroll up near the top after a jump lets the top
+  // ask for newer photos, however it is made (the phones' rule too): any
+  // scroll that takes the page up there - the scrollbar dragged, a wheel,
+  // a key, a finger (scrollArmsUp) - and, as the page can't scroll above
+  // its own top, a wheel or trackpad moving up, Arrow Up, Page Up, Home or
+  // Shift+Space, or a finger drawn down the screen while the top is near.
+  // Never by itself: the jump and the photos put above scroll the page and
+  // change its height as they do, and a new search or jump (searchGenRef)
+  // ends what this one saw.
+  useEffect(() => {
+    if (!upOn || upArmed || upEnd) return;
+    const gen = searchGenRef.current;
+    const markBottom = () => topRef.current?.getBoundingClientRect().bottom ?? null;
+    const arm = () => {
+      const m = markBottom();
+      if (gen === searchGenRef.current && m != null && nearTop(m)) setUpArmed(true);
+    };
+    const onWheel = (e: WheelEvent) => { if (e.deltaY < 0 && !e.ctrlKey) arm(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+      const up = e.key === "ArrowUp" || e.key === "PageUp" || e.key === "Home" || (e.key === " " && e.shiftKey);
+      if (!up || (e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable='true']"))) return;
+      arm();
+    };
+    let startY: number | null = null;
+    const onTouchStart = (e: TouchEvent) => { startY = e.touches.length === 1 ? e.touches[0].clientY : null; };
+    const onTouchMove = (e: TouchEvent) => {
+      if (startY != null && e.touches.length === 1 && e.touches[0].clientY - startY > 8) arm();
+    };
+    const at = (): ScrollAt => ({ y: window.scrollY, height: document.documentElement.scrollHeight });
+    let last = at();
+    const onScroll = () => {
+      const now = at();
+      const m = markBottom();
+      if (gen === searchGenRef.current && m != null && scrollArmsUp(last, now, m)) setUpArmed(true);
+      last = now;
+    };
+    window.addEventListener("wheel", onWheel, { passive: true });
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [upOn, upArmed, upEnd]);
+
+  // The top of the grid nearing the screen asks for the page above, as the
+  // end asks for the next one: not while one is on its way, not before a
+  // failed one's retry is due (upRetryTick re-creates the observer then).
+  useEffect(() => {
+    const node = topRef.current;
+    if (!node || !upOn || !upArmed || upEnd) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        if (!upLoadingRef.current && upRetryReady()) void fetchUp();
+      },
+      { root: null, rootMargin: `${cUpReach}px 0px 0px 0px` }
+    );
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, [upOn, upArmed, upEnd, upLoading, upRetryTick, upRetryReady, fetchUp]);
   // Once the first page has failed, its error stays up while the retries
   // run (the button shows them), rather than flipping back to grey tiles.
   const firstLoad = items.length === 0 && !pageError && (loading || !endReached);
@@ -1270,6 +1624,26 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
 
       {/* What the tile size is measured on (see rulerRef). */}
       <div className="pg-ruler" ref={rulerRef} aria-hidden="true" />
+      {/* Issue #194: the top of a jump's grid, where the page above is
+          asked for once it nears the screen; and while one loads or after
+          it failed, the end's spinner or its error over the top of the
+          photos, under the top bar, moving nothing - only while the top is
+          within reach (upNear), as the phones show it only near the top. */}
+      {upOn && !upEnd && <div className="pg-up-mark" ref={topRef} aria-hidden="true" />}
+      {upOn && !upEnd && upNear && (upLoading || upError) && (
+        <div className="pg-up">
+          <div className="pg-up-pill">
+            {upLoading
+              ? <Spinner />
+              : (
+                <span className="pg-foot-error" role="alert">
+                  {t("web.images.grid.more_failed")}
+                  <button type="button" className="pg-btn quiet small" onClick={retryUp}>{t("common.try_again")}</button>
+                </span>
+              )}
+          </div>
+        </div>
+      )}
       {body}
 
       {/* The end of the grid: the next page loads when this nears the
@@ -1291,18 +1665,31 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
       {dialog?.kind === "collect" && (
         <CollectDialog files={sel} exclude={groupId} onCancel={closeDialog} onDone={onCollected} />
       )}
-      {dialog?.kind === "delete" && (
-        <ConfirmDialog
-          title={t("web.images.delete.title", { what: whatLabel(t, sel) })}
-          text={group ? t("web.images.delete.text_collection") : t("web.images.delete.text")}
-          confirm={t("common.delete")}
-          busyText={deleting
-            ? t("web.images.delete.progress", { done: Math.min(deleting.done + 1, deleting.total), total: deleting.total })
-            : t("common.deleting")}
-          onConfirm={deleteSelected}
-          onCancel={closeDialog}
-        />
-      )}
+      {dialog?.kind === "delete" && (() => {
+        // Issue #201: photos the device holds at several paths ask whether
+        // to delete only these copies or every copy.
+        const copies = copiesChoice(sel);
+        const one = copies.kind === "single";
+        return (
+          <ConfirmDialog
+            title={t("web.images.delete.title", { what: whatLabel(t, sel) })}
+            text={copies.kind === "plain"
+              ? (group ? t("web.images.delete.text_collection") : t("web.images.delete.text"))
+              : one ? t("web.images.copies.single_text", { count: copies.count }) : t("web.images.copies.several_text", { count: copies.count })}
+            confirm={copies.kind === "plain" ? t("common.delete")
+              : one ? t("web.images.copies.all", { count: copies.count }) : t("web.images.copies.every")}
+            other={copies.kind === "plain" ? undefined : {
+              label: one ? t("web.images.copies.only_this") : t("web.images.copies.only_these"),
+              onConfirm: () => deleteSelected(false),
+            }}
+            busyText={deleting
+              ? t("web.images.delete.progress", { done: Math.min(deleting.done + 1, deleting.total), total: deleting.total })
+              : t("common.deleting")}
+            onConfirm={() => deleteSelected(copies.kind !== "plain")}
+            onCancel={closeDialog}
+          />
+        );
+      })()}
       {dialog?.kind === "deleteCollection" && group && (
         <ConfirmDialog
           title={t("web.images.collection.delete_title")}
@@ -1346,6 +1733,14 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
           onIndexChange={openAt}
           onClose={closeViewer}
           onDeleted={onViewerDeleted}
+          // Issue #201: refused as "changed" - the photo's path holds other
+          // content now. The viewer closes (its photos are the grid's), the
+          // device's words say so, and the grid is loaded again.
+          onDeleteChanged={(_it, said) => {
+            closeViewer();
+            showToast({ text: said ? asIs(said) : (t) => t("web.images.delete.changed", { count: 1 }), error: true });
+            reloadGrid();
+          }}
           inCollection={group != null}
         />
       )}
@@ -1385,7 +1780,7 @@ const Tile = memo(function Tile({ file, index, thumb, selNo, selecting }: TilePr
   if (date) label = video ? t("web.images.grid.tile_video_dated", { date }) : t("web.images.grid.tile_photo_dated", { date });
   else label = video ? t("web.images.grid.tile_video") : t("web.images.grid.tile_photo");
   return (
-    <div className={`pg-tile${selected ? " selected" : ""}`} data-idx={index}>
+    <div className={`pg-tile${selected ? " selected" : ""}`} data-idx={index} data-key={`${file.path}#${file.hash}`}>
       <button
         type="button"
         className="pg-tile-open"
@@ -1409,6 +1804,8 @@ const Tile = memo(function Tile({ file, index, thumb, selNo, selecting }: TilePr
 // How many tiles a section has room for: its width, up to a whole row, is
 // made from it (.pg-sec).
 const sectionStyle = (tiles: number) => ({ "--pg-n": tiles }) as CSSProperties;
+// Whole rows of grey tiles drawn as one block (issue #194, .pg-skel-rows).
+const rowsStyle = (rows: number) => ({ "--pg-rows": rows }) as CSSProperties;
 
 // A month's title, one line. A month one tile wide has both names, and the
 // CSS shows "Sep 2026" where "September 2026" doesn't fit (.pg-month.fit).

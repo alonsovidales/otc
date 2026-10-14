@@ -131,6 +131,54 @@
     "text": "Raccolta senza nome",
     "en": "Untitled collection"
   },
+  "web.images.copies.all": {
+    "text": {
+      "one": "Elimina tutte le {count} copie",
+      "other": "Elimina tutte le {count} copie"
+    },
+    "en": {
+      "one": "Delete all {count} copies",
+      "other": "Delete all {count} copies"
+    },
+    "reviewed": "claude-backtranslation 2026-10-14 #f1206372"
+  },
+  "web.images.copies.every": {
+    "text": "Elimina tutte le copie",
+    "en": "Delete every copy",
+    "reviewed": "claude-backtranslation 2026-10-14 #3cfbf914"
+  },
+  "web.images.copies.only_these": {
+    "text": "Elimina solo queste copie",
+    "en": "Delete only these copies",
+    "reviewed": "claude-backtranslation 2026-10-14 #266e998f"
+  },
+  "web.images.copies.only_this": {
+    "text": "Elimina solo questa copia",
+    "en": "Delete only this copy",
+    "reviewed": "claude-backtranslation 2026-10-14 #b2473c2a"
+  },
+  "web.images.copies.several_text": {
+    "text": {
+      "one": "{count} elemento della selezione ha anche copie altrove sul tuo dispositivo. Eliminare solo queste copie o tutte le copie? L’operazione non può essere annullata.",
+      "other": "{count} elementi della selezione hanno anche copie altrove sul tuo dispositivo. Eliminare solo queste copie o tutte le copie? L’operazione non può essere annullata."
+    },
+    "en": {
+      "one": "{count} of them also has copies elsewhere on your device. Delete only these copies, or every copy? This can't be undone.",
+      "other": "{count} of them also have copies elsewhere on your device. Delete only these copies, or every copy? This can't be undone."
+    },
+    "reviewed": "claude-backtranslation 2026-10-14 #29119567"
+  },
+  "web.images.copies.single_text": {
+    "text": {
+      "one": "Sul tuo dispositivo ce ne sono {count} copie. Eliminare solo questa copia o tutte? L’operazione non può essere annullata.",
+      "other": "Sul tuo dispositivo ce ne sono {count} copie. Eliminare solo questa copia o tutte? L’operazione non può essere annullata."
+    },
+    "en": {
+      "one": "There are {count} copies of it on your device. Delete only this copy, or all of them? This can't be undone.",
+      "other": "There are {count} copies of it on your device. Delete only this copy, or all of them? This can't be undone."
+    },
+    "reviewed": "claude-backtranslation 2026-10-14 #26a37cf8"
+  },
   "web.images.count.items": {
     "text": {
       "one": "{count} elemento",
@@ -192,6 +240,26 @@
   "web.images.crop.zoom": {
     "text": "Zoom",
     "en": "Zoom"
+  },
+  "web.images.delete.changed": {
+    "text": {
+      "one": "{count} elemento è cambiato sul tuo dispositivo da quando è stato mostrato, quindi non è stato eliminato. Controllalo e riprova.",
+      "other": "{count} elementi sono cambiati sul tuo dispositivo da quando sono stati mostrati, quindi non sono stati eliminati. Controllali e riprova."
+    },
+    "en": {
+      "one": "{count} item changed on your device since it was shown, so it wasn't deleted. Check it and try again.",
+      "other": "{count} items changed on your device since they were shown, so they weren't deleted. Check them and try again."
+    }
+  },
+  "web.images.delete.copy_upload_only": {
+    "text": {
+      "one": "{count} elemento non è stato eliminato: una sua copia si trova in una cartella in solo caricamento",
+      "other": "{count} elementi non sono stati eliminati: hanno copie in una cartella in solo caricamento"
+    },
+    "en": {
+      "one": "{count} item wasn't deleted: a copy of it is in an upload-only folder",
+      "other": "{count} items weren't deleted: they have copies in an upload-only folder"
+    }
   },
   "web.images.delete.done": {
     "text": "Hai eliminato {what}",

@@ -2,7 +2,8 @@
 //
 // The dialogs over Images and the viewer: Modal, a small card over the
 // dimmed page, and ConfirmDialog, a question with Cancel and a red button
-// (Delete...). Images' dialogs use them, and the photo viewer
+// (Delete...), and maybe a second, outlined one before it (issue #201's
+// "Delete only this copy"). Images' dialogs use them, and the photo viewer
 // (MediaViewer) asks with ConfirmDialog before deleting what it shows.
 // Styled in PhotoGallery.css (.pg-dlg*, .pg-btn).
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
@@ -107,7 +108,7 @@ export function Modal({ labelledBy, busy = false, wide = false, onClose, childre
   );
 }
 
-export function ConfirmDialog({ title, text, confirm, busyText, onConfirm, onCancel }: {
+export function ConfirmDialog({ title, text, confirm, busyText, onConfirm, onCancel, other }: {
   title: string;
   text: ReactNode;
   confirm: string;
@@ -116,22 +117,28 @@ export function ConfirmDialog({ title, text, confirm, busyText, onConfirm, onCan
   // caller closes the dialog then).
   onConfirm: () => Promise<UiText | null>;
   onCancel: () => void;
+  // A second way to go on, before the red button and outlined (issue
+  // #201: "Delete only this copy" beside "Delete all 3 copies"). Its work
+  // and its answer are as onConfirm's.
+  other?: { label: string; onConfirm: () => Promise<UiText | null> };
 }) {
   const t = useT();
   const titleId = useId();
-  const [busy, setBusy] = useState(false);
+  // Which button's work is running: its spinner, and every button waits.
+  const [busy, setBusy] = useState<null | "confirm" | "other">(null);
   const [error, setError] = useState<UiText | null>(null);
-  const run = async () => {
-    setBusy(true);
+  const run = async (which: "confirm" | "other", work: () => Promise<UiText | null>) => {
+    setBusy(which);
     setError(null);
-    const err = await onConfirm();
+    const err = await work();
     if (err) {
       setError(() => err);
-      setBusy(false);
+      setBusy(null);
     }
   };
   return (
-    <Modal labelledBy={titleId} busy={busy} onClose={onCancel}>
+    // Wider with a second way to go on, so its three buttons share a line.
+    <Modal labelledBy={titleId} busy={busy != null} wide={!!other} onClose={onCancel}>
       <div>
         <h2 id={titleId} className="pg-dlg-title">{title}</h2>
         <p className="pg-dlg-text">{text}</p>
@@ -139,9 +146,15 @@ export function ConfirmDialog({ title, text, confirm, busyText, onConfirm, onCan
       {error && <p className="pg-dlg-error" role="alert">{error(t)}</p>}
       <div className="pg-dlg-actions">
         {/* Focus starts on Cancel: Enter right away keeps everything. */}
-        <button type="button" className="pg-btn quiet" onClick={onCancel} disabled={busy} data-autofocus>{t("common.cancel")}</button>
-        <button type="button" className="pg-btn danger" onClick={() => void run()} disabled={busy} aria-busy={busy}>
-          {busy ? <Spinner label={busyText} /> : confirm}
+        <button type="button" className="pg-btn quiet" onClick={onCancel} disabled={busy != null} data-autofocus>{t("common.cancel")}</button>
+        {other && (
+          <button type="button" className="pg-btn outline danger" onClick={() => void run("other", other.onConfirm)}
+            disabled={busy != null} aria-busy={busy === "other"}>
+            {busy === "other" ? <Spinner label={busyText} /> : other.label}
+          </button>
+        )}
+        <button type="button" className="pg-btn danger" onClick={() => void run("confirm", onConfirm)} disabled={busy != null} aria-busy={busy === "confirm"}>
+          {busy === "confirm" ? <Spinner label={busyText} /> : confirm}
         </button>
       </div>
     </Modal>
