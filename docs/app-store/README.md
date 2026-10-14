@@ -20,3 +20,9 @@ desktop, connected to Pit over the home network - a folder uploading, Settings o
 "Add a folder" chooser. Taken on the Mac mini with `screencapture`, cropped from the right half of
 the 5K screen; the sample folder `~/Pictures/Holidays 2026` held re-encoded copies of Pit's photos
 so they really uploaded.
+
+From macOS 2.3 (2026-10-14) the set is five: those three, `4-web-app.jpg` (the web app opened from
+the menu, showing the AI-generated sample library of `docs/promo/`, 2560 × 1600) and
+`5-pi-photographer-desk.jpg` (the device beside a monitor, from `docs/promo/`, cropped to 16:10).
+One device picture only, at the end (the owner's choice); the app's own screens come first, since
+Apple wants screenshots to show the app in use.
