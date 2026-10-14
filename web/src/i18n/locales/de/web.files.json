@@ -103,6 +103,7 @@
   "web.files.results.title": "Dateien, die zu „\u2068{text}\u2069“ passen",
   "web.files.results.unreachable": "Die Suche hat das Gerät nicht erreicht. Prüfe die Verbindung und versuche es erneut.",
   "web.files.results.video_kept_out": "\u2068{name}\u2069, Video im Ordner \u2068{folder}\u2069, in „Bilder“ ausgeblendet",
+  "web.files.selection.clear": "Auswahl aufheben",
   "web.files.selection.confirm_delete": {
     "one": "{count} Element löschen? Das kann nicht rückgängig gemacht werden.",
     "other": "{count} Elemente löschen? Das kann nicht rückgängig gemacht werden.",

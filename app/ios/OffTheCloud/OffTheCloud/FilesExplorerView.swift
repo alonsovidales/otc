@@ -969,6 +969,14 @@ final class FilesExplorerViewModel: ObservableObject {
 
     func endDragSelect() { dragSelection = nil }
 
+    /// The selection bar's x (or Escape on an iPad's keyboard): nothing is
+    /// picked any more and a drag under way is over (the finger going on
+    /// picks nothing); the bar stays for Upload, and a tap opens again.
+    func clearSelection() {
+        selected.removeAll()
+        dragSelection = nil
+    }
+
     /// A tap on a row or tile while something is selected: it is picked
     /// or left out, as in Images.
     func toggleSelected(_ path: String) {
@@ -1467,6 +1475,7 @@ struct FilesExplorerView: View {
                                     vm.confirmDeleteSelected = true
                                 }
                             },
+                            onClear: vm.clearSelection,
                             // Issue #200: one folder picked - its photos and
                             // videos as a gallery (issue #180), and keeping it
                             // out of Images or showing it there again (issue

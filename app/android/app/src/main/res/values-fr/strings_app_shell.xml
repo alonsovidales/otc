@@ -14,6 +14,7 @@
     <string name="app_shell_bluetooth_needed">L’accès au Bluetooth est nécessaire</string>
     <string name="app_shell_bluetooth_off">Le Bluetooth est désactivé</string>
     <string name="app_shell_cant_connect">Impossible de se connecter à votre appareil</string>
+    <string name="app_shell_clear_selection">Effacer la sélection</string>
     <string name="app_shell_close_and_leave">Fermer et quitter cet appareil</string>
     <plurals name="app_shell_collection_card">
         <item quantity="one">\u2068%1$s\u2069, %2$s élément</item>

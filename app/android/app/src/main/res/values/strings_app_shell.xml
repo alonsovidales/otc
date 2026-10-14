@@ -13,6 +13,7 @@
     <string name="app_shell_bluetooth_needed">Bluetooth access is needed</string>
     <string name="app_shell_bluetooth_off">Bluetooth is off</string>
     <string name="app_shell_cant_connect">Can\'t connect to your device</string>
+    <string name="app_shell_clear_selection">Clear selection</string>
     <string name="app_shell_close_and_leave">Close and leave this device</string>
     <plurals name="app_shell_collection_card">
         <item quantity="one">\u2068%1$s\u2069, %2$s item</item>

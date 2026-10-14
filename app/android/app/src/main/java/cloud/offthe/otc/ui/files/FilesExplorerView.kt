@@ -356,6 +356,23 @@ private fun foundRow(f: PbFile) = FileRow(f.path, leafName(f.path), isDir(f), f.
 internal fun filesSearchFieldShown(windowWidthDp: Float, noFileSearch: Boolean) =
     menuLayout(windowWidthDp, menuOpen = true) == MenuLayout.NONE && !noFileSearch
 
+/** What the system Back does in Files, before it leaves the section. */
+internal enum class FilesBack { CLOSE_RESULTS, CLEAR_SELECTION }
+
+/**
+ * The system Back in Files: the search's results go back to the folder
+ * (they show in its place, its selection and bar hidden under them); over
+ * the folder, a selection is cleared, as the pill's × does - not while
+ * the search is open ([searchOpen]: its own Back closes it, as Images').
+ * Null: Back leaves Files as before. Whatever is drawn over Files (the
+ * viewer, a dialog, a menu) takes Back first, in its own window.
+ */
+internal fun filesBack(selection: Boolean, results: Boolean, searchOpen: Boolean): FilesBack? = when {
+    results -> FilesBack.CLOSE_RESULTS
+    selection && !searchOpen -> FilesBack.CLEAR_SELECTION
+    else -> null
+}
+
 /** Which way a change of layout hands the search in use: Files' own field and the wide top bar's take each other's place. */
 internal enum class SearchHandOver { NONE, TO_TOP_BAR, TO_FILES }
 
@@ -1038,6 +1055,12 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     /** The finger lifted: the selection stays as the drag left it. */
     fun endDragSelect() { dragSelection = null }
 
+    /** Nothing selected any more (the pill's ×, or Back): a drag under way ends with it. */
+    fun clearSelection() {
+        dragSelection = null
+        if (_state.value.selected.isNotEmpty()) _state.update { it.copy(selected = emptySet()) }
+    }
+
     fun setConfirmDelete(v: Boolean) = _state.update { it.copy(confirmDeleteSelected = v) }
     fun selectOnly(p: String) = _state.update { it.copy(selected = setOf(p)) }
 
@@ -1382,8 +1405,17 @@ fun FilesExplorerView(initialPath: String) {
         if (row != null) openRow(row)
         else viewer.showFiles(listOf(PhotoGalleryViewModel.Item("${file.path}#${file.hash}#${file.byteSize}", file.path, file.mime, file.byteSize, null, hash = file.hash)), 0) { vm.launchLoad() }
     }
-    // The system back leaves the results for the folder.
-    BackHandler(enabled = st.results != null) { vm.closeResults() }
+    // The system back leaves the results for the folder; over the folder
+    // it clears the selection, as the pill's × does (filesBack). Here,
+    // ahead of the search field's, so an open search's own Back comes first.
+    val back = filesBack(st.selected.isNotEmpty(), st.results != null, searchOpen = if (showSearch) fileSearch.open else topSearch.open)
+    BackHandler(enabled = back != null) {
+        when (back) {
+            FilesBack.CLOSE_RESULTS -> vm.closeResults()
+            FilesBack.CLEAR_SELECTION -> vm.clearSelection()
+            null -> {}
+        }
+    }
 
     // A found folder opens in Files; a photo or video in the viewer, paging
     // through the results' photos and videos; anything else as a tap on it
@@ -1620,6 +1652,8 @@ fun FilesExplorerView(initialPath: String) {
                         // not inside a folder kept out (State.outOfImagesSwitch).
                         onOutOfImages = st.outOfImagesSwitch?.let { row -> { askOutOfImages(row) } },
                         keptOutOfImages = st.outOfImagesSwitch?.outOfImages == true,
+                        // The pill goes; the bar stays, for Upload.
+                        onClear = vm::clearSelection,
                     )
                     Spacer(Modifier.size(8.dp))
                 }

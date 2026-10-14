@@ -91,6 +91,7 @@
     "other": "Impossibile eliminare {count} elementi. Riprova.",
     "arg": "count"
   },
+  "web.images.delete.failed_detail": "Eliminazione non riuscita: {detail}",
   "web.images.delete.progress": "Eliminazione {done} di {total}…",
   "web.images.delete.text": "Gli elementi vengono eliminati definitivamente dal tuo dispositivo. L’operazione non può essere annullata.",
   "web.images.delete.text_collection": "Gli elementi vengono eliminati dal tuo dispositivo, non solo da questa raccolta. L’operazione non può essere annullata.",

@@ -377,6 +377,7 @@ class PhotoGalleryViewModel(
     fun showFiles(items: List<Item>, startAt: Int, onDeleted: () -> Unit) {
         fixedList = true
         this.onDeleted = onDeleted
+        pickedAway = emptyMap()
         searchJob?.cancel()
         searchGeneration += 1
         stopPageRetry()
@@ -723,6 +724,7 @@ class PhotoGalleryViewModel(
         resetCursors(jump = true)
         tiles.reset()
         undecodable.clear()
+        keepPicks()
         _state.update {
             it.copy(loading = false, endReached = false, items = emptyList(), thumbKeys = emptyMap(), pageProblem = null, slowFirstPage = false,
                 upOn = !upEnd, upLoading = false, upProblem = null)
@@ -820,6 +822,7 @@ class PhotoGalleryViewModel(
         try {
             val r = call { it.setReqCreateImageGroup(CreateImageGroup.newBuilder().setName(name).addAllPaths(paths).setSmallThumbnails(true)) }
             if (r.payloadCase != RespEnvelope.PayloadCase.RESP_IMAGE_GROUP) { alert(S.appPhotosNoticeCreateFailed()); return }
+            pickedAway = emptyMap()
             _state.update { st -> st.copy(groups = listOf(r.respImageGroup.group) + st.groups, selected = emptySet()) }
             alert(S.appPhotosNoticeCreated(name))
         } catch (e: Exception) { alert(S.appPhotosNoticeCreateFailed()) }
@@ -832,6 +835,7 @@ class PhotoGalleryViewModel(
             r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok
         } catch (e: Exception) { false }
         if (!ok) { alert(S.appPhotosNoticeAddFailed()); return }
+        pickedAway = emptyMap()
         _state.update { it.copy(selected = emptySet()) }
         loadGroups()
         if (_state.value.activeGroup?.id == g.id) restartSearch()
@@ -876,6 +880,7 @@ class PhotoGalleryViewModel(
         // The selection stays, as the web's does across a filter change
         // (leaving for People or Collections clears it, as the web's page
         // change does: PhotoGalleryView).
+        keepPicks()
         _state.update {
             it.copy(
                 loading = false, endReached = false, items = emptyList(), thumbKeys = emptyMap(), pageProblem = null, slowFirstPage = false,
@@ -1722,6 +1727,10 @@ class PhotoGalleryViewModel(
             if (i.hash.isNotEmpty()) thumbs.discard(i.hash)
             if (i.up) upHave = maxOf(0, upHave - 1) else downHave = maxOf(0, downHave - 1)
         }
+        // Picks off the grid: only their thumbnails (no search on now counted them).
+        val away = pickedAway
+        for ((p, i) in away) if (p in paths && i.hash.isNotEmpty()) thumbs.discard(i.hash)
+        pickedAway = away - paths
         _state.update { st -> st.copy(items = st.items.filter { it.path !in paths }, selected = st.selected - paths) }
         // A drag begun meanwhile doesn't bring them back (issue #200).
         dragSelection?.forget { it in paths }
@@ -1736,7 +1745,33 @@ class PhotoGalleryViewModel(
         if (_state.value.activeGroup != null) scope.launch { loadGroups() }
     }
 
-    fun toggleSelect(path: String) = _state.update { st -> st.copy(selected = if (path in st.selected) st.selected - path else st.selected + path) }
+    fun toggleSelect(path: String) {
+        if (path in _state.value.selected) pickedAway = pickedAway - path
+        _state.update { st -> st.copy(selected = if (path in st.selected) st.selected - path else st.selected + path) }
+    }
+
+    /**
+     * Issue #201: picked photos the grid no longer holds - a jump or a
+     * reload replaced it while the selection stayed - as they were last
+     * shown (keptPicks): what their delete sends (the content they were
+     * shown with, every_copy by their copies) and what the copies
+     * question counts, until a page shows them again. A photo that
+     * changed meanwhile is refused again ("changed"), never deleted
+     * unseen - as iOS's pickedAway and the web.
+     */
+    @Volatile private var pickedAway: Map<String, Item> = emptyMap()
+
+    // The grid is about to be replaced and the selection stays.
+    private fun keepPicks() {
+        val st = _state.value
+        pickedAway = keptPicks(pickedAway, st.items, st.selected)
+    }
+
+    /** The picked photos: as the grid shows them, else as last shown - what Delete asks about and sends. */
+    fun pickedItems(): List<Item> {
+        val st = _state.value
+        return pickedByPath(st.items, pickedAway, st.selected).values.toList()
+    }
 
     // Issue #200: the drag to select under way (DragSelect.kt), from a long press.
     private var dragSelection: DragSelection<String>? = null
@@ -1769,9 +1804,10 @@ class PhotoGalleryViewModel(
     /** The finger lifted: the selection stays as the drag left it. */
     fun endDragSelect() { dragSelection = null }
 
-    /** Nothing selected any more (Back, or leaving for People or Collections). */
+    /** Nothing selected any more (the pill's ×, Back, or leaving for People or Collections). */
     fun clearSelection() {
         dragSelection = null // a drag under way ends with it (Back mid-drag)
+        pickedAway = emptyMap()
         if (_state.value.selected.isNotEmpty()) _state.update { it.copy(selected = emptySet()) }
     }
 
@@ -1789,11 +1825,12 @@ class PhotoGalleryViewModel(
         val st = _state.value
         val paths = st.selected.toList()
         if (paths.isEmpty()) return@launch
-        val shown = st.items.associateBy { it.path }
+        // A pick no longer on the grid (a jump or a reload since): as it was last shown.
+        val shown = pickedByPath(st.items, pickedAway, st.selected)
         val deleted = mutableSetOf<String>()
         val refusals = mutableListOf<DeleteRefusal>()
         for (p in paths) {
-            // A pick no longer on the grid (another search since): its path alone.
+            // Never shown (nothing kept of it): its path alone.
             val req = shown[p]?.let { delFileFor(it, everyCopy) } ?: DelFile.newBuilder().setPath(p).build()
             try {
                 val resp = call { it.setReqDelFile(req) }
@@ -1942,6 +1979,37 @@ fun copiesAsk(items: List<PhotoGalleryViewModel.Item>, count: Int = items.size):
 fun withCopies(items: List<PhotoGalleryViewModel.Item>): Int = items.count { (it.copies ?: 0) > 1 }
 
 /**
+ * Issue #201: the grid ([items]) is about to be replaced while the
+ * selection ([selected]) stays: the picked photos it shows, as shown, join
+ * those kept from before ([away]) that are still picked - none once
+ * nothing is. Without their picture (Files' viewer only has one).
+ */
+internal fun keptPicks(
+    away: Map<String, PhotoGalleryViewModel.Item>, items: List<PhotoGalleryViewModel.Item>, selected: Set<String>,
+): Map<String, PhotoGalleryViewModel.Item> {
+    if (selected.isEmpty()) return emptyMap()
+    val kept = away.filterTo(LinkedHashMap()) { it.key in selected }
+    for (i in items) if (i.path in selected) kept[i.path] = if (i.preview == null) i else i.copy(preview = null)
+    return kept
+}
+
+/**
+ * Issue #201: the picked photos ([selected]) by path - as the grid
+ * ([items]) shows them (a page that brought one back: its content now),
+ * else as they were last shown ([away], keptPicks). A pick in neither is
+ * left out.
+ */
+internal fun pickedByPath(
+    items: List<PhotoGalleryViewModel.Item>, away: Map<String, PhotoGalleryViewModel.Item>, selected: Set<String>,
+): Map<String, PhotoGalleryViewModel.Item> {
+    val picked = LinkedHashMap<String, PhotoGalleryViewModel.Item>()
+    if (selected.isEmpty()) return picked
+    for (i in items) if (i.path in selected) picked.putIfAbsent(i.path, i)
+    for ((p, i) in away) if (p in selected) picked.putIfAbsent(p, i)
+    return picked
+}
+
+/**
  * Issue #201: the delete for [item]: its path, with the content shown for
  * it (DelFile.hash: the device refuses it as "changed" if the path holds
  * other content now), and [everyCopy] only where the device counted copies
@@ -1976,19 +2044,19 @@ data class DeleteRefusal(val code: String, val said: String)
  * up per kind: those whose content changed since they were shown and
  * those with a copy in an upload-only folder, each counted
  * (app.photos.notice.delete_changed, delete_copy_upload_only); any other
- * refusal in the device's words (the last one's). One paragraph each, in
- * that order; none when everything was deleted.
+ * refusal in the device's words, each text once (as iOS's keptText). One
+ * paragraph each, in that order; none when everything was deleted.
  */
 fun deleteRefusalNotes(refusals: List<DeleteRefusal>): List<UiText> {
     if (refusals.isEmpty()) return emptyList()
     if (refusals.size == 1) return listOf(S.appPhotosNoticeDeleteFailed(refusals[0].said))
     val changed = refusals.count { it.code == DELETE_CHANGED }
     val copies = refusals.count { it.code == DELETE_COPY_UPLOAD_ONLY }
-    val other = refusals.lastOrNull { it.code != DELETE_CHANGED && it.code != DELETE_COPY_UPLOAD_ONLY }
+    val others = refusals.filter { it.code != DELETE_CHANGED && it.code != DELETE_COPY_UPLOAD_ONLY }.map { it.said }.distinct()
     return buildList {
         if (changed > 0) add(S.appPhotosNoticeDeleteChanged(changed))
         if (copies > 0) add(S.appPhotosNoticeDeleteCopyUploadOnly(copies))
-        if (other != null) add(S.appPhotosNoticeDeleteFailed(other.said))
+        for (said in others) add(S.appPhotosNoticeDeleteFailed(said))
     }
 }
 

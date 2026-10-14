@@ -76,6 +76,18 @@ class FilesSearchTest {
         assertFalse(filesSearchFieldShown(1280f, noFileSearch = false))
     }
 
+    @Test fun backClearsTheSelectionOverTheFolderAndClosesTheResultsFirst() {
+        // Over the folder, a selection: cleared, as the pill's × does.
+        assertEquals(FilesBack.CLEAR_SELECTION, filesBack(selection = true, results = false, searchOpen = false))
+        // The results show in the folder's place (its selection hidden under them): they go first.
+        assertEquals(FilesBack.CLOSE_RESULTS, filesBack(selection = true, results = true, searchOpen = false))
+        assertEquals(FilesBack.CLOSE_RESULTS, filesBack(selection = false, results = true, searchOpen = true))
+        // The search open: its own Back closes it, as in Images.
+        assertNull(filesBack(selection = true, results = false, searchOpen = true))
+        // Nothing to undo: Back leaves Files as before.
+        assertNull(filesBack(selection = false, results = false, searchOpen = false))
+    }
+
     @Test fun turningThePhoneHandsTheSearchInUseOver() {
         // Upright to sideways while typing in Files: to the top bar.
         assertEquals(SearchHandOver.TO_TOP_BAR, searchHandOver(narrow = false, filesOpen = true, filesText = "tax", topOpen = false, topText = "dog"))

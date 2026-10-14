@@ -406,6 +406,11 @@
     "args": [["name", "user"], ["folder", "user"]],
     "note": "Files, the results of a search of every file and folder name (from the top bar's Search documents): what a screen reader says for a result. {name} is its name, {folder} the folder it is in (/Photos/2024); the video is in a folder kept out of Images."
   },
+  "web.files.selection.clear": {
+    "text": "Clear selection",
+    "note": "Screen-reader name and tooltip of the × at the start of the selection bar in Files: it unselects everything and closes the selection.",
+    "max": 30
+  },
   "web.files.selection.confirm_delete": {
     "text": {
       "one": "Delete {count} item? This cannot be undone.",

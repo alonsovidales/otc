@@ -103,6 +103,7 @@
   "web.files.results.title": "Bestanden die overeenkomen met “\u2068{text}\u2069”",
   "web.files.results.unreachable": "De zoekopdracht heeft het apparaat niet bereikt. Controleer de verbinding en probeer het opnieuw.",
   "web.files.results.video_kept_out": "\u2068{name}\u2069, video in de map \u2068{folder}\u2069, buiten Afbeeldingen",
+  "web.files.selection.clear": "Selectie wissen",
   "web.files.selection.confirm_delete": {
     "one": "{count} item verwijderen? Dit kan niet ongedaan worden gemaakt.",
     "other": "{count} items verwijderen? Dit kan niet ongedaan worden gemaakt.",

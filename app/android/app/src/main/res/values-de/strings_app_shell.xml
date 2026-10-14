@@ -14,6 +14,7 @@
     <string name="app_shell_bluetooth_needed">Bluetooth-Zugriff erforderlich</string>
     <string name="app_shell_bluetooth_off">Bluetooth ist ausgeschaltet</string>
     <string name="app_shell_cant_connect">Keine Verbindung zu deinem Gerät möglich</string>
+    <string name="app_shell_clear_selection">Auswahl aufheben</string>
     <string name="app_shell_close_and_leave">Schließen und dieses Gerät verlassen</string>
     <plurals name="app_shell_collection_card">
         <item quantity="one">\u2068%1$s\u2069, %2$s Element</item>

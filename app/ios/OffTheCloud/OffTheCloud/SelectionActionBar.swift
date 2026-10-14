@@ -36,6 +36,11 @@ struct SelectionActionBar: View {
     let onShare: () -> Void
     let onDownload: () -> Void
     let onDelete: () -> Void
+    /// The x at the start of the count pill: the way out of selecting
+    /// (Google Photos' way, on every platform) - the screen's own clear,
+    /// which ends a drag selection under way too. Otherwise each pick had
+    /// to be tapped away, and every other tap only picked more.
+    let onClear: () -> Void
     /// Issue #115: "Add to collection" - make a collection (an image group)
     /// from the selection or add it to one. Only the Images tab has it, so
     /// it is optional and absent from the bar when not given.
@@ -75,18 +80,30 @@ struct SelectionActionBar: View {
     private var crowded: Bool { itemCount >= 6 }
 
     var body: some View {
-        VStack(spacing: 6) {
+        // Far enough apart that the x's 44 pt square ends where the bar
+        // starts: the bar's items took a touch on its top edge.
+        VStack(spacing: 10) {
             // Its own pill rather than bare text: this sits over the grid,
             // and unbacked caption text on top of photographs is
             // unreadable - which is exactly how it looked. Only once
-            // there is a count to show.
+            // there is a count to show: [x  3 selected].
             if count > 0 {
-                Text(S.appShellSelected(count: count))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 5)
-                    .modifier(CapsuleBarBackground())
+                HStack(spacing: 6) {
+                    // Room for the x, which is drawn over the pill
+                    // (clearButton): inside the glass, a touch past the
+                    // pill's edge reached nothing.
+                    clearGlyph.hidden()
+                    Text(S.appShellSelected(count: count))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.leading, Self.pillLeading)
+                .padding(.trailing, 12)
+                .padding(.vertical, 5)
+                .modifier(CapsuleBarBackground())
+                .overlay(alignment: .leading) {
+                    clearButton.padding(.leading, Self.pillLeading)
+                }
             }
 
             EqualShares {
@@ -123,6 +140,36 @@ struct SelectionActionBar: View {
         .disabled(busy != nil)
         .animation(.easeInOut(duration: 0.15), value: busy)
         .animation(.easeInOut(duration: 0.15), value: count > 0)
+    }
+
+    /// Between the pill's edge and the x.
+    private static let pillLeading: CGFloat = 10
+
+    private var clearGlyph: some View {
+        Image(systemName: "xmark").font(.caption.weight(.semibold))
+    }
+
+    /// The pill's x: clears the selection, which takes the pill (and on
+    /// Images the bar) away. As small as the caption beside it, but
+    /// answering a touch anywhere in a 44 pt square (TouchTarget) - over
+    /// the pill, not in it, as the glass (iOS 26) takes no touch past its
+    /// own edge for what it holds. Escape on an iPad's keyboard does the
+    /// same.
+    private var clearButton: some View {
+        TouchTarget {
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) { onClear() }
+            } label: {
+                clearGlyph
+                    .foregroundStyle(.primary)
+                    // The whole square the layout gives it, not just the glyph.
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.cancelAction)
+            .accessibilityLabel(S.appShellClearSelection)
+        }
     }
 
     /// A label in `font` (`size` points), its words whole, centred on as
@@ -257,6 +304,35 @@ struct BarLabelLines: Layout {
             if let best { return best.lines }
         }
         return all.map { [$0] }
+    }
+}
+
+/// A small control (the count pill's x) that takes only its glyph's room in
+/// the layout but is laid out - and so answers touches - over at least a
+/// `side`-point square centred on it (44: Apple's smallest touch target).
+/// The pill stays as compact as the caption in it; past its edges the
+/// square reaches over the grid, which a touch there no longer picks.
+/// The control fills what it is offered (a frame up to `.infinity`, then
+/// `contentShape`), so the whole square is its own.
+struct TouchTarget: Layout {
+    var side: CGFloat = 44
+
+    /// The square laid out for a control whose glyph is `glyph`: `side`
+    /// each way, or the glyph's own size where that is bigger (the largest
+    /// text sizes).
+    static func target(for glyph: CGSize, side: CGFloat) -> CGSize {
+        CGSize(width: max(side, glyph.width), height: max(side, glyph.height))
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        subviews.first?.sizeThatFits(.unspecified) ?? .zero
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let view = subviews.first else { return }
+        let size = Self.target(for: view.sizeThatFits(.unspecified), side: side)
+        view.place(at: CGPoint(x: bounds.midX, y: bounds.midY), anchor: .center,
+                   proposal: ProposedViewSize(size))
     }
 }
 

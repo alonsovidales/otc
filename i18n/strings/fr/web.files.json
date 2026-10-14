@@ -368,6 +368,10 @@
     "text": "{name}, vidéo dans le dossier {folder}, hors d’Images",
     "en": "{name}, video in {folder}, kept out of Images"
   },
+  "web.files.selection.clear": {
+    "text": "Effacer la sélection",
+    "en": "Clear selection"
+  },
   "web.files.selection.confirm_delete": {
     "text": {
       "one": "Supprimer {count} élément ? Cette action est irréversible.",

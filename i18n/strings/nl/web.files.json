@@ -368,6 +368,10 @@
     "text": "{name}, video in de map {folder}, buiten Afbeeldingen",
     "en": "{name}, video in {folder}, kept out of Images"
   },
+  "web.files.selection.clear": {
+    "text": "Selectie wissen",
+    "en": "Clear selection"
+  },
   "web.files.selection.confirm_delete": {
     "text": {
       "one": "{count} item verwijderen? Dit kan niet ongedaan worden gemaakt.",

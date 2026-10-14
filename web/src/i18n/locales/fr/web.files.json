@@ -103,6 +103,7 @@
   "web.files.results.title": "Fichiers correspondant à « \u2068{text}\u2069 »",
   "web.files.results.unreachable": "La recherche n’a pas atteint l’appareil. Vérifiez la connexion et réessayez.",
   "web.files.results.video_kept_out": "\u2068{name}\u2069, vidéo dans le dossier \u2068{folder}\u2069, hors d’Images",
+  "web.files.selection.clear": "Effacer la sélection",
   "web.files.selection.confirm_delete": {
     "one": "Supprimer {count} élément ? Cette action est irréversible.",
     "other": "Supprimer {count} éléments ? Cette action est irréversible.",

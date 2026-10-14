@@ -91,6 +91,7 @@
     "other": "{count} Elemente konnten nicht gelöscht werden. Versuche es erneut.",
     "arg": "count"
   },
+  "web.images.delete.failed_detail": "Löschen fehlgeschlagen: {detail}",
   "web.images.delete.progress": "Löschen ({done} von {total})…",
   "web.images.delete.text": "Die Auswahl wird endgültig von deinem Gerät gelöscht. Das kann nicht rückgängig gemacht werden.",
   "web.images.delete.text_collection": "Die Auswahl wird von deinem Gerät gelöscht, nicht nur aus dieser Sammlung entfernt. Das kann nicht rückgängig gemacht werden.",

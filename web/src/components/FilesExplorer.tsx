@@ -26,6 +26,7 @@ import { dateMs, formatOrder, loadOrder, nameCollator, parseOrder, pickOrder, sa
 import { dragSelection } from "./dragSelect";
 import { useDragSelect } from "./useDragSelect";
 import { labelShare, shareShown, usageAnswerFits, usageRows, type Share, type UsageRow } from "./folderUsage";
+import { refusedText } from "./photoCopies";
 
 type Props = {
   wsUrl?: string;            // defaults to VITE_WS_URL
@@ -672,7 +673,8 @@ export default function FilesExplorer({
 
   // Issue #201: each with the hash its row showed (a folder has none), so
   // a file synced over since is refused ("changed") rather than deleted;
-  // the device's words then say so, once, and the folder is listed again.
+  // the device's words then say so, once ("Delete failed: …", as Images
+  // and the phones say them), and the folder is listed again.
   const delSelected = async () => {
     if (!selected.length || selectedUploadOnly) return;
     if (!window.confirm(t("web.files.selection.confirm_delete", { count: selected.length }))) return;
@@ -688,7 +690,7 @@ export default function FilesExplorer({
       }
       if (resp.error && resp.errorCode === "changed" && resp.errorMessage) changed = resp.errorMessage;
     }
-    if (changed) alert(changed);
+    if (changed) alert(refusedText(t, changed));
     await loadList(path);
   };
 
@@ -1107,25 +1109,11 @@ export default function FilesExplorer({
     if (media.length) wantThumbs(media);
   }, [results, loading, wantThumbs]);
 
-  // Escape goes back to the folder - unless something lies over the
-  // results (the viewer, a pop-up, the menu's drawer: theirs to close) or
-  // the key is the top bar's or a field's. Seen before anything else,
-  // while whatever it is still shows.
+  // Whether something lies over the folder or the results (the viewer, a
+  // pop-up: theirs to close Escape with).
   const overlayOpen = useRef(false);
   overlayOpen.current = !!(mediaViewer || versionsOf || viewer || sharingFolder);
   const inResults = results !== null;
-  useEffect(() => {
-    if (!inResults) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || e.defaultPrevented || e.isComposing || overlayOpen.current) return;
-      if (document.querySelector(".sb-drawer.open")) return;
-      const t = e.target as Element | null;
-      if (t?.closest?.(".topbar, input, textarea, select, [contenteditable='true'], [role='dialog']")) return;
-      closeResults();
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [inResults, closeResults]);
 
   // A found folder opens in Files; a photo or video in the viewer, paging
   // through the results' photos and videos; anything else as a click on it
@@ -1282,6 +1270,46 @@ export default function FilesExplorer({
     gridRef.current = el;
     dragRef(el);
   }, [dragRef]);
+
+  // The selection bar's ✕ and Escape: nothing picked any more, so the
+  // selection is left - a tap opens a row again, as on Images and the
+  // phones - and a drag still under way is over. The focus, if it was on
+  // the bar, goes to the folder's contents.
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const endDrag = dragSel.interrupt;
+  const clearSelection = useCallback(() => {
+    endDrag();
+    if (actionsRef.current?.contains(document.activeElement)) folderViewRef.current?.focus({ preventScroll: true });
+    setSel({});
+    anchorRef.current = null;
+  }, [endDrag]);
+  // Escape clears the selection when something is picked, else goes back
+  // from a search's results to the folder - so over the results, the
+  // folder's selection underneath goes first. Not while something lies
+  // over them (the viewer, a pop-up, the menu's drawer: theirs to close)
+  // or a drag is under way (its Escape takes the drag back), nor when the
+  // key is the top bar's or a field's. Seen before anything else, while
+  // whatever it is still shows.
+  const hasSel = selected.length > 0;
+  const hasSelRef = useRef(hasSel);
+  hasSelRef.current = hasSel;
+  const resultsOpenRef = useRef(inResults);
+  resultsOpenRef.current = inResults;
+  useEffect(() => {
+    if (!inResults && !hasSel) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented || e.isComposing || overlayOpen.current) return;
+      if (document.querySelector(".sb-drawer.open, [data-dragsel]")) return;
+      const t = e.target as Element | null;
+      if (t?.closest?.(".topbar, input:not([type=checkbox]), textarea, select, [contenteditable='true'], [role='dialog']")) return;
+      // Results first: they hide the folder and its selection bar, so
+      // clearing a selection nobody can see would look like nothing.
+      if (resultsOpenRef.current) closeResults();
+      else if (hasSelRef.current) clearSelection();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [inResults, hasSel, clearSelection, closeResults]);
   // A tap on a row or tile once something is picked (a touch screen's
   // selection, as on Images and the phones): it picks or unpicks the row
   // instead of opening it. Its own controls (the checkbox, the lock, the
@@ -1594,8 +1622,15 @@ export default function FilesExplorer({
           </div>
         </div>
       {selected.length > 0 && viewMode !== "storage" && (
-        <div className="fb-actions">
+        <div className="fb-actions" ref={actionsRef}>
           <div className="fb-actions-inner">
+            {/* Out of the selection: nothing picked (Escape too). */}
+            <button type="button" className="fb-sel-clear" onClick={clearSelection}
+              aria-label={t("web.files.selection.clear")} data-tip={t("web.files.selection.clear")}>
+              <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+              </svg>
+            </button>
             <div><Trans k="web.files.selection.selected" args={{ count: selected.length }} parts={{ b: (s) => <strong>{s}</strong> }} /></div>
             <div className="grow" />
             <button className="btn danger" onClick={() => void delSelected()} disabled={selectedUploadOnly}
@@ -1916,7 +1951,7 @@ export default function FilesExplorer({
           onDeleteChanged={(_it, said) => {
             closeViewer();
             void loadList(pathRef.current);
-            const words = said || t("web.images.delete.changed", { count: 1 });
+            const words = said ? refusedText(t, said) : t("web.images.delete.changed", { count: 1 });
             // Once the viewer has gone from the screen.
             window.setTimeout(() => alert(words), 0);
           }}

@@ -103,6 +103,7 @@
   "web.files.results.title": "File corrispondenti a “\u2068{text}\u2069”",
   "web.files.results.unreachable": "La ricerca non ha raggiunto il dispositivo. Controlla la connessione e riprova.",
   "web.files.results.video_kept_out": "\u2068{name}\u2069, video nella cartella \u2068{folder}\u2069, fuori da Immagini",
+  "web.files.selection.clear": "Cancella selezione",
   "web.files.selection.confirm_delete": {
     "one": "Eliminare {count} elemento? L’operazione non può essere annullata.",
     "other": "Eliminare {count} elementi? L’operazione non può essere annullata.",

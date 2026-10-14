@@ -91,6 +91,7 @@
     "other": "Não foi possível eliminar {count} itens. Tenta novamente.",
     "arg": "count"
   },
+  "web.images.delete.failed_detail": "A eliminação falhou: {detail}",
   "web.images.delete.progress": "A eliminar {done} de {total}…",
   "web.images.delete.text": "Os itens selecionados são eliminados do teu dispositivo para sempre. Esta ação não pode ser anulada.",
   "web.images.delete.text_collection": "Os itens selecionados são eliminados do teu dispositivo, e não apenas desta coleção. Esta ação não pode ser anulada.",

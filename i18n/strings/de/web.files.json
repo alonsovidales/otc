@@ -368,6 +368,10 @@
     "text": "{name}, Video im Ordner {folder}, in „Bilder“ ausgeblendet",
     "en": "{name}, video in {folder}, kept out of Images"
   },
+  "web.files.selection.clear": {
+    "text": "Auswahl aufheben",
+    "en": "Clear selection"
+  },
   "web.files.selection.confirm_delete": {
     "text": {
       "one": "{count} Element löschen? Das kann nicht rückgängig gemacht werden.",

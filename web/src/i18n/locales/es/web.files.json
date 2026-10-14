@@ -103,6 +103,7 @@
   "web.files.results.title": "Archivos que coinciden con “\u2068{text}\u2069”",
   "web.files.results.unreachable": "La búsqueda no ha llegado al dispositivo. Comprueba la conexión y vuelve a intentarlo.",
   "web.files.results.video_kept_out": "\u2068{name}\u2069, vídeo en la carpeta \u2068{folder}\u2069, fuera de Imágenes",
+  "web.files.selection.clear": "Anular selección",
   "web.files.selection.confirm_delete": {
     "one": "¿Eliminar {count} elemento? Esto no se puede deshacer.",
     "other": "¿Eliminar {count} elementos? Esto no se puede deshacer.",

@@ -291,6 +291,11 @@
     "args": [["count", "count"]],
     "note": "Error at the bottom of Images when some selected photos or videos could not be deleted; they stay selected. An item is a photo or a video."
   },
+  "web.images.delete.failed_detail": {
+    "text": "Delete failed: {detail}",
+    "args": [["detail", "text"]],
+    "note": "Error when the device refused to delete one photo or video (or a file, from the viewer in Files). {detail} is the device's own explanation, already in the user's language: a lowercase phrase written to follow this prefix."
+  },
   "web.images.delete.progress": {
     "text": "Deleting {done} of {total}…",
     "args": [["done", "int"], ["total", "int"]],

@@ -48,6 +48,10 @@
     "text": "Não é possível ligar ao teu dispositivo",
     "en": "Can't connect to your device"
   },
+  "app.shell.clear_selection": {
+    "text": "Limpar seleção",
+    "en": "Clear selection"
+  },
   "app.shell.close_and_leave": {
     "text": "Fechar e sair deste dispositivo",
     "en": "Close and leave this device"

@@ -275,6 +275,10 @@
       "other": "{count} items couldn't be deleted. Try again."
     }
   },
+  "web.images.delete.failed_detail": {
+    "text": "No se ha podido eliminar: {detail}",
+    "en": "Delete failed: {detail}"
+  },
   "web.images.delete.progress": {
     "text": "Eliminando {done} de {total}…",
     "en": "Deleting {done} of {total}…"

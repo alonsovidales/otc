@@ -68,6 +68,11 @@ extension S {
     /// Heading of the card shown over the whole app when connecting or signing in to the device keeps failing. The reason, then the connection settings to fix it, follow.
     static var appShellCantConnect: String { L("app.shell.cant_connect", table: "AppShell") }
 
+    /// Clear selection
+    ///
+    /// Screen-reader name of the × at the start of the "N selected" pill above the selection bar in Images and Files on the phones: it unpicks everything and leaves selection mode.
+    static var appShellClearSelection: String { L("app.shell.clear_selection", table: "AppShell") }
+
     /// Close and leave this device
     ///
     /// Screen-reader name of the × at the corner of the card shown while the device isn't available: it asks to leave this device for the connection screen (app.shell.leave_title).

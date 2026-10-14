@@ -1168,6 +1168,15 @@ drag's end. The edge scroll waiting for a move, the band depth, starting only on
 item going mid-drag and a new listing ending a drag follow the phones' rules: change all three together. Tested in headless
 Chrome with CDP mouse and touch input against a mock `useWS`.
 
+Leaving the selection on the web: Images' selection bar starts with an × (`web.images.select.clear`)
+and Escape clears it; Files' actions bar (`.fb-actions`) starts with one too (`.fb-sel-clear`,
+`web.files.selection.clear`, a 36 px circle in a 44 px target), and Escape clears Files' selection
+unless the viewer, a pop-up, the menu's drawer, a drag (its own Escape takes the drag back), the
+top bar or a text field has it. `clearSelection` unpicks everything, ends a drag under way
+(`useDragSelect`'s `interrupt`) and moves the focus from the bar to the folder's contents; a tap
+then opens again. Over a search's results the first Escape closes them and the next clears
+the selection made in the folder underneath (its bar hidden with it), as Android's Back does.
+
 Copies on the web (issue #201, `components/photoCopies.ts`, `node web/scripts/photo-copies-test.mjs`,
 the phones' `DeleteCopies` rules): Images' Delete (selection bar and viewer) asks about copies when
 a photo's `File.copies` is above 1 - one photo: `web.images.copies.single_text`, "Delete only this
@@ -1175,8 +1184,11 @@ copy" / "Delete all {count} copies"; several: `several_text`, "only these" / "ev
 (`ConfirmDialog`'s outlined `other` button) - else, and always with `copies` unset, as before.
 Every `DelFile` sends the tile's (or a Files row's) `hash`, and `every_copy` only for a photo with
 copies (`delFileFields`). A single refusal (`copy_upload_only`/`changed`, whatever the others did)
-shows the device's words; two or more are summed up (`deleteNotice`/`deleteSummary`,
-`web.images.delete.*`; the phones' `app.photos.notice.delete_*`). Refused photos stay picked;
+shows the device's words in `web.images.delete.failed_detail` ("Delete failed: {detail}", the
+phones' `delete_failed`; `refusedText`, also in the viewer and Files' alerts); two or more for one
+reason are counted (`web.images.delete.*`), and different reasons follow the phones' `keptText`: a
+counted line for `changed`, one for `copy_upload_only`, then any other refusal in its words in the
+wrapper, once each (`deleteNotice` lines, one toast line each). Refused photos stay picked;
 `changed` reloads the grid from where its search began (`reloadGrid`: a jump at its month, both
 cursors reset) and a page refreshes a picked photo's hash (`refreshPicked`). The viewer closes on
 `changed` (toast, reload, as the phones); so does Files' viewer (an alert with the words, as
@@ -1779,6 +1791,27 @@ finger is over another (`range` is null). A pick that goes mid-drag (People's `k
 Images' deletes) leaves the drag's base too (`DragSelection.forget`), so the range doesn't
 bring it back. Tests: `DragSelectTest.kt`, `PeopleViewTest.kt`, `PhotoGalleryRetryTest.kt`.
 
+**Leaving selection mode on iOS** (`SelectionActionBar.swift`, Images and Files): the count pill
+reads [× N selected]; the × (`onClear`, named `app.shell.clear_selection`) runs the view model's
+`clearSelection()` - everything unpicked, a drag under way ended (its next moves pick nothing),
+Images' `pickedAway` dropped, a tap opens again; Files keeps the bar for Upload. The × takes only
+its glyph's room but lays out and answers touches over a 44 pt square (`TouchTarget`); it is
+drawn over the pill (`overlay`, a hidden glyph holding its place), not inside it, because the
+iOS 26 glass takes no touch past its own edge for what it holds, and the pill sits 10 pt above
+the bar so the bar's items don't take the square's bottom. `.keyboardShortcut(.cancelAction)`
+gives an iPad keyboard's Escape the same (a dialog or sheet over the screen takes Escape first).
+People keeps its own toolbar ×. Tests: `DragSelectTests.swift` (`SelectionBarClearTests`).
+
+**Leaving selection mode on Android** (`ui/common/SelectionActionBar.kt`): the "N selected" pill
+above the bar starts with an × (`onClear`, named `app.shell.clear_selection`) that runs the
+screen's `clearSelection` - everything unpicked, a drag to select ended, a tap opens again; Files
+keeps the bar for Upload. The pill stays compact (`SelectedPill` draws its Surface under the row,
+so nothing clips the ×) while the × lays out at 20 dp but is measured and touched as a 48 dp
+square (`touchTarget`), the pill above the bar (`zIndex`) so those touches reach into the bar's
+top padding. Back clears too: Images' `BackHandler`, Files' `filesBack` - the search's results
+first (they hide the folder and its bar), never while a search is open; the viewer, dialogs and
+menus take Back first in their own windows. People keeps its own ×.
+
 **Copies on Android** (issue #201, `PhotoGalleryViewModel.kt`): `Item.copies` is `File.copies`
 (null when unset); `copiesAsk` picks the dialog (`CopiesDialog`: one photo with copies above 1,
 `app.photos.copies.single_text`, "Delete only this copy" / "Delete all N copies"; a selection with
@@ -1786,7 +1819,11 @@ any, `several_text`, "only these" / "every copy"; else the old confirmation). `d
 the tile's `hash` on every delete and `every_copy` only where copies is above 1; Files' rows send
 their hash (`filesDelete`, files only). A refusal keeps the tile and shows the device's words in
 `app.photos.notice.delete_failed`; `changed` closes the viewer and starts the search again (the
-Files viewer lists its folder again; Files' own delete toasts the words). `removeDeleted` lowers
+Files viewer lists its folder again; Files' own delete toasts the words). Picks a jump or a
+reload takes off the grid keep the `Item` last shown (`pickedAway`: `keptPicks` before
+`performJump` / `resetAndLoadFirstPage` empty the grid; `pickedByPath`, the grid's own first):
+`deleteSelected` sends their hash and every_copy and the copies question counts them
+(`pickedItems()`), as iOS's `pickedAway`; unpicking, clearing or deleting forgets them. `removeDeleted` lowers
 the `have` of the search that brought the photo. The viewer's Save downloads the original with
 `ChunkedDownload` and inserts the bytes as they are through MediaStore (`IS_PENDING`, `DATE_TAKEN`
 = the photo's date, its name and MIME, `saveFolder`: `Pictures/Off The Cloud`, a video

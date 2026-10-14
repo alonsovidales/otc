@@ -103,6 +103,7 @@
   "web.files.results.title": "Files matching “\u2068{text}\u2069”",
   "web.files.results.unreachable": "The search didn't reach the device. Check the connection and try again.",
   "web.files.results.video_kept_out": "\u2068{name}\u2069, video in \u2068{folder}\u2069, kept out of Images",
+  "web.files.selection.clear": "Clear selection",
   "web.files.selection.confirm_delete": {
     "one": "Delete {count} item? This cannot be undone.",
     "other": "Delete {count} items? This cannot be undone.",

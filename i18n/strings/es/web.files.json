@@ -368,6 +368,10 @@
     "text": "{name}, vídeo en la carpeta {folder}, fuera de Imágenes",
     "en": "{name}, video in {folder}, kept out of Images"
   },
+  "web.files.selection.clear": {
+    "text": "Anular selección",
+    "en": "Clear selection"
+  },
   "web.files.selection.confirm_delete": {
     "text": {
       "one": "¿Eliminar {count} elemento? Esto no se puede deshacer.",

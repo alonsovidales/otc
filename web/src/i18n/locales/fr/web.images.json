@@ -91,6 +91,7 @@
     "other": "{count} éléments n’ont pas pu être supprimés. Réessayez.",
     "arg": "count"
   },
+  "web.images.delete.failed_detail": "Échec de la suppression : {detail}",
   "web.images.delete.progress": "Suppression {done} sur {total}…",
   "web.images.delete.text": "Elles seront définitivement supprimées de votre appareil. Cette action est irréversible.",
   "web.images.delete.text_collection": "Elles seront supprimées de votre appareil, et pas seulement de cette collection. Cette action est irréversible.",

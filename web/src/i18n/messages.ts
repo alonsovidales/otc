@@ -180,6 +180,7 @@ export type MessageKey =
   | "web.files.results.title"
   | "web.files.results.unreachable"
   | "web.files.results.video_kept_out"
+  | "web.files.selection.clear"
   | "web.files.selection.confirm_delete"
   | "web.files.selection.download_zip"
   | "web.files.selection.link_copied"
@@ -297,6 +298,7 @@ export type MessageKey =
   | "web.images.delete.copy_upload_only"
   | "web.images.delete.done"
   | "web.images.delete.failed"
+  | "web.images.delete.failed_detail"
   | "web.images.delete.progress"
   | "web.images.delete.text"
   | "web.images.delete.text_collection"
@@ -1060,6 +1062,7 @@ export interface MessageArgs {
   "web.files.results.title": { text: string };
   "web.files.results.unreachable": undefined;
   "web.files.results.video_kept_out": { name: string; folder: string };
+  "web.files.selection.clear": undefined;
   "web.files.selection.confirm_delete": { count: number };
   "web.files.selection.download_zip": undefined;
   "web.files.selection.link_copied": undefined;
@@ -1181,6 +1184,7 @@ export interface MessageArgs {
   "web.images.delete.copy_upload_only": { count: number };
   "web.images.delete.done": { what: string };
   "web.images.delete.failed": { count: number };
+  "web.images.delete.failed_detail": { detail: string };
   "web.images.delete.progress": { done: number; total: number };
   "web.images.delete.text": undefined;
   "web.images.delete.text_collection": undefined;

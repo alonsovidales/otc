@@ -368,6 +368,10 @@
     "text": "{name}, video nella cartella {folder}, fuori da Immagini",
     "en": "{name}, video in {folder}, kept out of Images"
   },
+  "web.files.selection.clear": {
+    "text": "Cancella selezione",
+    "en": "Clear selection"
+  },
   "web.files.selection.confirm_delete": {
     "text": {
       "one": "Eliminare {count} elemento? L’operazione non può essere annullata.",

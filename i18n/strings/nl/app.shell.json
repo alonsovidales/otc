@@ -48,6 +48,10 @@
     "text": "Kan geen verbinding maken met je apparaat",
     "en": "Can't connect to your device"
   },
+  "app.shell.clear_selection": {
+    "text": "Selectie wissen",
+    "en": "Clear selection"
+  },
   "app.shell.close_and_leave": {
     "text": "Sluiten en dit apparaat verlaten",
     "en": "Close and leave this device"

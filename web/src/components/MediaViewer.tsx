@@ -17,8 +17,8 @@ import { usePageRetry } from "./usePageRetry";
 import { startDownload, readFileInPieces, leafName, useDownloadState, useDownloadFailure, useDownloadHost } from "./mediaDownload";
 import { DownloadButton, DownloadNote } from "./DownloadButton";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { asIs, type UiText } from "./uiText";
-import { copiesChoice, delFileFields, deleteOutcome } from "./photoCopies";
+import type { UiText } from "./uiText";
+import { copiesChoice, delFileFields, deleteOutcome, refusedText } from "./photoCopies";
 
 // How long a video may show no sign of life before it's called stalled.
 const cVideoStallMs = 30000;
@@ -61,7 +61,8 @@ const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg")
 // the hash it was shown with, and every copy of it when `every` (Images,
 // for an item with copies); "every copy" refused for a copy in an
 // upload-only folder ("copy_upload_only") and a path that holds other
-// content now ("changed") are said in the device's own words.
+// content now ("changed") are said in the device's own words, in "Delete
+// failed: …" (refusedText) as the phones say them.
 async function deleteOnDevice(it: ViewerItem, every: boolean): Promise<{ error: UiText | null; changed: string | null }> {
   try {
     const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
@@ -70,11 +71,11 @@ async function deleteOnDevice(it: ViewerItem, every: boolean): Promise<{ error: 
     const outcome = deleteOutcome(resp.payload?.$case === "respAck" && resp.payload.respAck.ok, resp.errorCode);
     if (outcome === "deleted") return { error: null, changed: null };
     if (outcome === "upload_only") return { error: (t) => t("web.images.delete.upload_only", { count: 1 }), changed: null };
+    const said = resp.errorMessage;
     if (outcome === "changed") {
-      const said = resp.errorMessage;
-      return { error: said ? asIs(said) : (t) => t("web.images.delete.changed", { count: 1 }), changed: said };
+      return { error: (t) => (said ? refusedText(t, said) : t("web.images.delete.changed", { count: 1 })), changed: said };
     }
-    if (outcome === "copy_upload_only" && resp.errorMessage) return { error: asIs(resp.errorMessage), changed: null };
+    if (outcome === "copy_upload_only" && said) return { error: (t) => refusedText(t, said), changed: null };
   } catch {
     // No connection: as a refusal.
   }

@@ -32,8 +32,8 @@ import { useDragSelect } from "./useDragSelect";
 import { usePageRetry } from "./usePageRetry";
 import { clearSearch, isDateOrdered, isFiltered, leaveGroup, openGroup, updateOpenGroup, usePhotoFilter, type OpenGroup } from "./photoFilter";
 import { dropGroupLocally, personLabel, reloadGroups, renameGroupLocally, useGroups, usePeople } from "./libraryStore";
-import { asIs, say, type UiText } from "./uiText";
-import { copiesChoice, delFileFields, deleteNotice, deleteOutcome, type DeleteOutcome } from "./photoCopies";
+import { say, type UiText } from "./uiText";
+import { copiesChoice, delFileFields, deleteNotice, deleteNoticeText, deleteOutcome, refusedText, type DeleteResult } from "./photoCopies";
 import {
   cUpReach, cUpStart, deviceIgnoresNewerThan, nearTop, notShown, readUpward, scrollArmsUp, shiftIndex, topReserve, upwardApplies, upwardRequest,
   type ScrollAt, type UpCursor,
@@ -203,14 +203,6 @@ function whatLabel(t: TFunction, files: MsgFile[]): string {
     photos: t("web.images.count.photos", { count: photos }),
     videos: t("web.images.count.videos", { count: videos }),
   });
-}
-
-/** Why `count` photos and videos of a delete are still there (issue #201). */
-function keptText(t: TFunction, kind: "upload_only" | "copy_upload_only" | "changed" | "failed", count: number): string {
-  if (kind === "upload_only") return t("web.images.delete.upload_only", { count });
-  if (kind === "copy_upload_only") return t("web.images.delete.copy_upload_only", { count });
-  if (kind === "changed") return t("web.images.delete.changed", { count });
-  return t("web.images.delete.failed", { count });
 }
 
 // ---- icons (24px outlines, like NavIcons) -----------------------------------
@@ -1199,21 +1191,19 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     if (!files.length) return null;
     setDeleting({ done: 0, total: files.length });
     const gone = new Set<string>();
-    const outcomes: DeleteOutcome[] = [];
-    // The device's own words for the last refusal it explained (the only
-    // one, when a single photo was refused).
-    let said = "";
+    // How each went, with the device's own words for a refusal.
+    const results: DeleteResult[] = [];
     for (const f of files) {
-      let outcome: DeleteOutcome = "failed";
+      const result: DeleteResult = { outcome: "failed" };
       try {
         const resp = await ask({ $case: "reqDelFile", reqDelFile: delFileFields(f, every) });
-        outcome = deleteOutcome(acked(resp), resp.errorCode);
-        if ((outcome === "copy_upload_only" || outcome === "changed") && resp.errorMessage) said = resp.errorMessage;
+        result.outcome = deleteOutcome(acked(resp), resp.errorCode);
+        if (result.outcome !== "deleted") result.said = resp.errorMessage;
       } catch {
-        // No connection: a failure.
+        // No connection: a failure, without words.
       }
-      if (outcome === "deleted") gone.add(f.path);
-      outcomes.push(outcome);
+      if (result.outcome === "deleted") gone.add(f.path);
+      results.push(result);
       setDeleting((d) => (d ? { ...d, done: d.done + 1 } : d));
     }
     setDeleting(null);
@@ -1226,19 +1216,17 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     // What couldn't be deleted stays selected, to try again or keep.
     anchorRef.current = null;
     setDialog(null);
-    // A single refusal in the device's words, which name the folder; two
-    // or more summed up (deleteNotice, as the phones say them).
-    const sum = deleteNotice(outcomes, said);
-    if (sum.kind === "done") {
+    // A single refusal in the device's words ("Delete failed: …"), which
+    // name the folder; more summed up by reason, one line each
+    // (deleteNotice, as the phones say them).
+    const notice = deleteNotice(results);
+    if (!notice.lines.length) {
       showToast({ text: (t) => t("web.images.delete.done", { what: whatLabel(t, files) }) });
-    } else if (sum.kind === "said") {
-      showToast({ text: asIs(sum.text), error: true });
     } else {
-      const kind = sum.kind;
-      const count = sum.count;
-      showToast({ text: (t) => keptText(t, kind, count), error: true });
+      const lines = notice.lines;
+      showToast({ text: (t) => deleteNoticeText(t, lines), error: true });
     }
-    if (sum.reload) reloadGrid();
+    if (notice.reload) reloadGrid();
     return null;
   };
 
@@ -1738,7 +1726,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
           // device's words say so, and the grid is loaded again.
           onDeleteChanged={(_it, said) => {
             closeViewer();
-            showToast({ text: said ? asIs(said) : (t) => t("web.images.delete.changed", { count: 1 }), error: true });
+            showToast({ text: (t) => (said ? refusedText(t, said) : t("web.images.delete.changed", { count: 1 })), error: true });
             reloadGrid();
           }}
           inCollection={group != null}

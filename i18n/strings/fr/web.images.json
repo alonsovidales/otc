@@ -275,6 +275,10 @@
       "other": "{count} items couldn't be deleted. Try again."
     }
   },
+  "web.images.delete.failed_detail": {
+    "text": "Échec de la suppression : {detail}",
+    "en": "Delete failed: {detail}"
+  },
   "web.images.delete.progress": {
     "text": "Suppression {done} sur {total}…",
     "en": "Deleting {done} of {total}…"

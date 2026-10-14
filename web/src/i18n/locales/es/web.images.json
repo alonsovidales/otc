@@ -91,6 +91,7 @@
     "other": "No se han podido eliminar {count} elementos. Vuelve a intentarlo.",
     "arg": "count"
   },
+  "web.images.delete.failed_detail": "No se ha podido eliminar: {detail}",
   "web.images.delete.progress": "Eliminando {done} de {total}…",
   "web.images.delete.text": "Se eliminarán de tu dispositivo para siempre. Esto no se puede deshacer.",
   "web.images.delete.text_collection": "Se eliminarán de tu dispositivo, no solo de esta colección. Esto no se puede deshacer.",

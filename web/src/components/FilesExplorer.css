@@ -39,6 +39,14 @@
    "Share as gallery"; longer languages need more room) scrolls inside the
    bar instead of running off both edges. Where it fits, nothing changes. */
 .fb-actions-inner { min-width: 0; max-width: 100%; box-sizing: border-box; overflow-x: auto; }
+/* The ✕ at the bar's start: out of the selection (Images' bar has the
+   same). A 36 px circle, as Images' is round, in a target 44 px wide - the
+   bar is lower than Images'. */
+.fb-sel-clear { position: relative; flex: none; width: 44px; height: 36px; margin-left: -10px; margin-right: -6px; padding: 0; border: 0; border-radius: 18px; background: none; color: var(--mist); display: inline-grid; place-items: center; }
+.fb-sel-clear::before { content: ""; position: absolute; top: 0; bottom: 0; left: 4px; right: 4px; border-radius: 50%; transition: background-color .15s ease; }
+.fb-sel-clear:hover { filter: none; }
+.fb-sel-clear:hover::before { background: var(--panel); }
+.fb-sel-clear svg { position: relative; }
 .grow { flex: 1; }
 .btn { border: 1px solid var(--line); background: var(--panel); color: var(--mist); border-radius: 8px; padding: 2px 10px; cursor: pointer; }
 .btn.danger { background: var(--danger-bg); border-color: rgba(255,138,117,.4); color: var(--danger); }

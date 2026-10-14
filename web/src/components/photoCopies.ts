@@ -11,6 +11,9 @@
 // web/scripts/photo-copies-test.mjs) and the same as the phones' (iOS
 // PhotoGallery, Android PhotoGalleryViewModel): change them together.
 
+// Only a type: the module still loads with no imports in the test.
+import type { TFunction } from "../i18n";
+
 /** What the delete confirmation asks. */
 export type CopiesChoice =
   // Nothing about copies: the dialog as it was, one red Delete.
@@ -64,10 +67,10 @@ export function deleteOutcome(ok: boolean, code: string): DeleteOutcome {
   return "failed";
 }
 
-/** What a delete of several says once done: "done", or why `count` of
- *  them are still there - one reason when they all share it, else
- *  "failed". `reload`: something changed on the device since the grid
- *  showed it, so the grid is loaded again. */
+/** How a delete of several went, summed up (deleteNotice words it):
+ *  "done", or why `count` of them are still there - one reason when they
+ *  all share it, else "failed". `reload`: something changed on the
+ *  device since the grid showed it, so the grid is loaded again. */
 export function deleteSummary(outcomes: readonly DeleteOutcome[]): {
   kind: "done" | Exclude<DeleteOutcome, "deleted">;
   count: number;
@@ -80,18 +83,75 @@ export function deleteSummary(outcomes: readonly DeleteOutcome[]): {
   return { kind: kept.every((o) => o === first) ? first : "failed", count: kept.length, reload };
 }
 
-/** What a delete says once done, the same on the phones: a single
- *  refusal ("changed" or "copy_upload_only", whatever the others did) in
- *  the device's own words (`said`, that refusal's error_message), which
- *  name the folder; two or more summed up as deleteSummary does (one
- *  reason when they share it, else "failed"), and so is a refusal the
- *  device gave no words for. */
-export function deleteNotice(outcomes: readonly DeleteOutcome[], said: string):
-  | { kind: "said"; text: string; count: 1; reload: boolean }
-  | ReturnType<typeof deleteSummary> {
-  const sum = deleteSummary(outcomes);
-  if (sum.count === 1 && said && (sum.kind === "changed" || sum.kind === "copy_upload_only")) {
-    return { kind: "said", text: said, count: 1, reload: sum.reload };
+/** One photo or video of a delete: how it went, and the device's own
+ *  words for a refusal (its error_message, already in the page's
+ *  language; "" when it gave none or no answer came). */
+export type DeleteResult = { outcome: DeleteOutcome; said?: string };
+
+/** One line of what a delete says once done: a refusal in the device's
+ *  own words (shown in "Delete failed: {detail}",
+ *  web.images.delete.failed_detail, as the phones' delete_failed), or
+ *  `count` photos still there for one reason (web.images.delete.<kind>). */
+export type DeleteLine =
+  | { kind: "said"; text: string }
+  | { kind: Exclude<DeleteOutcome, "deleted">; count: number };
+
+/** What a delete says once done (no lines: all deleted), the same on the
+ *  phones (iOS DeleteCopies.keptText, Android deleteRefusalNotes). One
+ *  photo still there: a "changed" or "copy_upload_only" refusal in the
+ *  device's words, which name the folder, else its reason counted. Two or
+ *  more for one reason: that reason, counted. Two or more for different
+ *  reasons: the phones' rule - how many changed, how many have a copy in
+ *  an upload-only folder, then every other refusal in the device's words
+ *  (each text once), and those it gave no words for counted by reason.
+ *  `reload`: something changed on the device since the grid showed it,
+ *  so the grid is loaded again. */
+export function deleteNotice(results: readonly DeleteResult[]): { lines: DeleteLine[]; reload: boolean } {
+  const kept = results.filter((r) => r.outcome !== "deleted");
+  const sum = deleteSummary(kept.map((r) => r.outcome));
+  const reload = sum.reload;
+  if (sum.kind === "done") return { lines: [], reload };
+  if (kept.length === 1) {
+    const said = kept[0].said ?? "";
+    if (said && (sum.kind === "changed" || sum.kind === "copy_upload_only")) return { lines: [{ kind: "said", text: said }], reload };
+    return { lines: [{ kind: sum.kind, count: 1 }], reload };
   }
-  return sum;
+  if (sum.kind !== "failed" || kept.every((r) => r.outcome === "failed")) return { lines: [{ kind: sum.kind, count: sum.count }], reload };
+  const lines: DeleteLine[] = [];
+  const counted = (kind: "changed" | "copy_upload_only") => {
+    const count = kept.filter((r) => r.outcome === kind).length;
+    if (count) lines.push({ kind, count });
+  };
+  counted("changed");
+  counted("copy_upload_only");
+  for (const r of kept) {
+    if (r.outcome === "changed" || r.outcome === "copy_upload_only") continue;
+    const said = r.said ?? "";
+    if (said) {
+      if (!lines.some((l) => l.kind === "said" && l.text === said)) lines.push({ kind: "said", text: said });
+      continue;
+    }
+    const kind = r.outcome as "upload_only" | "failed";
+    const line = lines.find((l): l is { kind: "upload_only" | "failed"; count: number } => l.kind === kind);
+    if (line) line.count += 1;
+    else lines.push({ kind, count: 1 });
+  }
+  return { lines, reload };
 }
+
+/** The device's words for one refusal shown by itself: "Delete failed:
+ *  {detail}" - they are a lowercase piece written to follow it. */
+export const refusedText = (t: TFunction, said: string): string => t("web.images.delete.failed_detail", { detail: said });
+
+/** One line's text. */
+export function deleteLineText(t: TFunction, line: DeleteLine): string {
+  if (line.kind === "said") return refusedText(t, line.text);
+  const count = line.count;
+  if (line.kind === "upload_only") return t("web.images.delete.upload_only", { count });
+  if (line.kind === "copy_upload_only") return t("web.images.delete.copy_upload_only", { count });
+  if (line.kind === "changed") return t("web.images.delete.changed", { count });
+  return t("web.images.delete.failed", { count });
+}
+
+/** The lines' text, one paragraph each (the toast keeps the breaks). */
+export const deleteNoticeText = (t: TFunction, lines: readonly DeleteLine[]): string => lines.map((l) => deleteLineText(t, l)).join("\n");

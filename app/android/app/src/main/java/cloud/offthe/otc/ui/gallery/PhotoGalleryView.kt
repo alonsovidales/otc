@@ -343,8 +343,9 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             onShowPhotos = { onPage(GalleryPage.PHOTOS) },
         )
     } else Column(Modifier.fillMaxSize()) {
-        // Back: the selection goes first (the web's selection bar has its
-        // ✕ for that). An open search panel's own Back comes before it.
+        // Back: the selection goes first, as the pill's × does (the web's
+        // selection bar has its ✕ too). An open search panel's own Back
+        // comes before it, and the viewer's and dialogs' (their windows).
         BackHandler(enabled = st.selected.isNotEmpty() && !search.open) { vm.clearSelection() }
         // Wide, the search is in the top bar and People and Collections in
         // the menu. An open collection is the field's first chip either way
@@ -691,6 +692,8 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                         onDelete = { confirmDeleteSelected = true }, onGroup = { scope.launch { vm.loadGroups() }; showGroupPicker = true },
                         // Issue #180: the selected photos, as a gallery - no group needed.
                         onGallery = { gallerySource = SharedGallerySource.newBuilder().addAllPaths(st.selected.sorted()).build() },
+                        // Out of selection mode: a tap opens a photo again.
+                        onClear = { vm.clearSelection() },
                     )
                 }
             }
@@ -765,7 +768,9 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
     if (confirmDeleteSelected) {
         // Issue #201: photos the device holds at several paths ask which
         // to delete: only these, or every copy (only a device that counts them).
-        val picked = st.items.filter { it.path in st.selected }
+        // Picks a jump or a reload took off the grid as they were last
+        // shown (pickedItems), so their copies count too.
+        val picked = vm.pickedItems()
         val title = S.appPhotosSelectionDeleteTitle(st.selected.size).resolve()
         when (copiesAsk(picked, st.selected.size)) {
             CopiesAsk.SINGLE -> CopiesDialog(

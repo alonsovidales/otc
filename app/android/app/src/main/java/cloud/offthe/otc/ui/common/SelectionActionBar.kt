@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.common
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.HideImage
@@ -26,13 +28,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
@@ -42,8 +49,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.appShellAddToCollection
+import cloud.offthe.otc.i18n.appShellClearSelection
 import cloud.offthe.otc.i18n.appShellKeepOutOfImages
 import cloud.offthe.otc.i18n.appShellSelected
 import cloud.offthe.otc.i18n.appShellShareAsGallery
@@ -80,6 +89,9 @@ fun SelectionActionBar(
     // that can.
     onOutOfImages: (() -> Unit)? = null,
     keptOutOfImages: Boolean = false,
+    // The "N selected" pill's ×: everything unpicked, selection mode left
+    // (the screen's own clear, which ends a drag to select too).
+    onClear: (() -> Unit)? = null,
 ) {
     val items = buildList {
         if (onUpload != null) add(BarItem(S.commonUpload().resolve(), Icons.Default.Upload, busy == null, onUpload))
@@ -109,10 +121,9 @@ fun SelectionActionBar(
         val itemStyle = labelStyle.copy(fontSize = fit.size, lineHeight = labelStyle.lineHeight * (fit.size.value / labelStyle.fontSize.value))
         Column(Modifier.padding(horizontal = fit.inset), horizontalAlignment = Alignment.CenterHorizontally) {
             if (count > 0) {
-                Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 3.dp, shadowElevation = 2.dp) {
-                    Text(S.appShellSelected(count).resolve(), style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp))
-                }
+                // Above the bar: the ×'s touches reach over the gap into
+                // the bar's top padding (SelectedPill).
+                SelectedPill(count, onClear, Modifier.zIndex(1f))
                 Spacer(Modifier.height(6.dp))
             }
             Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 3.dp, shadowElevation = 4.dp) {
@@ -122,6 +133,50 @@ fun SelectionActionBar(
             }
         }
     }
+}
+
+/**
+ * The "N selected" pill, with [onClear]'s × at its start - the way out of
+ * selection mode (Google Photos' ×; Back does the same). As small as the
+ * count drawn, but the × takes touches over a whole [ClearTarget] square,
+ * past the pill's edges: the pill is drawn under the row, not around it,
+ * so nothing clips them.
+ */
+@Composable
+private fun SelectedPill(count: Int, onClear: (() -> Unit)?, modifier: Modifier = Modifier) {
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    Box(modifier) {
+        Surface(Modifier.matchParentSize(), shape = MaterialTheme.shapes.extraLarge, tonalElevation = 3.dp, shadowElevation = 2.dp) {}
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (onClear != null) {
+                val label = S.appShellClearSelection().resolve()
+                // It grows with the text (the font size chosen), up to 24 dp.
+                val icon = with(LocalDensity.current) { 16.sp.toDp() }.coerceAtMost(24.dp)
+                Box(
+                    Modifier.padding(start = 6.dp).touchTarget(icon + 4.dp, ClearTarget)
+                        .clickable(interactionSource = null, indication = ripple(bounded = false, radius = icon * 0.75f), role = Role.Button, onClick = onClear)
+                        .semantics { contentDescription = label },
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Default.Close, null, Modifier.size(icon), tint = color) }
+            }
+            Text(S.appShellSelected(count).resolve(), style = MaterialTheme.typography.labelSmall, color = color,
+                modifier = Modifier.padding(start = if (onClear != null) 2.dp else 12.dp, end = 12.dp, top = 5.dp, bottom = 5.dp))
+        }
+    }
+}
+
+// The square the pill's × is touched in.
+private val ClearTarget = 48.dp
+
+/**
+ * Laid out as a [shown] square, but measured and touched as a [target]
+ * square centred on it: a control drawn small that is easy to hit.
+ */
+private fun Modifier.touchTarget(shown: Dp, target: Dp) = layout { measurable, _ ->
+    val t = target.roundToPx()
+    val s = shown.roundToPx()
+    val placeable = measurable.measure(Constraints.fixed(t, t))
+    layout(s, s) { placeable.place((s - t) / 2, (s - t) / 2) }
 }
 
 /** How the bar is laid out: its inset from the sides, its own padding, the labels' size and lines. */

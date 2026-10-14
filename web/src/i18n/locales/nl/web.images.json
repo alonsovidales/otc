@@ -91,6 +91,7 @@
     "other": "{count} items konden niet worden verwijderd. Probeer het opnieuw.",
     "arg": "count"
   },
+  "web.images.delete.failed_detail": "Verwijderen mislukt: {detail}",
   "web.images.delete.progress": "Verwijderen {done} van {total}…",
   "web.images.delete.text": "Ze worden definitief van je apparaat verwijderd. Dit kan niet ongedaan worden gemaakt.",
   "web.images.delete.text_collection": "Ze worden van je apparaat verwijderd, niet alleen uit deze collectie. Dit kan niet ongedaan worden gemaakt.",

@@ -91,6 +91,7 @@
     "other": "{count} items couldn't be deleted. Try again.",
     "arg": "count"
   },
+  "web.images.delete.failed_detail": "Delete failed: {detail}",
   "web.images.delete.progress": "Deleting {done} of {total}…",
   "web.images.delete.text": "They're deleted from your device for good. This can't be undone.",
   "web.images.delete.text_collection": "They're deleted from your device, not just from this collection. This can't be undone.",

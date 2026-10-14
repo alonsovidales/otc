@@ -465,6 +465,100 @@ class PhotoGalleryUpTest {
         assertTrue(dev.ups().isEmpty())
     }
 
+    @Test fun aPickAboveAJumpRefusedAsChangedIsDeletedNextWithTheContentItWasShownWith() {
+        // Held at three paths: the copies question and every_copy go by that too.
+        val above = photo("apr1", "2019-04-02T10:00:00Z", copies = 3)
+        val ups = mutableListOf<RespEnvelope?>(page(listOf(above, apr2), oldestFirst = true))
+        val dev = device(upPages = ups, del = { refused("changed", "this file has changed since it was shown, so nothing was deleted: refresh and try again") })
+        val vm = jumped(dev)
+        greyShown(vm)
+        await("the page above") { vm.state.value.upLanded == 1 }
+        on { vm.toggleSelect("apr1") }
+        on { vm.deleteSelected(everyCopy = true) }
+        await("the jump again") { vm.state.value.jumpsLanded == 2 && !vm.state.value.loading }
+        // At the jump's month again: the photo above it is off the grid, still picked.
+        assertEquals(listOf("old1", "old2"), paths(vm))
+        assertEquals(setOf("apr1"), vm.state.value.selected)
+        // As it was last shown: the copies question asks about its three copies.
+        val picked = vm.pickedItems()
+        assertEquals(listOf("apr1"), picked.map { it.path })
+        assertEquals(CopiesAsk.SINGLE, copiesAsk(picked, vm.state.value.selected.size))
+        // Deleted again: its hash and every_copy, never its path alone.
+        on { vm.deleteSelected(everyCopy = true) }
+        await("the second delete") { dev.deletes().size == 2 }
+        val again = dev.deletes()[1]
+        assertEquals("apr1", again.path)
+        assertEquals(hx("apr1"), again.hash)
+        assertTrue(again.everyCopy)
+    }
+
+    @Test fun picksOffTheGridGoWhenUnpickedClearedOrDeleted() {
+        val dev = device()
+        val vm = jumped(dev)
+        on { vm.toggleSelect("old1"); vm.toggleSelect("old2") }
+        // A filter: another grid, the picks kept as shown.
+        on { vm.addChip("beach") }
+        await("the filter's photos") { paths(vm) == listOf("new") && !vm.state.value.loading }
+        assertEquals(listOf("old1", "old2"), vm.pickedItems().map { it.path }.sorted())
+        // Unpicked: forgotten - picked again unseen, nothing is known of it.
+        on { vm.toggleSelect("old1") }
+        assertEquals(listOf("old2"), vm.pickedItems().map { it.path })
+        on { vm.toggleSelect("old1") }
+        assertEquals(listOf("old2"), vm.pickedItems().map { it.path })
+        on { vm.toggleSelect("old1") }
+        // Deleted: sent with its hash, then gone.
+        on { vm.deleteSelected() }
+        await("the delete") { vm.state.value.selected.isEmpty() }
+        assertEquals(listOf("old2" to hx("old2")), dev.deletes().map { it.path to it.hash })
+        on { vm.toggleSelect("old2") }
+        assertTrue(vm.pickedItems().isEmpty())
+        // Cleared (the pill's ×): none kept either.
+        on { vm.clearSelection(); vm.jumpToDate("2019-03") }
+        await("the jump again") { vm.state.value.jumpsLanded == 2 && !vm.state.value.loading }
+        on { vm.toggleSelect("old1") }
+        on { vm.addChip("sea") }
+        await("the filter's photos") { paths(vm) == listOf("new") && !vm.state.value.loading }
+        assertEquals(listOf("old1"), vm.pickedItems().map { it.path })
+        on { vm.clearSelection(); vm.toggleSelect("old1") }
+        assertTrue(vm.pickedItems().isEmpty())
+    }
+
+    @Test fun leavingSelectionModeEndsADragUnderWay() {
+        val vm = jumped(device())
+        on { vm.beginDragSelect("old1") }
+        assertEquals(setOf("old1"), vm.state.value.selected)
+        // The pill's × (or Back) mid-drag: nothing picked, and the finger's
+        // next moves pick nothing - the drag is over.
+        on { vm.clearSelection() }
+        assertTrue(vm.state.value.selected.isEmpty())
+        assertFalse(on { vm.dragSelect("old2") })
+        assertFalse(vm.dragGoesOn())
+        assertTrue(vm.state.value.selected.isEmpty())
+    }
+
+    @Test fun picksAreKeptAsLastShownAndTheGridsOwnComesFirst() {
+        val a = item("a", 2)
+        val b = item("b", 1)
+        val c = item("c", 3)
+        // The grid about to be replaced with a and b picked: as shown.
+        var away = keptPicks(emptyMap(), listOf(a, b, c), setOf("a", "b"))
+        assertEquals(mapOf("a" to a, "b" to b), away)
+        // The next replacement: the earlier ones while still picked, and
+        // what the grid shows picked then, as it shows it.
+        val c2 = item("c", 4, hash = "c-now")
+        away = keptPicks(away, listOf(c2), setOf("a", "c"))
+        assertEquals(mapOf("a" to a, "c" to c2), away)
+        // Nothing picked: nothing kept.
+        assertTrue(keptPicks(away, listOf(a, b), emptySet()).isEmpty())
+        // The picks: as the grid shows them (a page brought one back: its
+        // content now), else as kept; never one no longer picked, nor one
+        // neither has.
+        val a2 = item("a", 2, hash = "a-now")
+        val picked = pickedByPath(listOf(a2, b), away, setOf("a", "c", "z"))
+        assertEquals(mapOf("a" to a2, "c" to c2), picked)
+        assertTrue(pickedByPath(listOf(a2), away, emptySet()).isEmpty())
+    }
+
     @Test fun aDeleteWithAChangedRefusalStillRefreshesTheCollectionsCount() {
         val g = ImageGroup.newBuilder().setId("g1").setName("Trip").setFileCount(3).build()
         val groupsAsked = java.util.concurrent.atomic.AtomicInteger()
@@ -516,12 +610,19 @@ class PhotoGalleryUpTest {
             ),
             notes(copy, changed),
         )
-        // Any other kind in the device's words, the last of them.
+        // Any other kind in the device's words, each text once (as iOS).
         assertEquals(
-            listOf("2 items changed on your device since they were shown, so they weren't deleted. Check them and try again.", "Delete failed: timed out"),
-            notes(changed, locked, changed, noAnswer),
+            listOf(
+                "2 items changed on your device since they were shown, so they weren't deleted. Check them and try again.",
+                "Delete failed: /Backups is upload-only: nothing in it can be deleted",
+                "Delete failed: timed out",
+            ),
+            notes(changed, locked, changed, noAnswer, noAnswer),
         )
-        assertEquals(listOf("Delete failed: timed out"), notes(locked, noAnswer))
+        assertEquals(
+            listOf("Delete failed: /Backups is upload-only: nothing in it can be deleted", "Delete failed: timed out"),
+            notes(locked, noAnswer),
+        )
     }
 
     @Test fun theViewersDeleteOfOnlyThisCopyIsAPlainDeleteWithItsHash() {

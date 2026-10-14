@@ -2552,6 +2552,16 @@ final class PhotoGalleryVM: ObservableObject {
 
     func endDragSelect() { dragSelection = nil }
 
+    /// The selection bar's x (or Escape on an iPad's keyboard): nothing is
+    /// picked any more, a drag under way is over (the finger going on
+    /// picks nothing), and the picks kept from an earlier grid go too - a
+    /// tap opens a photo again.
+    func clearSelection() {
+        selected.removeAll()
+        pickedAway = [:]
+        dragSelection = nil
+    }
+
     // MARK: Actions
     private func ensureUploadedIfLocal(_ paths: [String]) async -> Bool {
         for p in paths {
@@ -3052,6 +3062,7 @@ struct PhotoGalleryView: View {
                         onShare: vm.shareSelected,
                         onDownload: vm.downloadZip,
                         onDelete: { vm.askDeleteSelected() },
+                        onClear: vm.clearSelection,
                         onGroup: {
                             Task { await vm.loadGroups() }
                             vm.showGroupPicker = true

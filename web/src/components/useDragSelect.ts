@@ -523,5 +523,9 @@ export function useDragSelect<T>(options: DragSelectOptions<T>) {
     // How the last press was made ("mouse", "touch", "pen"): a tap on a
     // touch screen picks where a click opens.
     pointerType: () => lastType.current,
+    // Ends a press or a drag under way as the items being covered does
+    // (Files' ✕ that clears the selection): the selection is what the
+    // view makes it, and the release is no click.
+    interrupt: l.interrupt,
   };
 }

@@ -12,6 +12,7 @@
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { dirname, join, resolve } from "node:path";
+import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
@@ -28,7 +29,7 @@ before(async () => {
     logLevel: "error",
     appType: "custom",
     server: { middlewareMode: true, hmr: false, ws: false },
-    // One module with no imports: nothing to pre-bundle.
+    // One module with no imports (a type only): nothing to pre-bundle.
     optimizeDeps: { noDiscovery: true, include: [] },
   });
   m = await server.ssrLoadModule("/src/components/photoCopies.ts");
@@ -96,26 +97,83 @@ describe("answers", () => {
   });
 });
 
+// English as the page writes it: a small t over the generated catalog.
+const en = JSON.parse(readFileSync(join(WEB, "src/i18n/locales/en/web.images.json"), "utf8"));
+const t = (key, args = {}) => {
+  let text = en[key];
+  assert.ok(text !== undefined, `no English for ${key}`);
+  if (typeof text === "object") text = args[text.arg] === 1 ? text.one : text.other;
+  return text.replace(/\{(\w+)\}/g, (_, a) => String(args[a]));
+};
+
+const ok = { outcome: "deleted" };
+const changed = (said = "this file has changed since it was shown, so nothing was deleted: refresh and try again") => ({ outcome: "changed", said });
+const copyUp = (said = "a copy is in the upload-only folder /Backups: no copy was deleted") => ({ outcome: "copy_upload_only", said });
+const upOnly = (said = "this folder is upload only: nothing in it can be deleted") => ({ outcome: "upload_only", said });
+const failed = (said = "") => ({ outcome: "failed", said });
+
 describe("what a delete says once done (the phones say the same)", () => {
-  test("a single refusal: the device's own words, whatever the others did", () => {
-    assert.deepEqual(m.deleteNotice(["deleted", "changed", "deleted"], "It changed: refresh and try again"),
-      { kind: "said", text: "It changed: refresh and try again", count: 1, reload: true });
-    assert.deepEqual(m.deleteNotice(["copy_upload_only"], "a copy is in the upload-only folder /Backups"),
-      { kind: "said", text: "a copy is in the upload-only folder /Backups", count: 1, reload: false });
+  test("all deleted: nothing to say", () => {
+    assert.deepEqual(m.deleteNotice([ok, ok]), { lines: [], reload: false });
+    assert.deepEqual(m.deleteNotice([]), { lines: [], reload: false });
   });
-  test("a single refusal without words: summed up", () => {
-    assert.deepEqual(m.deleteNotice(["deleted", "changed"], ""), { kind: "changed", count: 1, reload: true });
+  test("a single refusal: the device's own words, whatever the others did", () => {
+    assert.deepEqual(m.deleteNotice([ok, changed("It changed"), ok]), { lines: [{ kind: "said", text: "It changed" }], reload: true });
+    assert.deepEqual(m.deleteNotice([copyUp("a copy is in /Backups")]), { lines: [{ kind: "said", text: "a copy is in /Backups" }], reload: false });
+  });
+  test("a single refusal without words: counted", () => {
+    assert.deepEqual(m.deleteNotice([ok, changed("")]), { lines: [{ kind: "changed", count: 1 }], reload: true });
+    assert.deepEqual(m.deleteNotice([{ outcome: "changed" }]), { lines: [{ kind: "changed", count: 1 }], reload: true });
   });
   test("upload_only and a failure keep their own texts", () => {
-    assert.deepEqual(m.deleteNotice(["upload_only"], "words"), { kind: "upload_only", count: 1, reload: false });
-    assert.deepEqual(m.deleteNotice(["deleted", "failed"], "words"), { kind: "failed", count: 1, reload: false });
+    assert.deepEqual(m.deleteNotice([upOnly()]), { lines: [{ kind: "upload_only", count: 1 }], reload: false });
+    assert.deepEqual(m.deleteNotice([ok, failed("no such file or directory")]), { lines: [{ kind: "failed", count: 1 }], reload: false });
   });
-  test("two or more refusals: summed up by kind, a mix as failed", () => {
-    assert.deepEqual(m.deleteNotice(["changed", "deleted", "changed"], "the last one's words"), { kind: "changed", count: 2, reload: true });
-    assert.deepEqual(m.deleteNotice(["copy_upload_only", "copy_upload_only"], "words"), { kind: "copy_upload_only", count: 2, reload: false });
-    assert.deepEqual(m.deleteNotice(["changed", "copy_upload_only"], "words"), { kind: "failed", count: 2, reload: true });
+  test("two or more for one reason: that reason, counted", () => {
+    assert.deepEqual(m.deleteNotice([changed("a"), ok, changed("b")]), { lines: [{ kind: "changed", count: 2 }], reload: true });
+    assert.deepEqual(m.deleteNotice([copyUp(), copyUp()]), { lines: [{ kind: "copy_upload_only", count: 2 }], reload: false });
+    assert.deepEqual(m.deleteNotice([upOnly(), upOnly()]), { lines: [{ kind: "upload_only", count: 2 }], reload: false });
+    assert.deepEqual(m.deleteNotice([failed(), failed("x")]), { lines: [{ kind: "failed", count: 2 }], reload: false });
   });
-  test("all deleted", () => {
-    assert.deepEqual(m.deleteNotice(["deleted", "deleted"], ""), { kind: "done", count: 0, reload: false });
+  test("different reasons: changed counted, then copies counted (iOS keptText, Android deleteRefusalNotes)", () => {
+    assert.deepEqual(m.deleteNotice([copyUp(), ok, changed()]),
+      { lines: [{ kind: "changed", count: 1 }, { kind: "copy_upload_only", count: 1 }], reload: true });
+    assert.deepEqual(m.deleteNotice([changed(), copyUp(), changed(), copyUp(), copyUp()]),
+      { lines: [{ kind: "changed", count: 2 }, { kind: "copy_upload_only", count: 3 }], reload: true });
+  });
+  test("different reasons: any other refusal in the device's words, each text once", () => {
+    assert.deepEqual(m.deleteNotice([upOnly(), changed(), upOnly(), failed("no such file or directory")]),
+      { lines: [{ kind: "changed", count: 1 }, { kind: "said", text: "this folder is upload only: nothing in it can be deleted" }, { kind: "said", text: "no such file or directory" }], reload: true });
+    assert.deepEqual(m.deleteNotice([upOnly(), failed("no such file or directory")]),
+      { lines: [{ kind: "said", text: "this folder is upload only: nothing in it can be deleted" }, { kind: "said", text: "no such file or directory" }], reload: false });
+  });
+  test("different reasons: one with no words (no answer came) counted by its reason", () => {
+    assert.deepEqual(m.deleteNotice([changed(), failed(), failed()]),
+      { lines: [{ kind: "changed", count: 1 }, { kind: "failed", count: 2 }], reload: true });
+    assert.deepEqual(m.deleteNotice([copyUp(), upOnly(""), { outcome: "upload_only" }]),
+      { lines: [{ kind: "copy_upload_only", count: 1 }, { kind: "upload_only", count: 2 }], reload: false });
+  });
+});
+
+describe("how it reads", () => {
+  test("a refusal by itself: in \"Delete failed: …\", as the phones' delete_failed", () => {
+    assert.equal(m.refusedText(t, "this file has changed since it was shown, so nothing was deleted: refresh and try again"),
+      "Delete failed: this file has changed since it was shown, so nothing was deleted: refresh and try again");
+    assert.equal(m.deleteNoticeText(t, m.deleteNotice([ok, changed()]).lines),
+      "Delete failed: this file has changed since it was shown, so nothing was deleted: refresh and try again");
+  });
+  test("counted lines", () => {
+    assert.equal(m.deleteNoticeText(t, m.deleteNotice([changed(), changed()]).lines),
+      "2 items changed on your device since they were shown, so they weren't deleted. Check them and try again.");
+    assert.equal(m.deleteNoticeText(t, m.deleteNotice([upOnly()]).lines), "1 item is in an upload-only folder and can't be deleted");
+    assert.equal(m.deleteNoticeText(t, m.deleteNotice([failed()]).lines), "1 item couldn't be deleted. Try again.");
+  });
+  test("a mix: one line per reason, in the phones' order", () => {
+    assert.equal(m.deleteNoticeText(t, m.deleteNotice([copyUp(), changed()]).lines),
+      "1 item changed on your device since it was shown, so it wasn't deleted. Check it and try again.\n" +
+      "1 item wasn't deleted: a copy of it is in an upload-only folder");
+    assert.equal(m.deleteNoticeText(t, m.deleteNotice([upOnly(), copyUp(), copyUp()]).lines),
+      "2 items weren't deleted: they have copies in an upload-only folder\n" +
+      "Delete failed: this folder is upload only: nothing in it can be deleted");
   });
 });

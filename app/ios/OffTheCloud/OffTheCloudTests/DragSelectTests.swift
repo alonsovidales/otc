@@ -437,6 +437,33 @@ struct FilesDragSelectTests {
         #expect(vm.selected == ["/Trips/B", "/Trips/c.jpg"])
     }
 
+    @Test func theBarsXLeavesSelectingAndEndsADragUnderWay() async {
+        let vm = await explorer()
+        vm.beginDragSelect("/Trips/A")
+        vm.dragSelect(to: "/Trips/c.jpg")
+        #expect(vm.selected.count == 3)
+        // The x, the finger still down (another finger's tap): nothing is
+        // picked, and the finger going on picks nothing again.
+        vm.clearSelection()
+        #expect(vm.selected.isEmpty)
+        #expect(!vm.dragSelect(to: "/Trips/d.jpg"))
+        #expect(!vm.dragSelect(to: "/Trips/B"))
+        #expect(vm.selected.isEmpty)
+        vm.endDragSelect()
+        // Nothing picked: the rows open again (the view's tap), and the
+        // folder's actions are gone from the bar.
+        #expect(vm.selectedFolder == nil)
+        // A long press picks again as before.
+        vm.beginDragSelect("/Trips/d.jpg")
+        #expect(vm.dragSelect(to: "/Trips/c.jpg"))
+        #expect(vm.selected == ["/Trips/c.jpg", "/Trips/d.jpg"])
+        vm.endDragSelect()
+        // Picked by taps alone, no drag: the x clears those too.
+        vm.toggleSelected("/Trips/A")
+        vm.clearSelection()
+        #expect(vm.selected.isEmpty)
+    }
+
     @Test func oneFolderPickedOffersItsGalleryAndItsSwitchForImages() async {
         let vm = await explorer()
         vm.selected = ["/Trips/B"]
@@ -540,6 +567,33 @@ struct ImagesDragSelectTests {
         #expect(vm.selected == Set([0, 3, 4, 5, 6, 8, 9].map { "/p/\($0).jpg" }))
         vm.endDragSelect()
     }
+
+    @Test func theBarsXLeavesSelectingAndEndsADragUnderWay() {
+        let vm = PhotoGalleryVM()
+        vm.items = (0..<8).map(item)
+        vm.selected = ["/p/7.jpg"]
+        vm.beginDragSelect(at: 1)
+        #expect(vm.dragSelect(to: 4))
+        #expect(vm.selected.count == 5)
+        // The x mid-drag: nothing is picked (the bar goes, a tap opens),
+        // and the finger going on - even back over the photos it passed -
+        // picks nothing again.
+        vm.clearSelection()
+        #expect(vm.selected.isEmpty)
+        #expect(!vm.dragSelect(to: 6))
+        #expect(!vm.dragSelect(to: 2))
+        #expect(!vm.dragSelect(to: nil))
+        #expect(vm.selected.isEmpty)
+        vm.endDragSelect()
+        // A long press starts afresh: what was picked before the x isn't
+        // the next drag's base.
+        vm.beginDragSelect(at: 3)
+        #expect(vm.dragSelect(to: 5))
+        #expect(vm.selected == ["/p/3.jpg", "/p/4.jpg", "/p/5.jpg"])
+        vm.endDragSelect()
+        vm.clearSelection()
+        #expect(vm.selected.isEmpty)
+    }
 }
 
 /// The selection bar's labels, broken at spaces only (BarLabelLines): with
@@ -567,5 +621,28 @@ struct BarLabelLinesTests {
 
     @Test func aWordWiderThanTheItemHasALineOfItsOwn() {
         #expect(BarLabelLines.arrange(widths: [10, 70], space: 3, width: 60) == [[0], [1]])
+    }
+}
+
+/// The count pill's x, the way out of selecting: a caption-sized glyph
+/// with a full 44 pt touch target (TouchTarget), named for VoiceOver.
+@MainActor
+struct SelectionBarClearTests {
+    @Test func theXAnswersTouchesOverAtLeast44Points() {
+        // The caption's xmark at the usual text size: a 44 pt square.
+        #expect(TouchTarget.target(for: CGSize(width: 9, height: 11), side: 44) == CGSize(width: 44, height: 44))
+        // At the largest accessibility sizes the glyph outgrows it one way
+        // or both: never smaller than the glyph.
+        #expect(TouchTarget.target(for: CGSize(width: 30, height: 52), side: 44) == CGSize(width: 44, height: 52))
+        #expect(TouchTarget.target(for: CGSize(width: 50, height: 47), side: 44) == CGSize(width: 50, height: 47))
+        #expect(TouchTarget().side == 44)
+    }
+
+    @Test func theXIsNamedClearSelection() {
+        let was = L10n.shared.code
+        L10n.shared.set("en")
+        let name = S.appShellClearSelection
+        L10n.shared.set(was)
+        #expect(name == "Clear selection")
     }
 }

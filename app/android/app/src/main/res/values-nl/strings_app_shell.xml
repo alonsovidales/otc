@@ -14,6 +14,7 @@
     <string name="app_shell_bluetooth_needed">Toegang tot Bluetooth is nodig</string>
     <string name="app_shell_bluetooth_off">Bluetooth staat uit</string>
     <string name="app_shell_cant_connect">Kan geen verbinding maken met je apparaat</string>
+    <string name="app_shell_clear_selection">Selectie wissen</string>
     <string name="app_shell_close_and_leave">Sluiten en dit apparaat verlaten</string>
     <plurals name="app_shell_collection_card">
         <item quantity="one">\u2068%1$s\u2069, %2$s item</item>

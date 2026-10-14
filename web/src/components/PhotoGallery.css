@@ -877,7 +877,8 @@
 .pg-toast.has-action { padding-right: 8px; }
 .pg-toast.error { border-color: rgba(255, 138, 117, .45); }
 .pg-toast.error::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
-.pg-toast-text { padding: 10px 0; overflow-wrap: anywhere; }
+/* A delete's notice can have a line per reason (photoCopies.ts deleteNoticeText). */
+.pg-toast-text { padding: 10px 0; overflow-wrap: anywhere; white-space: pre-line; }
 .pg-toast .spinner-wrap { flex: none; color: var(--mist-dim); }
 .pg-toast-action {
   flex: none;

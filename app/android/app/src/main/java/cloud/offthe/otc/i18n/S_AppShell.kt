@@ -54,6 +54,10 @@ fun S.appShellBluetoothOff(): UiText =
 fun S.appShellCantConnect(): UiText =
     UiText.Res(R.string.app_shell_cant_connect)
 
+/** "Clear selection": Screen-reader name of the × at the start of the "N selected" pill above the selection bar in Images and Files on the phones: it unpicks everything and leaves selection mode. */
+fun S.appShellClearSelection(): UiText =
+    UiText.Res(R.string.app_shell_clear_selection)
+
 /** "Close and leave this device": Screen-reader name of the × at the corner of the card shown while the device isn't available: it asks to leave this device for the connection screen (app.shell.leave_title). */
 fun S.appShellCloseAndLeave(): UiText =
     UiText.Res(R.string.app_shell_close_and_leave)
