@@ -18,7 +18,8 @@ import { fileSize } from "../net/fileSize";
 import "./PhotoGallery.css";
 import Spinner from "./Spinner";
 import SharedGalleryShare from "./SharedGalleryShare";
-import MediaViewer from "./MediaViewer";
+import MediaViewer, { type ViewerItem } from "./MediaViewer";
+import { ConfirmDialog, Modal } from "./ConfirmDialog";
 import DateScrubber, { type ScrubBucket } from "./DateScrubber";
 import { CollectionsIcon, ImagesIcon } from "./NavIcons";
 import { useObjectURLs } from "./useObjectURLs";
@@ -991,6 +992,35 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     setSharing({ paths: sel.map((f) => f.path) });
   };
 
+  // Photos and videos the device deleted (paths), by the selection's Delete
+  // or the viewer's, leave the grid and the selection, and what counts them
+  // follows: the months (the scrubber and the headers) and the open
+  // collection's count (its header follows the list).
+  const dropDeleted = (gone: Set<string>) => {
+    setItems((prev) => prev.filter((f) => !gone.has(f.path)));
+    // `have` must count what is on screen, or a search the device
+    // resumes would skip as many photos as were deleted.
+    for (const [k, f] of mapRef.current) if (gone.has(f.path)) mapRef.current.delete(k);
+    void loadDateBuckets();
+    if (group) void reloadGroups().catch(() => {});
+    setSel((prev) => prev.filter((f) => !gone.has(f.path)));
+    // A shift-click range starts from an index, and those moved.
+    anchorRef.current = null;
+  };
+
+  // Issue #199: the viewer's Delete took the photo it showed. The viewer
+  // goes on to the one after it - the one before when it was the last -
+  // or closes when none is left, as the apps' viewers do. Called with the
+  // grid as it is now (MediaViewer keeps the latest of this callback).
+  const onViewerDeleted = (it: ViewerItem) => {
+    const rest = items.filter((f) => f.path !== it.path);
+    dropDeleted(new Set([it.path]));
+    if (!rest.length) { closeViewer(); return; }
+    const at = openIdxRef.current ?? 0;
+    const before = items.slice(0, at).filter((f) => f.path === it.path).length;
+    openAt(Math.min(at - before, rest.length - 1));
+  };
+
   // Issue #45: delete every selected photo and video, one request each.
   const [deleting, setDeleting] = useState<{ done: number; total: number } | null>(null);
   const deleteSelected = async (): Promise<UiText | null> => {
@@ -1013,19 +1043,12 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     }
     setDeleting(null);
     if (gone.size) {
-      setItems((prev) => prev.filter((f) => !gone.has(f.path)));
-      // `have` must count what is on screen, or a search the device
-      // resumes would skip as many photos as were deleted.
-      for (const [k, f] of mapRef.current) if (gone.has(f.path)) mapRef.current.delete(k);
+      dropDeleted(gone);
       // The viewer could point at a photo that's gone or has moved.
       openIdxRef.current = null;
       setOpenIdx(null);
-      void loadDateBuckets();
-      // The open collection's count (its header follows the list).
-      if (group) void reloadGroups().catch(() => {});
     }
     // What couldn't be deleted stays selected, to try again or keep.
-    setSel((prev) => prev.filter((f) => !gone.has(f.path)));
     anchorRef.current = null;
     setDialog(null);
     const kept = uploadOnly + failed;
@@ -1365,7 +1388,14 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
 
       {/* The shared viewer (MediaViewer.tsx), also used by Files. */}
       {openIdx != null && openIdx < items.length && (
-        <MediaViewer items={viewerItems} index={openIdx} onIndexChange={openAt} onClose={closeViewer} />
+        <MediaViewer
+          items={viewerItems}
+          index={openIdx}
+          onIndexChange={openAt}
+          onClose={closeViewer}
+          onDeleted={onViewerDeleted}
+          inCollection={group != null}
+        />
       )}
 
       {sharing && <SharedGalleryShare source={sharing} onClose={() => setSharing(null)} />}
@@ -1716,142 +1746,7 @@ function ShareMenu({ onGallery, onCopyLink, onZip, onClose }: {
 }
 
 // ---- dialogs ----------------------------------------------------------------------
-
-const cFocusable = "button, [href], input, textarea, select, [tabindex]:not([tabindex='-1'])";
-
-// Tab and Shift+Tab within `box`: from its last control to its first and
-// back, and into it from wherever the focus fell (a control that was
-// removed, or disabled while busy, leaves it on the page).
-function keepTabInside(box: HTMLElement, e: KeyboardEvent) {
-  const all = [...box.querySelectorAll<HTMLElement>(cFocusable)]
-    .filter((el) => !(el as HTMLButtonElement).disabled && el.offsetParent !== null);
-  if (!all.length) { e.preventDefault(); box.focus(); return; }
-  const first = all[0];
-  const last = all[all.length - 1];
-  const active = document.activeElement;
-  if (!box.contains(active)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
-  else if (e.shiftKey && (active === first || active === box)) { e.preventDefault(); last.focus(); }
-  else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
-}
-
-// A small card over the dimmed page. Focus moves into it (to the element
-// marked data-autofocus, else the card) and back when it closes; Tab stays
-// inside; Escape or a click on the dimmed page cancels - except while busy.
-// The keys are the document's, so they work wherever the focus fell.
-function Modal({ labelledBy, busy = false, wide = false, onClose, children }: {
-  labelledBy: string;
-  busy?: boolean;
-  wide?: boolean;
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  // A press that starts inside the card (selecting text in a field) and
-  // ends outside it is not a click on the page.
-  const downOnBackdropRef = useRef(false);
-  const busyRef = useRef(busy);
-  const onCloseRef = useRef(onClose);
-  useLayoutEffect(() => {
-    busyRef.current = busy;
-    onCloseRef.current = onClose;
-  });
-
-  // What had the keyboard's focus before the dialog gets it back on close.
-  // Read on the first render, before a field inside can take it
-  // (autoFocus). After a tap or a click it stays where it falls: a button
-  // focused only by a finger would come back with its tooltip showing.
-  const [returnFocus] = useState(() => {
-    const el = document.activeElement;
-    return el instanceof HTMLElement && el.matches(":focus-visible") ? el : null;
-  });
-  useEffect(() => {
-    const card = cardRef.current;
-    if (card && !card.contains(document.activeElement)) {
-      (card.querySelector<HTMLElement>("[data-autofocus]") ?? card).focus();
-    }
-    return () => { if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true }); };
-  }, [returnFocus]);
-  // Busy no more (an error to read): the focus its disabled buttons lost.
-  useEffect(() => {
-    if (!busy && document.activeElement === document.body) cardRef.current?.focus();
-  }, [busy]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const card = cardRef.current;
-      if (!card) return;
-      if (e.key === "Escape") {
-        // A field's own Escape (the new collection's name) is not this.
-        if (e.defaultPrevented) return;
-        e.preventDefault();
-        e.stopPropagation();
-        if (!busyRef.current) onCloseRef.current();
-      } else if (e.key === "Tab") {
-        keepTabInside(card, e);
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, []);
-
-  return (
-    <div
-      className="pg-dlg-backdrop"
-      onPointerDown={(e) => { downOnBackdropRef.current = e.target === e.currentTarget; }}
-      onClick={(e) => {
-        // Nor is a double click's second, when the first opened the dialog.
-        const fromBackdrop = downOnBackdropRef.current && e.target === e.currentTarget && e.detail < 2;
-        downOnBackdropRef.current = false;
-        if (fromBackdrop && !busy) onClose();
-      }}
-    >
-      <div ref={cardRef} className={`pg-dlg${wide ? " wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={labelledBy} tabIndex={-1}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function ConfirmDialog({ title, text, confirm, busyText, onConfirm, onCancel }: {
-  title: string;
-  text: ReactNode;
-  confirm: string;
-  busyText: string;
-  // Does the work: an error to show in the dialog, or null when done (the
-  // caller closes the dialog then).
-  onConfirm: () => Promise<UiText | null>;
-  onCancel: () => void;
-}) {
-  const t = useT();
-  const titleId = useId();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<UiText | null>(null);
-  const run = async () => {
-    setBusy(true);
-    setError(null);
-    const err = await onConfirm();
-    if (err) {
-      setError(() => err);
-      setBusy(false);
-    }
-  };
-  return (
-    <Modal labelledBy={titleId} busy={busy} onClose={onCancel}>
-      <div>
-        <h2 id={titleId} className="pg-dlg-title">{title}</h2>
-        <p className="pg-dlg-text">{text}</p>
-      </div>
-      {error && <p className="pg-dlg-error" role="alert">{error(t)}</p>}
-      <div className="pg-dlg-actions">
-        {/* Focus starts on Cancel: Enter right away keeps everything. */}
-        <button type="button" className="pg-btn quiet" onClick={onCancel} disabled={busy} data-autofocus>{t("common.cancel")}</button>
-        <button type="button" className="pg-btn danger" onClick={() => void run()} disabled={busy} aria-busy={busy}>
-          {busy ? <Spinner label={busyText} /> : confirm}
-        </button>
-      </div>
-    </Modal>
-  );
-}
+// Modal and ConfirmDialog are in ConfirmDialog.tsx, shared with the viewer.
 
 // "New post": the selected photos in the order the post shows them, a
 // caption, Publish.

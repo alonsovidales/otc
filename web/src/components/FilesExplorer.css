@@ -250,3 +250,29 @@
   .fb-results-back,
   .fb-res-row { transition: none; }
 }
+
+/* Issue #196: the order. A column's heading is a button that sorts by it
+   (again: the other way), with an arrow on the one in use; the Sort by
+   list beside the List/Grid switch, and over a search's results, does the
+   same where no heading shows (the grid, the hidden date columns). */
+.fb-sort-btn {
+  display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 0; border: 0; border-radius: 4px;
+  background: none; color: inherit; font: inherit; font-weight: 600; cursor: pointer; text-align: inherit;
+}
+.fb-sort-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-sort-btn:hover { filter: none; }
+@media (hover: hover) {
+  .fb-sort-btn:hover .fb-sort-name { text-decoration: underline; }
+}
+.fb-sort-btn:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+.fb-sort-btn.on { color: var(--mist); }
+.fb-sort-arrow { flex: none; color: var(--ember); }
+.fb-sort { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.fb-sort .fb-label { flex: none; }
+.fb-sort select {
+  min-width: 0; max-width: 100%; height: 36px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--ink-2); color: var(--mist); font: inherit; font-size: 14px; cursor: pointer;
+}
+.fb-sort select:focus-visible { outline: 2px solid var(--ember); outline-offset: 1px; }
+.fb-results-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; width: 100%; }
+.fb-results-meta .fb-sort select { height: 32px; }

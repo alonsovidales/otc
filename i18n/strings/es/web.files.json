@@ -536,6 +536,46 @@
     "text": "{size} MB",
     "en": "{size} MB"
   },
+  "web.files.sort.created_asc": {
+    "text": "Creado, más antiguos primero",
+    "en": "Created, oldest first"
+  },
+  "web.files.sort.created_desc": {
+    "text": "Creado, más recientes primero",
+    "en": "Created, newest first"
+  },
+  "web.files.sort.label": {
+    "text": "Ordenar por",
+    "en": "Sort by"
+  },
+  "web.files.sort.modified_asc": {
+    "text": "Modificado, más antiguos primero",
+    "en": "Modified, oldest first"
+  },
+  "web.files.sort.modified_desc": {
+    "text": "Modificado, más recientes primero",
+    "en": "Modified, newest first"
+  },
+  "web.files.sort.name_asc": {
+    "text": "Nombre, de la A a la Z",
+    "en": "Name, A to Z"
+  },
+  "web.files.sort.name_desc": {
+    "text": "Nombre, de la Z a la A",
+    "en": "Name, Z to A"
+  },
+  "web.files.sort.size_asc": {
+    "text": "Tamaño, de menor a mayor",
+    "en": "Size, smallest first"
+  },
+  "web.files.sort.size_desc": {
+    "text": "Tamaño, de mayor a menor",
+    "en": "Size, largest first"
+  },
+  "web.files.sort.sorted": {
+    "text": "Ordenado por {order}",
+    "en": "Sorted by {order}"
+  },
   "web.files.toolbar.grid": {
     "text": "Cuadrícula",
     "en": "Grid"

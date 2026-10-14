@@ -954,6 +954,30 @@
     "text": "It may be recorded in HEVC, which not every browser can decode - Safari handles it, and recent Chrome does on hardware that supports it.",
     "note": "Under web.images.viewer.codec. HEVC (a video format), Safari and Chrome (browsers) are names: keep them."
   },
+  "web.images.viewer.delete_photo_title": {
+    "text": "Delete this photo?",
+    "note": "Title of the confirmation asked before deleting the photo open in the full-screen viewer (Images, or a photo opened from Files), after its Delete button or the Delete key. Buttons: Cancel and Delete. The phones say the same (app.photos.viewer.delete_title).",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-14 #d40d2513"
+  },
+  "web.images.viewer.delete_text": {
+    "text": "It's deleted from your device for good. This can't be undone.",
+    "note": "Text of the confirmation web.images.viewer.delete_photo_title or web.images.viewer.delete_video_title. It is the photo or the video open in the viewer: one text for both, so word it to fit either (in a language with genders, a neutral word such as item works). The one-item form of web.images.delete.text.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-14 #19decc19"
+  },
+  "web.images.viewer.delete_text_collection": {
+    "text": "It's deleted from your device, not just from this collection. This can't be undone.",
+    "note": "Text of the confirmation web.images.viewer.delete_photo_title or web.images.viewer.delete_video_title when the viewer was opened inside a collection: the photo or video is deleted from the device, not only taken out of the collection. It is the photo or the video: word it to fit either, as in web.images.viewer.delete_text. The one-item form of web.images.delete.text_collection.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-14 #3c67a0fc"
+  },
+  "web.images.viewer.delete_video_title": {
+    "text": "Delete this video?",
+    "note": "Title of the confirmation asked before deleting the video open in the full-screen viewer (Images, or a video opened from Files), after its Delete button or the Delete key. Buttons: Cancel and Delete. The video form of web.images.viewer.delete_photo_title.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-14 #adc476b7"
+  },
   "web.images.viewer.dimensions": {
     "text": "Dimensions",
     "note": "Label in the photo viewer's details panel, before the photo's width × height in pixels.",

@@ -4,7 +4,8 @@
 // it opens photos and videos from Files too, its own component, so both
 // open them the same way - full-size image (pinch or trackpad zoom), a
 // video streamed from the device, swiping or arrows between items, the
-// Info panel (issue #41), Download. The apps do the same with ImageModal.
+// Info panel (issue #41), Download, and Delete where the caller allows it
+// (issue #199). The apps do the same with ImageModal.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { dateTimeFields, fmtDate, useT } from "../i18n";
 import { useWS } from "../net/useWS";
@@ -15,6 +16,8 @@ import LowResBadge from "./LowResBadge";
 import { usePageRetry } from "./usePageRetry";
 import { startDownload, readFileInPieces, leafName, useDownloadState, useDownloadFailure, useDownloadHost } from "./mediaDownload";
 import { DownloadButton, DownloadNote } from "./DownloadButton";
+import { ConfirmDialog } from "./ConfirmDialog";
+import type { UiText } from "./uiText";
 
 // How long a video may show no sign of life before it's called stalled.
 const cVideoStallMs = 30000;
@@ -39,6 +42,33 @@ const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg")
   return URL.createObjectURL(new Blob([u8 as BlobPart], { type: mime }));
 };
 
+// Issue #199: deletes one file on the device (DelFile): null once it is
+// gone, else what the confirmation says instead - the device keeps
+// everything in an upload-only folder (error_code "upload_only"), and any
+// other refusal or no answer is a failure to try again.
+async function deleteOnDevice(path: string): Promise<UiText | null> {
+  try {
+    const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+      e.payload = { $case: "reqDelFile", reqDelFile: { path } };
+    });
+    if (resp.payload?.$case === "respAck" && resp.payload.respAck.ok) return null;
+    if (resp.errorCode === "upload_only") return (t) => t("web.images.delete.upload_only", { count: 1 });
+  } catch {
+    // No connection: as a refusal.
+  }
+  return (t) => t("web.images.delete.failed", { count: 1 });
+}
+
+// The Delete button's trash can (Images' selection bar draws the same).
+const TrashGlyph = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+    <path
+      d="M4.5 7h15M9.5 7V5.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V7M6.5 7l.85 12.1a1.5 1.5 0 0 0 1.5 1.4h6.3a1.5 1.5 0 0 0 1.5-1.4L17.5 7M10 11v5.5M14 11v5.5"
+      fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+    />
+  </svg>
+);
+
 // Download: the original file, under its own name (mediaDownload.ts).
 // Keyed by path, so a viewer opened again on the same file shows how far
 // its download got.
@@ -52,11 +82,22 @@ function downloadItem(it: ViewerItem) {
   });
 }
 
-export default function MediaViewer({ items, index, onIndexChange, onClose }: {
+export default function MediaViewer({ items, index, onIndexChange, onClose, onDeleted, deleteBlocked, inCollection = false }: {
   items: ViewerItem[];
   index: number;
   onIndexChange: (i: number) => void;
   onClose: () => void;
+  /** Issue #199: with it, the header has Delete. Called once the device
+   *  has deleted the item: the caller takes it out of `items` and, in the
+   *  same update, moves `index` on (the item after it, the one before at
+   *  the end) or closes the viewer when none is left. */
+  onDeleted?: (item: ViewerItem) => void;
+  /** Why the item can't be deleted (an upload-only folder), when the
+   *  caller knows: Delete is greyed out, with this as its tooltip. */
+  deleteBlocked?: (item: ViewerItem) => UiText | null;
+  /** Opened inside a collection: the confirmation says the item goes
+   *  from the device, not just from the collection. */
+  inCollection?: boolean;
 }) {
   const t = useT();
   const [hiURL, setHiURL] = useState<string | null>(null);
@@ -80,12 +121,16 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
 
   // The keyboard's focus moves into the viewer, so Space or Enter can't
   // press what is behind it (the photo it was opened from), and goes back
-  // there when it closes - after keyboard use only, as dialogs do.
+  // there when it closes - after keyboard use only, as dialogs do. Not
+  // when the viewer closed because its last item was deleted: what opened
+  // it was that item's tile or row, on its way out, and the caller puts
+  // the focus somewhere that stays.
+  const restoreFocusRef = useRef(true);
   useEffect(() => {
     const el = document.activeElement;
     const back = el instanceof HTMLElement && el.matches(":focus-visible") ? el : null;
     if (!boxRef.current?.contains(el)) boxRef.current?.focus({ preventScroll: true });
-    return () => { if (back?.isConnected) back.focus({ preventScroll: true }); };
+    return () => { if (restoreFocusRef.current && back?.isConnected) back.focus({ preventScroll: true }); };
   }, []);
 
   // Which item the viewer is on: every change of item (and closing) moves
@@ -256,6 +301,50 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
     if (it) downloadItem(it);
   }, [items, index]);
 
+  // Issue #199: Delete (the button, or the Delete key) always asks first,
+  // about the item on screen then. While the question shows, the keys are
+  // its own (see onKey): Escape cancels it rather than closing the
+  // viewer, Tab stays in it and arrows don't page under it. It is drawn
+  // inside the viewer's box, so a click in it never reaches the backdrop
+  // that closes the viewer.
+  const [asking, setAsking] = useState<ViewerItem | null>(null);
+  const blockedWhy = item && deleteBlocked ? deleteBlocked(item) : null;
+  const canDelete = !!onDeleted && !!item && !blockedWhy;
+  const askDelete = useCallback(() => {
+    if (canDelete) setAsking(items[index] ?? null);
+  }, [canDelete, items, index]);
+  // The caller's latest callback and items, for an answer that comes
+  // after a render.
+  const onDeletedRef = useRef(onDeleted);
+  const itemsRef = useRef(items);
+  useLayoutEffect(() => {
+    onDeletedRef.current = onDeleted;
+    itemsRef.current = items;
+  });
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+  const confirmDelete = async (): Promise<UiText | null> => {
+    const it = asking;
+    if (!it) return null;
+    const err = await deleteOnDevice(it.path);
+    if (err || !mountedRef.current) return err;
+    // One update with the caller's: the next item, or the viewer closed.
+    if (itemsRef.current.every((x) => x.path === it.path)) restoreFocusRef.current = false;
+    setAsking(null);
+    onDeletedRef.current?.(it);
+    return null;
+  };
+  // The question gone, the viewer has the focus again if it fell out of it
+  // (a click on Delete leaves it on nothing once the dialog goes).
+  const wasAskingRef = useRef(false);
+  useEffect(() => {
+    const was = wasAskingRef.current;
+    wasAskingRef.current = asking != null;
+    if (!was || asking) return;
+    const box = boxRef.current;
+    if (box && !box.contains(document.activeElement)) box.focus({ preventScroll: true });
+  }, [asking]);
+
   // The viewer's Tab stops, in order (cFocusable), without the guard.
   const guardRef = useRef<HTMLSpanElement>(null);
   const stops = useCallback(() => {
@@ -283,15 +372,25 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
     return () => window.removeEventListener("pointerdown", onPointer, true);
   }, []);
 
-  // Keyboard: Escape closes, arrows page, Tab stays in the viewer.
+  // Keyboard: Escape closes, arrows page, Delete (or the Mac's delete
+  // key, Backspace) asks to delete, Tab stays in the viewer. None of it
+  // while the delete question shows: its keys are its own.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (asking) return;
       const box = boxRef.current;
       const active = document.activeElement;
       const inVideo = keysRef.current && active instanceof HTMLVideoElement && !!box?.contains(active);
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowRight" && !inVideo && index < items.length - 1) onIndexChange(index + 1);
       if (e.key === "ArrowLeft" && !inVideo && index > 0) onIndexChange(index - 1);
+      if ((e.key === "Delete" || e.key === "Backspace") && !inVideo && !e.ctrlKey && !e.altKey && !e.repeat) {
+        const field = e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable='true']");
+        if (!field && canDelete) {
+          e.preventDefault();
+          askDelete();
+        }
+      }
       if (!box) return;
       // Space on the viewer itself would scroll the page behind it.
       if (e.key === " " && e.target === box) e.preventDefault();
@@ -314,7 +413,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [index, items.length, onIndexChange, onClose, stops]);
+  }, [index, items.length, onIndexChange, onClose, stops, asking, canDelete, askDelete]);
 
   // Swipe to page (issue #18) and pinch to zoom (issue #36): a two-finger
   // pinch on touch devices, ctrl+wheel (a trackpad pinch) on desktop.
@@ -379,6 +478,21 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
           <span className="pg-modal-title">{name}</span>
           {/* The original file, under its own name. */}
           <DownloadButton save={save} onClick={download} what={name ?? ""} />
+          {/* Issue #199: where the caller allows it. Greyed out, with
+              the reason as its tooltip, where the device would refuse;
+              still a stop for the keyboard, so the reason can be read. */}
+          {onDeleted && (
+            <button
+              type="button"
+              className="pg-modal-del"
+              title={blockedWhy ? blockedWhy(t) : t("common.delete")}
+              aria-label={t("common.delete")}
+              aria-disabled={blockedWhy ? true : undefined}
+              onClick={askDelete}
+            >
+              <TrashGlyph />
+            </button>
+          )}
           <button className="pg-close" title={t("common.close")} onClick={onClose}>×</button>
         </div>
         <div
@@ -571,6 +685,16 @@ export default function MediaViewer({ items, index, onIndexChange, onClose }: {
         )}
 
         <DownloadNote failed={saveError} />
+        {asking && (
+          <ConfirmDialog
+            title={isVideoFile(asking) ? t("web.images.viewer.delete_video_title") : t("web.images.viewer.delete_photo_title")}
+            text={inCollection ? t("web.images.viewer.delete_text_collection") : t("web.images.viewer.delete_text")}
+            confirm={t("common.delete")}
+            busyText={t("common.deleting")}
+            onConfirm={confirmDelete}
+            onCancel={() => setAsking(null)}
+          />
+        )}
         {/* Last of all: see onGuardFocus. */}
         <span ref={guardRef} className="pg-modal-sr" tabIndex={0} onFocus={onGuardFocus} />
       </div>

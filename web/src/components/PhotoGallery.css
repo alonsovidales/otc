@@ -920,6 +920,24 @@
 @media (prefers-reduced-motion: reduce) {
   .pg-modal-dl-spin { animation: pg-modal-pulse 1.4s ease-in-out infinite; border-top-color: currentColor; }
 }
+/* Issue #199: Delete, a round button beside Download's pill, red under the
+   pointer; greyed out (still focusable, for its tooltip) where the device
+   would refuse. It always asks first (MediaViewer.tsx). */
+.pg-modal-del {
+  flex: none; box-sizing: border-box; margin: 0; padding: 0;
+  width: 30px; height: 30px; border-radius: 50%;
+  display: inline-grid; place-items: center;
+  border: 1px solid var(--line); background: var(--panel); color: var(--mist);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.pg-modal-del svg { display: block; }
+.pg-modal-del:hover { filter: none; }
+@media (hover: hover) {
+  .pg-modal-del:hover { background: var(--danger-bg); color: var(--danger); border-color: rgba(255, 138, 117, .4); }
+}
+.pg-modal-del[aria-disabled="true"], .pg-modal-del[aria-disabled="true"]:hover {
+  background: var(--panel); color: var(--mist); border-color: var(--line); opacity: .45; cursor: not-allowed;
+}
 /* What screen readers hear of a download; nothing on screen. */
 .pg-modal-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 /* A download that failed: a note over the picture, above a video's own

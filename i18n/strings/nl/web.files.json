@@ -536,6 +536,46 @@
     "text": "{size} MB",
     "en": "{size} MB"
   },
+  "web.files.sort.created_asc": {
+    "text": "Gemaakt, oudste eerst",
+    "en": "Created, oldest first"
+  },
+  "web.files.sort.created_desc": {
+    "text": "Gemaakt, nieuwste eerst",
+    "en": "Created, newest first"
+  },
+  "web.files.sort.label": {
+    "text": "Sorteren op",
+    "en": "Sort by"
+  },
+  "web.files.sort.modified_asc": {
+    "text": "Gewijzigd, oudste eerst",
+    "en": "Modified, oldest first"
+  },
+  "web.files.sort.modified_desc": {
+    "text": "Gewijzigd, nieuwste eerst",
+    "en": "Modified, newest first"
+  },
+  "web.files.sort.name_asc": {
+    "text": "Naam, A tot Z",
+    "en": "Name, A to Z"
+  },
+  "web.files.sort.name_desc": {
+    "text": "Naam, Z tot A",
+    "en": "Name, Z to A"
+  },
+  "web.files.sort.size_asc": {
+    "text": "Grootte, kleinste eerst",
+    "en": "Size, smallest first"
+  },
+  "web.files.sort.size_desc": {
+    "text": "Grootte, grootste eerst",
+    "en": "Size, largest first"
+  },
+  "web.files.sort.sorted": {
+    "text": "Gesorteerd op {order}",
+    "en": "Sorted by {order}"
+  },
   "web.files.toolbar.grid": {
     "text": "Raster",
     "en": "Grid"

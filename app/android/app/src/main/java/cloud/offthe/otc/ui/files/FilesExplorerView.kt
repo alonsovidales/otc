@@ -78,8 +78,21 @@ import cloud.offthe.otc.i18n.appFilesSearchUnreached
 import cloud.offthe.otc.i18n.appFilesSearching
 import cloud.offthe.otc.i18n.appFilesSelectionUploadOnly
 import cloud.offthe.otc.i18n.appFilesShareLinkFailed
-import cloud.offthe.otc.i18n.appFilesShowAsGrid
-import cloud.offthe.otc.i18n.appFilesShowAsList
+import cloud.offthe.otc.i18n.appFilesSortBy
+import cloud.offthe.otc.i18n.appFilesViewGrid
+import cloud.offthe.otc.i18n.appFilesViewList
+import cloud.offthe.otc.i18n.appFilesViewOptions
+import cloud.offthe.otc.i18n.LanguageSettings
+import androidx.core.content.edit
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.stateDescription
 import cloud.offthe.otc.i18n.appFilesShowMessage
 import cloud.offthe.otc.i18n.appFilesShowTitle
 import cloud.offthe.otc.i18n.appFilesUnexpectedResponse
@@ -426,8 +439,16 @@ data class FileRow(val path: String, val name: String, val isDir: Boolean, val s
 class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     data class State(
         val path: String,
+        // The folder's rows as shown: the listing in the order chosen (issue #196).
         val rows: List<FileRow> = emptyList(),
         val loading: Boolean = false,
+        // Issue #196: the order of the list, the grid and the search's
+        // results, one choice for the app (FilesSort.kt), kept as the view
+        // mode is ("files_sort"); a big folder's rows being put in order
+        // (FilesSort.OFF_MAIN_ABOVE); and the new order, said to TalkBack.
+        val sort: FilesSortOrder = FilesSortOrder.DEFAULT,
+        val sorting: Boolean = false,
+        val sortSaid: UiText? = null,
         val error: UiText? = null,
         val selected: Set<String> = emptySet(),
         val toast: UiText? = null,
@@ -488,6 +509,16 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         private val prefs get() = OTCApp.instance.getSharedPreferences("otc_settings", Context.MODE_PRIVATE)
     }
 
+    // Issue #196: the last listing as the device sent it, the folder the
+    // rows shown are of (a new folder's listing being put in order doesn't
+    // keep the last folder's rows on screen meanwhile), and a count bumped
+    // by every arrangement: only the last one asked for lands.
+    @Volatile private var listing: List<FileRow> = emptyList()
+    @Volatile private var rowsFolder: String? = null
+    private val sortSeq = java.util.concurrent.atomic.AtomicInteger()
+    /** The language names are compared in: the app's. */
+    private fun sortLocale() = LanguageSettings.numberLocale
+
     // Picked files upload two at a time: each one hashes and holds a chunk
     // while it waits for ChunkedUpload's send permits.
     private val uploadSlots = Semaphore(2)
@@ -523,7 +554,7 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
         }
     }
 
-    private val _state = MutableStateFlow(State(path = initialPath))
+    private val _state = MutableStateFlow(State(path = initialPath, sort = FilesSortOrder.parse(prefs.getString(FilesSortOrder.STORAGE_KEY, null))))
     val state: StateFlow<State> = _state
     val path get() = _state.value.path
 
@@ -579,14 +610,27 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
                 val rows = listingRows(lof, p)
                 val folderOut = lof.outOfImagesSupported && lof.folderOutOfImages
                 val listing = listings.incrementAndGet()
+                // Issue #196: in the order chosen - a big folder's off the
+                // main thread, its rows coming once they are in order.
+                val order = _state.value.sort
+                val mine = sortSeq.incrementAndGet()
+                this.listing = rows
+                val now = if (rows.size <= FilesSort.OFF_MAIN_ABOVE) FilesSort.sortedRows(rows, order, sortLocale()) else null
+                val sameFolder = rowsFolder == p
+                rowsFolder = p
                 _state.update {
-                    it.copy(rows = rows, selected = emptySet(), thumbGen = it.thumbGen + 1, listedPath = p,
+                    it.copy(rows = now ?: if (sameFolder) it.rows else emptyList(), sorting = now == null,
+                        selected = emptySet(), thumbGen = it.thumbGen + 1, listedPath = p,
                         outOfImagesSupported = lof.outOfImagesSupported, folderOutOfImages = lof.folderOutOfImages, outOfImagesCover = null)
                 }
                 // Issue #192: in a folder kept out, which folder keeps it
                 // out - asked after the listing shows, so a slow answer
                 // never holds it up.
                 if (folderOut) viewModelScope.launch { askCover(p, listing) }
+                if (now == null) {
+                    val sorted = withContext(Dispatchers.Default) { FilesSort.sortedRows(rows, order, sortLocale()) }
+                    if (sortSeq.get() == mine) _state.update { it.copy(rows = sorted, sorting = false, thumbGen = it.thumbGen + 1) }
+                }
             } else if (resp.error) {
                 if (mediaToOpen?.first == p) mediaToOpen = null
                 listingProblem = null
@@ -651,7 +695,8 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
             if (mine != searchSeq) return@launch
             when {
                 resp.payloadCase == RespEnvelope.PayloadCase.RESP_LIST_OF_FILES -> {
-                    val files = resp.respListOfFiles.filesList
+                    // In the folder's order (issue #196): at most SEARCH_LIMIT of them.
+                    val files = FilesSort.sortedFiles(resp.respListOfFiles.filesList, _state.value.sort, sortLocale())
                     _state.update { it.copy(results = SearchResults(text, SearchResults.Phase.DONE, files)) }
                     resultThumbnails(files)
                 }
@@ -775,6 +820,35 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     fun setGrid(grid: Boolean) {
         prefs.edit().putString(VIEW_MODE_KEY, if (grid) "grid" else "list").apply()
         _state.update { it.copy(grid = grid) }
+    }
+
+    /**
+     * Issue #196: the order by [key] (the same key again: the other way),
+     * kept, and the folder and the search's results put in it - a big
+     * folder off the main thread, dropped if the listing or the order
+     * changes meanwhile. TalkBack hears the new order.
+     */
+    fun pickSort(key: FilesSortKey) {
+        val order = _state.value.sort.picking(key)
+        prefs.edit { putString(FilesSortOrder.STORAGE_KEY, order.stored) }
+        val locale = sortLocale()
+        val said = FilesSortText.sorted(order)
+        val mine = sortSeq.incrementAndGet()
+        val source = listing
+        val now = if (source.size <= FilesSort.OFF_MAIN_ABOVE) FilesSort.sortedRows(source, order, locale) else null
+        _state.update { s ->
+            s.copy(sort = order, sortSaid = said, rows = now ?: s.rows, sorting = now == null,
+                results = s.results?.let { r -> r.copy(files = FilesSort.sortedFiles(r.files, order, locale)) })
+        }
+        viewModelScope.launch {
+            if (now == null) {
+                val sorted = withContext(Dispatchers.Default) { FilesSort.sortedRows(source, order, locale) }
+                if (sortSeq.get() == mine) _state.update { it.copy(rows = sorted, sorting = false) }
+            }
+            // Said for a few seconds, so the same words said again are heard again.
+            delay(5000)
+            _state.update { if (it.sortSaid === said) it.copy(sortSaid = null) else it }
+        }
     }
 
     /**
@@ -1173,10 +1247,11 @@ fun FilesExplorerView(initialPath: String) {
         }
     }
     // On every listing (thumbGen): the folder listed again, with the same
-    // rows, when the search picks a photo in the folder already open.
-    LaunchedEffect(st.listedPath, st.thumbGen) {
+    // rows, when the search picks a photo in the folder already open. A big
+    // folder's rows once they are in order (issue #196).
+    LaunchedEffect(st.listedPath, st.thumbGen, st.sorting) {
         val (dir, file) = vm.mediaToOpen ?: return@LaunchedEffect
-        if (st.listedPath != dir) return@LaunchedEffect
+        if (st.listedPath != dir || st.sorting) return@LaunchedEffect
         vm.mediaToOpen = null
         val media = st.rows.filter { isMedia(it) }
         val row = media.firstOrNull { vm.fullPath(it) == file.path }
@@ -1244,11 +1319,8 @@ fun FilesExplorerView(initialPath: String) {
                             keyboardActions = KeyboardActions(onGo = { vm.navigate(pathField) }),
                             modifier = Modifier.weight(1f),
                         )
-                        if (st.loading) { Spacer(Modifier.width(8.dp)); CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
-                        // List <-> grid; the icon is the mode a tap switches to.
-                        IconButton(onClick = { vm.setGrid(!st.grid) }) {
-                            Icon(if (st.grid) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView, (if (st.grid) S.appFilesShowAsList() else S.appFilesShowAsGrid()).resolve())
-                        }
+                        if (st.loading || st.sorting) { Spacer(Modifier.width(8.dp)); CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
+                        ViewOptionsMenu(grid = st.grid, sort = st.sort, onGrid = vm::setGrid, onSort = vm::pickSort)
                     }
                     // Said to TalkBack when it appears or changes.
                     st.error?.let {
@@ -1395,7 +1467,8 @@ fun FilesExplorerView(initialPath: String) {
         Toast(st.toast?.resolve(), Modifier.align(Alignment.TopCenter).padding(horizontal = 16.dp))
         // Issue #192: a change for Images, once done, said to TalkBack (the
         // web's status line). Nothing to see: the mark and the banner show it.
-        val said = st.outOfImagesSaid?.resolve() ?: ""
+        // Issue #196: a new order too.
+        val said = (st.outOfImagesSaid ?: st.sortSaid)?.resolve() ?: ""
         Box(Modifier.align(Alignment.BottomStart).size(1.dp).semantics {
             liveRegion = LiveRegionMode.Polite
             contentDescription = said
@@ -1487,6 +1560,60 @@ fun FilesExplorerView(initialPath: String) {
     if (vst.openIndex != null) ImageModal(viewer, vst)
     vst.alert?.let {
         AlertDialog(onDismissRequest = { viewer.dismissAlert() }, text = { Text(it.resolve()) }, confirmButton = { TextButton(onClick = { viewer.dismissAlert() }) { Text(S.commonOk().resolve()) } })
+    }
+}
+
+/**
+ * List or grid, and the order (issue #196), in one menu, as iOS's View
+ * options: the button shows the view in use. The view in use and the
+ * order in use have the check; the order its arrow and, under its name,
+ * its direction in words. Picking that order again reverses it.
+ */
+@Composable
+private fun ViewOptionsMenu(grid: Boolean, sort: FilesSortOrder, onGrid: (Boolean) -> Unit, onSort: (FilesSortKey) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val colors = MaterialTheme.colorScheme
+    val sorted = FilesSortText.sorted(sort).resolve()
+    Box {
+        IconButton(onClick = { open = true }, modifier = Modifier.semantics { stateDescription = sorted }) {
+            Icon(if (grid) Icons.Default.GridView else Icons.AutoMirrored.Filled.ViewList, S.appFilesViewOptions().resolve())
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            @Composable
+            fun check(on: Boolean) = if (on) Icon(Icons.Default.Check, null) else Spacer(Modifier.size(24.dp))
+            DropdownMenuItem(
+                text = { Text(S.appFilesViewList().resolve()) }, onClick = { open = false; onGrid(false) },
+                leadingIcon = { check(!grid) }, trailingIcon = { Icon(Icons.AutoMirrored.Filled.ViewList, null) },
+                modifier = Modifier.semantics { selected = !grid },
+            )
+            DropdownMenuItem(
+                text = { Text(S.appFilesViewGrid().resolve()) }, onClick = { open = false; onGrid(true) },
+                leadingIcon = { check(grid) }, trailingIcon = { Icon(Icons.Default.GridView, null) },
+                modifier = Modifier.semantics { selected = grid },
+            )
+            HorizontalDivider()
+            Text(
+                S.appFilesSortBy().resolve(), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp).semantics { heading() },
+            )
+            for (key in FilesSortKey.entries) {
+                val on = sort.key == key
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(FilesSortText.name(key).resolve())
+                            if (on) Text(FilesSortText.direction(sort).resolve(), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                        }
+                    },
+                    onClick = { open = false; onSort(key) },
+                    leadingIcon = { check(on) },
+                    trailingIcon = if (on) {
+                        { Icon(if (sort.ascending) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, null) }
+                    } else null,
+                    modifier = Modifier.semantics { selected = on },
+                )
+            }
+        }
     }
 }
 

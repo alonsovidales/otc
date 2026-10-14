@@ -71,10 +71,20 @@
     <string name="app_files_searching">Recherche…</string>
     <string name="app_files_selection_upload_only">La sélection se trouve dans un dossier en envoi uniquement et ne peut pas être supprimée</string>
     <string name="app_files_share_link_failed">Impossible de créer le lien de partage</string>
-    <string name="app_files_show_as_grid">Afficher en grille</string>
-    <string name="app_files_show_as_list">Afficher en liste</string>
     <string name="app_files_show_message">Ses photos et vidéos reviennent dans Images et sont étiquetées (et analysées pour y rechercher des visages, si la reconnaissance faciale est activée) en arrière-plan.</string>
     <string name="app_files_show_title">Afficher « \u2068%1$s\u2069 » dans Images ?</string>
+    <string name="app_files_sort_a_z">De A à Z</string>
+    <string name="app_files_sort_by">Trier par</string>
+    <string name="app_files_sort_created">Date de création</string>
+    <string name="app_files_sort_largest">Plus grands d\'abord</string>
+    <string name="app_files_sort_modified">Date de modification</string>
+    <string name="app_files_sort_name">Nom</string>
+    <string name="app_files_sort_newest">Plus récents d\'abord</string>
+    <string name="app_files_sort_oldest">Plus anciens d\'abord</string>
+    <string name="app_files_sort_size">Taille</string>
+    <string name="app_files_sort_smallest">Plus petits d\'abord</string>
+    <string name="app_files_sort_z_a">De Z à A</string>
+    <string name="app_files_sorted">Trié par %1$s, %2$s</string>
     <string name="app_files_unexpected_response">Réponse inattendue</string>
     <string name="app_files_upload_failed">Échec de l’envoi : %1$s</string>
     <string name="app_files_upload_only">Envoi uniquement</string>
@@ -85,4 +95,7 @@
     <string name="app_files_versions_explain">Le fichier se trouve dans un dossier en envoi uniquement : chaque envoi vers ce chemin a conservé le précédent.</string>
     <string name="app_files_versions_title">Versions de \u2068%1$s\u2069</string>
     <string name="app_files_video">Vidéo</string>
+    <string name="app_files_view_grid">Grille</string>
+    <string name="app_files_view_list">Liste</string>
+    <string name="app_files_view_options">Options d\'affichage</string>
 </resources>

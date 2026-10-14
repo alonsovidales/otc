@@ -536,6 +536,46 @@
     "text": "{size} MB",
     "en": "{size} MB"
   },
+  "web.files.sort.created_asc": {
+    "text": "Erstellt, älteste zuerst",
+    "en": "Created, oldest first"
+  },
+  "web.files.sort.created_desc": {
+    "text": "Erstellt, neueste zuerst",
+    "en": "Created, newest first"
+  },
+  "web.files.sort.label": {
+    "text": "Sortieren nach",
+    "en": "Sort by"
+  },
+  "web.files.sort.modified_asc": {
+    "text": "Geändert, älteste zuerst",
+    "en": "Modified, oldest first"
+  },
+  "web.files.sort.modified_desc": {
+    "text": "Geändert, neueste zuerst",
+    "en": "Modified, newest first"
+  },
+  "web.files.sort.name_asc": {
+    "text": "Name, A bis Z",
+    "en": "Name, A to Z"
+  },
+  "web.files.sort.name_desc": {
+    "text": "Name, Z bis A",
+    "en": "Name, Z to A"
+  },
+  "web.files.sort.size_asc": {
+    "text": "Größe, kleinste zuerst",
+    "en": "Size, smallest first"
+  },
+  "web.files.sort.size_desc": {
+    "text": "Größe, größte zuerst",
+    "en": "Size, largest first"
+  },
+  "web.files.sort.sorted": {
+    "text": "Sortiert nach {order}",
+    "en": "Sorted by {order}"
+  },
   "web.files.toolbar.grid": {
     "text": "Raster",
     "en": "Grid"

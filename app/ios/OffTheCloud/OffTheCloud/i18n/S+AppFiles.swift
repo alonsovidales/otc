@@ -290,16 +290,6 @@ extension S {
     /// Short message (toast) at the top of Files when Share (on the selection bar) failed: the device didn't make a link to the selected files and folders.
     static var appFilesShareLinkFailed: String { L("app.files.share_link_failed", table: "AppFiles") }
 
-    /// Show as grid
-    ///
-    /// Screen-reader name of the button next to the path field in Files, while the folder is shown as a list: shows it as a grid of tiles.
-    static var appFilesShowAsGrid: String { L("app.files.show_as_grid", table: "AppFiles") }
-
-    /// Show as list
-    ///
-    /// Screen-reader name of the button next to the path field in Files, while the folder is shown as a grid of tiles: shows it as a list.
-    static var appFilesShowAsList: String { L("app.files.show_as_list", table: "AppFiles") }
-
     /// Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background.
     ///
     /// Text of the question app.files.show_title: what showing the folder in Images again does. Images is the photo section (app.shell.section_images).
@@ -310,6 +300,68 @@ extension S {
     /// Title of the question asked before showing a folder kept out of Images there again (from Show in Images in Files). {name} is the folder's name. The explanation (app.files.show_message) follows. Images is the photo section (app.shell.section_images). Write the quotes in your language's style.
     static func appFilesShowTitle(name: String) -> String {
         L("app.files.show_title", table: "AppFiles", L10n.isolate(name))
+    }
+
+    /// A to Z
+    ///
+    /// Files, the View options menu (the button beside the path field): shown under Name while the files and folders are in name order from A to Z.
+    static var appFilesSortAZ: String { L("app.files.sort_a_z", table: "AppFiles") }
+
+    /// Sort by
+    ///
+    /// Files, the View options menu (the button beside the path field): heading over the orders the files and folders can be in (app.files.sort_name, sort_size, sort_created, sort_modified). Folders always stay above the files.
+    static var appFilesSortBy: String { L("app.files.sort_by", table: "AppFiles") }
+
+    /// Date created
+    ///
+    /// Files, the View options menu (the button beside the path field), under Sort by: orders the files by when they were created. Picked again, the order reverses (newest or oldest first).
+    static var appFilesSortCreated: String { L("app.files.sort_created", table: "AppFiles") }
+
+    /// Largest first
+    ///
+    /// Files, the View options menu (the button beside the path field): shown under Size while the largest files come first.
+    static var appFilesSortLargest: String { L("app.files.sort_largest", table: "AppFiles") }
+
+    /// Date modified
+    ///
+    /// Files, the View options menu (the button beside the path field), under Sort by: orders the files by when they last changed. Picked again, the order reverses (newest or oldest first).
+    static var appFilesSortModified: String { L("app.files.sort_modified", table: "AppFiles") }
+
+    /// Name
+    ///
+    /// Files, the View options menu (the button beside the path field), under Sort by: orders the files and folders by name. Picked again, the order reverses (from A to Z, or Z to A).
+    static var appFilesSortName: String { L("app.files.sort_name", table: "AppFiles") }
+
+    /// Newest first
+    ///
+    /// Files, the View options menu (the button beside the path field): shown under Date created or Date modified while the most recent files come first.
+    static var appFilesSortNewest: String { L("app.files.sort_newest", table: "AppFiles") }
+
+    /// Oldest first
+    ///
+    /// Files, the View options menu (the button beside the path field): shown under Date created or Date modified while the least recent files come first.
+    static var appFilesSortOldest: String { L("app.files.sort_oldest", table: "AppFiles") }
+
+    /// Size
+    ///
+    /// Files, the View options menu (the button beside the path field), under Sort by: orders the files by size. Picked again, the order reverses (largest or smallest first).
+    static var appFilesSortSize: String { L("app.files.sort_size", table: "AppFiles") }
+
+    /// Smallest first
+    ///
+    /// Files, the View options menu (the button beside the path field): shown under Size while the smallest files come first.
+    static var appFilesSortSmallest: String { L("app.files.sort_smallest", table: "AppFiles") }
+
+    /// Z to A
+    ///
+    /// Files, the View options menu (the button beside the path field): shown under Name while the files and folders are in name order from Z to A.
+    static var appFilesSortZA: String { L("app.files.sort_z_a", table: "AppFiles") }
+
+    /// Sorted by {key}, {order}
+    ///
+    /// Files: said by VoiceOver or TalkBack after the order changes; never shown, so capital letters inside it don't matter. {key} is the order's name in the menu (app.files.sort_name, sort_size, sort_created or sort_modified) and {order} the words shown under it (app.files.sort_a_z, sort_largest, sort_newest...).
+    static func appFilesSorted(key: String, order: String) -> String {
+        L("app.files.sorted", table: "AppFiles", key, order)
     }
 
     /// Unexpected response
@@ -367,4 +419,19 @@ extension S {
     ///
     /// Screen-reader name of the play badge on a video's thumbnail, in the grid of tiles in Files and in the results of a search in Files.
     static var appFilesVideo: String { L("app.files.video", table: "AppFiles") }
+
+    /// Grid
+    ///
+    /// Files, the View options menu (the button beside the path field): shows the folder as a grid of tiles (thumbnails and file icons).
+    static var appFilesViewGrid: String { L("app.files.view_grid", table: "AppFiles") }
+
+    /// List
+    ///
+    /// Files, the View options menu (the button beside the path field): shows the folder as a list, a row per file or folder.
+    static var appFilesViewList: String { L("app.files.view_list", table: "AppFiles") }
+
+    /// View options
+    ///
+    /// Files: accessibility name of the button beside the path field that opens a menu: the folder as a list or a grid (app.files.view_list, app.files.view_grid), and the order of its files and folders (app.files.sort_by).
+    static var appFilesViewOptions: String { L("app.files.view_options", table: "AppFiles") }
 }

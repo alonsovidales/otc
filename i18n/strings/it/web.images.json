@@ -878,6 +878,26 @@
     "text": "Potrebbe essere registrato in HEVC, che non tutti i browser sanno decodificare: Safari lo gestisce, e le versioni recenti di Chrome lo fanno sull’hardware che lo supporta.",
     "en": "It may be recorded in HEVC, which not every browser can decode - Safari handles it, and recent Chrome does on hardware that supports it."
   },
+  "web.images.viewer.delete_photo_title": {
+    "text": "Eliminare questa foto?",
+    "en": "Delete this photo?",
+    "reviewed": "claude-backtranslation 2026-10-14 #1ca7aad5"
+  },
+  "web.images.viewer.delete_text": {
+    "text": "L’elemento viene eliminato definitivamente dal tuo dispositivo. L’operazione non può essere annullata.",
+    "en": "It's deleted from your device for good. This can't be undone.",
+    "reviewed": "claude-backtranslation 2026-10-14 #763af123"
+  },
+  "web.images.viewer.delete_text_collection": {
+    "text": "L’elemento viene eliminato dal tuo dispositivo, non solo da questa raccolta. L’operazione non può essere annullata.",
+    "en": "It's deleted from your device, not just from this collection. This can't be undone.",
+    "reviewed": "claude-backtranslation 2026-10-14 #b650705f"
+  },
+  "web.images.viewer.delete_video_title": {
+    "text": "Eliminare questo video?",
+    "en": "Delete this video?",
+    "reviewed": "claude-backtranslation 2026-10-14 #c4e5e314"
+  },
   "web.images.viewer.dimensions": {
     "text": "Dimensioni",
     "en": "Dimensions"

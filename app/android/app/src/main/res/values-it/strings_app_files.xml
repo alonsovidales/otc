@@ -71,10 +71,20 @@
     <string name="app_files_searching">Ricerca…</string>
     <string name="app_files_selection_upload_only">La selezione si trova in una cartella in solo caricamento e non può essere eliminata</string>
     <string name="app_files_share_link_failed">Impossibile creare il link di condivisione</string>
-    <string name="app_files_show_as_grid">Mostra come griglia</string>
-    <string name="app_files_show_as_list">Mostra come elenco</string>
     <string name="app_files_show_message">Le sue foto e i suoi video tornano in Immagini e vengono etichettati (e analizzati alla ricerca di volti, se il riconoscimento facciale è attivo) in background.</string>
     <string name="app_files_show_title">Mostrare la cartella “\u2068%1$s\u2069” in Immagini?</string>
+    <string name="app_files_sort_a_z">Dalla A alla Z</string>
+    <string name="app_files_sort_by">Ordina per</string>
+    <string name="app_files_sort_created">Data di creazione</string>
+    <string name="app_files_sort_largest">Prima i più grandi</string>
+    <string name="app_files_sort_modified">Data di modifica</string>
+    <string name="app_files_sort_name">Nome</string>
+    <string name="app_files_sort_newest">Prima i più recenti</string>
+    <string name="app_files_sort_oldest">Prima i meno recenti</string>
+    <string name="app_files_sort_size">Dimensioni</string>
+    <string name="app_files_sort_smallest">Prima i più piccoli</string>
+    <string name="app_files_sort_z_a">Dalla Z alla A</string>
+    <string name="app_files_sorted">Ordinato per %1$s, %2$s</string>
     <string name="app_files_unexpected_response">Risposta inattesa</string>
     <string name="app_files_upload_failed">Caricamento non riuscito: %1$s</string>
     <string name="app_files_upload_only">Solo caricamento</string>
@@ -85,4 +95,7 @@
     <string name="app_files_versions_explain">Il file si trova in una cartella in solo caricamento, quindi ogni caricamento in questo percorso ha conservato la versione precedente.</string>
     <string name="app_files_versions_title">Versioni di \u2068%1$s\u2069</string>
     <string name="app_files_video">Video</string>
+    <string name="app_files_view_grid">Griglia</string>
+    <string name="app_files_view_list">Elenco</string>
+    <string name="app_files_view_options">Opzioni di visualizzazione</string>
 </resources>

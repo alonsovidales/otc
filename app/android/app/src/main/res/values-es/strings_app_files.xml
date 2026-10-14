@@ -71,10 +71,20 @@
     <string name="app_files_searching">Buscando…</string>
     <string name="app_files_selection_upload_only">La selección está en una carpeta de solo subida y no se puede eliminar</string>
     <string name="app_files_share_link_failed">No se ha podido crear el enlace para compartir</string>
-    <string name="app_files_show_as_grid">Mostrar como cuadrícula</string>
-    <string name="app_files_show_as_list">Mostrar como lista</string>
     <string name="app_files_show_message">Sus fotos y vídeos vuelven a Imágenes y se etiquetan (y se analizan en busca de caras, si el reconocimiento facial está activado) en segundo plano.</string>
     <string name="app_files_show_title">¿Mostrar la carpeta “\u2068%1$s\u2069” en Imágenes?</string>
+    <string name="app_files_sort_a_z">De la A a la Z</string>
+    <string name="app_files_sort_by">Ordenar por</string>
+    <string name="app_files_sort_created">Fecha de creación</string>
+    <string name="app_files_sort_largest">De mayor a menor</string>
+    <string name="app_files_sort_modified">Fecha de modificación</string>
+    <string name="app_files_sort_name">Nombre</string>
+    <string name="app_files_sort_newest">Más recientes primero</string>
+    <string name="app_files_sort_oldest">Más antiguos primero</string>
+    <string name="app_files_sort_size">Tamaño</string>
+    <string name="app_files_sort_smallest">De menor a mayor</string>
+    <string name="app_files_sort_z_a">De la Z a la A</string>
+    <string name="app_files_sorted">Ordenado por %1$s, %2$s</string>
     <string name="app_files_unexpected_response">Respuesta inesperada</string>
     <string name="app_files_upload_failed">No se ha podido subir: %1$s</string>
     <string name="app_files_upload_only">Solo subida</string>
@@ -85,4 +95,7 @@
     <string name="app_files_versions_explain">El archivo está en una carpeta de solo subida, así que cada subida a esta ruta ha conservado la anterior.</string>
     <string name="app_files_versions_title">Versiones de \u2068%1$s\u2069</string>
     <string name="app_files_video">Vídeo</string>
+    <string name="app_files_view_grid">Cuadrícula</string>
+    <string name="app_files_view_list">Lista</string>
+    <string name="app_files_view_options">Opciones de vista</string>
 </resources>

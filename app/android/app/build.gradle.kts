@@ -134,4 +134,8 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
+    // Issue #196: Files puts names in order with android.icu's collator,
+    // which JVM tests only have stubs of; ICU4J is the same library
+    // (FilesSortTest.kt).
+    testImplementation("com.ibm.icu:icu4j:78.3")
 }

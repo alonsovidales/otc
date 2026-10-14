@@ -21,6 +21,7 @@ import Spinner from "./Spinner";
 import { Trans, dateTimeFields, fmtDate, useT, type TFunction } from "../i18n";
 import { asIs, percentText, say, type UiText } from "./uiText";
 import { sizeText } from "./sizeText";
+import { dateMs, formatOrder, loadOrder, nameCollator, parseOrder, pickOrder, saveOrder, sortEntries, sortKeys, type SortFields, type SortKey, type SortOrder } from "./filesSort";
 
 type Props = {
   wsUrl?: string;            // defaults to VITE_WS_URL
@@ -100,6 +101,39 @@ function Marked({ text, span }: { text: string; span?: Span }) {
 
 // A size with one digit after the point (bytes whole), or a dash.
 const fmtBytes = (t: TFunction, n?: number) => (typeof n === "number" ? sizeText(t, n, [1, 1, 1]) : "—");
+
+// Issue #196: what an entry of a listing or of a search's results is
+// sorted by (filesSort.ts), `name` as shown.
+function sortFields(f: PbFile, name: string): SortFields {
+  return { name, path: f.path, isDir: isDir(f), size: fileSize(f), created: dateMs(f.created), modified: dateMs(f.modified) };
+}
+// The orders the Sort by list offers, each in words: the column, then
+// which way. The active column's heading shows it as its tooltip.
+const cOrderTexts: Record<string, (t: TFunction) => string> = {
+  "name:asc": (t) => t("web.files.sort.name_asc"),
+  "name:desc": (t) => t("web.files.sort.name_desc"),
+  "size:desc": (t) => t("web.files.sort.size_desc"),
+  "size:asc": (t) => t("web.files.sort.size_asc"),
+  "created:desc": (t) => t("web.files.sort.created_desc"),
+  "created:asc": (t) => t("web.files.sort.created_asc"),
+  "modified:desc": (t) => t("web.files.sort.modified_desc"),
+  "modified:asc": (t) => t("web.files.sort.modified_asc"),
+};
+const orderText = (t: TFunction, o: SortOrder) => cOrderTexts[formatOrder(o)](t);
+// The Sort by list's options, in this order: each key, its natural
+// direction first.
+const cOrderOptions: readonly SortOrder[] = sortKeys.flatMap((key): SortOrder[] =>
+  key === "name" ? [{ key, dir: "asc" }, { key, dir: "desc" }] : [{ key, dir: "desc" }, { key, dir: "asc" }]);
+
+// The arrow beside the heading the list is sorted by: up for A to Z,
+// smallest or oldest first; down for the other way.
+function SortArrow({ dir }: { dir: "asc" | "desc" }) {
+  return (
+    <svg className="fb-sort-arrow" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true">
+      <path d={dir === "asc" ? "M12 19V5m-6 6 6-6 6 6" : "M12 5v14m-6-6 6 6 6-6"} stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 /*function tsToDate(ts: any): Date | undefined {
   if (!ts) return;
@@ -733,19 +767,38 @@ export default function FilesExplorer({
   const uploadsActive = uploads.length > 0 && uploads.some((u) => u.status === "reading" || u.status === "sending");
   const uploadsPct = uploads.length ? Math.round((uploadsDone / uploads.length) * 100) : 0;
 
-  // ---- rows prepared for display ----
-  const rows = useMemo(() => listing.map((f) => ({
-    k: rowKey(f),
-    name: f.path === ".." ? ".." : leafName(f.path),
-    isDir: isDir(f),
-    size: fileSize(f),
-    created: f.created,
-    modified: f.modified,
-    uploadOnly: !!f.uploadOnly,
-    outOfImages: !!f.outOfImages,
-    versions: f.versions ?? 0,
-    file: f,
-  })), [listing]);
+  // ---- Issue #196: the order of the list, the grid and a search's results ----
+  // One choice for this browser (filesSort.ts): not per folder, nor on the
+  // device. A heading picks its column, again the other way; the Sort by
+  // list covers the grid, the results and narrow screens, where the date
+  // columns are hidden. Screen readers hear the new order.
+  const [order, setOrder] = useState<SortOrder>(loadOrder);
+  const [sortSaid, setSortSaid] = useState<SortOrder | null>(null);
+  const collator = useMemo(() => nameCollator(t.tag), [t.tag]);
+  const chooseOrder = (next: SortOrder) => {
+    setOrder(next);
+    saveOrder(next);
+    setSortSaid(next);
+  };
+  const pickSort = (key: SortKey) => chooseOrder(pickOrder(order, key));
+
+  // ---- rows prepared for display, in that order ----
+  const rows = useMemo(() => sortEntries(listing.map((f) => {
+    const name = f.path === ".." ? ".." : leafName(f.path);
+    return {
+      k: rowKey(f),
+      name,
+      isDir: isDir(f),
+      size: fileSize(f),
+      created: f.created,
+      modified: f.modified,
+      uploadOnly: !!f.uploadOnly,
+      outOfImages: !!f.outOfImages,
+      versions: f.versions ?? 0,
+      file: f,
+      sort: sortFields(f, name),
+    };
+  }), (r) => r.sort, order, collator), [listing, order, collator]);
 
   // -------- grid view ----------
   const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
@@ -853,7 +906,8 @@ export default function FilesExplorer({
     if (el?.isConnected) el.focus({ preventScroll: true });
   };
   const openMedia = (f: PbFile) => {
-    const media = listing.filter(x => !isDir(x) && isMedia(x));
+    // In the order on screen (issue #196).
+    const media = rows.map(r => r.file).filter(x => !isDir(x) && isMedia(x));
     const items: ViewerItem[] = media.map(x => {
       const full = fullPathOf(x);
       return { path: full, mime: x.mime, thumbURL: thumbs[full] || undefined };
@@ -970,7 +1024,8 @@ export default function FilesExplorer({
       return;
     }
     if (isMedia(f)) {
-      const media = (results?.files ?? []).filter(x => !isDir(x) && isMedia(x));
+      // In the order on screen (issue #196).
+      const media = found.filter(x => x.media).map(x => x.file);
       showViewer({
         items: media.map(x => ({ path: x.path, mime: x.mime, thumbURL: thumbs[x.path] || undefined })),
         index: Math.max(0, media.findIndex(x => x.path === f.path)),
@@ -1021,7 +1076,8 @@ export default function FilesExplorer({
     if (!want || listed?.path !== want.dir) return;
     mediaToOpen.current = null;
     const full = (x: PbFile) => (x.path.includes("/") ? x.path : joinPath(want.dir, x.path));
-    const media = listing.filter(x => !isDir(x) && isMedia(x));
+    // In the order on screen (issue #196).
+    const media = rows.map(r => r.file).filter(x => !isDir(x) && isMedia(x));
     const index = media.findIndex(x => full(x) === want.file.path);
     // Not in the listing (it failed, or the file went): the file alone.
     const items: ViewerItem[] = index >= 0
@@ -1029,7 +1085,7 @@ export default function FilesExplorer({
       : [{ path: want.file.path, mime: want.file.mime }];
     viewerOpener.current = null;
     setMediaViewer({ items, index: Math.max(0, index) });
-  }, [listed, listing]);
+  }, [listed, rows]);
 
   // The thumbnails as they are now, not as they were when the viewer
   // opened: with tiles asking only near the screen, paging on reaches
@@ -1045,14 +1101,58 @@ export default function FilesExplorer({
     wantThumbs(mediaViewer.items.slice(Math.max(0, i - 2), i + 3).map(it => it.path));
   }, [mediaViewer, viewMode, wantThumbs]);
 
+  // Issue #199: the viewer's Delete took a photo or video (the device said
+  // so). The viewer goes on to the one after it - the one before at the
+  // end - or closes when none is left, as the apps' viewers do; it leaves
+  // the search's results and the thumbnails, and the folder is listed
+  // again when it was in it, as the selection's Delete does. Called with
+  // the page as it is now (MediaViewer keeps the latest of this callback).
+  const onViewerDeleted = (it: ViewerItem) => {
+    const v = mediaViewer;
+    if (v) {
+      const rest = v.items.filter(x => x.path !== it.path);
+      const before = v.items.slice(0, v.index).filter(x => x.path === it.path).length;
+      if (!rest.length) {
+        // The row it was opened from goes too: the focus goes to the list.
+        viewerOpener.current = resultsRef.current ? resultsHeadRef.current : folderViewRef.current;
+        closeViewer();
+      } else setMediaViewer({ items: rest, index: Math.min(v.index - before, rest.length - 1) });
+    }
+    setResults(r => (r?.files.some(f => f.path === it.path) ? { ...r, files: r.files.filter(f => f.path !== it.path) } : r));
+    const thumb = thumbsRef.current[it.path];
+    if (thumb !== undefined) {
+      setThumbs(prev => {
+        const next = { ...prev };
+        delete next[it.path];
+        return next;
+      });
+      thumbsAsked.current.delete(it.path);
+      if (thumb) URL.revokeObjectURL(thumb);
+    }
+    if (listing.some(f => f.path !== ".." && fullPathOf(f) === it.path)) void loadList(pathRef.current);
+  };
+  // Nothing in an upload-only folder can be deleted: the viewer's Delete is
+  // greyed out there, saying why, as the selection's is.
+  const uploadOnlyPaths = useMemo(() => {
+    const s = new Set<string>();
+    for (const f of listing) if (f.uploadOnly && f.path !== "..") s.add(fullPathOf(f));
+    for (const f of results?.files ?? []) if (f.uploadOnly) s.add(f.path);
+    return s;
+  }, [listing, results, fullPathOf]);
+  const viewerDeleteBlocked = useCallback((it: ViewerItem): UiText | null => (
+    uploadOnlyPaths.has(it.path) ? (t) => t("web.files.list.upload_only_refused", { name: leafName(it.path) }) : null
+  ), [uploadOnlyPaths]);
+
   // The results as shown: name and folder, with the part that matched.
+  // In the folder's order too (issue #196): folders first, then files.
   const found = useMemo(() => {
     if (!results) return [];
     const q = fold(results.text).text;
-    return results.files.map((f, k) => ({
-      k, file: f, isDir: isDir(f), media: !isDir(f) && isMedia(f), size: fileSize(f), ...foundParts(f.path, q),
+    const parts = results.files.map((f) => ({ f, p: foundParts(f.path, q) }));
+    return sortEntries(parts, (x) => sortFields(x.f, x.p.name), order, collator).map(({ f, p }, k) => ({
+      k, file: f, isDir: isDir(f), media: !isDir(f) && isMedia(f), size: fileSize(f), ...p,
     }));
-  }, [results]);
+  }, [results, order, collator]);
   // The way back to the folder the results cover: Files' top, or a folder.
   const backLabel = path === "/"
     ? t("web.files.results.back_files")
@@ -1119,6 +1219,35 @@ export default function FilesExplorer({
         : <path d="M8 11V7a4 4 0 0 1 7.5-2" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />}
     </svg>
   );
+
+  // Issue #196: the Sort by list - over the folder (the grid and narrow
+  // screens have no headings to click) and over a search's results.
+  const sortSelect = (
+    <label className="fb-sort">
+      <span className="fb-label">{t("web.files.sort.label")}</span>
+      <select value={formatOrder(order)} onChange={(e) => chooseOrder(parseOrder(e.target.value))}>
+        {cOrderOptions.map((o) => <option key={formatOrder(o)} value={formatOrder(o)}>{orderText(t, o)}</option>)}
+      </select>
+    </label>
+  );
+  // A column's heading sorts by it, and again the other way; the one the
+  // list is sorted by has the arrow, and its tooltip says the order. In the
+  // folder's list it is a column header with aria-sort; over the results
+  // (a list, not a table, whose heading screen readers skip) the Sort by
+  // list is their way, and the headings are for the mouse only.
+  const sortHeading = (key: SortKey, label: string, inTable: boolean) => {
+    const on = order.key === key;
+    return (
+      <div className={`c c-${key}`} role={inTable ? "columnheader" : undefined}
+        aria-sort={inTable && on ? (order.dir === "asc" ? "ascending" : "descending") : undefined}>
+        <button type="button" className={`fb-sort-btn${on ? " on" : ""}`} onClick={() => pickSort(key)}
+          title={on ? orderText(t, order) : undefined} tabIndex={inTable ? undefined : -1}>
+          <span className="fb-sort-name">{label}</span>
+          {on && <SortArrow dir={order.dir} />}
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -1192,6 +1321,7 @@ export default function FilesExplorer({
         </div>
       )}
 
+        {sortSelect}
         <div className="fb-total"><Trans k="web.files.list.total" args={{ count: rows.length }} parts={{ b: (s) => <strong>{s}</strong> }} /></div>
       </div>
 
@@ -1218,6 +1348,8 @@ export default function FilesExplorer({
       {/* Issue #192: a change for Images, once done. */}
       <span className="fb-sr" role="status" aria-live="polite">{noImgSaid?.(t)}</span>
       </div>
+      {/* Issue #196: a new order, once picked - over the folder or the results. */}
+      <span className="fb-sr" role="status" aria-live="polite">{sortSaid ? t("web.files.sort.sorted", { order: orderText(t, sortSaid) }) : ""}</span>
 
       {results && (
         <section className="fb-results" aria-labelledby={`${uid}rt`}>
@@ -1232,17 +1364,21 @@ export default function FilesExplorer({
               {t("web.files.results.title", { text: results.text })}
             </h2>
             {/* Its line kept while searching, so the list doesn't move.
-                Read out by the live region below, not twice. */}
-            <p className="fb-results-count" aria-hidden="true">
-              {results.state === "done" && found.length > 0 && foundCount}
-            </p>
+                Read out by the live region below, not twice. Beside it
+                the results' order, the folder's (issue #196). */}
+            <div className="fb-results-meta">
+              <p className="fb-results-count" aria-hidden="true">
+                {results.state === "done" && found.length > 0 && foundCount}
+              </p>
+              {sortSelect}
+            </div>
           </div>
           <span className="fb-sr" aria-live="polite">{resultsStatus}</span>
           <div className="fb-table fb-results-table" aria-busy={results.state === "loading"}>
             <div className="fb-head" aria-hidden="true">
-              <div className="c c-name">{t("web.files.column.name")}</div>
-              <div className="c c-size">{t("web.files.column.size")}</div>
-              <div className="c c-modified">{t("web.files.column.modified")}</div>
+              {sortHeading("name", t("web.files.column.name"), false)}
+              {sortHeading("size", t("web.files.column.size"), false)}
+              {sortHeading("modified", t("web.files.column.modified"), false)}
             </div>
             {results.state === "loading" && (
               <div className="fb-results-note" aria-hidden="true"><Spinner /><span>{t("web.files.results.searching")}</span></div>
@@ -1388,23 +1524,25 @@ export default function FilesExplorer({
           })}
         </div>
       ) : (
-      <div className="fb-table">
-        <div className="fb-head">
-          <div className="c c-check"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></div>
-          <div className="c c-name">{t("web.files.column.name")}</div>
-          <div className="c c-size">{t("web.files.column.size")}</div>
-          <div className="c c-created">{t("web.files.column.created")}</div>
-          <div className="c c-modified">{t("web.files.column.modified")}</div>
+      // A table to screen readers too (issue #196): its headings carry
+      // aria-sort.
+      <div className="fb-table" role="table">
+        <div className="fb-head" role="row">
+          <div className="c c-check" role="columnheader"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></div>
+          {sortHeading("name", t("web.files.column.name"), true)}
+          {sortHeading("size", t("web.files.column.size"), true)}
+          {sortHeading("created", t("web.files.column.created"), true)}
+          {sortHeading("modified", t("web.files.column.modified"), true)}
         </div>
 
-        <div className="fb-body">
-          {loading && <div className="fb-row">{t("common.loading")}</div>}
+        <div className="fb-body" role="rowgroup">
+          {loading && <div className="fb-row" role="row"><span role="cell">{t("common.loading")}</span></div>}
           {!loading && rows.map(r => (
-            <div className="fb-row" key={r.k}>
-              <div className="c c-check">
+            <div className="fb-row" role="row" key={r.k}>
+              <div className="c c-check" role="cell">
                 <input type="checkbox" checked={!!sel[r.k]} onChange={() => toggleOne(r.file)} />
               </div>
-              <div className="c c-name">
+              <div className="c c-name" role="cell">
                 <button
                   className={`${r.isDir ? "link" : "file"}`}
                   title={r.name}
@@ -1445,9 +1583,9 @@ export default function FilesExplorer({
                   </button>
                 )}
               </div>
-              <div className="c c-size">{r.isDir ? "—" : fmtBytes(t, r.size)}</div>
-              <div className="c c-created">{r.created ? fmtDate(t.lang, r.created, dateTimeFields) : "—"}</div>
-              <div className="c c-modified">{r.modified ? fmtDate(t.lang, r.modified, dateTimeFields) : "—"}</div>
+              <div className="c c-size" role="cell">{r.isDir ? "—" : fmtBytes(t, r.size)}</div>
+              <div className="c c-created" role="cell">{r.created ? fmtDate(t.lang, r.created, dateTimeFields) : "—"}</div>
+              <div className="c c-modified" role="cell">{r.modified ? fmtDate(t.lang, r.modified, dateTimeFields) : "—"}</div>
             </div>
           ))}
         </div>
@@ -1464,6 +1602,8 @@ export default function FilesExplorer({
           index={mediaViewer.index}
           onIndexChange={i => setMediaViewer(v => (v ? { ...v, index: i } : v))}
           onClose={closeViewer}
+          onDeleted={onViewerDeleted}
+          deleteBlocked={viewerDeleteBlocked}
         />
       )}
 

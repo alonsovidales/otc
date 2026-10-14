@@ -209,6 +209,16 @@ export type MessageKey =
   | "web.files.size.gb"
   | "web.files.size.kb"
   | "web.files.size.mb"
+  | "web.files.sort.created_asc"
+  | "web.files.sort.created_desc"
+  | "web.files.sort.label"
+  | "web.files.sort.modified_asc"
+  | "web.files.sort.modified_desc"
+  | "web.files.sort.name_asc"
+  | "web.files.sort.name_desc"
+  | "web.files.sort.size_asc"
+  | "web.files.sort.size_desc"
+  | "web.files.sort.sorted"
   | "web.files.toolbar.grid"
   | "web.files.toolbar.list"
   | "web.files.toolbar.path"
@@ -414,6 +424,10 @@ export type MessageKey =
   | "web.images.viewer.camera"
   | "web.images.viewer.codec"
   | "web.images.viewer.codec_hint"
+  | "web.images.viewer.delete_photo_title"
+  | "web.images.viewer.delete_text"
+  | "web.images.viewer.delete_text_collection"
+  | "web.images.viewer.delete_video_title"
   | "web.images.viewer.dimensions"
   | "web.images.viewer.download_it"
   | "web.images.viewer.exposure"
@@ -1060,6 +1074,16 @@ export interface MessageArgs {
   "web.files.size.gb": { size: string };
   "web.files.size.kb": { size: string };
   "web.files.size.mb": { size: string };
+  "web.files.sort.created_asc": undefined;
+  "web.files.sort.created_desc": undefined;
+  "web.files.sort.label": undefined;
+  "web.files.sort.modified_asc": undefined;
+  "web.files.sort.modified_desc": undefined;
+  "web.files.sort.name_asc": undefined;
+  "web.files.sort.name_desc": undefined;
+  "web.files.sort.size_asc": undefined;
+  "web.files.sort.size_desc": undefined;
+  "web.files.sort.sorted": { order: string };
   "web.files.toolbar.grid": undefined;
   "web.files.toolbar.list": undefined;
   "web.files.toolbar.path": undefined;
@@ -1269,6 +1293,10 @@ export interface MessageArgs {
   "web.images.viewer.camera": undefined;
   "web.images.viewer.codec": undefined;
   "web.images.viewer.codec_hint": undefined;
+  "web.images.viewer.delete_photo_title": undefined;
+  "web.images.viewer.delete_text": undefined;
+  "web.images.viewer.delete_text_collection": undefined;
+  "web.images.viewer.delete_video_title": undefined;
   "web.images.viewer.dimensions": undefined;
   "web.images.viewer.download_it": undefined;
   "web.images.viewer.exposure": undefined;

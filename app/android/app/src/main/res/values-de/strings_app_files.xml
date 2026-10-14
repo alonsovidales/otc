@@ -66,10 +66,20 @@
     <string name="app_files_searching">Wird gesucht…</string>
     <string name="app_files_selection_upload_only">Die Auswahl liegt in einem Ordner mit „Nur hochladen“ und kann nicht gelöscht werden</string>
     <string name="app_files_share_link_failed">Der Freigabelink konnte nicht erstellt werden</string>
-    <string name="app_files_show_as_grid">Als Raster anzeigen</string>
-    <string name="app_files_show_as_list">Als Liste anzeigen</string>
     <string name="app_files_show_message">Die Fotos und Videos darin erscheinen wieder in „Bilder“ und erhalten im Hintergrund Tags – und werden nach Gesichtern durchsucht, falls die Gesichtserkennung aktiviert ist.</string>
     <string name="app_files_show_title">Ordner „\u2068%1$s\u2069“ in „Bilder“ anzeigen?</string>
+    <string name="app_files_sort_a_z">A bis Z</string>
+    <string name="app_files_sort_by">Sortieren nach</string>
+    <string name="app_files_sort_created">Erstellungsdatum</string>
+    <string name="app_files_sort_largest">Größte zuerst</string>
+    <string name="app_files_sort_modified">Änderungsdatum</string>
+    <string name="app_files_sort_name">Name</string>
+    <string name="app_files_sort_newest">Neueste zuerst</string>
+    <string name="app_files_sort_oldest">Älteste zuerst</string>
+    <string name="app_files_sort_size">Größe</string>
+    <string name="app_files_sort_smallest">Kleinste zuerst</string>
+    <string name="app_files_sort_z_a">Z bis A</string>
+    <string name="app_files_sorted">Sortiert nach %1$s, %2$s</string>
     <string name="app_files_unexpected_response">Unerwartete Antwort</string>
     <string name="app_files_upload_failed">Upload fehlgeschlagen: %1$s</string>
     <string name="app_files_upload_only">Nur hochladen</string>
@@ -80,4 +90,7 @@
     <string name="app_files_versions_explain">Die Datei liegt in einem Ordner mit „Nur hochladen“, daher hat jeder Upload unter diesem Pfad die vorherige Version behalten.</string>
     <string name="app_files_versions_title">Versionen von \u2068%1$s\u2069</string>
     <string name="app_files_video">Video</string>
+    <string name="app_files_view_grid">Raster</string>
+    <string name="app_files_view_list">Liste</string>
+    <string name="app_files_view_options">Ansichtsoptionen</string>
 </resources>

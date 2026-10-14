@@ -202,14 +202,6 @@ fun S.appFilesSelectionUploadOnly(): UiText =
 fun S.appFilesShareLinkFailed(): UiText =
     UiText.Res(R.string.app_files_share_link_failed)
 
-/** "Show as grid": Screen-reader name of the button next to the path field in Files, while the folder is shown as a list: shows it as a grid of tiles. */
-fun S.appFilesShowAsGrid(): UiText =
-    UiText.Res(R.string.app_files_show_as_grid)
-
-/** "Show as list": Screen-reader name of the button next to the path field in Files, while the folder is shown as a grid of tiles: shows it as a list. */
-fun S.appFilesShowAsList(): UiText =
-    UiText.Res(R.string.app_files_show_as_list)
-
 /** "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background.": Text of the question app.files.show_title: what showing the folder in Images again does. Images is the photo section (app.shell.section_images). */
 fun S.appFilesShowMessage(): UiText =
     UiText.Res(R.string.app_files_show_message)
@@ -217,6 +209,54 @@ fun S.appFilesShowMessage(): UiText =
 /** "Show “{name}” in Images?": Title of the question asked before showing a folder kept out of Images there again (from Show in Images in Files). {name} is the folder's name. The explanation (app.files.show_message) follows. Images is the photo section (app.shell.section_images). Write the quotes in your language's style. */
 fun S.appFilesShowTitle(name: String): UiText =
     UiText.Res(R.string.app_files_show_title, listOf(name))
+
+/** "A to Z": Files, the View options menu (the button beside the path field): shown under Name while the files and folders are in name order from A to Z. */
+fun S.appFilesSortAZ(): UiText =
+    UiText.Res(R.string.app_files_sort_a_z)
+
+/** "Sort by": Files, the View options menu (the button beside the path field): heading over the orders the files and folders can be in (app.files.sort_name, sort_size, sort_created, sort_modified). Folders always stay above the files. */
+fun S.appFilesSortBy(): UiText =
+    UiText.Res(R.string.app_files_sort_by)
+
+/** "Date created": Files, the View options menu (the button beside the path field), under Sort by: orders the files by when they were created. Picked again, the order reverses (newest or oldest first). */
+fun S.appFilesSortCreated(): UiText =
+    UiText.Res(R.string.app_files_sort_created)
+
+/** "Largest first": Files, the View options menu (the button beside the path field): shown under Size while the largest files come first. */
+fun S.appFilesSortLargest(): UiText =
+    UiText.Res(R.string.app_files_sort_largest)
+
+/** "Date modified": Files, the View options menu (the button beside the path field), under Sort by: orders the files by when they last changed. Picked again, the order reverses (newest or oldest first). */
+fun S.appFilesSortModified(): UiText =
+    UiText.Res(R.string.app_files_sort_modified)
+
+/** "Name": Files, the View options menu (the button beside the path field), under Sort by: orders the files and folders by name. Picked again, the order reverses (from A to Z, or Z to A). */
+fun S.appFilesSortName(): UiText =
+    UiText.Res(R.string.app_files_sort_name)
+
+/** "Newest first": Files, the View options menu (the button beside the path field): shown under Date created or Date modified while the most recent files come first. */
+fun S.appFilesSortNewest(): UiText =
+    UiText.Res(R.string.app_files_sort_newest)
+
+/** "Oldest first": Files, the View options menu (the button beside the path field): shown under Date created or Date modified while the least recent files come first. */
+fun S.appFilesSortOldest(): UiText =
+    UiText.Res(R.string.app_files_sort_oldest)
+
+/** "Size": Files, the View options menu (the button beside the path field), under Sort by: orders the files by size. Picked again, the order reverses (largest or smallest first). */
+fun S.appFilesSortSize(): UiText =
+    UiText.Res(R.string.app_files_sort_size)
+
+/** "Smallest first": Files, the View options menu (the button beside the path field): shown under Size while the smallest files come first. */
+fun S.appFilesSortSmallest(): UiText =
+    UiText.Res(R.string.app_files_sort_smallest)
+
+/** "Z to A": Files, the View options menu (the button beside the path field): shown under Name while the files and folders are in name order from Z to A. */
+fun S.appFilesSortZA(): UiText =
+    UiText.Res(R.string.app_files_sort_z_a)
+
+/** "Sorted by {key}, {order}": Files: said by VoiceOver or TalkBack after the order changes; never shown, so capital letters inside it don't matter. {key} is the order's name in the menu (app.files.sort_name, sort_size, sort_created or sort_modified) and {order} the words shown under it (app.files.sort_a_z, sort_largest, sort_newest...). */
+fun S.appFilesSorted(key: String, order: String): UiText =
+    UiText.Res(R.string.app_files_sorted, listOf(key, order))
 
 /** "Unexpected response": Error shown when the device answered with something other than what was asked for: the line under the path field in Files (the folder couldn't be listed), and the Share as Gallery dialog (Android). */
 fun S.appFilesUnexpectedResponse(): UiText =
@@ -257,3 +297,15 @@ fun S.appFilesVersionsTitle(name: String): UiText =
 /** "Video": Screen-reader name of the play badge on a video's thumbnail, in the grid of tiles in Files and in the results of a search in Files. */
 fun S.appFilesVideo(): UiText =
     UiText.Res(R.string.app_files_video)
+
+/** "Grid": Files, the View options menu (the button beside the path field): shows the folder as a grid of tiles (thumbnails and file icons). */
+fun S.appFilesViewGrid(): UiText =
+    UiText.Res(R.string.app_files_view_grid)
+
+/** "List": Files, the View options menu (the button beside the path field): shows the folder as a list, a row per file or folder. */
+fun S.appFilesViewList(): UiText =
+    UiText.Res(R.string.app_files_view_list)
+
+/** "View options": Files: accessibility name of the button beside the path field that opens a menu: the folder as a list or a grid (app.files.view_list, app.files.view_grid), and the order of its files and folders (app.files.sort_by). */
+fun S.appFilesViewOptions(): UiText =
+    UiText.Res(R.string.app_files_view_options)

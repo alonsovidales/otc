@@ -110,8 +110,24 @@ final class FilesExplorerViewModel: ObservableObject {
     private let ws = OTCConnection.shared
 
     @Published var path: String
-    @Published var rows: [FileRow] = []
+    /// The folder's rows as shown: `listing` in the order chosen (issue #196).
+    @Published private(set) var rows: [FileRow] = []
     @Published var loading = false
+    /// Issue #196: the order of the list, the grid and the search's results,
+    /// one choice for the app (FilesSort.swift), kept as files.viewMode is.
+    @Published private(set) var sort: FilesSortOrder
+    /// A big folder's rows are being put in order (FilesSort.offMainAbove).
+    @Published private(set) var sorting = false
+    /// The last listing as the device sent it.
+    private var listing: [FileRow] = []
+    /// The folder `rows` are of: a new folder's listing being put in order
+    /// doesn't keep the last folder's rows on screen meanwhile.
+    private var rowsFolder: String?
+    /// Bumped by every arrangement: only the last one asked for lands.
+    private var sortSeq = 0
+    private let defaults: UserDefaults
+    /// The language names are compared in. Tests decide in the app's place.
+    var collationLocale: @MainActor () -> Locale = { L10n.shared.locale }
     /// The line under the path field, kept as what to say and worded as
     /// it is shown, so it follows a change of language (docs/i18n.md).
     @Published private var errorText: (() -> String)?
@@ -227,8 +243,10 @@ final class FilesExplorerViewModel: ObservableObject {
     /// Why a listing failed. Tests decide in the phone's place.
     var problemOf: @MainActor (Msg_RespEnvelope?, Error?) -> LoadProblem = { LoadProblem.now(resp: $0, error: $1) }
 
-    init(initialPath: String) {
+    init(initialPath: String, defaults: UserDefaults = .standard) {
         self.path = initialPath
+        self.defaults = defaults
+        self.sort = FilesSortOrder(stored: defaults.string(forKey: FilesSortOrder.storageKey))
         wakeWatch = OTCConnection.shared.$wakes
             .dropFirst()
             .receive(on: RunLoop.main)
@@ -329,8 +347,9 @@ final class FilesExplorerViewModel: ObservableObject {
                     up.path = ".."
                     files.insert(up, at: 0)
                 }
-                rows = files.map(FileRow.init(file:))
+                listing = files.map(FileRow.init(file:))
                 selected.removeAll()
+                await arrange(folder: asked)
             } else if resp.error {
                 folderOutOfImages = false
                 listingProblem = nil
@@ -345,6 +364,50 @@ final class FilesExplorerViewModel: ObservableObject {
             folderOutOfImages = false
             listingFailed(asked, problemOf(nil, error))
         }
+    }
+
+    /// Issue #196: puts `listing` (of `folder`) in the order chosen and
+    /// shows it - at once for up to FilesSort.offMainAbove rows, off the main
+    /// thread above that. Only the last arrangement asked for lands: one for
+    /// a listing or an order replaced meanwhile is dropped. A new folder's
+    /// rows replace the last folder's at once (none while being put in
+    /// order); the same folder listed again keeps its rows until then.
+    private func arrange(folder: String) async {
+        sortSeq += 1
+        let mine = sortSeq
+        let source = listing
+        let order = sort
+        let locale = collationLocale()
+        if source.count <= FilesSort.offMainAbove {
+            rows = FilesSort.sorted(source, by: order, locale: locale)
+            rowsFolder = folder
+            sorting = false
+            return
+        }
+        if rowsFolder != folder {
+            rows = []
+            rowsFolder = folder
+        }
+        sorting = true
+        let out = await Task.detached(priority: .userInitiated) {
+            FilesSort.sorted(source, by: order, locale: locale)
+        }.value
+        guard mine == sortSeq else { return }
+        rows = out
+        sorting = false
+    }
+
+    /// Issue #196: picks the order by `key` (the same key again: the other
+    /// way), keeps it, and puts the folder and the search's results in it.
+    func pickSort(_ key: FilesSortKey) async {
+        sort = sort.picking(key)
+        defaults.set(sort.stored, forKey: FilesSortOrder.storageKey)
+        Announce.polite(FilesSortText.sorted(sort))
+        if var r = results {
+            r.files = FilesSort.sorted(r.files, by: sort, locale: collationLocale())
+            results = r
+        }
+        await arrange(folder: rowsFolder ?? path)
     }
 
     /// Shows a folder and waits for its listing (the search's pick).
@@ -412,8 +475,10 @@ final class FilesExplorerViewModel: ObservableObject {
         if tooOld { FilesNav.shared.deviceCantSearchFiles() }
         guard mine == searchSeq else { return }
         if case .respListOfFiles(let lof) = resp.payload {
-            results = SearchResults(text: text, state: .done, files: lof.files)
-            await loadResultThumbs(lof.files, seq: mine)
+            // In the folder's order (issue #196): at most searchLimit of them.
+            let found = FilesSort.sorted(lof.files, by: sort, locale: collationLocale())
+            results = SearchResults(text: text, state: .done, files: found)
+            await loadResultThumbs(found, seq: mine)
         } else if tooOld {
             results?.state = .failed(.tooOld, retry: false)
         } else {
@@ -1063,16 +1128,8 @@ struct FilesExplorerView: View {
                             TextField("/path/", text: $pathField, onCommit: { vm.navigate(to: pathField) })
                                 .textFieldStyle(.roundedBorder)
                                 .autocapitalization(.none)
-                            if vm.loading { ProgressView() }
-                            // Shows the mode a tap switches to, like Files/Photos.
-                            Button {
-                                viewMode = viewMode == "grid" ? "list" : "grid"
-                            } label: {
-                                Image(systemName: viewMode == "grid" ? "list.bullet" : "square.grid.2x2")
-                                    .frame(width: 28, height: 28)
-                                    .contentShape(Rectangle())
-                            }
-                            .accessibilityLabel(viewMode == "grid" ? S.appFilesShowAsList : S.appFilesShowAsGrid)
+                            if vm.loading || vm.sorting { ProgressView() }
+                            viewOptions
                         }
                         .padding(.horizontal)
                         // Closer under the search field than under the bar.
@@ -1752,6 +1809,43 @@ struct FilesExplorerView: View {
                 }
             }
         }
+    }
+
+    /// List or grid, and the order (issue #196), in one menu as the Files
+    /// app has it: the button shows the view in use. Under Sort by, the
+    /// order in use has the checkmark, an arrow and its direction in words;
+    /// picking it again reverses it. Toggles, not a Picker, for the sort
+    /// keys: a Picker doesn't say when the item already picked is picked
+    /// again.
+    private var viewOptions: some View {
+        Menu {
+            Picker(selection: $viewMode) {
+                Label(S.appFilesViewList, systemImage: "list.bullet").tag("list")
+                Label(S.appFilesViewGrid, systemImage: "square.grid.2x2").tag("grid")
+            } label: {
+                EmptyView()
+            }
+            .pickerStyle(.inline)
+            Section(S.appFilesSortBy) {
+                ForEach(FilesSortKey.allCases) { key in
+                    // The menu shows the first Text as the item's title, the
+                    // second under it, and the Image as its icon.
+                    Toggle(isOn: Binding(get: { vm.sort.key == key }, set: { _ in Task { await vm.pickSort(key) } })) {
+                        Text(FilesSortText.name(key))
+                        if vm.sort.key == key {
+                            Text(FilesSortText.direction(vm.sort))
+                            Image(systemName: vm.sort.ascending ? "chevron.up" : "chevron.down")
+                        }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: viewMode == "grid" ? "square.grid.2x2" : "list.bullet")
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel(S.appFilesViewOptions)
+        .accessibilityValue(FilesSortText.sorted(vm.sort))
     }
 
     /// Issue #192: the folder being browsed is kept out of Images (itself,

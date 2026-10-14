@@ -589,6 +589,56 @@
     "note": "A size in megabytes, in Files' lists, the share dialog, Settings > Shared Links and a shared gallery's page. Write your language's symbol (French: Mo). {size} is the number, already formatted with its decimals (512, 4.6).",
     "max": 12
   },
+  "web.files.sort.created_asc": {
+    "text": "Created, oldest first",
+    "note": "Files: an order in the Sort by list beside the List/Grid switch, and the tooltip of the column heading while the list is in that order. By when the file was created, the oldest first. Name, Size, Created and Modified are the list's column headings (web.files.column.*), written the same way here. Folders always stay above the files, whatever the order.",
+    "max": 48
+  },
+  "web.files.sort.created_desc": {
+    "text": "Created, newest first",
+    "note": "Files: an order in the Sort by list beside the List/Grid switch, and the tooltip of the column heading while the list is in that order. By when the file was created, the newest first. Name, Size, Created and Modified are the list's column headings (web.files.column.*), written the same way here. Folders always stay above the files, whatever the order.",
+    "max": 48
+  },
+  "web.files.sort.label": {
+    "text": "Sort by",
+    "note": "Files: label of the drop-down list beside the List/Grid switch (over a folder and over a search's results) that picks the order of the files and folders; also its accessibility name. The orders it lists are web.files.sort.name_asc and the others.",
+    "max": 20
+  },
+  "web.files.sort.modified_asc": {
+    "text": "Modified, oldest first",
+    "note": "Files: an order in the Sort by list beside the List/Grid switch, and the tooltip of the column heading while the list is in that order. By when the file last changed, the least recent first. Name, Size, Created and Modified are the list's column headings (web.files.column.*), written the same way here. Folders always stay above the files, whatever the order.",
+    "max": 48
+  },
+  "web.files.sort.modified_desc": {
+    "text": "Modified, newest first",
+    "note": "Files: an order in the Sort by list beside the List/Grid switch, and the tooltip of the column heading while the list is in that order. By when the file last changed, the most recent first. Name, Size, Created and Modified are the list's column headings (web.files.column.*), written the same way here. Folders always stay above the files, whatever the order.",
+    "max": 48
+  },
+  "web.files.sort.name_asc": {
+    "text": "Name, A to Z",
+    "note": "Files: an order in the Sort by list beside the List/Grid switch, and the tooltip of the column heading while the list is in that order. By name, from A to Z (numbers in names in counting order: file2 before file10). Name, Size, Created and Modified are the list's column headings (web.files.column.*), written the same way here. Folders always stay above the files, whatever the order.",
+    "max": 48
+  },
+  "web.files.sort.name_desc": {
+    "text": "Name, Z to A",
+    "note": "Files: an order in the Sort by list beside the List/Grid switch, and the tooltip of the column heading while the list is in that order. By name, from Z to A. Name, Size, Created and Modified are the list's column headings (web.files.column.*), written the same way here. Folders always stay above the files, whatever the order.",
+    "max": 48
+  },
+  "web.files.sort.size_asc": {
+    "text": "Size, smallest first",
+    "note": "Files: an order in the Sort by list beside the List/Grid switch, and the tooltip of the column heading while the list is in that order. By size, the smallest files first. Name, Size, Created and Modified are the list's column headings (web.files.column.*), written the same way here. Folders always stay above the files, whatever the order.",
+    "max": 48
+  },
+  "web.files.sort.size_desc": {
+    "text": "Size, largest first",
+    "note": "Files: an order in the Sort by list beside the List/Grid switch, and the tooltip of the column heading while the list is in that order. By size, the largest files first. Name, Size, Created and Modified are the list's column headings (web.files.column.*), written the same way here. Folders always stay above the files, whatever the order.",
+    "max": 48
+  },
+  "web.files.sort.sorted": {
+    "text": "Sorted by {order}",
+    "args": [["order", "text"]],
+    "note": "Files: read out by screen readers after the order of the list changes; never shown. {order} is the order picked, as the Sort by list writes it (web.files.sort.size_desc: 'Size, largest first'). If 'Sorted by' doesn't read well before it in your language, use a colon instead ('Sorted: Size, largest first')."
+  },
   "web.files.toolbar.grid": {
     "text": "Grid",
     "note": "Files: tooltip of the button that shows the folder as a grid of thumbnails.",

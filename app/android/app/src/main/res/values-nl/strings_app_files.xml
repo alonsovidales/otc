@@ -66,10 +66,20 @@
     <string name="app_files_searching">Zoeken…</string>
     <string name="app_files_selection_upload_only">De selectie staat in een map met “Alleen uploaden” en kan niet worden verwijderd</string>
     <string name="app_files_share_link_failed">Kan geen deellink maken</string>
-    <string name="app_files_show_as_grid">Als raster tonen</string>
-    <string name="app_files_show_as_list">Als lijst tonen</string>
     <string name="app_files_show_message">De foto’s en video’s erin komen terug in Afbeeldingen en krijgen op de achtergrond tags (en worden doorzocht op gezichten, als gezichtsherkenning aanstaat).</string>
     <string name="app_files_show_title">De map “\u2068%1$s\u2069” in Afbeeldingen tonen?</string>
+    <string name="app_files_sort_a_z">A tot Z</string>
+    <string name="app_files_sort_by">Sorteren op</string>
+    <string name="app_files_sort_created">Aanmaakdatum</string>
+    <string name="app_files_sort_largest">Grootste eerst</string>
+    <string name="app_files_sort_modified">Wijzigingsdatum</string>
+    <string name="app_files_sort_name">Naam</string>
+    <string name="app_files_sort_newest">Nieuwste eerst</string>
+    <string name="app_files_sort_oldest">Oudste eerst</string>
+    <string name="app_files_sort_size">Grootte</string>
+    <string name="app_files_sort_smallest">Kleinste eerst</string>
+    <string name="app_files_sort_z_a">Z tot A</string>
+    <string name="app_files_sorted">Gesorteerd op %1$s, %2$s</string>
     <string name="app_files_unexpected_response">Onverwacht antwoord</string>
     <string name="app_files_upload_failed">Uploaden mislukt: %1$s</string>
     <string name="app_files_upload_only">Alleen uploaden</string>
@@ -80,4 +90,7 @@
     <string name="app_files_versions_explain">Het bestand staat in een map met “Alleen uploaden”, dus bij elke upload naar dit pad is de vorige versie bewaard.</string>
     <string name="app_files_versions_title">Versies van \u2068%1$s\u2069</string>
     <string name="app_files_video">Video</string>
+    <string name="app_files_view_grid">Raster</string>
+    <string name="app_files_view_list">Lijst</string>
+    <string name="app_files_view_options">Weergaveopties</string>
 </resources>

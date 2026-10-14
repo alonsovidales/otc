@@ -71,10 +71,20 @@
     <string name="app_files_searching">A pesquisar…</string>
     <string name="app_files_selection_upload_only">A seleção está numa pasta em apenas carregamento e não pode ser eliminada</string>
     <string name="app_files_share_link_failed">Não foi possível criar a ligação de partilha</string>
-    <string name="app_files_show_as_grid">Mostrar em grelha</string>
-    <string name="app_files_show_as_list">Mostrar em lista</string>
     <string name="app_files_show_message">As fotos e os vídeos dela voltam a Imagens e são etiquetados (e analisados para encontrar rostos, se o reconhecimento facial estiver ativo) em segundo plano.</string>
     <string name="app_files_show_title">Mostrar a pasta «\u2068%1$s\u2069» em Imagens?</string>
+    <string name="app_files_sort_a_z">De A a Z</string>
+    <string name="app_files_sort_by">Ordenar por</string>
+    <string name="app_files_sort_created">Data de criação</string>
+    <string name="app_files_sort_largest">Maiores primeiro</string>
+    <string name="app_files_sort_modified">Data de modificação</string>
+    <string name="app_files_sort_name">Nome</string>
+    <string name="app_files_sort_newest">Mais recentes primeiro</string>
+    <string name="app_files_sort_oldest">Mais antigos primeiro</string>
+    <string name="app_files_sort_size">Tamanho</string>
+    <string name="app_files_sort_smallest">Menores primeiro</string>
+    <string name="app_files_sort_z_a">De Z a A</string>
+    <string name="app_files_sorted">Ordenado por %1$s, %2$s</string>
     <string name="app_files_unexpected_response">Resposta inesperada</string>
     <string name="app_files_upload_failed">O carregamento falhou: %1$s</string>
     <string name="app_files_upload_only">Apenas carregamento</string>
@@ -85,4 +95,7 @@
     <string name="app_files_versions_explain">O ficheiro está numa pasta em apenas carregamento, por isso cada carregamento para este caminho guardou o anterior.</string>
     <string name="app_files_versions_title">Versões de \u2068%1$s\u2069</string>
     <string name="app_files_video">Vídeo</string>
+    <string name="app_files_view_grid">Grelha</string>
+    <string name="app_files_view_list">Lista</string>
+    <string name="app_files_view_options">Opções de visualização</string>
 </resources>

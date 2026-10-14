@@ -235,14 +235,6 @@
     "text": "No se ha podido crear el enlace para compartir",
     "en": "Could not create share link"
   },
-  "app.files.show_as_grid": {
-    "text": "Mostrar como cuadrícula",
-    "en": "Show as grid"
-  },
-  "app.files.show_as_list": {
-    "text": "Mostrar como lista",
-    "en": "Show as list"
-  },
   "app.files.show_message": {
     "text": "Sus fotos y vídeos vuelven a Imágenes y se etiquetan (y se analizan en busca de caras, si el reconocimiento facial está activado) en segundo plano.",
     "en": "Its photos and videos go back to Images, and are tagged - and searched for faces, if face recognition is on - in the background.",
@@ -251,6 +243,54 @@
   "app.files.show_title": {
     "text": "¿Mostrar la carpeta “{name}” en Imágenes?",
     "en": "Show “{name}” in Images?"
+  },
+  "app.files.sort_a_z": {
+    "text": "De la A a la Z",
+    "en": "A to Z"
+  },
+  "app.files.sort_by": {
+    "text": "Ordenar por",
+    "en": "Sort by"
+  },
+  "app.files.sort_created": {
+    "text": "Fecha de creación",
+    "en": "Date created"
+  },
+  "app.files.sort_largest": {
+    "text": "De mayor a menor",
+    "en": "Largest first"
+  },
+  "app.files.sort_modified": {
+    "text": "Fecha de modificación",
+    "en": "Date modified"
+  },
+  "app.files.sort_name": {
+    "text": "Nombre",
+    "en": "Name"
+  },
+  "app.files.sort_newest": {
+    "text": "Más recientes primero",
+    "en": "Newest first"
+  },
+  "app.files.sort_oldest": {
+    "text": "Más antiguos primero",
+    "en": "Oldest first"
+  },
+  "app.files.sort_size": {
+    "text": "Tamaño",
+    "en": "Size"
+  },
+  "app.files.sort_smallest": {
+    "text": "De menor a mayor",
+    "en": "Smallest first"
+  },
+  "app.files.sort_z_a": {
+    "text": "De la Z a la A",
+    "en": "Z to A"
+  },
+  "app.files.sorted": {
+    "text": "Ordenado por {key}, {order}",
+    "en": "Sorted by {key}, {order}"
   },
   "app.files.unexpected_response": {
     "text": "Respuesta inesperada",
@@ -291,5 +331,17 @@
   "app.files.video": {
     "text": "Vídeo",
     "en": "Video"
+  },
+  "app.files.view_grid": {
+    "text": "Cuadrícula",
+    "en": "Grid"
+  },
+  "app.files.view_list": {
+    "text": "Lista",
+    "en": "List"
+  },
+  "app.files.view_options": {
+    "text": "Opciones de vista",
+    "en": "View options"
   }
 }
