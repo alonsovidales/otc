@@ -287,28 +287,32 @@ struct FolderRow: View {
     let setOutOfImages: (Bool) -> Void
     let remove: () -> Void
     @State private var confirmImages = false
+    /// Issue #197: when a click found the folder gone (FolderMissingNote).
+    @State private var missingAt: Date?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Image(systemName: "folder.fill")
-                    .foregroundStyle(Color.accentColor)
-                    .overlay(alignment: .bottomTrailing) {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.orange)
-                            .background(Circle().fill(.white))
-                            .offset(x: 3, y: 3)
+                // Issue #197: the icon and name open the folder in Finder.
+                FolderOpenArea(url: folder.url, missingAt: $missingAt) {
+                    Image(systemName: "folder.fill")
+                        .foregroundStyle(Color.accentColor)
+                        .overlay(alignment: .bottomTrailing) {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.orange)
+                                .background(Circle().fill(.white))
+                                .offset(x: 3, y: 3)
+                        }
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(folder.url.lastPathComponent)
+                            .lineLimit(1)
+                        Text(S.macosFoldersBackupLine)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(folder.url.lastPathComponent)
-                        .lineLimit(1)
-                    Text(S.macosFoldersBackupLine)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
                 }
-                Spacer()
                 FolderStateView(state: folder.state, watchingLabel: S.deskMainFolderBackedUp)
                 OutOfImagesButton(state: images, note: imagesNote) { confirmImages = true }
                 Button(role: .destructive) {
@@ -317,6 +321,7 @@ struct FolderRow: View {
                     Image(systemName: "minus.circle")
                 }.buttonStyle(.plain)
             }
+            FolderMissingNote(url: folder.url, missingAt: $missingAt)
             if confirmImages {
                 OutOfImagesConfirmation(name: folder.url.lastPathComponent, keepOut: !images.isKeptOut,
                                         onCancel: { confirmImages = false },
@@ -345,31 +350,36 @@ struct RemoteFolderRow: View {
     let setOutOfImages: (Bool) -> Void
     let remove: () -> Void
     @State private var confirmImages = false
+    /// Issue #197: as FolderRow's.
+    @State private var missingAt: Date?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Image(systemName: "folder.fill")
-                    .foregroundStyle(Color.accentColor)
-                    .overlay(alignment: .bottomTrailing) {
-                        // Every folder is two-way.
-                        Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.blue)
-                            .background(Circle().fill(.white))
-                            .offset(x: 3, y: 3)
+                // Issue #197: the icon and name open the local folder in
+                // Finder - from this Mac or from the device alike.
+                FolderOpenArea(url: folder.localURL, missingAt: $missingAt) {
+                    Image(systemName: "folder.fill")
+                        .foregroundStyle(Color.accentColor)
+                        .overlay(alignment: .bottomTrailing) {
+                            // Every folder is two-way.
+                            Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.blue)
+                                .background(Circle().fill(.white))
+                                .offset(x: 3, y: 3)
+                        }
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(folder.localURL.lastPathComponent)
+                            .lineLimit(1)
+                        Text(folder.remotePath)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.head)
+                            .help(folder.remotePath)
                     }
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(folder.localURL.lastPathComponent)
-                        .lineLimit(1)
-                    Text(folder.remotePath)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.head)
-                        .help(folder.remotePath)
                 }
-                Spacer()
                 FolderStateView(state: folder.state, watchingLabel: S.deskMainFolderSynced)
                 UploadOnlyBadge(state: uploadOnly, note: uploadOnlyNote)
                 OutOfImagesButton(state: images, note: imagesNote) { confirmImages = true }
@@ -379,6 +389,7 @@ struct RemoteFolderRow: View {
                     Image(systemName: "minus.circle")
                 }.buttonStyle(.plain)
             }
+            FolderMissingNote(url: folder.localURL, missingAt: $missingAt)
             if confirmImages {
                 OutOfImagesConfirmation(name: folder.localURL.lastPathComponent, keepOut: !images.isKeptOut,
                                         onCancel: { confirmImages = false },
@@ -387,6 +398,75 @@ struct RemoteFolderRow: View {
         }
         .padding(8)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+/// Issue #197: a folder row's icon and name, one button that shows the
+/// folder on this Mac in Finder (FolderOpener); Finder comes to the front
+/// and the popover closes, as with Open Web App. Its tooltip and VoiceOver
+/// hint give the full path the row doesn't show. The row's state, lock,
+/// eye and minus stay outside it, with their own clicks. A folder no longer
+/// there sets `missingAt` (FolderMissingNote, under the row) and changes
+/// nothing else; one Finder couldn't be asked to show, a beep.
+/// otc-sync's tray: "Open" in the folder's submenu (tray/openfolder.go).
+struct FolderOpenArea<Content: View>: View {
+    let url: URL
+    @Binding var missingAt: Date?
+    let content: Content
+
+    init(url: URL, missingAt: Binding<Date?>, @ViewBuilder content: () -> Content) {
+        self.url = url
+        _missingAt = missingAt
+        self.content = content()
+    }
+
+    var body: some View {
+        let tip = S.macosFoldersOpenTip(path: url.path)
+        Button {
+            switch FolderOpener.open(url) {
+            case .opened:
+                missingAt = nil
+            case .missing:
+                missingAt = Date()
+            case .failed:
+                missingAt = nil
+                NSSound.beep()
+            }
+        } label: {
+            HStack(spacing: 8) {
+                content
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .pointerStyle(.link)
+        .help(tip)
+        .accessibilityHint(tip)
+    }
+}
+
+/// Issue #197: under a folder's row, for 6 s after a click found the folder
+/// gone - or until the next click on it -, where it was expected. Inline,
+/// never an alert, which would close the popover. Nothing else changes
+/// here: the next pass already takes a two-way folder whose folder is gone
+/// off the list, leaving the device alone.
+struct FolderMissingNote: View {
+    let url: URL
+    @Binding var missingAt: Date?
+
+    var body: some View {
+        if let shown = missingAt {
+            Label(S.deskMainFolderMissing(name: url.lastPathComponent, path: url.path),
+                  systemImage: "exclamationmark.triangle.fill")
+                .font(.caption)
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+                .task(id: shown) {
+                    try? await Task.sleep(for: .seconds(6))
+                    if missingAt == shown { missingAt = nil }
+                }
+        }
     }
 }
 

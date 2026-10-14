@@ -195,6 +195,11 @@
     "note": "Both apps: a backup folder's state once everything in it is on the device.",
     "max": 20
   },
+  "desk.main.folder_missing": {
+    "text": "The folder “{name}” is no longer at {path} - it may have been moved, renamed or deleted.",
+    "args": [["name", "user"], ["path", "user"]],
+    "note": "Both apps: a folder was clicked to open it (on the Mac its name in the panel, shown as an orange caption under its row; in otc-sync Open in its submenu, shown in an error dialog), but it is no longer on this computer. {name} is the folder's name, {path} the full path where the app expects it. Nothing is changed: the folder stays in the app."
+  },
   "desk.main.folder_offline": {
     "text": "Device offline - will resume",
     "note": "Both apps: a folder's state when the connection dropped during a pass; it carries on once the device is back.",
@@ -302,6 +307,16 @@
     "note": "otc-sync: reason a download was refused: {url} (a web address) isn't signed by Off The Cloud's release key, so it isn't trusted.",
     "review": "required",
     "reviewed": "shipped 2026-10-11 #f337f034"
+  },
+  "desk.main.open_folder_failed": {
+    "text": "The folder could not be opened:\n\n{detail}\n\nIt is at {path}",
+    "args": [["detail", "text"], ["path", "user"]],
+    "note": "otc-sync: error dialog when Open in a folder's submenu can't start the file manager. {detail} is the system's own reason, in English; {path} is the folder's full path on this computer, for the user to open by hand. Keep the blank lines."
+  },
+  "desk.main.open_folder_tip": {
+    "text": "Open {path} in your file manager",
+    "args": [["path", "user"]],
+    "note": "otc-sync (Windows and Linux): tooltip of Open, the first item of a folder's submenu in the tray menu, which shows the folder in the system's file manager (File Explorer on Windows, the desktop's own on Linux). {path} is the folder's full path on this computer."
   },
   "desk.main.open_web_app": {
     "text": "Open Web App",

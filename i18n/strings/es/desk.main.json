@@ -154,6 +154,10 @@
     "text": "Copiada",
     "en": "Backed up"
   },
+  "desk.main.folder_missing": {
+    "text": "La carpeta “{name}” ya no está en {path}: puede que se haya movido, renombrado o eliminado.",
+    "en": "The folder “{name}” is no longer at {path} - it may have been moved, renamed or deleted."
+  },
   "desk.main.folder_offline": {
     "text": "Dispositivo sin conexión: se reanudará",
     "en": "Device offline - will resume"
@@ -238,6 +242,14 @@
     "text": "{url} no está firmado con la clave de firma de versiones",
     "en": "{url} is not signed with the release key",
     "reviewed": "claude-backtranslation 2026-10-11 #75626e24"
+  },
+  "desk.main.open_folder_failed": {
+    "text": "No se ha podido abrir la carpeta:\n\n{detail}\n\nEstá en {path}",
+    "en": "The folder could not be opened:\n\n{detail}\n\nIt is at {path}"
+  },
+  "desk.main.open_folder_tip": {
+    "text": "Abrir {path} en tu gestor de archivos",
+    "en": "Open {path} in your file manager"
   },
   "desk.main.open_web_app": {
     "text": "Abrir app web",

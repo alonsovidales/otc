@@ -32,13 +32,13 @@ func (u *ui) askAutostart() {
 	// typed into the window it covered - answers no. Consent is a click on
 	// "Start at Login", as on the Mac (LoginItemOffer has no shortcut).
 	l := lang()
-	err := zenity.Question(i18n.DeskMainAutostartTitle().Render(l)+"\n\n"+i18n.DeskMainAutostartMessage().Render(l), autostartOptions()...)
+	err := dlgQuestion(i18n.DeskMainAutostartTitle().Render(l)+"\n\n"+i18n.DeskMainAutostartMessage().Render(l), autostartOptions()...)
 	on, answered := autostartAnswer(err)
 	if !answered {
 		return
 	}
 	if err := u.c.SetAutostart(on); err != nil {
-		_ = zenity.Error(errorText(l, err), zenity.Title("Off The Cloud"))
+		_ = dlgError(errorText(l, err), dlgTitle("Off The Cloud"))
 	}
 	Refresh()
 }
@@ -49,9 +49,9 @@ func autostartOptions() []zenity.Option {
 	l := lang()
 
 	return []zenity.Option{
-		zenity.Title("Off The Cloud"),
-		zenity.OKLabel(i18n.DeskMainAutostartYes().Render(l)),
-		zenity.CancelLabel(i18n.DeskMainAutostartNo().Render(l)),
+		dlgTitle("Off The Cloud"),
+		dlgOK(i18n.DeskMainAutostartYes().Render(l)),
+		dlgCancel(i18n.DeskMainAutostartNo().Render(l)),
 		zenity.DefaultCancel(),
 	}
 }

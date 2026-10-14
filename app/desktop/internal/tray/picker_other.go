@@ -25,7 +25,7 @@ func pickRemoteFolder(list func(string) ([]engine.RemoteEntry, error)) (string, 
 		l := lang()
 		entries, err := list(current)
 		if err != nil {
-			_ = zenity.Error(i18n.DeskFoldersPickerListFailed(errorText(l, err)).Render(l), zenity.Title("Off The Cloud"))
+			_ = dlgError(i18n.DeskFoldersPickerListFailed(errorText(l, err)).Render(l), dlgTitle("Off The Cloud"))
 
 			return "", false
 		}
@@ -51,10 +51,10 @@ func pickRemoteFolder(list func(string) ([]engine.RemoteEntry, error)) (string, 
 		if label == "" {
 			label = "/"
 		}
-		pick, err := zenity.List(
+		pick, err := dlgList(
 			listText(i18n.DeskFoldersPickerPrompt(current, label).Render(l)),
-			items, zenity.Title(i18n.DeskFoldersRemoteTitle().Render(l)), zenity.Width(460), zenity.Height(460),
-			zenity.OKLabel(i18n.CommonOpen().Render(l)), zenity.ExtraButton(i18n.DeskFoldersChooseNamed(label).Render(l)),
+			items, dlgTitle(i18n.DeskFoldersRemoteTitle().Render(l)), zenity.Width(460), zenity.Height(460),
+			dlgOK(i18n.CommonOpen().Render(l)), dlgExtra(i18n.DeskFoldersChooseNamed(label).Render(l)),
 		)
 		if errors.Is(err, zenity.ErrExtraButton) {
 			return current, true

@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"fyne.io/systray"
-	"github.com/ncruces/zenity"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
 	"github.com/alonsovidales/otc/app/desktop/internal/engine"
@@ -114,8 +113,8 @@ func (u *ui) toggleImages(fi *folderItem) {
 	if keepOut {
 		title, message, ok = i18n.DeskMainImagesKeepTitle(name), i18n.DeskMainImagesKeepMessage(), i18n.DeskMainImagesKeepButton()
 	}
-	if zenity.Question(message.Render(l), zenity.Title(title.Render(l)), zenity.OKLabel(ok.Render(l)),
-		zenity.CancelLabel(i18n.CommonCancel().Render(l))) != nil {
+	if dlgQuestion(message.Render(l), dlgTitle(title.Render(l)), dlgOK(ok.Render(l)),
+		dlgCancel(i18n.CommonCancel().Render(l))) != nil {
 		return
 	}
 	cfg := u.editConfig()
@@ -126,7 +125,7 @@ func (u *ui) toggleImages(fi *folderItem) {
 		return // removed meanwhile
 	}
 	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
+		_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
 	}
 	Refresh()
 }
@@ -136,9 +135,9 @@ func (u *ui) toggleImages(fi *folderItem) {
 // in the language then in effect).
 func addImagesItems(mi *systray.MenuItem) (images, info *systray.MenuItem) {
 	l := lang()
-	images = mi.AddSubMenuItemCheckbox(i18n.DeskFoldersImagesCheckbox().Render(l), i18n.DeskFoldersImagesExplain().Render(l), false)
+	images = addSubMenuItemCheckbox(mi, i18n.DeskFoldersImagesCheckbox().Render(l), i18n.DeskFoldersImagesExplain().Render(l), false)
 	images.Hide()
-	info = mi.AddSubMenuItem("", "")
+	info = addSubMenuItem(mi, "", "")
 	info.Disable()
 	info.Hide()
 

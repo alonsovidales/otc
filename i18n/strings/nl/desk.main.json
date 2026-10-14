@@ -154,6 +154,10 @@
     "text": "Veiliggesteld",
     "en": "Backed up"
   },
+  "desk.main.folder_missing": {
+    "text": "De map “{name}” staat niet meer op {path}: mogelijk is die verplaatst, hernoemd of verwijderd.",
+    "en": "The folder “{name}” is no longer at {path} - it may have been moved, renamed or deleted."
+  },
   "desk.main.folder_offline": {
     "text": "Apparaat offline – gaat later verder",
     "en": "Device offline - will resume"
@@ -238,6 +242,14 @@
     "text": "{url} is niet ondertekend met de releasesleutel",
     "en": "{url} is not signed with the release key",
     "reviewed": "claude-backtranslation 2026-10-11 #2db15ff7"
+  },
+  "desk.main.open_folder_failed": {
+    "text": "De map kon niet worden geopend:\n\n{detail}\n\nDie staat op {path}",
+    "en": "The folder could not be opened:\n\n{detail}\n\nIt is at {path}"
+  },
+  "desk.main.open_folder_tip": {
+    "text": "{path} openen in je bestandsbeheerder",
+    "en": "Open {path} in your file manager"
   },
   "desk.main.open_web_app": {
     "text": "Webapp openen",

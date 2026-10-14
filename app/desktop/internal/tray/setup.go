@@ -37,8 +37,8 @@ func (u *ui) setupDevice() {
 	// before each one (setupOpts).
 	l, opts := setupOpts()
 
-	if err := zenity.Question(i18n.DeskFoldersSetupIntro().Render(l),
-		append(opts, zenity.OKLabel(i18n.DeskFoldersSetupStart().Render(l)), zenity.NoIcon)...); err != nil {
+	if err := dlgQuestion(i18n.DeskFoldersSetupIntro().Render(l),
+		append(opts, dlgOK(i18n.DeskFoldersSetupStart().Render(l)), zenity.NoIcon)...); err != nil {
 		return
 	}
 
@@ -46,8 +46,8 @@ func (u *ui) setupDevice() {
 	l, opts = setupOpts()
 	// The buttons' words too: Windows' own dialogs say OK and Cancel in
 	// English otherwise.
-	buttons := []zenity.Option{zenity.OKLabel(i18n.CommonOk().Render(l)), zenity.CancelLabel(i18n.CommonCancel().Render(l))}
-	dlg, err := zenity.Progress(append(append(opts, buttons...), zenity.MaxValue(100))...)
+	buttons := []zenity.Option{dlgOK(i18n.CommonOk().Render(l)), dlgCancel(i18n.CommonCancel().Render(l))}
+	dlg, err := dlgProgress(append(append(opts, buttons...), zenity.MaxValue(100))...)
 	if err != nil {
 		u.setupError(l, err)
 		return
@@ -88,8 +88,8 @@ func (u *ui) setupDevice() {
 			return
 		}
 		if len(disks) == 0 {
-			if zenity.Question(i18n.DeskFoldersSetupInsertCard().Render(l),
-				append(opts, zenity.OKLabel(i18n.DeskFoldersTryAgain().Render(l)), zenity.InfoIcon)...) != nil {
+			if dlgQuestion(i18n.DeskFoldersSetupInsertCard().Render(l),
+				append(opts, dlgOK(i18n.DeskFoldersTryAgain().Render(l)), zenity.InfoIcon)...) != nil {
 				return
 			}
 			continue
@@ -98,9 +98,9 @@ func (u *ui) setupDevice() {
 		for i, d := range disks {
 			labels[i] = cardRow(l, d)
 		}
-		choice, err := zenity.List(listText(i18n.DeskFoldersSetupChooseCard().Render(l)), labels,
-			append(opts, zenity.OKLabel(i18n.CommonNext().Render(l)), zenity.ExtraButton(i18n.CommonRefresh().Render(l)),
-				zenity.CancelLabel(i18n.CommonCancel().Render(l)), zenity.DisallowEmpty())...)
+		choice, err := dlgList(listText(i18n.DeskFoldersSetupChooseCard().Render(l)), labels,
+			append(opts, dlgOK(i18n.CommonNext().Render(l)), dlgExtra(i18n.CommonRefresh().Render(l)),
+				dlgCancel(i18n.CommonCancel().Render(l)), zenity.DisallowEmpty())...)
 		if errors.Is(err, zenity.ErrExtraButton) {
 			continue
 		}
@@ -114,22 +114,22 @@ func (u *ui) setupDevice() {
 		}
 		disk = disks[i]
 		if disk.Size < flasher.MinCardSize {
-			_ = zenity.Warning(i18n.DeskFoldersSetupCardTooSmall(disk.LabelIn(l)).Render(l), opts...)
+			_ = dlgWarning(i18n.DeskFoldersSetupCardTooSmall(disk.LabelIn(l)).Render(l), opts...)
 			disk = flasher.Disk{}
 			continue
 		}
 		break
 	}
 	l, opts = setupOpts()
-	if zenity.Question(i18n.DeskFoldersSetupEraseQuestion(disk.LabelIn(l)).Render(l),
-		append(opts, zenity.OKLabel(i18n.DeskFoldersSetupErase().Render(l)), zenity.CancelLabel(i18n.CommonCancel().Render(l)), zenity.WarningIcon)...) != nil {
+	if dlgQuestion(i18n.DeskFoldersSetupEraseQuestion(disk.LabelIn(l)).Render(l),
+		append(opts, dlgOK(i18n.DeskFoldersSetupErase().Render(l)), dlgCancel(i18n.CommonCancel().Render(l)), zenity.WarningIcon)...) != nil {
 		return
 	}
 
 	// 3. Write, as administrator.
 	l, opts = setupOpts()
-	buttons = []zenity.Option{zenity.OKLabel(i18n.CommonOk().Render(l)), zenity.CancelLabel(i18n.CommonCancel().Render(l))}
-	wdlg, err := zenity.Progress(append(append(opts, buttons...), zenity.MaxValue(100), zenity.NoCancel())...)
+	buttons = []zenity.Option{dlgOK(i18n.CommonOk().Render(l)), dlgCancel(i18n.CommonCancel().Render(l))}
+	wdlg, err := dlgProgress(append(append(opts, buttons...), zenity.MaxValue(100), zenity.NoCancel())...)
 	if err != nil {
 		u.setupError(l, err)
 		return
@@ -142,7 +142,7 @@ func (u *ui) setupDevice() {
 	_ = wdlg.Close()
 	l, opts = setupOpts()
 	if errors.Is(err, flasher.ErrCancelled) {
-		_ = zenity.Info(i18n.DeskFoldersSetupNotWritten(i18n.DeskMainSetUpDevice().Render(l)).Render(l), opts...)
+		_ = dlgInfo(i18n.DeskFoldersSetupNotWritten(i18n.DeskMainSetUpDevice().Render(l)).Render(l), opts...)
 		return
 	}
 	if err != nil {
@@ -158,7 +158,7 @@ func (u *ui) setupDevice() {
 	if runtime.GOOS == "windows" {
 		steps += "\n\n" + i18n.DeskFoldersSetupWindowsFormat().Render(l)
 	}
-	_ = zenity.Info(steps, append(opts, zenity.Title(i18n.DeskFoldersSetupCardReadyTitle().Render(l)))...)
+	_ = dlgInfo(steps, append(opts, dlgTitle(i18n.DeskFoldersSetupCardReadyTitle().Render(l)))...)
 }
 
 // setupOpts is the menu's language now and the options every setup dialog
@@ -166,7 +166,7 @@ func (u *ui) setupDevice() {
 func setupOpts() (string, []zenity.Option) {
 	l := lang()
 
-	return l, []zenity.Option{zenity.Title(i18n.DeskFoldersSetupTitle().Render(l))}
+	return l, []zenity.Option{dlgTitle(i18n.DeskFoldersSetupTitle().Render(l))}
 }
 
 // cardRowRunes is the most characters a card's row has on Windows, whose
@@ -211,5 +211,5 @@ func shorten(s string, n int) string {
 }
 
 func (u *ui) setupError(l string, err error) {
-	_ = zenity.Error(i18n.DeskFoldersSetupStopped(errorText(l, err)).Render(l), zenity.Title(i18n.DeskFoldersSetupTitle().Render(l)))
+	_ = dlgError(i18n.DeskFoldersSetupStopped(errorText(l, err)).Render(l), dlgTitle(i18n.DeskFoldersSetupTitle().Render(l)))
 }

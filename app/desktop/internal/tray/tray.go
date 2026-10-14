@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // Package tray is PopoverView.swift as a system tray menu: status, RAID
-// health, the web app, one row per folder, Add Folder… (addfolder.go),
+// health, the web app, one row per folder (its submenu: Open - see
+// openfolder.go -, Images, Remove), Add Folder… (addfolder.go),
 // settings, start at login, quit. Dialogs are the OS's own (a folder
 // chooser, a text entry, a list) rather than a window of ours, so the
 // binary stays free of a GUI toolkit and cross-compiles from anywhere.
+// Every text in them and in the menu goes through native.go (Windows draws
+// the isolation marks around user text as boxes).
 package tray
 
 import (
@@ -91,7 +94,9 @@ type Controller interface {
 }
 
 type folderItem struct {
-	item   *systray.MenuItem
+	item *systray.MenuItem
+	// Issue #197: shows the folder in the file manager (openfolder.go).
+	open   *systray.MenuItem
 	remove *systray.MenuItem
 	// Issue #192: "Kept Out of Images" and the line under it (images.go).
 	images     *systray.MenuItem
@@ -157,8 +162,8 @@ func Refresh() {
 
 func (u *ui) onReady() {
 	l := setLang(u.c.Config())
-	systray.SetTitle("")
-	systray.SetTooltip(i18n.DeskMainTitle().Render(l))
+	setTrayTitle("")
+	setTrayTip(i18n.DeskMainTitle().Render(l))
 	u.build(nil)
 	u.apply()
 	go u.watchUpdates()
@@ -191,7 +196,7 @@ func (u *ui) setTitle(mi *systray.MenuItem, s string) {
 		return
 	}
 	u.titles[mi] = s
-	mi.SetTitle(s)
+	setItemTitle(mi, s)
 }
 
 func (u *ui) setTip(mi *systray.MenuItem, s string) {
@@ -199,7 +204,7 @@ func (u *ui) setTip(mi *systray.MenuItem, s string) {
 		return
 	}
 	u.tips[mi] = s
-	mi.SetTooltip(s)
+	setItemTip(mi, s)
 }
 
 func (u *ui) setShown(mi *systray.MenuItem, on bool) {
@@ -264,41 +269,42 @@ func (u *ui) build(folders []config.FolderStatus) {
 	// The texts are the menu's language now; apply writes them again
 	// (applyTexts), in the language then in effect.
 	l := lang()
-	u.title = systray.AddMenuItem(i18n.DeskMainTitle().Render(l), "")
-	u.appUpdate = systray.AddMenuItem("", "")
+	u.title = addMenuItem(i18n.DeskMainTitle().Render(l), "")
+	u.appUpdate = addMenuItem("", "")
 	u.appUpdate.Hide()
 	u.title.Disable()
-	u.status = systray.AddMenuItem(i18n.DeskMainStatusNotConnected().Render(l), "")
+	u.status = addMenuItem(i18n.DeskMainStatusNotConnected().Render(l), "")
 	u.status.Disable()
 	// Enabled, unlike the other status lines, or its submenu - the
 	// device's storage in GB, CPU and memory - would never open; clicking
 	// it does nothing. Storage first, as it details the line itself.
-	u.raid = systray.AddMenuItem("", "")
+	u.raid = addMenuItem("", "")
 	u.raid.Hide()
-	u.store = u.raid.AddSubMenuItem("", "")
+	u.store = addSubMenuItem(u.raid, "", "")
 	u.store.Disable()
 	u.store.Hide()
-	u.cpu = u.raid.AddSubMenuItem("", "")
+	u.cpu = addSubMenuItem(u.raid, "", "")
 	u.cpu.Disable()
-	u.mem = u.raid.AddSubMenuItem("", "")
+	u.mem = addSubMenuItem(u.raid, "", "")
 	u.mem.Disable()
-	u.update = systray.AddMenuItem("", "")
+	u.update = addMenuItem("", "")
 	u.update.Disable()
 	u.update.Hide()
 	// Issue #193: at the top, like the Mac's button beside the gear; shown
 	// once a device is set (apply).
-	u.web = systray.AddMenuItem(i18n.DeskMainOpenWebApp().Render(l), "")
+	u.web = addMenuItem(i18n.DeskMainOpenWebApp().Render(l), "")
 	u.web.Hide()
 	systray.AddSeparator()
-	u.empty = systray.AddMenuItem(i18n.DeskMainNoFolders().Render(l), "")
+	u.empty = addMenuItem(i18n.DeskMainNoFolders().Render(l), "")
 	u.empty.Disable()
 	u.folders = nil
 	for _, f := range folders {
-		mi := systray.AddMenuItem(folderTitle(f), "")
+		mi := addMenuItem(folderTitle(f), "")
+		open := addOpenItem(mi, f)
 		img, info := addImagesItems(mi)
 		upInfo := addUploadOnlyInfo(mi)
-		rm := mi.AddSubMenuItem(i18n.CommonRemove().Render(l), i18n.DeskMainRemoveTip().Render(l))
-		u.folders = append(u.folders, &folderItem{item: mi, remove: rm, images: img, imagesInfo: info, uploadInfo: upInfo, id: f.ID, remote: f.RemotePath != ""})
+		rm := addSubMenuItem(mi, i18n.CommonRemove().Render(l), i18n.DeskMainRemoveTip().Render(l))
+		u.folders = append(u.folders, &folderItem{item: mi, open: open, remove: rm, images: img, imagesInfo: info, uploadInfo: upInfo, id: f.ID, remote: f.RemotePath != ""})
 	}
 	if len(folders) > 0 {
 		u.empty.Hide()
@@ -307,16 +313,16 @@ func (u *ui) build(folders []config.FolderStatus) {
 	// The macOS app's "Add Folder…" (AddFolderChooser): the kind, its
 	// options, then the folder (addfolder.go). A dialog has no (i) buttons,
 	// so "What Do These Do?" explains the kinds and options.
-	u.add = systray.AddMenuItem(i18n.DeskMainAddFolder().Render(l), i18n.DeskMainAddFolderTip().Render(l))
-	u.explain = systray.AddMenuItem(i18n.DeskMainExplain().Render(l), i18n.DeskMainExplainTip().Render(l))
+	u.add = addMenuItem(i18n.DeskMainAddFolder().Render(l), i18n.DeskMainAddFolderTip().Render(l))
+	u.explain = addMenuItem(i18n.DeskMainExplain().Render(l), i18n.DeskMainExplainTip().Render(l))
 	// Connected: the device and Disconnect; not: the device and password.
-	u.settings = systray.AddMenuItem(u.settingsTitle(), "")
-	u.autost = systray.AddMenuItemCheckbox(autostartToggle(l), autostartToggleTip(l), u.c.AutostartEnabled())
+	u.settings = addMenuItem(u.settingsTitle(), "")
+	u.autost = addMenuItemCheckbox(autostartToggle(l), autostartToggleTip(l), u.c.AutostartEnabled())
 	u.language = addLanguageMenu(u.c.Config())
 	systray.AddSeparator()
-	u.setup = systray.AddMenuItem(i18n.DeskMainSetUpDevice().Render(l), i18n.DeskMainSetUpDeviceTip().Render(l))
+	u.setup = addMenuItem(i18n.DeskMainSetUpDevice().Render(l), i18n.DeskMainSetUpDeviceTip().Render(l))
 	systray.AddSeparator()
-	u.quit = systray.AddMenuItem(i18n.CommonQuit().Render(l), "")
+	u.quit = addMenuItem(i18n.CommonQuit().Render(l), "")
 
 	stop := make(chan struct{})
 	u.stopLoop = stop
@@ -364,6 +370,8 @@ func (u *ui) build(folders []config.FolderStatus) {
 				select {
 				case <-stop:
 					return
+				case <-fi.open.ClickedCh:
+					go u.openFolder(fi)
 				case <-fi.remove.ClickedCh:
 					u.removeFolder(fi)
 				case <-fi.images.ClickedCh:
@@ -440,11 +448,12 @@ func (u *ui) apply() {
 		u.lastIcon = st.Raid
 	}
 	if t := i18n.DeskMainTrayTip(line).Render(l); t != u.lastTrayTip {
-		systray.SetTooltip(t)
+		setTrayTip(t)
 		u.lastTrayTip = t
 	}
 	for i, f := range want {
 		u.setTitle(u.folders[i].item, folderTitle(f))
+		u.applyOpen(u.folders[i], f)
 		u.applyImages(u.folders[i], f)
 		u.applyUploadOnly(u.folders[i], f)
 	}
@@ -538,7 +547,7 @@ func progressText(lang string, progress float64, file string) string {
 func (u *ui) editConfig() *config.Config {
 	cfg, err := u.c.LoadConfig()
 	if err != nil {
-		_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
+		_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
 
 		return nil
 	}
@@ -569,7 +578,7 @@ func (u *ui) removeFolder(fi *folderItem) {
 		cfg.Folders = kept
 	}
 	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
+		_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
 	}
 	Refresh()
 }
@@ -577,7 +586,7 @@ func (u *ui) removeFolder(fi *folderItem) {
 // explainKinds is the tray's (i): the macOS chooser's three explanations.
 func (u *ui) explainKinds() {
 	l := lang()
-	_ = zenity.Info(explainText(l), zenity.Title(i18n.DeskMainExplainTitle().Render(l)), zenity.Width(520))
+	_ = dlgInfo(explainText(l), dlgTitle(i18n.DeskMainExplainTitle().Render(l)), zenity.Width(520))
 }
 
 // explainText is "What Do These Do?" in lang: the Mac chooser's (i)s - the
@@ -609,7 +618,7 @@ func (u *ui) addRemote() {
 	if !ok {
 		return
 	}
-	dir, err := zenity.SelectFile(zenity.Directory(), zenity.Title(i18n.DeskMainChooseDownload(remote).Render(lang())))
+	dir, err := zenity.SelectFile(zenity.Directory(), dlgTitle(i18n.DeskMainChooseDownload(remote).Render(lang())))
 	if err != nil || dir == "" {
 		return
 	}
@@ -619,7 +628,7 @@ func (u *ui) addRemote() {
 	}
 	cfg.RemoteFolders = append(cfg.RemoteFolders, config.RemoteFolder{ID: config.NewID(), RemotePath: remote, LocalPath: dir})
 	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
+		_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
 	}
 	Refresh()
 }
@@ -658,8 +667,8 @@ func (u *ui) settingsDialog() {
 	}
 	// The buttons' words too: Windows' own dialog says OK and Cancel in
 	// English otherwise.
-	entered, err := zenity.Entry(settingsHint(l), zenity.Title(i18n.DeskMainSettingsTitle().Render(l)), zenity.EntryText(current),
-		zenity.OKLabel(i18n.CommonOk().Render(l)), zenity.CancelLabel(i18n.CommonCancel().Render(l)))
+	entered, err := dlgEntry(settingsHint(l), dlgTitle(i18n.DeskMainSettingsTitle().Render(l)), dlgEntryText(current),
+		dlgOK(i18n.CommonOk().Render(l)), dlgCancel(i18n.CommonCancel().Render(l)))
 	if err != nil {
 		return
 	}
@@ -695,7 +704,7 @@ func (u *ui) settingsDialog() {
 	latest.Domain = cfg.Domain
 	if pw != "" {
 		if err := u.c.SetPassword(pw); err != nil {
-			_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
+			_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
 
 			return
 		}
@@ -704,7 +713,7 @@ func (u *ui) settingsDialog() {
 		_ = config.ClearLocalEndpoint() // the old device's (issue #190)
 	}
 	if err := u.c.SaveConfig(latest); err != nil {
-		_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
+		_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
 	}
 	Refresh()
 }
@@ -757,21 +766,21 @@ func (u *ui) disconnectDialog() {
 		return
 	}
 	l := lang()
-	if zenity.Question(i18n.DeskMainDisconnectMessage().Render(l),
-		zenity.Title(i18n.DeskMainDisconnectTitle(deviceLabel(cfg.Domain)).Render(l)),
-		zenity.OKLabel(i18n.CommonDisconnect().Render(l)), zenity.WarningIcon) != nil {
+	if dlgQuestion(i18n.DeskMainDisconnectMessage().Render(l),
+		dlgTitle(i18n.DeskMainDisconnectTitle(deviceLabel(cfg.Domain)).Render(l)),
+		dlgOK(i18n.CommonDisconnect().Render(l)), zenity.WarningIcon) != nil {
 		return
 	}
 	cfg.Folders = nil
 	cfg.RemoteFolders = nil
 	cfg.Domain = ""
 	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = zenity.Error(errorText(l, err), zenity.Title("Off The Cloud"))
+		_ = dlgError(errorText(l, err), dlgTitle("Off The Cloud"))
 		return
 	}
 	_ = config.ClearLocalEndpoint() // and its home-network endpoint (issue #190)
 	if err := u.c.SetPassword(""); err != nil {
-		_ = zenity.Error(errorText(l, err), zenity.Title("Off The Cloud"))
+		_ = dlgError(errorText(l, err), dlgTitle("Off The Cloud"))
 	}
 	Refresh()
 	u.settingsDialog()
@@ -786,15 +795,15 @@ func (u *ui) openWebApp() {
 		return
 	}
 	if err := browser.Open(addr); err != nil {
-		_ = zenity.Error(i18n.DeskMainBrowserFailed(err.Error(), addr).Render(lang()),
-			zenity.Title("Off The Cloud"))
+		_ = dlgError(i18n.DeskMainBrowserFailed(err.Error(), addr).Render(lang()),
+			dlgTitle("Off The Cloud"))
 	}
 }
 
 func (u *ui) toggleAutostart() {
 	enable := !u.c.AutostartEnabled()
 	if err := u.c.SetAutostart(enable); err != nil {
-		_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
+		_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
 	}
 	Refresh()
 }
@@ -963,14 +972,14 @@ func (u *ui) installUpdate() {
 		return
 	}
 	l := lang()
-	u.appUpdate.SetTitle(i18n.DeskMainAppUpdating(up.Version).Render(l))
+	setItemTitle(u.appUpdate, i18n.DeskMainAppUpdating(up.Version).Render(l))
 	u.appUpdate.Disable()
 	u.forget(u.appUpdate) // written directly: the next apply writes it again, as it always did
 	if err := selfupdate.Apply(up); err != nil {
-		u.appUpdate.SetTitle("⬆ " + i18n.DeskMainAppUpdate(up.Version).Render(l))
+		setItemTitle(u.appUpdate, "⬆ "+i18n.DeskMainAppUpdate(up.Version).Render(l))
 		u.appUpdate.Enable()
 		u.forget(u.appUpdate)
-		_ = zenity.Error(i18n.DeskMainAppUpdateFailed(errorText(l, err)).Render(l), zenity.Title("Off The Cloud"))
+		_ = dlgError(i18n.DeskMainAppUpdateFailed(errorText(l, err)).Render(l), dlgTitle("Off The Cloud"))
 		return
 	}
 	service.RestartIfActive()
@@ -987,9 +996,9 @@ func (u *ui) installUpdate() {
 // zenity's Windows password dialog labels its field "Password:" in English,
 // so there an entry with hidden text carries the label in l instead.
 func askPassword(l, title string) (string, error) {
-	opts := []zenity.Option{zenity.Title(title), zenity.OKLabel(i18n.CommonOk().Render(l)), zenity.CancelLabel(i18n.CommonCancel().Render(l))}
+	opts := []zenity.Option{dlgTitle(title), dlgOK(i18n.CommonOk().Render(l)), dlgCancel(i18n.CommonCancel().Render(l))}
 	if runtime.GOOS == "windows" {
-		return zenity.Entry(i18n.CommonPassword().Render(l), append(opts, zenity.HideText())...)
+		return dlgEntry(i18n.CommonPassword().Render(l), append(opts, zenity.HideText())...)
 	}
 	_, pw, err := zenity.Password(opts...)
 	return pw, err

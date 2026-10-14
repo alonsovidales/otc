@@ -183,6 +183,10 @@
     "text": "{done} di {total}",
     "en": "{done} of {total}"
   },
+  "macos.folders.open_tip": {
+    "text": "Apri {path} nel Finder",
+    "en": "Open {path} in Finder"
+  },
   "macos.folders.restored_files": {
     "text": "{files} file erano spariti dal dispositivo: sono stati ripristinati da questo Mac anziché essere eliminati qui",
     "en": "{files} files had disappeared from the device - restored them from this Mac instead of deleting them here"

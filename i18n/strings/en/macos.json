@@ -220,6 +220,11 @@
     "note": "Mac app: a folder's progress while it sends or receives files, before the file's name: the file {done} of {total}. Both are numbers, already formatted.",
     "max": 30
   },
+  "macos.folders.open_tip": {
+    "text": "Open {path} in Finder",
+    "args": [["path", "user"]],
+    "note": "Mac app: tooltip and VoiceOver hint of a folder's icon and name in the panel; a click shows that folder in a Finder window. {path} is the folder's full path on this Mac (for example /Users/ana/Photos). Write Finder as Apple does in your language (en el Finder, dans le Finder, im Finder)."
+  },
   "macos.folders.restored_files": {
     "text": "{files} files had disappeared from the device - restored them from this Mac instead of deleting them here",
     "args": [["files", "text"]],

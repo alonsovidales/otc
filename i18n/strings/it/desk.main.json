@@ -154,6 +154,10 @@
     "text": "Backup eseguito",
     "en": "Backed up"
   },
+  "desk.main.folder_missing": {
+    "text": "La cartella “{name}” non si trova più in {path}: potrebbe essere stata spostata, rinominata o eliminata.",
+    "en": "The folder “{name}” is no longer at {path} - it may have been moved, renamed or deleted."
+  },
   "desk.main.folder_offline": {
     "text": "Dispositivo offline: riprenderà",
     "en": "Device offline - will resume"
@@ -238,6 +242,14 @@
     "text": "{url} non è firmato con la chiave di rilascio",
     "en": "{url} is not signed with the release key",
     "reviewed": "claude-backtranslation 2026-10-11 #8d2762fe"
+  },
+  "desk.main.open_folder_failed": {
+    "text": "Impossibile aprire la cartella:\n\n{detail}\n\nSi trova in {path}",
+    "en": "The folder could not be opened:\n\n{detail}\n\nIt is at {path}"
+  },
+  "desk.main.open_folder_tip": {
+    "text": "Apri {path} nel file manager",
+    "en": "Open {path} in your file manager"
   },
   "desk.main.open_web_app": {
     "text": "Apri app web",

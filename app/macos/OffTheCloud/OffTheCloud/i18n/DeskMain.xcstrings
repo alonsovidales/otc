@@ -1740,6 +1740,53 @@
         }
       }
     },
+    "desk.main.folder_missing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Ordner „%1$@“ ist nicht mehr unter %2$@ – er wurde möglicherweise verschoben, umbenannt oder gelöscht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The folder “%1$@” is no longer at %2$@ - it may have been moved, renamed or deleted."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La carpeta “%1$@” ya no está en %2$@: puede que se haya movido, renombrado o eliminado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le dossier « %1$@ » ne se trouve plus à l’emplacement %2$@ : il a peut-être été déplacé, renommé ou supprimé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La cartella “%1$@” non si trova più in %2$@: potrebbe essere stata spostata, rinominata o eliminata."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De map “%1$@” staat niet meer op %2$@: mogelijk is die verplaatst, hernoemd of verwijderd."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A pasta «%1$@» já não está em %2$@: pode ter sido movida, eliminada ou ter mudado de nome."
+          }
+        }
+      }
+    },
     "desk.main.folder_offline" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2676,6 +2723,100 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ não está assinado com a chave de assinatura de versões"
+          }
+        }
+      }
+    },
+    "desk.main.open_folder_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Ordner konnte nicht geöffnet werden:\n\n%1$@\n\nEr befindet sich unter %2$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The folder could not be opened:\n\n%1$@\n\nIt is at %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se ha podido abrir la carpeta:\n\n%1$@\n\nEstá en %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d’ouvrir le dossier :\n\n%1$@\n\nIl se trouve à l’emplacement %2$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile aprire la cartella:\n\n%1$@\n\nSi trova in %2$@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De map kon niet worden geopend:\n\n%1$@\n\nDie staat op %2$@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível abrir a pasta:\n\n%1$@\n\nEstá em %2$@"
+          }
+        }
+      }
+    },
+    "desk.main.open_folder_tip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ in deinem Dateimanager öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open %1$@ in your file manager"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir %1$@ en tu gestor de archivos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir %1$@ dans votre gestionnaire de fichiers"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri %1$@ nel file manager"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ openen in je bestandsbeheerder"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir %1$@ no teu gestor de ficheiros"
           }
         }
       }

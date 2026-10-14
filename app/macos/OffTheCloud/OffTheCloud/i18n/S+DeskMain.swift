@@ -228,6 +228,13 @@ extension S {
     /// Both apps: a backup folder's state once everything in it is on the device.
     static var deskMainFolderBackedUp: String { L("desk.main.folder_backed_up", table: "DeskMain") }
 
+    /// The folder “{name}” is no longer at {path} - it may have been moved, renamed or deleted.
+    ///
+    /// Both apps: a folder was clicked to open it (on the Mac its name in the panel, shown as an orange caption under its row; in otc-sync Open in its submenu, shown in an error dialog), but it is no longer on this computer. {name} is the folder's name, {path} the full path where the app expects it. Nothing is changed: the folder stays in the app.
+    static func deskMainFolderMissing(name: String, path: String) -> String {
+        L("desk.main.folder_missing", table: "DeskMain", L10n.isolate(name), L10n.isolate(path))
+    }
+
     /// Device offline - will resume
     ///
     /// Both apps: a folder's state when the connection dropped during a pass; it carries on once the device is back.
@@ -338,6 +345,24 @@ extension S {
     /// otc-sync: reason a download was refused: {url} (a web address) isn't signed by Off The Cloud's release key, so it isn't trusted.
     static func deskMainNotSigned(url: String) -> String {
         L("desk.main.not_signed", table: "DeskMain", url)
+    }
+
+    /// The folder could not be opened:
+    ///
+    /// {detail}
+    ///
+    /// It is at {path}
+    ///
+    /// otc-sync: error dialog when Open in a folder's submenu can't start the file manager. {detail} is the system's own reason, in English; {path} is the folder's full path on this computer, for the user to open by hand. Keep the blank lines.
+    static func deskMainOpenFolderFailed(detail: String, path: String) -> String {
+        L("desk.main.open_folder_failed", table: "DeskMain", detail, L10n.isolate(path))
+    }
+
+    /// Open {path} in your file manager
+    ///
+    /// otc-sync (Windows and Linux): tooltip of Open, the first item of a folder's submenu in the tray menu, which shows the folder in the system's file manager (File Explorer on Windows, the desktop's own on Linux). {path} is the folder's full path on this computer.
+    static func deskMainOpenFolderTip(path: String) -> String {
+        L("desk.main.open_folder_tip", table: "DeskMain", L10n.isolate(path))
     }
 
     /// Open Web App

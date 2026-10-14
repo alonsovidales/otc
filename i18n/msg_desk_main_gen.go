@@ -189,6 +189,11 @@ func DeskMainFolderBackedUp() Msg {
 	return Msg{Key: "desk.main.folder_backed_up"}
 }
 
+// DeskMainFolderMissing is desk.main.folder_missing: "The folder “{name}” is no longer at {path} - it may have been moved, renamed or …".
+func DeskMainFolderMissing(name string, path string) Msg {
+	return Msg{Key: "desk.main.folder_missing", Args: map[string]any{"name": name, "path": path}}
+}
+
 // DeskMainFolderOffline is desk.main.folder_offline: "Device offline - will resume".
 func DeskMainFolderOffline() Msg {
 	return Msg{Key: "desk.main.folder_offline"}
@@ -287,6 +292,16 @@ func DeskMainNotConnectedError() Msg {
 // DeskMainNotSigned is desk.main.not_signed: "{url} is not signed with the release key".
 func DeskMainNotSigned(url string) Msg {
 	return Msg{Key: "desk.main.not_signed", Args: map[string]any{"url": url}}
+}
+
+// DeskMainOpenFolderFailed is desk.main.open_folder_failed: "The folder could not be opened:\n\n{detail}\n\nIt is at {path}".
+func DeskMainOpenFolderFailed(detail string, path string) Msg {
+	return Msg{Key: "desk.main.open_folder_failed", Args: map[string]any{"detail": detail, "path": path}}
+}
+
+// DeskMainOpenFolderTip is desk.main.open_folder_tip: "Open {path} in your file manager".
+func DeskMainOpenFolderTip(path string) Msg {
+	return Msg{Key: "desk.main.open_folder_tip", Args: map[string]any{"path": path}}
 }
 
 // DeskMainOpenWebApp is desk.main.open_web_app: "Open Web App".

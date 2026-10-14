@@ -246,6 +246,13 @@ extension S {
         L("macos.folders.count", table: "Macos", done, total)
     }
 
+    /// Open {path} in Finder
+    ///
+    /// Mac app: tooltip and VoiceOver hint of a folder's icon and name in the panel; a click shows that folder in a Finder window. {path} is the folder's full path on this Mac (for example /Users/ana/Photos). Write Finder as Apple does in your language (en el Finder, dans le Finder, im Finder).
+    static func macosFoldersOpenTip(path: String) -> String {
+        L("macos.folders.open_tip", table: "Macos", L10n.isolate(path))
+    }
+
     /// {files} files had disappeared from the device - restored them from this Mac instead of deleting them here
     ///
     /// Mac app: a two-way folder's note after many of its files vanished from the device at once: the app uploaded them again instead of deleting them on this Mac. {files} is how many (always more than 20), written as plain digits.

@@ -151,8 +151,11 @@ var (
 	pickerProcCB    uintptr
 )
 
+// utf16 is a text for Windows as its controls show it (nativeText): every
+// word the picker shows - its title, prompt, buttons and rows - goes
+// through here.
 func utf16(s string) *uint16 {
-	p, _ := syscall.UTF16PtrFromString(s)
+	p, _ := syscall.UTF16PtrFromString(nativeText(s))
 
 	return p
 }
@@ -296,7 +299,7 @@ func (p *picker) fitChoose(text string) {
 // textWidth is how many pixels text takes in the window's font; 0 when it
 // can't be measured.
 func (p *picker) textWidth(text string) int {
-	u, err := windows.UTF16FromString(text)
+	u, err := windows.UTF16FromString(nativeText(text))
 	if err != nil || len(u) < 2 {
 		return 0
 	}

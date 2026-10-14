@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"fyne.io/systray"
-	"github.com/ncruces/zenity"
 
 	"github.com/alonsovidales/otc/app/desktop/internal/config"
 	"github.com/alonsovidales/otc/app/desktop/internal/oslang"
@@ -38,11 +37,11 @@ func addLanguageMenu(cfg *config.Config) *languageMenu {
 		return nil
 	}
 	lang := oslang.Effective(cfg.Language)
-	m := &languageMenu{root: systray.AddMenuItem(languageTitle(lang), "")}
-	m.items = append(m.items, m.root.AddSubMenuItemCheckbox(automaticTitle(lang), "", false))
+	m := &languageMenu{root: addMenuItem(languageTitle(lang), "")}
+	m.items = append(m.items, addSubMenuItemCheckbox(m.root, automaticTitle(lang), "", false))
 	m.codes = append(m.codes, "")
 	for _, l := range i18n.Languages() {
-		m.items = append(m.items, m.root.AddSubMenuItemCheckbox(l.Name, "", false))
+		m.items = append(m.items, addSubMenuItemCheckbox(m.root, l.Name, "", false))
 		m.codes = append(m.codes, l.Code)
 	}
 
@@ -112,7 +111,7 @@ func (u *ui) chooseLanguage(code string) {
 	}
 	pickLanguage(cfg, code, u.c.Snapshot(), time.Now())
 	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = zenity.Error(err.Error(), zenity.Title("Off The Cloud"))
+		_ = dlgError(err.Error(), dlgTitle("Off The Cloud"))
 	}
 }
 

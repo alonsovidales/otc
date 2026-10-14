@@ -35,7 +35,7 @@ func uploadOnlySuffix(f config.FolderStatus) string {
 // addUploadOnlyInfo adds a folder's line for the device's refusal to its
 // submenu, hidden until there is one.
 func addUploadOnlyInfo(mi *systray.MenuItem) *systray.MenuItem {
-	info := mi.AddSubMenuItem("", "")
+	info := addSubMenuItem(mi, "", "")
 	info.Disable()
 	info.Hide()
 

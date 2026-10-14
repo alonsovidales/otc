@@ -154,6 +154,10 @@
     "text": "Sauvegardé",
     "en": "Backed up"
   },
+  "desk.main.folder_missing": {
+    "text": "Le dossier « {name} » ne se trouve plus à l’emplacement {path} : il a peut-être été déplacé, renommé ou supprimé.",
+    "en": "The folder “{name}” is no longer at {path} - it may have been moved, renamed or deleted."
+  },
   "desk.main.folder_offline": {
     "text": "Appareil hors ligne, reprise plus tard",
     "en": "Device offline - will resume"
@@ -238,6 +242,14 @@
     "text": "le contenu de {url} n’est pas signé avec la clé de publication",
     "en": "{url} is not signed with the release key",
     "reviewed": "claude-backtranslation 2026-10-11 #9cb39708"
+  },
+  "desk.main.open_folder_failed": {
+    "text": "Impossible d’ouvrir le dossier :\n\n{detail}\n\nIl se trouve à l’emplacement {path}",
+    "en": "The folder could not be opened:\n\n{detail}\n\nIt is at {path}"
+  },
+  "desk.main.open_folder_tip": {
+    "text": "Ouvrir {path} dans votre gestionnaire de fichiers",
+    "en": "Open {path} in your file manager"
   },
   "desk.main.open_web_app": {
     "text": "Ouvrir l’app web",

@@ -154,6 +154,10 @@
     "text": "Gesichert",
     "en": "Backed up"
   },
+  "desk.main.folder_missing": {
+    "text": "Der Ordner „{name}“ ist nicht mehr unter {path} – er wurde möglicherweise verschoben, umbenannt oder gelöscht.",
+    "en": "The folder “{name}” is no longer at {path} - it may have been moved, renamed or deleted."
+  },
   "desk.main.folder_offline": {
     "text": "Gerät offline – wird fortgesetzt",
     "en": "Device offline - will resume"
@@ -238,6 +242,14 @@
     "text": "{url} ist nicht mit dem Release-Schlüssel signiert",
     "en": "{url} is not signed with the release key",
     "reviewed": "claude-backtranslation 2026-10-11 #9ecf766d"
+  },
+  "desk.main.open_folder_failed": {
+    "text": "Der Ordner konnte nicht geöffnet werden:\n\n{detail}\n\nEr befindet sich unter {path}",
+    "en": "The folder could not be opened:\n\n{detail}\n\nIt is at {path}"
+  },
+  "desk.main.open_folder_tip": {
+    "text": "{path} in deinem Dateimanager öffnen",
+    "en": "Open {path} in your file manager"
   },
   "desk.main.open_web_app": {
     "text": "Web-App öffnen",

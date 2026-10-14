@@ -154,6 +154,10 @@
     "text": "Cópia concluída",
     "en": "Backed up"
   },
+  "desk.main.folder_missing": {
+    "text": "A pasta «{name}» já não está em {path}: pode ter sido movida, eliminada ou ter mudado de nome.",
+    "en": "The folder “{name}” is no longer at {path} - it may have been moved, renamed or deleted."
+  },
   "desk.main.folder_offline": {
     "text": "Dispositivo offline: vai retomar",
     "en": "Device offline - will resume"
@@ -238,6 +242,14 @@
     "text": "{url} não está assinado com a chave de assinatura de versões",
     "en": "{url} is not signed with the release key",
     "reviewed": "claude-backtranslation 2026-10-11 #3f6e6ff6"
+  },
+  "desk.main.open_folder_failed": {
+    "text": "Não foi possível abrir a pasta:\n\n{detail}\n\nEstá em {path}",
+    "en": "The folder could not be opened:\n\n{detail}\n\nIt is at {path}"
+  },
+  "desk.main.open_folder_tip": {
+    "text": "Abrir {path} no teu gestor de ficheiros",
+    "en": "Open {path} in your file manager"
   },
   "desk.main.open_web_app": {
     "text": "Abrir app web",

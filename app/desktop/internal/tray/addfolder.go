@@ -188,9 +188,9 @@ func chooseKind() (folderKind, bool) {
 	kinds := []folderKind{kindBackup, kindLocal, kindDevice}
 	items := kindItems(l, kinds, checklists)
 	for {
-		pick, err := zenity.List(listText(i18n.DeskFoldersAddPrompt().Render(l)), items,
-			zenity.Title(i18n.DeskFoldersAddTitle().Render(l)), zenity.OKLabel(i18n.CommonNext().Render(l)),
-			zenity.CancelLabel(i18n.CommonCancel().Render(l)),
+		pick, err := dlgList(listText(i18n.DeskFoldersAddPrompt().Render(l)), items,
+			dlgTitle(i18n.DeskFoldersAddTitle().Render(l)), dlgOK(i18n.CommonNext().Render(l)),
+			dlgCancel(i18n.CommonCancel().Render(l)),
 			zenity.DisallowEmpty(), zenity.Width(620), zenity.Height(260))
 		if err != nil {
 			return 0, false
@@ -229,9 +229,9 @@ func chooseOptions(k folderKind, opts []addOption) (map[addOption]bool, error) {
 			// Yes, No and Cancel (MB_YESNOCANCEL): Cancel is the dialog's
 			// own cancel button, so closing it or Esc stops too, rather
 			// than meaning No.
-			yes, err := questionAnswer(zenity.Question(optionQuestion(k, o), zenity.Title(kindTitles[k].Render(l)),
-				zenity.OKLabel(i18n.DeskFoldersYes().Render(l)), zenity.ExtraButton(i18n.DeskFoldersNo().Render(l)),
-				zenity.CancelLabel(i18n.CommonCancel().Render(l))))
+			yes, err := questionAnswer(dlgQuestion(optionQuestion(k, o), dlgTitle(kindTitles[k].Render(l)),
+				dlgOK(i18n.DeskFoldersYes().Render(l)), dlgExtra(i18n.DeskFoldersNo().Render(l)),
+				dlgCancel(i18n.CommonCancel().Render(l))))
 			if err != nil {
 				return nil, err
 			}
@@ -244,10 +244,10 @@ func chooseOptions(k folderKind, opts []addOption) (map[addOption]bool, error) {
 	for i, o := range opts {
 		items[i] = optionLabels[o].Render(l)
 	}
-	picked, err := zenity.ListMultiple(listText(optionsText(k, opts)), items, zenity.CheckList(),
-		zenity.Title(kindTitles[k].Render(l)), zenity.OKLabel(i18n.DeskMainChooseFolder().Render(l)),
-		zenity.CancelLabel(i18n.CommonCancel().Render(l)),
-		zenity.ExtraButton(i18n.CommonBack().Render(l)), zenity.Width(620), zenity.Height(480))
+	picked, err := dlgListMultiple(listText(optionsText(k, opts)), items, zenity.CheckList(),
+		dlgTitle(kindTitles[k].Render(l)), dlgOK(i18n.DeskMainChooseFolder().Render(l)),
+		dlgCancel(i18n.CommonCancel().Render(l)),
+		dlgExtra(i18n.CommonBack().Render(l)), zenity.Width(620), zenity.Height(480))
 	if errors.Is(err, zenity.ErrExtraButton) {
 		return nil, errBack
 	}
@@ -268,7 +268,7 @@ func (u *ui) addLocalFolder(k folderKind, chosen map[addOption]bool) {
 	if k == kindBackup {
 		title = i18n.DeskFoldersChooseBackupFolder()
 	}
-	dir, err := zenity.SelectFile(zenity.Directory(), zenity.Title(title.Render(lang())))
+	dir, err := zenity.SelectFile(zenity.Directory(), dlgTitle(title.Render(lang())))
 	if err != nil || dir == "" {
 		return
 	}
@@ -280,7 +280,7 @@ func (u *ui) addLocalFolder(k folderKind, chosen map[addOption]bool) {
 	// (migrateFolders), its requests with it.
 	cfg.Folders = append(cfg.Folders, newLocalFolder(dir, k, chosen))
 	if err := u.c.SaveConfig(cfg); err != nil {
-		_ = zenity.Error(errorText(lang(), err), zenity.Title("Off The Cloud"))
+		_ = dlgError(errorText(lang(), err), dlgTitle("Off The Cloud"))
 	}
 	Refresh()
 }

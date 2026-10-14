@@ -7,14 +7,24 @@ import "golang.org/x/sys/windows"
 // open asks the shell to open the address, which starts the default
 // browser - no child process of ours, and no console window.
 func open(addr string) error {
-	verb, err := windows.UTF16PtrFromString("open")
+	return shellExecute("open", addr)
+}
+
+// openFolder asks the shell to explore the folder: File Explorer shows it.
+// The "explore" verb only opens folders, never runs a file.
+func openFolder(path string) error {
+	return shellExecute("explore", path)
+}
+
+func shellExecute(verb, target string) error {
+	v, err := windows.UTF16PtrFromString(verb)
 	if err != nil {
 		return err
 	}
-	file, err := windows.UTF16PtrFromString(addr)
+	file, err := windows.UTF16PtrFromString(target)
 	if err != nil {
 		return err
 	}
 
-	return windows.ShellExecute(0, verb, file, nil, nil, windows.SW_SHOWNORMAL)
+	return windows.ShellExecute(0, v, file, nil, nil, windows.SW_SHOWNORMAL)
 }

@@ -12,15 +12,27 @@ import (
 )
 
 // open hands the address to the desktop: xdg-open on Linux, open on a Mac
-// (where this Go build only runs during development). An early failure -
-// no browser set up, say - is reported; the browser itself isn't waited
-// for, since xdg-open may run it in the foreground until it is closed.
+// (where this Go build only runs during development).
 func open(addr string) error {
+	return start(addr)
+}
+
+// openFolder hands a folder to the desktop the same way: xdg-open shows it
+// in the file manager the desktop has for folders (the Mac's open, in
+// Finder).
+func openFolder(path string) error {
+	return start(path)
+}
+
+// start runs the desktop's opener on arg. An early failure - no browser
+// or file manager set up, say - is reported; what it opens isn't waited
+// for, since xdg-open may run it in the foreground until it is closed.
+func start(arg string) error {
 	name := "xdg-open"
 	if runtime.GOOS == "darwin" {
 		name = "open"
 	}
-	cmd := exec.Command(name, addr)
+	cmd := exec.Command(name, arg)
 	if err := cmd.Start(); err != nil {
 		return err
 	}
