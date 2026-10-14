@@ -9,6 +9,8 @@
   "web.shell.connection.not_connected": "Sem ligação ao dispositivo",
   "web.shell.connection.signed_in_meanwhile": "Entretanto, a sessão foi iniciada.",
   "web.shell.connection.too_many": "Demasiadas tentativas. Tenta novamente daqui a um minuto.",
+  "web.shell.device_updated.reload": "Recarregar",
+  "web.shell.device_updated.text": "O teu dispositivo foi atualizado. Recarrega esta página para usares a nova versão.",
   "web.shell.download.dismiss": "Ignorar",
   "web.shell.download.downloading": "A transferir…",
   "web.shell.download.downloading_sr": "A transferir \u2068{name}\u2069",

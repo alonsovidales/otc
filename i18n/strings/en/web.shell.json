@@ -46,6 +46,15 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #11054acd"
   },
+  "web.shell.device_updated.reload": {
+    "text": "Reload",
+    "note": "Button on the note at the foot of the page that says the device was updated (web.shell.device_updated.text): reloads the page, which then shows the new version of the web app. Beside it, an × closes the note.",
+    "max": 24
+  },
+  "web.shell.device_updated.text": {
+    "text": "Your device was updated. Reload this page to use the new version.",
+    "note": "Note at the foot of the web app, shown when the device installed an update while this page was open: the page still runs the version from before until it is reloaded. Nothing reloads by itself. Buttons beside it: Reload (web.shell.device_updated.reload) and an × that closes the note."
+  },
   "web.shell.download.dismiss": {
     "text": "Dismiss",
     "note": "Screen-reader name of the × that closes the note of a failed download.",

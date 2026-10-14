@@ -651,12 +651,12 @@
   },
   "web.files.toolbar.grid": {
     "text": "Grid",
-    "note": "Files: tooltip of the button that shows the folder as a grid of thumbnails.",
+    "note": "Files: tooltip and screen-reader name of the button that shows the folder as a grid of thumbnails.",
     "max": 16
   },
   "web.files.toolbar.list": {
     "text": "List",
-    "note": "Files: tooltip of the button that shows the folder as a list (name, size, dates).",
+    "note": "Files: tooltip and screen-reader name of the button that shows the folder as a list (name, size, dates).",
     "max": 16
   },
   "web.files.toolbar.path": {

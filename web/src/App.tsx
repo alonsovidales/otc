@@ -31,6 +31,7 @@ import DeviceUnreachable from "./components/DeviceUnreachable";
 import Spinner from "./components/Spinner";
 import { getDeviceStatus, subscribeDeviceStatus } from "./net/deviceStatus";
 import UpdateBanner from "./components/UpdateBanner";
+import DeviceUpdatedNotice from "./components/DeviceUpdatedNotice";
 import type { DeviceStatus } from "./net/deviceStatus";
 import { loadLastTab, saveLastTab } from "./net/uiState";
 import SharedGalleryView from "./components/SharedGalleryView";
@@ -164,6 +165,9 @@ function App() {
     protoWs = 'wss://';
   }
   let endpoint = protoWs + window.location.host + '/ws';
+  // The device itself served this page (not Vite on localhost, not a
+  // container): only then does a device update bring a new web app.
+  const servedByDevice = !cfg && !window.location.host.startsWith('localhost');
   if (window.location.host.startsWith('localhost')) {
     // Development (npm run dev / preview): VITE_DEVICE=pit.off-the.cloud
     // picks the device; Cala otherwise.
@@ -554,6 +558,7 @@ function App() {
       )}
       <div className={`app-body${authenticated ? ` menu-${menuLayout}` : ""}${menuSlides ? " menu-slides" : ""}`}>
       {authenticated && <UpdateBanner onOpenSettings={() => setTab("Settings")} />}
+      {servedByDevice && <DeviceUpdatedNotice />}
       {/* Images, People and Collections space their own headers; every
           other page starts a gap below the top bar's line. */}
       <main className={cOwnTopTabs.includes(tab) ? undefined : "main-gap"}>

@@ -3,6 +3,8 @@
 package api
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"github.com/alonsovidales/otc/cfg"
 	"github.com/alonsovidales/otc/dao"
@@ -10,7 +12,11 @@ import (
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/staticassets"
 	"github.com/alonsovidales/otc/websocket"
+	"io"
 	"net/http"
+	"os"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -28,6 +34,11 @@ const (
 	// token minted over the authenticated socket. See serveMedia.
 	cMediaPath = "GET /media/{token}"
 )
+
+// cHashedAssetPath is a Vite build file: /assets/<name>-<8-character
+// content hash>.<ext> - the bridge's rule too (bridge/api's
+// cHashedAssetPath), for the same files relayed from here.
+var cHashedAssetPath = regexp.MustCompile(`^/assets/[^/]+-[A-Za-z0-9_-]{8}\.[A-Za-z0-9]+$`)
 
 // API Structure that manage the HTTP API
 type API struct {
@@ -163,5 +174,59 @@ func (api *API) serveStatic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Debug("Serving static:", path)
+	if cc := staticCacheControl(r.URL.Path, path); cc != "" {
+		w.Header().Set("Cache-Control", cc)
+	}
+	if strings.HasSuffix(path, ".html") {
+		if etag := pageETag(path); etag != "" {
+			w.Header().Set("ETag", etag)
+		}
+	}
 	http.ServeFile(w, r, path)
+}
+
+// cMaxPageETag bounds what pageETag reads: the pages are a few KB.
+const cMaxPageETag = 1 << 20
+
+// pageETag is a page's validator from its content, which ServeFile then
+// answers If-None-Match with (and If-Modified-Since only without it). On
+// Last-Modified alone a revalidation would keep the old page when the new
+// one's file time isn't later - a release unpacks its web bundle with the
+// times it was built with, at one-second precision. "" (Last-Modified
+// alone, as before) when the file can't be read or is over cMaxPageETag.
+func pageETag(file string) string {
+	f, err := os.Open(file)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	h := sha256.New()
+	n, err := io.Copy(h, io.LimitReader(f, cMaxPageETag+1))
+	if err != nil || n > cMaxPageETag {
+		return ""
+	}
+	return `"` + hex.EncodeToString(h.Sum(nil)[:16]) + `"`
+}
+
+// staticCacheControl is how long a browser may keep a static answer (none
+// when ""): urlPath is what was asked for, file what Resolve served.
+//
+// A page - index.html, the SPA fallback answering a client-side route, or a
+// route's own .html - is always asked again ("no-cache": kept, but
+// revalidated with Last-Modified, a 304 when unchanged). Without it a
+// browser could keep the page by Last-Modified's heuristics for days after
+// an update, and the page names the build's scripts: an open tab, or one
+// reloaded, ran the old web app against the new device.
+//
+// Vite's content-hashed files never change under one name, so the browser
+// keeps them for good. Never for HTML: a missing asset is answered with
+// index.html, which must not get stuck under an asset URL.
+func staticCacheControl(urlPath, file string) string {
+	if strings.HasSuffix(file, ".html") {
+		return "no-cache"
+	}
+	if cHashedAssetPath.MatchString(urlPath) {
+		return "public, max-age=31536000, immutable"
+	}
+	return ""
 }

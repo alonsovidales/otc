@@ -9,6 +9,8 @@
   "web.shell.connection.not_connected": "Non connecté à l’appareil",
   "web.shell.connection.signed_in_meanwhile": "Connexion établie entre-temps.",
   "web.shell.connection.too_many": "Trop de tentatives. Réessayez dans une minute.",
+  "web.shell.device_updated.reload": "Recharger",
+  "web.shell.device_updated.text": "Votre appareil a été mis à jour. Rechargez cette page pour utiliser la nouvelle version.",
   "web.shell.download.dismiss": "Fermer",
   "web.shell.download.downloading": "Téléchargement…",
   "web.shell.download.downloading_sr": "Téléchargement de \u2068{name}\u2069",

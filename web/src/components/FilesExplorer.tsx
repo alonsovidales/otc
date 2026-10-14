@@ -1476,7 +1476,7 @@ export default function FilesExplorer({
       <div className={`c c-${key}`} role={inTable ? "columnheader" : undefined}
         aria-sort={inTable && on ? (order.dir === "asc" ? "ascending" : "descending") : undefined}>
         <button type="button" className={`fb-sort-btn${on ? " on" : ""}`} onClick={(e) => sortFromHeading(key, e.currentTarget)}
-          title={on ? orderText(t, order) : undefined} tabIndex={inTable ? undefined : -1}>
+          data-tip={on ? orderText(t, order) : undefined} tabIndex={inTable ? undefined : -1}>
           <span className="fb-sort-name">{label}</span>
           {on && <SortArrow dir={order.dir} />}
         </button>
@@ -1640,7 +1640,7 @@ export default function FilesExplorer({
             onClick={() => void loadList(path)}
             disabled={loading}
             aria-label={t("common.refresh")}
-            title={t("common.refresh")}
+            data-tip={t("common.refresh")}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
@@ -1648,21 +1648,23 @@ export default function FilesExplorer({
             </svg>
           </button>
           <div className="fb-viewmode" role="group" aria-label={t("web.files.toolbar.view")}>
-            <button className={viewMode === "list" ? "on" : ""} aria-pressed={viewMode === "list"} title={t("web.files.toolbar.list")} onClick={() => switchView("list")}>
+            <button className={viewMode === "list" ? "on" : ""} aria-pressed={viewMode === "list"}
+              aria-label={t("web.files.toolbar.list")} data-tip={t("web.files.toolbar.list")} onClick={() => switchView("list")}>
               <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8 6h13M8 12h13M8 18h13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 <circle cx="4" cy="6" r="1.5" fill="currentColor" /><circle cx="4" cy="12" r="1.5" fill="currentColor" /><circle cx="4" cy="18" r="1.5" fill="currentColor" />
               </svg>
             </button>
-            <button className={viewMode === "grid" ? "on" : ""} aria-pressed={viewMode === "grid"} title={t("web.files.toolbar.grid")} onClick={() => switchView("grid")}>
+            <button className={viewMode === "grid" ? "on" : ""} aria-pressed={viewMode === "grid"}
+              aria-label={t("web.files.toolbar.grid")} data-tip={t("web.files.toolbar.grid")} onClick={() => switchView("grid")}>
               <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
                 <rect x="3" y="3" width="7.5" height="7.5" rx="1.5" fill="currentColor" /><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" fill="currentColor" />
                 <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" fill="currentColor" /><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" fill="currentColor" />
               </svg>
             </button>
             {/* Issue #195: what takes the space in the folder. */}
-            <button className={viewMode === "storage" ? "on" : ""} aria-pressed={viewMode === "storage"} title={t("web.files.toolbar.storage")}
-              aria-label={t("web.files.toolbar.storage")} onClick={() => switchView("storage")}>
+            <button className={viewMode === "storage" ? "on" : ""} aria-pressed={viewMode === "storage"}
+              aria-label={t("web.files.toolbar.storage")} data-tip={t("web.files.toolbar.storage")} onClick={() => switchView("storage")}>
               <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
                 <rect x="3" y="4" width="18" height="4" rx="1.5" fill="currentColor" /><rect x="3" y="10" width="12" height="4" rx="1.5" fill="currentColor" />
                 <rect x="3" y="16" width="6" height="4" rx="1.5" fill="currentColor" />
@@ -1860,7 +1862,8 @@ export default function FilesExplorer({
               {preparing === "zip" ? <Spinner label={t("web.files.selection.preparing_zip")} /> : t("web.files.selection.download_zip")}
             </button>
             {singleFolder && (
-              <button className="btn" onClick={() => setSharingFolder(singleFolder)} title={t("web.files.selection.share_gallery_tip")}>
+              <button className="btn" onClick={() => setSharingFolder(singleFolder)}
+                data-tip={t("web.files.selection.share_gallery_tip")} aria-description={t("web.files.selection.share_gallery_tip")}>
                 {t("web.files.selection.share_gallery")}
               </button>
             )}
@@ -1906,7 +1909,9 @@ export default function FilesExplorer({
                   </button>
                 )}
                 {!r.isDir && r.versions > 0 && (
-                  <button className="fb-tile-versions" onClick={() => void openVersions(r.file)} title={t("web.files.versions.tip")}>{r.versions}</button>
+                  <button className="fb-tile-versions" onClick={() => void openVersions(r.file)}
+                    aria-label={t("web.files.versions.count", { count: r.versions })}
+                    data-tip={t("web.files.versions.tip")} aria-description={t("web.files.versions.tip")}>{r.versions}</button>
                 )}
                 <div className="fb-tile-name" title={r.name}>{r.name}</div>
               </div>
@@ -1968,7 +1973,8 @@ export default function FilesExplorer({
                   <span className="fb-lock on static" data-tip={t("web.files.lock.file")} role="img" aria-label={t("web.files.lock.file")}>{lockIcon(true)}</span>
                 )}
                 {!r.isDir && r.versions > 0 && (
-                  <button className="fb-versions" onClick={() => void openVersions(r.file)} title={t("web.files.versions.tip")}>
+                  <button className="fb-versions" onClick={() => void openVersions(r.file)}
+                    data-tip={t("web.files.versions.tip")} aria-description={t("web.files.versions.tip")}>
                     <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M4 12a8 8 0 1 0 2.34-5.66" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
                       <path d="M4 4v5h5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />

@@ -41,6 +41,14 @@
     "en": "Too many attempts. Try again in a minute.",
     "reviewed": "claude-backtranslation 2026-10-11 #a018eb38"
   },
+  "web.shell.device_updated.reload": {
+    "text": "Opnieuw laden",
+    "en": "Reload"
+  },
+  "web.shell.device_updated.text": {
+    "text": "Je apparaat is bijgewerkt. Laad deze pagina opnieuw om de nieuwe versie te gebruiken.",
+    "en": "Your device was updated. Reload this page to use the new version."
+  },
   "web.shell.download.dismiss": {
     "text": "Sluiten",
     "en": "Dismiss"

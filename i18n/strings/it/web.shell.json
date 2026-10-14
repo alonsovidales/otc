@@ -41,6 +41,14 @@
     "en": "Too many attempts. Try again in a minute.",
     "reviewed": "claude-backtranslation 2026-10-11 #b3da8bf5"
   },
+  "web.shell.device_updated.reload": {
+    "text": "Ricarica",
+    "en": "Reload"
+  },
+  "web.shell.device_updated.text": {
+    "text": "Il tuo dispositivo è stato aggiornato. Ricarica questa pagina per usare la nuova versione.",
+    "en": "Your device was updated. Reload this page to use the new version."
+  },
   "web.shell.download.dismiss": {
     "text": "Chiudi",
     "en": "Dismiss"

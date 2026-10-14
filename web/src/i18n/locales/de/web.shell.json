@@ -9,6 +9,8 @@
   "web.shell.connection.not_connected": "Keine Verbindung zum Gerät",
   "web.shell.connection.signed_in_meanwhile": "Inzwischen angemeldet.",
   "web.shell.connection.too_many": "Zu viele Versuche. Versuche es in einer Minute erneut.",
+  "web.shell.device_updated.reload": "Neu laden",
+  "web.shell.device_updated.text": "Dein Gerät wurde aktualisiert. Lade diese Seite neu, um die neue Version zu verwenden.",
   "web.shell.download.dismiss": "Schließen",
   "web.shell.download.downloading": "Wird heruntergeladen…",
   "web.shell.download.downloading_sr": "\u2068{name}\u2069 wird heruntergeladen",

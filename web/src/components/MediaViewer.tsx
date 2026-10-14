@@ -505,7 +505,8 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
             metadata": the button that opens it was never in view. */}
         <div className="pg-modal-hdr">
           {/* Issue #41: camera/EXIF metadata + location, on demand. */}
-          <button className={"pg-info-btn" + (infoOpen ? " on" : "")} title={t("web.images.viewer.more_info")} onClick={infoOpen ? closeInfo : openInfo}>
+          <button className={"pg-info-btn" + (infoOpen ? " on" : "")} onClick={infoOpen ? closeInfo : openInfo}
+            data-tip={t("web.images.viewer.more_info")} aria-description={t("web.images.viewer.more_info")}>
             <span className="pg-info-glyph">i</span> {t("web.images.viewer.info")}
           </button>
           <span className="pg-modal-title">{name}</span>
@@ -518,15 +519,16 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
             <button
               type="button"
               className="pg-modal-del"
-              title={blockedWhy ? blockedWhy(t) : t("common.delete")}
+              data-tip={blockedWhy ? blockedWhy(t) : t("common.delete")}
               aria-label={t("common.delete")}
+              aria-description={blockedWhy ? blockedWhy(t) : undefined}
               aria-disabled={blockedWhy ? true : undefined}
               onClick={askDelete}
             >
               <TrashGlyph />
             </button>
           )}
-          <button className="pg-close" title={t("common.close")} onClick={onClose}>×</button>
+          <button className="pg-close" aria-label={t("common.close")} data-tip={t("common.close")} onClick={onClose}>×</button>
         </div>
         <div
           className="pg-modal-imgwrap"

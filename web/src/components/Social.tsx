@@ -858,7 +858,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
                   title={(viewerFile.mime || "").startsWith("video/") ? t("web.social.viewer.download_video") : t("web.social.viewer.download_photo")}
                 />
               )}
-              <button type="button" className="sv-close" title={t("common.close")} aria-label={t("common.close")} onClick={closeViewer}>✕</button>
+              <button type="button" className="sv-close" data-tip={t("common.close")} aria-label={t("common.close")} onClick={closeViewer}>✕</button>
             </div>
             {viewerIsVideo ? (
               <div className="sv-full-wrap">
@@ -978,10 +978,10 @@ function PostNavButtons({ onPrev, onNext }: { onPrev: () => void; onNext: () => 
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   return (
     <>
-      <button type="button" className="sv-nav prev" aria-label={t("web.social.post.previous_item")} title={t("web.social.post.previous")}
+      <button type="button" className="sv-nav prev" aria-label={t("web.social.post.previous_item")} data-tip={t("web.social.post.previous")}
               onTouchStart={stop} onTouchEnd={stop}
               onClick={e => { e.stopPropagation(); onPrev(); }}>‹</button>
-      <button type="button" className="sv-nav next" aria-label={t("web.social.post.next_item")} title={t("web.social.post.next")}
+      <button type="button" className="sv-nav next" aria-label={t("web.social.post.next_item")} data-tip={t("web.social.post.next")}
               onTouchStart={stop} onTouchEnd={stop}
               onClick={e => { e.stopPropagation(); onNext(); }}>›</button>
     </>
@@ -1289,7 +1289,8 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
         {p.own && (
           <button
             className="sv-post-delete"
-            title={t("web.social.post.delete")}
+            aria-label={t("web.social.post.delete")}
+            data-tip={t("web.social.post.delete")}
             onClick={() => { if (window.confirm(t("web.social.post.confirm_delete"))) void deletePublication(p.uuid); }}
           >
             🗑️
@@ -1486,7 +1487,8 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
             {(p.own || c.own) && !c.commentUuid.startsWith("pending-") && (
               <button
                 className="sv-btn tiny"
-                title={t("web.social.comment.delete")}
+                aria-label={t("web.social.comment.delete")}
+                data-tip={t("web.social.comment.delete")}
                 onClick={() => { if (window.confirm(t("web.social.comment.confirm_delete"))) void deleteComment(c.commentUuid); }}
               >
                 🗑️

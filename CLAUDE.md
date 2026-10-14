@@ -885,7 +885,13 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   restart.
 - `api` — the small HTTP layer: healthcheck, the `/ws` upgrade, and static file serving (serves
   `web/dist` copied to the device's static path; appends `.html` to extensionless paths for
-  client-side routing). Listener bind errors are logged, not fatal.
+  client-side routing). Pages (`.html`: index.html, the SPA fallback, a route's page) are
+  `Cache-Control: no-cache` with a content ETag (`pageETag`: a release unpacks its bundle with
+  its build times, so Last-Modified alone could keep the old page); Vite's hashed
+  `/assets/<name>-<8 chars>.<ext>` are `immutable` (`staticCacheControl`, the bridge's
+  `cHashedAssetPath` rule; `TestServeStaticCacheHeaders`). The bridge's relay of these files sets
+  no Cache-Control, Last-Modified or ETag on HTML, so browsers never keep a page from it.
+  Listener bind errors are logged, not fatal.
 - `log` — leveled logger with size-based rotation, configured once in `main()` from `[logger]`.
   Code holding the logger's mutex exits with `die()`, never `Fatal` (a rotation that couldn't
   reopen the file used to hang).
@@ -1129,6 +1135,27 @@ provider and `useWS`). `web/` has no test runner
 (`node web/scripts/i18n-test.mjs` tests the i18n runtime and ws.ts's `lang` line through Vite's
 SSR loader); `npm run lint` already reports about 150 problems (mostly `no-explicit-any`), so
 compare counts before and after a change.
+
+"Your device was updated" (`components/DeviceUpdatedNotice.tsx`, rules in `deviceBuild.ts`,
+`node web/scripts/device-build-test.mjs`): a single-page app never reloads itself, so a tab open
+across a device update kept the old web app. A build is the web app's own entry script
+(`entryScript`: Vite's hashed `assets/index-*.js` in the page's HTML): the page notes its own at
+start, and after every accepted sign-in (`useWS.onSignedIn`: the first, and each a reconnect
+makes) fetches `/` with `cache: "no-store"` and notes the one the device serves now; another one
+shows a card at the foot of the page (in an always-present `role="status"` region, so it is
+announced) with Reload (`location.reload()`) and an ×. Never reloads by itself; one notice per
+build (dismissed, it comes back only for another build; back on the page's build it goes). Only
+where the device served the page (not `localhost` dev, not `__OTC_CONFIG`); it works for every
+account and needs nothing from the internet (an earlier draft compared `CheckUpdate`'s version,
+which only the primary instance answers and which fetches the release list from GitHub).
+
+Tooltips on the web are `data-tip` (`components/TipLayer.tsx`, mounted once in main.tsx: shown at
+once on hover and on keyboard focus, in a portal), not `title`, whose tip waits about a second. An
+icon-only control also gets an `aria-label` (`data-tip` isn't read out); a text button whose tip
+explains more carries the same text as `aria-description`. `title` stays only for a cut-off name's
+full text (Files' rows and tiles, pickers, names), a button that is `disabled` while its tip
+matters (Files' Delete over an upload-only pick: some browsers give a disabled button no mouse
+events), and the map iframe's name.
 
 Drag to select on the web (issue #200): Images, People and Files (list and grid) share
 `components/useDragSelect.ts` (the gesture) and `dragSelect.ts` (the pure rules, tested by
@@ -1921,7 +1948,7 @@ in the list. No per-folder file count (no catalog key; the web and Android show 
 temp + fsync + rename. iOS `FileDownload` falls back to `GetFile` only on `error_code =
 "unknown_payload"`, sent since v9 (Android also takes the older bare message) - no device that old
 exists. Optional items skipped: device - no `IsContentHash` guard in `mediastream/reader.go`, no
-write deadlines or immutable asset headers in its own HTTP server (`api/`), `cloud_id` kept by
+write deadlines in its own HTTP server (`api/`), `cloud_id` kept by
 `ReplaceFileKeepingVersion`, no rejection of `.`/`..`/empty path components, `cMaxInFlight` (32)
 requests before sign-in and `wsframe`'s first 4 MiB (`cFree`) outside the frame budget; bridge - no `interpolateParams`,
 `admin/ratelimit.go` `purgeLocked` scans on every attempt, `Admin.Logout` answers ok

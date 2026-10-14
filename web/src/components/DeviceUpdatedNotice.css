@@ -1,0 +1,73 @@
+/* "The device was updated" (DeviceUpdatedNotice.tsx): a card at the foot
+   of the page, at the left of the content (Images' toasts are centred),
+   over the pages' own bars (35) and under the menu's drawer (39-40), the
+   dialogs (50 and up) and Images' toasts (70). */
+.dun-wrap {
+  position: fixed;
+  z-index: 38;
+  left: var(--content-left, 0px);
+  right: 0;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  display: flex;
+  justify-content: flex-start;
+  padding: 0 16px;
+  pointer-events: none;
+}
+.dun-card {
+  pointer-events: auto;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 480px;
+  min-height: 48px;
+  padding: 4px 4px 4px 16px;
+  border-radius: 8px;
+  background: var(--ink-3);
+  color: var(--mist);
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .5);
+  font-size: 14px;
+  line-height: 20px;
+  animation: dun-in .2s ease-out;
+}
+.dun-text { flex: 1; min-width: 0; padding: 10px 0; overflow-wrap: anywhere; }
+/* index.css draws every button as an ember pill: these start from nothing. */
+.dun-reload, .dun-close {
+  flex: none;
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dun-reload:hover, .dun-close:hover { filter: none; background: rgba(234, 242, 239, 0.08); }
+.dun-reload:active, .dun-close:active { background: rgba(234, 242, 239, 0.14); }
+.dun-reload {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 6px;
+  color: var(--gold);
+  font-weight: 600;
+}
+.dun-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--mist-dim);
+}
+@media (max-width: 599px) {
+  .dun-wrap { justify-content: center; }
+  .dun-card { width: 100%; }
+}
+@keyframes dun-in { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) {
+  .dun-card { animation: none; }
+}

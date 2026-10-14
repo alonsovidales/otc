@@ -9,6 +9,8 @@
   "web.shell.connection.not_connected": "WS not connected",
   "web.shell.connection.signed_in_meanwhile": "Signed in meanwhile.",
   "web.shell.connection.too_many": "Too many attempts. Try again in a minute.",
+  "web.shell.device_updated.reload": "Reload",
+  "web.shell.device_updated.text": "Your device was updated. Reload this page to use the new version.",
   "web.shell.download.dismiss": "Dismiss",
   "web.shell.download.downloading": "Downloading…",
   "web.shell.download.downloading_sr": "Downloading \u2068{name}\u2069",

@@ -9,6 +9,8 @@
   "web.shell.connection.not_connected": "Geen verbinding met het apparaat",
   "web.shell.connection.signed_in_meanwhile": "Inmiddels ingelogd.",
   "web.shell.connection.too_many": "Te veel pogingen. Probeer het over een minuut opnieuw.",
+  "web.shell.device_updated.reload": "Opnieuw laden",
+  "web.shell.device_updated.text": "Je apparaat is bijgewerkt. Laad deze pagina opnieuw om de nieuwe versie te gebruiken.",
   "web.shell.download.dismiss": "Sluiten",
   "web.shell.download.downloading": "Downloaden…",
   "web.shell.download.downloading_sr": "\u2068{name}\u2069 wordt gedownload",

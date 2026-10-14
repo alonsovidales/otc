@@ -92,6 +92,14 @@ export function UseWS() {
   // waiting for a reconnect. Without that it would reach the device, once
   // it is back, on a connection with no session.
   let authOwed = false;
+  // Told after every sign-in the device accepts: the first one and each
+  // one a reconnect makes (deviceBuild.ts asks the device's build then).
+  const signInListeners = new Set<() => void>();
+  const noteSignedIn = () => {
+    signInListeners.forEach((fn) => {
+      try { fn(); } catch (e) { console.error("sign-in listener failed:", e); }
+    });
+  };
 
   // Registered exactly once per useWS instance (this function only ever
   // runs once - see the singleton export at the bottom of this file).
@@ -270,6 +278,7 @@ export function UseWS() {
           // password that was just used to establish it.
           await refreshSessionToken();
           hadSession = true;
+          noteSignedIn();
           if (setAuth) {
             await setAuth(true);
           }
@@ -364,6 +373,7 @@ export function UseWS() {
             // hour for a tab that keeps getting reloaded.
             await refreshSessionToken();
             hadSession = true;
+            noteSignedIn();
             if (setAuth) {
               await setAuth(true);
             }
@@ -425,7 +435,14 @@ export function UseWS() {
     if (lastAuthRef !== '') lastAuthRef = newKey;
   };
 
-  return { connected, signedIn, request, sendAuth, authWithToken, refreshSessionToken, passwordChanged, init, ws: wsClient };
+  // fn runs after each accepted sign-in, while that sign-in is still
+  // finishing: a request it makes waits for it. Returns the unsubscribe.
+  const onSignedIn = (fn: () => void) => {
+    signInListeners.add(fn);
+    return () => { signInListeners.delete(fn); };
+  };
+
+  return { connected, signedIn, onSignedIn, request, sendAuth, authWithToken, refreshSessionToken, passwordChanged, init, ws: wsClient };
 }
 
 export const useWS = UseWS();

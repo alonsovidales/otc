@@ -35,7 +35,8 @@ export function DownloadButton({ save, onClick, what, cls = "pg-modal-dl", class
   cls?: string;
   /** More classes for the button itself. */
   className?: string;
-  /** The tooltip and accessible name while idle ("Download the original",
+  /** The tooltip (TipLayer's, at once; also the screen readers'
+   *  description) and accessible name while idle ("Download the original",
    *  "Download"), made by the caller in the language on screen. */
   title?: string;
   label?: string;
@@ -51,8 +52,9 @@ export function DownloadButton({ save, onClick, what, cls = "pg-modal-dl", class
       <button
         type="button"
         className={cls + (className ? " " + className : "") + (save ? " busy" : "")}
-        title={save ? text : title ?? t("web.shell.download.original")}
+        data-tip={save ? text : title ?? t("web.shell.download.original")}
         aria-label={save ? text : label ?? t("common.download")}
+        aria-description={save ? undefined : title ?? t("web.shell.download.original")}
         aria-disabled={save ? true : undefined}
         onClick={onClick}
       >

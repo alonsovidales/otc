@@ -9,6 +9,8 @@
   "web.shell.connection.not_connected": "No hay conexión con el dispositivo",
   "web.shell.connection.signed_in_meanwhile": "Se ha iniciado sesión mientras tanto.",
   "web.shell.connection.too_many": "Demasiados intentos. Vuelve a intentarlo dentro de un minuto.",
+  "web.shell.device_updated.reload": "Recargar",
+  "web.shell.device_updated.text": "Tu dispositivo se ha actualizado. Recarga esta página para usar la nueva versión.",
   "web.shell.download.dismiss": "Descartar",
   "web.shell.download.downloading": "Descargando…",
   "web.shell.download.downloading_sr": "Descargando \u2068{name}\u2069",

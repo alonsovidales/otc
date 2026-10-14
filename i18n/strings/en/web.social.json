@@ -57,7 +57,7 @@
   },
   "web.social.comment.delete": {
     "text": "Delete comment",
-    "note": "Social feed: tooltip of the bin button on a comment you can delete (on your post, or your own)."
+    "note": "Social feed: tooltip and screen-reader name of the bin button on a comment you can delete (on your post, or your own)."
   },
   "web.social.comment.like": {
     "text": "Like comment",
@@ -461,7 +461,7 @@
   },
   "web.social.post.delete": {
     "text": "Delete post",
-    "note": "Social feed: tooltip of the bin button on one of your own posts."
+    "note": "Social feed: tooltip and screen-reader name of the bin button on one of your own posts."
   },
   "web.social.post.download_photo_position": {
     "text": "Download this photo {index} of {total}",
