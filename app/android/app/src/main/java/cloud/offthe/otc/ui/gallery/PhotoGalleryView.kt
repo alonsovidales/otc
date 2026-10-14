@@ -813,7 +813,10 @@ fun TextDialog(
         text = {
             Column {
                 message?.let { Text(it); Spacer(Modifier.height(8.dp)) }
-                OTCTextField(value = value, onValueChange = onChange, placeholder = { Text(placeholder) }, singleLine = true)
+                // Across the dialog, as every other dialog's field: on its own
+                // it is only as wide as its text (a short box on the Fold).
+                OTCTextField(value = value, onValueChange = onChange, placeholder = { Text(placeholder) }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth())
             }
         },
         confirmButton = { TextButton(onClick = onConfirm, enabled = value.isNotBlank()) { Text(confirmLabel) } },
