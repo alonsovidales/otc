@@ -11,7 +11,7 @@ const [url, out, w, h, waitMs = "5000", scheme = "dark"] = process.argv.slice(2)
 const chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const profile = mkdtempSync(join(tmpdir(), "otc-promo-chrome-"));
 const port = 9344;
-const proc = spawn(chrome, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--hide-scrollbars",
+const proc = spawn(chrome, ["--headless=new", "--mute-audio", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--hide-scrollbars",
   `--window-size=${w},${h}`, "--no-first-run", "--no-default-browser-check", "about:blank"], { stdio: "ignore" });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let page;

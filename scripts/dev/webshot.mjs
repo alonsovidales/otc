@@ -23,7 +23,7 @@ const chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const profile = mkdtempSync(join(tmpdir(), "otc-chrome-"));
 const port = 9333;
 const proc = spawn(chrome, [
-  "--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
+  "--headless=new", "--mute-audio", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
   "--window-size=1400,900", "--no-first-run", "--no-default-browser-check", "about:blank",
 ], { stdio: "ignore" });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

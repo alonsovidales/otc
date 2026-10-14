@@ -177,6 +177,10 @@ terminal session, `scripts/dev/webshot.mjs` drives a headless Chrome over the De
 (sign in, open a tab, hover/click one element, PNG per step) - through an SSH tunnel to loopback,
 because macOS's local-network permission blocks a terminal-launched Chrome from LAN addresses and
 Chrome doesn't resolve `.otc` names; see the header comment.
+Start every headless Chrome with `--mute-audio` and every Android emulator with `-no-audio`
+(webshot.mjs and docs/promo/tools/shot.mjs do): this Mac is the owner's desk machine, and an
+unmuted test (a video in the viewer, the audio device opening) beeps through its speaker. Kill the
+browsers, emulators and VMs a test starts when it ends.
 Against a real device without releasing: `VITE_DEVICE=pit.off-the.cloud npm run build --prefix web`,
 then `npx vite preview` in `web/`. On localhost the app connects to `wss://$VITE_DEVICE/ws`, or Cala
 if the variable is unset.
