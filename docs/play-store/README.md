@@ -86,11 +86,18 @@ privacy details to the end.
   source as the adaptive launcher icon (`mipmap-anydpi-v26/ic_launcher.xml`: the artwork as the
   foreground layer over `#08373F`).
 - Feature graphic, 1024 x 500: `docs/play-store/feature-graphic.png`.
-- Phone screenshots: `docs/play-store/screenshots/` - 1-library, 2-people (search by face),
-  3-viewer, 4-share-gallery, 5-friends-feed; `alt-library-beach` is an alternative first shot
-  (its last row shows a child). Taken from the Fold's cover screen against Pit (the demo device,
-  photos of people who consented), status and gesture bars cropped, padded to Play's 2:1
-  maximum (1142 x 2284).
+- Phone screenshots (1.2, 2026-10-14): `docs/play-store/screenshots/` - 1-images (October 2025,
+  the dogs), 2-search ("zebra"), 3-photo-details (camera details), 4-storage (Files' Storage view),
+  5-social, then 6-pi-android-phone (the device beside an Android phone, from `docs/promo/`).
+  Taken from the Fold's cover screen against Cala (its library is animals, so no faces; the one
+  half-visible person in the search's last row is pixelated), status and gesture bars cropped,
+  sides padded with the app's background to Play's 2:1 maximum (1147 x 2293). The owner wants one
+  device picture per store, not several.
+- Tablet screenshots (7-inch and 10-inch, the same five): `docs/play-store/screenshots-tablet/`,
+  from the Fold's inner screen, cropped to 16:9 (1968 x 1107) - Play takes only 16:9 or 9:16 there.
+- AI label: Play asks at each listing save whether assets were made with AI. The device picture is
+  (Gemini, see `docs/promo/README.md`), so it is labelled; the app screenshots, icon and feature
+  graphic are not.
 
 ## Data safety
 
