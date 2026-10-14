@@ -31,6 +31,12 @@
     "text": "a collection needs a name",
     "note": "Error reply when creating or renaming a collection (a group of photos chosen by the owner) with an empty name."
   },
+  "dev.files.content_changed": {
+    "text": "this file has changed since it was shown, so nothing was deleted: refresh and try again",
+    "note": "Error in Images and Files when deleting a photo, video or file whose path holds other content than the one the app showed (it was replaced from another phone or computer, or edited, since the list was loaded). Nothing was deleted, with or without deleting every copy: the owner refreshes the list and deletes again if still wanted.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-14 #6d7ff8e3"
+  },
   "dev.files.content_missing": {
     "text": "the content of {path} is missing on this device",
     "args": [["path", "user"]],
@@ -45,6 +51,13 @@
     "text": "the content of {path} is unreadable on this device",
     "args": [["path", "user"]],
     "note": "Error shown after \"error trying to retrieve file: \" when the file's content is on the device's disks but could not be decrypted (damaged). {path} is the file's path on the device."
+  },
+  "dev.files.copy_upload_only": {
+    "text": "a copy is in the upload-only folder {folder}: no copy was deleted",
+    "args": [["folder", "user"]],
+    "note": "Error in Images when the owner deletes a photo or video that is stored at several paths in Files and chooses to delete all of them: one of those paths is inside an upload-only folder, so none was deleted (all or nothing). Upload only: nothing in the folder can be deleted. {folder} is the path of that upload-only folder.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-14 #87779b49"
   },
   "dev.files.delete_failed": {
     "text": "error trying to delete file: {detail}",

@@ -75,6 +75,18 @@ const (
 	// released before the code match.
 	cCodeDuplicatedFile = "duplicated_file"
 
+	// cCodeCopyUploadOnly is RespEnvelope.error_code on a DelFile with
+	// every_copy refused as a whole (issue #201,
+	// filesmanager.CopyUploadOnlyError): a copy is in an upload-only
+	// folder, which the message names, and nothing was deleted.
+	cCodeCopyUploadOnly = "copy_upload_only"
+
+	// cCodeContentChanged is RespEnvelope.error_code on a DelFile refused
+	// because its hash (the content the client showed) is no longer what
+	// the path holds (issue #201, filesmanager.ContentChangedError):
+	// nothing was deleted, and the client refreshes before asking again.
+	cCodeContentChanged = "changed"
+
 	// Bridge connection pool. A connection is consumed for as long as the
 	// bridge-side client that picked it up keeps its socket open — see
 	// bridge/websocket/websocket.go's default case, which pins one pool
@@ -2374,10 +2386,32 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		}
 
 	case *pb.ReqEnvelope_ReqDelFile:
-		log.Debug("Del file by path:", p.ReqDelFile.Path)
+		log.Debug("Del file by path:", p.ReqDelFile.Path, "every copy:", p.ReqDelFile.GetEveryCopy(), "shown hash:", p.ReqDelFile.GetHash())
 		// Issue #116: a directory path deletes everything under it.
-		err := ch.mg.filesManager.DelPath(ses, p.ReqDelFile.Path)
-		if err != nil {
+		// Issue #201: every_copy deletes every path holding a file's
+		// content, or nothing; hash, when set, must still be a file's
+		// content, or nothing is deleted.
+		var err error
+		if p.ReqDelFile.GetEveryCopy() {
+			err = ch.mg.filesManager.DelEveryCopy(ses, p.ReqDelFile.Path, p.ReqDelFile.GetHash())
+		} else {
+			err = ch.mg.filesManager.DelPath(ses, p.ReqDelFile.Path, p.ReqDelFile.GetHash())
+		}
+		var copyLocked *filesmanager.CopyUploadOnlyError
+		var changed *filesmanager.ContentChangedError
+		if errors.As(err, &copyLocked) {
+			// Its message names a folder: never at Info (issue #156).
+			log.Info("a delete of every copy was refused: a copy is in an upload-only folder")
+			log.Debug("the upload-only folder holding a copy:", copyLocked.Folder)
+			resp.Error = true
+			resp.ErrorCode = cCodeCopyUploadOnly
+			resp.ErrorMessage = devtext.Text(lang, err)
+		} else if errors.As(err, &changed) {
+			log.Info("a delete was refused: the path holds other content than the client showed")
+			resp.Error = true
+			resp.ErrorCode = cCodeContentChanged
+			resp.ErrorMessage = devtext.Text(lang, err)
+		} else if err != nil {
 			// This used to only ever reach the client, never the server's
 			// own log — tracking down a real "Delete failed" report meant
 			// searching the log for an error that was never actually
@@ -2479,6 +2513,20 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			}
 		}
 
+	case *pb.ReqEnvelope_ReqGetFolderUsage:
+		// Issue #195: Files' Storage view, asked only while it is open -
+		// ListFiles never sizes folders. Same callers as ListFiles: the
+		// owner, and each user on their own instance; never a friend.
+		log.Debug("Folder usage:", p.ReqGetFolderUsage.Path)
+		usage, err := ch.mg.filesManager.FolderUsage(p.ReqGetFolderUsage.Path)
+		if err != nil {
+			log.Error("error measuring a folder's usage:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespFolderUsage{RespFolderUsage: usage}
+		}
+
 	case *pb.ReqEnvelope_ReqSearchFiles:
 		// The top bar's search: files and folders by path, filled in as
 		// ListFiles fills them. The text is Debug only, like every
@@ -2527,7 +2575,14 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			t := p.ReqSearchPhotos.Before.AsTime()
 			before = &t
 		}
-		files, token, err := ch.mg.filesManager.ImageSearch(ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, p.ReqSearchPhotos.GroupId, before, p.ReqSearchPhotos.Have, p.ReqSearchPhotos.Limit, p.ReqSearchPhotos.SmallThumbnails, p.ReqSearchPhotos.OmitThumbnails)
+		// Issue #194: scrolling up after a jump - the photos after this
+		// instant, oldest first, said so in the answer (oldest_first).
+		var newerThan *time.Time
+		if p.ReqSearchPhotos.NewerThan != nil {
+			t := p.ReqSearchPhotos.NewerThan.AsTime()
+			newerThan = &t
+		}
+		files, token, err := ch.mg.filesManager.ImageSearch(ses, "", p.ReqSearchPhotos.Tags, p.ReqSearchPhotos.Token, p.ReqSearchPhotos.IncludeVideos, p.ReqSearchPhotos.PersonIds, p.ReqSearchPhotos.GroupId, before, newerThan, p.ReqSearchPhotos.Have, p.ReqSearchPhotos.Limit, p.ReqSearchPhotos.SmallThumbnails, p.ReqSearchPhotos.OmitThumbnails)
 		if err != nil {
 			log.Error("error trying to list files:", err)
 			resp.Error = true
@@ -2539,6 +2594,10 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 				RespListOfFiles: &pb.ListOfFiles{
 					Files: files,
 					Token: token,
+					// Every page of a newer_than search, the last and an
+					// empty one too: how a client tells this device from
+					// one before #194, which answers newest first.
+					OldestFirst: newerThan != nil,
 				},
 			}
 		}

@@ -121,6 +121,9 @@ func TestSearchPhotosPassesItsThumbnailFlags(t *testing.T) {
 		mock.ExpectQuery("select `f`.`hash`, `f`.`mime`").WillReturnRows(
 			sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}).
 				AddRow(hash, "image/jpeg", time.Now(), time.Now(), "/p/a.jpg", 1))
+		// Issue #201: each page counts the paths holding its photos.
+		mock.ExpectQuery("select `hash`, count\\(\\*\\) from `files` where `hash` in \\(\\?\\)").WithArgs(hash).
+			WillReturnRows(sqlmock.NewRows([]string{"hash", "n"}).AddRow(hash, 2))
 	}
 	ch := &connHandler{mg: &Manager{filesManager: filesmanager.NewWithDAO(dao.NewWithDB(db))}}
 	ch.setSession(ses)
@@ -133,7 +136,7 @@ func TestSearchPhotosPassesItsThumbnailFlags(t *testing.T) {
 			t.Fatalf("small %v, omit %v: got %+v, close %v", small, omit, resp, closeConn)
 		}
 		files := resp.GetRespListOfFiles().GetFiles()
-		if len(files) != 1 || files[0].Path != "/p/a.jpg" || files[0].ThumbnailSmall == nil {
+		if len(files) != 1 || files[0].Path != "/p/a.jpg" || files[0].ThumbnailSmall == nil || files[0].Copies == nil || files[0].GetCopies() != 2 {
 			t.Fatalf("small %v, omit %v: got %+v", small, omit, files)
 		}
 		return files[0]

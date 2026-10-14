@@ -24,7 +24,7 @@ func TestSearchMediaNoFiltersImagesOnly(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery("from `files` as `f` where `f`\\.`mime` like 'image%' order by `f`\\.`created` desc").
+	mock.ExpectQuery("from `files` as `f` where `f`\\.`mime` like 'image%' order by `f`\\.`created` desc, `f`\\.`path` desc$").
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
 	d := NewWithDB(db)
@@ -43,7 +43,10 @@ func TestSearchMediaTagsOnlyOrdersByScore(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery("join `file_tags` as `tg` on `tg`\\.`hash` = `f`\\.`hash` and `tg`\\.`tag` in \\(\\?,\\?\\).*group by `f`\\.`hash`.*order by `score` desc").
+	// Issue #201: the score is settled per hash, then joined on every
+	// copy, which the callers narrow to the oldest (oldestCopies).
+	mock.ExpectQuery("join \\(select `hash`, sum\\(`score`\\) as `score` from `file_tags` where `tag` in \\(\\?,\\?\\) group by `hash`\\) as `tg` on `tg`\\.`hash` = `f`\\.`hash` "+
+		"order by `tg`\\.`score` desc, `f`\\.`created` desc, `f`\\.`path` desc$").
 		WithArgs("dogs", "beach").
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size", "score"}))
 
@@ -65,7 +68,8 @@ func TestSearchMediaMultiplePeopleRequiresAllOfThem(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery("join `faces` as `fc` on `fc`\\.`hash` = `f`\\.`hash` and `fc`\\.`person_id` in \\(\\?,\\?\\).*group by `f`\\.`hash`.*having count\\(distinct `fc`\\.`person_id`\\) = 2").
+	mock.ExpectQuery("join \\(select `hash` from `faces` where `person_id` in \\(\\?,\\?\\) group by `hash` having count\\(distinct `person_id`\\) = 2\\) as `fc` on `fc`\\.`hash` = `f`\\.`hash` "+
+		"order by `f`\\.`created` desc, `f`\\.`path` desc$").
 		WithArgs("alice-id", "bob-id").
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
@@ -89,9 +93,9 @@ func TestSearchMediaCombinesTagsAndPerson(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectQuery(
-		"join `file_tags` as `tg` on `tg`\\.`hash` = `f`\\.`hash` and `tg`\\.`tag` in \\(\\?\\) "+
-			"join `faces` as `fc` on `fc`\\.`hash` = `f`\\.`hash` and `fc`\\.`person_id` in \\(\\?\\).*"+
-			"having count\\(distinct `fc`\\.`person_id`\\) = 1 order by `score` desc").
+		"join \\(select `hash`, sum\\(`score`\\) as `score` from `file_tags` where `tag` in \\(\\?\\) group by `hash`\\) as `tg` on `tg`\\.`hash` = `f`\\.`hash` "+
+			"join \\(select `hash` from `faces` where `person_id` in \\(\\?\\) group by `hash` having count\\(distinct `person_id`\\) = 1\\) as `fc` on `fc`\\.`hash` = `f`\\.`hash` "+
+			"order by `tg`\\.`score` desc").
 		WithArgs("dogs", "alice-id").
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size", "score"}))
 
@@ -114,7 +118,7 @@ func TestSearchMediaImagesOnlyIgnoredWhenFiltersApplied(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery("join `faces`").
+	mock.ExpectQuery("from `faces` .* on `fc`\\.`hash` = `f`\\.`hash` order by").
 		WithArgs("alice-id").
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
@@ -163,8 +167,9 @@ func TestSearchMediaDateBucketsNoFilters(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery("select date_format\\(`month_src`\\.`created`, '%Y-%m'\\) as `bucket`, count\\(distinct `month_src`\\.`hash`\\) from \\(" +
-		"select `f`\\.`hash`, `f`\\.`created` from `files` as `f` where `f`\\.`mime` like 'image%'" +
+	// Issue #201: one row per photo, at its oldest copy, before bucketing.
+	mock.ExpectQuery("select date_format\\(`month_src`\\.`created`, '%Y-%m'\\) as `bucket`, count\\(\\*\\) from \\(" +
+		"select `f`\\.`hash`, min\\(`f`\\.`created`\\) as `created` from `files` as `f` where `f`\\.`mime` like 'image%' group by `f`\\.`hash`" +
 		"\\) as `month_src` group by `bucket` order by `bucket` desc").
 		WillReturnRows(sqlmock.NewRows([]string{"bucket", "count"}).
 			AddRow("2022-06", 3).
@@ -195,9 +200,9 @@ func TestSearchMediaDateBucketsMultiplePeopleRequiresAllOfThem(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery("select `f`\\.`hash`, `f`\\.`created` from `files` as `f` "+
-		"join `faces` as `fc` on `fc`\\.`hash` = `f`\\.`hash` and `fc`\\.`person_id` in \\(\\?,\\?\\) "+
-		"group by `f`\\.`hash` having count\\(distinct `fc`\\.`person_id`\\) = 2"+
+	mock.ExpectQuery("select `f`\\.`hash`, min\\(`f`\\.`created`\\) as `created` from `files` as `f` "+
+		"join \\(select `hash` from `faces` where `person_id` in \\(\\?,\\?\\) group by `hash` having count\\(distinct `person_id`\\) = 2\\) as `fc` on `fc`\\.`hash` = `f`\\.`hash` "+
+		"group by `f`\\.`hash`"+
 		"\\) as `month_src` group by `bucket` order by `bucket` desc").
 		WithArgs("alice-id", "bob-id").
 		WillReturnRows(sqlmock.NewRows([]string{"bucket", "count"}))
@@ -1226,9 +1231,8 @@ func TestSearchMediaCombinesPersonAndGroup(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectQuery(
-		"join `faces` as `fc` on `fc`\\.`hash` = `f`\\.`hash` and `fc`\\.`person_id` in \\(\\?\\) "+
-			"join `image_group_files` as `ig` on `ig`\\.`hash` = `f`\\.`hash` and `ig`\\.`group_id` = \\?.*"+
-			"having count\\(distinct `fc`\\.`person_id`\\) = 1").
+		"join \\(select `hash` from `faces` where `person_id` in \\(\\?\\) group by `hash` having count\\(distinct `person_id`\\) = 1\\) as `fc` on `fc`\\.`hash` = `f`\\.`hash` "+
+			"join `image_group_files` as `ig` on `ig`\\.`hash` = `f`\\.`hash` and `ig`\\.`group_id` = \\? order by").
 		WithArgs("alice-id", "album-1").
 		WillReturnRows(sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"}))
 
@@ -1332,9 +1336,9 @@ func TestGetImageGroupReadsOneGroupAsTheListDoes(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery("count\\(distinct `m`\\.`hash`\\).*order by rand\\(\\) limit 1\\) from `image_groups` as `g` order by `g`\\.`created` desc").
+	mock.ExpectQuery("count\\(\\*\\) from `image_group_files` as `m` where `m`\\.`group_id` = `g`\\.`id` and exists .*order by rand\\(\\) limit 1\\) from `image_groups` as `g` order by `g`\\.`created` desc").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover"}).AddRow("g1", "Trip", 3, "h1"))
-	mock.ExpectQuery("count\\(distinct `m`\\.`hash`\\).*order by rand\\(\\) limit 1\\) from `image_groups` as `g` where `g`\\.`id` = \\?").
+	mock.ExpectQuery("count\\(\\*\\) from `image_group_files` as `m` where `m`\\.`group_id` = `g`\\.`id` and exists .*order by rand\\(\\) limit 1\\) from `image_groups` as `g` where `g`\\.`id` = \\?").
 		WithArgs("g2").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "n", "cover"}).AddRow("g2", "Empty", 0, nil))
 
 	d := NewWithDB(db)

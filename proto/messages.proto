@@ -247,6 +247,33 @@ message LinkFile {
 
 message DelFile {
   string path = 1;
+  // Issue #201: Images' "delete every copy". When true, the device
+  // deletes every path in Files that holds the same content as this one
+  // (File.copies counted them): all of `files`' rows with its hash,
+  // wherever they are, folders kept out of Images included, each with its
+  // older versions, as its own DelFile would. It answers Ack ok once all
+  // are gone. It is all or nothing: if any of those paths (this one
+  // included) is in an upload-only folder, nothing is deleted and the
+  // answer is error_code "copy_upload_only", with a message naming that
+  // folder. Older versions that other paths keep (ListFileVersions) are not
+  // copies, so they stay, and so does the content they hold. This applies
+  // to a file only: a folder's path deletes the folder as before (issue
+  // #116) and ignores the flag. Unset or false deletes only this path, as
+  // before. A device that sets File.copies honours it. Devices before #201
+  // ignore it and delete only this path. Optional (has/hasEveryCopy), so
+  // that requests typed before it, like the web's, stay valid.
+  optional bool every_copy = 2;
+  // Issue #201: the content hash the client showed for this path (File.hash
+  // of the tile or row it was deleted from). When set and the path is a
+  // file that now holds other content (synced over or edited since it was
+  // shown), the device deletes nothing and answers error_code "changed",
+  // with a message saying so - with or without every_copy, which would
+  // otherwise delete every copy of content the person never saw. Checked
+  // before anything is deleted. Ignored for a folder's path, and when
+  // empty (a listing shows no hash for a file whose content is missing,
+  // issue #141). Devices before it ignore it. Optional (has/hasHash), so
+  // that requests typed before it, like the web's, stay valid.
+  optional string hash = 3;
 }
 
 message GetFile {
@@ -303,6 +330,56 @@ message OutOfImagesFolders {
 message ListFiles {
   string path = 1;
   bool recursive = 2;
+}
+
+// Issue #195: Files' Storage view, which shows what takes the space in one
+// folder. The apps ask for it only while that view is open; ListFiles never
+// sizes folders. Answers with FolderUsage. Sizes are logical: each file at
+// its own size in bytes, as File.size64. Content held at two paths counts
+// at both, though the device stores it once. Encryption, thumbnails,
+// posts, shared galleries, other users and the database aren't counted, so
+// the figures don't add up to the device's storage bar. Same callers as
+// ListFiles. Devices before #195 answer error_code "unknown_payload".
+message GetFolderUsage {
+  // The folder as ListFiles takes it, with its trailing slash ("/" for the
+  // root). One without the slash is taken as that folder.
+  string path = 1;
+}
+
+// One direct child of the folder asked for (GetFolderUsage).
+message FolderUsageEntry {
+  // Its full path, as ListFiles lists it: a folder's has no trailing
+  // slash. A file and a folder can share a name (made from two computers),
+  // and then they are two entries told apart by is_dir.
+  string path = 1;
+  // A folder (everything under path + "/"), or a file.
+  bool is_dir = 2;
+  // Bytes of the current files: a file's own size, or for a folder every
+  // file under it at any depth.
+  int64 files_size = 3;
+  // How many files that is (1 for a file). 0 only for a child that holds
+  // nothing but older versions.
+  int32 file_count = 4;
+  // Bytes of the older versions kept of those files (upload-only folders,
+  // issue #132, ListFileVersions). They are not part of files_size: the
+  // entry's whole size is files_size + versions_size.
+  int64 versions_size = 5;
+}
+
+// The answer to GetFolderUsage.
+message FolderUsage {
+  // The folder asked for, with its trailing slash. A client that has moved
+  // to another folder drops an answer whose path isn't the one it shows.
+  string path = 1;
+  // Every direct child that holds a file or an older version, largest
+  // first (files_size + versions_size), then by path, then a folder before
+  // a file of the same name. Empty for an empty or unknown folder.
+  repeated FolderUsageEntry entries = 2;
+  // The folder's own totals: every file under it at any depth, the sums
+  // of the entries' fields.
+  int64 files_size = 3;
+  int32 file_count = 4;
+  int64 versions_size = 5;
 }
 
 // The Files grid's thumbnails: for each path that is a photo or video with
@@ -468,6 +545,28 @@ message SearchPhotos {
   // and a page of at most their default: clients take the content when an
   // entry has it and fetch only entries that don't.
   bool omit_thumbnails = 10;
+  // Issue #194: scrolling up after a jump (before). This asks for the
+  // photos dated strictly after this instant, served OLDEST first, the
+  // opposite of every other page; the answer says so
+  // (ListOfFiles.oldest_first). A jump's `before` and this, with the same
+  // instant, split the library exactly: nothing is missing and nothing
+  // comes twice. That relies on each photo having one date since #201: its
+  // oldest copy's (see File.copies).
+  //
+  // Send it on every page of the upward search, with the same instant.
+  // Unlike `before`, it does not start a fresh search when a token comes
+  // with it: token, have, limit, small_thumbnails and omit_thumbnails work
+  // as on any page. That covers resuming a token the device no longer
+  // holds and serving a page asked again. `have` counts only the photos
+  // this upward search has brought, never those of the downward one. A
+  // token from the other direction, or from another instant, counts as one
+  // the device doesn't hold. Tags, people, collection and videos filter as
+  // on any search. If `before` is also set, newer_than wins.
+  //
+  // Devices before #194 ignore it and answer an ordinary newest-first page
+  // with oldest_first false. Drop that page, and don't ask that device
+  // again until the next sign-in.
+  google.protobuf.Timestamp newer_than = 11;
 }
 
 message ListOfFiles {
@@ -488,6 +587,14 @@ message ListOfFiles {
   // answers can stop at the cap unsaid: a path left out may then only
   // have been cut, so don't remember it as having none.
   int32 ask_again_from = 5;
+  // Issue #194, on a SearchPhotos answer: its photos are oldest first.
+  // That is the answer to a request with newer_than, from a device that
+  // honours it, on every page of it: the last one (token "") too, and an
+  // empty one when nothing is newer. False on every other answer. Devices
+  // before #194 ignore newer_than and always leave it false, so a page
+  // asked for with newer_than that comes back without it is an ordinary
+  // newest-first page and is to be dropped.
+  bool oldest_first = 6;
 }
 
 // Issue #77: per-month photo counts, used to size/position the gallery's
@@ -503,6 +610,8 @@ message ReqPhotoDateBuckets {
 
 message PhotoDateBucket {
   string month = 1; // "2022-06"
+  // Since #201 each photo counts once, in the month of its oldest copy:
+  // the month SearchPhotos shows it in (see File.copies).
   int32 count = 2;
 }
 
@@ -548,6 +657,29 @@ message File {
   // one) - keep it as asked for, or treat it as the big one and ask again
   // later.
   optional bool thumbnail_small = 13;
+  // Issue #201, on the entries of a SearchPhotos answer (Images, People,
+  // collections, the pickers). It counts the paths in Files that hold this
+  // content, this entry's own included: every `files` row with its hash,
+  // wherever it is, folders kept out of Images included. Older versions
+  // kept in upload-only folders (file_versions, ListFileVersions) are not
+  // paths and don't count.
+  //
+  // Since #201 an Images entry is one photo, not one path. It is the
+  // photo's oldest copy (earliest created, then smallest path) among the
+  // copies Images may show, so its path and created are that copy's.
+  // Every path keeps its own stored date (Files shows them all), and the
+  // date buckets, People and collections count the photo once.
+  //
+  // Above 1, deleting the photo from Images asks whether to delete only
+  // this path or every copy (DelFile.every_copy, with DelFile.hash this
+  // entry's hash). It is counted when the page is made, so a copy added or
+  // removed since then isn't in it. Unset (optional: has/hasCopies false)
+  // on every entry of a page whose count failed - the page is served
+  // anyway, and such an entry offers no "every copy": delete only the
+  // path -, on other answers, and from devices before #201, which list a
+  // photo at its newest copy and don't honour every_copy, so delete only
+  // the path.
+  optional int32 copies = 14;
 }
 
 message Ack {
@@ -2121,6 +2253,9 @@ message ReqEnvelope {
     // Localization: store the user's language (owner only). Answers with
     // the generic Ack; code "changed" when `expected` no longer matches.
     SetLanguage req_set_language = 138;
+    // Issue #195: Files' Storage view. Answers with resp_folder_usage;
+    // devices before it with error_code "unknown_payload".
+    GetFolderUsage req_get_folder_usage = 139;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -2146,7 +2281,12 @@ message RespEnvelope {
   // folder inside another one kept out of Images; the message names it),
   // "duplicated_file" (an upload or link onto a path that is taken - photo
   // sync renames and retries; devices before it send only the message,
-  // ending in "Duplicated file", which clients check when the code is empty).
+  // ending in "Duplicated file", which clients check when the code is empty),
+  // "copy_upload_only" (issue #201: a DelFile with every_copy refused as a
+  // whole, because one of the copies, maybe the path asked for, is in an
+  // upload-only folder; nothing was deleted, and the message names that
+  // folder), "changed" (issue #201: a DelFile whose hash is no longer the
+  // content at its path; nothing was deleted - refresh and ask again).
   string error_code = 4;
   oneof payload {
     Status resp_status = 10;
@@ -2228,5 +2368,7 @@ message RespEnvelope {
     OutOfImagesFolders resp_out_of_images_folders = 67;
     // Settings > Restart device.
     RestartingDevice resp_restarting_device = 68;
+    // Issue #195: Files' Storage view.
+    FolderUsage resp_folder_usage = 69;
   }
 }

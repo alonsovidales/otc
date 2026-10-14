@@ -2379,43 +2379,52 @@ func (dao *Dao) MergePeople(targetID string, sourceIDs []string) (err error) {
 // personIDs are given, same as the old SearchByTags/SearchByPerson never
 // filtered by mime either - it only applies to the plain "browse
 // everything, no filters" case, matching GetFilesByPath's own contract.
-// searchMediaClauses builds the FROM/WHERE/GROUP BY/HAVING/ORDER BY shared
-// by SearchMedia and SearchMediaDateBuckets - both filter the same `files`
-// rows by tags/personIDs/imagesOnly (and, for SearchMedia's "jump to date"
-// use, an optional created-before cutoff), they just select something
-// different off the result. Kept as one function so the two queries can't
-// silently drift apart on what counts as a match.
+// searchMediaClauses builds the FROM/WHERE/ORDER BY shared by SearchMedia
+// and SearchMediaDateBuckets - both filter the same `files` rows by
+// tags/personIDs/imagesOnly (and, for SearchMedia's "jump to date" use, an
+// optional created-before cutoff), they just select something different
+// off the result. Kept as one function so the two queries can't silently
+// drift apart on what counts as a match.
 // groupID (issue #115) restricts to one image group's members - an inner
 // join on image_group_files, so it combines with tags/people the same way
 // they combine with each other (a photo has to satisfy all of them).
 // excluded (issue #192) is the folders kept out of Images: rows under any
 // of them are left out, so content also held outside them is found - and
 // shown once - through that other path.
-func searchMediaClauses(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time, excluded []string) (from, where, groupBy, having, orderBy, selectExtra string, args []any) {
+//
+// Issue #201: the rows stay one per path - every copy Images may show of a
+// photo - and the callers pick the photo's oldest copy among them
+// (oldestCopies, and min(created) for the buckets). So tags and people are
+// settled per content hash in derived tables, which every copy then joins
+// (a tag's score is the photo's own, no longer multiplied by its copies),
+// rather than by grouping the joined rows by hash, which also took the
+// date and path of an arbitrary copy. Rows come newest first and, at the
+// same instant, by path backwards (by score first in a tag search: every
+// copy of a photo has its score), so a photo's last row is its oldest
+// copy: the earliest, then the smallest path.
+func searchMediaClauses(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time, excluded []string) (from, where, orderBy, selectExtra string, args []any) {
 	from = "from `files` as `f`"
-	orderBy = " order by `f`.`created` desc"
+	orderBy = " order by `f`.`created` desc, `f`.`path` desc"
 
 	if len(tags) > 0 {
 		ph := strings.Repeat("?,", len(tags))
 		ph = ph[:len(ph)-1]
-		from += " join `file_tags` as `tg` on `tg`.`hash` = `f`.`hash` and `tg`.`tag` in (" + ph + ")"
+		from += " join (select `hash`, sum(`score`) as `score` from `file_tags` where `tag` in (" + ph + ") group by `hash`) as `tg` on `tg`.`hash` = `f`.`hash`"
 		for _, t := range tags {
 			args = append(args, t)
 		}
-		selectExtra = ", sum(`tg`.`score`) as `score`"
-		groupBy = " group by `f`.`hash`"
-		orderBy = " order by `score` desc"
+		selectExtra = ", `tg`.`score`"
+		orderBy = " order by `tg`.`score` desc, `f`.`created` desc, `f`.`path` desc"
 	}
 
 	if len(personIDs) > 0 {
 		ph := strings.Repeat("?,", len(personIDs))
 		ph = ph[:len(ph)-1]
-		from += " join `faces` as `fc` on `fc`.`hash` = `f`.`hash` and `fc`.`person_id` in (" + ph + ")"
+		from += " join (select `hash` from `faces` where `person_id` in (" + ph + ") group by `hash`" +
+			fmt.Sprintf(" having count(distinct `person_id`) = %d) as `fc` on `fc`.`hash` = `f`.`hash`", len(personIDs))
 		for _, p := range personIDs {
 			args = append(args, p)
 		}
-		groupBy = " group by `f`.`hash`"
-		having = fmt.Sprintf(" having count(distinct `fc`.`person_id`) = %d", len(personIDs))
 	}
 
 	if groupID != "" {
@@ -2454,9 +2463,12 @@ func searchMediaClauses(path string, tags []string, personIDs []string, groupID 
 	// Issue #77: the date scrubber's "jump to date" - same left-to-right
 	// arg-ordering rule as above, this is the last WHERE part so its arg
 	// goes last regardless of which of the filters above are also active.
+	// Issue #194: at the second (searchCutoff), as SearchMediaNewerThan
+	// compares, so the two halves split exactly whatever the server does
+	// with a fraction.
 	if before != nil {
 		whereParts = append(whereParts, "`f`.`created` <= ?")
-		args = append(args, *before)
+		args = append(args, searchCutoff(*before))
 	}
 	if len(whereParts) > 0 {
 		where = " where " + strings.Join(whereParts, " and ")
@@ -2464,11 +2476,16 @@ func searchMediaClauses(path string, tags []string, personIDs []string, groupID 
 	return
 }
 
+// SearchMedia is one row per photo (issue #201): its oldest copy among
+// those the search may show (outside excluded, under path), in the
+// search's order (searchMediaClauses). before keeps the photos whose
+// oldest such copy is at or before it: rows after it are left out in the
+// query, and what is left of a photo still ends with that copy.
 func (dao *Dao) SearchMedia(path string, tags []string, personIDs []string, groupID string, imagesOnly bool, before *time.Time, excluded []string) (files []*pb.File, err error) {
-	from, where, groupBy, having, orderBy, selectExtra, args := searchMediaClauses(path, tags, personIDs, groupID, imagesOnly, before, excluded)
+	from, where, orderBy, selectExtra, args := searchMediaClauses(path, tags, personIDs, groupID, imagesOnly, before, excluded)
 
 	query := "select `f`.`hash`, `f`.`mime`, `f`.`created`, `f`.`modified`, `f`.`path`, `f`.`size`" + selectExtra + " " +
-		from + where + groupBy + having + orderBy
+		from + where + orderBy
 
 	rows, err := dao.db.Query(query, args...)
 	if err != nil {
@@ -2493,7 +2510,32 @@ func (dao *Dao) SearchMedia(path string, tags []string, personIDs []string, grou
 		SetFileSize(file, size)
 		files = append(files, file)
 	}
-	return files, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return oldestCopies(files), nil
+}
+
+// oldestCopies is files, rows in SearchMedia's order, with only the last
+// row of each content hash: the photo's oldest copy, since a photo's rows
+// go newest first and, at the same instant, by path backwards. The order
+// is the query's, so a tag search stays by score, and a date one has each
+// photo at its oldest copy's date. Shares files' array.
+func oldestCopies(files []*pb.File) []*pb.File {
+	last := make(map[string]int, len(files))
+	for i, f := range files {
+		last[f.Hash] = i
+	}
+	if len(last) == len(files) {
+		return files
+	}
+	out := files[:0]
+	for i, f := range files {
+		if last[f.Hash] == i {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // DateBucket is one month's photo count (issue #77's date scrubber) -
@@ -2515,18 +2557,16 @@ type DateBucket struct {
 // callers are expected to hide the scrubber entirely when tags are active,
 // per its own doc comment on the ReqPhotoDateBuckets proto message.
 func (dao *Dao) SearchMediaDateBuckets(tags []string, personIDs []string, groupID string, imagesOnly bool, excluded []string) (buckets []DateBucket, err error) {
-	from, where, groupBy, having, _, _, args := searchMediaClauses("", tags, personIDs, groupID, imagesOnly, nil, excluded)
+	from, where, _, _, args := searchMediaClauses("", tags, personIDs, groupID, imagesOnly, nil, excluded)
 
-	// groupBy/having (by `f`.`hash`, when personIDs are given) enforce the
-	// "matches every requested person on the SAME file" AND semantics -
-	// that has to resolve to one row per matching file *before* bucketing
-	// by month, or a month with two files each matching only one of two
-	// requested people would wrongly get counted as if both had matched a
-	// single file. Hence the subquery: settle "which files match" first,
-	// exactly like SearchMedia does, then bucket that file set by month.
-	// Distinct hashes, as the search itself shows one tile per content.
-	query := "select date_format(`month_src`.`created`, '%Y-%m') as `bucket`, count(distinct `month_src`.`hash`) from (" +
-		"select `f`.`hash`, `f`.`created` " + from + where + groupBy + having +
+	// The subquery settles "which photos match" first, one row per photo
+	// (the people's AND is settled per hash in searchMediaClauses' own
+	// derived table), then buckets that set by month. Issue #201: each
+	// photo once, in the month of its oldest copy - the one SearchMedia
+	// shows it at - so a copy synced back years later neither counts it
+	// twice nor in a month the grid doesn't show it in.
+	query := "select date_format(`month_src`.`created`, '%Y-%m') as `bucket`, count(*) from (" +
+		"select `f`.`hash`, min(`f`.`created`) as `created` " + from + where + " group by `f`.`hash`" +
 		") as `month_src` group by `bucket` order by `bucket` desc"
 
 	rows, err := dao.db.Query(query, args...)
@@ -2587,15 +2627,19 @@ func (dao *Dao) ListImageGroups(excluded []string) (groups []*ImageGroup, err er
 // imageGroupSelect is a group as ListImageGroups and GetImageGroup read
 // it: one query, so the two can't drift apart. Members count, and are
 // offered as the cover, through files outside excluded (issue #192) -
-// the same condition in both subqueries, so its args come twice.
+// the same condition in both subqueries, so its args come twice. Issue
+// #201: each member once, however many paths hold it - a member row is
+// one photo, kept when some copy may show - so a photo with three copies
+// is no likelier to be the cover than one with a single path.
 func imageGroupSelect(excluded []string) (string, []any) {
 	outside, outsideArgs := outsideFolders("`f`.`path`", excluded)
 	if outside != "" {
 		outside = " and " + outside
 	}
+	shown := " and exists (select 1 from `files` as `f` where `f`.`hash` = `m`.`hash`" + outside + ")"
 	query := "select `g`.`id`, `g`.`name`," +
-		" (select count(distinct `m`.`hash`) from `image_group_files` as `m` join `files` as `f` on `f`.`hash` = `m`.`hash` where `m`.`group_id` = `g`.`id`" + outside + ")," +
-		" (select `m`.`hash` from `image_group_files` as `m` join `files` as `f` on `f`.`hash` = `m`.`hash` where `m`.`group_id` = `g`.`id`" + outside + " order by rand() limit 1)" +
+		" (select count(*) from `image_group_files` as `m` where `m`.`group_id` = `g`.`id`" + shown + ")," +
+		" (select `m`.`hash` from `image_group_files` as `m` where `m`.`group_id` = `g`.`id`" + shown + " order by rand() limit 1)" +
 		" from `image_groups` as `g`"
 	return query, append(append([]any{}, outsideArgs...), outsideArgs...)
 }

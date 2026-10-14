@@ -147,12 +147,13 @@ func TestImageSearchPagesThroughItsToken(t *testing.T) {
 		rows.AddRow(hash, "image/jpeg", time.Now(), time.Now(), fmt.Sprintf("/p/%d.jpg", i), 1)
 	}
 	mock.ExpectQuery("select `f`.`hash`, `f`.`mime`").WillReturnRows(rows)
+	expectCopies(mock, 3)
 	mg := keptOut(&Manager{dao: dao.NewWithDB(db), searchTokens: newSearchTokenCache(1000)})
 
 	var got []string
 	token := ""
 	for page := 0; page < 3; page++ {
-		files, next, err := mg.ImageSearch(ses, "", nil, token, false, nil, "", nil, 0, 0, false, false)
+		files, next, err := mg.ImageSearch(ses, "", nil, token, false, nil, "", nil, nil, 0, 0, false, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -169,7 +170,7 @@ func TestImageSearchPagesThroughItsToken(t *testing.T) {
 		t.Errorf("pages gave %v (token %q), want %s", got, token, want)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Error(err) // one query for every page
+		t.Error(err) // one query for every page, and its copies
 	}
 }
 
@@ -198,10 +199,11 @@ func TestImageSearchLimitShrinksOnlyItsPage(t *testing.T) {
 		}
 		mock.ExpectQuery("select `f`.`hash`, `f`.`mime`").WillReturnRows(rows)
 	}
+	expectCopies(mock, 7)
 	mg := keptOut(&Manager{dao: dao.NewWithDB(db), searchTokens: newSearchTokenCache(1000)})
 	search := func(token string, limit int32) ([]*pb.File, string) {
 		t.Helper()
-		files, next, err := mg.ImageSearch(ses, "", nil, token, false, nil, "", nil, 0, limit, false, false)
+		files, next, err := mg.ImageSearch(ses, "", nil, token, false, nil, "", nil, nil, 0, limit, false, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -244,7 +246,7 @@ func TestImageSearchLimitShrinksOnlyItsPage(t *testing.T) {
 		t.Errorf("a limit equal to the default gave %d photos, want 30", len(files))
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Error(err) // one query for each new search, none for a page
+		t.Error(err) // one query for each new search, none for a page but its copies
 	}
 }
 
@@ -256,11 +258,29 @@ func TestImageSearchLimitShrinksOnlyItsPage(t *testing.T) {
 type searchTest struct {
 	t     *testing.T
 	mg    *Manager
+	mock  sqlmock.Sqlmock
 	ses   *session.Session
 	paths []string
 	base  int
 	omit  bool
+	// newerThan is set when the pages are asked going up (issue #194).
+	newerThan *time.Time
 }
+
+// expectCopies expects the count of copies (File.copies, issue #201) that
+// n pages run, finding none: each photo then counts its own path. The mock
+// must match out of order (MatchExpectationsInOrder(false)), as pages and
+// new searches interleave.
+func expectCopies(mock sqlmock.Sqlmock, n int) {
+	mock.MatchExpectationsInOrder(false)
+	for i := 0; i < n; i++ {
+		mock.ExpectQuery("select `hash`, count\\(\\*\\) from `files` where `hash` in \\(").
+			WillReturnRows(sqlmock.NewRows([]string{"hash", "n"}))
+	}
+}
+
+// expectPage is expectCopies for the next page served.
+func (st *searchTest) expectPage() { expectCopies(st.mock, 1) }
 
 // bothPageKinds runs test as a grid asking for its thumbnails and as one
 // omitting them: the same rows, order, token and pages served again.
@@ -269,20 +289,60 @@ func bothPageKinds(t *testing.T, test func(t *testing.T, omit bool)) {
 	t.Run("omitted", func(t *testing.T) { test(t, true) })
 }
 
-// cOmittedBase moves an omitting run's hashes off the other run's: the
-// two share the storage folder, and a test writes or removes thumbnails.
-const cOmittedBase = 0x80
+// searchKind is how a newSearchTest case asks for its pages: with their
+// thumbnails or without (omit), and going down as every grid does, or up
+// from a jump's instant (issue #194: newer_than, oldest first).
+type searchKind struct{ omit, up bool }
+
+// everySearchKind runs test in both page kinds (bothPageKinds), going down
+// and going up: the same rows, order, token and pages served again.
+func everySearchKind(t *testing.T, test func(t *testing.T, k searchKind)) {
+	bothPageKinds(t, func(t *testing.T, omit bool) {
+		t.Run("down", func(t *testing.T) { test(t, searchKind{omit: omit}) })
+		t.Run("up", func(t *testing.T) { test(t, searchKind{omit: omit, up: true}) })
+	})
+}
+
+// cOmittedBase moves an omitting run's hashes off the other run's, and
+// cUpBase an upward run's off a downward one's: the runs share the storage
+// folder, and a test writes or removes thumbnails. A case holds fewer than
+// 0x40 photos.
+const (
+	cOmittedBase = 0x80
+	cUpBase      = 0x40
+)
+
+// cUpCutoff is the instant upward runs search above: the end of a month,
+// as a jump's (the web sends .999).
+var cUpCutoff = time.Date(2025, 6, 30, 23, 59, 59, 999_000_000, time.UTC)
 
 func newSearchTest(t *testing.T, omit bool, base, size int, paths []string, missing ...int) *searchTest {
 	t.Helper()
+	return newKindSearchTest(t, searchKind{omit: omit}, base, size, paths, missing...)
+}
+
+// newKindSearchTest is newSearchTest asking as k says. Going up, the rows
+// come as the query has them, newest first, dated so that the photos above
+// the cutoff, oldest first, are paths in order - each case's pages are the
+// same either way - and followed by two at or below the cutoff (the very
+// second of the month's end, and an older photo synced back to a path
+// above, its oldest copy below it), which no page may show.
+func newKindSearchTest(t *testing.T, k searchKind, base, size int, paths []string, missing ...int) *searchTest {
+	t.Helper()
+	if len(paths) >= cUpBase {
+		t.Fatalf("%d photos: a case holds fewer than %d", len(paths), cUpBase)
+	}
 	_, ses := galleryTestEnv(t)
 	orig := maxImagesSearch
 	maxImagesSearch = func() int { return size }
 	t.Cleanup(func() { maxImagesSearch = orig })
-	if omit {
+	if k.omit {
 		base += cOmittedBase
 	}
-	st := &searchTest{t: t, ses: ses, paths: paths, base: base, omit: omit}
+	if k.up {
+		base += cUpBase
+	}
+	st := &searchTest{t: t, ses: ses, paths: paths, base: base, omit: k.omit}
 	skip := map[int]bool{}
 	for _, i := range missing {
 		skip[i] = true
@@ -297,14 +357,33 @@ func newSearchTest(t *testing.T, omit bool, base, size int, paths []string, miss
 		}
 		db.Close()
 	})
-	rows := sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"})
-	for i, p := range paths {
+	for i := range paths {
 		if !skip[i] {
 			st.thumb(i)
 		}
-		rows.AddRow(st.hash(i), "image/jpeg", time.Now(), time.Now(), p, 1)
 	}
-	mock.ExpectQuery("select `f`.`hash`, `f`.`mime`").WillReturnRows(rows)
+	rows := sqlmock.NewRows([]string{"hash", "mime", "created", "modified", "path", "size"})
+	if k.up {
+		cutoff := cUpCutoff
+		st.newerThan = &cutoff
+		monthEnd := cutoff.Truncate(time.Second)
+		synced := fmt.Sprintf("%064x", 0xbe10+base) // a photo below, synced back above
+		rows.AddRow(synced, "image/jpeg", monthEnd.Add(1000*time.Hour), monthEnd, "/Download/old.jpg", 1)
+		for i := len(paths) - 1; i >= 0; i-- {
+			when := monthEnd.Add(time.Duration(i+1) * time.Hour)
+			rows.AddRow(st.hash(i), "image/jpeg", when, when, paths[i], 1)
+		}
+		rows.AddRow(fmt.Sprintf("%064x", 0xbe00+base), "image/jpeg", monthEnd, monthEnd, "/p/month-end.jpg", 1)
+		rows.AddRow(synced, "image/jpeg", monthEnd.Add(-time.Hour), monthEnd, "/Phone/old.jpg", 1)
+	} else {
+		for i, p := range paths {
+			rows.AddRow(st.hash(i), "image/jpeg", time.Now(), time.Now(), p, 1)
+		}
+	}
+	// Going up, the query is the plain search's: no date in it.
+	mock.ExpectQuery("select `f`.`hash`, `f`.`mime`").WithoutArgs().WillReturnRows(rows)
+	mock.MatchExpectationsInOrder(false)
+	st.mock = mock
 	st.mg = keptOut(&Manager{dao: dao.NewWithDB(db), searchTokens: newSearchTokenCache(1000)})
 	return st
 }
@@ -330,11 +409,18 @@ func (st *searchTest) thumb(i int) {
 // page asks as a grid does: token "" starts the search.
 func (st *searchTest) page(token string, have int32) (string, string) {
 	st.t.Helper()
-	files, next, err := st.mg.ImageSearch(st.ses, "", nil, token, false, nil, "", nil, have, 0, false, st.omit)
+	st.expectPage()
+	files, next, err := st.search(token, have)
 	if err != nil {
 		st.t.Fatal(err)
 	}
 	return st.pagePaths(files), next
+}
+
+// search is ImageSearch for the page at token and have, in st's kind -
+// going up with the same instant on every page, as a grid sends it.
+func (st *searchTest) search(token string, have int32) ([]*pb.File, string, error) {
+	return st.mg.ImageSearch(st.ses, "", nil, token, false, nil, "", nil, st.newerThan, have, 0, false, st.omit)
 }
 
 // pagePaths is the page's photos, each with its thumbnail's content - or,
@@ -356,6 +442,9 @@ func (st *searchTest) pagePaths(files []*pb.File) string {
 		}
 		if f.ThumbnailSmall == nil || f.GetThumbnailSmall() {
 			st.t.Errorf("%s: small %v, want false (no small thumbnail was asked for)", f.Path, f.ThumbnailSmall)
+		}
+		if f.Copies == nil || f.GetCopies() != 1 {
+			st.t.Errorf("%s: copies %v, want 1 (issue #201)", f.Path, f.Copies)
 		}
 		got = append(got, strings.TrimSuffix(strings.TrimPrefix(f.Path, "/p/"), ".jpg")+"="+thumb)
 	}
@@ -395,8 +484,8 @@ func (st *searchTest) expect(what, got string, is ...int) {
 // it, and the lost photos never showed. Now it is the same page again, and
 // the grid goes on from there with every photo once.
 func TestSearchPageLostIsServedAgain(t *testing.T) {
-	bothPageKinds(t, func(t *testing.T, omit bool) {
-		st := newSearchTest(t, omit, 0x1000, 3, photoPaths(10))
+	everySearchKind(t, func(t *testing.T, k searchKind) {
+		st := newKindSearchTest(t, k, 0x1000, 3, photoPaths(10))
 		got, tok := st.page("", 0)
 		st.expect("first page", got, 0, 1, 2)
 		got, next := st.page(tok, 3)
@@ -420,8 +509,8 @@ func TestSearchPageLostIsServedAgain(t *testing.T) {
 // A grid that gets every answer goes on page after page, each photo once;
 // a lost last page is served again too (the token stays where it was).
 func TestSearchPagesGoOnWithTheHaveTheyLeft(t *testing.T) {
-	bothPageKinds(t, func(t *testing.T, omit bool) {
-		st := newSearchTest(t, omit, 0x1100, 4, photoPaths(10))
+	everySearchKind(t, func(t *testing.T, k searchKind) {
+		st := newKindSearchTest(t, k, 0x1100, 4, photoPaths(10))
 		got, tok := st.page("", 0)
 		st.expect("first page", got, 0, 1, 2, 3)
 		got, _ = st.page(tok, 4)
@@ -435,8 +524,8 @@ func TestSearchPagesGoOnWithTheHaveTheyLeft(t *testing.T) {
 // gets the next page for every request, as before: the device can't tell
 // a lost page from the next one.
 func TestSearchPagesWithoutHaveGoOnAsBefore(t *testing.T) {
-	bothPageKinds(t, func(t *testing.T, omit bool) {
-		st := newSearchTest(t, omit, 0x1200, 3, photoPaths(10))
+	everySearchKind(t, func(t *testing.T, k searchKind) {
+		st := newKindSearchTest(t, k, 0x1200, 3, photoPaths(10))
 		got, tok := st.page("", 0)
 		st.expect("first page", got, 0, 1, 2)
 		got, _ = st.page(tok, 0)
@@ -451,8 +540,8 @@ func TestSearchPagesWithoutHaveGoOnAsBefore(t *testing.T) {
 // such a count is never served again (the client doesn't count what the
 // token sends, so a have it repeats tells nothing).
 func TestSearchPagesWithAnUnplacedHaveGoOn(t *testing.T) {
-	bothPageKinds(t, func(t *testing.T, omit bool) {
-		st := newSearchTest(t, omit, 0x1300, 3, photoPaths(14))
+	everySearchKind(t, func(t *testing.T, k searchKind) {
+		st := newKindSearchTest(t, k, 0x1300, 3, photoPaths(14))
 		got, tok := st.page("", 0)
 		st.expect("first page", got, 0, 1, 2)
 		got, _ = st.page(tok, 7) // a grid that also counts something else
@@ -471,20 +560,24 @@ func TestSearchPagesWithAnUnplacedHaveGoOn(t *testing.T) {
 // double scroll, issue #171): both get the same page, whichever stores
 // first, and the token goes on from there, never corrupted.
 func TestSearchPageAskedTwiceAtOnce(t *testing.T) {
-	bothPageKinds(t, func(t *testing.T, omit bool) {
+	everySearchKind(t, func(t *testing.T, k searchKind) {
 		const rounds = 15
-		st := newSearchTest(t, omit, 0x1400, 3, photoPaths(3+3*rounds+3))
+		st := newKindSearchTest(t, k, 0x1400, 3, photoPaths(3+3*rounds+3))
 		got, tok := st.page("", 0)
 		st.expect("first page", got, 0, 1, 2)
 		for round := 0; round < rounds; round++ {
 			have := int32(3 + 3*round)
 			var wg sync.WaitGroup
 			pages := make([]string, 2)
+			// Both before either runs: the mock's expectations aren't
+			// safe to add while it is being queried.
+			st.expectPage()
+			st.expectPage()
 			for i := range pages {
 				wg.Add(1)
 				go func(i int) {
 					defer wg.Done()
-					files, _, err := st.mg.ImageSearch(st.ses, "", nil, tok, false, nil, "", nil, have, 0, false, st.omit)
+					files, _, err := st.search(tok, have)
 					if err != nil {
 						t.Error(err)
 					}
@@ -510,8 +603,8 @@ func TestSearchPageAskedTwiceAtOnce(t *testing.T) {
 // photo that no longer fits comes first on the next page: none skipped.
 // Without it, the same page as before.
 func TestSearchPageServedAgainAfterASkippedRow(t *testing.T) {
-	bothPageKinds(t, func(t *testing.T, omit bool) {
-		st := newSearchTest(t, omit, 0x1500, 3, photoPaths(10), 4)
+	everySearchKind(t, func(t *testing.T, k searchKind) {
+		st := newKindSearchTest(t, k, 0x1500, 3, photoPaths(10), 4)
 		got, tok := st.page("", 0)
 		st.expect("first page", got, 0, 1, 2)
 		got, _ = st.page(tok, 3)
@@ -530,8 +623,8 @@ func TestSearchPageServedAgainAfterASkippedRow(t *testing.T) {
 // Once most of a search is served the token copies what is left
 // (pageCursor) - the last page with it, so it can still be served again.
 func TestSearchPageServedAgainAfterTheTokenIsCompacted(t *testing.T) {
-	bothPageKinds(t, func(t *testing.T, omit bool) {
-		st := newSearchTest(t, omit, 0x1600, 2, photoPaths(10))
+	everySearchKind(t, func(t *testing.T, k searchKind) {
+		st := newKindSearchTest(t, k, 0x1600, 2, photoPaths(10))
 		got, tok := st.page("", 0)
 		st.expect("page 1", got, 0, 1)
 		for have, rows := int32(2), []int{2, 3}; have <= 6; have, rows = have+2, []int{rows[0] + 2, rows[1] + 2} {
@@ -552,11 +645,11 @@ func TestSearchPageServedAgainAfterTheTokenIsCompacted(t *testing.T) {
 // request asking for it again: the page comes without its photos, filled
 // from further on, and nothing after it skips.
 func TestSearchPageServedAgainAfterAFolderIsKeptOut(t *testing.T) {
-	bothPageKinds(t, func(t *testing.T, omit bool) {
+	everySearchKind(t, func(t *testing.T, k searchKind) {
 		paths := photoPaths(10)
 		paths[4] = "/Private/4.jpg"
 		paths[7] = "/Private/7.jpg"
-		st := newSearchTest(t, omit, 0x1700, 3, paths)
+		st := newKindSearchTest(t, k, 0x1700, 3, paths)
 		got, tok := st.page("", 0)
 		st.expect("first page", got, 0, 1, 2)
 		got, _ = st.page(tok, 3)
@@ -572,8 +665,8 @@ func TestSearchPageServedAgainAfterAFolderIsKeptOut(t *testing.T) {
 // each answer reaches it (it found every photo a duplicate) is served it
 // again only cMaxServedAgain times in a row, then goes on.
 func TestSearchPageServedAgainOnlySoManyTimes(t *testing.T) {
-	bothPageKinds(t, func(t *testing.T, omit bool) {
-		st := newSearchTest(t, omit, 0x1800, 2, photoPaths(20))
+	everySearchKind(t, func(t *testing.T, k searchKind) {
+		st := newKindSearchTest(t, k, 0x1800, 2, photoPaths(20))
 		got, tok := st.page("", 0)
 		st.expect("first page", got, 0, 1)
 		got, _ = st.page(tok, 2)
@@ -598,8 +691,8 @@ func TestSearchPageServedAgainOnlySoManyTimes(t *testing.T) {
 // have - and goes on, since the client wasn't in step yet; once it is, a
 // lost page is served again as with any token.
 func TestSearchResumedFromAnUnknownToken(t *testing.T) {
-	bothPageKinds(t, func(t *testing.T, omit bool) {
-		st := newSearchTest(t, omit, 0x1900, 3, photoPaths(15))
+	everySearchKind(t, func(t *testing.T, k searchKind) {
+		st := newKindSearchTest(t, k, 0x1900, 3, photoPaths(15))
 		got, tok := st.page("expired-token", 3)
 		st.expect("resumed past 3", got, 3, 4, 5)
 		if tok == "" || tok == "expired-token" {
@@ -631,9 +724,10 @@ func TestSearchJumpLeavesItsTokenAlone(t *testing.T) {
 			rows.AddRow(st.hash(i), "image/jpeg", time.Now(), time.Now(), st.paths[i], 1)
 		}
 		mock.ExpectQuery("select `f`.`hash`, `f`.`mime`").WillReturnRows(rows)
+		expectCopies(mock, 1)
 		jumpMg := keptOut(&Manager{dao: dao.NewWithDB(db), searchTokens: st.mg.searchTokens})
 		before := time.Now()
-		files, jumpTok, err := jumpMg.ImageSearch(st.ses, "", nil, tok, false, nil, "", &before, 3, 0, false, st.omit)
+		files, jumpTok, err := jumpMg.ImageSearch(st.ses, "", nil, tok, false, nil, "", &before, nil, 3, 0, false, st.omit)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -739,9 +833,10 @@ func slowFirst(t *testing.T, size int) (entered, release chan struct{}) {
 // and gives what it served once released.
 func (st *searchTest) slowPage(token string, have int32) (entered, release chan struct{}, done chan string) {
 	entered, release = slowFirst(st.t, 3)
+	st.expectPage()
 	done = make(chan string, 1)
 	go func() {
-		files, _, err := st.mg.ImageSearch(st.ses, "", nil, token, false, nil, "", nil, have, 0, false, st.omit)
+		files, _, err := st.search(token, have)
 		if err != nil {
 			st.t.Error(err)
 		}
@@ -757,8 +852,8 @@ func (st *searchTest) slowPage(token string, have int32) (entered, release chan 
 // retry's page, so the token keeps the retry's place, though the first
 // stores last - nothing skipped.
 func TestSearchPageRetryOvertakingTheFirstRequestKeepsItsPlace(t *testing.T) {
-	bothPageKinds(t, func(t *testing.T, omit bool) {
-		st := newSearchTest(t, omit, 0x1b00, 3, photoPaths(12))
+	everySearchKind(t, func(t *testing.T, k searchKind) {
+		st := newKindSearchTest(t, k, 0x1b00, 3, photoPaths(12))
 		got, tok := st.page("", 0)
 		st.expect("first page", got, 0, 1, 2)
 		entered, release, done := st.slowPage(tok, 3)
@@ -777,8 +872,8 @@ func TestSearchPageRetryOvertakingTheFirstRequestKeepsItsPlace(t *testing.T) {
 // it) and the first request's (with it): the first ends one row sooner,
 // and the next page doesn't bring again a photo the client holds.
 func TestSearchPageRetryOvertakingTheFirstRequestRepeatsNothing(t *testing.T) {
-	bothPageKinds(t, func(t *testing.T, omit bool) {
-		st := newSearchTest(t, omit, 0x1c00, 3, photoPaths(12), 4)
+	everySearchKind(t, func(t *testing.T, k searchKind) {
+		st := newKindSearchTest(t, k, 0x1c00, 3, photoPaths(12), 4)
 		got, tok := st.page("", 0)
 		st.expect("first page", got, 0, 1, 2)
 		entered, release, done := st.slowPage(tok, 3)
@@ -798,8 +893,8 @@ func TestSearchPageRetryOvertakingTheFirstRequestRepeatsNothing(t *testing.T) {
 // delete that is never taken for a lost page: the next page comes, not
 // the one the client holds, again and again.
 func TestSearchPageNotServedAgainAfterADelete(t *testing.T) {
-	bothPageKinds(t, func(t *testing.T, omit bool) {
-		st := newSearchTest(t, omit, 0x1d00, 3, photoPaths(20))
+	everySearchKind(t, func(t *testing.T, k searchKind) {
+		st := newKindSearchTest(t, k, 0x1d00, 3, photoPaths(20))
 		got, tok := st.page("", 0)
 		st.expect("first page", got, 0, 1, 2)
 		got, _ = st.page(tok, 3)

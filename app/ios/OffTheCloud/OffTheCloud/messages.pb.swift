@@ -841,9 +841,55 @@ public nonisolated struct Msg_DelFile: Sendable {
 
   public var path: String = String()
 
+  /// Issue #201: Images' "delete every copy". When true, the device
+  /// deletes every path in Files that holds the same content as this one
+  /// (File.copies counted them): all of `files`' rows with its hash,
+  /// wherever they are, folders kept out of Images included, each with its
+  /// older versions, as its own DelFile would. It answers Ack ok once all
+  /// are gone. It is all or nothing: if any of those paths (this one
+  /// included) is in an upload-only folder, nothing is deleted and the
+  /// answer is error_code "copy_upload_only", with a message naming that
+  /// folder. Older versions that other paths keep (ListFileVersions) are not
+  /// copies, so they stay, and so does the content they hold. This applies
+  /// to a file only: a folder's path deletes the folder as before (issue
+  /// #116) and ignores the flag. Unset or false deletes only this path, as
+  /// before. A device that sets File.copies honours it. Devices before #201
+  /// ignore it and delete only this path. Optional (has/hasEveryCopy), so
+  /// that requests typed before it, like the web's, stay valid.
+  public var everyCopy: Bool {
+    get {_everyCopy ?? false}
+    set {_everyCopy = newValue}
+  }
+  /// Returns true if `everyCopy` has been explicitly set.
+  public var hasEveryCopy: Bool {self._everyCopy != nil}
+  /// Clears the value of `everyCopy`. Subsequent reads from it will return its default value.
+  public mutating func clearEveryCopy() {self._everyCopy = nil}
+
+  /// Issue #201: the content hash the client showed for this path (File.hash
+  /// of the tile or row it was deleted from). When set and the path is a
+  /// file that now holds other content (synced over or edited since it was
+  /// shown), the device deletes nothing and answers error_code "changed",
+  /// with a message saying so - with or without every_copy, which would
+  /// otherwise delete every copy of content the person never saw. Checked
+  /// before anything is deleted. Ignored for a folder's path, and when
+  /// empty (a listing shows no hash for a file whose content is missing,
+  /// issue #141). Devices before it ignore it. Optional (has/hasHash), so
+  /// that requests typed before it, like the web's, stay valid.
+  public var hash: String {
+    get {_hash ?? String()}
+    set {_hash = newValue}
+  }
+  /// Returns true if `hash` has been explicitly set.
+  public var hasHash: Bool {self._hash != nil}
+  /// Clears the value of `hash`. Subsequent reads from it will return its default value.
+  public mutating func clearHash() {self._hash = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _everyCopy: Bool? = nil
+  fileprivate var _hash: String? = nil
 }
 
 public nonisolated struct Msg_GetFile: Sendable {
@@ -964,6 +1010,88 @@ public nonisolated struct Msg_ListFiles: Sendable {
   public var path: String = String()
 
   public var recursive: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Issue #195: Files' Storage view, which shows what takes the space in one
+/// folder. The apps ask for it only while that view is open; ListFiles never
+/// sizes folders. Answers with FolderUsage. Sizes are logical: each file at
+/// its own size in bytes, as File.size64. Content held at two paths counts
+/// at both, though the device stores it once. Encryption, thumbnails,
+/// posts, shared galleries, other users and the database aren't counted, so
+/// the figures don't add up to the device's storage bar. Same callers as
+/// ListFiles. Devices before #195 answer error_code "unknown_payload".
+public nonisolated struct Msg_GetFolderUsage: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The folder as ListFiles takes it, with its trailing slash ("/" for the
+  /// root). One without the slash is taken as that folder.
+  public var path: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// One direct child of the folder asked for (GetFolderUsage).
+public nonisolated struct Msg_FolderUsageEntry: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Its full path, as ListFiles lists it: a folder's has no trailing
+  /// slash. A file and a folder can share a name (made from two computers),
+  /// and then they are two entries told apart by is_dir.
+  public var path: String = String()
+
+  /// A folder (everything under path + "/"), or a file.
+  public var isDir: Bool = false
+
+  /// Bytes of the current files: a file's own size, or for a folder every
+  /// file under it at any depth.
+  public var filesSize: Int64 = 0
+
+  /// How many files that is (1 for a file). 0 only for a child that holds
+  /// nothing but older versions.
+  public var fileCount: Int32 = 0
+
+  /// Bytes of the older versions kept of those files (upload-only folders,
+  /// issue #132, ListFileVersions). They are not part of files_size: the
+  /// entry's whole size is files_size + versions_size.
+  public var versionsSize: Int64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// The answer to GetFolderUsage.
+public nonisolated struct Msg_FolderUsage: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The folder asked for, with its trailing slash. A client that has moved
+  /// to another folder drops an answer whose path isn't the one it shows.
+  public var path: String = String()
+
+  /// Every direct child that holds a file or an older version, largest
+  /// first (files_size + versions_size), then by path, then a folder before
+  /// a file of the same name. Empty for an empty or unknown folder.
+  public var entries: [Msg_FolderUsageEntry] = []
+
+  /// The folder's own totals: every file under it at any depth, the sums
+  /// of the entries' fields.
+  public var filesSize: Int64 = 0
+
+  public var fileCount: Int32 = 0
+
+  public var versionsSize: Int64 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1213,11 +1341,42 @@ public nonisolated struct Msg_SearchPhotos: Sendable {
   /// entry has it and fetch only entries that don't.
   public var omitThumbnails: Bool = false
 
+  /// Issue #194: scrolling up after a jump (before). This asks for the
+  /// photos dated strictly after this instant, served OLDEST first, the
+  /// opposite of every other page; the answer says so
+  /// (ListOfFiles.oldest_first). A jump's `before` and this, with the same
+  /// instant, split the library exactly: nothing is missing and nothing
+  /// comes twice. That relies on each photo having one date since #201: its
+  /// oldest copy's (see File.copies).
+  ///
+  /// Send it on every page of the upward search, with the same instant.
+  /// Unlike `before`, it does not start a fresh search when a token comes
+  /// with it: token, have, limit, small_thumbnails and omit_thumbnails work
+  /// as on any page. That covers resuming a token the device no longer
+  /// holds and serving a page asked again. `have` counts only the photos
+  /// this upward search has brought, never those of the downward one. A
+  /// token from the other direction, or from another instant, counts as one
+  /// the device doesn't hold. Tags, people, collection and videos filter as
+  /// on any search. If `before` is also set, newer_than wins.
+  ///
+  /// Devices before #194 ignore it and answer an ordinary newest-first page
+  /// with oldest_first false. Drop that page, and don't ask that device
+  /// again until the next sign-in.
+  public var newerThan: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_newerThan ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_newerThan = newValue}
+  }
+  /// Returns true if `newerThan` has been explicitly set.
+  public var hasNewerThan: Bool {self._newerThan != nil}
+  /// Clears the value of `newerThan`. Subsequent reads from it will return its default value.
+  public mutating func clearNewerThan() {self._newerThan = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _before: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _newerThan: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
 public nonisolated struct Msg_ListOfFiles: Sendable {
@@ -1246,6 +1405,15 @@ public nonisolated struct Msg_ListOfFiles: Sendable {
   /// answers can stop at the cap unsaid: a path left out may then only
   /// have been cut, so don't remember it as having none.
   public var askAgainFrom: Int32 = 0
+
+  /// Issue #194, on a SearchPhotos answer: its photos are oldest first.
+  /// That is the answer to a request with newer_than, from a device that
+  /// honours it, on every page of it: the last one (token "") too, and an
+  /// empty one when nothing is newer. False on every other answer. Devices
+  /// before #194 ignore newer_than and always leave it false, so a page
+  /// asked for with newer_than that comes back without it is an ordinary
+  /// newest-first page and is to be dropped.
+  public var oldestFirst: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1283,6 +1451,8 @@ public nonisolated struct Msg_PhotoDateBucket: Sendable {
   /// "2022-06"
   public var month: String = String()
 
+  /// Since #201 each photo counts once, in the month of its oldest copy:
+  /// the month SearchPhotos shows it in (see File.copies).
   public var count: Int32 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -1385,6 +1555,37 @@ public nonisolated struct Msg_File: Sendable {
   /// Clears the value of `thumbnailSmall`. Subsequent reads from it will return its default value.
   public mutating func clearThumbnailSmall() {self._thumbnailSmall = nil}
 
+  /// Issue #201, on the entries of a SearchPhotos answer (Images, People,
+  /// collections, the pickers). It counts the paths in Files that hold this
+  /// content, this entry's own included: every `files` row with its hash,
+  /// wherever it is, folders kept out of Images included. Older versions
+  /// kept in upload-only folders (file_versions, ListFileVersions) are not
+  /// paths and don't count.
+  ///
+  /// Since #201 an Images entry is one photo, not one path. It is the
+  /// photo's oldest copy (earliest created, then smallest path) among the
+  /// copies Images may show, so its path and created are that copy's.
+  /// Every path keeps its own stored date (Files shows them all), and the
+  /// date buckets, People and collections count the photo once.
+  ///
+  /// Above 1, deleting the photo from Images asks whether to delete only
+  /// this path or every copy (DelFile.every_copy, with DelFile.hash this
+  /// entry's hash). It is counted when the page is made, so a copy added or
+  /// removed since then isn't in it. Unset (optional: has/hasCopies false)
+  /// on every entry of a page whose count failed - the page is served
+  /// anyway, and such an entry offers no "every copy": delete only the
+  /// path -, on other answers, and from devices before #201, which list a
+  /// photo at its newest copy and don't honour every_copy, so delete only
+  /// the path.
+  public var copies: Int32 {
+    get {_copies ?? 0}
+    set {_copies = newValue}
+  }
+  /// Returns true if `copies` has been explicitly set.
+  public var hasCopies: Bool {self._copies != nil}
+  /// Clears the value of `copies`. Subsequent reads from it will return its default value.
+  public mutating func clearCopies() {self._copies = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1393,6 +1594,7 @@ public nonisolated struct Msg_File: Sendable {
   fileprivate var _modified: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
   fileprivate var _content: Data? = nil
   fileprivate var _thumbnailSmall: Bool? = nil
+  fileprivate var _copies: Int32? = nil
 }
 
 public nonisolated struct Msg_Ack: Sendable {
@@ -5632,6 +5834,16 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqSetLanguage(newValue)}
   }
 
+  /// Issue #195: Files' Storage view. Answers with resp_folder_usage;
+  /// devices before it with error_code "unknown_payload".
+  public var reqGetFolderUsage: Msg_GetFolderUsage {
+    get {
+      if case .reqGetFolderUsage(let v)? = payload {return v}
+      return Msg_GetFolderUsage()
+    }
+    set {payload = .reqGetFolderUsage(newValue)}
+  }
+
   /// Issue #93. Answers with the generic Ack.
   public var reqSetDeviceDisabled: Msg_ReqSetDeviceDisabled {
     get {
@@ -5840,6 +6052,9 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     /// Localization: store the user's language (owner only). Answers with
     /// the generic Ack; code "changed" when `expected` no longer matches.
     case reqSetLanguage(Msg_SetLanguage)
+    /// Issue #195: Files' Storage view. Answers with resp_folder_usage;
+    /// devices before it with error_code "unknown_payload".
+    case reqGetFolderUsage(Msg_GetFolderUsage)
     /// Issue #93. Answers with the generic Ack.
     case reqSetDeviceDisabled(Msg_ReqSetDeviceDisabled)
     /// Issue #101: session tokens in place of a password in localStorage.
@@ -5884,7 +6099,12 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
   /// folder inside another one kept out of Images; the message names it),
   /// "duplicated_file" (an upload or link onto a path that is taken - photo
   /// sync renames and retries; devices before it send only the message,
-  /// ending in "Duplicated file", which clients check when the code is empty).
+  /// ending in "Duplicated file", which clients check when the code is empty),
+  /// "copy_upload_only" (issue #201: a DelFile with every_copy refused as a
+  /// whole, because one of the copies, maybe the path asked for, is in an
+  /// upload-only folder; nothing was deleted, and the message names that
+  /// folder), "changed" (issue #201: a DelFile whose hash is no longer the
+  /// content at its path; nothing was deleted - refresh and ask again).
   public var errorCode: String {
     get {_storage._errorCode}
     set {_uniqueStorage()._errorCode = newValue}
@@ -6386,6 +6606,15 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
     set {_uniqueStorage()._payload = .respRestartingDevice(newValue)}
   }
 
+  /// Issue #195: Files' Storage view.
+  public var respFolderUsage: Msg_FolderUsage {
+    get {
+      if case .respFolderUsage(let v)? = _storage._payload {return v}
+      return Msg_FolderUsage()
+    }
+    set {_uniqueStorage()._payload = .respFolderUsage(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated enum OneOf_Payload: Equatable, Sendable {
@@ -6467,6 +6696,8 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
     case respOutOfImagesFolders(Msg_OutOfImagesFolders)
     /// Settings > Restart device.
     case respRestartingDevice(Msg_RestartingDevice)
+    /// Issue #195: Files' Storage view.
+    case respFolderUsage(Msg_FolderUsage)
 
   }
 
@@ -7363,7 +7594,7 @@ nonisolated extension Msg_LinkFile: SwiftProtobuf.Message, SwiftProtobuf._Messag
 
 nonisolated extension Msg_DelFile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DelFile"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{3}every_copy\0\u{1}hash\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7372,20 +7603,34 @@ nonisolated extension Msg_DelFile: SwiftProtobuf.Message, SwiftProtobuf._Message
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self._everyCopy) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._hash) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.path.isEmpty {
       try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
     }
+    try { if let v = self._everyCopy {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._hash {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_DelFile, rhs: Msg_DelFile) -> Bool {
     if lhs.path != rhs.path {return false}
+    if lhs._everyCopy != rhs._everyCopy {return false}
+    if lhs._hash != rhs._hash {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -7640,6 +7885,136 @@ nonisolated extension Msg_ListFiles: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
+nonisolated extension Msg_GetFolderUsage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetFolderUsage"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_GetFolderUsage, rhs: Msg_GetFolderUsage) -> Bool {
+    if lhs.path != rhs.path {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_FolderUsageEntry: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".FolderUsageEntry"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{3}is_dir\0\u{3}files_size\0\u{3}file_count\0\u{3}versions_size\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.isDir) }()
+      case 3: try { try decoder.decodeSingularInt64Field(value: &self.filesSize) }()
+      case 4: try { try decoder.decodeSingularInt32Field(value: &self.fileCount) }()
+      case 5: try { try decoder.decodeSingularInt64Field(value: &self.versionsSize) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
+    }
+    if self.isDir != false {
+      try visitor.visitSingularBoolField(value: self.isDir, fieldNumber: 2)
+    }
+    if self.filesSize != 0 {
+      try visitor.visitSingularInt64Field(value: self.filesSize, fieldNumber: 3)
+    }
+    if self.fileCount != 0 {
+      try visitor.visitSingularInt32Field(value: self.fileCount, fieldNumber: 4)
+    }
+    if self.versionsSize != 0 {
+      try visitor.visitSingularInt64Field(value: self.versionsSize, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_FolderUsageEntry, rhs: Msg_FolderUsageEntry) -> Bool {
+    if lhs.path != rhs.path {return false}
+    if lhs.isDir != rhs.isDir {return false}
+    if lhs.filesSize != rhs.filesSize {return false}
+    if lhs.fileCount != rhs.fileCount {return false}
+    if lhs.versionsSize != rhs.versionsSize {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_FolderUsage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".FolderUsage"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}entries\0\u{3}files_size\0\u{3}file_count\0\u{3}versions_size\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.path) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.entries) }()
+      case 3: try { try decoder.decodeSingularInt64Field(value: &self.filesSize) }()
+      case 4: try { try decoder.decodeSingularInt32Field(value: &self.fileCount) }()
+      case 5: try { try decoder.decodeSingularInt64Field(value: &self.versionsSize) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.path.isEmpty {
+      try visitor.visitSingularStringField(value: self.path, fieldNumber: 1)
+    }
+    if !self.entries.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.entries, fieldNumber: 2)
+    }
+    if self.filesSize != 0 {
+      try visitor.visitSingularInt64Field(value: self.filesSize, fieldNumber: 3)
+    }
+    if self.fileCount != 0 {
+      try visitor.visitSingularInt32Field(value: self.fileCount, fieldNumber: 4)
+    }
+    if self.versionsSize != 0 {
+      try visitor.visitSingularInt64Field(value: self.versionsSize, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_FolderUsage, rhs: Msg_FolderUsage) -> Bool {
+    if lhs.path != rhs.path {return false}
+    if lhs.entries != rhs.entries {return false}
+    if lhs.filesSize != rhs.filesSize {return false}
+    if lhs.fileCount != rhs.fileCount {return false}
+    if lhs.versionsSize != rhs.versionsSize {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 nonisolated extension Msg_GetThumbnails: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetThumbnails"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}paths\0\u{3}small_thumbnails\0")
@@ -7877,7 +8252,7 @@ nonisolated extension Msg_BridgeSendLogs: SwiftProtobuf.Message, SwiftProtobuf._
 
 nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SearchPhotos"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{1}token\0\u{3}include_videos\0\u{3}person_ids\0\u{1}before\0\u{1}have\0\u{3}group_id\0\u{1}limit\0\u{3}small_thumbnails\0\u{3}omit_thumbnails\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}tags\0\u{1}token\0\u{3}include_videos\0\u{3}person_ids\0\u{1}before\0\u{1}have\0\u{3}group_id\0\u{1}limit\0\u{3}small_thumbnails\0\u{3}omit_thumbnails\0\u{3}newer_than\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7895,6 +8270,7 @@ nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._Me
       case 8: try { try decoder.decodeSingularInt32Field(value: &self.limit) }()
       case 9: try { try decoder.decodeSingularBoolField(value: &self.smallThumbnails) }()
       case 10: try { try decoder.decodeSingularBoolField(value: &self.omitThumbnails) }()
+      case 11: try { try decoder.decodeSingularMessageField(value: &self._newerThan) }()
       default: break
       }
     }
@@ -7935,6 +8311,9 @@ nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._Me
     if self.omitThumbnails != false {
       try visitor.visitSingularBoolField(value: self.omitThumbnails, fieldNumber: 10)
     }
+    try { if let v = self._newerThan {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -7949,6 +8328,7 @@ nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._Me
     if lhs.limit != rhs.limit {return false}
     if lhs.smallThumbnails != rhs.smallThumbnails {return false}
     if lhs.omitThumbnails != rhs.omitThumbnails {return false}
+    if lhs._newerThan != rhs._newerThan {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -7956,7 +8336,7 @@ nonisolated extension Msg_SearchPhotos: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 nonisolated extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListOfFiles"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}files\0\u{1}token\0\u{3}out_of_images_supported\0\u{3}folder_out_of_images\0\u{3}ask_again_from\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}files\0\u{1}token\0\u{3}out_of_images_supported\0\u{3}folder_out_of_images\0\u{3}ask_again_from\0\u{3}oldest_first\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7969,6 +8349,7 @@ nonisolated extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._Mes
       case 3: try { try decoder.decodeSingularBoolField(value: &self.outOfImagesSupported) }()
       case 4: try { try decoder.decodeSingularBoolField(value: &self.folderOutOfImages) }()
       case 5: try { try decoder.decodeSingularInt32Field(value: &self.askAgainFrom) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.oldestFirst) }()
       default: break
       }
     }
@@ -7990,6 +8371,9 @@ nonisolated extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._Mes
     if self.askAgainFrom != 0 {
       try visitor.visitSingularInt32Field(value: self.askAgainFrom, fieldNumber: 5)
     }
+    if self.oldestFirst != false {
+      try visitor.visitSingularBoolField(value: self.oldestFirst, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -7999,6 +8383,7 @@ nonisolated extension Msg_ListOfFiles: SwiftProtobuf.Message, SwiftProtobuf._Mes
     if lhs.outOfImagesSupported != rhs.outOfImagesSupported {return false}
     if lhs.folderOutOfImages != rhs.folderOutOfImages {return false}
     if lhs.askAgainFrom != rhs.askAgainFrom {return false}
+    if lhs.oldestFirst != rhs.oldestFirst {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -8116,7 +8501,7 @@ nonisolated extension Msg_RespPhotoDateBuckets: SwiftProtobuf.Message, SwiftProt
 
 nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".File"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{2}\u{2}content\0\u{3}upload_only\0\u{1}versions\0\u{1}size64\0\u{3}out_of_images\0\u{3}thumbnail_small\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hash\0\u{1}mime\0\u{1}created\0\u{1}modified\0\u{1}path\0\u{1}size\0\u{2}\u{2}content\0\u{3}upload_only\0\u{1}versions\0\u{1}size64\0\u{3}out_of_images\0\u{3}thumbnail_small\0\u{1}copies\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -8136,6 +8521,7 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
       case 11: try { try decoder.decodeSingularInt64Field(value: &self.size64) }()
       case 12: try { try decoder.decodeSingularBoolField(value: &self.outOfImages) }()
       case 13: try { try decoder.decodeSingularBoolField(value: &self._thumbnailSmall) }()
+      case 14: try { try decoder.decodeSingularInt32Field(value: &self._copies) }()
       default: break
       }
     }
@@ -8182,6 +8568,9 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     try { if let v = self._thumbnailSmall {
       try visitor.visitSingularBoolField(value: v, fieldNumber: 13)
     } }()
+    try { if let v = self._copies {
+      try visitor.visitSingularInt32Field(value: v, fieldNumber: 14)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -8198,6 +8587,7 @@ nonisolated extension Msg_File: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     if lhs.size64 != rhs.size64 {return false}
     if lhs.outOfImages != rhs.outOfImages {return false}
     if lhs._thumbnailSmall != rhs._thumbnailSmall {return false}
+    if lhs._copies != rhs._copies {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -14177,7 +14567,7 @@ nonisolated extension Msg_LocalEndpoint: SwiftProtobuf.Message, SwiftProtobuf._M
 
 nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -15825,6 +16215,19 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.payload = .reqSetLanguage(v)
         }
       }()
+      case 139: try {
+        var v: Msg_GetFolderUsage?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqGetFolderUsage(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqGetFolderUsage(v)
+        }
+      }()
       default: break
       }
     }
@@ -16346,6 +16749,10 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
       guard case .reqSetLanguage(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 138)
     }()
+    case .reqGetFolderUsage?: try {
+      guard case .reqGetFolderUsage(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 139)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -16362,7 +16769,7 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{3}error_code\0\u{4}\u{6}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0\u{3}resp_domain_available\0\u{3}resp_media_url\0\u{3}resp_media_range\0\u{3}resp_update_info\0\u{3}resp_tailscale_status\0\u{3}resp_image_groups\0\u{3}resp_image_group\0\u{3}resp_bridge_notify_ack\0\u{3}resp_cloud_ids_found\0\u{3}resp_file_versions\0\u{3}resp_bridge_access\0\u{3}resp_bridge_signed_in\0\u{3}resp_file_chunk\0\u{3}resp_upload_started\0\u{3}resp_upload_progress\0\u{3}resp_shared_gallery_preview\0\u{3}resp_shared_gallery_job\0\u{3}resp_shared_gallery\0\u{3}resp_shared_links\0\u{3}resp_logs\0\u{3}resp_local_endpoint\0\u{3}resp_out_of_images_folders\0\u{3}resp_restarting_device\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{3}error_code\0\u{4}\u{6}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0\u{3}resp_domain_available\0\u{3}resp_media_url\0\u{3}resp_media_range\0\u{3}resp_update_info\0\u{3}resp_tailscale_status\0\u{3}resp_image_groups\0\u{3}resp_image_group\0\u{3}resp_bridge_notify_ack\0\u{3}resp_cloud_ids_found\0\u{3}resp_file_versions\0\u{3}resp_bridge_access\0\u{3}resp_bridge_signed_in\0\u{3}resp_file_chunk\0\u{3}resp_upload_started\0\u{3}resp_upload_progress\0\u{3}resp_shared_gallery_preview\0\u{3}resp_shared_gallery_job\0\u{3}resp_shared_gallery\0\u{3}resp_shared_links\0\u{3}resp_logs\0\u{3}resp_local_endpoint\0\u{3}resp_out_of_images_folders\0\u{3}resp_restarting_device\0\u{3}resp_folder_usage\0")
 
   fileprivate class _StorageClass {
     var _id: Int32 = 0
@@ -17174,6 +17581,19 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
             _storage._payload = .respRestartingDevice(v)
           }
         }()
+        case 69: try {
+          var v: Msg_FolderUsage?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respFolderUsage(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respFolderUsage(v)
+          }
+        }()
         default: break
         }
       }
@@ -17434,6 +17854,10 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
       case .respRestartingDevice?: try {
         guard case .respRestartingDevice(let v)? = _storage._payload else { preconditionFailure() }
         try visitor.visitSingularMessageField(value: v, fieldNumber: 68)
+      }()
+      case .respFolderUsage?: try {
+        guard case .respFolderUsage(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 69)
       }()
       case nil: break
       }

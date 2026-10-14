@@ -861,7 +861,7 @@ func TestDelPathClearsFlagsOfDeletedFolder(t *testing.T) {
 	expectTake(mock)
 	expectSentinel(mock)
 
-	if err := mg.DelPath(ses, "/Trip"); err != nil {
+	if err := mg.DelPath(ses, "/Trip", ""); err != nil {
 		t.Fatal(err)
 	}
 	metUpToSentinel(t, mock)
@@ -887,7 +887,7 @@ func TestDelPathOfFileKeepsSameNamedFolderFlag(t *testing.T) {
 	mock.ExpectQuery(reUnder).WillReturnRows(hashRows())
 	expectTake(mock)
 	expectSentinel(mock)
-	if err := mg.DelPath(ses, "/Docs/Private"); err != nil {
+	if err := mg.DelPath(ses, "/Docs/Private", ""); err != nil {
 		t.Fatal(err)
 	}
 	metUpToSentinel(t, mock)
@@ -1003,7 +1003,7 @@ func TestImageSearchFailsClosed(t *testing.T) {
 	mg.searchTokens = newSearchTokenCache(10)
 	mock.ExpectQuery(reLoadFolders).WillReturnError(errors.New("connection lost"))
 	expectSentinel(mock)
-	if _, _, err := mg.ImageSearch(nil, "", nil, "", false, nil, "", nil, 0, 0, false, false); err == nil {
+	if _, _, err := mg.ImageSearch(nil, "", nil, "", false, nil, "", nil, nil, 0, 0, false, false); err == nil {
 		t.Error("a search ran without knowing what is kept out")
 	}
 	metUpToSentinel(t, mock)

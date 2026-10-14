@@ -637,6 +637,39 @@ export interface LinkFile {
 
 export interface DelFile {
   path: string;
+  /**
+   * Issue #201: Images' "delete every copy". When true, the device
+   * deletes every path in Files that holds the same content as this one
+   * (File.copies counted them): all of `files`' rows with its hash,
+   * wherever they are, folders kept out of Images included, each with its
+   * older versions, as its own DelFile would. It answers Ack ok once all
+   * are gone. It is all or nothing: if any of those paths (this one
+   * included) is in an upload-only folder, nothing is deleted and the
+   * answer is error_code "copy_upload_only", with a message naming that
+   * folder. Older versions that other paths keep (ListFileVersions) are not
+   * copies, so they stay, and so does the content they hold. This applies
+   * to a file only: a folder's path deletes the folder as before (issue
+   * #116) and ignores the flag. Unset or false deletes only this path, as
+   * before. A device that sets File.copies honours it. Devices before #201
+   * ignore it and delete only this path. Optional (has/hasEveryCopy), so
+   * that requests typed before it, like the web's, stay valid.
+   */
+  everyCopy?:
+    | boolean
+    | undefined;
+  /**
+   * Issue #201: the content hash the client showed for this path (File.hash
+   * of the tile or row it was deleted from). When set and the path is a
+   * file that now holds other content (synced over or edited since it was
+   * shown), the device deletes nothing and answers error_code "changed",
+   * with a message saying so - with or without every_copy, which would
+   * otherwise delete every copy of content the person never saw. Checked
+   * before anything is deleted. Ignored for a folder's path, and when
+   * empty (a listing shows no hash for a file whose content is missing,
+   * issue #141). Devices before it ignore it. Optional (has/hasHash), so
+   * that requests typed before it, like the web's, stay valid.
+   */
+  hash?: string | undefined;
 }
 
 export interface GetFile {
@@ -704,6 +737,74 @@ export interface OutOfImagesFolders {
 export interface ListFiles {
   path: string;
   recursive: boolean;
+}
+
+/**
+ * Issue #195: Files' Storage view, which shows what takes the space in one
+ * folder. The apps ask for it only while that view is open; ListFiles never
+ * sizes folders. Answers with FolderUsage. Sizes are logical: each file at
+ * its own size in bytes, as File.size64. Content held at two paths counts
+ * at both, though the device stores it once. Encryption, thumbnails,
+ * posts, shared galleries, other users and the database aren't counted, so
+ * the figures don't add up to the device's storage bar. Same callers as
+ * ListFiles. Devices before #195 answer error_code "unknown_payload".
+ */
+export interface GetFolderUsage {
+  /**
+   * The folder as ListFiles takes it, with its trailing slash ("/" for the
+   * root). One without the slash is taken as that folder.
+   */
+  path: string;
+}
+
+/** One direct child of the folder asked for (GetFolderUsage). */
+export interface FolderUsageEntry {
+  /**
+   * Its full path, as ListFiles lists it: a folder's has no trailing
+   * slash. A file and a folder can share a name (made from two computers),
+   * and then they are two entries told apart by is_dir.
+   */
+  path: string;
+  /** A folder (everything under path + "/"), or a file. */
+  isDir: boolean;
+  /**
+   * Bytes of the current files: a file's own size, or for a folder every
+   * file under it at any depth.
+   */
+  filesSize: bigint;
+  /**
+   * How many files that is (1 for a file). 0 only for a child that holds
+   * nothing but older versions.
+   */
+  fileCount: number;
+  /**
+   * Bytes of the older versions kept of those files (upload-only folders,
+   * issue #132, ListFileVersions). They are not part of files_size: the
+   * entry's whole size is files_size + versions_size.
+   */
+  versionsSize: bigint;
+}
+
+/** The answer to GetFolderUsage. */
+export interface FolderUsage {
+  /**
+   * The folder asked for, with its trailing slash. A client that has moved
+   * to another folder drops an answer whose path isn't the one it shows.
+   */
+  path: string;
+  /**
+   * Every direct child that holds a file or an older version, largest
+   * first (files_size + versions_size), then by path, then a folder before
+   * a file of the same name. Empty for an empty or unknown folder.
+   */
+  entries: FolderUsageEntry[];
+  /**
+   * The folder's own totals: every file under it at any depth, the sums
+   * of the entries' fields.
+   */
+  filesSize: bigint;
+  fileCount: number;
+  versionsSize: bigint;
 }
 
 /**
@@ -903,6 +1004,30 @@ export interface SearchPhotos {
    * entry has it and fetch only entries that don't.
    */
   omitThumbnails: boolean;
+  /**
+   * Issue #194: scrolling up after a jump (before). This asks for the
+   * photos dated strictly after this instant, served OLDEST first, the
+   * opposite of every other page; the answer says so
+   * (ListOfFiles.oldest_first). A jump's `before` and this, with the same
+   * instant, split the library exactly: nothing is missing and nothing
+   * comes twice. That relies on each photo having one date since #201: its
+   * oldest copy's (see File.copies).
+   *
+   * Send it on every page of the upward search, with the same instant.
+   * Unlike `before`, it does not start a fresh search when a token comes
+   * with it: token, have, limit, small_thumbnails and omit_thumbnails work
+   * as on any page. That covers resuming a token the device no longer
+   * holds and serving a page asked again. `have` counts only the photos
+   * this upward search has brought, never those of the downward one. A
+   * token from the other direction, or from another instant, counts as one
+   * the device doesn't hold. Tags, people, collection and videos filter as
+   * on any search. If `before` is also set, newer_than wins.
+   *
+   * Devices before #194 ignore it and answer an ordinary newest-first page
+   * with oldest_first false. Drop that page, and don't ask that device
+   * again until the next sign-in.
+   */
+  newerThan?: Date | undefined;
 }
 
 export interface ListOfFiles {
@@ -927,6 +1052,16 @@ export interface ListOfFiles {
    * have been cut, so don't remember it as having none.
    */
   askAgainFrom: number;
+  /**
+   * Issue #194, on a SearchPhotos answer: its photos are oldest first.
+   * That is the answer to a request with newer_than, from a device that
+   * honours it, on every page of it: the last one (token "") too, and an
+   * empty one when nothing is newer. False on every other answer. Devices
+   * before #194 ignore newer_than and always leave it false, so a page
+   * asked for with newer_than that comes back without it is an ordinary
+   * newest-first page and is to be dropped.
+   */
+  oldestFirst: boolean;
 }
 
 /**
@@ -946,6 +1081,10 @@ export interface ReqPhotoDateBuckets {
 export interface PhotoDateBucket {
   /** "2022-06" */
   month: string;
+  /**
+   * Since #201 each photo counts once, in the month of its oldest copy:
+   * the month SearchPhotos shows it in (see File.copies).
+   */
   count: number;
 }
 
@@ -1001,7 +1140,34 @@ export interface File {
    * one) - keep it as asked for, or treat it as the big one and ask again
    * later.
    */
-  thumbnailSmall?: boolean | undefined;
+  thumbnailSmall?:
+    | boolean
+    | undefined;
+  /**
+   * Issue #201, on the entries of a SearchPhotos answer (Images, People,
+   * collections, the pickers). It counts the paths in Files that hold this
+   * content, this entry's own included: every `files` row with its hash,
+   * wherever it is, folders kept out of Images included. Older versions
+   * kept in upload-only folders (file_versions, ListFileVersions) are not
+   * paths and don't count.
+   *
+   * Since #201 an Images entry is one photo, not one path. It is the
+   * photo's oldest copy (earliest created, then smallest path) among the
+   * copies Images may show, so its path and created are that copy's.
+   * Every path keeps its own stored date (Files shows them all), and the
+   * date buckets, People and collections count the photo once.
+   *
+   * Above 1, deleting the photo from Images asks whether to delete only
+   * this path or every copy (DelFile.every_copy, with DelFile.hash this
+   * entry's hash). It is counted when the page is made, so a copy added or
+   * removed since then isn't in it. Unset (optional: has/hasCopies false)
+   * on every entry of a page whose count failed - the page is served
+   * anyway, and such an entry offers no "every copy": delete only the
+   * path -, on other answers, and from devices before #201, which list a
+   * photo at its newest copy and don't honour every_copy, so delete only
+   * the path.
+   */
+  copies?: number | undefined;
 }
 
 export interface Ack {
@@ -2858,6 +3024,12 @@ export interface ReqEnvelope {
      */
     { $case: "reqSetLanguage"; reqSetLanguage: SetLanguage }
     | //
+    /**
+     * Issue #195: Files' Storage view. Answers with resp_folder_usage;
+     * devices before it with error_code "unknown_payload".
+     */
+    { $case: "reqGetFolderUsage"; reqGetFolderUsage: GetFolderUsage }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -2888,7 +3060,12 @@ export interface RespEnvelope {
    * folder inside another one kept out of Images; the message names it),
    * "duplicated_file" (an upload or link onto a path that is taken - photo
    * sync renames and retries; devices before it send only the message,
-   * ending in "Duplicated file", which clients check when the code is empty).
+   * ending in "Duplicated file", which clients check when the code is empty),
+   * "copy_upload_only" (issue #201: a DelFile with every_copy refused as a
+   * whole, because one of the copies, maybe the path asked for, is in an
+   * upload-only folder; nothing was deleted, and the message names that
+   * folder), "changed" (issue #201: a DelFile whose hash is no longer the
+   * content at its path; nothing was deleted - refresh and ask again).
    */
   errorCode: string;
   payload?:
@@ -2991,6 +3168,9 @@ export interface RespEnvelope {
     | //
     /** Settings > Restart device. */
     { $case: "respRestartingDevice"; respRestartingDevice: RestartingDevice }
+    | //
+    /** Issue #195: Files' Storage view. */
+    { $case: "respFolderUsage"; respFolderUsage: FolderUsage }
     | undefined;
 }
 
@@ -4818,13 +4998,19 @@ export const LinkFile: MessageFns<LinkFile> = {
 };
 
 function createBaseDelFile(): DelFile {
-  return { path: "" };
+  return { path: "", everyCopy: undefined, hash: undefined };
 }
 
 export const DelFile: MessageFns<DelFile> = {
   encode(message: DelFile, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.path !== "") {
       writer.uint32(10).string(message.path);
+    }
+    if (message.everyCopy !== undefined) {
+      writer.uint32(16).bool(message.everyCopy);
+    }
+    if (message.hash !== undefined) {
+      writer.uint32(26).string(message.hash);
     }
     return writer;
   },
@@ -4844,6 +5030,22 @@ export const DelFile: MessageFns<DelFile> = {
           message.path = reader.string();
           continue;
         }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.everyCopy = reader.bool();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.hash = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -4854,13 +5056,23 @@ export const DelFile: MessageFns<DelFile> = {
   },
 
   fromJSON(object: any): DelFile {
-    return { path: isSet(object.path) ? globalThis.String(object.path) : "" };
+    return {
+      path: isSet(object.path) ? globalThis.String(object.path) : "",
+      everyCopy: isSet(object.everyCopy) ? globalThis.Boolean(object.everyCopy) : undefined,
+      hash: isSet(object.hash) ? globalThis.String(object.hash) : undefined,
+    };
   },
 
   toJSON(message: DelFile): unknown {
     const obj: any = {};
     if (message.path !== "") {
       obj.path = message.path;
+    }
+    if (message.everyCopy !== undefined) {
+      obj.everyCopy = message.everyCopy;
+    }
+    if (message.hash !== undefined) {
+      obj.hash = message.hash;
     }
     return obj;
   },
@@ -4871,6 +5083,8 @@ export const DelFile: MessageFns<DelFile> = {
   fromPartial<I extends Exact<DeepPartial<DelFile>, I>>(object: I): DelFile {
     const message = createBaseDelFile();
     message.path = object.path ?? "";
+    message.everyCopy = object.everyCopy ?? undefined;
+    message.hash = object.hash ?? undefined;
     return message;
   },
 };
@@ -5394,6 +5608,326 @@ export const ListFiles: MessageFns<ListFiles> = {
     const message = createBaseListFiles();
     message.path = object.path ?? "";
     message.recursive = object.recursive ?? false;
+    return message;
+  },
+};
+
+function createBaseGetFolderUsage(): GetFolderUsage {
+  return { path: "" };
+}
+
+export const GetFolderUsage: MessageFns<GetFolderUsage> = {
+  encode(message: GetFolderUsage, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetFolderUsage {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetFolderUsage();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetFolderUsage {
+    return { path: isSet(object.path) ? globalThis.String(object.path) : "" };
+  },
+
+  toJSON(message: GetFolderUsage): unknown {
+    const obj: any = {};
+    if (message.path !== "") {
+      obj.path = message.path;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetFolderUsage>, I>>(base?: I): GetFolderUsage {
+    return GetFolderUsage.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetFolderUsage>, I>>(object: I): GetFolderUsage {
+    const message = createBaseGetFolderUsage();
+    message.path = object.path ?? "";
+    return message;
+  },
+};
+
+function createBaseFolderUsageEntry(): FolderUsageEntry {
+  return { path: "", isDir: false, filesSize: 0n, fileCount: 0, versionsSize: 0n };
+}
+
+export const FolderUsageEntry: MessageFns<FolderUsageEntry> = {
+  encode(message: FolderUsageEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    if (message.isDir !== false) {
+      writer.uint32(16).bool(message.isDir);
+    }
+    if (message.filesSize !== 0n) {
+      if (BigInt.asIntN(64, message.filesSize) !== message.filesSize) {
+        throw new globalThis.Error("value provided for field message.filesSize of type int64 too large");
+      }
+      writer.uint32(24).int64(message.filesSize);
+    }
+    if (message.fileCount !== 0) {
+      writer.uint32(32).int32(message.fileCount);
+    }
+    if (message.versionsSize !== 0n) {
+      if (BigInt.asIntN(64, message.versionsSize) !== message.versionsSize) {
+        throw new globalThis.Error("value provided for field message.versionsSize of type int64 too large");
+      }
+      writer.uint32(40).int64(message.versionsSize);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FolderUsageEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFolderUsageEntry();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.isDir = reader.bool();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.filesSize = reader.int64() as bigint;
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.fileCount = reader.int32();
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.versionsSize = reader.int64() as bigint;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): FolderUsageEntry {
+    return {
+      path: isSet(object.path) ? globalThis.String(object.path) : "",
+      isDir: isSet(object.isDir) ? globalThis.Boolean(object.isDir) : false,
+      filesSize: isSet(object.filesSize) ? BigInt(object.filesSize) : 0n,
+      fileCount: isSet(object.fileCount) ? globalThis.Number(object.fileCount) : 0,
+      versionsSize: isSet(object.versionsSize) ? BigInt(object.versionsSize) : 0n,
+    };
+  },
+
+  toJSON(message: FolderUsageEntry): unknown {
+    const obj: any = {};
+    if (message.path !== "") {
+      obj.path = message.path;
+    }
+    if (message.isDir !== false) {
+      obj.isDir = message.isDir;
+    }
+    if (message.filesSize !== 0n) {
+      obj.filesSize = message.filesSize.toString();
+    }
+    if (message.fileCount !== 0) {
+      obj.fileCount = Math.round(message.fileCount);
+    }
+    if (message.versionsSize !== 0n) {
+      obj.versionsSize = message.versionsSize.toString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<FolderUsageEntry>, I>>(base?: I): FolderUsageEntry {
+    return FolderUsageEntry.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<FolderUsageEntry>, I>>(object: I): FolderUsageEntry {
+    const message = createBaseFolderUsageEntry();
+    message.path = object.path ?? "";
+    message.isDir = object.isDir ?? false;
+    message.filesSize = object.filesSize ?? 0n;
+    message.fileCount = object.fileCount ?? 0;
+    message.versionsSize = object.versionsSize ?? 0n;
+    return message;
+  },
+};
+
+function createBaseFolderUsage(): FolderUsage {
+  return { path: "", entries: [], filesSize: 0n, fileCount: 0, versionsSize: 0n };
+}
+
+export const FolderUsage: MessageFns<FolderUsage> = {
+  encode(message: FolderUsage, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.path !== "") {
+      writer.uint32(10).string(message.path);
+    }
+    for (const v of message.entries) {
+      FolderUsageEntry.encode(v!, writer.uint32(18).fork()).join();
+    }
+    if (message.filesSize !== 0n) {
+      if (BigInt.asIntN(64, message.filesSize) !== message.filesSize) {
+        throw new globalThis.Error("value provided for field message.filesSize of type int64 too large");
+      }
+      writer.uint32(24).int64(message.filesSize);
+    }
+    if (message.fileCount !== 0) {
+      writer.uint32(32).int32(message.fileCount);
+    }
+    if (message.versionsSize !== 0n) {
+      if (BigInt.asIntN(64, message.versionsSize) !== message.versionsSize) {
+        throw new globalThis.Error("value provided for field message.versionsSize of type int64 too large");
+      }
+      writer.uint32(40).int64(message.versionsSize);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FolderUsage {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseFolderUsage();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.entries.push(FolderUsageEntry.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.filesSize = reader.int64() as bigint;
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.fileCount = reader.int32();
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.versionsSize = reader.int64() as bigint;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): FolderUsage {
+    return {
+      path: isSet(object.path) ? globalThis.String(object.path) : "",
+      entries: globalThis.Array.isArray(object?.entries)
+        ? object.entries.map((e: any) => FolderUsageEntry.fromJSON(e))
+        : [],
+      filesSize: isSet(object.filesSize) ? BigInt(object.filesSize) : 0n,
+      fileCount: isSet(object.fileCount) ? globalThis.Number(object.fileCount) : 0,
+      versionsSize: isSet(object.versionsSize) ? BigInt(object.versionsSize) : 0n,
+    };
+  },
+
+  toJSON(message: FolderUsage): unknown {
+    const obj: any = {};
+    if (message.path !== "") {
+      obj.path = message.path;
+    }
+    if (message.entries?.length) {
+      obj.entries = message.entries.map((e) => FolderUsageEntry.toJSON(e));
+    }
+    if (message.filesSize !== 0n) {
+      obj.filesSize = message.filesSize.toString();
+    }
+    if (message.fileCount !== 0) {
+      obj.fileCount = Math.round(message.fileCount);
+    }
+    if (message.versionsSize !== 0n) {
+      obj.versionsSize = message.versionsSize.toString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<FolderUsage>, I>>(base?: I): FolderUsage {
+    return FolderUsage.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<FolderUsage>, I>>(object: I): FolderUsage {
+    const message = createBaseFolderUsage();
+    message.path = object.path ?? "";
+    message.entries = object.entries?.map((e) => FolderUsageEntry.fromPartial(e)) || [];
+    message.filesSize = object.filesSize ?? 0n;
+    message.fileCount = object.fileCount ?? 0;
+    message.versionsSize = object.versionsSize ?? 0n;
     return message;
   },
 };
@@ -5953,6 +6487,7 @@ function createBaseSearchPhotos(): SearchPhotos {
     limit: 0,
     smallThumbnails: false,
     omitThumbnails: false,
+    newerThan: undefined,
   };
 }
 
@@ -5987,6 +6522,9 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     }
     if (message.omitThumbnails !== false) {
       writer.uint32(80).bool(message.omitThumbnails);
+    }
+    if (message.newerThan !== undefined) {
+      Timestamp.encode(toTimestamp(message.newerThan), writer.uint32(90).fork()).join();
     }
     return writer;
   },
@@ -6078,6 +6616,14 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
           message.omitThumbnails = reader.bool();
           continue;
         }
+        case 11: {
+          if (tag !== 90) {
+            break;
+          }
+
+          message.newerThan = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -6101,6 +6647,7 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
       limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
       smallThumbnails: isSet(object.smallThumbnails) ? globalThis.Boolean(object.smallThumbnails) : false,
       omitThumbnails: isSet(object.omitThumbnails) ? globalThis.Boolean(object.omitThumbnails) : false,
+      newerThan: isSet(object.newerThan) ? fromJsonTimestamp(object.newerThan) : undefined,
     };
   },
 
@@ -6136,6 +6683,9 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     if (message.omitThumbnails !== false) {
       obj.omitThumbnails = message.omitThumbnails;
     }
+    if (message.newerThan !== undefined) {
+      obj.newerThan = message.newerThan.toISOString();
+    }
     return obj;
   },
 
@@ -6154,12 +6704,20 @@ export const SearchPhotos: MessageFns<SearchPhotos> = {
     message.limit = object.limit ?? 0;
     message.smallThumbnails = object.smallThumbnails ?? false;
     message.omitThumbnails = object.omitThumbnails ?? false;
+    message.newerThan = object.newerThan ?? undefined;
     return message;
   },
 };
 
 function createBaseListOfFiles(): ListOfFiles {
-  return { files: [], token: "", outOfImagesSupported: false, folderOutOfImages: false, askAgainFrom: 0 };
+  return {
+    files: [],
+    token: "",
+    outOfImagesSupported: false,
+    folderOutOfImages: false,
+    askAgainFrom: 0,
+    oldestFirst: false,
+  };
 }
 
 export const ListOfFiles: MessageFns<ListOfFiles> = {
@@ -6178,6 +6736,9 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
     }
     if (message.askAgainFrom !== 0) {
       writer.uint32(40).int32(message.askAgainFrom);
+    }
+    if (message.oldestFirst !== false) {
+      writer.uint32(48).bool(message.oldestFirst);
     }
     return writer;
   },
@@ -6229,6 +6790,14 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
           message.askAgainFrom = reader.int32();
           continue;
         }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.oldestFirst = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -6247,6 +6816,7 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
         : false,
       folderOutOfImages: isSet(object.folderOutOfImages) ? globalThis.Boolean(object.folderOutOfImages) : false,
       askAgainFrom: isSet(object.askAgainFrom) ? globalThis.Number(object.askAgainFrom) : 0,
+      oldestFirst: isSet(object.oldestFirst) ? globalThis.Boolean(object.oldestFirst) : false,
     };
   },
 
@@ -6267,6 +6837,9 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
     if (message.askAgainFrom !== 0) {
       obj.askAgainFrom = Math.round(message.askAgainFrom);
     }
+    if (message.oldestFirst !== false) {
+      obj.oldestFirst = message.oldestFirst;
+    }
     return obj;
   },
 
@@ -6280,6 +6853,7 @@ export const ListOfFiles: MessageFns<ListOfFiles> = {
     message.outOfImagesSupported = object.outOfImagesSupported ?? false;
     message.folderOutOfImages = object.folderOutOfImages ?? false;
     message.askAgainFrom = object.askAgainFrom ?? 0;
+    message.oldestFirst = object.oldestFirst ?? false;
     return message;
   },
 };
@@ -6546,6 +7120,7 @@ function createBaseFile(): File {
     size64: 0n,
     outOfImages: false,
     thumbnailSmall: undefined,
+    copies: undefined,
   };
 }
 
@@ -6589,6 +7164,9 @@ export const File: MessageFns<File> = {
     }
     if (message.thumbnailSmall !== undefined) {
       writer.uint32(104).bool(message.thumbnailSmall);
+    }
+    if (message.copies !== undefined) {
+      writer.uint32(112).int32(message.copies);
     }
     return writer;
   },
@@ -6696,6 +7274,14 @@ export const File: MessageFns<File> = {
           message.thumbnailSmall = reader.bool();
           continue;
         }
+        case 14: {
+          if (tag !== 112) {
+            break;
+          }
+
+          message.copies = reader.int32();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -6719,6 +7305,7 @@ export const File: MessageFns<File> = {
       size64: isSet(object.size64) ? BigInt(object.size64) : 0n,
       outOfImages: isSet(object.outOfImages) ? globalThis.Boolean(object.outOfImages) : false,
       thumbnailSmall: isSet(object.thumbnailSmall) ? globalThis.Boolean(object.thumbnailSmall) : undefined,
+      copies: isSet(object.copies) ? globalThis.Number(object.copies) : undefined,
     };
   },
 
@@ -6760,6 +7347,9 @@ export const File: MessageFns<File> = {
     if (message.thumbnailSmall !== undefined) {
       obj.thumbnailSmall = message.thumbnailSmall;
     }
+    if (message.copies !== undefined) {
+      obj.copies = Math.round(message.copies);
+    }
     return obj;
   },
 
@@ -6780,6 +7370,7 @@ export const File: MessageFns<File> = {
     message.size64 = object.size64 ?? 0n;
     message.outOfImages = object.outOfImages ?? false;
     message.thumbnailSmall = object.thumbnailSmall ?? undefined;
+    message.copies = object.copies ?? undefined;
     return message;
   },
 };
@@ -20630,6 +21221,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqSetLanguage":
         SetLanguage.encode(message.payload.reqSetLanguage, writer.uint32(1106).fork()).join();
         break;
+      case "reqGetFolderUsage":
+        GetFolderUsage.encode(message.payload.reqGetFolderUsage, writer.uint32(1114).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -21869,6 +22463,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqSetLanguage", reqSetLanguage: SetLanguage.decode(reader, reader.uint32()) };
           continue;
         }
+        case 139: {
+          if (tag !== 1114) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetFolderUsage",
+            reqGetFolderUsage: GetFolderUsage.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -22301,6 +22906,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqRestartDevice", reqRestartDevice: RestartDevice.fromJSON(object.reqRestartDevice) }
         : isSet(object.reqSetLanguage)
         ? { $case: "reqSetLanguage", reqSetLanguage: SetLanguage.fromJSON(object.reqSetLanguage) }
+        : isSet(object.reqGetFolderUsage)
+        ? { $case: "reqGetFolderUsage", reqGetFolderUsage: GetFolderUsage.fromJSON(object.reqGetFolderUsage) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -22582,6 +23189,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqRestartDevice = RestartDevice.toJSON(message.payload.reqRestartDevice);
     } else if (message.payload?.$case === "reqSetLanguage") {
       obj.reqSetLanguage = SetLanguage.toJSON(message.payload.reqSetLanguage);
+    } else if (message.payload?.$case === "reqGetFolderUsage") {
+      obj.reqGetFolderUsage = GetFolderUsage.toJSON(message.payload.reqGetFolderUsage);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -23673,6 +24282,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqGetFolderUsage": {
+        if (object.payload?.reqGetFolderUsage !== undefined && object.payload?.reqGetFolderUsage !== null) {
+          message.payload = {
+            $case: "reqGetFolderUsage",
+            reqGetFolderUsage: GetFolderUsage.fromPartial(object.payload.reqGetFolderUsage),
+          };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -23928,6 +24546,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respRestartingDevice":
         RestartingDevice.encode(message.payload.respRestartingDevice, writer.uint32(546).fork()).join();
+        break;
+      case "respFolderUsage":
+        FolderUsage.encode(message.payload.respFolderUsage, writer.uint32(554).fork()).join();
         break;
     }
     return writer;
@@ -24543,6 +25164,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           };
           continue;
         }
+        case 69: {
+          if (tag !== 554) {
+            break;
+          }
+
+          message.payload = { $case: "respFolderUsage", respFolderUsage: FolderUsage.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -24718,6 +25347,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           $case: "respRestartingDevice",
           respRestartingDevice: RestartingDevice.fromJSON(object.respRestartingDevice),
         }
+        : isSet(object.respFolderUsage)
+        ? { $case: "respFolderUsage", respFolderUsage: FolderUsage.fromJSON(object.respFolderUsage) }
         : undefined,
     };
   },
@@ -24856,6 +25487,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respOutOfImagesFolders = OutOfImagesFolders.toJSON(message.payload.respOutOfImagesFolders);
     } else if (message.payload?.$case === "respRestartingDevice") {
       obj.respRestartingDevice = RestartingDevice.toJSON(message.payload.respRestartingDevice);
+    } else if (message.payload?.$case === "respFolderUsage") {
+      obj.respFolderUsage = FolderUsage.toJSON(message.payload.respFolderUsage);
     }
     return obj;
   },
@@ -25373,6 +26006,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respRestartingDevice",
             respRestartingDevice: RestartingDevice.fromPartial(object.payload.respRestartingDevice),
+          };
+        }
+        break;
+      }
+      case "respFolderUsage": {
+        if (object.payload?.respFolderUsage !== undefined && object.payload?.respFolderUsage !== null) {
+          message.payload = {
+            $case: "respFolderUsage",
+            respFolderUsage: FolderUsage.fromPartial(object.payload.respFolderUsage),
           };
         }
         break;

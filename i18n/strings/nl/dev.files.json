@@ -27,6 +27,11 @@
     "text": "een collectie moet een naam hebben",
     "en": "a collection needs a name"
   },
+  "dev.files.content_changed": {
+    "text": "dit bestand is gewijzigd sinds het werd getoond, dus er is niets verwijderd: vernieuw en probeer het opnieuw",
+    "en": "this file has changed since it was shown, so nothing was deleted: refresh and try again",
+    "reviewed": "claude-backtranslation 2026-10-14 #63616be5"
+  },
   "dev.files.content_missing": {
     "text": "de inhoud van {path} ontbreekt op dit apparaat",
     "en": "the content of {path} is missing on this device"
@@ -38,6 +43,11 @@
   "dev.files.content_unreadable": {
     "text": "de inhoud van {path} is onleesbaar op dit apparaat",
     "en": "the content of {path} is unreadable on this device"
+  },
+  "dev.files.copy_upload_only": {
+    "text": "er staat een kopie in de map {folder} met “Alleen uploaden”: er is geen kopie verwijderd",
+    "en": "a copy is in the upload-only folder {folder}: no copy was deleted",
+    "reviewed": "claude-backtranslation 2026-10-14 #2d9428b6"
   },
   "dev.files.delete_failed": {
     "text": "fout bij het verwijderen van het bestand: {detail}",

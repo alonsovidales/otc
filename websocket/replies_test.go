@@ -96,9 +96,13 @@ var headEnglish = []struct {
 	{"dev.files.chunk_too_big", i18n.DevFilesChunkTooBig(400), fmt.Sprintf("chunk over %d bytes", 400)},
 	{"dev.files.cloud_ids_failed", i18n.DevFilesCloudIdsFailed("boom"), fmt.Sprintf("error checking cloud ids: %s", "boom")},
 	{"dev.files.collection_needs_name", i18n.DevFilesCollectionNeedsName(), "a collection needs a name"},
+	// Issue #201: new with the catalog, so no older English to keep.
+	{"dev.files.content_changed", i18n.DevFilesContentChanged(), "this file has changed since it was shown, so nothing was deleted: refresh and try again"},
 	{"dev.files.content_missing", i18n.DevFilesContentMissing("/Trip/a.jpg"), fmt.Sprintf("the content of %s is missing on this device", "/Trip/a.jpg")},
 	{"dev.files.content_unavailable", i18n.DevFilesContentUnavailable("/Trip/a.jpg"), fmt.Sprintf("the content of %s is missing or unreadable on this device", "/Trip/a.jpg")},
 	{"dev.files.content_unreadable", i18n.DevFilesContentUnreadable("/Trip/a.jpg"), fmt.Sprintf("the content of %s is unreadable on this device", "/Trip/a.jpg")},
+	// Issue #201: new with the catalog, so no older English to keep.
+	{"dev.files.copy_upload_only", i18n.DevFilesCopyUploadOnly("/Backups/Phone"), fmt.Sprintf("a copy is in the upload-only folder %s: no copy was deleted", "/Backups/Phone")},
 	{"dev.files.delete_failed", i18n.DevFilesDeleteFailed("boom"), fmt.Sprintf("error trying to delete file: %s", "boom")},
 	{"dev.files.download_failed", i18n.DevFilesDownloadFailed("boom"), fmt.Sprintf("error trying to download file: %s", "boom")},
 	{"dev.files.exif_unsupported", i18n.DevFilesExifUnsupported("application/pdf"), fmt.Sprintf("unsupported mime type for EXIF: %s", "application/pdf")},

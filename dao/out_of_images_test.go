@@ -39,7 +39,7 @@ func TestOutsideFoldersCollapsesNestedFolders(t *testing.T) {
 // date last.
 func TestSearchMediaClausesArgOrderWithKeptOutFolders(t *testing.T) {
 	before := time.Date(2026, 1, 31, 0, 0, 0, 0, time.UTC)
-	_, where, _, _, _, _, args := searchMediaClauses("/Photos/", []string{"beach"}, []string{"p1", "p2"}, "g1", true, &before, []string{"/Photos/Private/"})
+	_, where, _, _, args := searchMediaClauses("/Photos/", []string{"beach"}, []string{"p1", "p2"}, "g1", true, &before, []string{"/Photos/Private/"})
 	want := []any{"beach", "p1", "p2", "g1",
 		"/Photos/", "/Photos/", "/Photos/%", "/Photos/%/%",
 		"/Photos/Private/", "/Photos/Private/", "/Photos/Private/%",
@@ -54,7 +54,7 @@ func TestSearchMediaClausesArgOrderWithKeptOutFolders(t *testing.T) {
 		t.Errorf("no exclusion in %s", where)
 	}
 	// Nothing kept out: the query is what it was.
-	_, plain, _, _, _, _, _ := searchMediaClauses("", nil, nil, "", true, nil, nil)
+	_, plain, _, _, _ := searchMediaClauses("", nil, nil, "", true, nil, nil)
 	if plain != " where `f`.`mime` like 'image%'" {
 		t.Errorf("without folders: %q", plain)
 	}

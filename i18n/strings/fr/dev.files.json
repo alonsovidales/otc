@@ -27,6 +27,11 @@
     "text": "une collection doit avoir un nom",
     "en": "a collection needs a name"
   },
+  "dev.files.content_changed": {
+    "text": "ce fichier a changé depuis son affichage, rien n’a donc été supprimé : actualisez et réessayez",
+    "en": "this file has changed since it was shown, so nothing was deleted: refresh and try again",
+    "reviewed": "claude-backtranslation 2026-10-14 #32b1bc86"
+  },
   "dev.files.content_missing": {
     "text": "le contenu de {path} est absent de cet appareil",
     "en": "the content of {path} is missing on this device"
@@ -38,6 +43,11 @@
   "dev.files.content_unreadable": {
     "text": "le contenu de {path} est illisible sur cet appareil",
     "en": "the content of {path} is unreadable on this device"
+  },
+  "dev.files.copy_upload_only": {
+    "text": "une copie se trouve dans le dossier en envoi uniquement {folder} : aucune copie n’a été supprimée",
+    "en": "a copy is in the upload-only folder {folder}: no copy was deleted",
+    "reviewed": "claude-backtranslation 2026-10-14 #b5c3fec7"
   },
   "dev.files.delete_failed": {
     "text": "erreur lors de la suppression du fichier : {detail}",

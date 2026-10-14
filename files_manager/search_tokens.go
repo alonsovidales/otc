@@ -51,6 +51,23 @@ type searchCursor struct {
 	// so after a delete a have of before can be the page received and as
 	// many photos deleted.
 	deletes uint64
+	// newerThan is the instant of a search for the photos after it, oldest
+	// first (issue #194, SearchPhotos.newer_than), nil for every other
+	// search: it only goes on for requests of its kind (sameDirection).
+	newerThan *time.Time
+}
+
+// sameDirection says whether a request with newerThan may go on with cur:
+// a search going down (no newerThan) with one going down, and one going
+// up with one going up from the same instant. Any other is a token the
+// device doesn't hold, so the request searches again: a client sending
+// the token of one direction for the other would otherwise get the other
+// half's photos, and have would count them wrongly.
+func (cur *searchCursor) sameDirection(newerThan *time.Time) bool {
+	if cur.newerThan == nil || newerThan == nil {
+		return cur.newerThan == nil && newerThan == nil
+	}
+	return cur.newerThan.Equal(*newerThan)
 }
 
 // cMaxServedAgain is how many times in a row a token serves its last page
@@ -226,8 +243,9 @@ func (c *searchTokenCache) expire(now time.Time, ttl time.Duration) (gone []stri
 // included: a client still scrolling one goes on from where it is, never
 // handed a photo of a folder just kept out, even by a page it asks for
 // again. Pages it got stay as they were. Content shown again, or still
-// shown through a path uniqueByHash left out of the token, turns up at the
-// next search, as an upload during a scroll does.
+// shown through another copy than the one the token holds (its oldest,
+// issue #201), turns up at the next search, as an upload during a scroll
+// does.
 func (c *searchTokenCache) keepOut(folders []string) {
 	if c == nil {
 		return

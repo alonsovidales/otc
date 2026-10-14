@@ -39,6 +39,11 @@ func DevFilesCollectionNeedsName() Msg {
 	return Msg{Key: "dev.files.collection_needs_name"}
 }
 
+// DevFilesContentChanged is dev.files.content_changed: "this file has changed since it was shown, so nothing was deleted: refresh and tr…".
+func DevFilesContentChanged() Msg {
+	return Msg{Key: "dev.files.content_changed"}
+}
+
 // DevFilesContentMissing is dev.files.content_missing: "the content of {path} is missing on this device".
 func DevFilesContentMissing(path string) Msg {
 	return Msg{Key: "dev.files.content_missing", Args: map[string]any{"path": path}}
@@ -52,6 +57,11 @@ func DevFilesContentUnavailable(path string) Msg {
 // DevFilesContentUnreadable is dev.files.content_unreadable: "the content of {path} is unreadable on this device".
 func DevFilesContentUnreadable(path string) Msg {
 	return Msg{Key: "dev.files.content_unreadable", Args: map[string]any{"path": path}}
+}
+
+// DevFilesCopyUploadOnly is dev.files.copy_upload_only: "a copy is in the upload-only folder {folder}: no copy was deleted".
+func DevFilesCopyUploadOnly(folder string) Msg {
+	return Msg{Key: "dev.files.copy_upload_only", Args: map[string]any{"folder": folder}}
 }
 
 // DevFilesDeleteFailed is dev.files.delete_failed: "error trying to delete file: {detail}".

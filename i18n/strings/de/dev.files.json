@@ -27,6 +27,11 @@
     "text": "eine Sammlung braucht einen Namen",
     "en": "a collection needs a name"
   },
+  "dev.files.content_changed": {
+    "text": "diese Datei hat sich geändert, seit sie angezeigt wurde, deshalb wurde nichts gelöscht: Aktualisiere und versuche es erneut",
+    "en": "this file has changed since it was shown, so nothing was deleted: refresh and try again",
+    "reviewed": "claude-backtranslation 2026-10-14 #7eed97f6"
+  },
   "dev.files.content_missing": {
     "text": "der Inhalt von {path} fehlt auf diesem Gerät",
     "en": "the content of {path} is missing on this device"
@@ -38,6 +43,11 @@
   "dev.files.content_unreadable": {
     "text": "der Inhalt von {path} ist auf diesem Gerät nicht lesbar",
     "en": "the content of {path} is unreadable on this device"
+  },
+  "dev.files.copy_upload_only": {
+    "text": "eine Kopie liegt im Ordner {folder} mit „Nur hochladen“: Es wurde keine Kopie gelöscht",
+    "en": "a copy is in the upload-only folder {folder}: no copy was deleted",
+    "reviewed": "claude-backtranslation 2026-10-14 #daab1a33"
   },
   "dev.files.delete_failed": {
     "text": "Fehler beim Löschen der Datei: {detail}",

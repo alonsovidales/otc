@@ -56,10 +56,11 @@ func TestImageSearchOmittingThumbnails(t *testing.T) {
 		}
 		mock.ExpectQuery("select `f`.`hash`, `f`.`mime`").WillReturnRows(rows)
 	}
+	expectCopies(mock, 5)
 	mg := keptOut(&Manager{dao: dao.NewWithDB(db), searchTokens: newSearchTokenCache(1000)})
 	search := func(small, omit bool) string {
 		t.Helper()
-		files, _, err := mg.ImageSearch(ses, "", nil, "", false, nil, "", nil, 0, 0, small, omit)
+		files, _, err := mg.ImageSearch(ses, "", nil, "", false, nil, "", nil, nil, 0, 0, small, omit)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -149,6 +150,7 @@ func TestImageSearchPagesMixingOmittedThumbnails(t *testing.T) {
 		}
 		mock.ExpectQuery("select `f`.`hash`, `f`.`mime`").WillReturnRows(rows)
 	}
+	expectCopies(mock, 5)
 	mg := keptOut(&Manager{dao: dao.NewWithDB(db), searchTokens: newSearchTokenCache(1000)})
 
 	next := 0
@@ -159,7 +161,7 @@ func TestImageSearchPagesMixingOmittedThumbnails(t *testing.T) {
 		omit  bool
 		size  int
 	}{{12, true, 12}, {0, false, 30}, {500, true, 200}, {500, false, 8}} {
-		files, tok, err := mg.ImageSearch(ses, "", nil, token, false, nil, "", nil, have, page.limit, false, page.omit)
+		files, tok, err := mg.ImageSearch(ses, "", nil, token, false, nil, "", nil, nil, have, page.limit, false, page.omit)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -181,7 +183,7 @@ func TestImageSearchPagesMixingOmittedThumbnails(t *testing.T) {
 		}
 	}
 	// A limit over the default with thumbnails: the default, as before.
-	if files, _, _ := mg.ImageSearch(ses, "", nil, "", false, nil, "", nil, 0, 100, false, false); len(files) != 30 {
+	if files, _, _ := mg.ImageSearch(ses, "", nil, "", false, nil, "", nil, nil, 0, 100, false, false); len(files) != 30 {
 		t.Errorf("limit 100 with thumbnails: %d photos, want 30", len(files))
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {

@@ -393,10 +393,11 @@ func TestImageSearchSmallThumbnails(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		mock.ExpectQuery("select `f`.`hash`, `f`.`mime`").WillReturnRows(searchRows(f))
 	}
+	expectCopies(mock, 3)
 	mg := keptOut(&Manager{dao: dao.NewWithDB(db), searchTokens: newSearchTokenCache(1000)})
 	search := func(small bool) []*pb.File {
 		t.Helper()
-		files, _, err := mg.ImageSearch(ses, "", nil, "", false, nil, "", nil, 0, 0, small, false)
+		files, _, err := mg.ImageSearch(ses, "", nil, "", false, nil, "", nil, nil, 0, 0, small, false)
 		if err != nil {
 			t.Fatal(err)
 		}

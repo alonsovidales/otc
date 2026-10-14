@@ -1039,8 +1039,23 @@ func pageSize(limit int32, omit bool) int {
 // again with the same have, from the next one (searchCursor.resume): every
 // app asks a failed page again, and going on left a hole in its grid. With
 // a token it no longer holds, the search starts again past that many.
-func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before *time.Time, have int32, limit int32, small, omit bool) (files []*pb.File, token string, err error) {
-	log.Debug("Image search, token:", oldToken)
+// newerThan (SearchPhotos.newer_than, issue #194: scrolling up after a
+// jump) searches the photos dated after it instead, OLDEST first
+// (dao.SearchMediaNewerThan): with the jump's own instant, the half above
+// the jump's before, every photo in one half or the other, once. Unlike
+// before it is sent on every page and pages like any search: its token
+// goes on, have counts only what this search brought (served again,
+// resumed past it), keepOut, #147, limit, small and omit as above. A
+// token remembers its newerThan (searchCursor.newerThan): one of the other
+// direction or of another instant is one this device doesn't hold. It
+// wins over before.
+func (mg *Manager) ImageSearch(session *session.Session, path string, tags []string, oldToken string, includeVideos bool, personIDs []string, groupID string, before, newerThan *time.Time, have int32, limit int32, small, omit bool) (files []*pb.File, token string, err error) {
+	log.Debug("Image search, token:", oldToken, "newer than:", newerThan != nil)
+	if newerThan != nil {
+		before = nil
+		t := *newerThan
+		newerThan = &t
+	}
 	// Issue #192: read before the token or the folders kept out of
 	// Images, so a folder kept out meanwhile is left out of what is
 	// stored at the end.
@@ -1071,8 +1086,10 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		//
 		// !tokenFound below is already the intended answer for an
 		// unknown token - start the search again from the beginning -
-		// it just never got the chance to run.
-		if cur, ok := mg.searchTokens.load(oldToken); ok {
+		// it just never got the chance to run. So it is for a token of
+		// the other direction, or of another instant (issue #194): its
+		// rows aren't this search's.
+		if cur, ok := mg.searchTokens.load(oldToken); ok && cur.sameDirection(newerThan) {
 			last = cur
 			all = cur.all
 			off, again = cur.resume(have, deletes)
@@ -1091,14 +1108,18 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		if excluded, err = mg.OutOfImagesFolders(); err != nil {
 			return nil, "", err
 		}
-		files, err = mg.dao.SearchMedia(path, tags, personIDs, groupID, !includeVideos, before, excluded)
 		// One tile per photo, not per path: the same picture synced from
 		// two places (a phone that got a new install id and sent its
 		// library again under a new folder, a copy in two folders on the
-		// desktop) is one blob and showed up twice. Files still lists
-		// every path; the first row of a hash is kept, in the search's
-		// own order.
-		files = uniqueByHash(files)
+		// desktop, a photo downloaded to a phone and synced back) is one
+		// blob and showed up twice. Files still lists every path. Issue
+		// #201: SearchMedia gives each photo at its oldest copy, so a copy
+		// synced back today no longer takes it to the top of Images.
+		if newerThan != nil {
+			files, err = mg.dao.SearchMediaNewerThan(path, tags, personIDs, groupID, !includeVideos, *newerThan, excluded)
+		} else {
+			files, err = mg.dao.SearchMedia(path, tags, personIDs, groupID, !includeVideos, before, excluded)
+		}
 		if err != nil {
 			return
 		}
@@ -1161,6 +1182,16 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		file.ThumbnailSmall = proto.Bool(isSmall)
 		page = append(page, file)
 	}
+	// Issue #201: how many paths hold each photo (File.copies), for the
+	// apps' "delete only this one or all of them?". Counted for the page
+	// as it is served - an index lookup per photo, not a pass over the
+	// library - so a copy deleted since the search started isn't counted.
+	// A count that fails doesn't cost the page: it is served with copies
+	// unset on every entry (setCopies sets none then), so the apps offer
+	// no "every copy" for it, and the token moves as usual.
+	if copiesErr := mg.setCopies(page); copiesErr != nil {
+		log.Error("error counting the copies of a search page, served without them:", copiesErr)
+	}
 	if next < len(files) {
 		// The rows already served stay in the token only until they
 		// outnumber those from this page on (pageCursor), which stay so
@@ -1170,7 +1201,7 @@ func (mg *Manager) ImageSearch(session *session.Session, path string, tags []str
 		// the page's clones, never on these rows, so keeping them costs
 		// only the rows.
 		cur := pageCursor(last, all, off, next, have, len(page), again)
-		cur.seq, cur.deletes = seq, deletes
+		cur.seq, cur.deletes, cur.newerThan = seq, deletes, newerThan
 		mg.searchTokens.store(token, cur, time.Now(), gen)
 	} else {
 		// Nothing stored: a last page whose answer is lost is asked
@@ -1424,10 +1455,19 @@ func locationTags(ex *exifinfo.Info) []imagestagger.RAMTag {
 // dedup bookkeeping there (a blob is only removed once its last path is
 // gone) holds for each; a directory that becomes empty simply stops
 // being listed, since it was never anything but its files' paths.
-func (mg *Manager) DelPath(session *session.Session, path string) error {
+// shown (issue #201, DelFile.hash) is the content the client showed for a
+// file's path: when set and the file holds other content now, nothing is
+// deleted (ContentChangedError). A directory's path ignores it.
+func (mg *Manager) DelPath(session *session.Session, path, shown string) error {
 	entries, err := mg.resolvePaths([]string{path})
 	if err != nil {
 		return err
+	}
+	// resolvePaths took path's own file row, or what is under the folder
+	// (a file "/a/b" next to the folder "/a/b/" is the file).
+	isFile := len(entries) == 1 && entries[0].Path == path
+	if isFile && shownElsewhere(shown, entries[0].Hash) {
+		return &ContentChangedError{}
 	}
 	// Issue #132: refused as a whole before anything goes, so a folder
 	// holding an upload-only subfolder isn't half deleted.
@@ -1459,7 +1499,7 @@ func (mg *Manager) DelPath(session *session.Session, path string) error {
 	// whole delete worked - so it doesn't secretly keep a future folder of
 	// the same name out of Images. Not a deleted file's: "/a/b" can be a
 	// file row next to the folder "/a/b/" (resolvePaths took the file).
-	if len(entries) != 1 || entries[0].Path != path {
+	if !isFile {
 		mg.clearOutOfImagesUnder(folderPath(path))
 	}
 	return nil
@@ -2436,18 +2476,4 @@ func applyOrientation(img image.Image, orientation int) image.Image {
 		}
 	}
 	return dst
-}
-
-// uniqueByHash keeps the first file of each content hash, in order.
-func uniqueByHash(files []*pb.File) []*pb.File {
-	seen := make(map[string]bool, len(files))
-	out := files[:0]
-	for _, f := range files {
-		if seen[f.Hash] {
-			continue
-		}
-		seen[f.Hash] = true
-		out = append(out, f)
-	}
-	return out
 }

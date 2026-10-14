@@ -304,6 +304,57 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   picker sends `have` with token requests (web `PhotoGallery`, `NewPostPicker`,
   `DevicePhotoPicker`; Android `PhotoGalleryViewModel`, `NewPostPickerView`, `DevicePhotoPicker`;
   iOS `PhotoGallery`, `NewPostPicker`, `DevicePhotoPickerView`); with no token it means nothing.
+- A photo at several paths (issue #201: typically downloaded to a phone or computer and synced
+  back, with the date it came back): Images lists it once, at its **oldest copy** (earliest
+  `created`, then the smallest path) among the copies it may show (outside the folders kept out
+  of Images; under the folder for a folder gallery). Chosen when listing; no stored date is
+  rewritten, Files lists every path with its own. `dao.SearchMedia` reads every such row newest
+  first and, at one instant, by path backwards (a tag search by score first: tags and people are
+  settled per hash in derived tables, so a tag's score is no longer multiplied by the copies and
+  nothing relies on lax GROUP BY) and keeps each hash's last row (`oldestCopies`). `before` stays a
+  per-row SQL filter, which is equivalent; #194's `newer_than` must filter after `oldestCopies`,
+  never per row. The date buckets count each photo once, in its oldest copy's month (`min(created)`
+  per hash), and collections count and draw their cover per member (EXISTS), whatever the copies.
+  Every SearchPhotos entry carries `File.copies` (14, `optional`): the `files` rows holding its
+  hash, kept-out ones included, versions not, counted per page as served (`setCopies` ->
+  `dao.CountCopies`, an index lookup). A count that fails doesn't fail the page: it is logged and
+  the page served with `copies` unset on every entry (so the apps offer no "every copy" for it),
+  its token moving as usual.
+  `DelFile.every_copy` (2, `optional`) -> `files_manager.DelEveryCopy`: every path with the hash
+  (`dao.PathsOfHash`), each through `delFile` (its versions, the blob with the last, a
+  `noteDelete` each), one `reconcileAnalysis`, no flag cleared; all or nothing - a copy (the asked
+  path included) under an upload-only folder refuses it as `CopyUploadOnlyError`, `error_code`
+  `copy_upload_only`, message `dev.files.copy_upload_only` naming the outermost such folder (never
+  logged at Info). `DelFile.hash` (3, `optional`) is the content the client showed for the path
+  (the tile's `File.hash`, which is the row's `files.hash`, the plain content's SHA-256): when set
+  and the path is a file now holding other content (synced over, edited), nothing is deleted -
+  `DelEveryCopy` checks it before `PathsOfHash`, `DelPath` before the upload-only check, with or
+  without every_copy - and the answer is `ContentChangedError`, `error_code` `changed`, message
+  `dev.files.content_changed` ("refresh and try again"). Ignored when empty and for a folder's
+  path. A folder's path is DelPath as before; older devices ignore both fields. Measured
+  on 112k rows with 14k photos at several paths (Lima VM, MariaDB 11.8): browsing 291 ms of SQL as
+  before (282), the buckets 154 ms (were 327), two people 1.8 ms (5.4), a page's copies 0.3-0.6 ms.
+- Scrolling up after a jump (issue #194): `SearchPhotos.newer_than` (11) asks for the photos dated
+  strictly after the instant, served OLDEST first, and every answer to it has
+  `ListOfFiles.oldest_first` (6) true - its last page and an empty one too; devices before #194
+  ignore the field and answer newest first with it false, which the apps drop (and stop asking
+  until the next sign-in). `dao.SearchMediaNewerThan` runs the plain search's query (no date in
+  it) and keeps the photos whose oldest copy is after the instant, after `oldestCopies`, turned
+  round (a tag search, by score, is sorted by date then path). With the same instant `before`
+  and `newer_than` split the library exactly: both compare at the second (`searchCutoff` -
+  `created` is a DATETIME; MariaDB truncates a fraction, MySQL may round it into the next second).
+  Unlike `before`, the client sends it on every page and it pages like any search: token, `have`
+  (only what the upward search brought), served again, keepOut, #147, limit, small/omit. A token
+  remembers its instant (`searchCursor.newerThan`, `sameDirection`): one of the other direction
+  or of another instant counts as unknown (searched again past `have`). It wins over `before`.
+  An upward search costs one plain browse query when it starts (280-365 ms of SQL on the 112k-row
+  library above; the filter 1 ms), and its token holds only the photos above the jump. Every
+  `newSearchTest` case also runs going up (`everySearchKind`: the upward mock is dated so its
+  pages are the case's paths in order, with rows at the cutoff's second and a photo synced back
+  above it that must never show); `TestImageSearchNewerAndJumpSplitTheLibrary` (and its `MySQL`
+  twin, end to end) and dao's `TestSearchMediaNewerThanSplitsWithBeforeMySQL` check that the two
+  halves are the plain search, each photo once at the same copy; websocket's
+  `TestSearchPhotosNewerThanAnswersOldestFirst` (a child process) checks the handler.
 - Home network (issue #190): at home the apps reach the device directly over a **pinned TLS**
   connection; anywhere else, or on any failure, through the bridge as before.
   - Device: `lantls` keeps an ECDSA P-256 key and a self-signed cert (CN/SAN `otc-lan`, 100 years)
@@ -523,6 +574,23 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   thumbnails. It stays by path, for the phones' cache misses too: every grid has each photo's
   path, each entry carries its path's current hash to key a cache by, and a lookup by hash would
   still need a query to know the hash is in use.
+  **Storage view** (issue #195): `GetFolderUsage{path}` (139) answers `FolderUsage` (69), asked
+  only while Files' Storage view is open - ListFiles never sizes folders. Same callers as
+  ListFiles (the owner, a user on their own instance, never a friend); older devices answer
+  `unknown_payload`. `files_manager.FolderUsage` takes the folder as ListFiles does (the trailing
+  slash added, `""` is the root) and answers every direct child holding a file or an older
+  version: its path as ListFiles lists it, `is_dir` (a file and a folder of one name are two
+  entries), `files_size`/`file_count` of every file under it at any depth, and `versions_size`
+  (`file_versions`, not part of `files_size`); largest first (files + versions), then by path
+  byte by byte, a folder before a file of the same name; plus the folder's sums. Sizes are
+  logical (`size64`): content at two paths counts at both; thumbnails, encryption, posts,
+  galleries, other users and the database aren't counted. `dao.FolderUsage` is one statement
+  that reads each table once by `underPrefix`'s range; the database only cuts each path down to
+  its child and Go sums (a GROUP BY was 4-8x slower: MariaDB copies the 768-character key into
+  its temporary table for every row). `BenchmarkFolderUsageMySQL` (100k files and 10k versions,
+  Lima VM): 22 ms at the root, where listing the root takes 114 ms, and 22 ms for a 45k-file
+  folder. The answer has no upload-only or kept-out flags: the apps join it with their ListFiles
+  listing by (path, is_dir).
   **Logs** (Settings > Logs, web/iOS/Android, main instance only): `GetLogs{source "app"|"update",
   offset, max_bytes, wait_seconds}` reads the device's log (`[logger] log_file`) or the update log
   (`/var/log/otc-update/update.log`) in whole lines; with `wait_seconds` and nothing new the device
