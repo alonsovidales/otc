@@ -260,7 +260,7 @@
   "web.files.list.select_item": {
     "text": "Select {name}",
     "args": [["name", "user"]],
-    "note": "Files: accessibility name of the tick box on a file or folder in the grid. {name} is its name."
+    "note": "Files: accessibility name of the tick box on a file or folder, in the list and in the grid. {name} is its name."
   },
   "web.files.list.tip": {
     "text": "Tip: Drag files here to upload to <code>{folder}</code>.",

@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
-  KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode,
+  KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 import { Trans, useT, type TFunction } from "../i18n";
@@ -13,14 +13,16 @@ import type { Reload } from "./libraryStore";
 import { forgetPerson, showPerson } from "./photoFilter";
 import Spinner from "./Spinner";
 import { say, type UiText } from "./uiText";
+import { useDragSelect } from "./useDragSelect";
 import "./PeopleView.css";
 
 // The People page: the faces the device found, named people first, each a
 // circle that opens Images on that person. A person's "more" menu names or
 // deletes them. Several are picked as photos are on Images - the circle on
-// a face's corner, a long press on a touch screen, Shift for a run - and
-// the bar that then lies over the top bar merges them into one (face
-// matching split one person in several) or deletes them.
+// a face's corner, a long press on a touch screen, Shift for a run, a press
+// dragged across faces (issue #200, useDragSelect.ts) - and the bar that
+// then lies over the top bar merges them into one (face matching split one
+// person in several) or deletes them.
 
 type Props = {
   // A person was opened (photoFilter.showPerson already called): show Images.
@@ -48,14 +50,12 @@ const cArmMs = 450;
 const cDialogEdge = 16;
 // people.name is a varchar(150).
 const cMaxName = 100;
-// A touch held this long picks a face, as on Images; moving further than
-// the slop first is a scroll.
-const cLongPressMs = 450;
-const cPressSlopPx = 8;
 // Deletions out at once: one request per person, a few at a time.
 const cDeleteParallel = 3;
 
 const photosLabel = (t: TFunction, n: number) => t("web.images.people.photos", { count: n });
+// What a selection knows a person by.
+const personId = (p: Person) => p.id;
 const tidy = (s: string) => s.replace(/\s+/g, " ").trim();
 const fold = (s: string) => tidy(s).toLocaleLowerCase();
 // "Ana", "Ana and Leo", "Ana, Leo and Rosa": the last two joined, then each
@@ -238,11 +238,6 @@ export default function PeopleView({ onOpenPhotos }: Props) {
     setSel((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
-  const pick = (id: string) => {
-    anchorRef.current = id;
-    setSel((prev) => (prev.includes(id) ? prev : [...prev, id]));
-  };
-
   // Esc ends the selection - unless a dialog or the menu is what it closes.
   const somethingOnTop = confirm !== null || menu !== null;
   useEffect(() => {
@@ -263,31 +258,9 @@ export default function PeopleView({ onOpenPhotos }: Props) {
     return () => { bar.inert = false; };
   }, [selecting]);
 
-  // ---- the faces: clicks, and the long press on touch -------------------------
-  // One set of handlers on the grid, as on Images: the tiles stay plain
-  // memoised markup and the press is the grid's.
-
-  const pressRef = useRef<{ pointerId: number; x: number; y: number; timer: number; id: string } | null>(null);
-  const pressFiredRef = useRef(false);
-  const suppressClickUntilRef = useRef(0);
-  const pointerTypeRef = useRef("mouse");
-
-  const cancelPress = () => {
-    const p = pressRef.current;
-    if (p) window.clearTimeout(p.timer);
-    pressRef.current = null;
-  };
-  useEffect(() => () => {
-    const p = pressRef.current;
-    if (p) window.clearTimeout(p.timer);
-  }, []);
-
-  const firePress = (id: string) => {
-    pressRef.current = null;
-    pressFiredRef.current = true;
-    pick(id);
-    try { navigator.vibrate?.(10); } catch { /* not every device can */ }
-  };
+  // ---- the faces: clicks (the press and the drag are useDragSelect's) ---------
+  // One handler on the grid, as on Images: the tiles stay plain memoised
+  // markup.
 
   // The person a press or click is about, unless it is on a control of
   // its own: the "more" button, "Add a name", the name field.
@@ -296,44 +269,35 @@ export default function PeopleView({ onOpenPhotos }: Props) {
     return target.closest<HTMLElement>("[data-person-id]")?.dataset.personId ?? null;
   };
 
-  const onGridPointerDown = (e: ReactPointerEvent<HTMLUListElement>) => {
-    pointerTypeRef.current = e.pointerType;
-    pressFiredRef.current = false;
-    // A new touch: the click a long press leaves behind came before it.
-    suppressClickUntilRef.current = 0;
-    cancelPress();
-    if (e.pointerType === "mouse" || !e.isPrimary) return;
-    const id = personAt(e.target);
-    if (!id) return;
-    const timer = window.setTimeout(() => firePress(id), cLongPressMs);
-    pressRef.current = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, timer, id };
+  // Issue #200: a long press on a touch screen picks a face, and a press
+  // dragged (with a mouse, or on from a long press) picks every face from
+  // it to the one under the pointer, as on Images. A drag may pass over a
+  // face's name and controls, but starts only on the face itself (its
+  // picture or its circle): a press on the name, the count, "Add a name" or
+  // the menu button starts nothing, as on the phones.
+  const faceAt = (target: Element): string | null => {
+    if (!target.closest(".pv-face-wrap") || target.closest(".pv-more")) return null;
+    return target.closest<HTMLElement>("[data-person-id]")?.dataset.personId ?? null;
   };
-  const onGridPointerMove = (e: ReactPointerEvent<HTMLUListElement>) => {
-    const p = pressRef.current;
-    if (p && e.pointerId === p.pointerId && Math.hypot(e.clientX - p.x, e.clientY - p.y) > cPressSlopPx) cancelPress();
-  };
-  // The click that ends a long press must not unpick the face straight
-  // away (or open it). It follows the release at once, or not at all.
-  const onGridPointerEnd = () => {
-    cancelPress();
-    if (pressFiredRef.current) {
-      pressFiredRef.current = false;
-      suppressClickUntilRef.current = performance.now() + 600;
-    }
-  };
-  const onGridContextMenu = (e: ReactMouseEvent<HTMLUListElement>) => {
-    if (pointerTypeRef.current === "mouse" || !personAt(e.target)) return;
-    // Android answers a long press on a picture with its own menu: here
-    // the press picks the face instead.
-    e.preventDefault();
-    const p = pressRef.current;
-    if (p) {
-      window.clearTimeout(p.timer);
-      firePress(p.id);
-    }
-  };
+  const personIndex = useMemo(() => new Map(people.map((p, i) => [p.id, i])), [people]);
+  const pickedPeople = useMemo(
+    () => sel.flatMap((id) => { const i = personIndex.get(id); return i === undefined ? [] : [people[i]]; }),
+    [sel, personIndex, people],
+  );
+  const dragSel = useDragSelect<Person>({
+    enabled: !somethingOnTop,
+    items: people,
+    keyOf: personId,
+    indexAt: (el, press) => {
+      const id = press ? faceAt(el) : el.closest<HTMLElement>("[data-person-id]")?.dataset.personId;
+      return id == null ? null : personIndex.get(id) ?? null;
+    },
+    selection: pickedPeople,
+    setSelection: (next) => setSel(next.map(personId)),
+    onEnd: (p) => { anchorRef.current = p.id; },
+  });
+
   const onGridClick = (e: ReactMouseEvent<HTMLUListElement>) => {
-    if (performance.now() < suppressClickUntilRef.current) return;
     const id = personAt(e.target);
     if (!id) return;
     const target = e.target as Element;
@@ -527,12 +491,11 @@ export default function PeopleView({ onOpenPhotos }: Props) {
       <ul
         className="pv-grid"
         role="list"
+        ref={dragSel.ref}
         onClick={onGridClick}
-        onPointerDown={onGridPointerDown}
-        onPointerMove={onGridPointerMove}
-        onPointerUp={onGridPointerEnd}
-        onPointerCancel={onGridPointerEnd}
-        onContextMenu={onGridContextMenu}
+        onPointerDown={dragSel.onPointerDown}
+        onContextMenu={dragSel.onContextMenu}
+        onDragStart={dragSel.onDragStart}
       >
         {people.map((p) => {
           const pendingName = saving.get(p.id);

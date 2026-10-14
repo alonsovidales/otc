@@ -245,7 +245,16 @@ final class PhotoGalleryVM: ObservableObject {
     }
 
     @Published var items: [Item] = [] {
-        didSet { itemsVersion &+= 1 }
+        didSet {
+            itemsVersion &+= 1
+            // Issue #200: a photo picked before a drag that has gone from
+            // the grid mid-drag (deleted) leaves the drag too, so the next
+            // move doesn't pick it again (DragSelection.forget).
+            if let drag = dragSelection, !drag.base.isEmpty {
+                let here = Set(items.map(\.path))
+                dragSelection?.forget { !here.contains($0) }
+            }
+        }
     }
     /// Bumped by every change to `items`: the grid's layout is worked out
     /// again only then (gridLayout).
@@ -1245,6 +1254,7 @@ final class PhotoGalleryVM: ObservableObject {
         searchStarts += 1
         startSearchState(jump: nil)
         selected.removeAll()
+        dragSelection = nil
         // A filter change makes any scrub in progress meaningless (its
         // target bucket was computed against the *previous* filter's
         // counts) - drop it rather than leave stale placeholders or a
@@ -2082,11 +2092,47 @@ final class PhotoGalleryVM: ObservableObject {
         })
     }
 
-    // MARK: Selection (no checkbox; long-press toggles)
+    // MARK: Selection (no checkbox): a long press selects, and a drag on
+    // from it selects the range (issue #200, DragSelect.swift); while
+    // anything is selected a tap toggles.
     func toggleSelect(_ path: String) {
         if selected.contains(path) { selected.remove(path) }
         else { selected.insert(path) }
     }
+
+    /// Issue #200: the drag selection under way, if any.
+    private var dragSelection: DragSelection<String>?
+
+    /// A long press on the photo at `index`: it is selected (whether or not
+    /// it was), and a drag on from it selects the range.
+    func beginDragSelect(at index: Int) {
+        guard items.indices.contains(index) else { return }
+        let drag = DragSelection(base: selected, start: items[index].path)
+        dragSelection = drag
+        selected.insert(drag.start)
+    }
+
+    /// The finger is over the photo at `index` now (nil: over none of
+    /// them): every photo from the one pressed to it is selected, in the
+    /// grid's order, on top of what was selected before (less what has
+    /// gone from the grid since: items). False once the drag is over: the
+    /// pressed photo has gone from the grid (a refresh took it away), and
+    /// the selection stays as it stands (DragSelection's rule).
+    @discardableResult
+    func dragSelect(to index: Int?) -> Bool {
+        guard var drag = dragSelection else { return false }
+        let order = items.map(\.path)
+        guard drag.goesOn(in: order) else {
+            dragSelection = nil
+            return false
+        }
+        guard let index, items.indices.contains(index), drag.move(to: items[index].path) else { return true }
+        dragSelection = drag
+        if let s = drag.selection(in: order) { selected = s }
+        return true
+    }
+
+    func endDragSelect() { dragSelection = nil }
 
     // MARK: Actions
     private func ensureUploadedIfLocal(_ paths: [String]) async -> Bool {
@@ -2337,6 +2383,11 @@ struct PhotoGalleryView: View {
     /// camera is on (ScrubberPlacement).
     @State private var scrubberGaps = ScrubberPlacement.Gaps()
     @State private var interfaceOrientation = UIInterfaceOrientation.unknown
+    /// Issue #200: where each tile on screen is, by its index, for a drag
+    /// selection's finger (DragSelect.swift), in the grid's own space.
+    @State private var dragFrames = DragSelectFrames<Int>()
+    private static let gridSpaceName = "photoGrid"
+    private static let gridSpace = DragSelectSpace.named(gridSpaceName)
     @Environment(\.layoutDirection) private var layoutDirection
 
     private var scrubberPlacement: ScrubberPlacement {
@@ -2404,6 +2455,10 @@ struct PhotoGalleryView: View {
                             }
                         }
                         .scrollTargetLayout()
+                        // Issue #200: a long press selects a photo, and a
+                        // drag on from it every photo up to the finger.
+                        .coordinateSpace(.named(Self.gridSpaceName))
+                        .gesture(dragSelect(layout))
                         if layout.placeholder == .none && !vm.items.isEmpty {
                             gridFooter
                         }
@@ -2667,6 +2722,28 @@ struct PhotoGalleryView: View {
         }
     }
 
+    /// Issue #200: the long press and drag over the grid's photos - not
+    /// over grey tiles, and the selection bar laid over the grid's bottom
+    /// is where it starts to scroll down. A press starts only on a photo
+    /// itself (not a title, a gap or the empty slots after a short month);
+    /// the finger beside photos in a row is then over the nearest.
+    private func dragSelect(_ layout: PhotoGridLayout) -> DragSelectGesture {
+        let frames = dragFrames, vm = vm
+        let pressed = { (p: CGPoint) -> Int? in frames.item(containing: p).flatMap { vm.items.indices.contains($0) ? $0 : nil } }
+        return DragSelectGesture(
+            space: Self.gridSpace,
+            enabled: layout.placeholder == .none,
+            bottomBand: Self.selectionBarBand,
+            canStart: { pressed($0) != nil },
+            began: { if let i = pressed($0) { vm.beginDragSelect(at: i) } },
+            moved: { vm.dragSelect(to: frames.item(at: $0)) },
+            ended: { vm.endDragSelect() }
+        )
+    }
+
+    /// How much of the grid's bottom the selection bar covers.
+    private static let selectionBarBand: CGFloat = 104
+
     @ViewBuilder
     private func gridRow(_ row: PhotoGridLayout.Row, layout: PhotoGridLayout) -> some View {
         let m = layout.metrics
@@ -2706,9 +2783,10 @@ struct PhotoGalleryView: View {
                 hasSelection: !vm.selected.isEmpty,
                 thumbsVersion: vm.thumbsVersion,
                 onTap: { openPath(it.path) },
-                onLongPress: { vm.toggleSelect(it.path) },
+                onToggle: { vm.toggleSelect(it.path) },
                 needThumb: { vm.needThumb(it) }
             )
+            .dragSelectItem(i, in: dragFrames, space: Self.gridSpace)
             .task { await vm.loadMoreIfNeeded(index: i, id: it.id) }
             // Its thumbnail asked for first while it shows (GridThumbLoader).
             .onAppear { vm.tileShown(i) }
@@ -3299,7 +3377,7 @@ private struct PhotoTile: View {
     /// image is looked up again.
     let thumbsVersion: Int
     let onTap: () -> Void
-    let onLongPress: () -> Void
+    let onToggle: () -> Void
     /// It has no image to show: from the thumbnail cache, else the device.
     let needThumb: () -> Void
 
@@ -3325,16 +3403,12 @@ private struct PhotoTile: View {
         }
         .frame(width: side, height: side)
         .contentShape(Rectangle())
-        // Issue: long-pressing a tile used to ALSO open the preview —
-        // it was a Button (tap) plus a *simultaneous* long-press
-        // gesture, and "simultaneous" means both fire together on
-        // release, by design. Plain SwiftUI tap/long-press gestures
-        // (no Button) disambiguate properly instead of both firing.
+        // The long press that selects, and the drag on from it, are the
+        // grid's (issue #200, PhotoGalleryView.dragSelect); the finger
+        // lifting at the end of one is no tap.
         .onTapGesture {
-            if hasSelection { onLongPress() } else { onTap() }
-        }
-        .onLongPressGesture(minimumDuration: 0.25) {
-            onLongPress()
+            guard DragSelect.tapAllowed else { return }
+            if hasSelection { onToggle() } else { onTap() }
         }
         // VoiceOver: one element per tile, its own square - not the
         // photo's uncropped frame reaching over the month's title - read
@@ -3343,9 +3417,9 @@ private struct PhotoTile: View {
         .accessibilityLabel(PhotoMonths.tileLabel(video: item.mime.hasPrefix("video/"), date: item.created))
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
         .accessibilityAction {
-            if hasSelection { onLongPress() } else { onTap() }
+            if hasSelection { onToggle() } else { onTap() }
         }
-        .accessibilityAction(named: isSelected ? S.commonDeselect : S.commonSelect) { onLongPress() }
+        .accessibilityAction(named: isSelected ? S.commonDeselect : S.commonSelect) { onToggle() }
     }
 
     private var thumb: some View {
@@ -3409,6 +3483,10 @@ struct ImageModal: View {
     let delete: () -> Void
 
     @State private var confirmDelete = false
+    /// The item Delete asks about is a video: the question says so (the
+    /// web's delete_video_title). Taken when Delete is tapped, so the words
+    /// don't change under the question.
+    @State private var confirmDeleteVideo = false
     // The strip's horizontal offset while a finger drags it or it animates
     // to the neighbour; zero when at rest on the open photo.
     @State private var dragOffset: CGFloat = 0
@@ -3471,8 +3549,8 @@ struct ImageModal: View {
                 }
             }
         }
-        .confirmationDialog(S.appPhotosViewerDeleteTitle, isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button(S.appPhotosViewerDelete, role: .destructive, action: delete)
+        .confirmationDialog(Self.deleteTitle(video: confirmDeleteVideo), isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button(Self.deleteButton(video: confirmDeleteVideo), role: .destructive, action: delete)
             Button(S.commonCancel, role: .cancel) {}
         }
         // Nested here rather than on PhotoGalleryView: a second sheet on the
@@ -3486,6 +3564,15 @@ struct ImageModal: View {
         .sheet(isPresented: $vm.infoOpen) {
             FileInfoView(loading: vm.infoLoading, info: vm.infoData)
         }
+    }
+
+    /// The delete question and its button: "Delete this video?" and
+    /// "Delete Video" for a video (Android's ImageModal says the same).
+    static func deleteTitle(video: Bool) -> String {
+        video ? S.appPhotosViewerDeleteVideoTitle : S.appPhotosViewerDeleteTitle
+    }
+    static func deleteButton(video: Bool) -> String {
+        video ? S.appPhotosViewerDeleteVideo : S.appPhotosViewerDelete
     }
 
     /// How wide each side column is in landscape: a 44 pt button with a
@@ -3543,7 +3630,10 @@ struct ImageModal: View {
                 Image(systemName: "arrow.down.circle").frame(width: side, height: side).contentShape(Rectangle())
             }
             .accessibilityLabel(S.commonSave)
-            Button(role: .destructive) { confirmDelete = true } label: {
+            Button(role: .destructive) {
+                confirmDeleteVideo = vm.openIndex.map { vm.items.indices.contains($0) && vm.items[$0].mime.hasPrefix("video/") } ?? false
+                confirmDelete = true
+            } label: {
                 Image(systemName: "trash").frame(width: side, height: side).contentShape(Rectangle())
             }
             .accessibilityLabel(S.commonDelete)

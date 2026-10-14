@@ -1083,7 +1083,7 @@ and code keep `ImageGroup`/`groupId`. What Images shows is `photoFilter.ts` (tag
 collection; a store the search, People and Collections pages and the grid share); the people, collection
 and tag lists are `libraryStore.ts` (cover URLs made when a list arrives, never in a render). Images
 (`PhotoGallery.tsx`) groups date-ordered photos into month sections, Google Photos-style selection (hover
-or long-press, numbered in post order) with a bar over the top bar, dialogs for posting and collections,
+or long-press, a drag for a run - see below - numbered in post order) with a bar over the top bar, dialogs for posting and collections,
 and `DateScrubber.tsx` (a column of years with a mouse, a draggable handle on touch). `People` and
 `Collections` are pages of their own (`PeopleView`, `CollectionsView`). `web/src/net/` holds the WebSocket/proto
 client; `web/src/views/` are top-level routed pages (`SignIn` - a new device's setup - and `Social`); `web/src/components/` are the
@@ -1129,6 +1129,44 @@ provider and `useWS`). `web/` has no test runner
 (`node web/scripts/i18n-test.mjs` tests the i18n runtime and ws.ts's `lang` line through Vite's
 SSR loader); `npm run lint` already reports about 150 problems (mostly `no-explicit-any`), so
 compare counts before and after a change.
+
+Drag to select on the web (issue #200): Images, People and Files (list and grid) share
+`components/useDragSelect.ts` (the gesture) and `dragSelect.ts` (the pure rules, tested by
+`node web/scripts/drag-select-test.mjs`, the same rules as the phones' `DragSelect`). A mouse press
+on an item that moves more than 8 px, or a touch held 450 ms then moved, adds every item from the
+pressed one to the one under the pointer in display order after the selection it started from
+(Images numbers them in grid order); moving back restores it, a press never unpicks, Files' `..`
+is never picked, Escape takes the drag back, and the click it ends with is swallowed. Only a press
+on an item itself starts one (`indexAt(el, true)`): a gap, the empty end of a short row, a month's
+title, Files' header or `..`, or a face's name, count or "Add a name" (People's `faceAt`: the
+picture and its circle only) start nothing, and the page scrolls. Each move
+hit-tests with `elementFromPoint` (clamped into the grid and below `--topbar-h`), and again on
+every scroll: the window scrolls in bands at the top and bottom (56 px, or a third of what can be
+seen when that is less, none when that is under 8 px; up to 1200 px/s), but only once the pointer
+has moved more than 8 px since the drag began (`DragPointer.armed`: at once for a mouse drag, for a
+touch measured from where the long press fired - a long press held still in a band never
+scrolls), and the wheel works mid-drag. The drag's two ends are kept by key (`relocate`, re-run
+whenever the items change): when the pressed item goes the drag is over with the selection as it
+stands - later moves do nothing and the release's click is still swallowed; when only the item
+under the pointer goes, the selection stays as it is until the pointer is over another item; a
+pick that went from the items goes from the drag's base too (`keptBase`), so the next move (or
+Escape) doesn't bring it back. Something coming over the items (`enabled` false: a viewer, a
+dialog, the date scrubber) or a new Files listing (a refresh, an upload finishing, another folder:
+Files is disabled while it loads) ends the drag the same way (`interrupt`): the selection is what
+the view makes it (the listing clears it), the edges stop scrolling, the release is no click and
+Shift+click doesn't go on from it. The selection is committed with `flushSync` and the container's on-screen
+move measured round it: Files' in-flow actions bar appearing at the first pick (or the browser's
+scroll anchoring) must not move rows under the pointer, so the page scrolls by the difference,
+adding a `min-height` to the document while something is picked when it can't. Text selection
+and the picture callout are off only on the container during a touch press or a drag
+(`data-dragsel`); the container keeps a non-passive `touchmove` listener (Chrome and Safari only
+let a touch's moves be cancelled when one was in place as it began) that cancels only a touch
+drag's moves, and the element a touch began on gets the same listener while it is held (its moves
+keep going to it once a new listing or a face that went has taken it off the page). With touch, once something is picked a tap in Files picks or unpicks a row instead
+of opening it. Shift+click (and Shift+Space on a checkbox) adds the run from the last pick or the
+drag's end. The edge scroll waiting for a move, the band depth, starting only on an item, an
+item going mid-drag and a new listing ending a drag follow the phones' rules: change all three together. Tested in headless
+Chrome with CDP mouse and touch input against a mock `useWS`.
 
 Issue #182 (and #175/#176): accounts can be deleted - `DELETE /api/account/me` (`{"confirm":
 "delete", "password"}`, or a sign-in within 15 minutes for Google/Apple-only accounts;
@@ -1652,6 +1690,50 @@ Keystore key by resetting to a fresh install; connection forms write `SecretsSto
 since every reconnect dials the stored values; `PhotoSync.hasPermission()` must match
 `mediaPermissions()`. iOS unit tests: `OffTheCloudTests` (Swift Testing), on a simulator with
 `-only-testing:OffTheCloudTests`.
+
+**Drag to select** (issue #200, iOS `DragSelect.swift` <-> Android `ui/common/DragSelect.kt`):
+Images, People and Files (list and grid) select by long press, and a drag on without lifting
+adds every item from the pressed one to the one under the finger, in display order (shrinking
+back restores what the range passed over; a press never deselects); while anything is selected
+a tap toggles. On iOS it is a UIKit `UILongPressGestureRecognizer` through
+`UIGestureRecognizerRepresentable` on the lazy stack/grid/List (SwiftUI's own long press inside
+a ScrollView or List holds the scroll up), refusing to begin unless the press is inside an
+item's frame (`gestureRecognizerShouldBegin` and `began` use `DragSelectFrames.item(containing:)`:
+a gap, the empty slots after a short row, padding, a title, Files' frameless `..`, or a face's
+name or count or its "more" button start nothing - People's `faceToStart` refuses a point inside
+a second `DragSelectFrames` of the buttons, recorded inside their offset; moves take the nearest
+item in the row, `item(at:)`); items record
+their frames with `onGeometryChange` plus
+on-screen counts (`DragSelectFrames`), in a name on the lazy stack - but a List's rows don't see
+a name given to the List, so Files' list uses `.global`. The edges scroll the found
+`UIScrollView`'s `contentOffset` from a `CADisplayLink` (bands of min(56 pt, a third of the
+visible height), none under 8 pt, up to 1200 pt/s, only once the finger has moved more than
+10 pt from where the press fired, `DragSelect.armed`). A pressed item gone mid-drag (a refresh)
+ends the drag (`DragSelection.goesOn`), and so does a new Files listing (`load()` drops the drag
+where it sets the selection, none): the selection stays as it stands, `moved` answers false and
+the gesture stops following and scrolling, and the lift is still no tap; the item under the
+finger gone keeps the selection until the finger is over another (`range(in:)` is nil). A pick
+made before the press that goes mid-drag (People's listing `onChange`, Images' deletes through
+`items`) leaves the drag's base too (`DragSelection.forget`), so the next move doesn't bring it
+back. Files' long-press menu is gone: Share as gallery and Keep out of / Show
+in Images are in the bar when one folder is selected (as Android's), upload only stays on the
+list's lock, and a grid tile's lock asks to allow deletions. Tests: `DragSelectTests.swift`; on
+a simulator, idb can hold then drag through its Python client's HID events (touch down, delay,
+moves, up) - `idb ui swipe` can't. On Android it is `Modifier.dragSelect` on the LazyColumn/grid
+(a pointer input on the Initial pass, so after the long press the moves and the lift are the
+drag's), hit-testing the lazy layout (`keyAt`; Images' `GalleryRow.itemAt`); a drag starts only
+where `rememberDragSelect`'s `start` finds an item (People: `onFace`, the face but not its name,
+count or "more" button), and the edges scroll (bands of min(56 dp, a third of the list), none
+under 8 dp, `dragScrollSpeed`) only once the finger has moved more than the touch slop from where
+the press fired (`DragSelectState.armed`). The view models' `dragGoesOn` is asked at every move
+and before every scroll step (`DragSelectState.goingOn`), not only when another item comes under
+the finger: once the pressed item is gone (`DragSelection.goesOn`, for good even if it comes
+back) or a new Files listing has landed (`load()` drops the drag before it sets the selection,
+none), the drag is over with the selection as it stands - moves change nothing, the edges stop,
+and the lift is still no tap; the item under the finger gone keeps the selection until the
+finger is over another (`range` is null). A pick that goes mid-drag (People's `keepOnly`,
+Images' deletes) leaves the drag's base too (`DragSelection.forget`), so the range doesn't
+bring it back. Tests: `DragSelectTest.kt`, `PeopleViewTest.kt`, `PhotoGalleryRetryTest.kt`.
 
 **Known gaps left by the 2026-10 hardening pass.** `network/network.go` `RequestJoin` writes `wifi_join_request.json` with a plain `os.WriteFile`, not
 temp + fsync + rename. iOS `FileDownload` falls back to `GetFile` only on `error_code =

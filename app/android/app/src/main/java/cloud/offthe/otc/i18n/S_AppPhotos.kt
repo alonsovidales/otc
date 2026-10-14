@@ -486,13 +486,21 @@ fun S.appPhotosSearchThings(): UiText =
 fun S.appPhotosSelectionDeleteTitle(count: Int): UiText =
     UiText.Plural(R.plurals.app_photos_selection_delete_title, count, listOf(count))
 
-/** "Delete Photo": Confirming button of app.photos.viewer.delete_title: deletes the photo open in the viewer from the device. Title Case in English buttons. */
+/** "Delete Photo": Confirming button of app.photos.viewer.delete_title: deletes the photo open in the viewer from the device. Title Case in English buttons. A video has its own: app.photos.viewer.delete_video. */
 fun S.appPhotosViewerDelete(): UiText =
     UiText.Res(R.string.app_photos_viewer_delete)
 
-/** "Delete this photo?": Title of the confirmation asked before deleting the photo (or video) open in the full-screen viewer from the device. Buttons: Delete Photo and Cancel. */
+/** "Delete this photo?": Title of the confirmation asked before deleting the photo open in the full-screen viewer (Images, or a photo opened from Files) from the device. Buttons: Delete Photo and Cancel. A video has its own: app.photos.viewer.delete_video_title. */
 fun S.appPhotosViewerDeleteTitle(): UiText =
     UiText.Res(R.string.app_photos_viewer_delete_title)
+
+/** "Delete Video": Confirming button of app.photos.viewer.delete_video_title: deletes the video open in the viewer from the device. Title Case in English buttons. The video form of app.photos.viewer.delete. */
+fun S.appPhotosViewerDeleteVideo(): UiText =
+    UiText.Res(R.string.app_photos_viewer_delete_video)
+
+/** "Delete this video?": Title of the confirmation asked before deleting the video open in the full-screen viewer (Images, or a video opened from Files) from the device. Buttons: Delete Video and Cancel. The video form of app.photos.viewer.delete_title; the web says the same (web.images.viewer.delete_video_title). */
+fun S.appPhotosViewerDeleteVideoTitle(): UiText =
+    UiText.Res(R.string.app_photos_viewer_delete_video_title)
 
 /** "Aperture": Label of a row in the panel with a photo's camera details (app.photos.viewer.info_title): the aperture (f/1.8). */
 fun S.appPhotosViewerInfoAperture(): UiText =

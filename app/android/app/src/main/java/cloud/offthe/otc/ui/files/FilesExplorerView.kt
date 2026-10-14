@@ -147,6 +147,11 @@ import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.net.retryWaitMs
 import cloud.offthe.otc.net.sleepOrWake
 import cloud.offthe.otc.ui.common.DEVICE_UNREACHABLE
+import cloud.offthe.otc.ui.common.DragSelection
+import cloud.offthe.otc.ui.common.dragSelect
+import cloud.offthe.otc.ui.common.keysView
+import cloud.offthe.otc.ui.common.keyAt
+import cloud.offthe.otc.ui.common.rememberDragSelect
 import cloud.offthe.otc.ui.common.LoadProblem
 import cloud.offthe.otc.ui.common.TextIOException
 import cloud.offthe.otc.ui.common.backOnline
@@ -430,6 +435,9 @@ data class SearchResults(val text: String, val phase: Phase, val files: List<PbF
 }
 private const val SEARCH_LIMIT = 50
 
+// The grid's padding on its sides: where its tiles start, for the drag to select's hit test (issue #200).
+private val FILES_GRID_SIDE = 8.dp
+
 // uploadOnly/versions: issue #132 - inside (or itself) an upload-only
 // folder, and how many older versions the device keeps for the file.
 // outOfImages: issue #192 - inside (or itself) a folder kept out of Images.
@@ -618,6 +626,10 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
                 val now = if (rows.size <= FilesSort.OFF_MAIN_ABOVE) FilesSort.sortedRows(rows, order, sortLocale()) else null
                 val sameFolder = rowsFolder == p
                 rowsFolder = p
+                // Issue #200: a new listing ends a drag to select under way,
+                // before its selection (none) is set: the finger's later
+                // moves do nothing and its lift is still no tap.
+                dragSelection = null
                 _state.update {
                     it.copy(rows = now ?: if (sameFolder) it.rows else emptyList(), sorting = now == null,
                         selected = emptySet(), thumbGen = it.thumbGen + 1, listedPath = p,
@@ -923,6 +935,46 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
     fun toggleSelect(p: String) = _state.update {
         it.copy(selected = if (p in it.selected) it.selected - p else it.selected + p)
     }
+
+    // Issue #200: the drag to select under way (DragSelect.kt), from a long
+    // press. Null once a new listing lands (load(), maybe off the main thread).
+    @Volatile private var dragSelection: DragSelection<String>? = null
+
+    /** What a drag passes over, in the order shown: every row but "..", which is never selected. */
+    private fun selectable(rows: List<FileRow>): List<String> = rows.mapNotNull { r -> r.path.takeIf { it != ".." } }
+
+    /** A long press on [p]: it is selected, and a drag from it starts. */
+    fun beginDragSelect(p: String) {
+        val sel = DragSelection(_state.value.selected.toList(), p)
+        dragSelection = sel
+        selectTo(sel, p)
+    }
+
+    // The selection with [sel]'s range at [to]; nothing once a listing that
+    // landed meanwhile ended the drag - its selection stands.
+    private fun selectTo(sel: DragSelection<String>, to: String) = _state.update { st ->
+        if (dragSelection !== sel) st else sel.apply(selectable(st.rows), to)?.let { st.copy(selected = it.toSet()) } ?: st
+    }
+
+    /**
+     * The drag reached [to]: every row from the pressed one to it is
+     * selected, besides what was before. False once the drag is over (the
+     * pressed row went away, a new listing): the selection stays as it was then.
+     */
+    fun dragSelect(to: String): Boolean {
+        val sel = dragSelection ?: return false
+        selectTo(sel, to)
+        return dragSelection === sel && !sel.over
+    }
+
+    /** Whether the drag goes on: not once a new listing landed, nor with the pressed row gone. */
+    fun dragGoesOn(): Boolean {
+        val sel = dragSelection ?: return false
+        return sel.goesOn(_state.value.rows.keysView { it.path })
+    }
+
+    /** The finger lifted: the selection stays as the drag left it. */
+    fun endDragSelect() { dragSelection = null }
 
     fun setConfirmDelete(v: Boolean) = _state.update { it.copy(confirmDeleteSelected = v) }
     fun selectOnly(p: String) = _state.update { it.copy(selected = setOf(p)) }
@@ -1346,93 +1398,119 @@ fun FilesExplorerView(initialPath: String) {
                         ) { if (show != null) outOfImagesAsk = OutOfImagesAsk(show, leafName(show), out = true) }
                     }
 
+                    // Issue #200: a long press on a file or folder selects it, and
+                    // a drag from there every one to the one under the finger,
+                    // in the order shown ("..", never selected, is skipped). Once
+                    // something is selected a tap picks or drops one instead of
+                    // opening it ("..", still goes up). TalkBack: the circles.
+                    val selecting = st.selected.isNotEmpty()
+                    fun tap(row: FileRow) { if (selecting && row.path != "..") vm.toggleSelect(row.path) else openRow(row) }
+                    fun selectable(key: Any?): String? = (key as? String)?.takeIf { it != ".." }
                     PullToRefreshBox(
                         isRefreshing = refreshing,
                         onRefresh = { scope.launch { refreshing = true; vm.load(); refreshing = false } },
                         modifier = Modifier.weight(1f),
                     ) {
-                        if (st.grid) LazyVerticalGrid(
-                            GridCells.Adaptive(104.dp), Modifier.fillMaxSize(), state = gridState,
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            items(st.rows, key = { it.path }) { row ->
-                                // Asked for as the tile is composed (the visible rows
-                                // and the grid's prefetch), again if it was evicted
-                                // while shown or failed before a reload.
-                                if (isMedia(row)) {
-                                    val key = vm.thumbKey(row)
-                                    val has = st.thumbs[key] != null
-                                    LaunchedEffect(key, has, st.thumbGen) { vm.wantThumbnail(row) }
-                                    DisposableEffect(key) { onDispose { vm.dropThumbnail(key) } }
+                        if (st.grid) {
+                            val left = with(LocalDensity.current) { FILES_GRID_SIDE.toPx() }
+                            val drag = rememberDragSelect(
+                                gridState, hit = { p -> selectable(gridState.layoutInfo.keyAt(p.x, p.y, left)) },
+                                onBegin = vm::beginDragSelect, onMove = vm::dragSelect, onEnd = vm::endDragSelect, goesOn = vm::dragGoesOn,
+                            )
+                            LazyVerticalGrid(
+                                GridCells.Adaptive(104.dp), Modifier.fillMaxSize().dragSelect(drag), state = gridState,
+                                contentPadding = PaddingValues(horizontal = FILES_GRID_SIDE, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                items(st.rows, key = { it.path }) { row ->
+                                    // Asked for as the tile is composed (the visible rows
+                                    // and the grid's prefetch), again if it was evicted
+                                    // while shown or failed before a reload.
+                                    if (isMedia(row)) {
+                                        val key = vm.thumbKey(row)
+                                        val has = st.thumbs[key] != null
+                                        LaunchedEffect(key, has, st.thumbGen) { vm.wantThumbnail(row) }
+                                        DisposableEffect(key) { onDispose { vm.dropThumbnail(key) } }
+                                    }
+                                    FileGridCell(
+                                        row, selected = row.path in st.selected, opening = st.openingPath == row.path,
+                                        thumb = if (isMedia(row)) st.thumbs[vm.thumbKey(row)] else null,
+                                        selecting = selecting,
+                                        onOpen = { tap(row) },
+                                        onToggle = { vm.toggleSelect(row.path) },
+                                        onVersions = { scope.launch { vm.openVersions(row) } },
+                                        onLock = { lockPrompt = row },
+                                        outOfImages = st.outOfImagesSupported && row.outOfImages,
+                                        onOutOfImages = { explainOutOfImages(row) },
+                                    )
                                 }
-                                FileGridCell(
-                                    row, selected = row.path in st.selected, opening = st.openingPath == row.path,
-                                    thumb = if (isMedia(row)) st.thumbs[vm.thumbKey(row)] else null,
-                                    onOpen = { openRow(row) },
-                                    onToggle = { vm.toggleSelect(row.path) },
-                                    onVersions = { scope.launch { vm.openVersions(row) } },
-                                    onLock = { lockPrompt = row },
-                                    outOfImages = st.outOfImagesSupported && row.outOfImages,
-                                    onOutOfImages = { explainOutOfImages(row) },
-                                )
                             }
-                        } else LazyColumn(Modifier.fillMaxSize(), state = listState) {
-                            items(st.rows, key = { it.path }) { row ->
-                                val selected = row.path in st.selected
-                                Row(
-                                    Modifier.fillMaxWidth()
-                                        .clickable(enabled = st.openingPath == null) { openRow(row) }
-                                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    if (row.path != "..") {
-                                        IconButton(onClick = { vm.toggleSelect(row.path) }, modifier = Modifier.size(36.dp)) {
-                                            Icon(if (selected) Icons.Default.CheckCircle else Icons.Outlined.Circle, (if (selected) S.commonDeselect() else S.commonSelect()).resolve(),
-                                                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            val drag = rememberDragSelect(
+                                listState, hit = { p -> selectable(listState.layoutInfo.keyAt(p.y)) },
+                                onBegin = vm::beginDragSelect, onMove = vm::dragSelect, onEnd = vm::endDragSelect, goesOn = vm::dragGoesOn,
+                            )
+                            LazyColumn(Modifier.fillMaxSize().dragSelect(drag), state = listState) {
+                                items(st.rows, key = { it.path }) { row ->
+                                    val selected = row.path in st.selected
+                                    val picks = selecting && row.path != ".."
+                                    Row(
+                                        Modifier.fillMaxWidth()
+                                            .clickable(
+                                                enabled = picks || st.openingPath == null,
+                                                onClickLabel = if (picks) (if (selected) S.commonDeselect() else S.commonSelect()).resolve() else null,
+                                            ) { tap(row) }
+                                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        if (row.path != "..") {
+                                            IconButton(onClick = { vm.toggleSelect(row.path) }, modifier = Modifier.size(36.dp)) {
+                                                Icon(if (selected) Icons.Default.CheckCircle else Icons.Outlined.Circle, (if (selected) S.commonDeselect() else S.commonSelect()).resolve(),
+                                                    tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                        } else Spacer(Modifier.size(36.dp))
+                                        Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
+                                            if (st.openingPath == row.path) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                                            else Icon(
+                                                if (row.isDir) Icons.Default.Folder else if (isImg(row.raw)) Icons.Default.Image else Icons.Default.Description,
+                                                null, tint = if (row.isDir) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
                                         }
-                                    } else Spacer(Modifier.size(36.dp))
-                                    Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
-                                        if (st.openingPath == row.path) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                                        else Icon(
-                                            if (row.isDir) Icons.Default.Folder else if (isImg(row.raw)) Icons.Default.Image else Icons.Default.Description,
-                                            null, tint = if (row.isDir) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                    Spacer(Modifier.width(8.dp))
-                                    Column(Modifier.weight(1f)) {
-                                        Text(row.name, maxLines = 1)
-                                        if (!row.isDir) Text(formatBytes(row.size), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    // Issue #132: the versions badge opens the pop-up;
-                                    // the lock on a folder toggles upload only, on a
-                                    // file it just says it is inside one.
-                                    if (!row.isDir && row.versions > 0) {
-                                        TextButton(onClick = { scope.launch { vm.openVersions(row) } }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                                            Icon(Icons.Default.History, null, Modifier.size(16.dp))
-                                            Spacer(Modifier.width(4.dp))
-                                            Text("${row.versions}", style = MaterialTheme.typography.labelMedium)
+                                        Spacer(Modifier.width(8.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text(row.name, maxLines = 1)
+                                            if (!row.isDir) Text(formatBytes(row.size), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
-                                    }
-                                    // Issue #192: a folder kept out of Images (or inside
-                                    // one) says so, left of its lock so the locks stay
-                                    // in one column; a tap says what it means. The
-                                    // switch is in the selection's actions.
-                                    if (row.path != ".." && row.isDir && row.outOfImages && st.outOfImagesSupported) {
-                                        IconButton(onClick = { explainOutOfImages(row) }, modifier = Modifier.size(36.dp)) {
-                                            Icon(Icons.Outlined.HideImage, OutOfImagesText.STATE.resolve(), tint = MaterialTheme.colorScheme.primary)
+                                        // Issue #132: the versions badge opens the pop-up;
+                                        // the lock on a folder toggles upload only, on a
+                                        // file it just says it is inside one.
+                                        if (!row.isDir && row.versions > 0) {
+                                            TextButton(onClick = { scope.launch { vm.openVersions(row) } }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
+                                                Icon(Icons.Default.History, null, Modifier.size(16.dp))
+                                                Spacer(Modifier.width(4.dp))
+                                                Text("${row.versions}", style = MaterialTheme.typography.labelMedium)
+                                            }
                                         }
-                                    }
-                                    if (row.path != ".." && row.isDir) {
-                                        IconButton(onClick = { lockPrompt = row }, modifier = Modifier.size(36.dp)) {
-                                            Icon(if (row.uploadOnly) Icons.Default.Lock else Icons.Outlined.LockOpen,
-                                                (if (row.uploadOnly) S.appFilesClearUploadOnly() else S.appFilesMakeUploadOnly()).resolve(),
-                                                tint = if (row.uploadOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                        // Issue #192: a folder kept out of Images (or inside
+                                        // one) says so, left of its lock so the locks stay
+                                        // in one column; a tap says what it means. The
+                                        // switch is in the selection's actions.
+                                        if (row.path != ".." && row.isDir && row.outOfImages && st.outOfImagesSupported) {
+                                            IconButton(onClick = { explainOutOfImages(row) }, modifier = Modifier.size(36.dp)) {
+                                                Icon(Icons.Outlined.HideImage, OutOfImagesText.STATE.resolve(), tint = MaterialTheme.colorScheme.primary)
+                                            }
                                         }
-                                    } else if (row.uploadOnly) {
-                                        Box(Modifier.size(36.dp).clip(CircleShape).clickable { lockInfo = UploadOnlyText.FILE_INFO }, contentAlignment = Alignment.Center) {
-                                            Icon(Icons.Default.Lock, S.appFilesInUploadOnly().resolve(), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                                        if (row.path != ".." && row.isDir) {
+                                            IconButton(onClick = { lockPrompt = row }, modifier = Modifier.size(36.dp)) {
+                                                Icon(if (row.uploadOnly) Icons.Default.Lock else Icons.Outlined.LockOpen,
+                                                    (if (row.uploadOnly) S.appFilesClearUploadOnly() else S.appFilesMakeUploadOnly()).resolve(),
+                                                    tint = if (row.uploadOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                        } else if (row.uploadOnly) {
+                                            Box(Modifier.size(36.dp).clip(CircleShape).clickable { lockInfo = UploadOnlyText.FILE_INFO }, contentAlignment = Alignment.Center) {
+                                                Icon(Icons.Default.Lock, S.appFilesInUploadOnly().resolve(), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                                            }
                                         }
                                     }
                                 }
@@ -1628,11 +1706,15 @@ private fun FileGridCell(
     row: FileRow, selected: Boolean, opening: Boolean, thumb: ImageBitmap?,
     onOpen: () -> Unit, onToggle: () -> Unit, onVersions: () -> Unit, onLock: () -> Unit,
     outOfImages: Boolean = false, onOutOfImages: () -> Unit = {},
+    // Something is selected: a tap ([onOpen]) picks or drops this one (issue #200).
+    selecting: Boolean = false,
 ) {
+    val picks = selecting && row.path != ".."
     Column(Modifier.fillMaxWidth()) {
         Box(
             Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerLow).clickable(onClick = onOpen),
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .clickable(onClickLabel = if (picks) (if (selected) S.commonDeselect() else S.commonSelect()).resolve() else null, onClick = onOpen),
             contentAlignment = Alignment.Center,
         ) {
             when {
@@ -1658,7 +1740,8 @@ private fun FileGridCell(
                     Text("${row.versions}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 }
             }
-            // No long-press menu here: a tap on the lock offers to clear it.
+            // No long-press menu here (a long press selects, issue #200): a
+            // tap on the lock offers to clear it.
             if (row.isDir && row.uploadOnly) {
                 Box(Modifier.align(Alignment.TopEnd).padding(6.dp).size(24.dp).clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)).clickable(onClick = onLock),

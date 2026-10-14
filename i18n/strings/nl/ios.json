@@ -174,10 +174,6 @@
     "text": "Opnieuw proberen",
     "en": "Try Again"
   },
-  "ios.files.upload_only_folder_info": {
-    "text": "Er kan niets uit deze map worden verwijderd, en als je een bestand opnieuw uploadt, wordt de oudere versie bewaard. Houd de map ingedrukt om dit te wijzigen.",
-    "en": "Nothing in this folder can be deleted, and uploading a file again keeps its older version. Long-press the folder to change it."
-  },
   "ios.friends_delete_theirs": {
     "text": "Ook alles van {name} op deze iPhone verwijderen",
     "en": "Delete everything from {name} on this iPhone",

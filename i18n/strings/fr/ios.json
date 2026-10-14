@@ -174,10 +174,6 @@
     "text": "Réessayer",
     "en": "Try Again"
   },
-  "ios.files.upload_only_folder_info": {
-    "text": "Rien dans ce dossier ne peut être supprimé, et envoyer de nouveau un fichier conserve son ancienne version. Touchez le dossier de manière prolongée pour changer cela.",
-    "en": "Nothing in this folder can be deleted, and uploading a file again keeps its older version. Long-press the folder to change it."
-  },
   "ios.friends_delete_theirs": {
     "text": "Supprimer de cet iPhone tout ce qui vient de {name}",
     "en": "Delete everything from {name} on this iPhone",

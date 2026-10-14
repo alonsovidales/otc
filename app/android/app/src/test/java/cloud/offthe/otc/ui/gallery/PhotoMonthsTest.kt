@@ -268,4 +268,62 @@ class PhotoMonthsTest {
         assertTrue(lostCutoff(listOf(newer to "/a"), "", "t1", cutoff, emptySet()))
         assertTrue(lostCutoff(listOf(old to "/z"), "", "t1", cutoff, setOf("/z")))
     }
+
+    // ---- the photo under a finger (issue #200) ----------------------------------
+
+    // Three across, 100 px tiles 2 px apart: 304 px wide.
+    private val px = GridGeometry(cols = 3, tile = 100f, gap = 2f, secGap = 2f)
+
+    @Test fun aRowOfTilesFindsThePhotoUnderTheFinger() {
+        val row = TileRow(6, 9)
+        // 2 px of gap above it.
+        assertEquals(6, row.itemAt(50f, 52f, px, top = 2f, title = 30f))
+        assertEquals(7, row.itemAt(103f, 52f, px, top = 2f, title = 30f))
+        assertEquals(8, row.itemAt(250f, 52f, px, top = 2f, title = 30f))
+        // Between tiles, above them, below them: none (the drag keeps the last).
+        assertNull(row.itemAt(101f, 52f, px, top = 2f, title = 30f))
+        assertNull(row.itemAt(50f, 1f, px, top = 2f, title = 30f))
+        assertNull(row.itemAt(50f, 102f, px, top = 2f, title = 30f))
+        assertNull(row.itemAt(-1f, 52f, px, top = 2f, title = 30f))
+        assertNull(row.itemAt(304f, 52f, px, top = 2f, title = 30f))
+        // A last row short of tiles: its empty slots hold none.
+        assertEquals(9, TileRow(9, 10).itemAt(50f, 52f, px, top = 2f, title = 30f))
+        assertNull(TileRow(9, 10).itemAt(150f, 52f, px, top = 2f, title = 30f))
+    }
+
+    @Test fun monthsSideBySideFindThePhotoUnderTheirTitles() {
+        // A one-photo month beside a two-photo one: 100 px, 2 px apart, 202 px.
+        val row = TitledRow(listOf(Segment("2024-03", 0, 1, 1), Segment("2024-02", 1, 3, 2)))
+        val y = 14f + 30f + 50f
+        assertEquals(0, row.itemAt(50f, y, px, top = 14f, title = 30f))
+        assertEquals(1, row.itemAt(103f, y, px, top = 14f, title = 30f))
+        assertEquals(2, row.itemAt(300f, y, px, top = 14f, title = 30f))
+        // Over a title, or between the months: none.
+        assertNull(row.itemAt(50f, 14f + 10f, px, top = 14f, title = 30f))
+        assertNull(row.itemAt(250f, 14f + 29f, px, top = 14f, title = 30f))
+        assertNull(row.itemAt(101f, y, px, top = 14f, title = 30f))
+    }
+
+    @Test fun aMonthsFirstRowAndTheRoomKeptForItsNextPage() {
+        // A month of a row or more: its title over a full row.
+        val full = TitledRow(listOf(Segment("2024-01", 3, 6, 3)))
+        assertEquals(5, full.itemAt(250f, 94f, px, top = 14f, title = 30f))
+        // A last month keeping room for photos still to come: none in its empty slot.
+        val room = TitledRow(listOf(Segment("2023-12", 0, 1, 2)))
+        assertEquals(0, room.itemAt(50f, 94f, px, top = 14f, title = 30f))
+        assertNull(room.itemAt(150f, 94f, px, top = 14f, title = 30f))
+    }
+
+    @Test fun aLaidOutGridFindsEachPhotoInDisplayOrder() {
+        // The layout the grid draws, walked tile by tile: every photo once, in order.
+        val l = layoutGallery(monthRuns(months("2024-03" to 1, "2024-02" to 2, "2024-01" to 4)), true, px)
+        val found = ArrayList<Int>()
+        for ((i, r) in l.rows.withIndex()) {
+            val top = if (i == 0) 8f else if (r is TitledRow) 14f else 2f
+            val y = top + (if (r is TitledRow) 30f else 0f) + 50f
+            var x = 1f
+            while (x < 304f) { r.itemAt(x, y, px, top, 30f)?.let { if (found.lastOrNull() != it) found += it }; x += 1f }
+        }
+        assertEquals((0 until 7).toList(), found)
+    }
 }

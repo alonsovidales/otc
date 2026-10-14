@@ -14,16 +14,15 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -115,6 +114,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.ui.PlayerView
 import cloud.offthe.otc.proto.FileExifInfo
 import cloud.offthe.otc.ui.common.NavIcons
+import cloud.offthe.otc.ui.common.dragSelect
+import cloud.offthe.otc.ui.common.rememberDragSelect
 import cloud.offthe.otc.ui.common.SelectionActionBar
 import cloud.offthe.otc.ui.common.Share
 import cloud.offthe.otc.ui.common.ThumbStore
@@ -146,6 +147,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.activity.compose.BackHandler
@@ -207,6 +209,8 @@ import cloud.offthe.otc.i18n.appPhotosGridPersonItems
 import cloud.offthe.otc.i18n.appPhotosSelectionDeleteTitle
 import cloud.offthe.otc.i18n.appPhotosViewerDelete
 import cloud.offthe.otc.i18n.appPhotosViewerDeleteTitle
+import cloud.offthe.otc.i18n.appPhotosViewerDeleteVideo
+import cloud.offthe.otc.i18n.appPhotosViewerDeleteVideoTitle
 import cloud.offthe.otc.i18n.appPhotosViewerInfoAperture
 import cloud.offthe.otc.i18n.appPhotosViewerInfoCamera
 import cloud.offthe.otc.i18n.appPhotosViewerInfoDimensions
@@ -240,7 +244,8 @@ import cloud.offthe.otc.i18n.commonShare
 // Port of PhotoGalleryView (PhotoGallery.swift): the search (TopSearch.kt:
 // tags, people and files, as the web's top bar), the People button and page
 // (PeopleView.kt, while face recognition is on), the group chip and sheet, the
-// adaptive grid with long-press selection, the date scrubber overlay,
+// adaptive grid with long-press selection (a drag from there selects the
+// photos it passes, issue #200), the date scrubber overlay,
 // the selection bar and the full-screen viewer with share/save/delete
 // and the EXIF panel (issue #41).
 //
@@ -459,7 +464,42 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
 
             val tileColor = tileBackground()
             val hasSelection = st.selected.isNotEmpty()
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+            // Issue #200: a long press on a photo selects it, and a drag from
+            // there every photo to the one under the finger, in the grid's
+            // order (DragSelect.kt). The photo under a point: the row there
+            // (the list's own layout), then the tile in it as GalleryRowView
+            // draws it (GalleryRow.itemAt). Not over grey tiles.
+            var barHeight by remember { mutableIntStateOf(0) }
+            val gridPx = remember(geo, density) { GridGeometry(geo.cols, geo.tile * density.density, geo.gap * density.density, geo.secGap * density.density) }
+            val padPx = with(density) { metrics.pad.toPx() }
+            val firstTopPx = with(density) { metrics.top.toPx() }
+            val lineGapPx = with(density) { metrics.lineGap.toPx() }
+            val gapPx = with(density) { metrics.gap.toPx() }
+            // MonthTitle's line: 4dp over its 20dp, and the gap under it.
+            val titlePx = with(density) { (4.dp + 20.dp + metrics.titleBottom + metrics.gap).toPx() }
+            val widthPx = constraints.maxWidth.toFloat()
+            val drag = rememberDragSelect(
+                listState,
+                hit = { p ->
+                    val info = listState.layoutInfo
+                    val at = p.y + info.viewportStartOffset
+                    val shownRow = info.visibleItemsInfo.firstOrNull { at >= it.offset && at < it.offset + it.size }
+                    val r = shownRow?.let { it.index - headerCount } ?: -1
+                    val row = if (greyLayout == null) layout.rows.getOrNull(r) else null
+                    if (shownRow == null || row == null) null else {
+                        val top = when {
+                            r == 0 -> firstTopPx
+                            row is TitledRow -> lineGapPx
+                            else -> gapPx
+                        }
+                        val x = if (ltr) p.x - padPx else widthPx - padPx - p.x
+                        row.itemAt(x, at - shownRow.offset, gridPx, top, titlePx)?.let { st.items.getOrNull(it)?.path }
+                    }
+                },
+                onBegin = { vm.beginDragSelect(it) }, onMove = { vm.dragSelect(it) }, onEnd = { vm.endDragSelect() }, goesOn = { vm.dragGoesOn() },
+                bottomInset = if (hasSelection) barHeight.toFloat() else 0f,
+            )
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().dragSelect(drag, enabled = greyLayout == null)) {
                 if (group != null) item(key = "head:group", contentType = "head") {
                     CollectionHeader(
                         group, span = spanLabel(buckets, years = compact).resolve(), compact = compact, metrics = metrics,
@@ -507,7 +547,7 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                             val item = st.items[k]
                             PhotoTile(
                                 item, st.thumbKeyOf(item), vm, tilePx, isSelected = item.path in st.selected, hasSelection = hasSelection,
-                                onTap = { vm.open(k) }, onLongPress = { vm.toggleSelect(item.path) }, modifier = cell,
+                                onTap = { vm.open(k) }, onToggle = { vm.toggleSelect(item.path) }, modifier = cell,
                             )
                         }
                     }
@@ -544,7 +584,8 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                 )
             }
             if (st.selected.isNotEmpty()) {
-                Box(Modifier.align(Alignment.BottomCenter)) {
+                // How much of the grid's bottom it floats over: a drag scrolls from above it.
+                Box(Modifier.align(Alignment.BottomCenter).onSizeChanged { barHeight = it.height }) {
                     SelectionActionBar(
                         count = st.selected.size, busy = st.preparing,
                         onShare = { vm.shareSelected(context) }, onDownload = { vm.downloadZip(context) },
@@ -662,11 +703,16 @@ fun ConfirmDialog(title: String, message: String?, confirmLabel: String, onConfi
     )
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+/**
+ * A photo of the grid: a tap opens it, or picks it (or drops it) while
+ * photos are being picked. A long press is the grid's (issue #200: it
+ * selects the photo and starts a drag to select, DragSelect.kt); TalkBack's
+ * own long press, and its actions, still pick this one ([onToggle]).
+ */
 @Composable
 private fun PhotoTile(
     item: PhotoGalleryViewModel.Item, thumbKey: String?, vm: PhotoGalleryViewModel, sidePx: Int, isSelected: Boolean, hasSelection: Boolean,
-    onTap: () -> Unit, onLongPress: () -> Unit, modifier: Modifier = Modifier,
+    onTap: () -> Unit, onToggle: () -> Unit, modifier: Modifier = Modifier,
 ) {
     // On screen: a tile without its thumbnail has it fetched first; one
     // whose thumbnail is no longer kept (Settings cleared the cache) has it
@@ -686,16 +732,14 @@ private fun PhotoTile(
     val resources = LocalResources.current
     Box(
         modifier.aspectRatio(1f).clip(TILE_SHAPE).background(tileBackground())
-            .combinedClickable(
-                onClickLabel = if (hasSelection) pick else null, onLongClickLabel = pick,
-                onClick = { if (hasSelection) onLongPress() else onTap() }, onLongClick = onLongPress,
-            )
+            .clickable(onClickLabel = if (hasSelection) pick else null) { if (hasSelection) onToggle() else onTap() }
             // TalkBack reads a tile as the web's ("Photo, 5 October 2026"),
             // and while photos are being picked whether it is one of them
             // (the web's aria-pressed). Worked out only when asked for.
             .semantics {
                 contentDescription = tileLabel(video, item.created, ZoneId.systemDefault()).resolve(resources)
                 if (hasSelection) selected = isSelected
+                onLongClick(label = pick) { onToggle(); true }
             },
     ) {
         if (bmp != null) Image(bmp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -1391,8 +1435,11 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
         }
     }
     if (confirmDelete) {
+        // A video's says so (issue #199's follow-up), as the web's viewer does.
+        val video = st.items.getOrNull(idx)?.mime?.startsWith("video/") == true
         ConfirmDialog(
-            S.appPhotosViewerDeleteTitle().resolve(), null, S.appPhotosViewerDelete().resolve(),
+            (if (video) S.appPhotosViewerDeleteVideoTitle() else S.appPhotosViewerDeleteTitle()).resolve(), null,
+            (if (video) S.appPhotosViewerDeleteVideo() else S.appPhotosViewerDelete()).resolve(),
             onConfirm = { confirmDelete = false; vm.deleteCurrentPhoto() }, onDismiss = { confirmDelete = false },
         )
     }

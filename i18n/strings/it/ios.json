@@ -174,10 +174,6 @@
     "text": "Riprova",
     "en": "Try Again"
   },
-  "ios.files.upload_only_folder_info": {
-    "text": "Nulla in questa cartella può essere eliminato, e caricare di nuovo un file ne conserva la versione precedente. Tieni premuta la cartella per cambiare questa impostazione.",
-    "en": "Nothing in this folder can be deleted, and uploading a file again keeps its older version. Long-press the folder to change it."
-  },
   "ios.friends_delete_theirs": {
     "text": "Elimina da questo iPhone tutto ciò che viene da {name}",
     "en": "Delete everything from {name} on this iPhone",

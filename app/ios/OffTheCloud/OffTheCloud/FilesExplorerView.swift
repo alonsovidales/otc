@@ -349,6 +349,11 @@ final class FilesExplorerViewModel: ObservableObject {
                 }
                 listing = files.map(FileRow.init(file:))
                 selected.removeAll()
+                // Issue #200: a new listing mid-drag (a refresh, an upload
+                // done, another folder) ends the drag with the selection
+                // as just set; later moves do nothing, and the lift is
+                // still no tap (the gesture's).
+                dragSelection = nil
                 await arrange(folder: asked)
             } else if resp.error {
                 folderOutOfImages = false
@@ -820,6 +825,66 @@ final class FilesExplorerViewModel: ObservableObject {
         rows.contains { selected.contains($0.path) && $0.uploadOnly }
     }
 
+    /// The selection when it is one folder: what the bar's "Share as
+    /// gallery" (issue #180) and keep out of Images act on (issue #200,
+    /// once the long-press menu's; Android's State.selectedFolder).
+    var selectedFolder: FileRow? {
+        guard selected.count == 1, let p = selected.first else { return nil }
+        return rows.first { $0.path == p && $0.isDir && $0.path != ".." }
+    }
+
+    /// Issue #192: the folder the bar's switch for Images acts on - one
+    /// folder picked, on a device that can. Not inside a folder kept out:
+    /// that one (or one above it) keeps it out, and the device refuses its
+    /// Show; the banner shows the folder to show instead.
+    var outOfImagesSwitch: FileRow? {
+        guard outOfImagesSupported, !folderOutOfImages else { return nil }
+        return selectedFolder
+    }
+
+    // MARK: Drag selection (issue #200, DragSelect.swift)
+
+    private var dragSelection: DragSelection<String>?
+
+    /// The rows a drag selects across, as shown: all but "..".
+    private var selectableOrder: [String] { rows.map(\.path).filter { $0 != ".." } }
+
+    /// A long press on the row (or tile) `path`: it is selected, and a drag
+    /// on from it selects the range.
+    func beginDragSelect(_ path: String) {
+        guard path != ".." else { return }
+        dragSelection = DragSelection(base: selected, start: path)
+        selected.insert(path)
+    }
+
+    /// The finger is over `path` now (nil: over no row): every row from the
+    /// one pressed to it is selected, in the order shown, on top of what
+    /// was before. False once the drag is over: the pressed row has gone
+    /// from the rows shown, and the selection stays as it stands
+    /// (DragSelection's rule), or a new listing came (load(), which sets
+    /// the selection).
+    @discardableResult
+    func dragSelect(to path: String?) -> Bool {
+        guard var drag = dragSelection else { return false }
+        let order = selectableOrder
+        guard drag.goesOn(in: order) else {
+            dragSelection = nil
+            return false
+        }
+        guard let path, path != "..", drag.move(to: path) else { return true }
+        dragSelection = drag
+        if let s = drag.selection(in: order) { selected = s }
+        return true
+    }
+
+    func endDragSelect() { dragSelection = nil }
+
+    /// A tap on a row or tile while something is selected: it is picked
+    /// or left out, as in Images.
+    func toggleSelected(_ path: String) {
+        if selected.contains(path) { selected.remove(path) } else { selected.insert(path) }
+    }
+
     func deleteSelected() async {
         for p in selected {
             var req = Msg_DelFile()
@@ -1080,15 +1145,27 @@ struct FilesExplorerView: View {
     @State private var searchBottom: CGFloat = 0
     @State private var keyboardUp = false
     private static let bodySpace = "filesBody"
+    /// Issue #200: where each row or tile on screen is, for a drag
+    /// selection's finger (DragSelect.swift): the list's on the screen (a
+    /// List's rows don't see a name given to it), the grid's in its own
+    /// space. Apart: switching between them, one's rows go as the other's
+    /// come.
+    @State private var listFrames = DragSelectFrames<String>()
+    @State private var gridFrames = DragSelectFrames<String>()
+    private static let listSpace = DragSelectSpace.global
+    private static let gridSpaceName = "filesGrid"
+    private static let gridSpace = DragSelectSpace.named(gridSpaceName)
     // Selection is managed here rather than with List(selection:) +
     // EditButton(): that pairing needs the row's tap to be the List's own
     // selection-toggle handling, and this view also needs a tap to open
     // the file, which intercepts the touch first and left "Edit" mode
-    // silently doing nothing. There is no select mode any more either -
-    // every row carries its own checkbox all the time (the web's table
-    // has had one per row from the start), tapping the checkbox selects
-    // and tapping the rest of the row opens, so nothing has to be
-    // switched on before something can be picked.
+    // silently doing nothing. Every row carries its own checkbox all the
+    // time (the web's table has had one per row from the start), so
+    // nothing has to be switched on before something can be picked:
+    // tapping the checkbox selects, a long press selects the row and a
+    // drag on from it the rows up to the finger (issue #200, as in
+    // Images), and tapping the rest of the row opens it - or, while
+    // something is selected, picks it or leaves it out.
 
     /// `search`: Files' own search, held by the window (MainView) so that
     /// its words can go to the top bar as the window turns wide and come
@@ -1165,8 +1242,7 @@ struct FilesExplorerView: View {
                                         // it keeps the width so names stay aligned.
                                         if row.path != ".." {
                                             Button {
-                                                if vm.selected.contains(row.path) { vm.selected.remove(row.path) }
-                                                else { vm.selected.insert(row.path) }
+                                                vm.toggleSelected(row.path)
                                             } label: {
                                                 Image(systemName: vm.selected.contains(row.path) ? "checkmark.circle.fill" : "circle")
                                                     .foregroundColor(vm.selected.contains(row.path) ? .accentColor : .secondary)
@@ -1255,11 +1331,14 @@ struct FilesExplorerView: View {
                                     }
                                     .contentShape(Rectangle())
                                     .onTapGesture { tap(row) }
-                                    // Long-press: see rowMenu.
-                                    .contextMenu { rowMenu(row) }
+                                    // Issue #200: a long press selects the row,
+                                    // and a drag on from it the rows up to the
+                                    // finger (the list's dragSelect).
+                                    .modifier(DragSelectRow(path: row.path, frames: listFrames, space: Self.listSpace))
                                 }
                             }
                             .listStyle(.plain)
+                            .gesture(dragSelect(listFrames, space: Self.listSpace))
                             // Issue #51: pull down to re-list this directory - files
                             // arrive from other clients (the Mac app, another phone)
                             // while this screen sits open, and nothing else re-reads it.
@@ -1273,7 +1352,7 @@ struct FilesExplorerView: View {
                         // grey out until something is ticked.
                         SelectionActionBar(
                             count: vm.selected.count,
-                            busy: vm.preparing,
+                            busy: vm.preparing ?? (vm.outOfImagesIdle ? nil : .outOfImages),
                             onShare: { Task { await vm.shareSelected() } },
                             onDownload: { Task { await vm.downloadSelected() } },
                             onDelete: {
@@ -1283,7 +1362,14 @@ struct FilesExplorerView: View {
                                     vm.confirmDeleteSelected = true
                                 }
                             },
-                            onUpload: { showImporter = true }
+                            // Issue #200: one folder picked - its photos and
+                            // videos as a gallery (issue #180), and keeping it
+                            // out of Images or showing it there again (issue
+                            // #192), once the long-press menu's; as Android's bar.
+                            onGallery: vm.selectedFolder.map { row in { gallerySource = .directory(vm.fullPath(for: row)) } },
+                            onUpload: { showImporter = true },
+                            onOutOfImages: vm.outOfImagesSwitch.map { row in { outOfImagesPrompt = vm.outOfImagesAsk(row) } },
+                            keptOutOfImages: vm.outOfImagesSwitch?.outOfImages == true
                         )
                         .padding(.vertical, 8)
                     }
@@ -1738,6 +1824,14 @@ struct FilesExplorerView: View {
     /// A photo or video opens in the Images section's viewer, starting at
     /// it and swiping through the folder's other photos and videos.
     private func tap(_ row: FileRow) {
+        // The finger lifting at the end of a drag selection is no tap.
+        guard DragSelect.tapAllowed else { return }
+        // Issue #200: while something is selected a tap picks or leaves out,
+        // as in Images (".." still goes up).
+        if !vm.selected.isEmpty && row.path != ".." {
+            vm.toggleSelected(row.path)
+            return
+        }
         // Not while another file's open is in flight (issue #71): its
         // Quick Look sheet couldn't show over the viewer.
         if vm.isMedia(row) {
@@ -1757,58 +1851,21 @@ struct FilesExplorerView: View {
         }
     }
 
-    // Long-press for quick Share/Delete on a single file, independent of
-    // (and without needing) a selection - the standard iOS pattern for
-    // one-off actions on a single item. Directories get it too since issue
-    // #116 (the device expands one to its files); only ".." is left out.
-    // Shared by the list's rows and the grid's tiles.
-    @ViewBuilder
-    private func rowMenu(_ row: FileRow) -> some View {
-        if row.path != ".." {
-            Button {
-                Task {
-                    vm.selected = [row.path]
-                    if let link = await vm.shareLink(), let url = URL(string: link) {
-                        vm.shareURL = url
-                    }
-                }
-            } label: {
-                Label(S.commonShare, systemImage: "square.and.arrow.up")
-            }
-            if row.isDir {
-                // Issue #180: the folder's photos and
-                // videos as a gallery behind a link.
-                Button {
-                    gallerySource = .directory(vm.fullPath(for: row))
-                } label: {
-                    Label(S.appShellShareAsGalleryMenu, systemImage: "photo.on.rectangle.angled")
-                }
-                Button {
-                    lockPrompt = row
-                } label: {
-                    Label(row.uploadOnly ? S.appFilesClearUploadOnly : S.appFilesMakeUploadOnly, systemImage: row.uploadOnly ? "lock.open" : "lock")
-                }
-                // Issue #192: not on a device too old to do it, and greyed
-                // out while another folder's switch is under way.
-                if vm.outOfImagesSupported {
-                    Button {
-                        outOfImagesPrompt = vm.outOfImagesAsk(row)
-                    } label: {
-                        Label(row.outOfImages ? OutOfImagesText.show : OutOfImagesText.keep,
-                              systemImage: row.outOfImages ? "eye" : "eye.slash")
-                    }
-                    .disabled(!vm.outOfImagesIdle)
-                }
-            }
-            if !row.uploadOnly {
-                Button(role: .destructive) {
-                    vm.selected = [row.path]
-                    vm.confirmDeleteSelected = true
-                } label: {
-                    Label(S.commonDelete, systemImage: "trash")
-                }
-            }
-        }
+    /// Issue #200: the long press and drag over the list's rows or the
+    /// grid's tiles ("..", never selected, has no frame there). A press
+    /// starts only on a row or tile itself - on "..", a gap or the padding
+    /// it starts nothing, and the view keeps the touch; the finger beside
+    /// tiles in a row is then over the nearest.
+    private func dragSelect(_ frames: DragSelectFrames<String>, space: DragSelectSpace) -> DragSelectGesture {
+        let vm = vm
+        return DragSelectGesture(
+            space: space,
+            enabled: vm.results == nil,
+            canStart: { frames.item(containing: $0) != nil },
+            began: { if let p = frames.item(containing: $0) { vm.beginDragSelect(p) } },
+            moved: { vm.dragSelect(to: frames.item(at: $0)) },
+            ended: { vm.endDragSelect() }
+        )
     }
 
     /// List or grid, and the order (issue #196), in one menu as the Files
@@ -1898,7 +1955,9 @@ struct FilesExplorerView: View {
                     .frame(maxHeight: .infinity, alignment: .top)
                     .contentShape(Rectangle())
                     .onTapGesture { tap(row) }
-                    .contextMenu { rowMenu(row) }
+                    // Issue #200: a long press selects the tile, and a drag
+                    // on from it the tiles up to the finger.
+                    .modifier(DragSelectRow(path: row.path, frames: gridFrames, space: Self.gridSpace))
                     // Lazily: only tiles that scroll into view ask the
                     // device for their thumbnail.
                     .onAppear { vm.wantThumbnail(for: row) }
@@ -1906,6 +1965,8 @@ struct FilesExplorerView: View {
                 }
             }
             .padding()
+            .coordinateSpace(.named(Self.gridSpaceName))
+            .gesture(dragSelect(gridFrames, space: Self.gridSpace))
         }
         // Issue #51, same as the list: pull down to re-list.
         .refreshable { await vm.load() }
@@ -1948,8 +2009,7 @@ struct FilesExplorerView: View {
             .overlay(alignment: .topLeading) {
                 if row.path != ".." {
                     Button {
-                        if vm.selected.contains(row.path) { vm.selected.remove(row.path) }
-                        else { vm.selected.insert(row.path) }
+                        vm.toggleSelected(row.path)
                     } label: {
                         Image(systemName: vm.selected.contains(row.path) ? "checkmark.circle.fill" : "circle")
                             .font(.title3)
@@ -1964,9 +2024,10 @@ struct FilesExplorerView: View {
                 }
             }
             .overlay(alignment: .topTrailing) {
-                // The lock and the out-of-Images mark (issue #192) are
-                // changed from the long-press menu here; a tap on either
-                // says what it means.
+                // A tap on the lock offers to allow deletions again, as the
+                // list's does (and Android's tile); one on the out-of-Images
+                // mark (issue #192) says what it means, with the way back.
+                // Making a folder upload only is the list's open lock.
                 if row.isDir && row.path != ".." {
                     HStack(spacing: 0) {
                         if row.outOfImages && vm.outOfImagesSupported {
@@ -1985,7 +2046,7 @@ struct FilesExplorerView: View {
                         }
                         if row.uploadOnly {
                             Button {
-                                lockInfo = .folder
+                                lockPrompt = row
                             } label: {
                                 Image(systemName: "lock.fill")
                                     .font(.caption)
@@ -2039,16 +2100,31 @@ enum UploadOnlyText {
     }
     static var makeMessage: String { S.appFilesMakeUploadOnlyMessage }
     static var clearMessage: String { S.appFilesAllowDeletionsMessage }
-    static var folderInfo: String { S.iosFilesUploadOnlyFolderInfo }
     static var fileInfo: String { S.appFilesUploadOnlyFileInfo }
 
-    /// Which lock was tapped, for its explanation: a folder's tile, or a
-    /// file inside an upload-only folder.
+    /// Which lock was tapped, for its explanation: a file inside an
+    /// upload-only folder (a folder's lock asks to change it instead).
     enum Info {
-        case folder
         case file
 
-        var text: String { self == .folder ? UploadOnlyText.folderInfo : UploadOnlyText.fileInfo }
+        var text: String { UploadOnlyText.fileInfo }
+    }
+}
+
+/// Issue #200: a row or tile of Files for the drag selection - where it is
+/// drawn, in the list's or the grid's space. ".." is never selected, so it
+/// has none.
+private struct DragSelectRow: ViewModifier {
+    let path: String
+    let frames: DragSelectFrames<String>
+    let space: DragSelectSpace
+
+    func body(content: Content) -> some View {
+        if path == ".." {
+            content
+        } else {
+            content.dragSelectItem(path, in: frames, space: space)
+        }
     }
 }
 

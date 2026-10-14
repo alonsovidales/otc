@@ -2356,53 +2356,6 @@
         }
       }
     },
-    "ios.files.upload_only_folder_info" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "In diesem Ordner kann nichts gelöscht werden, und beim erneuten Hochladen einer Datei bleibt ihre ältere Version erhalten. Drücke lange auf den Ordner, um das zu ändern."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nothing in this folder can be deleted, and uploading a file again keeps its older version. Long-press the folder to change it."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se puede eliminar nada de esta carpeta, y al volver a subir un archivo se conserva su versión anterior. Mantén pulsada la carpeta para cambiarlo."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rien dans ce dossier ne peut être supprimé, et envoyer de nouveau un fichier conserve son ancienne version. Touchez le dossier de manière prolongée pour changer cela."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nulla in questa cartella può essere eliminato, e caricare di nuovo un file ne conserva la versione precedente. Tieni premuta la cartella per cambiare questa impostazione."
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Er kan niets uit deze map worden verwijderd, en als je een bestand opnieuw uploadt, wordt de oudere versie bewaard. Houd de map ingedrukt om dit te wijzigen."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nada nesta pasta pode ser eliminado, e carregar novamente um ficheiro mantém a versão anterior. Mantém a pasta premida para alterar isto."
-          }
-        }
-      }
-    },
     "ios.friends_delete_theirs" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -14,6 +14,9 @@
 .fb-head { background: var(--ink-2); border-bottom: 1px solid var(--line); font-weight: 600; color: var(--mist); }
 .c { padding: 10px 12px; }
 .fb-body .fb-row { border-top: 1px solid var(--line); color: var(--mist); }
+/* Issue #200: a picked row shows it across, as a picked tile does - a drag
+   over the list is seen as it goes. */
+.fb-body .fb-row.selected { background: rgba(255, 107, 74, 0.1); }
 
 .ico { display: inline-block; width: 16px; height: 16px; margin-right: 8px; border-radius: 3px; background: var(--mist-dim); vertical-align: -2px; }
 .ico.dir { background: var(--gold); }

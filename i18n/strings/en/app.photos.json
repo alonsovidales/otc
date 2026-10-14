@@ -643,16 +643,29 @@
   },
   "app.photos.viewer.delete": {
     "text": "Delete Photo",
-    "note": "Confirming button of app.photos.viewer.delete_title: deletes the photo open in the viewer from the device. Title Case in English buttons.",
+    "note": "Confirming button of app.photos.viewer.delete_title: deletes the photo open in the viewer from the device. Title Case in English buttons. A video has its own: app.photos.viewer.delete_video.",
     "max": 30,
     "review": "required",
     "reviewed": "shipped 2026-10-11 #060e9da2"
   },
   "app.photos.viewer.delete_title": {
     "text": "Delete this photo?",
-    "note": "Title of the confirmation asked before deleting the photo (or video) open in the full-screen viewer from the device. Buttons: Delete Photo and Cancel.",
+    "note": "Title of the confirmation asked before deleting the photo open in the full-screen viewer (Images, or a photo opened from Files) from the device. Buttons: Delete Photo and Cancel. A video has its own: app.photos.viewer.delete_video_title.",
     "review": "required",
     "reviewed": "shipped 2026-10-11 #d40d2513"
+  },
+  "app.photos.viewer.delete_video": {
+    "text": "Delete Video",
+    "note": "Confirming button of app.photos.viewer.delete_video_title: deletes the video open in the viewer from the device. Title Case in English buttons. The video form of app.photos.viewer.delete.",
+    "max": 30,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-14 #35a31cb0"
+  },
+  "app.photos.viewer.delete_video_title": {
+    "text": "Delete this video?",
+    "note": "Title of the confirmation asked before deleting the video open in the full-screen viewer (Images, or a video opened from Files) from the device. Buttons: Delete Video and Cancel. The video form of app.photos.viewer.delete_title; the web says the same (web.images.viewer.delete_video_title).",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-14 #adc476b7"
   },
   "app.photos.viewer.info_aperture": {
     "text": "Aperture",

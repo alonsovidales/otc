@@ -188,6 +188,8 @@
     </plurals>
     <string name="app_photos_viewer_delete">Supprimer la photo</string>
     <string name="app_photos_viewer_delete_title">Supprimer cette photo ?</string>
+    <string name="app_photos_viewer_delete_video">Supprimer la vidéo</string>
+    <string name="app_photos_viewer_delete_video_title">Supprimer cette vidéo ?</string>
     <string name="app_photos_viewer_info_aperture">Ouverture</string>
     <string name="app_photos_viewer_info_camera">Appareil photo</string>
     <string name="app_photos_viewer_info_dimensions">Dimensions</string>

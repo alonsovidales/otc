@@ -174,10 +174,6 @@
     "text": "Erneut versuchen",
     "en": "Try Again"
   },
-  "ios.files.upload_only_folder_info": {
-    "text": "In diesem Ordner kann nichts gelöscht werden, und beim erneuten Hochladen einer Datei bleibt ihre ältere Version erhalten. Drücke lange auf den Ordner, um das zu ändern.",
-    "en": "Nothing in this folder can be deleted, and uploading a file again keeps its older version. Long-press the folder to change it."
-  },
   "ios.friends_delete_theirs": {
     "text": "Alles von {name} auf diesem iPhone löschen",
     "en": "Delete everything from {name} on this iPhone",

@@ -596,6 +596,16 @@
     "en": "Delete this photo?",
     "reviewed": "claude-backtranslation 2026-10-11 #63be866a"
   },
+  "app.photos.viewer.delete_video": {
+    "text": "Video löschen",
+    "en": "Delete Video",
+    "reviewed": "claude-backtranslation 2026-10-14 #20396bbe"
+  },
+  "app.photos.viewer.delete_video_title": {
+    "text": "Dieses Video löschen?",
+    "en": "Delete this video?",
+    "reviewed": "claude-backtranslation 2026-10-14 #2741ae28"
+  },
   "app.photos.viewer.info_aperture": {
     "text": "Blende",
     "en": "Aperture"

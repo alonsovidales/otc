@@ -315,3 +315,44 @@ fun layoutGallery(
     rows.forEachIndexed { i, row -> for (k in row.start until row.end) rowOf[k] = i }
     return GalleryLayout(rows, rowOf, cols)
 }
+
+// ---- the photo under a finger (issue #200) ---------------------------------------
+
+/**
+ * Issue #200: the photo at ([x], [y]) in this row as the grid draws it
+ * (PhotoGalleryView's GalleryRowView), or null over a gap, a month's title
+ * or an empty slot - the drag to select keeps the last photo reached then.
+ * [x] from the tiles' start edge, [y] from the row's top, above the [top]
+ * gap it has over it; [title] how tall a month's title line is, with the
+ * gap under it. [g] and the rest in pixels. The iOS PhotoGridLayout.item.
+ */
+fun GalleryRow.itemAt(x: Float, y: Float, g: GridGeometry, top: Float, title: Float): Int? {
+    val ty = y - top
+    return when (this) {
+        is TileRow -> cellAt(start, end, g.cols, g.width, x, ty, g.gap)
+        is TitledRow -> {
+            // Months side by side, each as wide as its own tiles
+            // (MonthsSideBySide), [secGap] apart.
+            var sx = 0f
+            for (seg in segments) {
+                val slots = min(seg.slots, g.cols)
+                val w = if (slots >= g.cols) g.width else slots * g.tile + (slots - 1) * g.gap
+                if (x < sx) return null
+                if (x < sx + w) return cellAt(seg.start, seg.end, slots, w, x - sx, ty - title, g.gap)
+                sx += w + g.secGap
+            }
+            null
+        }
+    }
+}
+
+// Tiles [start, end) in a row [slots] wide and [width] across, [gap] apart:
+// the one at ([x], [y]) from the row's corner, null over a gap or an empty slot.
+private fun cellAt(start: Int, end: Int, slots: Int, width: Float, x: Float, y: Float, gap: Float): Int? {
+    if (slots <= 0 || x < 0f || x >= width || y < 0f) return null
+    val tile = (width - (slots - 1) * gap) / slots
+    if (y >= tile) return null
+    val col = (x / (tile + gap)).toInt()
+    if (x - col * (tile + gap) >= tile) return null
+    return if (col < end - start) start + col else null
+}

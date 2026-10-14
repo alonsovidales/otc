@@ -171,6 +171,8 @@
     </plurals>
     <string name="app_photos_viewer_delete">Delete Photo</string>
     <string name="app_photos_viewer_delete_title">Delete this photo?</string>
+    <string name="app_photos_viewer_delete_video">Delete Video</string>
+    <string name="app_photos_viewer_delete_video_title">Delete this video?</string>
     <string name="app_photos_viewer_info_aperture">Aperture</string>
     <string name="app_photos_viewer_info_camera">Camera</string>
     <string name="app_photos_viewer_info_dimensions">Dimensions</string>

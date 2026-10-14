@@ -4,6 +4,7 @@ package cloud.offthe.otc.ui.gallery
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.net.Patience
 import cloud.offthe.otc.net.WSClient
+import cloud.offthe.otc.proto.Ack
 import cloud.offthe.otc.proto.File
 import cloud.offthe.otc.proto.ImageGroup
 import cloud.offthe.otc.proto.ImageGroups
@@ -606,6 +607,69 @@ class PhotoGalleryRetryTest {
         // The scrubber's grey tiles over everything.
         assertEquals(GalleryBody.GREY, galleryBody(s.copy(items = items, placeholderCount = 5)))
         assertEquals(GalleryBody.GREY, galleryBody(s.copy(pageProblem = LoadProblem.FAILED, placeholderCount = 5)))
+    }
+
+    // ---- issue #200: a drag to select while photos go ---------------------------------
+
+    // A device whose deletes wait for [gate]; the first page is [paths].
+    private fun deletingDevice(gate: CompletableDeferred<Unit>, vararg paths: String) = Device { req ->
+        when (req.payloadCase) {
+            ReqEnvelope.PayloadCase.REQ_PHOTO_DATE_BUCKETS -> noBuckets
+            ReqEnvelope.PayloadCase.REQ_SEARCH_PHOTOS -> page(*paths)
+            ReqEnvelope.PayloadCase.REQ_GET_THUMBNAILS -> noThumbs
+            ReqEnvelope.PayloadCase.REQ_DEL_FILE -> { gate.await(); RespEnvelope.newBuilder().setRespAck(Ack.newBuilder().setOk(true)).build() }
+            else -> null
+        }
+    }
+
+    @Test fun aPhotoDeletedDuringADragDoesNotComeBackWithTheRange() {
+        val gate = CompletableDeferred<Unit>()
+        val dev = deletingDevice(gate, "a", "b", "c", "d", "e")
+        val vm = vm(dev)
+        start(vm)
+        await("the photos") { vm.state.value.items.size == 5 }
+        // "e" picked and its delete under way when a drag starts at "b".
+        on { vm.toggleSelect("e") }
+        on { vm.deleteSelected() }
+        await("the delete asked") { dev.of(ReqEnvelope.PayloadCase.REQ_DEL_FILE).isNotEmpty() }
+        on { vm.beginDragSelect("b"); assertTrue(vm.dragSelect("c")) }
+        assertEquals(setOf("e", "b", "c"), vm.state.value.selected)
+        gate.complete(Unit)
+        await("the delete") { vm.state.value.items.map { it.path } == listOf("a", "b", "c", "d") }
+        assertEquals(setOf("b", "c"), vm.state.value.selected)
+        // The finger moves on: "e" stays gone.
+        on {
+            assertTrue(vm.dragGoesOn())
+            assertTrue(vm.dragSelect("d"))
+            assertTrue(vm.dragSelect("b"))
+        }
+        assertEquals(setOf("b"), vm.state.value.selected)
+        on { vm.endDragSelect() }
+        assertEquals(setOf("b"), vm.state.value.selected)
+    }
+
+    @Test fun aDragEndsWhenItsPressedPhotoIsDeleted() {
+        val gate = CompletableDeferred<Unit>()
+        val dev = deletingDevice(gate, "a", "b", "c", "d")
+        val vm = vm(dev)
+        start(vm)
+        await("the photos") { vm.state.value.items.size == 4 }
+        // "b" picked and its delete under way when a long press on it starts a drag.
+        on { vm.toggleSelect("b") }
+        on { vm.deleteSelected() }
+        await("the delete asked") { dev.of(ReqEnvelope.PayloadCase.REQ_DEL_FILE).isNotEmpty() }
+        on { vm.beginDragSelect("b"); assertTrue(vm.dragSelect("c")) }
+        assertEquals(setOf("b", "c"), vm.state.value.selected)
+        gate.complete(Unit)
+        await("the delete") { vm.state.value.items.map { it.path } == listOf("a", "c", "d") }
+        assertEquals(setOf("c"), vm.state.value.selected)
+        // The finger still over "c": the drag is over all the same, and later moves change nothing.
+        on {
+            assertFalse(vm.dragGoesOn())
+            assertFalse(vm.dragSelect("d"))
+        }
+        assertEquals(setOf("c"), vm.state.value.selected)
+        on { vm.endDragSelect() }
     }
 
     @Test fun anEmptyGridSaysWhy() {

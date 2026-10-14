@@ -708,13 +708,23 @@ extension S {
 
     /// Delete Photo
     ///
-    /// Confirming button of app.photos.viewer.delete_title: deletes the photo open in the viewer from the device. Title Case in English buttons.
+    /// Confirming button of app.photos.viewer.delete_title: deletes the photo open in the viewer from the device. Title Case in English buttons. A video has its own: app.photos.viewer.delete_video.
     static var appPhotosViewerDelete: String { L("app.photos.viewer.delete", table: "AppPhotos") }
 
     /// Delete this photo?
     ///
-    /// Title of the confirmation asked before deleting the photo (or video) open in the full-screen viewer from the device. Buttons: Delete Photo and Cancel.
+    /// Title of the confirmation asked before deleting the photo open in the full-screen viewer (Images, or a photo opened from Files) from the device. Buttons: Delete Photo and Cancel. A video has its own: app.photos.viewer.delete_video_title.
     static var appPhotosViewerDeleteTitle: String { L("app.photos.viewer.delete_title", table: "AppPhotos") }
+
+    /// Delete Video
+    ///
+    /// Confirming button of app.photos.viewer.delete_video_title: deletes the video open in the viewer from the device. Title Case in English buttons. The video form of app.photos.viewer.delete.
+    static var appPhotosViewerDeleteVideo: String { L("app.photos.viewer.delete_video", table: "AppPhotos") }
+
+    /// Delete this video?
+    ///
+    /// Title of the confirmation asked before deleting the video open in the full-screen viewer (Images, or a video opened from Files) from the device. Buttons: Delete Video and Cancel. The video form of app.photos.viewer.delete_title; the web says the same (web.images.viewer.delete_video_title).
+    static var appPhotosViewerDeleteVideoTitle: String { L("app.photos.viewer.delete_video_title", table: "AppPhotos") }
 
     /// Aperture
     ///

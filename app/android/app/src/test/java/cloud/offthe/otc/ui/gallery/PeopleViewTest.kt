@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package cloud.offthe.otc.ui.gallery
 
+import androidx.compose.ui.geometry.Offset
 import cloud.offthe.otc.proto.Ack
 import cloud.offthe.otc.proto.Person
 import cloud.offthe.otc.proto.ReqEnvelope
@@ -43,6 +44,37 @@ class PeopleViewTest {
     @Test fun differentNamesNeedAPick() {
         assertNull(firstKeep(listOf(p("a", "Ana", 4), p("b", "Leo", 40))))
     }
+
+    // Issue #200: a long press starts a drag to select only on the face
+    // itself. A cell 150 px wide with a 110 px face centred at its top
+    // (20 px each side) and a 32 px "more" button standing 4 px out of its
+    // top end corner (28 px of it over the face).
+    @Test fun aDragStartsOnlyOnTheFace() {
+        fun on(x: Float, y: Float, more: Float = 32f, rtl: Boolean = false) = onFace(Offset(x, y), 150f, 110f, more, 4f, rtl)
+        assertTrue(on(75f, 55f))
+        assertTrue(on(20f, 0f))
+        assertTrue(on(129.9f, 109.9f))
+        // The name (or "Add a name") and the count under it.
+        assertFalse(on(75f, 110f))
+        assertFalse(on(75f, 125f))
+        assertFalse(on(75f, 150f))
+        // Beside the face, in the cell.
+        assertFalse(on(10f, 55f))
+        assertFalse(on(140f, 55f))
+        assertFalse(on(75f, -1f))
+        // The "more" button, at the top end corner; under it the face again.
+        assertFalse(on(120f, 10f))
+        assertFalse(on(103f, 27f))
+        assertTrue(on(101f, 10f))
+        assertTrue(on(120f, 30f))
+        // While picking there is no button.
+        assertTrue(on(120f, 10f, more = 0f))
+        // Right to left, the button is at the top left.
+        assertFalse(on(25f, 10f, rtl = true))
+        assertTrue(on(120f, 10f, rtl = true))
+        // A cell narrower than the face: the face fills it.
+        assertTrue(onFace(Offset(1f, 50f), 100f, 110f, 0f, 4f, false))
+    }
 }
 
 // The merge and the deletion against a stand-in device: what is sent, in
@@ -70,6 +102,59 @@ class PeopleViewModelTest {
     }
 
     private fun picked(vm: PeopleViewModel, vararg ids: String) = ids.forEach { vm.pick(it) }
+
+    // Issue #200: a drag to select whose pressed face goes away (a new
+    // listing) ends there, the picks as they stood.
+    @Test fun aDragEndsWhenThePressedFaceGoes() {
+        val vm = PeopleViewModel(Device { ack(true) }.send)
+        picked(vm, "z")
+        val order = listOf("a", "b", "c", "d")
+        vm.beginDragSelect("b", order)
+        assertEquals(listOf("z", "b"), vm.state.value.selection)
+        assertTrue(vm.dragSelect("d", order))
+        assertEquals(listOf("z", "b", "c", "d"), vm.state.value.selection)
+        // "c", under the finger, goes: nothing changes, the drag goes on.
+        val noC = listOf("a", "b", "d")
+        assertTrue(vm.dragSelect("c", noC))
+        assertEquals(listOf("z", "b", "c", "d"), vm.state.value.selection)
+        assertTrue(vm.dragSelect("a", noC))
+        assertEquals(listOf("z", "a", "b"), vm.state.value.selection)
+        // "b", the pressed one, goes with a new listing.
+        vm.keepOnly(setOf("z", "a", "d"))
+        assertEquals(listOf("z", "a"), vm.state.value.selection)
+        assertFalse(vm.dragSelect("d", listOf("a", "d")))
+        assertEquals(listOf("z", "a"), vm.state.value.selection)
+        assertFalse(vm.dragSelect("a", listOf("a", "d")))
+        vm.endDragSelect()
+        assertEquals(listOf("z", "a"), vm.state.value.selection)
+        assertFalse(vm.dragSelect("d", listOf("a", "d")))
+    }
+
+    // Issue #200: a face picked before the drag that goes with a refresh
+    // (merged or deleted elsewhere) doesn't come back as the range moves on.
+    @Test fun aFaceGoneMidDragIsNotPickedAgain() {
+        val vm = PeopleViewModel(Device { ack(true) }.send)
+        picked(vm, "x")
+        val order = listOf("x", "a", "b", "c", "d")
+        vm.beginDragSelect("b", order)
+        assertTrue(vm.dragSelect("c", order))
+        assertEquals(listOf("x", "b", "c"), vm.state.value.selection)
+        // "x" goes: the page's refresh drops it from the picks.
+        val noX = listOf("a", "b", "c", "d")
+        vm.keepOnly(noX.toSet())
+        assertEquals(listOf("b", "c"), vm.state.value.selection)
+        assertTrue(vm.dragGoesOn(noX))
+        assertTrue(vm.dragSelect("d", noX))
+        assertEquals(listOf("b", "c", "d"), vm.state.value.selection)
+        assertTrue(vm.dragSelect("a", noX))
+        assertEquals(listOf("a", "b"), vm.state.value.selection)
+        // The pressed face goes while the finger stays over "a": over at once.
+        val noB = listOf("a", "c", "d")
+        assertFalse(vm.dragGoesOn(noB))
+        assertFalse(vm.dragGoesOn(noX))
+        vm.endDragSelect()
+        assertFalse(vm.dragGoesOn(noX))
+    }
 
     @Test fun mergeNamesTheKeptFaceFirstThenMerges() = runBlocking {
         val dev = Device { ack(true) }

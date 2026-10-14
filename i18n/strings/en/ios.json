@@ -123,7 +123,7 @@
   },
   "ios.files.keep_out_of_images": {
     "text": "Keep Out of Images",
-    "note": "Item of a folder's long-press menu in Files, and the confirm button of the question app.files.keep_out_title: keeps the folder's photos and videos out of Images (not tagged, not searched for faces; the tags and faces already found are deleted). Title Case in English. Images is the photo section (app.shell.section_images).",
+    "note": "Confirm button of the question app.files.keep_out_title (Files: Keep out of Images in the bar, with one folder selected): keeps the folder's photos and videos out of Images (not tagged, not searched for faces; the tags and faces already found are deleted). Title Case in English. Images is the photo section (app.shell.section_images).",
     "max": 30,
     "review": "required",
     "reviewed": "shipped 2026-10-11 #190094a7"
@@ -185,10 +185,6 @@
     "text": "Try Again",
     "note": "Button under the error shown in place of the results of a search in Files: searches again. Title Case in English.",
     "max": 20
-  },
-  "ios.files.upload_only_folder_info": {
-    "text": "Nothing in this folder can be deleted, and uploading a file again keeps its older version. Long-press the folder to change it.",
-    "note": "Explanation shown (title app.files.upload_only) when the lock badge on an upload-only folder's tile is tapped in Files' grid."
   },
   "ios.friends_delete_theirs": {
     "text": "Delete everything from {name} on this iPhone",

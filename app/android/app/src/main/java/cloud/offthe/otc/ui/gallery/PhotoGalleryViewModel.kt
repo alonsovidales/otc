@@ -39,6 +39,8 @@ import cloud.offthe.otc.proto.ReqPhotoDateBuckets
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SearchPhotos
 import cloud.offthe.otc.proto.ShareFilesLink
+import cloud.offthe.otc.ui.common.DragSelection
+import cloud.offthe.otc.ui.common.keysView
 import cloud.offthe.otc.ui.common.LoadProblem
 import cloud.offthe.otc.ui.common.SelectionActionTask
 import cloud.offthe.otc.ui.common.backOnline
@@ -1346,6 +1348,7 @@ class PhotoGalleryViewModel(
             if (resp.error) { alert(S.appPhotosNoticeDeleteFailed(resp.errorMessage)); return@launch }
         } catch (e: Exception) { alert(S.appPhotosNoticeDeleteFailed("${e.message}")); return@launch }
         _state.update { st -> st.copy(items = st.items.filterIndexed { i, _ -> i != idx }, selected = st.selected - item.path) }
+        dragSelection?.forget { it == item.path }
         // Gone from the device: its thumbnail goes from the phone too.
         if (item.hash.isNotEmpty()) thumbs.discard(item.hash)
         if (_state.value.items.isEmpty()) closeModal() else open(minOf(idx, _state.value.items.size - 1))
@@ -1364,8 +1367,42 @@ class PhotoGalleryViewModel(
 
     fun toggleSelect(path: String) = _state.update { st -> st.copy(selected = if (path in st.selected) st.selected - path else st.selected + path) }
 
+    // Issue #200: the drag to select under way (DragSelect.kt), from a long press.
+    private var dragSelection: DragSelection<String>? = null
+
+    // The photos' paths in the grid's order, without copying them.
+    private fun pathsOf(items: List<Item>): List<String> = items.keysView { it.path }
+
+    /** A long press on [path]: it is selected, and a drag from it starts. */
+    fun beginDragSelect(path: String) {
+        val st = _state.value
+        val sel = DragSelection(st.selected.toList(), path)
+        dragSelection = sel
+        sel.apply(pathsOf(st.items), path)?.let { next -> _state.update { it.copy(selected = next.toSet()) } }
+    }
+
+    /**
+     * The drag reached [to]: every photo from the pressed one to it is
+     * selected, besides what was before. False once the drag is over (the
+     * pressed photo went away): the selection stays as it was then.
+     */
+    fun dragSelect(to: String): Boolean {
+        val sel = dragSelection ?: return false
+        sel.apply(pathsOf(_state.value.items), to)?.let { next -> _state.update { it.copy(selected = next.toSet()) } }
+        return !sel.over
+    }
+
+    /** Whether the drag goes on: not once the pressed photo has gone from the grid. */
+    fun dragGoesOn(): Boolean = dragSelection?.goesOn(pathsOf(_state.value.items)) ?: false
+
+    /** The finger lifted: the selection stays as the drag left it. */
+    fun endDragSelect() { dragSelection = null }
+
     /** Nothing selected any more (Back, or leaving for People or Collections). */
-    fun clearSelection() { if (_state.value.selected.isNotEmpty()) _state.update { it.copy(selected = emptySet()) } }
+    fun clearSelection() {
+        dragSelection = null // a drag under way ends with it (Back mid-drag)
+        if (_state.value.selected.isNotEmpty()) _state.update { it.copy(selected = emptySet()) }
+    }
 
     fun deleteSelected() = scope.launch {
         val paths = _state.value.selected.toList()
@@ -1382,6 +1419,8 @@ class PhotoGalleryViewModel(
             // Gone from the device: their thumbnails go from the phone too.
             for (i in _state.value.items) if (i.path in deleted && i.hash.isNotEmpty()) thumbs.discard(i.hash)
             _state.update { st -> st.copy(items = st.items.filter { it.path !in deleted }, selected = st.selected - deleted) }
+            // A drag begun meanwhile doesn't bring them back (issue #200).
+            dragSelection?.forget { it in deleted }
             countsChanged()
         }
     }

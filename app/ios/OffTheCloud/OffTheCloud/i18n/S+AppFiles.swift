@@ -32,7 +32,7 @@ extension S {
 
     /// Clear upload only
     ///
-    /// Screen-reader name of the closed lock on an upload-only folder's row in Files, and item of such a folder's long-press menu (iPhone): asks whether to allow deletions in the folder again. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version.
+    /// Screen-reader name of the closed lock on an upload-only folder's row in Files: asks whether to allow deletions in the folder again. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version.
     static var appFilesClearUploadOnly: String { L("app.files.clear_upload_only", table: "AppFiles") }
 
     /// one: Delete {count} item?
@@ -206,7 +206,7 @@ extension S {
 
     /// Make upload only
     ///
-    /// Screen-reader name of the open lock on a folder's row in Files; item of a folder's long-press menu (iPhone); confirm button of the question app.files.make_upload_only_title (Android). Makes the folder upload only. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version.
+    /// Screen-reader name of the open lock on a folder's row in Files; confirm button of the question app.files.make_upload_only_title (Android). Makes the folder upload only. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version.
     static var appFilesMakeUploadOnly: String { L("app.files.make_upload_only", table: "AppFiles") }
 
     /// Nothing in this folder can be deleted - from this phone, a computer or the web - and uploading a file again keeps its older version. Good for photo archives and backups.

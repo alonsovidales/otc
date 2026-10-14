@@ -146,7 +146,7 @@ extension S {
 
     /// Keep Out of Images
     ///
-    /// Item of a folder's long-press menu in Files, and the confirm button of the question app.files.keep_out_title: keeps the folder's photos and videos out of Images (not tagged, not searched for faces; the tags and faces already found are deleted). Title Case in English. Images is the photo section (app.shell.section_images).
+    /// Confirm button of the question app.files.keep_out_title (Files: Keep out of Images in the bar, with one folder selected): keeps the folder's photos and videos out of Images (not tagged, not searched for faces; the tags and faces already found are deleted). Title Case in English. Images is the photo section (app.shell.section_images).
     static var iosFilesKeepOutOfImages: String { L("ios.files.keep_out_of_images", table: "Ios") }
 
     /// Make Upload Only
@@ -222,11 +222,6 @@ extension S {
     ///
     /// Button under the error shown in place of the results of a search in Files: searches again. Title Case in English.
     static var iosFilesTryAgain: String { L("ios.files.try_again", table: "Ios") }
-
-    /// Nothing in this folder can be deleted, and uploading a file again keeps its older version. Long-press the folder to change it.
-    ///
-    /// Explanation shown (title app.files.upload_only) when the lock badge on an upload-only folder's tile is tapped in Files' grid.
-    static var iosFilesUploadOnlyFolderInfo: String { L("ios.files.upload_only_folder_info", table: "Ios") }
 
     /// Delete everything from {name} on this iPhone
     ///

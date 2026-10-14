@@ -275,6 +275,16 @@ struct PeopleView: View {
     @State private var slow = false
 
     @State private var picks = 0
+    /// Issue #200: where each face on screen is, for a drag selection's
+    /// finger (DragSelect.swift), and the drag under way with the picks
+    /// made before it.
+    @State private var dragFrames = DragSelectFrames<String>()
+    /// Each face's "more" button, which lies over the face's corner: a
+    /// press there starts no drag (faceToStart).
+    @State private var moreFrames = DragSelectFrames<String>()
+    @State private var drag: (selection: DragSelection<String>, earlier: [String])?
+    private static let gridSpaceName = "peopleGrid"
+    private static let gridSpace = DragSelectSpace.named(gridSpaceName)
     /// The face at the top of the grid (state.topPerson).
     @State private var scrolledTo: String?
 
@@ -413,6 +423,12 @@ struct PeopleView: View {
                 let here = Set(ids)
                 let kept = sel.filter { here.contains($0) }
                 if kept.count != sel.count { sel = kept }
+                // Issue #200: nor part of a drag under way, whose next move
+                // would pick them again (DragSelection.forget).
+                if var d = drag, !d.selection.base.isSubset(of: here) {
+                    d.selection.forget { !here.contains($0) }
+                    drag = d
+                }
                 // A merge asked about someone gone meanwhile: no question
                 // left (the web's confirmMoot) - not while it is on its way.
                 if let m = mergeAsk, state.merging == nil, !m.people.allSatisfy({ here.contains($0.id) }) {
@@ -551,8 +567,11 @@ struct PeopleView: View {
                         selecting: selecting,
                         selected: sel.contains(p.id),
                         canMerge: people.count > 1,
+                        dragFrames: dragFrames,
+                        moreFrames: moreFrames,
+                        dragSpace: Self.gridSpace,
                         onTap: { tap(p) },
-                        onLongPress: { pick(p.id) },
+                        onPick: { pick(p.id) },
                         onRename: { startRename(p) },
                         onMergeWithOthers: { mergeWithOthers(p) },
                         onDelete: { deleteAsk = [p.id] },
@@ -564,6 +583,10 @@ struct PeopleView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 20)
             .scrollTargetLayout()
+            // Issue #200: a long press on a face picks it, and a drag on
+            // from it every face up to the finger.
+            .coordinateSpace(.named(Self.gridSpaceName))
+            .gesture(dragSelect)
         }
         .scrollPosition(id: $scrolledTo, anchor: .top)
         .onChange(of: scrolledTo) { _, id in state.topPerson = id }
@@ -643,6 +666,52 @@ struct PeopleView: View {
             vm.showPerson(p.id)
             onOpenPhotos()
         }
+    }
+
+    /// Issue #200: the long press on a face (as long as it always was) and
+    /// the drag on from it: the faces from the one pressed to the one
+    /// under the finger join the picks, in the grid's order. The pick
+    /// plays its own tap. A press starts only on a face itself (not its
+    /// name, its count, its "more" button or a gap); a face pressed that
+    /// goes from the grid mid-drag (a new listing) ends the drag with the
+    /// picks as they are, and an earlier pick that goes leaves the drag
+    /// too (the listing's onChange).
+    private var dragSelect: DragSelectGesture {
+        let frames = dragFrames, more = moreFrames
+        return DragSelectGesture(
+            space: Self.gridSpace,
+            minimumDuration: PersonTile.pressDuration,
+            enabled: !busy,
+            haptic: false,
+            canStart: { Self.faceToStart(at: $0, faces: frames, buttons: more) != nil },
+            began: { p in
+                guard let id = Self.faceToStart(at: p, faces: frames, buttons: more) else { return }
+                drag = (DragSelection(base: Set(sel), start: id), sel)
+                pick(id)
+            },
+            moved: { p in
+                guard var d = drag else { return false }
+                let order = people.map(\.id)
+                guard d.selection.goesOn(in: order) else {
+                    drag = nil
+                    return false
+                }
+                guard let id = frames.item(at: p), d.selection.move(to: id) else { return true }
+                drag = d
+                if let s = d.selection.selection(keeping: d.earlier, in: order) { sel = s }
+                return true
+            },
+            ended: { drag = nil }
+        )
+    }
+
+    /// The face a press at `p` starts a drag on: the one it is inside, but
+    /// not on a "more" button lying over a face's corner (`buttons`, shown
+    /// only while nothing is picked) - that is the button's own press, as
+    /// on the web and Android.
+    static func faceToStart(at p: CGPoint, faces: DragSelectFrames<String>, buttons: DragSelectFrames<String>) -> String? {
+        guard buttons.item(containing: p) == nil else { return nil }
+        return faces.item(containing: p)
     }
 
     private func pick(_ id: String) {
@@ -784,6 +853,8 @@ struct PeopleView: View {
 
 private struct PersonTile: View {
     static let side: CGFloat = 96
+    /// How long a face is pressed before it is picked (PeopleView.dragSelect).
+    static let pressDuration: TimeInterval = 0.45
 
     let person: Msg_Person
     let face: UIImage?
@@ -797,8 +868,14 @@ private struct PersonTile: View {
     let selecting: Bool
     let selected: Bool
     let canMerge: Bool
+    /// Issue #200: where the face is, for the grid's drag selection, and
+    /// its "more" button, where a press starts none.
+    let dragFrames: DragSelectFrames<String>
+    let moreFrames: DragSelectFrames<String>
+    let dragSpace: DragSelectSpace
     let onTap: () -> Void
-    let onLongPress: () -> Void
+    /// VoiceOver's Select (a long press and drag picks from the grid).
+    let onPick: () -> Void
     let onRename: () -> Void
     let onMergeWithOthers: () -> Void
     let onDelete: () -> Void
@@ -818,7 +895,11 @@ private struct PersonTile: View {
                     if selecting { check.offset(x: -4, y: -4) }
                 }
                 .overlay(alignment: .topTrailing) {
-                    if !selecting { more.offset(x: 6, y: -6) }
+                    if !selecting {
+                        // Recorded where it is drawn (inside the offset).
+                        more.dragSelectItem(person.id, in: moreFrames, space: dragSpace)
+                            .offset(x: 6, y: -6)
+                    }
                 }
             label
                 .frame(height: 32)
@@ -852,12 +933,15 @@ private struct PersonTile: View {
             }
         }
         .contentShape(Circle())
-        .onTapGesture(perform: onTap)
-        .onLongPressGesture(minimumDuration: 0.45, perform: onLongPress)
+        // The long press that picks, and the drag on from it, are the
+        // grid's (PeopleView.dragSelect); the finger lifting at the end of
+        // one is no tap.
+        .onTapGesture { if DragSelect.tapAllowed { onTap() } }
+        .dragSelectItem(person.id, in: dragFrames, space: dragSpace)
         .accessibilityElement()
         .accessibilityLabel(faceLabel)
         .accessibilityAddTraits(selecting && selected ? [.isButton, .isSelected] : .isButton)
-        .accessibilityAction(named: selecting && selected ? S.commonDeselect : S.commonSelect, selecting ? onTap : onLongPress)
+        .accessibilityAction(named: selecting && selected ? S.commonDeselect : S.commonSelect, selecting ? onTap : onPick)
     }
 
     private var check: some View {

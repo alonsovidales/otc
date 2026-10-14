@@ -4,12 +4,14 @@
 // newest first under month titles - or what the top bar's search, a person
 // or an open collection narrows it to (photoFilter.ts). Photos are picked
 // Google Photos style: the circle on a tile (shown on hover), or a long
-// press on a touch screen, then a tap anywhere on a tile. A bar over the
-// top bar then posts them, puts them in a collection, shares or deletes
-// them. A collection is an image group in the protocol (ImageGroup,
-// groupId), so the code says group where it talks to the device.
+// press on a touch screen, then a tap anywhere on a tile; a press dragged
+// across the grid picks every photo from there to the one under the
+// pointer (issue #200, useDragSelect.ts). A bar over the top bar then
+// posts them, puts them in a collection, shares or deletes them. A
+// collection is an image group in the protocol (ImageGroup, groupId), so
+// the code says group where it talks to the device.
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode, Ref, SyntheticEvent } from "react";
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, Ref, SyntheticEvent } from "react";
 import { flushSync } from "react-dom";
 import { useT, type TFunction } from "../i18n";
 import { useWS } from "../net/useWS";
@@ -23,6 +25,7 @@ import { ConfirmDialog, Modal } from "./ConfirmDialog";
 import DateScrubber, { type ScrubBucket } from "./DateScrubber";
 import { CollectionsIcon, ImagesIcon } from "./NavIcons";
 import { useObjectURLs } from "./useObjectURLs";
+import { useDragSelect } from "./useDragSelect";
 import { usePageRetry } from "./usePageRetry";
 import { clearSearch, isDateOrdered, isFiltered, leaveGroup, openGroup, updateOpenGroup, usePhotoFilter, type OpenGroup } from "./photoFilter";
 import { dropGroupLocally, personLabel, reloadGroups, renameGroupLocally, useGroups, usePeople } from "./libraryStore";
@@ -36,10 +39,6 @@ const cFirstPagePhotos = 12;
 // While the date scrubber is dragged, a month that hasn't loaded shows this
 // many grey tiles at most: enough to read as "a lot", not thousands of nodes.
 const cMaxPlaceholders = 300;
-// Touch: how long a press on a tile takes to select it, and how far the
-// finger may move meanwhile before it counts as the start of a scroll.
-const cLongPressMs = 450;
-const cPressSlopPx = 8;
 // Grey tiles shown while the first page is on its way.
 const cSkeletonTiles = 24;
 // No date buckets (yet), one array for every render.
@@ -50,6 +49,8 @@ const cNoBuckets: ScrubBucket[] = [];
 // photo - tagging those bytes with the video's own mime made the browser
 // refuse to show them at all.
 const isVideoFile = (f: { mime?: string }) => (f.mime || "").startsWith("video/");
+// What the selection knows a photo by.
+const pathOf = (f: MsgFile) => f.path;
 
 // A tile's thumbnail - always a JPEG, see isVideoFile. Module-level, so
 // useObjectURLs gets the stable `make` it needs.
@@ -796,11 +797,6 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     setSel((prev) => (prev.some((x) => x.path === f.path) ? prev.filter((x) => x.path !== f.path) : [...prev, f]));
   };
 
-  const selectFile = (f: MsgFile, idx: number) => {
-    anchorRef.current = idx;
-    setSel((prev) => (prev.some((x) => x.path === f.path) ? prev : [...prev, f]));
-  };
-
   const moveSel = useCallback((path: string, offset: number) => setSel((prev) => {
     const i = prev.findIndex((x) => x.path === path);
     const j = i + offset;
@@ -811,31 +807,9 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   }), []);
   const unselect = useCallback((path: string) => setSel((prev) => prev.filter((x) => x.path !== path)), []);
 
-  // -------- tiles: clicks, and the long press on touch ------------------------
-  // One set of handlers on the grid rather than on every tile: tiles stay
-  // plain memoized markup, and the press state is the grid's.
-  const pressRef = useRef<{ pointerId: number; x: number; y: number; timer: number; file: MsgFile; idx: number } | null>(null);
-  const pressFiredRef = useRef(false);
-  const suppressClickUntilRef = useRef(0);
-  const pointerTypeRef = useRef("mouse");
-
-  const cancelPress = () => {
-    const p = pressRef.current;
-    if (p) window.clearTimeout(p.timer);
-    pressRef.current = null;
-  };
-  useEffect(() => () => {
-    const p = pressRef.current;
-    if (p) window.clearTimeout(p.timer);
-  }, []);
-
-  const firePress = (f: MsgFile, idx: number) => {
-    pressRef.current = null;
-    pressFiredRef.current = true;
-    selectFile(f, idx);
-    try { navigator.vibrate?.(10); } catch { /* not every device can */ }
-  };
-
+  // -------- tiles: clicks (the press and the drag are useDragSelect's) ---------
+  // One handler on the grid rather than on every tile: tiles stay plain
+  // memoized markup.
   const tileIndexOf = (target: EventTarget | null): number | null => {
     if (!(target instanceof Element)) return null;
     const tile = target.closest<HTMLElement>(".pg-tile[data-idx]");
@@ -844,48 +818,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     return Number.isInteger(i) ? i : null;
   };
 
-  const onGridPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    pointerTypeRef.current = e.pointerType;
-    pressFiredRef.current = false;
-    // A new touch: the click a long press leaves behind came before it, so
-    // a quick tap on the next photo is a tap.
-    suppressClickUntilRef.current = 0;
-    cancelPress();
-    if (e.pointerType === "mouse" || !e.isPrimary) return;
-    const idx = tileIndexOf(e.target);
-    const f = idx == null ? undefined : items[idx];
-    if (idx == null || !f) return;
-    const timer = window.setTimeout(() => firePress(f, idx), cLongPressMs);
-    pressRef.current = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, timer, file: f, idx };
-  };
-  const onGridPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    const p = pressRef.current;
-    if (p && e.pointerId === p.pointerId && Math.hypot(e.clientX - p.x, e.clientY - p.y) > cPressSlopPx) cancelPress();
-  };
-  // The click that ends a long press must not toggle the photo straight
-  // back (or open it). It follows the release at once, or not at all.
-  const onGridPointerEnd = () => {
-    cancelPress();
-    if (pressFiredRef.current) {
-      pressFiredRef.current = false;
-      suppressClickUntilRef.current = performance.now() + 600;
-    }
-  };
-  const onGridContextMenu = (e: ReactMouseEvent<HTMLDivElement>) => {
-    if (pointerTypeRef.current === "mouse") return;
-    const idx = tileIndexOf(e.target);
-    if (idx == null) return;
-    // Android answers a long press on a picture with its own menu (save,
-    // open in a new tab): here the press selects the photo instead.
-    e.preventDefault();
-    const p = pressRef.current;
-    if (p) {
-      window.clearTimeout(p.timer);
-      firePress(p.file, p.idx);
-    }
-  };
   const onGridClick = (e: ReactMouseEvent<HTMLDivElement>) => {
-    if (performance.now() < suppressClickUntilRef.current) return;
     const idx = tileIndexOf(e.target);
     if (idx == null) return;
     const onCircle = (e.target as Element).closest(".pg-tile-check") != null;
@@ -1106,6 +1039,27 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [selecting, somethingOnTop, clearSel]);
 
+  // Issue #200: a long press on a touch screen picks a photo, and a press
+  // dragged (with a mouse, or on from a long press) picks the run from it
+  // to the one under the pointer, in grid order, after what was picked
+  // before - the order a post shows them in. Shift+click goes on from
+  // where the drag ended. Not under the viewer, a dialog or the scrubber's
+  // grey tiles.
+  const dragSel = useDragSelect<MsgFile>({
+    enabled: !somethingOnTop && !previewing,
+    items,
+    keyOf: pathOf,
+    indexAt: tileIndexOf,
+    selection: sel,
+    setSelection: setSel,
+    onEnd: (_f, idx) => { anchorRef.current = idx; },
+  });
+  const dragRef = dragSel.ref;
+  const setGridEl = useCallback((el: HTMLDivElement | null) => {
+    gridRef.current = el;
+    dragRef(el);
+  }, [dragRef]);
+
   // The share menu belongs to the selection bar.
   useEffect(() => { if (!selecting) setShareOpen(false); }, [selecting]);
 
@@ -1226,13 +1180,11 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     body = (
       <div
         className="pg-grid"
-        ref={gridRef}
+        ref={setGridEl}
         onClick={onGridClick}
-        onPointerDown={onGridPointerDown}
-        onPointerMove={onGridPointerMove}
-        onPointerUp={onGridPointerEnd}
-        onPointerCancel={onGridPointerEnd}
-        onContextMenu={onGridContextMenu}
+        onPointerDown={dragSel.onPointerDown}
+        onContextMenu={dragSel.onContextMenu}
+        onDragStart={dragSel.onDragStart}
       >
         {gridChildren}
       </div>

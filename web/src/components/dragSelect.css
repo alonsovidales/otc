@@ -1,0 +1,9 @@
+/* Issue #200 (useDragSelect.ts): while a touch is held on an item, and for
+   as long as a drag lasts, the items' text isn't selected and a picture
+   held doesn't open the phone's own menu. Only then: at rest, names in
+   Files can be selected and copied as before. */
+[data-dragsel] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}

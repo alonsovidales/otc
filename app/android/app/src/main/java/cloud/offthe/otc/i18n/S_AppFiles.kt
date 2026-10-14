@@ -22,7 +22,7 @@ fun S.appFilesBackToFiles(): UiText =
 fun S.appFilesBackToFolder(folder: String): UiText =
     UiText.Res(R.string.app_files_back_to_folder, listOf(folder))
 
-/** "Clear upload only": Screen-reader name of the closed lock on an upload-only folder's row in Files, and item of such a folder's long-press menu (iPhone): asks whether to allow deletions in the folder again. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version. */
+/** "Clear upload only": Screen-reader name of the closed lock on an upload-only folder's row in Files: asks whether to allow deletions in the folder again. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version. */
 fun S.appFilesClearUploadOnly(): UiText =
     UiText.Res(R.string.app_files_clear_upload_only)
 
@@ -142,7 +142,7 @@ fun S.appFilesKeptOutExplain(): UiText =
 fun S.appFilesListFailed(): UiText =
     UiText.Res(R.string.app_files_list_failed)
 
-/** "Make upload only": Screen-reader name of the open lock on a folder's row in Files; item of a folder's long-press menu (iPhone); confirm button of the question app.files.make_upload_only_title (Android). Makes the folder upload only. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version. */
+/** "Make upload only": Screen-reader name of the open lock on a folder's row in Files; confirm button of the question app.files.make_upload_only_title (Android). Makes the folder upload only. Upload only: nothing in the folder can be deleted, and uploading a file again keeps its older version. */
 fun S.appFilesMakeUploadOnly(): UiText =
     UiText.Res(R.string.app_files_make_upload_only)
 

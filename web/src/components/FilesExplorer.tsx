@@ -22,6 +22,8 @@ import { Trans, dateTimeFields, fmtDate, useT, type TFunction } from "../i18n";
 import { asIs, percentText, say, type UiText } from "./uiText";
 import { sizeText } from "./sizeText";
 import { dateMs, formatOrder, loadOrder, nameCollator, parseOrder, pickOrder, saveOrder, sortEntries, sortKeys, type SortFields, type SortKey, type SortOrder } from "./filesSort";
+import { dragSelection } from "./dragSelect";
+import { useDragSelect } from "./useDragSelect";
 
 type Props = {
   wsUrl?: string;            // defaults to VITE_WS_URL
@@ -34,6 +36,10 @@ const isImg = (f: PbFile) => f.mime?.startsWith("image/");
 // What the grid shows a thumbnail for (GetThumbnails answers these).
 const isMedia = (f: PbFile) => !!f.mime && (f.mime.startsWith("image/") || f.mime.startsWith("video/")) || /\.heic$/i.test(f.path);
 const isVideo = (f: PbFile) => !!f.mime?.startsWith("video/");
+// A row of the listing, for the selection: by its key, and whether it is
+// ".." (the way up, never picked).
+const keyOfRow = (r: { k: string }) => r.k;
+const isUp = (r: { name: string }) => r.name === "..";
 
 // The Files list or grid, remembered in this browser.
 type ViewMode = "list" | "grid";
@@ -270,6 +276,9 @@ export default function FilesExplorer({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<UiText | null>(null);
   const [sel, setSel] = useState<Record<string, boolean>>({});
+  // Issue #200: where Shift+click goes on from - the row last picked or
+  // unpicked, or where a drag ended (a key).
+  const anchorRef = useRef<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
   // Issue #132: the versions pop-up - which file it is for and the older
@@ -378,6 +387,7 @@ export default function FilesExplorer({
         const folderOut = !!lof.outOfImagesSupported && !!lof.folderOutOfImages;
         setNoImg({ path: p, supported: !!lof.outOfImagesSupported, folderOut, cover: folderOut ? undefined : null });
         setSel({});
+        anchorRef.current = null;
         // Issue #192: in a folder kept out, which folder keeps it out - for
         // the banner's Show and the subfolders' tips. Asked after the
         // listing shows, so a slow answer never holds it up.
@@ -570,18 +580,20 @@ export default function FilesExplorer({
   };
 
   // -------- selection + actions (6) ----------
+  // ".." (the way up) is never picked: select-all, Shift+click and a drag
+  // all pass it by, and it has no checkbox.
   const rowKey = (f: PbFile) => f.path; // path is unique in a listing
-  const toggleOne = (f: PbFile) => setSel(s => ({ ...s, [rowKey(f)]: !s[rowKey(f)] }));
-  const allChecked = listing.length > 0 && listing.every(f => sel[rowKey(f)]);
+  const pickable = useMemo(() => listing.filter(f => f.path !== ".."), [listing]);
+  const allChecked = pickable.length > 0 && pickable.every(f => sel[rowKey(f)]);
   const toggleAll = () => {
     if (allChecked) setSel({});
     else {
       const next: Record<string, boolean> = {};
-      listing.forEach(f => next[rowKey(f)] = true);
+      pickable.forEach(f => next[rowKey(f)] = true);
       setSel(next);
     }
   };
-  const selected = useMemo(() => listing.filter(f => sel[rowKey(f)]), [listing, sel]);
+  const selected = useMemo(() => pickable.filter(f => sel[rowKey(f)]), [pickable, sel]);
 
   // Issue #132: nothing under an upload-only folder can be deleted - the
   // device refuses with error_code "upload_only", and the button is greyed
@@ -799,6 +811,30 @@ export default function FilesExplorer({
       sort: sortFields(f, name),
     };
   }), (r) => r.sort, order, collator), [listing, order, collator]);
+  type Row = (typeof rows)[number];
+  const rowIndex = useMemo(() => new Map(rows.map((r, i) => [r.k, i])), [rows]);
+
+  // Issue #200: Shift+click (or Shift+Space) on a checkbox picks the rows
+  // from the one last picked or unpicked to it, in the order shown, as
+  // Images does.
+  const selectedRows = useMemo(() => rows.filter(r => sel[r.k]), [rows, sel]);
+  const setSelectedRows = useCallback((next: readonly Row[]) => {
+    const out: Record<string, boolean> = {};
+    for (const r of next) out[r.k] = true;
+    setSel(out);
+  }, []);
+  const toggleOne = (f: PbFile, range = false) => {
+    const k = rowKey(f);
+    const anchor = anchorRef.current;
+    anchorRef.current = k;
+    const a = anchor == null ? undefined : rowIndex.get(anchor);
+    const b = rowIndex.get(k);
+    if (range && a !== undefined && b !== undefined && a !== b) {
+      setSelectedRows(dragSelection(selectedRows, rows, keyOfRow, a, b, isUp));
+      return;
+    }
+    setSel(s => ({ ...s, [k]: !s[k] }));
+  };
 
   // -------- grid view ----------
   const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
@@ -1143,6 +1179,49 @@ export default function FilesExplorer({
     uploadOnlyPaths.has(it.path) ? (t) => t("web.files.list.upload_only_refused", { name: leafName(it.path) }) : null
   ), [uploadOnlyPaths]);
 
+  // Issue #200: a press dragged over the list or the grid - from anywhere on
+  // a row or tile, its name included - picks every row from it to the one
+  // under the pointer, in the order shown, as Images does; on a touch
+  // screen a long press picks the row first. Once something is picked a tap
+  // there picks or unpicks a row, where a click opens it.
+  const dragSel = useDragSelect<Row>({
+    enabled: !loading && !inResults && !mediaViewer && !viewer && !versionsOf && !sharingFolder,
+    items: rows,
+    keyOf: keyOfRow,
+    indexAt: (el) => {
+      const k = el.closest<HTMLElement>("[data-key]")?.dataset.key;
+      return k == null ? null : rowIndex.get(k) ?? null;
+    },
+    skip: isUp,
+    selection: selectedRows,
+    setSelection: setSelectedRows,
+    onEnd: (r) => { anchorRef.current = r.k; },
+  });
+  const dragRef = dragSel.ref;
+  const setGridEl = useCallback((el: HTMLDivElement | null) => {
+    gridRef.current = el;
+    dragRef(el);
+  }, [dragRef]);
+  // A tap on a row or tile once something is picked (a touch screen's
+  // selection, as on Images and the phones): it picks or unpicks the row
+  // instead of opening it. Its own controls (the checkbox, the lock, the
+  // switch for Images, the versions) still do what they do, and ".." still
+  // goes up. A click with a mouse, or from the keyboard, opens as before.
+  const onItemsClickCapture = (e: React.MouseEvent<HTMLElement>) => {
+    if (!selected.length || !(e.target instanceof Element)) return;
+    // How the press it ends was made (Safari calls a tap's own click a
+    // mouse's); none for one from the keyboard.
+    const type = e.detail > 0 ? dragSel.pointerType() : "";
+    if (type !== "touch" && type !== "pen") return;
+    const k = e.target.closest<HTMLElement>("[data-key]")?.dataset.key;
+    const at = k == null ? undefined : rowIndex.get(k);
+    if (at === undefined || isUp(rows[at])) return;
+    if (e.target.closest("input, .fb-lock, .fb-noimg, .fb-versions, .fb-tile-versions")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    toggleOne(rows[at].file);
+  };
+
   // The results as shown: name and folder, with the part that matched.
   // In the folder's order too (issue #196): folders first, then files.
   const found = useMemo(() => {
@@ -1483,20 +1562,21 @@ export default function FilesExplorer({
 
       <div ref={folderViewRef} className="fb-contents" hidden={inResults} tabIndex={-1} role="region" aria-label={t("web.files.list.contents", { folder: path })}>
       {viewMode === "grid" ? (
-        <div className="fb-grid" ref={gridRef}>
+        <div className="fb-grid" ref={setGridEl} onClickCapture={onItemsClickCapture}
+          onPointerDown={dragSel.onPointerDown} onContextMenu={dragSel.onContextMenu} onDragStart={dragSel.onDragStart}>
           {loading && <div className="fb-grid-note">{t("common.loading")}</div>}
           {!loading && rows.length === 0 && <div className="fb-grid-note">{t("web.files.list.empty")}</div>}
           {!loading && rows.map(r => {
             const full = r.name === ".." ? "" : fullPathOf(r.file);
             const thumb = !r.isDir ? thumbs[full] : undefined;
             return (
-              <div className={`fb-tile${sel[r.k] ? " selected" : ""}`} key={r.k}>
+              <div className={`fb-tile${sel[r.k] ? " selected" : ""}`} key={r.k} data-key={r.k}>
                 <button className="fb-tile-art" onClick={() => openEntry(r.file)} disabled={openingPath !== null} title={r.name}
                   data-thumb={!r.isDir && isMedia(r.file) ? full : undefined}>
                   {r.isDir
                     ? <svg className="fb-folder" viewBox="0 0 64 52" aria-hidden="true"><path d="M4 6a4 4 0 0 1 4-4h16l6 6h26a4 4 0 0 1 4 4v34a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" /></svg>
                     : thumb
-                      ? <img src={thumb} alt="" loading="lazy" />
+                      ? <img src={thumb} alt="" loading="lazy" draggable={false} />
                       : <FileTypeIcon name={r.name} size={72} />}
                   {!r.isDir && thumb && isVideo(r.file) && (
                     <span className="fb-play" aria-label={t("web.files.list.video")}><svg viewBox="0 0 24 24" width="12" height="12"><path d="M8 5v14l11-7z" fill="#fff" /></svg></span>
@@ -1504,7 +1584,9 @@ export default function FilesExplorer({
                   {openingPath === r.file.path && <span className="fb-tile-opening">{t("web.files.list.opening")}</span>}
                 </button>
                 {r.name !== ".." && (
-                  <input className="fb-tile-check" type="checkbox" checked={!!sel[r.k]} onChange={() => toggleOne(r.file)} aria-label={t("web.files.list.select_item", { name: r.name })} />
+                  <input className="fb-tile-check" type="checkbox" checked={!!sel[r.k]}
+                    onChange={(e) => toggleOne(r.file, (e.nativeEvent as MouseEvent).shiftKey)}
+                    aria-label={t("web.files.list.select_item", { name: r.name })} />
                 )}
                 {/* Issue #192: left of the lock, which keeps its corner. */}
                 {r.name !== ".." && r.isDir && noImgShown && noImgButton(r, true)}
@@ -1535,12 +1617,17 @@ export default function FilesExplorer({
           {sortHeading("modified", t("web.files.column.modified"), true)}
         </div>
 
-        <div className="fb-body" role="rowgroup">
+        <div className="fb-body" role="rowgroup" ref={dragRef} onClickCapture={onItemsClickCapture}
+          onPointerDown={dragSel.onPointerDown} onContextMenu={dragSel.onContextMenu} onDragStart={dragSel.onDragStart}>
           {loading && <div className="fb-row" role="row"><span role="cell">{t("common.loading")}</span></div>}
           {!loading && rows.map(r => (
-            <div className="fb-row" role="row" key={r.k}>
+            <div className={`fb-row${sel[r.k] ? " selected" : ""}`} role="row" key={r.k} data-key={r.k}>
               <div className="c c-check" role="cell">
-                <input type="checkbox" checked={!!sel[r.k]} onChange={() => toggleOne(r.file)} />
+                {r.name !== ".." && (
+                  <input type="checkbox" checked={!!sel[r.k]}
+                    onChange={(e) => toggleOne(r.file, (e.nativeEvent as MouseEvent).shiftKey)}
+                    aria-label={t("web.files.list.select_item", { name: r.name })} />
+                )}
               </div>
               <div className="c c-name" role="cell">
                 <button

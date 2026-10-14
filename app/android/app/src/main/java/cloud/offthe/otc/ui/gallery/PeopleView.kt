@@ -12,7 +12,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -33,6 +32,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import cloud.offthe.otc.ui.common.DragSelection
+import cloud.offthe.otc.ui.common.dragSelect
+import cloud.offthe.otc.ui.common.keyAt
+import cloud.offthe.otc.ui.common.rememberDragSelect
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -72,13 +76,14 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
@@ -94,6 +99,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
@@ -125,6 +131,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.math.min
 import java.text.NumberFormat
 import cloud.offthe.otc.i18n.RichTag
 import cloud.offthe.otc.i18n.S
@@ -249,6 +256,32 @@ internal fun peopleOrder(all: List<Person>, gone: Set<String>): List<Person> {
     return named.sortedByDescending { it.faceCount } + unnamed.sortedByDescending { it.faceCount }
 }
 
+// A face's "more" button (PersonTile): its size, and how far it stands out
+// past the face's top end corner.
+private val MORE_SIZE = 32.dp
+private val MORE_OUT = 4.dp
+
+/**
+ * Issue #200: whether a long press at [p] (pixels from the top left of a
+ * face's grid cell, [width] across) is on the face itself - the [face]
+ * square centred at the cell's top - and so may start a drag to select.
+ * The name, "Add a name" and the count under it don't, nor the face's
+ * "more" button: [more] across, standing [out] past the square's top end
+ * corner (the left one when [rtl]); 0 while picking, when it isn't shown.
+ * The same as iOS (the face's frame) and the web (the face, not its
+ * controls).
+ */
+internal fun onFace(p: Offset, width: Float, face: Float, more: Float, out: Float, rtl: Boolean): Boolean {
+    val side = min(face, width)
+    val x = p.x - (width - side) / 2f
+    if (x < 0f || x >= side || p.y < 0f || p.y >= side) return false
+    // How far the button reaches into the square from its corner.
+    val reach = more - out
+    if (reach <= 0f) return true
+    val atEnd = if (rtl) x < reach else x >= side - reach
+    return !(atEnd && p.y < reach)
+}
+
 /**
  * Where the people live: the gallery (PhotoGalleryViewModel), whose list
  * the search shares. What the People page changes is told to it.
@@ -328,12 +361,45 @@ class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(
 
     fun pick(id: String) = _state.update { st -> if (id in st.selection) st else st.copy(selection = st.selection + id) }
 
+    // Issue #200: the drag to select under way (DragSelect.kt), from a long press.
+    private var dragSelection: DragSelection<String>? = null
+
+    /** A long press on [id]: picked, and a drag from it starts; [order]: the faces as the page shows them. */
+    fun beginDragSelect(id: String, order: List<String>) {
+        val sel = DragSelection(_state.value.selection, id)
+        dragSelection = sel
+        sel.apply(order, id)?.let { next -> _state.update { it.copy(selection = next) } }
+    }
+
+    /**
+     * The drag reached [to]: every face from the pressed one to it is
+     * picked, besides those picked before. False once the drag is over (the
+     * pressed face went away): the picks stay as they were then.
+     */
+    fun dragSelect(to: String, order: List<String>): Boolean {
+        val sel = dragSelection ?: return false
+        sel.apply(order, to)?.let { next -> _state.update { it.copy(selection = next) } }
+        return !sel.over
+    }
+
+    /** Whether the drag goes on with the faces shown, [order]: not once the pressed one has gone. */
+    fun dragGoesOn(order: List<String>): Boolean = dragSelection?.goesOn(order) ?: false
+
+    /** The finger lifted: the faces stay picked as the drag left them. */
+    fun endDragSelect() { dragSelection = null }
+
     fun clearSelection() = _state.update { it.copy(selection = emptyList(), mergeHint = false) }
 
-    /** Someone merged or deleted elsewhere (a new listing) is no longer picked. */
-    fun keepOnly(ids: Set<String>) = _state.update { st ->
-        val next = st.selection.filter { it in ids }
-        if (next.size == st.selection.size) st else st.copy(selection = next, mergeHint = st.mergeHint && next.isNotEmpty())
+    /**
+     * Someone merged or deleted elsewhere (a new listing) is no longer
+     * picked - nor brought back by a drag under way (issue #200).
+     */
+    fun keepOnly(ids: Set<String>) {
+        dragSelection?.forget { it !in ids }
+        _state.update { st ->
+            val next = st.selection.filter { it in ids }
+            if (next.size == st.selection.size) st else st.copy(selection = next, mergeHint = st.mergeHint && next.isNotEmpty())
+        }
     }
 
     /** A face's "Merge with others…": a selection with this face in it. */
@@ -538,7 +604,6 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
     val st by vm.state.collectAsState()
     val gst by gallery.state.collectAsState()
     val colors = MaterialTheme.colorScheme
-    val haptics = LocalHapticFeedback.current
 
     LaunchedEffect(Unit) { vm.reload(gallery) }
 
@@ -595,11 +660,32 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
                     val density = LocalDensity.current
                     val cellPx = gridCellPx(constraints.maxWidth, density, 12.dp, 8.dp, minSize = 112.dp)
                     val face = with(density) { (cellPx.toDp() - 16.dp).coerceIn(72.dp, 112.dp) }
+                    // Issue #200: a long press on a face picks it, and a drag
+                    // from there every face to the one under the finger, in
+                    // the page's order (DragSelect.kt).
+                    val gridState = rememberLazyGridState()
+                    val left = with(density) { 12.dp.toPx() }
+                    val order = remember(people) { people.map { it.id } }
+                    // A drag starts only on a face (not its name, count or
+                    // "more" button); once going, anywhere in a face's cell
+                    // reaches it.
+                    val facePx = with(density) { face.toPx() }
+                    val morePx = if (selecting) 0f else with(density) { MORE_SIZE.toPx() }
+                    val outPx = with(density) { MORE_OUT.toPx() }
+                    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+                    val drag = rememberDragSelect(
+                        gridState, hit = { p -> gridState.layoutInfo.keyAt(p.x, p.y, left) as? String },
+                        start = { p ->
+                            gridState.layoutInfo.keyAt(p.x, p.y, left) { at, cell -> onFace(at, cell.width.toFloat(), facePx, morePx, outPx, rtl) } as? String
+                        },
+                        onBegin = { vm.beginDragSelect(it, order) }, onMove = { vm.dragSelect(it, order) }, onEnd = { vm.endDragSelect() },
+                        goesOn = { vm.dragGoesOn(order) },
+                    )
                     LazyVerticalGrid(
                         // Wide, no bar above: the web's 24 from the top bar.
                         columns = GridCells.Adaptive(112.dp), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = if (showBack || selecting) 16.dp else 24.dp, bottom = 80.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(20.dp),
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().dragSelect(drag), state = gridState,
                     ) {
                         items(people, key = { it.id }) { p ->
                             PersonTile(
@@ -609,10 +695,8 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
                                     if (selecting) vm.toggle(p.id)
                                     else { gallery.showPerson(p.id); onOpenPhotos() }
                                 },
-                                onLongPress = {
-                                    if (selecting) vm.toggle(p.id)
-                                    else { haptics.performHapticFeedback(HapticFeedbackType.LongPress); vm.pick(p.id) }
-                                },
+                                // TalkBack's long press (a touch's is the grid's drag to select).
+                                onLongPress = { if (selecting) vm.toggle(p.id) else vm.pick(p.id) },
                                 onRename = { renaming = p.id },
                                 onMergeWithOthers = { vm.mergeWithOthers(p.id) },
                                 onDelete = { vm.askDelete(listOf(p.id)) },
@@ -744,8 +828,12 @@ private fun BarButton(
     }
 }
 
-/** One face: the picture, the name (or "Add a name"), the photos; the "more" menu on its corner. */
-@OptIn(ExperimentalFoundationApi::class)
+/**
+ * One face: the picture, the name (or "Add a name"), the photos; the "more"
+ * menu on its corner. A long press is the grid's (issue #200: it picks the
+ * face and starts a drag to select); TalkBack's own long press, and its
+ * actions, still call [onLongPress].
+ */
 @Composable
 private fun PersonTile(
     p: Person, face: Dp, name: String, pending: Boolean, selecting: Boolean, selected: Boolean, canMerge: Boolean,
@@ -763,10 +851,11 @@ private fun PersonTile(
                 Modifier.fillMaxSize().scale(if (selected) 0.9f else 1f)
                     .let { if (selected) it.border(3.dp, colors.primary, CircleShape).padding(5.dp) else it }
                     .clip(CircleShape)
-                    .combinedClickable(onClick = onTap, onLongClick = onLongPress, onLongClickLabel = select)
+                    .clickable(onClick = onTap)
                     .semantics {
                         contentDescription = label
                         if (selecting) this.selected = selected
+                        onLongClick(label = select) { onLongPress(); true }
                     },
             ) { FacePicture(p, face) }
             if (selecting) {
@@ -777,10 +866,10 @@ private fun PersonTile(
                     contentAlignment = Alignment.Center,
                 ) { if (selected) Icon(PeopleIcons.Check, null, Modifier.size(16.dp), tint = colors.onPrimary) }
             } else {
-                Box(Modifier.align(Alignment.TopEnd).offset(4.dp, (-4).dp)) {
+                Box(Modifier.align(Alignment.TopEnd).offset(MORE_OUT, -MORE_OUT)) {
                     Surface(
                         onClick = { menu = true }, shape = CircleShape, color = colors.surfaceContainerHighest,
-                        shadowElevation = 3.dp, modifier = Modifier.size(32.dp).semantics { contentDescription = moreOptions },
+                        shadowElevation = 3.dp, modifier = Modifier.size(MORE_SIZE).semantics { contentDescription = moreOptions },
                     ) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.MoreHoriz, null, Modifier.size(20.dp)) } }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         DropdownMenuItem(
