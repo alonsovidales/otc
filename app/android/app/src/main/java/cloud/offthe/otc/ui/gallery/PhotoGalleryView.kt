@@ -2,6 +2,22 @@
 package cloud.offthe.otc.ui.gallery
 
 import android.graphics.Bitmap
+import android.graphics.Rect
+import android.graphics.Region
+import android.os.Build
+import android.view.RoundedCorner
+import android.view.View
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -337,8 +353,11 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             }
         }
 
-        // Grid + scrubber + selection bar
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+        // Grid + scrubber + selection bar. Issue #198: where it stops short
+        // of the screen's sides is where the date scrubber goes.
+        var gridGaps by remember { mutableStateOf(GridGaps()) }
+        val ltr = LocalLayoutDirection.current == LayoutDirection.Ltr
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { gridGaps = GridGaps.of(it, ltr) }) {
             // The grid's sizes (the web's PhotoGallery.css) and its columns
             // for this width; the tiles' side is what thumbnails decode to.
             val density = LocalDensity.current
@@ -519,7 +538,10 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                 StillWaiting(Modifier.align(Alignment.BottomCenter).padding(bottom = if (st.selected.isNotEmpty()) 104.dp else 24.dp))
             }
             if (st.showScrubber) {
-                PhotoDateScrubber(vm, st, Modifier.align(Alignment.CenterEnd).fillMaxHeight(), onEngage = { scope.launch { listState.scrollToItem(headerCount) } })
+                PhotoDateScrubber(
+                    vm, st, Modifier.align(Alignment.CenterEnd).fillMaxHeight(), scrubberPlacement(gridGaps),
+                    onEngage = { scope.launch { listState.scrollToItem(headerCount) } },
+                )
             }
             if (st.selected.isNotEmpty()) {
                 Box(Modifier.align(Alignment.BottomCenter)) {
@@ -1049,11 +1071,204 @@ private fun FaceCircle(p: Person?, size: Dp, z: Float) {
     }
 }
 
+/**
+ * Issue #198: where the date scrubber sits on a phone turned on its side
+ * (iOS ScrubberPlacement). The grid stays inside the safe area, which beside
+ * a camera cutout leaves a band down that side of the screen - so the
+ * scrubber, on the grid's edge, was that far in from the screen's, where a
+ * thumb coming in from the edge doesn't land. It reaches across the band
+ * instead: its rail, its handle and its grab strip at the screen's edge, as
+ * on a phone held upright; its year labels and month bubble stay over the
+ * grid. And there, at the screen's edge, its ends keep clear of the rounded
+ * corners. Only the cutout's band is crossed, never a navigation bar on that
+ * side; and nothing changes where the grid already reaches the edge: a phone
+ * held upright, a tablet, the side without the cutout. All in dp.
+ *
+ * Except where the cutout itself is in the way. A punch hole floats in from
+ * the edge, and the handle passes outside it (as on an iPhone beside the
+ * Dynamic Island); but a notch - a teardrop, a V, a wide notch - runs from
+ * the very edge across the band, with no screen and no touch in it, and out
+ * there the handle would vanish behind it mid-track and a drag couldn't
+ * start there. So the scrubber stops short of any cutout along its track
+ * that would come over its handle: its handle and grab strip just inside it,
+ * or, where nothing of the band is left, on the grid's edge as before.
+ */
+internal data class ScrubberPlacement(
+    /** How far past the grid's end edge the scrubber reaches. */
+    val reach: Float = 0f,
+    /** How much shorter the track is at each end than the grid. */
+    val top: Float = 0f,
+    val bottom: Float = 0f,
+) {
+    /**
+     * A piece of the display cutout (cutoutShapes), in dp: its sides [near]
+     * and [far] in from the screen's end edge, its [top] and [bottom] down
+     * from the screen's top.
+     */
+    data class Cutout(val near: Float, val far: Float, val top: Float, val bottom: Float)
+
+    companion object {
+        /**
+         * How far from the screen's top and bottom the track ends at the
+         * screen's side when the screen doesn't say how round its corners
+         * are (before Android 12): iOS's, measured on the roundest iPhones.
+         */
+        const val CORNER_CLEARANCE = 64f
+
+        /** The handle's size, at the scrubber's outer edge (PhotoDateScrubber). */
+        const val HANDLE = 10f
+
+        /** The grab strip's width, at the scrubber's outer edge (PhotoDateScrubber). */
+        const val GRAB_STRIP = 16f
+
+        /**
+         * For a grid [endGap] short of the screen's end side, where a camera
+         * cutout's band is [cutoutEnd] wide and a navigation bar's [barsEnd]
+         * (never crossed); its top [topGap] below the screen's top and its
+         * bottom [bottomGap] above its bottom, on a screen [screenHeight]
+         * tall; [clearance] how far from the screen's top and bottom its
+         * corners are round; [cutouts] the display cutout's pieces.
+         */
+        fun of(
+            endGap: Float, cutoutEnd: Float, barsEnd: Float, topGap: Float, bottomGap: Float,
+            clearance: Float = CORNER_CLEARANCE, screenHeight: Float = 0f, cutouts: List<Cutout> = emptyList(),
+        ): ScrubberPlacement {
+            val band = minOf(endGap, cutoutEnd) - maxOf(0f, barsEnd)
+            // Under a dp is rounding, not a band.
+            if (band < 1f) return ScrubberPlacement()
+            // Where the scrubber's outer edge - its handle's, its grab
+            // strip's - would be, in from the screen's end edge; pushed in
+            // past every cutout along the track (the grid's height, and the
+            // handle's half past either end) that comes within the handle's
+            // width of it. One that leaves the handle room, a punch hole
+            // clear of the edge, has the grab strip run past it as an
+            // iPhone's has the island.
+            val start = endGap - band
+            val alongTop = maxOf(0f, topGap) - HANDLE / 2
+            val alongBottom = screenHeight - maxOf(0f, bottomGap) + HANDLE / 2
+            var edge = start
+            var moved = true
+            while (moved) {
+                moved = false
+                for (c in cutouts) {
+                    if (c.bottom <= alongTop || c.top >= alongBottom) continue
+                    if (c.far > edge && c.near < edge + HANDLE) {
+                        edge = c.far
+                        moved = true
+                    }
+                }
+            }
+            if (edge > start) {
+                // Stopped beside a cutout, its grab strip just inside it; that
+                // far in from the side the corners don't reach the track.
+                val reach = endGap - edge
+                return if (reach < 1f) ScrubberPlacement() else ScrubberPlacement(reach = reach.roundToInt().toFloat())
+            }
+            return ScrubberPlacement(
+                reach = band.roundToInt().toFloat(),
+                top = maxOf(0f, clearance - maxOf(0f, topGap)).roundToInt().toFloat(),
+                bottom = maxOf(0f, clearance - maxOf(0f, bottomGap)).roundToInt().toFloat(),
+            )
+        }
+    }
+}
+
+/**
+ * Issue #198: how far the grid stops short of the screen's end side, top and
+ * bottom, and the screen's size, in pixels.
+ */
+private data class GridGaps(
+    val end: Float = 0f, val top: Float = 0f, val bottom: Float = 0f,
+    val width: Float = 0f, val height: Float = 0f,
+) {
+    companion object {
+        fun of(grid: LayoutCoordinates, ltr: Boolean): GridGaps {
+            val screen = grid.findRootCoordinates().size
+            val b = grid.boundsInRoot()
+            return GridGaps(
+                end = if (ltr) screen.width - b.right else b.left, top = b.top, bottom = screen.height - b.bottom,
+                width = screen.width.toFloat(), height = screen.height.toFloat(),
+            )
+        }
+    }
+}
+
+/** Issue #198: the scrubber's place beside a grid [gaps] short of the screen's sides (ScrubberPlacement). */
+@Composable
+private fun scrubberPlacement(gaps: GridGaps): ScrubberPlacement {
+    val density = LocalDensity.current
+    val dir = LocalLayoutDirection.current
+    val ltr = dir == LayoutDirection.Ltr
+    val cutout = WindowInsets.displayCutout
+    val bars = WindowInsets.systemBars
+    val cutoutEnd = if (ltr) cutout.getRight(density, dir) else cutout.getLeft(density, dir)
+    val barsEnd = if (ltr) bars.getRight(density, dir) else bars.getLeft(density, dir)
+    val view = LocalView.current
+    val clearance = scrubberCornerClearance(view, ltr, density)
+    return with(density) {
+        // The cutout's shape, read when its band changes (a turn of the
+        // phone recomposes this through WindowInsets.displayCutout).
+        val cutouts = cutoutShapes(view).map { r ->
+            val near = if (ltr) gaps.width - r.right else r.left.toFloat()
+            val far = if (ltr) gaps.width - r.left else r.right.toFloat()
+            ScrubberPlacement.Cutout(near = near.toDp().value, far = far.toDp().value, top = r.top.toDp().value, bottom = r.bottom.toDp().value)
+        }
+        ScrubberPlacement.of(
+            endGap = gaps.end.toDp().value, cutoutEnd = cutoutEnd.toDp().value, barsEnd = barsEnd.toDp().value,
+            topGap = gaps.top.toDp().value, bottomGap = gaps.bottom.toDp().value, clearance = clearance,
+            screenHeight = gaps.height.toDp().value, cutouts = cutouts,
+        )
+    }
+}
+
+/**
+ * Issue #198: the display cutout's pieces, in the window's pixels: each
+ * side's bounding rect, narrowed to the cutout's own outline inside it where
+ * the screen gives that (Android 12 on). A bounding rect may run out to the
+ * screen's edge past what the cutout covers - the Pixel 8's punch hole, 11 to
+ * 39 dp in from the edge, has one from the edge to 50 dp - and only the
+ * outline tells a hole clear of the edge from a notch that touches it.
+ */
+private fun cutoutShapes(view: View): List<Rect> {
+    val cutout = view.rootWindowInsets?.displayCutout ?: return emptyList()
+    val rects = cutout.boundingRects
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return rects
+    val outline = cutout.cutoutPath ?: return rects
+    return rects.map { r ->
+        val piece = Region()
+        if (piece.setPath(outline, Region(r))) piece.bounds else r
+    }
+}
+
+/**
+ * How far from the screen's top and bottom its corners on the end side are
+ * round, in dp: their radius, where the screen says (Android 12 on), else
+ * [ScrubberPlacement.CORNER_CLEARANCE]. The handle, centred that far up,
+ * clears the curve.
+ */
+private fun scrubberCornerClearance(view: View, ltr: Boolean, density: Density): Float {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return ScrubberPlacement.CORNER_CLEARANCE
+    val insets = view.rootWindowInsets ?: return ScrubberPlacement.CORNER_CLEARANCE
+    val top = insets.getRoundedCorner(if (ltr) RoundedCorner.POSITION_TOP_RIGHT else RoundedCorner.POSITION_TOP_LEFT)
+    val bottom = insets.getRoundedCorner(if (ltr) RoundedCorner.POSITION_BOTTOM_RIGHT else RoundedCorner.POSITION_BOTTOM_LEFT)
+    if (top == null && bottom == null) return ScrubberPlacement.CORNER_CLEARANCE
+    return with(density) { maxOf(top?.radius ?: 0, bottom?.radius ?: 0).toDp().value }
+}
+
 /** Issue #77/#113: the Google-Photos-style scrubber on the grid's right edge. */
 @Composable
-private fun PhotoDateScrubber(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.State, modifier: Modifier, onEngage: () -> Unit) {
+private fun PhotoDateScrubber(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.State, modifier: Modifier, placement: ScrubberPlacement, onEngage: () -> Unit) {
     val density = LocalDensity.current
-    BoxWithConstraints(modifier.width(64.dp)) {
+    // Issue #198: laid out on the grid's edge as before, moved out by the
+    // band it reaches across to the screen's edge (and so as much wider);
+    // its track ends clear of the screen's corners there.
+    BoxWithConstraints(
+        modifier.offset(x = placement.reach.dp)
+            .padding(top = placement.top.dp, bottom = placement.bottom.dp)
+            .width((64 + placement.reach).dp),
+    ) {
+        // Labels and the month bubble over the grid, not out in the band.
+        val labelEnd = (16 + placement.reach).dp
         val heightPx = with(density) { maxHeight.toPx() }
         val minGapPx = with(density) { 14.dp.toPx() }
         val engagePx = with(density) { 8.dp.toPx() }
@@ -1068,7 +1283,7 @@ private fun PhotoDateScrubber(vm: PhotoGalleryViewModel, st: PhotoGalleryViewMod
                 lastPx = px
                 Text(
                     year, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(end = 16.dp).offset { IntOffset(0, (px - 6.dp.toPx()).toInt()) },
+                    modifier = Modifier.align(Alignment.TopEnd).padding(end = labelEnd).offset { IntOffset(0, (px - 6.dp.toPx()).toInt()) },
                 )
             }
             val target = st.scrubTarget
@@ -1076,14 +1291,14 @@ private fun PhotoDateScrubber(vm: PhotoGalleryViewModel, st: PhotoGalleryViewMod
             if (target != null && frac != null) {
                 Text(
                     scrubLabel(target.month).resolve(), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(end = 16.dp).offset { IntOffset(0, (heightPx * frac - 12.dp.toPx()).toInt()) }
+                    modifier = Modifier.align(Alignment.TopEnd).padding(end = labelEnd).offset { IntOffset(0, (heightPx * frac - 12.dp.toPx()).toInt()) }
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
                 )
-                Box(Modifier.align(Alignment.TopEnd).offset { IntOffset(0, (heightPx * frac - 5.dp.toPx()).toInt()) }.size(10.dp).background(Color.Yellow, CircleShape))
+                Box(Modifier.align(Alignment.TopEnd).offset { IntOffset(0, (heightPx * frac - 5.dp.toPx()).toInt()) }.size(ScrubberPlacement.HANDLE.dp).background(Color.Yellow, CircleShape))
             }
         }
         Box(
-            Modifier.align(Alignment.CenterEnd).width(16.dp).fillMaxHeight().pointerInput(heightPx) {
+            Modifier.align(Alignment.CenterEnd).width(ScrubberPlacement.GRAB_STRIP.dp).fillMaxHeight().pointerInput(heightPx) {
                 detectDragGestures(
                     onDragStart = { startY = it.y; engaged = false },
                     onDrag = { change, _ ->

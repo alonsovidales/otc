@@ -2331,6 +2331,20 @@ struct PhotoGalleryView: View {
     @State private var gridWidth: CGFloat = 0
     /// The first photo of the row at the top of the grid (see widthChanged).
     @State private var scrollMemo = GridScrollMemo()
+    /// Issue #198: the date scrubber out at the screen's side when the
+    /// grid stops short of it (a phone on its side): how far short it
+    /// stops, and which way round the phone is turned - so which side its
+    /// camera is on (ScrubberPlacement).
+    @State private var scrubberGaps = ScrubberPlacement.Gaps()
+    @State private var interfaceOrientation = UIInterfaceOrientation.unknown
+    @Environment(\.layoutDirection) private var layoutDirection
+
+    private var scrubberPlacement: ScrubberPlacement {
+        ScrubberPlacement(
+            scrubberGaps,
+            cameraAtTrailing: ScrubberPlacement.cameraAtTrailing(interfaceOrientation, rightToLeft: layoutDirection == .rightToLeft)
+        )
+    }
 
     init(vm: PhotoGalleryVM, search: TopSearchModel) {
         self.vm = vm
@@ -2400,6 +2414,20 @@ struct PhotoGalleryView: View {
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { w in
                     widthChanged(to: w, proxy: proxy)
                 }
+                // Issue #198: how far the grid stops short of the screen's
+                // trailing side (the safe area's band down a phone on its
+                // side), and how far its ends are from the screen's top
+                // and bottom - where the scrubber goes (ScrubberPlacement).
+                .onGeometryChange(for: ScrubberPlacement.Gaps.self) { g in
+                    ScrubberPlacement.Gaps(
+                        trailing: g.safeAreaInsets.trailing,
+                        top: g.frame(in: .global).minY,
+                        bottom: g.safeAreaInsets.bottom
+                    )
+                } action: { scrubberGaps = $0 }
+                // And which way round the phone is: the band beside a
+                // notch is not crossed.
+                .background(InterfaceOrientationReader { interfaceOrientation = $0 })
                 .onChange(of: vm.searchStarts) { _, _ in
                     proxy.scrollTo("photoPageTop", anchor: .top)
                 }
@@ -2425,9 +2453,12 @@ struct PhotoGalleryView: View {
                     // reserving dedicated layout space for it, so it
                     // can't push a fixed 3-column grid past the screen's
                     // actual width. Ticks/tooltip only show while
-                    // actively dragging - see PhotoDateScrubber.
+                    // actively dragging - see PhotoDateScrubber. On a
+                    // phone on its side it reaches on past that edge to
+                    // the screen's - beside a notch only to the notch
+                    // (issue #198, ScrubberPlacement).
                     if vm.showScrubber {
-                        PhotoDateScrubber(vm: vm, scrollProxy: proxy)
+                        PhotoDateScrubber(vm: vm, scrollProxy: proxy, placement: scrubberPlacement)
                     }
                 }
             }
@@ -3791,9 +3822,147 @@ private let cScrubberTouchWidth: CGFloat = 16
 /// deliberate scrub from a touch that was only ever meant to be a scroll.
 private let cScrubEngageDistance: CGFloat = 8
 
+/// Issue #198: where the date scrubber sits on a phone turned on its side.
+/// The grid stays inside the safe area, which on a phone with a notch or
+/// the Dynamic Island leaves a band down both sides (44-50 pt on a notch
+/// phone, 59 pt or more on an island one) - so the scrubber, on the grid's
+/// edge, was that far in from the screen's, where a thumb coming in from
+/// the edge doesn't land. It reaches across the band instead: its rail,
+/// its handle and its grab strip at the screen's edge, as on a phone held
+/// upright; its labels and month bubble stay over the grid (clear of the
+/// island, when that is the side it is on). And there, at the screen's
+/// edge, its ends keep clear of the rounded corners (and the home
+/// indicator under the bottom one).
+///
+/// Except beside a notch. The island floats some 11 pt in from the edge,
+/// so the handle (10 pt, at the very edge) passes outside it; a notch
+/// runs from the very edge 30-36 pt inwards along some 60% of the track,
+/// with no screen and no touch under it - the handle would vanish behind
+/// it mid-track and a drag couldn't start there. So on the notch's side
+/// (which way round the phone is turned) the scrubber reaches only to the
+/// notch's inner edge; on the other side of the same phone, and on either
+/// side of an island phone, all the way. Nothing changes where the grid
+/// already reaches the edge: a phone held upright, an iPad.
+struct ScrubberPlacement: Equatable {
+    /// How far the grid stops short of the screen's trailing side (the
+    /// safe area's band there), and how far its top is below the
+    /// screen's top and its bottom above the screen's bottom.
+    struct Gaps: Equatable {
+        var trailing: CGFloat = 0
+        var top: CGFloat = 0
+        var bottom: CGFloat = 0
+    }
+
+    /// How far past the grid's trailing edge the scrubber reaches: the
+    /// safe area's band there (beside a notch, the part of it clear of
+    /// the notch), or nothing.
+    var reach: CGFloat = 0
+    /// How much shorter the track is at each end than the grid.
+    var top: CGFloat = 0
+    var bottom: CGFloat = 0
+
+    /// How far from the screen's top and bottom the track ends when it is
+    /// at the screen's side. The corners curve in from about 70 pt away on
+    /// the roundest of these phones (the iPhone Air's, then the Pros',
+    /// as the simulator's screen masks draw them); from 64 pt the handle
+    /// (10 pt, at the very edge) loses at most half a point to the curve.
+    static let cornerClearance: CGFloat = 64
+
+    /// How far in from the screen's edge a notch reaches, at most, as the
+    /// simulator's screen masks draw them: 30 pt on the iPhone X, XS and
+    /// 11 Pro, 32 on the 12, 33 on the XR, 11 and 12 mini, 33.75 on the 13,
+    /// 14, 16e and 17e, 36 on the 13 mini.
+    static let notchDepth: CGFloat = 36
+
+    /// A band narrower than this is a notch phone's: its notch's band is
+    /// 44-50 pt (as is its top inset held upright), the Dynamic Island's
+    /// 59 pt or more.
+    static let notchBandLimit: CGFloat = 55
+
+    init() {}
+
+    /// For a grid `gaps` short of the screen's sides, with the phone's
+    /// camera (notch or island) on the scrubber's side or not.
+    init(_ gaps: Gaps, cameraAtTrailing: Bool) {
+        // Half a point is rounding, not a band.
+        guard gaps.trailing >= 1 else { return }
+        if cameraAtTrailing && gaps.trailing < Self.notchBandLimit {
+            // Beside a notch: up to its inner edge, no further. That far
+            // in from the side the corners don't reach the track's ends.
+            let clear = gaps.trailing - Self.notchDepth
+            guard clear >= 1 else { return }
+            reach = clear.rounded()
+            return
+        }
+        reach = gaps.trailing.rounded()
+        top = max(0, Self.cornerClearance - max(0, gaps.top)).rounded()
+        bottom = max(0, Self.cornerClearance - max(0, gaps.bottom)).rounded()
+    }
+
+    /// Whether a phone turned to `orientation` has its camera on the
+    /// scrubber's (trailing) side: turned to landscapeLeft its top - the
+    /// camera - is at the right, to landscapeRight at the left; the
+    /// trailing side is the right one, or the left one right to left.
+    /// Held upright there is no band at the side. Not known yet: as if
+    /// it were, so a notch is never reached under.
+    static func cameraAtTrailing(_ orientation: UIInterfaceOrientation, rightToLeft: Bool) -> Bool {
+        switch orientation {
+        case .landscapeLeft: return !rightToLeft
+        case .landscapeRight: return rightToLeft
+        case .portrait, .portraitUpsideDown: return false
+        default: return true
+        }
+    }
+}
+
+/// Issue #198: the window scene's interface orientation, at once and
+/// whenever it changes - also when the phone turns from one side straight
+/// over to the other, which changes no size or safe area SwiftUI could see
+/// (the bands down both sides are alike), only which side the camera is on.
+private struct InterfaceOrientationReader: UIViewRepresentable {
+    let changed: (UIInterfaceOrientation) -> Void
+
+    func makeUIView(context: Context) -> Probe { Probe(changed: changed) }
+    func updateUIView(_ probe: Probe, context: Context) { probe.changed = changed }
+
+    final class Probe: UIView {
+        var changed: (UIInterfaceOrientation) -> Void
+        private var watch: NSKeyValueObservation?
+        private var last: UIInterfaceOrientation?
+
+        init(changed: @escaping (UIInterfaceOrientation) -> Void) {
+            self.changed = changed
+            super.init(frame: .zero)
+            isUserInteractionEnabled = false
+        }
+
+        required init?(coder: NSCoder) { nil }
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            // The scene's geometry is key-value observable (iOS 16 on).
+            watch = window?.windowScene?.observe(\.effectiveGeometry, options: [.initial, .new]) { [weak self] scene, _ in
+                let orientation = scene.effectiveGeometry.interfaceOrientation
+                // Out of the update that changed it, and out of SwiftUI's
+                // own pass when it comes from the first layout.
+                DispatchQueue.main.async { self?.report(orientation) }
+            }
+        }
+
+        private func report(_ orientation: UIInterfaceOrientation) {
+            guard orientation != last else { return }
+            last = orientation
+            changed(orientation)
+        }
+    }
+}
+
 private struct PhotoDateScrubber: View {
     @ObservedObject var vm: PhotoGalleryVM
     let scrollProxy: ScrollViewProxy
+    /// Issue #198: across the safe area's band to the screen's side, and
+    /// clear of its corners there (ScrubberPlacement).
+    var placement = ScrubberPlacement()
 
     private static func label(for month: String) -> String { PhotoMonths.scrubLabel(month) }
 
@@ -3817,7 +3986,8 @@ private struct PhotoDateScrubber: View {
     }
 
     var body: some View {
-        // The 64pt width has to constrain the GeometryReader itself, not
+        // The width (64 pt, plus the band it reaches across, issue #198)
+        // has to constrain the GeometryReader itself, not
         // a view inside it - GeometryReader always expands to fill
         // whatever space its parent (here, the .overlay) offers it, which
         // is the *whole* grid's width, not a trailing sliver. A
@@ -3829,7 +3999,8 @@ private struct PhotoDateScrubber: View {
         // live as the whole timeline rendering down the left edge of the
         // screen, half off-screen, instead of the right. Constraining the
         // GeometryReader from the outside makes geo.size.width correctly
-        // report 64 on the inside, and lets .overlay(alignment: .trailing)
+        // report that width on the inside (64 pt, plus the band it
+        // reaches across, issue #198), and lets .overlay(alignment: .trailing)
         // in PhotoGalleryView do the actual right-edge placement.
         GeometryReader { geo in
             ZStack(alignment: .topTrailing) {
@@ -3851,7 +4022,8 @@ private struct PhotoDateScrubber: View {
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .trailing)
-                            .padding(.trailing, 16)
+                            // Over the grid, not out in the band.
+                            .padding(.trailing, 16 + placement.reach)
                             .offset(y: geo.size.height * tick.pct - 6)
                     }
                 }
@@ -3865,7 +4037,9 @@ private struct PhotoDateScrubber: View {
                         .padding(.horizontal, 8).padding(.vertical, 4)
                         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
                         .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(.trailing, 16)
+                        // Over the grid: on the island's side the band
+                        // has the island in it.
+                        .padding(.trailing, 16 + placement.reach)
                         .offset(y: geo.size.height * frac - 12)
                     Circle()
                         .fill(Color.yellow)
@@ -3875,7 +4049,8 @@ private struct PhotoDateScrubber: View {
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topTrailing)
             // Issue #113: the drag lives on a narrow strip at the very
-            // edge rather than the whole 64pt column. The column is that
+            // edge rather than the whole column (64 pt, plus the band it
+            // reaches across, issue #198). The column is that
             // wide so the year labels have room, but making all of it
             // grabbable meant a finger starting a scroll anywhere near
             // the right edge was taken as a scrub - and with
@@ -3883,8 +4058,9 @@ private struct PhotoDateScrubber: View {
             // instant you touched down, before the gesture's direction
             // was knowable.
             //
-            // This does not undo the widening the .frame(width: 64)
-            // comment below describes: the year labels only render while
+            // This does not undo the widening the .frame(width:) comment
+            // below describes (64 pt, plus the band it reaches across,
+            // issue #198): the year labels only render while
             // a drag is already in progress, so at rest there is nothing
             // out there to tap, and a drag once started keeps tracking
             // outside the strip anyway.
@@ -3934,7 +4110,16 @@ private struct PhotoDateScrubber: View {
         // floated outside of. Now the whole box (labels included) is one
         // tap/drag target. See the GeometryReader comment above for why
         // this has to sit out here rather than on a view inside it.
-        .frame(width: 64)
+        // Issue #198: 64 pt, plus the band it reaches across.
+        .frame(width: 64 + placement.reach)
+        // The track (and with it the fraction a drag maps to) ends clear
+        // of the screen's corners when it is at the screen's side.
+        .padding(.top, placement.top)
+        .padding(.bottom, placement.bottom)
+        // Laid out on the grid's edge as before, drawn and grabbed out to
+        // the screen's: the band past the grid is the safe area's, which
+        // nothing else uses there.
+        .padding(.trailing, -placement.reach)
     }
 }
 
