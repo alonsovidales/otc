@@ -729,6 +729,31 @@ func SiteLandingHeroTitle2() Rich {
 	return Rich{Key: "site.landing.hero.title_2"}
 }
 
+// SiteLandingInstallAppIntro is site.landing.install.app_intro: "The easiest way: the app downloads the image and checks its signature, writes th…".
+func SiteLandingInstallAppIntro() Msg {
+	return Msg{Key: "site.landing.install.app_intro"}
+}
+
+// SiteLandingInstallAppMore is site.landing.install.app_more: "ARM versions, and first-run tips for Windows and Linux, are in the <download>dow…".
+func SiteLandingInstallAppMore() Rich {
+	return Rich{Key: "site.landing.install.app_more"}
+}
+
+// SiteLandingInstallAppStepCard is site.landing.install.app_step_card: "<b>Make the card.</b> The app downloads the image and checks it against the proj…".
+func SiteLandingInstallAppStepCard() Rich {
+	return Rich{Key: "site.landing.install.app_step_card"}
+}
+
+// SiteLandingInstallAppStepOpen is site.landing.install.app_step_open: "<b>Install the app</b> and choose <b>Set Up a New Device…</b>: in the Mac app's …".
+func SiteLandingInstallAppStepOpen() Rich {
+	return Rich{Key: "site.landing.install.app_step_open"}
+}
+
+// SiteLandingInstallAppStepSetup is site.landing.install.app_step_setup: "<b>Finish the setup</b> over Bluetooth. On a Mac, right in the app: <b>On this M…".
+func SiteLandingInstallAppStepSetup() Rich {
+	return Rich{Key: "site.landing.install.app_step_setup"}
+}
+
 // SiteLandingInstallBridgeLink is site.landing.install.bridge_link: "Want to reach it from outside your home network? Create an account for the bridg…".
 func SiteLandingInstallBridgeLink() Msg {
 	return Msg{Key: "site.landing.install.bridge_link"}
@@ -769,6 +794,11 @@ func SiteLandingInstallLabel() Msg {
 	return Msg{Key: "site.landing.install.label"}
 }
 
+// SiteLandingInstallRecommended is site.landing.install.recommended: "Recommended".
+func SiteLandingInstallRecommended() Msg {
+	return Msg{Key: "site.landing.install.recommended"}
+}
+
 // SiteLandingInstallRequirements is site.landing.install.requirements: "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a MicroSD card for the sy…".
 func SiteLandingInstallRequirements() Rich {
 	return Rich{Key: "site.landing.install.requirements"}
@@ -802,6 +832,11 @@ func SiteLandingInstallStepSetup() Rich {
 // SiteLandingInstallStepSignin is site.landing.install.step_signin: "<b>Sign in</b> when it's done: the app connects to the new device by itself with…".
 func SiteLandingInstallStepSignin(address string) Rich {
 	return Rich{Key: "site.landing.install.step_signin", Args: map[string]any{"address": address}}
+}
+
+// SiteLandingInstallTabApp is site.landing.install.tab_app: "Computer app".
+func SiteLandingInstallTabApp() Msg {
+	return Msg{Key: "site.landing.install.tab_app"}
 }
 
 // SiteLandingInstallTabImage is site.landing.install.tab_image: "Raspberry Pi 5 image".

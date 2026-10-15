@@ -1112,11 +1112,18 @@ footer language switcher once a second language ships, and a CSP with a nonce pe
 old `account.html` there is never served). `bridge/static/` holds privacy, terms, the admin panel
 and the assets, copied to `/var/www` by the deploy. The landing hero puts `img/hero-{900,1280,1600}`
 (WebP and JPEG, from `docs/promo/pi-photographer-desk.jpg`) left of the summary, stacked below
-820 px; the gallery (`#screenshots`) has the device photo, the Mac popover (`macos-sync.jpg`), five
-phone shots (`mobile-1..5`) and six web shots (`web-1..6`, three to a row). No picture shows a real
-person (the AI sample library of `docs/promo/source/library`, animals, or nothing). A picture that
-replaces another keeps its file name, because the deploy copies over `/var/www` and never deletes,
-so the old file is overwritten. It also gets a new `?v=` in its `src`.
+820 px; its install block (`#install`) has three tabs, the ARIA tabs pattern (arrows, Home and End
+select; only the selected tab is in the tab order; chips below 600 px): "Computer app" (first,
+selected, "Recommended") - the Mac App Store, Windows and Linux buttons are the Downloads
+section's links (`TestInstallTabs` keeps them equal; the visitor's OS is ember and first) and its
+steps say only what issue #184 below does (the Mac hands the card to Raspberry Pi Imager and can
+finish over Bluetooth; otc-sync writes the card and the phone app finishes) - then "Raspberry Pi
+5 image" and "Install script" (`/#script` opens it). The gallery (`#screenshots`) has the device
+photo, the Mac popover (`macos-sync.jpg`), five phone shots (`mobile-1..5`) and six web shots
+(`web-1..6`, three to a row). No picture shows a real person (the AI sample library of
+`docs/promo/source/library`, animals, or nothing). A picture that replaces another keeps its file
+name, because the deploy copies over `/var/www` and never deletes, so the old file is overwritten.
+It also gets a new `?v=` in its `src`.
 
 Web invariants: never call `URL.createObjectURL` during render. PhotoGallery and NewPostPicker use
 `useObjectURLs(items, make)` (`make` module-level and stable); other URLs are made in a memo or

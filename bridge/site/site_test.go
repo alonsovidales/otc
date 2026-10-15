@@ -636,3 +636,77 @@ func TestTagsAndPages(t *testing.T) {
 		t.Errorf("embedded pages %v, %v", names, err)
 	}
 }
+
+// The install block's tabs, in every language: the computer app first and
+// selected, then the image and the script, each tab controlling its own
+// panel (the ARIA tabs pattern: only the selected tab in the tab order, the
+// other panels hidden); and the computer app tab's buttons are the
+// Download section's own links.
+func TestInstallTabs(t *testing.T) {
+	for _, l := range i18n.Languages() {
+		out, err := Render(Landing, l.Code, testOptions)
+		if err != nil {
+			t.Fatal(err)
+		}
+		doc, err := html.Parse(bytes.NewReader(out))
+		if err != nil {
+			t.Fatal(err)
+		}
+		byID := map[string]*html.Node{}
+		var tabs []*html.Node
+		installApps := map[string]string{}
+		downloads := map[string]string{}
+		for n := range doc.Descendants() {
+			if n.Type != html.ElementNode {
+				continue
+			}
+			if id := attr(n, "id"); id != "" {
+				byID[id] = n
+			}
+			if attr(n, "role") == "tab" {
+				tabs = append(tabs, n)
+			}
+			if n.DataAtom == atom.A && attr(n, "data-os") != "" {
+				installApps[attr(n, "data-os")] = attr(n, "href")
+			}
+			if n.DataAtom == atom.Div && attr(n, "class") == "dl-card" && attr(n, "data-os") != "" {
+				for c := range n.Descendants() {
+					if c.DataAtom == atom.A && strings.HasPrefix(attr(c, "class"), "btn") {
+						downloads[attr(n, "data-os")] = attr(c, "href")
+						break
+					}
+				}
+			}
+		}
+		var ids []string
+		for i, tab := range tabs {
+			ids = append(ids, attr(tab, "id"))
+			selected := i == 0
+			if got := attr(tab, "aria-selected"); got != strconv.FormatBool(selected) {
+				t.Errorf("%s: tab %s aria-selected=%q", l.Code, attr(tab, "id"), got)
+			}
+			if got, want := attr(tab, "tabindex"), map[bool]string{true: "", false: "-1"}[selected]; got != want {
+				t.Errorf("%s: tab %s tabindex=%q, want %q", l.Code, attr(tab, "id"), got, want)
+			}
+			panel := byID[attr(tab, "aria-controls")]
+			if panel == nil || attr(panel, "role") != "tabpanel" || attr(panel, "aria-labelledby") != attr(tab, "id") {
+				t.Errorf("%s: tab %s controls no panel labelled by it", l.Code, attr(tab, "id"))
+				continue
+			}
+			if on := slices.Contains(strings.Fields(attr(panel, "class")), "on"); on != selected {
+				t.Errorf("%s: panel %s shown=%v", l.Code, attr(panel, "id"), on)
+			}
+		}
+		if want := []string{"tab-app", "tab-image", "tab-script"}; !slices.Equal(ids, want) {
+			t.Errorf("%s: tabs %v, want %v", l.Code, ids, want)
+		}
+		for _, sys := range []string{"mac", "windows", "linux"} {
+			if installApps[sys] == "" || installApps[sys] != downloads[sys] {
+				t.Errorf("%s: the computer app tab's %s button links to %q, the Download section to %q", l.Code, sys, installApps[sys], downloads[sys])
+			}
+		}
+		if len(installApps) != 3 {
+			t.Errorf("%s: %d buttons in the computer app tab, want 3", l.Code, len(installApps))
+		}
+	}
+}

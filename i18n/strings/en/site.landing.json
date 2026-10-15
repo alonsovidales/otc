@@ -130,7 +130,7 @@
   },
   "site.landing.desktop.linux_button": {
     "text": "Download for Linux",
-    "note": "Website landing page: button on the Linux card that downloads the app.",
+    "note": "Website landing page: button on the Linux card that downloads the app. Also one of the download buttons in the install block's computer app tab.",
     "max": 30
   },
   "site.landing.desktop.linux_text": {
@@ -139,7 +139,7 @@
   },
   "site.landing.desktop.mac_button": {
     "text": "Get it on the Mac App Store",
-    "note": "Website landing page: button on the macOS card that opens the app in the Mac App Store. Use Apple's usual wording in your language if it has one.",
+    "note": "Website landing page: button on the macOS card that opens the app in the Mac App Store. Use Apple's usual wording in your language if it has one. Also one of the download buttons in the install block's computer app tab.",
     "max": 36
   },
   "site.landing.desktop.mac_text": {
@@ -165,7 +165,7 @@
   },
   "site.landing.desktop.windows_button": {
     "text": "Download for Windows",
-    "note": "Website landing page: button on the Windows card that downloads the app.",
+    "note": "Website landing page: button on the Windows card that downloads the app. Also one of the download buttons in the install block's computer app tab.",
     "max": 30
   },
   "site.landing.desktop.windows_text": {
@@ -738,6 +738,30 @@
     "max": 40,
     "rich": ["em"]
   },
+  "site.landing.install.app_intro": {
+    "text": "The easiest way: the app downloads the image and checks its signature, writes the card itself on Windows and Linux, and guides you through each step.",
+    "note": "Website landing page, computer app tab: the sentence at the top of the tab. The image is the device's system image; its signature is the project's release signature, checked before the image is used. On a Mac the card is written by Raspberry Pi Imager, which is why only Windows and Linux are named."
+  },
+  "site.landing.install.app_more": {
+    "text": "ARM versions, and first-run tips for Windows and Linux, are in the <download>download section</download>.",
+    "note": "Website landing page, computer app tab: small print under the three download buttons. <download> links to the page's section with the computer apps' downloads (the versions for ARM processors, the Windows warning to expect and the Linux install command are there).",
+    "rich": ["download"]
+  },
+  "site.landing.install.app_step_card": {
+    "text": "<b>Make the card.</b> The app downloads the image and checks it against the project's signature. On Windows and Linux it then writes it to a MicroSD card of 8 GB or more, after asking for administrator permission; on a Mac it opens <imager>Raspberry Pi Imager</imager> to write the card and tells you what to choose there.",
+    "note": "Website landing page, computer app tab: step 2 of a numbered list. <b> is bold; <imager> links to the Raspberry Pi Imager download page (Raspberry Pi Imager is a product name: keep it). The Mac app can't write SD cards itself, so it hands the image to Raspberry Pi Imager.",
+    "rich": ["b", "imager"]
+  },
+  "site.landing.install.app_step_open": {
+    "text": "<b>Install the app</b> and choose <b>Set Up a New Device…</b>: in the Mac app's <b>Settings</b>, or in the tray menu on Windows and Linux.",
+    "note": "Website landing page, computer app tab: step 1 of a numbered list. <b> is bold. \"Set Up a New Device…\" is the name of the button in the Mac app's Settings and of the item in the Windows and Linux app's tray menu; Settings is the Mac app's settings: use the apps' wording in your language. The tray: the notification area of Windows and Linux desktops.",
+    "rich": ["b"]
+  },
+  "site.landing.install.app_step_setup": {
+    "text": "<b>Finish the setup</b> over Bluetooth. On a Mac, right in the app: <b>On this Mac</b> (or use your phone). On Windows and Linux, in the phone app (iOS or Android): tap <b>Set up a new device</b>. Either way it asks for your WiFi, a name and password for the device and how to use the disks, then installs the software - about 20 minutes.",
+    "note": "Website landing page, computer app tab: step 4 of a numbered list (step 3 is site.landing.install.step_plug). <b> is bold. \"On this Mac\" is a choice in the Mac app's setup window; \"Set up a new device\" is the button on the phone app's welcome screen: use the apps' wording in your language.",
+    "rich": ["b"]
+  },
   "site.landing.install.bridge_link": {
     "text": "Want to reach it from outside your home network? Create an account for the bridge →",
     "note": "Website landing page: link under the install block that opens the account page to sign up. The bridge is our relay service that makes a home device reachable from the internet. The arrow is part of the link."
@@ -774,12 +798,17 @@
   },
   "site.landing.install.label": {
     "text": "Get your device running",
-    "note": "Website landing page: heading of the install block under the main headline, above two tabs (the ready-made image, the install script).",
+    "note": "Website landing page: heading of the install block under the main headline, above three tabs (the computer apps, the ready-made image, the install script).",
     "max": 40
+  },
+  "site.landing.install.recommended": {
+    "text": "Recommended",
+    "note": "Website landing page: small label (a badge) inside the first tab of the install block, after site.landing.install.tab_app: this is the way we recommend. It may agree with the tab's word for app.",
+    "max": 16
   },
   "site.landing.install.requirements": {
     "text": "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a MicroSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It can run, but only with <b>Image Tagging</b> and <b>Face Recognition</b> turned off in Settings, before you back up your photos: those models need more memory than 4 GB leaves.",
-    "note": "Website landing page, image tab: the box listing the hardware needed. <b> marks words shown in bold. Image Tagging and Face Recognition are the names of two switches in the apps' Settings: use the names the apps use in your language.",
+    "note": "Website landing page, computer app and image tabs: the box listing the hardware needed. <b> marks words shown in bold. Image Tagging and Face Recognition are the names of two switches in the apps' Settings: use the names the apps use in your language.",
     "rich": ["b"]
   },
   "site.landing.install.script_intro": {
@@ -801,7 +830,7 @@
   },
   "site.landing.install.step_plug": {
     "text": "<b>Plug in</b> the disks (into the two blue USB ports), insert the card and power the Pi on. After a minute it announces itself over Bluetooth.",
-    "note": "Website landing page, image tab: step 2 of a numbered list. <b> is bold.",
+    "note": "Website landing page, image tab: step 2 of a numbered list (and step 3 in the computer app tab). <b> is bold.",
     "rich": ["b"]
   },
   "site.landing.install.step_setup": {
@@ -812,8 +841,13 @@
   "site.landing.install.step_signin": {
     "text": "<b>Sign in</b> when it's done: the app connects to the new device by itself with the password you chose, or open <code>{address}</code> in a browser.",
     "args": [["address", "text"]],
-    "note": "Website landing page, image tab: step 4 of a numbered list. <b> is bold; <code> shows {address} in a fixed-width font. {address} is an example web address, https://<name>.off-the.cloud, where name is the word in site.landing.example.name.",
+    "note": "Website landing page, image tab: step 4 of a numbered list (and step 5 in the computer app tab). <b> is bold; <code> shows {address} in a fixed-width font. {address} is an example web address, https://<name>.off-the.cloud, where name is the word in site.landing.example.name.",
     "rich": ["b", "code"]
+  },
+  "site.landing.install.tab_app": {
+    "text": "Computer app",
+    "note": "Website landing page: the first tab of the install block, selected when the page opens, showing how to set up the device with the computer apps (macOS, Windows, Linux): they download the system image and prepare the MicroSD card. Shown next to the small label site.landing.install.recommended.",
+    "max": 24
   },
   "site.landing.install.tab_image": {
     "text": "Raspberry Pi 5 image",

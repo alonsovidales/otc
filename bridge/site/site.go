@@ -243,6 +243,7 @@ var tags = map[string]span{
 	"signup":   {El: "a", Href: "/account?signup=1"},
 	"privacy":  {El: "a", Href: "/privacy"},
 	"install":  {El: "a", Href: "#install"},
+	"download": {El: "a", Href: "#download"},
 	"contact":  {El: "a", Href: "#contact"},
 	"mail":     {El: "a", Href: "mailto:info@off-the.cloud"},
 	"github":   {El: "a", Href: repo},

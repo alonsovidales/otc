@@ -615,6 +615,26 @@
     "text": "<em>Fuori dal cloud</em>, per sempre.",
     "en": "<em>Off the cloud</em>, for good."
   },
+  "site.landing.install.app_intro": {
+    "text": "Il modo più semplice: l’app scarica l’immagine e ne verifica la firma, scrive da sola la scheda su Windows e Linux e ti guida passo dopo passo.",
+    "en": "The easiest way: the app downloads the image and checks its signature, writes the card itself on Windows and Linux, and guides you through each step."
+  },
+  "site.landing.install.app_more": {
+    "text": "Le versioni ARM e i consigli per il primo avvio su Windows e Linux sono nella <download>sezione Download</download>.",
+    "en": "ARM versions, and first-run tips for Windows and Linux, are in the <download>download section</download>."
+  },
+  "site.landing.install.app_step_card": {
+    "text": "<b>Prepara la scheda.</b> L’app scarica l’immagine e la verifica con la firma del progetto. Su Windows e Linux la scrive poi su una scheda microSD da 8 GB o più, dopo averti chiesto i permessi di amministratore; su un Mac apre <imager>Raspberry Pi Imager</imager> per scrivere la scheda e ti dice cosa scegliere.",
+    "en": "<b>Make the card.</b> The app downloads the image and checks it against the project's signature. On Windows and Linux it then writes it to a MicroSD card of 8 GB or more, after asking for administrator permission; on a Mac it opens <imager>Raspberry Pi Imager</imager> to write the card and tells you what to choose there."
+  },
+  "site.landing.install.app_step_open": {
+    "text": "<b>Installa l’app</b> e scegli <b>Configura nuovo dispositivo…</b>: nelle <b>Impostazioni</b> dell’app per Mac, oppure nel menu dell’area di notifica su Windows e Linux.",
+    "en": "<b>Install the app</b> and choose <b>Set Up a New Device…</b>: in the Mac app's <b>Settings</b>, or in the tray menu on Windows and Linux."
+  },
+  "site.landing.install.app_step_setup": {
+    "text": "<b>Completa la configurazione</b> tramite Bluetooth. Su un Mac, direttamente nell’app: <b>Su questo Mac</b> (oppure usa il telefono). Su Windows e Linux, nell’app per telefono (iOS o Android): tocca <b>Configura un nuovo dispositivo</b>. In entrambi i casi ti chiede la tua rete Wi-Fi, un nome e una password per il dispositivo e come usare i dischi, poi installa il software: circa 20 minuti.",
+    "en": "<b>Finish the setup</b> over Bluetooth. On a Mac, right in the app: <b>On this Mac</b> (or use your phone). On Windows and Linux, in the phone app (iOS or Android): tap <b>Set up a new device</b>. Either way it asks for your WiFi, a name and password for the device and how to use the disks, then installs the software - about 20 minutes."
+  },
   "site.landing.install.bridge_link": {
     "text": "Vuoi raggiungerlo da fuori della rete domestica? Crea un account per il bridge →",
     "en": "Want to reach it from outside your home network? Create an account for the bridge →"
@@ -647,6 +667,10 @@
     "text": "Metti in funzione il tuo dispositivo",
     "en": "Get your device running"
   },
+  "site.landing.install.recommended": {
+    "text": "Consigliata",
+    "en": "Recommended"
+  },
   "site.landing.install.requirements": {
     "text": "Per un <b>Raspberry Pi 5 con almeno 8 GB di RAM</b>, una scheda microSD per il sistema e, facoltativamente, due dischi USB per il RAID-1, collegati alle <b>due porte USB blu</b> del Pi. Usa l’<b>alimentatore USB-C ufficiale Raspberry Pi da 27 W</b> (o uno migliore): con uno più debole il Pi può riavviarsi per tensione insufficiente mentre elabora le tue foto. Non servono tastiera, monitor né conoscenze di Linux. <b>Hai solo un Pi da 4 GB?</b> Può funzionare, ma solo con <b>Etichettatura delle immagini</b> e <b>Riconoscimento facciale</b> disattivati in Impostazioni, prima di fare il backup delle foto: quei modelli richiedono più memoria di quanta ne lascino 4 GB.",
     "en": "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a MicroSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It can run, but only with <b>Image Tagging</b> and <b>Face Recognition</b> turned off in Settings, before you back up your photos: those models need more memory than 4 GB leaves."
@@ -675,6 +699,10 @@
   "site.landing.install.step_signin": {
     "text": "<b>Accedi</b> al termine: l’app si connette da sola al nuovo dispositivo con la password che hai scelto, oppure apri <code>{address}</code> in un browser.",
     "en": "<b>Sign in</b> when it's done: the app connects to the new device by itself with the password you chose, or open <code>{address}</code> in a browser."
+  },
+  "site.landing.install.tab_app": {
+    "text": "App per computer",
+    "en": "Computer app"
   },
   "site.landing.install.tab_image": {
     "text": "Immagine per Raspberry Pi 5",

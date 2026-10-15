@@ -21,8 +21,25 @@ Your photos, your rules.Off the cloud, for good.
 @img.alt=An Off The Cloud device on a desk, next to a camera and a computer showing your photo library
 Off The Cloud is a NAS and a social network in one small box you own outright: your photos, videos, and documents back up in full resolution, get AI-tagged for instant search, and stay behind RAID-1 protected disks — with an optional, ethical social feed for sharing memories with the people who actually matter, free of ads, algorithms, and doomscrolling.
 Get your device running
+Computer app Recommended
 Raspberry Pi 5 image
 Install script
+The easiest way: the app downloads the image and checks its signature, writes the card itself on Windows and Linux, and guides you through each step.
+For a Raspberry Pi 5 with at least 8 GB of RAM, a MicroSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's two blue USB ports. Use the official Raspberry Pi 27 W USB-C power supply (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. Only have a 4 GB Pi? It can run, but only with Image Tagging and Face Recognition turned off in Settings, before you back up your photos: those models need more memory than 4 GB leaves.
+@a.href=https://apps.apple.com/app/id6814658734
+@a.download
+@a.href=https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-windows-amd64.exe
+@a.download
+@a.href=https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-linux-amd64
+Get it on the Mac App Store Download for Windows Download for Linux
+@a.href=#download
+ARM versions, and first-run tips for Windows and Linux, are in the download section.
+Install the app and choose Set Up a New Device…: in the Mac app's Settings, or in the tray menu on Windows and Linux.
+@a.href=https://www.raspberrypi.com/software/
+Make the card. The app downloads the image and checks it against the project's signature. On Windows and Linux it then writes it to a MicroSD card of 8 GB or more, after asking for administrator permission; on a Mac it opens Raspberry Pi Imager to write the card and tells you what to choose there.
+Plug in the disks (into the two blue USB ports), insert the card and power the Pi on. After a minute it announces itself over Bluetooth.
+Finish the setup over Bluetooth. On a Mac, right in the app: On this Mac (or use your phone). On Windows and Linux, in the phone app (iOS or Android): tap Set up a new device. Either way it asks for your WiFi, a name and password for the device and how to use the disks, then installs the software - about 20 minutes.
+Sign in when it's done: the app connects to the new device by itself with the password you chose, or open https://<name>.off-the.cloud in a browser.
 For a Raspberry Pi 5 with at least 8 GB of RAM, a MicroSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's two blue USB ports. Use the official Raspberry Pi 27 W USB-C power supply (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. Only have a 4 GB Pi? It can run, but only with Image Tagging and Face Recognition turned off in Settings, before you back up your photos: those models need more memory than 4 GB leaves.
 @a.href=https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz
 ⬇ Download the image (≈ 530 MB)

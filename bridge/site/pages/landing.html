@@ -112,6 +112,17 @@
       padding:10px 14px;font:inherit;font-weight:700;font-size:15.5px;color:var(--mist-dim);cursor:pointer;text-wrap:balance}
     .install-tab:hover{color:var(--mist)}
     .install-tab[aria-selected="true"]{color:var(--mist);border-bottom-color:var(--ember)}
+    /* "Recommended" on the computer app's tab, like the downloads' "Your system". */
+    .install-badge{display:inline-block;margin-left:4px;padding:1px 8px;border:1px solid currentColor;border-radius:999px;
+      font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.1em;line-height:1.5;text-transform:uppercase;
+      color:var(--gold);vertical-align:2px;white-space:nowrap}
+    /* Three tabs don't fit a phone's width in one row (German needs about
+       560px): below 600px they wrap as chips, the selected one ringed. */
+    @media (max-width:600px){
+      .install-tabs{flex-wrap:wrap;gap:8px;border-bottom:0}
+      .install-tab{margin:0;padding:7px 14px;border:1px solid var(--line);border-radius:999px;font-size:15px}
+      .install-tab[aria-selected="true"]{border-color:var(--ember);background:var(--panel)}
+    }
     .install-panel{display:none;gap:10px}
     .install-panel.on{display:grid}
     .install-panel p{margin:0;font-size:15.5px;color:var(--mist-dim)}
@@ -119,6 +130,9 @@
     .install-panel ol strong{color:var(--mist)}
     .install-panel .btn{width:fit-content}
     .install-req{font-size:14.5px;color:var(--mist-dim);border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--panel)}
+    /* The computer apps' buttons: the visitor's system ember and first (the script below). */
+    .install-apps{display:flex;flex-wrap:wrap;gap:10px}
+    .install-panel p.install-small{font-size:14.5px}
 
     section{padding:60px 0;border-top:1px solid var(--line)}
     section:first-of-type{border-top:none}
@@ -333,12 +347,30 @@
         </p>
       </div>
       <div class="hero-install" id="install">
-        <span class="hero-install-label">{{t "site.landing.install.label"}}</span>
-        <div class="install-tabs" role="tablist">
-          <button class="install-tab" role="tab" id="tab-image" aria-selected="true" aria-controls="panel-image" type="button">{{t "site.landing.install.tab_image"}}</button>
-          <button class="install-tab" role="tab" id="tab-script" aria-selected="false" aria-controls="panel-script" type="button">{{t "site.landing.install.tab_script"}}</button>
+        <span class="hero-install-label" id="install-label">{{t "site.landing.install.label"}}</span>
+        <div class="install-tabs" role="tablist" aria-labelledby="install-label">
+          <button class="install-tab" role="tab" id="tab-app" aria-selected="true" aria-controls="panel-app" type="button">{{t "site.landing.install.tab_app"}} <span class="install-badge">{{t "site.landing.install.recommended"}}</span></button>
+          <button class="install-tab" role="tab" id="tab-image" aria-selected="false" aria-controls="panel-image" tabindex="-1" type="button">{{t "site.landing.install.tab_image"}}</button>
+          <button class="install-tab" role="tab" id="tab-script" aria-selected="false" aria-controls="panel-script" tabindex="-1" type="button">{{t "site.landing.install.tab_script"}}</button>
         </div>
-        <div class="install-panel on" id="panel-image" role="tabpanel" aria-labelledby="tab-image">
+        <div class="install-panel on" id="panel-app" role="tabpanel" aria-labelledby="tab-app">
+          <p>{{t "site.landing.install.app_intro"}}</p>
+          <div class="install-req">{{template "spans" (rich "site.landing.install.requirements")}}</div>
+          <div class="install-apps">
+            <a class="btn secondary" data-os="mac" href="https://apps.apple.com/app/id6814658734">{{t "site.landing.desktop.mac_button"}}</a>
+            <a class="btn secondary" data-os="windows" href="https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-windows-amd64.exe" download>{{t "site.landing.desktop.windows_button"}}</a>
+            <a class="btn secondary" data-os="linux" href="https://github.com/alonsovidales/otc/releases/download/desktop/otc-sync-linux-amd64" download>{{t "site.landing.desktop.linux_button"}}</a>
+          </div>
+          <p class="install-small">{{template "spans" (rich "site.landing.install.app_more")}}</p>
+          <ol>
+            <li>{{template "spans" (rich "site.landing.install.app_step_open")}}</li>
+            <li>{{template "spans" (rich "site.landing.install.app_step_card")}}</li>
+            <li>{{template "spans" (rich "site.landing.install.step_plug")}}</li>
+            <li>{{template "spans" (rich "site.landing.install.app_step_setup")}}</li>
+            <li>{{template "spans" (rich "site.landing.install.step_signin" "address" (printf "https://<%s>.off-the.cloud" (t "site.landing.example.name")))}}</li>
+          </ol>
+        </div>
+        <div class="install-panel" id="panel-image" role="tabpanel" aria-labelledby="tab-image">
           <div class="install-req">{{template "spans" (rich "site.landing.install.requirements")}}</div>
           <a class="btn ember" href="https://github.com/alonsovidales/otc/releases/download/image/off-the-cloud-rpi-lite-arm64.img.xz">⬇ {{t "site.landing.install.download"}}</a>
           <ol>
@@ -387,7 +419,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             <div><strong>{{t "site.landing.started.step3_title"}}</strong><p>{{t "site.landing.started.step3_text"}}</p></div>
           </div>
         </div>
-        <div class="note">
+        <div class="note" data-install-tab="tab-image">
           {{template "spans" (rich "site.landing.started.note")}}
         </div>
       </div>
@@ -575,11 +607,11 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           </details>
           <details>
             <summary>{{t "site.landing.faq.image.q"}}</summary>
-            <p>{{template "spans" (rich "site.landing.faq.image.a")}}</p>
+            <p data-install-tab="tab-image">{{template "spans" (rich "site.landing.faq.image.a")}}</p>
           </details>
           <details>
             <summary>{{t "site.landing.faq.other_hw.q"}}</summary>
-            <p>{{template "spans" (rich "site.landing.faq.other_hw.p1")}}</p>
+            <p data-install-tab="tab-script">{{template "spans" (rich "site.landing.faq.other_hw.p1")}}</p>
             <p>{{t "site.landing.faq.other_hw.p2"}}</p>
             <ul>
               <li>{{template "spans" (rich "site.landing.faq.other_hw.li1")}}</li>
@@ -889,20 +921,37 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
         const target = document.getElementById(link.getAttribute('href').slice(1));
         if (!target) return;
         e.preventDefault();
+        // A link to the install block from a text about one of its tabs
+        // (the image, the script) opens that tab, not the first one.
+        const tab = link.closest('[data-install-tab]');
+        if (tab) selectTab(tab.dataset.installTab);
         target.scrollIntoView({ behavior: 'smooth' });
         history.pushState(null, '', link.getAttribute('href'));
       });
     });
 
-    const tabs = document.querySelectorAll('.install-tab');
-    const selectTab = (id) => {
+    // The install block's tabs (the ARIA tabs pattern): a click selects
+    // one; in the row the arrow keys, Home and End move to a tab and select
+    // it, and Tab leaves the row - only the selected tab is in the tab order.
+    const tabs = [...document.querySelectorAll('.install-tab')];
+    const selectTab = (id, focus) => {
       tabs.forEach(t => {
         const on = t.id === id;
         t.setAttribute('aria-selected', on ? 'true' : 'false');
+        t.tabIndex = on ? 0 : -1;
         document.getElementById(t.getAttribute('aria-controls')).classList.toggle('on', on);
+        if (on && focus) t.focus();
       });
     };
-    tabs.forEach(t => t.addEventListener('click', () => selectTab(t.id)));
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => selectTab(t.id));
+      t.addEventListener('keydown', (e) => {
+        const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+        if (to === undefined) return;
+        e.preventDefault();
+        selectTab(tabs[(to + tabs.length) % tabs.length].id, true);
+      });
+    });
     if (location.hash === '#script') selectTab('tab-script');
 
     const copyBtn = document.getElementById('copy-curl');
@@ -927,6 +976,9 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
         : /win/i.test(ua) ? 'windows' : /mac/i.test(ua) ? 'mac' : /linux|x11|cros/i.test(ua) ? 'linux' : '';
       const card = os && document.querySelector('.dl-card[data-os="' + os + '"]');
       if (card) { card.classList.add('mine'); card.parentNode.prepend(card); }
+      // The install block's computer app tab: the same system's button.
+      const app = os && document.querySelector('.install-apps [data-os="' + os + '"]');
+      if (app) { app.classList.replace('secondary', 'ember'); app.parentNode.prepend(app); }
     })();
 
     // An error the bridge sends is shown in the page's words for its code;

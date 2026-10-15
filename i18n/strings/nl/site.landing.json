@@ -615,6 +615,26 @@
     "text": "<em>Off the cloud</em>, voorgoed.",
     "en": "<em>Off the cloud</em>, for good."
   },
+  "site.landing.install.app_intro": {
+    "text": "De makkelijkste manier: de app downloadt de image en controleert de handtekening, schrijft op Windows en Linux zelf de kaart en begeleidt je bij elke stap.",
+    "en": "The easiest way: the app downloads the image and checks its signature, writes the card itself on Windows and Linux, and guides you through each step."
+  },
+  "site.landing.install.app_more": {
+    "text": "ARM-versies en tips voor de eerste keer starten op Windows en Linux staan bij de <download>downloads</download>.",
+    "en": "ARM versions, and first-run tips for Windows and Linux, are in the <download>download section</download>."
+  },
+  "site.landing.install.app_step_card": {
+    "text": "<b>Maak de kaart.</b> De app downloadt de image en controleert die met de handtekening van het project. Op Windows en Linux schrijft de app de image daarna naar een microSD-kaart van 8 GB of meer, nadat je beheerdersrechten hebt gegeven; op een Mac opent de app <imager>Raspberry Pi Imager</imager> om de kaart te schrijven en vertelt je wat je daar kiest.",
+    "en": "<b>Make the card.</b> The app downloads the image and checks it against the project's signature. On Windows and Linux it then writes it to a MicroSD card of 8 GB or more, after asking for administrator permission; on a Mac it opens <imager>Raspberry Pi Imager</imager> to write the card and tells you what to choose there."
+  },
+  "site.landing.install.app_step_open": {
+    "text": "<b>Installeer de app</b> en kies <b>Nieuw apparaat instellen…</b>: in de <b>Instellingen</b> van de Mac-app, of in het menu in het systeemvak op Windows en Linux.",
+    "en": "<b>Install the app</b> and choose <b>Set Up a New Device…</b>: in the Mac app's <b>Settings</b>, or in the tray menu on Windows and Linux."
+  },
+  "site.landing.install.app_step_setup": {
+    "text": "<b>Voltooi de configuratie</b> via Bluetooth. Op een Mac in de app zelf: <b>Op deze Mac</b> (of gebruik je telefoon). Op Windows en Linux in de app op je telefoon (iOS of Android): tik op <b>Nieuw apparaat instellen</b>. In beide gevallen vraagt de app om je wifi, een naam en wachtwoord voor het apparaat en hoe de schijven moeten worden gebruikt, en installeert daarna de software: ongeveer 20 minuten.",
+    "en": "<b>Finish the setup</b> over Bluetooth. On a Mac, right in the app: <b>On this Mac</b> (or use your phone). On Windows and Linux, in the phone app (iOS or Android): tap <b>Set up a new device</b>. Either way it asks for your WiFi, a name and password for the device and how to use the disks, then installs the software - about 20 minutes."
+  },
   "site.landing.install.bridge_link": {
     "text": "Wil je het buiten je thuisnetwerk bereiken? Maak een account aan voor de bridge →",
     "en": "Want to reach it from outside your home network? Create an account for the bridge →"
@@ -647,6 +667,10 @@
     "text": "Zet je apparaat aan de praat",
     "en": "Get your device running"
   },
+  "site.landing.install.recommended": {
+    "text": "Aanbevolen",
+    "en": "Recommended"
+  },
   "site.landing.install.requirements": {
     "text": "Voor een <b>Raspberry Pi 5 met minstens 8 GB RAM</b>, een microSD-kaart voor het systeem en eventueel twee USB-schijven voor RAID-1, aangesloten op de <b>twee blauwe USB-poorten</b> van de Pi. Gebruik de <b>officiële Raspberry Pi USB-C-voeding van 27 W</b> (of een betere): met een zwakkere kan de Pi door een te lage spanning herstarten terwijl hij je foto’s verwerkt. Geen toetsenbord, monitor of kennis van Linux nodig. <b>Heb je alleen een Pi met 4 GB?</b> Die kan werken, maar alleen als <b>Beeldherkenning</b> en <b>Gezichtsherkenning</b> zijn uitgeschakeld in Instellingen, voordat je een reservekopie van je foto’s maakt: die modellen hebben meer geheugen nodig dan 4 GB overlaat.",
     "en": "For a <b>Raspberry Pi 5 with at least 8 GB of RAM</b>, a MicroSD card for the system and, optionally, two USB disks for RAID-1, plugged into the Pi's <b>two blue USB ports</b>. Use the <b>official Raspberry Pi 27 W USB-C power supply</b> (or a better one): with a weaker one the Pi can restart from low voltage while it processes your photos. No keyboard, monitor or Linux knowledge needed. <b>Only have a 4 GB Pi?</b> It can run, but only with <b>Image Tagging</b> and <b>Face Recognition</b> turned off in Settings, before you back up your photos: those models need more memory than 4 GB leaves."
@@ -675,6 +699,10 @@
   "site.landing.install.step_signin": {
     "text": "<b>Log in</b> als het klaar is: de app maakt zelf verbinding met het nieuwe apparaat met het wachtwoord dat je hebt gekozen, of open <code>{address}</code> in een browser.",
     "en": "<b>Sign in</b> when it's done: the app connects to the new device by itself with the password you chose, or open <code>{address}</code> in a browser."
+  },
+  "site.landing.install.tab_app": {
+    "text": "Computerapp",
+    "en": "Computer app"
   },
   "site.landing.install.tab_image": {
     "text": "Raspberry Pi 5-image",
