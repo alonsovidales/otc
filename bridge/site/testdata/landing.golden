@@ -17,6 +17,8 @@ Get started Download What it is Gallery FAQ GitHub
 Sign in Create an account
 🔓 100% open source · self-hosted on your own Raspberry Pi
 Your photos, your rules.Off the cloud, for good.
+@img.src=/img/hero-1600.jpg
+@img.alt=An Off The Cloud device on a desk, next to a camera and a computer showing your photo library
 Off The Cloud is a NAS and a social network in one small box you own outright: your photos, videos, and documents back up in full resolution, get AI-tagged for instant search, and stay behind RAID-1 protected disks — with an optional, ethical social feed for sharing memories with the people who actually matter, free of ads, algorithms, and doomscrolling.
 Get your device running
 Raspberry Pi 5 image
@@ -131,28 +133,32 @@ The device
 @img.src=/img/device.jpg
 @img.alt=The Off The Cloud device: a Raspberry Pi with two micro-SD cards and RAID status LEDs
 macOS / Windows client
-@img.src=/img/macos-sync.jpg
+@img.src=/img/macos-sync.jpg?v=2
 @img.alt=The Mac menu bar app: connected, storage healthy, two folders synced and one uploading
 iOS / Android app
-@img.src=/img/mobile-1.jpg
+@img.src=/img/mobile-1.jpg?v=2
+@img.alt=Images: the photo library, month by month
+@img.src=/img/mobile-2.jpg?v=2
+@img.alt=Search: every photo of a zebra, found by the tags the device adds on its own
+@img.src=/img/mobile-3.jpg?v=2
+@img.alt=A photo with More info open: camera, date and exposure
+@img.src=/img/mobile-4.jpg?v=2
+@img.alt=Storage: how much space each folder takes
+@img.src=/img/mobile-5.jpg?v=2
 @img.alt=Social: posts and comments shared only with friends' devices
-@img.src=/img/mobile-2.jpg
-@img.alt=Images: the photo library, with the people found in it across the top
-@img.src=/img/mobile-3.jpg
-@img.alt=Files: a synced folder shown as a grid
-@img.src=/img/mobile-4.jpg
-@img.alt=Settings: profile, users, face recognition and image tagging
-@img.src=/img/mobile-5.jpg
-@img.alt=A photo opened full screen
 Web app
-@img.src=/img/web-1.jpg
-@img.alt=Social in the web app
-@img.src=/img/web-2.jpg
+@img.src=/img/web-1.jpg?v=2
 @img.alt=Images in the web app
-@img.src=/img/web-3.jpg
+@img.src=/img/web-2.jpg?v=2
+@img.alt=A photo in the web app with More info open: camera, exposure and where it was taken, on a map
+@img.src=/img/web-3.jpg?v=2
+@img.alt=People in the web app: the faces found in your photos, by name
+@img.src=/img/web-4.jpg?v=2
 @img.alt=Files in the web app, as a grid
-@img.src=/img/web-4.jpg
-@img.alt=Settings in the web app
+@img.src=/img/web-5.jpg
+@img.alt=Storage in the web app: how much space each folder takes
+@img.src=/img/web-6.jpg
+@img.alt=Social in the web app
 FAQ
 Questions people actually ask
 Do I need to buy special hardware?

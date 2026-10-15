@@ -709,6 +709,11 @@ func SiteLandingHeroLead() Msg {
 	return Msg{Key: "site.landing.hero.lead"}
 }
 
+// SiteLandingHeroPhotoAlt is site.landing.hero.photo_alt: "An Off The Cloud device on a desk, next to a camera and a computer showing your …".
+func SiteLandingHeroPhotoAlt() Msg {
+	return Msg{Key: "site.landing.hero.photo_alt"}
+}
+
 // SiteLandingHeroPill is site.landing.hero.pill: "100% open source · self-hosted on your own Raspberry Pi".
 func SiteLandingHeroPill() Msg {
 	return Msg{Key: "site.landing.hero.pill"}
@@ -949,9 +954,9 @@ func SiteLandingShotsMacosAlt() Msg {
 	return Msg{Key: "site.landing.shots.macos_alt"}
 }
 
-// SiteLandingShotsMobileFilesAlt is site.landing.shots.mobile_files_alt: "Files: a synced folder shown as a grid".
-func SiteLandingShotsMobileFilesAlt() Msg {
-	return Msg{Key: "site.landing.shots.mobile_files_alt"}
+// SiteLandingShotsMobileDetailsAlt is site.landing.shots.mobile_details_alt: "A photo with More info open: camera, date and exposure".
+func SiteLandingShotsMobileDetailsAlt() Msg {
+	return Msg{Key: "site.landing.shots.mobile_details_alt"}
 }
 
 // SiteLandingShotsMobileGroup is site.landing.shots.mobile_group: "iOS / Android app".
@@ -959,24 +964,24 @@ func SiteLandingShotsMobileGroup() Msg {
 	return Msg{Key: "site.landing.shots.mobile_group"}
 }
 
-// SiteLandingShotsMobileImagesAlt is site.landing.shots.mobile_images_alt: "Images: the photo library, with the people found in it across the top".
-func SiteLandingShotsMobileImagesAlt() Msg {
-	return Msg{Key: "site.landing.shots.mobile_images_alt"}
+// SiteLandingShotsMobileLibraryAlt is site.landing.shots.mobile_library_alt: "Images: the photo library, month by month".
+func SiteLandingShotsMobileLibraryAlt() Msg {
+	return Msg{Key: "site.landing.shots.mobile_library_alt"}
 }
 
-// SiteLandingShotsMobilePhotoAlt is site.landing.shots.mobile_photo_alt: "A photo opened full screen".
-func SiteLandingShotsMobilePhotoAlt() Msg {
-	return Msg{Key: "site.landing.shots.mobile_photo_alt"}
-}
-
-// SiteLandingShotsMobileSettingsAlt is site.landing.shots.mobile_settings_alt: "Settings: profile, users, face recognition and image tagging".
-func SiteLandingShotsMobileSettingsAlt() Msg {
-	return Msg{Key: "site.landing.shots.mobile_settings_alt"}
+// SiteLandingShotsMobileSearchAlt is site.landing.shots.mobile_search_alt: "Search: every photo of a zebra, found by the tags the device adds on its own".
+func SiteLandingShotsMobileSearchAlt() Msg {
+	return Msg{Key: "site.landing.shots.mobile_search_alt"}
 }
 
 // SiteLandingShotsMobileSocialAlt is site.landing.shots.mobile_social_alt: "Social: posts and comments shared only with friends' devices".
 func SiteLandingShotsMobileSocialAlt() Msg {
 	return Msg{Key: "site.landing.shots.mobile_social_alt"}
+}
+
+// SiteLandingShotsMobileStorageAlt is site.landing.shots.mobile_storage_alt: "Storage: how much space each folder takes".
+func SiteLandingShotsMobileStorageAlt() Msg {
+	return Msg{Key: "site.landing.shots.mobile_storage_alt"}
 }
 
 // SiteLandingShotsTitle is site.landing.shots.title: "Every part of the system, in one place".
@@ -999,14 +1004,24 @@ func SiteLandingShotsWebImagesAlt() Msg {
 	return Msg{Key: "site.landing.shots.web_images_alt"}
 }
 
-// SiteLandingShotsWebSettingsAlt is site.landing.shots.web_settings_alt: "Settings in the web app".
-func SiteLandingShotsWebSettingsAlt() Msg {
-	return Msg{Key: "site.landing.shots.web_settings_alt"}
+// SiteLandingShotsWebPeopleAlt is site.landing.shots.web_people_alt: "People in the web app: the faces found in your photos, by name".
+func SiteLandingShotsWebPeopleAlt() Msg {
+	return Msg{Key: "site.landing.shots.web_people_alt"}
 }
 
 // SiteLandingShotsWebSocialAlt is site.landing.shots.web_social_alt: "Social in the web app".
 func SiteLandingShotsWebSocialAlt() Msg {
 	return Msg{Key: "site.landing.shots.web_social_alt"}
+}
+
+// SiteLandingShotsWebStorageAlt is site.landing.shots.web_storage_alt: "Storage in the web app: how much space each folder takes".
+func SiteLandingShotsWebStorageAlt() Msg {
+	return Msg{Key: "site.landing.shots.web_storage_alt"}
+}
+
+// SiteLandingShotsWebViewerAlt is site.landing.shots.web_viewer_alt: "A photo in the web app with More info open: camera, exposure and where it was ta…".
+func SiteLandingShotsWebViewerAlt() Msg {
+	return Msg{Key: "site.landing.shots.web_viewer_alt"}
 }
 
 // SiteLandingStartedEyebrow is site.landing.started.eyebrow: "Get started".

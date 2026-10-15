@@ -718,6 +718,10 @@
     "text": "Off The Cloud is a NAS and a social network in one small box you own outright: your photos, videos, and documents back up in full resolution, get AI-tagged for instant search, and stay behind RAID-1 protected disks — with an optional, ethical social feed for sharing memories with the people who actually matter, free of ads, algorithms, and doomscrolling.",
     "note": "Website landing page: the paragraph under the main headline, summing up the product. A NAS is a storage box on the home network; RAID-1 means two disks that each keep a full copy."
   },
+  "site.landing.hero.photo_alt": {
+    "text": "An Off The Cloud device on a desk, next to a camera and a computer showing your photo library",
+    "note": "Website landing page: description of the large photo at the top, beside the summary paragraph, read by screen readers. The photo shows the small Off The Cloud box (a Raspberry Pi in a purple case) on a desk, next to a camera and a monitor showing the web app's photo library."
+  },
   "site.landing.hero.pill": {
     "text": "100% open source · self-hosted on your own Raspberry Pi",
     "note": "Website landing page: small badge above the main headline, after an open-padlock emoji. Self-hosted: the software runs on the visitor's own device, not on our servers.",
@@ -951,30 +955,30 @@
     "text": "The Mac menu bar app: connected, storage healthy, two folders synced and one uploading",
     "note": "Website landing page, screenshots: description of the screenshot of the Mac app, read by screen readers and shown as the caption when it is opened large."
   },
-  "site.landing.shots.mobile_files_alt": {
-    "text": "Files: a synced folder shown as a grid",
-    "note": "Website landing page, screenshots: description of the phone app's Files screen (caption when opened large). Files is the screen's name in the app."
+  "site.landing.shots.mobile_details_alt": {
+    "text": "A photo with More info open: camera, date and exposure",
+    "note": "Website landing page, screenshots: description of a phone screenshot of one photo with its details panel open (caption when opened large). More info is the panel's name in the app."
   },
   "site.landing.shots.mobile_group": {
     "text": "iOS / Android app",
     "note": "Website landing page, screenshots: heading over the phone app's screenshots (shown in capitals).",
     "max": 40
   },
-  "site.landing.shots.mobile_images_alt": {
-    "text": "Images: the photo library, with the people found in it across the top",
-    "note": "Website landing page, screenshots: description of the phone app's Images screen (caption when opened large). Images is the screen's name in the app."
+  "site.landing.shots.mobile_library_alt": {
+    "text": "Images: the photo library, month by month",
+    "note": "Website landing page, screenshots: description of the phone app's Images screen, the photo library grouped by month (caption when opened large). Images is the screen's name in the app."
   },
-  "site.landing.shots.mobile_photo_alt": {
-    "text": "A photo opened full screen",
-    "note": "Website landing page, screenshots: description of a phone screenshot showing one photo full screen (caption when opened large)."
-  },
-  "site.landing.shots.mobile_settings_alt": {
-    "text": "Settings: profile, users, face recognition and image tagging",
-    "note": "Website landing page, screenshots: description of the phone app's Settings screen (caption when opened large). Settings is the screen's name in the app."
+  "site.landing.shots.mobile_search_alt": {
+    "text": "Search: every photo of a zebra, found by the tags the device adds on its own",
+    "note": "Website landing page, screenshots: description of the phone app's search results for the word zebra (caption when opened large). The device tags photos by what they show by itself, with no cloud service."
   },
   "site.landing.shots.mobile_social_alt": {
     "text": "Social: posts and comments shared only with friends' devices",
     "note": "Website landing page, screenshots: description of the phone app's Social screen, read by screen readers and shown as the caption when it is opened large. Social is the screen's name in the app."
+  },
+  "site.landing.shots.mobile_storage_alt": {
+    "text": "Storage: how much space each folder takes",
+    "note": "Website landing page, screenshots: description of the phone app's Storage view in Files, a bar per folder (caption when opened large). Storage is the view's name in the app."
   },
   "site.landing.shots.title": {
     "text": "Every part of the system, in one place",
@@ -994,13 +998,21 @@
     "text": "Images in the web app",
     "note": "Website landing page, screenshots: description of the web app's Images screen (caption when opened large). Images is the screen's name in the app."
   },
-  "site.landing.shots.web_settings_alt": {
-    "text": "Settings in the web app",
-    "note": "Website landing page, screenshots: description of the web app's Settings screen (caption when opened large). Settings is the screen's name in the app."
+  "site.landing.shots.web_people_alt": {
+    "text": "People in the web app: the faces found in your photos, by name",
+    "note": "Website landing page, screenshots: description of the web app's People screen, the faces found in the photos with their names (caption when opened large). People is the screen's name in the app."
   },
   "site.landing.shots.web_social_alt": {
     "text": "Social in the web app",
     "note": "Website landing page, screenshots: description of the web app's Social screen (caption when opened large). Social is the screen's name in the app."
+  },
+  "site.landing.shots.web_storage_alt": {
+    "text": "Storage in the web app: how much space each folder takes",
+    "note": "Website landing page, screenshots: description of the web app's Storage view in Files, a bar per folder (caption when opened large). Storage is the view's name in the app."
+  },
+  "site.landing.shots.web_viewer_alt": {
+    "text": "A photo in the web app with More info open: camera, exposure and where it was taken, on a map",
+    "note": "Website landing page, screenshots: description of a web app screenshot of one photo with its details panel open, with a map of where it was taken (caption when opened large). More info is the panel's name in the app."
   },
   "site.landing.started.eyebrow": {
     "text": "Get started",

@@ -93,6 +93,15 @@
     .hero h1{font-size:clamp(37.5px,5.4vw,64px);line-height:1.06;margin:6px 0 4px}
     .hero h1 em{font-style:normal;color:var(--ember)}
     .hero p.lead{font-size:clamp(17.5px,1.9vw,21px);color:var(--mist-dim);max-width:1100px;margin:0 auto}
+    /* Under the headline: the photo on the left, the summary on the right,
+       vertically centred; stacked (photo first) on narrow screens. The
+       photo's width and height attributes keep its box while it loads. */
+    .hero-intro{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:clamp(28px,4vw,56px);align-items:center;width:100%;margin:10px 0 18px;text-align:left}
+    .hero-intro > *{min-width:0}
+    .hero-photo{display:block;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:var(--ink-2);box-shadow:0 20px 60px rgba(0,0,0,.45)}
+    .hero-photo img{width:100%;height:auto}
+    .hero-intro p.lead{margin:0;max-width:none}
+    @media (max-width:819px){ .hero-intro{grid-template-columns:1fr;gap:22px;margin:4px 0 6px} }
     /* The install block is centred as a block; its steps read left-aligned. */
     .hero-install{display:grid;gap:10px;margin-top:8px;width:100%;max-width:960px;text-align:left}
     .hero-install-label{font-family:'Unbounded',sans-serif;font-weight:700;font-size:16.5px}
@@ -140,6 +149,11 @@
     }
     .shot img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
     .shot.wide{height:280px;max-width:520px;justify-self:start}
+    /* A row of wide screenshots (the web app): each box takes the pictures'
+       own shape, three to a row on a wide screen, one on a phone. */
+    .shot-row.wide-row{grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr))}
+    .shot-row.wide-row .shot{height:auto;max-width:none;justify-self:stretch;aspect-ratio:1600/1028}
+    .shot-row.wide-row .shot img{width:100%;max-height:none}
     .shot img{cursor:zoom-in}
     .shot:focus-within{outline:2px solid var(--gold);outline-offset:2px}
     /* Screenshot lightbox */
@@ -309,9 +323,15 @@
     <div class="container hero">
       <span class="pill">🔓 {{t "site.landing.hero.pill"}}</span>
       <h1>{{t "site.landing.hero.title_1"}}<br>{{template "spans" (rich "site.landing.hero.title_2")}}</h1>
-      <p class="lead">
-        {{t "site.landing.hero.lead"}}
-      </p>
+      <div class="hero-intro">
+        <picture class="hero-photo">
+          <source type="image/webp" srcset="/img/hero-900.webp 900w, /img/hero-1280.webp 1280w, /img/hero-1600.webp 1600w" sizes="(max-width: 819px) calc(100vw - 48px), (max-width: 1359px) calc(56vw - 40px), 710px">
+          <img src="/img/hero-1600.jpg" srcset="/img/hero-900.jpg 900w, /img/hero-1280.jpg 1280w, /img/hero-1600.jpg 1600w" sizes="(max-width: 819px) calc(100vw - 48px), (max-width: 1359px) calc(56vw - 40px), 710px" width="1600" height="893" alt="{{t "site.landing.hero.photo_alt"}}" loading="eager" decoding="async" fetchpriority="high">
+        </picture>
+        <p class="lead">
+          {{t "site.landing.hero.lead"}}
+        </p>
+      </div>
       <div class="hero-install" id="install">
         <span class="hero-install-label">{{t "site.landing.install.label"}}</span>
         <div class="install-tabs" role="tablist">
@@ -494,6 +514,11 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           <p>{{t "site.landing.shots.lead"}}</p>
         </div>
 
+        <!-- The screenshots show no real person: the AI-made sample library,
+             animals or nothing. "?v=2" marks pictures that replaced older ones
+             under the same name (a deploy copies over /var/www and never
+             deletes, so reusing the name is what takes the old ones down);
+             it makes browsers fetch the new file. -->
         <div class="shot-group">
           <h3>{{t "site.landing.shots.device_group"}}</h3>
           <div class="shot-row">
@@ -507,7 +532,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           <h3>{{t "site.landing.shots.desktop_group"}}</h3>
           <div class="shot-row">
             <div class="shot wide">
-              <img src="/img/macos-sync.jpg" alt="{{t "site.landing.shots.macos_alt"}}" loading="lazy">
+              <img src="/img/macos-sync.jpg?v=2" alt="{{t "site.landing.shots.macos_alt"}}" loading="lazy">
             </div>
           </div>
         </div>
@@ -515,21 +540,23 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
         <div class="shot-group">
           <h3>{{t "site.landing.shots.mobile_group"}}</h3>
           <div class="shot-row">
-            <div class="shot"><img src="/img/mobile-1.jpg" alt="{{t "site.landing.shots.mobile_social_alt"}}" loading="lazy"></div>
-            <div class="shot"><img src="/img/mobile-2.jpg" alt="{{t "site.landing.shots.mobile_images_alt"}}" loading="lazy"></div>
-            <div class="shot"><img src="/img/mobile-3.jpg" alt="{{t "site.landing.shots.mobile_files_alt"}}" loading="lazy"></div>
-            <div class="shot"><img src="/img/mobile-4.jpg" alt="{{t "site.landing.shots.mobile_settings_alt"}}" loading="lazy"></div>
-            <div class="shot"><img src="/img/mobile-5.jpg" alt="{{t "site.landing.shots.mobile_photo_alt"}}" loading="lazy"></div>
+            <div class="shot"><img src="/img/mobile-1.jpg?v=2" alt="{{t "site.landing.shots.mobile_library_alt"}}" loading="lazy"></div>
+            <div class="shot"><img src="/img/mobile-2.jpg?v=2" alt="{{t "site.landing.shots.mobile_search_alt"}}" loading="lazy"></div>
+            <div class="shot"><img src="/img/mobile-3.jpg?v=2" alt="{{t "site.landing.shots.mobile_details_alt"}}" loading="lazy"></div>
+            <div class="shot"><img src="/img/mobile-4.jpg?v=2" alt="{{t "site.landing.shots.mobile_storage_alt"}}" loading="lazy"></div>
+            <div class="shot"><img src="/img/mobile-5.jpg?v=2" alt="{{t "site.landing.shots.mobile_social_alt"}}" loading="lazy"></div>
           </div>
         </div>
 
         <div class="shot-group">
           <h3>{{t "site.landing.shots.web_group"}}</h3>
-          <div class="shot-row">
-            <div class="shot wide"><img src="/img/web-1.jpg" alt="{{t "site.landing.shots.web_social_alt"}}" loading="lazy"></div>
-            <div class="shot wide"><img src="/img/web-2.jpg" alt="{{t "site.landing.shots.web_images_alt"}}" loading="lazy"></div>
-            <div class="shot wide"><img src="/img/web-3.jpg" alt="{{t "site.landing.shots.web_files_alt"}}" loading="lazy"></div>
-            <div class="shot wide"><img src="/img/web-4.jpg" alt="{{t "site.landing.shots.web_settings_alt"}}" loading="lazy"></div>
+          <div class="shot-row wide-row">
+            <div class="shot wide"><img src="/img/web-1.jpg?v=2" alt="{{t "site.landing.shots.web_images_alt"}}" loading="lazy"></div>
+            <div class="shot wide"><img src="/img/web-2.jpg?v=2" alt="{{t "site.landing.shots.web_viewer_alt"}}" loading="lazy"></div>
+            <div class="shot wide"><img src="/img/web-3.jpg?v=2" alt="{{t "site.landing.shots.web_people_alt"}}" loading="lazy"></div>
+            <div class="shot wide"><img src="/img/web-4.jpg?v=2" alt="{{t "site.landing.shots.web_files_alt"}}" loading="lazy"></div>
+            <div class="shot wide"><img src="/img/web-5.jpg" alt="{{t "site.landing.shots.web_storage_alt"}}" loading="lazy"></div>
+            <div class="shot wide"><img src="/img/web-6.jpg" alt="{{t "site.landing.shots.web_social_alt"}}" loading="lazy"></div>
           </div>
         </div>
       </div>

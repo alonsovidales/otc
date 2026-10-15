@@ -599,6 +599,10 @@
     "text": "Off The Cloud, c’est un NAS et un réseau social réunis dans un petit boîtier qui vous appartient entièrement : vos photos, vidéos et documents sont sauvegardés en pleine résolution, étiquetés par IA pour une recherche instantanée et protégés sur des disques en RAID-1, avec en option un fil social éthique pour partager vos souvenirs avec les personnes qui comptent vraiment, sans publicité, sans algorithme et sans défilement compulsif.",
     "en": "Off The Cloud is a NAS and a social network in one small box you own outright: your photos, videos, and documents back up in full resolution, get AI-tagged for instant search, and stay behind RAID-1 protected disks — with an optional, ethical social feed for sharing memories with the people who actually matter, free of ads, algorithms, and doomscrolling."
   },
+  "site.landing.hero.photo_alt": {
+    "text": "Un appareil Off The Cloud sur un bureau, à côté d’un appareil photo et d’un ordinateur qui affiche votre photothèque",
+    "en": "An Off The Cloud device on a desk, next to a camera and a computer showing your photo library"
+  },
   "site.landing.hero.pill": {
     "text": "100 % open source · auto-hébergé sur votre propre Raspberry Pi",
     "en": "100% open source · self-hosted on your own Raspberry Pi"
@@ -792,29 +796,29 @@
     "text": "L’app de barre des menus pour Mac : connectée, stockage en bon état, deux dossiers synchronisés et un en cours d’envoi",
     "en": "The Mac menu bar app: connected, storage healthy, two folders synced and one uploading"
   },
-  "site.landing.shots.mobile_files_alt": {
-    "text": "Fichiers : un dossier synchronisé affiché en grille",
-    "en": "Files: a synced folder shown as a grid"
+  "site.landing.shots.mobile_details_alt": {
+    "text": "Une photo avec le panneau « Plus d’infos » ouvert : appareil photo, date et exposition",
+    "en": "A photo with More info open: camera, date and exposure"
   },
   "site.landing.shots.mobile_group": {
     "text": "App iOS / Android",
     "en": "iOS / Android app"
   },
-  "site.landing.shots.mobile_images_alt": {
-    "text": "Images : la photothèque, avec en haut les personnes qui y ont été reconnues",
-    "en": "Images: the photo library, with the people found in it across the top"
+  "site.landing.shots.mobile_library_alt": {
+    "text": "Images : la photothèque, mois par mois",
+    "en": "Images: the photo library, month by month"
   },
-  "site.landing.shots.mobile_photo_alt": {
-    "text": "Une photo ouverte en plein écran",
-    "en": "A photo opened full screen"
-  },
-  "site.landing.shots.mobile_settings_alt": {
-    "text": "Paramètres : profil, utilisateurs, reconnaissance faciale et étiquetage des images",
-    "en": "Settings: profile, users, face recognition and image tagging"
+  "site.landing.shots.mobile_search_alt": {
+    "text": "Recherche : toutes les photos de zèbres, retrouvées grâce aux étiquettes que l’appareil ajoute lui-même",
+    "en": "Search: every photo of a zebra, found by the tags the device adds on its own"
   },
   "site.landing.shots.mobile_social_alt": {
     "text": "Social : publications et commentaires partagés uniquement avec les appareils de vos amis",
     "en": "Social: posts and comments shared only with friends' devices"
+  },
+  "site.landing.shots.mobile_storage_alt": {
+    "text": "Stockage : l’espace occupé par chaque dossier",
+    "en": "Storage: how much space each folder takes"
   },
   "site.landing.shots.title": {
     "text": "Chaque partie du système, au même endroit",
@@ -832,13 +836,21 @@
     "text": "Images dans l’app web",
     "en": "Images in the web app"
   },
-  "site.landing.shots.web_settings_alt": {
-    "text": "Paramètres dans l’app web",
-    "en": "Settings in the web app"
+  "site.landing.shots.web_people_alt": {
+    "text": "Personnes dans l’app web : les visages trouvés dans vos photos, par nom",
+    "en": "People in the web app: the faces found in your photos, by name"
   },
   "site.landing.shots.web_social_alt": {
     "text": "Social dans l’app web",
     "en": "Social in the web app"
+  },
+  "site.landing.shots.web_storage_alt": {
+    "text": "Stockage dans l’app web : l’espace occupé par chaque dossier",
+    "en": "Storage in the web app: how much space each folder takes"
+  },
+  "site.landing.shots.web_viewer_alt": {
+    "text": "Une photo dans l’app web avec le panneau « Plus d’infos » ouvert : appareil photo, exposition et lieu de la prise de vue, sur une carte",
+    "en": "A photo in the web app with More info open: camera, exposure and where it was taken, on a map"
   },
   "site.landing.started.eyebrow": {
     "text": "Pour commencer",

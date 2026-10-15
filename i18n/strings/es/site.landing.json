@@ -599,6 +599,10 @@
     "text": "Off The Cloud es un NAS y una red social en una pequeña caja que es totalmente tuya: tus fotos, vídeos y documentos se guardan a resolución completa, se etiquetan con IA para encontrarlos al instante y quedan protegidos en discos RAID-1, con un feed social ético y opcional para compartir recuerdos con las personas que de verdad importan, sin anuncios, sin algoritmos y sin scroll infinito.",
     "en": "Off The Cloud is a NAS and a social network in one small box you own outright: your photos, videos, and documents back up in full resolution, get AI-tagged for instant search, and stay behind RAID-1 protected disks — with an optional, ethical social feed for sharing memories with the people who actually matter, free of ads, algorithms, and doomscrolling."
   },
+  "site.landing.hero.photo_alt": {
+    "text": "Un dispositivo Off The Cloud en un escritorio, junto a una cámara y un ordenador que muestra tu biblioteca de fotos",
+    "en": "An Off The Cloud device on a desk, next to a camera and a computer showing your photo library"
+  },
   "site.landing.hero.pill": {
     "text": "100 % código abierto · autoalojado en tu propia Raspberry Pi",
     "en": "100% open source · self-hosted on your own Raspberry Pi"
@@ -792,29 +796,29 @@
     "text": "La app de la barra de menús del Mac: conectada, almacenamiento en buen estado, dos carpetas sincronizadas y una subiendo archivos",
     "en": "The Mac menu bar app: connected, storage healthy, two folders synced and one uploading"
   },
-  "site.landing.shots.mobile_files_alt": {
-    "text": "Archivos: una carpeta sincronizada mostrada como cuadrícula",
-    "en": "Files: a synced folder shown as a grid"
+  "site.landing.shots.mobile_details_alt": {
+    "text": "Una foto con el panel “Más información” abierto: cámara, fecha y exposición",
+    "en": "A photo with More info open: camera, date and exposure"
   },
   "site.landing.shots.mobile_group": {
     "text": "App para iOS / Android",
     "en": "iOS / Android app"
   },
-  "site.landing.shots.mobile_images_alt": {
-    "text": "Imágenes: la biblioteca de fotos, con las personas encontradas en ella en la parte superior",
-    "en": "Images: the photo library, with the people found in it across the top"
+  "site.landing.shots.mobile_library_alt": {
+    "text": "Imágenes: la biblioteca de fotos, mes a mes",
+    "en": "Images: the photo library, month by month"
   },
-  "site.landing.shots.mobile_photo_alt": {
-    "text": "Una foto abierta a pantalla completa",
-    "en": "A photo opened full screen"
-  },
-  "site.landing.shots.mobile_settings_alt": {
-    "text": "Ajustes: perfil, usuarios, reconocimiento facial y etiquetado de imágenes",
-    "en": "Settings: profile, users, face recognition and image tagging"
+  "site.landing.shots.mobile_search_alt": {
+    "text": "Búsqueda: todas las fotos de cebras, encontradas gracias a las etiquetas que añade el propio dispositivo",
+    "en": "Search: every photo of a zebra, found by the tags the device adds on its own"
   },
   "site.landing.shots.mobile_social_alt": {
     "text": "Social: publicaciones y comentarios compartidos solo con los dispositivos de tus amigos",
     "en": "Social: posts and comments shared only with friends' devices"
+  },
+  "site.landing.shots.mobile_storage_alt": {
+    "text": "Almacenamiento: cuánto espacio ocupa cada carpeta",
+    "en": "Storage: how much space each folder takes"
   },
   "site.landing.shots.title": {
     "text": "Todas las partes del sistema, en un solo lugar",
@@ -832,13 +836,21 @@
     "text": "Imágenes en la app web",
     "en": "Images in the web app"
   },
-  "site.landing.shots.web_settings_alt": {
-    "text": "Ajustes en la app web",
-    "en": "Settings in the web app"
+  "site.landing.shots.web_people_alt": {
+    "text": "Personas en la app web: las caras encontradas en tus fotos, por nombre",
+    "en": "People in the web app: the faces found in your photos, by name"
   },
   "site.landing.shots.web_social_alt": {
     "text": "Social en la app web",
     "en": "Social in the web app"
+  },
+  "site.landing.shots.web_storage_alt": {
+    "text": "Almacenamiento en la app web: cuánto espacio ocupa cada carpeta",
+    "en": "Storage in the web app: how much space each folder takes"
+  },
+  "site.landing.shots.web_viewer_alt": {
+    "text": "Una foto en la app web con el panel “Más información” abierto: cámara, exposición y dónde se tomó, en un mapa",
+    "en": "A photo in the web app with More info open: camera, exposure and where it was taken, on a map"
   },
   "site.landing.started.eyebrow": {
     "text": "Primeros pasos",

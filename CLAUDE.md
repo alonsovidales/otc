@@ -1110,7 +1110,13 @@ files in `bridge/site/pages/*.html`, embedded in the binary (package `bridge/sit
 footer language switcher once a second language ships, and a CSP with a nonce per response
 (docs/i18n.md "bridge"). They are never read from `/var/www`, where older deploys left copies (an
 old `account.html` there is never served). `bridge/static/` holds privacy, terms, the admin panel
-and the assets, copied to `/var/www` by the deploy.
+and the assets, copied to `/var/www` by the deploy. The landing hero puts `img/hero-{900,1280,1600}`
+(WebP and JPEG, from `docs/promo/pi-photographer-desk.jpg`) left of the summary, stacked below
+820 px; the gallery (`#screenshots`) has the device photo, the Mac popover (`macos-sync.jpg`), five
+phone shots (`mobile-1..5`) and six web shots (`web-1..6`, three to a row). No picture shows a real
+person (the AI sample library of `docs/promo/source/library`, animals, or nothing). A picture that
+replaces another keeps its file name, because the deploy copies over `/var/www` and never deletes,
+so the old file is overwritten. It also gets a new `?v=` in its `src`.
 
 Web invariants: never call `URL.createObjectURL` during render. PhotoGallery and NewPostPicker use
 `useObjectURLs(items, make)` (`make` module-level and stable); other URLs are made in a memo or

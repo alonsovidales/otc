@@ -599,6 +599,10 @@
     "text": "Off The Cloud is een NAS en een sociaal netwerk in één klein apparaat dat helemaal van jou is: je foto’s, video’s en documenten worden in volledige resolutie bewaard, krijgen AI-tags zodat je ze meteen terugvindt, en staan veilig op schijven met RAID-1-bescherming – met een optionele, ethische sociale feed om herinneringen te delen met de mensen die er echt toe doen, zonder advertenties, algoritmes en eindeloos scrollen.",
     "en": "Off The Cloud is a NAS and a social network in one small box you own outright: your photos, videos, and documents back up in full resolution, get AI-tagged for instant search, and stay behind RAID-1 protected disks — with an optional, ethical social feed for sharing memories with the people who actually matter, free of ads, algorithms, and doomscrolling."
   },
+  "site.landing.hero.photo_alt": {
+    "text": "Een Off The Cloud-apparaat op een bureau, naast een camera en een computer met je fotobibliotheek",
+    "en": "An Off The Cloud device on a desk, next to a camera and a computer showing your photo library"
+  },
   "site.landing.hero.pill": {
     "text": "100% open source · zelf gehost op je eigen Raspberry Pi",
     "en": "100% open source · self-hosted on your own Raspberry Pi"
@@ -792,29 +796,29 @@
     "text": "De Mac-app in de menubalk: verbonden, opslag in orde, twee mappen gesynchroniseerd en één bezig met uploaden",
     "en": "The Mac menu bar app: connected, storage healthy, two folders synced and one uploading"
   },
-  "site.landing.shots.mobile_files_alt": {
-    "text": "Bestanden: een gesynchroniseerde map als raster",
-    "en": "Files: a synced folder shown as a grid"
+  "site.landing.shots.mobile_details_alt": {
+    "text": "Een foto met “Meer info” geopend: camera, datum en belichting",
+    "en": "A photo with More info open: camera, date and exposure"
   },
   "site.landing.shots.mobile_group": {
     "text": "iOS-/Android-app",
     "en": "iOS / Android app"
   },
-  "site.landing.shots.mobile_images_alt": {
-    "text": "Afbeeldingen: de fotobibliotheek, met de gevonden personen bovenaan",
-    "en": "Images: the photo library, with the people found in it across the top"
+  "site.landing.shots.mobile_library_alt": {
+    "text": "Afbeeldingen: de fotobibliotheek, maand per maand",
+    "en": "Images: the photo library, month by month"
   },
-  "site.landing.shots.mobile_photo_alt": {
-    "text": "Een foto schermvullend geopend",
-    "en": "A photo opened full screen"
-  },
-  "site.landing.shots.mobile_settings_alt": {
-    "text": "Instellingen: profiel, gebruikers, gezichtsherkenning en beeldherkenning",
-    "en": "Settings: profile, users, face recognition and image tagging"
+  "site.landing.shots.mobile_search_alt": {
+    "text": "Zoeken: alle foto’s van zebra’s, gevonden via de tags die het apparaat zelf toevoegt",
+    "en": "Search: every photo of a zebra, found by the tags the device adds on its own"
   },
   "site.landing.shots.mobile_social_alt": {
     "text": "Social: berichten en reacties die alleen met de apparaten van vrienden worden gedeeld",
     "en": "Social: posts and comments shared only with friends' devices"
+  },
+  "site.landing.shots.mobile_storage_alt": {
+    "text": "Opslag: hoeveel ruimte elke map inneemt",
+    "en": "Storage: how much space each folder takes"
   },
   "site.landing.shots.title": {
     "text": "Elk onderdeel van het systeem, op één plek",
@@ -832,13 +836,21 @@
     "text": "Afbeeldingen in de webapp",
     "en": "Images in the web app"
   },
-  "site.landing.shots.web_settings_alt": {
-    "text": "Instellingen in de webapp",
-    "en": "Settings in the web app"
+  "site.landing.shots.web_people_alt": {
+    "text": "Personen in de webapp: de gezichten uit je foto’s, op naam",
+    "en": "People in the web app: the faces found in your photos, by name"
   },
   "site.landing.shots.web_social_alt": {
     "text": "Social in de webapp",
     "en": "Social in the web app"
+  },
+  "site.landing.shots.web_storage_alt": {
+    "text": "Opslag in de webapp: hoeveel ruimte elke map inneemt",
+    "en": "Storage in the web app: how much space each folder takes"
+  },
+  "site.landing.shots.web_viewer_alt": {
+    "text": "Een foto in de webapp met “Meer info” geopend: camera, belichting en waar de foto is gemaakt, op een kaart",
+    "en": "A photo in the web app with More info open: camera, exposure and where it was taken, on a map"
   },
   "site.landing.started.eyebrow": {
     "text": "Aan de slag",
