@@ -23,8 +23,12 @@ def describe(name, day):
         "Lucía": f"Lucía, a {a}-year-old Spanish woman with shoulder-length wavy dark-brown hair, warm brown eyes and olive skin with light freckles",
         "Tom": f"Tom, a {a}-year-old Dutch man with short sandy-brown hair, a short trimmed beard and blue-grey eyes",
         "Nora": f"Nora, {an} {a}-year-old girl with long light-brown hair, hazel eyes and freckles",
-        "Leo": f"Leo, {an} {a}-year-old boy with curly dark-blond hair and big brown eyes" if a >= 3 else
-               f"Leo, a {a}-year-old toddler (nearly 3) with curly dark-blond hair and big brown eyes",
+        "Leo": f"Leo, {an} {a}-year-old boy with straight dark-brown hair in a short fringe, a broad round face, "
+               f"thick dark eyebrows, dark-brown eyes and small round glasses with thin dark-blue frames (he always "
+               f"wears them)" if a >= 3 else
+               f"Leo, a {a}-year-old toddler (nearly 3) with straight dark-brown hair in a short fringe, a broad round "
+               f"face, thick dark eyebrows, dark-brown eyes and small round glasses with thin dark-blue frames (he "
+               f"always wears them)",
         "Rosa": f"Grandma Rosa, a {a}-year-old Italian woman with a short silver-grey bob and round tortoiseshell glasses",
         "Jan": f"Grandpa Jan, a {a}-year-old tall Dutch man, bald on top with short white hair at the sides, bushy white eyebrows and blue eyes",
     }[name]
@@ -72,8 +76,8 @@ P = {
 # source: "phone" (Lucía's phone) or "camera:<Event folder>" (Tom's camera) or "reused:NN" (docs/promo sample).
 # dog=True passes Biscuit's reference photo too.
 S = []
-def shot(id, when, off, place, src, people, scene, desc, model="flash", aspect=None, dog=False, refs=None):
-    S.append(dict(id=id, when=when, off=off, place=place, src=src, people=people, scene=scene, desc=desc,
+def shot(id, when, off, place, src, people, scene, desc, model="flash", aspect=None, dog=False, refs=None, faces=True):
+    S.append(dict(id=id, when=when, off=off, place=place, src=src, people=people, scene=scene, desc=desc, faces=faces,
                   model=model, aspect=aspect or ("3:2" if src.startswith("camera") else "4:3"), dog=dog, refs=refs))
 
 # Reference portraits (Nano Banana Pro); they double as library photos.
@@ -95,10 +99,14 @@ PORTRAITS = {
         "light olive skin with freckles across her nose, a wide grin, wearing a mustard-yellow T-shirt. She stands in a "
         "green park in the afternoon shade, facing the camera straight on, head and shoulders. Soft natural light on her "
         "face, sharp focus on the eyes, background softly blurred.", desc="Nora in Wilhelminapark"),
-    "leo5": dict(when="2026-04-04 11:05:51", off="+02:00", place="home", refs=["lucia", "tom", "nora9"], scene=
-        "Reference photo 1 is Lucía, reference photo 2 is Tom and reference photo 3 is their daughter Nora. Make a "
-        "natural portrait photo of their son Leo, a 5-year-old boy who clearly resembles them and his sister: curly "
-        "dark-blond hair, big brown eyes, round cheeks and a cheeky smile, wearing a red-and-navy striped T-shirt. He "
+    # Leo's first portraits were made with Nora's as a reference "so they resemble each other", and
+    # SFace then scored the two children 0.5-0.65 - one person to the device. These use only the
+    # parents' descriptions (no reference photo) and give him features clearly unlike his sister's.
+    "leo5": dict(when="2026-04-04 11:05:51", off="+02:00", place="home", refs=[], scene=
+        "A natural portrait photo of Leo, a 5-year-old Spanish-Dutch boy: thick, straight dark-brown hair cut in a short fringe across his forehead, a broad, round face "
+        "with full cheeks, a wide button nose, deep-set dark-brown eyes under thick, straight dark eyebrows, small round "
+        "glasses with thin dark-blue frames, olive skin like his mother's and no freckles, and a calm, closed-mouth "
+        "smile, wearing a red-and-navy striped T-shirt. He "
         "stands in a back garden in soft morning light, facing the camera straight on, head and shoulders. Sharp focus "
         "on the eyes, background softly blurred.", desc="Leo in the garden, just turned five"),
     "rosa": dict(when="2026-07-19 15:30:12", off="+02:00", place="grandparents", refs=["tom"], scene=
@@ -121,10 +129,11 @@ PORTRAITS = {
         "straight on, head and shoulders, with a happy closed-mouth smile. Soft overcast light, sharp focus on the eyes.", desc="Nora under the blossom"),
     "leo3": dict(when="2024-03-23 11:48:09", off="+01:00", place="home", refs=["leo5"], scene=
         "Reference photo 1 is Leo at 5 years old. Make a natural portrait photo of the same boy at 3 years old: clearly "
-        "the same face and big brown eyes, but a rounder toddler face and shorter curly dark-blond hair, wearing a green "
-        "jumper with a little dinosaur on it. He sits on a garden lawn in soft spring light, facing the camera straight "
-        "on, head and shoulders, with a big toddler smile. Sharp focus on the eyes, background softly blurred.",
-        desc="Leo, just turned three"),
+        "the same face, deep-set dark-brown eyes, thick straight dark eyebrows, straight dark-brown hair with a fringe "
+        "and the same small round glasses with thin dark-blue frames, but a rounder toddler face and softer, shorter "
+        "hair, wearing a green jumper with a little dinosaur on it. He sits on "
+        "a garden lawn in soft spring light, facing the camera straight on, head and shoulders, with a big toddler smile. "
+        "Sharp focus on the eyes, background softly blurred.", desc="Leo, just turned three"),
 }
 PORTRAIT_PEOPLE = {"lucia": "Lucía", "tom": "Tom", "nora9": "Nora", "leo5": "Leo", "rosa": "Rosa", "jan": "Jan",
                    "nora7": "Nora", "leo3": "Leo"}
@@ -138,10 +147,13 @@ shot("biscuit", "2024-03-09 14:22:31", "+01:00", "home", "phone", [],
      "out, soft afternoon light.", "Biscuit on the lawn", dog=False)
 
 # -- 2024
-shot("s01", "2024-01-14 10:21:44", "+01:00", "home", "phone", ["Nora", "Leo"],
-     "Nora and her little brother Leo building a small snowman in a snowy back garden on a bright winter morning, both "
-     "in woolly hats and colourful snowsuits, kneeling beside the snowman and laughing towards the camera.",
-     "Our first snowman of the winter")
+# The first photo of the children in the timeline shows only Leo: with both of their faces in it, the
+# device's matching (which only knows a person once one of their faces is stored) put the second
+# child into the first one's person before either had one of their own, and they stayed merged.
+shot("s01", "2024-01-14 10:21:44", "+01:00", "home", "phone", ["Leo"],
+     "Leo, in a woolly hat and a colourful snowsuit, kneeling proudly beside the small snowman he has just built with "
+     "his sister in a snowy back garden on a bright winter morning, laughing towards the camera; he is the only "
+     "person in the photo.", "Leo's first snowman of the winter")
 shot("s02", "2024-02-11 15:40:12", "+01:00", "home", "phone", ["Leo"],
      f"Leo cuddled up on a grey living-room sofa with {BISCUIT}, whose head rests on Leo's lap; Leo grins at the camera, "
      "soft afternoon window light, a blanket and cushions.", "Leo and Biscuit on the sofa", dog=True)
@@ -162,7 +174,8 @@ shot("s06", "2024-04-20 09:15:22", "+02:00", "colosseum", "camera:Rome", [],
      "small in the distance. Travel landscape photo.", "The Colosseum in the morning")
 shot("s07", "2024-04-20 09:41:10", "+02:00", "colosseum", "camera:Rome", ["Lucía", "Tom", "Nora", "Leo"],
      "A family photo in front of the Colosseum in Rome: Tom with little Leo sitting on his shoulders, Lucía and Nora "
-     "standing next to them, all four smiling at the camera, medium shot from the waist up so their faces are large, "
+     "standing next to them - all four of them in the frame - smiling at the camera, medium shot from the waist up so "
+     "their faces are large, "
      "the Colosseum behind them in soft morning light.", "The four of us at the Colosseum")
 shot("s08", "2024-04-20 11:32:51", "+02:00", "forum", "camera:Rome", [],
      "The Roman Forum seen from above: ancient columns, arches and ruins among umbrella pines, bright spring sky, no "
@@ -376,7 +389,7 @@ shot("s76", "2026-02-18 13:20:57", "+01:00", "penken_hut", "camera:Zillertal", [
      "Lunch at the mountain hut")
 shot("s77", "2026-02-19 16:30:12", "+01:00", "mayrhofen", "phone", ["Tom", "Leo"],
      "A snowball fight in an alpine village street: Leo throwing a snowball at Tom, who ducks and laughs; both faces "
-     "visible, snowy chalets behind, late-afternoon light.", "Snowball fight")
+     "visible, both in plain winter jackets with no logos or writing, snowy chalets behind, late-afternoon light.", "Snowball fight")
 shot("s78", "2026-02-19 17:45:49", "+01:00", "mayrhofen", "camera:Zillertal", [],
      "An Austrian alpine village at dusk: snowy rooftops, a church spire and warm lit windows under a deep blue sky, "
      "mountains behind. Landscape photo, no people.", "Mayrhofen at dusk")
@@ -437,43 +450,83 @@ shot("s96", "2026-10-11 11:40:03", "+02:00", "amelisweerd", "phone", [],
      "An autumn beech forest with sunbeams falling through orange and golden leaves onto a path covered in leaves. "
      "Landscape photo, no people.", "Autumn light in Amelisweerd", aspect="3:4")
 
-# The 20 sample photos of docs/promo/source/library, given a place in the family's story.
-REUSED = [
-    # nn, when, off, place, src, people (family), unnamed faces, description
-    ("01", "2024-10-19 15:30:12", "+02:00", "amelisweerd", "phone", ["Nora", "Leo"], 0, "Nora and Leo racing down the leafy path (from behind)"),
-    ("02", "2024-11-03 15:02:47", "+01:00", "home", "phone", [], 0, "Biscuit leaping through the leaf pile"),
-    ("03", "2024-10-31 19:20:33", "+01:00", "home", "phone", [], 2, "Pumpkin carving with the neighbours' kids"),
-    ("04", "2024-07-21 06:12:05", "+02:00", "braies", "camera:Dolomites", [], 0, "Misty sunrise at Lago di Braies"),
-    ("05", "2024-01-27 16:05:38", "+01:00", "home", "phone", [], 0, "Hot chocolate on a rainy afternoon"),
-    ("06", "2024-10-12 11:05:19", "+02:00", None, "phone", [], 1, "Puddle jumping on the way home (a friend's daughter)"),
-    ("07", "2025-09-01 08:25:44", "+02:00", None, "phone", ["Nora", "Leo"], 0, "Walking through the school gate together (from behind)"),
-    ("08", "2025-05-03 18:40:16", "+02:00", None, "phone", [], 2, "Planting tomatoes at the allotment with our neighbours"),
-    ("09", "2024-11-10 16:45:02", "+01:00", "grandparents", "phone", [], 0, "Grandma Rosa's apple pie, fresh from the oven"),
-    ("10", "2025-07-12 18:20:41", "+02:00", "bunnik", "phone", ["Lucía", "Tom", "Nora", "Leo"], 0, "Cycling past the sunflower fields (from behind)"),
-    ("11", "2025-08-11 20:35:27", "+01:00", "meia_praia", "camera:Algarve", ["Lucía", "Tom", "Leo"], 0, "Sunset swing at Meia Praia (silhouettes)"),
-    ("12", "2024-08-10 14:20:55", "+02:00", "zandvoort", "phone", [], 2, "Cousins Mateo and Sofía building a sandcastle"),
-    ("13", "2025-08-13 15:20:08", "+01:00", "carvoeiro", "camera:Algarve", [], 0, "A sailboat off the cliffs near Carvoeiro"),
-    ("14", "2024-07-23 11:50:39", "+02:00", "tre_cime", "camera:Dolomites", ["Lucía", "Tom", "Nora", "Leo"], 0, "Hiking above the lake (tiny figures)"),
-    ("15", "2024-07-25 23:40:17", "+02:00", "cortina_camp", "camera:Dolomites", [], 0, "Our tent under the Milky Way"),
-    ("16", "2024-06-15 16:40:26", "+02:00", None, "phone", [], 2, "Cousins Mateo and Sofía with ice creams"),
-    ("17", "2025-08-09 20:25:31", "+01:00", "cabo_da_roca", "camera:Algarve", [], 0, "Cabo da Roca lighthouse at golden hour, on the way south"),
-    ("18", "2025-08-12 08:10:49", "+01:00", "meia_praia", "phone", [], 0, "A friendly collie on the beach in the morning"),
-    ("19", "2025-06-07 17:30:12", "+02:00", None, "phone", [], 5, "Cousin Mateo's 7th birthday"),
-    ("20", "2025-11-15 11:30:04", "+01:00", None, "phone", [], 0, "Holding baby Emma's hand, the neighbours' newborn"),
-]
+# The library first reused the 20 sample photos of docs/promo/source/library (720 px, with
+# strangers' faces that became stray people). These are fresh photos of the same subjects, as the
+# family's own: the same dates and places, the people from the family or seen from behind.
+BEHIND = ("seen from behind, so no faces are visible")
+shot("r01", "2024-10-19 15:30:12", "+02:00", "amelisweerd", "phone", ["Nora", "Leo"],
+     "Two children, a 7-year-old girl with long light-brown hair in a yellow raincoat and a 3-year-old boy with "
+     f"straight dark-brown hair in a red raincoat, running hand in hand down a forest path covered in orange autumn "
+     f"leaves, {BEHIND}, warm low afternoon sun through the beech trees.",
+     "Nora and Leo racing down the leafy path", refs=[], faces=False)
+shot("r02", "2024-11-03 15:02:47", "+01:00", "home", "phone", [],
+     f"{BISCUIT[0].upper() + BISCUIT[1:]}, leaping through a pile of autumn leaves in a back garden, leaves flying in the "
+     "air, late afternoon light. Pet photo, no people.", "Biscuit leaping through the leaf pile", dog=True)
+shot("r03", "2024-10-31 19:20:33", "+01:00", "home", "phone", ["Nora", "Leo"],
+     "Halloween evening: Nora and Leo carving a big orange pumpkin at the kitchen table, scooping out the seeds with "
+     "spoons, a finished jack-o'-lantern glowing with a candle beside them; both look up at the camera and laugh, warm "
+     "light.", "Pumpkin carving for Halloween")
+shot("r04", "2024-07-21 06:12:05", "+02:00", "braies", "camera:Dolomites", [],
+     "Misty sunrise over Lago di Braies in the Dolomites: a calm lake with a wooden boathouse and its dock, pine "
+     "forest and steep mountains, soft fog on the water, pastel sky. Landscape photo, no people.",
+     "Misty sunrise at Lago di Braies", aspect="2:3")
+shot("r05", "2024-01-27 16:05:38", "+01:00", "home", "phone", [],
+     "Two mugs of hot chocolate with marshmallows on a wooden table by a window, raindrops on the glass, a blanket on "
+     "the chair, cosy afternoon light. No people.", "Hot chocolate on a rainy afternoon")
+shot("r06", "2024-10-12 11:05:19", "+02:00", None, "phone", ["Nora"],
+     "Nora in yellow rain boots and a red coat jumping into a puddle on a quiet street of brick houses, the splash "
+     "frozen mid-air, her face visible and laughing, overcast autumn day.", "Puddle jumping on the way home")
+shot("r07", "2025-09-01 08:25:44", "+02:00", None, "phone", ["Nora", "Leo"],
+     "First day of school: an 8-year-old girl with long light-brown hair and a 4-year-old boy with straight "
+     "dark-brown hair, both with new backpacks, walking hand in hand towards the open gate of a red-brick primary "
+     f"school, {BEHIND}, bright morning sun; a few other children far away, also from behind.",
+     "Walking through the school gate together", refs=[], faces=False)
+shot("r08", "2025-05-03 18:40:16", "+02:00", None, "phone", ["Jan", "Nora"],
+     "Grandpa Jan and Nora planting tomato seedlings together in an allotment vegetable garden, kneeling by the soil, "
+     "both smiling at the camera, golden evening light.", "Planting tomatoes at the allotment with Grandpa Jan")
+shot("r09", "2024-11-10 16:45:02", "+01:00", "grandparents", "phone", [],
+     "A homemade apple pie with a lattice crust cooling on a rack on a kitchen counter, a few apples beside it, soft "
+     "window light. Food photo, no people.", "Grandma Rosa's apple pie, fresh from the oven")
+shot("r10", "2025-07-12 18:20:41", "+02:00", "bunnik", "phone", ["Lucía", "Tom", "Nora", "Leo"],
+     "A family of four riding bicycles on a quiet Dutch country road between sunflower fields: a dark-haired mother, "
+     "a sandy-haired father, a girl with a long light-brown braid and a small boy with dark hair on a child's bike, "
+     f"a wide shot from a little behind, {BEHIND}, warm summer evening light.",
+     "Cycling past the sunflower fields", refs=[], faces=False)
+shot("r11", "2025-08-11 20:35:27", "+01:00", "meia_praia", "camera:Algarve", ["Lucía", "Tom", "Leo"],
+     "Beach at sunset in the Algarve: dark silhouettes of a mother and father swinging their small son between them "
+     "at the water's edge, the orange sky reflected on the wet sand, no faces visible.",
+     "Sunset swing at Meia Praia", refs=[], faces=False)
+shot("r12", "2024-08-10 14:20:55", "+02:00", "zandvoort", "phone", ["Nora", "Leo"],
+     "Nora and Leo building a sandcastle with buckets and spades on a sunny Dutch beach, close-up, both faces visible "
+     "and smiling at the camera, the sea and dunes in the background.", "Building a sandcastle at Zandvoort")
+shot("r13", "2025-08-13 15:20:08", "+01:00", "carvoeiro", "camera:Algarve", [],
+     "A small white sailboat on turquoise water below golden limestone cliffs in the Algarve, seen from the cliff "
+     "top, bright summer day. Landscape photo, no people.", "A sailboat off the cliffs near Carvoeiro")
+shot("r14", "2024-07-23 11:50:39", "+02:00", "tre_cime", "camera:Dolomites", ["Lucía", "Tom", "Nora", "Leo"],
+     "A family of four hiking on a mountain trail high above an alpine lake in the Dolomites, dramatic peaks and "
+     "clouds, the family as small figures in the landscape seen from behind.",
+     "Hiking above the lake", refs=[], faces=False, aspect="2:3")
+shot("r15", "2024-07-25 23:40:17", "+02:00", "cortina_camp", "camera:Dolomites", [],
+     "A small tent glowing warmly at night on a mountain meadow in the Dolomites under the Milky Way, long exposure, "
+     "starry sky, jagged peaks in silhouette. Landscape photo, no people.", "Our tent under the Milky Way")
+shot("r16", "2024-06-15 16:40:26", "+02:00", None, "phone", ["Nora", "Leo"],
+     "Nora and Leo laughing with dripping ice-cream cones on a sunny old-town street in summer, both faces visible "
+     "and turned to the camera, café terraces softly blurred behind.", "Ice creams in the old town")
+shot("r17", "2025-08-09 20:25:31", "+01:00", "cabo_da_roca", "camera:Algarve", [],
+     "The lighthouse at Cabo da Roca in Portugal at golden hour: a white tower with a red top on the green cliffs above "
+     "the Atlantic, waves breaking on the rocks below. Landscape photo, no people.",
+     "Cabo da Roca lighthouse at golden hour, on the way south")
+shot("r18", "2025-08-12 08:10:49", "+01:00", "meia_praia", "phone", [],
+     "A black-and-white border collie running along the shoreline of a long sandy beach with a ball in its mouth, "
+     "water splashing, early morning light. Pet photo, no people.", "A friendly collie on the beach in the morning")
+shot("r19", "2025-12-05 17:30:12", "+01:00", "home", "phone", ["Nora", "Lucía", "Tom", "Leo"],
+     "Nora's 9th birthday: Nora blowing out nine candles on a homemade chocolate cake at the dining table, Lucía, Tom "
+     "and Leo around her cheering and clapping, warm evening light; all four faces visible.", "Nora turns nine")
+shot("r20", "2025-11-15 11:30:04", "+01:00", None, "phone", [],
+     "A newborn baby's tiny hand holding an adult's finger, very soft window light, shallow depth of field; no faces "
+     "in the frame.", "Holding baby Emma's hand, the neighbours' newborn")
+REUSED = []
 
-# Pictures that aren't photos: Nora's drawing (scanned into a PDF by docs.py) and the profile's avatar.
-EXTRAS = {
-    "x_drawing": ("3:4", "A child's crayon and felt-tip drawing on a sheet of white paper, drawn by an 8-year-old girl: a mum "
-        "with long dark curly hair, a dad with a short beard, a girl with a long brown braid, a little boy with curly "
-        "yellow hair and a big golden dog, all standing in a row and smiling in front of a house with a red roof, a big "
-        "yellow sun with rays, two clouds and green grass with flowers. Naive, wobbly lines, uneven colouring with crayon "
-        "texture, white paper showing through. The whole sheet seen flat from above as if scanned, filling the frame. "
-        "No letters, words, names or numbers anywhere. Not a photo, not a collage."),
-    "x_avatar": ("1:1", "A friendly flat illustration of a golden retriever's head and shoulders, smiling with its tongue "
-        "out, simple shapes and soft shading in warm golden tones, a red collar, centred on a plain soft teal background, "
-        "like a profile picture. No text, no letters, no border, no watermark."),
-}
 
 def compose(s):
     """The full prompt text for a planned shot, and the reference keys passed with it (in order)."""
@@ -500,7 +553,7 @@ def compose(s):
                      "Do not copy the reference photos' backgrounds, clothes or framing." +
                      (f" In this photo: {people}." if people else ""))
     parts.append(s["scene"])
-    if s["people"]:
+    if s["people"] and s["faces"]:
         parts.append(FACES)
     parts.append(style)
     return "\n\n".join(parts), refs
@@ -520,8 +573,6 @@ def plan():
                         size="2K" if s["model"] == "pro" else "-", refs=refs, prompt=text, when=s["when"], off=s["off"],
                         place=s["place"], src=s["src"], people=s["people"], desc=s["desc"],
                         ref_key="biscuit" if s["id"] == "biscuit" else None))
-    for id, (aspect, text) in EXTRAS.items():
-        out.append(dict(id=id, kind="extra", model="flash", aspect=aspect, size="-", refs=[], prompt=text, place=None))
     for nn, when, off, place, src, people, unnamed, desc in REUSED:
         out.append(dict(id="r" + nn, kind="reused", source=f"docs/promo/source/library/{nn}.jpg", when=when, off=off,
                         place=place, src=src, people=people, unnamed_faces=unnamed, desc=desc))

@@ -4,7 +4,7 @@
 # Puts the demo library together from the generated stills (generate.py), the 20 docs/promo
 # samples and the example files (docs.py):
 #   swiftc -O finish.swift -o /tmp/finish
-#   python3 build.py OUT /tmp/finish
+#   python3 build.py OUT /tmp/finish [--only id,id,...]   (--only: finish just those photos again)
 # - fixes the few stills that need it (text on a doormat and on life vests, a book's title);
 # - finishes every photo as a camera JPEG (finish.swift: 2400 px long side, EXIF date, offset,
 #   GPS, orientation 1, no make/model) under library/Photos/..., file times = the photo's date;
@@ -22,25 +22,32 @@ items = plan["items"]
 ledger = [l.rstrip("\n").split("\t") for l in open(os.path.join(WORK, "ledger.tsv")) if l.strip()]
 chosen = json.load(open(os.path.join(WORK, "chosen.json"))) if os.path.exists(os.path.join(WORK, "chosen.json")) else {}
 
-# Left out: s33's girl came out looking about four and matched Leo's face better than Nora's.
-DROPPED = {"s33": "Nora looked much younger than 8 and her face matched Leo's reference better than her own"}
+args = sys.argv[3:]
+ONLY = set(args[args.index("--only") + 1].split(",")) if "--only" in args else None
+
+# Everything below is tied to one generated version (the raw file's name): a new version of the
+# shot needs looking at again.
+# Not used: a version that came out wrong and has no newer one.
+DROPPED = {"s33": ("s33-v1-1.png", "Nora looked much younger than 8 and her face matched Leo's reference better than her own")}
 # Who is really in the picture when the model left someone out.
-PEOPLE_FIX = {"s28": ["Lucía", "Nora", "Leo", "Jan"], "s93": ["Tom", "Nora", "Leo"], "s88": ["Rosa", "Jan"]}
-DESC_FIX = {"s28": "Christmas Eve dinner at Rosa and Jan's (Rosa behind the camera)",
-            "s93": "Throwing leaves in Amelisweerd (Lucía behind the camera)"}
+PEOPLE_FIX = {"s28": ("s28-v1-1.png", ["Lucía", "Nora", "Leo", "Jan"]), "s93": ("s93-v1-1.png", ["Tom", "Nora", "Leo"]),
+              "s88": ("s88-v1-1.png", ["Rosa", "Jan"]), "r16": ("r16-v1-1.png", ["Nora"])}
+DESC_FIX = {"s28": ("s28-v1-1.png", "Christmas Eve dinner at Rosa and Jan's (Rosa behind the camera)"),
+            "s93": ("s93-v1-1.png", "Throwing leaves in Amelisweerd (Lucía behind the camera)"),
+            "r16": ("r16-v1-1.png", "Nora's ice cream in the old town")}
 # Local fixes of text the model drew (ffmpeg filter graphs on the raw still).
 FIXES = {
     # "HOME" on the doormat behind the children's feet: the mat's own rows from just above,
     # copied over the letters in the gaps between their legs.
-    "s58": "[0]split=5[m][s1][s2][s3][s4];[s1]crop=25:30:277:931[p1];[s2]crop=121:30:346:931[p2];"
+    "s58": ("s58-v1-1.png", "[0]split=5[m][s1][s2][s3][s4];[s1]crop=25:30:277:931[p1];[s2]crop=121:30:346:931[p2];"
            "[s3]crop=18:30:515:931[p3];[s4]crop=60:30:581:931[p4];[m][p1]overlay=277:960[o1];"
-           "[o1][p2]overlay=346:960[o2];[o2][p3]overlay=515:960[o3];[o3][p4]overlay=581:960",
+           "[o1][p2]overlay=346:960[o2];[o2][p3]overlay=515:960[o3];[o3][p4]overlay=581:960"),
     # A made-up brand name printed on both life vests.
-    "s51": "delogo=x=322:y=721:w=97:h=38",
+    "s51": ("s51-v1-1.png", "delogo=x=322:y=721:w=97:h=38"),
     # The open picture book's title: the book, close to the lens, out of focus like a real one.
-    "s63": "[0]format=rgba,split[a][b];[b]gblur=sigma=6[bl];color=black:s=1184x864:d=1,format=gray,"
+    "s63": ("s63-v1-1.png", "[0]format=rgba,split[a][b];[b]gblur=sigma=6[bl];color=black:s=1184x864:d=1,format=gray,"
            "geq=lum='255*clip((1-((X-370)*(X-370)/(300*300)+(Y-610)*(Y-610)/(190*190)))*2.5,0,1)'[m];"
-           "[bl][m]alphamerge[blm];[a][blm]overlay=format=auto,format=rgb24",
+           "[bl][m]alphamerge[blm];[a][blm]overlay=format=auto,format=rgb24"),
 }
 # Nora's vest's letters are dark on orange: each dark pixel (and its neighbours) takes the colour
 # 40 rows below, which is plain vest.
@@ -50,7 +57,12 @@ def _dark_to(box, dy, t):
     near = "+".join(f"lt({lum(f'X+{a}', f'Y+{b}')},{t})" for a in (-2, 0, 2) for b in (-2, 0, 2))
     return "format=rgb24,geq=" + ":".join(
         f"{c}='if(between(X,{x0},{x1})*between(Y,{y0},{y1})*gt({near},0),{c}(X,Y+{dy}),{c}(X,Y))'" for c in "rgb")
-FIXES["s51"] += "," + _dark_to((1022, 1112, 716, 760), 40, 115)
+FIXES["s51"] = (FIXES["s51"][0], FIXES["s51"][1] + "," + _dark_to((1022, 1112, 716, 760), 40, 115))
+
+def for_version(table, id, raw):
+    """The entry of a version-tied table for this raw still, or None."""
+    e = table.get(id)
+    return e[1] if e and raw and os.path.basename(raw) == e[0] else None
 
 def raw_of(id):
     if id in chosen:
@@ -107,8 +119,8 @@ rnd = random.Random(7)
 used = set()
 for o in photos:
     id = o["id"]
-    if id in DROPPED:
-        skipped.append(dict(id=id, why=DROPPED[id])); continue
+    if o["kind"] != "reused" and for_version(DROPPED, id, raw_of(id)):
+        skipped.append(dict(id=id, why=for_version(DROPPED, id, raw_of(id)))); continue
     if o["kind"] == "reused":
         src = os.path.join(REPO, o["source"])
         made = "docs/promo sample " + os.path.basename(o["source"])
@@ -117,12 +129,13 @@ for o in photos:
         if not src:
             skipped.append(dict(id=id, why="not generated (the Gemini API's prepaid credit ran out)")); continue
         made = model_of(src)
-        if id in FIXES:
+        graph = for_version(FIXES, id, src)
+        if graph and (ONLY is None or id in ONLY):
             fixed = os.path.join(fixed_dir, id + ".png")
-            graph = FIXES[id]
             flag = "-filter_complex" if "[" in graph else "-vf"
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, flag, graph, "-frames:v", "1", fixed], check=True)
-            src = fixed
+        if graph:
+            src = os.path.join(fixed_dir, id + ".png")
     t = local(o["when"], o["off"])
     yyyy, mm = t.strftime("%Y"), t.strftime("%m")
     if o["src"].startswith("camera:"):
@@ -136,17 +149,19 @@ for o in photos:
     assert rel not in used, rel
     used.add(rel)
     gps = jitter(id, o.get("gps"), o.get("place"))
-    jobs.append("\t".join([src, os.path.join(OUT, rel), "2400", t.strftime("%Y:%m:%d %H:%M:%S"), o["off"]] +
-                          ([f"{gps[0]:.6f}", f"{gps[1]:.6f}"] if gps else [])))
-    people = PEOPLE_FIX.get(id, o["people"])
+    if ONLY is None or id in ONLY:
+        jobs.append("\t".join([src, os.path.join(OUT, rel), "2400", t.strftime("%Y:%m:%d %H:%M:%S"), o["off"]] +
+                              ([f"{gps[0]:.6f}", f"{gps[1]:.6f}"] if gps else [])))
+    people = for_version(PEOPLE_FIX, id, src if o["kind"] == "reused" else raw_of(id)) or o["people"]
     entry = dict(path=rel, type="photo", date=t.isoformat(), gps=dict(lat=gps[0], lon=gps[1]) if gps else None,
-                 people=[plan["people"][p] for p in people], description=DESC_FIX.get(id, o["desc"]),
+                 people=[plan["people"][p] for p in people],
+                 description=for_version(DESC_FIX, id, raw_of(id)) or o["desc"],
                  event=event_of(o), id=id, made_with=made)
     if o["kind"] == "reused" and o.get("unnamed_faces"):
         entry["unnamed_faces"] = o["unnamed_faces"]
     if o["kind"] != "reused":
         entry["prompt"] = f"prompts/{id}.txt"
-        if id in FIXES:
+        if graph:
             entry["retouched"] = True
     if o["kind"] == "portrait":
         entry["reference_portrait"] = o["ref_key"]
@@ -168,14 +183,15 @@ for j in jobs:  # the folders exist (composed names) before finish.swift writes 
     os.makedirs(os.path.dirname(j.split("\t")[1]), exist_ok=True)
 jobfile = os.path.join(WORK, "finish-jobs.tsv")
 open(jobfile, "w").write("\n".join(jobs) + "\n")
-r = subprocess.run([FINISH, jobfile], capture_output=True, text=True)
-if r.returncode:
+r = subprocess.run([FINISH, jobfile], capture_output=True, text=True) if jobs else None
+if r and r.returncode:
     print(r.stdout[-2000:], r.stderr[-2000:]); sys.exit(1)
 nfc_tree(os.path.join(OUT, "library"))
 for e in manifest:
     ts = dt.datetime.fromisoformat(e["date"]).timestamp()
     os.utime(os.path.join(OUT, e["path"]), (ts, ts))
-print(len(manifest), "photos;", "left out:", ", ".join(s["id"] for s in skipped))
+print(len(manifest), "photos (" + (f"{len(jobs)} finished" if ONLY is not None else "all finished") + ");",
+      "left out:", ", ".join(s["id"] for s in skipped) or "none")
 by_id = {e["id"]: e for e in manifest}
 
 # ------------------------------------------------------------------ videos
@@ -211,6 +227,14 @@ for v in VIDEOS:
                      id=v["id"], duration_s=round(dur, 1), made_from=[by_id[s]["path"] for s in v["stills"]]))
     print("  ", rel, round(dur, 1), "s")
 
+# Photos and videos from an earlier build that aren't in this one (a shot moved to another date).
+import unicodedata
+keep = {unicodedata.normalize("NFC", e["path"]) for e in manifest + vids}
+for p in glob.glob(os.path.join(OUT, "library", "Photos", "**", "*.*"), recursive=True):
+    rel = unicodedata.normalize("NFC", os.path.relpath(p, OUT))
+    if rel not in keep and rel.lower().endswith((".jpg", ".mp4")):
+        os.remove(p); print("   removed stale", rel)
+
 # ------------------------------------------------------------------ files
 docs = json.load(open(os.path.join(WORK, "docs.json")))
 files = []
@@ -236,10 +260,10 @@ people = [dict(name=plan["people"][k], role=role, reference_portraits=[refs[r] f
                               ("Leo", "son, born 14 March 2021", ["leo3", "leo5"]),
                               ("Rosa", "Tom's mother, born 1958", ["rosa"]), ("Jan", "Tom's father, born 1956", ["jan"])]]
 json.dump(dict(people=people,
-               not_named=["The faces in the reused docs/promo samples (cousins Mateo and Sofía, neighbours, a friend's "
-                          "daughter, guests at cousin Mateo's party) are not family: leave their clusters unnamed.",
-                          "Biscuit, the golden retriever, isn't a person; the detector may still pick up his face in a few "
-                          "close-ups - leave that cluster unnamed."]),
+               not_named=["Biscuit, the golden retriever, isn't a person; the face detector still picks up his face in "
+                          "the close-ups, which makes an unnamed 'person' of him - leave it unnamed (or delete it).",
+                          "A few blurred background faces (an audience, a dinner table) may make one-face people: leave "
+                          "them unnamed."]),
           open(os.path.join(OUT, "people.json"), "w"), ensure_ascii=False, indent=1)
 
 # ------------------------------------------------------------------ collections

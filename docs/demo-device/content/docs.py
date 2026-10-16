@@ -725,6 +725,10 @@ def figure(cx, top, h, skin, hair, body, kind, seed):
     if kind == "dad":
         g.append(f"<path d='M{cx - hr * .8},{hy + hr * .35} q{hr * .8},{hr * 1.2} {hr * 1.6},0' stroke='{hair}' stroke-width='9' fill='none' stroke-linecap='round'/>")
     g.append(f"<circle cx='{cx - hr * .38}' cy='{hy - hr * .15}' r='5' fill='#222'/><circle cx='{cx + hr * .38}' cy='{hy - hr * .15}' r='5' fill='#222'/>")
+    if kind == "leo":  # his round glasses
+        g.append(f"<circle cx='{cx - hr * .38}' cy='{hy - hr * .15}' r='{hr * .3}' fill='none' stroke='#2b4a8a' stroke-width='5'/>"
+                 f"<circle cx='{cx + hr * .38}' cy='{hy - hr * .15}' r='{hr * .3}' fill='none' stroke='#2b4a8a' stroke-width='5'/>"
+                 f"<line x1='{cx - hr * .08}' y1='{hy - hr * .15}' x2='{cx + hr * .08}' y2='{hy - hr * .15}' stroke='#2b4a8a' stroke-width='4'/>")
     g.append(f"<path d='M{cx - hr * .45},{hy + hr * .3} q{hr * .45},{hr * .45} {hr * .9},0' stroke='#c0392b' stroke-width='4' fill='none' stroke-linecap='round'/>")
     g.append("</g>")
     return "".join(g)
@@ -770,7 +774,7 @@ for i, (fx, col) in enumerate(((90, '#e84a8a'), (560, '#8e5ad6'), (1090, '#e84a8
 parts.append(figure(330, 470, 560, '#f3c7a8', '#3b2618', '#e85d8a', "mum", 11))
 parts.append(figure(560, 440, 590, '#f6d0b5', '#9a6a3a', '#3b7dd8', "dad", 12))
 parts.append(figure(780, 590, 430, '#f3c7a8', '#8a5a2b', '#f5c518', "girl", 13))
-parts.append(figure(960, 680, 340, '#f6d0b5', '#e8c020', '#e8452c', "boy", 14))
+parts.append(figure(960, 680, 340, '#f1c9a5', '#3b2618', '#e8452c', "leo", 14))
 parts.append("<g filter='url(#wob)'><clipPath id='dog'><ellipse cx='1140' cy='930' rx='105' ry='60'/></clipPath>"
              f"<g clip-path='url(#dog)'>{scribble(1030, 860, 1250, 1000, 11, '#e0a33a', 9, 0.4, 6)}</g>"
              "<ellipse cx='1140' cy='930' rx='105' ry='60' fill='none' stroke='#b8791c' stroke-width='7'/>"
