@@ -59,6 +59,10 @@ struct SelectionActionBar: View {
     /// out now). Once the long-press menu's; Android's bar has it too.
     var onOutOfImages: (() -> Void)? = nil
     var keptOutOfImages = false
+    /// The demo device (DemoDevice.swift): every action here would change
+    /// something on it or make a link there (Share and Download too), so
+    /// only the count and its x show.
+    @Environment(\.demoDevice) private var demo
 
     /// The labels' sizes where a word doesn't fit at the usual one (six
     /// items, Files with one folder picked: "In „Bilder“ ausblenden",
@@ -106,40 +110,46 @@ struct SelectionActionBar: View {
                 }
             }
 
-            EqualShares {
-                if let onUpload {
-                    item(S.commonUpload, symbol: "square.and.arrow.down.on.square", action: onUpload)
-                }
-                item(S.commonShare, symbol: "square.and.arrow.up", busy: busy == .share, action: onShare)
-                    .disabled(count == 0)
-                if let onGallery {
-                    item(S.appShellShareAsGallery, symbol: "photo.on.rectangle.angled", action: onGallery)
-                        .disabled(count == 0)
-                }
-                if let onOutOfImages {
-                    item(keptOutOfImages ? S.appShellShowInImages : S.appShellKeepOutOfImages,
-                         symbol: keptOutOfImages ? "eye" : "eye.slash",
-                         busy: busy == .outOfImages, action: onOutOfImages)
-                        .disabled(count == 0)
-                }
-                item(S.commonDownload, symbol: "arrow.down.circle", busy: busy == .download, action: onDownload)
-                    .disabled(count == 0)
-                if let onGroup {
-                    // The web's own drawing: a collection with a plus.
-                    item(S.appShellAddToCollection, symbol: "", icon: .addToCollection, action: onGroup)
-                        .disabled(count == 0)
-                }
-                item(S.commonDelete, symbol: "trash", tint: .red, action: onDelete)
-                    .disabled(count == 0)
+            if !demo {
+                actions
             }
-            .padding(.vertical, 10)
-            .padding(.horizontal, crowded ? 4 : 8)
-            .modifier(CapsuleBarBackground())
         }
         .padding(.horizontal, crowded ? 8 : 24)
         .disabled(busy != nil)
         .animation(.easeInOut(duration: 0.15), value: busy)
         .animation(.easeInOut(duration: 0.15), value: count > 0)
+    }
+
+    private var actions: some View {
+        EqualShares {
+            if let onUpload {
+                item(S.commonUpload, symbol: "square.and.arrow.down.on.square", action: onUpload)
+            }
+            item(S.commonShare, symbol: "square.and.arrow.up", busy: busy == .share, action: onShare)
+                .disabled(count == 0)
+            if let onGallery {
+                item(S.appShellShareAsGallery, symbol: "photo.on.rectangle.angled", action: onGallery)
+                    .disabled(count == 0)
+            }
+            if let onOutOfImages {
+                item(keptOutOfImages ? S.appShellShowInImages : S.appShellKeepOutOfImages,
+                     symbol: keptOutOfImages ? "eye" : "eye.slash",
+                     busy: busy == .outOfImages, action: onOutOfImages)
+                    .disabled(count == 0)
+            }
+            item(S.commonDownload, symbol: "arrow.down.circle", busy: busy == .download, action: onDownload)
+                .disabled(count == 0)
+            if let onGroup {
+                // The web's own drawing: a collection with a plus.
+                item(S.appShellAddToCollection, symbol: "", icon: .addToCollection, action: onGroup)
+                    .disabled(count == 0)
+            }
+            item(S.commonDelete, symbol: "trash", tint: .red, action: onDelete)
+                .disabled(count == 0)
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, crowded ? 4 : 8)
+        .modifier(CapsuleBarBackground())
     }
 
     /// Between the pill's edge and the x.

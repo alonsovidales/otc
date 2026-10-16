@@ -55,6 +55,8 @@ final class UpdateAlertModel: ObservableObject {
         // The language chosen in another app reaches this one through the
         // same poll - also right after coming back to the front.
         LanguageSettings.shared.deviceSaid(status: s)
+        // And whether this is the demo device (DemoDevice.swift).
+        ws.deviceSaid(status: s)
     }
 }
 

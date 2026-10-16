@@ -1061,6 +1061,8 @@ struct CollectionsPage: View {
     @State private var failed = false
     @State private var slow = false
     @State private var shareSource: Msg_SharedGallerySource?
+    /// The demo device (DemoDevice.swift): nothing is shared from it.
+    @Environment(\.demoDevice) private var demo
 
     private static let cols = [GridItem(.adaptive(minimum: 180), spacing: 16, alignment: .top)]
 
@@ -1167,10 +1169,12 @@ struct CollectionsPage: View {
         .accessibilityLabel(S.appShellCollectionCard(name: Self.name(g), count: Int(g.fileCount)))
         // Issue #180: long-press a collection to share it.
         .contextMenu {
-            Button {
-                shareSource = .group(g.id)
-            } label: {
-                Label(S.appShellShareAsGalleryMenu, systemImage: "photo.on.rectangle.angled")
+            if !demo {
+                Button {
+                    shareSource = .group(g.id)
+                } label: {
+                    Label(S.appShellShareAsGalleryMenu, systemImage: "photo.on.rectangle.angled")
+                }
             }
         }
     }

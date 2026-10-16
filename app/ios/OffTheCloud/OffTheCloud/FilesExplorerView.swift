@@ -992,6 +992,11 @@ final class FilesExplorerViewModel: ObservableObject {
                                            hash: row.map { $0.isDir ? "" : $0.raw.hash } ?? "",
                                            copies: nil, everyCopy: false)
             guard let resp = try? await request(.reqDelFile(req)) else { continue }
+            // The demo device refuses every delete: its words, once.
+            if let words = ErrorCodes.demoRefusal(resp) {
+                showToast { words }
+                break
+            }
             if resp.error && resp.errorCode == "upload_only" {
                 let name = leafName(req.path)
                 showToast { S.appFilesDeleteRefused(name: name) }
@@ -1248,6 +1253,9 @@ struct FilesExplorerView: View {
     // the window's, handed in, for its words to cross to the top bar and
     // back as the window turns (FilesSearchHandOff).
     @Environment(\.wideLayout) private var wide
+    /// The demo device (DemoDevice.swift): no upload, delete, share or
+    /// folder switches - the locks and marks only say what they are.
+    @Environment(\.demoDevice) private var demo
     @StateObject private var fileSearch: TopSearchModel
     @FocusState private var searchFocused: Bool
     /// The field's foot, where its panel starts, and whether the keyboard
@@ -1420,7 +1428,16 @@ struct FilesExplorerView: View {
                                             .buttonStyle(.plain)
                                             .accessibilityLabel(OutOfImagesText.state)
                                         }
-                                        if row.path != ".." && row.isDir {
+                                        if row.path != ".." && row.isDir && demo {
+                                            // The demo device: the lock only
+                                            // says the folder is upload only.
+                                            if row.uploadOnly {
+                                                Image(systemName: "lock.fill")
+                                                    .foregroundColor(.accentColor)
+                                                    .frame(width: 28, height: 28)
+                                                    .accessibilityLabel(S.appFilesUploadOnly)
+                                            }
+                                        } else if row.path != ".." && row.isDir {
                                             Button {
                                                 lockPrompt = row
                                             } label: {
@@ -1462,30 +1479,33 @@ struct FilesExplorerView: View {
                         // folder being browsed, not on a selection, so it needs
                         // somewhere to live when nothing is selected - and this is
                         // where the rest of the actions are. Share/Download/Delete
-                        // grey out until something is ticked.
-                        SelectionActionBar(
-                            count: vm.selected.count,
-                            busy: vm.preparing ?? (vm.outOfImagesIdle ? nil : .outOfImages),
-                            onShare: { Task { await vm.shareSelected() } },
-                            onDownload: { Task { await vm.downloadSelected() } },
-                            onDelete: {
-                                if vm.selectionUploadOnly {
-                                    vm.showToast { S.appFilesSelectionUploadOnly }
-                                } else {
-                                    vm.confirmDeleteSelected = true
-                                }
-                            },
-                            onClear: vm.clearSelection,
-                            // Issue #200: one folder picked - its photos and
-                            // videos as a gallery (issue #180), and keeping it
-                            // out of Images or showing it there again (issue
-                            // #192), once the long-press menu's; as Android's bar.
-                            onGallery: vm.selectedFolder.map { row in { gallerySource = .directory(vm.fullPath(for: row)) } },
-                            onUpload: { showImporter = true },
-                            onOutOfImages: vm.outOfImagesSwitch.map { row in { outOfImagesPrompt = vm.outOfImagesAsk(row) } },
-                            keptOutOfImages: vm.outOfImagesSwitch?.outOfImages == true
-                        )
-                        .padding(.vertical, 8)
+                        // grey out until something is ticked. On the demo device
+                        // only the count of what is picked shows.
+                        if !demo || !vm.selected.isEmpty {
+                            SelectionActionBar(
+                                count: vm.selected.count,
+                                busy: vm.preparing ?? (vm.outOfImagesIdle ? nil : .outOfImages),
+                                onShare: { Task { await vm.shareSelected() } },
+                                onDownload: { Task { await vm.downloadSelected() } },
+                                onDelete: {
+                                    if vm.selectionUploadOnly {
+                                        vm.showToast { S.appFilesSelectionUploadOnly }
+                                    } else {
+                                        vm.confirmDeleteSelected = true
+                                    }
+                                },
+                                onClear: vm.clearSelection,
+                                // Issue #200: one folder picked - its photos and
+                                // videos as a gallery (issue #180), and keeping it
+                                // out of Images or showing it there again (issue
+                                // #192), once the long-press menu's; as Android's bar.
+                                onGallery: vm.selectedFolder.map { row in { gallerySource = .directory(vm.fullPath(for: row)) } },
+                                onUpload: { showImporter = true },
+                                onOutOfImages: vm.outOfImagesSwitch.map { row in { outOfImagesPrompt = vm.outOfImagesAsk(row) } },
+                                keptOutOfImages: vm.outOfImagesSwitch?.outOfImages == true
+                            )
+                            .padding(.vertical, 8)
+                        }
                     }
                 }
                 .accessibilityHidden(searchPanelShown)
@@ -1659,8 +1679,10 @@ struct FilesExplorerView: View {
             isPresented: Binding(get: { outOfImagesInfo != nil }, set: { if !$0 { outOfImagesInfo = nil } }),
             presenting: outOfImagesInfo
         ) { ask in
-            Button(OutOfImagesText.show) { outOfImagesPrompt = ask }
-                .disabled(!vm.outOfImagesIdle)
+            if !demo {
+                Button(OutOfImagesText.show) { outOfImagesPrompt = ask }
+                    .disabled(!vm.outOfImagesIdle)
+            }
             Button(S.commonOk, role: .cancel) {}
         } message: { _ in
             Text(OutOfImagesText.explain)
@@ -2061,7 +2083,7 @@ struct FilesExplorerView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 if vm.isOutOfImagesBusy(vm.path) {
                     ProgressView().controlSize(.small)
-                } else {
+                } else if !demo {
                     // Greyed out while another folder's switch is under way.
                     Button(OutOfImagesText.show) { outOfImagesPrompt = vm.currentFolder }
                         .font(.footnote.weight(.semibold))
@@ -2184,7 +2206,16 @@ struct FilesExplorerView: View {
                             .buttonStyle(.plain)
                             .accessibilityLabel(OutOfImagesText.state)
                         }
-                        if row.uploadOnly {
+                        if row.uploadOnly && demo {
+                            // The demo device: it only says so.
+                            Image(systemName: "lock.fill")
+                                .font(.caption)
+                                .foregroundColor(.accentColor)
+                                .padding(5)
+                                .background(.ultraThinMaterial, in: Circle())
+                                .padding(5)
+                                .accessibilityLabel(S.appFilesUploadOnly)
+                        } else if row.uploadOnly {
                             Button {
                                 lockPrompt = row
                             } label: {

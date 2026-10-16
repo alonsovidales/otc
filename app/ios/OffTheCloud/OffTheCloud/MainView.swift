@@ -80,6 +80,9 @@ struct MainView: View {
         layout
             .environment(\.wideLayout, wide)
             .environment(\.windowWidth, windowSize.width)
+            // The demo device (DemoDevice.swift): every screen leaves out
+            // what would change something on it.
+            .environment(\.demoDevice, connection.isDemo)
             .onGeometryChange(for: CGSize.self) { proxy in
                 CGSize(
                     width: proxy.size.width + proxy.safeAreaInsets.leading + proxy.safeAreaInsets.trailing,
@@ -136,8 +139,9 @@ struct MainView: View {
                 WideTopBar(
                     menuShown: menu == .full || drawerOpen,
                     fullWidth: fullWidth,
-                    // The page's own action: a new post, on the feed.
-                    action: currentSection == .social
+                    // The page's own action: a new post, on the feed -
+                    // none on the demo device.
+                    action: currentSection == .social && !connection.isDemo
                         ? TopBarAction(label: S.appShellNewPost) { social.composeRequests += 1 }
                         : nil,
                     actionIconOnly: windowSize.width < 700,
@@ -147,6 +151,11 @@ struct MainView: View {
                         .anchorPreference(key: SearchFieldAnchorKey.self, value: .bounds) { $0 }
                 }
                 .zIndex(1)
+            } else if connection.isDemo {
+                // The demo device: what it is, in the critical update's
+                // place (its Update would lead nowhere there).
+                DemoBanner()
+                    .background(DemoBanner.color.ignoresSafeArea(edges: .top))
             } else if let alert = updateAlert.critical {
                 criticalBanner(alert)
                     // Its red carries on up behind the status bar, which the
@@ -162,7 +171,9 @@ struct MainView: View {
                         .accessibilityHidden(drawerOpen)
                 }
                 VStack(spacing: 0) {
-                    if wide, let alert = updateAlert.critical {
+                    if wide && connection.isDemo {
+                        DemoBanner()
+                    } else if wide, let alert = updateAlert.critical {
                         criticalBanner(alert)
                     }
                     ZStack {

@@ -93,6 +93,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // Set before launch finishes, so a tap that launched the app is
         // delivered here too.
         UNUserNotificationCenter.current().delegate = self
+        // Not asked for the public demo device (DemoDevice.swift): nothing
+        // that happens on it is this phone's to be told about.
+        guard !DemoDevice.stored() else { return true }
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if let error {
                 print("Notification authorization request failed:", error)

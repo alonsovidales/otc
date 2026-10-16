@@ -54,6 +54,12 @@ final class OTCConnection: ObservableObject {
     /// browser's "online"): signed in again, a network came up, the app
     /// back in front.
     @Published private(set) var wakes = 0
+    /// Signed in to the public demo device (DemoDevice.swift): what every
+    /// screen hides and the photo sync's stop come from here alone. Its
+    /// PubKey.demo at each accepted sign-in and every Status.demo say it
+    /// (deviceSaid); kept in the defaults, so a launch knows before it
+    /// connects. Log Out forgets it.
+    @Published private(set) var isDemo = DemoDevice.stored()
 
     /// Issue #190: how the signed-in connection reaches the device, for
     /// Settings. nil while there is none.
@@ -334,6 +340,43 @@ final class OTCConnection: ObservableObject {
         lastProblem = nil
         statusCode = nil
         connectionFailed = false
+        deviceSaid(demo: false)
+    }
+
+    /// Whether the device signed in to is the demo one: its PubKey at a
+    /// sign-in, its Status after, or Try the demo just before the first
+    /// sign-in (so that the photo sync MainView starts doesn't ask for
+    /// Photos access meanwhile).
+    func deviceSaid(demo: Bool) {
+        if demo != DemoDevice.stored() { DemoDevice.store(demo) }
+        if demo != isDemo { isDemo = demo }
+    }
+
+    /// Every GetStatus answer (Settings, the update alert's poll): a device
+    /// from before demo mode leaves it false.
+    func deviceSaid(status: Msg_Status) {
+        deviceSaid(demo: status.demo)
+    }
+
+    /// Try the demo (OnboardingView): asks the demo device's address for the
+    /// key a sign-in starts with, over a socket of its own that it closes
+    /// again, and answers the password the device publishes if it is a demo
+    /// one - throwing DemoDevice.Failure otherwise. The sign-in is then the
+    /// usual one, with that password saved as a typed one is, so the app
+    /// reconnects to it at its next launch. `url`: tests'.
+    func demoPassword(at url: URL? = URL(string: DemoDevice.endpoint)) async throws -> String {
+        guard let url else { throw DemoDevice.Failure.unreachable(.invalidAddress(DemoDevice.endpoint)) }
+        if NetworkWatch.shared.offline { throw DemoDevice.Failure.unreachable(.offline) }
+        let probe = WSClient()
+        defer { Task { await probe.close() } }
+        let resp: Msg_RespEnvelope
+        do {
+            try await probe.connect(url: url)
+            resp = try await probe.request(timeout: signInTimeout) { $0.payload = .reqGetPubKey(Msg_GetPubKey()) }
+        } catch {
+            throw DemoDevice.Failure.unreachable(Self.describe(error))
+        }
+        return try DemoDevice.password(in: resp).get()
     }
 
     /// Thrown by a connect that Save Connection or Log Out overtook
@@ -429,11 +472,11 @@ final class OTCConnection: ObservableObject {
             }
             defer { watchdog.cancel() }
             do {
-                try await signIn(secrets, credKey: credKey)
+                let demo = try await signIn(secrets, credKey: credKey)
                 // The catch below closes it.
                 guard gen == generation else { throw Self.superseded }
                 print("[home] signed in over the home network at \(home.link.address)")
-                connected(home: home.link, endpoint: secrets.endpointURLString)
+                connected(home: home.link, endpoint: secrets.endpointURLString, demo: demo)
                 return
             } catch {
                 await ws.close()
@@ -458,8 +501,9 @@ final class OTCConnection: ObservableObject {
             throw error
         }
 
+        let demo: Bool
         do {
-            try await signIn(secrets, credKey: credKey)
+            demo = try await signIn(secrets, credKey: credKey)
             // The catch below closes it.
             guard gen == generation else { throw Self.superseded }
         } catch {
@@ -474,7 +518,7 @@ final class OTCConnection: ObservableObject {
             throw error
         }
 
-        connected(home: nil, endpoint: secrets.endpointURLString)
+        connected(home: nil, endpoint: secrets.endpointURLString, demo: demo)
         refreshLocalEndpoint(for: secrets.endpointURLString, stored: stored, gen: gen)
         scheduleHomeRetry(first: true)
     }
@@ -503,7 +547,8 @@ final class OTCConnection: ObservableObject {
 
     /// GetPubKey, then Auth with the password sealed to that key, over the
     /// socket `ws` holds. Throws with lastError (and statusCode) set to the
-    /// answer when there was one.
+    /// answer when there was one. Answers whether the key came from the demo
+    /// device (PubKey.demo), for once the sign-in is kept (connected).
     ///
     /// Everything here talks over a live socket that, once connected
     /// through the bridge, is pinned to this app's session for as long as
@@ -516,7 +561,7 @@ final class OTCConnection: ObservableObject {
     /// nothing, since a handshake that already failed here (bad pubkey
     /// response, rejected auth) isn't going to start working by being left
     /// alone.
-    private func signIn(_ secrets: SecretsStore, credKey: String) async throws {
+    private func signIn(_ secrets: SecretsStore, credKey: String) async throws -> Bool {
         // Fetch this connection's ephemeral public key and encrypt the
         // password with it before it ever leaves the device (issue #2:
         // the bridge only relays already-encrypted payloads).
@@ -580,6 +625,7 @@ final class OTCConnection: ObservableObject {
             }
             throw err
         }
+        return pubKey.demo
     }
 
     /// Auth answered, not ok: what the device said about the credentials.
@@ -587,7 +633,10 @@ final class OTCConnection: ObservableObject {
         (error as? ConnectionError)?.errorCode == 3
     }
 
-    private func connected(home: HomeLink?, endpoint: String) {
+    private func connected(home: HomeLink?, endpoint: String, demo: Bool) {
+        // Ahead of everything this sign-in wakes: the photo sync started
+        // after it must find it already.
+        deviceSaid(demo: demo)
         lastProblem = nil
         statusCode = nil
         connectionFailed = false

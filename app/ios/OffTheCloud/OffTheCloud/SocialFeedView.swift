@@ -551,6 +551,9 @@ struct SocialFeedView: View {
     // Issue #32: "+" opens a dedicated compose screen (tag filter + tap to
     // select + a single Publish action) — not the Images tab reused.
     @State private var showingPicker = false
+    /// The demo device (DemoDevice.swift): no new posts, likes, comments
+    /// or deletes - its posts are only read.
+    @Environment(\.demoDevice) private var demo
     // Issue #84: Friendships used to be its own top-level tab - now a
     // sheet presented from here instead, left of "+" (same arrangement as
     // the web app's own header button), so it isn't reachable when there's
@@ -649,24 +652,26 @@ struct SocialFeedView: View {
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
                                 .frame(maxWidth: 320)
-                            Button { showingPicker = true } label: {
-                                // ZStack rather than a frame on the glyph:
-                                // an SF Symbol's own bounds aren't square,
-                                // so framing it centres its box, not the
-                                // cross. Centring it inside the circle does.
-                                ZStack {
-                                    Circle()
-                                        .fill(Color(red: 1.0, green: 0.42, blue: 0.29))
-                                        .frame(width: 96, height: 96)
-                                        .shadow(color: .black.opacity(0.22), radius: 12, y: 5)
-                                    Image(systemName: "plus")
-                                        .font(.system(size: 40, weight: .bold))
-                                        .foregroundStyle(.white)
+                            if !demo {
+                                Button { showingPicker = true } label: {
+                                    // ZStack rather than a frame on the glyph:
+                                    // an SF Symbol's own bounds aren't square,
+                                    // so framing it centres its box, not the
+                                    // cross. Centring it inside the circle does.
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color(red: 1.0, green: 0.42, blue: 0.29))
+                                            .frame(width: 96, height: 96)
+                                            .shadow(color: .black.opacity(0.22), radius: 12, y: 5)
+                                        Image(systemName: "plus")
+                                            .font(.system(size: 40, weight: .bold))
+                                            .foregroundStyle(.white)
+                                    }
                                 }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(S.appShellNewPost)
+                                .padding(.top, 10)
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(S.appShellNewPost)
-                            .padding(.top, 10)
                         }
                         Spacer()
                         Spacer()
@@ -810,17 +815,19 @@ struct SocialFeedView: View {
                         .accessibilityLabel(S.appShellSectionFriends)
                     }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    // Outline circle + orange tint, matching the web
-                    // composer's own button (an outline ring rather than a
-                    // filled disc reads lighter sitting right in the nav
-                    // bar next to the feed, instead of like a floating
-                    // action button that wandered up from a corner).
-                    Button { showingPicker = true } label: {
-                        Image(systemName: "plus.circle")
+                if !demo {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        // Outline circle + orange tint, matching the web
+                        // composer's own button (an outline ring rather than a
+                        // filled disc reads lighter sitting right in the nav
+                        // bar next to the feed, instead of like a floating
+                        // action button that wandered up from a corner).
+                        Button { showingPicker = true } label: {
+                            Image(systemName: "plus.circle")
+                        }
+                        .tint(Color(red: 1.0, green: 0.42, blue: 0.29)) // matches web's --ember (#ff6b4a)
+                        .accessibilityLabel(S.appShellNewPost)
                     }
-                    .tint(Color(red: 1.0, green: 0.42, blue: 0.29)) // matches web's --ember (#ff6b4a)
-                    .accessibilityLabel(S.appShellNewPost)
                 }
             }
         }
@@ -1126,6 +1133,8 @@ private struct PostCard: View {
     let fetchCommentLikers: (String) async -> [Msg_Profile]
     let onDeletePub: () -> Void
     let onDeleteComment: (String) -> Void
+    /// The demo device: the post, its likes and comments to read only.
+    @Environment(\.demoDevice) private var demo
 
     @State private var currentImage = 0
     @State private var commentText = ""
@@ -1208,7 +1217,7 @@ private struct PostCard: View {
                 }
                 Spacer()
                 // Issue #34: delete one of your own posts.
-                if post.own {
+                if post.own && !demo {
                     Menu {
                         Button(S.appSocialPostDeletePost, role: .destructive) { confirmDeletePost = true }
                     } label: {
@@ -1337,17 +1346,19 @@ private struct PostCard: View {
                 )
             }
 
-            HStack(spacing: 16) {
-                Button {
-                    onLikePub()
-                } label: {
-                    Image(systemName: post.liked ? "heart.fill" : "heart")
-                        .foregroundColor(post.liked ? .red : .primary)
+            if !demo {
+                HStack(spacing: 16) {
+                    Button {
+                        onLikePub()
+                    } label: {
+                        Image(systemName: post.liked ? "heart.fill" : "heart")
+                            .foregroundColor(post.liked ? .red : .primary)
+                    }
                 }
+                .font(.title3)
+                .padding(.horizontal, sidePadding)
+                .padding(.top, 4)
             }
-            .font(.title3)
-            .padding(.horizontal, sidePadding)
-            .padding(.top, 4)
 
             // Issue #29: tap the like count to see who liked it — kept
             // separate from the heart button above, which just toggles
@@ -1385,17 +1396,19 @@ private struct PostCard: View {
                                     Text("\(c.likes)").foregroundColor(.secondary)
                                 }
                             }
-                            Button {
-                                onLikeComment(c.commentUuid)
-                            } label: {
-                                Image(systemName: c.liked ? "heart.fill" : "heart")
-                                    .foregroundColor(c.liked ? .red : .secondary)
+                            if !demo {
+                                Button {
+                                    onLikeComment(c.commentUuid)
+                                } label: {
+                                    Image(systemName: c.liked ? "heart.fill" : "heart")
+                                        .foregroundColor(c.liked ? .red : .secondary)
+                                }
                             }
                             // Issue #35: on your own post, any comment can
                             // be deleted — not just ones you wrote. Issue
                             // #174: and a comment you wrote can be deleted
                             // on anyone's post.
-                            if post.own || c.own {
+                            if (post.own || c.own) && !demo {
                                 Button {
                                     commentPendingDelete = c.commentUuid
                                 } label: {
@@ -1414,19 +1427,24 @@ private struct PostCard: View {
                 .padding(.horizontal, sidePadding)
             }
 
-            HStack {
-                TextField(S.appSocialPostCommentPlaceholder, text: $commentText)
-                    .textFieldStyle(.roundedBorder)
+            if demo {
+                // The room the comment field's row left under the post.
+                Color.clear.frame(height: 2)
+            } else {
+                HStack {
+                    TextField(S.appSocialPostCommentPlaceholder, text: $commentText)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.caption)
+                    Button(S.appSocialPostSendComment) {
+                        onComment(commentText)
+                        commentText = ""
+                    }
                     .font(.caption)
-                Button(S.appSocialPostSendComment) {
-                    onComment(commentText)
-                    commentText = ""
+                    .disabled(commentText.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                .font(.caption)
-                .disabled(commentText.trimmingCharacters(in: .whitespaces).isEmpty)
+                .padding(.horizontal, sidePadding)
+                .padding(.bottom, 10)
             }
-            .padding(.horizontal, sidePadding)
-            .padding(.bottom, 10)
         }
         // Issue #78: the brief highlight after opening this post from a
         // notification.

@@ -319,6 +319,7 @@ final class StatusViewModel: ObservableObject {
                 status = s
                 error = nil
                 LanguageSettings.shared.deviceSaid(status: s)
+                ws.deviceSaid(status: s)
             }
         } catch {
             self.error = .error(error)
@@ -336,6 +337,11 @@ struct SettingsView: View {
     @ObservedObject private var connection = OTCConnection.shared
     // The Language row's value.
     @ObservedObject private var language = LanguageSettings.shared
+    /// The demo device (DemoDevice.swift): only what reads it, and this
+    /// phone's own settings - its password, the photo sync (which never
+    /// runs there), the device's features, its update, restart, logs,
+    /// users, bridge and Tailscale go.
+    @Environment(\.demoDevice) private var demo
     @State private var confirmLogout = false
 
     var body: some View {
@@ -381,51 +387,57 @@ struct SettingsView: View {
                     NavigationLink(S.appSettingsLinksTitle) { SharedLinksView() }
                 }
 
-                // Issue #94: in-place updates. Renders nothing on a
-                // non-primary instance - see UpdateSection.
-                UpdateSection()
-                    .id(Self.updateSectionID)
-
-                Section(header: Text(S.appSettingsPasswordTitle)) {
-                    SecureField(S.appSettingsPasswordCurrent, text: $device.oldKey)
-                    SecureField(S.appSettingsPasswordNew, text: $device.newKey)
-                    SecureField(S.appSettingsPasswordConfirm, text: $device.confirmKey)
-                    Button(device.savingKey ? S.appSettingsPasswordChanging : S.appSettingsPasswordChange) {
-                        Task { await device.changePassword(secrets: secrets) }
-                    }
-                    .disabled(device.savingKey || device.oldKey.isEmpty || device.newKey.isEmpty)
+                if !demo {
+                    // Issue #94: in-place updates. Renders nothing on a
+                    // non-primary instance - see UpdateSection.
+                    UpdateSection()
+                        .id(Self.updateSectionID)
                 }
 
-                Section(header: Text(S.appSettingsSyncTitle)) {
-                    Toggle(S.appSettingsSyncWifiOnly, isOn: $secrets.wifiOnly)
-                    Toggle(S.appSettingsSyncVideos, isOn: $secrets.includeVideos)
-                    Toggle(S.iosSettingsSyncIcloud, isOn: $secrets.downloadFromiCloud)
-                    Button(S.appSettingsSyncAuthorize) {
-                        Task { _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite) }
+                if !demo {
+                    Section(header: Text(S.appSettingsPasswordTitle)) {
+                        SecureField(S.appSettingsPasswordCurrent, text: $device.oldKey)
+                        SecureField(S.appSettingsPasswordNew, text: $device.newKey)
+                        SecureField(S.appSettingsPasswordConfirm, text: $device.confirmKey)
+                        Button(device.savingKey ? S.appSettingsPasswordChanging : S.appSettingsPasswordChange) {
+                            Task { await device.changePassword(secrets: secrets) }
+                        }
+                        .disabled(device.savingKey || device.oldKey.isEmpty || device.newKey.isEmpty)
                     }
                 }
 
-                Section(footer: Text(S.appSettingsSyncFooter)) {
-                    Button(S.appSettingsSyncNow) {
-                        Task {
-                            secrets.persist()
-                            try? await PhotoSync.shared.runForeground()
+                if !demo {
+                    Section(header: Text(S.appSettingsSyncTitle)) {
+                        Toggle(S.appSettingsSyncWifiOnly, isOn: $secrets.wifiOnly)
+                        Toggle(S.appSettingsSyncVideos, isOn: $secrets.includeVideos)
+                        Toggle(S.iosSettingsSyncIcloud, isOn: $secrets.downloadFromiCloud)
+                        Button(S.appSettingsSyncAuthorize) {
+                            Task { _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite) }
                         }
                     }
-                    Button(S.appSettingsSyncAll) {
-                        Task {
-                            secrets.persist()
-                            // The watermark PhotoSync syncs from - cleared,
-                            // so the run below starts at the beginning
-                            // (it used to be set to now here, which made
-                            // this button sync nothing at all).
-                            UserDefaults.standard.removeObject(forKey: "lastSyncDate")
-                            try? await PhotoSync.shared.runForeground()
+
+                    Section(footer: Text(S.appSettingsSyncFooter)) {
+                        Button(S.appSettingsSyncNow) {
+                            Task {
+                                secrets.persist()
+                                try? await PhotoSync.shared.runForeground()
+                            }
                         }
-                    }
-                    Button(S.appSettingsSyncFromNow) {
-                        secrets.persist()
-                        PhotoSync.shared.syncFromNow()
+                        Button(S.appSettingsSyncAll) {
+                            Task {
+                                secrets.persist()
+                                // The watermark PhotoSync syncs from - cleared,
+                                // so the run below starts at the beginning
+                                // (it used to be set to now here, which made
+                                // this button sync nothing at all).
+                                UserDefaults.standard.removeObject(forKey: "lastSyncDate")
+                                try? await PhotoSync.shared.runForeground()
+                            }
+                        }
+                        Button(S.appSettingsSyncFromNow) {
+                            secrets.persist()
+                            PhotoSync.shared.syncFromNow()
+                        }
                     }
                 }
 
@@ -433,32 +445,34 @@ struct SettingsView: View {
                 // grids' thumbnails may take here (ThumbDiskCache).
                 ThumbCacheSection()
 
-                Section(
-                    header: Text(S.appSettingsTaggingTitle),
-                    footer: Text(S.appSettingsTaggingFooter)
-                ) {
-                    Toggle(
-                        S.appSettingsTaggingTitle,
-                        isOn: Binding(
-                            get: { device.imageTaggingEnabled },
-                            set: { newValue in Task { await device.toggleImageTagging(newValue) } }
+                if !demo {
+                    Section(
+                        header: Text(S.appSettingsTaggingTitle),
+                        footer: Text(S.appSettingsTaggingFooter)
+                    ) {
+                        Toggle(
+                            S.appSettingsTaggingTitle,
+                            isOn: Binding(
+                                get: { device.imageTaggingEnabled },
+                                set: { newValue in Task { await device.toggleImageTagging(newValue) } }
+                            )
                         )
-                    )
-                    .disabled(device.savingImageTagging)
-                }
+                        .disabled(device.savingImageTagging)
+                    }
 
-                Section(
-                    header: Text(S.appSettingsFacesTitle),
-                    footer: Text(S.appSettingsFacesFooter)
-                ) {
-                    Toggle(
-                        S.appSettingsFacesToggle,
-                        isOn: Binding(
-                            get: { device.faceRecognitionEnabled },
-                            set: { newValue in Task { await device.toggleFaceRecognition(newValue) } }
+                    Section(
+                        header: Text(S.appSettingsFacesTitle),
+                        footer: Text(S.appSettingsFacesFooter)
+                    ) {
+                        Toggle(
+                            S.appSettingsFacesToggle,
+                            isOn: Binding(
+                                get: { device.faceRecognitionEnabled },
+                                set: { newValue in Task { await device.toggleFaceRecognition(newValue) } }
+                            )
                         )
-                    )
-                    .disabled(device.savingFaceRecognition)
+                        .disabled(device.savingFaceRecognition)
+                    }
                 }
 
                 Section(header: Text(S.appSettingsConnectionTitle)) {
@@ -483,68 +497,72 @@ struct SettingsView: View {
                     }
                 }
 
-                // Issue #80: Tailscale Funnel as an alternative to the
-                // bridge. Primary-only too - see TailscaleSection.
-                TailscaleSection()
+                if !demo {
+                    // Issue #80: Tailscale Funnel as an alternative to the
+                    // bridge. Primary-only too - see TailscaleSection.
+                    TailscaleSection()
 
-                BridgeAccountSection()
+                    BridgeAccountSection()
 
-                UsersManagementSection()
+                    UsersManagementSection()
 
-                Section(
-                    header: Text(S.appSettingsReprocessTitle),
-                    footer: Text(S.appSettingsReprocessFooter)
-                ) {
-                    if device.reprocessStatus == "running" {
-                        VStack(alignment: .leading, spacing: 6) {
-                            ProgressView(value: device.reprocessTotal > 0 ? Double(device.reprocessProcessed) / Double(device.reprocessTotal) : 0)
-                                .progressViewStyle(.linear)
-                            HStack {
-                                Text(S.appSettingsReprocessRunning(percent: device.reprocessPercent, done: Int(device.reprocessProcessed), total: Int(device.reprocessTotal)))
+                    Section(
+                        header: Text(S.appSettingsReprocessTitle),
+                        footer: Text(S.appSettingsReprocessFooter)
+                    ) {
+                        if device.reprocessStatus == "running" {
+                            VStack(alignment: .leading, spacing: 6) {
+                                ProgressView(value: device.reprocessTotal > 0 ? Double(device.reprocessProcessed) / Double(device.reprocessTotal) : 0)
+                                    .progressViewStyle(.linear)
+                                HStack {
+                                    Text(S.appSettingsReprocessRunning(percent: device.reprocessPercent, done: Int(device.reprocessProcessed), total: Int(device.reprocessTotal)))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Button(device.cancellingReprocess ? S.appSettingsReprocessStopping : S.commonCancel) {
+                                        Task { await device.stopReprocess() }
+                                    }
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                Button(device.cancellingReprocess ? S.appSettingsReprocessStopping : S.commonCancel) {
-                                    Task { await device.stopReprocess() }
+                                    .foregroundColor(.red)
+                                    .disabled(device.cancellingReprocess)
                                 }
-                                .font(.caption)
-                                .foregroundColor(.red)
-                                .disabled(device.cancellingReprocess)
                             }
-                        }
-                    } else if device.reprocessStatus == "stopped" {
-                        Text(S.appSettingsReprocessStopped(percent: device.reprocessPercent, done: Int(device.reprocessProcessed), total: Int(device.reprocessTotal)))
-                            .font(.caption).foregroundColor(.secondary)
-                        HStack {
-                            Button(device.startingReprocess ? S.appSettingsReprocessStarting : S.appSettingsReprocessResume) {
-                                device.reprocessConfirmAction = .resume
+                        } else if device.reprocessStatus == "stopped" {
+                            Text(S.appSettingsReprocessStopped(percent: device.reprocessPercent, done: Int(device.reprocessProcessed), total: Int(device.reprocessTotal)))
+                                .font(.caption).foregroundColor(.secondary)
+                            HStack {
+                                Button(device.startingReprocess ? S.appSettingsReprocessStarting : S.appSettingsReprocessResume) {
+                                    device.reprocessConfirmAction = .resume
+                                }
+                                .disabled(device.startingReprocess)
+                                Spacer()
+                                Button(S.appSettingsReprocessStartOver) {
+                                    device.reprocessConfirmAction = .restart
+                                }
+                                .disabled(device.startingReprocess)
                             }
-                            .disabled(device.startingReprocess)
-                            Spacer()
-                            Button(S.appSettingsReprocessStartOver) {
+                        } else {
+                            Button(device.startingReprocess ? S.appSettingsReprocessStarting : S.appSettingsReprocessAll) {
                                 device.reprocessConfirmAction = .restart
                             }
                             .disabled(device.startingReprocess)
-                        }
-                    } else {
-                        Button(device.startingReprocess ? S.appSettingsReprocessStarting : S.appSettingsReprocessAll) {
-                            device.reprocessConfirmAction = .restart
-                        }
-                        .disabled(device.startingReprocess)
-                        if device.reprocessStatus == "completed" {
-                            Text(S.appSettingsReprocessCompleted(count: Int(device.reprocessProcessed)))
-                                .font(.caption).foregroundColor(.secondary)
-                        } else if device.reprocessStatus == "failed" {
-                            Text(S.appSettingsReprocessFailed(count: Int(device.reprocessProcessed)))
-                                .font(.caption).foregroundColor(.red)
+                            if device.reprocessStatus == "completed" {
+                                Text(S.appSettingsReprocessCompleted(count: Int(device.reprocessProcessed)))
+                                    .font(.caption).foregroundColor(.secondary)
+                            } else if device.reprocessStatus == "failed" {
+                                Text(S.appSettingsReprocessFailed(count: Int(device.reprocessProcessed)))
+                                    .font(.caption).foregroundColor(.red)
+                            }
                         }
                     }
                 }
 
-                // The device's logs, live, with Share and "Send to us".
-                // Renders nothing on a non-primary instance - see
-                // LogsSection.
-                LogsSection()
+                if !demo {
+                    // The device's logs, live, with Share and "Send to us".
+                    // Renders nothing on a non-primary instance - see
+                    // LogsSection.
+                    LogsSection()
+                }
             }
             // No nav title (issue #19): the tab bar already labels this
             // screen "Settings". Still .inline so there's no big empty
