@@ -12,6 +12,7 @@ import type {
   Profile as PbProfile,
   File as PbFile,
 } from "../proto/messages";
+import { useDemo } from "./useDemo";
 import "./Social.css";
 import LowResBadge from "./LowResBadge";
 import Spinner from "./Spinner";
@@ -1021,6 +1022,8 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
     deleteComment, showPublicationLikers, showCommentLikers, openViewer,
   } = actions;
   const t = useT();
+  // A demo device (net/demo.ts) takes no likes, comments or deletes.
+  const demo = useDemo();
   const [idx, setIdx] = useState(0);
   const rootRef = useRef<HTMLElement | null>(null);
 
@@ -1286,7 +1289,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
           {p.dateTime && <PostDate d={p.dateTime} />}
         </div>
         {/* Issue #34: delete one of your own posts. */}
-        {p.own && (
+        {p.own && !demo && (
           <button
             className="sv-post-delete"
             aria-label={t("web.social.post.delete")}
@@ -1428,14 +1431,16 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
       <div className="sv-caption">{p.text}</div>
 
       <div className="sv-actions">
-        <button
-          className={`sv-btn${p.liked ? " liked" : ""}`}
-          onClick={() => likePublication(p.uuid)}
-          aria-label={p.liked ? t("web.social.post.unlike") : t("web.social.post.like")}
-          aria-pressed={p.liked}
-        >
-          {p.liked ? "❤️" : "🤍"}
-        </button>
+        {!demo && (
+          <button
+            className={`sv-btn${p.liked ? " liked" : ""}`}
+            onClick={() => likePublication(p.uuid)}
+            aria-label={p.liked ? t("web.social.post.unlike") : t("web.social.post.like")}
+            aria-pressed={p.liked}
+          >
+            {p.liked ? "❤️" : "🤍"}
+          </button>
+        )}
         <button className="sv-btn" onClick={() => alert(t("web.social.post.share_unavailable"))}>↗︎ {t("common.share")}</button>
         <DownloadButton
           cls="sv-dl"
@@ -1472,19 +1477,21 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
                 {c.likes}
               </button>
             )}
-            <button
-              className={`sv-btn tiny${c.liked ? " liked" : ""}`}
-              onClick={() => likeComment(c.commentUuid)}
-              aria-label={c.liked ? t("web.social.comment.unlike") : t("web.social.comment.like")}
-              aria-pressed={c.liked}
-            >
-              {c.liked ? "❤️" : "🤍"}
-            </button>
+            {!demo && (
+              <button
+                className={`sv-btn tiny${c.liked ? " liked" : ""}`}
+                onClick={() => likeComment(c.commentUuid)}
+                aria-label={c.liked ? t("web.social.comment.unlike") : t("web.social.comment.like")}
+                aria-pressed={c.liked}
+              >
+                {c.liked ? "❤️" : "🤍"}
+              </button>
+            )}
             {/* Issue #35: on your own post, any comment can be deleted —
                 not just ones you wrote. Issue #174: and your own comment
                 anywhere (not the optimistic placeholder, which has no
                 real uuid yet). */}
-            {(p.own || c.own) && !c.commentUuid.startsWith("pending-") && (
+            {(p.own || c.own) && !demo && !c.commentUuid.startsWith("pending-") && (
               <button
                 className="sv-btn tiny"
                 aria-label={t("web.social.comment.delete")}
@@ -1496,7 +1503,7 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
             )}
           </div>
         ))}
-        <NewComment pubUuid={p.uuid} onSend={(txt) => addComment(p.uuid, txt, cOwnCommentName)} />
+        {!demo && <NewComment pubUuid={p.uuid} onSend={(txt) => addComment(p.uuid, txt, cOwnCommentName)} />}
       </div>
     </article>
   );

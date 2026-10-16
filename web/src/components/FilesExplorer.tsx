@@ -18,6 +18,7 @@ import SharedGalleryShare from "./SharedGalleryShare";
 import FileTypeIcon from "./FileTypeIcon";
 import MediaViewer, { type ViewerItem } from "./MediaViewer";
 import { reloadAfterImagesChanged } from "./libraryStore";
+import { useDemo } from "./useDemo";
 import "./FilesExplorer.css";
 import Spinner from "./Spinner";
 import { Trans, dateTimeFields, fmtDate, useT, type TFunction } from "../i18n";
@@ -290,6 +291,7 @@ export default function FilesExplorer({
   initialPath = "/"
 }: Props) {
   const t = useT();
+  const demo = useDemo();
   // Issue #53 follow-up: a reload restores the Files tab itself now, but
   // used to still always drop back to initialPath ("/") rather than
   // wherever the user had actually navigated to.
@@ -1412,6 +1414,7 @@ export default function FilesExplorer({
   // folder then, not a switch - the banner has the way back.
   const noImgCover = noImg.folderOut ? (noImg.cover ?? normPath(path)).replace(/\/+$/, "") : "";
   const noImgButton = (r: { name: string; file: PbFile; outOfImages: boolean }, tile = false) => {
+    if (demo) return null;
     const tileClass = tile ? " fb-tile-noimg" : "";
     if (noImg.folderOut) {
       const tip = t("web.files.keep_out.parent_tip", { folder: noImgCover });
@@ -1550,7 +1553,7 @@ export default function FilesExplorer({
                 </button>
                 {/* The folder's lock and switch for Images, as in the list;
                     a file in an upload-only folder its lock. */}
-                {f && r.isDir && (
+                {f && r.isDir && !demo && (
                   <button
                     className={`fb-lock${f.uploadOnly ? " on" : ""}`}
                     onClick={() => void toggleUploadOnly(f)}
@@ -1615,9 +1618,10 @@ export default function FilesExplorer({
     <div
       ref={wrapRef}
       className={`fb-wrap ${dragOver ? "drag" : ""}`}
-      onDrop={onDrop}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
+      // A demo device takes no uploads.
+      onDrop={demo ? undefined : onDrop}
+      onDragOver={demo ? undefined : onDragOver}
+      onDragLeave={demo ? undefined : onDragLeave}
     >
       {/* The folder's toolbar and contents stay as they are, hidden, while
           a search's results show. */}
@@ -1853,6 +1857,9 @@ export default function FilesExplorer({
             </button>
             <div><Trans k="web.files.selection.selected" args={{ count: selected.length }} parts={{ b: (s) => <strong>{s}</strong> }} /></div>
             <div className="grow" />
+            {/* A demo device changes nothing, and a share or a zip is
+                written on it. */}
+            {!demo && (<>
             <button className="btn danger" onClick={() => void delSelected()} disabled={selectedUploadOnly}
               title={selectedUploadOnly ? t("web.files.selection.upload_only") : undefined}>{t("common.delete")}</button>
             <button className="btn" onClick={() => void shareOrZip(false)} disabled={!!preparing}>
@@ -1867,6 +1874,7 @@ export default function FilesExplorer({
                 {t("web.files.selection.share_gallery")}
               </button>
             )}
+            </>)}
           </div>
         </div>
       )}
@@ -1901,7 +1909,7 @@ export default function FilesExplorer({
                 )}
                 {/* Issue #192: left of the lock, which keeps its corner. */}
                 {r.name !== ".." && r.isDir && noImgShown && noImgButton(r, true)}
-                {r.name !== ".." && r.isDir && (
+                {r.name !== ".." && r.isDir && !demo && (
                   <button className={`fb-lock fb-tile-lock${r.uploadOnly ? " on" : ""}`} onClick={() => void toggleUploadOnly(r.file)}
                     data-tip={r.uploadOnly ? t("web.files.lock.on_tip_short") : t("web.files.lock.make")}
                     aria-label={r.uploadOnly ? t("web.files.lock.clear") : t("web.files.lock.make")} aria-pressed={r.uploadOnly}>
@@ -1957,7 +1965,7 @@ export default function FilesExplorer({
                 </button>
                 {/* Issue #132: the lock on a folder flags it upload only;
                     on a file it just says the file is inside one. */}
-                {r.name !== ".." && r.isDir && (
+                {r.name !== ".." && r.isDir && !demo && (
                   <button
                     className={`fb-lock${r.uploadOnly ? " on" : ""}`}
                     onClick={() => void toggleUploadOnly(r.file)}

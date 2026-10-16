@@ -31,6 +31,9 @@ import DeviceUnreachable from "./components/DeviceUnreachable";
 import Spinner from "./components/Spinner";
 import { getDeviceStatus, subscribeDeviceStatus } from "./net/deviceStatus";
 import UpdateBanner from "./components/UpdateBanner";
+import { DemoBanner, DemoWelcome } from "./components/DemoBanner";
+import { useDemo } from "./components/useDemo";
+import { isDemo } from "./net/demo";
 import DeviceUpdatedNotice from "./components/DeviceUpdatedNotice";
 import type { DeviceStatus } from "./net/deviceStatus";
 import { loadLastTab, saveLastTab } from "./net/uiState";
@@ -237,16 +240,18 @@ function App() {
   // first time it's ever asked, whichever way it went.
   const handleSignedIn = () => {
     setTab("Social");
-    if (!mobile) promptForPushIfNeverAsked();
+    // Not for a demo device: its pushes aren't anyone's.
+    if (!mobile && !isDemo()) promptForPushIfNeverAsked();
   };
 
   // The device writes this browser's pushes in the language the page shows
   // (docs/i18n.md, last_ui_language): a subscription it already has goes
   // again at each sign-in and whenever that language changes.
   const shownLanguage = useLanguage().effective;
+  const demo = useDemo();
   useEffect(() => {
-    if (authenticated && !mobile) void reregisterPush();
-  }, [authenticated, mobile, shownLanguage]);
+    if (authenticated && !mobile && !demo) void reregisterPush();
+  }, [authenticated, mobile, shownLanguage, demo]);
 
   // Issue #38/#39: a device with no owner secret yet lands straight on
   // setup (the SignIn tab) — nobody should have to know to go click
@@ -504,7 +509,7 @@ function App() {
           : !signInFieldOut && <div className="tb-fill" />}
         {/* The page's own action: a new post, on the feed. Below 700px
             only its "+" shows (index.css), named by a tooltip. */}
-        {authenticated && tab === "Social" && openComposer && (
+        {authenticated && tab === "Social" && openComposer && !demo && (
           <button
             className="tb-action"
             onClick={() => openComposer()}
@@ -558,10 +563,12 @@ function App() {
       )}
       <div className={`app-body${authenticated ? ` menu-${menuLayout}` : ""}${menuSlides ? " menu-slides" : ""}`}>
       {authenticated && <UpdateBanner onOpenSettings={() => setTab("Settings")} />}
+      {authenticated && demo && <DemoBanner />}
       {servedByDevice && <DeviceUpdatedNotice />}
       {/* Images, People and Collections space their own headers; every
           other page starts a gap below the top bar's line. */}
       <main className={cOwnTopTabs.includes(tab) ? undefined : "main-gap"}>
+        {!authenticated && !restoringSession && demo && <DemoWelcome onSignedIn={handleSignedIn} />}
         {/* Issue #84: "Profile" is only ever the anonymous-visitor landing
             page now - the editable form moved into Settings, and
             Friendships (what this used to show once signed in) has its

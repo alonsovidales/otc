@@ -13,6 +13,7 @@ import { useWS } from "../net/useWS";
 import { friendDomain, FRIEND_TLD } from "../net/friendDomain";
 import { useT, type TFunction } from "../i18n";
 import { asIs, say, type UiText } from "./uiText";
+import { useDemo } from "./useDemo";
 
 function bytesToObjectURL(bytes?: Uint8Array, mime = "image/png"): string | undefined {
   if (!bytes || bytes.length === 0) return undefined;
@@ -57,6 +58,7 @@ function ActionButtons({
   disabled?: boolean;
 }) {
   const t = useT();
+  const demo = useDemo();
   const btn = (label: string, next: FriendShipStatus) => (
     <button
       className="fr-btn"
@@ -80,6 +82,7 @@ function ActionButtons({
     </button>
   );
 
+  if (demo) return null;
   if (f.sent) {
     return f.status === FriendShipStatus.Pending
       ? <div className="fr-actions">{del}</div>
@@ -118,6 +121,7 @@ function ActionButtons({
 
 export default function FriendshipsManager() {
   const t = useT();
+  const demo = useDemo();
   // Friendship request (by domain)
   const [targetDomain, setTargetDomain] = useState("");
   const [sendingReq, setSendingReq] = useState(false);
@@ -408,8 +412,8 @@ export default function FriendshipsManager() {
           authenticated=true anywhere) - moved to the top of Settings
           instead, so this screen is just friend management now. */}
 
-      {/* New friendship request */}
-      <section className="card">
+      {/* New friendship request: not on a demo device (net/demo.ts). */}
+      {!demo && <section className="card">
         <h2>{t("web.social.friends.add_title")}</h2>
         <div className="add-friend">
           {/* Issue #142: the name only; the suffix is fixed. */}
@@ -433,7 +437,7 @@ export default function FriendshipsManager() {
             {sendingReq ? t("web.social.friends.sending") : t("web.social.friends.send")}
           </button>
         </div>
-      </section>
+      </section>}
 
       {/* Friendships list */}
       <section className="card">

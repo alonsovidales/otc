@@ -1,0 +1,12 @@
+/* The demo device's banner and signed-out note (DemoBanner.tsx). Like the
+   critical-update banner (UpdateBanner.css): above the date scrubber's
+   column, below the top bar. */
+.demo-banner { position: relative; z-index: 7; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; padding: 10px 16px; background: rgba(255, 200, 87, 0.12); border-bottom: 1px solid rgba(255, 200, 87, 0.35); color: var(--mist); font-size: 14px; }
+.demo-banner .demo-text { flex: 1 1 18em; min-width: 0; }
+.demo-link { flex: none; color: var(--gold); font-weight: 600; }
+.demo-welcome { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; max-width: 560px; margin: 24px auto 8px; padding: 18px 20px; border: 1px solid rgba(255, 200, 87, 0.35); border-radius: 12px; background: rgba(255, 200, 87, 0.08); color: var(--mist); }
+.demo-welcome .demo-text { margin: 0; font-size: 15px; line-height: 1.45; }
+.demo-try { padding: 9px 18px; background: var(--gold); color: var(--gold-ink); border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.demo-try:disabled { opacity: 0.6; cursor: default; }
+.demo-refusal { margin: 0; color: var(--danger); font-size: 14px; }
+@media (max-width: 600px) { .demo-welcome { margin: 16px 16px 8px; } }

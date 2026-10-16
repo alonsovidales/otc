@@ -2,6 +2,7 @@
 
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { noteResponse } from "./deviceStatus";
+import { noteDemoReply } from "./demo";
 import { noteLanguageConnection, noteLanguageReply, requestLanguage } from "../i18n/choice";
 import { t } from "../i18n/runtime";
 
@@ -79,6 +80,8 @@ export class WSClient {
           // The user's language as the device has it (Status, Settings):
           // whichever part of the app asked, this browser follows it.
           noteLanguageReply(env);
+          // A demo device says so in its PubKey and Status (net/demo.ts).
+          noteDemoReply(env);
           const cont = this.waiters.get(env.id);
           if (cont) { this.waiters.delete(env.id); cont.resolve(env); }
           this.listeners.forEach(fn => fn(env));
