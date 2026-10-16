@@ -49,6 +49,10 @@
     "text": "Eigenes Gerät holen",
     "en": "Get your own device"
   },
+  "web.shell.demo.refused": {
+    "text": "Dies ist ein Demogerät: Änderungen sind deaktiviert.",
+    "en": "This is a demo device: changes are turned off."
+  },
   "web.shell.demo.try": {
     "text": "Demo ausprobieren",
     "en": "Try the demo"

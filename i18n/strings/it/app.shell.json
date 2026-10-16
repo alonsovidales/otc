@@ -138,6 +138,10 @@
     "text": "Prendi il tuo dispositivo",
     "en": "Get your own device"
   },
+  "app.shell.demo_refused": {
+    "text": "Questo è un dispositivo dimostrativo: le modifiche sono disattivate.",
+    "en": "This is a demo device: changes are turned off."
+  },
   "app.shell.demo_try": {
     "text": "Prova la demo",
     "en": "Try the demo"

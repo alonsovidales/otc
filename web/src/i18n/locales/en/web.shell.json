@@ -11,6 +11,7 @@
   "web.shell.connection.too_many": "Too many attempts. Try again in a minute.",
   "web.shell.demo.banner": "This is a demo device with sample photos and files. Changes are turned off.",
   "web.shell.demo.get_own": "Get your own device",
+  "web.shell.demo.refused": "This is a demo device: changes are turned off.",
   "web.shell.demo.try": "Try the demo",
   "web.shell.device_updated.reload": "Reload",
   "web.shell.device_updated.text": "Your device was updated. Reload this page to use the new version.",

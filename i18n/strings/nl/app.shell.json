@@ -138,6 +138,10 @@
     "text": "Eigen apparaat halen",
     "en": "Get your own device"
   },
+  "app.shell.demo_refused": {
+    "text": "Dit is een demoapparaat: wijzigingen zijn uitgeschakeld.",
+    "en": "This is a demo device: changes are turned off."
+  },
   "app.shell.demo_try": {
     "text": "Demo proberen",
     "en": "Try the demo"

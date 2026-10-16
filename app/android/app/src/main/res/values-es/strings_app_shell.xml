@@ -41,6 +41,7 @@
     <string name="app_shell_critical_update_summary">Actualización crítica %1$s disponible. %2$s Instálala lo antes posible.</string>
     <string name="app_shell_demo_banner">Este es un dispositivo de demostración con fotos y archivos de ejemplo. Los cambios están desactivados.</string>
     <string name="app_shell_demo_get_own">Conseguir tu dispositivo</string>
+    <string name="app_shell_demo_refused">Este es un dispositivo de demostración: los cambios están desactivados.</string>
     <string name="app_shell_demo_try">Probar la demo</string>
     <string name="app_shell_demo_try_note">¿Aún no tienes dispositivo? Explora uno de demostración con fotos y archivos de ejemplo.</string>
     <string name="app_shell_device_unavailable">Este dispositivo no está disponible ahora mismo</string>

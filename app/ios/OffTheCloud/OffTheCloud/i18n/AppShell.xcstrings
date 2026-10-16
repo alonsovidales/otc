@@ -1766,6 +1766,53 @@
         }
       }
     },
+    "app.shell.demo_refused" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dies ist ein Demogerät: Änderungen sind deaktiviert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is a demo device: changes are turned off."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este es un dispositivo de demostración: los cambios están desactivados."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ceci est un appareil de démonstration : les modifications sont désactivées."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo è un dispositivo dimostrativo: le modifiche sono disattivate."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dit is een demoapparaat: wijzigingen zijn uitgeschakeld."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este é um dispositivo de demonstração: as alterações estão desativadas."
+          }
+        }
+      }
+    },
     "app.shell.demo_try" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -39,6 +39,7 @@
     <string name="app_shell_critical_update_summary">Kritisches Update %1$s verfügbar. %2$s Installiere es so bald wie möglich.</string>
     <string name="app_shell_demo_banner">Dies ist ein Demogerät mit Beispielfotos und -dateien. Änderungen sind deaktiviert.</string>
     <string name="app_shell_demo_get_own">Eigenes Gerät holen</string>
+    <string name="app_shell_demo_refused">Dies ist ein Demogerät: Änderungen sind deaktiviert.</string>
     <string name="app_shell_demo_try">Demo ausprobieren</string>
     <string name="app_shell_demo_try_note">Noch kein Gerät? Sieh dir ein Demogerät mit Beispielfotos und -dateien an.</string>
     <string name="app_shell_device_unavailable">Dieses Gerät ist gerade nicht verfügbar</string>

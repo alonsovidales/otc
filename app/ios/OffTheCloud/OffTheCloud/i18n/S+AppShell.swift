@@ -175,6 +175,11 @@ extension S {
     /// Link in the demo device's banner (app.shell.demo_banner): opens the Off The Cloud website, which explains how to set up a device of your own.
     static var appShellDemoGetOwn: String { L("app.shell.demo_get_own", table: "AppShell") }
 
+    /// This is a demo device: changes are turned off.
+    ///
+    /// Short notice shown on the public demo device (one anyone can sign in to, to try Off The Cloud) when someone tries anything that would change it: uploading, deleting, renaming, sharing, a setting. Nothing was changed.
+    static var appShellDemoRefused: String { L("app.shell.demo_refused", table: "AppShell") }
+
     /// Try the demo
     ///
     /// Button on the first screen (connect to a device): connects to the public demo device and signs in with its published password, so someone with no device yet can look around. Under the note app.shell.demo_try_note.

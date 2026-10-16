@@ -55,6 +55,10 @@
     "note": "Link at the end of the demo device's banner (web.shell.demo.banner): opens the Off The Cloud website, which explains how to set up a device of your own.",
     "max": 32
   },
+  "web.shell.demo.refused": {
+    "text": "This is a demo device: changes are turned off.",
+    "note": "Short notice shown on the public demo device (one anyone can sign in to, to try Off The Cloud) when someone tries anything that would change it: uploading, deleting, renaming, sharing, a setting. Nothing was changed."
+  },
   "web.shell.demo.try": {
     "text": "Try the demo",
     "note": "Button on the public demo device's page while signed out: signs in with the demo's published password, so anyone can look around. Under the note web.shell.demo.banner.",

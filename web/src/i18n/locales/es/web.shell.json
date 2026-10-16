@@ -11,6 +11,7 @@
   "web.shell.connection.too_many": "Demasiados intentos. Vuelve a intentarlo dentro de un minuto.",
   "web.shell.demo.banner": "Este es un dispositivo de demostración con fotos y archivos de ejemplo. Los cambios están desactivados.",
   "web.shell.demo.get_own": "Conseguir tu dispositivo",
+  "web.shell.demo.refused": "Este es un dispositivo de demostración: los cambios están desactivados.",
   "web.shell.demo.try": "Probar la demo",
   "web.shell.device_updated.reload": "Recargar",
   "web.shell.device_updated.text": "Tu dispositivo se ha actualizado. Recarga esta página para usar la nueva versión.",

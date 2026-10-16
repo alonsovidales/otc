@@ -138,6 +138,10 @@
     "text": "Obtenir votre appareil",
     "en": "Get your own device"
   },
+  "app.shell.demo_refused": {
+    "text": "Ceci est un appareil de démonstration : les modifications sont désactivées.",
+    "en": "This is a demo device: changes are turned off."
+  },
   "app.shell.demo_try": {
     "text": "Essayer la démo",
     "en": "Try the demo"

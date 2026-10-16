@@ -648,6 +648,7 @@ export type MessageKey =
   | "web.shell.connection.too_many"
   | "web.shell.demo.banner"
   | "web.shell.demo.get_own"
+  | "web.shell.demo.refused"
   | "web.shell.demo.try"
   | "web.shell.device_updated.reload"
   | "web.shell.device_updated.text"
@@ -1554,6 +1555,7 @@ export interface MessageArgs {
   "web.shell.connection.too_many": undefined;
   "web.shell.demo.banner": undefined;
   "web.shell.demo.get_own": undefined;
+  "web.shell.demo.refused": undefined;
   "web.shell.demo.try": undefined;
   "web.shell.device_updated.reload": undefined;
   "web.shell.device_updated.text": undefined;

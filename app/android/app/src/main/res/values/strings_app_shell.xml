@@ -38,6 +38,7 @@
     <string name="app_shell_critical_update_summary">Critical update %1$s available. %2$s Install it as soon as possible.</string>
     <string name="app_shell_demo_banner">This is a demo device with sample photos and files. Changes are turned off.</string>
     <string name="app_shell_demo_get_own">Get your own device</string>
+    <string name="app_shell_demo_refused">This is a demo device: changes are turned off.</string>
     <string name="app_shell_demo_try">Try the demo</string>
     <string name="app_shell_demo_try_note">No device yet? Look around a demo one with sample photos and files.</string>
     <string name="app_shell_device_unavailable">This device isn\'t available right now</string>
