@@ -168,3 +168,56 @@ func TestDemoPasswordOnlyOnADemo(t *testing.T) {
 		t.Errorf("demo on: %q", got)
 	}
 }
+
+// Settings shows every section on a demo device: no disks or Wi-Fi to set
+// up, the bridge and Tailscale read as usual, and the update check kept
+// for a while rather than fetched for each visitor.
+func TestDemoAnswersSettingsReads(t *testing.T) {
+	asDemo(t)
+	ch, _ := ownerWithLibrary(t)
+	resp, handled := ch.demoGate(&pb.ReqEnvelope{Id: 6, Payload: &pb.ReqEnvelope_ReqListWifiNetworks{ReqListWifiNetworks: &pb.ListWifiNetworks{}}}, "")
+	if !handled || resp.Error || resp.GetRespWifiNetworks() == nil || len(resp.GetRespWifiNetworks().Networks) != 0 {
+		t.Errorf("Wi-Fi: %+v", resp)
+	}
+	resp, handled = ch.demoGate(&pb.ReqEnvelope{Id: 6, Payload: &pb.ReqEnvelope_ReqListStorageDevices{ReqListStorageDevices: &pb.ListStorageDevices{}}}, "")
+	if !handled || resp.Error || resp.GetRespStorageDevices() == nil || len(resp.GetRespStorageDevices().Devices) != 0 {
+		t.Errorf("disks: %+v", resp)
+	}
+	for _, req := range []*pb.ReqEnvelope{
+		{Payload: &pb.ReqEnvelope_ReqGetBridgeAccess{ReqGetBridgeAccess: &pb.ReqGetBridgeAccess{}}},
+		{Payload: &pb.ReqEnvelope_ReqGetTailscaleStatus{ReqGetTailscaleStatus: &pb.ReqGetTailscaleStatus{}}},
+	} {
+		if resp, handled := ch.demoGate(req, ""); handled {
+			t.Errorf("%T: answered by the gate: %+v", req.Payload, resp)
+		}
+	}
+	if resp, handled := ch.demoGate(&pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqGetLogs{ReqGetLogs: &pb.GetLogs{}}}, ""); !handled || resp.ErrorCode != "demo" {
+		t.Errorf("logs: %+v", resp)
+	}
+
+	saved := buildDemoUpdateInfo
+	t.Cleanup(func() { buildDemoUpdateInfo = saved; demoUpdateCache = map[string]demoUpdateEntry{} })
+	demoUpdateCache = map[string]demoUpdateEntry{}
+	calls := 0
+	buildDemoUpdateInfo = func(lang string) *pb.RespUpdateInfo {
+		calls++
+		return &pb.RespUpdateInfo{CurrentVersion: int32(calls)}
+	}
+	at := time.Unix(1_800_000_000, 0)
+	if v := demoUpdateInfo("", at).CurrentVersion; v != 1 {
+		t.Errorf("first check: %d", v)
+	}
+	if v := demoUpdateInfo("", at.Add(5*time.Minute)).CurrentVersion; v != 1 || calls != 1 {
+		t.Errorf("within ten minutes: %d after %d checks", v, calls)
+	}
+	if v := demoUpdateInfo("es", at.Add(5*time.Minute)).CurrentVersion; v != 2 {
+		t.Errorf("another language: %d", v)
+	}
+	if v := demoUpdateInfo("", at.Add(11*time.Minute)).CurrentVersion; v != 3 {
+		t.Errorf("after ten minutes: %d", v)
+	}
+	resp, handled = ch.demoGate(&pb.ReqEnvelope{Id: 7, Payload: &pb.ReqEnvelope_ReqCheckUpdate{ReqCheckUpdate: &pb.ReqCheckUpdate{}}}, "")
+	if !handled || resp.Id != 7 || resp.GetRespUpdateInfo() == nil {
+		t.Errorf("CheckUpdate: %+v", resp)
+	}
+}

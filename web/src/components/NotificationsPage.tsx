@@ -12,7 +12,7 @@ import type { ReqEnvelope, RespEnvelope, Notification as PbNotification } from "
 import { FriendShipStatus, NotificationType } from "../proto/messages";
 import "./NotificationsPage.css";
 import { Trans, fmtDate, useT, type RichKey, type TFunction } from "../i18n";
-import { useDemo } from "./useDemo";
+import { refuseOnDemo } from "../net/demo";
 
 const POLL_MS = 5000;
 
@@ -94,7 +94,6 @@ export default function NotificationsPage({
   onAcknowledged: () => void;
 }) {
   const t = useT();
-  const demo = useDemo();
   const [notifications, setNotifications] = useState<PbNotification[] | null>(null);
   // Issue #64: an error row's full list of errors shows on hover; a click
   // pins it open, for touch screens and for copying the text.
@@ -159,6 +158,7 @@ export default function NotificationsPage({
   }, []);
 
   const accept = async (domain: string) => {
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
       (e as any).payload = { $case: "reqChangeFriendStatus", reqChangeFriendStatus: { domain, status: FriendShipStatus.Accepted } };
     });
@@ -243,7 +243,7 @@ export default function NotificationsPage({
                   )}
                   <span className="np-item-when"> · {formatWhen(t, n.dt)}</span>
                 </span>
-                {n.type === NotificationType.NotificationFriendRequest && awaiting.has(n.actorDomain) && !demo && (
+                {n.type === NotificationType.NotificationFriendRequest && awaiting.has(n.actorDomain) && (
                   <button className="np-accept" onClick={(e) => { e.stopPropagation(); void accept(n.actorDomain); }}>{t("common.accept")}</button>
                 )}
                 {n.type === NotificationType.NotificationFriendRequest && acceptedHere.has(n.actorDomain) && (

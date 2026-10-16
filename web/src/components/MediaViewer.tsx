@@ -19,7 +19,7 @@ import { DownloadButton, DownloadNote } from "./DownloadButton";
 import { ConfirmDialog } from "./ConfirmDialog";
 import type { UiText } from "./uiText";
 import { copiesChoice, delFileFields, deleteOutcome, refusedText } from "./photoCopies";
-import { useDemo } from "./useDemo";
+import { refuseOnDemo } from "../net/demo";
 
 // How long a video may show no sign of life before it's called stalled.
 const cVideoStallMs = 30000;
@@ -339,11 +339,10 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
   // that closes the viewer.
   const [asking, setAsking] = useState<ViewerItem | null>(null);
   const blockedWhy = item && deleteBlocked ? deleteBlocked(item) : null;
-  // Nothing is deleted on a demo device (net/demo.ts).
-  const demo = useDemo();
-  const canDelete = !!onDeleted && !demo && !!item && !blockedWhy;
+  const canDelete = !!onDeleted && !!item && !blockedWhy;
   const askDelete = useCallback(() => {
-    if (canDelete) setAsking(items[index] ?? null);
+    // A demo device (net/demo.ts) refuses it before asking.
+    if (canDelete && !refuseOnDemo()) setAsking(items[index] ?? null);
   }, [canDelete, items, index]);
   // The caller's latest callback and items, for an answer that comes
   // after a render.
@@ -518,7 +517,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
           {/* Issue #199: where the caller allows it. Greyed out, with
               the reason as its tooltip, where the device would refuse;
               still a stop for the keyboard, so the reason can be read. */}
-          {onDeleted && !demo && (
+          {onDeleted && (
             <button
               type="button"
               className="pg-modal-del"

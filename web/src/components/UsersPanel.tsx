@@ -12,6 +12,7 @@ import { Trans, useT, type TFunction } from "../i18n";
 import { asIs, plainNumber, say, unitText, type UiText } from "./uiText";
 import "./SettingsForm.css";
 import "./UsersPanel.css";
+import { refuseOnDemo } from "../net/demo";
 
 type Metrics = { storageMb: number; storagePct: number; activeConnections: number };
 
@@ -89,6 +90,8 @@ export default function UsersPanel() {
   };
 
   const createUser = async () => {
+
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     setCreating(true);
     setStatus(null);
     try {
@@ -119,6 +122,8 @@ export default function UsersPanel() {
   };
 
   const confirmDelete = async () => {
+
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     if (!deleteTarget) return;
     setDeleting(true);
     try {
@@ -147,6 +152,7 @@ export default function UsersPanel() {
   // Issue #90: reversible enable/disable, distinct from the permanent
   // Delete below - no type-to-confirm needed, since nothing is destroyed.
   const toggleActive = async (u: PbUser) => {
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     setBusyActive(u.uuid);
     setStatus(null);
     try {
@@ -214,7 +220,7 @@ export default function UsersPanel() {
                   >
                     {busyActive === u.uuid ? "…" : u.active ? t("web.settings.users.disable") : t("web.settings.users.enable")}
                   </button>
-                  <button className="sf-btn small sf-danger" onClick={() => { setDeleteTarget(u); setDeleteConfirmText(""); }}>
+                  <button className="sf-btn small sf-danger" onClick={() => { if (refuseOnDemo()) return; setDeleteTarget(u); setDeleteConfirmText(""); }}>
                     {t("common.delete")}
                   </button>
                 </div>

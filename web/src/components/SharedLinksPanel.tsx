@@ -11,6 +11,7 @@ import "./SharedGalleryShare.css";
 import { fmtDate, useT, type TFunction } from "../i18n";
 import { asIs, say, type UiText } from "./uiText";
 import { sizeText } from "./sizeText";
+import { refuseOnDemo } from "../net/demo";
 
 // Sizes: whole KB, MB with one digit, GB with two. Dates in the page's
 // language (the browser's own format when it is that language).
@@ -36,6 +37,8 @@ export default function SharedLinksPanel() {
   useEffect(() => { void load(); }, [load]);
 
   const del = async (l: SharedLinkInfo) => {
+
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     if (!window.confirm(t("web.files.links.confirm_delete"))) return;
     setDeleting(l.uuid);
     const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {

@@ -19,6 +19,7 @@ import { Trans, useT } from "../i18n";
 import { asIs, say, type PlainKey, type UiText } from "./uiText";
 import "./UpdatePanel.css";
 import "./BridgePanel.css";
+import { refuseOnDemo } from "../net/demo";
 
 type Access = {
   enabled: boolean;
@@ -138,6 +139,8 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
   }, [redeem]);
 
   const signIn = async () => {
+
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     setBusy(true);
     setError(null);
     try {
@@ -159,6 +162,8 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
   };
 
   const enable = async () => {
+
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     setBusy(true);
     setError(null);
     try {
@@ -179,6 +184,8 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
   };
 
   const startProvider = (provider: string) => {
+
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     if (!access) return;
     const back = `${window.location.origin}${window.location.pathname}?bridge_signin=1`;
     window.location.href =
@@ -193,6 +200,7 @@ export default function BridgePanel({ onStatus }: { onStatus?: (enabled: boolean
   // restarts local-only; this page, if it came through the bridge, stops
   // answering - the device is then at http://otc.local:8080 at home.
   const leave = async () => {
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     if (!window.confirm(t("web.settings.bridge.leave_confirm", { domain: `${access?.domain}`, address: localUrl }))) return;
     setBusy(true);
     setError(null);

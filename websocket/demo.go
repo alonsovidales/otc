@@ -5,6 +5,7 @@ package websocket
 import (
 	"math"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/alonsovidales/otc/cfg"
@@ -172,18 +173,23 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqUnregisterFcmToken{}):            demoAck,
 	demoReq(&pb.ReqEnvelope_ReqMarkNotificationsAcknowledged{}): demoAck,
 
+	// Settings shows every section on a demo device, so what they read is
+	// answered: the bridge (without the server's own address, see
+	// GetBridgeAccess), Tailscale, the update check (kept for a while,
+	// demoGate, so visitors don't each reach GitHub), and no disks or
+	// Wi-Fi networks to set up (demoGate).
+	demoReq(&pb.ReqEnvelope_ReqGetBridgeAccess{}):    demoAllow,
+	demoReq(&pb.ReqEnvelope_ReqGetTailscaleStatus{}): demoAllow,
+	demoReq(&pb.ReqEnvelope_ReqCheckUpdate{}):        demoAllow,
+	demoReq(&pb.ReqEnvelope_ReqListStorageDevices{}): demoAllow,
+	demoReq(&pb.ReqEnvelope_ReqListWifiNetworks{}):   demoAllow,
+
 	// Refused, listed so the test can tell them from requests nobody has
-	// classified yet. Some only read but would show the server's own
-	// machine, network or logs (visitors' addresses), or reach out to
-	// GitHub on every visitor's behalf; GetLocalEndpoint is answered as
-	// if there were no home network (demoGate).
+	// classified yet. The logs would show visitors' addresses;
+	// GetLocalEndpoint is answered as if there were no home network
+	// (demoGate).
 	demoReq(&pb.ReqEnvelope_ReqGetLocalEndpoint{}):          demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqGetLogs{}):                   demoRefuse,
-	demoReq(&pb.ReqEnvelope_ReqListStorageDevices{}):        demoRefuse,
-	demoReq(&pb.ReqEnvelope_ReqListWifiNetworks{}):          demoRefuse,
-	demoReq(&pb.ReqEnvelope_ReqGetTailscaleStatus{}):        demoRefuse,
-	demoReq(&pb.ReqEnvelope_ReqGetBridgeAccess{}):           demoRefuse,
-	demoReq(&pb.ReqEnvelope_ReqCheckUpdate{}):               demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqUploadFile{}):                demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqBeginUpload{}):               demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqUploadChunk{}):               demoRefuse,
@@ -254,6 +260,36 @@ func demoLanguage(stored string) *string {
 	return &stored
 }
 
+// cDemoUpdateFor is how long a demo device keeps its answer to the update
+// check, per language.
+const cDemoUpdateFor = 10 * time.Minute
+
+var (
+	demoUpdateMu    sync.Mutex
+	demoUpdateCache = map[string]demoUpdateEntry{}
+	// buildDemoUpdateInfo is buildUpdateInfo; the tests stand in for it.
+	buildDemoUpdateInfo = buildUpdateInfo
+)
+
+type demoUpdateEntry struct {
+	at   time.Time
+	info *pb.RespUpdateInfo
+}
+
+// demoUpdateInfo is the update check on a demo device: the same answer, kept
+// for cDemoUpdateFor, so a page of visitors opening Settings doesn't each
+// fetch the release manifest.
+func demoUpdateInfo(lang string, now time.Time) *pb.RespUpdateInfo {
+	demoUpdateMu.Lock()
+	defer demoUpdateMu.Unlock()
+	if e, ok := demoUpdateCache[lang]; ok && now.Sub(e.at) < cDemoUpdateFor {
+		return e.info
+	}
+	info := buildDemoUpdateInfo(lang)
+	demoUpdateCache[lang] = demoUpdateEntry{at: now, info: info}
+	return info
+}
+
 // demoGate answers, on a demo device, a request the device must not run as
 // usual (handled true); for the rest it returns handled false and the
 // request goes on to the usual switches.
@@ -267,6 +303,12 @@ func (ch *connHandler) demoGate(env *pb.ReqEnvelope, lang string) (resp *pb.Resp
 			return demoRefusal(env.Id, lang), true
 		}
 		return nil, false
+	case *pb.ReqEnvelope_ReqListStorageDevices:
+		return &pb.RespEnvelope{Id: env.Id, Payload: &pb.RespEnvelope_RespStorageDevices{RespStorageDevices: &pb.StorageDevices{}}}, true
+	case *pb.ReqEnvelope_ReqListWifiNetworks:
+		return &pb.RespEnvelope{Id: env.Id, Payload: &pb.RespEnvelope_RespWifiNetworks{RespWifiNetworks: &pb.WifiNetworks{}}}, true
+	case *pb.ReqEnvelope_ReqCheckUpdate:
+		return &pb.RespEnvelope{Id: env.Id, Payload: &pb.RespEnvelope_RespUpdateInfo{RespUpdateInfo: demoUpdateInfo(lang, time.Now())}}, true
 	case *pb.ReqEnvelope_ReqGetLocalEndpoint:
 		// No home network: the apps forget any endpoint they hold.
 		return &pb.RespEnvelope{

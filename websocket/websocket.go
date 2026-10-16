@@ -3226,7 +3226,12 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
-		resp.Payload = &pb.RespEnvelope_RespBridgeAccess{RespBridgeAccess: ch.mg.bridgeAccess(true, lang)}
+		access := ch.mg.bridgeAccess(true, lang)
+		if demoMode {
+			// The server's own address, nobody's to see on a demo device.
+			access.LocalAddress = ""
+		}
+		resp.Payload = &pb.RespEnvelope_RespBridgeAccess{RespBridgeAccess: access}
 
 	case *pb.ReqEnvelope_ReqBridgeSignIn:
 		if ch.mg.sup == nil {

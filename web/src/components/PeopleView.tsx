@@ -14,7 +14,7 @@ import { forgetPerson, showPerson } from "./photoFilter";
 import Spinner from "./Spinner";
 import { say, type UiText } from "./uiText";
 import { useDragSelect } from "./useDragSelect";
-import { useDemo } from "./useDemo";
+import { refuseOnDemo } from "../net/demo";
 import "./PeopleView.css";
 
 // The People page: the faces the device found, named people first, each a
@@ -127,7 +127,6 @@ function namesOf(list: readonly Person[]): string[] {
 
 export default function PeopleView({ onOpenPhotos }: Props) {
   const t = useT();
-  const demo = useDemo();
   const { items, thumbs, loaded } = usePeople();
   const { failed, slow, retry } = useFreshList(loaded, reloadPeople);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -322,6 +321,7 @@ export default function PeopleView({ onOpenPhotos }: Props) {
 
   const startRename = useCallback((p: Person) => {
     setMenu(null);
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts) names nobody
     editingRef.current = p.id;
     setEditingId(p.id);
   }, []);
@@ -574,7 +574,7 @@ export default function PeopleView({ onOpenPhotos }: Props) {
             <span className="pv-selbar-count">{t("web.images.people.count", { count: selPeople.length })}</span>
             {mergeHint && !canMerge && <span className="pv-selbar-hint">{t("web.images.people.merge_hint")}</span>}
           </div>
-          {!demo && <div className="pv-selbar-actions">
+          <div className="pv-selbar-actions">
             <BarButton
               compact={compact}
               label={t("web.images.people.merge")}
@@ -586,6 +586,7 @@ export default function PeopleView({ onOpenPhotos }: Props) {
                   notify(say("web.images.people.merge_needs_two"));
                   return;
                 }
+                if (refuseOnDemo()) return;
                 mergedIntoRef.current = null;
                 setConfirmError(null);
                 setConfirm({ kind: "merge" });
@@ -597,11 +598,12 @@ export default function PeopleView({ onOpenPhotos }: Props) {
               label={t("common.delete")}
               icon={<TrashIcon size={22} />}
               onClick={() => {
+                if (refuseOnDemo()) return;
                 setConfirmError(null);
                 setConfirm({ kind: "delete", ids: selPeople.map((p) => p.id), from: "bar" });
               }}
             />
-          </div>}
+          </div>
         </div>
       )}
 
@@ -620,6 +622,7 @@ export default function PeopleView({ onOpenPhotos }: Props) {
           onRename={() => startRename(menuPerson)}
           onMerge={() => mergeWithOthers(menuPerson)}
           onDelete={() => {
+            if (refuseOnDemo()) { setMenu(null); return; }
             setMenu(null);
             setConfirmError(null);
             setConfirm({ kind: "delete", ids: [menuPerson.id], from: "menu" });
@@ -701,8 +704,6 @@ type TileProps = {
 // their clicks (see onGridClick).
 const PersonTile = memo(function PersonTile(props: TileProps) {
   const t = useT();
-  // A demo device (net/demo.ts) names, merges and deletes nobody.
-  const demo = useDemo();
   const { person, name, selecting, selected } = props;
   const photos = person.faceCount;
   const faceLabel = name
@@ -723,7 +724,7 @@ const PersonTile = memo(function PersonTile(props: TileProps) {
     );
   } else if (name) {
     label = <span className={`pv-name${props.pending ? " pending" : ""}`} title={name}>{name}</span>;
-  } else if (selecting || demo) {
+  } else if (selecting) {
     label = <span className="pv-name pv-unnamed">{personLabel({ name })}</span>;
   } else {
     label = (
@@ -752,7 +753,7 @@ const PersonTile = memo(function PersonTile(props: TileProps) {
         >
           <span className="pv-check-circle"><CheckIcon size={16} /></span>
         </button>
-        {!selecting && !demo && (
+        {!selecting && (
           <button
             type="button"
             className="pv-more"

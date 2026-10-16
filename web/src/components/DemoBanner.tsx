@@ -3,10 +3,11 @@
 // A public demo device (net/demo.ts): signed in, a banner above every page
 // says so, with a link to setting up a device of one's own; signed out, a
 // note with Try the demo, which signs in with the demo's published
-// password.
-import { useState } from "react";
+// password. A change tried there brings DemoRefusedNotice up for a
+// moment.
+import { useEffect, useState } from "react";
 import { useT } from "../i18n";
-import { demoPassword } from "../net/demo";
+import { demoPassword, subscribeDemoRefusals } from "../net/demo";
 import { signInWithPassword } from "../net/signIn";
 import type { UiText } from "./uiText";
 import "./DemoBanner.css";
@@ -48,5 +49,25 @@ export function DemoWelcome({ onSignedIn }: { onSignedIn: () => void }) {
       </button>
       {refusal && <p className="demo-refusal" role="alert">{refusal(t)}</p>}
     </section>
+  );
+}
+
+const cNoticeMs = 3500;
+
+// The notice a refused change brings up (net/demo.ts, refuseOnDemo), at
+// the foot of the page; another refusal keeps it up.
+export function DemoRefusedNotice() {
+  const t = useT();
+  const [shown, setShown] = useState(0);
+  useEffect(() => subscribeDemoRefusals(() => setShown((n) => n + 1)), []);
+  useEffect(() => {
+    if (!shown) return;
+    const timer = window.setTimeout(() => setShown(0), cNoticeMs);
+    return () => window.clearTimeout(timer);
+  }, [shown]);
+  return (
+    <div className="demo-refused" role="status" aria-live="polite">
+      {shown > 0 && <span className="demo-refused-text">{t("web.shell.demo.refused")}</span>}
+    </div>
   );
 }

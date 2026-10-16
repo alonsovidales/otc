@@ -2,7 +2,7 @@
 
 import { ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { noteResponse } from "./deviceStatus";
-import { noteDemoReply } from "./demo";
+import { demoRequestReply, noteDemoReply } from "./demo";
 import { noteLanguageConnection, noteLanguageReply, requestLanguage } from "../i18n/choice";
 import { t } from "../i18n/runtime";
 
@@ -104,6 +104,9 @@ export class WSClient {
     const id = this.nextId++;
     const draft: Partial<ReqEnvelope> = { id };
     build(draft);
+    // A demo device changes nothing: answered here (net/demo.ts).
+    const demoReply = demoRequestReply(draft, t("web.shell.demo.refused"));
+    if (demoReply) return Promise.resolve(demoReply);
     // docs/i18n.md: every request says which language this browser shows,
     // so the device answers in it. Set here, after build and over whatever
     // it put in the envelope - the one place, so no request goes without.

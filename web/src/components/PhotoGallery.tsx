@@ -20,7 +20,7 @@ import { useT, type TFunction } from "../i18n";
 import { useWS } from "../net/useWS";
 import type { DeepPartial, File as MsgFile, ImageGroup, Person, ReqEnvelope, RespEnvelope } from "../proto/messages";
 import { fileSize } from "../net/fileSize";
-import { useDemo } from "./useDemo";
+import { refuseOnDemo } from "../net/demo";
 import "./PhotoGallery.css";
 import Spinner from "./Spinner";
 import SharedGalleryShare from "./SharedGalleryShare";
@@ -343,7 +343,6 @@ type Toast = {
 
 export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   const t = useT();
-  const demo = useDemo();
   const filter = usePhotoFilter();
   const { tags, personIds, group } = filter;
   const groupId = group?.id ?? "";
@@ -1058,6 +1057,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   // From the selection bar: an open share menu gives way to the dialog.
   const openDialog = (d: DialogState) => {
     setShareOpen(false);
+    if (refuseOnDemo()) return; // post, add to a collection, delete
     setDialog(d);
   };
   // Issue #180: what is being shared as a gallery page - the open
@@ -1071,6 +1071,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   const makeLink = async (kind: "link" | "zip") => {
     if (preparing || !sel.length) return;
     swallowSecondClick();
+    if (refuseOnDemo()) { closeShare(false); return; }
     const paths = sel.map((f) => f.path);
     closeShare(false);
     setPreparing(kind);
@@ -1121,6 +1122,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
   const shareAsGallery = () => {
     const el = document.activeElement;
     closeShare(el instanceof HTMLElement && el.matches(":focus-visible"));
+    if (refuseOnDemo()) return;
     setSharing({ paths: sel.map((f) => f.path) });
   };
 
@@ -1557,8 +1559,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
             <CloseIcon />
           </button>
           <span className="pg-selbar-count" aria-live="polite">{t("web.images.select.count", { count: sel.length })}</span>
-          {/* A demo device changes nothing, and a share is written on it. */}
-          {!demo && <div className="pg-selbar-actions">
+          <div className="pg-selbar-actions">
             <BarButton compact={compact} label={t("web.images.select.post")} icon={<PostIcon size={22} />} onClick={() => openDialog({ kind: "post" })} />
             <BarButton
               compact={compact}
@@ -1586,7 +1587,7 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
               )}
             </div>
             <BarButton compact={compact} danger label={t("common.delete")} icon={<TrashIcon size={22} />} onClick={() => openDialog({ kind: "delete" })} />
-          </div>}
+          </div>
         </div>
       )}
 
@@ -1604,8 +1605,8 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
             leaveGroup();
             onShowCollections();
           }}
-          onShare={() => setSharing({ groupId: group.id })}
-          onDelete={() => setDialog({ kind: "deleteCollection" })}
+          onShare={() => { if (!refuseOnDemo()) setSharing({ groupId: group.id }); }}
+          onDelete={() => { if (!refuseOnDemo()) setDialog({ kind: "deleteCollection" }); }}
           onError={toastError}
         />
       )}
@@ -1828,7 +1829,6 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
   onError: (text: UiText) => void;
 }) {
   const t = useT();
-  const demo = useDemo();
   const groups = useGroups();
   // The name and count as the device lists them: renamed or grown in
   // another tab or on another device, or after photos were deleted here.
@@ -1848,6 +1848,7 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
   const editingRef = useRef(false);
 
   const start = () => {
+    if (refuseOnDemo()) return;
     editingRef.current = true;
     setDraft(saving ?? group.name);
   };
@@ -1902,8 +1903,6 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
                   else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancel(); }
                 }}
               />
-            ) : demo ? (
-              <span className="pg-clamp">{shown}</span>
             ) : (
               <>
                 {/* Click the name to rename it; the pencil is the same for
@@ -1919,7 +1918,7 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
           </h1>
           <p className="pg-sub">{itemsLabel(t, group.fileCount)}{span && <> · {span}</>}</p>
         </div>
-        {!demo && <div className="pg-head-actions">
+        <div className="pg-head-actions">
           <button
             type="button"
             className={compact ? "pg-icon-btn" : "pg-btn outline"}
@@ -1940,7 +1939,7 @@ function CollectionHeader({ group, span, compact, onBack, onShare, onDelete, onE
             <TrashIcon size={20} />
             {!compact && <span>{t("web.images.collection.delete")}</span>}
           </button>
-        </div>}
+        </div>
       </div>
     </header>
   );

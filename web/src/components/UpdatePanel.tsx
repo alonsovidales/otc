@@ -15,6 +15,7 @@ import { Trans, dateTimeFields, fmtDate, useT, type TFunction } from "../i18n";
 import Spinner from "./Spinner";
 import { asIs, say, type UiText } from "./uiText";
 import "./UpdatePanel.css";
+import { refuseOnDemo } from "../net/demo";
 
 // Issue #183: releases have kinds and "major.minor" labels; one without a
 // label (from before them) shows as a build. The description is the
@@ -149,6 +150,8 @@ export default function UpdatePanel() {
   }, [info?.state, check]);
 
   const apply = async () => {
+
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     setStarting(true);
     setError(null);
     try {
@@ -203,6 +206,8 @@ export default function UpdatePanel() {
   };
 
   const restart = async () => {
+
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     if (!window.confirm(t("web.settings.restart.confirm"))) return;
     const gen = ++restartGen.current;
     setRestartPhase("asking");

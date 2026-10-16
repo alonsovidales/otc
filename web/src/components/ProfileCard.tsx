@@ -8,6 +8,7 @@ import PhotoCropDialog from "./PhotoCropDialog";
 import "./ProfileCard.css";
 import { useT } from "../i18n";
 import { asIs, say, type UiText } from "./uiText";
+import { refuseOnDemo } from "../net/demo";
 
 type Props = {
   authenticated: boolean;
@@ -90,6 +91,8 @@ export default function ProfileCard({ authenticated }: Props) {
   }, []);
 
   const onPickImage = (file?: File | null) => {
+
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     setSuccess(null);
     setError(null);
     if (file) setCropping(file);
@@ -110,6 +113,8 @@ export default function ProfileCard({ authenticated }: Props) {
   }, [authenticated, saving]);
 
   const saveProfile = async () => {
+
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     if (!canSave) return;
     setSaving(true);
     setError(null);

@@ -71,3 +71,33 @@ describe("any other device", () => {
     assert.equal(m.demoPassword(), "");
   });
 });
+
+describe("a change on a demo device", () => {
+  test("is refused with the notice, before anything else", () => {
+    let notices = 0;
+    const off = m.subscribeDemoRefusals(() => notices++);
+    assert.equal(m.refuseOnDemo(), false);
+    m.noteDemoReply(pubKey(true, "try-it"));
+    assert.equal(m.refuseOnDemo(), true);
+    assert.equal(m.refuseOnDemo(), true);
+    off();
+    assert.equal(notices, 2);
+  });
+  test("is answered by ws.ts as the device would, unsent", () => {
+    const req = (kind) => ({ id: 9, payload: { $case: kind } });
+    assert.equal(m.demoRequestReply(req("reqDelFile"), "refused"), undefined);
+    m.noteDemoReply(status(true));
+    const del = m.demoRequestReply(req("reqDelFile"), "refused");
+    assert.equal(del.id, 9);
+    assert.equal(del.error, true);
+    assert.equal(del.errorCode, "demo");
+    assert.equal(del.errorMessage, "refused");
+    assert.equal(del.payload.respAck.code, "demo");
+    const like = m.demoRequestReply(req("reqLikePublication"), "refused");
+    assert.equal(like.error, false);
+    assert.equal(like.payload.respAck.ok, true);
+    assert.equal(m.demoRequestReply(req("reqListFiles"), "refused"), undefined);
+    assert.equal(m.demoRequestReply(req("reqSetLanguage"), "refused"), undefined);
+  });
+});
+

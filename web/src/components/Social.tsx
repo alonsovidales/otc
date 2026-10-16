@@ -12,7 +12,7 @@ import type {
   Profile as PbProfile,
   File as PbFile,
 } from "../proto/messages";
-import { useDemo } from "./useDemo";
+import { isDemo, refuseOnDemo } from "../net/demo";
 import "./Social.css";
 import LowResBadge from "./LowResBadge";
 import Spinner from "./Spinner";
@@ -344,6 +344,9 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
     setFeed(prev => prev.map(p => p.uuid === pub_uuid
       ? { ...p, liked: !wasLiked, likes: p.likes + (wasLiked ? -1 : 1) }
       : p));
+    // A demo device (net/demo.ts) keeps no likes: the visitor's stays on
+    // this page alone, until it reloads.
+    if (isDemo()) return;
     try {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqLikePublication", reqLikePublication: { pubUuid: pub_uuid } };
@@ -371,6 +374,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
         : c),
     })));
     toggle(!wasLiked);
+    if (isDemo()) return; // on this page alone, as likePublication
     try {
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = { $case: "reqLikeComment", reqLikeComment: { commentUuid: comment_uuid } };
@@ -385,7 +389,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
 
   const addComment = useCallback(async (pub_uuid: string, text: string, publisherName: string) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed || refuseOnDemo()) return;
 
     const tempUuid = `pending-${Math.random().toString(36).slice(2)}`;
     setFeed(prev => prev.map(p => p.uuid === pub_uuid
@@ -453,7 +457,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
   // photos and post them, without leaving the social tab.
   const [pickerOpen, setPickerOpen] = useState(false);
   useEffect(() => {
-    onRegisterOpenComposer?.(() => setPickerOpen(true));
+    onRegisterOpenComposer?.(() => { if (!refuseOnDemo()) setPickerOpen(true); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -792,7 +796,7 @@ export default function Social({ authenticated, openPubUuid, openCommentUuid, on
           <div className="sv-empty">
             <h2>{t("web.social.feed.empty_title")}</h2>
             <p>{t("web.social.feed.empty_text")}</p>
-            <button className="sv-empty-new" onClick={() => setPickerOpen(true)} aria-label={t("web.social.feed.new_post")}>
+            <button className="sv-empty-new" onClick={() => { if (!refuseOnDemo()) setPickerOpen(true); }} aria-label={t("web.social.feed.new_post")}>
               {/* Drawn, not typed: a text "+" sits on the font's baseline,
                   visibly below centre in a circle this size. */}
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1022,8 +1026,6 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
     deleteComment, showPublicationLikers, showCommentLikers, openViewer,
   } = actions;
   const t = useT();
-  // A demo device (net/demo.ts) takes no likes, comments or deletes.
-  const demo = useDemo();
   const [idx, setIdx] = useState(0);
   const rootRef = useRef<HTMLElement | null>(null);
 
@@ -1289,12 +1291,12 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
           {p.dateTime && <PostDate d={p.dateTime} />}
         </div>
         {/* Issue #34: delete one of your own posts. */}
-        {p.own && !demo && (
+        {p.own && (
           <button
             className="sv-post-delete"
             aria-label={t("web.social.post.delete")}
             data-tip={t("web.social.post.delete")}
-            onClick={() => { if (window.confirm(t("web.social.post.confirm_delete"))) void deletePublication(p.uuid); }}
+            onClick={() => { if (!refuseOnDemo() && window.confirm(t("web.social.post.confirm_delete"))) void deletePublication(p.uuid); }}
           >
             🗑️
           </button>
@@ -1431,16 +1433,14 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
       <div className="sv-caption">{p.text}</div>
 
       <div className="sv-actions">
-        {!demo && (
-          <button
-            className={`sv-btn${p.liked ? " liked" : ""}`}
-            onClick={() => likePublication(p.uuid)}
-            aria-label={p.liked ? t("web.social.post.unlike") : t("web.social.post.like")}
-            aria-pressed={p.liked}
-          >
-            {p.liked ? "❤️" : "🤍"}
-          </button>
-        )}
+        <button
+          className={`sv-btn${p.liked ? " liked" : ""}`}
+          onClick={() => likePublication(p.uuid)}
+          aria-label={p.liked ? t("web.social.post.unlike") : t("web.social.post.like")}
+          aria-pressed={p.liked}
+        >
+          {p.liked ? "❤️" : "🤍"}
+        </button>
         <button className="sv-btn" onClick={() => alert(t("web.social.post.share_unavailable"))}>↗︎ {t("common.share")}</button>
         <DownloadButton
           cls="sv-dl"
@@ -1477,33 +1477,31 @@ const Post = memo(function Post({ p, highlighted, highlightComment, armPaginatio
                 {c.likes}
               </button>
             )}
-            {!demo && (
-              <button
-                className={`sv-btn tiny${c.liked ? " liked" : ""}`}
-                onClick={() => likeComment(c.commentUuid)}
-                aria-label={c.liked ? t("web.social.comment.unlike") : t("web.social.comment.like")}
-                aria-pressed={c.liked}
-              >
-                {c.liked ? "❤️" : "🤍"}
-              </button>
-            )}
+            <button
+              className={`sv-btn tiny${c.liked ? " liked" : ""}`}
+              onClick={() => likeComment(c.commentUuid)}
+              aria-label={c.liked ? t("web.social.comment.unlike") : t("web.social.comment.like")}
+              aria-pressed={c.liked}
+            >
+              {c.liked ? "❤️" : "🤍"}
+            </button>
             {/* Issue #35: on your own post, any comment can be deleted —
                 not just ones you wrote. Issue #174: and your own comment
                 anywhere (not the optimistic placeholder, which has no
                 real uuid yet). */}
-            {(p.own || c.own) && !demo && !c.commentUuid.startsWith("pending-") && (
+            {(p.own || c.own) && !c.commentUuid.startsWith("pending-") && (
               <button
                 className="sv-btn tiny"
                 aria-label={t("web.social.comment.delete")}
                 data-tip={t("web.social.comment.delete")}
-                onClick={() => { if (window.confirm(t("web.social.comment.confirm_delete"))) void deleteComment(c.commentUuid); }}
+                onClick={() => { if (!refuseOnDemo() && window.confirm(t("web.social.comment.confirm_delete"))) void deleteComment(c.commentUuid); }}
               >
                 🗑️
               </button>
             )}
           </div>
         ))}
-        {!demo && <NewComment pubUuid={p.uuid} onSend={(txt) => addComment(p.uuid, txt, cOwnCommentName)} />}
+        <NewComment pubUuid={p.uuid} onSend={(txt) => addComment(p.uuid, txt, cOwnCommentName)} />
       </div>
     </article>
   );

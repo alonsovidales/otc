@@ -31,7 +31,7 @@ import DeviceUnreachable from "./components/DeviceUnreachable";
 import Spinner from "./components/Spinner";
 import { getDeviceStatus, subscribeDeviceStatus } from "./net/deviceStatus";
 import UpdateBanner from "./components/UpdateBanner";
-import { DemoBanner, DemoWelcome } from "./components/DemoBanner";
+import { DemoBanner, DemoRefusedNotice, DemoWelcome } from "./components/DemoBanner";
 import { useDemo } from "./components/useDemo";
 import { isDemo } from "./net/demo";
 import DeviceUpdatedNotice from "./components/DeviceUpdatedNotice";
@@ -509,7 +509,7 @@ function App() {
           : !signInFieldOut && <div className="tb-fill" />}
         {/* The page's own action: a new post, on the feed. Below 700px
             only its "+" shows (index.css), named by a tooltip. */}
-        {authenticated && tab === "Social" && openComposer && !demo && (
+        {authenticated && tab === "Social" && openComposer && (
           <button
             className="tb-action"
             onClick={() => openComposer()}
@@ -564,6 +564,7 @@ function App() {
       <div className={`app-body${authenticated ? ` menu-${menuLayout}` : ""}${menuSlides ? " menu-slides" : ""}`}>
       {authenticated && <UpdateBanner onOpenSettings={() => setTab("Settings")} />}
       {authenticated && demo && <DemoBanner />}
+      {demo && <DemoRefusedNotice />}
       {servedByDevice && <DeviceUpdatedNotice />}
       {/* Images, People and Collections space their own headers; every
           other page starts a gap below the top bar's line. */}

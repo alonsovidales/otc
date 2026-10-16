@@ -10,3 +10,7 @@
 .demo-try:disabled { opacity: 0.6; cursor: default; }
 .demo-refusal { margin: 0; color: var(--danger); font-size: 14px; }
 @media (max-width: 600px) { .demo-welcome { margin: 16px 16px 8px; } }
+/* The notice a refused change brings up: above everything, the dialogs
+   included, at the foot of the page. */
+.demo-refused { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 1000; pointer-events: none; max-width: calc(100vw - 32px); }
+.demo-refused-text { display: block; padding: 10px 16px; border-radius: 10px; background: #2b2a24; border: 1px solid rgba(255, 200, 87, 0.45); color: var(--mist); font-size: 14px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45); }

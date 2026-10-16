@@ -18,6 +18,7 @@ import type { RespEnvelope } from "../proto/messages";
 import { Trans, useT } from "../i18n";
 import { asIs, say, type UiText } from "./uiText";
 import "./UpdatePanel.css";
+import { refuseOnDemo } from "../net/demo";
 
 type TailscaleState = {
   installed: boolean;
@@ -90,6 +91,8 @@ export default function TailscalePanel() {
   }, [isPrimary, refresh]);
 
   const configure = async (enable: boolean) => {
+
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     setBusy(true);
     setNote(null);
     setError(null);

@@ -18,7 +18,7 @@ import SharedGalleryShare from "./SharedGalleryShare";
 import FileTypeIcon from "./FileTypeIcon";
 import MediaViewer, { type ViewerItem } from "./MediaViewer";
 import { reloadAfterImagesChanged } from "./libraryStore";
-import { useDemo } from "./useDemo";
+import { refuseOnDemo } from "../net/demo";
 import "./FilesExplorer.css";
 import Spinner from "./Spinner";
 import { Trans, dateTimeFields, fmtDate, useT, type TFunction } from "../i18n";
@@ -291,7 +291,6 @@ export default function FilesExplorer({
   initialPath = "/"
 }: Props) {
   const t = useT();
-  const demo = useDemo();
   // Issue #53 follow-up: a reload restores the Files tab itself now, but
   // used to still always drop back to initialPath ("/") rather than
   // wherever the user had actually navigated to.
@@ -512,7 +511,7 @@ export default function FilesExplorer({
   const onDrop: React.DragEventHandler<HTMLDivElement> = async (ev) => {
     ev.preventDefault(); ev.stopPropagation(); setDragOver(false);
     const files = Array.from(ev.dataTransfer.files ?? []);
-    if (!files.length) return;
+    if (!files.length || refuseOnDemo()) return;
     // Over a search's results: back to the folder they go to, to see them
     // arrive.
     if (resultsRef.current) closeResults();
@@ -679,7 +678,7 @@ export default function FilesExplorer({
   // the device's words then say so, once ("Delete failed: …", as Images
   // and the phones say them), and the folder is listed again.
   const delSelected = async () => {
-    if (!selected.length || selectedUploadOnly) return;
+    if (!selected.length || selectedUploadOnly || refuseOnDemo()) return;
     if (!window.confirm(t("web.files.selection.confirm_delete", { count: selected.length }))) return;
     let changed = "";
     for (const f of selected) {
@@ -700,6 +699,7 @@ export default function FilesExplorer({
   // Issue #132: the lock next to a folder - flag it upload only, or clear
   // it. Everything under it (and its lock) follows on the next listing.
   const toggleUploadOnly = async (f: PbFile) => {
+    if (refuseOnDemo()) return;
     const full = f.path.includes("/") ? f.path : joinPath(path, f.path);
     const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
       (e as any).payload = { $case: "reqSetUploadOnly", reqSetUploadOnly: { path: full, uploadOnly: !f.uploadOnly } };
@@ -724,7 +724,7 @@ export default function FilesExplorer({
   // visit to Images. Every other change waits until this one is done, and
   // the focus comes back to where it was.
   const toggleOutOfImages = async (full: string, out: boolean, from: "row" | "banner") => {
-    if (noImgBusyRef.current) return;
+    if (noImgBusyRef.current || refuseOnDemo()) return;
     const name = leafName(full.replace(/\/+$/, ""));
     const ask = out ? t("web.files.keep_out.confirm_show", { name }) : t("web.files.keep_out.confirm_keep", { name });
     if (!window.confirm(ask)) return;
@@ -821,7 +821,7 @@ export default function FilesExplorer({
   const [preparing, setPreparing] = useState<null | "share" | "zip">(null);
 
   const shareOrZip = async (openZip: boolean) => {
-    if (!selected.length || preparing) return;
+    if (!selected.length || preparing || refuseOnDemo()) return;
     setPreparing(openZip ? "zip" : "share");
     try {
       const paths = selected.map(f => f.path.includes("/") ? f.path : joinPath(path, f.path));
@@ -1414,7 +1414,6 @@ export default function FilesExplorer({
   // folder then, not a switch - the banner has the way back.
   const noImgCover = noImg.folderOut ? (noImg.cover ?? normPath(path)).replace(/\/+$/, "") : "";
   const noImgButton = (r: { name: string; file: PbFile; outOfImages: boolean }, tile = false) => {
-    if (demo) return null;
     const tileClass = tile ? " fb-tile-noimg" : "";
     if (noImg.folderOut) {
       const tip = t("web.files.keep_out.parent_tip", { folder: noImgCover });
@@ -1553,7 +1552,7 @@ export default function FilesExplorer({
                 </button>
                 {/* The folder's lock and switch for Images, as in the list;
                     a file in an upload-only folder its lock. */}
-                {f && r.isDir && !demo && (
+                {f && r.isDir && (
                   <button
                     className={`fb-lock${f.uploadOnly ? " on" : ""}`}
                     onClick={() => void toggleUploadOnly(f)}
@@ -1618,10 +1617,9 @@ export default function FilesExplorer({
     <div
       ref={wrapRef}
       className={`fb-wrap ${dragOver ? "drag" : ""}`}
-      // A demo device takes no uploads.
-      onDrop={demo ? undefined : onDrop}
-      onDragOver={demo ? undefined : onDragOver}
-      onDragLeave={demo ? undefined : onDragLeave}
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
     >
       {/* The folder's toolbar and contents stay as they are, hidden, while
           a search's results show. */}
@@ -1857,9 +1855,6 @@ export default function FilesExplorer({
             </button>
             <div><Trans k="web.files.selection.selected" args={{ count: selected.length }} parts={{ b: (s) => <strong>{s}</strong> }} /></div>
             <div className="grow" />
-            {/* A demo device changes nothing, and a share or a zip is
-                written on it. */}
-            {!demo && (<>
             <button className="btn danger" onClick={() => void delSelected()} disabled={selectedUploadOnly}
               title={selectedUploadOnly ? t("web.files.selection.upload_only") : undefined}>{t("common.delete")}</button>
             <button className="btn" onClick={() => void shareOrZip(false)} disabled={!!preparing}>
@@ -1869,12 +1864,11 @@ export default function FilesExplorer({
               {preparing === "zip" ? <Spinner label={t("web.files.selection.preparing_zip")} /> : t("web.files.selection.download_zip")}
             </button>
             {singleFolder && (
-              <button className="btn" onClick={() => setSharingFolder(singleFolder)}
+              <button className="btn" onClick={() => { if (!refuseOnDemo()) setSharingFolder(singleFolder); }}
                 data-tip={t("web.files.selection.share_gallery_tip")} aria-description={t("web.files.selection.share_gallery_tip")}>
                 {t("web.files.selection.share_gallery")}
               </button>
             )}
-            </>)}
           </div>
         </div>
       )}
@@ -1909,7 +1903,7 @@ export default function FilesExplorer({
                 )}
                 {/* Issue #192: left of the lock, which keeps its corner. */}
                 {r.name !== ".." && r.isDir && noImgShown && noImgButton(r, true)}
-                {r.name !== ".." && r.isDir && !demo && (
+                {r.name !== ".." && r.isDir && (
                   <button className={`fb-lock fb-tile-lock${r.uploadOnly ? " on" : ""}`} onClick={() => void toggleUploadOnly(r.file)}
                     data-tip={r.uploadOnly ? t("web.files.lock.on_tip_short") : t("web.files.lock.make")}
                     aria-label={r.uploadOnly ? t("web.files.lock.clear") : t("web.files.lock.make")} aria-pressed={r.uploadOnly}>
@@ -1965,7 +1959,7 @@ export default function FilesExplorer({
                 </button>
                 {/* Issue #132: the lock on a folder flags it upload only;
                     on a file it just says the file is inside one. */}
-                {r.name !== ".." && r.isDir && !demo && (
+                {r.name !== ".." && r.isDir && (
                   <button
                     className={`fb-lock${r.uploadOnly ? " on" : ""}`}
                     onClick={() => void toggleUploadOnly(r.file)}

@@ -23,6 +23,7 @@ import type {
 } from "../proto/messages";
 import { useDemo } from "./useDemo";
 import "./SettingsForm.css";
+import { refuseOnDemo } from "../net/demo";
 
 // Rounded, clamped to [0, 100] - total can be 0 right when a run has just
 // started and the very first status poll hasn't landed yet.
@@ -71,6 +72,7 @@ export default function SettingsForm() {
   const [socialLimitBusy, setSocialLimitBusy] = useState(false);
   const [socialLimitNote, setSocialLimitNote] = useState<{ kind: "ok" | "error"; text: UiText } | null>(null);
   const saveSocialLimit = async () => {
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     const gb = Number(socialLimitGB.replace(",", "."));
     if (!Number.isFinite(gb) || gb < 0.1) {
       setSocialLimitNote({ kind: "error", text: say("web.settings.social.too_small") });
@@ -92,6 +94,8 @@ export default function SettingsForm() {
   };
 
   const toggleFaceRecognition = async () => {
+
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     setFaceRecognitionBusy(true);
     setStatus(null);
     const next = !faceRecognitionEnabled;
@@ -113,6 +117,7 @@ export default function SettingsForm() {
 
   // Issue #181: the tagging model can be turned off like face recognition.
   const toggleImageTagging = async () => {
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     setImageTaggingBusy(true);
     setStatus(null);
     const next = !imageTaggingEnabled;
@@ -169,6 +174,8 @@ export default function SettingsForm() {
   }, [reprocessStatus?.status, loadReprocessStatus]);
 
   const startReprocess = async (forceRestart: boolean) => {
+
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     setReprocessConfirming(null);
     setReprocessBusy(true);
     setStatus(null);
@@ -192,6 +199,7 @@ export default function SettingsForm() {
   // notices between files - see files_manager.CancelReprocess) - just
   // requests it and refreshes status, same as starting.
   const stopReprocess = async () => {
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     setReprocessCancelling(true);
     setStatus(null);
     try {
@@ -219,6 +227,8 @@ export default function SettingsForm() {
   }, []);
 
   const togglePush = async () => {
+
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     setPushBusy(true);
     setStatus(null);
     try {
@@ -279,6 +289,8 @@ export default function SettingsForm() {
   // ---------- Actions ----------
 
   const changePassword = async () => {
+
+    if (refuseOnDemo()) return; // a demo device (net/demo.ts)
     if (!canSaveKey || savingKey) return;
     setSavingKey(true);
     setStatus(null);
@@ -335,197 +347,192 @@ export default function SettingsForm() {
           instead whenever authenticated=true). SettingsForm only ever
           renders once authenticated (see App.tsx), so this is always the
           editable branch, never ProfileCard's own read-only visitor view. */}
-      {!demo && (
-        <section className="sf-section">
-          <h3>{t("web.settings.profile.title")}</h3>
-          <ProfileCard authenticated={true} />
-        </section>
-      )}
+      <section className="sf-section">
+        <h3>{t("web.settings.profile.title")}</h3>
+        <ProfileCard authenticated={true} />
+      </section>
 
       <LanguagePanel />
 
-      {/* A demo device (net/demo.ts) changes nothing: only the language,
-          kept in this browser, and signing out. */}
-      {!demo && (<>
-        <UsersPanel />
+      <UsersPanel />
 
+      <section className="sf-section">
+        <h3>{t("web.settings.password.title")}</h3>
+        <div className="sf-row">
+          <label htmlFor="sf-old">{t("web.settings.password.old")}</label>
+          <input
+            id="sf-old"
+            className="sf-input"
+            type="password"
+            value={oldKey}
+            onChange={(e) => setOldKey(e.target.value)}
+          />
+        </div>
+        <div className="sf-row">
+          <label htmlFor="sf-new">{t("web.settings.password.new")}</label>
+          <input
+            id="sf-new"
+            className="sf-input"
+            type="password"
+            value={newKey}
+            onChange={(e) => setNewKey(e.target.value)}
+          />
+        </div>
+        <div className="sf-row">
+          <label htmlFor="sf-conf">{t("web.settings.password.confirm")}</label>
+          <input
+            id="sf-conf"
+            className="sf-input"
+            type="password"
+            value={confirmKey}
+            onChange={(e) => setConfirmKey(e.target.value)}
+          />
+        </div>
+        {pwTooShort && <div className="sf-note error">{t("web.settings.password.too_short")}</div>}
+        {pwMismatch && <div className="sf-note error">{t("web.settings.password.mismatch")}</div>}
+
+        <button className="sf-btn" disabled={!canSaveKey || savingKey} onClick={() => void changePassword()}>
+          {savingKey ? t("web.settings.general.saving") : t("web.settings.password.change")}
+        </button>
+      </section>
+
+      {pushSupported() && (
         <section className="sf-section">
-          <h3>{t("web.settings.password.title")}</h3>
-          <div className="sf-row">
-            <label htmlFor="sf-old">{t("web.settings.password.old")}</label>
-            <input
-              id="sf-old"
-              className="sf-input"
-              type="password"
-              value={oldKey}
-              onChange={(e) => setOldKey(e.target.value)}
-            />
-          </div>
-          <div className="sf-row">
-            <label htmlFor="sf-new">{t("web.settings.password.new")}</label>
-            <input
-              id="sf-new"
-              className="sf-input"
-              type="password"
-              value={newKey}
-              onChange={(e) => setNewKey(e.target.value)}
-            />
-          </div>
-          <div className="sf-row">
-            <label htmlFor="sf-conf">{t("web.settings.password.confirm")}</label>
-            <input
-              id="sf-conf"
-              className="sf-input"
-              type="password"
-              value={confirmKey}
-              onChange={(e) => setConfirmKey(e.target.value)}
-            />
-          </div>
-          {pwTooShort && <div className="sf-note error">{t("web.settings.password.too_short")}</div>}
-          {pwMismatch && <div className="sf-note error">{t("web.settings.password.mismatch")}</div>}
-
-          <button className="sf-btn" disabled={!canSaveKey || savingKey} onClick={() => void changePassword()}>
-            {savingKey ? t("web.settings.general.saving") : t("web.settings.password.change")}
+          <h3>{t("web.settings.notifications.title")}</h3>
+          <p className="sf-hint">{t("web.settings.notifications.hint")}</p>
+          <button className="sf-btn" disabled={pushBusy} onClick={() => void togglePush()}>
+            {pushBusy ? t("web.settings.general.working") : pushSubscribed ? t("web.settings.notifications.disable") : t("web.settings.notifications.enable")}
           </button>
         </section>
+      )}
 
-        {pushSupported() && (
-          <section className="sf-section">
-            <h3>{t("web.settings.notifications.title")}</h3>
-            <p className="sf-hint">{t("web.settings.notifications.hint")}</p>
-            <button className="sf-btn" disabled={pushBusy} onClick={() => void togglePush()}>
-              {pushBusy ? t("web.settings.general.working") : pushSubscribed ? t("web.settings.notifications.disable") : t("web.settings.notifications.enable")}
+      {/* Issue #145: joining the bridge after a setup without it. */}
+      <BridgePanel />
+
+      {/* Issue #80: Tailscale Funnel as an alternative to the bridge.
+          Primary-only too - Funnel publishes the whole machine. */}
+      <TailscalePanel />
+
+      {/* Live device logs; copy or send them for support. Not on a demo
+          device, which doesn't show them. */}
+      {!demo && <LogsPanel />}
+
+      <section className="sf-section">
+        <h3>{t("web.settings.faces.title")}</h3>
+        <p className="sf-hint">{t("web.settings.faces.hint")}</p>
+        <button className="sf-btn" disabled={faceRecognitionBusy} onClick={() => void toggleFaceRecognition()}>
+          {faceRecognitionBusy ? t("web.settings.general.working") : faceRecognitionEnabled ? t("web.settings.faces.disable") : t("web.settings.faces.enable")}
+        </button>
+      </section>
+
+      <section className="sf-section">
+        <h3>{t("web.settings.tagging.title")}</h3>
+        <p className="sf-hint">{t("web.settings.tagging.hint")}</p>
+        <button className="sf-btn" disabled={imageTaggingBusy} onClick={() => void toggleImageTagging()}>
+          {imageTaggingBusy ? t("web.settings.general.working") : imageTaggingEnabled ? t("web.settings.tagging.disable") : t("web.settings.tagging.enable")}
+        </button>
+      </section>
+
+      <section className="sf-section">
+        <h3>{t("web.settings.social.title")}</h3>
+        <p className="sf-hint">
+          {t("web.settings.social.hint")}
+          {socialUsedBytes !== null && <> {t("web.settings.social.using", { size: usedGB(t, socialUsedBytes) })}</>}
+        </p>
+        <div className="sf-row">
+          <label htmlFor="sf-social-limit">{t("web.settings.social.limit")}</label>
+          <div className="sf-secret-row">
+            <input id="sf-social-limit" className="sf-input" type="number" min="0.1" step="0.5" inputMode="decimal"
+              value={socialLimitGB} onChange={e => setSocialLimitGB(e.target.value)} />
+            <button className="sf-btn small" type="button" disabled={socialLimitBusy} onClick={() => void saveSocialLimit()}>
+              {socialLimitBusy ? t("web.settings.general.saving") : t("common.save")}
             </button>
-          </section>
-        )}
-
-        {/* Issue #145: joining the bridge after a setup without it. */}
-        <BridgePanel />
-
-        {/* Issue #80: Tailscale Funnel as an alternative to the bridge.
-            Primary-only too - Funnel publishes the whole machine. */}
-        <TailscalePanel />
-
-        {/* Live device logs; copy or send them for support. */}
-        <LogsPanel />
-
-        <section className="sf-section">
-          <h3>{t("web.settings.faces.title")}</h3>
-          <p className="sf-hint">{t("web.settings.faces.hint")}</p>
-          <button className="sf-btn" disabled={faceRecognitionBusy} onClick={() => void toggleFaceRecognition()}>
-            {faceRecognitionBusy ? t("web.settings.general.working") : faceRecognitionEnabled ? t("web.settings.faces.disable") : t("web.settings.faces.enable")}
-          </button>
-        </section>
-
-        <section className="sf-section">
-          <h3>{t("web.settings.tagging.title")}</h3>
-          <p className="sf-hint">{t("web.settings.tagging.hint")}</p>
-          <button className="sf-btn" disabled={imageTaggingBusy} onClick={() => void toggleImageTagging()}>
-            {imageTaggingBusy ? t("web.settings.general.working") : imageTaggingEnabled ? t("web.settings.tagging.disable") : t("web.settings.tagging.enable")}
-          </button>
-        </section>
-
-        <section className="sf-section">
-          <h3>{t("web.settings.social.title")}</h3>
-          <p className="sf-hint">
-            {t("web.settings.social.hint")}
-            {socialUsedBytes !== null && <> {t("web.settings.social.using", { size: usedGB(t, socialUsedBytes) })}</>}
-          </p>
-          <div className="sf-row">
-            <label htmlFor="sf-social-limit">{t("web.settings.social.limit")}</label>
-            <div className="sf-secret-row">
-              <input id="sf-social-limit" className="sf-input" type="number" min="0.1" step="0.5" inputMode="decimal"
-                value={socialLimitGB} onChange={e => setSocialLimitGB(e.target.value)} />
-              <button className="sf-btn small" type="button" disabled={socialLimitBusy} onClick={() => void saveSocialLimit()}>
-                {socialLimitBusy ? t("web.settings.general.saving") : t("common.save")}
-              </button>
-            </div>
           </div>
-          {socialLimitNote && <p className={`sf-note ${socialLimitNote.kind === "ok" ? "success" : "error"}`}>{socialLimitNote.text(t)}</p>}
-        </section>
+        </div>
+        {socialLimitNote && <p className={`sf-note ${socialLimitNote.kind === "ok" ? "success" : "error"}`}>{socialLimitNote.text(t)}</p>}
+      </section>
 
-        {/* Issue #94: in-place updates. Renders nothing on a non-primary
-            instance - see UpdatePanel. */}
-        <UpdatePanel />
+      {/* Issue #94: in-place updates. Renders nothing on a non-primary
+          instance - see UpdatePanel. */}
+      <UpdatePanel />
 
-        {/* Issue #180: share links, and the space their copies take. */}
-        <SharedLinksPanel />
+      {/* Issue #180: share links, and the space their copies take. */}
+      <SharedLinksPanel />
 
-        <section className="sf-section">
-          <h3>{t("web.settings.reprocess.title")}</h3>
-          <p className="sf-hint">{t("web.settings.reprocess.hint")}</p>
-          {reprocessStatus?.status === "running" ? (
-            <div className="sf-progress">
-              <div className="sf-progress-track">
-                <div
-                  className="sf-progress-fill"
-                  style={{ width: `${reprocessPercent(reprocessStatus)}%` }}
-                />
-              </div>
-              <div className="sf-progress-row">
-                <div className="sf-hint">
-                  {t("web.settings.reprocess.progress", {
-                    percent: percentText(t, reprocessPercent(reprocessStatus)),
-                    processed: reprocessStatus.processed,
-                    total: reprocessStatus.total,
-                  })}
-                </div>
-                <button className="sf-btn small sf-danger" disabled={reprocessCancelling} onClick={() => void stopReprocess()}>
-                  {reprocessCancelling ? t("web.settings.reprocess.stopping") : t("web.settings.reprocess.cancel")}
-                </button>
-              </div>
+      <section className="sf-section">
+        <h3>{t("web.settings.reprocess.title")}</h3>
+        <p className="sf-hint">{t("web.settings.reprocess.hint")}</p>
+        {reprocessStatus?.status === "running" ? (
+          <div className="sf-progress">
+            <div className="sf-progress-track">
+              <div
+                className="sf-progress-fill"
+                style={{ width: `${reprocessPercent(reprocessStatus)}%` }}
+              />
             </div>
-          ) : reprocessStatus?.status === "stopped" ? (
-            <>
+            <div className="sf-progress-row">
               <div className="sf-hint">
-                {t("web.settings.reprocess.stopped", {
+                {t("web.settings.reprocess.progress", {
                   percent: percentText(t, reprocessPercent(reprocessStatus)),
                   processed: reprocessStatus.processed,
                   total: reprocessStatus.total,
                 })}
               </div>
-              <div className="sf-btn-row">
-                <button className="sf-btn" disabled={reprocessBusy} onClick={() => setReprocessConfirming("resume")}>
-                  {reprocessBusy ? t("web.settings.general.starting") : t("web.settings.reprocess.resume_all")}
-                </button>
-                <button className="sf-btn sf-btn-secondary" disabled={reprocessBusy} onClick={() => setReprocessConfirming("restart")}>
-                  {t("web.settings.reprocess.start_over")}
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <button className="sf-btn" disabled={reprocessBusy} onClick={() => setReprocessConfirming("restart")}>
-                {reprocessBusy ? t("web.settings.general.starting") : t("web.settings.reprocess.all")}
+              <button className="sf-btn small sf-danger" disabled={reprocessCancelling} onClick={() => void stopReprocess()}>
+                {reprocessCancelling ? t("web.settings.reprocess.stopping") : t("web.settings.reprocess.cancel")}
               </button>
-              {reprocessStatus?.status === "completed" && (
-                <div className="sf-hint">{t("web.settings.reprocess.completed", { count: reprocessStatus.processed })}</div>
-              )}
-              {reprocessStatus?.status === "failed" && (
-                <div className="sf-note error">{t("web.settings.reprocess.failed", { count: reprocessStatus.processed })}</div>
-              )}
-            </>
-          )}
-        </section>
-
-        {reprocessConfirming && (
-          <div className="sf-modal" onClick={() => setReprocessConfirming(null)}>
-            <div className="sf-modal-inner" onClick={e => e.stopPropagation()}>
-              <p>
-                {reprocessConfirming === "resume"
-                  ? t("web.settings.reprocess.confirm_resume")
-                  : t("web.settings.reprocess.confirm_restart")}
-              </p>
-              <div className="sf-modal-actions">
-                <button className="sf-btn small" onClick={() => setReprocessConfirming(null)}>{t("common.cancel")}</button>
-                <button className="sf-btn small sf-danger" onClick={() => void startReprocess(reprocessConfirming === "restart")}>
-                  {reprocessConfirming === "resume" ? t("web.settings.reprocess.resume") : t("web.settings.reprocess.confirm")}
-                </button>
-              </div>
             </div>
           </div>
+        ) : reprocessStatus?.status === "stopped" ? (
+          <>
+            <div className="sf-hint">
+              {t("web.settings.reprocess.stopped", {
+                percent: percentText(t, reprocessPercent(reprocessStatus)),
+                processed: reprocessStatus.processed,
+                total: reprocessStatus.total,
+              })}
+            </div>
+            <div className="sf-btn-row">
+              <button className="sf-btn" disabled={reprocessBusy} onClick={() => { if (!refuseOnDemo()) setReprocessConfirming("resume"); }}>
+                {reprocessBusy ? t("web.settings.general.starting") : t("web.settings.reprocess.resume_all")}
+              </button>
+              <button className="sf-btn sf-btn-secondary" disabled={reprocessBusy} onClick={() => { if (!refuseOnDemo()) setReprocessConfirming("restart"); }}>
+                {t("web.settings.reprocess.start_over")}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <button className="sf-btn" disabled={reprocessBusy} onClick={() => { if (!refuseOnDemo()) setReprocessConfirming("restart"); }}>
+              {reprocessBusy ? t("web.settings.general.starting") : t("web.settings.reprocess.all")}
+            </button>
+            {reprocessStatus?.status === "completed" && (
+              <div className="sf-hint">{t("web.settings.reprocess.completed", { count: reprocessStatus.processed })}</div>
+            )}
+            {reprocessStatus?.status === "failed" && (
+              <div className="sf-note error">{t("web.settings.reprocess.failed", { count: reprocessStatus.processed })}</div>
+            )}
+          </>
         )}
-      </>)}
+      </section>
+
+      {reprocessConfirming && (
+        <div className="sf-modal" onClick={() => setReprocessConfirming(null)}>
+          <div className="sf-modal-inner" onClick={e => e.stopPropagation()}>
+            <p>
+              {reprocessConfirming === "resume"
+                ? t("web.settings.reprocess.confirm_resume")
+                : t("web.settings.reprocess.confirm_restart")}
+            </p>
+            <div className="sf-modal-actions">
+              <button className="sf-btn small" onClick={() => setReprocessConfirming(null)}>{t("common.cancel")}</button>
+              <button className="sf-btn small sf-danger" onClick={() => void startReprocess(reprocessConfirming === "restart")}>
+                {reprocessConfirming === "resume" ? t("web.settings.reprocess.resume") : t("web.settings.reprocess.confirm")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="sf-section">
         <h3>{t("web.settings.session.title")}</h3>
