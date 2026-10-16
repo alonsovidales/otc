@@ -32,11 +32,23 @@ the library's real usage.
 3. **Firewall**: nothing needs to reach the server but SSH. The device listens on 80, 8080 and
    8443 on every interface; allow 22 in, keep loopback (ffmpeg reads videos from 127.0.0.1:8080)
    and drop the rest.
-4. **Owner password and bridge**: sign in once (through an SSH tunnel to port 8080) to set the
-   owner password, which becomes the published one. The `demo` name is claimed for the owner's
-   bridge account from Settings > Bridge; the owner signs in there.
-5. **Content**, with demo mode still off: turn face recognition on, upload the sample library and
-   files, wait for processing, name the people, make the collections and posts.
+4. **Owner password and bridge**: the installer's `OTC_OWNER_PASSWORD_FILE` sets the owner
+   password, which becomes the published one. The `demo` name is registered on the owner's account
+   page ("register a name for a manual install"), and `sudo otc-demo-identity` on the server stores
+   the identity it shows (asked for, never on a command line) and switches the device onto the
+   bridge.
+5. **Content**, with demo mode still off: turn face recognition on, then, through an SSH tunnel to
+   port 8080 (open the web app as `127.0.0.1`, never `localhost`, which talks to Cala):
+   - `otc-put` uploads the library (`echo PASSWORD | otc-put -address ws://127.0.0.1:18080/ws
+     ~/src/otc-demo-content/library /`);
+   - once the device has analysed it (`pending_analysis` empty), `otc-demo-setup` sets the profile,
+     names each person after the name most of their photos list, deletes the rest (the dog,
+     strangers) and makes the collections and posts;
+   - `docs/demo-device/content/friends.py` builds three made-up friends (addresses under
+     `demo.off-the.cloud`, which no bridge name can take and which don't resolve, so the friend
+     sync fails quietly), their posts and their comments and likes; copy its media into
+     `unenc-storage-path` (owner otc, mode 600) and run its `seed.sql` with `sudo mysql otc`. It
+     also gives the family's posts their real dates.
 6. **Demo mode on**: add under `[otc]` in `/etc/otc_dev.ini`, then `sudo systemctl restart otc`:
 
    ```
