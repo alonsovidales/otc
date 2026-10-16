@@ -7,10 +7,11 @@ apps do: the relay terminates TLS, so never say it "cannot read" traffic, and th
 have accounts. The Play listing (`docs/play-store/README.md`) follows the iOS one.
 
 
-**Availability** (set 2026-10-06, the same Europe as Play; the bridge runs in France): the EU 27,
-Iceland, Norway, the United Kingdom, Switzerland, Albania, Bosnia and Herzegovina, Kosovo,
-Montenegro, North Macedonia, Serbia and Ukraine - 38 in all (Apple has no Liechtenstein; Play
-has no Montenegro or Kosovo). Both platforms release automatically once approved. The EU trader
+**Availability** (worldwide since 2026-10-16; the bridge runs in France, so away from home the
+apps reach a device through Europe): 172 of Apple's 175 territories. Left out: mainland China
+(it needs a government ICP filing) and Russia and Belarus (held back for EU sanctions caution;
+the owner can add them). From 2026-10-06 to 2026-10-16 it was the same 38 European countries as
+Play. Both platforms release automatically once approved. The EU trader
 status (Digital Services Act) is declared under Business.
 
 ## iOS
