@@ -1,5 +1,6 @@
 {
   "dev.err.action_failed": {"text": "O dispositivo não conseguiu fazer isso: {detail}"},
+  "dev.err.demo": {"text": "Este é um dispositivo de demonstração: as alterações estão desativadas."},
   "dev.err.error_detail": {"text": "Erro: {detail}"},
   "dev.err.internal": {"text": "erro interno"},
   "dev.err.not_authenticated": {"text": "não autenticado"},

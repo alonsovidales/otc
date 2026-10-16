@@ -433,7 +433,8 @@ public nonisolated struct Msg_Status: @unchecked Sendable {
   public mutating func clearUpdateAlert() {_uniqueStorage()._updateAlert = nil}
 
   /// Localization: Settings.language, here too so every app picks up a
-  /// change made from another one. Absent on devices that predate it.
+  /// change made from another one. Absent on devices that predate it, and
+  /// on a demo device, where each visitor keeps their own choice.
   public var language: String {
     get {_storage._language ?? String()}
     set {_uniqueStorage()._language = newValue}
@@ -442,6 +443,15 @@ public nonisolated struct Msg_Status: @unchecked Sendable {
   public var hasLanguage: Bool {_storage._language != nil}
   /// Clears the value of `language`. Subsequent reads from it will return its default value.
   public mutating func clearLanguage() {_uniqueStorage()._language = nil}
+
+  /// A public demo device ([otc] demo = true): anyone may sign in with its
+  /// published password and look around, and it refuses every change
+  /// (RespEnvelope.error_code "demo"). The apps show a banner, hide what
+  /// would change something and never upload this phone's photos to it.
+  public var demo: Bool {
+    get {_storage._demo}
+    set {_uniqueStorage()._demo = newValue}
+  }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -658,6 +668,15 @@ public nonisolated struct Msg_PubKey: Sendable {
   /// belong solely to the primary (which is also enforced server-side -
   /// see the guards on ReqSetupStorage/ReqSetWifi).
   public var isPrimary: Bool = false
+
+  /// A public demo device (see Status.demo), told before sign-in so the
+  /// sign-in screen can say so.
+  public var demo: Bool = false
+
+  /// A demo device's published password ([otc] demo-password), so its
+  /// sign-in screen can sign anyone in with one tap. Empty on every other
+  /// device.
+  public var demoPassword: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -6790,7 +6809,7 @@ nonisolated extension Msg_GetStatus: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Status"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}online\0\u{2}\u{2}disks\0\u{1}errors\0\u{3}raid_size\0\u{3}raid_usage\0\u{3}disk_size\0\u{3}disk_usage\0\u{3}cpu_usage_prc\0\u{3}mem_size\0\u{3}mem_usage\0\u{3}raid_state\0\u{3}raid_level\0\u{3}raid_devices_active\0\u{3}raid_sync_percent\0\u{3}update_alert\0\u{1}language\0\u{b}local_ip\0\u{c}\u{2}\u{1}")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}online\0\u{2}\u{2}disks\0\u{1}errors\0\u{3}raid_size\0\u{3}raid_usage\0\u{3}disk_size\0\u{3}disk_usage\0\u{3}cpu_usage_prc\0\u{3}mem_size\0\u{3}mem_usage\0\u{3}raid_state\0\u{3}raid_level\0\u{3}raid_devices_active\0\u{3}raid_sync_percent\0\u{3}update_alert\0\u{1}language\0\u{1}demo\0\u{b}local_ip\0\u{c}\u{2}\u{1}")
 
   fileprivate class _StorageClass {
     var _online: Bool = false
@@ -6809,6 +6828,7 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     var _raidSyncPercent: Float = 0
     var _updateAlert: Msg_UpdateAlert? = nil
     var _language: String? = nil
+    var _demo: Bool = false
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -6835,6 +6855,7 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       _raidSyncPercent = source._raidSyncPercent
       _updateAlert = source._updateAlert
       _language = source._language
+      _demo = source._demo
     }
   }
 
@@ -6869,6 +6890,7 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
         case 15: try { try decoder.decodeSingularFloatField(value: &_storage._raidSyncPercent) }()
         case 16: try { try decoder.decodeSingularMessageField(value: &_storage._updateAlert) }()
         case 17: try { try decoder.decodeSingularStringField(value: &_storage._language) }()
+        case 18: try { try decoder.decodeSingularBoolField(value: &_storage._demo) }()
         default: break
         }
       }
@@ -6929,6 +6951,9 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       try { if let v = _storage._language {
         try visitor.visitSingularStringField(value: v, fieldNumber: 17)
       } }()
+      if _storage._demo != false {
+        try visitor.visitSingularBoolField(value: _storage._demo, fieldNumber: 18)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -6954,6 +6979,7 @@ nonisolated extension Msg_Status: SwiftProtobuf.Message, SwiftProtobuf._MessageI
         if _storage._raidSyncPercent != rhs_storage._raidSyncPercent {return false}
         if _storage._updateAlert != rhs_storage._updateAlert {return false}
         if _storage._language != rhs_storage._language {return false}
+        if _storage._demo != rhs_storage._demo {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -7276,7 +7302,7 @@ nonisolated extension Msg_GetPubKey: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 nonisolated extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PubKey"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}public_key\0\u{3}is_new_device\0\u{3}is_primary\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}public_key\0\u{3}is_new_device\0\u{3}is_primary\0\u{1}demo\0\u{3}demo_password\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7287,6 +7313,8 @@ nonisolated extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       case 1: try { try decoder.decodeSingularBytesField(value: &self.publicKey) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self.isNewDevice) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.isPrimary) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.demo) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.demoPassword) }()
       default: break
       }
     }
@@ -7302,6 +7330,12 @@ nonisolated extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     if self.isPrimary != false {
       try visitor.visitSingularBoolField(value: self.isPrimary, fieldNumber: 3)
     }
+    if self.demo != false {
+      try visitor.visitSingularBoolField(value: self.demo, fieldNumber: 4)
+    }
+    if !self.demoPassword.isEmpty {
+      try visitor.visitSingularStringField(value: self.demoPassword, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -7309,6 +7343,8 @@ nonisolated extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     if lhs.publicKey != rhs.publicKey {return false}
     if lhs.isNewDevice != rhs.isNewDevice {return false}
     if lhs.isPrimary != rhs.isPrimary {return false}
+    if lhs.demo != rhs.demo {return false}
+    if lhs.demoPassword != rhs.demoPassword {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

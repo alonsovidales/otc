@@ -40,6 +40,7 @@ var headEnglish = []struct {
 }{
 	// dev.err.action_failed is new: no English request ever shows it.
 	{"dev.err.action_failed", i18n.DevErrActionFailed("boom"), "The device couldn't do that: boom"},
+	{"dev.err.demo", i18n.DevErrDemo(), "This is a demo device: changes are turned off."},
 	{"dev.err.error_detail", i18n.DevErrErrorDetail("boom"), fmt.Sprintf("Error: %s", "boom")},
 	{"dev.err.internal", i18n.DevErrInternal(), "internal error"},
 	{"dev.err.not_authenticated", i18n.DevErrNotAuthenticated(), "not authenticated"},

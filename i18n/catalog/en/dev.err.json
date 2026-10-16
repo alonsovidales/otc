@@ -1,5 +1,6 @@
 {
   "dev.err.action_failed": {"text": "The device couldn't do that: {detail}", "args": [["detail", "text"]]},
+  "dev.err.demo": {"text": "This is a demo device: changes are turned off."},
   "dev.err.error_detail": {"text": "Error: {detail}", "args": [["detail", "text"]]},
   "dev.err.internal": {"text": "internal error"},
   "dev.err.not_authenticated": {"text": "not authenticated"},

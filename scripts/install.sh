@@ -52,6 +52,15 @@
 #                               confirmation. Never needed for the recovery
 #                               case above, since an existing array is found
 #                               and reassembled instead of wiped.
+#   OTC_DEMO=1                  a server for a public demo device (anyone
+#                               may sign in with its published password;
+#                               every change is refused, websocket/demo.go):
+#                               implies OTC_SKIP_RAID=1, leaves out the RAID
+#                               watcher, which acts on the server's own
+#                               disks, and keeps the config's `demo` and
+#                               `demo-password` lines across re-runs. Demo
+#                               mode itself is turned on by hand once the
+#                               content is loaded: docs/demo-device.md.
 #
 # Safe to re-run: it retries whatever step failed, and picks up new code
 # (an upgrade) on every run — device identity (DEVICE_UUID/BRIDGE_SECRET/DB
@@ -197,7 +206,9 @@ DISK1="${OTC_DISK1:-/dev/sda}"
 DISK2="${OTC_DISK2:-/dev/sdb}"
 RAID_DEV=/dev/md0
 MOUNT_POINT=/mnt/storage
-SKIP_RAID="${OTC_SKIP_RAID:-0}"
+DEMO="${OTC_DEMO:-0}"
+[ "$DEMO" = "1" ] || DEMO=0
+SKIP_RAID="${OTC_SKIP_RAID:-$DEMO}"
 # Set by the setup wizard's "Recover": an existing array must be found and
 # used; building a fresh one (which wipes the disks) is refused outright.
 RECOVERY="${OTC_RECOVERY:-0}"
@@ -923,6 +934,18 @@ SELECT '${DEVICE_UUID}', '${FULL_DOMAIN}', '${BRIDGE_SECRET}'
 WHERE NOT EXISTS (SELECT 1 FROM settings);
 SQL
 
+# OTC_DEMO: a public demo device's server. No Wi-Fi to watch, and more
+# standby connections to the bridge: every visitor's session holds one.
+# Demo mode is turned on by hand once the content is loaded, so its lines
+# are kept from the config this rewrites.
+DEMO_CONFIG=""
+if [ "$DEMO" = "1" ]; then
+    DEMO_CONFIG=$'wifi-watchdog=off\nbridge-pool-target=60\n'
+    if [ -f "/etc/otc_${ENVIRONMENT}.ini" ]; then
+        DEMO_KEPT=$(grep -E '^(demo|demo-password)=' "/etc/otc_${ENVIRONMENT}.ini" || true)
+        [ -z "$DEMO_KEPT" ] || DEMO_CONFIG+="$DEMO_KEPT"$'\n'
+    fi
+fi
 cat > "/etc/otc_${ENVIRONMENT}.ini" <<EOF
 [otc]
 bridge-addr=$BRIDGE_ADDR
@@ -931,7 +954,7 @@ storage-path=$STORAGE_PATH
 unenc-storage-path=$UNENC_PATH
 max-thumbnail-width-px=1000
 shared-link-ttl-hours=168
-
+${DEMO_CONFIG}
 [logger]
 log_file=/var/log/otc/otc.log
 max_log_size_mb=10
@@ -988,7 +1011,16 @@ apt-get install -y python3-rpi-lgpio 2>/dev/null \
     || apt-get install -y python3-rpi.gpio 2>/dev/null \
     || log "  (no RPi GPIO package available - raid-watch will run in dry-run mode)"
 
-if [ -f "$SRC_DIR/scripts/raid_watch.py" ]; then
+if [ "$DEMO" = "1" ]; then
+    # A demo server's disks are its own: the watcher grows and rebuilds
+    # md0 by itself, as root.
+    log "  demo device: no RAID watcher"
+    if [ -f /etc/systemd/system/raid-watch.service ]; then
+        systemctl disable --now raid-watch.service 2>/dev/null || true
+        rm -f /etc/systemd/system/raid-watch.service /usr/local/bin/raid_watch.py
+        systemctl daemon-reload
+    fi
+elif [ -f "$SRC_DIR/scripts/raid_watch.py" ]; then
     install -m 0755 "$SRC_DIR/scripts/raid_watch.py" /usr/local/bin/raid_watch.py
 
     cat > /etc/systemd/system/raid-watch.service <<'EOF'

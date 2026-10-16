@@ -3,6 +3,10 @@
     "text": "Il dispositivo non è riuscito a eseguire l’operazione: {detail}",
     "en": "The device couldn't do that: {detail}"
   },
+  "dev.err.demo": {
+    "text": "Questo è un dispositivo dimostrativo: le modifiche sono disattivate.",
+    "en": "This is a demo device: changes are turned off."
+  },
   "dev.err.error_detail": {
     "text": "Errore: {detail}",
     "en": "Error: {detail}"

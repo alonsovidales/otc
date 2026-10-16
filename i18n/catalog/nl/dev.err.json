@@ -1,5 +1,6 @@
 {
   "dev.err.action_failed": {"text": "Het apparaat kon dat niet doen: {detail}"},
+  "dev.err.demo": {"text": "Dit is een demoapparaat: wijzigingen zijn uitgeschakeld."},
   "dev.err.error_detail": {"text": "Fout: {detail}"},
   "dev.err.internal": {"text": "interne fout"},
   "dev.err.not_authenticated": {"text": "niet geverifieerd"},

@@ -9,6 +9,11 @@ func DevErrActionFailed(detail string) Msg {
 	return Msg{Key: "dev.err.action_failed", Args: map[string]any{"detail": detail}}
 }
 
+// DevErrDemo is dev.err.demo: "This is a demo device: changes are turned off.".
+func DevErrDemo() Msg {
+	return Msg{Key: "dev.err.demo"}
+}
+
 // DevErrErrorDetail is dev.err.error_detail: "Error: {detail}".
 func DevErrErrorDetail(detail string) Msg {
 	return Msg{Key: "dev.err.error_detail", Args: map[string]any{"detail": detail}}

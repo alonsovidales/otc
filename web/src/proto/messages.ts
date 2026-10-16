@@ -418,9 +418,19 @@ export interface Status {
     | undefined;
   /**
    * Localization: Settings.language, here too so every app picks up a
-   * change made from another one. Absent on devices that predate it.
+   * change made from another one. Absent on devices that predate it, and
+   * on a demo device, where each visitor keeps their own choice.
    */
-  language?: string | undefined;
+  language?:
+    | string
+    | undefined;
+  /**
+   * A public demo device ([otc] demo = true): anyone may sign in with its
+   * published password and look around, and it refuses every change
+   * (RespEnvelope.error_code "demo"). The apps show a banner, hide what
+   * would change something and never upload this phone's photos to it.
+   */
+  demo: boolean;
 }
 
 /**
@@ -549,6 +559,17 @@ export interface PubKey {
    * see the guards on ReqSetupStorage/ReqSetWifi).
    */
   isPrimary: boolean;
+  /**
+   * A public demo device (see Status.demo), told before sign-in so the
+   * sign-in screen can say so.
+   */
+  demo: boolean;
+  /**
+   * A demo device's published password ([otc] demo-password), so its
+   * sign-in screen can sign anyone in with one tap. Empty on every other
+   * device.
+   */
+  demoPassword: string;
 }
 
 export interface UploadFile {
@@ -3311,6 +3332,7 @@ function createBaseStatus(): Status {
     raidSyncPercent: 0,
     updateAlert: undefined,
     language: undefined,
+    demo: false,
   };
 }
 
@@ -3363,6 +3385,9 @@ export const Status: MessageFns<Status> = {
     }
     if (message.language !== undefined) {
       writer.uint32(138).string(message.language);
+    }
+    if (message.demo !== false) {
+      writer.uint32(144).bool(message.demo);
     }
     return writer;
   },
@@ -3502,6 +3527,14 @@ export const Status: MessageFns<Status> = {
           message.language = reader.string();
           continue;
         }
+        case 18: {
+          if (tag !== 144) {
+            break;
+          }
+
+          message.demo = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3529,6 +3562,7 @@ export const Status: MessageFns<Status> = {
       raidSyncPercent: isSet(object.raidSyncPercent) ? globalThis.Number(object.raidSyncPercent) : 0,
       updateAlert: isSet(object.updateAlert) ? UpdateAlert.fromJSON(object.updateAlert) : undefined,
       language: isSet(object.language) ? globalThis.String(object.language) : undefined,
+      demo: isSet(object.demo) ? globalThis.Boolean(object.demo) : false,
     };
   },
 
@@ -3582,6 +3616,9 @@ export const Status: MessageFns<Status> = {
     if (message.language !== undefined) {
       obj.language = message.language;
     }
+    if (message.demo !== false) {
+      obj.demo = message.demo;
+    }
     return obj;
   },
 
@@ -3608,6 +3645,7 @@ export const Status: MessageFns<Status> = {
       ? UpdateAlert.fromPartial(object.updateAlert)
       : undefined;
     message.language = object.language ?? undefined;
+    message.demo = object.demo ?? false;
     return message;
   },
 };
@@ -4289,7 +4327,7 @@ export const GetPubKey: MessageFns<GetPubKey> = {
 };
 
 function createBasePubKey(): PubKey {
-  return { publicKey: new Uint8Array(0), isNewDevice: false, isPrimary: false };
+  return { publicKey: new Uint8Array(0), isNewDevice: false, isPrimary: false, demo: false, demoPassword: "" };
 }
 
 export const PubKey: MessageFns<PubKey> = {
@@ -4302,6 +4340,12 @@ export const PubKey: MessageFns<PubKey> = {
     }
     if (message.isPrimary !== false) {
       writer.uint32(24).bool(message.isPrimary);
+    }
+    if (message.demo !== false) {
+      writer.uint32(32).bool(message.demo);
+    }
+    if (message.demoPassword !== "") {
+      writer.uint32(42).string(message.demoPassword);
     }
     return writer;
   },
@@ -4337,6 +4381,22 @@ export const PubKey: MessageFns<PubKey> = {
           message.isPrimary = reader.bool();
           continue;
         }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.demo = reader.bool();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.demoPassword = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -4351,6 +4411,8 @@ export const PubKey: MessageFns<PubKey> = {
       publicKey: isSet(object.publicKey) ? bytesFromBase64(object.publicKey) : new Uint8Array(0),
       isNewDevice: isSet(object.isNewDevice) ? globalThis.Boolean(object.isNewDevice) : false,
       isPrimary: isSet(object.isPrimary) ? globalThis.Boolean(object.isPrimary) : false,
+      demo: isSet(object.demo) ? globalThis.Boolean(object.demo) : false,
+      demoPassword: isSet(object.demoPassword) ? globalThis.String(object.demoPassword) : "",
     };
   },
 
@@ -4365,6 +4427,12 @@ export const PubKey: MessageFns<PubKey> = {
     if (message.isPrimary !== false) {
       obj.isPrimary = message.isPrimary;
     }
+    if (message.demo !== false) {
+      obj.demo = message.demo;
+    }
+    if (message.demoPassword !== "") {
+      obj.demoPassword = message.demoPassword;
+    }
     return obj;
   },
 
@@ -4376,6 +4444,8 @@ export const PubKey: MessageFns<PubKey> = {
     message.publicKey = object.publicKey ?? new Uint8Array(0);
     message.isNewDevice = object.isNewDevice ?? false;
     message.isPrimary = object.isPrimary ?? false;
+    message.demo = object.demo ?? false;
+    message.demoPassword = object.demoPassword ?? "";
     return message;
   },
 };

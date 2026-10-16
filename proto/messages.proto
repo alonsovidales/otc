@@ -65,8 +65,14 @@ message Status {
   // one reaches them all: they show a banner until it's installed.
   UpdateAlert update_alert = 16;
   // Localization: Settings.language, here too so every app picks up a
-  // change made from another one. Absent on devices that predate it.
+  // change made from another one. Absent on devices that predate it, and
+  // on a demo device, where each visitor keeps their own choice.
   optional string language = 17;
+  // A public demo device ([otc] demo = true): anyone may sign in with its
+  // published password and look around, and it refuses every change
+  // (RespEnvelope.error_code "demo"). The apps show a banner, hide what
+  // would change something and never upload this phone's photos to it.
+  bool demo = 18;
 }
 
 // Issue #183: releases are minor, major (security, stability or durability)
@@ -175,6 +181,13 @@ message PubKey {
   // belong solely to the primary (which is also enforced server-side -
   // see the guards on ReqSetupStorage/ReqSetWifi).
   bool is_primary = 3;
+  // A public demo device (see Status.demo), told before sign-in so the
+  // sign-in screen can say so.
+  bool demo = 4;
+  // A demo device's published password ([otc] demo-password), so its
+  // sign-in screen can sign anyone in with one tap. Empty on every other
+  // device.
+  string demo_password = 5;
 }
 
 message UploadFile {

@@ -505,6 +505,13 @@ bridge-pool-target=20
 #wifi-watchdog-bad-minutes=5
 #wifi-watchdog-bad-minutes-alone=10
 #wifi-watchdog-healthy-minutes=5
+# A public demo device: anyone may sign in with its published password and
+# look around, and every change is refused (uploads, deletes, renames,
+# settings, the password, sharing, friends, updates, restarts). Set the
+# owner password and load the content with it off, then turn it on and
+# restart. `OTC_DEMO=1` on the install script writes it. See
+# docs/demo-device.md.
+#demo=true
 
 [logger]
 log_file=/var/log/otc/otc.log

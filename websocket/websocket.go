@@ -264,6 +264,7 @@ var fileSize = dao.FileSize
 
 func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup *supervisor.Supervisor, staticPath string) (mg *Manager) {
 	log.Debug("Init Websocket")
+	initDemoMode()
 	st, err := settings.Init(dao)
 	if err != nil {
 		log.Fatal("Error loading the settings", err)
@@ -1503,7 +1504,9 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 				// Issue #85: lets the pre-auth setup wizard skip the
 				// storage/WiFi steps on an additional user's instance -
 				// see the field's own comment in messages.proto.
-				IsPrimary: ch.mg.sup != nil,
+				IsPrimary:    ch.mg.sup != nil,
+				Demo:         demoMode,
+				DemoPassword: demoPasswordShown(),
 			},
 		}
 
@@ -2769,8 +2772,16 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			}
 			// Localization: the user's language, so every app picks up a
 			// change made in another one ("" = Automatic; always set, so
-			// an app tells this device from one that predates it).
-			st.Language = proto.String(ch.mg.settings.Language())
+			// an app tells this device from one that predates it). Not on
+			// a demo device: each visitor keeps their own, as with an
+			// older device.
+			if !demoMode {
+				st.Language = proto.String(ch.mg.settings.Language())
+			}
+			st.Demo = demoMode
+			if demoMode {
+				demoPiStatus(st, time.Now())
+			}
 
 			resp.Payload = &pb.RespEnvelope_RespStatus{
 				RespStatus: st,
@@ -2891,8 +2902,9 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 				ImageTaggingEnabled:    ch.mg.settings.ImageTaggingEnabled(),
 				SocialStorageLimitMb:   int32(limitMB),
 				SocialStorageUsedBytes: used,
-				// Localization: always set ("" = Automatic).
-				Language: proto.String(ch.mg.settings.Language()),
+				// Localization: always set ("" = Automatic), except on a
+				// demo device (see GetStatus).
+				Language: demoLanguage(ch.mg.settings.Language()),
 			},
 		}
 
@@ -4029,6 +4041,12 @@ func (ch *connHandler) processMessage(env *pb.ReqEnvelope) (resp *pb.RespEnvelop
 			closeConn = true
 		}
 	}()
+
+	if demoMode {
+		if r, handled := ch.demoGate(env, lang); handled {
+			return r, false
+		}
+	}
 
 	resp, closeConn = ch.processNonAuthRequest(env, lang)
 

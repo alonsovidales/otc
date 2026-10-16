@@ -4,6 +4,10 @@
     "args": [["detail", "text"]],
     "note": "Error reply the apps show when a request to the device failed with an error the device can't translate (a database's or the operating system's own words). Shown only in languages other than English: an English request gets the error alone, as it always did. {detail} is that error, in English."
   },
+  "dev.err.demo": {
+    "text": "This is a demo device: changes are turned off.",
+    "note": "Error reply on a public demo device (a device anyone can sign in to with a published password, to try Off The Cloud) to anything that would change it: uploading, deleting, renaming, settings, the password, sharing. The apps show it when the person tries."
+  },
   "dev.err.error_detail": {
     "text": "Error: {detail}",
     "args": [["detail", "text"]],

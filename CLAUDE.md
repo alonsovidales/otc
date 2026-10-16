@@ -216,7 +216,15 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
 - Adding a new RPC = add a message + a case in both the `ReqEnvelope`/`RespEnvelope` `oneof`s in the
   proto, regenerate, then add a `case *pb.ReqEnvelope_ReqXxx:` in the connection handler switch (see
   `websocket/websocket.go`, `processNonAuthRequest`/the authenticated equivalent) and a client-side
-  call in `web/src/net/ws.ts`.
+  call in `web/src/net/ws.ts`. Also classify it in `websocket/demo.go`'s `demoRules` (allow,
+  answer ok without storing, or refuse): `TestDemoRulesCoverEveryRequest` fails until it is.
+- **Demo device** (`[otc] demo = true`, docs/demo-device.md): a public device that refuses every
+  change with `error_code` "demo" (`dev.err.demo`), gated in `processMessage` before the three
+  switches. It publishes `PubKey.demo`/`demo_password` before sign-in and `Status.demo` after, leaves
+  `Status`/`Settings.language` unset (each visitor keeps their own, as with an older device),
+  answers GetLocalEndpoint `local_unavailable`, refuses a sign-in that would set the owner password,
+  and reports a Pi-like Status (8 GB, two 2 TB disks in sync; real library usage). The apps show a
+  banner, hide what would change something and never run photo sync against it.
 - The frontend's `web/src/net/ws.ts` / `useWS.ts` wrap the same protobuf envelope pattern for the
   browser client.
 - Replies over 64 KiB (`cReplyPiece`) leave the device as one fragmented message in 64 KiB pieces
