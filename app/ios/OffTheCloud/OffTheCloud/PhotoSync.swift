@@ -406,7 +406,6 @@ final class PhotoSync: NSObject {
     /// handler below does: that is how a BGProcessingTask's expiration
     /// (SyncScheduler cancels the Task calling this) reaches the loop.
     func runForeground() async throws {
-        if await refusesDevice() { return }
         guard let gen = beginSyncIfNotAlreadyRunning() else {
             print("Sync already running, skipping overlapping request")
             return
@@ -425,26 +424,11 @@ final class PhotoSync: NSObject {
         }
     }
 
-    /// Signed in to the public demo device (docs/demo-device.md): no run
-    /// starts - nothing of this phone's is ever uploaded to it, and Photos
-    /// isn't asked for access for it. Known from the last sign-in before
-    /// connecting (kept across launches), and from this one's after.
-    func refusesDevice() async -> Bool {
-        await OTCConnection.shared.isDemo
-    }
-
     private func syncOnce(gen: Int) async throws {
-        // No device set up: nothing to sync to, nor a reason yet to ask for
-        // Photos access - the first sync after a sign-in asks (RootView),
-        // so someone who only tries the demo is never asked.
-        let secrets = SecretsStore.loadOrCreate()
-        guard secrets.isConfigured else { return }
         try await ensureAuth()
+        let secrets = SecretsStore.loadOrCreate()
         let ws = OTCConnection.shared
         try await ws.ensureConnected()
-        // A device first signed in to just now (its name typed in) may be
-        // the demo one.
-        if await refusesDevice() { return }
 
         // This was never actually wired up before — the "Sync from iCloud"
         // toggle changed a setting nothing read, so turning it off had no

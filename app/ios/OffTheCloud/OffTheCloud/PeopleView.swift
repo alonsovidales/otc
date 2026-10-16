@@ -92,8 +92,6 @@ enum PeopleNote: Equatable {
     case deleted(count: Int)
     /// `failed` of `total` people couldn't be deleted.
     case partlyDeleted(failed: Int, total: Int)
-    /// The demo device refused it: its words, which say so.
-    case refused(String)
 
     var text: String {
         switch self {
@@ -107,7 +105,6 @@ enum PeopleNote: Equatable {
         case .notDeleted(let several): return several ? S.appPhotosPeopleDeleteFailed : S.appPhotosPeopleDeleteOneFailed
         case .deleted(let n): return n == 1 ? S.appPhotosPeopleDeletedOne : S.appPhotosPeopleDeletedMany(count: n)
         case .partlyDeleted(let failed, let total): return S.appPhotosPeopleDeletePartly(count: failed, total: total)
-        case .refused(let words): return words
         }
     }
 }
@@ -263,8 +260,6 @@ struct PeopleView: View {
 
     /// The wide layout's page: the menu names it, so no title shows.
     @Environment(\.wideLayout) private var wide
-    /// The demo device (DemoDevice.swift): no names, merges or deletes.
-    @Environment(\.demoDevice) private var demo
 
     init(vm: PhotoGalleryVM, onOpenPhotos: @escaping () -> Void, onClose: (() -> Void)? = nil) {
         self.vm = vm
@@ -391,7 +386,7 @@ struct PeopleView: View {
                         .padding(.vertical, 10)
                         .modifier(CapsuleBarBackground())
                     }
-                    if selecting && !demo { selectionBar }
+                    if selecting { selectionBar }
                 }
                 .padding(.bottom, 8)
                 .animation(.easeInOut(duration: 0.2), value: toast)
@@ -793,11 +788,7 @@ struct PeopleView: View {
         Task {
             let res = await vm.renamePerson(id, to: name)
             state.saving[id] = nil
-            if case .refused(let words) = res, !words.isEmpty {
-                say(.refused(words), error: true)
-            } else if res != .ok {
-                say(.nameNotSaved, error: true)
-            }
+            if res != .ok { say(.nameNotSaved, error: true) }
         }
     }
 
@@ -890,8 +881,6 @@ private struct PersonTile: View {
     let onDelete: () -> Void
     let onSubmitName: () -> Void
     let onCancelName: () -> Void
-    /// The demo device: no "more" button, nor "Add a name".
-    @Environment(\.demoDevice) private var demo
 
     private var faceLabel: String {
         name.isEmpty
@@ -906,7 +895,7 @@ private struct PersonTile: View {
                     if selecting { check.offset(x: -4, y: -4) }
                 }
                 .overlay(alignment: .topTrailing) {
-                    if !selecting && !demo {
+                    if !selecting {
                         // Recorded where it is drawn (inside the offset).
                         more.dragSelectItem(person.id, in: moreFrames, space: dragSpace)
                             .offset(x: 6, y: -6)
@@ -1033,7 +1022,7 @@ private struct PersonTile: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .opacity(pending ? 0.55 : 1)
-        } else if selecting || demo {
+        } else if selecting {
             Text(S.appShellSearchUnnamed)
                 .font(.subheadline)
                 .italic()

@@ -17,10 +17,6 @@ struct OnboardingView: View {
     /// Set when the form was filled from a device set up from this phone.
     @State private var pendingNote = false
     @State private var lastNote = false
-    /// Try the demo (DemoDevice.swift): asking the demo device for its
-    /// password, and why it didn't sign in.
-    @State private var tryingDemo = false
-    @State private var demoFailure: DemoDevice.Failure?
 
     var body: some View {
         NavigationStack {
@@ -65,32 +61,6 @@ struct OnboardingView: View {
                         Label(S.appShellSetupNewDevice, systemImage: "antenna.radiowaves.left.and.right")
                     }
                 }
-                // The public demo device, for someone with no device yet:
-                // after the ways to connect one's own.
-                Section {
-                    Text(S.appShellDemoTryNote)
-                        .font(.footnote).foregroundStyle(.secondary)
-                    Button(action: tryDemo) {
-                        HStack(spacing: 8) {
-                            if tryingDemo { ProgressView().controlSize(.small) }
-                            Text(tryingDemo ? S.commonConnecting : S.appShellDemoTry)
-                        }
-                    }
-                    .disabled(tryingDemo)
-                    if let failure = demoFailure {
-                        let detail = failure.detail
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(S.appShellCantConnect)
-                                .foregroundStyle(.red)
-                            if let detail, !detail.isEmpty {
-                                Text(detail).foregroundStyle(.secondary)
-                            }
-                        }
-                        .font(.footnote)
-                        .accessibilityElement(children: .combine)
-                        .onAppear { Announce.polite([S.appShellCantConnect, detail ?? ""].joined(separator: " ")) }
-                    }
-                }
                 // Issue #175: what the bridge keeps, before signing in.
                 Section {
                     Link(S.appShellPrivacy, destination: URL(string: "https://off-the.cloud/privacy")!)
@@ -114,30 +84,6 @@ struct OnboardingView: View {
                 endpoint = l.endpoint
                 password = l.password
                 lastNote = true
-            }
-        }
-    }
-
-    /// Try the demo: the demo device's address as its name builds it, the
-    /// password it publishes, then the usual sign-in - saved as a typed
-    /// device is, so the app comes back to it at its next launch. Never the
-    /// setup of a new device. Known as the demo before the first sign-in,
-    /// so the photo sync the tabs start asks nothing of Photos meanwhile.
-    private func tryDemo() {
-        tryingDemo = true
-        demoFailure = nil
-        Task {
-            defer { tryingDemo = false }
-            do {
-                let published = try await OTCConnection.shared.demoPassword()
-                OTCConnection.shared.deviceSaid(demo: true)
-                secrets.endpoint = DemoDevice.endpoint
-                secrets.password = published
-                secrets.persist()
-            } catch let failure as DemoDevice.Failure {
-                demoFailure = failure
-            } catch {
-                demoFailure = .unreachable(.failure(error))
             }
         }
     }

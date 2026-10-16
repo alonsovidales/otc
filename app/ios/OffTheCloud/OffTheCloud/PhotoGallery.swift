@@ -1092,14 +1092,13 @@ final class PhotoGalleryVM: ObservableObject {
     /// deletion). Tests answer them in the device's place.
     var peopleRequest: Request = PhotoGalleryVM.deviceRequest
 
-    /// How a request the device answers with an Ack went: refused with the
-    /// demo device's words when it is the one refusing ("" otherwise).
-    enum AckResult: Equatable { case ok, refused(String = ""), unanswered }
+    /// How a request the device answers with an Ack went.
+    enum AckResult { case ok, refused, unanswered }
 
     private func ack(_ payload: Msg_ReqEnvelope.OneOf_Payload) async -> AckResult {
         guard let resp = try? await peopleRequest(payload, nil) else { return .unanswered }
         if case .respAck(let a) = resp.payload, a.ok { return .ok }
-        return .refused(ErrorCodes.demoRefusal(resp) ?? "")
+        return .refused
     }
 
     /// Names a person, or takes the name off ("" - RenamePerson also gives
@@ -1238,16 +1237,15 @@ final class PhotoGalleryVM: ObservableObject {
         guard let g = activeGroup else { return }
         let name = renameGroupName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, name != g.name else { return }
-        let resp = try? await ws.request({ e in
+        guard let resp = try? await ws.request({ e in
             var req = ReqEnvelope()
             var r = Msg_RenameImageGroup()
             r.id = g.id
             r.name = name
             req.payload = .reqRenameImageGroup(r)
             e = req
-        })
-        guard let resp, case .respAck(let ack) = resp.payload, ack.ok else {
-            notice = resp.flatMap(ErrorCodes.demoRefusal).map(GalleryNotice.refused) ?? .renameFailed; showAlert = true
+        }), case .respAck(let ack) = resp.payload, ack.ok else {
+            notice = .renameFailed; showAlert = true
             return
         }
         activeGroup?.name = name
@@ -1257,15 +1255,14 @@ final class PhotoGalleryVM: ObservableObject {
     /// Removes the group only - the pictures are kept.
     func deleteActiveGroup() async {
         guard let g = activeGroup else { return }
-        let resp = try? await ws.request({ e in
+        guard let resp = try? await ws.request({ e in
             var req = ReqEnvelope()
             var d = Msg_DeleteImageGroup()
             d.id = g.id
             req.payload = .reqDeleteImageGroup(d)
             e = req
-        })
-        guard let resp, case .respAck(let ack) = resp.payload, ack.ok else {
-            notice = resp.flatMap(ErrorCodes.demoRefusal).map(GalleryNotice.refused) ?? .deleteCollectionFailed; showAlert = true
+        }), case .respAck(let ack) = resp.payload, ack.ok else {
+            notice = .deleteCollectionFailed; showAlert = true
             return
         }
         groups.removeAll { $0.id == g.id }
@@ -2809,8 +2806,6 @@ enum GalleryNotice {
     case shareFailed(Error), saveFailed(Error), deleteFailed(Error), uploadFailed(Error), downloadFailed(Error)
     /// The device refused a delete: its own explanation.
     case deleteRefused(String)
-    /// The demo device refused a change: its words, which say so.
-    case refused(String)
     /// Issue #201: a delete of several left some: each one's words, or
     /// several summed up (DeleteCopies.keptText).
     case deletesKept([DeleteCopies.Kept])
@@ -2834,7 +2829,6 @@ enum GalleryNotice {
         case .uploadFailed(let e): return S.iosPhotosUploadFailed(detail: e.localizedDescription)
         case .downloadFailed(let e): return S.iosPhotosDownloadFailed(detail: e.localizedDescription)
         case .deleteRefused(let message): return S.appPhotosNoticeDeleteFailed(detail: message)
-        case .refused(let message): return message
         case .deletesKept(let kept): return DeleteCopies.keptText(kept) ?? ""
         }
     }
@@ -2854,9 +2848,6 @@ struct PhotoGalleryView: View {
     // Collections are in the menu, so this view shows neither - only an
     // open collection's chip, and the photos.
     @Environment(\.wideLayout) private var wide
-    /// The demo device (DemoDevice.swift): collections are only opened,
-    /// never renamed, shared or deleted.
-    @Environment(\.demoDevice) private var demo
     @FocusState private var searchFocused: Bool
     /// The search's header height, where its panel starts, and whether the
     /// keyboard shows: the panel may rise over the field (SearchPanelPlace).
@@ -3149,26 +3140,21 @@ struct PhotoGalleryView: View {
                                 }
                             }
                         }
-                        // Issue #180: long-press or swipe a group to share it
-                        // (not on the demo device).
+                        // Issue #180: long-press or swipe a group to share it.
                         .contextMenu {
-                            if !demo {
-                                Button {
-                                    groupsSheetGallerySource = .group(g.id)
-                                } label: {
-                                    Label(S.appShellShareAsGalleryMenu, systemImage: "photo.on.rectangle.angled")
-                                }
+                            Button {
+                                groupsSheetGallerySource = .group(g.id)
+                            } label: {
+                                Label(S.appShellShareAsGalleryMenu, systemImage: "photo.on.rectangle.angled")
                             }
                         }
                         .swipeActions(edge: .trailing) {
-                            if !demo {
-                                Button {
-                                    groupsSheetGallerySource = .group(g.id)
-                                } label: {
-                                    Label(S.commonShare, systemImage: "square.and.arrow.up")
-                                }
-                                .tint(.accentColor)
+                            Button {
+                                groupsSheetGallerySource = .group(g.id)
+                            } label: {
+                                Label(S.commonShare, systemImage: "square.and.arrow.up")
                             }
+                            .tint(.accentColor)
                         }
                     }
                 }
@@ -3468,18 +3454,11 @@ struct PhotoGalleryView: View {
     private func collectionChip(_ g: Msg_ImageGroup) -> some View {
         HStack(spacing: 6) {
             NavIconView(.collections, size: 16)
-            Group {
-                if demo {
-                    // The demo device: the name only.
-                    Text(g.name)
-                } else {
-                    Button(g.name) {
-                        vm.renameGroupName = g.name
-                        vm.showRenameGroup = true
-                    }
-                    .buttonStyle(.plain)
-                }
+            Button(g.name) {
+                vm.renameGroupName = g.name
+                vm.showRenameGroup = true
             }
+            .buttonStyle(.plain)
             .lineLimit(1)
             // The name keeps the room; its line gives way first.
             .layoutPriority(1)
@@ -3488,18 +3467,16 @@ struct PhotoGalleryView: View {
                 // A little smaller rather than cut ("120 elementos · feb. –
                 // oct. 20…" on an iPhone SE); English fits as it was.
                 .minimumScaleFactor(0.75)
-            if !demo {
-                // Issue #180: the group as a gallery behind a link.
-                Button {
-                    gallerySource = .group(g.id)
-                } label: { Image(systemName: "square.and.arrow.up").font(.caption) }
-                .accessibilityLabel(S.appShellShareAsGalleryMenu)
-                Button {
-                    vm.confirmDeleteGroup = true
-                } label: { Image(systemName: "trash").font(.caption) }
-                .accessibilityLabel(S.appPhotosCollectionsDelete)
-                .foregroundStyle(.red)
-            }
+            // Issue #180: the group as a gallery behind a link.
+            Button {
+                gallerySource = .group(g.id)
+            } label: { Image(systemName: "square.and.arrow.up").font(.caption) }
+            .accessibilityLabel(S.appShellShareAsGalleryMenu)
+            Button {
+                vm.confirmDeleteGroup = true
+            } label: { Image(systemName: "trash").font(.caption) }
+            .accessibilityLabel(S.appPhotosCollectionsDelete)
+            .foregroundStyle(.red)
             Button("×") { vm.leaveGroup() }
                 .accessibilityLabel(S.appShellSearchCloseCollection(name: g.name))
         }
@@ -4150,9 +4127,6 @@ struct ImageModal: View {
     let share: () -> Void
     /// Delete the open item: true for every copy of it (issue #201).
     let delete: (Bool) -> Void
-    /// The demo device (DemoDevice.swift): no Delete. Share and Save are
-    /// this phone's own.
-    @Environment(\.demoDevice) private var demo
 
     @State private var confirmDelete = false
     /// The item Delete asks about is a video: the question says so (the
@@ -4324,16 +4298,14 @@ struct ImageModal: View {
             }
             .disabled(vm.savingPath != nil)
             .accessibilityLabel(saving ? S.appPhotosViewerSaving : S.commonSave)
-            if !demo {
-                Button(role: .destructive) {
-                    confirmDeleteVideo = vm.openIndex.map { vm.items.indices.contains($0) && vm.items[$0].mime.hasPrefix("video/") } ?? false
-                    confirmCopies = vm.openCopies
-                    confirmDelete = true
-                } label: {
-                    Image(systemName: "trash").frame(width: side, height: side).contentShape(Rectangle())
-                }
-                .accessibilityLabel(S.commonDelete)
+            Button(role: .destructive) {
+                confirmDeleteVideo = vm.openIndex.map { vm.items.indices.contains($0) && vm.items[$0].mime.hasPrefix("video/") } ?? false
+                confirmCopies = vm.openCopies
+                confirmDelete = true
+            } label: {
+                Image(systemName: "trash").frame(width: side, height: side).contentShape(Rectangle())
             }
+            .accessibilityLabel(S.commonDelete)
         }
         .font(.title2)
         .foregroundStyle(.white)

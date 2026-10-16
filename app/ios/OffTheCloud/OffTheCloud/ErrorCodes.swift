@@ -32,26 +32,6 @@ enum ErrorCodes {
         code == "unknown_payload" || (code.isEmpty && message.contains("unknown payload"))
     }
 
-    /// The demo device (docs/demo-device.md) refuses every change: its
-    /// message, in the request's language, says so and is shown as it
-    /// comes. The envelope and its Ack carry the code alike.
-    static let demo = "demo"
-
-    static func isDemo(_ resp: Msg_RespEnvelope) -> Bool {
-        if resp.error && resp.errorCode == demo { return true }
-        if case .respAck(let ack) = resp.payload { return !ack.ok && ack.code == demo }
-        return false
-    }
-
-    /// The device's words on a demo refusal (the envelope's, else its
-    /// Ack's), nil for any other answer.
-    static func demoRefusal(_ resp: Msg_RespEnvelope) -> String? {
-        guard isDemo(resp) else { return nil }
-        if !resp.errorMessage.isEmpty { return resp.errorMessage }
-        if case .respAck(let ack) = resp.payload, !ack.errorMsg.isEmpty { return ack.errorMsg }
-        return nil
-    }
-
     static func isDuplicatedFile(_ resp: Msg_RespEnvelope) -> Bool {
         resp.error && isDuplicatedFile(code: resp.errorCode, message: resp.errorMessage)
     }
