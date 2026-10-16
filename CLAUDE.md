@@ -223,8 +223,18 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   switches. It publishes `PubKey.demo`/`demo_password` before sign-in and `Status.demo` after, leaves
   `Status`/`Settings.language` unset (each visitor keeps their own, as with an older device),
   answers GetLocalEndpoint `local_unavailable`, refuses a sign-in that would set the owner password,
-  and reports a Pi-like Status (8 GB, two 2 TB disks in sync; real library usage). The apps show a
-  banner, hide what would change something and never run photo sync against it.
+  and reports a Pi-like Status (8 GB, two 2 TB disks in sync; real library usage). The clients
+  keep one flag each - web `net/demo.ts` (`useDemo`), iOS `OTCConnection.isDemo` (saved in
+  UserDefaults, handed down as `\.demoDevice`; `DemoDevice.swift`), Android `OTCConnection.isDemo`
+  (saved in SecretsStore; `net/DemoDevice.kt`) - set from PubKey.demo at sign-in and from every
+  Status, cleared by Log Out. With it they show a banner (in place of the critical-update one) with
+  "Get your own device", hide what would change something (selection actions, Share and Download
+  too, since a share link is written on the device; Settings keeps language, connection and sign
+  out) and never run photo sync or ask for photo or notification access for it. Profile edit,
+  friend requests and shared-link delete stay, answered by the device's refusal. The phones'
+  connect screen and the demo's web sign-in offer "Try the demo": GetPubKey at the demo's address
+  (device name `demo`), then a normal sign-in with `demo_password`. Since the demo work, the phones
+  ask for photo access at the first sync after a sign-in, not on the welcome screen.
 - The frontend's `web/src/net/ws.ts` / `useWS.ts` wrap the same protobuf envelope pattern for the
   browser client.
 - Replies over 64 KiB (`cReplyPiece`) leave the device as one fragmented message in 64 KiB pieces
