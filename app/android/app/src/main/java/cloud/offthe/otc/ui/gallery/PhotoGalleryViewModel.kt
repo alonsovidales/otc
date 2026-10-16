@@ -18,7 +18,6 @@ import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.net.WSClient
 import cloud.offthe.otc.net.Wake
 import cloud.offthe.otc.net.byteSize
-import cloud.offthe.otc.net.demoRefusal
 import cloud.offthe.otc.net.retryWaitMs
 import cloud.offthe.otc.net.sleepOrWake
 import cloud.offthe.otc.proto.AddToImageGroup
@@ -796,27 +795,22 @@ class PhotoGalleryViewModel(
         val g = _state.value.activeGroup ?: return
         val name = newName.trim()
         if (name.isEmpty() || name == g.name) return
-        // A demo device's refusal in its own words (ErrorCodes.isDemo).
-        var refused: UiText? = null
         val ok = try {
             val r = call { it.setReqRenameImageGroup(RenameImageGroup.newBuilder().setId(g.id).setName(name)) }
-            refused = r.demoRefusal()
             r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok
         } catch (e: Exception) { false }
-        if (!ok) { alert(refused ?: S.appPhotosNoticeRenameFailed()); return }
+        if (!ok) { alert(S.appPhotosNoticeRenameFailed()); return }
         val renamed = g.toBuilder().setName(name).build()
         _state.update { st -> st.copy(activeGroup = renamed, groups = st.groups.map { if (it.id == g.id) renamed else it }) }
     }
 
     suspend fun deleteActiveGroup() {
         val g = _state.value.activeGroup ?: return
-        var refused: UiText? = null
         val ok = try {
             val r = call { it.setReqDeleteImageGroup(DeleteImageGroup.newBuilder().setId(g.id)) }
-            refused = r.demoRefusal()
             r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok
         } catch (e: Exception) { false }
-        if (!ok) { alert(refused ?: S.appPhotosNoticeDeleteCollectionFailed()); return }
+        if (!ok) { alert(S.appPhotosNoticeDeleteCollectionFailed()); return }
         _state.update { st -> st.copy(groups = st.groups.filter { it.id != g.id }) }
         leaveGroup()
     }
@@ -827,7 +821,7 @@ class PhotoGalleryViewModel(
         val paths = _state.value.selected.toList()
         try {
             val r = call { it.setReqCreateImageGroup(CreateImageGroup.newBuilder().setName(name).addAllPaths(paths).setSmallThumbnails(true)) }
-            if (r.payloadCase != RespEnvelope.PayloadCase.RESP_IMAGE_GROUP) { alert(r.demoRefusal() ?: S.appPhotosNoticeCreateFailed()); return }
+            if (r.payloadCase != RespEnvelope.PayloadCase.RESP_IMAGE_GROUP) { alert(S.appPhotosNoticeCreateFailed()); return }
             pickedAway = emptyMap()
             _state.update { st -> st.copy(groups = listOf(r.respImageGroup.group) + st.groups, selected = emptySet()) }
             alert(S.appPhotosNoticeCreated(name))
@@ -836,13 +830,11 @@ class PhotoGalleryViewModel(
 
     suspend fun addSelectionToGroup(g: ImageGroup) {
         val paths = _state.value.selected.toList()
-        var refused: UiText? = null
         val ok = try {
             val r = call { it.setReqAddToImageGroup(AddToImageGroup.newBuilder().setGroupId(g.id).addAllPaths(paths)) }
-            refused = r.demoRefusal()
             r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok
         } catch (e: Exception) { false }
-        if (!ok) { alert(refused ?: S.appPhotosNoticeAddFailed()); return }
+        if (!ok) { alert(S.appPhotosNoticeAddFailed()); return }
         pickedAway = emptyMap()
         _state.update { it.copy(selected = emptySet()) }
         loadGroups()

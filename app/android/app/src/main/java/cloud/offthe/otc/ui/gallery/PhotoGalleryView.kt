@@ -65,7 +65,6 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.net.MediaStream
-import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.SharedGallerySource
 import cloud.offthe.otc.ui.share.SharedGalleryShareFlow
 import androidx.compose.material3.CircularProgressIndicator
@@ -295,9 +294,6 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
     val st by vm.state.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    // A demo device takes no changes: no delete, collections or sharing
-    // is offered (OTCConnection.isDemo).
-    val demo by OTCConnection.isDemo.collectAsState()
     // Narrow: Collections is the sheet of collections over the photos.
     val showGroups = page == GalleryPage.COLLECTIONS && !wide
     var showGroupPicker by remember { mutableStateOf(false) }
@@ -579,9 +575,9 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                         // Leaving it, not just looking away: the search is the
                         // whole library again.
                         onBack = { vm.leaveGroup(); onPage(GalleryPage.COLLECTIONS) },
-                        onRename = if (demo) null else { { renameGroupName = group.name } },
-                        onShare = if (demo) null else { { gallerySource = SharedGallerySource.newBuilder().setGroupId(group.id).build() } },
-                        onDelete = if (demo) null else { { confirmDeleteGroup = true } },
+                        onRename = { renameGroupName = group.name },
+                        onShare = { gallerySource = SharedGallerySource.newBuilder().setGroupId(group.id).build() },
+                        onDelete = { confirmDeleteGroup = true },
                     )
                 }
                 if (personHeader) item(key = "head:people", contentType = "head") {
@@ -690,16 +686,12 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             if (st.selected.isNotEmpty()) {
                 // How much of the grid's bottom it floats over: a drag scrolls from above it.
                 Box(Modifier.align(Alignment.BottomCenter).onSizeChanged { barHeight = it.height }) {
-                    // On a demo device none of them: Share and Download make a
-                    // share link, which it refuses as well.
                     SelectionActionBar(
                         count = st.selected.size, busy = st.preparing,
-                        onShare = if (demo) null else { { vm.shareSelected(context) } },
-                        onDownload = if (demo) null else { { vm.downloadZip(context) } },
-                        onDelete = if (demo) null else { { confirmDeleteSelected = true } },
-                        onGroup = if (demo) null else { { scope.launch { vm.loadGroups() }; showGroupPicker = true } },
+                        onShare = { vm.shareSelected(context) }, onDownload = { vm.downloadZip(context) },
+                        onDelete = { confirmDeleteSelected = true }, onGroup = { scope.launch { vm.loadGroups() }; showGroupPicker = true },
                         // Issue #180: the selected photos, as a gallery - no group needed.
-                        onGallery = if (demo) null else { { gallerySource = SharedGallerySource.newBuilder().addAllPaths(st.selected.sorted()).build() } },
+                        onGallery = { gallerySource = SharedGallerySource.newBuilder().addAllPaths(st.selected.sorted()).build() },
                         // Out of selection mode: a tap opens a photo again.
                         onClear = { vm.clearSelection() },
                     )
@@ -734,7 +726,7 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                             Text(g.name)
                             Text(S.appPhotosCollectionsPictures(g.fileCount).resolve(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        if (!demo) IconButton(onClick = {
+                        IconButton(onClick = {
                             onPage(GalleryPage.PHOTOS)
                             gallerySource = SharedGallerySource.newBuilder().setGroupId(g.id).build()
                         }) { Icon(Icons.Default.Share, S.appShellShareAsGallery().resolve(), tint = MaterialTheme.colorScheme.primary) }
@@ -1225,13 +1217,12 @@ private fun MonthTitle(month: String?, oneTile: Boolean, m: GridMetrics, skeleto
  * An open collection, above its photos (the web's CollectionHeader): back
  * to Collections, its name (a tap renames it), how many photos and the
  * months they span, and sharing it as a gallery or deleting it - icons
- * when [compact], labelled buttons on a wide window. Rename, share and
- * delete as null: not offered (a demo device).
+ * when [compact], labelled buttons on a wide window.
  */
 @Composable
 private fun CollectionHeader(
     g: ImageGroup, span: String, compact: Boolean, metrics: GridMetrics,
-    onBack: () -> Unit, onRename: (() -> Unit)?, onShare: (() -> Unit)?, onDelete: (() -> Unit)?,
+    onBack: () -> Unit, onRename: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     val danger = Color(0xFFE53935)
@@ -1255,10 +1246,10 @@ private fun CollectionHeader(
                     Text(
                         g.name,
                         Modifier.weight(1f, fill = false).clip(RoundedCornerShape(8.dp))
-                            .let { if (onRename != null) it.clickable(onClickLabel = rename, onClick = onRename) else it }.semantics { heading() },
+                            .clickable(onClickLabel = rename, onClick = onRename).semantics { heading() },
                         style = headerTitleStyle(metrics), maxLines = 2, overflow = TextOverflow.Ellipsis,
                     )
-                    if (onRename != null) IconButton(onClick = onRename, Modifier.size(if (metrics.phone) 30.dp else 36.dp)) {
+                    IconButton(onClick = onRename, Modifier.size(if (metrics.phone) 30.dp else 36.dp)) {
                         Icon(Icons.Outlined.Edit, rename, Modifier.size(20.dp), tint = colors.onSurfaceVariant)
                     }
                 }
@@ -1269,15 +1260,15 @@ private fun CollectionHeader(
                 )
             }
             if (compact) Row {
-                if (onShare != null) IconButton(onClick = onShare) { Icon(Icons.Outlined.Public, share, tint = colors.onSurfaceVariant) }
-                if (onDelete != null) IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, delete, tint = danger) }
+                IconButton(onClick = onShare) { Icon(Icons.Outlined.Public, share, tint = colors.onSurfaceVariant) }
+                IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, delete, tint = danger) }
             } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (onShare != null) OutlinedButton(onClick = onShare, contentPadding = PaddingValues(start = 14.dp, end = 18.dp)) {
+                OutlinedButton(onClick = onShare, contentPadding = PaddingValues(start = 14.dp, end = 18.dp)) {
                     Icon(Icons.Outlined.Public, null, Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(share)
                 }
-                if (onDelete != null) OutlinedButton(
+                OutlinedButton(
                     onClick = onDelete, contentPadding = PaddingValues(start = 14.dp, end = 18.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = danger),
                 ) {
@@ -1616,9 +1607,6 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
     // the side column on a rotation: a share or save under way carries on.
     val scope = rememberCoroutineScope()
     var confirmDelete by remember { mutableStateOf(false) }
-    // No Delete on a demo device (OTCConnection.isDemo); Share and Save only read.
-    val demo by OTCConnection.isDemo.collectAsState()
-    val askDelete: (() -> Unit)? = if (demo) null else { { confirmDelete = true } }
     val idx = st.openIndex ?: return
     val pagerState = rememberPagerState(initialPage = idx) { st.items.size }
     // By the photo, not its place: newer ones landing above it (issue #194) leave it open.
@@ -1662,12 +1650,12 @@ internal fun ImageModal(vm: PhotoGalleryViewModel, st: PhotoGalleryViewModel.Sta
                         if (landscape) Box(Modifier.width(VIEWER_SIDE_COLUMN).fillMaxHeight()) {
                             Box(Modifier.align(Alignment.TopCenter).padding(top = 8.dp)) { ViewerCloseButton(vm) }
                             Column(Modifier.align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                ViewerActions(st.saving, onShare = { scope.launch { vm.shareCurrentPhoto(context) } }, onSave = { vm.saveToPhotos(context) }, onDelete = askDelete)
+                                ViewerActions(st.saving, onShare = { scope.launch { vm.shareCurrentPhoto(context) } }, onSave = { vm.saveToPhotos(context) }, onDelete = { confirmDelete = true })
                             }
                         }
                     }
                     if (!landscape) Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(48.dp, Alignment.CenterHorizontally)) {
-                        ViewerActions(st.saving, onShare = { scope.launch { vm.shareCurrentPhoto(context) } }, onSave = { vm.saveToPhotos(context) }, onDelete = askDelete)
+                        ViewerActions(st.saving, onShare = { scope.launch { vm.shareCurrentPhoto(context) } }, onSave = { vm.saveToPhotos(context) }, onDelete = { confirmDelete = true })
                     }
                 }
             }
@@ -1734,11 +1722,10 @@ private fun ViewerCloseButton(vm: PhotoGalleryViewModel) {
 /**
  * Share, save and delete: a row under the photo in portrait, a column
  * beside it in landscape. [saving] (issue #201): the original is on its
- * way to the phone's library - Save spins, and waits. [onDelete] null: no
- * Delete (a demo device).
+ * way to the phone's library - Save spins, and waits.
  */
 @Composable
-private fun ViewerActions(saving: Boolean, onShare: () -> Unit, onSave: () -> Unit, onDelete: (() -> Unit)?) {
+private fun ViewerActions(saving: Boolean, onShare: () -> Unit, onSave: () -> Unit, onDelete: () -> Unit) {
     IconButton(onClick = onShare) { Icon(Icons.Default.Share, S.commonShare().resolve(), tint = Color.White) }
     if (saving) {
         val label = S.appPhotosViewerSaving().resolve()
@@ -1746,7 +1733,7 @@ private fun ViewerActions(saving: Boolean, onShare: () -> Unit, onSave: () -> Un
             CircularProgressIndicator(Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
         }
     } else IconButton(onClick = onSave) { Icon(Icons.Default.ArrowCircleDown, S.commonSave().resolve(), tint = Color.White) }
-    if (onDelete != null) IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, S.commonDelete().resolve(), tint = Color.White) }
+    IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, S.commonDelete().resolve(), tint = Color.White) }
 }
 
 @Composable

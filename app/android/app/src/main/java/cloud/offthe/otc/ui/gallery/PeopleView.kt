@@ -106,7 +106,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cloud.offthe.otc.net.OTCConnection
-import cloud.offthe.otc.net.demoRefusal
 import cloud.offthe.otc.proto.DeletePerson
 import cloud.offthe.otc.proto.MergePeople
 import cloud.offthe.otc.proto.Person
@@ -423,15 +422,10 @@ class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(
 
     // ---- the device ----
 
-    /**
-     * A request the device answers with an Ack: null once it is done, else
-     * why not - a demo device's own words (ErrorCodes.isDemo), or [failed].
-     * Throws when nothing answered.
-     */
-    private suspend fun ackOr(failed: UiText, build: (ReqEnvelope.Builder) -> Unit): UiText? {
+    /** A request the device answers with an Ack: true once it is done. Throws when nothing answered. */
+    private suspend fun ack(build: (ReqEnvelope.Builder) -> Unit): Boolean {
         val r = send(build)
-        if (r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok) return null
-        return r.demoRefusal() ?: failed
+        return r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok
     }
 
     /** The list again, after a change, without holding up what comes next. */
@@ -449,12 +443,12 @@ class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(
     }
 
     internal suspend fun renameNow(store: PeopleStore, id: String, name: String) {
-        val failed = try {
-            ackOr(S.appPhotosPeopleNameNotSaved()) { it.setReqRenamePerson(RenamePerson.newBuilder().setId(id).setName(name)) }
+        val ok = try {
+            ack { it.setReqRenamePerson(RenamePerson.newBuilder().setId(id).setName(name)) }
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) { S.appPhotosPeopleNameNotSaved() }
-        if (failed == null) store.renamePersonLocally(id, name) else say(failed, error = true)
+        } catch (_: Exception) { false }
+        if (ok) store.renamePersonLocally(id, name) else say(S.appPhotosPeopleNameNotSaved(), error = true)
         _state.update { it.copy(saving = it.saving - id) }
     }
 
@@ -478,16 +472,14 @@ class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(
         val sources = _state.value.selection.filter { it != keep.id }
         try {
             if (name.isNotEmpty() && name != tidy(keep.name)) {
-                val failed = ackOr(S.appPhotosPeopleMergeNameNotSaved()) { it.setReqRenamePerson(RenamePerson.newBuilder().setId(keep.id).setName(name)) }
-                if (failed != null) {
-                    _state.update { it.copy(confirmError = failed) }
+                if (!ack { it.setReqRenamePerson(RenamePerson.newBuilder().setId(keep.id).setName(name)) }) {
+                    _state.update { it.copy(confirmError = S.appPhotosPeopleMergeNameNotSaved()) }
                     return false
                 }
                 store.renamePersonLocally(keep.id, name)
             }
-            val failed = ackOr(S.appPhotosPeopleMergeFailed()) { it.setReqMergePeople(MergePeople.newBuilder().setTargetId(keep.id).addAllSourceIds(sources)) }
-            if (failed != null) {
-                _state.update { it.copy(confirmError = failed) }
+            if (!ack { it.setReqMergePeople(MergePeople.newBuilder().setTargetId(keep.id).addAllSourceIds(sources)) }) {
+                _state.update { it.copy(confirmError = S.appPhotosPeopleMergeFailed()) }
                 return false
             }
             store.forgetPeople(sources.toSet())
@@ -521,8 +513,6 @@ class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(
     internal suspend fun removeNow(store: PeopleStore, ids: List<String>): Boolean {
         val deleted = mutableSetOf<String>()
         var unanswered = 0
-        // A demo device's words, which say why better than ours.
-        var demoSaid: UiText? = null
         val lock = Mutex()
         val queue = ids.iterator()
         suspend fun next(): String? = lock.withLock { if (queue.hasNext()) queue.next() else null }
@@ -533,12 +523,7 @@ class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(
                         while (true) {
                             val id = next() ?: break
                             try {
-                                val r = send { it.setReqDeletePerson(DeletePerson.newBuilder().setId(id)) }
-                                val said = r.demoRefusal()
-                                lock.withLock {
-                                    if (r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok) deleted += id
-                                    else if (said != null) demoSaid = said
-                                }
+                                if (ack { it.setReqDeletePerson(DeletePerson.newBuilder().setId(id)) }) lock.withLock { deleted += id }
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (_: Exception) {
@@ -553,7 +538,7 @@ class PeopleViewModel(private val send: PeopleRequest = { OTCConnection.request(
             _state.update { it.copy(busy = false, progress = null) }
         }
         if (deleted.isEmpty()) {
-            val why = demoSaid ?: when {
+            val why = when {
                 unanswered == ids.size -> S.appPhotosPeopleNoAnswer()
                 ids.size == 1 -> S.appPhotosPeopleDeleteOneFailed()
                 else -> S.appPhotosPeopleDeleteFailed()
@@ -619,9 +604,6 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
     val st by vm.state.collectAsState()
     val gst by gallery.state.collectAsState()
     val colors = MaterialTheme.colorScheme
-    // A demo device takes no changes: no naming, merging or deleting is
-    // offered (OTCConnection.isDemo).
-    val demo by OTCConnection.isDemo.collectAsState()
 
     LaunchedEffect(Unit) { vm.reload(gallery) }
 
@@ -650,8 +632,8 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
         if (selecting) {
             SelectionBar(
                 count = selPeople.size, hint = st.mergeHint && !canMerge, canMerge = canMerge,
-                onClose = { vm.clearSelection() }, onMerge = if (demo) null else { { vm.askMerge() } },
-                onDelete = if (demo) null else { { vm.askDelete(selPeople.map { it.id }) } },
+                onClose = { vm.clearSelection() }, onMerge = { vm.askMerge() },
+                onDelete = { vm.askDelete(selPeople.map { it.id }) },
             )
         } else if (showBack) {
             Row(
@@ -688,7 +670,7 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
                     // "more" button); once going, anywhere in a face's cell
                     // reaches it.
                     val facePx = with(density) { face.toPx() }
-                    val morePx = if (selecting || demo) 0f else with(density) { MORE_SIZE.toPx() }
+                    val morePx = if (selecting) 0f else with(density) { MORE_SIZE.toPx() }
                     val outPx = with(density) { MORE_OUT.toPx() }
                     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
                     val drag = rememberDragSelect(
@@ -708,7 +690,7 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
                         items(people, key = { it.id }) { p ->
                             PersonTile(
                                 p, face, name = tidy(st.saving[p.id] ?: p.name), pending = p.id in st.saving,
-                                selecting = selecting, selected = p.id in st.selection, canMerge = people.size > 1, editable = !demo,
+                                selecting = selecting, selected = p.id in st.selection, canMerge = people.size > 1,
                                 onTap = {
                                     if (selecting) vm.toggle(p.id)
                                     else { gallery.showPerson(p.id); onOpenPhotos() }
@@ -783,9 +765,9 @@ fun PeopleView(gallery: PhotoGalleryViewModel, onOpenPhotos: () -> Unit, onBack:
     }
 }
 
-/** What takes the page's top while faces are picked: close, the count, Merge and Delete (null: not offered, a demo device). */
+/** What takes the page's top while faces are picked: close, the count, Merge and Delete. */
 @Composable
-private fun SelectionBar(count: Int, hint: Boolean, canMerge: Boolean, onClose: () -> Unit, onMerge: (() -> Unit)?, onDelete: (() -> Unit)?) {
+private fun SelectionBar(count: Int, hint: Boolean, canMerge: Boolean, onClose: () -> Unit, onMerge: () -> Unit, onDelete: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     BoxWithConstraints(Modifier.fillMaxWidth().height(64.dp).background(colors.surfaceContainerHigh)) {
         // Narrow, or when the labelled buttons would leave the count no room
@@ -805,7 +787,7 @@ private fun SelectionBar(count: Int, hint: Boolean, canMerge: Boolean, onClose: 
                 fun button(label: String) = 10.dp + 22.dp + 8.dp + width(label, buttonStyle) + 14.dp
                 // What the row leaves between its padding, the close button and the column's start.
                 val room = maxWidth - 4.dp - 8.dp - 48.dp - 4.dp
-                width(countLabel, titleStyle) + (if (onMerge != null) button(mergeLabel) else 0.dp) + (if (onDelete != null) button(deleteLabel) else 0.dp) <= room
+                width(countLabel, titleStyle) + button(mergeLabel) + button(deleteLabel) <= room
             }
         }
         val compact = maxWidth < 360.dp || !labelsFit
@@ -819,11 +801,11 @@ private fun SelectionBar(count: Int, hint: Boolean, canMerge: Boolean, onClose: 
                 )
             }
             // Merge with one face picked: there, dimmed, and saying why when pressed.
-            if (onMerge != null) BarButton(
+            BarButton(
                 mergeLabel, PeopleIcons.Merge, compact, dimmed = !canMerge, tint = colors.onSurface,
                 dimmedLabel = S.androidPhotosPeopleMergeDimmed().resolve(), onClick = onMerge,
             )
-            if (onDelete != null) BarButton(deleteLabel, PeopleIcons.Trash, compact, tint = Danger, onClick = onDelete)
+            BarButton(deleteLabel, PeopleIcons.Trash, compact, tint = Danger, onClick = onDelete)
         }
     }
 }
@@ -850,14 +832,12 @@ private fun BarButton(
  * One face: the picture, the name (or "Add a name"), the photos; the "more"
  * menu on its corner. A long press is the grid's (issue #200: it picks the
  * face and starts a drag to select); TalkBack's own long press, and its
- * actions, still call [onLongPress]. Not [editable] (a demo device): no
- * menu, and no "Add a name" - an unnamed face reads as such.
+ * actions, still call [onLongPress].
  */
 @Composable
 private fun PersonTile(
     p: Person, face: Dp, name: String, pending: Boolean, selecting: Boolean, selected: Boolean, canMerge: Boolean,
     onTap: () -> Unit, onLongPress: () -> Unit, onRename: () -> Unit, onMergeWithOthers: () -> Unit, onDelete: () -> Unit,
-    editable: Boolean = true,
 ) {
     val colors = MaterialTheme.colorScheme
     var menu by remember { mutableStateOf(false) }
@@ -885,7 +865,7 @@ private fun PersonTile(
                         .border(2.dp, if (selected) colors.primary else Color.White.copy(alpha = 0.92f), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) { if (selected) Icon(PeopleIcons.Check, null, Modifier.size(16.dp), tint = colors.onPrimary) }
-            } else if (editable) {
+            } else {
                 Box(Modifier.align(Alignment.TopEnd).offset(MORE_OUT, -MORE_OUT)) {
                     Surface(
                         onClick = { menu = true }, shape = CircleShape, color = colors.surfaceContainerHighest,
@@ -919,7 +899,7 @@ private fun PersonTile(
                     name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     color = if (selected) colors.primary else colors.onSurface, modifier = Modifier.alpha(if (pending) 0.55f else 1f),
                 )
-                selecting || !editable -> Text(S.appShellSearchUnnamed().resolve(), style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic, color = colors.onSurfaceVariant)
+                selecting -> Text(S.appShellSearchUnnamed().resolve(), style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic, color = colors.onSurfaceVariant)
                 // One line in the face's width: smaller rather than cut (FitText).
                 else -> FitText(
                     S.appPhotosPeopleAddName().resolve(), style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic), color = colors.onSurfaceVariant,

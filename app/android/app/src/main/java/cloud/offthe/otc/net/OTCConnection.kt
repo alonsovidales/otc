@@ -20,7 +20,6 @@ import cloud.offthe.otc.proto.GetLocalEndpoint
 import cloud.offthe.otc.proto.GetPubKey
 import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.RespEnvelope
-import cloud.offthe.otc.proto.Status
 import cloud.offthe.otc.ui.common.TextIOException
 import cloud.offthe.otc.ui.common.now
 import com.google.protobuf.ByteString
@@ -82,17 +81,6 @@ object OTCConnection {
     // next one, which may be to an updated device.
     private val _signIns = MutableStateFlow(0)
     val signIns: StateFlow<Int> = _signIns
-
-    /**
-     * The device is a public demo one (docs/demo-device.md, DemoDevice): it
-     * refuses every change, so the app shows a banner over every tab, hides
-     * what would change something and never runs the photo sync against
-     * it. What it said at the last sign-in (PubKey.demo) or Status
-     * (Status.demo), kept in SecretsStore so a relaunch knows it before
-     * signing in; false until a device says so, and again after Log Out or
-     * once another endpoint is saved. The one place the app asks.
-     */
-    val isDemo: StateFlow<Boolean> get() = SecretsStore.loadOrCreate().demo
 
     /** Issue #190: which way the socket in use reaches the device; BRIDGE is the configured endpoint, whatever it is. */
     enum class Route { HOME, BRIDGE }
@@ -361,7 +349,7 @@ object OTCConnection {
         // where it is, as before.
         val open = ws
         if (open.connected) {
-            signInOrFail(open, url, password, deviceId, credKey)
+            signInOrFail(open, password, deviceId, credKey)
             currentCoroutineContext().ensureActive()
             signedIn(url)
             if (_route.value != Route.HOME) refreshHomeEndpoint(open, url, gen)
@@ -384,7 +372,7 @@ object OTCConnection {
             _connectionFailed.value = true
             throw e
         }
-        signInOrFail(c, url, password, deviceId, credKey)
+        signInOrFail(c, password, deviceId, credKey)
         currentCoroutineContext().ensureActive()
         signedIn(url)
         refreshHomeEndpoint(c, url, gen)
@@ -446,7 +434,7 @@ object OTCConnection {
         try {
             var timedOut = true
             val refusal = try {
-                withTimeoutOrNull(homeSignInMs) { signIn(c, url, password, deviceId).also { timedOut = false } }
+                withTimeoutOrNull(homeSignInMs) { signIn(c, password, deviceId).also { timedOut = false } }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -481,13 +469,8 @@ object OTCConnection {
     // the device's (or the bridge's) own words when it gave some.
     private class Refusal(val text: UiText, val ack: Ack?, val auth: Boolean)
 
-    /**
-     * GetPubKey, then Auth with the password sealed to that key. null once
-     * signed in - and what the device said it is (PubKey.demo) noted for
-     * [url], the configured endpoint it was reached for; throws when the
-     * socket fails.
-     */
-    private suspend fun signIn(c: WSClient, url: String, password: String, deviceId: String): Refusal? {
+    /** GetPubKey, then Auth with the password sealed to that key. null once signed in; throws when the socket fails. */
+    private suspend fun signIn(c: WSClient, password: String, deviceId: String): Refusal? {
         val pubKeyResp = c.request(SIGN_IN_TIMEOUT_MS) { it.setReqGetPubKey(GetPubKey.getDefaultInstance()) }
         if (pubKeyResp.payloadCase != RespEnvelope.PayloadCase.RESP_PUB_KEY) {
             val ack = if (pubKeyResp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) pubKeyResp.respAck else null
@@ -500,20 +483,15 @@ object OTCConnection {
             .setCreate(false)
             .build()
         val resp = c.request(SIGN_IN_TIMEOUT_MS) { it.setReqAuth(auth) }
-        if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && resp.respAck.ok) {
-            // Before the sign-in counts (signedIn): whatever waits for it
-            // (the photo sync, the permission prompt) knows it already.
-            noteDemo(url, pubKeyResp.respPubKey.demo)
-            return null
-        }
+        if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && resp.respAck.ok) return null
         val ack = if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_ACK) resp.respAck else null
         return Refusal(if (ack != null) UiText.Raw(ack.errorMsg) else S.appShellAuthFailed(), ack, auth = true)
     }
 
     /** [signIn] on the configured endpoint's socket: any failure goes on the card and closes it. */
-    private suspend fun signInOrFail(c: WSClient, url: String, password: String, deviceId: String, credKey: String) {
+    private suspend fun signInOrFail(c: WSClient, password: String, deviceId: String, credKey: String) {
         val refusal = try {
-            signIn(c, url, password, deviceId)
+            signIn(c, password, deviceId)
         } catch (e: Exception) {
             // Dropped by invalidate(): leave the card alone.
             currentCoroutineContext().ensureActive()
@@ -550,47 +528,6 @@ object OTCConnection {
         // re-imaged device keeps ""): the language value seen goes, so one
         // picked before the next sign-in goes as it is.
         cloud.offthe.otc.i18n.LanguageSettings.sessionEnded()
-    }
-
-    /** What the device at [url] said it is: kept only while [url] is still the configured endpoint. */
-    private fun noteDemo(url: String, demo: Boolean) {
-        val secrets = SecretsStore.loadOrCreate()
-        if (secrets.endpointURLString == url) secrets.setDemo(demo)
-    }
-
-    /** A Status answer (MainView's poll, Settings', the menu's): Status.demo, for the device signed in to now. */
-    fun deviceSaid(status: Status) {
-        if (_authenticated.value) noteDemo(SecretsStore.loadOrCreate().endpointURLString, status.demo)
-    }
-
-    /**
-     * "Try the demo" (OnboardingView): asks [url] for its key without
-     * signing in, on a socket of its own, and gives back the password a
-     * demo device publishes (DemoDevice.answer). The caller saves it as
-     * the password, and the sign-in goes as for any other: sealed to the
-     * key of the connection it is sent on. Throws a TextIOException with
-     * the words the connection card would show when nothing answers or
-     * the device isn't a demo one.
-     */
-    suspend fun demoPassword(url: String): String = withContext(Dispatchers.IO) {
-        val c = WSClient()
-        try {
-            val resp = try {
-                c.connect(url)
-                c.request(SIGN_IN_TIMEOUT_MS) { it.setReqGetPubKey(GetPubKey.getDefaultInstance()) }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                throw TextIOException(describe(e), e)
-            }
-            when (val a = DemoDevice.answer(resp)) {
-                is DemoDevice.Answer.SignIn -> a.password
-                is DemoDevice.Answer.Refused -> throw TextIOException(a.text)
-            }
-        } finally {
-            // It holds a bridge pool slot until it goes.
-            c.close()
-        }
     }
 
     /** Signed in through the configured endpoint [url] (or at home for it). */
@@ -723,7 +660,7 @@ object OTCConnection {
             var kept = false
             try {
                 c.connect(url)
-                if (signIn(c, url, password, deviceId) != null) return
+                if (signIn(c, password, deviceId) != null) return
                 kept = swap(old, c, gen, Route.BRIDGE, null)
             } catch (e: CancellationException) {
                 throw e
@@ -741,7 +678,7 @@ object OTCConnection {
             var kept = false
             try {
                 var timedOut = true
-                val refusal = withTimeoutOrNull(homeSignInMs) { signIn(c, url, password, deviceId).also { timedOut = false } }
+                val refusal = withTimeoutOrNull(homeSignInMs) { signIn(c, password, deviceId).also { timedOut = false } }
                 if (timedOut || refusal != null) return
                 kept = swap(old, c, gen, Route.HOME, Home(HomeNetwork.origin(opened.address, ep.port), ep.certSha256, opened.via))
             } catch (e: CancellationException) {
