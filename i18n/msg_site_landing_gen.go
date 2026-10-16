@@ -704,6 +704,16 @@ func SiteLandingFooterTerms() Msg {
 	return Msg{Key: "site.landing.footer.terms"}
 }
 
+// SiteLandingHeroDemo is site.landing.hero.demo: "Try the demo".
+func SiteLandingHeroDemo() Msg {
+	return Msg{Key: "site.landing.hero.demo"}
+}
+
+// SiteLandingHeroDemoNote is site.landing.hero.demo_note: "Look around a real device with a made-up family's photos and files. No sign-up.".
+func SiteLandingHeroDemoNote() Msg {
+	return Msg{Key: "site.landing.hero.demo_note"}
+}
+
 // SiteLandingHeroLead is site.landing.hero.lead: "Off The Cloud is a NAS and a social network in one small box you own outright: y…".
 func SiteLandingHeroLead() Msg {
 	return Msg{Key: "site.landing.hero.lead"}
