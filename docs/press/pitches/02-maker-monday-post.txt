@@ -1,0 +1,5 @@
+Where: your LinkedIn, Mastodon, X or Facebook, with #MakerMonday on a Monday
+(the magazine's team picks community builds from the tag for its round-ups). Attach the device
+photo and one screenshot.
+
+My Raspberry Pi 5 now looks after my family's photos instead of Google: full-resolution phone backups, AI tagging and face recognition on the Pi itself, and two microSD cards mirrored as RAID 1, with GPIO lights for each card's health. Open source, and there's a live demo: https://demo.off-the.cloud #MakerMonday #RaspberryPi #selfhosted

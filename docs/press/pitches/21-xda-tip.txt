@@ -1,0 +1,17 @@
+Where: https://www.xda-developers.com/contact/ → "Have a News Tip?"
+Subject: Off The Cloud: an open-source Google Photos replacement that runs on a Raspberry Pi 5
+
+Off The Cloud turns a Raspberry Pi 5 into a home server for a family's photos and files:
+
+- full-resolution backup from Android (Google Play) and iPhone (app in review);
+- tagging and face recognition on the Pi itself;
+- encryption at rest;
+- two microSD cards or USB disks mirrored as RAID 1, with GPIO status lights.
+
+Setup needs no terminal (desktop app plus Bluetooth), and remote access goes through an optional relay you can also self-host. It's AGPL-3.0.
+
+Live demo: https://demo.off-the.cloud
+Code: https://github.com/alonsovidales/otc
+Site: https://off-the.cloud
+
+Alonso Vidales, avidales@off-the.cloud

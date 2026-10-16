@@ -1,0 +1,23 @@
+Para: geral@pplware.com
+Assunto: Off The Cloud: um Raspberry Pi 5 que substitui o Google Fotos, em código aberto e com demonstração
+
+Olá,
+
+Chamo-me Alonso Vidales e desenvolvo o Off The Cloud, um projeto de código aberto (AGPL) que transforma um Raspberry Pi 5 no servidor de fotografias de toda a família.
+
+- Os telemóveis fazem cópia de segurança das fotos em resolução total.
+- A identificação de objetos e o reconhecimento facial (opcional) correm no próprio Raspberry.
+- Os ficheiros ficam cifrados em dois cartões microSD em espelho (RAID 1), e dois LED ligados ao GPIO mostram o estado de cada um.
+
+Não é preciso usar o terminal: a app para Mac, Windows ou Linux prepara o cartão e a configuração termina por Bluetooth. Há ainda um mural privado só entre amigos, de dispositivo para dispositivo, sem publicidade nem algoritmos.
+
+Pode experimentá-lo sem instalar nada: https://demo.off-the.cloud (a fototeca de uma família inventada, só de leitura). O site e as apps também estão em português.
+
+Código: https://github.com/alonsovidales/otc
+Site: https://off-the.cloud
+
+Fico ao dispor para fotografias do equipamento ou qualquer dúvida.
+
+Cumprimentos,
+Alonso Vidales
+avidales@off-the.cloud

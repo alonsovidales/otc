@@ -1,0 +1,18 @@
+Wo: https://stadt-bremerhaven.de/tipp-senden/
+Betreff: Off The Cloud: Google-Fotos-Alternative auf einem Raspberry Pi 5, mit Android- und Mac-App
+
+Hallo,
+
+Off The Cloud ist eine Open-Source-Alternative zu Google Fotos und iCloud, die auf einem Raspberry Pi 5 zu Hause läuft.
+
+- Die Smartphones sichern ihre Fotos in voller Auflösung.
+- Die Suche nach Motiven und Personen funktioniert direkt auf dem Pi.
+- Alles liegt verschlüsselt und doppelt gespiegelt auf zwei Speicherkarten.
+
+Die Android-App gibt es bei Google Play, die Mac-App im Mac App Store, Windows- und Linux-Apps auf der Website; die iPhone-App ist in der Prüfung. Alles ist auch auf Deutsch.
+
+Live-Demo ohne Anmeldung: https://demo.off-the.cloud
+Website: https://off-the.cloud
+
+Viele Grüße
+Alonso Vidales

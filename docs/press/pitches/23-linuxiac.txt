@@ -1,0 +1,20 @@
+To: info@linuxiac.com   (they cover Immich, PhotoPrism and Ente releases)
+Subject: Off The Cloud 2.10: an AGPL photo and file server for the Raspberry Pi 5, now with apps worldwide
+
+Hi Bobby,
+
+Off The Cloud is a free software home server for a family's photos and files, built for the Raspberry Pi 5. The install script also runs on any 64-bit Debian or Ubuntu machine.
+
+- Phones back up in full resolution.
+- Tagging (RAM++) and opt-in face recognition run on the device.
+- Files are encrypted at rest (Argon2id and AES-GCM) and mirrored as RAID 1 with mdadm.
+
+This month its apps went worldwide: Android on Google Play, Mac on the Mac App Store, and Windows and Linux clients from the site; the iPhone app is in review. Release 2.10 is out.
+
+Live demo, no sign-up: https://demo.off-the.cloud
+Code: https://github.com/alonsovidales/otc
+Site: https://off-the.cloud
+
+Regards,
+Alonso Vidales
+avidales@off-the.cloud

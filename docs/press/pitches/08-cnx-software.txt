@@ -1,0 +1,12 @@
+Where: https://www.cnx-software.com/contact-us/   (send from avidales@off-the.cloud: they ask for no Gmail)
+Subject: Off The Cloud: open-source family photo server for the Raspberry Pi 5 (RAID 1, on-device AI)
+
+Hi Jean-Luc,
+
+Off The Cloud is an open-source (AGPL) firmware and app suite that turns a Raspberry Pi 5 into a home photo and file server: full-resolution phone backup, RAM++ image tagging and YuNet/SFace face recognition running on the Pi's CPU, and AES-GCM encryption at rest. Storage is two microSD cards or USB disks mirrored with mdadm, with two GPIO bi-colour LEDs for their state. A signed image is set up over Bluetooth; there's also an install script for any 64-bit Debian or Ubuntu board. Apps: Android (Google Play), Mac (Mac App Store), Windows, Linux and a web app. The iPhone app is in review.
+
+Live demo: https://demo.off-the.cloud
+Code: https://github.com/alonsovidales/otc
+
+Regards,
+Alonso Vidales

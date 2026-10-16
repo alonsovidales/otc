@@ -1,0 +1,17 @@
+To: tips@hackaday.com   (or the form at https://hackaday.com/submit-a-tip/)
+Subject: RAID 1 on two microSD cards, on-device AI and status LEDs: a Pi 5 photo server
+
+Hi Hackaday,
+
+Off The Cloud is my open-source take on a Google Photos replacement that lives on a Raspberry Pi 5. Some of the bits that might interest you:
+
+- Storage is two microSD cards in USB readers, mirrored with mdadm as RAID 1. Two bi-colour LEDs on the GPIO show each card's state: red when one dies, flashing while the replacement rebuilds. The alert names the USB port to swap.
+- Photo tagging (RAM++) and face recognition (YuNet and SFace) run on the Pi 5's CPU. Nothing leaves the box to be analysed.
+- Files are encrypted at rest with AES-GCM, under a key unwrapped from the owner's password with Argon2id; the password is never stored.
+- The device dials out to a relay, so there's no port forwarding. Friends' devices fetch each other's posts through it, a tiny social network where no server keeps the photos.
+
+Live read-only demo: https://demo.off-the.cloud
+Code (AGPL): https://github.com/alonsovidales/otc
+Build write-up: [link to the Hackster or Hackaday.io page]
+
+Alonso Vidales

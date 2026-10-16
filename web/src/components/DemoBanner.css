@@ -2,7 +2,9 @@
    critical-update banner (UpdateBanner.css): above the date scrubber's
    column, below the top bar. */
 .demo-banner { position: relative; z-index: 7; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; padding: 10px 16px; background: rgba(255, 200, 87, 0.12); border-bottom: 1px solid rgba(255, 200, 87, 0.35); color: var(--mist); font-size: 14px; }
-.demo-banner .demo-text { flex: 1 1 18em; min-width: 0; }
+/* The link follows the text rather than sitting at the right edge, where
+   the date scrubber's year labels are. */
+.demo-banner .demo-text { flex: 0 1 auto; min-width: 0; }
 .demo-link { flex: none; color: var(--gold); font-weight: 600; }
 .demo-welcome { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; max-width: 560px; margin: 24px auto 8px; padding: 18px 20px; border: 1px solid rgba(255, 200, 87, 0.35); border-radius: 12px; background: rgba(255, 200, 87, 0.08); color: var(--mist); }
 .demo-welcome .demo-text { margin: 0; font-size: 15px; line-height: 1.45; }

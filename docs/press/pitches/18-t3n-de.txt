@@ -1,0 +1,20 @@
+An: redaktion@t3n.de
+Betreff: Redaktionsanfrage: Off The Cloud – digitale Souveränität für Familienfotos, auf einem Raspberry Pi 5
+
+Hallo t3n-Redaktion,
+
+Off The Cloud ist ein Open-Source-Projekt (AGPL) aus Europa, das die Fotos, Videos und Dateien einer Familie auf einem Raspberry Pi 5 zu Hause hält statt bei Google oder Apple.
+
+- Die Analyse der Fotos, also Motive und auf Wunsch Gesichter, läuft auf dem Pi.
+- Die Dateien sind verschlüsselt, mit einem Schlüssel, den nur das Passwort des Besitzers öffnet.
+- Für den Zugriff von unterwegs gibt es ein optionales Relay, das man auch selbst betreiben kann.
+
+Die Apps für Android, Mac, Windows und Linux sind verfügbar, die iPhone-App ist in der Prüfung.
+
+Live-Demo ohne Anmeldung: https://demo.off-the.cloud
+Website (auch auf Deutsch): https://off-the.cloud
+Code: https://github.com/alonsovidales/otc
+
+Viele Grüße
+Alonso Vidales
+avidales@off-the.cloud

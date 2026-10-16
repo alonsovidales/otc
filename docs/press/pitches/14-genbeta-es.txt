@@ -1,0 +1,25 @@
+Dónde: https://www.genbeta.com/contacto ("Enviar una noticia a los editores") o prensa@genbeta.com
+Asunto: Off The Cloud: una Raspberry Pi 5 que sustituye a Google Fotos, de código abierto y con demo
+
+Hola, equipo de Genbeta:
+
+Soy Alonso Vidales y desarrollo Off The Cloud, un proyecto de código abierto (AGPL) que convierte una Raspberry Pi 5 en el servidor de fotos de toda la familia.
+
+- Los móviles copian sus fotos a resolución completa.
+- El etiquetado y el reconocimiento facial (opcional) funcionan en la propia Raspberry.
+- Los archivos se guardan cifrados en dos tarjetas microSD en espejo (RAID 1), y dos LED conectados al GPIO indican el estado de cada una.
+
+No hace falta tocar la terminal: la app para Mac, Windows o Linux prepara la tarjeta y la configuración termina por Bluetooth. Además incluye un muro privado solo entre amigos, de dispositivo a dispositivo, sin anuncios ni algoritmo.
+
+Se puede probar sin instalar nada: https://demo.off-the.cloud (la fototeca de una familia inventada, solo lectura). La web y las apps están en español.
+
+Publicasteis cómo montar un «Google Fotos casero» con PhotoPrism en una Raspberry Pi; esto va un paso más allá: sin Docker y sin abrir puertos.
+
+Código: https://github.com/alonsovidales/otc
+Web: https://off-the.cloud
+
+Quedo a vuestra disposición para fotos del montaje o cualquier duda.
+
+Un saludo,
+Alonso Vidales
+avidales@off-the.cloud
