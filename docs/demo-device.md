@@ -10,7 +10,7 @@ language, push tokens, notifications seen) is answered ok and stored nowhere, so
 mix each other up or get the demo's pushes; the home-network endpoint is answered as absent.
 
 It is for the web app only: the website links to `https://demo.off-the.cloud`, and the phone apps
-have no demo support (the owner's choice, 2026-10-16). The device tells the web app before sign-in
+have no demo support. The device tells the web app before sign-in
 (`PubKey.demo`, `PubKey.demo_password`) and after (`Status.demo`): signed out, the page offers "Try
 the demo" with the published password; signed in, a banner says it is a demo. Every screen and
 setting looks as on any device (Logs aside); a change tried shows "This is a demo device: changes

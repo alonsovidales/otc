@@ -1,6 +1,0 @@
-Where: https://www.adafruit.com/contact_us (sign in), category "Cool thing for the Adafruit blog!"
-Optional: show it on the Wednesday Show and Tell livestream, joined through the Adafruit Discord.
-
-Title: Off The Cloud: a Raspberry Pi 5 family photo server with RAID 1 on microSD and GPIO status lights
-URL: https://off-the.cloud   (or the Hackster page once it's up)
-Description: An open-source (AGPL) Google Photos replacement on a Raspberry Pi 5. Phones back up in full resolution, AI tagging and face recognition run on the Pi, and files are encrypted on two microSD cards mirrored as RAID 1, with red and green LEDs on the GPIO showing each card's health. It's set up over Bluetooth, and there's a live demo at https://demo.off-the.cloud.

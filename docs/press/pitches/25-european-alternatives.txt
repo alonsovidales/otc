@@ -1,7 +1,0 @@
-Where: https://european-alternatives.eu/register (account), then suggest a product. They ask not to email suggestions.
-
-Name: Off The Cloud
-Category: Cloud storage / photo storage (self-hosted)
-Website: https://off-the.cloud
-Made in: [CONFIRM: your country]
-Description: An open-source (AGPL) photo and file server for a Raspberry Pi 5 at home, replacing Google Photos and iCloud. Phones back up in full resolution, tagging and face recognition run on the device, and files are encrypted at rest on two mirrored cards or disks. The optional relay for remote access runs in France (OVH) and can be self-hosted. Apps for Android, Mac, Windows, Linux and the web.
