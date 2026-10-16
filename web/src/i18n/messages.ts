@@ -646,6 +646,9 @@ export type MessageKey =
   | "web.shell.connection.not_connected"
   | "web.shell.connection.signed_in_meanwhile"
   | "web.shell.connection.too_many"
+  | "web.shell.demo.banner"
+  | "web.shell.demo.get_own"
+  | "web.shell.demo.try"
   | "web.shell.device_updated.reload"
   | "web.shell.device_updated.text"
   | "web.shell.download.dismiss"
@@ -1549,6 +1552,9 @@ export interface MessageArgs {
   "web.shell.connection.not_connected": undefined;
   "web.shell.connection.signed_in_meanwhile": undefined;
   "web.shell.connection.too_many": undefined;
+  "web.shell.demo.banner": undefined;
+  "web.shell.demo.get_own": undefined;
+  "web.shell.demo.try": undefined;
   "web.shell.device_updated.reload": undefined;
   "web.shell.device_updated.text": undefined;
   "web.shell.download.dismiss": undefined;

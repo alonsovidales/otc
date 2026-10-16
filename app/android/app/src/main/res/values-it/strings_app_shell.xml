@@ -39,6 +39,10 @@
     <string name="app_shell_connection_heading">Connessione</string>
     <string name="app_shell_critical_update">Aggiornamento critico %1$s disponibile. Installalo il prima possibile.</string>
     <string name="app_shell_critical_update_summary">Aggiornamento critico %1$s disponibile. %2$s Installalo il prima possibile.</string>
+    <string name="app_shell_demo_banner">Questo è un dispositivo dimostrativo con foto e file di esempio. Le modifiche sono disattivate.</string>
+    <string name="app_shell_demo_get_own">Prendi il tuo dispositivo</string>
+    <string name="app_shell_demo_try">Prova la demo</string>
+    <string name="app_shell_demo_try_note">Non hai ancora un dispositivo? Esplora quello dimostrativo, con foto e file di esempio.</string>
     <string name="app_shell_device_unavailable">Questo dispositivo non è disponibile al momento</string>
     <string name="app_shell_endpoint_address">Indirizzo (wss://host/ws)</string>
     <string name="app_shell_endpoint_custom">Indirizzo personalizzato</string>

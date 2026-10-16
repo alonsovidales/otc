@@ -41,6 +41,18 @@
     "en": "Too many attempts. Try again in a minute.",
     "reviewed": "claude-backtranslation 2026-10-11 #a018eb38"
   },
+  "web.shell.demo.banner": {
+    "text": "Dit is een demoapparaat met voorbeeldfoto’s en -bestanden. Wijzigingen zijn uitgeschakeld.",
+    "en": "This is a demo device with sample photos and files. Changes are turned off."
+  },
+  "web.shell.demo.get_own": {
+    "text": "Eigen apparaat halen",
+    "en": "Get your own device"
+  },
+  "web.shell.demo.try": {
+    "text": "Demo proberen",
+    "en": "Try the demo"
+  },
   "web.shell.device_updated.reload": {
     "text": "Opnieuw laden",
     "en": "Reload"

@@ -130,6 +130,22 @@
     "en": "Critical update {version} available. {summary} Install it as soon as possible.",
     "reviewed": "claude-backtranslation 2026-10-11 #e10aafa9"
   },
+  "app.shell.demo_banner": {
+    "text": "Dies ist ein Demogerät mit Beispielfotos und -dateien. Änderungen sind deaktiviert.",
+    "en": "This is a demo device with sample photos and files. Changes are turned off."
+  },
+  "app.shell.demo_get_own": {
+    "text": "Eigenes Gerät holen",
+    "en": "Get your own device"
+  },
+  "app.shell.demo_try": {
+    "text": "Demo ausprobieren",
+    "en": "Try the demo"
+  },
+  "app.shell.demo_try_note": {
+    "text": "Noch kein Gerät? Sieh dir ein Demogerät mit Beispielfotos und -dateien an.",
+    "en": "No device yet? Look around a demo one with sample photos and files."
+  },
   "app.shell.device_unavailable": {
     "text": "Dieses Gerät ist gerade nicht verfügbar",
     "en": "This device isn't available right now"

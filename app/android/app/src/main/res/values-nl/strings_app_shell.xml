@@ -37,6 +37,10 @@
     <string name="app_shell_connection_heading">Verbinding</string>
     <string name="app_shell_critical_update">Kritieke update %1$s beschikbaar. Installeer deze zo snel mogelijk.</string>
     <string name="app_shell_critical_update_summary">Kritieke update %1$s beschikbaar. %2$s Installeer deze zo snel mogelijk.</string>
+    <string name="app_shell_demo_banner">Dit is een demoapparaat met voorbeeldfoto’s en -bestanden. Wijzigingen zijn uitgeschakeld.</string>
+    <string name="app_shell_demo_get_own">Eigen apparaat halen</string>
+    <string name="app_shell_demo_try">Demo proberen</string>
+    <string name="app_shell_demo_try_note">Nog geen apparaat? Kijk rond op een demoapparaat met voorbeeldfoto’s en -bestanden.</string>
     <string name="app_shell_device_unavailable">Dit apparaat is nu niet beschikbaar</string>
     <string name="app_shell_endpoint_address">Adres (wss://host/ws)</string>
     <string name="app_shell_endpoint_custom">Aangepast adres</string>

@@ -122,6 +122,22 @@ fun S.appShellCriticalUpdate(version: String): UiText =
 fun S.appShellCriticalUpdateSummary(version: String, summary: String): UiText =
     UiText.Res(R.string.app_shell_critical_update_summary, listOf(version, summary))
 
+/** "This is a demo device with sample photos and files. Changes are turned off.": Banner over every tab while connected to the public demo device (one anyone can sign in to, to try Off The Cloud before having their own). Its sample photos show made-up people. A link follows: app.shell.demo_get_own. */
+fun S.appShellDemoBanner(): UiText =
+    UiText.Res(R.string.app_shell_demo_banner)
+
+/** "Get your own device": Link in the demo device's banner (app.shell.demo_banner): opens the Off The Cloud website, which explains how to set up a device of your own. */
+fun S.appShellDemoGetOwn(): UiText =
+    UiText.Res(R.string.app_shell_demo_get_own)
+
+/** "Try the demo": Button on the first screen (connect to a device): connects to the public demo device and signs in with its published password, so someone with no device yet can look around. Under the note app.shell.demo_try_note. */
+fun S.appShellDemoTry(): UiText =
+    UiText.Res(R.string.app_shell_demo_try)
+
+/** "No device yet? Look around a demo one with sample photos and files.": Note on the first screen (connect to a device), above the Try the demo button (app.shell.demo_try): the public demo device anyone can sign in to. */
+fun S.appShellDemoTryNote(): UiText =
+    UiText.Res(R.string.app_shell_demo_try_note)
+
 /** "This device isn't available right now": Heading of the card shown over the whole app when the relay (off-the.cloud) can't reach the user's device: switched off, no internet. The relay's own explanation is shown under it. */
 fun S.appShellDeviceUnavailable(): UiText =
     UiText.Res(R.string.app_shell_device_unavailable)

@@ -136,6 +136,24 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #d25e2dfa"
   },
+  "app.shell.demo_banner": {
+    "text": "This is a demo device with sample photos and files. Changes are turned off.",
+    "note": "Banner over every tab while connected to the public demo device (one anyone can sign in to, to try Off The Cloud before having their own). Its sample photos show made-up people. A link follows: app.shell.demo_get_own."
+  },
+  "app.shell.demo_get_own": {
+    "text": "Get your own device",
+    "note": "Link in the demo device's banner (app.shell.demo_banner): opens the Off The Cloud website, which explains how to set up a device of your own.",
+    "max": 32
+  },
+  "app.shell.demo_try": {
+    "text": "Try the demo",
+    "note": "Button on the first screen (connect to a device): connects to the public demo device and signs in with its published password, so someone with no device yet can look around. Under the note app.shell.demo_try_note.",
+    "max": 24
+  },
+  "app.shell.demo_try_note": {
+    "text": "No device yet? Look around a demo one with sample photos and files.",
+    "note": "Note on the first screen (connect to a device), above the Try the demo button (app.shell.demo_try): the public demo device anyone can sign in to."
+  },
   "app.shell.device_unavailable": {
     "text": "This device isn't available right now",
     "note": "Heading of the card shown over the whole app when the relay (off-the.cloud) can't reach the user's device: switched off, no internet. The relay's own explanation is shown under it."
