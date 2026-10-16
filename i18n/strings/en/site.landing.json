@@ -714,6 +714,15 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #e50b7b2c"
   },
+  "site.landing.hero.demo": {
+    "text": "Try the demo",
+    "note": "Button under the opening paragraph of the home page: opens the public demo device (demo.off-the.cloud), a real device with a made-up family's photos and files that anyone can look around, where changes are turned off.",
+    "max": 24
+  },
+  "site.landing.hero.demo_note": {
+    "text": "Look around a real device with a made-up family's photos and files. No sign-up.",
+    "note": "Line beside the Try the demo button (site.landing.hero.demo) on the home page. The family in the demo is made up."
+  },
   "site.landing.hero.lead": {
     "text": "Off The Cloud is a NAS and a social network in one small box you own outright: your photos, videos, and documents back up in full resolution, get AI-tagged for instant search, and stay behind RAID-1 protected disks — with an optional, ethical social feed for sharing memories with the people who actually matter, free of ads, algorithms, and doomscrolling.",
     "note": "Website landing page: the paragraph under the main headline, summing up the product. A NAS is a storage box on the home network; RAID-1 means two disks that each keep a full copy."

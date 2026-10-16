@@ -101,6 +101,9 @@
     .hero-photo{display:block;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:var(--ink-2);box-shadow:0 20px 60px rgba(0,0,0,.45)}
     .hero-photo img{width:100%;height:auto}
     .hero-intro p.lead{margin:0;max-width:none}
+    .hero-text{display:grid;gap:18px}
+    .hero-demo{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+    .hero-demo-note{font-size:15px;color:var(--mist-dim);flex:1 1 16em}
     @media (max-width:819px){ .hero-intro{grid-template-columns:1fr;gap:22px;margin:4px 0 6px} }
     /* The install block is centred as a block; its steps read left-aligned. */
     .hero-install{display:grid;gap:10px;margin-top:8px;width:100%;max-width:960px;text-align:left}
@@ -342,9 +345,15 @@
           <source type="image/webp" srcset="/img/hero-900.webp 900w, /img/hero-1280.webp 1280w, /img/hero-1600.webp 1600w" sizes="(max-width: 819px) calc(100vw - 48px), (max-width: 1359px) calc(56vw - 40px), 710px">
           <img src="/img/hero-1600.jpg" srcset="/img/hero-900.jpg 900w, /img/hero-1280.jpg 1280w, /img/hero-1600.jpg 1600w" sizes="(max-width: 819px) calc(100vw - 48px), (max-width: 1359px) calc(56vw - 40px), 710px" width="1600" height="893" alt="{{t "site.landing.hero.photo_alt"}}" loading="eager" decoding="async" fetchpriority="high">
         </picture>
-        <p class="lead">
-          {{t "site.landing.hero.lead"}}
-        </p>
+        <div class="hero-text">
+          <p class="lead">
+            {{t "site.landing.hero.lead"}}
+          </p>
+          <div class="hero-demo">
+            <a class="btn ember" href="https://demo.off-the.cloud/">{{t "site.landing.hero.demo"}}</a>
+            <span class="hero-demo-note">{{t "site.landing.hero.demo_note"}}</span>
+          </div>
+        </div>
       </div>
       <div class="hero-install" id="install">
         <span class="hero-install-label" id="install-label">{{t "site.landing.install.label"}}</span>
