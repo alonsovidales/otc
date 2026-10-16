@@ -8,7 +8,7 @@
 # bridge names have no dots, so nobody can ever register one, and they don't
 # resolve - the device's friend sync fails quietly and keeps what is here.
 #
-#   python3 friends.py OUT   (OUT = ~/src/otc-demo-content)
+#   python3 friends.py OUT   (OUT = the content directory)
 #
 # Reads OUT/friends/raw/*.png (generated with docs/promo/tools/gen.py from
 # OUT/friends/prompts) and posts.json; writes OUT/friends/out/: the post

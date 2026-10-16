@@ -6,8 +6,8 @@
 	     bridge's relay away from home, which keeps none of it), so they are
 	     not collected. Setting up a new device with an account (the
 	     Bluetooth setup) gives the bridge a name and email. No tracking,
-	     analytics or advertising. Answers for App Store Connect:
-	     docs/app-store-privacy.md. -->
+	     analytics or advertising. The privacy notice is
+	     https://off-the.cloud/privacy. -->
 	<key>NSPrivacyTracking</key>
 	<false/>
 	<key>NSPrivacyTrackingDomains</key>

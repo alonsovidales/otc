@@ -2,8 +2,8 @@
 
 The sample library for the demo device (`docs/demo-device.md`, step 5): a made-up family's photos,
 videos and files. Everything is invented. The people were generated with Gemini's image models;
-no real photo was used or sent anywhere. The output is kept outside the repo, in
-`~/src/otc-demo-content/` (about 150 MB, plus `work/` with the raw generations): `library/` (114 photos, 4 videos, 30 files),
+no real photo was used or sent anywhere. The output is kept outside the repository (about
+150 MB, plus `work/` with the raw generations): `library/` (114 photos, 4 videos, 30 files),
 `manifest.json`, `people.json`, `collections.json`, `posts.json`, `profile.json` and `prompts/`.
 
 | Script | Does |
@@ -18,9 +18,9 @@ no real photo was used or sent anywhere. The output is kept outside the repo, in
 Run them in this order:
 
 ```sh
-OUT=~/src/otc-demo-content
+OUT=/path/to/demo-content
 python3 plan.py $OUT
-GEMINI_KEY="$(security find-generic-password -s otc-gemini-api -w)" python3 generate.py $OUT p_lucia p_tom biscuit
+GEMINI_KEY=<your Gemini API key> python3 generate.py $OUT p_lucia p_tom biscuit
 # pick each reference into $OUT/work/refs/<key>.jpg (lucia, tom, nora9, rosa, jan, then leo5, nora7, leo3;
 # biscuit.png) and $OUT/work/chosen.json, generating the portraits that depend on them; then every scene id
 python3 docs.py $OUT

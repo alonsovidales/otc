@@ -93,11 +93,6 @@ bridge and the MySQL primary, so these are lower bounds.
 - **A node restart** hands its connections to the other node: at ~1,500
   handshakes/s, 60,000 connections come back in about 40 s (the listen
   backlog is 65,535, `/etc/sysctl.d/90-otc-bridge.conf`).
-- **Disk health.** bridge2's two NVMe drives report 72-74% of their rated
-  endurance used (bridge1's: 2%), and the old KS-B running Redis has one
-  ~12-year-old SATA SSD at 61% wear. The bridge writes little, but watch
-  `sudo smartctl -A /dev/nvme0n1 | grep "Percentage Used"` on bridge2; the
-  MySQL primary stays on bridge1.
 
 ## Not measured yet
 
@@ -125,10 +120,10 @@ bridge and the MySQL primary, so these are lower bounds.
    `bridge/loadtest` (`GOOS=linux go build ./bridge/loadtest`):
 
    ```
-   loadtest -addr 149.202.83.7:9443 idle -n 60000 -hold 15s
-   loadtest -addr 149.202.83.7:9443 relay -devices 20 -clients 100 -size 256 -for 20s
-   loadtest -addr 149.202.83.7:9443 relay -devices 25 -clients 50 -size 1048576 -for 20s
-   loadtest -addr 149.202.83.7:9443 relay -devices 25 -clients 50 -size 0 -upload 1048576 -for 20s
+   loadtest -addr <test bridge>:9443 idle -n 60000 -hold 15s
+   loadtest -addr <test bridge>:9443 relay -devices 20 -clients 100 -size 256 -for 20s
+   loadtest -addr <test bridge>:9443 relay -devices 25 -clients 50 -size 1048576 -for 20s
+   loadtest -addr <test bridge>:9443 relay -devices 25 -clients 50 -size 0 -upload 1048576 -for 20s
    ```
 
    Its fake devices register `load<run>-<n>.off-the.cloud` and answer every

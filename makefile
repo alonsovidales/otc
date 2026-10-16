@@ -188,7 +188,7 @@ desktop-publish:
 # Issue #129: the Android app. `android` is the debug APK (adb install -r
 # it); `android-release` is the Play bundle, signed with the upload key in
 # ~/.otc/otc-upload.jks whose password comes from the Keychain for this one
-# build - see docs/play-store/README.md. google-services.json is copied in
+# build - see CLAUDE.md (Release builds). google-services.json is copied in
 # by hand (never committed), or the build has no push notifications. The
 # bundle is built only once `make i18n-check` passes in release mode: its
 # strings are generated files (docs/i18n.md).

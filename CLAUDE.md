@@ -1340,13 +1340,14 @@ Retention (issue #176):
   `bridge/cluster/journald-otc.conf`.
 - **Contact messages** are deleted after a year, or from the admin panel's Messages tab.
 
-GDPR paperwork (issue #175) lives in `docs/gdpr/`: `records-of-processing.md` (Art. 30, every
-table, purpose, legal basis, retention, processor) and `breach-procedure.md` (72 hours to the
-Autoriteit Persoonsgegevens, with a register). The App Store privacy answers are in
-`docs/app-store-privacy.md`, matching the iOS and macOS `PrivacyInfo.xcprivacy` (name, email,
-APNs token, sent logs; photos and files aren't collected because the relay keeps none of
-them). Play's Data safety answers are in `docs/play-store/README.md`. Change these with the
-privacy notice whenever the bridge stores something new.
+GDPR paperwork (issue #175) lives in `private/gdpr/` (the maintainer's copy only, never
+committed): `records-of-processing.md` (Art. 30, every table, purpose, legal basis, retention,
+processor) and `breach-procedure.md` (72 hours to the Autoriteit Persoonsgegevens, with a
+register). The App Store privacy answers are in `private/stores/app-store-privacy.md`, matching
+the iOS and macOS `PrivacyInfo.xcprivacy` (name, email, APNs token, sent logs; photos and files
+aren't collected because the relay keeps none of them). Play's Data safety answers are in
+`private/stores/play-store.md`. Change these with the privacy notice whenever the bridge stores
+something new.
 
 Email (`bridge/mailer`, `[smtp]` in the bridge's ini: host `smtp.protonmail.ch`, port 587,
 username/from `info@off-the.cloud`, `password-file=/etc/otc/smtp-token` - a Proton SMTP token,
@@ -1774,7 +1775,7 @@ Settings' Log Out forgets them too. iOS Keychain items are `AfterFirstUnlockThis
 items readable only while unlocked used to make a background launch on a locked phone (the photo
 sync) read an empty address and show the connection screen. Older items are rewritten once
 (`keychainAfterFirstUnlock`), and the device id is never replaced because it couldn't be read.
-Release builds (issue #129, `docs/play-store/README.md`): R8 minify and resource shrinking on,
+Release builds (issue #129, `private/stores/play-store.md`): R8 minify and resource shrinking on,
 signed with the upload key `~/.otc/otc-upload.jks` (password in the Keychain, service
 `otc-android-upload`, passed as `OTC_UPLOAD_PASSWORD`; never in the repo), `versionCode` = the
 commit count; `-Potc.signWithDebug` signs a release build with the debug key to try it over an
@@ -2106,6 +2107,10 @@ the working directory, or `/etc/otc_<env>.ini` if that's missing. Dev config liv
 `[logger]`, `[tagger]`, `[faces]` sections used in production on the Pi.
 
 ## VERY IMPORTANT NOTES
+- **The repository is public: commit only what outside readers are meant to read** (users,
+  contributors, forks, the press), written for them. Plans, to-do lists, drafts, store-submission
+  notes, GDPR records and notes about the maintainer's decisions go in `private/` (ignored by git:
+  `private/stores/`, `private/gdpr/`, `private/press/`), never in `docs/` or anywhere else tracked.
 - **The iOS and Android apps must stay in sync - this is critical.** `app/android` is a 1:1 port of
   `app/ios`: any change to a screen, flow, request, setting or behaviour in one app must be made in
   the other in the same piece of work, with the matching file/type name (SwiftUI view <->

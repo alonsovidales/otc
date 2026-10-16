@@ -212,7 +212,7 @@ Redis, over the tunnel:
 
 Only counts and host figures go in: no domain, account, email or client
 address; a MySQL error's quoted values (a duplicate key's value, a user
-name) are cut out (`redactQuoted`). So `docs/gdpr` needs no change.
+name) are cut out (`redactQuoted`).
 
 What each host runs and reports:
 

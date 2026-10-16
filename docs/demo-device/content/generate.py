@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # Generates the demo library's images with docs/promo/tools/gen.py, a few at a time.
-#   GEMINI_KEY="$(security find-generic-password -s otc-gemini-api -w)" \
+#   GEMINI_KEY=<your Gemini API key> \
 #     python3 generate.py OUT [--jobs 4] [--budget 13.5] [--redo] [--model flash|pro] id...
 # OUT is the content directory (OUT/prompts/plan.json from plan.py). Each call is
 # OUT/work/raw/<id>-v<n>-1.<ext>; the version picked for the library is OUT/work/chosen.json

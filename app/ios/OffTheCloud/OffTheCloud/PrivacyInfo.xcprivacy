@@ -6,8 +6,8 @@
 	     (through the bridge's relay away from home, which keeps none of it),
 	     so they are not collected. What the bridge keeps is declared below:
 	     the account, the push token and logs the owner chooses to send.
-	     No tracking, analytics or advertising. Answers for App Store
-	     Connect: docs/app-store-privacy.md. -->
+	     No tracking, analytics or advertising. The privacy notice is
+	     https://off-the.cloud/privacy. -->
 	<key>NSPrivacyTracking</key>
 	<false/>
 	<key>NSPrivacyTrackingDomains</key>

@@ -123,7 +123,7 @@ func TestExportAccountFailsWhole(t *testing.T) {
 	if err != nil || len(out.SignIns) != 1 || len(out.Domains) != 1 || out.Domains[0].PushTokens != 3 || out.Domains[0].BytesOut != 20 {
 		t.Fatalf("export: %+v %v", out, err)
 	}
-	// Localization: both languages kept are in it (docs/gdpr).
+	// Localization: both stored languages are in the export.
 	if out.Account.Language != "en" || out.Domains[0].PushLanguage != "en" {
 		t.Errorf("export languages: account %q, push %q", out.Account.Language, out.Domains[0].PushLanguage)
 	}

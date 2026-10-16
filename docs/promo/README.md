@@ -1,7 +1,8 @@
 # Promo images
 
-For ads (Reddit) and the website: the device - the Raspberry Pi in its purple case with its two
-USB card readers - beside a screen showing the web app, or a phone showing the Android app.
+Marketing images for the website and the app stores: the device - the Raspberry Pi in its purple
+case with its two USB card readers - beside a screen showing the web app, or a phone showing the
+Android app. The scenes are AI-generated illustrations, not photos.
 
 | File | Scene |
 |---|---|
@@ -19,21 +20,21 @@ between 320 and 3840 px, the long side under twice the short one).
 ## How they are made
 
 1. **The scenes** (`source/scene-*.jpg`, 2752 × 1536) come from Gemini's Nano Banana Pro
-   (`gemini-3-pro-image`, 16:9, 2K, about $0.13 each) with `bridge/static/img/device.jpg` as the
+   (`gemini-3-pro-image`, 16:9, 2K) with `bridge/static/img/device.jpg` as the
    reference for the device and the prompts in `source/prompts/scene-*.txt`, which ask for a blank
    pure-white screen with all four corners in view.
 2. **The screen content** is the real web app, rendered offline: `tools/serve.mjs` serves `web/`
    with `net/useWS.ts` swapped for `tools/mock-device.ts`, a pretend device whose library is the
    20 sample photos in `source/library/` (generated with `gemini-2.5-flash-image` from
-   `source/prompts/library.txt`, about $0.04 each - the people in them don't exist). `tools/desk.html`
+   `source/prompts/library.txt`; the people in them don't exist). `tools/desk.html`
    puts the app in a browser window on a desktop, with a margin all round so no screen corner
    touches the window's buttons, and `tools/shot.mjs` captures it at 2x with a headless Chrome.
    The Android capture is the real app (1.1), a debug build with its own application id
    (`applicationIdSuffix ".promo"`, and its FileProvider authority changed to match) on a
-   scratch Pixel 8 emulator, signed in through Welcome's "Custom address" to a scratch stand-in
-   device (not in the tree, derived from the i18n QA's `fakedev`) that answers with the same 20
-   sample photos, dated as `mock-device.ts` dates them, and no people, tags or collections. The
-   emulator's screen was set to the phone's aspect (`adb shell wm size 1080x2322`), its status
+   Pixel 8 emulator, signed in through Welcome's "Custom address" to a stand-in device that
+   answers with the same 20 sample photos, dated as `mock-device.ts` dates them, and no people,
+   tags or collections. The emulator's screen was set to the phone's aspect
+   (`adb shell wm size 1080x2322`), its status
    bar cleaned with System UI demo mode (3:30, full Wi-Fi and battery, no mobile signal or
    notifications), and the screen taken with `adb exec-out screencap -p` (24-bit, no alpha).
 3. **`tools/composite.swift`** finds the white screen in a scene (flood fill, a straight line fitted

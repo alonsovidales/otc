@@ -36,16 +36,17 @@ real usage.
    8443 on every interface; allow 22 in, keep loopback (ffmpeg reads videos from 127.0.0.1:8080)
    and drop the rest.
 4. **Owner password and bridge**: the installer's `OTC_OWNER_PASSWORD_FILE` sets the owner
-   password, which becomes the published one. The owner then puts the device on the bridge as
-   `demo`, in either of two ways: on the device's Settings > Bridge with `bridge-addr` emptied first
+   password, which becomes the published one. Then put the device on the bridge as `demo`, in
+   either of two ways: on the device's Settings > Bridge with `bridge-addr` emptied first
    (a device that thinks it is on the bridge offers no sign-in), or by registering `demo` on the
    account page ("register a name for a manual install") and running `sudo otc-demo-identity` on the
    server, which asks for the identity shown there (never on a command line) and switches the
    device onto the bridge.
 5. **Content**, with demo mode still off: turn face recognition on, then, through an SSH tunnel to
-   port 8080 (open the web app as `127.0.0.1`, never `localhost`, which talks to Cala):
-   - `otc-put` uploads the library (`echo PASSWORD | otc-put -address ws://127.0.0.1:18080/ws
-     ~/src/otc-demo-content/library /`);
+   port 8080 (open the web app as `127.0.0.1`, not `localhost`: on `localhost` a development
+   build of the web app connects to its development device instead):
+   - `otc-put` uploads the library made as described in `docs/demo-device/content/README.md`
+     (`echo PASSWORD | otc-put -address ws://127.0.0.1:18080/ws <content>/library /`);
    - once the device has analysed it (`pending_analysis` empty), `otc-demo-setup` sets the profile,
      names each person after the name most of their photos list, deletes the rest (the dog,
      strangers) and makes the collections and posts;

@@ -32,3 +32,7 @@ xcuserdata/
 
 # The fleet agent the bridge makefile builds (bridge/fleetagent).
 /bridge/bin/otc_fleet_agent
+
+# Notes for the maintainer (store submissions, GDPR records, press outreach): kept on this
+# machine only, never published.
+/private/
