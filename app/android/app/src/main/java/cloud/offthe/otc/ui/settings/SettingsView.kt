@@ -301,6 +301,13 @@ fun SettingsView(secrets: SecretsStore) {
     val downloadFromCloud by secrets.downloadFromCloud.collectAsState()
     val signedIn by OTCConnection.authenticated.collectAsState()
     val route by OTCConnection.route.collectAsState()
+    // A demo device takes no changes (OTCConnection.isDemo): what would
+    // change it is left out - no password, switches, update, restart,
+    // Tailscale, bridge, users, reprocess or logs - and so is the photo
+    // sync, which never runs for it. What is this phone's own (language,
+    // thumbnail cache, connection, Log Out) stays; so does the profile,
+    // whose Save shows the device's refusal (as iOS).
+    val demo by OTCConnection.isDemo.collectAsState()
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
     var confirmLogout by remember { mutableStateOf(false) }
     // Issue #180: the shared links list (SharedLinksView.kt).
@@ -358,23 +365,23 @@ fun SettingsView(secrets: SecretsStore) {
                 RowButton(S.appSettingsLinksTitle().resolve()) { showSharedLinks = true }
             }
 
-            UpdateSection()
+            if (!demo) UpdateSection()
 
-            Section(S.appSettingsPasswordTitle().resolve()) {
+            if (!demo) Section(S.appSettingsPasswordTitle().resolve()) {
                 PasswordField(dst.oldKey, S.appSettingsPasswordCurrent().resolve(), device::setOldKey)
                 PasswordField(dst.newKey, S.appSettingsPasswordNew().resolve(), device::setNewKey)
                 PasswordField(dst.confirmKey, S.appSettingsPasswordConfirm().resolve(), device::setConfirmKey)
                 RowButton((if (dst.savingKey) S.appSettingsPasswordChanging() else S.appSettingsPasswordChange()).resolve(), enabled = !dst.savingKey && dst.oldKey.isNotEmpty() && dst.newKey.isNotEmpty()) { scope.launch { device.changePassword(secrets) } }
             }
 
-            Section(S.appSettingsSyncTitle().resolve()) {
+            if (!demo) Section(S.appSettingsSyncTitle().resolve()) {
                 ToggleRow(S.appSettingsSyncWifiOnly().resolve(), wifiOnly, secrets::setWifiOnly)
                 ToggleRow(S.appSettingsSyncVideos().resolve(), includeVideos, secrets::setIncludeVideos)
                 ToggleRow(S.androidSettingsSyncCloud().resolve(), downloadFromCloud, secrets::setDownloadFromCloud)
                 RowButton(S.appSettingsSyncAuthorize().resolve()) { permission.launch(mediaPermissions()) }
             }
 
-            Section(S.androidSettingsSyncTitle().resolve(), S.appSettingsSyncFooter().resolve()) {
+            if (!demo) Section(S.androidSettingsSyncTitle().resolve(), S.appSettingsSyncFooter().resolve()) {
                 RowButton(S.appSettingsSyncNow().resolve()) { secrets.persist(); PhotoSync.runForegroundAsync() }
                 RowButton(S.appSettingsSyncAll().resolve()) { secrets.persist(); PhotoSync.setWatermark(0); PhotoSync.runForegroundAsync() }
                 RowButton(S.appSettingsSyncFromNow().resolve()) { secrets.persist(); PhotoSync.setWatermark(System.currentTimeMillis()) }
@@ -382,14 +389,14 @@ fun SettingsView(secrets: SecretsStore) {
 
             ThumbnailCacheSection()
 
-            Section(S.appSettingsTaggingTitle().resolve(), S.appSettingsTaggingFooter().resolve()) {
+            if (!demo) Section(S.appSettingsTaggingTitle().resolve(), S.appSettingsTaggingFooter().resolve()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(S.appSettingsTaggingTitle().resolve(), Modifier.weight(1f))
                     Switch(checked = dst.imageTaggingEnabled, enabled = !dst.savingImageTagging, onCheckedChange = { v -> scope.launch { device.toggleImageTagging(v) } })
                 }
             }
 
-            Section(S.appSettingsFacesTitle().resolve(), S.appSettingsFacesFooter().resolve()) {
+            if (!demo) Section(S.appSettingsFacesTitle().resolve(), S.appSettingsFacesFooter().resolve()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(S.appSettingsFacesToggle().resolve(), Modifier.weight(1f))
                     Switch(checked = dst.faceRecognitionEnabled, enabled = !dst.savingFaceRecognition, onCheckedChange = { v -> scope.launch { device.toggleFaceRecognition(v) } })
@@ -417,13 +424,15 @@ fun SettingsView(secrets: SecretsStore) {
                 RowButton(S.appSettingsConnectionLogOut().resolve(), destructive = true) { confirmLogout = true }
             }
 
-            TailscaleSection()
+            if (!demo) {
+                TailscaleSection()
 
-            BridgeAccountSection(secrets)
+                BridgeAccountSection(secrets)
 
-            UsersManagementSection()
+                UsersManagementSection()
+            }
 
-            Section(S.appSettingsReprocessTitle().resolve(), S.appSettingsReprocessFooter().resolve()) {
+            if (!demo) Section(S.appSettingsReprocessTitle().resolve(), S.appSettingsReprocessFooter().resolve()) {
                 when (dst.reprocessStatus) {
                     "running" -> {
                         LinearProgressIndicator(progress = { if (dst.reprocessTotal > 0) dst.reprocessProcessed.toFloat() / dst.reprocessTotal else 0f }, modifier = Modifier.fillMaxWidth())
@@ -454,7 +463,7 @@ fun SettingsView(secrets: SecretsStore) {
                 }
             }
 
-            if (isPrimary) {
+            if (isPrimary && !demo) {
                 Section(S.appSettingsLogsTitle().resolve(), S.androidSettingsLogsFooter().resolve()) {
                     RowButton(S.appSettingsLogsTitle().resolve()) { showLogs = true }
                 }

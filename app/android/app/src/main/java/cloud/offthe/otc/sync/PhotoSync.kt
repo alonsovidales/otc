@@ -241,6 +241,10 @@ object PhotoSync {
     private const val tag = "OTC/PhotoSync"
 
     suspend fun runForeground() {
+        // A demo device (OTCConnection.isDemo) takes no photos: this phone's
+        // are never sent to it. Known before connecting when it was signed
+        // in to before, else from the sign-in below.
+        if (OTCConnection.isDemo.value) { Log.i(tag, "demo device, sync skipped"); return }
         if (!syncing.compareAndSet(false, true)) { Log.i(tag, "sync already running"); return }
         val job = currentCoroutineContext()[Job]
         currentSync = job
@@ -253,6 +257,7 @@ object PhotoSync {
             if (!hasPermission()) { Log.w(tag, "no media permission, sync skipped"); return }
             val secrets = SecretsStore.loadOrCreate()
             OTCConnection.ensureConnected()
+            if (OTCConnection.isDemo.value) { Log.i(tag, "demo device, sync skipped"); return }
             // The watermark never passes the second the query ran in: media
             // added while the run goes on (or in that same second) is the
             // next run's. Writing "now" at the end used to skip it for good.

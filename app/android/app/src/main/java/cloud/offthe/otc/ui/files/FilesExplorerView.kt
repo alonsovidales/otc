@@ -146,6 +146,7 @@ import cloud.offthe.otc.net.ChunkedDownload
 import cloud.offthe.otc.net.ChunkedUpload
 import cloud.offthe.otc.net.NetworkWatch
 import cloud.offthe.otc.net.OTCConnection
+import cloud.offthe.otc.net.demoRefusal
 import cloud.offthe.otc.net.retryWaitMs
 import cloud.offthe.otc.net.sleepOrWake
 import cloud.offthe.otc.ui.common.DEVICE_UNREACHABLE
@@ -1111,6 +1112,12 @@ class FilesExplorerViewModel(initialPath: String) : ViewModel() {
             try {
                 val full = if (p.contains("/")) p else joinPath(path, p)
                 val resp = OTCConnection.request { it.setReqDelFile(filesDelete(full, rows.firstOrNull { r -> r.path == p })) }
+                // A demo device refuses them all: its words once, no more asked.
+                val demoSaid = resp.demoRefusal()
+                if (demoSaid != null) {
+                    showToast(demoSaid)
+                    break
+                }
                 if (resp.error && resp.errorCode == "upload_only") {
                     showToast(S.appFilesDeleteRefused(leafName(full)))
                     break
@@ -1291,6 +1298,9 @@ fun FilesExplorerView(initialPath: String) {
     val st by vm.state.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    // A demo device takes no changes: no upload, delete, sharing, lock or
+    // Images switch is offered (OTCConnection.isDemo).
+    val demo by OTCConnection.isDemo.collectAsState()
     var pathField by remember { mutableStateOf(initialPath) }
     var refreshing by remember { mutableStateOf(false) }
     // Issue #180: "Share as gallery" on a folder - what is being shared.
@@ -1493,7 +1503,7 @@ fun FilesExplorerView(initialPath: String) {
                     // takes - once ListOutOfImages has said which (no button until
                     // then). Nothing else can start while something is under way.
                     if (st.outOfImagesBanner) {
-                        val show = st.outOfImagesCover
+                        val show = st.outOfImagesCover?.takeUnless { demo }
                         OutOfImagesBanner(
                             text = if (st.bannerByParent) OutOfImagesText.bannerByParent(st.keptOutBy) else OutOfImagesText.BANNER,
                             show = show?.let { if (st.bannerByParent) OutOfImagesText.showNamed(leafName(it)) else OutOfImagesText.SHOW },
@@ -1557,7 +1567,7 @@ fun FilesExplorerView(initialPath: String) {
                                         onOpen = { tap(row) },
                                         onToggle = { vm.toggleSelect(row.path) },
                                         onVersions = { scope.launch { vm.openVersions(row) } },
-                                        onLock = { lockPrompt = row },
+                                        onLock = if (demo) null else { { lockPrompt = row } },
                                         outOfImages = st.outOfImagesSupported && row.outOfImages,
                                         onOutOfImages = { explainOutOfImages(row) },
                                     )
@@ -1618,7 +1628,12 @@ fun FilesExplorerView(initialPath: String) {
                                                 Icon(Icons.Outlined.HideImage, OutOfImagesText.STATE.resolve(), tint = MaterialTheme.colorScheme.primary)
                                             }
                                         }
-                                        if (row.path != ".." && row.isDir) {
+                                        if (row.path != ".." && row.isDir && demo) {
+                                            // Only what it is: nothing to switch on a demo device.
+                                            Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                                                if (row.uploadOnly) Icon(Icons.Default.Lock, S.appFilesUploadOnly().resolve(), tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        } else if (row.path != ".." && row.isDir) {
                                             IconButton(onClick = { lockPrompt = row }, modifier = Modifier.size(36.dp)) {
                                                 Icon(if (row.uploadOnly) Icons.Default.Lock else Icons.Outlined.LockOpen,
                                                     (if (row.uploadOnly) S.appFilesClearUploadOnly() else S.appFilesMakeUploadOnly()).resolve(),
@@ -1635,22 +1650,26 @@ fun FilesExplorerView(initialPath: String) {
                         }
                     }
 
+                    // On a demo device none of them: Share and Download make a
+                    // share link, which it refuses as well.
                     SelectionActionBar(
                         count = st.selected.size,
                         busy = st.preparing,
-                        onShare = { scope.launch { vm.shareSelected(context) } },
-                        onDownload = { scope.launch { vm.downloadSelected(context) } },
-                        onDelete = {
-                            if (vm.selectionUploadOnly) vm.showToast(S.appFilesSelectionUploadOnly())
-                            else vm.setConfirmDelete(true)
+                        onShare = if (demo) null else { { scope.launch { vm.shareSelected(context) } } },
+                        onDownload = if (demo) null else { { scope.launch { vm.downloadSelected(context) } } },
+                        onDelete = if (demo) null else {
+                            {
+                                if (vm.selectionUploadOnly) vm.showToast(S.appFilesSelectionUploadOnly())
+                                else vm.setConfirmDelete(true)
+                            }
                         },
-                        onUpload = { importer.launch(arrayOf("*/*")) },
-                        onGallery = selectedFolder?.let { row ->
+                        onUpload = if (demo) null else { { importer.launch(arrayOf("*/*")) } },
+                        onGallery = selectedFolder?.takeUnless { demo }?.let { row ->
                             { gallerySource = SharedGallerySource.newBuilder().setDirectory(vm.fullPath(row)).build() }
                         },
                         // Issue #192: one folder picked, on a device that can, and
                         // not inside a folder kept out (State.outOfImagesSwitch).
-                        onOutOfImages = st.outOfImagesSwitch?.let { row -> { askOutOfImages(row) } },
+                        onOutOfImages = st.outOfImagesSwitch?.takeUnless { demo }?.let { row -> { askOutOfImages(row) } },
                         keptOutOfImages = st.outOfImagesSwitch?.outOfImages == true,
                         // The pill goes; the bar stays, for Upload.
                         onClear = vm::clearSelection,
@@ -1740,7 +1759,7 @@ fun FilesExplorerView(initialPath: String) {
             title = { Text(OutOfImagesText.STATE.resolve()) },
             text = { Text((info.by?.let { OutOfImagesText.byParentInfo(it) } ?: OutOfImagesText.EXPLAIN).resolve()) },
             confirmButton = { TextButton(onClick = { outOfImagesInfo = null }) { Text(S.commonOk().resolve()) } },
-            dismissButton = if (info.by != null) null else {
+            dismissButton = if (info.by != null || demo) null else {
                 { TextButton(onClick = { outOfImagesInfo = null; askOutOfImages(info.row) }, enabled = st.preparing == null) { Text(OutOfImagesText.SHOW.resolve()) } }
             },
         )
@@ -1833,7 +1852,8 @@ private fun ViewOptionsMenu(view: FilesView, sort: FilesSortOrder, onView: (File
 @Composable
 private fun FileGridCell(
     row: FileRow, selected: Boolean, opening: Boolean, thumb: ImageBitmap?,
-    onOpen: () -> Unit, onToggle: () -> Unit, onVersions: () -> Unit, onLock: () -> Unit,
+    // onLock null: the lock only says what it is (a demo device).
+    onOpen: () -> Unit, onToggle: () -> Unit, onVersions: () -> Unit, onLock: (() -> Unit)?,
     outOfImages: Boolean = false, onOutOfImages: () -> Unit = {},
     // Something is selected: a tap ([onOpen]) picks or drops this one (issue #200).
     selecting: Boolean = false,
@@ -1873,7 +1893,7 @@ private fun FileGridCell(
             // tap on the lock offers to clear it.
             if (row.isDir && row.uploadOnly) {
                 Box(Modifier.align(Alignment.TopEnd).padding(6.dp).size(24.dp).clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)).clickable(onClick = onLock),
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)).let { if (onLock != null) it.clickable(onClick = onLock) else it },
                     contentAlignment = Alignment.Center) {
                     Icon(Icons.Default.Lock, S.appFilesUploadOnly().resolve(), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
                 }

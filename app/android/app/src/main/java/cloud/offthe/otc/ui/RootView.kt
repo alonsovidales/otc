@@ -37,18 +37,24 @@ fun RootView() {
     val password by secrets.password.collectAsState()
     var configured by remember { mutableStateOf(secrets.isConfigured) }
     val lifecycleOwner = LocalLifecycleOwner.current
+    // A demo device (docs/demo-device.md) gets no photo sync, so nothing
+    // is asked for it; signedIn: what it is is known from then on
+    // (PubKey.demo at every sign-in).
+    val demo by OTCConnection.isDemo.collectAsState()
+    val signedIn by OTCConnection.authenticated.collectAsState()
 
     // iOS asks for Photos access the first time the sync runs; Android
     // needs the runtime prompt, so it is asked once here, right after the
-    // tabs first appear, and the first sync starts the moment it is granted.
+    // first sign-in once the tabs show, and the first sync starts the
+    // moment it is granted.
     val askPermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         if (PhotoSync.hasPermission()) PhotoSync.runForegroundAsync()
     }
     // Once per launch: a change of language recreates the Activity
     // (LanguageSettings), and the prompt must not come back with it.
     var askedPermissions by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(configured) {
-        if (!configured || PhotoSync.hasPermission() || askedPermissions) return@LaunchedEffect
+    LaunchedEffect(configured, signedIn, demo) {
+        if (!configured || !signedIn || demo || PhotoSync.hasPermission() || askedPermissions) return@LaunchedEffect
         askedPermissions = true
         val perms = mediaPermissions().toMutableList()
         if (Build.VERSION.SDK_INT >= 33) perms += Manifest.permission.POST_NOTIFICATIONS
@@ -70,7 +76,11 @@ fun RootView() {
                     Wake.fire()
                 }
                 // The thumbnail cache's uses since its last write go out too.
-                Lifecycle.Event.ON_STOP -> { SyncScheduler.scheduleNext(); NotificationsModel.stopPolling(); ThumbStore.flushSoon() }
+                // No background sync for a demo device.
+                Lifecycle.Event.ON_STOP -> {
+                    if (!OTCConnection.isDemo.value) SyncScheduler.scheduleNext()
+                    NotificationsModel.stopPolling(); ThumbStore.flushSoon()
+                }
                 else -> {}
             }
         }
@@ -82,8 +92,9 @@ fun RootView() {
     // the foreground then, and the resume the lifecycle observer above
     // relies on never came - photos waited until the app was reopened. A
     // no-op when a sync is already running; without media permission the
-    // permission prompt's result starts it instead.
-    LaunchedEffect(configured) { if (configured && PhotoSync.hasPermission()) PhotoSync.runForegroundAsync() }
+    // permission prompt's result starts it instead. Also once a device
+    // turns out not to be a demo one (another endpoint saved over it).
+    LaunchedEffect(configured, demo) { if (configured && !demo && PhotoSync.hasPermission()) PhotoSync.runForegroundAsync() }
 
     // Issue #133: a no-op on first launch (the model's init already started
     // it), the restart after Log Out + sign in.

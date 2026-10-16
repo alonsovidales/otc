@@ -16,6 +16,7 @@ import androidx.core.os.ConfigurationCompat
 import androidx.core.os.LocaleListCompat
 import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.i18n.LanguageSettings
+import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.push.FCMPush
 import cloud.offthe.otc.ui.RootView
 import cloud.offthe.otc.ui.theme.OTCTheme
@@ -41,8 +42,10 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         // Only at a real launch: a change of language recreates the
         // Activity, and someone who declined must not be asked again then.
+        // Not for a demo device (OTCConnection.isDemo): it sends no pushes.
         if (savedInstanceState == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && FCMPush.available(this) &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+            !OTCConnection.isDemo.value
         ) {
             askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         }

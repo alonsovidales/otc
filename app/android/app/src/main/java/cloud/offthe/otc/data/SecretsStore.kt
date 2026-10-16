@@ -26,6 +26,7 @@ class SecretsStore private constructor(
     endpoint: String, password: String, deviceId: String,
     wifiOnly: Boolean, includeVideos: Boolean, downloadFromCloud: Boolean,
     home: Pair<String, HomeEndpoint>?,
+    demo: Boolean,
 ) {
     private val _endpoint = MutableStateFlow(endpoint)
     private val _password = MutableStateFlow(password)
@@ -53,6 +54,19 @@ class SecretsStore private constructor(
     // endpoint it was learnt through - only ever used for that endpoint.
     @Volatile private var home: Pair<String, HomeEndpoint>? = home
 
+    // A public demo device (docs/demo-device.md, OTCConnection.isDemo): what
+    // the configured device last said it is, kept so that a relaunch knows
+    // before signing in - no photo sync and no permission prompts for it,
+    // the banner at once. Forgotten with the endpoint it was said for.
+    private val _demo = MutableStateFlow(demo)
+    val demo: StateFlow<Boolean> = _demo
+
+    fun setDemo(v: Boolean) {
+        if (_demo.value == v) return
+        _demo.value = v
+        secure().edit().putBoolean("demo", v).apply()
+    }
+
     /** The home endpoint the device gave while signed in through [endpointURL], if any. */
     fun homeEndpoint(endpointURL: String): HomeEndpoint? = home?.takeIf { it.first == endpointURL }?.second
 
@@ -77,6 +91,7 @@ class SecretsStore private constructor(
         val ctx = OTCApp.instance
         secure().edit().clear().apply()
         home = null
+        _demo.value = false
         plain().edit().clear().apply()
         ctx.getSharedPreferences("otc_sync", Context.MODE_PRIVATE).edit().clear().apply()
         for (dir in listOf(ctx.cacheDir, ctx.filesDir)) dir.listFiles()?.forEach { it.deleteRecursively() }
@@ -97,8 +112,11 @@ class SecretsStore private constructor(
             clearLastDevice()
         }
         // Another device, or another way to it: the home endpoint learnt
-        // through the old one isn't this one's.
-        if (normalizedEndpoint(secure().getString("endpoint", "") ?: "") != endpointURLString) clearHomeEndpoint()
+        // through the old one isn't this one's, nor is what it said it is.
+        if (normalizedEndpoint(secure().getString("endpoint", "") ?: "") != endpointURLString) {
+            clearHomeEndpoint()
+            setDemo(false)
+        }
         secure().edit()
             .putString("endpoint", _endpoint.value)
             .putString("password", _password.value)
@@ -181,6 +199,7 @@ class SecretsStore private constructor(
                 includeVideos = p.getBoolean("includeVideos", true),
                 downloadFromCloud = p.getBoolean("downloadFromCloud", true),
                 home = s.getString("home_for", null)?.let { f -> HomeEndpoint.decode(s.getString("home_endpoint", null))?.let { f to it } },
+                demo = s.getBoolean("demo", false),
             )
         }
 

@@ -72,14 +72,16 @@ private class BarItem(
 )
 
 // Port of SelectionActionBar.swift: what Images and Files both show once
-// something is selected - a floating pill with icon-over-label items.
+// something is selected - a floating pill with icon-over-label items. An
+// action passed as null isn't offered (a demo device: OTCConnection.isDemo);
+// with none at all only the "N selected" pill shows.
 @Composable
 fun SelectionActionBar(
     count: Int,
     busy: SelectionActionTask? = null,
-    onShare: () -> Unit,
-    onDownload: () -> Unit,
-    onDelete: () -> Unit,
+    onShare: (() -> Unit)?,
+    onDownload: (() -> Unit)?,
+    onDelete: (() -> Unit)?,
     onGroup: (() -> Unit)? = null,
     onUpload: (() -> Unit)? = null,
     // Issue #180: "Share as gallery", offered when the selection is one folder.
@@ -95,16 +97,21 @@ fun SelectionActionBar(
 ) {
     val items = buildList {
         if (onUpload != null) add(BarItem(S.commonUpload().resolve(), Icons.Default.Upload, busy == null, onUpload))
-        add(BarItem(S.commonShare().resolve(), Icons.Default.Share, count > 0 && busy == null, onShare, busy = busy == SelectionActionTask.SHARE))
+        if (onShare != null) add(BarItem(S.commonShare().resolve(), Icons.Default.Share, count > 0 && busy == null, onShare, busy = busy == SelectionActionTask.SHARE))
         if (onGallery != null) add(BarItem(S.appShellShareAsGallery().resolve(), Icons.Default.PhotoLibrary, busy == null, onGallery))
         if (onOutOfImages != null) add(BarItem(
             (if (keptOutOfImages) S.appShellShowInImages() else S.appShellKeepOutOfImages()).resolve(),
             if (keptOutOfImages) Icons.Default.Image else Icons.Default.HideImage,
             busy == null, onOutOfImages, busy = busy == SelectionActionTask.OUT_OF_IMAGES,
         ))
-        add(BarItem(S.commonDownload().resolve(), Icons.Default.Download, count > 0 && busy == null, onDownload, busy = busy == SelectionActionTask.DOWNLOAD))
+        if (onDownload != null) add(BarItem(S.commonDownload().resolve(), Icons.Default.Download, count > 0 && busy == null, onDownload, busy = busy == SelectionActionTask.DOWNLOAD))
         if (onGroup != null) add(BarItem(S.appShellAddToCollection().resolve(), NavIcons.AddToCollection, count > 0 && busy == null, onGroup))
-        add(BarItem(S.commonDelete().resolve(), Icons.Default.Delete, count > 0 && busy == null, onDelete, tint = Color(0xFFE53935)))
+        if (onDelete != null) add(BarItem(S.commonDelete().resolve(), Icons.Default.Delete, count > 0 && busy == null, onDelete, tint = Color(0xFFE53935)))
+    }
+    if (items.isEmpty()) {
+        // Nothing to do with a selection: the pill alone, the way out of it.
+        if (count > 0) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { SelectedPill(count, onClear) }
+        return
     }
     BoxWithConstraints {
         // Five or six items share a phone's width, and a label word wider

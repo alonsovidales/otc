@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Settings
@@ -90,12 +91,15 @@ import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.appShellCriticalUpdate
 import cloud.offthe.otc.i18n.appShellCriticalUpdateSummary
+import cloud.offthe.otc.i18n.appShellDemoBanner
+import cloud.offthe.otc.i18n.appShellDemoGetOwn
 import cloud.offthe.otc.i18n.appShellNewPost
 import cloud.offthe.otc.i18n.commonUpdate
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.GetStatus
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.UpdateAlert
+import cloud.offthe.otc.ui.common.Share
 import cloud.offthe.otc.ui.files.FilesExplorerView
 import cloud.offthe.otc.ui.files.FilesNav
 import cloud.offthe.otc.ui.files.FilesRequest
@@ -199,6 +203,8 @@ fun MainView(secrets: SecretsStore) {
     val connectionFailed by OTCConnection.connectionFailed.collectAsState()
     val faces by FaceRecognition.enabled.collectAsState()
     val deviceId by secrets.deviceId.collectAsState()
+    // A public demo device: its banner over every tab (DemoBanner).
+    val demo by OTCConnection.isDemo.collectAsState()
 
     // Issue #151: one failed attempt is not a connection problem - at
     // launch the first try often goes out before the network is up, and
@@ -265,6 +271,9 @@ fun MainView(secrets: SecretsStore) {
                         // The language chosen in another app reaches this one
                         // through the same poll, at every return to the front.
                         cloud.offthe.otc.i18n.LanguageSettings.deviceSaid(resp.respStatus)
+                        // So does a device turned into a demo one, or back
+                        // (every Status answer: Settings' and the menu's too).
+                        OTCConnection.deviceSaid(resp.respStatus)
                     }
                 } catch (_: Exception) {}
                 delay(5 * 60_000L)
@@ -344,17 +353,20 @@ fun MainView(secrets: SecretsStore) {
             // Nothing at all when there is nothing to show: an empty bar
             // would take the place of the status bar's inset in the page's
             // padding, and the page would go under the status bar.
-            if (critical != null || wide) Column {
-                if (critical != null) CriticalUpdateBanner(critical) { go(Section.Settings) }
+            if (critical != null || demo || wide) Column {
+                // A demo device's banner takes the update's place: its
+                // Update leads to a section a demo device doesn't show.
+                if (demo) DemoBanner()
+                else if (critical != null) CriticalUpdateBanner(critical) { go(Section.Settings) }
                 if (wide && gallery != null && search != null && gst != null) {
                     val options = rememberSearchOptions(search, gst)
                     WideTopBar(
-                        statusInset = critical == null, wholeMenuRoom = canBeWhole,
+                        statusInset = critical == null && !demo, wholeMenuRoom = canBeWhole,
                         menuExpanded = if (canBeWhole) menuOpen else drawerOpen,
                         onMenu = {
                             if (canBeWhole) { menuOpen = !menuOpen; saveMenuOpen(menuOpen) } else drawerOpen = !drawerOpen
                         },
-                        newPost = openComposer.takeIf { section == Section.Social }, iconOnlyAction = widthDp < 700,
+                        newPost = openComposer.takeIf { section == Section.Social && !demo }, iconOnlyAction = widthDp < 700,
                     ) {
                         TopSearchField(
                             search, gallery, gst, options,
@@ -552,6 +564,29 @@ private fun WideTopBar(
             }
         }
         Hairline()
+    }
+}
+
+/**
+ * A public demo device (OTCConnection.isDemo, docs/demo-device.md): over
+ * every tab while signed in to one, built like the critical update's, in
+ * its place, with the way to a device of one's own.
+ */
+@Composable
+private fun DemoBanner() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    Row(
+        // Indigo, as iOS's, not the update's red: nothing is wrong.
+        Modifier.fillMaxWidth().background(Color(0xFF3949AB)).statusBarsPadding()
+            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Default.Info, null, tint = Color.White)
+        Spacer(Modifier.width(12.dp))
+        Text(S.appShellDemoBanner().resolve(), color = Color.White, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        TextButton(onClick = { Share.openInBrowser(context, "https://off-the.cloud") }) {
+            Text(S.appShellDemoGetOwn().resolve(), color = Color.White, fontWeight = FontWeight.Bold)
+        }
     }
 }
 

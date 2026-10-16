@@ -2,16 +2,28 @@
 package cloud.offthe.otc.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.Alignment
 import cloud.offthe.otc.i18n.S
+import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.appShellAuthFailed
+import cloud.offthe.otc.i18n.appShellCantConnect
 import cloud.offthe.otc.i18n.appShellConnectTitle
+import cloud.offthe.otc.i18n.appShellDemoTry
+import cloud.offthe.otc.i18n.appShellDemoTryNote
 import cloud.offthe.otc.i18n.appShellOnboardingLastDevice
 import cloud.offthe.otc.i18n.appShellOnboardingPending
 import cloud.offthe.otc.i18n.appShellOnboardingSetupFooter
@@ -19,6 +31,7 @@ import cloud.offthe.otc.i18n.appShellPrivacy
 import cloud.offthe.otc.i18n.appShellSaveContinue
 import cloud.offthe.otc.i18n.appShellSetupNewDevice
 import cloud.offthe.otc.i18n.appShellWelcome
+import cloud.offthe.otc.i18n.commonConnecting
 import cloud.offthe.otc.i18n.commonPassword
 import cloud.offthe.otc.ui.common.OTCTextField
 import androidx.compose.material3.Scaffold
@@ -29,16 +42,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import cloud.offthe.otc.data.SecretsStore
+import cloud.offthe.otc.net.DemoDevice
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.ui.common.ConnectionEndpointFields
 import cloud.offthe.otc.ui.common.rememberConnectionForm
 import cloud.offthe.otc.ui.settings.LanguageMenu
+import cloud.offthe.otc.ui.settings.shownText
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 // Port of OnboardingView.swift: the first-run connection form.
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,6 +80,39 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
     // when it is done its address lands in the form and the first sign in
     // sets the owner password.
     var setupOpen by remember { mutableStateOf(false) }
+    // "Try the demo": the public demo device, asked for the password it
+    // publishes (OTCConnection.demoPassword); why it couldn't be, as the
+    // connection card says it: can't connect, and the reason.
+    var tryingDemo by remember { mutableStateOf(false) }
+    var demoProblem by remember { mutableStateOf<UiText?>(null) }
+    val scope = rememberCoroutineScope()
+    fun tryDemo() {
+        tryingDemo = true
+        demoProblem = null
+        scope.launch {
+            try {
+                val url = DemoDevice.endpoint
+                val demoPassword = OTCConnection.demoPassword(url)
+                // Saved and signed in to as Save & Continue does: the same
+                // sealed sign-in, and the same stored address and password,
+                // so a relaunch goes back to it. Never the setup wizard.
+                secrets.setEndpoint(url)
+                secrets.setPassword(demoPassword)
+                secrets.persist()
+                OTCConnection.invalidate()
+                // Known before the first sign-in: no photo sync or
+                // permission prompts for it (the sign-in says so again).
+                secrets.setDemo(true)
+                onSaved()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                demoProblem = e.shownText() ?: S.appShellAuthFailed()
+            } finally {
+                tryingDemo = false
+            }
+        }
+    }
     if (setupOpen) {
         BluetoothSetupView(
             onUseDevice = { newEndpoint, newPassword ->
@@ -86,7 +137,9 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
             actions = { LanguageMenu() },
         )
     }) { pad ->
-        Column(Modifier.padding(pad).fillMaxSize().padding(16.dp)) {
+        // Scrolls: the demo's note and button below the rest don't fit a
+        // small phone with the keyboard up.
+        Column(Modifier.padding(pad).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
             Text(S.appShellConnectTitle().resolve(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
             ConnectionEndpointFields(form.entry)
@@ -134,6 +187,24 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
                 S.appShellOnboardingSetupFooter().resolve(),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // No device yet: the public demo one, below the ways to one's own.
+            Spacer(Modifier.height(28.dp))
+            Text(
+                S.appShellDemoTryNote().resolve(),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            androidx.compose.material3.OutlinedButton(onClick = { tryDemo() }, enabled = !tryingDemo, modifier = Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (tryingDemo) { CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)) }
+                    Text((if (tryingDemo) S.commonConnecting() else S.appShellDemoTry()).resolve())
+                }
+            }
+            demoProblem?.let {
+                Spacer(Modifier.height(6.dp))
+                Text(S.appShellCantConnect().resolve(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                Text(it.resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             // Issue #175: what the bridge keeps, before signing in.
             val context = androidx.compose.ui.platform.LocalContext.current
             androidx.compose.material3.TextButton(onClick = { cloud.offthe.otc.ui.common.Share.openInBrowser(context, "https://off-the.cloud/privacy") }) { Text(S.appShellPrivacy().resolve()) }

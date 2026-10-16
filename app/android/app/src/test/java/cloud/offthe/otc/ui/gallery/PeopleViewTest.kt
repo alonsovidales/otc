@@ -246,6 +246,37 @@ class PeopleViewModelTest {
         assertEquals("Person deleted", vm.state.value.toast?.text?.english())
     }
 
+    // A demo device refuses every change in its own words (error_code
+    // "demo"): those are what the page says, not ours. The page offers no
+    // naming, merging or deleting there, but a refusal is never left unsaid.
+    private val demoSaid = "This is a demo device: changes are turned off."
+    private fun demoRefusal() = RespEnvelope.newBuilder().setError(true).setErrorCode("demo").setErrorMessage(demoSaid)
+        .setRespAck(Ack.newBuilder().setOk(false).setErrorMsg(demoSaid).setCode("demo")).build()
+
+    @Test fun aDemoDeviceRefusingANameSaysSoInItsWords() = runBlocking {
+        val vm = PeopleViewModel(Device { demoRefusal() }.send)
+        val store = Store()
+        vm.renameNow(store, "a", "Ana")
+        assertTrue(store.renamed.isEmpty())
+        assertEquals(demoSaid, vm.state.value.toast?.text?.english())
+        assertTrue(vm.state.value.toast!!.error)
+    }
+
+    @Test fun aDemoDeviceRefusingAMergeOrADeleteSaysSoInItsWords() = runBlocking {
+        val vm = PeopleViewModel(Device { demoRefusal() }.send)
+        val store = Store()
+        picked(vm, "a", "b")
+        vm.askMerge()
+        assertFalse(vm.mergeNow(store, p("a", "Leo", 5), "Leo"))
+        assertEquals(demoSaid, vm.state.value.confirmError?.english())
+        vm.dismissConfirm()
+        vm.askDelete(listOf("a", "b"))
+        assertFalse(vm.removeNow(store, listOf("a", "b")))
+        assertEquals(demoSaid, vm.state.value.confirmError?.english())
+        assertEquals(listOf("a", "b"), vm.state.value.selection)
+        assertTrue(store.forgotten.isEmpty())
+    }
+
     @Test fun aRefusedNameIsReported() = runBlocking {
         val vm = PeopleViewModel(Device { ack(false) }.send)
         val store = Store()

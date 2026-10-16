@@ -308,6 +308,8 @@ class StatusViewModel : ViewModel() {
             else if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_STATUS) {
                 state.update { it.copy(status = resp.respStatus, errorText = null) }
                 cloud.offthe.otc.i18n.LanguageSettings.deviceSaid(resp.respStatus)
+                // Every Status answer says whether it is a demo device.
+                OTCConnection.deviceSaid(resp.respStatus)
             }
         } catch (e: Exception) { state.update { it.copy(errorText = e.shownText()) } }
     }

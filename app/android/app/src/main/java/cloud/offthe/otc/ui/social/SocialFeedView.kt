@@ -215,6 +215,9 @@ fun SocialFeedView(
     var refreshing by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val density = LocalDensity.current
+    // A demo device takes no posts, comments or likes (OTCConnection.isDemo):
+    // the feed is to read.
+    val demo by OTCConnection.isDemo.collectAsState()
     // The bar the posts scroll under: none when wide.
     val barHeight = if (wide) 0.dp else feedTopBarHeight
 
@@ -244,7 +247,10 @@ fun SocialFeedView(
     if (wide && friendsOpen) {
         BackHandler { onFriendsOpen(false) }
         FriendshipsView(onDone = null)
-    } else Feed(wide, st, listState, barHeight, refreshing, { refreshing = it }, onFriends = { onFriendsOpen(true) }, onNewPost = { showingPicker = true })
+    } else Feed(
+        wide, st, listState, barHeight, refreshing, { refreshing = it }, onFriends = { onFriendsOpen(true) },
+        onNewPost = if (demo) null else { { showingPicker = true } },
+    )
 
     if (showingPicker) {
         NewPostPickerView(onDismiss = { showingPicker = false }, onPosted = { scope.launch { vm.loadFeed() } })
@@ -262,7 +268,8 @@ fun SocialFeedView(
 @Composable
 private fun Feed(
     wide: Boolean, st: SocialFeedViewModel.State, listState: LazyListState, barHeight: Dp, refreshing: Boolean, setRefreshing: (Boolean) -> Unit,
-    onFriends: () -> Unit, onNewPost: () -> Unit,
+    // onNewPost null: nothing can be posted (a demo device), nor liked or commented on.
+    onFriends: () -> Unit, onNewPost: (() -> Unit)?,
 ) {
     val vm = SocialFeedViewModel
     val scope = rememberCoroutineScope()
@@ -289,7 +296,7 @@ private fun Feed(
             colors = TopAppBarDefaults.topAppBarColors(containerColor = if (underBar) solidBar else Color.Transparent),
             actions = {
                 IconButton(onClick = onFriends) { Icon(Icons.Default.Group, S.appShellSectionFriends().resolve()) }
-                IconButton(onClick = onNewPost) { Icon(Icons.Outlined.AddCircleOutline, S.appShellNewPost().resolve(), tint = Ember) }
+                if (onNewPost != null) IconButton(onClick = onNewPost) { Icon(Icons.Outlined.AddCircleOutline, S.appShellNewPost().resolve(), tint = Ember) }
             },
         )
     }) { pad ->
@@ -347,6 +354,7 @@ private fun Feed(
                                 fetchCommentLikers = { vm.fetchCommentLikers(it) },
                                 onDeletePub = { scope.launch { vm.deletePublication(post.uuid) } },
                                 onDeleteComment = { c -> scope.launch { vm.deleteComment(c) } },
+                                editable = onNewPost != null,
                             )
                             HorizontalDivider()
                         }
@@ -389,15 +397,17 @@ private fun LogoHeader(wide: Boolean) {
 }
 
 @Composable
-private fun EmptyFeed(onNewPost: () -> Unit) {
+private fun EmptyFeed(onNewPost: (() -> Unit)?) {
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
         Text(S.appSocialFeedEmptyTitle().resolve(), fontSize = 30.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(14.dp))
         Text(S.appSocialFeedEmptyText().resolve(),
             color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 320.dp))
-        Spacer(Modifier.height(24.dp))
-        Box(Modifier.size(96.dp).shadow(12.dp, CircleShape).background(Ember, CircleShape).clickable(onClick = onNewPost), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.Add, S.appShellNewPost().resolve(), tint = Color.White, modifier = Modifier.size(48.dp))
+        if (onNewPost != null) {
+            Spacer(Modifier.height(24.dp))
+            Box(Modifier.size(96.dp).shadow(12.dp, CircleShape).background(Ember, CircleShape).clickable(onClick = onNewPost), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Add, S.appShellNewPost().resolve(), tint = Color.White, modifier = Modifier.size(48.dp))
+            }
         }
     }
 }
@@ -444,6 +454,8 @@ private fun PostCard(
     fetchCommentLikers: suspend (String) -> List<Profile>,
     onDeletePub: () -> Unit,
     onDeleteComment: (String) -> Unit,
+    // False on a demo device: no like, comment or delete - the counts stay.
+    editable: Boolean = true,
 ) {
     var commentText by remember { mutableStateOf("") }
     var likersTarget by remember { mutableStateOf<LikersTarget?>(null) }
@@ -463,7 +475,7 @@ private fun PostCard(
                     Text(post.publisher.name.ifEmpty { S.appSocialPostUnnamed().resolve() }, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                     if (post.hasDateTime()) Text(relativeTime(post.dateTime.seconds * 1000), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (post.own) {
+                if (post.own && editable) {
                     Box {
                         IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreHoriz, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -480,11 +492,11 @@ private fun PostCard(
             HeaderOverMedia(cap, aspect, header) { PostMedia(post, listState, index) }
         } else header()
 
-        Row(Modifier.padding(horizontal = side).padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (editable) Row(Modifier.padding(horizontal = side).padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onLikePub, modifier = Modifier.size(36.dp)) {
                 Icon(if (post.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, (if (post.liked) S.androidSocialUnlike() else S.androidSocialLike()).resolve(), tint = if (post.liked) Color.Red else MaterialTheme.colorScheme.onSurface)
             }
-        }
+        } else Spacer(Modifier.height(4.dp))
         if (post.likes > 0) {
             Text(S.appSocialPostLikes(post.likes).resolve(), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = side).clickable { likersTarget = LikersTarget(true, post.uuid) })
@@ -501,19 +513,19 @@ private fun PostCard(
                 Text((if (c.publisher.isEmpty()) S.appSocialPostCommentUnnamed(c.comment) else S.appSocialPostComment(c.publisher, c.comment)).resolve(commentTags), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                 if (c.likes > 0) Text("${c.likes}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.clickable { likersTarget = LikersTarget(false, c.commentUuid) }.padding(4.dp))
-                IconButton(onClick = { onLikeComment(c.commentUuid) }, modifier = Modifier.size(28.dp)) {
+                if (editable) IconButton(onClick = { onLikeComment(c.commentUuid) }, modifier = Modifier.size(28.dp)) {
                     Icon(if (c.liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, (if (c.liked) S.androidSocialUnlikeComment() else S.androidSocialLikeComment()).resolve(), tint = if (c.liked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 }
-                if (post.own || c.own) IconButton(onClick = { commentPendingDelete = c.commentUuid }, modifier = Modifier.size(28.dp)) {
+                if (editable && (post.own || c.own)) IconButton(onClick = { commentPendingDelete = c.commentUuid }, modifier = Modifier.size(28.dp)) {
                     Icon(Icons.Default.Delete, S.androidSocialDeleteComment().resolve(), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 }
             }
         }
 
-        Row(Modifier.padding(horizontal = side).padding(bottom = 10.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (editable) Row(Modifier.padding(horizontal = side).padding(bottom = 10.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             OTCTextField(value = commentText, onValueChange = { commentText = it }, placeholder = { Text(S.appSocialPostCommentPlaceholder().resolve()) }, singleLine = true, modifier = Modifier.weight(1f))
             TextButton(onClick = { onComment(commentText); commentText = "" }, enabled = commentText.isNotBlank()) { Text(S.appSocialPostSendComment().resolve()) }
-        }
+        } else Spacer(Modifier.height(10.dp))
     }
 
     likersTarget?.let { target ->

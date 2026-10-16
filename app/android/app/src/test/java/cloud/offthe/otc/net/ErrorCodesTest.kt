@@ -2,10 +2,12 @@
 package cloud.offthe.otc.net
 
 import cloud.offthe.otc.i18n.english
+import cloud.offthe.otc.proto.Ack
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.ui.gallery.isUnknownPayload
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -45,6 +47,29 @@ class ErrorCodesTest {
         assertTrue(resp { error = true; errorMessage = "unknown payload" }.isUnknownPayload())
         assertFalse(resp { errorMessage = "unknown payload" }.isUnknownPayload())
         assertFalse(resp { error = true; errorCode = "busy"; errorMessage = "unknown payload" }.isUnknownPayload())
+    }
+
+    // A demo device (docs/demo-device.md) refuses every change with "demo",
+    // on the envelope and in an Ack (websocket/demo.go's demoRefusal), its
+    // words already in the request's language: shown as they come.
+    @Test fun aDemoRefusalIsTheDevicesWordsByItsCode() {
+        assertTrue(ErrorCodes.isDemo("demo"))
+        assertFalse(ErrorCodes.isDemo(""))
+        assertFalse(ErrorCodes.isDemo(null))
+        assertFalse(ErrorCodes.isDemo("upload_only"))
+
+        val said = "Esto es un dispositivo de demostración: los cambios están desactivados."
+        val refusal = RespEnvelope.newBuilder().setError(true).setErrorCode("demo").setErrorMessage(said)
+            .setRespAck(Ack.newBuilder().setOk(false).setErrorMsg(said).setCode("demo")).build()
+        assertEquals(said, refusal.demoRefusal()?.english())
+        // The envelope alone, or the Ack alone.
+        assertEquals(said, RespEnvelope.newBuilder().setError(true).setErrorCode("demo").setErrorMessage(said).build().demoRefusal()?.english())
+        assertEquals(said, RespEnvelope.newBuilder().setRespAck(Ack.newBuilder().setOk(false).setErrorMsg(said).setCode("demo")).build().demoRefusal()?.english())
+        // Anything else is not one: another code, an ok answer, no code.
+        assertNull(RespEnvelope.newBuilder().setError(true).setErrorCode("upload_only").setErrorMessage("x").build().demoRefusal())
+        assertNull(RespEnvelope.newBuilder().setRespAck(Ack.newBuilder().setOk(true)).build().demoRefusal())
+        assertNull(RespEnvelope.newBuilder().setRespAck(Ack.newBuilder().setOk(false).setErrorMsg(said)).build().demoRefusal())
+        assertNull(RespEnvelope.newBuilder().setErrorCode("demo").setErrorMessage(said).build().demoRefusal())
     }
 
     @Test fun requestErrorsCarryTheDevicesCode() {
