@@ -130,26 +130,6 @@
     "en": "Critical update {version} available. {summary} Install it as soon as possible.",
     "reviewed": "claude-backtranslation 2026-10-11 #daa941f7"
   },
-  "app.shell.demo_banner": {
-    "text": "Ceci est un appareil de démonstration avec des photos et des fichiers d’exemple. Les modifications sont désactivées.",
-    "en": "This is a demo device with sample photos and files. Changes are turned off."
-  },
-  "app.shell.demo_get_own": {
-    "text": "Obtenir votre appareil",
-    "en": "Get your own device"
-  },
-  "app.shell.demo_refused": {
-    "text": "Ceci est un appareil de démonstration : les modifications sont désactivées.",
-    "en": "This is a demo device: changes are turned off."
-  },
-  "app.shell.demo_try": {
-    "text": "Essayer la démo",
-    "en": "Try the demo"
-  },
-  "app.shell.demo_try_note": {
-    "text": "Pas encore d’appareil ? Explorez un appareil de démonstration avec des photos et des fichiers d’exemple.",
-    "en": "No device yet? Look around a demo one with sample photos and files."
-  },
   "app.shell.device_unavailable": {
     "text": "Cet appareil n’est pas disponible pour le moment",
     "en": "This device isn't available right now"

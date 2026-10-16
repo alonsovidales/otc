@@ -139,6 +139,8 @@
   "site.landing.footer.docs": {"text": "Documentation"},
   "site.landing.footer.privacy": {"text": "Confidentialité"},
   "site.landing.footer.terms": {"text": "Conditions"},
+  "site.landing.hero.demo": {"text": "Essayer la démo"},
+  "site.landing.hero.demo_note": {"text": "Explorez un vrai appareil avec les photos et fichiers d’une famille fictive. Sans inscription."},
   "site.landing.hero.lead": {"text": "Off The Cloud, c’est un NAS et un réseau social réunis dans un petit boîtier qui vous appartient entièrement : vos photos, vidéos et documents sont sauvegardés en pleine résolution, étiquetés par IA pour une recherche instantanée et protégés sur des disques en RAID-1, avec en option un fil social éthique pour partager vos souvenirs avec les personnes qui comptent vraiment, sans publicité, sans algorithme et sans défilement compulsif."},
   "site.landing.hero.photo_alt": {"text": "Un appareil Off The Cloud sur un bureau, à côté d’un appareil photo et d’un ordinateur qui affiche votre photothèque"},
   "site.landing.hero.pill": {"text": "100 % open source · auto-hébergé sur votre propre Raspberry Pi"},

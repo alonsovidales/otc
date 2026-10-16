@@ -165,31 +165,6 @@ extension S {
         L("app.shell.critical_update_summary", table: "AppShell", version, summary)
     }
 
-    /// This is a demo device with sample photos and files. Changes are turned off.
-    ///
-    /// Banner over every tab while connected to the public demo device (one anyone can sign in to, to try Off The Cloud before having their own). Its sample photos show made-up people. A link follows: app.shell.demo_get_own.
-    static var appShellDemoBanner: String { L("app.shell.demo_banner", table: "AppShell") }
-
-    /// Get your own device
-    ///
-    /// Link in the demo device's banner (app.shell.demo_banner): opens the Off The Cloud website, which explains how to set up a device of your own.
-    static var appShellDemoGetOwn: String { L("app.shell.demo_get_own", table: "AppShell") }
-
-    /// This is a demo device: changes are turned off.
-    ///
-    /// Short notice shown on the public demo device (one anyone can sign in to, to try Off The Cloud) when someone tries anything that would change it: uploading, deleting, renaming, sharing, a setting. Nothing was changed.
-    static var appShellDemoRefused: String { L("app.shell.demo_refused", table: "AppShell") }
-
-    /// Try the demo
-    ///
-    /// Button on the first screen (connect to a device): connects to the public demo device and signs in with its published password, so someone with no device yet can look around. Under the note app.shell.demo_try_note.
-    static var appShellDemoTry: String { L("app.shell.demo_try", table: "AppShell") }
-
-    /// No device yet? Look around a demo one with sample photos and files.
-    ///
-    /// Note on the first screen (connect to a device), above the Try the demo button (app.shell.demo_try): the public demo device anyone can sign in to.
-    static var appShellDemoTryNote: String { L("app.shell.demo_try_note", table: "AppShell") }
-
     /// This device isn't available right now
     ///
     /// Heading of the card shown over the whole app when the relay (off-the.cloud) can't reach the user's device: switched off, no internet. The relay's own explanation is shown under it.

@@ -9,11 +9,14 @@ demo device: changes are turned off."). What the apps send by themselves after s
 language, push tokens, notifications seen) is answered ok and stored nowhere, so visitors don't
 mix each other up or get the demo's pushes; the home-network endpoint is answered as absent.
 
-The device tells the apps before sign-in (`PubKey.demo`, `PubKey.demo_password`) and after
-(`Status.demo`): the sign-in screens offer "Try the demo" with the published password, and the apps
-show a banner, hide what would change something and never upload the phone's photos to it.
-`Status` reads like a Pi's: 8 GB of memory, a 64 GB card, two 2 TB disks mirrored and in sync, with
-the library's real usage.
+It is for the web app only: the website links to `https://demo.off-the.cloud`, and the phone apps
+have no demo support (the owner's choice, 2026-10-16). The device tells the web app before sign-in
+(`PubKey.demo`, `PubKey.demo_password`) and after (`Status.demo`): signed out, the page offers "Try
+the demo" with the published password; signed in, a banner says it is a demo. Every screen and
+setting looks as on any device (Logs aside); a change tried shows "This is a demo device: changes
+are turned off." instead of happening, and likes stay on the visitor's page alone. `Status` reads
+like a Pi's: 8 GB of memory, a 64 GB card, two 2 TB disks mirrored and in sync, with the library's
+real usage.
 
 ## Setting it up
 

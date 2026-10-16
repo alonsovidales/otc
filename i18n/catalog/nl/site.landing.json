@@ -139,6 +139,8 @@
   "site.landing.footer.docs": {"text": "Documentatie"},
   "site.landing.footer.privacy": {"text": "Privacy"},
   "site.landing.footer.terms": {"text": "Voorwaarden"},
+  "site.landing.hero.demo": {"text": "Demo proberen"},
+  "site.landing.hero.demo_note": {"text": "Kijk rond op een echt apparaat met foto’s en bestanden van een verzonnen gezin. Zonder account."},
   "site.landing.hero.lead": {"text": "Off The Cloud is een NAS en een sociaal netwerk in één klein apparaat dat helemaal van jou is: je foto’s, video’s en documenten worden in volledige resolutie bewaard, krijgen AI-tags zodat je ze meteen terugvindt, en staan veilig op schijven met RAID-1-bescherming – met een optionele, ethische sociale feed om herinneringen te delen met de mensen die er echt toe doen, zonder advertenties, algoritmes en eindeloos scrollen."},
   "site.landing.hero.photo_alt": {"text": "Een Off The Cloud-apparaat op een bureau, naast een camera en een computer met je fotobibliotheek"},
   "site.landing.hero.pill": {"text": "100% open source · zelf gehost op je eigen Raspberry Pi"},
