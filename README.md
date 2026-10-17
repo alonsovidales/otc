@@ -5,7 +5,7 @@ OTC is a self hosted and inexpensive *NAS* solution to backup all your photos, v
 
 OTC runs in your mobile devices as a iOS or Android application that can be download from the store (they are still not published). These apps will backup in background all the photos to the device in full resolution, we also have a MacOS and Windows client to backup and keep in sync folders in your computer.
 
-OTC is hosted in your home using your network connection and inexpensive hardware, everything is designed to work on a Raspberry Pi 5 with 8GB of RAM (a 4GB one runs only with Image Tagging and Face Recognition turned off in Settings) and two MicroSD cards in a RAID 1 configuration to store the data. The estimated cost of all the necessary hardware for a 1TB device is under 250 euros.
+OTC is hosted in your home using your network connection and inexpensive hardware, everything is designed to work on a Raspberry Pi 5 with 8GB of RAM (a 4GB one runs only with Image Tagging and Face Recognition turned off in Settings) and two USB drives in a RAID 1 configuration to store the data (USB sticks, SSDs, hard disks or MicroSD cards in USB card readers). The Pi and two 512GB USB sticks cost about 310 euros, roughly 340 euros with everything else needed.
 
 **OTC is composed by four systems:**
 ====================================
@@ -143,9 +143,9 @@ With this you can access all your data and social network from any browser just 
   8GB is recommended. A 4GB one can run only with **Image Tagging** and **Face Recognition**
   turned off in Settings - turn both off before backing up your photos, or it runs out of memory
   and restarts; it also has room for one extra user at most.
-- 2x USB MicroSD card readers, plugged into the Pi 5's two blue (USB 3) ports: they are the fast
-  ones, and if a card fails the device tells you which port it is in (top or bottom)
-- 2x MicroSD Cards of the same size for storage
+- 2x USB drives of the same size for storage (USB sticks, SSDs, hard disks, or MicroSD cards in
+  USB card readers), plugged into the Pi 5's two blue (USB 3) ports: they are the fast ones, and
+  if a drive fails the device tells you which port it is in (top or bottom)
 - 1x MicroSD card to host the OS in the RaspberryPi
 - 1x [Power Supply](https://www.raspberrypi.com/products/27w-power-supply/) (Use something of at least 27W since the consumption is quite high when processing images)
 - 1x [Active Cooler](https://www.raspberrypi.com/products/active-cooler/)

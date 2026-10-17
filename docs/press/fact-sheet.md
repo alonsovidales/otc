@@ -32,8 +32,10 @@ open-source software (GNU AGPL-3.0), written by Alonso Vidales since August 2025
 ## How it runs
 
 - **Hardware:** a Raspberry Pi 5 (8 GB; 4 GB with the AI features off), a microSD card for the
-  system and two USB drives for storage, mirrored. Optional: two LEDs and resistors. The install
-  script also runs on any 64-bit Debian or Ubuntu machine (an old PC, a mini PC, an ARM board).
+  system and two USB drives for storage, mirrored. Optional: two LEDs and resistors. The Pi and two
+  512 GB USB sticks cost about €310 (October 2026), roughly €340 with the power supply, cooler and
+  system card. The install script also runs on any 64-bit Debian or Ubuntu machine (an old PC, a
+  mini PC, an ARM board).
 - **Setup, no terminal:** the Mac, Windows or Linux app downloads the ready-made Raspberry Pi
   image and checks its signature. It writes the card itself on Windows and Linux; on a Mac it
   hands over to Raspberry Pi Imager. The setup then finishes over Bluetooth, from the computer or

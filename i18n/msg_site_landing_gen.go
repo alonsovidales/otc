@@ -344,7 +344,7 @@ func SiteLandingFaqFreeQ() Msg {
 	return Msg{Key: "site.landing.faq.free.q"}
 }
 
-// SiteLandingFaqHardwareA is site.landing.faq.hardware.a: "A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two more for stor…".
+// SiteLandingFaqHardwareA is site.landing.faq.hardware.a: "A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two USB drives fo…".
 func SiteLandingFaqHardwareA() Msg {
 	return Msg{Key: "site.landing.faq.hardware.a"}
 }

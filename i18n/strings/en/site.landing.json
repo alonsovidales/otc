@@ -336,7 +336,7 @@
     "note": "Website landing page, FAQ: a question."
   },
   "site.landing.faq.hardware.a": {
-    "text": "A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two more for storage, mirrored so that each holds a full copy of your files. The two storage cards go in USB card readers plugged into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a card ever fails). Add a power supply and an active cooler: all off-the-shelf, roughly €250 all in for 1TB of protected storage. See the README for the exact recommended parts list. A Pi 5 with 4 GB can work too, with photo tagging and face recognition turned off.",
+    "text": "A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or micro-SD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. The Pi and two 512 GB USB sticks come to about €310, roughly €340 all in for 512 GB of protected storage. See the README for the exact recommended parts list. A Pi 5 with 4 GB can work too, with photo tagging and face recognition turned off.",
     "note": "Website landing page, FAQ: answer to \"Do I need to buy special hardware?\". README: the project's documentation on GitHub."
   },
   "site.landing.faq.hardware.q": {
