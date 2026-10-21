@@ -74,6 +74,9 @@ struct SyncChoiceView: View {
             .navigationTitle(S.appSettingsSyncChoiceTitle)
         }
         .interactiveDismissDisabled()
+        // An iPad's form sheet cut Start Sync off at its foot: a page sheet
+        // is tall enough for all of it.
+        .presentationSizing(.page)
     }
 
     private func choiceRow(title: String, detail: String, selected: Bool, pick: @escaping () -> Void) -> some View {
