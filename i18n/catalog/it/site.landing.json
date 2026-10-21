@@ -187,7 +187,7 @@
   "site.landing.phone.android_button": {"text": "Disponibile su Google Play"},
   "site.landing.phone.android_text": {"text": "La stessa app per telefoni e tablet Android: backup delle foto, i file e le foto del tuo dispositivo e i post degli amici."},
   "site.landing.phone.eyebrow": {"text": "App per telefono"},
-  "site.landing.phone.ios_soon": {"text": "Presto su App Store"},
+  "site.landing.phone.ios_button": {"text": "Scarica su App Store"},
   "site.landing.phone.ios_text": {"text": "Esegue il backup della tua libreria di foto, incluse le foto di iCloud, e mostra le foto e i file del tuo dispositivo e i post degli amici."},
   "site.landing.phone.ios_title": {"text": "iPhone e iPad"},
   "site.landing.phone.lead": {"text": "Esegui il backup di foto e video mentre li scatti, sfoglia tutto ciò che c’è sul tuo dispositivo, condividi con gli amici e configura un nuovo dispositivo tramite Bluetooth."},

@@ -944,9 +944,9 @@ func SiteLandingPhoneEyebrow() Msg {
 	return Msg{Key: "site.landing.phone.eyebrow"}
 }
 
-// SiteLandingPhoneIosSoon is site.landing.phone.ios_soon: "Coming soon to the App Store".
-func SiteLandingPhoneIosSoon() Msg {
-	return Msg{Key: "site.landing.phone.ios_soon"}
+// SiteLandingPhoneIosButton is site.landing.phone.ios_button: "Get it on the App Store".
+func SiteLandingPhoneIosButton() Msg {
+	return Msg{Key: "site.landing.phone.ios_button"}
 }
 
 // SiteLandingPhoneIosText is site.landing.phone.ios_text: "Backs up your photo library, iCloud photos included, and shows your device's pho…".

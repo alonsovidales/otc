@@ -187,7 +187,7 @@
   "site.landing.phone.android_button": {"text": "Disponible sur Google Play"},
   "site.landing.phone.android_text": {"text": "La même app pour les téléphones et tablettes Android : sauvegarde des photos, fichiers et photos de votre appareil, et publications de vos amis."},
   "site.landing.phone.eyebrow": {"text": "Apps pour téléphone"},
-  "site.landing.phone.ios_soon": {"text": "Bientôt sur l’App Store"},
+  "site.landing.phone.ios_button": {"text": "Télécharger dans l’App Store"},
   "site.landing.phone.ios_text": {"text": "Sauvegarde votre photothèque, photos iCloud comprises, et affiche les photos et fichiers de votre appareil ainsi que les publications de vos amis."},
   "site.landing.phone.ios_title": {"text": "iPhone et iPad"},
   "site.landing.phone.lead": {"text": "Sauvegardez vos photos et vidéos au fur et à mesure que vous les prenez, parcourez tout ce qui se trouve sur votre appareil, partagez avec vos amis et configurez un nouvel appareil par Bluetooth."},

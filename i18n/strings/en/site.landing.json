@@ -948,9 +948,9 @@
     "note": "Website landing page: small label above the heading of the section with the phone apps (shown in capitals).",
     "max": 30
   },
-  "site.landing.phone.ios_soon": {
-    "text": "Coming soon to the App Store",
-    "note": "Website landing page: greyed-out button on the iPhone card while the app isn't in the App Store yet.",
+  "site.landing.phone.ios_button": {
+    "text": "Get it on the App Store",
+    "note": "Website landing page: button on the iPhone card that opens the app in the App Store. Use Apple's usual wording in your language if it has one (its \"Download on the App Store\" badge), as for the Mac App Store button.",
     "max": 36
   },
   "site.landing.phone.ios_text": {

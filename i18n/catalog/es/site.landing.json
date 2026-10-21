@@ -187,7 +187,7 @@
   "site.landing.phone.android_button": {"text": "Disponible en Google Play"},
   "site.landing.phone.android_text": {"text": "La misma app para teléfonos y tabletas Android: copia de seguridad de fotos, los archivos y las fotos de tu dispositivo, y las publicaciones de tus amigos."},
   "site.landing.phone.eyebrow": {"text": "Apps para el teléfono"},
-  "site.landing.phone.ios_soon": {"text": "Muy pronto en App Store"},
+  "site.landing.phone.ios_button": {"text": "Descárgalo en el App Store"},
   "site.landing.phone.ios_text": {"text": "Hace una copia de seguridad de tu fototeca, incluidas las fotos de iCloud, y muestra las fotos y los archivos de tu dispositivo y las publicaciones de tus amigos."},
   "site.landing.phone.ios_title": {"text": "iPhone y iPad"},
   "site.landing.phone.lead": {"text": "Haz una copia de seguridad de tus fotos y vídeos nada más hacerlos, explora todo lo que hay en tu dispositivo, comparte con tus amigos y configura un dispositivo nuevo por Bluetooth."},

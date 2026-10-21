@@ -788,9 +788,9 @@
     "text": "App per telefono",
     "en": "Phone apps"
   },
-  "site.landing.phone.ios_soon": {
-    "text": "Presto su App Store",
-    "en": "Coming soon to the App Store"
+  "site.landing.phone.ios_button": {
+    "text": "Scarica su App Store",
+    "en": "Get it on the App Store"
   },
   "site.landing.phone.ios_text": {
     "text": "Esegue il backup della tua libreria di foto, incluse le foto di iCloud, e mostra le foto e i file del tuo dispositivo e i post degli amici.",

@@ -187,7 +187,7 @@
   "site.landing.phone.android_button": {"text": "Disponível no Google Play"},
   "site.landing.phone.android_text": {"text": "A mesma app para telemóveis e tablets Android: cópia de segurança de fotos, os ficheiros e as fotos do teu dispositivo e as publicações dos teus amigos."},
   "site.landing.phone.eyebrow": {"text": "Apps para telemóvel"},
-  "site.landing.phone.ios_soon": {"text": "Brevemente na App Store"},
+  "site.landing.phone.ios_button": {"text": "Descarregar na App Store"},
   "site.landing.phone.ios_text": {"text": "Faz a cópia de segurança da tua biblioteca de fotos, incluindo as fotos do iCloud, e mostra as fotos e os ficheiros do teu dispositivo e as publicações dos teus amigos."},
   "site.landing.phone.ios_title": {"text": "iPhone e iPad"},
   "site.landing.phone.lead": {"text": "Faz a cópia de segurança das tuas fotos e vídeos à medida que os tiras, explora tudo o que está no teu dispositivo, partilha com amigos e configura um novo dispositivo por Bluetooth."},

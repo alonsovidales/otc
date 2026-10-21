@@ -187,7 +187,7 @@
   "site.landing.phone.android_button": {"text": "Jetzt bei Google Play"},
   "site.landing.phone.android_text": {"text": "Dieselbe App für Android-Handys und -Tablets: Foto-Backup, die Dateien und Fotos deines Geräts und die Beiträge deiner Freunde."},
   "site.landing.phone.eyebrow": {"text": "Handy-Apps"},
-  "site.landing.phone.ios_soon": {"text": "Bald im App Store"},
+  "site.landing.phone.ios_button": {"text": "Laden im App Store"},
   "site.landing.phone.ios_text": {"text": "Sichert deine Fotomediathek, inklusive iCloud-Fotos, und zeigt die Fotos und Dateien deines Geräts und die Beiträge deiner Freunde."},
   "site.landing.phone.ios_title": {"text": "iPhone und iPad"},
   "site.landing.phone.lead": {"text": "Sichere deine Fotos und Videos gleich bei der Aufnahme, sieh dir alles auf deinem Gerät an, teile mit Freunden und richte ein neues Gerät über Bluetooth ein."},

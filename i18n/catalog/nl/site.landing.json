@@ -187,7 +187,7 @@
   "site.landing.phone.android_button": {"text": "Ontdek het op Google Play"},
   "site.landing.phone.android_text": {"text": "Dezelfde app voor Android-telefoons en -tablets: reservekopieën van foto’s, de bestanden en foto’s op je apparaat, en berichten van vrienden."},
   "site.landing.phone.eyebrow": {"text": "Telefoonapps"},
-  "site.landing.phone.ios_soon": {"text": "Binnenkort in de App Store"},
+  "site.landing.phone.ios_button": {"text": "Download in de App Store"},
   "site.landing.phone.ios_text": {"text": "Maakt een reservekopie van je fotobibliotheek, inclusief iCloud-foto’s, en toont de foto’s en bestanden op je apparaat en de berichten van je vrienden."},
   "site.landing.phone.ios_title": {"text": "iPhone en iPad"},
   "site.landing.phone.lead": {"text": "Maak een reservekopie van je foto’s en video’s zodra je ze maakt, bekijk alles op je apparaat, deel met vrienden en stel een nieuw apparaat in via Bluetooth."},

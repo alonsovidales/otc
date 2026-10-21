@@ -788,9 +788,9 @@
     "text": "Apps para telemóvel",
     "en": "Phone apps"
   },
-  "site.landing.phone.ios_soon": {
-    "text": "Brevemente na App Store",
-    "en": "Coming soon to the App Store"
+  "site.landing.phone.ios_button": {
+    "text": "Descarregar na App Store",
+    "en": "Get it on the App Store"
   },
   "site.landing.phone.ios_text": {
     "text": "Faz a cópia de segurança da tua biblioteca de fotos, incluindo as fotos do iCloud, e mostra as fotos e os ficheiros do teu dispositivo e as publicações dos teus amigos.",

@@ -1485,7 +1485,7 @@ running exe to `.old`, removed at the next start), restarts the systemd user ser
 and relaunches. `otc-sync update` does the same from the command line. Linux installs go to
 `~/.local/bin` so the user can replace the binary; a root-owned one asks for `sudo otc-sync update`.
 The Mac app is distributed only through the Mac App Store (which updates it); its card on the
-Downloads section links to the listing (`apps.apple.com/app/id6814658734`, live since 2026-10-06). The Android card links to Google Play (`play.google.com/store/apps/details?id=cloud.offthe.otc`, live since 2026-10-10); the iPhone card says "coming soon" until the App Store listing is live.
+Downloads section links to the listing (`apps.apple.com/app/id6814658734`, live since 2026-10-06). The Android card links to Google Play (`play.google.com/store/apps/details?id=cloud.offthe.otc`, live since 2026-10-10); the iPhone card links to the same App Store listing as the Mac (one app record for both, live on iPhone since 2026-10-21).
 **Connect / Disconnect.** Both desktop apps show the device and password fields only while
 nothing is configured. That form is open from the start: the Mac's inline Settings, and the tray's
 dialog at launch. Once connected they show the device and a Disconnect button: Mac Settings >

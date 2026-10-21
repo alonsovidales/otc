@@ -788,9 +788,9 @@
     "text": "Apps pour téléphone",
     "en": "Phone apps"
   },
-  "site.landing.phone.ios_soon": {
-    "text": "Bientôt sur l’App Store",
-    "en": "Coming soon to the App Store"
+  "site.landing.phone.ios_button": {
+    "text": "Télécharger dans l’App Store",
+    "en": "Get it on the App Store"
   },
   "site.landing.phone.ios_text": {
     "text": "Sauvegarde votre photothèque, photos iCloud comprises, et affiche les photos et fichiers de votre appareil ainsi que les publications de vos amis.",

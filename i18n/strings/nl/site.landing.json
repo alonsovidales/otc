@@ -788,9 +788,9 @@
     "text": "Telefoonapps",
     "en": "Phone apps"
   },
-  "site.landing.phone.ios_soon": {
-    "text": "Binnenkort in de App Store",
-    "en": "Coming soon to the App Store"
+  "site.landing.phone.ios_button": {
+    "text": "Download in de App Store",
+    "en": "Get it on the App Store"
   },
   "site.landing.phone.ios_text": {
     "text": "Maakt een reservekopie van je fotobibliotheek, inclusief iCloud-foto’s, en toont de foto’s en bestanden op je apparaat en de berichten van je vrienden.",

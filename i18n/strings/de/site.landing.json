@@ -788,9 +788,9 @@
     "text": "Handy-Apps",
     "en": "Phone apps"
   },
-  "site.landing.phone.ios_soon": {
-    "text": "Bald im App Store",
-    "en": "Coming soon to the App Store"
+  "site.landing.phone.ios_button": {
+    "text": "Laden im App Store",
+    "en": "Get it on the App Store"
   },
   "site.landing.phone.ios_text": {
     "text": "Sichert deine Fotomediathek, inklusive iCloud-Fotos, und zeigt die Fotos und Dateien deines Geräts und die Beiträge deiner Freunde.",

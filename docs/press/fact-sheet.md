@@ -12,8 +12,8 @@ open-source software (GNU AGPL-3.0), written by Alonso Vidales since August 2025
 
 ## What it does
 
-- **Backs up phones in full resolution, in the background.** Android app on Google Play; the
-  iPhone app is in App Store review. Mac (Mac App Store), Windows and Linux apps keep chosen
+- **Backs up phones in full resolution, in the background.** Android app on Google Play, iPhone
+  app on the App Store. Mac (Mac App Store), Windows and Linux apps keep chosen
   folders backed up or in sync. Everything else happens in a web app the device serves itself.
 - **Finds any photo.** Image tagging ("beach", "dog", "birthday cake") and, if the owner turns it
   on, face recognition run on the Raspberry Pi itself; no photo is sent anywhere to be analysed.
@@ -49,8 +49,8 @@ open-source software (GNU AGPL-3.0), written by Alonso Vidales since August 2025
 
 ## Status (October 2026)
 
-- First device image: September 2026. Android app on Google Play and Mac app on the Mac App Store
-  since October 2026, in most countries. iPhone app in App Store review.
+- First device image: September 2026. Android app on Google Play, iPhone app on the App Store and
+  Mac app on the Mac App Store since October 2026, in most countries.
 - Everything, the device, the apps and the bridge, is AGPL-3.0 on GitHub.
 
 ## Images
