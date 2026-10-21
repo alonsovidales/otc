@@ -215,8 +215,8 @@
     "en": "(no name)"
   },
   "app.social.friends.remove_button": {
-    "text": "Entfernen…",
-    "en": "Remove…"
+    "text": "Entfernen",
+    "en": "Remove"
   },
   "app.social.friends.remove_error": {
     "text": "Fehler beim Entfernen",
@@ -271,8 +271,8 @@
     "en": "Error sending request"
   },
   "app.social.friends.set_pending": {
-    "text": "Auf offen setzen",
-    "en": "Set Pending"
+    "text": "Offen",
+    "en": "Pending"
   },
   "app.social.friends.status_accepted": {
     "text": "Angenommen",

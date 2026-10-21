@@ -56,7 +56,7 @@
     <string name="app_social_friends_name_placeholder">nom</string>
     <string name="app_social_friends_no_domain">(aucun domaine)</string>
     <string name="app_social_friends_no_name">(sans nom)</string>
-    <string name="app_social_friends_remove_button">Retirer…</string>
+    <string name="app_social_friends_remove_button">Retirer</string>
     <string name="app_social_friends_remove_error">Erreur lors du retrait de la liste d’amis</string>
     <string name="app_social_friends_remove_failed">Échec du retrait</string>
     <string name="app_social_friends_remove_now">Retirer maintenant</string>
@@ -69,7 +69,7 @@
     <string name="app_social_friends_request_failed">Échec de la demande</string>
     <string name="app_social_friends_request_sent">Demande d’ami envoyée ✅</string>
     <string name="app_social_friends_send_error">Erreur lors de l’envoi de la demande</string>
-    <string name="app_social_friends_set_pending">Remettre en attente</string>
+    <string name="app_social_friends_set_pending">En attente</string>
     <string name="app_social_friends_status_accepted">Acceptée</string>
     <string name="app_social_friends_status_accepted_sent">Acceptée (envoyée)</string>
     <string name="app_social_friends_status_blocked">Bloquée</string>

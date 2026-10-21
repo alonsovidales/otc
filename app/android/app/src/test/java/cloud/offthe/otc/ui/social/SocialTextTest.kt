@@ -222,11 +222,11 @@ class SocialTextTest {
         assertEquals("Blocked" + " (sent)", S.appSocialFriendsStatusBlockedSent().english())
         assertEquals("Pending" + " (sent)", S.appSocialFriendsStatusPendingSent().english())
         assertEquals("Block", S.appSocialFriendsBlock().english())
-        assertEquals("Set Pending", S.appSocialFriendsSetPending().english())
+        assertEquals("Pending", S.appSocialFriendsSetPending().english())
         assertEquals("Waiting for their device to delete what you shared.", S.appSocialFriendsLeavingNote().english())
         assertEquals("Remove Now", S.appSocialFriendsRemoveNow().english())
         assertEquals("Cancel Request", S.appSocialFriendsCancelRequestButton().english())
-        assertEquals("Remove…", S.appSocialFriendsRemoveButton().english())
+        assertEquals("Remove", S.appSocialFriendsRemoveButton().english())
         // "Remove $name now?" and the rest, with name = profile name, else domain, else "this friend".
         assertEquals("Remove ${iso("Ana")} now?", S.appSocialFriendsRemoveNowTitle("Ana").english())
         assertEquals("Remove this friend now?", S.androidFriendsRemoveNowTitleUnnamed().english())

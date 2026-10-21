@@ -56,7 +56,7 @@
     <string name="app_social_friends_name_placeholder">nome</string>
     <string name="app_social_friends_no_domain">(nessun dominio)</string>
     <string name="app_social_friends_no_name">(nessun nome)</string>
-    <string name="app_social_friends_remove_button">Rimuovi…</string>
+    <string name="app_social_friends_remove_button">Rimuovi</string>
     <string name="app_social_friends_remove_error">Errore durante la rimozione dell’amicizia</string>
     <string name="app_social_friends_remove_failed">Rimozione non riuscita</string>
     <string name="app_social_friends_remove_now">Rimuovi ora</string>
@@ -69,7 +69,7 @@
     <string name="app_social_friends_request_failed">Richiesta non riuscita</string>
     <string name="app_social_friends_request_sent">Richiesta di amicizia inviata ✅</string>
     <string name="app_social_friends_send_error">Errore durante l’invio della richiesta</string>
-    <string name="app_social_friends_set_pending">Metti in attesa</string>
+    <string name="app_social_friends_set_pending">In attesa</string>
     <string name="app_social_friends_status_accepted">Accettata</string>
     <string name="app_social_friends_status_accepted_sent">Accettata (inviata)</string>
     <string name="app_social_friends_status_blocked">Bloccata</string>

@@ -20,6 +20,11 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.FlowRow
@@ -390,31 +395,69 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
         else -> emptyList()
     }
 
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    val shownName = f.originProfile.name.ifEmpty { S.appSocialFriendsNoName().resolve() }
+    val domain = f.originProfile.domain.ifEmpty { S.appSocialFriendsNoDomain().resolve() }
+    val status = statusLabel.resolve()
+    val who: @Composable () -> Unit = {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             AvatarView(data = if (f.originProfile.hasImage()) f.originProfile.image.toByteArray() else null, size = 44.dp)
             Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(f.originProfile.name.ifEmpty { S.appSocialFriendsNoName().resolve() }, style = MaterialTheme.typography.titleSmall)
-                Text(f.originProfile.domain.ifEmpty { S.appSocialFriendsNoDomain().resolve() }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(statusLabel.resolve(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column {
+                Text(shownName, style = MaterialTheme.typography.titleSmall)
+                Text(domain, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(status, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (f.leaving) Text(S.appSocialFriendsLeavingNote().resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        // Issue #179: every action is a button on the row, as on the web and iOS.
-        val danger = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFE53935))
-        val pad = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-        FlowRow(Modifier.padding(start = 56.dp, top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (f.leaving) {
-                OutlinedButton(onClick = { confirmingRemoveNow = true }, colors = danger, contentPadding = pad) { Text(S.appSocialFriendsRemoveNow().resolve()) }
-            } else {
-                options.forEach { (label, s) ->
-                    if (s == FriendShipStatus.Accepted) Button(onClick = { onChange(s) }, contentPadding = pad) { Text(label.resolve()) }
-                    else OutlinedButton(onClick = { onChange(s) }, contentPadding = pad) { Text(label.resolve()) }
-                }
-                if (canDelete) OutlinedButton(onClick = { confirmingDelete = true }, colors = danger, contentPadding = pad) { Text((if (f.sent) S.appSocialFriendsCancelRequestButton() else S.commonDecline()).resolve()) }
-                if (canRemove) OutlinedButton(onClick = { confirmingRemove = true }, colors = danger, contentPadding = pad) { Text(S.appSocialFriendsRemoveButton().resolve()) }
+    }
+    // Issue #179: every action is a button on the row, as on the web and iOS.
+    // Removing is a trash icon: the row ran to a second line of buttons.
+    val danger = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFE53935))
+    val pad = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+    val labels = if (f.leaving) listOf(S.appSocialFriendsRemoveNow().resolve()) else
+        options.map { it.first.resolve() } + listOfNotNull(if (canDelete) (if (f.sent) S.appSocialFriendsCancelRequestButton() else S.commonDecline()).resolve() else null)
+    val buttons: @Composable () -> Unit = {
+        if (f.leaving) {
+            OutlinedButton(onClick = { confirmingRemoveNow = true }, colors = danger, contentPadding = pad) { Text(labels[0]) }
+        } else {
+            options.forEachIndexed { i, (_, s) ->
+                if (s == FriendShipStatus.Accepted) Button(onClick = { onChange(s) }, contentPadding = pad) { Text(labels[i]) }
+                else OutlinedButton(onClick = { onChange(s) }, contentPadding = pad) { Text(labels[i]) }
             }
+            if (canDelete) OutlinedButton(onClick = { confirmingDelete = true }, colors = danger, contentPadding = pad) { Text(labels.last()) }
+            if (canRemove) OutlinedIconButton(
+                onClick = { confirmingRemove = true },
+                colors = IconButtonDefaults.outlinedIconButtonColors(contentColor = Color(0xFFE53935)),
+                border = ButtonDefaults.outlinedButtonBorder(),
+            ) { Icon(Icons.Outlined.Delete, S.appSocialFriendsRemoveButton().resolve()) }
+        }
+    }
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val nameStyle = MaterialTheme.typography.titleSmall
+    val domainStyle = MaterialTheme.typography.bodySmall
+    val statusStyle = MaterialTheme.typography.labelSmall
+    val buttonStyle = MaterialTheme.typography.labelLarge
+    // The buttons beside the name while its words, the address and the
+    // buttons fit whole, as WaitingRow; else on lines of their own under it.
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        val beside = remember(shownName, domain, status, labels, canRemove, maxWidth, density) {
+            with(density) {
+                fun width(text: String, style: TextStyle) = measurer.measure(text, style, softWrap = false, maxLines = 1, density = density).size.width.toDp()
+                fun words(text: String, style: TextStyle) = text.split(' ').filter { it.isNotEmpty() }.maxOfOrNull { width(it, style) } ?: 0.dp
+                // 12dp each side of a label, 58dp at least; the trash is a 40dp circle.
+                val widths = labels.map { maxOf(58.dp, width(it, buttonStyle) + 24.dp) } + listOfNotNull(if (canRemove) 40.dp else null)
+                val column = maxOf(words(shownName, nameStyle), width(domain, domainStyle), words(status, statusStyle))
+                44.dp + 12.dp + column + widths.fold(0.dp) { sum, w -> sum + 8.dp + w } <= maxWidth
+            }
+        }
+        if (beside) Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) { who() }
+            Spacer(Modifier.width(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { buttons() }
+        } else Column {
+            who()
+            FlowRow(Modifier.padding(start = 56.dp, top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { buttons() }
         }
     }
     // As iOS: stopping the wait is final - without the friendship their

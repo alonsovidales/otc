@@ -55,7 +55,7 @@
     <string name="app_social_friends_name_placeholder">naam</string>
     <string name="app_social_friends_no_domain">(geen domein)</string>
     <string name="app_social_friends_no_name">(geen naam)</string>
-    <string name="app_social_friends_remove_button">Verwijderen…</string>
+    <string name="app_social_friends_remove_button">Verwijderen</string>
     <string name="app_social_friends_remove_error">Fout bij het verwijderen van de vriendschap</string>
     <string name="app_social_friends_remove_failed">Verwijderen mislukt</string>
     <string name="app_social_friends_remove_now">Nu verwijderen</string>
@@ -68,7 +68,7 @@
     <string name="app_social_friends_request_failed">Verzoek mislukt</string>
     <string name="app_social_friends_request_sent">Vriendschapsverzoek verstuurd ✅</string>
     <string name="app_social_friends_send_error">Fout bij het versturen van het verzoek</string>
-    <string name="app_social_friends_set_pending">Op openstaand zetten</string>
+    <string name="app_social_friends_set_pending">Openstaand</string>
     <string name="app_social_friends_status_accepted">Geaccepteerd</string>
     <string name="app_social_friends_status_accepted_sent">Geaccepteerd (verstuurd)</string>
     <string name="app_social_friends_status_blocked">Geblokkeerd</string>

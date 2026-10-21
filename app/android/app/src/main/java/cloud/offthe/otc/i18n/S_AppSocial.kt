@@ -206,7 +206,7 @@ fun S.appSocialFriendsNoDomain(): UiText =
 fun S.appSocialFriendsNoName(): UiText =
     UiText.Res(R.string.app_social_friends_no_name)
 
-/** "Remove…": Button (in red) on a friend's row in the Friends screen: opens the choices for removing the friend (app.social.friends.remove_title). */
+/** "Remove": Spoken label (and long-press hint) of the red trash button on a friend's row in the Friends screen: opens the choices for removing the friend (app.social.friends.remove_title). */
 fun S.appSocialFriendsRemoveButton(): UiText =
     UiText.Res(R.string.app_social_friends_remove_button)
 
@@ -258,7 +258,7 @@ fun S.appSocialFriendsRequestSent(): UiText =
 fun S.appSocialFriendsSendError(): UiText =
     UiText.Res(R.string.app_social_friends_send_error)
 
-/** "Set Pending": Button on a friend's row in the Friends screen (for an accepted or blocked friend): puts the friendship back to waiting for your answer. */
+/** "Pending": Button on a friend's row in the Friends screen (for an accepted or blocked friend): puts the friendship back to waiting for your answer. The same word as the status app.social.friends.status_pending, kept short so the buttons fit beside the friend. */
 fun S.appSocialFriendsSetPending(): UiText =
     UiText.Res(R.string.app_social_friends_set_pending)
 

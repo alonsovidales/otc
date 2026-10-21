@@ -215,8 +215,8 @@
     "en": "(no name)"
   },
   "app.social.friends.remove_button": {
-    "text": "Rimuovi…",
-    "en": "Remove…"
+    "text": "Rimuovi",
+    "en": "Remove"
   },
   "app.social.friends.remove_error": {
     "text": "Errore durante la rimozione dell’amicizia",
@@ -271,8 +271,8 @@
     "en": "Error sending request"
   },
   "app.social.friends.set_pending": {
-    "text": "Metti in attesa",
-    "en": "Set Pending"
+    "text": "In attesa",
+    "en": "Pending"
   },
   "app.social.friends.status_accepted": {
     "text": "Accettata",

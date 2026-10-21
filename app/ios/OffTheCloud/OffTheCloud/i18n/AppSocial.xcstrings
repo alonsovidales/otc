@@ -2511,43 +2511,43 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Entfernen…"
+            "value" : "Entfernen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove…"
+            "value" : "Remove"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eliminar…"
+            "value" : "Eliminar"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Retirer…"
+            "value" : "Retirer"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rimuovi…"
+            "value" : "Rimuovi"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verwijderen…"
+            "value" : "Verwijderen"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remover…"
+            "value" : "Remover"
           }
         }
       }
@@ -3122,43 +3122,43 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Auf offen setzen"
+            "value" : "Offen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Set Pending"
+            "value" : "Pending"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dejar pendiente"
+            "value" : "Pendiente"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remettre en attente"
+            "value" : "En attente"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Metti in attesa"
+            "value" : "In attesa"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Op openstaand zetten"
+            "value" : "Openstaand"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tornar pendente"
+            "value" : "Pendente"
           }
         }
       }

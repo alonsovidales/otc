@@ -215,8 +215,8 @@
     "en": "(no name)"
   },
   "app.social.friends.remove_button": {
-    "text": "Retirer…",
-    "en": "Remove…"
+    "text": "Retirer",
+    "en": "Remove"
   },
   "app.social.friends.remove_error": {
     "text": "Erreur lors du retrait de la liste d’amis",
@@ -271,8 +271,8 @@
     "en": "Error sending request"
   },
   "app.social.friends.set_pending": {
-    "text": "Remettre en attente",
-    "en": "Set Pending"
+    "text": "En attente",
+    "en": "Pending"
   },
   "app.social.friends.status_accepted": {
     "text": "Acceptée",

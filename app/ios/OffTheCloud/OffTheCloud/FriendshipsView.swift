@@ -354,54 +354,25 @@ private struct FriendRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                avatarView(data: f.originProfile.hasImage ? f.originProfile.image : nil, size: 44)
-                VStack(alignment: .leading) {
-                    Text(f.originProfile.name.isEmpty ? S.appSocialFriendsNoName : f.originProfile.name).font(.headline)
-                    Text(f.originProfile.domain.isEmpty ? S.appSocialFriendsNoDomain : f.originProfile.domain)
-                        .font(.caption).foregroundColor(.secondary)
-                    Text(statusLabel)
-                        .font(.caption2).foregroundColor(.secondary)
-                    if f.leaving {
-                        Text(S.appSocialFriendsLeavingNote)
-                            .font(.caption2).foregroundColor(.secondary)
-                    }
-                }
-                Spacer()
-            }
-            // Issue #179: every action is a button on the row, as on the web.
-            // In one line while no label has to break inside a word, else
-            // whole buttons on more lines (Android's FlowRow).
-            WholeWordButtons(spacing: 8) {
-                if f.leaving {
-                    // Issue #174: nothing else to do with a leaving friend
-                    // but stop waiting for their device.
-                    Button(role: .destructive) { confirmingRemoveNow = true } label: { WholeWordText(S.appSocialFriendsRemoveNow, twoLines: true) }
-                        .buttonStyle(.bordered)
-                } else {
-                    ForEach(actionOptions, id: \.0) { opt in
-                        if opt.1 == .accepted {
-                            Button { onChange(opt.1) } label: { WholeWordText(opt.0, twoLines: true) }.buttonStyle(.borderedProminent)
-                        } else {
-                            Button { onChange(opt.1) } label: { WholeWordText(opt.0, twoLines: true) }.buttonStyle(.bordered)
-                        }
-                    }
-                    if canDelete {
-                        Button(role: .destructive) { confirmingDelete = true } label: {
-                            WholeWordText(f.sent ? S.appSocialFriendsCancelRequestButton : S.commonDecline, twoLines: true)
-                        }
-                            .buttonStyle(.bordered)
-                    }
-                    if canRemove {
-                        Button(role: .destructive) { removing = true } label: { WholeWordText(S.appSocialFriendsRemoveButton, twoLines: true) }
-                            .buttonStyle(.bordered)
-                    }
+        // The buttons beside the name while its words, the address and the
+        // labels fit whole, as the waiting rows; else on lines of their own
+        // under it.
+        ViewThatFits(in: .horizontal) {
+            SmallestIsIdeal {
+                HStack(spacing: 12) {
+                    who(wholeDomain: true)
+                    Spacer()
+                    HStack(spacing: 8) { actions }
                 }
             }
-            .controlSize(.small)
-            .padding(.leading, 56)
+            VStack(alignment: .leading, spacing: 8) {
+                who(wholeDomain: false)
+                WholeWordButtons(spacing: 8) { actions }
+                    .padding(.leading, 56)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .controlSize(.small)
         .padding(.vertical, 4)
         .confirmationDialog(
             f.sent ? S.appSocialFriendsCancelConfirmTitle : S.appSocialFriendsDeleteConfirmTitle,
@@ -419,6 +390,58 @@ private struct FriendRow: View {
         }
         .sheet(isPresented: $removing) {
             RemoveFriendSheet(name: name) { theirs, mine in onRemove(theirs, mine) }
+        }
+    }
+
+    private func who(wholeDomain: Bool) -> some View {
+        let domain = f.originProfile.domain.isEmpty ? S.appSocialFriendsNoDomain : f.originProfile.domain
+        return HStack(spacing: 12) {
+            avatarView(data: f.originProfile.hasImage ? f.originProfile.image : nil, size: 44)
+            VStack(alignment: .leading) {
+                WholeWordText(f.originProfile.name.isEmpty ? S.appSocialFriendsNoName : f.originProfile.name, alignment: .leading)
+                    .font(.headline)
+                Group {
+                    if wholeDomain { Text(domain).fixedSize() } else { Text(domain) }
+                }
+                .font(.caption).foregroundColor(.secondary)
+                WholeWordText(statusLabel, alignment: .leading)
+                    .font(.caption2).foregroundColor(.secondary)
+                if f.leaving {
+                    Text(S.appSocialFriendsLeavingNote)
+                        .font(.caption2).foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+
+    // Issue #179: every action is a button on the row, as on the web.
+    // Removing is a trash icon: the row ran to a second line of buttons.
+    @ViewBuilder private var actions: some View {
+        if f.leaving {
+            // Issue #174: nothing else to do with a leaving friend
+            // but stop waiting for their device.
+            Button(role: .destructive) { confirmingRemoveNow = true } label: { WholeWordText(S.appSocialFriendsRemoveNow, twoLines: true) }
+                .buttonStyle(.bordered)
+        } else {
+            ForEach(actionOptions, id: \.0) { opt in
+                if opt.1 == .accepted {
+                    Button { onChange(opt.1) } label: { WholeWordText(opt.0, twoLines: true) }.buttonStyle(.borderedProminent)
+                } else {
+                    Button { onChange(opt.1) } label: { WholeWordText(opt.0, twoLines: true) }.buttonStyle(.bordered)
+                }
+            }
+            if canDelete {
+                Button(role: .destructive) { confirmingDelete = true } label: {
+                    WholeWordText(f.sent ? S.appSocialFriendsCancelRequestButton : S.commonDecline, twoLines: true)
+                }
+                    .buttonStyle(.bordered)
+            }
+            if canRemove {
+                Button(role: .destructive) { removing = true } label: {
+                    Label(S.appSocialFriendsRemoveButton, systemImage: "trash").labelStyle(.iconOnly)
+                }
+                    .buttonStyle(.bordered)
+            }
         }
     }
 

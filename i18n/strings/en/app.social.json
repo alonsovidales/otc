@@ -257,8 +257,8 @@
     "note": "In a row of the Friends screen, in place of the person's profile name when they haven't set one."
   },
   "app.social.friends.remove_button": {
-    "text": "Remove…",
-    "note": "Button (in red) on a friend's row in the Friends screen: opens the choices for removing the friend (app.social.friends.remove_title).",
+    "text": "Remove",
+    "note": "Spoken label (and long-press hint) of the red trash button on a friend's row in the Friends screen: opens the choices for removing the friend (app.social.friends.remove_title).",
     "max": 16
   },
   "app.social.friends.remove_error": {
@@ -321,9 +321,9 @@
     "note": "Short message at the top of the Friends screen when a friend request couldn't be sent because the device didn't answer."
   },
   "app.social.friends.set_pending": {
-    "text": "Set Pending",
-    "note": "Button on a friend's row in the Friends screen (for an accepted or blocked friend): puts the friendship back to waiting for your answer.",
-    "max": 24
+    "text": "Pending",
+    "note": "Button on a friend's row in the Friends screen (for an accepted or blocked friend): puts the friendship back to waiting for your answer. The same word as the status app.social.friends.status_pending, kept short so the buttons fit beside the friend.",
+    "max": 16
   },
   "app.social.friends.status_accepted": {
     "text": "Accepted",

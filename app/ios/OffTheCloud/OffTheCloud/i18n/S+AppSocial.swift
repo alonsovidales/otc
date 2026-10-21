@@ -279,9 +279,9 @@ extension S {
     /// In a row of the Friends screen, in place of the person's profile name when they haven't set one.
     static var appSocialFriendsNoName: String { L("app.social.friends.no_name", table: "AppSocial") }
 
-    /// Remove…
+    /// Remove
     ///
-    /// Button (in red) on a friend's row in the Friends screen: opens the choices for removing the friend (app.social.friends.remove_title).
+    /// Spoken label (and long-press hint) of the red trash button on a friend's row in the Friends screen: opens the choices for removing the friend (app.social.friends.remove_title).
     static var appSocialFriendsRemoveButton: String { L("app.social.friends.remove_button", table: "AppSocial") }
 
     /// Error removing friend
@@ -348,9 +348,9 @@ extension S {
     /// Short message at the top of the Friends screen when a friend request couldn't be sent because the device didn't answer.
     static var appSocialFriendsSendError: String { L("app.social.friends.send_error", table: "AppSocial") }
 
-    /// Set Pending
+    /// Pending
     ///
-    /// Button on a friend's row in the Friends screen (for an accepted or blocked friend): puts the friendship back to waiting for your answer.
+    /// Button on a friend's row in the Friends screen (for an accepted or blocked friend): puts the friendship back to waiting for your answer. The same word as the status app.social.friends.status_pending, kept short so the buttons fit beside the friend.
     static var appSocialFriendsSetPending: String { L("app.social.friends.set_pending", table: "AppSocial") }
 
     /// Accepted

@@ -55,7 +55,7 @@
     <string name="app_social_friends_name_placeholder">name</string>
     <string name="app_social_friends_no_domain">(keine Domain)</string>
     <string name="app_social_friends_no_name">(kein Name)</string>
-    <string name="app_social_friends_remove_button">Entfernen…</string>
+    <string name="app_social_friends_remove_button">Entfernen</string>
     <string name="app_social_friends_remove_error">Fehler beim Entfernen</string>
     <string name="app_social_friends_remove_failed">Entfernen fehlgeschlagen</string>
     <string name="app_social_friends_remove_now">Jetzt entfernen</string>
@@ -68,7 +68,7 @@
     <string name="app_social_friends_request_failed">Anfrage fehlgeschlagen</string>
     <string name="app_social_friends_request_sent">Freundschaftsanfrage gesendet ✅</string>
     <string name="app_social_friends_send_error">Fehler beim Senden der Anfrage</string>
-    <string name="app_social_friends_set_pending">Auf offen setzen</string>
+    <string name="app_social_friends_set_pending">Offen</string>
     <string name="app_social_friends_status_accepted">Angenommen</string>
     <string name="app_social_friends_status_accepted_sent">Angenommen (gesendet)</string>
     <string name="app_social_friends_status_blocked">Blockiert</string>
