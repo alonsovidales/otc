@@ -1796,6 +1796,13 @@ SurfaceView paints at a stale position over whatever scrolls above it, and a ful
 with `decorFitsSystemWindows = false` needs `systemBarsPadding()` or its top buttons sit under
 the status bar and never get the tap.
 
+**What to sync, asked at every sign-in** (iOS `SyncChoice.swift` <-> Android `ui/SyncChoice.kt`):
+Onboarding's Save & Continue and the Bluetooth setup's "Use this device" call `SyncChoice.ask()`
+before saving the credentials, and a screen that can't be dismissed asks for all photos and videos
+(= Sync All: watermark cleared) or only new ones (= Sync From Now), with Wi-Fi only, Include videos
+and Sync from iCloud / Sync from cloud and a warning that a whole library takes long and uses data.
+Until it is answered (`syncChoicePending`, UserDefaults / the `otc_sync` prefs) `PhotoSync.runForeground`
+returns at once - background runs included - and Android asks for media permission only after it.
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed

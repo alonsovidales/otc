@@ -36,6 +36,9 @@ fun RootView() {
     val endpoint by secrets.endpoint.collectAsState()
     val password by secrets.password.collectAsState()
     var configured by remember { mutableStateOf(secrets.isConfigured) }
+    // After a sign-in: what to sync from this phone is asked before any sync
+    // starts, and before the media permission prompt (SyncChoice).
+    val choicePending by SyncChoice.pending.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
 
     // iOS asks for Photos access the first time the sync runs; Android
@@ -47,8 +50,8 @@ fun RootView() {
     // Once per launch: a change of language recreates the Activity
     // (LanguageSettings), and the prompt must not come back with it.
     var askedPermissions by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(configured) {
-        if (!configured || PhotoSync.hasPermission() || askedPermissions) return@LaunchedEffect
+    LaunchedEffect(configured, choicePending) {
+        if (!configured || choicePending || PhotoSync.hasPermission() || askedPermissions) return@LaunchedEffect
         askedPermissions = true
         val perms = mediaPermissions().toMutableList()
         if (Build.VERSION.SDK_INT >= 33) perms += Manifest.permission.POST_NOTIFICATIONS
@@ -83,7 +86,7 @@ fun RootView() {
     // relies on never came - photos waited until the app was reopened. A
     // no-op when a sync is already running; without media permission the
     // permission prompt's result starts it instead.
-    LaunchedEffect(configured) { if (configured && PhotoSync.hasPermission()) PhotoSync.runForegroundAsync() }
+    LaunchedEffect(configured, choicePending) { if (configured && !choicePending && PhotoSync.hasPermission()) PhotoSync.runForegroundAsync() }
 
     // Issue #133: a no-op on first launch (the model's init already started
     // it), the restart after Log Out + sign in.
@@ -91,6 +94,9 @@ fun RootView() {
 
     if (configured) {
         MainView(secrets = secrets)
+        // The first sync then starts from the effects above, now that the
+        // choice is no longer pending.
+        if (choicePending) SyncChoiceView(secrets) {}
     } else {
         OnboardingView(secrets = secrets, onSaved = { configured = secrets.isConfigured })
     }

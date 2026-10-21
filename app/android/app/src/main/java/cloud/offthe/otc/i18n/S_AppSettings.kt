@@ -486,6 +486,42 @@ fun S.appSettingsSyncVideos(): UiText =
 fun S.appSettingsSyncWifiOnly(): UiText =
     UiText.Res(R.string.app_settings_sync_wifi_only)
 
+/** "All photos and videos": Choice in that sheet: sync everything already on the phone, then each new one. */
+fun S.appSettingsSyncChoiceAll(): UiText =
+    UiText.Res(R.string.app_settings_sync_choice_all)
+
+/** "Everything already on this phone, then each new one.": Under the choice "All photos and videos". */
+fun S.appSettingsSyncChoiceAllDetail(): UiText =
+    UiText.Res(R.string.app_settings_sync_choice_all_detail)
+
+/** "You can change these at any time in Settings.": Under the switches in that sheet. Settings: the app's Settings. */
+fun S.appSettingsSyncChoiceFooter(): UiText =
+    UiText.Res(R.string.app_settings_sync_choice_footer)
+
+/** "Choose which photos and videos this phone sends to your device.": First line of that sheet. */
+fun S.appSettingsSyncChoiceIntro(): UiText =
+    UiText.Res(R.string.app_settings_sync_choice_intro)
+
+/** "Only new ones": Choice in that sheet: sync only photos and videos taken or saved from now on. */
+fun S.appSettingsSyncChoiceNew(): UiText =
+    UiText.Res(R.string.app_settings_sync_choice_new)
+
+/** "Only what you take or save from now on.": Under the choice "Only new ones". */
+fun S.appSettingsSyncChoiceNewDetail(): UiText =
+    UiText.Res(R.string.app_settings_sync_choice_new_detail)
+
+/** "Start Sync": Button closing that sheet: starts the photo sync with the choices made. */
+fun S.appSettingsSyncChoiceStart(): UiText =
+    UiText.Res(R.string.app_settings_sync_choice_start)
+
+/** "Sync Your Photos": Title of the sheet shown after signing in to a device, before the photo sync starts: what this phone should sync. */
+fun S.appSettingsSyncChoiceTitle(): UiText =
+    UiText.Res(R.string.app_settings_sync_choice_title)
+
+/** "Syncing a whole library can take a long time and use a lot of data. With Wi-Fi only on, nothing is sent over mobile data.": Warning in that sheet, above the sync switches. "Wi-Fi only" is the name of the switch below it: use the same words. */
+fun S.appSettingsSyncChoiceWarning(): UiText =
+    UiText.Res(R.string.app_settings_sync_choice_warning)
+
 /** "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.": Under the Image Tagging switch in Settings: what it does. */
 fun S.appSettingsTaggingFooter(): UiText =
     UiText.Res(R.string.app_settings_tagging_footer)

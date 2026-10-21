@@ -542,6 +542,42 @@
     "text": "Wi-Fi uniquement",
     "en": "Wi-Fi only"
   },
+  "app.settings.sync_choice.all": {
+    "text": "Toutes les photos et vidéos",
+    "en": "All photos and videos"
+  },
+  "app.settings.sync_choice.all_detail": {
+    "text": "Tout ce qui se trouve déjà sur ce téléphone, puis chaque nouvelle photo ou vidéo.",
+    "en": "Everything already on this phone, then each new one."
+  },
+  "app.settings.sync_choice.footer": {
+    "text": "Vous pouvez modifier ces réglages à tout moment dans Paramètres.",
+    "en": "You can change these at any time in Settings."
+  },
+  "app.settings.sync_choice.intro": {
+    "text": "Choisissez les photos et vidéos que ce téléphone envoie à votre appareil.",
+    "en": "Choose which photos and videos this phone sends to your device."
+  },
+  "app.settings.sync_choice.new": {
+    "text": "Seulement les nouvelles",
+    "en": "Only new ones"
+  },
+  "app.settings.sync_choice.new_detail": {
+    "text": "Uniquement ce que vous prenez ou enregistrez à partir de maintenant.",
+    "en": "Only what you take or save from now on."
+  },
+  "app.settings.sync_choice.start": {
+    "text": "Lancer la synchronisation",
+    "en": "Start Sync"
+  },
+  "app.settings.sync_choice.title": {
+    "text": "Synchronisez vos photos",
+    "en": "Sync Your Photos"
+  },
+  "app.settings.sync_choice.warning": {
+    "text": "Synchroniser toute une bibliothèque peut prendre longtemps et consommer beaucoup de données. Avec « Wi-Fi uniquement » activé, rien n’est envoyé par les données mobiles.",
+    "en": "Syncing a whole library can take a long time and use a lot of data. With Wi-Fi only on, nothing is sent over mobile data."
+  },
   "app.settings.tagging.footer": {
     "text": "Reconnaît ce que montrent les photos et vidéos nouvellement envoyées (une plage, un chien, un gâteau d’anniversaire) pour que vous puissiez les rechercher. L’étiquetage s’exécute sur cet appareil et rien n’en sort. Le désactiver économise du temps de traitement ; les lieux issus des données de localisation d’une photo restent trouvables par la recherche. Cela ne concerne que ce qui est envoyé pendant qu’il est désactivé.",
     "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.",

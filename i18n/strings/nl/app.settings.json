@@ -542,6 +542,42 @@
     "text": "Alleen via wifi",
     "en": "Wi-Fi only"
   },
+  "app.settings.sync_choice.all": {
+    "text": "Alle foto’s en video’s",
+    "en": "All photos and videos"
+  },
+  "app.settings.sync_choice.all_detail": {
+    "text": "Alles wat al op deze telefoon staat, daarna elke nieuwe.",
+    "en": "Everything already on this phone, then each new one."
+  },
+  "app.settings.sync_choice.footer": {
+    "text": "Je kunt dit altijd wijzigen in Instellingen.",
+    "en": "You can change these at any time in Settings."
+  },
+  "app.settings.sync_choice.intro": {
+    "text": "Kies welke foto’s en video’s deze telefoon naar je apparaat stuurt.",
+    "en": "Choose which photos and videos this phone sends to your device."
+  },
+  "app.settings.sync_choice.new": {
+    "text": "Alleen nieuwe",
+    "en": "Only new ones"
+  },
+  "app.settings.sync_choice.new_detail": {
+    "text": "Alleen wat je vanaf nu maakt of opslaat.",
+    "en": "Only what you take or save from now on."
+  },
+  "app.settings.sync_choice.start": {
+    "text": "Synchronisatie starten",
+    "en": "Start Sync"
+  },
+  "app.settings.sync_choice.title": {
+    "text": "Je foto’s synchroniseren",
+    "en": "Sync Your Photos"
+  },
+  "app.settings.sync_choice.warning": {
+    "text": "Een hele bibliotheek synchroniseren kan lang duren en veel data verbruiken. Met “Alleen via wifi” aan wordt er niets via mobiele data verstuurd.",
+    "en": "Syncing a whole library can take a long time and use a lot of data. With Wi-Fi only on, nothing is sent over mobile data."
+  },
   "app.settings.tagging.footer": {
     "text": "Herkent wat nieuw geüploade foto’s en video’s laten zien (een strand, een hond, een verjaardagstaart), zodat je erop kunt zoeken. Dit gebeurt op dit apparaat en er gaat niets naar buiten. Uitschakelen bespaart verwerkingstijd; plaatsen uit de eigen locatiegegevens van een foto blijven doorzoekbaar. Het geldt alleen voor wat wordt geüpload terwijl het uitstaat.",
     "en": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.",

@@ -406,6 +406,12 @@ final class PhotoSync: NSObject {
     /// handler below does: that is how a BGProcessingTask's expiration
     /// (SyncScheduler cancels the Task calling this) reaches the loop.
     func runForeground() async throws {
+        // Signed in but not yet told what to sync (SyncChoice): nothing,
+        // the background task's runs included, until the sheet is answered.
+        guard !SyncChoice.pending else {
+            print("Sync waits for the sync choice")
+            return
+        }
         guard let gen = beginSyncIfNotAlreadyRunning() else {
             print("Sync already running, skipping overlapping request")
             return

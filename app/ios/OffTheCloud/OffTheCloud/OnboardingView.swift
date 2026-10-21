@@ -37,6 +37,8 @@ struct OnboardingView: View {
                 }
                 Section {
                     Button(S.appShellSaveContinue) {
+                        // Asked first, so no sync starts before it (SyncChoice).
+                        SyncChoice.ask()
                         secrets.endpoint = endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
                         secrets.password = password
                         secrets.persist()
@@ -53,6 +55,7 @@ struct OnboardingView: View {
                             // app as soon as both are saved.
                             endpoint = newEndpoint
                             password = newPassword
+                            SyncChoice.ask()
                             secrets.endpoint = newEndpoint
                             secrets.password = newPassword
                             secrets.persist()

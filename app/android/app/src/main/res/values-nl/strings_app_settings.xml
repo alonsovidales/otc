@@ -137,6 +137,15 @@
     <string name="app_settings_sync_title">Synchronisatieopties</string>
     <string name="app_settings_sync_videos">Video’s meenemen</string>
     <string name="app_settings_sync_wifi_only">Alleen via wifi</string>
+    <string name="app_settings_sync_choice_all">Alle foto’s en video’s</string>
+    <string name="app_settings_sync_choice_all_detail">Alles wat al op deze telefoon staat, daarna elke nieuwe.</string>
+    <string name="app_settings_sync_choice_footer">Je kunt dit altijd wijzigen in Instellingen.</string>
+    <string name="app_settings_sync_choice_intro">Kies welke foto’s en video’s deze telefoon naar je apparaat stuurt.</string>
+    <string name="app_settings_sync_choice_new">Alleen nieuwe</string>
+    <string name="app_settings_sync_choice_new_detail">Alleen wat je vanaf nu maakt of opslaat.</string>
+    <string name="app_settings_sync_choice_start">Synchronisatie starten</string>
+    <string name="app_settings_sync_choice_title">Je foto’s synchroniseren</string>
+    <string name="app_settings_sync_choice_warning">Een hele bibliotheek synchroniseren kan lang duren en veel data verbruiken. Met “Alleen via wifi” aan wordt er niets via mobiele data verstuurd.</string>
     <string name="app_settings_tagging_footer">Herkent wat nieuw geüploade foto’s en video’s laten zien (een strand, een hond, een verjaardagstaart), zodat je erop kunt zoeken. Dit gebeurt op dit apparaat en er gaat niets naar buiten. Uitschakelen bespaart verwerkingstijd; plaatsen uit de eigen locatiegegevens van een foto blijven doorzoekbaar. Het geldt alleen voor wat wordt geüpload terwijl het uitstaat.</string>
     <string name="app_settings_tagging_title">Beeldherkenning</string>
     <string name="app_settings_tailscale_auth_key">Auth key (optioneel)</string>

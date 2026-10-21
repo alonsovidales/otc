@@ -142,6 +142,15 @@
     <string name="app_settings_sync_title">Opções de sincronização</string>
     <string name="app_settings_sync_videos">Incluir vídeos</string>
     <string name="app_settings_sync_wifi_only">Apenas por Wi-Fi</string>
+    <string name="app_settings_sync_choice_all">Todas as fotos e vídeos</string>
+    <string name="app_settings_sync_choice_all_detail">Tudo o que já está neste telemóvel e, depois, cada foto ou vídeo novo.</string>
+    <string name="app_settings_sync_choice_footer">Podes alterar isto quando quiseres nas Definições.</string>
+    <string name="app_settings_sync_choice_intro">Escolhe que fotos e vídeos este telemóvel envia para o teu dispositivo.</string>
+    <string name="app_settings_sync_choice_new">Só os novos</string>
+    <string name="app_settings_sync_choice_new_detail">Só o que tirares ou guardares a partir de agora.</string>
+    <string name="app_settings_sync_choice_start">Começar a sincronizar</string>
+    <string name="app_settings_sync_choice_title">Sincroniza as tuas fotos</string>
+    <string name="app_settings_sync_choice_warning">Sincronizar uma biblioteca inteira pode demorar muito tempo e gastar muitos dados. Com «Apenas por Wi-Fi» ativado, nada é enviado pelos dados móveis.</string>
     <string name="app_settings_tagging_footer">Reconhece o que mostram as fotos e os vídeos que forem carregados (uma praia, um cão, um bolo de aniversário) para poderes pesquisar por isso. É feita neste dispositivo e nada sai dele. Desativá-la poupa tempo de processamento; continua a ser possível pesquisar os lugares a partir dos dados de localização da própria foto. Só afeta o que for carregado enquanto estiver desativada.</string>
     <string name="app_settings_tagging_title">Etiquetagem de imagens</string>
     <string name="app_settings_tailscale_auth_key">Chave de autenticação (opcional)</string>

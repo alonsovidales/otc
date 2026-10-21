@@ -142,6 +142,15 @@
     <string name="app_settings_sync_title">Options de synchronisation</string>
     <string name="app_settings_sync_videos">Inclure les vidéos</string>
     <string name="app_settings_sync_wifi_only">Wi-Fi uniquement</string>
+    <string name="app_settings_sync_choice_all">Toutes les photos et vidéos</string>
+    <string name="app_settings_sync_choice_all_detail">Tout ce qui se trouve déjà sur ce téléphone, puis chaque nouvelle photo ou vidéo.</string>
+    <string name="app_settings_sync_choice_footer">Vous pouvez modifier ces réglages à tout moment dans Paramètres.</string>
+    <string name="app_settings_sync_choice_intro">Choisissez les photos et vidéos que ce téléphone envoie à votre appareil.</string>
+    <string name="app_settings_sync_choice_new">Seulement les nouvelles</string>
+    <string name="app_settings_sync_choice_new_detail">Uniquement ce que vous prenez ou enregistrez à partir de maintenant.</string>
+    <string name="app_settings_sync_choice_start">Lancer la synchronisation</string>
+    <string name="app_settings_sync_choice_title">Synchronisez vos photos</string>
+    <string name="app_settings_sync_choice_warning">Synchroniser toute une bibliothèque peut prendre longtemps et consommer beaucoup de données. Avec « Wi-Fi uniquement » activé, rien n’est envoyé par les données mobiles.</string>
     <string name="app_settings_tagging_footer">Reconnaît ce que montrent les photos et vidéos nouvellement envoyées (une plage, un chien, un gâteau d’anniversaire) pour que vous puissiez les rechercher. L’étiquetage s’exécute sur cet appareil et rien n’en sort. Le désactiver économise du temps de traitement ; les lieux issus des données de localisation d’une photo restent trouvables par la recherche. Cela ne concerne que ce qui est envoyé pendant qu’il est désactivé.</string>
     <string name="app_settings_tagging_title">Étiquetage des images</string>
     <string name="app_settings_tailscale_auth_key">Clé d’authentification (facultative)</string>

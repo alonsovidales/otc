@@ -25,6 +25,9 @@ struct RootView: View {
     // from the background (without a full kill+relaunch) never re-ran the
     // sync at all. scenePhase is what actually observes that transition.
     @Environment(\.scenePhase) private var scenePhase
+    /// After a sign-in: what to sync from this phone is asked before any
+    /// sync starts (SyncChoice).
+    @AppStorage(SyncChoice.pendingKey) private var syncChoicePending = false
 
     var body: some View {
         Group {
@@ -53,6 +56,13 @@ struct RootView: View {
                         // Issue #133: a no-op on first launch (init already
                         // started it), the restart after Log Out + sign in.
                         social.startAutoLoad()
+                    }
+                    .sheet(isPresented: $syncChoicePending) {
+                        SyncChoiceView {
+                            // The first sync, now that it knows what to send.
+                            Task { try? await PhotoSync.shared.runForeground() }
+                        }
+                        .environmentObject(secrets)
                     }
             } else {
                 OnboardingView()

@@ -142,6 +142,15 @@
     <string name="app_settings_sync_title">Opciones de sincronización</string>
     <string name="app_settings_sync_videos">Incluir vídeos</string>
     <string name="app_settings_sync_wifi_only">Solo con Wi-Fi</string>
+    <string name="app_settings_sync_choice_all">Todas las fotos y vídeos</string>
+    <string name="app_settings_sync_choice_all_detail">Todo lo que ya hay en este teléfono y, después, cada foto o vídeo nuevo.</string>
+    <string name="app_settings_sync_choice_footer">Puedes cambiarlo cuando quieras en Ajustes.</string>
+    <string name="app_settings_sync_choice_intro">Elige qué fotos y vídeos envía este teléfono a tu dispositivo.</string>
+    <string name="app_settings_sync_choice_new">Solo los nuevos</string>
+    <string name="app_settings_sync_choice_new_detail">Solo lo que hagas o guardes a partir de ahora.</string>
+    <string name="app_settings_sync_choice_start">Empezar a sincronizar</string>
+    <string name="app_settings_sync_choice_title">Sincroniza tus fotos</string>
+    <string name="app_settings_sync_choice_warning">Sincronizar toda una biblioteca puede llevar mucho tiempo y gastar muchos datos. Con “Solo con Wi-Fi” activado, no se envía nada con datos móviles.</string>
     <string name="app_settings_tagging_footer">Reconoce lo que muestran las fotos y los vídeos que se suban a partir de ahora (una playa, un perro, una tarta de cumpleaños) para que puedas buscarlo. Se ejecuta en este dispositivo y no sale nada de él. Desactivarlo ahorra tiempo de procesamiento; se puede seguir buscando por los lugares que indican los datos de ubicación de cada foto. Solo afecta a lo que se suba mientras está desactivado.</string>
     <string name="app_settings_tagging_title">Etiquetado de imágenes</string>
     <string name="app_settings_tailscale_auth_key">Auth key (opcional)</string>

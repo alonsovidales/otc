@@ -65,7 +65,9 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
     if (setupOpen) {
         BluetoothSetupView(
             onUseDevice = { newEndpoint, newPassword ->
-                // Straight in, as iOS: save both and open the app.
+                // Straight in, as iOS: save both and open the app - what to
+                // sync is asked first, so no sync starts before it (SyncChoice).
+                SyncChoice.ask()
                 secrets.setEndpoint(newEndpoint)
                 secrets.setPassword(newPassword)
                 secrets.persist()
@@ -114,6 +116,8 @@ fun OnboardingView(secrets: SecretsStore, onSaved: () -> Unit) {
             Spacer(Modifier.height(20.dp))
             Button(
                 onClick = {
+                    // Asked first, so no sync starts before it (SyncChoice).
+                    SyncChoice.ask()
                     secrets.setEndpoint(endpoint.trim())
                     secrets.setPassword(password)
                     secrets.persist()

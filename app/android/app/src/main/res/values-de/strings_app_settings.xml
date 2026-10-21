@@ -137,6 +137,15 @@
     <string name="app_settings_sync_title">Synchronisierungsoptionen</string>
     <string name="app_settings_sync_videos">Videos einbeziehen</string>
     <string name="app_settings_sync_wifi_only">Nur über WLAN</string>
+    <string name="app_settings_sync_choice_all">Alle Fotos und Videos</string>
+    <string name="app_settings_sync_choice_all_detail">Alles, was schon auf diesem Handy ist, danach jedes neue.</string>
+    <string name="app_settings_sync_choice_footer">Du kannst das jederzeit in den Einstellungen ändern.</string>
+    <string name="app_settings_sync_choice_intro">Wähle, welche Fotos und Videos dieses Handy an dein Gerät sendet.</string>
+    <string name="app_settings_sync_choice_new">Nur neue</string>
+    <string name="app_settings_sync_choice_new_detail">Nur, was du ab jetzt aufnimmst oder speicherst.</string>
+    <string name="app_settings_sync_choice_start">Synchronisierung starten</string>
+    <string name="app_settings_sync_choice_title">Fotos synchronisieren</string>
+    <string name="app_settings_sync_choice_warning">Eine ganze Mediathek zu synchronisieren kann lange dauern und viele Daten verbrauchen. Mit „Nur über WLAN“ wird nichts über mobile Daten gesendet.</string>
     <string name="app_settings_tagging_footer">Erkennt, was neu hochgeladene Fotos und Videos zeigen (einen Strand, einen Hund, eine Geburtstagstorte), damit du danach suchen kannst. Die Bilderkennung läuft auf diesem Gerät, und nichts verlässt es. Ausschalten spart Rechenzeit; Orte aus den eigenen Standortdaten eines Fotos bleiben durchsuchbar. Das betrifft nur, was hochgeladen wird, während sie ausgeschaltet ist.</string>
     <string name="app_settings_tagging_title">Bilderkennung</string>
     <string name="app_settings_tailscale_auth_key">Auth-Schlüssel (optional)</string>

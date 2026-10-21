@@ -22,6 +22,7 @@ import cloud.offthe.otc.proto.LinkFile
 import cloud.offthe.otc.proto.File as PbFile
 import cloud.offthe.otc.proto.ListFiles
 import cloud.offthe.otc.proto.RespEnvelope
+import cloud.offthe.otc.ui.SyncChoice
 import com.google.protobuf.Timestamp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -241,6 +242,9 @@ object PhotoSync {
     private const val tag = "OTC/PhotoSync"
 
     suspend fun runForeground() {
+        // Signed in but not yet told what to sync (SyncChoice): nothing, the
+        // WorkManager runs included, until the screen is answered.
+        if (SyncChoice.pending.value) { Log.i(tag, "sync waits for the sync choice"); return }
         if (!syncing.compareAndSet(false, true)) { Log.i(tag, "sync already running"); return }
         val job = currentCoroutineContext()[Job]
         currentSync = job

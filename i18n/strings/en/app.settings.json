@@ -648,6 +648,46 @@
     "note": "Switch in Settings > Sync Options: upload photos only while the phone is on Wi-Fi.",
     "max": 30
   },
+  "app.settings.sync_choice.all": {
+    "text": "All photos and videos",
+    "note": "Choice in that sheet: sync everything already on the phone, then each new one.",
+    "max": 40
+  },
+  "app.settings.sync_choice.all_detail": {
+    "text": "Everything already on this phone, then each new one.",
+    "note": "Under the choice \"All photos and videos\"."
+  },
+  "app.settings.sync_choice.footer": {
+    "text": "You can change these at any time in Settings.",
+    "note": "Under the switches in that sheet. Settings: the app's Settings."
+  },
+  "app.settings.sync_choice.intro": {
+    "text": "Choose which photos and videos this phone sends to your device.",
+    "note": "First line of that sheet."
+  },
+  "app.settings.sync_choice.new": {
+    "text": "Only new ones",
+    "note": "Choice in that sheet: sync only photos and videos taken or saved from now on.",
+    "max": 40
+  },
+  "app.settings.sync_choice.new_detail": {
+    "text": "Only what you take or save from now on.",
+    "note": "Under the choice \"Only new ones\"."
+  },
+  "app.settings.sync_choice.start": {
+    "text": "Start Sync",
+    "note": "Button closing that sheet: starts the photo sync with the choices made.",
+    "max": 30
+  },
+  "app.settings.sync_choice.title": {
+    "text": "Sync Your Photos",
+    "note": "Title of the sheet shown after signing in to a device, before the photo sync starts: what this phone should sync.",
+    "max": 30
+  },
+  "app.settings.sync_choice.warning": {
+    "text": "Syncing a whole library can take a long time and use a lot of data. With Wi-Fi only on, nothing is sent over mobile data.",
+    "note": "Warning in that sheet, above the sync switches. \"Wi-Fi only\" is the name of the switch below it: use the same words."
+  },
   "app.settings.tagging.footer": {
     "text": "Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.",
     "note": "Under the Image Tagging switch in Settings: what it does.",

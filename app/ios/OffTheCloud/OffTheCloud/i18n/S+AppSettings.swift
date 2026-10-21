@@ -661,6 +661,51 @@ extension S {
     /// Switch in Settings > Sync Options: upload photos only while the phone is on Wi-Fi.
     static var appSettingsSyncWifiOnly: String { L("app.settings.sync.wifi_only", table: "AppSettings") }
 
+    /// All photos and videos
+    ///
+    /// Choice in that sheet: sync everything already on the phone, then each new one.
+    static var appSettingsSyncChoiceAll: String { L("app.settings.sync_choice.all", table: "AppSettings") }
+
+    /// Everything already on this phone, then each new one.
+    ///
+    /// Under the choice "All photos and videos".
+    static var appSettingsSyncChoiceAllDetail: String { L("app.settings.sync_choice.all_detail", table: "AppSettings") }
+
+    /// You can change these at any time in Settings.
+    ///
+    /// Under the switches in that sheet. Settings: the app's Settings.
+    static var appSettingsSyncChoiceFooter: String { L("app.settings.sync_choice.footer", table: "AppSettings") }
+
+    /// Choose which photos and videos this phone sends to your device.
+    ///
+    /// First line of that sheet.
+    static var appSettingsSyncChoiceIntro: String { L("app.settings.sync_choice.intro", table: "AppSettings") }
+
+    /// Only new ones
+    ///
+    /// Choice in that sheet: sync only photos and videos taken or saved from now on.
+    static var appSettingsSyncChoiceNew: String { L("app.settings.sync_choice.new", table: "AppSettings") }
+
+    /// Only what you take or save from now on.
+    ///
+    /// Under the choice "Only new ones".
+    static var appSettingsSyncChoiceNewDetail: String { L("app.settings.sync_choice.new_detail", table: "AppSettings") }
+
+    /// Start Sync
+    ///
+    /// Button closing that sheet: starts the photo sync with the choices made.
+    static var appSettingsSyncChoiceStart: String { L("app.settings.sync_choice.start", table: "AppSettings") }
+
+    /// Sync Your Photos
+    ///
+    /// Title of the sheet shown after signing in to a device, before the photo sync starts: what this phone should sync.
+    static var appSettingsSyncChoiceTitle: String { L("app.settings.sync_choice.title", table: "AppSettings") }
+
+    /// Syncing a whole library can take a long time and use a lot of data. With Wi-Fi only on, nothing is sent over mobile data.
+    ///
+    /// Warning in that sheet, above the sync switches. "Wi-Fi only" is the name of the switch below it: use the same words.
+    static var appSettingsSyncChoiceWarning: String { L("app.settings.sync_choice.warning", table: "AppSettings") }
+
     /// Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo's own location data are still searchable. It only affects what is uploaded while it is off.
     ///
     /// Under the Image Tagging switch in Settings: what it does.

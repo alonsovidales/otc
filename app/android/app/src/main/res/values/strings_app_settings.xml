@@ -136,6 +136,15 @@
     <string name="app_settings_sync_title">Sync Options</string>
     <string name="app_settings_sync_videos">Include videos</string>
     <string name="app_settings_sync_wifi_only">Wi-Fi only</string>
+    <string name="app_settings_sync_choice_all">All photos and videos</string>
+    <string name="app_settings_sync_choice_all_detail">Everything already on this phone, then each new one.</string>
+    <string name="app_settings_sync_choice_footer">You can change these at any time in Settings.</string>
+    <string name="app_settings_sync_choice_intro">Choose which photos and videos this phone sends to your device.</string>
+    <string name="app_settings_sync_choice_new">Only new ones</string>
+    <string name="app_settings_sync_choice_new_detail">Only what you take or save from now on.</string>
+    <string name="app_settings_sync_choice_start">Start Sync</string>
+    <string name="app_settings_sync_choice_title">Sync Your Photos</string>
+    <string name="app_settings_sync_choice_warning">Syncing a whole library can take a long time and use a lot of data. With Wi-Fi only on, nothing is sent over mobile data.</string>
     <string name="app_settings_tagging_footer">Recognise what newly uploaded photos and videos show (a beach, a dog, a birthday cake) so you can search for it. It runs on this device and nothing leaves it. Turning it off saves processing time; places from a photo\'s own location data are still searchable. It only affects what is uploaded while it is off.</string>
     <string name="app_settings_tagging_title">Image Tagging</string>
     <string name="app_settings_tailscale_auth_key">Auth key (optional)</string>
