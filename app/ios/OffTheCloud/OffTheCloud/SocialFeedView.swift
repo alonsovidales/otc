@@ -573,6 +573,23 @@ struct SocialFeedView: View {
     /// The measurement feedViewportHeight was last taken from, to tell the
     /// keyboard coming up from the window really changing.
     @State private var feedViewportBase: FeedViewportMeasure?
+    /// The top safe-area insets of the navigation stack (the status bar)
+    /// and of the feed inside it (the status bar and the navigation bar),
+    /// for logoPullUp. nil until measured.
+    @State private var stackTopInset: CGFloat?
+    @State private var feedTopInset: CGFloat?
+
+    /// How far the logo is pulled up to sit level with the navigation
+    /// bar's buttons: 44 pt where the bar is a full row along the top (an
+    /// iPhone in portrait: 54 pt), nothing where it is shorter. iPhone
+    /// Duo's cover screen puts the bar's buttons on the trailing edge and
+    /// keeps only 24 pt at the top: a fixed 44 put the logo off the top of
+    /// the screen, and 24 into its rounded corner.
+    private var logoPullUp: CGFloat {
+        guard hSizeClass != .regular else { return 0 }
+        guard let stackTopInset, let feedTopInset else { return 44 }
+        return feedTopInset - stackTopInset >= 44 ? 44 : 0
+    }
 
     // Issue #81: the nav bar had nothing on the leading side (no title, no
     // button), just the trailing "+" - reading as empty space instead of a
@@ -693,14 +710,11 @@ struct SocialFeedView: View {
                                 // logo down past where the "+" button
                                 // sits (the loading/empty states above
                                 // have no .refreshable, hence no matching
-                                // offset needed there). This negative
-                                // offset is a best estimate compensating
-                                // for that reserved space, not a value
-                                // read from a real measurement - needs a
-                                // screenshot to confirm it actually lines
-                                // up now.
+                                // offset needed there). The negative
+                                // offset is the navigation bar's measured
+                                // height, at most 44 (logoPullUp).
                                 logoHeader
-                                    .padding(.top, hSizeClass == .regular ? 0 : -44)
+                                    .padding(.top, -logoPullUp)
                                 ForEach(feedViewportHeight == nil ? [] : vm.boxedPosts, id: \.pub.uuid) { box in
                                     let post = box.pub
                                     PostCard(
@@ -771,6 +785,10 @@ struct SocialFeedView: View {
                             feedViewportBase = measure
                             feedViewportHeight = measure.height
                         }
+                        // The feed's top inset, for logoPullUp. The logo's
+                        // padding moves only what scrolls, never these
+                        // insets, so the two can't chase each other.
+                        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { feedTopInset = $0 }
                         .refreshable { await vm.loadFeed() }
                         .onChange(of: vm.scrollTargetPub) { _, target in
                             guard let target else { return }
@@ -824,6 +842,9 @@ struct SocialFeedView: View {
                 }
             }
         }
+        // The stack's own top inset (the status bar, outside its bar), for
+        // logoPullUp.
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { stackTopInset = $0 }
         .onChange(of: vm.composeRequests) { _, _ in showingPicker = true }
         .sheet(isPresented: $showingPicker) {
             NewPostPickerView {
