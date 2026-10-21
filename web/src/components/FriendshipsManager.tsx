@@ -37,8 +37,10 @@ const statusLabel = (t: TFunction, s: FriendShipStatus, sent: boolean): string =
 /**
  * Buttons allowed when *we are the receiver* (friendship.sent === false)
  * - Pending -> Accept / Block / Delete
- * - Accepted -> Set Pending / Block
- * - Blocked -> Accept / Set Pending
+ * - Accepted -> Block
+ * - Blocked -> Accept
+ * (No way back to pending: that was for debugging. Block stops new syncs;
+ * removing is the other way out.)
  * When *we sent it* the only thing to do is withdraw it while it is still
  * pending (issue #25) - the other side decides everything else.
  * Issue #174: an accepted or blocked friend, whoever sent the request, can
@@ -99,7 +101,6 @@ function ActionButtons({
     case FriendShipStatus.Accepted:
       return (
         <div className="fr-actions">
-          {btn(t("web.social.friends.set_pending"), FriendShipStatus.Pending)}
           {btn(t("web.social.friends.block"), FriendShipStatus.Blocked)}
           {remove}
         </div>
@@ -108,7 +109,6 @@ function ActionButtons({
       return (
         <div className="fr-actions">
           {btn(t("common.accept"), FriendShipStatus.Accepted)}
-          {btn(t("web.social.friends.set_pending"), FriendShipStatus.Pending)}
           {remove}
         </div>
       );

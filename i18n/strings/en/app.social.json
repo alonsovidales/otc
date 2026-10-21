@@ -320,11 +320,6 @@
     "text": "Error sending request",
     "note": "Short message at the top of the Friends screen when a friend request couldn't be sent because the device didn't answer."
   },
-  "app.social.friends.set_pending": {
-    "text": "Pending",
-    "note": "Button on a friend's row in the Friends screen (for an accepted or blocked friend): puts the friendship back to waiting for your answer. The same word as the status app.social.friends.status_pending, kept short so the buttons fit beside the friend.",
-    "max": 16
-  },
   "app.social.friends.status_accepted": {
     "text": "Accepted",
     "note": "Status under a friend's address in the Friends screen: the friendship is accepted.",

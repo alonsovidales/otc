@@ -325,10 +325,6 @@
     "text": "A enviar…",
     "en": "Sending…"
   },
-  "web.social.friends.set_pending": {
-    "text": "Marcar como pendente",
-    "en": "Set Pending"
-  },
   "web.social.friends.status_accepted": {
     "text": "Aceite",
     "en": "Accepted"

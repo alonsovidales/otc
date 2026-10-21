@@ -67,7 +67,6 @@
     <string name="app_social_friends_request_failed">Request failed</string>
     <string name="app_social_friends_request_sent">Friend request sent ✅</string>
     <string name="app_social_friends_send_error">Error sending request</string>
-    <string name="app_social_friends_set_pending">Pending</string>
     <string name="app_social_friends_status_accepted">Accepted</string>
     <string name="app_social_friends_status_accepted_sent">Accepted (sent)</string>
     <string name="app_social_friends_status_blocked">Blocked</string>

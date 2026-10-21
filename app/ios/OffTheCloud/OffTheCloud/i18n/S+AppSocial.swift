@@ -348,11 +348,6 @@ extension S {
     /// Short message at the top of the Friends screen when a friend request couldn't be sent because the device didn't answer.
     static var appSocialFriendsSendError: String { L("app.social.friends.send_error", table: "AppSocial") }
 
-    /// Pending
-    ///
-    /// Button on a friend's row in the Friends screen (for an accepted or blocked friend): puts the friendship back to waiting for your answer. The same word as the status app.social.friends.status_pending, kept short so the buttons fit beside the friend.
-    static var appSocialFriendsSetPending: String { L("app.social.friends.set_pending", table: "AppSocial") }
-
     /// Accepted
     ///
     /// Status under a friend's address in the Friends screen: the friendship is accepted.

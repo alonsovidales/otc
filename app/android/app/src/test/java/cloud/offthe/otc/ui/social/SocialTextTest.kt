@@ -101,7 +101,6 @@ import cloud.offthe.otc.i18n.appSocialFriendsRequestDeleted
 import cloud.offthe.otc.i18n.appSocialFriendsRequestFailed
 import cloud.offthe.otc.i18n.appSocialFriendsRequestSent
 import cloud.offthe.otc.i18n.appSocialFriendsSendError
-import cloud.offthe.otc.i18n.appSocialFriendsSetPending
 import cloud.offthe.otc.i18n.appSocialFriendsStatusAccepted
 import cloud.offthe.otc.i18n.appSocialFriendsStatusAcceptedSent
 import cloud.offthe.otc.i18n.appSocialFriendsStatusBlocked
@@ -222,7 +221,6 @@ class SocialTextTest {
         assertEquals("Blocked" + " (sent)", S.appSocialFriendsStatusBlockedSent().english())
         assertEquals("Pending" + " (sent)", S.appSocialFriendsStatusPendingSent().english())
         assertEquals("Block", S.appSocialFriendsBlock().english())
-        assertEquals("Pending", S.appSocialFriendsSetPending().english())
         assertEquals("Waiting for their device to delete what you shared.", S.appSocialFriendsLeavingNote().english())
         assertEquals("Remove Now", S.appSocialFriendsRemoveNow().english())
         assertEquals("Cancel Request", S.appSocialFriendsCancelRequestButton().english())

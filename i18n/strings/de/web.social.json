@@ -325,10 +325,6 @@
     "text": "Wird gesendet…",
     "en": "Sending…"
   },
-  "web.social.friends.set_pending": {
-    "text": "Auf offen setzen",
-    "en": "Set Pending"
-  },
   "web.social.friends.status_accepted": {
     "text": "Angenommen",
     "en": "Accepted"

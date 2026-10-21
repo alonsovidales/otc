@@ -94,7 +94,6 @@ struct SocialTextTests {
         #expect(S.appSocialFriendsStatusBlockedSent == "Blocked" + " (sent)")
         #expect(S.appSocialFriendsStatusPendingSent == "Pending" + " (sent)")
         #expect(S.appSocialFriendsBlock == "Block")
-        #expect(S.appSocialFriendsSetPending == "Pending")
         #expect(S.commonAccept == "Accept")
         #expect(S.commonDecline == "Decline")
         #expect(S.commonSend == "Send")

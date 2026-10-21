@@ -270,10 +270,6 @@
     "text": "Fout bij het versturen van het verzoek",
     "en": "Error sending request"
   },
-  "app.social.friends.set_pending": {
-    "text": "Openstaand",
-    "en": "Pending"
-  },
   "app.social.friends.status_accepted": {
     "text": "Geaccepteerd",
     "en": "Accepted"

@@ -375,11 +375,6 @@
     "note": "Friends section: on the Send request button while the request is sent.",
     "max": 20
   },
-  "web.social.friends.set_pending": {
-    "text": "Set Pending",
-    "note": "Friends section: button that puts a friendship back to pending (not accepted, not blocked).",
-    "max": 20
-  },
   "web.social.friends.status_accepted": {
     "text": "Accepted",
     "note": "Friends section: the state of a friendship, on a pill beside the friend: you are friends.",

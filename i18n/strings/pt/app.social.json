@@ -270,10 +270,6 @@
     "text": "Erro ao enviar o pedido",
     "en": "Error sending request"
   },
-  "app.social.friends.set_pending": {
-    "text": "Pendente",
-    "en": "Pending"
-  },
   "app.social.friends.status_accepted": {
     "text": "Aceite",
     "en": "Accepted"

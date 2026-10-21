@@ -68,7 +68,6 @@
     <string name="app_social_friends_request_failed">Verzoek mislukt</string>
     <string name="app_social_friends_request_sent">Vriendschapsverzoek verstuurd ✅</string>
     <string name="app_social_friends_send_error">Fout bij het versturen van het verzoek</string>
-    <string name="app_social_friends_set_pending">Openstaand</string>
     <string name="app_social_friends_status_accepted">Geaccepteerd</string>
     <string name="app_social_friends_status_accepted_sent">Geaccepteerd (verstuurd)</string>
     <string name="app_social_friends_status_blocked">Geblokkeerd</string>

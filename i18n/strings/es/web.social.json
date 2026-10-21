@@ -325,10 +325,6 @@
     "text": "Enviando…",
     "en": "Sending…"
   },
-  "web.social.friends.set_pending": {
-    "text": "Dejar pendiente",
-    "en": "Set Pending"
-  },
   "web.social.friends.status_accepted": {
     "text": "Aceptada",
     "en": "Accepted"

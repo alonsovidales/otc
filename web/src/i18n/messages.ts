@@ -848,7 +848,6 @@ export type MessageKey =
   | "web.social.friends.send"
   | "web.social.friends.send_error"
   | "web.social.friends.sending"
-  | "web.social.friends.set_pending"
   | "web.social.friends.status_accepted"
   | "web.social.friends.status_accepted_sent"
   | "web.social.friends.status_blocked"
@@ -1762,7 +1761,6 @@ export interface MessageArgs {
   "web.social.friends.send": undefined;
   "web.social.friends.send_error": undefined;
   "web.social.friends.sending": undefined;
-  "web.social.friends.set_pending": undefined;
   "web.social.friends.status_accepted": undefined;
   "web.social.friends.status_accepted_sent": undefined;
   "web.social.friends.status_blocked": undefined;

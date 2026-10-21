@@ -325,10 +325,6 @@
     "text": "Invio…",
     "en": "Sending…"
   },
-  "web.social.friends.set_pending": {
-    "text": "Metti in attesa",
-    "en": "Set Pending"
-  },
   "web.social.friends.status_accepted": {
     "text": "Accettata",
     "en": "Accepted"

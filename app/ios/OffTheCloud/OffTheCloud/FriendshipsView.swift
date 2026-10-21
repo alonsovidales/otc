@@ -461,8 +461,10 @@ private struct FriendRow: View {
         if f.sent || f.leaving { return [] }
         switch f.status {
         case .pending: return [(S.commonAccept, .accepted), (S.appSocialFriendsBlock, .blocked)]
-        case .accepted: return [(S.appSocialFriendsSetPending, .pending), (S.appSocialFriendsBlock, .blocked)]
-        case .blocked: return [(S.commonAccept, .accepted), (S.appSocialFriendsSetPending, .pending)]
+        // No way back to pending: that was for debugging. Block stops new
+        // syncs; removing (the trash) is the other way out.
+        case .accepted: return [(S.appSocialFriendsBlock, .blocked)]
+        case .blocked: return [(S.commonAccept, .accepted)]
         default: return []
         }
     }

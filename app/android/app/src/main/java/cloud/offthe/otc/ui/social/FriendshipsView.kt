@@ -103,7 +103,6 @@ import cloud.offthe.otc.i18n.appSocialFriendsRequestDeleted
 import cloud.offthe.otc.i18n.appSocialFriendsRequestFailed
 import cloud.offthe.otc.i18n.appSocialFriendsRequestSent
 import cloud.offthe.otc.i18n.appSocialFriendsSendError
-import cloud.offthe.otc.i18n.appSocialFriendsSetPending
 import cloud.offthe.otc.i18n.appSocialFriendsStatusAccepted
 import cloud.offthe.otc.i18n.appSocialFriendsStatusAcceptedSent
 import cloud.offthe.otc.i18n.appSocialFriendsStatusBlocked
@@ -390,8 +389,10 @@ private fun FriendRow(f: Friendship, onChange: (FriendShipStatus) -> Unit, onDel
     val name: String? = f.originProfile.name.ifEmpty { f.originProfile.domain }.ifEmpty { null }
     val options: List<Pair<UiText, FriendShipStatus>> = if (f.sent || f.leaving) emptyList() else when (f.status) {
         FriendShipStatus.Pending -> listOf(S.commonAccept() to FriendShipStatus.Accepted, S.appSocialFriendsBlock() to FriendShipStatus.Blocked)
-        FriendShipStatus.Accepted -> listOf(S.appSocialFriendsSetPending() to FriendShipStatus.Pending, S.appSocialFriendsBlock() to FriendShipStatus.Blocked)
-        FriendShipStatus.Blocked -> listOf(S.commonAccept() to FriendShipStatus.Accepted, S.appSocialFriendsSetPending() to FriendShipStatus.Pending)
+        // No way back to pending: that was for debugging. Block stops new
+        // syncs; removing (the trash) is the other way out.
+        FriendShipStatus.Accepted -> listOf(S.appSocialFriendsBlock() to FriendShipStatus.Blocked)
+        FriendShipStatus.Blocked -> listOf(S.commonAccept() to FriendShipStatus.Accepted)
         else -> emptyList()
     }
 

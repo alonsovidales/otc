@@ -69,7 +69,6 @@
     <string name="app_social_friends_request_failed">O pedido falhou</string>
     <string name="app_social_friends_request_sent">Pedido de amizade enviado ✅</string>
     <string name="app_social_friends_send_error">Erro ao enviar o pedido</string>
-    <string name="app_social_friends_set_pending">Pendente</string>
     <string name="app_social_friends_status_accepted">Aceite</string>
     <string name="app_social_friends_status_accepted_sent">Aceite (enviado)</string>
     <string name="app_social_friends_status_blocked">Bloqueado</string>

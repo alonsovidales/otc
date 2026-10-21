@@ -270,10 +270,6 @@
     "text": "Errore durante l’invio della richiesta",
     "en": "Error sending request"
   },
-  "app.social.friends.set_pending": {
-    "text": "In attesa",
-    "en": "Pending"
-  },
   "app.social.friends.status_accepted": {
     "text": "Accettata",
     "en": "Accepted"

@@ -258,10 +258,6 @@ fun S.appSocialFriendsRequestSent(): UiText =
 fun S.appSocialFriendsSendError(): UiText =
     UiText.Res(R.string.app_social_friends_send_error)
 
-/** "Pending": Button on a friend's row in the Friends screen (for an accepted or blocked friend): puts the friendship back to waiting for your answer. The same word as the status app.social.friends.status_pending, kept short so the buttons fit beside the friend. */
-fun S.appSocialFriendsSetPending(): UiText =
-    UiText.Res(R.string.app_social_friends_set_pending)
-
 /** "Accepted": Status under a friend's address in the Friends screen: the friendship is accepted. */
 fun S.appSocialFriendsStatusAccepted(): UiText =
     UiText.Res(R.string.app_social_friends_status_accepted)

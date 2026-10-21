@@ -69,7 +69,6 @@
     <string name="app_social_friends_request_failed">Échec de la demande</string>
     <string name="app_social_friends_request_sent">Demande d’ami envoyée ✅</string>
     <string name="app_social_friends_send_error">Erreur lors de l’envoi de la demande</string>
-    <string name="app_social_friends_set_pending">En attente</string>
     <string name="app_social_friends_status_accepted">Acceptée</string>
     <string name="app_social_friends_status_accepted_sent">Acceptée (envoyée)</string>
     <string name="app_social_friends_status_blocked">Bloquée</string>
