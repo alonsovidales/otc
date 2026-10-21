@@ -1805,6 +1805,30 @@ before saving the credentials, and a screen that can't be dismissed asks for all
 and Sync from iCloud / Sync from cloud and a warning that a whole library takes long and uses data.
 Until it is answered (`syncChoicePending`, UserDefaults / the `otc_sync` prefs) `PhotoSync.runForeground`
 returns at once - background runs included - and Android asks for media permission only after it.
+**Free up space** (iOS `FreeUpSpace.swift` <-> Android `sync/FreeUpSpace.kt`; owner's request
+2026-10-21): off unless turned on (Settings > Free Up Space, and the same section on the sign-in
+sheet), it deletes from the phone the photos and videos taken more than N days ago (1-365, 7 by
+default) that the device holds an exact copy of. It runs at the end of a sync that ran
+(`runForeground` -> `afterSync`, after the sync's own flag is down) while the app is in front, at
+most once a day (`freeUpLastRun`; a run that found nothing or whose system question was answered
+counts, one cut short doesn't; turning it on or changing the days makes it due). An asset goes by
+the SHA-256 of what the sync sends, and only once the device confirms that hash on its disk right
+then: `HasHashes` (140, answers `HashesFound` 70, 500 a request, up to 1000 looked at): a `files`
+row with the hash and its blob at exactly `segcrypt.EncryptedSize(row size)` - a stat, never a
+decrypt; older devices answer `unknown_payload` and the phones fall back to `HasFile` per hash. iOS
+reads each original right before deleting it, only when it is on the phone (never from iCloud:
+those stay), as a recorded hash may come from the device's cloud-id map rather than the bytes -
+AssetSyncCache's hash only spares reading what the device doesn't hold - and never deletes edited
+assets (the sync sends the original),
+bursts, Live Photos unless `freeUpLivePhotos` (the sync sends only the still), or videos while
+Include videos is off; `PHAssetChangeRequest.deleteAssets` asks every time and keeps them 30 days
+in Recently Deleted (with iCloud Photos they leave iCloud too). Android re-reads a file whose
+`GENERATION_MODIFIED` or `SIZE` changed since it was hashed (its own `free_up_hashes.json`;
+AssetSyncCache's hashes don't say which version), needs Android 11 (`createTrashRequest`, launched
+by RootView: it needs an Activity), and its trash keeps them 30 days. Both fetch the assets again
+right before the deletion and drop any that changed, and drop the run after a Log Out or a change
+of device. Settings live in UserDefaults (iOS, through SecretsStore) and the `otc_sync` prefs
+(Android: not backed up), wiped at Log Out.
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed

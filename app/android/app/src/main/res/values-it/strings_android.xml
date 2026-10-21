@@ -80,6 +80,7 @@
     <string name="android_settings_bridge_leave_delete">Lascia ed elimina</string>
     <string name="android_settings_crop_hint">Trascina la foto per centrare il tuo viso</string>
     <string name="android_settings_crop_zoom">Zoom</string>
+    <string name="android_settings_free_up_footer">Le foto e i video più vecchi passano da questo telefono al suo cestino, ciascuno solo dopo che il dispositivo conferma di averne una copia esatta. Android chiede prima, e il cestino li tiene per 30 giorni. Succede dopo una sincronizzazione con l’app aperta, al massimo una volta al giorno.</string>
     <string name="android_settings_links_delete_text">Le copie condivise vengono eliminate e il link smette di funzionare.</string>
     <string name="android_settings_links_empty_text">I link creati con “Condividi” o “Condividi come galleria” in Immagini e File compaiono qui finché non scadono.</string>
     <string name="android_settings_logs_empty">Ancora nessuna voce nel log.</string>

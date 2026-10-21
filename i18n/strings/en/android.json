@@ -313,6 +313,12 @@
     "note": "Label of the zoom slider on the screen that crops the new profile photo.",
     "max": 15
   },
+  "android.settings.free_up_footer": {
+    "text": "Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.",
+    "note": "Under the Free Up Space section on Android (Settings, and the Sync Your Photos screen): what its switch does. \"older than that\": older than the time chosen just above (Older than 7 days). The trash is the phone's own (the system's), where deleted photos wait before they are gone.",
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-21 #00e11b25"
+  },
   "android.settings.links_delete_text": {
     "text": "The shared copies are deleted and the link stops working.",
     "note": "Message of the confirmation Delete this link? (app.settings.links.delete_title).",

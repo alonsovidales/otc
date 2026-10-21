@@ -283,6 +283,11 @@
     "text": "Zoomen",
     "en": "Zoom"
   },
+  "android.settings.free_up_footer": {
+    "text": "Oudere foto’s en video’s gaan van deze telefoon naar de prullenmand, elk pas nadat het apparaat bevestigt dat het een exacte kopie heeft. Android vraagt het eerst, en de prullenmand bewaart ze 30 dagen. Dit gebeurt na een synchronisatie terwijl de app open is, hooguit één keer per dag.",
+    "en": "Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.",
+    "reviewed": "claude-backtranslation 2026-10-21 #9b030fd1"
+  },
   "android.settings.links_delete_text": {
     "text": "De gedeelde kopieën worden verwijderd en de link werkt niet meer.",
     "en": "The shared copies are deleted and the link stops working.",

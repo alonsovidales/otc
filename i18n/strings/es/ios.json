@@ -285,6 +285,21 @@
     "text": "Recortar foto",
     "en": "Crop photo"
   },
+  "ios.settings.free_up_footer": {
+    "text": "Las fotos y vídeos de hace más tiempo se eliminan de este teléfono, cada uno solo cuando el dispositivo confirma que tiene una copia exacta. Las fotos editadas y las ráfagas se quedan: el dispositivo solo tiene su original. iOS pregunta antes de eliminar, y se guardan en “Eliminado” durante 30 días. Con Fotos en iCloud activado, también desaparecen de iCloud y de tus otros dispositivos. Se hace tras una sincronización con la app abierta, como mucho una vez al día.",
+    "en": "Photos and videos older than that are deleted from this phone, each only once the device confirms it holds an exact copy. Edited photos and bursts stay: the device has only their original. iOS asks before deleting, and they stay in Recently Deleted for 30 days. With iCloud Photos on, they also go from iCloud and your other devices. This happens after a sync while the app is open, at most once a day.",
+    "reviewed": "claude-backtranslation 2026-10-21 #6b47e376"
+  },
+  "ios.settings.free_up_live_photos": {
+    "text": "Incluir Live Photos",
+    "en": "Include Live Photos",
+    "reviewed": "claude-backtranslation 2026-10-21 #96e4d10b"
+  },
+  "ios.settings.free_up_live_photos_detail": {
+    "text": "El dispositivo solo guarda la imagen fija de una Live Photo, así que su movimiento se pierde al eliminarla aquí.",
+    "en": "The device keeps only the still picture of a Live Photo, so its motion is lost once it's deleted here.",
+    "reviewed": "claude-backtranslation 2026-10-21 #c94148de"
+  },
   "ios.settings.links_delete_message": {
     "text": "¿Eliminar este enlace? Las copias compartidas se eliminarán y el enlace dejará de funcionar.",
     "en": "Delete this link? The shared copies are deleted and the link stops working.",

@@ -632,6 +632,28 @@ export interface CloudIdsFound {
   files: CloudIdFile[];
 }
 
+/**
+ * Free up space (the phones): which of these contents, by SHA-256, does the
+ * device hold whole - asked right before a phone deletes its own copies of
+ * photos and videos. A hash counts when a `files` row has it and its blob
+ * is on the disk at exactly the size that row's content seals to
+ * (segcrypt.EncryptedSize), looked at on the disk for every request, never
+ * remembered. At most 1000 hashes are looked at (the phones ask 500 at a
+ * time); anything that isn't 64 lowercase hex digits is left out. Older
+ * devices answer "unknown_payload", and the phones ask HasFile for each.
+ */
+export interface HasHashes {
+  hashes: string[];
+}
+
+/**
+ * The answer to HasHashes: the hashes asked for that the device holds, each
+ * once, in no particular order.
+ */
+export interface HashesFound {
+  hashes: string[];
+}
+
 export interface FileExists {
   exists: boolean;
 }
@@ -3051,6 +3073,12 @@ export interface ReqEnvelope {
      */
     { $case: "reqGetFolderUsage"; reqGetFolderUsage: GetFolderUsage }
     | //
+    /**
+     * Free up space: answers HashesFound. Owner and user sessions, as
+     * HasFile; devices before it with error_code "unknown_payload".
+     */
+    { $case: "reqHasHashes"; reqHasHashes: HasHashes }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -3192,6 +3220,9 @@ export interface RespEnvelope {
     | //
     /** Issue #195: Files' Storage view. */
     { $case: "respFolderUsage"; respFolderUsage: FolderUsage }
+    | //
+    /** Free up space: the answer to HasHashes. */
+    { $case: "respHashesFound"; respHashesFound: HashesFound }
     | undefined;
 }
 
@@ -4865,6 +4896,126 @@ export const CloudIdsFound: MessageFns<CloudIdsFound> = {
   fromPartial<I extends Exact<DeepPartial<CloudIdsFound>, I>>(object: I): CloudIdsFound {
     const message = createBaseCloudIdsFound();
     message.files = object.files?.map((e) => CloudIdFile.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseHasHashes(): HasHashes {
+  return { hashes: [] };
+}
+
+export const HasHashes: MessageFns<HasHashes> = {
+  encode(message: HasHashes, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.hashes) {
+      writer.uint32(10).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HasHashes {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseHasHashes();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.hashes.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): HasHashes {
+    return {
+      hashes: globalThis.Array.isArray(object?.hashes) ? object.hashes.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: HasHashes): unknown {
+    const obj: any = {};
+    if (message.hashes?.length) {
+      obj.hashes = message.hashes;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<HasHashes>, I>>(base?: I): HasHashes {
+    return HasHashes.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<HasHashes>, I>>(object: I): HasHashes {
+    const message = createBaseHasHashes();
+    message.hashes = object.hashes?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseHashesFound(): HashesFound {
+  return { hashes: [] };
+}
+
+export const HashesFound: MessageFns<HashesFound> = {
+  encode(message: HashesFound, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.hashes) {
+      writer.uint32(10).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HashesFound {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseHashesFound();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.hashes.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): HashesFound {
+    return {
+      hashes: globalThis.Array.isArray(object?.hashes) ? object.hashes.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: HashesFound): unknown {
+    const obj: any = {};
+    if (message.hashes?.length) {
+      obj.hashes = message.hashes;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<HashesFound>, I>>(base?: I): HashesFound {
+    return HashesFound.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<HashesFound>, I>>(object: I): HashesFound {
+    const message = createBaseHashesFound();
+    message.hashes = object.hashes?.map((e) => e) || [];
     return message;
   },
 };
@@ -21294,6 +21445,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqGetFolderUsage":
         GetFolderUsage.encode(message.payload.reqGetFolderUsage, writer.uint32(1114).fork()).join();
         break;
+      case "reqHasHashes":
+        HasHashes.encode(message.payload.reqHasHashes, writer.uint32(1122).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -22544,6 +22698,14 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 140: {
+          if (tag !== 1122) {
+            break;
+          }
+
+          message.payload = { $case: "reqHasHashes", reqHasHashes: HasHashes.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -22978,6 +23140,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqSetLanguage", reqSetLanguage: SetLanguage.fromJSON(object.reqSetLanguage) }
         : isSet(object.reqGetFolderUsage)
         ? { $case: "reqGetFolderUsage", reqGetFolderUsage: GetFolderUsage.fromJSON(object.reqGetFolderUsage) }
+        : isSet(object.reqHasHashes)
+        ? { $case: "reqHasHashes", reqHasHashes: HasHashes.fromJSON(object.reqHasHashes) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -23261,6 +23425,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqSetLanguage = SetLanguage.toJSON(message.payload.reqSetLanguage);
     } else if (message.payload?.$case === "reqGetFolderUsage") {
       obj.reqGetFolderUsage = GetFolderUsage.toJSON(message.payload.reqGetFolderUsage);
+    } else if (message.payload?.$case === "reqHasHashes") {
+      obj.reqHasHashes = HasHashes.toJSON(message.payload.reqHasHashes);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -24361,6 +24527,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqHasHashes": {
+        if (object.payload?.reqHasHashes !== undefined && object.payload?.reqHasHashes !== null) {
+          message.payload = { $case: "reqHasHashes", reqHasHashes: HasHashes.fromPartial(object.payload.reqHasHashes) };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -24619,6 +24791,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respFolderUsage":
         FolderUsage.encode(message.payload.respFolderUsage, writer.uint32(554).fork()).join();
+        break;
+      case "respHashesFound":
+        HashesFound.encode(message.payload.respHashesFound, writer.uint32(562).fork()).join();
         break;
     }
     return writer;
@@ -25242,6 +25417,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respFolderUsage", respFolderUsage: FolderUsage.decode(reader, reader.uint32()) };
           continue;
         }
+        case 70: {
+          if (tag !== 562) {
+            break;
+          }
+
+          message.payload = { $case: "respHashesFound", respHashesFound: HashesFound.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -25419,6 +25602,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         }
         : isSet(object.respFolderUsage)
         ? { $case: "respFolderUsage", respFolderUsage: FolderUsage.fromJSON(object.respFolderUsage) }
+        : isSet(object.respHashesFound)
+        ? { $case: "respHashesFound", respHashesFound: HashesFound.fromJSON(object.respHashesFound) }
         : undefined,
     };
   },
@@ -25559,6 +25744,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respRestartingDevice = RestartingDevice.toJSON(message.payload.respRestartingDevice);
     } else if (message.payload?.$case === "respFolderUsage") {
       obj.respFolderUsage = FolderUsage.toJSON(message.payload.respFolderUsage);
+    } else if (message.payload?.$case === "respHashesFound") {
+      obj.respHashesFound = HashesFound.toJSON(message.payload.respHashesFound);
     }
     return obj;
   },
@@ -26085,6 +26272,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respFolderUsage",
             respFolderUsage: FolderUsage.fromPartial(object.payload.respFolderUsage),
+          };
+        }
+        break;
+      }
+      case "respHashesFound": {
+        if (object.payload?.respHashesFound !== undefined && object.payload?.respHashesFound !== null) {
+          message.payload = {
+            $case: "respHashesFound",
+            respHashesFound: HashesFound.fromPartial(object.payload.respHashesFound),
           };
         }
         break;

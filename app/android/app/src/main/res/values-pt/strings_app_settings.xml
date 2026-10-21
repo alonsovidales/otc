@@ -32,6 +32,14 @@
     <string name="app_settings_faces_footer">Deteta rostos nas fotos que forem carregadas, para poderes pesquisar por pessoa. Só fica ativo se o ativares (aqui ou durante a configuração), e os rostos nunca saem do dispositivo. Analisa todas as pessoas que aparecem nas tuas fotos, não só a ti. Só afeta as fotos carregadas enquanto estiver ativo: usa «Reprocessar multimédia», mais abaixo, para analisar as que já tens.</string>
     <string name="app_settings_faces_title">Pessoas</string>
     <string name="app_settings_faces_toggle">Reconhecimento facial</string>
+    <string name="app_settings_free_up_after">Com mais de</string>
+    <plurals name="app_settings_free_up_days">
+        <item quantity="one">%1$s dia</item>
+        <item quantity="many">%1$s dias</item>
+        <item quantity="other">%1$s dias</item>
+    </plurals>
+    <string name="app_settings_free_up_title">Libertar espaço</string>
+    <string name="app_settings_free_up_toggle">Eliminar deste telemóvel</string>
     <string name="app_settings_language">Idioma</string>
     <string name="app_settings_language_automatic">Automático</string>
     <string name="app_settings_language_automatic_named">Automático (%1$s)</string>

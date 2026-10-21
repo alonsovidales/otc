@@ -17,7 +17,7 @@ final class SecretsStore: ObservableObject {
     @Published var deviceId: String
 
     // Settings
-    // These three auto-persist on every change (unlike endpoint/password/
+    // These auto-persist on every change (unlike endpoint/password/
     // deviceId above, which stay explicit-Save-button-only to avoid a
     // Keychain write per keystroke) — a toggle here used to only survive
     // an app relaunch if the user happened to also tap "Save Connection"/
@@ -31,6 +31,18 @@ final class SecretsStore: ObservableObject {
     }
     @Published var downloadFromiCloud: Bool {
         didSet { persist() }
+    }
+    /// Free up space (FreeUpSpace), off unless turned on here or on the
+    /// sheet after a sign-in. Turning it on, or changing what it deletes,
+    /// makes it due at once rather than a day after its last run.
+    @Published var freeUpSpace: Bool {
+        didSet { persist(); if freeUpSpace && !oldValue { FreeUpSpace.makeDue() } }
+    }
+    @Published var freeUpDays: Int {
+        didSet { persist(); if freeUpDays != oldValue { FreeUpSpace.makeDue() } }
+    }
+    @Published var freeUpLivePhotos: Bool {
+        didSet { persist(); if freeUpLivePhotos && !oldValue { FreeUpSpace.makeDue() } }
     }
     
     var isConfigured: Bool { !endpoint.isEmpty && !password.isEmpty }
@@ -85,13 +97,17 @@ final class SecretsStore: ObservableObject {
         return name.isEmpty || name.contains(".") ? nil : name
     }
 
-    private init(endpoint: String, password: String, deviceId: String, wifiOnly: Bool, includeVideos: Bool, downloadFromiCloud: Bool) {
+    private init(endpoint: String, password: String, deviceId: String, wifiOnly: Bool, includeVideos: Bool, downloadFromiCloud: Bool,
+                 freeUpSpace: Bool, freeUpDays: Int, freeUpLivePhotos: Bool) {
         self.endpoint = endpoint
         self.password = password
         self.deviceId = deviceId
         self.wifiOnly = wifiOnly
         self.includeVideos = includeVideos
         self.downloadFromiCloud = downloadFromiCloud
+        self.freeUpSpace = freeUpSpace
+        self.freeUpDays = freeUpDays
+        self.freeUpLivePhotos = freeUpLivePhotos
     }
 
     /// Several threads call loadOrCreate at once (RootView, the
@@ -128,7 +144,11 @@ final class SecretsStore: ObservableObject {
         let includeVideos = UserDefaults.standard.object(forKey: "includeVideos") as? Bool ?? true
         let downloadFromiCloud = UserDefaults.standard.object(forKey: "downloadFromiCloud") as? Bool ?? true
 
-        return SecretsStore(endpoint: endpoint, password: password, deviceId: deviceId, wifiOnly: wifiOnly, includeVideos: includeVideos, downloadFromiCloud: downloadFromiCloud)
+        let d = UserDefaults.standard
+        return SecretsStore(endpoint: endpoint, password: password, deviceId: deviceId, wifiOnly: wifiOnly, includeVideos: includeVideos, downloadFromiCloud: downloadFromiCloud,
+                            freeUpSpace: d.bool(forKey: FreeUpSpace.enabledKey),
+                            freeUpDays: FreeUpSpace.days(d.object(forKey: FreeUpSpace.daysKey)),
+                            freeUpLivePhotos: d.bool(forKey: FreeUpSpace.livePhotosKey))
     }
 
     /// Log Out (SettingsView): forget the connection and wipe everything
@@ -164,6 +184,9 @@ final class SecretsStore: ObservableObject {
         wifiOnly = false
         includeVideos = true
         downloadFromiCloud = true
+        freeUpSpace = false
+        freeUpDays = FreeUpSpace.defaultDays
+        freeUpLivePhotos = false
         deviceId = UUID().uuidString
         Keychain.saveString(key: "device_id", value: deviceId)
     }
@@ -223,6 +246,9 @@ final class SecretsStore: ObservableObject {
         UserDefaults.standard.set(wifiOnly, forKey: "wifiOnly")
         UserDefaults.standard.set(includeVideos, forKey: "includeVideos")
         UserDefaults.standard.set(downloadFromiCloud, forKey: "downloadFromiCloud")
+        UserDefaults.standard.set(freeUpSpace, forKey: FreeUpSpace.enabledKey)
+        UserDefaults.standard.set(freeUpDays, forKey: FreeUpSpace.daysKey)
+        UserDefaults.standard.set(freeUpLivePhotos, forKey: FreeUpSpace.livePhotosKey)
     }
 }
 

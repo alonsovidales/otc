@@ -126,6 +126,22 @@ fun S.appSettingsFacesTitle(): UiText =
 fun S.appSettingsFacesToggle(): UiText =
     UiText.Res(R.string.app_settings_faces_toggle)
 
+/** "Older than": Label of the choice under the Delete from this phone switch, followed by a time from app.settings.free_up.days (Older than 7 days): how long ago a photo or video was taken before it may be deleted from this phone. Word it so it reads before that time. */
+fun S.appSettingsFreeUpAfter(): UiText =
+    UiText.Res(R.string.app_settings_free_up_after)
+
+/** "{count} days" (one: "{count} day"): The times offered after app.settings.free_up.after (Older than 7 days), and the value shown beside it. {count} is 1, 3, 7, 14, 30, 90 or 365. */
+fun S.appSettingsFreeUpDays(count: Int): UiText =
+    UiText.Plural(R.plurals.app_settings_free_up_days, count, listOf(count))
+
+/** "Free Up Space": Heading of a section of Settings (and of the Sync Your Photos sheet shown after signing in): deleting from this phone the photos and videos the device already holds, to free the phone's storage. */
+fun S.appSettingsFreeUpTitle(): UiText =
+    UiText.Res(R.string.app_settings_free_up_title)
+
+/** "Delete from this phone": Switch in the Free Up Space section: when on, photos and videos older than the time chosen below it are deleted from this phone once the device confirms it holds an exact copy of each. Off unless the owner turns it on. */
+fun S.appSettingsFreeUpToggle(): UiText =
+    UiText.Res(R.string.app_settings_free_up_toggle)
+
 /** "Language": Row in Settings that opens the Language screen, and that screen's title. */
 fun S.appSettingsLanguage(): UiText =
     UiText.Res(R.string.app_settings_language)

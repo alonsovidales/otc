@@ -80,6 +80,7 @@
     <string name="android_settings_bridge_leave_delete">Salir y eliminar</string>
     <string name="android_settings_crop_hint">Arrastra la foto para centrar tu cara</string>
     <string name="android_settings_crop_zoom">Zoom</string>
+    <string name="android_settings_free_up_footer">Las fotos y vídeos de hace más tiempo pasan de este teléfono a su papelera, cada uno solo cuando el dispositivo confirma que tiene una copia exacta. Android pregunta antes, y la papelera los guarda durante 30 días. Se hace tras una sincronización con la app abierta, como mucho una vez al día.</string>
     <string name="android_settings_links_delete_text">Las copias compartidas se eliminarán y el enlace dejará de funcionar.</string>
     <string name="android_settings_links_empty_text">Los enlaces creados con Compartir o “Compartir como galería” en Imágenes y Archivos aparecen aquí hasta que caducan.</string>
     <string name="android_settings_logs_empty">Aún no hay nada registrado.</string>

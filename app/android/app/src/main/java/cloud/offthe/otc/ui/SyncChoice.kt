@@ -51,6 +51,10 @@ import cloud.offthe.otc.i18n.appSettingsSyncChoiceTitle
 import cloud.offthe.otc.i18n.appSettingsSyncChoiceWarning
 import cloud.offthe.otc.i18n.appSettingsSyncVideos
 import cloud.offthe.otc.i18n.appSettingsSyncWifiOnly
+import cloud.offthe.otc.i18n.appSettingsFreeUpTitle
+import cloud.offthe.otc.i18n.androidSettingsFreeUpFooter
+import cloud.offthe.otc.sync.FreeUpSpace
+import cloud.offthe.otc.ui.settings.FreeUpSpaceControls
 import cloud.offthe.otc.sync.PhotoSync
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -134,6 +138,22 @@ fun SyncChoiceView(secrets: SecretsStore, onDone: () -> Unit) {
                         S.appSettingsSyncChoiceFooter().resolve(),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    // Asked here too, off unless turned on: a new device's
+                    // first sync is when a phone full of photos gets its copies.
+                    if (FreeUpSpace.supported) {
+                        Spacer(Modifier.height(20.dp))
+                        Text(
+                            S.appSettingsFreeUpTitle().resolve(),
+                            style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        FreeUpSpaceControls()
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            S.androidSettingsFreeUpFooter().resolve(),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     Spacer(Modifier.height(24.dp))
                     Button(
                         onClick = {

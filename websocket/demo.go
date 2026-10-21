@@ -125,6 +125,7 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqGetFileInfo{}):        demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqHasFile{}):            demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqHasCloudIds{}):        demoAllow,
+	demoReq(&pb.ReqEnvelope_ReqHasHashes{}):          demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqListFileVersions{}):   demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqListOutOfImages{}):    demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqGetFolderUsage{}):     demoAllow,

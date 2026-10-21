@@ -2347,6 +2347,16 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.Payload = &pb.RespEnvelope_RespCloudIdsFound{RespCloudIdsFound: out}
 		}
 
+	case *pb.ReqEnvelope_ReqHasHashes:
+		// Free up space: a phone deletes its copies of what this answers.
+		found, err := ch.mg.filesManager.HasHashes(p.ReqHasHashes.Hashes)
+		if err != nil {
+			resp.Error = true
+			resp.ErrorMessage = i18n.DevFilesHashCheckFailed(devtext.Text(lang, err)).Render(lang)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespHashesFound{RespHashesFound: &pb.HashesFound{Hashes: found}}
+		}
+
 	case *pb.ReqEnvelope_ReqLinkFile:
 		log.Debug("Linking file with path:", p.ReqLinkFile.Path, "to hash:", p.ReqLinkFile.Hash)
 		pbFile, err := ch.mg.filesManager.LinkFile(ses, p.ReqLinkFile.Path, p.ReqLinkFile.Hash, p.ReqLinkFile.ForceOverride, p.ReqLinkFile.Created, p.ReqLinkFile.Modified, p.ReqLinkFile.CloudId)

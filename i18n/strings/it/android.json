@@ -283,6 +283,11 @@
     "text": "Zoom",
     "en": "Zoom"
   },
+  "android.settings.free_up_footer": {
+    "text": "Le foto e i video più vecchi passano da questo telefono al suo cestino, ciascuno solo dopo che il dispositivo conferma di averne una copia esatta. Android chiede prima, e il cestino li tiene per 30 giorni. Succede dopo una sincronizzazione con l’app aperta, al massimo una volta al giorno.",
+    "en": "Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.",
+    "reviewed": "claude-backtranslation 2026-10-21 #c6b9d085"
+  },
   "android.settings.links_delete_text": {
     "text": "Le copie condivise vengono eliminate e il link smette di funzionare.",
     "en": "The shared copies are deleted and the link stops working.",

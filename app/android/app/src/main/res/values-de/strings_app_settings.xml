@@ -32,6 +32,13 @@
     <string name="app_settings_faces_footer">Erkennt Gesichter in neu hochgeladenen Fotos, damit du nach Personen suchen kannst. Die Gesichtserkennung ist ausgeschaltet, solange du sie nicht einschaltest (hier oder bei der Einrichtung), und Gesichter verlassen nie das Gerät. Dabei werden alle Personen auf deinen Fotos erfasst, nicht nur du. Sie wirkt sich nur auf Fotos aus, die hochgeladen werden, während sie eingeschaltet ist – mit „Medien neu verarbeiten“ weiter unten durchsuchst du die vorhandenen.</string>
     <string name="app_settings_faces_title">Personen</string>
     <string name="app_settings_faces_toggle">Gesichtserkennung</string>
+    <string name="app_settings_free_up_after">Älter als</string>
+    <plurals name="app_settings_free_up_days">
+        <item quantity="one">%1$s Tag</item>
+        <item quantity="other">%1$s Tage</item>
+    </plurals>
+    <string name="app_settings_free_up_title">Speicher freigeben</string>
+    <string name="app_settings_free_up_toggle">Von diesem Handy löschen</string>
     <string name="app_settings_language">Sprache</string>
     <string name="app_settings_language_automatic">Automatisch</string>
     <string name="app_settings_language_automatic_named">Automatisch (%1$s)</string>

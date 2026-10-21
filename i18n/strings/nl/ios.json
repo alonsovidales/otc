@@ -285,6 +285,21 @@
     "text": "Foto bijsnijden",
     "en": "Crop photo"
   },
+  "ios.settings.free_up_footer": {
+    "text": "Oudere foto’s en video’s worden van deze telefoon verwijderd, elk pas nadat het apparaat bevestigt dat het een exacte kopie heeft. Bewerkte foto’s en reeksen blijven: het apparaat heeft alleen het origineel. iOS vraagt het eerst, en ze blijven 30 dagen in “Recent verwijderd”. Met iCloud-foto’s aan verdwijnen ze ook uit iCloud en van je andere apparaten. Dit gebeurt na een synchronisatie terwijl de app open is, hooguit één keer per dag.",
+    "en": "Photos and videos older than that are deleted from this phone, each only once the device confirms it holds an exact copy. Edited photos and bursts stay: the device has only their original. iOS asks before deleting, and they stay in Recently Deleted for 30 days. With iCloud Photos on, they also go from iCloud and your other devices. This happens after a sync while the app is open, at most once a day.",
+    "reviewed": "claude-backtranslation 2026-10-21 #71c5b8ef"
+  },
+  "ios.settings.free_up_live_photos": {
+    "text": "Live Photos meenemen",
+    "en": "Include Live Photos",
+    "reviewed": "claude-backtranslation 2026-10-21 #6c0407a7"
+  },
+  "ios.settings.free_up_live_photos_detail": {
+    "text": "Het apparaat bewaart van een Live Photo alleen de foto zelf, dus de beweging gaat verloren als je hem hier verwijdert.",
+    "en": "The device keeps only the still picture of a Live Photo, so its motion is lost once it's deleted here.",
+    "reviewed": "claude-backtranslation 2026-10-21 #fcdba543"
+  },
   "ios.settings.links_delete_message": {
     "text": "Deze link verwijderen? De gedeelde kopieën worden verwijderd en de link werkt niet meer.",
     "en": "Delete this link? The shared copies are deleted and the link stops working.",

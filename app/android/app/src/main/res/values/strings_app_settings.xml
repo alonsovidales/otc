@@ -31,6 +31,13 @@
     <string name="app_settings_faces_footer">Detect faces in newly uploaded photos so you can search by person. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media below to scan the ones you already have.</string>
     <string name="app_settings_faces_title">People</string>
     <string name="app_settings_faces_toggle">Face Recognition</string>
+    <string name="app_settings_free_up_after">Older than</string>
+    <plurals name="app_settings_free_up_days">
+        <item quantity="one">%1$s day</item>
+        <item quantity="other">%1$s days</item>
+    </plurals>
+    <string name="app_settings_free_up_title">Free Up Space</string>
+    <string name="app_settings_free_up_toggle">Delete from this phone</string>
     <string name="app_settings_language">Language</string>
     <string name="app_settings_language_automatic">Automatic</string>
     <string name="app_settings_language_automatic_named">Automatic (%1$s)</string>

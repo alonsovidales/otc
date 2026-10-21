@@ -283,6 +283,11 @@
     "text": "Zoom",
     "en": "Zoom"
   },
+  "android.settings.free_up_footer": {
+    "text": "Les photos et vidéos plus anciennes passent de ce téléphone à sa corbeille, chacune seulement une fois que l’appareil confirme en avoir une copie exacte. Android demande d’abord, et la corbeille les garde 30 jours. Cela se fait après une synchronisation, l’app ouverte, une fois par jour au plus.",
+    "en": "Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.",
+    "reviewed": "claude-backtranslation 2026-10-21 #a085c574"
+  },
   "android.settings.links_delete_text": {
     "text": "Les copies partagées sont supprimées et le lien cesse de fonctionner.",
     "en": "The shared copies are deleted and the link stops working.",

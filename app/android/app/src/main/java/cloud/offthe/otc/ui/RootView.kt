@@ -3,8 +3,10 @@ package cloud.offthe.otc.ui
 
 import cloud.offthe.otc.ui.common.ThumbStore
 import android.Manifest
+import android.app.Activity
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -22,6 +24,7 @@ import cloud.offthe.otc.data.NotificationsModel
 import cloud.offthe.otc.data.SecretsStore
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.net.Wake
+import cloud.offthe.otc.sync.FreeUpSpace
 import cloud.offthe.otc.sync.PhotoSync
 import cloud.offthe.otc.sync.SyncScheduler
 import cloud.offthe.otc.ui.compose.mediaPermissions
@@ -58,8 +61,26 @@ fun RootView() {
         askPermissions.launch(perms.toTypedArray())
     }
 
+    // Free up space: Android's question before photos go to the trash,
+    // which needs an Activity (FreeUpSpace makes the request, after a sync).
+    // Whether the request on screen left others for the next one: saved,
+    // as the answer can come to an Activity made again.
+    var trashMore by rememberSaveable { mutableStateOf(false) }
+    val trash = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+        FreeUpSpace.requestAnswered(it.resultCode == Activity.RESULT_OK, trashMore)
+    }
+    val trashRequest by FreeUpSpace.request.collectAsState()
+    LaunchedEffect(trashRequest) {
+        val r = FreeUpSpace.takeRequest() ?: return@LaunchedEffect
+        trashMore = r.more
+        try { trash.launch(IntentSenderRequest.Builder(r.sender).build()) } catch (e: Exception) { FreeUpSpace.requestAnswered(false) }
+    }
+
     DisposableEffect(lifecycleOwner, configured) {
         val observer = LifecycleEventObserver { _, event ->
+            // Free up space asks only while the app is in front.
+            if (event == Lifecycle.Event.ON_RESUME) FreeUpSpace.inFront = true
+            if (event == Lifecycle.Event.ON_STOP) FreeUpSpace.inFront = false
             if (!configured) return@LifecycleEventObserver
             when (event) {
                 // Issue #190: the route first - back home, the sync goes over

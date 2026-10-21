@@ -168,6 +168,32 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #cbfdb45f"
   },
+  "app.settings.free_up.after": {
+    "text": "Older than",
+    "note": "Label of the choice under the Delete from this phone switch, followed by a time from app.settings.free_up.days (Older than 7 days): how long ago a photo or video was taken before it may be deleted from this phone. Word it so it reads before that time.",
+    "max": 30
+  },
+  "app.settings.free_up.days": {
+    "text": {
+      "one": "{count} day",
+      "other": "{count} days"
+    },
+    "args": [["count", "count"]],
+    "note": "The times offered after app.settings.free_up.after (Older than 7 days), and the value shown beside it. {count} is 1, 3, 7, 14, 30, 90 or 365.",
+    "max": 20
+  },
+  "app.settings.free_up.title": {
+    "text": "Free Up Space",
+    "note": "Heading of a section of Settings (and of the Sync Your Photos sheet shown after signing in): deleting from this phone the photos and videos the device already holds, to free the phone's storage.",
+    "max": 30
+  },
+  "app.settings.free_up.toggle": {
+    "text": "Delete from this phone",
+    "note": "Switch in the Free Up Space section: when on, photos and videos older than the time chosen below it are deleted from this phone once the device confirms it holds an exact copy of each. Off unless the owner turns it on.",
+    "max": 40,
+    "review": "required",
+    "reviewed": "claude-backtranslation 2026-10-21 #70ff74fd"
+  },
   "app.settings.language": {
     "text": "Language",
     "note": "Row in Settings that opens the Language screen, and that screen's title.",

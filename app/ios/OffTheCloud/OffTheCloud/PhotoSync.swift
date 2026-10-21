@@ -406,15 +406,25 @@ final class PhotoSync: NSObject {
     /// handler below does: that is how a BGProcessingTask's expiration
     /// (SyncScheduler cancels the Task calling this) reaches the loop.
     func runForeground() async throws {
+        guard try await syncUnlessRunning() else { return }
+        // Free up space, once this run has synced what it could - after the
+        // sync's own flag is down, so photos taken while iOS asks about the
+        // deletion still sync. Only in front, and not more than once a day.
+        await FreeUpSpace.shared.afterSync()
+    }
+
+    /// The sync itself: false when it didn't run (the choice not made yet,
+    /// or another run already going, which then ends with its own).
+    private func syncUnlessRunning() async throws -> Bool {
         // Signed in but not yet told what to sync (SyncChoice): nothing,
         // the background task's runs included, until the sheet is answered.
         guard !SyncChoice.pending else {
             print("Sync waits for the sync choice")
-            return
+            return false
         }
         guard let gen = beginSyncIfNotAlreadyRunning() else {
             print("Sync already running, skipping overlapping request")
-            return
+            return false
         }
         defer { endSync() }
         // Issue #190: no route switch while a sync runs.
@@ -428,6 +438,7 @@ final class PhotoSync: NSObject {
         } onCancel: {
             sync.cancel()
         }
+        return true
     }
 
     private func syncOnce(gen: Int) async throws {

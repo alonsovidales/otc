@@ -254,6 +254,10 @@ fun S.androidSettingsCropHint(): UiText =
 fun S.androidSettingsCropZoom(): UiText =
     UiText.Res(R.string.android_settings_crop_zoom)
 
+/** "Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.": Under the Free Up Space section on Android (Settings, and the Sync Your Photos screen): what its switch does. "older than that": older than the time chosen just above (Older than 7 days). The trash is the phone's own (the system's), where deleted photos wait before they are gone. */
+fun S.androidSettingsFreeUpFooter(): UiText =
+    UiText.Res(R.string.android_settings_free_up_footer)
+
 /** "The shared copies are deleted and the link stops working.": Message of the confirmation Delete this link? (app.settings.links.delete_title). */
 fun S.androidSettingsLinksDeleteText(): UiText =
     UiText.Res(R.string.android_settings_links_delete_text)

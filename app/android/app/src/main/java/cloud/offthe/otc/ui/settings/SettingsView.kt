@@ -190,6 +190,9 @@ import cloud.offthe.otc.i18n.appSettingsSyncNow
 import cloud.offthe.otc.i18n.appSettingsSyncTitle
 import cloud.offthe.otc.i18n.appSettingsSyncVideos
 import cloud.offthe.otc.i18n.appSettingsSyncWifiOnly
+import cloud.offthe.otc.i18n.appSettingsFreeUpTitle
+import cloud.offthe.otc.i18n.androidSettingsFreeUpFooter
+import cloud.offthe.otc.sync.FreeUpSpace
 import cloud.offthe.otc.i18n.appSettingsTaggingFooter
 import cloud.offthe.otc.i18n.appSettingsTaggingTitle
 import cloud.offthe.otc.i18n.appSettingsTailscaleAuthKey
@@ -379,6 +382,9 @@ fun SettingsView(secrets: SecretsStore) {
                 RowButton(S.appSettingsSyncAll().resolve()) { secrets.persist(); PhotoSync.setWatermark(0); PhotoSync.runForegroundAsync() }
                 RowButton(S.appSettingsSyncFromNow().resolve()) { secrets.persist(); PhotoSync.setWatermark(System.currentTimeMillis()) }
             }
+
+            // Android 11 and later: MediaStore's trash request.
+            if (FreeUpSpace.supported) Section(S.appSettingsFreeUpTitle().resolve(), S.androidSettingsFreeUpFooter().resolve()) { FreeUpSpaceControls() }
 
             ThumbnailCacheSection()
 

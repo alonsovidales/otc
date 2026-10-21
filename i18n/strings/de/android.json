@@ -283,6 +283,11 @@
     "text": "Zoom",
     "en": "Zoom"
   },
+  "android.settings.free_up_footer": {
+    "text": "Ältere Fotos und Videos werden von diesem Handy in seinen Papierkorb verschoben, jedes erst, wenn das Gerät bestätigt, dass es eine exakte Kopie hat. Android fragt vorher, und der Papierkorb behält sie 30 Tage. Das passiert nach einer Synchronisierung bei geöffneter App, höchstens einmal am Tag.",
+    "en": "Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.",
+    "reviewed": "claude-backtranslation 2026-10-21 #5c1143cf"
+  },
   "android.settings.links_delete_text": {
     "text": "Die geteilten Kopien werden gelöscht, und der Link funktioniert nicht mehr.",
     "en": "The shared copies are deleted and the link stops working.",

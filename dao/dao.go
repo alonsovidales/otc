@@ -388,6 +388,36 @@ func (dao *Dao) FindCloudIDs(ids []string) (map[string]string, error) {
 	return found, rows.Err()
 }
 
+// FileSizesByHash is free up space's lookup: the content size of each of
+// these hashes that a `files` row holds (rows of one hash share their
+// content, so any of them answers). Hashes without a row are absent.
+func (dao *Dao) FileSizesByHash(hashes []string) (map[string]int64, error) {
+	found := map[string]int64{}
+	if len(hashes) == 0 {
+		return found, nil
+	}
+	ph := strings.Repeat("?,", len(hashes))
+	args := make([]any, len(hashes))
+	for i, h := range hashes {
+		args[i] = h
+	}
+	rows, err := dao.db.Query("select `hash`, `size` from `files` where `hash` in ("+ph[:len(ph)-1]+")", args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var hash string
+		var size int64
+		if err := rows.Scan(&hash, &size); err != nil {
+			return nil, err
+		}
+		found[hash] = size
+	}
+
+	return found, rows.Err()
+}
+
 func (dao *Dao) GetFileByHash(hash string) (file *pb.File, err error) {
 	var created, modified time.Time
 	var size int64

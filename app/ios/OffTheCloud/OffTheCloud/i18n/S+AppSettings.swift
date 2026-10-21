@@ -170,6 +170,29 @@ extension S {
     /// Switch in Settings > People: the device detects faces in new photos so they can be searched by person. Off unless the owner turns it on.
     static var appSettingsFacesToggle: String { L("app.settings.faces.toggle", table: "AppSettings") }
 
+    /// Older than
+    ///
+    /// Label of the choice under the Delete from this phone switch, followed by a time from app.settings.free_up.days (Older than 7 days): how long ago a photo or video was taken before it may be deleted from this phone. Word it so it reads before that time.
+    static var appSettingsFreeUpAfter: String { L("app.settings.free_up.after", table: "AppSettings") }
+
+    /// one: {count} day
+    /// other: {count} days
+    ///
+    /// The times offered after app.settings.free_up.after (Older than 7 days), and the value shown beside it. {count} is 1, 3, 7, 14, 30, 90 or 365.
+    static func appSettingsFreeUpDays(count: Int) -> String {
+        L("app.settings.free_up.days", table: "AppSettings", count)
+    }
+
+    /// Free Up Space
+    ///
+    /// Heading of a section of Settings (and of the Sync Your Photos sheet shown after signing in): deleting from this phone the photos and videos the device already holds, to free the phone's storage.
+    static var appSettingsFreeUpTitle: String { L("app.settings.free_up.title", table: "AppSettings") }
+
+    /// Delete from this phone
+    ///
+    /// Switch in the Free Up Space section: when on, photos and videos older than the time chosen below it are deleted from this phone once the device confirms it holds an exact copy of each. Off unless the owner turns it on.
+    static var appSettingsFreeUpToggle: String { L("app.settings.free_up.toggle", table: "AppSettings") }
+
     /// Language
     ///
     /// Row in Settings that opens the Language screen, and that screen's title.

@@ -80,6 +80,7 @@
     <string name="android_settings_bridge_leave_delete">Sair e eliminar</string>
     <string name="android_settings_crop_hint">Arrasta a foto para centrares o teu rosto</string>
     <string name="android_settings_crop_zoom">Zoom</string>
+    <string name="android_settings_free_up_footer">As fotos e vídeos mais antigos passam deste telemóvel para o lixo, cada um só depois de o dispositivo confirmar que tem uma cópia exata. O Android pergunta antes, e o lixo guarda-os durante 30 dias. Acontece depois de uma sincronização com a app aberta, no máximo uma vez por dia.</string>
     <string name="android_settings_links_delete_text">As cópias partilhadas são eliminadas e a ligação deixa de funcionar.</string>
     <string name="android_settings_links_empty_text">As ligações criadas com «Partilhar» ou «Partilhar como galeria» em Imagens e Ficheiros aparecem aqui até expirarem.</string>
     <string name="android_settings_logs_empty">Ainda não há nada registado.</string>

@@ -32,6 +32,13 @@
     <string name="app_settings_faces_footer">Herkent gezichten in nieuw geüploade foto’s, zodat je op persoon kunt zoeken. Dit staat uit tot je het inschakelt (hier of tijdens de configuratie), en gezichten verlaten het apparaat nooit. Het kijkt naar iedereen op je foto’s, niet alleen naar jou. Het werkt alleen voor foto’s die worden geüpload terwijl het aanstaat; gebruik “Media opnieuw verwerken” hieronder om de foto’s te scannen die je al hebt.</string>
     <string name="app_settings_faces_title">Personen</string>
     <string name="app_settings_faces_toggle">Gezichtsherkenning</string>
+    <string name="app_settings_free_up_after">Ouder dan</string>
+    <plurals name="app_settings_free_up_days">
+        <item quantity="one">%1$s dag</item>
+        <item quantity="other">%1$s dagen</item>
+    </plurals>
+    <string name="app_settings_free_up_title">Ruimte vrijmaken</string>
+    <string name="app_settings_free_up_toggle">Verwijderen van deze telefoon</string>
     <string name="app_settings_language">Taal</string>
     <string name="app_settings_language_automatic">Automatisch</string>
     <string name="app_settings_language_automatic_named">Automatisch (%1$s)</string>

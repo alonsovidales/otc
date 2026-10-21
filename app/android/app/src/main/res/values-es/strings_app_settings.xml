@@ -32,6 +32,14 @@
     <string name="app_settings_faces_footer">Detecta caras en las fotos que se suban a partir de ahora para que puedas buscar por persona. Está desactivado salvo que lo actives (aquí o durante la configuración), y las caras nunca salen del dispositivo. Analiza a todas las personas de tus fotos, no solo a ti. Solo afecta a las fotos que se suban mientras está activado: usa “Reprocesar multimedia”, más abajo, para analizar las que ya tienes.</string>
     <string name="app_settings_faces_title">Personas</string>
     <string name="app_settings_faces_toggle">Reconocimiento facial</string>
+    <string name="app_settings_free_up_after">Con más de</string>
+    <plurals name="app_settings_free_up_days">
+        <item quantity="one">%1$s día</item>
+        <item quantity="many">%1$s días</item>
+        <item quantity="other">%1$s días</item>
+    </plurals>
+    <string name="app_settings_free_up_title">Liberar espacio</string>
+    <string name="app_settings_free_up_toggle">Eliminar de este teléfono</string>
     <string name="app_settings_language">Idioma</string>
     <string name="app_settings_language_automatic">Automático</string>
     <string name="app_settings_language_automatic_named">Automático (%1$s)</string>

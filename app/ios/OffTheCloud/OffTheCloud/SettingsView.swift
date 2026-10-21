@@ -429,6 +429,8 @@ struct SettingsView: View {
                     }
                 }
 
+                FreeUpSpaceSection()
+
                 // This phone's own, as the sync options: how much room the
                 // grids' thumbnails may take here (ThumbDiskCache).
                 ThumbCacheSection()

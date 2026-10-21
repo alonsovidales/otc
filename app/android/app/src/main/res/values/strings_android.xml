@@ -75,6 +75,7 @@
     <string name="android_settings_bridge_leave_delete">Leave and Delete</string>
     <string name="android_settings_crop_hint">Drag the photo to centre your face</string>
     <string name="android_settings_crop_zoom">Zoom</string>
+    <string name="android_settings_free_up_footer">Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.</string>
     <string name="android_settings_links_delete_text">The shared copies are deleted and the link stops working.</string>
     <string name="android_settings_links_empty_text">Links made with Share or Share as Gallery in Images and Files show up here until they expire.</string>
     <string name="android_settings_logs_empty">Nothing logged yet.</string>

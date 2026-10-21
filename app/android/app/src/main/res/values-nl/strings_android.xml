@@ -76,6 +76,7 @@
     <string name="android_settings_bridge_leave_delete">Verlaten en verwijderen</string>
     <string name="android_settings_crop_hint">Sleep de foto om je gezicht in het midden te zetten</string>
     <string name="android_settings_crop_zoom">Zoomen</string>
+    <string name="android_settings_free_up_footer">Oudere foto’s en video’s gaan van deze telefoon naar de prullenmand, elk pas nadat het apparaat bevestigt dat het een exacte kopie heeft. Android vraagt het eerst, en de prullenmand bewaart ze 30 dagen. Dit gebeurt na een synchronisatie terwijl de app open is, hooguit één keer per dag.</string>
     <string name="android_settings_links_delete_text">De gedeelde kopieën worden verwijderd en de link werkt niet meer.</string>
     <string name="android_settings_links_empty_text">Links die je maakt met “Delen” of “Delen als galerij” in Afbeeldingen en Bestanden, verschijnen hier tot ze verlopen.</string>
     <string name="android_settings_logs_empty">Er is nog niets vastgelegd.</string>

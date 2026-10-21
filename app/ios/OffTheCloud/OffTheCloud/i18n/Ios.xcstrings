@@ -3356,6 +3356,147 @@
         }
       }
     },
+    "ios.settings.free_up_footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ältere Fotos und Videos werden von diesem Handy gelöscht, jedes erst, wenn das Gerät bestätigt, dass es eine exakte Kopie hat. Bearbeitete Fotos und Serienaufnahmen bleiben: Das Gerät hat nur ihr Original. iOS fragt vor dem Löschen, und sie bleiben 30 Tage in „Zuletzt gelöscht“. Ist iCloud-Fotos aktiviert, verschwinden sie auch aus iCloud und von deinen anderen Geräten. Das passiert nach einer Synchronisierung bei geöffneter App, höchstens einmal am Tag."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos and videos older than that are deleted from this phone, each only once the device confirms it holds an exact copy. Edited photos and bursts stay: the device has only their original. iOS asks before deleting, and they stay in Recently Deleted for 30 days. With iCloud Photos on, they also go from iCloud and your other devices. This happens after a sync while the app is open, at most once a day."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las fotos y vídeos de hace más tiempo se eliminan de este teléfono, cada uno solo cuando el dispositivo confirma que tiene una copia exacta. Las fotos editadas y las ráfagas se quedan: el dispositivo solo tiene su original. iOS pregunta antes de eliminar, y se guardan en “Eliminado” durante 30 días. Con Fotos en iCloud activado, también desaparecen de iCloud y de tus otros dispositivos. Se hace tras una sincronización con la app abierta, como mucho una vez al día."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les photos et vidéos plus anciennes sont supprimées de ce téléphone, chacune seulement une fois que l’appareil confirme en avoir une copie exacte. Les photos modifiées et les rafales restent : l’appareil n’a que leur original. iOS demande avant de supprimer, et elles restent 30 jours dans « Suppressions récentes ». Avec Photos iCloud activé, elles disparaissent aussi d’iCloud et de vos autres appareils. Cela se fait après une synchronisation, l’app ouverte, une fois par jour au plus."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le foto e i video più vecchi vengono eliminati da questo telefono, ciascuno solo dopo che il dispositivo conferma di averne una copia esatta. Le foto modificate e le raffiche restano: il dispositivo ha solo l’originale. iOS chiede prima di eliminare, e restano in “Eliminati di recente” per 30 giorni. Con Foto di iCloud attivo, spariscono anche da iCloud e dagli altri tuoi dispositivi. Succede dopo una sincronizzazione con l’app aperta, al massimo una volta al giorno."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oudere foto’s en video’s worden van deze telefoon verwijderd, elk pas nadat het apparaat bevestigt dat het een exacte kopie heeft. Bewerkte foto’s en reeksen blijven: het apparaat heeft alleen het origineel. iOS vraagt het eerst, en ze blijven 30 dagen in “Recent verwijderd”. Met iCloud-foto’s aan verdwijnen ze ook uit iCloud en van je andere apparaten. Dit gebeurt na een synchronisatie terwijl de app open is, hooguit één keer per dag."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As fotos e vídeos mais antigos são eliminados deste telemóvel, cada um só depois de o dispositivo confirmar que tem uma cópia exata. As fotos editadas e as sequências ficam: o dispositivo só tem o original. O iOS pergunta antes de eliminar, e ficam em «Apagados recentemente» durante 30 dias. Com Fotografias em iCloud ativado, também saem do iCloud e dos teus outros dispositivos. Acontece depois de uma sincronização com a app aberta, no máximo uma vez por dia."
+          }
+        }
+      }
+    },
+    "ios.settings.free_up_live_photos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Photos einbeziehen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Include Live Photos"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incluir Live Photos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inclure les Live Photos"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Includi le Live Photo"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Photos meenemen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incluir Live Photos"
+          }
+        }
+      }
+    },
+    "ios.settings.free_up_live_photos_detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Gerät behält von einem Live Photo nur das Standbild, die Bewegung geht beim Löschen hier also verloren."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The device keeps only the still picture of a Live Photo, so its motion is lost once it's deleted here."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El dispositivo solo guarda la imagen fija de una Live Photo, así que su movimiento se pierde al eliminarla aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’appareil ne garde que l’image fixe d’une Live Photo : son mouvement est perdu une fois qu’elle est supprimée ici."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il dispositivo tiene solo l’immagine fissa di una Live Photo, quindi il movimento si perde quando la elimini qui."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het apparaat bewaart van een Live Photo alleen de foto zelf, dus de beweging gaat verloren als je hem hier verwijdert."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O dispositivo só guarda a imagem fixa de uma Live Photo, por isso o movimento perde-se quando a eliminas aqui."
+          }
+        }
+      }
+    },
     "ios.settings.links_delete_message" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -134,6 +134,29 @@
     "en": "Face Recognition",
     "reviewed": "claude-backtranslation 2026-10-11 #6664d188"
   },
+  "app.settings.free_up.after": {
+    "text": "Com mais de",
+    "en": "Older than"
+  },
+  "app.settings.free_up.days": {
+    "text": {
+      "one": "{count} dia",
+      "other": "{count} dias"
+    },
+    "en": {
+      "one": "{count} day",
+      "other": "{count} days"
+    }
+  },
+  "app.settings.free_up.title": {
+    "text": "Libertar espaço",
+    "en": "Free Up Space"
+  },
+  "app.settings.free_up.toggle": {
+    "text": "Eliminar deste telemóvel",
+    "en": "Delete from this phone",
+    "reviewed": "claude-backtranslation 2026-10-21 #c42f4b70"
+  },
   "app.settings.language": {
     "text": "Idioma",
     "en": "Language"

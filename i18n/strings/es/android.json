@@ -283,6 +283,11 @@
     "text": "Zoom",
     "en": "Zoom"
   },
+  "android.settings.free_up_footer": {
+    "text": "Las fotos y vídeos de hace más tiempo pasan de este teléfono a su papelera, cada uno solo cuando el dispositivo confirma que tiene una copia exacta. Android pregunta antes, y la papelera los guarda durante 30 días. Se hace tras una sincronización con la app abierta, como mucho una vez al día.",
+    "en": "Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.",
+    "reviewed": "claude-backtranslation 2026-10-21 #646c15e7"
+  },
   "android.settings.links_delete_text": {
     "text": "Las copias compartidas se eliminarán y el enlace dejará de funcionar.",
     "en": "The shared copies are deleted and the link stops working.",

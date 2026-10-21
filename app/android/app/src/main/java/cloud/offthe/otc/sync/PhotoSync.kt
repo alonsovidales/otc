@@ -242,10 +242,20 @@ object PhotoSync {
     private const val tag = "OTC/PhotoSync"
 
     suspend fun runForeground() {
+        if (!syncUnlessRunning()) return
+        // Free up space, once this run has synced what it could - after the
+        // sync's own flag is down. Only in front, at most once a day.
+        FreeUpSpace.afterSync()
+    }
+
+    /** The sync itself: false when it didn't run (the choice not made yet,
+     * no media permission, or another run already going, which then ends
+     * with its own). */
+    private suspend fun syncUnlessRunning(): Boolean {
         // Signed in but not yet told what to sync (SyncChoice): nothing, the
         // WorkManager runs included, until the screen is answered.
-        if (SyncChoice.pending.value) { Log.i(tag, "sync waits for the sync choice"); return }
-        if (!syncing.compareAndSet(false, true)) { Log.i(tag, "sync already running"); return }
+        if (SyncChoice.pending.value) { Log.i(tag, "sync waits for the sync choice"); return false }
+        if (!syncing.compareAndSet(false, true)) { Log.i(tag, "sync already running"); return false }
         val job = currentCoroutineContext()[Job]
         currentSync = job
         val gen = generation
@@ -254,7 +264,7 @@ object PhotoSync {
         // Issue #190: no route switch while a sync runs.
         OTCConnection.transferStarted()
         try {
-            if (!hasPermission()) { Log.w(tag, "no media permission, sync skipped"); return }
+            if (!hasPermission()) { Log.w(tag, "no media permission, sync skipped"); return false }
             val secrets = SecretsStore.loadOrCreate()
             OTCConnection.ensureConnected()
             // The watermark never passes the second the query ran in: media
@@ -327,6 +337,7 @@ object PhotoSync {
             }
             UploadModel.complete()
             Log.i(tag, "sync done")
+            return true
         } finally {
             // Also when stopped (WorkManager, a dropped device): what was
             // hashed isn't hashed again. Not after Log Out wiped it.

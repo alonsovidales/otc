@@ -32,6 +32,14 @@
     <string name="app_settings_faces_footer">Détecte les visages dans les photos nouvellement envoyées pour que vous puissiez rechercher par personne. Désactivée sauf si vous l’activez (ici ou pendant la configuration) ; les visages ne quittent jamais l’appareil. Elle analyse toutes les personnes présentes sur vos photos, pas seulement vous. Elle ne s’applique qu’aux photos envoyées pendant qu’elle est activée : utilisez « Retraiter les médias » ci-dessous pour analyser celles que vous avez déjà.</string>
     <string name="app_settings_faces_title">Personnes</string>
     <string name="app_settings_faces_toggle">Reconnaissance faciale</string>
+    <string name="app_settings_free_up_after">Datant de plus de</string>
+    <plurals name="app_settings_free_up_days">
+        <item quantity="one">%1$s jour</item>
+        <item quantity="many">%1$s jours</item>
+        <item quantity="other">%1$s jours</item>
+    </plurals>
+    <string name="app_settings_free_up_title">Libérer de l’espace</string>
+    <string name="app_settings_free_up_toggle">Supprimer de ce téléphone</string>
     <string name="app_settings_language">Langue</string>
     <string name="app_settings_language_automatic">Automatique</string>
     <string name="app_settings_language_automatic_named">Automatique (%1$s)</string>

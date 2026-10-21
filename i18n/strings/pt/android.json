@@ -283,6 +283,11 @@
     "text": "Zoom",
     "en": "Zoom"
   },
+  "android.settings.free_up_footer": {
+    "text": "As fotos e vídeos mais antigos passam deste telemóvel para o lixo, cada um só depois de o dispositivo confirmar que tem uma cópia exata. O Android pergunta antes, e o lixo guarda-os durante 30 dias. Acontece depois de uma sincronização com a app aberta, no máximo uma vez por dia.",
+    "en": "Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.",
+    "reviewed": "claude-backtranslation 2026-10-21 #340411c1"
+  },
   "android.settings.links_delete_text": {
     "text": "As cópias partilhadas são eliminadas e a ligação deixa de funcionar.",
     "en": "The shared copies are deleted and the link stops working.",

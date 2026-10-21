@@ -326,6 +326,21 @@ extension S {
     /// Title of the screen that crops the new profile photo to a circle.
     static var iosSettingsCropTitle: String { L("ios.settings.crop_title", table: "Ios") }
 
+    /// Photos and videos older than that are deleted from this phone, each only once the device confirms it holds an exact copy. Edited photos and bursts stay: the device has only their original. iOS asks before deleting, and they stay in Recently Deleted for 30 days. With iCloud Photos on, they also go from iCloud and your other devices. This happens after a sync while the app is open, at most once a day.
+    ///
+    /// Under the Free Up Space section on iPhone (Settings, and the Sync Your Photos sheet): what its switch does. "older than that": older than the time chosen just above (Older than 7 days). Recently Deleted and iCloud Photos are Apple's names: use the ones iOS shows in your language.
+    static var iosSettingsFreeUpFooter: String { L("ios.settings.free_up_footer", table: "Ios") }
+
+    /// Include Live Photos
+    ///
+    /// Switch in the Free Up Space section on iPhone: Live Photos are deleted from the phone too. Live Photo is Apple's name: use the one iOS shows in your language.
+    static var iosSettingsFreeUpLivePhotos: String { L("ios.settings.free_up_live_photos", table: "Ios") }
+
+    /// The device keeps only the still picture of a Live Photo, so its motion is lost once it's deleted here.
+    ///
+    /// Under the Include Live Photos switch: why it is off unless turned on. The sync sends only a Live Photo's still picture to the device, not its few seconds of motion.
+    static var iosSettingsFreeUpLivePhotosDetail: String { L("ios.settings.free_up_live_photos_detail", table: "Ios") }
+
     /// Delete this link? The shared copies are deleted and the link stops working.
     ///
     /// Message of the confirmation asked before deleting a shared link (its title is app.settings.links.delete_title).

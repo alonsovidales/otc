@@ -14,6 +14,7 @@ import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.push.FCMPush
 import cloud.offthe.otc.sync.AssetSyncCache
+import cloud.offthe.otc.sync.FreeUpSpace
 import cloud.offthe.otc.sync.PhotoSync
 import cloud.offthe.otc.sync.SyncScheduler
 import cloud.offthe.otc.ui.common.ThumbCache
@@ -71,6 +72,7 @@ fun logOut(
             // opened it meanwhile: the next sign-in starts with an empty one.
             ThumbStore.logOut()
             secrets.logOut()
+            FreeUpSpace.logOut()
             ThumbStore.logOut()
             if (keepDevice) SecretsStore.saveLastDevice(last.first, last.second) else SecretsStore.clearLastDevice()
             // The language stays as chosen (otc_language isn't wiped); only

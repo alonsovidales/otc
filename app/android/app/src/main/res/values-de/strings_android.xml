@@ -76,6 +76,7 @@
     <string name="android_settings_bridge_leave_delete">Verlassen und löschen</string>
     <string name="android_settings_crop_hint">Ziehe das Foto, um dein Gesicht zu zentrieren</string>
     <string name="android_settings_crop_zoom">Zoom</string>
+    <string name="android_settings_free_up_footer">Ältere Fotos und Videos werden von diesem Handy in seinen Papierkorb verschoben, jedes erst, wenn das Gerät bestätigt, dass es eine exakte Kopie hat. Android fragt vorher, und der Papierkorb behält sie 30 Tage. Das passiert nach einer Synchronisierung bei geöffneter App, höchstens einmal am Tag.</string>
     <string name="android_settings_links_delete_text">Die geteilten Kopien werden gelöscht, und der Link funktioniert nicht mehr.</string>
     <string name="android_settings_links_empty_text">Links, die du mit „Teilen“ oder „Als Galerie teilen“ in „Bilder“ und Dateien erstellst, erscheinen hier, bis sie ablaufen.</string>
     <string name="android_settings_logs_empty">Noch nichts protokolliert.</string>

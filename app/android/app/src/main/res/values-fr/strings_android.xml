@@ -80,6 +80,7 @@
     <string name="android_settings_bridge_leave_delete">Quitter et supprimer</string>
     <string name="android_settings_crop_hint">Faites glisser la photo pour centrer votre visage</string>
     <string name="android_settings_crop_zoom">Zoom</string>
+    <string name="android_settings_free_up_footer">Les photos et vidéos plus anciennes passent de ce téléphone à sa corbeille, chacune seulement une fois que l’appareil confirme en avoir une copie exacte. Android demande d’abord, et la corbeille les garde 30 jours. Cela se fait après une synchronisation, l’app ouverte, une fois par jour au plus.</string>
     <string name="android_settings_links_delete_text">Les copies partagées sont supprimées et le lien cesse de fonctionner.</string>
     <string name="android_settings_links_empty_text">Les liens créés avec « Partager » ou « Partager en galerie » dans Images et Fichiers apparaissent ici jusqu’à leur expiration.</string>
     <string name="android_settings_logs_empty">Le journal est vide pour l’instant.</string>

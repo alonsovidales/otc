@@ -58,6 +58,9 @@ struct SyncChoiceView: View {
                     Toggle(S.appSettingsSyncVideos, isOn: $secrets.includeVideos)
                     Toggle(S.iosSettingsSyncIcloud, isOn: $secrets.downloadFromiCloud)
                 }
+                // Asked here too, off unless turned on: a new device's first
+                // sync is when a phone full of photos gets its copies.
+                FreeUpSpaceSection()
                 Section {
                     Button {
                         secrets.persist()

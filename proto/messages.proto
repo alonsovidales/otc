@@ -238,6 +238,24 @@ message CloudIdsFound {
   repeated CloudIdFile files = 1;
 }
 
+// Free up space (the phones): which of these contents, by SHA-256, does the
+// device hold whole - asked right before a phone deletes its own copies of
+// photos and videos. A hash counts when a `files` row has it and its blob
+// is on the disk at exactly the size that row's content seals to
+// (segcrypt.EncryptedSize), looked at on the disk for every request, never
+// remembered. At most 1000 hashes are looked at (the phones ask 500 at a
+// time); anything that isn't 64 lowercase hex digits is left out. Older
+// devices answer "unknown_payload", and the phones ask HasFile for each.
+message HasHashes {
+  repeated string hashes = 1;
+}
+
+// The answer to HasHashes: the hashes asked for that the device holds, each
+// once, in no particular order.
+message HashesFound {
+  repeated string hashes = 1;
+}
+
 message FileExists {
   bool exists = 1;
 }
@@ -2269,6 +2287,9 @@ message ReqEnvelope {
     // Issue #195: Files' Storage view. Answers with resp_folder_usage;
     // devices before it with error_code "unknown_payload".
     GetFolderUsage req_get_folder_usage = 139;
+    // Free up space: answers HashesFound. Owner and user sessions, as
+    // HasFile; devices before it with error_code "unknown_payload".
+    HasHashes req_has_hashes = 140;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -2383,5 +2404,7 @@ message RespEnvelope {
     RestartingDevice resp_restarting_device = 68;
     // Issue #195: Files' Storage view.
     FolderUsage resp_folder_usage = 69;
+    // Free up space: the answer to HasHashes.
+    HashesFound resp_hashes_found = 70;
   }
 }

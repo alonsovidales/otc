@@ -32,6 +32,14 @@
     <string name="app_settings_faces_footer">Rileva i volti nelle foto caricate da ora in poi, così puoi cercare per persona. È disattivato finché non lo attivi tu (qui o durante la configurazione), e i volti non lasciano mai il dispositivo. Analizza tutte le persone nelle tue foto, non solo te. Riguarda solo le foto caricate mentre è attivo: usa “Rielabora media” qui sotto per analizzare quelle che hai già.</string>
     <string name="app_settings_faces_title">Persone</string>
     <string name="app_settings_faces_toggle">Riconoscimento facciale</string>
+    <string name="app_settings_free_up_after">Più vecchi di</string>
+    <plurals name="app_settings_free_up_days">
+        <item quantity="one">%1$s giorno</item>
+        <item quantity="many">%1$s giorni</item>
+        <item quantity="other">%1$s giorni</item>
+    </plurals>
+    <string name="app_settings_free_up_title">Libera spazio</string>
+    <string name="app_settings_free_up_toggle">Elimina da questo telefono</string>
     <string name="app_settings_language">Lingua</string>
     <string name="app_settings_language_automatic">Automatica</string>
     <string name="app_settings_language_automatic_named">Automatica (%1$s)</string>
