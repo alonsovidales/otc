@@ -1794,7 +1794,9 @@ NaN. Two Compose pitfalls hit here: a `PlayerView` in a `LazyColumn` must be inf
 `res/layout/player_texture.xml` (`surface_type="texture_view"` + `clipToBounds()`), or its
 SurfaceView paints at a stale position over whatever scrolls above it, and a full-screen `Dialog`
 with `decorFitsSystemWindows = false` needs `systemBarsPadding()` or its top buttons sit under
-the status bar and never get the tap.
+the status bar and never get the tap. A third: a `Dialog` shown outside MainView (from RootView, as
+SyncChoiceView) must draw a `Surface`, not a `background()`, or its text takes the default black
+content colour and vanishes in dark mode.
 
 **What to sync, asked at every sign-in** (iOS `SyncChoice.swift` <-> Android `ui/SyncChoice.kt`):
 Onboarding's Save & Continue and the Bluetooth setup's "Use this device" call `SyncChoice.ask()`

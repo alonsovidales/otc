@@ -2,7 +2,7 @@
 package cloud.offthe.otc.ui
 
 import android.content.Context
-import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,12 +12,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -97,39 +101,50 @@ fun SyncChoiceView(secrets: SecretsStore, onDone: () -> Unit) {
         onDismissRequest = {},
         properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = false, dismissOnClickOutside = false),
     ) {
-        Column(
-            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).systemBarsPadding()
-                .verticalScroll(rememberScrollState()).padding(20.dp),
-        ) {
-            Text(S.appSettingsSyncChoiceTitle().resolve(), style = MaterialTheme.typography.headlineSmall)
-            Spacer(Modifier.height(8.dp))
-            Text(S.appSettingsSyncChoiceIntro().resolve(), style = MaterialTheme.typography.bodyLarge)
-            Spacer(Modifier.height(16.dp))
-            ChoiceRow(S.appSettingsSyncChoiceAll().resolve(), S.appSettingsSyncChoiceAllDetail().resolve(), all) { all = true }
-            ChoiceRow(S.appSettingsSyncChoiceNew().resolve(), S.appSettingsSyncChoiceNewDetail().resolve(), !all) { all = false }
-            Spacer(Modifier.height(16.dp))
-            Text(
-                S.appSettingsSyncChoiceWarning().resolve(),
-                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(8.dp))
-            SwitchRow(S.appSettingsSyncWifiOnly().resolve(), wifiOnly, secrets::setWifiOnly)
-            SwitchRow(S.appSettingsSyncVideos().resolve(), includeVideos, secrets::setIncludeVideos)
-            SwitchRow(S.androidSettingsSyncCloud().resolve(), fromCloud, secrets::setDownloadFromCloud)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                S.appSettingsSyncChoiceFooter().resolve(),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(20.dp))
-            Button(
-                onClick = {
-                    secrets.persist()
-                    SyncChoice.answer(all)
-                    onDone()
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text(S.appSettingsSyncChoiceStart().resolve()) }
+        // A Surface, not a plain background: RootView calls this outside
+        // MainView's, and without one the text takes the default black
+        // content colour, unreadable in dark mode.
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+            Box(
+                Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                // A readable width on a foldable's or a tablet's wide screen.
+                Column(Modifier.widthIn(max = 640.dp).fillMaxWidth().padding(20.dp)) {
+                    Text(S.appSettingsSyncChoiceTitle().resolve(), style = MaterialTheme.typography.headlineSmall)
+                    Spacer(Modifier.height(8.dp))
+                    Text(S.appSettingsSyncChoiceIntro().resolve(), style = MaterialTheme.typography.bodyLarge)
+                    Spacer(Modifier.height(12.dp))
+                    Column(Modifier.selectableGroup()) {
+                        ChoiceRow(S.appSettingsSyncChoiceAll().resolve(), S.appSettingsSyncChoiceAllDetail().resolve(), all) { all = true }
+                        ChoiceRow(S.appSettingsSyncChoiceNew().resolve(), S.appSettingsSyncChoiceNewDetail().resolve(), !all) { all = false }
+                    }
+                    Spacer(Modifier.height(20.dp))
+                    // The switches' heading, as on iOS.
+                    Text(
+                        S.appSettingsSyncChoiceWarning().resolve(),
+                        style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    SwitchRow(S.appSettingsSyncWifiOnly().resolve(), wifiOnly, secrets::setWifiOnly)
+                    SwitchRow(S.appSettingsSyncVideos().resolve(), includeVideos, secrets::setIncludeVideos)
+                    SwitchRow(S.androidSettingsSyncCloud().resolve(), fromCloud, secrets::setDownloadFromCloud)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        S.appSettingsSyncChoiceFooter().resolve(),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(24.dp))
+                    Button(
+                        onClick = {
+                            secrets.persist()
+                            SyncChoice.answer(all)
+                            onDone()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(S.appSettingsSyncChoiceStart().resolve()) }
+                }
+            }
         }
     }
 }
@@ -138,8 +153,9 @@ fun SyncChoiceView(secrets: SecretsStore, onDone: () -> Unit) {
 private fun ChoiceRow(title: String, detail: String, selected: Boolean, onPick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().selectable(selected = selected, onClick = onPick, role = Role.RadioButton).padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.Top,
     ) {
+        // 24 dp tall, as the title's line: level with the title.
         RadioButton(selected = selected, onClick = null)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -151,8 +167,11 @@ private fun ChoiceRow(title: String, detail: String, selected: Boolean, onPick: 
 
 @Composable
 private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onChange)
+    Row(
+        Modifier.fillMaxWidth().toggleable(value = checked, onValueChange = onChange, role = Role.Switch).padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
