@@ -1505,6 +1505,9 @@ struct FilesExplorerView: View {
             // screen "Files", and the path field above already shows where
             // you are. Still .inline so there's no big empty title bar.
             .navigationBarTitleDisplayMode(.inline)
+            // A wide window: the top bar and the menu are above, and this
+            // empty bar would only push the path down, as on Social.
+            .toolbar(wide ? .hidden : .automatic, for: .navigationBar)
             .overlay(alignment: .top) {
                 if let toast = vm.toast {
                     // A device's refusal is a whole sentence: on lines of
