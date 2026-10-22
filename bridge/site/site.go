@@ -3,12 +3,19 @@
 // Package site renders the bridge's public pages in the visitor's
 // language (docs/i18n.md, "Each platform": bridge): the landing page, at
 // / in English and /<code>/ in every other language, the account page, at
-// /account and /<code>/account, and the two pages a device's own address
-// shows when the bridge answers for it (disabled, unavailable).
+// /account and /<code>/account, the comparison page, at
+// /google-photos-alternative and /<code>/google-photos-alternative, and the
+// two pages a device's own address shows when the bridge answers for it
+// (disabled, unavailable). It also writes what crawlers read about the
+// site (crawl.go: robots.txt, sitemap.xml, llms.txt).
 //
 // The pages are html/template files embedded in the binary (pages/), so a
 // deploy never serves a stale copy left in the static directory, and their
 // text comes from the site.* keys of the catalog (i18n/strings/en/site.*).
+// The landing and comparison pages share their head, header and footer -
+// the {{define}} blocks of pages/common.html; head.go builds what the head
+// says about the page (Open Graph, JSON-LD) - and their style's first part,
+// pages/site.css.
 // The rendering contract holds throughout: every text is a plain string
 // that html/template escapes for wherever it stands, and a rich key's
 // spans become elements through the fixed tags table below, whose links
@@ -49,18 +56,57 @@ import (
 // The pages, by template name.
 const (
 	Landing     = "landing.html"
+	Alternative = "alternative.html"
 	Disabled    = "disabled.html"
 	Unavailable = "unavailable.html"
 	Account     = "account.html"
 )
 
-//go:embed pages/*.html
+// AlternativeSlug is the comparison page's address after / (English) or
+// /<code>/: one ASCII slug in every language.
+const AlternativeSlug = "google-photos-alternative"
+
+// localized are the pages with an address in every carried language, by
+// the slug that follows / (English) or /<code>/ ("" for the landing page);
+// public ones are listed in the sitemap.
+var localized = []struct {
+	page, slug string
+	public     bool
+}{
+	{Landing, "", true},
+	{Account, "account", false},
+	{Alternative, AlternativeSlug, true},
+}
+
+// Localized returns the page whose address in a language is
+// /<code>/<slug> ("" for the landing page), if there is one.
+func Localized(slug string) (page string, ok bool) {
+	for _, p := range localized {
+		if p.slug == slug {
+			return p.page, true
+		}
+	}
+	return "", false
+}
+
+// slugOf is where page lives after / or /<code>/; the landing page's ""
+// for a page without localized addresses (disabled, unavailable).
+func slugOf(page string) string {
+	for _, p := range localized {
+		if p.page == page {
+			return p.slug
+		}
+	}
+	return ""
+}
+
+//go:embed pages/*.html pages/site.css
 var pagesFS embed.FS
 
 // Options are what a page needs besides its language.
 type Options struct {
-	// Base is the site's own origin, "https://off-the.cloud": the landing
-	// page's canonical and hreflang links are absolute.
+	// Base is the site's own origin, "https://off-the.cloud": the pages'
+	// canonical, hreflang and Open Graph links are absolute.
 	Base string
 	// Nonce is this response's Content-Security-Policy nonce, carried by
 	// the page's inline <style> and <script> elements.
@@ -89,20 +135,35 @@ func English() string { return i18n.Languages()[0].Code }
 
 // Path is where the landing page lives in a language: / for English,
 // /<code>/ for the others.
-func Path(code string) string {
-	if code == English() {
-		return "/"
-	}
-	return "/" + code + "/"
-}
+func Path(code string) string { return PagePath(Landing, code) }
 
 // AccountPath is where the account page lives in a language: /account for
 // English, /<code>/account for the others.
-func AccountPath(code string) string {
+func AccountPath(code string) string { return PagePath(Account, code) }
+
+// PagePath is where a localized page lives in a language: /<slug> for
+// English, /<code>/<slug> for the others.
+func PagePath(page, code string) string {
 	if code == English() {
-		return "/account"
+		return "/" + slugOf(page)
 	}
-	return "/" + code + "/account"
+	return "/" + code + "/" + slugOf(page)
+}
+
+// switcherPath is where the language switcher links to page in a
+// language: /<code>/<slug>, /en/... for English too, which shows English
+// without the Accept-Language redirect of its own address - a visitor
+// whose browser prefers Spanish could never reach English that way.
+func switcherPath(page, code string) string { return "/" + code + "/" + slugOf(page) }
+
+// alternates are page's addresses in every carried language, absolute,
+// for hreflang: each language's tag, then x-default, the English one.
+func alternates(page, base string) []alternate {
+	var out []alternate
+	for _, l := range i18n.Languages() {
+		out = append(out, alternate{l.Tag, base + PagePath(page, l.Code)})
+	}
+	return append(out, alternate{"x-default", base + PagePath(page, English())})
 }
 
 // Render returns page in lang. lang is a code this build carries; anything
@@ -125,16 +186,28 @@ func Render(page, lang string, o Options) ([]byte, error) {
 
 // data is what the pages read.
 type data struct {
+	Page  string // the page's template name
 	Lang  string // the language's code
 	Tag   string // its BCP 47 tag, for <html lang> and hreflang
 	Nonce string
 	Year  string
+	// Base is Options.Base, for the absolute addresses of the head.
+	Base string
 	// Home is the landing page in this language (/, /<code>/), where the
 	// other pages' links home go.
 	Home string
+	// Sections is what the shared header's and footer's links to the
+	// landing page's sections (#download, #faq, #contact...) start with:
+	// "" on the landing page itself, Home on the others.
+	Sections string
+	// Comparison is the comparison page in this language
+	// (/google-photos-alternative, /<code>/google-photos-alternative),
+	// where the landing page's and the footer's links to it go.
+	Comparison string
 	// Canonical and Alternates are the page's own address and its
 	// addresses in every carried language (hreflang, plus x-default: the
-	// English one): the landing page's, or the account page's.
+	// English one): the landing page's, the account page's or the
+	// comparison page's.
 	Canonical  string
 	Alternates []alternate
 	// Switcher links to the page in every carried language, this one
@@ -152,30 +225,24 @@ type choice struct {
 }
 
 func pageData(page string, l i18n.Language, o Options) data {
-	// Where the page lives in each language, and where the switcher links
-	// to it: /en/ (or /en/account) for English, which shows English
-	// without the Accept-Language redirect of / (or /account) - a visitor
-	// whose browser prefers Spanish could never reach English that way.
-	at, choose := Path, func(code string) string { return "/" + code + "/" }
-	if page == Account {
-		at, choose = AccountPath, func(code string) string { return "/" + code + "/account" }
-	}
 	d := data{
-		Lang:      l.Code,
-		Tag:       l.Tag,
-		Nonce:     o.Nonce,
-		Year:      strconv.Itoa(o.Now.Year()),
-		Home:      Path(l.Code),
-		Canonical: o.Base + at(l.Code),
+		Page:       page,
+		Lang:       l.Code,
+		Tag:        l.Tag,
+		Nonce:      o.Nonce,
+		Year:       strconv.Itoa(o.Now.Year()),
+		Base:       o.Base,
+		Home:       Path(l.Code),
+		Comparison: PagePath(Alternative, l.Code),
+		Canonical:  o.Base + PagePath(page, l.Code),
+		Alternates: alternates(page, o.Base),
 	}
-	langs := i18n.Languages()
-	for _, other := range langs {
-		d.Alternates = append(d.Alternates, alternate{other.Tag, o.Base + at(other.Code)})
+	if page != Landing {
+		d.Sections = d.Home
 	}
-	d.Alternates = append(d.Alternates, alternate{"x-default", o.Base + at(English())})
-	if len(langs) > 1 {
+	if langs := i18n.Languages(); len(langs) > 1 {
 		for _, other := range langs {
-			d.Switcher = append(d.Switcher, choice{other.Name, other.Tag, choose(other.Code), other.Code == l.Code})
+			d.Switcher = append(d.Switcher, choice{other.Name, other.Tag, switcherPath(page, other.Code), other.Code == l.Code})
 		}
 	}
 	return d
@@ -203,6 +270,15 @@ func templates(code string) (*template.Template, error) {
 func parsePages(code string) (*template.Template, error) {
 	t, err := template.New("spans").Funcs(funcs(code)).Parse(spansTemplate)
 	if err != nil {
+		return nil, err
+	}
+	// The public pages' shared style: a plain CSS file, so it reads as one
+	// (and the text scanner, i18n/scan, doesn't take it for page text).
+	css, err := pagesFS.ReadFile("pages/site.css")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := t.New("site-style").Parse(string(css)); err != nil {
 		return nil, err
 	}
 	return t.ParseFS(pagesFS, "pages/*.html")
@@ -245,10 +321,11 @@ var tags = map[string]span{
 	"install":  {El: "a", Href: "#install"},
 	"download": {El: "a", Href: "#download"},
 	"contact":  {El: "a", Href: "#contact"},
-	"mail":     {El: "a", Href: "mailto:info@off-the.cloud"},
+	"demo":     {El: "a", Href: demo},
+	"mail":     {El: "a", Href: "mailto:" + contactEmail},
 	"github":   {El: "a", Href: repo},
 	"readme":   {El: "a", Href: repo + "#readme"},
-	"release":  {El: "a", Href: repo + "/releases/tag/desktop"},
+	"release":  {El: "a", Href: desktopRelease},
 	"sha":      {El: "a", Href: releases + "image/off-the-cloud-rpi-lite-arm64.img.xz.sha256"},
 	"imager":   {El: "a", Href: "https://www.raspberrypi.com/software/"},
 	"winarm":   {El: "a", Href: releases + "desktop/otc-sync-windows-arm64.exe", Download: true},
@@ -271,8 +348,10 @@ type line struct {
 //	series "key" "arg" from to   the text with arg = from...to, for a script counting down
 //	jstexts "name" key...        name -> text with its placeholders, for a script that fills them in (below)
 //	jsform "key" ["arg" "type"]... one key's text for jstexts, its arguments named with their types
+//	head . title description     the shared head's data (head.go), for {{template "head" ...}}
 func funcs(code string) template.FuncMap {
 	return template.FuncMap{
+		"head": newHead,
 		"t": func(key string, args ...any) (string, error) {
 			m, err := argMap(args)
 			if err != nil {

@@ -1,7 +1,8 @@
 @html.lang=en
-Off The Cloud — own your memories
-@meta.description=A private, family-friendly NAS and ethical social network you own outright. Plug in a Raspberry Pi, pair the app, and your photos are backed up, tagged, and shareable with only the people you choose.
-@div.aria-label=Off The Cloud
+Off The Cloud: self-hosted Google Photos & iCloud alternative
+@meta.description=Back up your family's photos and videos in full resolution to a Raspberry Pi 5 at home, instead of Google Photos or iCloud. Free, open source, live demo.
+@a.aria-label=Off The Cloud
+@a.href=/
 @img.src=/logo.png
 @img.alt=
 Off The Cloud
@@ -15,11 +16,11 @@ Get started Download What it is Gallery FAQ GitHub
 @a.href=/account
 @a.href=/account?signup=1
 Sign in Create an account
-🔓 100% open source · self-hosted on your own Raspberry Pi
+🔓 100% open source · photo backup on your own Raspberry Pi
 Your photos, your rules.Off the cloud, for good.
 @img.src=/img/hero-1600.jpg
 @img.alt=An Off The Cloud device on a desk, next to a camera and a computer showing your photo library
-Off The Cloud is a NAS and a social network in one small box you own outright: your photos, videos, and documents back up in full resolution, get AI-tagged for instant search, and stay behind RAID-1 protected disks — with an optional, ethical social feed for sharing memories with the people who actually matter, free of ads, algorithms, and doomscrolling.
+Off The Cloud is free, open-source software that turns a Raspberry Pi 5 into a home server for your family's photos, videos and files: an alternative to Google Photos and iCloud, in a small box you own. Your phones and computers back up to it in full resolution. The device tags your photos itself, so you can search for "beach" or "dog" without sending them anywhere, and two mirrored drives each keep a full copy. An optional feed lets you share with friends only, without ads or algorithms.
 @a.href=https://demo.off-the.cloud/
 Try the demo Look around a real device with a made-up family's photos and files. No sign-up.
 Get your device running
@@ -60,6 +61,27 @@ Copy
 It installs everything and builds the software from source, then starts the service at http://<device-ip>:8080/. Safe to re-run to update. Your files go on two disks mirrored as RAID-1: it reuses a mirror it finds and only erases two new disks to build one when you confirm it, and it installs the status lights too. A single disk works as well (see the README). The WiFi setup isn't part of this path — see the image for a from-scratch Raspberry Pi.
 @a.href=/account?signup=1
 Want to reach it from outside your home network? Create an account for the bridge →
+Off The Cloud at a glance
+What it is
+A self-hosted home server for your family's photos, videos and files, with its own apps
+Instead of
+Google Photos and iCloud Photos, and a cloud drive such as Dropbox or iCloud Drive for your files
+Runs on
+A Raspberry Pi 5 with 8 GB (4 GB with tagging and faces off), or a 64-bit Intel/AMD or ARM machine with Debian or Ubuntu
+Storage
+Two USB drives mirrored as RAID-1, each with a full copy: sticks, SSDs, hard disks or microSD cards in USB readers
+Apps
+iPhone and iPad, Android, Mac, Windows and Linux, plus a web app in your browser
+Cost
+Free software; a Raspberry Pi 5 and two USB pen drives; optional bridge: free for two years, then €9.99 + VAT a year
+Privacy
+File contents encrypted at rest; photo tagging and faces done on the device; nothing used for ads or AI training
+Licence
+Open source under the GNU AGPL-3.0: the device, every app and the bridge
+Languages
+English, Spanish, French, German, Italian, Portuguese and Dutch
+@a.href=/google-photos-alternative
+Compare it with Google Photos, iCloud, Immich and others
 Get started
 What happens under the hood
 Both paths end in the same place: the image just runs the install script for you, after asking for your WiFi, a name and your disks from a phone.
@@ -121,7 +143,7 @@ One device, four ways to reach it
 A Raspberry Pi in your home stores everything; native apps on every platform keep it in sync and let you browse, search, and share it.
 💾
 The device
-A Raspberry Pi 5 with a card for the system and two storage cards mirrored in RAID-1, storing your originals unprocessed and uncompressed — encrypted at rest, with a key that only your password unlocks.
+A Raspberry Pi 5 with a microSD card for the system and two USB drives mirrored in RAID-1, storing your originals exactly as they arrive, never resized or recompressed — encrypted at rest, with a key that only your password unlocks.
 🖥️
 Desktop client
 macOS, Windows and Linux apps that keep chosen folders on your computer in two-way sync with the device, automatically.
@@ -151,7 +173,7 @@ Every part of the system, in one place
 The physical device, and the four apps that talk to it.
 The device
 @img.src=/img/device.jpg
-@img.alt=The Off The Cloud device: a Raspberry Pi with two micro-SD cards and RAID status LEDs
+@img.alt=The Off The Cloud device: a Raspberry Pi 5 whose mirrored drives are two microSD cards in USB card readers, with a card being swapped and the status lights red and green
 macOS / Windows client
 @img.src=/img/macos-sync.jpg?v=2
 @img.alt=The Mac menu bar app: connected, storage healthy, two folders synced and one uploading
@@ -181,8 +203,25 @@ Web app
 @img.alt=Social in the web app
 FAQ
 Questions people actually ask
+How is it different from Google Photos or iCloud?
+Your photos live in your home instead of on a company's servers. You buy the hardware once instead of paying for a storage plan, and you have as much space as one of your two drives holds, since each keeps a full copy: when they fill up, you swap them for bigger ones.
+Day to day it feels familiar. The phone apps back up your photos and videos in the background, in full resolution, and you can search them by what they show and, if you turn on face recognition, by who is in them. iPhones, Android phones and computers all work with it, with an account for each person in the family.
+What changes is that you take ownership. Your photos are on two mirrored drives in your home, and a full backup is easy: take one drive out and put a new one in, and the device copies everything onto it; the drive you took out is your backup (see "How do I back up my device?"). Away from home, your apps reach it through the bridge (free for the first two years, then €9.99 + VAT a year), Tailscale Funnel or your own VPN. And there's no password reset: if you lose your device password, nobody can open your files, not even us.
+@a.href=/google-photos-alternative
+How it compares with Google Photos and iCloud
+How is it different from Immich, PhotoPrism or Nextcloud?
+Immich and PhotoPrism are photo libraries and Nextcloud is a file and collaboration suite. They're free and open source, but they're made for people who run their own server: you install them yourself, usually with Docker on a Linux machine, and work out storage, backups and remote access on your own.
+Off The Cloud is easier to install and needs almost no technical knowledge, and it does more than photos:
+It installs from an app: the computer app prepares the Raspberry Pi's card, and the setup finishes over Bluetooth from your phone or Mac, with no terminal.
+It runs on inexpensive hardware: a Raspberry Pi 5 and two USB pen drives, mirrored, with alerts that say which one to replace.
+Files encrypted at rest, with a key only your password unlocks.
+It's a NAS for your files too, kept in two-way sync with your computers, not only a photo library.
+A private social network between friends' devices, with no ads and no algorithm, which Immich and PhotoPrism don't have.
+Apps for phones and computers, an account for each person in the family, and an optional bridge to reach it from anywhere without opening ports on your router.
+@a.href=/google-photos-alternative
+Compare it with Google Photos, iCloud, Immich and others
 Do I need to buy special hardware?
-A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or micro-SD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. The Pi and two 512 GB USB sticks come to about €310, roughly €340 all in for 512 GB of protected storage. See the README for the exact recommended parts list. A Pi 5 with 4 GB can work too, with photo tagging and face recognition turned off.
+A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or micro-SD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. See the README for the exact recommended parts list. A Pi 5 with 4 GB can work too, with photo tagging and face recognition turned off.
 Is there a pre-built image I can just flash?
 @a.href=#install
 Yes — for a Raspberry Pi 5 with at least 8 GB of RAM (a 4 GB one works only with Image Tagging and Face Recognition turned off in Settings): see the Raspberry Pi 5 image tab at the top. Flash it, power the Pi on and set it up from your phone: tap "Set up a new device" in the iOS or Android app, which finds the Pi over Bluetooth and walks you through the rest. For any other Debian/Ubuntu machine, use the install script.
@@ -195,6 +234,20 @@ Knowing which disk to replace. On a Pi the alert names the USB port the failed d
 The status lights, which are wired to the Pi's own pins (see below).
 @a.href=/account
 The script can mirror two disks on other machines too, but only when you ask it to, because it erases both. If it finds no disks to mirror, it stops and tells you how to install on a single disk. To give the machine an off-the.cloud address, add the name on your account page first and copy the identity it shows into the machine before running the script.
+How do I move my photos from iCloud?
+Use the iPhone app. When you sign in to your device, it asks which photos and videos to back up: choose "All photos and videos". Already signed in? Tap Sync All in Settings. "Sync from iCloud" is on from the start: when a photo's original is only in iCloud, as with "Optimise iPhone Storage", the iPhone downloads it first, then sends it to your device with its date.
+A whole library can take a long time and use a lot of data, so turn on "Wi-Fi only" if you'd rather not use mobile data. Backing up only copies your photos and leaves your iCloud library as it is: once your device has everything, what you keep in iCloud is up to you.
+The Mac app backs up folders, not the Photos library, so the iPhone, or an iPad on the same iCloud account, is the way to bring your library over.
+How do I move my photos from Google Photos?
+@a.href=#download
+There's no Google Photos importer. Photos and videos still on your phone are backed up by the iPhone or Android app like any others, with their dates. For the rest, download your library with Google Takeout, unzip it on a computer and back up that folder with the Mac, Windows or Linux app: the photos and videos go to your device and appear in Images, tagged and searchable.
+Two things to know. Images puts each photo at its file's date, not the date it was taken, so photos from Takeout can end up in the wrong month; More info still shows the date stored in the photo, when it has one. And the .json files Takeout adds next to your photos, with each photo's date, description and place, aren't read: they're kept as ordinary files.
+Does it keep RAW files and videos in full quality?
+Yes. The device keeps every file exactly as it arrives: nothing is resized, converted or recompressed, so RAW files, HEIC photos and videos come back byte for byte.
+The phone apps send each photo's and video's original file. On an iPhone, that means an edit made in Photos isn't backed up, only the original, and a Live Photo is backed up as its still photo.
+@a.href=#download
+For a camera's RAW files, back up the folder you copy them into with the Mac, Windows or Linux app: every file goes to the device as it is. The device makes a preview of some RAW files and tags those like any other photo; the others get no preview and don't show in Images, but they're kept all the same in Files.
+What you post to your friends' feed can be a lighter copy: a large video is made smaller, and a HEIC photo goes as a JPEG. The original in your library stays as it was.
 How do I wire the status lights?
 The lights are optional: one per storage disk, green when it's fine and red when it needs you. Each light is a red LED and a green LED side by side (or one two-colour LED with three legs), and each colour connects to one pin of the Raspberry Pi through a 330 Ω resistor. Wire them with the Pi switched off. The device lights them by itself; there's nothing to set up.
 Wiring the two status lights to the Raspberry Pi 5
@@ -260,6 +313,11 @@ To use their account away from home, a family member needs an off-the.cloud addr
 The device registers these addresses by itself, outside your bridge account, so they don't count toward its five addresses and don't appear on your account page. With one, a family member reaches their account from anywhere, and you can become friends in the private feed and share photos there.
 How do I get more storage?
 Swap the two cards for bigger ones, one at a time, while the device keeps running. Take out one card and put in a bigger one, at least as large as the one you took out: the device copies everything onto it by itself (anything already on the new card is erased). You get an alert that a disk stopped working, which is expected here, and another, "Both storage disks are working again", when the copy is done; that can take a few hours for a large card. Only then do the same with the other card. Once both cards are bigger, the device grows its storage to the size of the smaller one by itself, within about ten minutes, without stopping. Your files stay available the whole time, but while a copy runs they are on one card only, so never take out the second card before the first copy has finished.
+What happens if the Raspberry Pi itself dies?
+Replace it with a new one and everything keeps working: your photos, files and settings are on the two USB drives, not on the Pi.
+@a.href=#install
+Move the microSD card and the two drives to the new Pi and turn it on. If the card is lost too, flash a new one with the Raspberry Pi 5 image, attach the same drives and choose "Recover this device" in the setup: the device comes back as it was, with the same password. Don't choose "Start fresh instead", which erases both drives.
+If a drive dies instead, the device carries on with the other and tells you which one to replace.
 How do I back up my device?
 The two mirrored disks already keep two copies of everything, but both are in the same box: they protect you from one disk failing, not from theft, fire, both disks failing or a file deleted by mistake. For a copy you keep somewhere else, you can rotate one of the disks:
 While the device is running and nothing is uploading, take out one of the two disks. The device carries on with the other one, and you get an alert that a disk stopped working, which is expected here.
@@ -346,10 +404,11 @@ Everything is documented in the README — architecture, config, and every insta
 © 2026 Off The Cloud · open source, self-hosted, yours.
 @a.href=https://github.com/alonsovidales/otc
 @a.href=https://github.com/alonsovidales/otc#readme
+@a.href=/google-photos-alternative
 @a.href=#contact
 @a.href=/privacy
 @a.href=/terms
-GitHub Documentation Contact Privacy Terms
+GitHub Documentation How it compares with Google Photos and iCloud Contact Privacy Terms
 @div.aria-label=Screenshot
 @button.aria-label=Close
 ✕

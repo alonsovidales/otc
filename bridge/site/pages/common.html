@@ -1,0 +1,98 @@
+{{/*
+  What the public pages (landing.html, alternative.html) share, as template
+  definitions: no page of its own.
+
+    head        the <head>'s metadata, from (head . title description): head.go
+    icons       the favicon links (the account page's head has them too)
+    site-style  the style both pages use, first in their <style>: site.css,
+                which site.go parses under that name
+    header      the top bar
+    footer      the footer, with the language switcher
+
+  The header's and footer's links to the landing page's sections start with
+  .Sections: "" on the landing page itself, its address (/, /<code>/) on
+  the others, so #faq becomes /#faq there. The logo links to .Home, and the
+  footer to the comparison page in the page's language (.Comparison).
+*/}}
+
+{{define "head" -}}
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{.Title}}</title>
+  <meta name="description" content="{{.Description}}" />
+  <link rel="canonical" href="{{.Canonical}}">
+  {{- range .Alternates}}
+  <link rel="alternate" hreflang="{{.Lang}}" href="{{.Href}}">
+  {{- end}}
+  <link rel="stylesheet" href="/fonts/fonts.css">
+  {{- template "icons"}}
+  <meta name="theme-color" content="#10231f">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Off The Cloud">
+  <meta property="og:title" content="{{.Title}}">
+  <meta property="og:description" content="{{.Description}}">
+  <meta property="og:url" content="{{.Canonical}}">
+  <meta property="og:image" content="{{.OGImage}}">
+  <meta property="og:image:width" content="{{.OGImageWidth}}">
+  <meta property="og:image:height" content="{{.OGImageHeight}}">
+  <meta property="og:image:alt" content="{{t "site.landing.hero.photo_alt"}}">
+  <meta property="og:locale" content="{{.OGLocale}}">
+  {{- range .OGAlternates}}
+  <meta property="og:locale:alternate" content="{{.}}">
+  {{- end}}
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">{{.LD}}</script>
+{{- end}}
+
+{{define "icons"}}
+  <link rel="icon" href="/favicon.ico" sizes="16x16">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+{{- end}}
+
+{{define "header" -}}
+  <header>
+    <div class="container nav">
+      <a class="brand" href="{{.Home}}" aria-label="Off The Cloud">
+        <img src="/logo.png" alt="" width="40" height="40">
+        <span>Off The Cloud</span>
+      </a>
+      <nav class="navlinks">
+        <a href="{{.Sections}}#get-started">{{t "site.landing.nav.get_started"}}</a>
+        <a href="{{.Sections}}#download">{{t "site.landing.nav.download"}}</a>
+        <a href="{{.Sections}}#what">{{t "site.landing.nav.what"}}</a>
+        <a href="{{.Sections}}#screenshots">{{t "site.landing.nav.gallery"}}</a>
+        <a href="{{.Sections}}#faq">{{t "site.landing.nav.faq"}}</a>
+        <a href="https://github.com/alonsovidales/otc">GitHub</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="btn ember" href="/account">{{t "site.landing.nav.sign_in"}}</a>
+        <a class="btn" href="/account?signup=1">{{t "site.landing.nav.create_account"}}</a>
+      </div>
+    </div>
+  </header>
+{{- end}}
+
+{{define "footer" -}}
+  <footer>
+    <div class="container footer-row">
+      <span>{{t "site.landing.footer.copyright" "year" .Year}}</span>
+      <div class="footer-links">
+        <a href="https://github.com/alonsovidales/otc">GitHub</a>
+        <a href="https://github.com/alonsovidales/otc#readme">{{t "site.landing.footer.docs"}}</a>
+        <a href="{{.Comparison}}"{{if eq .Page "alternative.html"}} aria-current="page"{{end}}>{{t "site.alt.link"}}</a>
+        <a href="{{.Sections}}#contact">{{t "site.landing.footer.contact"}}</a>
+        <a href="/privacy">{{t "site.landing.footer.privacy"}}</a>
+        <a href="/terms">{{t "site.landing.footer.terms"}}</a>
+      </div>
+      {{- if .Switcher}}
+      <nav class="lang-switch" aria-label="{{t "site.common.language"}}">
+        {{- range .Switcher}}
+        <a href="{{.Href}}" lang="{{.Lang}}" hreflang="{{.Lang}}"{{if .Current}} aria-current="page"{{end}}>{{.Name}}</a>
+        {{- end}}
+      </nav>
+      {{- end}}
+    </div>
+  </footer>
+{{- end}}

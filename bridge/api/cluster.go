@@ -165,7 +165,7 @@ func (api *API) serveInternal() {
 		log.Info("Starting the cluster's internal listener on", api.cluster.InternalAddr())
 		srv := &http.Server{
 			Addr:              api.cluster.InternalAddr(),
-			Handler:           internalHandler(api.cluster, api.muxHTTPServer),
+			Handler:           internalHandler(api.cluster, api.handler()),
 			ReadHeaderTimeout: 10 * time.Second,
 			IdleTimeout:       2 * time.Minute,
 		}

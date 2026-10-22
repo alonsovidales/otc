@@ -1,0 +1,425 @@
+{
+  "site.alt.cell.apps_all": {
+    "text": "Android, iPhone, Mac, Windows, Linux, Web",
+    "en": "Android, iPhone, Mac, Windows, Linux, web"
+  },
+  "site.alt.cell.apps_google": {
+    "text": "Android, iPhone, Web (sichert auch Ordner vom Computer)",
+    "en": "Android, iPhone, web, which also backs up computer folders"
+  },
+  "site.alt.cell.apps_icloud": {
+    "text": "iPhone, Mac, Windows, Web; keine Android-App",
+    "en": "iPhone, Mac, Windows, web; no Android app"
+  },
+  "site.alt.cell.apps_mobile": {
+    "text": "Android, iPhone, Web",
+    "en": "Android, iPhone, web"
+  },
+  "site.alt.cell.apps_synology": {
+    "text": "Android, iPhone, Web; Synology Drive auf Computern",
+    "en": "Android, iPhone, web; Synology Drive on computers"
+  },
+  "site.alt.cell.at_home": {
+    "text": "Zu Hause, auf deiner eigenen Hardware",
+    "en": "At home, on hardware you own"
+  },
+  "site.alt.cell.cost_ente": {
+    "text": "10 GB kostenlos; 200 GB 5,99 € oder 1 TB 11,99 € pro Monat",
+    "en": "10 GB free; 200 GB €5.99 or 1 TB €11.99 a month"
+  },
+  "site.alt.cell.cost_google": {
+    "text": "15 GB kostenlos, geteilt mit Gmail und Drive; 100 GB 1,99 € oder 2 TB 9,99 € pro Monat",
+    "en": "15 GB free, shared with Gmail and Drive; 100 GB €1.99 or 2 TB €9.99 a month"
+  },
+  "site.alt.cell.cost_icloud": {
+    "text": "5 GB kostenlos; 200 GB 2,99 € oder 2 TB 9,99 € pro Monat",
+    "en": "5 GB free; 200 GB €2.99 or 2 TB €9.99 a month"
+  },
+  "site.alt.cell.cost_immich": {
+    "text": "Kostenlos; den Server stellst du selbst",
+    "en": "Free; you supply the server"
+  },
+  "site.alt.cell.cost_otc": {
+    "text": "Einmalig: ein Raspberry Pi 5 und zwei USB-Sticks; optionale Bridge 9,99 € zuzüglich MwSt. pro Jahr nach zwei kostenlosen Jahren",
+    "en": "A Raspberry Pi 5 and two USB pen drives, bought once; optional bridge €9.99 + VAT a year after two free years",
+    "reviewed": "claude-backtranslation 2026-10-22 #6829f04e"
+  },
+  "site.alt.cell.cost_synology": {
+    "text": "Ein Synology-NAS und seine Laufwerke, einmalig gekauft",
+    "en": "A Synology NAS and its drives, bought once"
+  },
+  "site.alt.cell.drive_size": {
+    "text": "So groß wie deine Laufwerke",
+    "en": "As big as your drives"
+  },
+  "site.alt.cell.e2ee_icloud": {
+    "text": "Nur mit „Erweiterter Datenschutz“, standardmäßig aus und im Vereinigten Königreich nicht verfügbar",
+    "en": "Only with Advanced Data Protection, off by default and not offered in the UK"
+  },
+  "site.alt.cell.e2ee_otc": {
+    "text": "Nein: verschlüsselt gespeichert, aber die Bridge entschlüsselt, was sie weiterleitet",
+    "en": "No: stored encrypted, but the bridge decrypts what it relays",
+    "reviewed": "claude-backtranslation 2026-10-22 #287b6e65"
+  },
+  "site.alt.cell.e2ee_own": {
+    "text": "Nein; die Fotos bleiben auf deinem eigenen Server",
+    "en": "No; the photos stay on your own server"
+  },
+  "site.alt.cell.family_otc": {
+    "text": "Ja, jede Person mit eigenem Passwort",
+    "en": "Yes, each with their own password"
+  },
+  "site.alt.cell.files_ente": {
+    "text": "Nein: Ente Locker, eine separate App, bewahrt wichtige Dokumente auf",
+    "en": "No: Ente Locker, a separate app, keeps important documents"
+  },
+  "site.alt.cell.files_google": {
+    "text": "Nein: Dateien landen in Google Drive, einem separaten Dienst im selben Abo",
+    "en": "No: files go in Google Drive, a separate service on the same plan"
+  },
+  "site.alt.cell.files_icloud": {
+    "text": "Nein: Dateien landen in iCloud Drive, einem separaten Dienst im selben Abo",
+    "en": "No: files go in iCloud Drive, a separate service on the same plan"
+  },
+  "site.alt.cell.files_immich": {
+    "text": "Nein: nur Fotos und Videos",
+    "en": "No: photos and videos only"
+  },
+  "site.alt.cell.files_otc": {
+    "text": "Ja: ein NAS, in beide Richtungen mit deinen Computern synchronisiert",
+    "en": "Yes: a NAS kept in two-way sync with your computers"
+  },
+  "site.alt.cell.files_synology": {
+    "text": "Ja, mit Synology Drive auf demselben NAS",
+    "en": "Yes, with Synology Drive on the same NAS"
+  },
+  "site.alt.cell.links_otc": {
+    "text": "Ja, über die Bridge",
+    "en": "Yes, through the bridge"
+  },
+  "site.alt.cell.no": {
+    "text": "Nein",
+    "en": "No"
+  },
+  "site.alt.cell.no_setup": {
+    "text": "Nichts einzurichten: einfach anmelden",
+    "en": "Nothing to set up: sign in"
+  },
+  "site.alt.cell.on_devices": {
+    "text": "Ja, auf deinem Handy oder Computer",
+    "en": "Yes, on your phone or computer"
+  },
+  "site.alt.cell.own_hardware": {
+    "text": "Ja, auf deiner eigenen Hardware",
+    "en": "Yes, on your own hardware"
+  },
+  "site.alt.cell.plan_shared": {
+    "text": "Abo teilbar mit bis zu 5 weiteren Personen",
+    "en": "Plan shared with up to 5 others"
+  },
+  "site.alt.cell.plan_size": {
+    "text": "Die Größe deines Abos",
+    "en": "Your plan's size"
+  },
+  "site.alt.cell.quality_google": {
+    "text": "Ja, oder kleiner mit „Speicherplatz sparen“",
+    "en": "Yes, or smaller with Storage saver"
+  },
+  "site.alt.cell.search_google": {
+    "text": "Ja, durch Google",
+    "en": "Yes, done by Google"
+  },
+  "site.alt.cell.search_synology": {
+    "text": "Ja, auf dem NAS, aber nur bei manchen Modellen",
+    "en": "Yes, on the NAS, but only on some models"
+  },
+  "site.alt.cell.setup_immich": {
+    "text": "Ein Linux-Server mit Docker und mindestens 6 GB RAM",
+    "en": "A Linux server with Docker and at least 6 GB of RAM"
+  },
+  "site.alt.cell.setup_otc": {
+    "text": "Ein Raspberry Pi 5 (8 GB), zwei USB-Laufwerke und ein Computer, der seine Karte beschreibt; etwa 20 Minuten",
+    "en": "A Raspberry Pi 5 (8 GB), two USB drives and a computer to write its card; about 20 minutes"
+  },
+  "site.alt.cell.setup_synology": {
+    "text": "Ein Synology-NAS und seine Laufwerke",
+    "en": "A Synology NAS and its drives"
+  },
+  "site.alt.cell.social_albums": {
+    "text": "Nein: geteilte Fotoalben mit Kommentaren und Likes",
+    "en": "No: shared albums with comments and likes"
+  },
+  "site.alt.cell.social_otc": {
+    "text": "Ja: Beiträge, Kommentare und Likes zwischen den Geräten von Freunden, ohne Werbung und ohne Algorithmus",
+    "en": "Yes: posts, comments and likes between friends' devices, with no ads or algorithm"
+  },
+  "site.alt.cell.social_synology": {
+    "text": "Nein: geteilte Fotoalben und Links, ohne Kommentare oder Likes",
+    "en": "No: shared albums and links, without comments or likes"
+  },
+  "site.alt.cell.space_otc": {
+    "text": "So groß wie eines deiner beiden Laufwerke, die dieselbe Kopie enthalten",
+    "en": "As big as one of your two drives, which hold the same copy"
+  },
+  "site.alt.cell.where_ente": {
+    "text": "Die Cloud von Ente in der EU, drei Kopien bei bezahlten Abos; oder dein eigener Server",
+    "en": "Ente's cloud in the EU, three copies on paid plans; or your own server"
+  },
+  "site.alt.cell.where_google": {
+    "text": "Rechenzentren von Google",
+    "en": "Google's data centres"
+  },
+  "site.alt.cell.where_icloud": {
+    "text": "Apples Cloud",
+    "en": "Apple's cloud"
+  },
+  "site.alt.cell.yes": {
+    "text": "Ja",
+    "en": "Yes"
+  },
+  "site.alt.cell.yes_agpl": {
+    "text": "Ja, AGPL-3.0",
+    "en": "Yes, AGPL-3.0"
+  },
+  "site.alt.change.care": {
+    "text": "<b>Du hast alles selbst in der Hand.</b> Deine Fotos liegen auf zwei gespiegelten Laufwerken bei dir zu Hause, sodass beim Ausfall eines Laufwerks nichts verloren geht, und ein vollständiges Backup ist einfach: Nimm ein Laufwerk heraus und setz ein neues ein, dann kopiert das Gerät alles darauf; das entnommene Laufwerk ist dein Backup. Niemand kann dein Gerätepasswort zurücksetzen, nicht einmal wir.",
+    "en": "<b>You take ownership.</b> Your photos are on two mirrored drives in your home, so one drive failing loses nothing, and a full backup is easy: take one drive out and put a new one in, and the device copies everything onto it; the drive you took out is your backup. Nobody can reset your device password, not even us.",
+    "reviewed": "claude-backtranslation 2026-10-22 #9b301751"
+  },
+  "site.alt.change.hardware": {
+    "text": "<b>Du kaufst die Hardware einmal.</b> Ein Raspberry Pi 5 (8 GB) und zwei USB-Sticks – mehr braucht es nicht. Wenn sie voll sind, setzt du größere Laufwerke ein, statt für ein größeres Abo zu zahlen.",
+    "en": "<b>You buy the hardware once.</b> A Raspberry Pi 5 (8 GB) and two USB pen drives are all it needs. When they fill up, you swap in bigger drives instead of paying for a bigger plan."
+  },
+  "site.alt.change.remote": {
+    "text": "<b>Unterwegs brauchst du einen Zugang.</b> Zu Hause sprechen die Apps direkt mit dem Gerät. Anderswo gehen sie über unser optionales Relay, die Bridge, die in den ersten zwei Jahren kostenlos ist und danach 9,99 € zuzüglich MwSt. pro Jahr für bis zu fünf Adressen kostet. Ohne sie erreichst du deine Fotos trotzdem über ein VPN in dein Heimnetz, und bei einem Gerät, das nur du nutzt, auch über Tailscale Funnel; Freunde, Beiträge, Freigabelinks, die von überall funktionieren, und Benachrichtigungen auf dem Handy brauchen die Bridge.",
+    "en": "<b>Away from home, you need a way in.</b> At home, the apps talk to the device directly. Elsewhere they go through our optional relay, the bridge, which is free for the first two years and then costs €9.99 + VAT a year for up to five addresses. Without it, a VPN into your home network still lets you reach your photos, and so does Tailscale Funnel for a device only you use; friends, posts, share links that work from anywhere and phone notifications need the bridge.",
+    "reviewed": "claude-backtranslation 2026-10-22 #467055c2"
+  },
+  "site.alt.change.setup": {
+    "text": "<b>Du richtest es einmal ein.</b> Die App für Mac, Windows oder Linux bereitet die Systemkarte vor, und die Einrichtung wird über Bluetooth auf deinem Handy oder in der Mac-App abgeschlossen: WLAN, ein Name und ein Passwort. Das dauert etwa 20 Minuten, ganz ohne Terminal.",
+    "en": "<b>You set it up, once.</b> The Mac, Windows or Linux app prepares the system card, and the setup finishes over Bluetooth from your phone, or from the Mac app: Wi-Fi, a name and a password. It takes about 20 minutes, with no terminal."
+  },
+  "site.alt.change.title": {
+    "text": "Was sich ändert, wenn du die Cloud verlässt",
+    "en": "What changes when you leave the cloud"
+  },
+  "site.alt.choose.ente": {
+    "text": "<b>Ente</b>, wenn du deine Fotos lieber in einer Cloud aufbewahrst, in der nicht einmal der Anbieter sie sehen kann: Es ist Ende-zu-Ende-verschlüsselt und Open Source, und bezahlte Abos speichern drei Kopien in der EU.",
+    "en": "<b>Ente</b> if you'd rather keep your photos in a cloud where not even the provider can see them: it's end-to-end encrypted and open source, and paid plans keep three copies in the EU."
+  },
+  "site.alt.choose.google": {
+    "text": "<b>Google Fotos</b>, wenn du nichts einrichten oder betreuen willst und es dich nicht stört, dass Google deine Fotos aufbewahrt oder dass du für ein Abo zahlst, sobald die kostenlosen 15 GB voll sind.",
+    "en": "<b>Google Photos</b> if you want nothing to set up or look after, and don't mind Google keeping your photos or paying for a plan once the free 15 GB fills up."
+  },
+  "site.alt.choose.icloud": {
+    "text": "<b>iCloud-Fotos</b>, wenn alle in deiner Familie ein iPhone oder einen Mac nutzen: Es ist schon eingebaut, und wenn „Erweiterter Datenschutz“ eingeschaltet ist (im Vereinigten Königreich nicht verfügbar), ist deine Fotomediathek Ende-zu-Ende-verschlüsselt.",
+    "en": "<b>iCloud Photos</b> if everyone in your family uses an iPhone or a Mac: it's built in, and with Advanced Data Protection turned on (not offered in the UK), your photo library is end-to-end encrypted."
+  },
+  "site.alt.choose.immich": {
+    "text": "<b>Immich</b>, wenn du schon einen Homeserver betreibst und mit Docker vertraut bist: Es ist eine ausgereifte, kostenlose Open-Source-Foto-App.",
+    "en": "<b>Immich</b> if you already run a home server and are comfortable with Docker: it's a mature, free and open-source photo app."
+  },
+  "site.alt.choose.otc": {
+    "text": "<b>Off The Cloud</b>, wenn du die Fotos und Dateien deiner Familie zu Hause haben willst, in voller Qualität und ohne Speicher-Abo, aus dem du herauswächst, auf einem kleinen Gerät, das sich leicht einrichten lässt und fast keine technischen Kenntnisse erfordert.",
+    "en": "<b>Off The Cloud</b> if you want your family's photos and files at home, in full quality, with no storage plan to outgrow, on a small device that's easy to set up and needs almost no technical knowledge."
+  },
+  "site.alt.choose.synology": {
+    "text": "<b>Synology Photos</b>, wenn du ein fertiges NAS einer etablierten Marke willst, das viel mehr kann als Fotos, und die Software nicht Open Source sein muss.",
+    "en": "<b>Synology Photos</b> if you want a ready-made NAS from an established brand that does much more than photos, and don't need the software to be open source."
+  },
+  "site.alt.choose.title": {
+    "text": "Welche Lösung passt zu dir?",
+    "en": "Which one should you choose?"
+  },
+  "site.alt.col.google_photos": {
+    "text": "Google Fotos",
+    "en": "Google Photos"
+  },
+  "site.alt.col.icloud_photos": {
+    "text": "iCloud-Fotos",
+    "en": "iCloud Photos"
+  },
+  "site.alt.compare.checked": {
+    "text": "Preise geprüft im Oktober 2026. Cloud-Preise gelten pro Monat; Google One und Ente sind bei jährlicher Zahlung günstiger. Off The Cloud und Synology werden einmalig gekauft und verbrauchen außerdem etwas Strom.",
+    "en": "Prices checked in October 2026. Cloud prices are per month; Google One and Ente cost less paid yearly. Off The Cloud and Synology are bought once, and they also use some electricity."
+  },
+  "site.alt.compare.lead": {
+    "text": "Zwei Cloud-Dienste, drei Alternativen und Off The Cloud nebeneinander. Hier stehen kurze Antworten; die Vor- und Nachteile erklären wir unter der Tabelle.",
+    "en": "Two cloud services, three alternatives and Off The Cloud, side by side. Short answers here; the trade-offs are explained below the table."
+  },
+  "site.alt.compare.sources": {
+    "text": "Quellen:",
+    "en": "Sources:"
+  },
+  "site.alt.compare.sources_files": {
+    "text": "Dateien:",
+    "en": "Files:"
+  },
+  "site.alt.compare.sources_social": {
+    "text": "Soziales Netzwerk:",
+    "en": "Social network:"
+  },
+  "site.alt.compare.title": {
+    "text": "Off The Cloud im Vergleich mit Google Fotos, iCloud, Immich, Synology und Ente",
+    "en": "Off The Cloud compared with Google Photos, iCloud, Immich, Synology and Ente"
+  },
+  "site.alt.faq.breaks.a": {
+    "text": "Fällt ein Laufwerk aus, hat das andere eine vollständige Kopie: Das Gerät arbeitet weiter, sagt dir, welches Laufwerk du ersetzen musst, und befüllt das neue von selbst. Geht der Raspberry Pi kaputt, ersetze ihn: Alles liegt auf den Laufwerken, deshalb kommt das Gerät so zurück, wie es war, wenn du die Karte und die Laufwerke in einen neuen Pi steckst. Für ein vollständiges Backup nimm ein Laufwerk heraus und setz ein neues ein: Das entnommene Laufwerk ist dein Backup.",
+    "en": "If a drive fails, the other one holds a full copy: the device keeps working, tells you which drive to replace and fills the new one by itself. If the Raspberry Pi dies, replace it: everything is on the drives, so moving the card and the drives to a new Pi brings it back as it was. For a full backup, take one drive out and put a new one in: the drive you took out is your backup.",
+    "reviewed": "claude-backtranslation 2026-10-22 #f1ab4e54"
+  },
+  "site.alt.faq.breaks.q": {
+    "text": "Was passiert, wenn ein Laufwerk oder der Raspberry Pi kaputtgeht?",
+    "en": "What happens if a drive or the Raspberry Pi breaks?"
+  },
+  "site.alt.faq.cost.a": {
+    "text": "Das hängt davon ab, wie viel du aufbewahrst. Zu Preisen vom Oktober 2026 kostet iCloud+ über fünf Jahre 179,40 € für 200 GB und 599,40 € für 2 TB, das 2-TB-Abo von Google One bei jährlicher Zahlung 499,95 €. Mit Off The Cloud kaufst du einmal einen Raspberry Pi 5 und zwei USB-Laufwerke und zahlst, wenn du die Bridge nutzt, 29,97 € zuzüglich MwSt. für ihr drittes bis fünftes Jahr; außerdem verbraucht das Gerät etwas Strom. Wenn die Laufwerke voll sind, kaufst du größere statt eines größeren Abos.",
+    "en": "It depends on how much you keep. Over five years, at October 2026 prices, iCloud+ costs €179.40 for 200 GB and €599.40 for 2 TB, and Google One's 2 TB plan €499.95 paid yearly. With Off The Cloud you buy a Raspberry Pi 5 and two USB drives once and, if you use the bridge, pay €29.97 + VAT for its third to fifth years; the device also uses some electricity. When the drives fill up, you buy bigger ones instead of a bigger plan.",
+    "reviewed": "claude-backtranslation 2026-10-22 #a0eaac26"
+  },
+  "site.alt.faq.cost.q": {
+    "text": "Ist es günstiger als Google One oder iCloud+?",
+    "en": "Is it cheaper than Google One or iCloud+?"
+  },
+  "site.alt.faq.e2ee.a": {
+    "text": "Nein. Deine Dateien werden verschlüsselt auf deinem Gerät von Off The Cloud gespeichert, mit einem Schlüssel, den nur dein Passwort entsperrt, und zu Hause verbinden sich die Apps direkt damit. Unterwegs laufen die Verbindungen über die Bridge, die sie beim Durchleiten entschlüsselt und neu verschlüsselt, sie sind also nicht Ende-zu-Ende-verschlüsselt; nichts, was durchgeleitet wird, wird gespeichert. Dateinamen, Tags und die Fotos, die du für Freunde postest, bleiben lesbar, damit die Suche und der Feed funktionieren. Wenn du Ende-zu-Ende-Verschlüsselung brauchst: Ente bietet sie, und iCloud ebenfalls, wenn „Erweiterter Datenschutz“ eingeschaltet ist, außer im Vereinigten Königreich.",
+    "en": "No. Your files are stored encrypted on your Off The Cloud device, with a key only your password unlocks, and at home the apps connect to it directly. Away from home, connections go through the bridge, which decrypts and re-encrypts them as they pass, so they are not end-to-end encrypted; nothing that passes through is stored. File names, tags and the photos you post for friends are kept readable, so search and the feed work. If you need end-to-end encryption, Ente has it, and so does iCloud with Advanced Data Protection turned on, except in the UK.",
+    "reviewed": "claude-backtranslation 2026-10-22 #103c84c2"
+  },
+  "site.alt.faq.e2ee.q": {
+    "text": "Ist Off The Cloud Ende-zu-Ende-verschlüsselt?",
+    "en": "Is Off The Cloud end-to-end encrypted?"
+  },
+  "site.alt.faq.immich.a": {
+    "text": "Immich ist eine kostenlose Open-Source-Foto-App für Leute, die ihren eigenen Server betreiben: Du installierst sie mit Docker auf einem Linux-Rechner und richtest Speicher, Backups und den Zugriff von unterwegs selbst ein. Off The Cloud erfordert fast keine technischen Kenntnisse und läuft auf günstiger Hardware, einem Raspberry Pi 5 und zwei USB-Sticks: Die App bereitet die Karte des Raspberry Pi vor, und die Einrichtung wird über Bluetooth von deinem Handy oder Mac aus abgeschlossen. Es kann auch mehr als Fotos: Deine Dateien bleiben wie bei einem NAS mit deinen Computern synchronisiert, und ein privates soziales Netzwerk verbindet die Geräte von Freunden, was Immich nicht hat.",
+    "en": "Immich is a free, open-source photo app for people who run their own server: you install it with Docker on a Linux machine and set up storage, backups and remote access yourself. Off The Cloud needs almost no technical knowledge: the app prepares a Raspberry Pi's card and the setup finishes over Bluetooth from your phone or Mac, on inexpensive hardware, a Raspberry Pi 5 and two USB pen drives. It also does more than photos: your files stay in sync with your computers, like a NAS, and a private social network connects friends' devices, which Immich doesn't have."
+  },
+  "site.alt.faq.immich.q": {
+    "text": "Worin unterscheidet es sich von Immich?",
+    "en": "How is it different from Immich?"
+  },
+  "site.alt.faq.side_by_side.a": {
+    "text": "Ja. Die Apps kopieren deine Fotos auf das Gerät, statt sie zu verschieben, sodass Google Fotos und iCloud weiterlaufen wie bisher und du beides nutzen kannst, bis du dir sicher bist. Du kannst dich auch zuerst in der <demo>Demo</demo> umsehen: ein echtes Gerät mit Fotos einer erfundenen Familie, ohne Anmeldung.",
+    "en": "Yes. The apps copy your photos to the device rather than moving them, so Google Photos and iCloud carry on as before and you can use both until you're sure. You can also look around the <demo>demo</demo> first: a real device with a made-up family's photos, no sign-up needed."
+  },
+  "site.alt.faq.side_by_side.q": {
+    "text": "Kann ich es ausprobieren, ohne Google Fotos oder iCloud zu verlassen?",
+    "en": "Can I try it without leaving Google Photos or iCloud?"
+  },
+  "site.alt.hero.lead": {
+    "text": "Off The Cloud ist kostenlose Open-Source-Software, die einen Raspberry Pi 5 in einen Homeserver für die Fotos, Videos und Dateien deiner Familie verwandelt: Sie übernimmt die Aufgabe von Google Fotos oder iCloud-Fotos, auf einem kleinen Gerät, das dir gehört. Deine Handys sichern deine Fotos und Videos in voller Qualität, und das Gerät versieht sie für die Suche mit Tags und speichert sie auf zwei gespiegelten Laufwerken, ganz ohne monatliches Speicher-Abo. Es eignet sich für Familien, die lieber ein kleines Gerät besitzen, als jeden Monat für Cloud-Speicher zu zahlen.",
+    "en": "Off The Cloud is free, open-source software that turns a Raspberry Pi 5 into a home server for your family's photos, videos and files: it does the job of Google Photos or iCloud Photos, on a small device you own. Your phones back up your photos and videos in full quality, and the device tags them for search and keeps them on two mirrored drives, with no monthly storage plan. It suits families who would rather own a small device than pay for cloud storage every month."
+  },
+  "site.alt.hero.title": {
+    "text": "Eine selbst gehostete Alternative zu Google Fotos und iCloud",
+    "en": "A self-hosted alternative to Google Photos and iCloud"
+  },
+  "site.alt.keep.backup": {
+    "text": "<b>Automatisches Backup von deinen Handys.</b> Die Apps für iPhone und Android sichern deine Fotos und Videos im Hintergrund in voller Auflösung, auch iPhone-Fotos, die nur in iCloud liegen.",
+    "en": "<b>Automatic backup from your phones.</b> The iPhone and Android apps back up your photos and videos in the background, in full resolution, including iPhone photos kept only in iCloud."
+  },
+  "site.alt.keep.family": {
+    "text": "<b>Platz für die ganze Familie.</b> Alle bekommen ihr eigenes Konto und Passwort auf demselben Gerät, und ihre Fotos werden mit ihrem eigenen Schlüssel verschlüsselt.",
+    "en": "<b>Room for the whole family.</b> Everyone gets their own account and password on the same device, and their photos are encrypted with their own key."
+  },
+  "site.alt.keep.originals": {
+    "text": "<b>Deine Originale, unverändert.</b> Jedes Foto und Video wird so gespeichert, wie es aufgenommen wurde, nie komprimiert oder verkleinert, um Platz zu sparen.",
+    "en": "<b>Your originals, untouched.</b> Each photo and video is stored as it was taken, never compressed or resized to save space."
+  },
+  "site.alt.keep.search": {
+    "text": "<b>Suche und Gesichter.</b> Such nach „Strand“, „Hund“ oder einer Stadt und stöbere nach Person und nach Datum. Bilderkennung, Ortsnamen und Gesichtserkennung laufen alle auf dem Gerät selbst, und die Gesichtserkennung bleibt aus, bis du sie einschaltest.",
+    "en": "<b>Search and faces.</b> Search for \"beach\", \"dog\" or a city, and browse by person and by date. Tagging, place names and face recognition all work on the device itself, and face recognition stays off until you turn it on."
+  },
+  "site.alt.keep.sharing": {
+    "text": "<b>Teilen.</b> Sende eine Sammlung als Link, der abläuft, an wen du willst: Die Empfänger öffnen ihn im Browser, ohne Konto oder App. Mit einem optionalen privaten Feed teilst du Beiträge mit Freunden, die du angenommen hast, ohne Werbung und ohne Algorithmus.",
+    "en": "<b>Sharing.</b> Send a collection to anyone as a link that expires: they open it in a browser, with no account or app. An optional private feed lets you share posts with friends you accept, with no ads or algorithm."
+  },
+  "site.alt.keep.title": {
+    "text": "Was du von Google Fotos und iCloud behältst",
+    "en": "What you keep from Google Photos and iCloud"
+  },
+  "site.alt.link": {
+    "text": "Der Vergleich mit Google Fotos und iCloud",
+    "en": "How it compares with Google Photos and iCloud"
+  },
+  "site.alt.meta.description": {
+    "text": "Familienfotos in voller Qualität zu Hause auf einem Raspberry Pi 5 sichern statt in Google Fotos oder iCloud – und der Vergleich mit Immich, Synology Photos und Ente.",
+    "en": "Keep your family's photos in full quality on a Raspberry Pi 5 at home instead of Google Photos or iCloud, and see how it compares with Immich, Synology Photos and Ente."
+  },
+  "site.alt.meta.title": {
+    "text": "Selbst gehostete Google-Fotos- & iCloud-Alternative | Off The Cloud",
+    "en": "Self-hosted Google Photos and iCloud alternative | Off The Cloud"
+  },
+  "site.alt.move.computer": {
+    "text": "<b>Von einem Computer:</b> Die Apps für Mac, Windows und Linux sichern jeden Ordner, den du auswählst, sodass auch Fotos, die du auf einem Computer aufbewahrst, mitkommen.",
+    "en": "<b>From a computer:</b> the Mac, Windows and Linux apps back up any folder you choose, so photos you keep on a computer come across too."
+  },
+  "site.alt.move.google": {
+    "text": "<b>Aus Google Fotos:</b> Off The Cloud hat keinen Import aus Google Fotos. Die Apps für Android und iPhone sichern die Fotos und Videos, die auf dem Handy gespeichert sind – was Google Fotos dort noch aufbewahrt, kommt also mit –, aber Fotos, die nur in der Cloud von Google liegen, musst du zuerst auf ein Handy oder einen Computer herunterladen.",
+    "en": "<b>From Google Photos:</b> Off The Cloud has no Google Photos importer. The Android and iPhone apps back up the photos and videos stored on the phone, so whatever Google Photos still keeps there comes across, but photos that exist only in Google's cloud have to be downloaded to a phone or computer first."
+  },
+  "site.alt.move.icloud": {
+    "text": "<b>Aus iCloud-Fotos:</b> Installiere die iPhone-App, wähle <b>Alle Fotos und Videos</b>, wenn sie fragt, welche Fotos gesendet werden sollen, und lass <b>Aus iCloud synchronisieren</b> eingeschaltet. Das Handy lädt jedes Foto, das es nur in iCloud hat, herunter und sendet es an dein Gerät, daher dauert eine große Mediathek eine Weile; lass das Handy im WLAN. Das Gerät erhält von jedem Foto das Original: Bearbeitungen und der bewegte Teil von Live Photos bleiben in iCloud, und Fotoalben werden nicht kopiert. Das Backup entfernt nichts aus iCloud.",
+    "en": "<b>From iCloud Photos:</b> install the iPhone app and, when it asks which photos to send, choose <b>All photos and videos</b> and leave <b>Sync from iCloud</b> on. The phone downloads each photo it keeps only in iCloud and sends it to your device, so a large library takes a while; keep the phone on Wi-Fi. The device gets each photo's original: edits and the moving part of Live Photos stay in iCloud, and albums aren't copied. Backing up doesn't remove anything from iCloud."
+  },
+  "site.alt.move.title": {
+    "text": "Deine Fotos aus iCloud oder Google Fotos übertragen",
+    "en": "Moving your photos from iCloud or Google Photos"
+  },
+  "site.alt.row.apps": {
+    "text": "Apps",
+    "en": "Apps"
+  },
+  "site.alt.row.cost": {
+    "text": "Was es kostet",
+    "en": "What it costs"
+  },
+  "site.alt.row.e2ee": {
+    "text": "Ende-zu-Ende-verschlüsselt",
+    "en": "End-to-end encrypted"
+  },
+  "site.alt.row.family": {
+    "text": "Familienkonten",
+    "en": "Family accounts"
+  },
+  "site.alt.row.files": {
+    "text": "Auch deine Dateien, nicht nur Fotos",
+    "en": "Your files too, not just photos"
+  },
+  "site.alt.row.links": {
+    "text": "Freigabelinks für Personen ohne Konto",
+    "en": "Share links for people without an account"
+  },
+  "site.alt.row.open_source": {
+    "text": "Open Source",
+    "en": "Open source"
+  },
+  "site.alt.row.quality": {
+    "text": "Originalqualität",
+    "en": "Original quality"
+  },
+  "site.alt.row.search": {
+    "text": "Suche nach Inhalt und Gesichtern",
+    "en": "Search by content and faces"
+  },
+  "site.alt.row.setup": {
+    "text": "Was du brauchst",
+    "en": "What you need"
+  },
+  "site.alt.row.social": {
+    "text": "Ein privates soziales Netzwerk mit Freunden",
+    "en": "A private social network with friends"
+  },
+  "site.alt.row.space": {
+    "text": "Wie viel Speicherplatz",
+    "en": "How much space"
+  },
+  "site.alt.row.where": {
+    "text": "Wo deine Fotos liegen",
+    "en": "Where your photos are kept"
+  },
+  "site.alt.try.title": {
+    "text": "Sieh es dir an, bevor du etwas kaufst",
+    "en": "See it before you buy anything"
+  }
+}

@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"net"
 	"net/http"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -185,7 +186,7 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 		log.Info("Starting http redirect server on port:", httpPort)
 		srv := &http.Server{
 			Addr:              fmt.Sprintf(":%d", httpPort),
-			Handler:           redirectToHTTPS(cHealtyPath, api.muxHTTPServer),
+			Handler:           redirectToHTTPS(api.tld, cHealtyPath, api.muxHTTPServer),
 			ReadHeaderTimeout: 10 * time.Second,
 			IdleTimeout:       time.Minute,
 		}
@@ -203,7 +204,7 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 			Addr: fmt.Sprintf(":%d", httpsPort),
 			// Issue #144: a device request this node can't serve goes to
 			// one that can (clusterRoute), after the same origin check.
-			Handler:           withHSTS(stripClusterHeaders(api.originGuard(newClusterRouter(clu, webSocket, api.tld, api.muxHTTPServer)))),
+			Handler:           withHSTS(api.wwwToApex(stripClusterHeaders(api.originGuard(newClusterRouter(clu, webSocket, api.tld, api.handler()))))),
 			TLSConfig:         &tls.Config{GetCertificate: certs.get, MinVersion: tls.VersionTLS12},
 			ReadHeaderTimeout: 10 * time.Second,
 			IdleTimeout:       2 * time.Minute,
@@ -214,6 +215,42 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 	}()
 
 	return
+}
+
+// handler is what every listener serves once a request is this node's:
+// the routes, behind noindexDevices.
+func (api *API) handler() http.Handler { return api.noindexDevices(api.muxHTTPServer) }
+
+// noindexDevices marks every answer for a device's address (<name>.<tld>,
+// the demo too) X-Robots-Tag: noindex - its web app, the disabled and
+// unavailable pages, media, the API - so search engines list only the
+// bridge's own site, never someone's device or the web app's shell. Here,
+// in front of every route, it covers whatever a device host is answered
+// with; a request another node forwards gets it on that node, whose
+// internal listener serves the same handler. robots.txt can't do this: a
+// crawler kept out never reads a noindex.
+func (api *API) noindexDevices(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Host != api.tld {
+			w.Header().Set("X-Robots-Tag", "noindex")
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// wwwToApex sends www.<tld> to the bridge's own host, path and query kept,
+// in one permanent redirect. www was never a site of its own (DNS points it
+// here, and it is a reserved name, so never a device): without this it was
+// taken for a device's address and answered 503.
+func (api *API) wwwToApex(next http.Handler) http.Handler {
+	www := "www." + api.tld
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.EqualFold(r.Host, www) {
+			http.Redirect(w, r, "https://"+api.tld+r.URL.RequestURI(), http.StatusMovedPermanently)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // registerAPIs Recister all the handles into the corresponding endpoints
@@ -319,9 +356,11 @@ func (api *API) registerAdminAPIs() {
 	api.muxHTTPServer.HandleFunc("GET /admin/api/fleet", api.admin.RequireAuth(api.admin.Fleet))
 }
 
-// serveStatic serves the bridge's own site (the bare domain matching
-// [otc-api] tld - the public landing page and the admin panel) from
-// staticPath, same as always. Anything else is a device's own subdomain,
+// serveStatic serves the files of the bridge's own site (the bare domain
+// matching [otc-api] tld - the privacy, terms and admin pages, fonts and
+// pictures; the pages people land on come from the binary, site.go) from
+// staticPath, same as always, and a 404 for what is no file there. Any
+// other host is a device's own subdomain,
 // and (issue #95) is no longer served from a local copy at all: the
 // bridge has never rebuilt its own web app, only redeployed the same
 // build that goes to every device, and keeping a separate copy of that
@@ -350,14 +389,41 @@ func (api *API) serveStatic(w http.ResponseWriter, r *http.Request) {
 		filePath = "landing.html"
 	}
 
+	// Resolve answers anything that isn't a file with the directory's
+	// index.html, which is right for a device's web app (its routes live
+	// in the browser) but not here: the site's pages come from the binary,
+	// and the index.html older deploys left in staticPath is that web
+	// app's stale shell. It made every unknown address a 200 page - a soft
+	// 404 search engines index as another copy of the site.
 	path, err := staticassets.Resolve(api.staticPath, filePath)
-	if err != nil {
+	if index, absErr := filepath.Abs(api.staticPath + "index.html"); err != nil || absErr != nil || path == index {
 		http.NotFound(w, r)
 		return
 	}
 
 	log.Debug("Serving static:", path, "FilePath:", filePath, "HostName:", r.Host)
+	w.Header().Set("Cache-Control", staticCacheControl(r.URL.Path, path))
 	http.ServeFile(w, r, path)
+}
+
+// cFontPath is a font named by its content (fonts/fonts.css): its name ends
+// with the first 8 hex digits of its SHA-256, so a new font is a new name.
+var cFontPath = regexp.MustCompile(`^/fonts/[a-z0-9-]+-[0-9a-f]{8}\.woff2$`)
+
+// staticCacheControl is how long browsers keep a file of the site's own,
+// asked for at urlPath and served from file: a font named by its content
+// for good; a page not without asking again (Last-Modified makes that a
+// 304), so a deploy shows at once; anything else a day - a picture that
+// replaces another keeps its file name (the deploy copies over the old one
+// and never deletes), and so does fonts.css.
+func staticCacheControl(urlPath, file string) string {
+	switch {
+	case cFontPath.MatchString(urlPath):
+		return "public, max-age=31536000, immutable"
+	case strings.HasSuffix(file, ".html"):
+		return "no-cache"
+	}
+	return "public, max-age=86400"
 }
 
 // proxyStaticAsset (issue #95) fetches r.URL.Path from r.Host's own

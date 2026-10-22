@@ -344,6 +344,41 @@ func SiteLandingFaqFreeQ() Msg {
 	return Msg{Key: "site.landing.faq.free.q"}
 }
 
+// SiteLandingFaqFromGoogleP1 is site.landing.faq.from_google.p1: "There's no Google Photos importer. Photos and videos still on your phone are bac…".
+func SiteLandingFaqFromGoogleP1() Rich {
+	return Rich{Key: "site.landing.faq.from_google.p1"}
+}
+
+// SiteLandingFaqFromGoogleP2 is site.landing.faq.from_google.p2: "Two things to know. Images puts each photo at its file's date, not the date it w…".
+func SiteLandingFaqFromGoogleP2() Msg {
+	return Msg{Key: "site.landing.faq.from_google.p2"}
+}
+
+// SiteLandingFaqFromGoogleQ is site.landing.faq.from_google.q: "How do I move my photos from Google Photos?".
+func SiteLandingFaqFromGoogleQ() Msg {
+	return Msg{Key: "site.landing.faq.from_google.q"}
+}
+
+// SiteLandingFaqFromIcloudP1 is site.landing.faq.from_icloud.p1: "Use the iPhone app. When you sign in to your device, it asks which photos and vi…".
+func SiteLandingFaqFromIcloudP1() Msg {
+	return Msg{Key: "site.landing.faq.from_icloud.p1"}
+}
+
+// SiteLandingFaqFromIcloudP2 is site.landing.faq.from_icloud.p2: "A whole library can take a long time and use a lot of data, so turn on \"Wi-Fi on…".
+func SiteLandingFaqFromIcloudP2() Msg {
+	return Msg{Key: "site.landing.faq.from_icloud.p2"}
+}
+
+// SiteLandingFaqFromIcloudP3 is site.landing.faq.from_icloud.p3: "The Mac app backs up folders, not the Photos library, so the iPhone, or an iPad …".
+func SiteLandingFaqFromIcloudP3() Msg {
+	return Msg{Key: "site.landing.faq.from_icloud.p3"}
+}
+
+// SiteLandingFaqFromIcloudQ is site.landing.faq.from_icloud.q: "How do I move my photos from iCloud?".
+func SiteLandingFaqFromIcloudQ() Msg {
+	return Msg{Key: "site.landing.faq.from_icloud.q"}
+}
+
 // SiteLandingFaqHardwareA is site.landing.faq.hardware.a: "A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two USB drives fo…".
 func SiteLandingFaqHardwareA() Msg {
 	return Msg{Key: "site.landing.faq.hardware.a"}
@@ -574,6 +609,26 @@ func SiteLandingFaqPasswordQ() Msg {
 	return Msg{Key: "site.landing.faq.password.q"}
 }
 
+// SiteLandingFaqPiDiesP1 is site.landing.faq.pi_dies.p1: "Replace it with a new one and everything keeps working: your photos, files and s…".
+func SiteLandingFaqPiDiesP1() Msg {
+	return Msg{Key: "site.landing.faq.pi_dies.p1"}
+}
+
+// SiteLandingFaqPiDiesP2 is site.landing.faq.pi_dies.p2: "Move the microSD card and the two drives to the new Pi and turn it on. If the ca…".
+func SiteLandingFaqPiDiesP2() Rich {
+	return Rich{Key: "site.landing.faq.pi_dies.p2"}
+}
+
+// SiteLandingFaqPiDiesP3 is site.landing.faq.pi_dies.p3: "If a drive dies instead, the device carries on with the other and tells you whic…".
+func SiteLandingFaqPiDiesP3() Msg {
+	return Msg{Key: "site.landing.faq.pi_dies.p3"}
+}
+
+// SiteLandingFaqPiDiesQ is site.landing.faq.pi_dies.q: "What happens if the Raspberry Pi itself dies?".
+func SiteLandingFaqPiDiesQ() Msg {
+	return Msg{Key: "site.landing.faq.pi_dies.q"}
+}
+
 // SiteLandingFaqPrivateA is site.landing.faq.private.a: "Your files are encrypted at rest with a key that only your password unlocks, and…".
 func SiteLandingFaqPrivateA() Msg {
 	return Msg{Key: "site.landing.faq.private.a"}
@@ -592,6 +647,31 @@ func SiteLandingFaqProtectA() Msg {
 // SiteLandingFaqProtectQ is site.landing.faq.protect.q: "Can I protect a folder from being deleted by mistake?".
 func SiteLandingFaqProtectQ() Msg {
 	return Msg{Key: "site.landing.faq.protect.q"}
+}
+
+// SiteLandingFaqRawP1 is site.landing.faq.raw.p1: "Yes. The device keeps every file exactly as it arrives: nothing is resized, conv…".
+func SiteLandingFaqRawP1() Msg {
+	return Msg{Key: "site.landing.faq.raw.p1"}
+}
+
+// SiteLandingFaqRawP2 is site.landing.faq.raw.p2: "The phone apps send each photo's and video's original file. On an iPhone, that m…".
+func SiteLandingFaqRawP2() Msg {
+	return Msg{Key: "site.landing.faq.raw.p2"}
+}
+
+// SiteLandingFaqRawP3 is site.landing.faq.raw.p3: "For a camera's RAW files, back up the folder you copy them into with the <downlo…".
+func SiteLandingFaqRawP3() Rich {
+	return Rich{Key: "site.landing.faq.raw.p3"}
+}
+
+// SiteLandingFaqRawP4 is site.landing.faq.raw.p4: "What you post to your friends' feed can be a lighter copy: a large video is made…".
+func SiteLandingFaqRawP4() Msg {
+	return Msg{Key: "site.landing.faq.raw.p4"}
+}
+
+// SiteLandingFaqRawQ is site.landing.faq.raw.q: "Does it keep RAW files and videos in full quality?".
+func SiteLandingFaqRawQ() Msg {
+	return Msg{Key: "site.landing.faq.raw.q"}
 }
 
 // SiteLandingFaqSocialA is site.landing.faq.social.a: "It's entirely optional. Use OTC purely as a NAS for backup and file sync if that…".
@@ -679,6 +759,71 @@ func SiteLandingFaqTitle() Msg {
 	return Msg{Key: "site.landing.faq.title"}
 }
 
+// SiteLandingFaqVsCloudP1 is site.landing.faq.vs_cloud.p1: "Your photos live in your home instead of on a company's servers. You buy the har…".
+func SiteLandingFaqVsCloudP1() Msg {
+	return Msg{Key: "site.landing.faq.vs_cloud.p1"}
+}
+
+// SiteLandingFaqVsCloudP2 is site.landing.faq.vs_cloud.p2: "Day to day it feels familiar. The phone apps back up your photos and videos in t…".
+func SiteLandingFaqVsCloudP2() Msg {
+	return Msg{Key: "site.landing.faq.vs_cloud.p2"}
+}
+
+// SiteLandingFaqVsCloudP3 is site.landing.faq.vs_cloud.p3: "What changes is that you take ownership. Your photos are on two mirrored drives …".
+func SiteLandingFaqVsCloudP3() Msg {
+	return Msg{Key: "site.landing.faq.vs_cloud.p3"}
+}
+
+// SiteLandingFaqVsCloudQ is site.landing.faq.vs_cloud.q: "How is it different from Google Photos or iCloud?".
+func SiteLandingFaqVsCloudQ() Msg {
+	return Msg{Key: "site.landing.faq.vs_cloud.q"}
+}
+
+// SiteLandingFaqVsSelfhostedLi1 is site.landing.faq.vs_selfhosted.li1: "It installs from an app: the computer app prepares the Raspberry Pi's card, and …".
+func SiteLandingFaqVsSelfhostedLi1() Msg {
+	return Msg{Key: "site.landing.faq.vs_selfhosted.li1"}
+}
+
+// SiteLandingFaqVsSelfhostedLi2 is site.landing.faq.vs_selfhosted.li2: "It runs on inexpensive hardware: a Raspberry Pi 5 and two USB pen drives, mirror…".
+func SiteLandingFaqVsSelfhostedLi2() Msg {
+	return Msg{Key: "site.landing.faq.vs_selfhosted.li2"}
+}
+
+// SiteLandingFaqVsSelfhostedLi3 is site.landing.faq.vs_selfhosted.li3: "Files encrypted at rest, with a key only your password unlocks.".
+func SiteLandingFaqVsSelfhostedLi3() Msg {
+	return Msg{Key: "site.landing.faq.vs_selfhosted.li3"}
+}
+
+// SiteLandingFaqVsSelfhostedLi4 is site.landing.faq.vs_selfhosted.li4: "It's a NAS for your files too, kept in two-way sync with your computers, not onl…".
+func SiteLandingFaqVsSelfhostedLi4() Msg {
+	return Msg{Key: "site.landing.faq.vs_selfhosted.li4"}
+}
+
+// SiteLandingFaqVsSelfhostedLi5 is site.landing.faq.vs_selfhosted.li5: "A private social network between friends' devices, with no ads and no algorithm,…".
+func SiteLandingFaqVsSelfhostedLi5() Msg {
+	return Msg{Key: "site.landing.faq.vs_selfhosted.li5"}
+}
+
+// SiteLandingFaqVsSelfhostedLi6 is site.landing.faq.vs_selfhosted.li6: "Apps for phones and computers, an account for each person in the family, and an …".
+func SiteLandingFaqVsSelfhostedLi6() Msg {
+	return Msg{Key: "site.landing.faq.vs_selfhosted.li6"}
+}
+
+// SiteLandingFaqVsSelfhostedP1 is site.landing.faq.vs_selfhosted.p1: "Immich and PhotoPrism are photo libraries and Nextcloud is a file and collaborat…".
+func SiteLandingFaqVsSelfhostedP1() Msg {
+	return Msg{Key: "site.landing.faq.vs_selfhosted.p1"}
+}
+
+// SiteLandingFaqVsSelfhostedP2 is site.landing.faq.vs_selfhosted.p2: "Off The Cloud is easier to install and needs almost no technical knowledge, and …".
+func SiteLandingFaqVsSelfhostedP2() Msg {
+	return Msg{Key: "site.landing.faq.vs_selfhosted.p2"}
+}
+
+// SiteLandingFaqVsSelfhostedQ is site.landing.faq.vs_selfhosted.q: "How is it different from Immich, PhotoPrism or Nextcloud?".
+func SiteLandingFaqVsSelfhostedQ() Msg {
+	return Msg{Key: "site.landing.faq.vs_selfhosted.q"}
+}
+
 // SiteLandingFooterContact is site.landing.footer.contact: "Contact".
 func SiteLandingFooterContact() Msg {
 	return Msg{Key: "site.landing.footer.contact"}
@@ -704,6 +849,106 @@ func SiteLandingFooterTerms() Msg {
 	return Msg{Key: "site.landing.footer.terms"}
 }
 
+// SiteLandingGlanceAppsLabel is site.landing.glance.apps.label: "Apps".
+func SiteLandingGlanceAppsLabel() Msg {
+	return Msg{Key: "site.landing.glance.apps.label"}
+}
+
+// SiteLandingGlanceAppsValue is site.landing.glance.apps.value: "iPhone and iPad, Android, Mac, Windows and Linux, plus a web app in your browser".
+func SiteLandingGlanceAppsValue() Msg {
+	return Msg{Key: "site.landing.glance.apps.value"}
+}
+
+// SiteLandingGlanceCompare is site.landing.glance.compare: "Compare it with Google Photos, iCloud, Immich and others".
+func SiteLandingGlanceCompare() Msg {
+	return Msg{Key: "site.landing.glance.compare"}
+}
+
+// SiteLandingGlanceCostLabel is site.landing.glance.cost.label: "Cost".
+func SiteLandingGlanceCostLabel() Msg {
+	return Msg{Key: "site.landing.glance.cost.label"}
+}
+
+// SiteLandingGlanceCostValue is site.landing.glance.cost.value: "Free software; a Raspberry Pi 5 and two USB pen drives; optional bridge: free fo…".
+func SiteLandingGlanceCostValue() Msg {
+	return Msg{Key: "site.landing.glance.cost.value"}
+}
+
+// SiteLandingGlanceHardwareLabel is site.landing.glance.hardware.label: "Runs on".
+func SiteLandingGlanceHardwareLabel() Msg {
+	return Msg{Key: "site.landing.glance.hardware.label"}
+}
+
+// SiteLandingGlanceHardwareValue is site.landing.glance.hardware.value: "A Raspberry Pi 5 with 8 GB (4 GB with tagging and faces off), or a 64-bit Intel/…".
+func SiteLandingGlanceHardwareValue() Msg {
+	return Msg{Key: "site.landing.glance.hardware.value"}
+}
+
+// SiteLandingGlanceInsteadLabel is site.landing.glance.instead.label: "Instead of".
+func SiteLandingGlanceInsteadLabel() Msg {
+	return Msg{Key: "site.landing.glance.instead.label"}
+}
+
+// SiteLandingGlanceInsteadValue is site.landing.glance.instead.value: "Google Photos and iCloud Photos, and a cloud drive such as Dropbox or iCloud Dri…".
+func SiteLandingGlanceInsteadValue() Msg {
+	return Msg{Key: "site.landing.glance.instead.value"}
+}
+
+// SiteLandingGlanceLanguagesLabel is site.landing.glance.languages.label: "Languages".
+func SiteLandingGlanceLanguagesLabel() Msg {
+	return Msg{Key: "site.landing.glance.languages.label"}
+}
+
+// SiteLandingGlanceLanguagesValue is site.landing.glance.languages.value: "English, Spanish, French, German, Italian, Portuguese and Dutch".
+func SiteLandingGlanceLanguagesValue() Msg {
+	return Msg{Key: "site.landing.glance.languages.value"}
+}
+
+// SiteLandingGlanceLicenceLabel is site.landing.glance.licence.label: "Licence".
+func SiteLandingGlanceLicenceLabel() Msg {
+	return Msg{Key: "site.landing.glance.licence.label"}
+}
+
+// SiteLandingGlanceLicenceValue is site.landing.glance.licence.value: "Open source under the GNU AGPL-3.0: the device, every app and the bridge".
+func SiteLandingGlanceLicenceValue() Msg {
+	return Msg{Key: "site.landing.glance.licence.value"}
+}
+
+// SiteLandingGlancePrivacyLabel is site.landing.glance.privacy.label: "Privacy".
+func SiteLandingGlancePrivacyLabel() Msg {
+	return Msg{Key: "site.landing.glance.privacy.label"}
+}
+
+// SiteLandingGlancePrivacyValue is site.landing.glance.privacy.value: "File contents encrypted at rest; photo tagging and faces done on the device; not…".
+func SiteLandingGlancePrivacyValue() Msg {
+	return Msg{Key: "site.landing.glance.privacy.value"}
+}
+
+// SiteLandingGlanceStorageLabel is site.landing.glance.storage.label: "Storage".
+func SiteLandingGlanceStorageLabel() Msg {
+	return Msg{Key: "site.landing.glance.storage.label"}
+}
+
+// SiteLandingGlanceStorageValue is site.landing.glance.storage.value: "Two USB drives mirrored as RAID-1, each with a full copy: sticks, SSDs, hard dis…".
+func SiteLandingGlanceStorageValue() Msg {
+	return Msg{Key: "site.landing.glance.storage.value"}
+}
+
+// SiteLandingGlanceTitle is site.landing.glance.title: "Off The Cloud at a glance".
+func SiteLandingGlanceTitle() Msg {
+	return Msg{Key: "site.landing.glance.title"}
+}
+
+// SiteLandingGlanceWhatLabel is site.landing.glance.what.label: "What it is".
+func SiteLandingGlanceWhatLabel() Msg {
+	return Msg{Key: "site.landing.glance.what.label"}
+}
+
+// SiteLandingGlanceWhatValue is site.landing.glance.what.value: "A self-hosted home server for your family's photos, videos and files, with its o…".
+func SiteLandingGlanceWhatValue() Msg {
+	return Msg{Key: "site.landing.glance.what.value"}
+}
+
 // SiteLandingHeroDemo is site.landing.hero.demo: "Try the demo".
 func SiteLandingHeroDemo() Msg {
 	return Msg{Key: "site.landing.hero.demo"}
@@ -714,7 +959,7 @@ func SiteLandingHeroDemoNote() Msg {
 	return Msg{Key: "site.landing.hero.demo_note"}
 }
 
-// SiteLandingHeroLead is site.landing.hero.lead: "Off The Cloud is a NAS and a social network in one small box you own outright: y…".
+// SiteLandingHeroLead is site.landing.hero.lead: "Off The Cloud is free, open-source software that turns a Raspberry Pi 5 into a h…".
 func SiteLandingHeroLead() Msg {
 	return Msg{Key: "site.landing.hero.lead"}
 }
@@ -724,7 +969,7 @@ func SiteLandingHeroPhotoAlt() Msg {
 	return Msg{Key: "site.landing.hero.photo_alt"}
 }
 
-// SiteLandingHeroPill is site.landing.hero.pill: "100% open source · self-hosted on your own Raspberry Pi".
+// SiteLandingHeroPill is site.landing.hero.pill: "100% open source · photo backup on your own Raspberry Pi".
 func SiteLandingHeroPill() Msg {
 	return Msg{Key: "site.landing.hero.pill"}
 }
@@ -884,12 +1129,12 @@ func SiteLandingLightboxPrevious() Msg {
 	return Msg{Key: "site.landing.lightbox.previous"}
 }
 
-// SiteLandingMetaDescription is site.landing.meta.description: "A private, family-friendly NAS and ethical social network you own outright. Plug…".
+// SiteLandingMetaDescription is site.landing.meta.description: "Back up your family's photos and videos in full resolution to a Raspberry Pi 5 a…".
 func SiteLandingMetaDescription() Msg {
 	return Msg{Key: "site.landing.meta.description"}
 }
 
-// SiteLandingMetaTitle is site.landing.meta.title: "Off The Cloud — own your memories".
+// SiteLandingMetaTitle is site.landing.meta.title: "Off The Cloud: self-hosted Google Photos & iCloud alternative".
 func SiteLandingMetaTitle() Msg {
 	return Msg{Key: "site.landing.meta.title"}
 }
@@ -974,7 +1219,7 @@ func SiteLandingShotsDesktopGroup() Msg {
 	return Msg{Key: "site.landing.shots.desktop_group"}
 }
 
-// SiteLandingShotsDeviceAlt is site.landing.shots.device_alt: "The Off The Cloud device: a Raspberry Pi with two micro-SD cards and RAID status…".
+// SiteLandingShotsDeviceAlt is site.landing.shots.device_alt: "The Off The Cloud device: a Raspberry Pi 5 whose mirrored drives are two microSD…".
 func SiteLandingShotsDeviceAlt() Msg {
 	return Msg{Key: "site.landing.shots.device_alt"}
 }
@@ -1129,7 +1374,7 @@ func SiteLandingWhatDesktopTitle() Msg {
 	return Msg{Key: "site.landing.what.desktop_title"}
 }
 
-// SiteLandingWhatDeviceText is site.landing.what.device_text: "A Raspberry Pi 5 with a card for the system and two storage cards mirrored in RA…".
+// SiteLandingWhatDeviceText is site.landing.what.device_text: "A Raspberry Pi 5 with a microSD card for the system and two USB drives mirrored …".
 func SiteLandingWhatDeviceText() Msg {
 	return Msg{Key: "site.landing.what.device_text"}
 }

@@ -3,6 +3,8 @@
 package api
 
 import (
+	"bytes"
+	"compress/gzip"
 	"crypto/rand"
 	"encoding/base64"
 	"net/http"
@@ -29,12 +31,20 @@ import (
 //	/<code>/          the page in that language; /en/ is English without that redirect (the switcher's link)
 //	/<code>           301 to /<code>/
 //	/xx, /xx/         404 for two or three lowercase letters that aren't a carried language
-//	/<code>/anything  404: the site has no other localized pages yet, but for
+//	/<code>/anything  404: the only other localized pages are
 //	/account          the account page: English, or 302 to /<code>/account as / does
 //	/<code>/account   the account page in that language; /en/account is English without the redirect
-//	/xx/account       404 for a language this build doesn't carry
+//	/google-photos-alternative, /<code>/google-photos-alternative
+//	                  the comparison page, the same way
+//	/xx/account       404 for a language this build doesn't carry (and /xx/google-photos-alternative)
 //	/landing(.html)   301 to /, the page's old address
 //	/account.html     301 to /account, the account page's old address
+//	/robots.txt, /sitemap.xml, /llms.txt
+//	                  what crawlers read (package site, crawl.go)
+//
+// The pages and those three files go out gzipped to a client that takes
+// it (they are text, about 80 KB for the landing page; fonts and pictures
+// are compressed already).
 //
 // The account page's own links (the Google and Apple sign-ins' ?error= and
 // ?complete=, and emails' #verify= and #reset=) come to /account: a
@@ -44,9 +54,10 @@ import (
 //
 // /disabled and /unavailable show those pages on the bridge's host too
 // (Accept-Language), for a look at them. Everything else (the privacy,
-// terms and admin pages, fonts, images) is serveStatic's, as before. On a device's own address the bridge answers with serveOwnPage
-// when it can't proxy: there the path is the device's, so those pages
-// follow Accept-Language.
+// terms and admin pages, fonts, images; a 404 for no such file) is
+// serveStatic's. On a device's own address the bridge answers with
+// serveOwnPage when it can't proxy: there the path is the device's, so
+// those pages follow Accept-Language.
 
 // langSegment is what a language code looks like in a path.
 var langSegment = regexp.MustCompile(`^[a-z]{2,3}$`)
@@ -64,11 +75,14 @@ func (api *API) serveSite(w http.ResponseWriter, r *http.Request) {
 func (api *API) sitePage(w http.ResponseWriter, r *http.Request) bool {
 	p := r.URL.Path
 	var answer func()
+	base := "https://" + api.tld
 	switch p {
 	case "/":
-		answer = func() { api.writeEnglishOrRedirect(w, r, site.Landing, site.Path) }
+		answer = func() { api.writeEnglishOrRedirect(w, r, site.Landing) }
 	case "/account":
-		answer = func() { api.writeEnglishOrRedirect(w, r, site.Account, site.AccountPath) }
+		answer = func() { api.writeEnglishOrRedirect(w, r, site.Account) }
+	case "/" + site.AlternativeSlug:
+		answer = func() { api.writeEnglishOrRedirect(w, r, site.Alternative) }
 	case "/landing", "/landing.html":
 		answer = func() { siteRedirect(w, r, "/", http.StatusMovedPermanently) }
 	case "/account.html":
@@ -77,20 +91,33 @@ func (api *API) sitePage(w http.ResponseWriter, r *http.Request) bool {
 		answer = func() { api.writeLocalizedPage(w, r, site.Disabled, http.StatusOK) }
 	case "/unavailable", "/unavailable.html":
 		answer = func() { api.writeLocalizedPage(w, r, site.Unavailable, http.StatusOK) }
+	case "/robots.txt":
+		answer = func() { writeCompressed(w, r, "text/plain; charset=utf-8", http.StatusOK, site.Robots(base)) }
+	case "/llms.txt":
+		answer = func() { writeCompressed(w, r, "text/plain; charset=utf-8", http.StatusOK, site.LLMs(base)) }
+	case "/sitemap.xml":
+		answer = func() {
+			body, err := site.Sitemap(base)
+			if err != nil {
+				log.Error("site: could not write the sitemap:", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			writeCompressed(w, r, "application/xml; charset=utf-8", http.StatusOK, body)
+		}
 	default:
 		code, rest, slash := strings.Cut(p[1:], "/")
 		if !langSegment.MatchString(code) {
 			return false
 		}
 		_, carried := site.Language(code)
+		page, localized := site.Localized(rest)
 		switch {
 		case carried && !slash:
 			answer = func() { siteRedirect(w, r, "/"+code+"/", http.StatusMovedPermanently) }
-		case carried && rest == "":
-			answer = func() { api.writeSitePage(w, site.Landing, code, http.StatusOK) }
-		case carried && rest == "account":
-			answer = func() { api.writeSitePage(w, site.Account, code, http.StatusOK) }
-		case carried, rest == "", rest == "account":
+		case carried && localized:
+			answer = func() { api.writeSitePage(w, r, page, code, http.StatusOK) }
+		case carried, localized:
 			answer = func() { http.NotFound(w, r) }
 		default:
 			// Not a language: /img/device.jpg and the like.
@@ -106,17 +133,17 @@ func (api *API) sitePage(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
-// writeEnglishOrRedirect answers a page's English address (/, /account):
-// the page in English, or a 302 to the page in the language
-// Accept-Language prefers (at gives its address) when that is another
+// writeEnglishOrRedirect answers a localized page's English address (/,
+// /account, /google-photos-alternative): the page in English, or a 302 to
+// the page in the language Accept-Language prefers when that is another
 // language this build carries.
-func (api *API) writeEnglishOrRedirect(w http.ResponseWriter, r *http.Request, page string, at func(code string) string) {
+func (api *API) writeEnglishOrRedirect(w http.ResponseWriter, r *http.Request, page string) {
 	w.Header().Add("Vary", "Accept-Language")
 	if lang := i18n.Match(r.Header.Get("Accept-Language")); lang != site.English() {
-		siteRedirect(w, r, at(lang), http.StatusFound)
+		siteRedirect(w, r, site.PagePath(page, lang), http.StatusFound)
 		return
 	}
-	api.writeSitePage(w, page, site.English(), http.StatusOK)
+	api.writeSitePage(w, r, page, site.English(), http.StatusOK)
 }
 
 // siteRedirect sends r to path, keeping its query.
@@ -149,7 +176,7 @@ func (api *API) serveOwnPage(w http.ResponseWriter, r *http.Request, page string
 // writeLocalizedPage writes page in the language Accept-Language prefers.
 func (api *API) writeLocalizedPage(w http.ResponseWriter, r *http.Request, page string, status int) {
 	w.Header().Add("Vary", "Accept-Language")
-	api.writeSitePage(w, page, i18n.Match(r.Header.Get("Accept-Language")), status)
+	api.writeSitePage(w, r, page, i18n.Match(r.Header.Get("Accept-Language")), status)
 }
 
 // writeSitePage renders page in lang (a carried code) and writes it with
@@ -157,7 +184,7 @@ func (api *API) writeLocalizedPage(w http.ResponseWriter, r *http.Request, page 
 // inline <style> and <script> elements carry. A page that can't be
 // rendered gets the bare status (500 for a page that should have been a
 // 200), and a log line naming the page - never the host or the language.
-func (api *API) writeSitePage(w http.ResponseWriter, page, lang string, status int) {
+func (api *API) writeSitePage(w http.ResponseWriter, r *http.Request, page, lang string, status int) {
 	nonce, err := newNonce()
 	var body []byte
 	if err == nil {
@@ -172,15 +199,60 @@ func (api *API) writeSitePage(w http.ResponseWriter, page, lang string, status i
 		return
 	}
 	h := w.Header()
-	h.Set("Content-Type", "text/html; charset=utf-8")
 	if l, ok := site.Language(lang); ok {
 		h.Set("Content-Language", l.Tag)
 	}
 	h.Set("Content-Security-Policy", sitePolicy(nonce))
+	writeCompressed(w, r, "text/html; charset=utf-8", status, body)
+}
+
+// writeCompressed writes body with status and its type, gzipped when the
+// client takes gzip: a page of text is about a quarter of its size that
+// way. Content-Length is what is sent - HEAD gets the same headers as GET,
+// without the body - and Vary tells caches the answer depends on
+// Accept-Encoding.
+func writeCompressed(w http.ResponseWriter, r *http.Request, contentType string, status int, body []byte) {
+	h := w.Header()
+	h.Set("Content-Type", contentType)
 	h.Set("X-Content-Type-Options", "nosniff")
+	h.Add("Vary", "Accept-Encoding")
+	if acceptsGzip(r.Header.Get("Accept-Encoding")) {
+		var b bytes.Buffer
+		zw := gzip.NewWriter(&b)
+		if _, err := zw.Write(body); err == nil && zw.Close() == nil {
+			h.Set("Content-Encoding", "gzip")
+			body = b.Bytes()
+		}
+	}
 	h.Set("Content-Length", strconv.Itoa(len(body)))
 	w.WriteHeader(status)
-	w.Write(body)
+	if r.Method != http.MethodHead {
+		w.Write(body)
+	}
+}
+
+// acceptsGzip reports whether an Accept-Encoding header lets the answer be
+// gzipped: gzip (or x-gzip) listed without q=0, or "*" without q=0 when
+// gzip isn't listed at all.
+func acceptsGzip(header string) bool {
+	star := false
+	for _, part := range strings.Split(header, ",") {
+		name, params, _ := strings.Cut(part, ";")
+		allowed := true
+		for _, p := range strings.Split(params, ";") {
+			if k, v, ok := strings.Cut(strings.TrimSpace(p), "="); ok && strings.EqualFold(strings.TrimSpace(k), "q") {
+				q, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+				allowed = err == nil && q > 0
+			}
+		}
+		switch name = strings.ToLower(strings.TrimSpace(name)); name {
+		case "gzip", "x-gzip":
+			return allowed
+		case "*":
+			star = allowed
+		}
+	}
+	return star
 }
 
 // sitePolicy is the pages' Content-Security-Policy: their inline style and

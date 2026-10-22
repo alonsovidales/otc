@@ -1,0 +1,190 @@
+@html.lang=en
+Self-hosted Google Photos and iCloud alternative | Off The Cloud
+@meta.description=Keep your family's photos in full quality on a Raspberry Pi 5 at home instead of Google Photos or iCloud, and see how it compares with Immich, Synology Photos and Ente.
+@a.aria-label=Off The Cloud
+@a.href=/
+@img.src=/logo.png
+@img.alt=
+Off The Cloud
+@a.href=/#get-started
+@a.href=/#download
+@a.href=/#what
+@a.href=/#screenshots
+@a.href=/#faq
+@a.href=https://github.com/alonsovidales/otc
+Get started Download What it is Gallery FAQ GitHub
+@a.href=/account
+@a.href=/account?signup=1
+Sign in Create an account
+A self-hosted alternative to Google Photos and iCloud
+Off The Cloud is free, open-source software that turns a Raspberry Pi 5 into a home server for your family's photos, videos and files: it does the job of Google Photos or iCloud Photos, on a small device you own. Your phones back up your photos and videos in full quality, and the device tags them for search and keeps them on two mirrored drives, with no monthly storage plan. It suits families who would rather own a small device than pay for cloud storage every month.
+@a.href=https://demo.off-the.cloud/
+Try the demo Look around a real device with a made-up family's photos and files. No sign-up.
+What you keep from Google Photos and iCloud
+Automatic backup from your phones. The iPhone and Android apps back up your photos and videos in the background, in full resolution, including iPhone photos kept only in iCloud.
+Your originals, untouched. Each photo and video is stored as it was taken, never compressed or resized to save space.
+Search and faces. Search for "beach", "dog" or a city, and browse by person and by date. Tagging, place names and face recognition all work on the device itself, and face recognition stays off until you turn it on.
+Room for the whole family. Everyone gets their own account and password on the same device, and their photos are encrypted with their own key.
+Sharing. Send a collection to anyone as a link that expires: they open it in a browser, with no account or app. An optional private feed lets you share posts with friends you accept, with no ads or algorithm.
+What changes when you leave the cloud
+You buy the hardware once. A Raspberry Pi 5 (8 GB) and two USB pen drives are all it needs. When they fill up, you swap in bigger drives instead of paying for a bigger plan.
+You set it up, once. The Mac, Windows or Linux app prepares the system card, and the setup finishes over Bluetooth from your phone, or from the Mac app: Wi-Fi, a name and a password. It takes about 20 minutes, with no terminal.
+Away from home, you need a way in. At home, the apps talk to the device directly. Elsewhere they go through our optional relay, the bridge, which is free for the first two years and then costs €9.99 + VAT a year for up to five addresses. Without it, a VPN into your home network still lets you reach your photos, and so does Tailscale Funnel for a device only you use; friends, posts, share links that work from anywhere and phone notifications need the bridge.
+You take ownership. Your photos are on two mirrored drives in your home, so one drive failing loses nothing, and a full backup is easy: take one drive out and put a new one in, and the device copies everything onto it; the drive you took out is your backup. Nobody can reset your device password, not even us.
+Off The Cloud compared with Google Photos, iCloud, Immich, Synology and Ente
+Two cloud services, three alternatives and Off The Cloud, side by side. Short answers here; the trade-offs are explained below the table.
+Off The Cloud
+Google Photos
+iCloud Photos
+Immich
+Synology Photos
+Ente
+Where your photos are kept
+At home, on hardware you own
+Google's data centres
+Apple's cloud
+At home, on hardware you own
+At home, on hardware you own
+Ente's cloud in the EU, three copies on paid plans; or your own server
+Original quality
+Yes
+Yes, or smaller with Storage saver
+Yes
+Yes
+Yes
+Yes
+What it costs
+A Raspberry Pi 5 and two USB pen drives, bought once; optional bridge €9.99 + VAT a year after two free years
+15 GB free, shared with Gmail and Drive; 100 GB €1.99 or 2 TB €9.99 a month
+5 GB free; 200 GB €2.99 or 2 TB €9.99 a month
+Free; you supply the server
+A Synology NAS and its drives, bought once
+10 GB free; 200 GB €5.99 or 1 TB €11.99 a month
+How much space
+As big as one of your two drives, which hold the same copy
+Your plan's size
+Your plan's size
+As big as your drives
+As big as your drives
+Your plan's size
+Open source
+Yes, AGPL-3.0
+No
+No
+Yes, AGPL-3.0
+No
+Yes, AGPL-3.0
+End-to-end encrypted
+No: stored encrypted, but the bridge decrypts what it relays
+No
+Only with Advanced Data Protection, off by default and not offered in the UK
+No; the photos stay on your own server
+No; the photos stay on your own server
+Yes
+Search by content and faces
+Yes, on your own hardware
+Yes, done by Google
+Yes, on your phone or computer
+Yes, on your own hardware
+Yes, on the NAS, but only on some models
+Yes, on your phone or computer
+Your files too, not just photos
+Yes: a NAS kept in two-way sync with your computers
+No: files go in Google Drive, a separate service on the same plan
+No: files go in iCloud Drive, a separate service on the same plan
+No: photos and videos only
+Yes, with Synology Drive on the same NAS
+No: Ente Locker, a separate app, keeps important documents
+A private social network with friends
+Yes: posts, comments and likes between friends' devices, with no ads or algorithm
+No: shared albums with comments and likes
+No: shared albums with comments and likes
+No: shared albums with comments and likes
+No: shared albums and links, without comments or likes
+No: shared albums with comments and likes
+Family accounts
+Yes, each with their own password
+Plan shared with up to 5 others
+Plan shared with up to 5 others
+Yes
+Yes
+Plan shared with up to 5 others
+Share links for people without an account
+Yes, through the bridge
+Yes
+Yes
+Yes
+Yes
+Yes
+Apps
+Android, iPhone, Mac, Windows, Linux, web
+Android, iPhone, web, which also backs up computer folders
+iPhone, Mac, Windows, web; no Android app
+Android, iPhone, web
+Android, iPhone, web; Synology Drive on computers
+Android, iPhone, Mac, Windows, Linux, web
+What you need
+A Raspberry Pi 5 (8 GB), two USB drives and a computer to write its card; about 20 minutes
+Nothing to set up: sign in
+Nothing to set up: sign in
+A Linux server with Docker and at least 6 GB of RAM
+A Synology NAS and its drives
+Nothing to set up: sign in
+Prices checked in October 2026. Cloud prices are per month; Google One and Ente cost less paid yearly. Off The Cloud and Synology are bought once, and they also use some electricity.
+@a.href=https://one.google.com/about/plans
+@a.href=https://support.google.com/photos/answer/6220791
+@a.href=https://support.apple.com/en-us/108047
+@a.href=https://support.apple.com/en-us/102651
+@a.href=https://docs.immich.app/install/requirements
+@a.href=https://www.synology.com/en-global/dsm/7.3/software_spec/synology_photos
+@a.href=https://ente.com/pricing
+Sources: Google One · Google Photos · iCloud+ · iCloud Photos · Immich · Synology Photos · Ente
+@a.href=https://support.google.com/drive/answer/2424384
+@a.href=https://support.apple.com/en-us/118443
+@a.href=https://docs.immich.app/features/supported-formats
+@a.href=https://www.synology.com/en-global/dsm/feature/drive
+@a.href=https://ente.com/help/locker
+Files: Google Drive · iCloud Drive · Immich · Synology Drive · Ente Locker
+@a.href=https://support.google.com/photos/answer/6280921
+@a.href=https://support.apple.com/guide/photos/phtf7fe6394/mac
+@a.href=https://github.com/immich-app/immich/blob/main/server/src/controllers/activity.controller.ts
+@a.href=https://kb.synology.com/en-global/DSM/tutorial/What_are_the_differences_between_Photos_Photo_Station_Moments
+@a.href=https://ente.com/help/photos/features/sharing-and-collaboration/comments-and-likes
+Social network: Google Photos · iCloud Photos · Immich · Synology Photos · Ente
+Which one should you choose?
+Off The Cloud if you want your family's photos and files at home, in full quality, with no storage plan to outgrow, on a small device that's easy to set up and needs almost no technical knowledge.
+Google Photos if you want nothing to set up or look after, and don't mind Google keeping your photos or paying for a plan once the free 15 GB fills up.
+iCloud Photos if everyone in your family uses an iPhone or a Mac: it's built in, and with Advanced Data Protection turned on (not offered in the UK), your photo library is end-to-end encrypted.
+Immich if you already run a home server and are comfortable with Docker: it's a mature, free and open-source photo app.
+Synology Photos if you want a ready-made NAS from an established brand that does much more than photos, and don't need the software to be open source.
+Ente if you'd rather keep your photos in a cloud where not even the provider can see them: it's end-to-end encrypted and open source, and paid plans keep three copies in the EU.
+Moving your photos from iCloud or Google Photos
+From iCloud Photos: install the iPhone app and, when it asks which photos to send, choose All photos and videos and leave Sync from iCloud on. The phone downloads each photo it keeps only in iCloud and sends it to your device, so a large library takes a while; keep the phone on Wi-Fi. The device gets each photo's original: edits and the moving part of Live Photos stay in iCloud, and albums aren't copied. Backing up doesn't remove anything from iCloud.
+From Google Photos: Off The Cloud has no Google Photos importer. The Android and iPhone apps back up the photos and videos stored on the phone, so whatever Google Photos still keeps there comes across, but photos that exist only in Google's cloud have to be downloaded to a phone or computer first.
+From a computer: the Mac, Windows and Linux apps back up any folder you choose, so photos you keep on a computer come across too.
+See it before you buy anything
+@a.href=https://demo.off-the.cloud/
+@a.href=/#install
+Try the demo Get your device running
+Look around a real device with a made-up family's photos and files. No sign-up.
+FAQ
+Questions people actually ask
+Can I try it without leaving Google Photos or iCloud?
+@a.href=https://demo.off-the.cloud/
+Yes. The apps copy your photos to the device rather than moving them, so Google Photos and iCloud carry on as before and you can use both until you're sure. You can also look around the demo first: a real device with a made-up family's photos, no sign-up needed.
+Is it cheaper than Google One or iCloud+?
+It depends on how much you keep. Over five years, at October 2026 prices, iCloud+ costs €179.40 for 200 GB and €599.40 for 2 TB, and Google One's 2 TB plan €499.95 paid yearly. With Off The Cloud you buy a Raspberry Pi 5 and two USB drives once and, if you use the bridge, pay €29.97 + VAT for its third to fifth years; the device also uses some electricity. When the drives fill up, you buy bigger ones instead of a bigger plan.
+Is Off The Cloud end-to-end encrypted?
+No. Your files are stored encrypted on your Off The Cloud device, with a key only your password unlocks, and at home the apps connect to it directly. Away from home, connections go through the bridge, which decrypts and re-encrypts them as they pass, so they are not end-to-end encrypted; nothing that passes through is stored. File names, tags and the photos you post for friends are kept readable, so search and the feed work. If you need end-to-end encryption, Ente has it, and so does iCloud with Advanced Data Protection turned on, except in the UK.
+How is it different from Immich?
+Immich is a free, open-source photo app for people who run their own server: you install it with Docker on a Linux machine and set up storage, backups and remote access yourself. Off The Cloud needs almost no technical knowledge: the app prepares a Raspberry Pi's card and the setup finishes over Bluetooth from your phone or Mac, on inexpensive hardware, a Raspberry Pi 5 and two USB pen drives. It also does more than photos: your files stay in sync with your computers, like a NAS, and a private social network connects friends' devices, which Immich doesn't have.
+What happens if a drive or the Raspberry Pi breaks?
+If a drive fails, the other one holds a full copy: the device keeps working, tells you which drive to replace and fills the new one by itself. If the Raspberry Pi dies, replace it: everything is on the drives, so moving the card and the drives to a new Pi brings it back as it was. For a full backup, take one drive out and put a new one in: the drive you took out is your backup.
+© 2026 Off The Cloud · open source, self-hosted, yours.
+@a.href=https://github.com/alonsovidales/otc
+@a.href=https://github.com/alonsovidales/otc#readme
+@a.href=/google-photos-alternative
+@a.href=/#contact
+@a.href=/privacy
+@a.href=/terms
+GitHub Documentation How it compares with Google Photos and iCloud Contact Privacy Terms

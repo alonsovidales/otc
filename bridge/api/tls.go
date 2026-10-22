@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,8 +25,9 @@ const cHSTS = "max-age=31536000; includeSubDomains"
 
 // redirectToHTTPS answers everything on port 80 with a permanent redirect
 // to the same address over HTTPS - except the health check, which carries
-// nothing and is what a monitor may poll.
-func redirectToHTTPS(health string, mux http.Handler) http.Handler {
+// nothing and is what a monitor may poll. www.<tld> goes straight to the
+// bridge's own host (tld), in one hop, as it does over HTTPS (wwwToApex).
+func redirectToHTTPS(tld, health string, mux http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == health {
 			mux.ServeHTTP(w, r)
@@ -38,6 +40,13 @@ func redirectToHTTPS(health string, mux http.Handler) http.Handler {
 		if host == "" {
 			http.Error(w, "use https", http.StatusBadRequest) // i18n-ignore: only a client sending no Host header gets it; browsers always send one
 			return
+		}
+		apex := tld
+		if h, _, err := net.SplitHostPort(apex); err == nil {
+			apex = h
+		}
+		if strings.EqualFold(host, "www."+apex) {
+			host = tld
 		}
 		http.Redirect(w, r, "https://"+host+r.URL.RequestURI(), http.StatusMovedPermanently)
 	})

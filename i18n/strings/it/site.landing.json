@@ -283,9 +283,37 @@
     "text": "Posso usare Off The Cloud gratis?",
     "en": "Can I use Off The Cloud for free?"
   },
+  "site.landing.faq.from_google.p1": {
+    "text": "Non c’è uno strumento per importare da Google Foto. Le foto e i video ancora presenti sul tuo telefono vengono salvati nel backup dall’app per iPhone o Android come tutti gli altri, con le loro date. Per il resto, scarica la tua libreria con Google Takeout, decomprimila su un computer e fai il backup di quella cartella con l’<download>app per Mac, Windows o Linux</download>: le foto e i video arrivano sul tuo dispositivo e compaiono in Immagini, etichettati e ricercabili.",
+    "en": "There's no Google Photos importer. Photos and videos still on your phone are backed up by the iPhone or Android app like any others, with their dates. For the rest, download your library with Google Takeout, unzip it on a computer and back up that folder with the <download>Mac, Windows or Linux app</download>: the photos and videos go to your device and appear in Images, tagged and searchable."
+  },
+  "site.landing.faq.from_google.p2": {
+    "text": "Due cose da sapere. Immagini colloca ogni foto alla data del suo file, non alla data dello scatto, quindi le foto di Takeout possono finire nel mese sbagliato; “Altre informazioni” mostra comunque la data memorizzata nella foto, quando c’è. E i file .json che Takeout aggiunge accanto alle tue foto, con la data, la descrizione e il luogo di ogni foto, non vengono letti: vengono conservati come normali file.",
+    "en": "Two things to know. Images puts each photo at its file's date, not the date it was taken, so photos from Takeout can end up in the wrong month; More info still shows the date stored in the photo, when it has one. And the .json files Takeout adds next to your photos, with each photo's date, description and place, aren't read: they're kept as ordinary files."
+  },
+  "site.landing.faq.from_google.q": {
+    "text": "Come trasferisco le mie foto da Google Foto?",
+    "en": "How do I move my photos from Google Photos?"
+  },
+  "site.landing.faq.from_icloud.p1": {
+    "text": "Usa l’app per iPhone. Quando accedi al tuo dispositivo, ti chiede di quali foto e video fare il backup: scegli “Tutte le foto e i video”. Hai già effettuato l’accesso? Tocca “Sincronizza tutto” in Impostazioni. “Sincronizza da iCloud” è attivo fin dall’inizio: quando l’originale di una foto si trova solo su iCloud, come con “Ottimizza spazio su iPhone”, l’iPhone prima lo scarica, poi lo invia al tuo dispositivo con la sua data.",
+    "en": "Use the iPhone app. When you sign in to your device, it asks which photos and videos to back up: choose \"All photos and videos\". Already signed in? Tap Sync All in Settings. \"Sync from iCloud\" is on from the start: when a photo's original is only in iCloud, as with \"Optimise iPhone Storage\", the iPhone downloads it first, then sends it to your device with its date."
+  },
+  "site.landing.faq.from_icloud.p2": {
+    "text": "Un’intera libreria può richiedere molto tempo e consumare molti dati, quindi attiva “Solo Wi-Fi” se preferisci non usare i dati mobili. Il backup si limita a copiare le tue foto e lascia la tua libreria di iCloud così com’è: quando il dispositivo ha tutto, cosa tenere su iCloud lo decidi tu.",
+    "en": "A whole library can take a long time and use a lot of data, so turn on \"Wi-Fi only\" if you'd rather not use mobile data. Backing up only copies your photos and leaves your iCloud library as it is: once your device has everything, what you keep in iCloud is up to you."
+  },
+  "site.landing.faq.from_icloud.p3": {
+    "text": "L’app per Mac fa il backup di cartelle, non della libreria di Foto, quindi per trasferire la tua libreria si usa l’iPhone, o un iPad con lo stesso account iCloud.",
+    "en": "The Mac app backs up folders, not the Photos library, so the iPhone, or an iPad on the same iCloud account, is the way to bring your library over."
+  },
+  "site.landing.faq.from_icloud.q": {
+    "text": "Come trasferisco le mie foto da iCloud?",
+    "en": "How do I move my photos from iCloud?"
+  },
   "site.landing.faq.hardware.a": {
-    "text": "Un Raspberry Pi 5 (8 GB) con una scheda microSD per il sistema e due unità USB per l’archiviazione, in mirror, così che ognuna contenga una copia completa dei tuoi file: chiavette USB, SSD, dischi rigidi o schede microSD in lettori USB, va bene tutto. Collegale alle due porte USB blu del Pi (quelle veloci; così il dispositivo ti dice quale sostituire se una si guasta). Aggiungi un alimentatore e un dissipatore attivo: tutto materiale in commercio. Il Pi e due chiavette USB da 512 GB costano circa 310 €, circa 340 € in tutto per 512 GB di spazio protetto. Consulta il README per l’elenco esatto dei componenti consigliati. Può funzionare anche un Pi 5 da 4 GB, con l’etichettatura delle immagini e il riconoscimento facciale disattivati.",
-    "en": "A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or micro-SD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. The Pi and two 512 GB USB sticks come to about €310, roughly €340 all in for 512 GB of protected storage. See the README for the exact recommended parts list. A Pi 5 with 4 GB can work too, with photo tagging and face recognition turned off."
+    "text": "Un Raspberry Pi 5 (8 GB) con una scheda microSD per il sistema e due unità USB per l’archiviazione, in mirror, così che ognuna contenga una copia completa dei tuoi file: chiavette USB, SSD, dischi rigidi o schede microSD in lettori USB, va bene tutto. Collegale alle due porte USB blu del Pi (quelle veloci; così il dispositivo ti dice quale sostituire se una si guasta). Aggiungi un alimentatore e un dissipatore attivo: tutto materiale in commercio. Consulta il README per l’elenco esatto dei componenti consigliati. Può funzionare anche un Pi 5 da 4 GB, con l’etichettatura delle immagini e il riconoscimento facciale disattivati.",
+    "en": "A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or micro-SD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. See the README for the exact recommended parts list. A Pi 5 with 4 GB can work too, with photo tagging and face recognition turned off."
   },
   "site.landing.faq.hardware.q": {
     "text": "Devo acquistare hardware speciale?",
@@ -476,6 +504,24 @@
     "en": "I forgot my password. Can I get my files back?",
     "reviewed": "claude-backtranslation 2026-10-11 #48c93bbf"
   },
+  "site.landing.faq.pi_dies.p1": {
+    "text": "Sostituiscilo con uno nuovo e tutto continua a funzionare: le tue foto, i tuoi file e le tue impostazioni sono sulle due unità USB, non sul Pi.",
+    "en": "Replace it with a new one and everything keeps working: your photos, files and settings are on the two USB drives, not on the Pi.",
+    "reviewed": "claude-backtranslation 2026-10-22 #c147db40"
+  },
+  "site.landing.faq.pi_dies.p2": {
+    "text": "Sposta la scheda microSD e le due unità sul nuovo Pi e accendilo. Se anche la scheda è andata persa, scrivi l’<install>immagine per Raspberry Pi 5</install> su una nuova scheda, collega le stesse unità e scegli “Recupera questo dispositivo” durante la configurazione: il dispositivo torna com’era, con la stessa password. Non scegliere “Ricomincia da zero”, che cancella entrambe le unità.",
+    "en": "Move the microSD card and the two drives to the new Pi and turn it on. If the card is lost too, flash a new one with the <install>Raspberry Pi 5 image</install>, attach the same drives and choose \"Recover this device\" in the setup: the device comes back as it was, with the same password. Don't choose \"Start fresh instead\", which erases both drives.",
+    "reviewed": "claude-backtranslation 2026-10-22 #02226747"
+  },
+  "site.landing.faq.pi_dies.p3": {
+    "text": "Se invece si guasta una delle unità, il dispositivo continua con l’altra e ti dice quale sostituire.",
+    "en": "If a drive dies instead, the device carries on with the other and tells you which one to replace."
+  },
+  "site.landing.faq.pi_dies.q": {
+    "text": "Cosa succede se si guasta il Raspberry Pi stesso?",
+    "en": "What happens if the Raspberry Pi itself dies?"
+  },
   "site.landing.faq.private.a": {
     "text": "I tuoi file sono crittografati quando sono archiviati, con una chiave che solo la tua password può sbloccare, e la password stessa non viene mai memorizzata sul dispositivo. Le foto e i video che pubblichi, e i post che i tuoi amici condividono con te, sono l’eccezione: vengono conservati non crittografati così che i dispositivi dei tuoi amici possano recuperarli in qualsiasi momento. Anche i nomi dei file e le etichette restano leggibili, perché la ricerca funzioni. Niente viene venduto, usato per addestrare modelli di IA o mostrato a qualcuno con cui non hai scelto di condividerlo. Le due domande successive spiegano cosa vedono il bridge e gli altri servizi, e dove vengono analizzate le tue foto.",
     "en": "Your files are encrypted at rest with a key that only your password unlocks, and the password itself is never stored on the device. Photos and videos you post, and the posts your friends share with you, are the exception: they're kept unencrypted so your friends' devices can fetch them at any time. File names and tags are also kept readable so search works. Nothing is sold, used to train AI models, or shown to anyone you haven't chosen to share it with. The next two questions explain what the bridge and other services see, and where your photos are analysed.",
@@ -492,6 +538,26 @@
   "site.landing.faq.protect.q": {
     "text": "Posso proteggere una cartella dalle eliminazioni per errore?",
     "en": "Can I protect a folder from being deleted by mistake?"
+  },
+  "site.landing.faq.raw.p1": {
+    "text": "Sì. Il dispositivo conserva ogni file esattamente come arriva: niente viene ridimensionato, convertito o ricompresso, quindi file RAW, foto HEIC e video tornano identici, byte per byte.",
+    "en": "Yes. The device keeps every file exactly as it arrives: nothing is resized, converted or recompressed, so RAW files, HEIC photos and videos come back byte for byte."
+  },
+  "site.landing.faq.raw.p2": {
+    "text": "Le app per telefono inviano il file originale di ogni foto e video. Su un iPhone, questo significa che una modifica fatta in Foto non viene salvata nel backup, solo l’originale, e di una Live Photo viene salvata l’immagine fissa.",
+    "en": "The phone apps send each photo's and video's original file. On an iPhone, that means an edit made in Photos isn't backed up, only the original, and a Live Photo is backed up as its still photo."
+  },
+  "site.landing.faq.raw.p3": {
+    "text": "Per i file RAW di una fotocamera, fai il backup della cartella in cui li copi con l’<download>app per Mac, Windows o Linux</download>: ogni file arriva sul dispositivo così com’è. Il dispositivo crea un’anteprima di alcuni file RAW e assegna loro etichette come a qualsiasi altra foto; gli altri restano senza anteprima e l’app non li mostra in Immagini, ma vengono conservati comunque in File.",
+    "en": "For a camera's RAW files, back up the folder you copy them into with the <download>Mac, Windows or Linux app</download>: every file goes to the device as it is. The device makes a preview of some RAW files and tags those like any other photo; the others get no preview and don't show in Images, but they're kept all the same in Files."
+  },
+  "site.landing.faq.raw.p4": {
+    "text": "Ciò che pubblichi nel feed degli amici può essere una copia più leggera: un video grande viene ridotto e una foto HEIC viene inviata come JPEG. L’originale nella tua libreria resta com’era.",
+    "en": "What you post to your friends' feed can be a lighter copy: a large video is made smaller, and a HEIC photo goes as a JPEG. The original in your library stays as it was."
+  },
+  "site.landing.faq.raw.q": {
+    "text": "Conserva i file RAW e i video alla massima qualità?",
+    "en": "Does it keep RAW files and videos in full quality?"
   },
   "site.landing.faq.social.a": {
     "text": "È del tutto facoltativa. Usa OTC solo come NAS per backup e sincronizzazione dei file, se è tutto ciò che vuoi: il feed social mostra solo contenuti degli amici che hai accettato esplicitamente.",
@@ -573,6 +639,61 @@
     "text": "Le domande che ci fanno davvero",
     "en": "Questions people actually ask"
   },
+  "site.landing.faq.vs_cloud.p1": {
+    "text": "Le tue foto stanno a casa tua invece che sui server di un’azienda. Compri l’hardware una volta sola invece di pagare un piano di archiviazione, e hai tanto spazio quanto ne contiene uno dei tuoi due dischi, perché ognuno conserva una copia completa: quando si riempiono, li sostituisci con altri più grandi.",
+    "en": "Your photos live in your home instead of on a company's servers. You buy the hardware once instead of paying for a storage plan, and you have as much space as one of your two drives holds, since each keeps a full copy: when they fill up, you swap them for bigger ones."
+  },
+  "site.landing.faq.vs_cloud.p2": {
+    "text": "Nell’uso di tutti i giorni ti sembrerà familiare. Le app per telefono fanno il backup di foto e video in background, alla massima risoluzione, e puoi cercarli in base a ciò che mostrano e, se attivi il riconoscimento facciale, in base a chi c’è. Funziona con iPhone, telefoni Android e computer, con un account per ogni persona della famiglia.",
+    "en": "Day to day it feels familiar. The phone apps back up your photos and videos in the background, in full resolution, and you can search them by what they show and, if you turn on face recognition, by who is in them. iPhones, Android phones and computers all work with it, with an account for each person in the family."
+  },
+  "site.landing.faq.vs_cloud.p3": {
+    "text": "Ciò che cambia è che il dispositivo è tuo e te ne occupi tu. Le tue foto sono su due dischi in mirror a casa tua, e fare un backup completo è facile: togli uno dei dischi e mettine uno nuovo, e il dispositivo copia tutto su quello nuovo; il disco che hai tolto è il tuo backup (vedi “Come faccio il backup del mio dispositivo?”). Fuori casa, le tue app lo raggiungono tramite il bridge (gratuito per i primi due anni, poi 9,99 € + IVA all’anno), Tailscale Funnel o una tua VPN. E non c’è il ripristino della password: se perdi la password del dispositivo, nessuno può aprire i tuoi file, nemmeno noi.",
+    "en": "What changes is that you take ownership. Your photos are on two mirrored drives in your home, and a full backup is easy: take one drive out and put a new one in, and the device copies everything onto it; the drive you took out is your backup (see \"How do I back up my device?\"). Away from home, your apps reach it through the bridge (free for the first two years, then €9.99 + VAT a year), Tailscale Funnel or your own VPN. And there's no password reset: if you lose your device password, nobody can open your files, not even us.",
+    "reviewed": "claude-backtranslation 2026-10-22 #7b131eea"
+  },
+  "site.landing.faq.vs_cloud.q": {
+    "text": "Che differenza c’è rispetto a Google Foto o iCloud?",
+    "en": "How is it different from Google Photos or iCloud?"
+  },
+  "site.landing.faq.vs_selfhosted.li1": {
+    "text": "Si installa da un’app: l’app per computer prepara la scheda del Raspberry Pi, e la configurazione si completa tramite Bluetooth dal telefono o dal Mac, senza usare il terminale.",
+    "en": "It installs from an app: the computer app prepares the Raspberry Pi's card, and the setup finishes over Bluetooth from your phone or Mac, with no terminal."
+  },
+  "site.landing.faq.vs_selfhosted.li2": {
+    "text": "Funziona su hardware economico: un Raspberry Pi 5 e due chiavette USB in mirror, con avvisi che dicono quale sostituire.",
+    "en": "It runs on inexpensive hardware: a Raspberry Pi 5 and two USB pen drives, mirrored, with alerts that say which one to replace."
+  },
+  "site.landing.faq.vs_selfhosted.li3": {
+    "text": "File crittografati sul disco, con una chiave che solo la tua password può sbloccare.",
+    "en": "Files encrypted at rest, with a key only your password unlocks.",
+    "reviewed": "claude-backtranslation 2026-10-22 #f4532158"
+  },
+  "site.landing.faq.vs_selfhosted.li4": {
+    "text": "È anche un NAS per i tuoi file, sincronizzato in modo bidirezionale con i tuoi computer, non solo una libreria di foto.",
+    "en": "It's a NAS for your files too, kept in two-way sync with your computers, not only a photo library."
+  },
+  "site.landing.faq.vs_selfhosted.li5": {
+    "text": "Un social network privato tra i dispositivi degli amici, senza pubblicità e senza algoritmo, che Immich e PhotoPrism non hanno.",
+    "en": "A private social network between friends' devices, with no ads and no algorithm, which Immich and PhotoPrism don't have."
+  },
+  "site.landing.faq.vs_selfhosted.li6": {
+    "text": "App per telefoni e computer, un account per ogni persona della famiglia e un bridge facoltativo per raggiungere il tuo dispositivo da qualsiasi luogo, senza aprire porte sul router.",
+    "en": "Apps for phones and computers, an account for each person in the family, and an optional bridge to reach it from anywhere without opening ports on your router."
+  },
+  "site.landing.faq.vs_selfhosted.p1": {
+    "text": "Immich e PhotoPrism sono librerie di foto e Nextcloud è una suite per i file e la collaborazione. Sono gratuiti e open source, ma sono pensati per chi gestisce un proprio server: li installi tu, di solito con Docker su una macchina Linux, e ad archiviazione, backup e accesso remoto pensi da solo.",
+    "en": "Immich and PhotoPrism are photo libraries and Nextcloud is a file and collaboration suite. They're free and open source, but they're made for people who run their own server: you install them yourself, usually with Docker on a Linux machine, and work out storage, backups and remote access on your own.",
+    "reviewed": "claude-backtranslation 2026-10-22 #660384ed"
+  },
+  "site.landing.faq.vs_selfhosted.p2": {
+    "text": "Off The Cloud è più facile da installare, non richiede quasi nessuna conoscenza tecnica e va oltre le foto:",
+    "en": "Off The Cloud is easier to install and needs almost no technical knowledge, and it does more than photos:"
+  },
+  "site.landing.faq.vs_selfhosted.q": {
+    "text": "Che differenza c’è rispetto a Immich, PhotoPrism o Nextcloud?",
+    "en": "How is it different from Immich, PhotoPrism or Nextcloud?"
+  },
   "site.landing.footer.contact": {
     "text": "Contatti",
     "en": "Contact"
@@ -595,6 +716,89 @@
     "en": "Terms",
     "reviewed": "claude-backtranslation 2026-10-11 #9b11376b"
   },
+  "site.landing.glance.apps.label": {
+    "text": "App",
+    "en": "Apps"
+  },
+  "site.landing.glance.apps.value": {
+    "text": "iPhone e iPad, Android, Mac, Windows e Linux, più un’app web nel tuo browser",
+    "en": "iPhone and iPad, Android, Mac, Windows and Linux, plus a web app in your browser"
+  },
+  "site.landing.glance.compare": {
+    "text": "Confrontalo con Google Foto, iCloud, Immich e altri",
+    "en": "Compare it with Google Photos, iCloud, Immich and others"
+  },
+  "site.landing.glance.cost.label": {
+    "text": "Costo",
+    "en": "Cost"
+  },
+  "site.landing.glance.cost.value": {
+    "text": "Software gratuito; un Raspberry Pi 5 e due chiavette USB; bridge facoltativo: gratis per due anni, poi 9,99 € + IVA all’anno",
+    "en": "Free software; a Raspberry Pi 5 and two USB pen drives; optional bridge: free for two years, then €9.99 + VAT a year",
+    "reviewed": "claude-backtranslation 2026-10-22 #f6e100a3"
+  },
+  "site.landing.glance.hardware.label": {
+    "text": "Funziona su",
+    "en": "Runs on"
+  },
+  "site.landing.glance.hardware.value": {
+    "text": "Un Raspberry Pi 5 da 8 GB (4 GB senza etichettatura delle immagini né riconoscimento facciale), o una macchina Intel/AMD o ARM a 64 bit con Debian o Ubuntu",
+    "en": "A Raspberry Pi 5 with 8 GB (4 GB with tagging and faces off), or a 64-bit Intel/AMD or ARM machine with Debian or Ubuntu"
+  },
+  "site.landing.glance.instead.label": {
+    "text": "Al posto di",
+    "en": "Instead of"
+  },
+  "site.landing.glance.instead.value": {
+    "text": "Google Foto e Foto di iCloud, e un cloud per i tuoi file come Dropbox o iCloud Drive",
+    "en": "Google Photos and iCloud Photos, and a cloud drive such as Dropbox or iCloud Drive for your files"
+  },
+  "site.landing.glance.languages.label": {
+    "text": "Lingue",
+    "en": "Languages"
+  },
+  "site.landing.glance.languages.value": {
+    "text": "Inglese, spagnolo, francese, tedesco, italiano, portoghese e olandese",
+    "en": "English, Spanish, French, German, Italian, Portuguese and Dutch"
+  },
+  "site.landing.glance.licence.label": {
+    "text": "Licenza",
+    "en": "Licence"
+  },
+  "site.landing.glance.licence.value": {
+    "text": "Open source con licenza GNU AGPL-3.0: il dispositivo, ogni app e il bridge",
+    "en": "Open source under the GNU AGPL-3.0: the device, every app and the bridge",
+    "reviewed": "claude-backtranslation 2026-10-22 #0c586d61"
+  },
+  "site.landing.glance.privacy.label": {
+    "text": "Privacy",
+    "en": "Privacy"
+  },
+  "site.landing.glance.privacy.value": {
+    "text": "Contenuto dei file crittografato sul disco; etichettatura delle immagini e volti elaborati sul dispositivo; nulla usato per pubblicità o addestramento dell’IA",
+    "en": "File contents encrypted at rest; photo tagging and faces done on the device; nothing used for ads or AI training",
+    "reviewed": "claude-backtranslation 2026-10-22 #99a59cd9"
+  },
+  "site.landing.glance.storage.label": {
+    "text": "Archiviazione",
+    "en": "Storage"
+  },
+  "site.landing.glance.storage.value": {
+    "text": "Due unità USB in mirror RAID-1, ognuna con una copia completa: chiavette, SSD, dischi rigidi o schede microSD in lettori USB",
+    "en": "Two USB drives mirrored as RAID-1, each with a full copy: sticks, SSDs, hard disks or microSD cards in USB readers"
+  },
+  "site.landing.glance.title": {
+    "text": "Off The Cloud in breve",
+    "en": "Off The Cloud at a glance"
+  },
+  "site.landing.glance.what.label": {
+    "text": "Cos’è",
+    "en": "What it is"
+  },
+  "site.landing.glance.what.value": {
+    "text": "Un server domestico self-hosted per le foto, i video e i file della tua famiglia, con le sue app",
+    "en": "A self-hosted home server for your family's photos, videos and files, with its own apps"
+  },
   "site.landing.hero.demo": {
     "text": "Prova la demo",
     "en": "Try the demo"
@@ -604,16 +808,16 @@
     "en": "Look around a real device with a made-up family's photos and files. No sign-up."
   },
   "site.landing.hero.lead": {
-    "text": "Off The Cloud è un NAS e un social network in un piccolo dispositivo che è solo tuo: foto, video e documenti vengono salvati in backup alla massima risoluzione, etichettati dall’IA per una ricerca immediata e protetti da dischi in RAID-1, con un feed social facoltativo ed etico per condividere i ricordi con le persone che contano davvero, senza pubblicità, algoritmi né doomscrolling.",
-    "en": "Off The Cloud is a NAS and a social network in one small box you own outright: your photos, videos, and documents back up in full resolution, get AI-tagged for instant search, and stay behind RAID-1 protected disks — with an optional, ethical social feed for sharing memories with the people who actually matter, free of ads, algorithms, and doomscrolling."
+    "text": "Off The Cloud è un software gratuito e open source che trasforma un Raspberry Pi 5 in un server domestico per le foto, i video e i file della tua famiglia: un’alternativa a Google Foto e iCloud, in un piccolo dispositivo che è tuo. I tuoi telefoni e computer ci fanno il backup alla massima risoluzione. Il dispositivo assegna da solo etichette alle tue foto, così puoi cercare “spiaggia” o “cane” senza inviarle da nessuna parte, e due dischi in mirror ne conservano ciascuno una copia completa. Un feed facoltativo ti permette di condividere solo con gli amici, senza pubblicità né algoritmi.",
+    "en": "Off The Cloud is free, open-source software that turns a Raspberry Pi 5 into a home server for your family's photos, videos and files: an alternative to Google Photos and iCloud, in a small box you own. Your phones and computers back up to it in full resolution. The device tags your photos itself, so you can search for \"beach\" or \"dog\" without sending them anywhere, and two mirrored drives each keep a full copy. An optional feed lets you share with friends only, without ads or algorithms."
   },
   "site.landing.hero.photo_alt": {
     "text": "Un dispositivo Off The Cloud su una scrivania, accanto a una fotocamera e a un computer che mostra la tua libreria di foto",
     "en": "An Off The Cloud device on a desk, next to a camera and a computer showing your photo library"
   },
   "site.landing.hero.pill": {
-    "text": "100% open source · ospitato sul tuo Raspberry Pi",
-    "en": "100% open source · self-hosted on your own Raspberry Pi"
+    "text": "100% open source · backup delle foto sul tuo Raspberry Pi",
+    "en": "100% open source · photo backup on your own Raspberry Pi"
   },
   "site.landing.hero.title_1": {
     "text": "Le tue foto, le tue regole.",
@@ -741,12 +945,12 @@
     "en": "Previous screenshot"
   },
   "site.landing.meta.description": {
-    "text": "Un NAS privato a misura di famiglia e un social network etico, solo tuoi. Collega un Raspberry Pi, abbina l’app e le tue foto vengono salvate, etichettate e condivisibili solo con le persone che scegli.",
-    "en": "A private, family-friendly NAS and ethical social network you own outright. Plug in a Raspberry Pi, pair the app, and your photos are backed up, tagged, and shareable with only the people you choose."
+    "text": "Backup delle foto e dei video di famiglia in piena risoluzione su un Raspberry Pi 5 a casa, invece di Google Foto o iCloud. Gratis, open source, demo online.",
+    "en": "Back up your family's photos and videos in full resolution to a Raspberry Pi 5 at home, instead of Google Photos or iCloud. Free, open source, live demo."
   },
   "site.landing.meta.title": {
-    "text": "Off The Cloud — riprenditi i tuoi ricordi",
-    "en": "Off The Cloud — own your memories"
+    "text": "Off The Cloud: alternativa a Google Foto e iCloud, a casa tua",
+    "en": "Off The Cloud: self-hosted Google Photos & iCloud alternative"
   },
   "site.landing.nav.create_account": {
     "text": "Crea un account",
@@ -813,8 +1017,8 @@
     "en": "macOS / Windows client"
   },
   "site.landing.shots.device_alt": {
-    "text": "Il dispositivo Off The Cloud: un Raspberry Pi con due schede microSD e LED di stato del RAID",
-    "en": "The Off The Cloud device: a Raspberry Pi with two micro-SD cards and RAID status LEDs"
+    "text": "Il dispositivo Off The Cloud: un Raspberry Pi 5 i cui dischi in mirror sono due schede microSD in lettori di schede USB, con una scheda che viene sostituita e le luci di stato accese, una rossa e una verde",
+    "en": "The Off The Cloud device: a Raspberry Pi 5 whose mirrored drives are two microSD cards in USB card readers, with a card being swapped and the status lights red and green"
   },
   "site.landing.shots.device_group": {
     "text": "Il dispositivo",
@@ -938,8 +1142,8 @@
     "en": "Desktop client"
   },
   "site.landing.what.device_text": {
-    "text": "Un Raspberry Pi 5 con una scheda per il sistema e due schede di archiviazione in mirror RAID-1, che conserva i tuoi originali senza elaborarli né comprimerli, crittografati sul disco con una chiave che solo la tua password può sbloccare.",
-    "en": "A Raspberry Pi 5 with a card for the system and two storage cards mirrored in RAID-1, storing your originals unprocessed and uncompressed — encrypted at rest, with a key that only your password unlocks."
+    "text": "Un Raspberry Pi 5 con una scheda microSD per il sistema e due unità USB in mirror RAID-1, che conserva i tuoi originali esattamente come arrivano, senza mai ridimensionarli né ricomprimerli, crittografati sul disco con una chiave che solo la tua password può sbloccare.",
+    "en": "A Raspberry Pi 5 with a microSD card for the system and two USB drives mirrored in RAID-1, storing your originals exactly as they arrive, never resized or recompressed — encrypted at rest, with a key that only your password unlocks."
   },
   "site.landing.what.device_title": {
     "text": "Il dispositivo",

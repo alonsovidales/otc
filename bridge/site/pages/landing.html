@@ -1,86 +1,9 @@
 <!DOCTYPE html>
 <html lang="{{.Tag}}">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>{{t "site.landing.meta.title"}}</title>
-  <meta name="description" content="{{t "site.landing.meta.description"}}" />
-  <link rel="canonical" href="{{.Canonical}}">
-  {{- range .Alternates}}
-  <link rel="alternate" hreflang="{{.Lang}}" href="{{.Href}}">
-  {{- end}}
-  <link rel="stylesheet" href="/fonts/fonts.css">
+  {{template "head" (head . (t "site.landing.meta.title") (t "site.landing.meta.description"))}}
   <style nonce="{{.Nonce}}">
-    :root{
-      --ink:#10231f;
-      --ink-2:#0b1815;
-      --ember:#ff6b4a;
-      --gold:#ffc857;
-      --mist:#eaf2ef;
-      --mist-dim:#b9c9c4;
-      --line:rgba(234,242,239,.12);
-      --panel:rgba(234,242,239,.04);
-      --leaf:#5fd39a;
-      --max:1360px;
-    }
-    *{box-sizing:border-box}
-    /* overflow-x here (not on body) is deliberate: setting overflow-x alone
-       on an element forces its overflow-y to compute as auto (CSS Overflow
-       spec), so putting this on body instead of html would silently turn
-       body into its own scroll container separate from the document's -
-       breaking window.scrollTo/scrollIntoView and #hash navigation. */
-    html{overflow-x:hidden}
-    html,body{height:100%}
-    body{
-      margin:0;
-      font:17.5px/1.6 'Manrope', system-ui, -apple-system, sans-serif;
-      color:var(--mist);
-      background:var(--ink);
-    }
-    a{color:var(--gold)}
-    a:hover{opacity:.85}
-    img{max-width:100%;display:block}
-    .container{max-width:var(--max);margin:0 auto;padding:0 24px}
-    h1,h2,h3{font-family:'Unbounded',sans-serif;letter-spacing:-0.01em;text-wrap:balance}
-    .eyebrow{
-      font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:.14em;
-      text-transform:uppercase;color:var(--ember);
-    }
-
-    header{
-      position:sticky;top:0;z-index:30;
-      background:linear-gradient(to bottom, rgba(11,24,21,.92), rgba(11,24,21,.7) 70%, transparent);
-      backdrop-filter:blur(10px);
-      border-bottom:1px solid var(--line);
-    }
-    .nav{display:flex;align-items:center;justify-content:space-between;padding:16px 0;gap:16px}
-    .nav > *{min-width:0}
-    .brand{display:flex;align-items:center;gap:10px;flex:none}
-    .brand img{width:40px;height:40px;border-radius:10px}
-    .brand span{font-family:'Unbounded',sans-serif;font-weight:700;font-size:17.5px}
-    .navlinks{display:flex;gap:26px;align-items:center}
-    .navlinks a{color:var(--mist-dim);font-size:15.5px;font-weight:600;text-decoration:none}
-    .navlinks a:hover{color:var(--mist)}
-    .btn{
-      appearance:none;border:0;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;
-      padding:12px 20px;border-radius:12px;font-weight:700;font-size:16px;
-      color:var(--ink);background:var(--gold);
-      transition:transform .08s ease, filter .15s ease;
-      /* A label longer than its line (some languages) wraps in two even
-         lines, never leaving a word or a name's last part alone. */
-      text-wrap:balance;
-    }
-    .btn:hover{filter:brightness(1.08)}
-    .btn:active{transform:translateY(1px)}
-    .btn.secondary{background:transparent;color:var(--mist);border:1px solid var(--line)}
-    .btn.ember{background:var(--ember);color:#26100a}
-    /* The links and buttons need ~1006px side by side in English and up to
-       ~1110px in the other languages (Spanish); below that they would wrap
-       under the buttons, so the header keeps the brand and the buttons. */
-    @media (max-width:1005px){ .navlinks{display:none} }
-    @media (max-width:1119px){ html:not([lang="en"]) .navlinks{display:none} }
-    .nav-actions{display:flex;gap:10px;flex:none}
-    @media (max-width:480px){ .nav-actions .btn{padding:9px 12px;font-size:14.5px} .brand span{display:none} }
+    {{- template "site-style"}}
 
     /* Hero */
     .hero{padding:40px 24px 64px;display:grid;gap:22px;justify-items:center;text-align:center}
@@ -107,7 +30,7 @@
     @media (max-width:819px){ .hero-intro{grid-template-columns:1fr;gap:22px;margin:4px 0 6px} }
     /* The install block is centred as a block; its steps read left-aligned. */
     .hero-install{display:grid;gap:10px;margin-top:8px;width:100%;max-width:960px;text-align:left}
-    .hero-install-label{font-family:'Unbounded',sans-serif;font-weight:700;font-size:16.5px}
+    .hero-install-label{font-family:var(--display);font-weight:700;font-size:16.5px}
     .hero-install-alt{font-size:15px;color:var(--mist-dim);text-decoration:none;width:fit-content}
     .hero-install-alt:hover{color:var(--gold)}
     .install-tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:12px}
@@ -137,23 +60,16 @@
     .install-apps{display:flex;flex-wrap:wrap;gap:10px}
     .install-panel p.install-small{font-size:14.5px}
 
-    section{padding:60px 0;border-top:1px solid var(--line)}
-    section:first-of-type{border-top:none}
-    .section-head{max-width:1000px;margin:0 auto 36px;text-align:center}
-    .section-head h2{font-size:clamp(26.5px,3.4vw,35px);margin:8px 0 10px}
-    .section-head p{color:var(--mist-dim);margin:0;font-size:17px}
-
-    /* What it is / value props */
-    .value-grid{display:grid;gap:16px;grid-template-columns:repeat(3,1fr)}
-    @media (max-width:980px){ .value-grid{grid-template-columns:repeat(2,1fr)} }
-    @media (max-width:620px){ .value-grid{grid-template-columns:1fr} }
-    .value-card{
-      background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;
-      display:grid;gap:8px;
-    }
-    .value-card .ico{font-size:24px}
-    .value-card h3{font-size:17.5px;margin:0}
-    .value-card p{margin:0;color:var(--mist-dim);font-size:16px;line-height:1.55}
+    /* At a glance: each fact's label beside its value, the label above
+       it on a phone. */
+    .glance{max-width:960px;margin:0 auto;padding:4px 22px;background:var(--panel);border:1px solid var(--line);border-radius:16px}
+    .glance > div{display:grid;grid-template-columns:minmax(0,11em) minmax(0,1fr);gap:2px 24px;padding:14px 0;border-top:1px solid var(--line)}
+    .glance > div:first-child{border-top:0}
+    .glance dt{font-weight:700;color:var(--mist);font-size:16px}
+    .glance dd{margin:0;color:var(--mist-dim);font-size:16px;line-height:1.55}
+    @media (max-width:600px){ .glance{padding:2px 16px} .glance > div{grid-template-columns:1fr;padding:12px 0} }
+    .glance-more{max-width:960px;margin:18px auto 0;text-align:center;font-weight:700}
+    details p.faq-more{font-weight:700}
 
     /* Screenshots */
     .shot-group{margin-bottom:40px}
@@ -214,12 +130,6 @@
     }
     .step p{margin:2px 0 0;color:var(--mist-dim);font-size:16px;line-height:1.5}
     .step strong{color:var(--mist);font-size:16.5px}
-    .note{
-      background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;
-      color:var(--mist-dim);font-size:15.5px;line-height:1.6;margin:24px auto 0;max-width:960px;
-    }
-    .note strong{color:var(--mist)}
-
     /* Desktop downloads */
     .dl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:1040px;margin:0 auto}
     @media (max-width:900px){ .dl-grid{grid-template-columns:1fr} }
@@ -236,23 +146,6 @@
     .dl-card .alt{font-size:14.5px;color:var(--mist-dim)}
     .dl-card code{font-size:13.5px;word-break:break-all}
 
-    /* FAQ */
-    .faq{display:grid;gap:10px;max-width:1040px;margin:0 auto}
-    details{
-      background:var(--panel);border:1px solid var(--line);border-radius:12px;
-      padding:4px 18px;
-    }
-    details summary{
-      cursor:pointer;padding:16px 0;font-weight:700;font-size:17px;list-style:none;
-      display:flex;align-items:center;justify-content:space-between;gap:12px;
-    }
-    details summary::-webkit-details-marker{display:none}
-    details summary::after{content:'+';font-size:22px;color:var(--gold);flex:none}
-    details[open] summary::after{content:'−'}
-    details p{margin:0 0 16px;color:var(--mist-dim);font-size:16px;line-height:1.6}
-    details ul,details ol{margin:0 0 16px;padding-left:22px;color:var(--mist-dim);font-size:16px;line-height:1.6}
-    details li+li{margin-top:6px}
-    details strong{color:var(--mist)}
     /* The status-light wiring diagram (FAQ). Colours come from the tokens
        above, so the drawing follows the page's theme. */
     .wiring{margin:0 0 16px;padding:12px 8px;background:var(--ink-2);border:1px solid var(--line);border-radius:12px}
@@ -281,7 +174,7 @@
     .wiring .lbl.mid{text-anchor:middle}
     .wiring .ttl{fill:var(--mist);font-size:12.5px;font-weight:700}
     .wiring .pm{fill:var(--mist);font-size:12px;font-weight:700;text-anchor:middle}
-    @media (max-width:480px){ details{padding:4px 14px} .wiring{margin:0 -10px 16px;padding:10px 2px} }
+    @media (max-width:480px){ .wiring{margin:0 -10px 16px;padding:10px 2px} }
 
     /* Contact */
     .contact-wrap{display:grid;gap:28px;grid-template-columns:1fr 1fr}
@@ -301,40 +194,11 @@
     .form-msg.error{display:block;background:rgba(255,107,74,.12);color:var(--ember);border:1px solid rgba(255,107,74,.3)}
     .contact-side{display:grid;gap:14px;align-content:start}
     .contact-side .value-card h3{font-size:16.5px}
-
-    footer{border-top:1px solid var(--line);padding:32px 0;color:var(--mist-dim);font-size:15px}
-    .footer-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
-    .footer-links{display:flex;flex-wrap:wrap;gap:8px 18px}
-    .footer-links a{color:var(--mist-dim);text-decoration:none;font-weight:600}
-    .footer-links a:hover{color:var(--mist)}
-    /* The language switcher (footer), shown once more than one language ships. */
-    .lang-switch{display:flex;flex-wrap:wrap;gap:8px 14px}
-    .lang-switch a{color:var(--mist-dim);text-decoration:none;font-weight:600}
-    .lang-switch a:hover,.lang-switch a[aria-current="page"]{color:var(--mist)}
   </style>
 </head>
 <body>
 
-  <header>
-    <div class="container nav">
-      <div class="brand" aria-label="Off The Cloud">
-        <img src="/logo.png" alt="" width="40" height="40">
-        <span>Off The Cloud</span>
-      </div>
-      <nav class="navlinks">
-        <a href="#get-started">{{t "site.landing.nav.get_started"}}</a>
-        <a href="#download">{{t "site.landing.nav.download"}}</a>
-        <a href="#what">{{t "site.landing.nav.what"}}</a>
-        <a href="#screenshots">{{t "site.landing.nav.gallery"}}</a>
-        <a href="#faq">{{t "site.landing.nav.faq"}}</a>
-        <a href="https://github.com/alonsovidales/otc">GitHub</a>
-      </nav>
-      <div class="nav-actions">
-        <a class="btn ember" href="/account">{{t "site.landing.nav.sign_in"}}</a>
-        <a class="btn" href="/account?signup=1">{{t "site.landing.nav.create_account"}}</a>
-      </div>
-    </div>
-  </header>
+  {{template "header" .}}
 
   <main>
     <div class="container hero">
@@ -406,6 +270,26 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
         <a class="hero-install-alt" href="/account?signup=1">{{t "site.landing.install.bridge_link"}}</a>
       </div>
     </div>
+
+    <section id="glance" aria-labelledby="glance-title">
+      <div class="container">
+        <div class="section-head">
+          <h2 id="glance-title">{{t "site.landing.glance.title"}}</h2>
+        </div>
+        <dl class="glance">
+          <div><dt>{{t "site.landing.glance.what.label"}}</dt><dd>{{t "site.landing.glance.what.value"}}</dd></div>
+          <div><dt>{{t "site.landing.glance.instead.label"}}</dt><dd>{{t "site.landing.glance.instead.value"}}</dd></div>
+          <div><dt>{{t "site.landing.glance.hardware.label"}}</dt><dd>{{t "site.landing.glance.hardware.value"}}</dd></div>
+          <div><dt>{{t "site.landing.glance.storage.label"}}</dt><dd>{{t "site.landing.glance.storage.value"}}</dd></div>
+          <div><dt>{{t "site.landing.glance.apps.label"}}</dt><dd>{{t "site.landing.glance.apps.value"}}</dd></div>
+          <div><dt>{{t "site.landing.glance.cost.label"}}</dt><dd>{{t "site.landing.glance.cost.value"}}</dd></div>
+          <div><dt>{{t "site.landing.glance.privacy.label"}}</dt><dd>{{t "site.landing.glance.privacy.value"}}</dd></div>
+          <div><dt>{{t "site.landing.glance.licence.label"}}</dt><dd>{{t "site.landing.glance.licence.value"}}</dd></div>
+          <div><dt>{{t "site.landing.glance.languages.label"}}</dt><dd>{{t "site.landing.glance.languages.value"}}</dd></div>
+        </dl>
+        <p class="glance-more"><a href="{{.Comparison}}">{{t "site.landing.glance.compare"}}</a></p>
+      </div>
+    </section>
 
     <section id="get-started">
       <div class="container">
@@ -610,6 +494,27 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
         </div>
         <div class="faq">
           <details open>
+            <summary>{{t "site.landing.faq.vs_cloud.q"}}</summary>
+            <p>{{t "site.landing.faq.vs_cloud.p1"}}</p>
+            <p>{{t "site.landing.faq.vs_cloud.p2"}}</p>
+            <p>{{t "site.landing.faq.vs_cloud.p3"}}</p>
+            <p class="faq-more"><a href="{{.Comparison}}">{{t "site.alt.link"}}</a></p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.vs_selfhosted.q"}}</summary>
+            <p>{{t "site.landing.faq.vs_selfhosted.p1"}}</p>
+            <p>{{t "site.landing.faq.vs_selfhosted.p2"}}</p>
+            <ul>
+              <li>{{t "site.landing.faq.vs_selfhosted.li1"}}</li>
+              <li>{{t "site.landing.faq.vs_selfhosted.li2"}}</li>
+              <li>{{t "site.landing.faq.vs_selfhosted.li3"}}</li>
+              <li>{{t "site.landing.faq.vs_selfhosted.li4"}}</li>
+              <li>{{t "site.landing.faq.vs_selfhosted.li5"}}</li>
+              <li>{{t "site.landing.faq.vs_selfhosted.li6"}}</li>
+            </ul>
+            <p class="faq-more"><a href="{{.Comparison}}">{{t "site.landing.glance.compare"}}</a></p>
+          </details>
+          <details>
             <summary>{{t "site.landing.faq.hardware.q"}}</summary>
             <p>{{t "site.landing.faq.hardware.a"}}</p>
           </details>
@@ -627,6 +532,24 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
               <li>{{template "spans" (rich "site.landing.faq.other_hw.li3")}}</li>
             </ul>
             <p>{{template "spans" (rich "site.landing.faq.other_hw.p3")}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.from_icloud.q"}}</summary>
+            <p>{{t "site.landing.faq.from_icloud.p1"}}</p>
+            <p>{{t "site.landing.faq.from_icloud.p2"}}</p>
+            <p>{{t "site.landing.faq.from_icloud.p3"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.from_google.q"}}</summary>
+            <p>{{template "spans" (rich "site.landing.faq.from_google.p1")}}</p>
+            <p>{{t "site.landing.faq.from_google.p2"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.raw.q"}}</summary>
+            <p>{{t "site.landing.faq.raw.p1"}}</p>
+            <p>{{t "site.landing.faq.raw.p2"}}</p>
+            <p>{{template "spans" (rich "site.landing.faq.raw.p3")}}</p>
+            <p>{{t "site.landing.faq.raw.p4"}}</p>
           </details>
           <details>
             <summary>{{t "site.landing.faq.lights.q"}}</summary>
@@ -732,6 +655,12 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           <details>
             <summary>{{t "site.landing.faq.storage.q"}}</summary>
             <p>{{t "site.landing.faq.storage.a"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.pi_dies.q"}}</summary>
+            <p>{{t "site.landing.faq.pi_dies.p1"}}</p>
+            <p data-install-tab="tab-image">{{template "spans" (rich "site.landing.faq.pi_dies.p2")}}</p>
+            <p>{{t "site.landing.faq.pi_dies.p3"}}</p>
           </details>
           <details>
             <summary>{{t "site.landing.faq.backup.q"}}</summary>
@@ -877,25 +806,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
     </section>
   </main>
 
-  <footer>
-    <div class="container footer-row">
-      <span>{{t "site.landing.footer.copyright" "year" .Year}}</span>
-      <div class="footer-links">
-        <a href="https://github.com/alonsovidales/otc">GitHub</a>
-        <a href="https://github.com/alonsovidales/otc#readme">{{t "site.landing.footer.docs"}}</a>
-        <a href="#contact">{{t "site.landing.footer.contact"}}</a>
-        <a href="/privacy">{{t "site.landing.footer.privacy"}}</a>
-        <a href="/terms">{{t "site.landing.footer.terms"}}</a>
-      </div>
-      {{- if .Switcher}}
-      <nav class="lang-switch" aria-label="{{t "site.common.language"}}">
-        {{- range .Switcher}}
-        <a href="{{.Href}}" lang="{{.Lang}}" hreflang="{{.Lang}}"{{if .Current}} aria-current="page"{{end}}>{{.Name}}</a>
-        {{- end}}
-      </nav>
-      {{- end}}
-    </div>
-  </footer>
+  {{template "footer" .}}
 
   <!-- What the scripts below write, in the page's language. -->
   <script type="application/json" id="site-text">{{texts

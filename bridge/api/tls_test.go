@@ -22,7 +22,7 @@ import (
 func TestPort80OnlyRedirects(t *testing.T) {
 	served := false
 	mux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { served = true })
-	h := redirectToHTTPS("/healthy", mux)
+	h := redirectToHTTPS("off-the.cloud", "/healthy", mux)
 
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest("POST", "http://cala.off-the.cloud:80/admin/api/login?x=1", nil))
@@ -31,6 +31,15 @@ func TestPort80OnlyRedirects(t *testing.T) {
 	}
 	if served {
 		t.Fatal("the site answered over plain HTTP")
+	}
+
+	// www goes straight to the bridge's own host: one hop, not two.
+	for _, target := range []string{"http://www.off-the.cloud/es/?utm=a&b=c", "http://WWW.off-the.cloud:80/es/?utm=a&b=c"} {
+		w = httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest("GET", target, nil))
+		if w.Code != http.StatusMovedPermanently || w.Header().Get("Location") != "https://off-the.cloud/es/?utm=a&b=c" {
+			t.Errorf("%s: %d %q", target, w.Code, w.Header().Get("Location"))
+		}
 	}
 
 	w = httptest.NewRecorder()

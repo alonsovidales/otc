@@ -5,6 +5,7 @@ package site
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"html/template"
 	"io/fs"
 	"os"
@@ -24,7 +25,10 @@ import (
 )
 
 // pages are every page the site renders.
-var pages = []string{Landing, Disabled, Unavailable, Account}
+var pages = []string{Landing, Alternative, Disabled, Unavailable, Account}
+
+// shared is the file of definitions the public pages share: no page.
+const shared = "common.html"
 
 var testOptions = Options{
 	Base:  "https://off-the.cloud",
@@ -77,7 +81,9 @@ type use struct {
 	types   []string // jsform: each argument's type, as the page names it
 }
 
-// pageUses walks the parsed pages for every call of the text functions.
+// pageUses walks the parsed pages, and the definitions they call
+// (common.html's head, header, footer...), for every call of the text
+// functions.
 func pageUses(t *testing.T) []use {
 	t.Helper()
 	tmpl, err := templates(English())
@@ -86,6 +92,7 @@ func pageUses(t *testing.T) []use {
 	}
 	var uses []use
 	var walk func(n parse.Node)
+	var called map[string]bool // the definitions one page's walk went into
 	call := func(args []parse.Node) {
 		if len(args) == 0 {
 			return
@@ -179,6 +186,10 @@ func pageUses(t *testing.T) []use {
 			walk(n.ElseList)
 		case *parse.TemplateNode:
 			walk(n.Pipe)
+			if def := tmpl.Lookup(n.Name); def != nil && def.Tree != nil && !called[n.Name] {
+				called[n.Name] = true
+				walk(def.Tree.Root)
+			}
 		}
 	}
 	for _, name := range pages {
@@ -186,6 +197,7 @@ func pageUses(t *testing.T) []use {
 		if pt == nil {
 			t.Fatalf("no page %s", name)
 		}
+		called = map[string]bool{}
 		walk(pt.Tree.Root)
 	}
 	return uses
@@ -271,8 +283,8 @@ func TestRenderEveryLanguage(t *testing.T) {
 				if n.Type != html.ElementNode || (n.DataAtom != atom.Script && n.DataAtom != atom.Style) {
 					continue
 				}
-				if attr(n, "type") == "application/json" {
-					continue
+				if typ := attr(n, "type"); typ == "application/json" || typ == "application/ld+json" {
+					continue // data, never run
 				}
 				if attr(n, "nonce") != testOptions.Nonce {
 					t.Errorf("%s in %s: a <%s> without the nonce", page, l.Code, n.Data)
@@ -455,12 +467,21 @@ func jsonBlock(t *testing.T, page []byte, id string) string {
 	return ""
 }
 
+// updateGoldens rewrites testdata/*.golden from the English pages as they
+// render now: go test ./bridge/site -run TestEnglishUnchanged -update. Only
+// for a change to what a page says or links to that is meant, reviewed in
+// the golden's diff.
+var updateGoldens = flag.Bool("update", false, "rewrite testdata/*.golden from the English pages")
+
 // The English pages read exactly as the static pages they replaced: their
 // text and text attributes, their links and images, line by line
 // (testdata/*.golden were extracted from bridge/static/landing.html,
 // disabled.html, unavailable.html and account.html before they moved into
 // the binary, with the year the footer's script filled in; since then the
-// Android and iPhone cards link to their stores instead of "Coming soon"). The account
+// Android and iPhone cards link to their stores instead of "Coming soon",
+// and the landing page has gained the comparison page's links, its at a
+// glance list and more questions). The comparison page had no static page
+// before it: its golden is what it said when it was written. The account
 // page writes the rest of its text from its script:
 // TestAccountScriptTextsUnchanged.
 func TestEnglishUnchanged(t *testing.T) {
@@ -469,11 +490,18 @@ func TestEnglishUnchanged(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want, err := os.ReadFile(filepath.Join("testdata", strings.TrimSuffix(page, ".html")+".golden"))
+		golden := filepath.Join("testdata", strings.TrimSuffix(page, ".html")+".golden")
+		got := visibleText(t, out)
+		if *updateGoldens {
+			if err := os.WriteFile(golden, []byte(got), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		want, err := os.ReadFile(golden)
 		if err != nil {
 			t.Fatal(err)
 		}
-		got := visibleText(t, out)
 		if got != string(want) {
 			gl, wl := strings.Split(got, "\n"), strings.Split(string(want), "\n")
 			for i := 0; i < len(gl) || i < len(wl); i++ {
@@ -632,8 +660,13 @@ func TestTagsAndPages(t *testing.T) {
 		}
 	}
 	names, err := fs.Glob(pagesFS, "pages/*.html")
-	if err != nil || len(names) != len(pages) {
-		t.Errorf("embedded pages %v, %v", names, err)
+	want := []string{"pages/" + shared}
+	for _, p := range pages {
+		want = append(want, "pages/"+p)
+	}
+	sort.Strings(want)
+	if err != nil || !slices.Equal(names, want) {
+		t.Errorf("embedded pages %v, %v; want %v", names, err, want)
 	}
 }
 

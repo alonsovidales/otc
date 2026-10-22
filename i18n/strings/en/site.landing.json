@@ -335,8 +335,37 @@
     "text": "Can I use Off The Cloud for free?",
     "note": "Website landing page, FAQ: a question."
   },
+  "site.landing.faq.from_google.p1": {
+    "text": "There's no Google Photos importer. Photos and videos still on your phone are backed up by the iPhone or Android app like any others, with their dates. For the rest, download your library with Google Takeout, unzip it on a computer and back up that folder with the <download>Mac, Windows or Linux app</download>: the photos and videos go to your device and appear in Images, tagged and searchable.",
+    "note": "Website landing page, FAQ: first paragraph of the answer about moving a photo library from Google Photos. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French). Google Takeout is Google's name for downloading your data: use the name Google uses in your language. <download> links to the page's section with the computer apps. Images is the name of the photo library screen in the apps: use the apps' wording in your language.",
+    "rich": ["download"]
+  },
+  "site.landing.faq.from_google.p2": {
+    "text": "Two things to know. Images puts each photo at its file's date, not the date it was taken, so photos from Takeout can end up in the wrong month; More info still shows the date stored in the photo, when it has one. And the .json files Takeout adds next to your photos, with each photo's date, description and place, aren't read: they're kept as ordinary files.",
+    "note": "Website landing page, FAQ: last paragraph of the answer about moving a photo library from Google Photos. Images and More info are names in the apps: use the apps' wording in your language. Takeout: Google Takeout. .json is a file extension: keep it."
+  },
+  "site.landing.faq.from_google.q": {
+    "text": "How do I move my photos from Google Photos?",
+    "note": "Website landing page, FAQ: a question. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French) and the question as people search it in your language."
+  },
+  "site.landing.faq.from_icloud.p1": {
+    "text": "Use the iPhone app. When you sign in to your device, it asks which photos and videos to back up: choose \"All photos and videos\". Already signed in? Tap Sync All in Settings. \"Sync from iCloud\" is on from the start: when a photo's original is only in iCloud, as with \"Optimise iPhone Storage\", the iPhone downloads it first, then sends it to your device with its date.",
+    "note": "Website landing page, FAQ: first paragraph of the answer about moving a photo library from iCloud. \"All photos and videos\", Sync All, Settings and \"Sync from iCloud\" are names in the iPhone app: use the app's wording in your language. \"Optimise iPhone Storage\" is a setting of the iPhone's Photos: use the name Apple uses in your language."
+  },
+  "site.landing.faq.from_icloud.p2": {
+    "text": "A whole library can take a long time and use a lot of data, so turn on \"Wi-Fi only\" if you'd rather not use mobile data. Backing up only copies your photos and leaves your iCloud library as it is: once your device has everything, what you keep in iCloud is up to you.",
+    "note": "Website landing page, FAQ: second paragraph of the answer about moving a photo library from iCloud. \"Wi-Fi only\" is the name of a switch in the app: use the app's wording in your language."
+  },
+  "site.landing.faq.from_icloud.p3": {
+    "text": "The Mac app backs up folders, not the Photos library, so the iPhone, or an iPad on the same iCloud account, is the way to bring your library over.",
+    "note": "Website landing page, FAQ: last paragraph of the answer about moving a photo library from iCloud. The Photos library: the library of Apple's Photos app; use the name Apple uses in your language."
+  },
+  "site.landing.faq.from_icloud.q": {
+    "text": "How do I move my photos from iCloud?",
+    "note": "Website landing page, FAQ: a question. iCloud is Apple's product name: keep it. Use the question as people search it in your language."
+  },
   "site.landing.faq.hardware.a": {
-    "text": "A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or micro-SD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. The Pi and two 512 GB USB sticks come to about €310, roughly €340 all in for 512 GB of protected storage. See the README for the exact recommended parts list. A Pi 5 with 4 GB can work too, with photo tagging and face recognition turned off.",
+    "text": "A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or micro-SD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. See the README for the exact recommended parts list. A Pi 5 with 4 GB can work too, with photo tagging and face recognition turned off.",
     "note": "Website landing page, FAQ: answer to \"Do I need to buy special hardware?\". README: the project's documentation on GitHub."
   },
   "site.landing.faq.hardware.q": {
@@ -566,6 +595,27 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #caf9452c"
   },
+  "site.landing.faq.pi_dies.p1": {
+    "text": "Replace it with a new one and everything keeps working: your photos, files and settings are on the two USB drives, not on the Pi.",
+    "note": "Website landing page, FAQ: first paragraph of the answer about a Raspberry Pi that dies: everything is kept on the two USB drives, so a new Pi carries on. A safety statement: keep its meaning exact.",
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #ab281bbf"
+  },
+  "site.landing.faq.pi_dies.p2": {
+    "text": "Move the microSD card and the two drives to the new Pi and turn it on. If the card is lost too, flash a new one with the <install>Raspberry Pi 5 image</install>, attach the same drives and choose \"Recover this device\" in the setup: the device comes back as it was, with the same password. Don't choose \"Start fresh instead\", which erases both drives.",
+    "note": "Website landing page, FAQ: second paragraph of the answer about a Raspberry Pi that dies. <install> links to the install block at the top of the page (its tab is site.landing.install.tab_image). Flash: write the image to a new memory card. \"Recover this device\" and \"Start fresh instead\" are the names of two choices in the setup: use the setup's wording in your language. Warns that the second choice erases both drives. A safety statement: keep its meaning exact.",
+    "rich": ["install"],
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #f297b702"
+  },
+  "site.landing.faq.pi_dies.p3": {
+    "text": "If a drive dies instead, the device carries on with the other and tells you which one to replace.",
+    "note": "Website landing page, FAQ: last paragraph of the answer about a Raspberry Pi that dies: what happens when one of the two drives dies instead."
+  },
+  "site.landing.faq.pi_dies.q": {
+    "text": "What happens if the Raspberry Pi itself dies?",
+    "note": "Website landing page, FAQ: a question: the Raspberry Pi (or its system card) stops working, and the storage drives are fine."
+  },
   "site.landing.faq.private.a": {
     "text": "Your files are encrypted at rest with a key that only your password unlocks, and the password itself is never stored on the device. Photos and videos you post, and the posts your friends share with you, are the exception: they're kept unencrypted so your friends' devices can fetch them at any time. File names and tags are also kept readable so search works. Nothing is sold, used to train AI models, or shown to anyone you haven't chosen to share it with. The next two questions explain what the bridge and other services see, and where your photos are analysed.",
     "note": "Website landing page, FAQ: answer about privacy: what is encrypted and what isn't. Privacy and security statements: keep the meaning exact.",
@@ -583,6 +633,27 @@
   "site.landing.faq.protect.q": {
     "text": "Can I protect a folder from being deleted by mistake?",
     "note": "Website landing page, FAQ: a question."
+  },
+  "site.landing.faq.raw.p1": {
+    "text": "Yes. The device keeps every file exactly as it arrives: nothing is resized, converted or recompressed, so RAW files, HEIC photos and videos come back byte for byte.",
+    "note": "Website landing page, FAQ: first paragraph of the answer about RAW files and videos. HEIC is the format of iPhone photos: keep it."
+  },
+  "site.landing.faq.raw.p2": {
+    "text": "The phone apps send each photo's and video's original file. On an iPhone, that means an edit made in Photos isn't backed up, only the original, and a Live Photo is backed up as its still photo.",
+    "note": "Website landing page, FAQ: second paragraph of the answer about RAW files and videos. Photos is Apple's Photos app and Live Photo Apple's name for a photo with a few seconds of movement: use the names Apple uses in your language."
+  },
+  "site.landing.faq.raw.p3": {
+    "text": "For a camera's RAW files, back up the folder you copy them into with the <download>Mac, Windows or Linux app</download>: every file goes to the device as it is. The device makes a preview of some RAW files and tags those like any other photo; the others get no preview and don't show in Images, but they're kept all the same in Files.",
+    "note": "Website landing page, FAQ: third paragraph of the answer about RAW files and videos. <download> links to the page's section with the computer apps. Images and Files are two sections of the apps: use the apps' wording in your language.",
+    "rich": ["download"]
+  },
+  "site.landing.faq.raw.p4": {
+    "text": "What you post to your friends' feed can be a lighter copy: a large video is made smaller, and a HEIC photo goes as a JPEG. The original in your library stays as it was.",
+    "note": "Website landing page, FAQ: last paragraph of the answer about RAW files and videos. The feed: the private feed of posts between friends' devices. HEIC and JPEG are photo formats: keep them."
+  },
+  "site.landing.faq.raw.q": {
+    "text": "Does it keep RAW files and videos in full quality?",
+    "note": "Website landing page, FAQ: a question. RAW files: the unprocessed files some cameras and phones save (DNG, CR2, NEF...); use the usual term in your language."
   },
   "site.landing.faq.social.a": {
     "text": "It's entirely optional. Use OTC purely as a NAS for backup and file sync if that's all you want — the social feed only shows content from friends you've explicitly accepted.",
@@ -685,6 +756,64 @@
     "note": "Website landing page: heading of the frequently asked questions.",
     "max": 50
   },
+  "site.landing.faq.vs_cloud.p1": {
+    "text": "Your photos live in your home instead of on a company's servers. You buy the hardware once instead of paying for a storage plan, and you have as much space as one of your two drives holds, since each keeps a full copy: when they fill up, you swap them for bigger ones.",
+    "note": "Website landing page, FAQ: first paragraph of the answer about how it differs from Google Photos and iCloud."
+  },
+  "site.landing.faq.vs_cloud.p2": {
+    "text": "Day to day it feels familiar. The phone apps back up your photos and videos in the background, in full resolution, and you can search them by what they show and, if you turn on face recognition, by who is in them. iPhones, Android phones and computers all work with it, with an account for each person in the family.",
+    "note": "Website landing page, FAQ: second paragraph of the answer about how it differs from Google Photos and iCloud."
+  },
+  "site.landing.faq.vs_cloud.p3": {
+    "text": "What changes is that you take ownership. Your photos are on two mirrored drives in your home, and a full backup is easy: take one drive out and put a new one in, and the device copies everything onto it; the drive you took out is your backup (see \"How do I back up my device?\"). Away from home, your apps reach it through the bridge (free for the first two years, then €9.99 + VAT a year), Tailscale Funnel or your own VPN. And there's no password reset: if you lose your device password, nobody can open your files, not even us.",
+    "note": "Website landing page, FAQ: last paragraph of the answer about how it differs from Google Photos and iCloud. Take ownership: the device, and looking after it, are the reader's own. Taking one of the two mirrored drives out and putting a new one in makes the device copy everything onto the new one, so the drive taken out is a full backup. \"How do I back up my device?\" is the question site.landing.faq.backup.q: use its translation. Tailscale Funnel is a product name. A security statement: keep its meaning exact. The bridge's price is the one in the FAQ's price answer (site.landing.faq.free.p2): write euros as your language does (9,99 € in many languages). A commercial statement too: keep its meaning exact.",
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #03a7e79d"
+  },
+  "site.landing.faq.vs_cloud.q": {
+    "text": "How is it different from Google Photos or iCloud?",
+    "note": "Website landing page, FAQ: a question. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French) and the question as people search it in your language."
+  },
+  "site.landing.faq.vs_selfhosted.li1": {
+    "text": "It installs from an app: the computer app prepares the Raspberry Pi's card, and the setup finishes over Bluetooth from your phone or Mac, with no terminal.",
+    "note": "Website landing page, FAQ: answer comparing Off The Cloud with Immich, PhotoPrism and Nextcloud: list point 1 of 6. The computer app: the Mac, Windows or Linux app, which writes the system to the Raspberry Pi's memory card. Terminal: the command line; nothing has to be typed there."
+  },
+  "site.landing.faq.vs_selfhosted.li2": {
+    "text": "It runs on inexpensive hardware: a Raspberry Pi 5 and two USB pen drives, mirrored, with alerts that say which one to replace.",
+    "note": "Website landing page, FAQ: answer comparing Off The Cloud with Immich, PhotoPrism and Nextcloud: list point 2 of 6. USB pen drives: USB memory sticks. Mirrored: the two drives keep the same files (RAID-1)."
+  },
+  "site.landing.faq.vs_selfhosted.li3": {
+    "text": "Files encrypted at rest, with a key only your password unlocks.",
+    "note": "Website landing page, FAQ: answer comparing Off The Cloud with Immich, PhotoPrism and Nextcloud: list point 3 of 6. A security statement: keep its meaning exact.",
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #dac3a34b"
+  },
+  "site.landing.faq.vs_selfhosted.li4": {
+    "text": "It's a NAS for your files too, kept in two-way sync with your computers, not only a photo library.",
+    "note": "Website landing page, FAQ: answer comparing Off The Cloud with Immich, PhotoPrism and Nextcloud: list point 4 of 6. NAS: a storage device on the home network. Two-way sync: changes made on the device and on the computers reach each other."
+  },
+  "site.landing.faq.vs_selfhosted.li5": {
+    "text": "A private social network between friends' devices, with no ads and no algorithm, which Immich and PhotoPrism don't have.",
+    "note": "Website landing page, FAQ: answer comparing Off The Cloud with Immich, PhotoPrism and Nextcloud: list point 5 of 6. The private social network: posts shared only between friends' own devices. Immich and PhotoPrism are product names."
+  },
+  "site.landing.faq.vs_selfhosted.li6": {
+    "text": "Apps for phones and computers, an account for each person in the family, and an optional bridge to reach it from anywhere without opening ports on your router.",
+    "note": "Website landing page, FAQ: answer comparing Off The Cloud with Immich, PhotoPrism and Nextcloud: list point 6 of 6. The bridge is our relay service at off-the.cloud: translate it as the apps do. Opening ports: port forwarding on the home router. Optional: at home the apps reach the device without it."
+  },
+  "site.landing.faq.vs_selfhosted.p1": {
+    "text": "Immich and PhotoPrism are photo libraries and Nextcloud is a file and collaboration suite. They're free and open source, but they're made for people who run their own server: you install them yourself, usually with Docker on a Linux machine, and work out storage, backups and remote access on your own.",
+    "note": "Website landing page, FAQ: first paragraph of the answer comparing Off The Cloud with Immich, PhotoPrism and Nextcloud (other open-source projects): what they are and who they are made for. Docker is a product name. It describes other projects: keep its meaning exact, and keep it fair to them.",
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #3623bb35"
+  },
+  "site.landing.faq.vs_selfhosted.p2": {
+    "text": "Off The Cloud is easier to install and needs almost no technical knowledge, and it does more than photos:",
+    "note": "Website landing page, FAQ: second paragraph of the answer comparing Off The Cloud with Immich, PhotoPrism and Nextcloud; introduces a list of six points."
+  },
+  "site.landing.faq.vs_selfhosted.q": {
+    "text": "How is it different from Immich, PhotoPrism or Nextcloud?",
+    "note": "Website landing page, FAQ: a question. Immich, PhotoPrism and Nextcloud are the names of other open-source projects: keep them."
+  },
   "site.landing.footer.contact": {
     "text": "Contact",
     "note": "Website landing page: link at the bottom of the page to the contact form.",
@@ -714,6 +843,112 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #e50b7b2c"
   },
+  "site.landing.glance.apps.label": {
+    "text": "Apps",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): label of the row listing the apps. Short, like a form label.",
+    "max": 24
+  },
+  "site.landing.glance.apps.value": {
+    "text": "iPhone and iPad, Android, Mac, Windows and Linux, plus a web app in your browser",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): the apps: one for iPhone and iPad, one for Android, the Mac app, otc-sync for Windows and Linux, and the web app the device serves. Short phrases, no final full stop: it sits next to its label.",
+    "max": 160
+  },
+  "site.landing.glance.compare": {
+    "text": "Compare it with Google Photos, iCloud, Immich and others",
+    "note": "Website landing page: text of a link to the page that compares Off The Cloud with other ways of keeping photos, under the At a glance list (a short list of facts right under the top of the page) and after the FAQ answer comparing Off The Cloud with Immich, PhotoPrism and Nextcloud. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French); iCloud and Immich are product names.",
+    "max": 70
+  },
+  "site.landing.glance.cost.label": {
+    "text": "Cost",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): label of the row about the price. Short, like a form label.",
+    "max": 24
+  },
+  "site.landing.glance.cost.value": {
+    "text": "Free software; a Raspberry Pi 5 and two USB pen drives; optional bridge: free for two years, then €9.99 + VAT a year",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): the price. Free software; the hardware is a Raspberry Pi 5 and two USB pen drives (USB memory sticks), bought once. The bridge is our optional relay for reaching the device away from home; its terms are those of the FAQ's price answer (site.landing.faq.free.p2). Write prices as your language writes euros (9,99 € in many languages). Commercial terms: keep the meaning exact. Short phrases, no final full stop: it sits next to its label.",
+    "max": 160,
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #010f906a"
+  },
+  "site.landing.glance.hardware.label": {
+    "text": "Runs on",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): label of the row naming the hardware it runs on. Short, like a form label.",
+    "max": 24
+  },
+  "site.landing.glance.hardware.value": {
+    "text": "A Raspberry Pi 5 with 8 GB (4 GB with tagging and faces off), or a 64-bit Intel/AMD or ARM machine with Debian or Ubuntu",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): the hardware. 8 GB and 4 GB are the Pi's memory (RAM). Tagging and faces: photo tagging and face recognition, two settings in the apps (Image Tagging, Face Recognition): use the apps' words in your language. Intel/AMD or ARM: the two kinds of processor the install script supports. A machine: a PC, mini PC or board. Short phrases, no final full stop: it sits next to its label.",
+    "max": 160
+  },
+  "site.landing.glance.instead.label": {
+    "text": "Instead of",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): label of the row naming the services the product replaces. Short, like a form label.",
+    "max": 24
+  },
+  "site.landing.glance.instead.value": {
+    "text": "Google Photos and iCloud Photos, and a cloud drive such as Dropbox or iCloud Drive for your files",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): the services it replaces. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French); iCloud Photos, iCloud Drive and Dropbox are product names: use the names Apple and Dropbox use in your language. Short phrases, no final full stop: it sits next to its label.",
+    "max": 160
+  },
+  "site.landing.glance.languages.label": {
+    "text": "Languages",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): label of the row listing the languages. Short, like a form label.",
+    "max": 24
+  },
+  "site.landing.glance.languages.value": {
+    "text": "English, Spanish, French, German, Italian, Portuguese and Dutch",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): the seven languages of the apps and this site, named in your language. Short phrases, no final full stop: it sits next to its label.",
+    "max": 160
+  },
+  "site.landing.glance.licence.label": {
+    "text": "Licence",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): label of the row naming the software licence. Short, like a form label.",
+    "max": 24
+  },
+  "site.landing.glance.licence.value": {
+    "text": "Open source under the GNU AGPL-3.0: the device, every app and the bridge",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): the licence. GNU AGPL-3.0 is the licence's name: keep it. A licensing statement: keep its meaning exact. Short phrases, no final full stop: it sits next to its label.",
+    "max": 160,
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #35be0a02"
+  },
+  "site.landing.glance.privacy.label": {
+    "text": "Privacy",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): label of the row about privacy. Short, like a form label.",
+    "max": 24
+  },
+  "site.landing.glance.privacy.value": {
+    "text": "File contents encrypted at rest; photo tagging and faces done on the device; nothing used for ads or AI training",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): privacy. File contents: what is inside the files; their names and tags stay readable so search works (site.landing.faq.private.a). Encrypted at rest: stored encrypted. Faces: face recognition. A privacy statement: keep its meaning exact. Short phrases, no final full stop: it sits next to its label.",
+    "max": 160,
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #d47ebd51"
+  },
+  "site.landing.glance.storage.label": {
+    "text": "Storage",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): label of the row about where the files are stored. Short, like a form label.",
+    "max": 24
+  },
+  "site.landing.glance.storage.value": {
+    "text": "Two USB drives mirrored as RAID-1, each with a full copy: sticks, SSDs, hard disks or microSD cards in USB readers",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): the storage. RAID-1: the two drives keep the same files. Sticks: USB memory sticks (pendrives). Short phrases, no final full stop: it sits next to its label.",
+    "max": 160
+  },
+  "site.landing.glance.title": {
+    "text": "Off The Cloud at a glance",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): heading of the list. Off The Cloud is the product name.",
+    "max": 40
+  },
+  "site.landing.glance.what.label": {
+    "text": "What it is",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): label of the row that says what the product is. Short, like a form label.",
+    "max": 24
+  },
+  "site.landing.glance.what.value": {
+    "text": "A self-hosted home server for your family's photos, videos and files, with its own apps",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): what the product is. Self-hosted: it runs on your own device at home, not on our servers. Short phrases, no final full stop: it sits next to its label.",
+    "max": 160
+  },
   "site.landing.hero.demo": {
     "text": "Try the demo",
     "note": "Button under the opening paragraph of the home page: opens the public demo device (demo.off-the.cloud), a real device with a made-up family's photos and files that anyone can look around, where changes are turned off.",
@@ -724,16 +959,16 @@
     "note": "Line beside the Try the demo button (site.landing.hero.demo) on the home page. The family in the demo is made up."
   },
   "site.landing.hero.lead": {
-    "text": "Off The Cloud is a NAS and a social network in one small box you own outright: your photos, videos, and documents back up in full resolution, get AI-tagged for instant search, and stay behind RAID-1 protected disks — with an optional, ethical social feed for sharing memories with the people who actually matter, free of ads, algorithms, and doomscrolling.",
-    "note": "Website landing page: the paragraph under the main headline, summing up the product. A NAS is a storage box on the home network; RAID-1 means two disks that each keep a full copy."
+    "text": "Off The Cloud is free, open-source software that turns a Raspberry Pi 5 into a home server for your family's photos, videos and files: an alternative to Google Photos and iCloud, in a small box you own. Your phones and computers back up to it in full resolution. The device tags your photos itself, so you can search for \"beach\" or \"dog\" without sending them anywhere, and two mirrored drives each keep a full copy. An optional feed lets you share with friends only, without ads or algorithms.",
+    "note": "Website landing page: the paragraph under the main headline, summing up the product. Its first sentence is the definition search engines and AI assistants quote: keep it one plain sentence that says what the product is. Say \"an alternative to Google Photos and iCloud\" the way people search for it in your language, with Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French); iCloud stays as it is. Home server: a computer at home that stores and serves files. Two mirrored drives: two USB drives that each keep a full copy (RAID-1). \"beach\" and \"dog\" are examples of searches: translate them."
   },
   "site.landing.hero.photo_alt": {
     "text": "An Off The Cloud device on a desk, next to a camera and a computer showing your photo library",
     "note": "Website landing page: description of the large photo at the top, beside the summary paragraph, read by screen readers. The photo shows the small Off The Cloud box (a Raspberry Pi in a purple case) on a desk, next to a camera and a monitor showing the web app's photo library."
   },
   "site.landing.hero.pill": {
-    "text": "100% open source · self-hosted on your own Raspberry Pi",
-    "note": "Website landing page: small badge above the main headline, after an open-padlock emoji. Self-hosted: the software runs on the visitor's own device, not on our servers.",
+    "text": "100% open source · photo backup on your own Raspberry Pi",
+    "note": "Website landing page: small badge above the main headline, after an open-padlock emoji. Photo backup: use the phrase people search for in your language (for example copia de seguridad de fotos, sauvegarde de photos, Foto-Backup), not a literal translation. Your own Raspberry Pi: the visitor's own device at home, not our servers.",
     "max": 70
   },
   "site.landing.hero.title_1": {
@@ -890,13 +1125,13 @@
     "note": "Website landing page: name screen readers give the button that shows the previous screenshot in the enlarged view."
   },
   "site.landing.meta.description": {
-    "text": "A private, family-friendly NAS and ethical social network you own outright. Plug in a Raspberry Pi, pair the app, and your photos are backed up, tagged, and shareable with only the people you choose.",
-    "note": "Website landing page: the description search engines show under the page title (meta description). Not visible on the page itself.",
+    "text": "Back up your family's photos and videos in full resolution to a Raspberry Pi 5 at home, instead of Google Photos or iCloud. Free, open source, live demo.",
+    "note": "Website landing page: the description search engines show under the page title (meta description). Not visible on the page itself. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French) and the words people search with in your language for backing up photos without the cloud, rather than a literal translation. The live demo is the public demo device (site.landing.hero.demo). Keep it to 158 characters or fewer, so search engines show it whole.",
     "max": 220
   },
   "site.landing.meta.title": {
-    "text": "Off The Cloud — own your memories",
-    "note": "Website (off-the.cloud), landing page: the page title shown in the browser tab and in search results. Off The Cloud is the product name.",
+    "text": "Off The Cloud: self-hosted Google Photos & iCloud alternative",
+    "note": "Website (off-the.cloud), landing page: the page title shown in the browser tab and in search results. Off The Cloud is the product name. Write what people in your language search for, not a word-for-word translation: Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French), and your language's usual phrase for an alternative to it; iCloud stays as it is. Self-hosted: it runs on the visitor's own device at home, not on our servers; use your language's usual term, or say at home. Keep it to 65 characters or fewer, so search engines show it whole.",
     "max": 70
   },
   "site.landing.nav.create_account": {
@@ -977,8 +1212,8 @@
     "max": 40
   },
   "site.landing.shots.device_alt": {
-    "text": "The Off The Cloud device: a Raspberry Pi with two micro-SD cards and RAID status LEDs",
-    "note": "Website landing page, screenshots: description of the photo of the device, read by screen readers and shown as the caption when the photo is opened large."
+    "text": "The Off The Cloud device: a Raspberry Pi 5 whose mirrored drives are two microSD cards in USB card readers, with a card being swapped and the status lights red and green",
+    "note": "Website landing page, screenshots: description of the photo of the device, read by screen readers and shown as the caption when the photo is opened large. The photo shows the Raspberry Pi in a purple case, two USB card readers plugged into it, a hand holding a microSD card next to one of them, and the two status lights glowing red and green."
   },
   "site.landing.shots.device_group": {
     "text": "The device",
@@ -1118,8 +1353,8 @@
     "max": 40
   },
   "site.landing.what.device_text": {
-    "text": "A Raspberry Pi 5 with a card for the system and two storage cards mirrored in RAID-1, storing your originals unprocessed and uncompressed — encrypted at rest, with a key that only your password unlocks.",
-    "note": "Website landing page, What it is: text of the card about the device. Encrypted at rest: the stored files are encrypted."
+    "text": "A Raspberry Pi 5 with a microSD card for the system and two USB drives mirrored in RAID-1, storing your originals exactly as they arrive, never resized or recompressed — encrypted at rest, with a key that only your password unlocks.",
+    "note": "Website landing page, What it is: text of the card about the device. The two USB drives can be USB sticks, SSDs, hard disks or microSD cards in USB card readers. RAID-1: two drives that each keep a full copy. Encrypted at rest: the stored files are encrypted. Never resized or recompressed: each file is stored as it was sent."
   },
   "site.landing.what.device_title": {
     "text": "The device",

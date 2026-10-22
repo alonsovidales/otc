@@ -9,7 +9,8 @@
   {{- range .Alternates}}
   <link rel="alternate" hreflang="{{.Lang}}" href="{{.Href}}">
   {{- end}}
-  <link rel="icon" href="/favicon.ico" />
+  <meta name="robots" content="noindex, follow">
+  {{- template "icons"}}
   <link rel="stylesheet" href="/fonts/fonts.css">
   <style nonce="{{.Nonce}}">
     :root{

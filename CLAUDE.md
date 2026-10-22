@@ -1125,7 +1125,18 @@ files in `bridge/site/pages/*.html`, embedded in the binary (package `bridge/sit
 footer language switcher once a second language ships, and a CSP with a nonce per response
 (docs/i18n.md "bridge"). They are never read from `/var/www`, where older deploys left copies (an
 old `account.html` there is never served). `bridge/static/` holds privacy, terms, the admin panel
-and the assets, copied to `/var/www` by the deploy. The landing hero puts `img/hero-{900,1280,1600}`
+and the assets, copied to `/var/www` by the deploy. For search: the
+comparison page (`alternative.html`, `/google-photos-alternative` and `/<code>/...`, routed like
+`/account`) shares the landing page's head, header and footer (`pages/common.html`,
+`pages/site.css`); their head carries Open Graph tags and one JSON-LD graph (`bridge/site/head.go`:
+the same `@id`s in every language, nothing the page doesn't state - no ratings, counts or
+versions; `og-1200x630.jpg` is the hero photo's crop); the account page says noindex.
+`/robots.txt`, `/sitemap.xml` and `/llms.txt` come from `bridge/site/crawl.go` (llms.txt rendered
+from the English catalog, its keys in `llmsText`). Pages and those files are gzipped; unknown
+addresses on the bridge's host are 404 (never the old web app's `index.html` left in `/var/www`);
+`www.` is a 301 to the bare domain; every answer for a device's address says `X-Robots-Tag:
+noindex` (`noindexDevices`). Static files: content-named fonts cached for good, pictures and
+`fonts.css` a day, HTML `no-cache`. The landing hero puts `img/hero-{900,1280,1600}`
 (WebP and JPEG, from `docs/promo/pi-photographer-desk.jpg`) left of the summary, stacked below
 820 px; its install block (`#install`) has three tabs, the ARIA tabs pattern (arrows, Home and End
 select; only the selected tab is in the tab order; chips below 600 px): "Computer app" (first,
