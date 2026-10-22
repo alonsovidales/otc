@@ -52,19 +52,6 @@
     "text": "La taille de vos disques",
     "en": "As big as your drives"
   },
-  "site.alt.cell.e2ee_icloud": {
-    "text": "Seulement avec la Protection avancée des données, désactivée par défaut, non proposée au Royaume-Uni",
-    "en": "Only with Advanced Data Protection, off by default and not offered in the UK"
-  },
-  "site.alt.cell.e2ee_otc": {
-    "text": "Non : données stockées chiffrées, mais la passerelle déchiffre ce qu’elle relaie",
-    "en": "No: stored encrypted, but the bridge decrypts what it relays",
-    "reviewed": "claude-backtranslation 2026-10-22 #c9a7d7a7"
-  },
-  "site.alt.cell.e2ee_own": {
-    "text": "Non ; les photos restent sur votre propre serveur",
-    "en": "No; the photos stay on your own server"
-  },
   "site.alt.cell.family_otc": {
     "text": "Oui, chacun avec son mot de passe",
     "en": "Yes, each with their own password"
@@ -204,16 +191,16 @@
     "en": "What changes when you leave the cloud"
   },
   "site.alt.choose.ente": {
-    "text": "<b>Ente</b> si vous préférez garder vos photos dans un cloud où même le fournisseur ne peut pas les voir : il est chiffré de bout en bout et open source, et les forfaits payants conservent trois copies dans l’UE.",
-    "en": "<b>Ente</b> if you'd rather keep your photos in a cloud where not even the provider can see them: it's end-to-end encrypted and open source, and paid plans keep three copies in the EU."
+    "text": "<b>Ente</b> si vous préférez payer un cloud photo axé sur la confidentialité plutôt que garder un appareil chez vous : il est open source, et les forfaits payants conservent trois copies dans l’UE.",
+    "en": "<b>Ente</b> if you'd rather pay for a privacy-focused photo cloud than keep a device at home: it's open source, and paid plans keep three copies in the EU."
   },
   "site.alt.choose.google": {
     "text": "<b>Google Photos</b> si vous ne voulez rien avoir à configurer ni à entretenir, et que cela ne vous dérange pas que Google conserve vos photos, ni de payer un forfait une fois les 15 Go gratuits remplis.",
     "en": "<b>Google Photos</b> if you want nothing to set up or look after, and don't mind Google keeping your photos or paying for a plan once the free 15 GB fills up."
   },
   "site.alt.choose.icloud": {
-    "text": "<b>Photos iCloud</b> si toute votre famille utilise un iPhone ou un Mac : c’est intégré, et avec la Protection avancée des données activée (non proposée au Royaume-Uni), votre photothèque est chiffrée de bout en bout.",
-    "en": "<b>iCloud Photos</b> if everyone in your family uses an iPhone or a Mac: it's built in, and with Advanced Data Protection turned on (not offered in the UK), your photo library is end-to-end encrypted."
+    "text": "<b>Photos iCloud</b> si toute votre famille utilise un iPhone ou un Mac : c’est intégré, sans rien à configurer.",
+    "en": "<b>iCloud Photos</b> if everyone in your family uses an iPhone or a Mac: it's built in, with nothing to set up."
   },
   "site.alt.choose.immich": {
     "text": "<b>Immich</b> si vous faites déjà tourner un serveur à la maison et que vous êtes à l’aise avec Docker : c’est une app photo mature, gratuite et open source.",
@@ -281,15 +268,6 @@
     "text": "Est-ce moins cher que Google One ou iCloud+ ?",
     "en": "Is it cheaper than Google One or iCloud+?"
   },
-  "site.alt.faq.e2ee.a": {
-    "text": "Non. Vos fichiers sont stockés chiffrés sur votre appareil Off The Cloud, avec une clé que seul votre mot de passe déverrouille, et chez vous les apps s’y connectent directement. Hors de chez vous, les connexions passent par la passerelle, qui les déchiffre et les rechiffre au passage : elles ne sont donc pas chiffrées de bout en bout ; rien de ce qui transite n’est stocké. Les noms de fichiers, les étiquettes et les photos que vous publiez pour vos amis restent lisibles, pour que la recherche et le fil fonctionnent. Si vous avez besoin du chiffrement de bout en bout, Ente le propose, tout comme iCloud avec la Protection avancée des données activée, sauf au Royaume-Uni.",
-    "en": "No. Your files are stored encrypted on your Off The Cloud device, with a key only your password unlocks, and at home the apps connect to it directly. Away from home, connections go through the bridge, which decrypts and re-encrypts them as they pass, so they are not end-to-end encrypted; nothing that passes through is stored. File names, tags and the photos you post for friends are kept readable, so search and the feed work. If you need end-to-end encryption, Ente has it, and so does iCloud with Advanced Data Protection turned on, except in the UK.",
-    "reviewed": "claude-backtranslation 2026-10-22 #e5ec1083"
-  },
-  "site.alt.faq.e2ee.q": {
-    "text": "Off The Cloud est-il chiffré de bout en bout ?",
-    "en": "Is Off The Cloud end-to-end encrypted?"
-  },
   "site.alt.faq.immich.a": {
     "text": "Immich est une app photo gratuite et open source destinée aux personnes qui font tourner leur propre serveur : vous l’installez avec Docker sur une machine Linux et configurez vous-même le stockage, les sauvegardes et l’accès à distance. Off The Cloud ne demande presque aucune connaissance technique et fonctionne sur du matériel peu coûteux, un Raspberry Pi 5 et deux clés USB : l’app prépare la carte du Raspberry Pi, et la configuration se termine par Bluetooth depuis votre téléphone ou votre Mac. Il fait aussi plus que gérer des photos : vos fichiers restent synchronisés avec vos ordinateurs, comme sur un NAS, et un réseau social privé relie les appareils de vos amis, ce que ne propose pas Immich.",
     "en": "Immich is a free, open-source photo app for people who run their own server: you install it with Docker on a Linux machine and set up storage, backups and remote access yourself. Off The Cloud needs almost no technical knowledge: the app prepares a Raspberry Pi's card and the setup finishes over Bluetooth from your phone or Mac, on inexpensive hardware, a Raspberry Pi 5 and two USB pen drives. It also does more than photos: your files stay in sync with your computers, like a NAS, and a private social network connects friends' devices, which Immich doesn't have."
@@ -297,6 +275,15 @@
   "site.alt.faq.immich.q": {
     "text": "En quoi est-ce différent d’Immich ?",
     "en": "How is it different from Immich?"
+  },
+  "site.alt.faq.private.a": {
+    "text": "Oui. Votre photothèque et vos fichiers sont stockés sous forme chiffrée sur votre appareil, avec une clé que seul votre mot de passe déverrouille, et le mot de passe lui-même n’est jamais enregistré sur l’appareil. L’étiquetage, les noms de lieux et la reconnaissance faciale fonctionnent sur l’appareil lui-même : aucune photo n’est donc envoyée ailleurs pour être analysée, et rien n’est utilisé à des fins publicitaires ni pour entraîner une IA.",
+    "en": "Yes. Your photo library and files are stored encrypted on your device, with a key only your password unlocks, and the password itself is never stored on it. Tagging, place names and face recognition run on the device itself, so no photo is sent away to be analysed, and nothing is used for ads or to train AI.",
+    "reviewed": "claude-backtranslation 2026-10-22 #74c0920b"
+  },
+  "site.alt.faq.private.q": {
+    "text": "Mes photos sont-elles privées ?",
+    "en": "Are my photos private?"
   },
   "site.alt.faq.side_by_side.a": {
     "text": "Oui. Les apps copient vos photos sur l’appareil au lieu de les déplacer : Google Photos et iCloud continuent donc comme avant, et vous pouvez utiliser les deux le temps de vous décider. Vous pouvez aussi explorer d’abord la <demo>démo</demo> : un vrai appareil avec les photos d’une famille fictive, sans inscription.",
@@ -355,8 +342,8 @@
     "en": "<b>From a computer:</b> the Mac, Windows and Linux apps back up any folder you choose, so photos you keep on a computer come across too."
   },
   "site.alt.move.google": {
-    "text": "<b>Depuis Google Photos :</b> Off The Cloud n’a pas d’outil d’importation depuis Google Photos. Les apps Android et iPhone sauvegardent les photos et vidéos stockées sur le téléphone : tout ce que Google Photos y conserve encore est donc transféré, mais les photos qui n’existent que dans le cloud de Google doivent d’abord être téléchargées sur un téléphone ou un ordinateur.",
-    "en": "<b>From Google Photos:</b> Off The Cloud has no Google Photos importer. The Android and iPhone apps back up the photos and videos stored on the phone, so whatever Google Photos still keeps there comes across, but photos that exist only in Google's cloud have to be downloaded to a phone or computer first."
+    "text": "<b>Depuis Google Photos :</b> les apps Android et iPhone sauvegardent les photos et vidéos stockées sur le téléphone, si bien que tout ce que Google Photos y conserve encore est transféré. Les photos qui n’existent que dans le cloud de Google doivent d’abord être téléchargées sur un téléphone ou un ordinateur.",
+    "en": "<b>From Google Photos:</b> the Android and iPhone apps back up the photos and videos stored on the phone, so whatever Google Photos still keeps there comes across. Photos that exist only in Google's cloud have to be downloaded to a phone or computer first."
   },
   "site.alt.move.icloud": {
     "text": "<b>Depuis Photos iCloud :</b> installez l’app iPhone et, quand elle vous demande quelles photos envoyer, choisissez <b>Toutes les photos et vidéos</b> et laissez <b>Synchroniser depuis iCloud</b> activé. Le téléphone télécharge chaque photo qu’il ne conserve que dans iCloud et l’envoie à votre appareil : une grande bibliothèque prend donc un certain temps ; gardez le téléphone en Wi-Fi. L’appareil reçoit l’original de chaque photo : les modifications et la partie animée des Live Photos restent dans iCloud, et l’organisation de votre photothèque n’est pas reprise. La sauvegarde ne supprime rien d’iCloud.",
@@ -373,10 +360,6 @@
   "site.alt.row.cost": {
     "text": "Coût",
     "en": "What it costs"
-  },
-  "site.alt.row.e2ee": {
-    "text": "Chiffré de bout en bout",
-    "en": "End-to-end encrypted"
   },
   "site.alt.row.family": {
     "text": "Comptes familiaux",

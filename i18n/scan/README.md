@@ -103,7 +103,8 @@ tags, keys for storage and preferences, symbols and image names (`systemImage:`,
   wifiwatch, status, push, settings, profile; bridge: accounts, api, websocket; otc-sync: tray,
   engine, flasher, selfupdate, wsclient, config, browser, autostart - not `cmd/otc-sync`).
 - **pages** (the bridge's embedded page templates `bridge/site/pages/landing.html`,
-  `alternative.html`, `common.html` (what the public pages share), `account.html`,
+  the comparison pages `social.html`, `alternative.html` and `drive.html`, `common.html` (what the
+  public pages share), `account.html`,
   `disabled.html`, `unavailable.html`; nothing in `bridge/static`: `admin.html` is
   the operator's, `privacy.html` and `terms.html` stay English, `index.html` is a stale copy of the
   web app's shell): HTML text and attributes, and the inline scripts through a JavaScript lexer

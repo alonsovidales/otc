@@ -344,6 +344,21 @@ func SiteLandingFaqFreeQ() Msg {
 	return Msg{Key: "site.landing.faq.free.q"}
 }
 
+// SiteLandingFaqFriendsDeviceP1 is site.landing.faq.friends_device.p1: "Not necessarily. On your device you can add an account for each family member, o…".
+func SiteLandingFaqFriendsDeviceP1() Msg {
+	return Msg{Key: "site.landing.faq.friends_device.p1"}
+}
+
+// SiteLandingFaqFriendsDeviceP2 is site.landing.faq.friends_device.p2: "Friends who want their photos and files at home too set up a device of their own…".
+func SiteLandingFaqFriendsDeviceP2() Msg {
+	return Msg{Key: "site.landing.faq.friends_device.p2"}
+}
+
+// SiteLandingFaqFriendsDeviceQ is site.landing.faq.friends_device.q: "Do my friends and family need a device of their own?".
+func SiteLandingFaqFriendsDeviceQ() Msg {
+	return Msg{Key: "site.landing.faq.friends_device.q"}
+}
+
 // SiteLandingFaqFromGoogleP1 is site.landing.faq.from_google.p1: "There's no Google Photos importer. Photos and videos still on your phone are bac…".
 func SiteLandingFaqFromGoogleP1() Rich {
 	return Rich{Key: "site.landing.faq.from_google.p1"}
@@ -684,6 +699,26 @@ func SiteLandingFaqSocialQ() Msg {
 	return Msg{Key: "site.landing.faq.social.q"}
 }
 
+// SiteLandingFaqSocialHowP1 is site.landing.faq.social_how.p1: "Everyone in it has an address of their own, like <code>casa.off-the.cloud</code>…".
+func SiteLandingFaqSocialHowP1() Rich {
+	return Rich{Key: "site.landing.faq.social_how.p1"}
+}
+
+// SiteLandingFaqSocialHowP2 is site.landing.faq.social_how.p2: "Your posts are kept on your own device, and your friends' devices fetch them fro…".
+func SiteLandingFaqSocialHowP2() Msg {
+	return Msg{Key: "site.landing.faq.social_how.p2"}
+}
+
+// SiteLandingFaqSocialHowP3 is site.landing.faq.social_how.p3: "There are no private messages or chats, on purpose: it leaves less room for bull…".
+func SiteLandingFaqSocialHowP3() Msg {
+	return Msg{Key: "site.landing.faq.social_how.p3"}
+}
+
+// SiteLandingFaqSocialHowQ is site.landing.faq.social_how.q: "How does the private social network work?".
+func SiteLandingFaqSocialHowQ() Msg {
+	return Msg{Key: "site.landing.faq.social_how.q"}
+}
+
 // SiteLandingFaqSpeedA is site.landing.faq.speed.a: "At home it's usually much faster. The iPhone, Android, Mac and Windows/Linux app…".
 func SiteLandingFaqSpeedA() Msg {
 	return Msg{Key: "site.landing.faq.speed.a"}
@@ -779,6 +814,36 @@ func SiteLandingFaqVsCloudQ() Msg {
 	return Msg{Key: "site.landing.faq.vs_cloud.q"}
 }
 
+// SiteLandingFaqVsDriveP1 is site.landing.faq.vs_drive.p1: "For your own files, yes. Files, in the web app and the phone apps, works like a …".
+func SiteLandingFaqVsDriveP1() Msg {
+	return Msg{Key: "site.landing.faq.vs_drive.p1"}
+}
+
+// SiteLandingFaqVsDriveP2 is site.landing.faq.vs_drive.p2: "You get as much space as one of your two drives holds, with no plan to upgrade: …".
+func SiteLandingFaqVsDriveP2() Msg {
+	return Msg{Key: "site.landing.faq.vs_drive.p2"}
+}
+
+// SiteLandingFaqVsDriveQ is site.landing.faq.vs_drive.q: "Can it replace Google Drive, Dropbox or Proton Drive?".
+func SiteLandingFaqVsDriveQ() Msg {
+	return Msg{Key: "site.landing.faq.vs_drive.q"}
+}
+
+// SiteLandingFaqVsInstagramP1 is site.landing.faq.vs_instagram.p1: "Instagram and Facebook are free because advertising pays for them: your posts ar…".
+func SiteLandingFaqVsInstagramP1() Msg {
+	return Msg{Key: "site.landing.faq.vs_instagram.p1"}
+}
+
+// SiteLandingFaqVsInstagramP2 is site.landing.faq.vs_instagram.p2: "It's also made for a smaller circle: not for building an audience or following s…".
+func SiteLandingFaqVsInstagramP2() Msg {
+	return Msg{Key: "site.landing.faq.vs_instagram.p2"}
+}
+
+// SiteLandingFaqVsInstagramQ is site.landing.faq.vs_instagram.q: "How is it different from Instagram or Facebook?".
+func SiteLandingFaqVsInstagramQ() Msg {
+	return Msg{Key: "site.landing.faq.vs_instagram.q"}
+}
+
 // SiteLandingFaqVsSelfhostedLi1 is site.landing.faq.vs_selfhosted.li1: "It installs from an app: the computer app prepares the Raspberry Pi's card, and …".
 func SiteLandingFaqVsSelfhostedLi1() Msg {
 	return Msg{Key: "site.landing.faq.vs_selfhosted.li1"}
@@ -859,9 +924,24 @@ func SiteLandingGlanceAppsValue() Msg {
 	return Msg{Key: "site.landing.glance.apps.value"}
 }
 
-// SiteLandingGlanceCompare is site.landing.glance.compare: "Compare it with Google Photos, iCloud, Immich and others".
-func SiteLandingGlanceCompare() Msg {
-	return Msg{Key: "site.landing.glance.compare"}
+// SiteLandingGlanceCompareDrive is site.landing.glance.compare_drive: "Google Drive and Dropbox".
+func SiteLandingGlanceCompareDrive() Msg {
+	return Msg{Key: "site.landing.glance.compare_drive"}
+}
+
+// SiteLandingGlanceComparePhotos is site.landing.glance.compare_photos: "Google Photos and iCloud".
+func SiteLandingGlanceComparePhotos() Msg {
+	return Msg{Key: "site.landing.glance.compare_photos"}
+}
+
+// SiteLandingGlanceCompareSocial is site.landing.glance.compare_social: "Instagram and Facebook".
+func SiteLandingGlanceCompareSocial() Msg {
+	return Msg{Key: "site.landing.glance.compare_social"}
+}
+
+// SiteLandingGlanceCompareWith is site.landing.glance.compare_with: "Compare it with:".
+func SiteLandingGlanceCompareWith() Msg {
+	return Msg{Key: "site.landing.glance.compare_with"}
 }
 
 // SiteLandingGlanceCostLabel is site.landing.glance.cost.label: "Cost".
@@ -872,6 +952,16 @@ func SiteLandingGlanceCostLabel() Msg {
 // SiteLandingGlanceCostValue is site.landing.glance.cost.value: "Free software; a Raspberry Pi 5 and two USB pen drives; optional bridge: free fo…".
 func SiteLandingGlanceCostValue() Msg {
 	return Msg{Key: "site.landing.glance.cost.value"}
+}
+
+// SiteLandingGlanceFilesLabel is site.landing.glance.files.label: "Files".
+func SiteLandingGlanceFilesLabel() Msg {
+	return Msg{Key: "site.landing.glance.files.label"}
+}
+
+// SiteLandingGlanceFilesValue is site.landing.glance.files.value: "A NAS: folders kept in sync with Mac, Windows and Linux computers or backed up, …".
+func SiteLandingGlanceFilesValue() Msg {
+	return Msg{Key: "site.landing.glance.files.value"}
 }
 
 // SiteLandingGlanceHardwareLabel is site.landing.glance.hardware.label: "Runs on".
@@ -889,7 +979,7 @@ func SiteLandingGlanceInsteadLabel() Msg {
 	return Msg{Key: "site.landing.glance.instead.label"}
 }
 
-// SiteLandingGlanceInsteadValue is site.landing.glance.instead.value: "Google Photos and iCloud Photos, and a cloud drive such as Dropbox or iCloud Dri…".
+// SiteLandingGlanceInsteadValue is site.landing.glance.instead.value: "Instagram, Facebook or a family WhatsApp group for sharing photos; Google Photos…".
 func SiteLandingGlanceInsteadValue() Msg {
 	return Msg{Key: "site.landing.glance.instead.value"}
 }
@@ -924,6 +1014,16 @@ func SiteLandingGlancePrivacyValue() Msg {
 	return Msg{Key: "site.landing.glance.privacy.value"}
 }
 
+// SiteLandingGlanceSocialLabel is site.landing.glance.social.label: "Social network".
+func SiteLandingGlanceSocialLabel() Msg {
+	return Msg{Key: "site.landing.glance.social.label"}
+}
+
+// SiteLandingGlanceSocialValue is site.landing.glance.social.value: "Posts with photos and videos, comments, likes and notifications, only for the fr…".
+func SiteLandingGlanceSocialValue() Msg {
+	return Msg{Key: "site.landing.glance.social.value"}
+}
+
 // SiteLandingGlanceStorageLabel is site.landing.glance.storage.label: "Storage".
 func SiteLandingGlanceStorageLabel() Msg {
 	return Msg{Key: "site.landing.glance.storage.label"}
@@ -944,7 +1044,7 @@ func SiteLandingGlanceWhatLabel() Msg {
 	return Msg{Key: "site.landing.glance.what.label"}
 }
 
-// SiteLandingGlanceWhatValue is site.landing.glance.what.value: "A self-hosted home server for your family's photos, videos and files, with its o…".
+// SiteLandingGlanceWhatValue is site.landing.glance.what.value: "A private social network for family and friends, and a home server (NAS) for you…".
 func SiteLandingGlanceWhatValue() Msg {
 	return Msg{Key: "site.landing.glance.what.value"}
 }
@@ -959,7 +1059,7 @@ func SiteLandingHeroDemoNote() Msg {
 	return Msg{Key: "site.landing.hero.demo_note"}
 }
 
-// SiteLandingHeroLead is site.landing.hero.lead: "Off The Cloud is free, open-source software that turns a Raspberry Pi 5 into a h…".
+// SiteLandingHeroLead is site.landing.hero.lead: "Off The Cloud is a private social network for your family and friends, and a hom…".
 func SiteLandingHeroLead() Msg {
 	return Msg{Key: "site.landing.hero.lead"}
 }
@@ -969,17 +1069,17 @@ func SiteLandingHeroPhotoAlt() Msg {
 	return Msg{Key: "site.landing.hero.photo_alt"}
 }
 
-// SiteLandingHeroPill is site.landing.hero.pill: "100% open source · photo backup on your own Raspberry Pi".
+// SiteLandingHeroPill is site.landing.hero.pill: "100% open source · social network, photos and files on your own device".
 func SiteLandingHeroPill() Msg {
 	return Msg{Key: "site.landing.hero.pill"}
 }
 
-// SiteLandingHeroTitle1 is site.landing.hero.title_1: "Your photos, your rules.".
+// SiteLandingHeroTitle1 is site.landing.hero.title_1: "A social network your family owns.".
 func SiteLandingHeroTitle1() Msg {
 	return Msg{Key: "site.landing.hero.title_1"}
 }
 
-// SiteLandingHeroTitle2 is site.landing.hero.title_2: "<em>Off the cloud</em>, for good.".
+// SiteLandingHeroTitle2 is site.landing.hero.title_2: "<em>Off the cloud</em>, at home.".
 func SiteLandingHeroTitle2() Rich {
 	return Rich{Key: "site.landing.hero.title_2"}
 }
@@ -1129,12 +1229,12 @@ func SiteLandingLightboxPrevious() Msg {
 	return Msg{Key: "site.landing.lightbox.previous"}
 }
 
-// SiteLandingMetaDescription is site.landing.meta.description: "Back up your family's photos and videos in full resolution to a Raspberry Pi 5 a…".
+// SiteLandingMetaDescription is site.landing.meta.description: "Your family's own social network, photo backup and file storage, on a small devi…".
 func SiteLandingMetaDescription() Msg {
 	return Msg{Key: "site.landing.meta.description"}
 }
 
-// SiteLandingMetaTitle is site.landing.meta.title: "Off The Cloud: self-hosted Google Photos & iCloud alternative".
+// SiteLandingMetaTitle is site.landing.meta.title: "Off The Cloud: private family social network and home cloud".
 func SiteLandingMetaTitle() Msg {
 	return Msg{Key: "site.landing.meta.title"}
 }
@@ -1204,12 +1304,12 @@ func SiteLandingPhoneIosTitle() Msg {
 	return Msg{Key: "site.landing.phone.ios_title"}
 }
 
-// SiteLandingPhoneLead is site.landing.phone.lead: "Back up your photos and videos as you take them, browse everything on your devic…".
+// SiteLandingPhoneLead is site.landing.phone.lead: "Post for your friends and see their posts, back up your photos and videos as you…".
 func SiteLandingPhoneLead() Msg {
 	return Msg{Key: "site.landing.phone.lead"}
 }
 
-// SiteLandingPhoneTitle is site.landing.phone.title: "Your photos, backed up from your phone".
+// SiteLandingPhoneTitle is site.landing.phone.title: "Your feed and your photos, on your phone".
 func SiteLandingPhoneTitle() Msg {
 	return Msg{Key: "site.landing.phone.title"}
 }
@@ -1364,6 +1464,16 @@ func SiteLandingStartedTitle() Msg {
 	return Msg{Key: "site.landing.started.title"}
 }
 
+// SiteLandingWhatDecentralText is site.landing.what.decentral_text: "Every family's posts live on its own device, and friends' devices fetch them fro…".
+func SiteLandingWhatDecentralText() Msg {
+	return Msg{Key: "site.landing.what.decentral_text"}
+}
+
+// SiteLandingWhatDecentralTitle is site.landing.what.decentral_title: "No company in the middle".
+func SiteLandingWhatDecentralTitle() Msg {
+	return Msg{Key: "site.landing.what.decentral_title"}
+}
+
 // SiteLandingWhatDesktopText is site.landing.what.desktop_text: "macOS, Windows and Linux apps that keep chosen folders on your computer in two-w…".
 func SiteLandingWhatDesktopText() Msg {
 	return Msg{Key: "site.landing.what.desktop_text"}
@@ -1409,22 +1519,32 @@ func SiteLandingWhatFastTitle() Msg {
 	return Msg{Key: "site.landing.what.fast_title"}
 }
 
-// SiteLandingWhatFeedText is site.landing.what.feed_text: "The social side has no ads, no influencers, no engagement algorithm — just posts…".
+// SiteLandingWhatFeedText is site.landing.what.feed_text: "Post photos and videos for your family and friends, with captions, comments, lik…".
 func SiteLandingWhatFeedText() Msg {
 	return Msg{Key: "site.landing.what.feed_text"}
 }
 
-// SiteLandingWhatFeedTitle is site.landing.what.feed_title: "No toxic feed".
+// SiteLandingWhatFeedTitle is site.landing.what.feed_title: "Your own social network".
 func SiteLandingWhatFeedTitle() Msg {
 	return Msg{Key: "site.landing.what.feed_title"}
 }
 
-// SiteLandingWhatLead is site.landing.what.lead: "A Raspberry Pi in your home stores everything; native apps on every platform kee…".
+// SiteLandingWhatFilesText is site.landing.what.files_text: "Keep folders from every computer in two-way sync or backed up, open and share th…".
+func SiteLandingWhatFilesText() Msg {
+	return Msg{Key: "site.landing.what.files_text"}
+}
+
+// SiteLandingWhatFilesTitle is site.landing.what.files_title: "A NAS for your files".
+func SiteLandingWhatFilesTitle() Msg {
+	return Msg{Key: "site.landing.what.files_title"}
+}
+
+// SiteLandingWhatLead is site.landing.what.lead: "One small device in your home keeps your family's posts, photos and files. Apps …".
 func SiteLandingWhatLead() Msg {
 	return Msg{Key: "site.landing.what.lead"}
 }
 
-// SiteLandingWhatMobileText is site.landing.what.mobile_text: "iOS and Android apps that back up your camera roll in the background, in full re…".
+// SiteLandingWhatMobileText is site.landing.what.mobile_text: "iOS and Android apps for your social feed, notifications and photo backup: they …".
 func SiteLandingWhatMobileText() Msg {
 	return Msg{Key: "site.landing.what.mobile_text"}
 }
@@ -1432,6 +1552,16 @@ func SiteLandingWhatMobileText() Msg {
 // SiteLandingWhatMobileTitle is site.landing.what.mobile_title: "Mobile app".
 func SiteLandingWhatMobileTitle() Msg {
 	return Msg{Key: "site.landing.what.mobile_title"}
+}
+
+// SiteLandingWhatPhotosText is site.landing.what.photos_text: "The phone apps back up every photo and video in the background, as the original,…".
+func SiteLandingWhatPhotosText() Msg {
+	return Msg{Key: "site.landing.what.photos_text"}
+}
+
+// SiteLandingWhatPhotosTitle is site.landing.what.photos_title: "Every photo, backed up".
+func SiteLandingWhatPhotosTitle() Msg {
+	return Msg{Key: "site.landing.what.photos_title"}
 }
 
 // SiteLandingWhatSearchText is site.landing.what.search_text: "Every photo is auto-tagged locally on the device, so you can search \"beach\" or \"…".
@@ -1454,7 +1584,7 @@ func SiteLandingWhatShareTitle() Msg {
 	return Msg{Key: "site.landing.what.share_title"}
 }
 
-// SiteLandingWhatTitle is site.landing.what.title: "One device, four ways to reach it".
+// SiteLandingWhatTitle is site.landing.what.title: "A social network, a photo library and a NAS, in one device".
 func SiteLandingWhatTitle() Msg {
 	return Msg{Key: "site.landing.what.title"}
 }

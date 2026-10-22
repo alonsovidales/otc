@@ -1,6 +1,6 @@
 @html.lang=en
-Off The Cloud: self-hosted Google Photos & iCloud alternative
-@meta.description=Back up your family's photos and videos in full resolution to a Raspberry Pi 5 at home, instead of Google Photos or iCloud. Free, open source, live demo.
+Off The Cloud: private family social network and home cloud
+@meta.description=Your family's own social network, photo backup and file storage, on a small device at home instead of Instagram, Google Photos and Drive. Free, open source.
 @a.aria-label=Off The Cloud
 @a.href=/
 @img.src=/logo.png
@@ -16,11 +16,11 @@ Get started Download What it is Gallery FAQ GitHub
 @a.href=/account
 @a.href=/account?signup=1
 Sign in Create an account
-🔓 100% open source · photo backup on your own Raspberry Pi
-Your photos, your rules.Off the cloud, for good.
+🔓 100% open source · social network, photos and files on your own device
+A social network your family owns.Off the cloud, at home.
 @img.src=/img/hero-1600.jpg
 @img.alt=An Off The Cloud device on a desk, next to a camera and a computer showing your photo library
-Off The Cloud is free, open-source software that turns a Raspberry Pi 5 into a home server for your family's photos, videos and files: an alternative to Google Photos and iCloud, in a small box you own. Your phones and computers back up to it in full resolution. The device tags your photos itself, so you can search for "beach" or "dog" without sending them anywhere, and two mirrored drives each keep a full copy. An optional feed lets you share with friends only, without ads or algorithms.
+Off The Cloud is a private social network for your family and friends, and a home for your photos and files, on a small device you own. Post photos and videos, comment and like, with no ads, no algorithm and no strangers: your posts stay on your device and go only to the devices of friends you accept, never stored on a company's servers. The same device backs up everyone's phones in full resolution and keeps your computers' folders in sync, so it takes the place of Instagram, Google Photos, iCloud, Google Drive and Dropbox at once. It's free, open-source software for a Raspberry Pi 5, set up from your phone.
 @a.href=https://demo.off-the.cloud/
 Try the demo Look around a real device with a made-up family's photos and files. No sign-up.
 Get your device running
@@ -63,9 +63,13 @@ It installs everything and builds the software from source, then starts the serv
 Want to reach it from outside your home network? Create an account for the bridge →
 Off The Cloud at a glance
 What it is
-A self-hosted home server for your family's photos, videos and files, with its own apps
+A private social network for family and friends, and a home server (NAS) for your photos, videos and files, with its own apps
+Social network
+Posts with photos and videos, comments, likes and notifications, only for the friends you accept, from device to device; newest first, no ads
+Files
+A NAS: folders kept in sync with Mac, Windows and Linux computers or backed up, upload-only folders that keep earlier versions, and share links
 Instead of
-Google Photos and iCloud Photos, and a cloud drive such as Dropbox or iCloud Drive for your files
+Instagram, Facebook or a family WhatsApp group for sharing photos; Google Photos or iCloud Photos for backup; Google Drive, Dropbox, iCloud Drive or Proton Drive for files
 Runs on
 A Raspberry Pi 5 with 8 GB (4 GB with tagging and faces off), or a 64-bit Intel/AMD or ARM machine with Debian or Ubuntu
 Storage
@@ -80,8 +84,10 @@ Licence
 Open source under the GNU AGPL-3.0: the device, every app and the bridge
 Languages
 English, Spanish, French, German, Italian, Portuguese and Dutch
+@a.href=/private-social-network
 @a.href=/google-photos-alternative
-Compare it with Google Photos, iCloud, Immich and others
+@a.href=/google-drive-alternative
+Compare it with: Instagram and Facebook · Google Photos and iCloud · Google Drive and Dropbox
 Get started
 What happens under the hood
 Both paths end in the same place: the image just runs the install script for you, after asking for your WiFi, a name and your disks from a phone.
@@ -126,8 +132,8 @@ Get it on the Mac App Store
 @a.href=https://github.com/alonsovidales/otc/releases/tag/desktop
 Every update is signed. The apps only install a new version after checking its signature against the project's release key, the same key that signs the device updates. The source is on GitHub, and every file is listed on the desktop release.
 Phone apps
-Your photos, backed up from your phone
-Back up your photos and videos as you take them, browse everything on your device, share with friends, and set up a new device over Bluetooth.
+Your feed and your photos, on your phone
+Post for your friends and see their posts, back up your photos and videos as you take them, browse everything on your device, and set up a new device over Bluetooth.
 Your system
 iPhone and iPad
 Backs up your photo library, iCloud photos included, and shows your device's photos, files and friends' posts.
@@ -139,26 +145,23 @@ The same app for Android phones and tablets: photo backup, your device's files a
 @a.href=https://play.google.com/store/apps/details?id=cloud.offthe.otc
 Get it on Google Play
 What it is
-One device, four ways to reach it
-A Raspberry Pi in your home stores everything; native apps on every platform keep it in sync and let you browse, search, and share it.
-💾
-The device
-A Raspberry Pi 5 with a microSD card for the system and two USB drives mirrored in RAID-1, storing your originals exactly as they arrive, never resized or recompressed — encrypted at rest, with a key that only your password unlocks.
-🖥️
-Desktop client
-macOS, Windows and Linux apps that keep chosen folders on your computer in two-way sync with the device, automatically.
-📱
-Mobile app
-iOS and Android apps that back up your camera roll in the background, in full resolution, and double as the social feed.
-🌐
-Web app
-Everything above, from any browser — sign in with just your password, no app install required.
+A social network, a photo library and a NAS, in one device
+One small device in your home keeps your family's posts, photos and files. Apps on every platform keep it in sync and let you browse, search and share it.
+💬
+Your own social network
+Post photos and videos for your family and friends, with captions, comments, likes and notifications. Only the friends you've accepted see them, newest first: no ads, no influencers and no algorithm deciding what you see.
+🏡
+No company in the middle
+Every family's posts live on its own device, and friends' devices fetch them from each other. There's no central server holding everyone's photos, so there's nothing to sell, mine or leak in one place.
+📸
+Every photo, backed up
+The phone apps back up every photo and video in the background, as the original, so your library is complete and in full quality, with no storage plan to outgrow.
+🗂️
+A NAS for your files
+Keep folders from every computer in two-way sync or backed up, open and share them from your phone, and lock a folder so nothing in it can be deleted and earlier versions are kept.
 🔍
 AI search, kept private
 Every photo is auto-tagged locally on the device, so you can search "beach" or "dog" instantly — nothing is sent to a third party to do it.
-🚫
-No toxic feed
-The social side has no ads, no influencers, no engagement algorithm — just posts from people you've actually approved as friends.
 👨‍👩‍👧
 One device, the whole family
 Give everyone at home their own account on the same device — their own photo backup, library and password, each encrypted with its own key. You manage the accounts, but you can't open the photos and files in them.
@@ -168,6 +171,18 @@ Send a collection of photos to anyone as a link that expires. They open it in th
 ⚡
 Fast at home
 At home the apps talk straight to the device over your own network, so a whole holiday's photos back up at Wi-Fi speed instead of crawling over the internet.
+💾
+The device
+A Raspberry Pi 5 with a microSD card for the system and two USB drives mirrored in RAID-1, storing your originals exactly as they arrive, never resized or recompressed — encrypted at rest, with a key that only your password unlocks.
+📱
+Mobile app
+iOS and Android apps for your social feed, notifications and photo backup: they back up your camera roll in the background, in full resolution.
+🖥️
+Desktop client
+macOS, Windows and Linux apps that keep chosen folders on your computer in two-way sync with the device, automatically.
+🌐
+Web app
+Everything above, from any browser — sign in with just your password, no app install required.
 See it running
 Every part of the system, in one place
 The physical device, and the four apps that talk to it.
@@ -203,6 +218,23 @@ Web app
 @img.alt=Social in the web app
 FAQ
 Questions people actually ask
+How does the private social network work?
+Everyone in it has an address of their own, like casa.off-the.cloud, and you add friends by their device's name. Once they accept, you see each other's posts in Social, in the phone apps and the web app: photos and videos with a caption, comments and likes, newest first, and a notification when someone likes or comments. Nothing is suggested or promoted, and there are no ads.
+Your posts are kept on your own device, and your friends' devices fetch them from it, so there's no central server holding everyone's posts. Devices reach each other through the bridge, which relays the connection without keeping anything that passes through. If you stop being friends, you can remove everything they shared from your device, and ask their device to delete what you shared there.
+There are no private messages or chats, on purpose: it leaves less room for bullying or for a stranger to approach a child. It's a feed for sharing photos and videos with the people you choose.
+Do my friends and family need a device of their own?
+Not necessarily. On your device you can add an account for each family member, or for a close friend, with their own photo backup, library and password. With an off-the.cloud address of its own, an account works from anywhere in the same apps and can be your friend in the feed. We recommend no more than five accounts on one device (see the question about family accounts below).
+Friends who want their photos and files at home too set up a device of their own: the software is the same, and free. Everyone in the feed needs an off-the.cloud address, which comes with the bridge (see the question about the bridge below), unless you all use a bridge of your own. For people with no account at all, send a collection as a link: they open it in their browser, with no app.
+How is it different from Instagram or Facebook?
+Instagram and Facebook are free because advertising pays for them: your posts are kept on Meta's servers, an algorithm ranks what you see, and Meta uses public posts and comments to train its AI unless you object. On Off The Cloud your posts are on your own device, only the friends you accept see them, the feed is simply newest first, and nothing is used for ads or to train AI.
+It's also made for a smaller circle: not for building an audience or following strangers, but for the family and friends you'd show your photos to at home.
+@a.href=/private-social-network
+How it compares with Instagram and Facebook
+Can it replace Google Drive, Dropbox or Proton Drive?
+For your own files, yes. Files, in the web app and the phone apps, works like a drive: folders, uploads and downloads, moving and renaming, and share links that expire. The Mac, Windows and Linux apps keep chosen folders in two-way sync with the device or back them up, and a folder made upload-only can't have anything deleted from it and keeps the earlier version of a file uploaded again.
+You get as much space as one of your two drives holds, with no plan to upgrade: when they fill up, you swap them for bigger ones.
+@a.href=/google-drive-alternative
+How it compares with Google Drive and Dropbox
 How is it different from Google Photos or iCloud?
 Your photos live in your home instead of on a company's servers. You buy the hardware once instead of paying for a storage plan, and you have as much space as one of your two drives holds, since each keeps a full copy: when they fill up, you swap them for bigger ones.
 Day to day it feels familiar. The phone apps back up your photos and videos in the background, in full resolution, and you can search them by what they show and, if you turn on face recognition, by who is in them. iPhones, Android phones and computers all work with it, with an account for each person in the family.
@@ -219,7 +251,7 @@ It's a NAS for your files too, kept in two-way sync with your computers, not onl
 A private social network between friends' devices, with no ads and no algorithm, which Immich and PhotoPrism don't have.
 Apps for phones and computers, an account for each person in the family, and an optional bridge to reach it from anywhere without opening ports on your router.
 @a.href=/google-photos-alternative
-Compare it with Google Photos, iCloud, Immich and others
+How it compares with Google Photos and iCloud
 Do I need to buy special hardware?
 A Raspberry Pi 5 (8GB) with a micro-SD card for the system and two USB drives for storage, mirrored so that each holds a full copy of your files: USB sticks, SSDs, hard disks or micro-SD cards in USB card readers all work. Plug them into the Pi's two blue USB ports (the fast ones; the device then tells you which one to replace if a drive ever fails). Add a power supply and an active cooler: all off-the-shelf. See the README for the exact recommended parts list. A Pi 5 with 4 GB can work too, with photo tagging and face recognition turned off.
 Is there a pre-built image I can just flash?
@@ -355,7 +387,7 @@ Is my data actually private?
 Your files are encrypted at rest with a key that only your password unlocks, and the password itself is never stored on the device. Photos and videos you post, and the posts your friends share with you, are the exception: they're kept unencrypted so your friends' devices can fetch them at any time. File names and tags are also kept readable so search works. Nothing is sold, used to train AI models, or shown to anyone you haven't chosen to share it with. The next two questions explain what the bridge and other services see, and where your photos are analysed.
 Is any of my information sent to third parties?
 Your photos, videos and files stay on your device. Nothing is sold, used for advertising or used to train AI, and none of the apps contain analytics, advertising or crash reporting. A few services are involved, and this is what each one gets:
-The bridge (run by us, on OVH servers in France), if you use it: your account (email, name, surname and country), your devices' names (such as casa.off-the.cloud), when an app last reached each device, hourly traffic totals (never the content) and, for 90 days, the internet address of failed attempts to connect as your device. Connections to it are encrypted, but the bridge decrypts and re-encrypts them as they pass through, so they are not end-to-end encrypted; nothing that passes through is stored. A device without the bridge only contacts it during setup.
+The bridge (run by us, on OVH servers in France), if you use it: your account (email, name, surname and country), your devices' names (such as casa.off-the.cloud), when an app last reached each device, hourly traffic totals (never the content) and, for 90 days, the internet address of failed attempts to connect as your device. Connections to it are encrypted, and nothing that passes through is stored. A device without the bridge only contacts it during setup.
 Apple and Google deliver notifications to iPhones and Android phones. A notification only says who did what ("Anna liked your post") or that something happened to your device (a disk stopped working, it went offline), never what a post or comment says, and never a photo. The Android app uses Google's Firebase for this and nothing else. Notifications in a browser go through your browser maker's push service, encrypted.
 Proton sends our emails (confirming your email, password resets, the warning before an unused account is removed) and delivers the device logs you choose to send us.
 Apple or Google sign-in, if you use it, tells us your email and name.
@@ -404,11 +436,13 @@ Everything is documented in the README — architecture, config, and every insta
 © 2026 Off The Cloud · open source, self-hosted, yours.
 @a.href=https://github.com/alonsovidales/otc
 @a.href=https://github.com/alonsovidales/otc#readme
+@a.href=/private-social-network
 @a.href=/google-photos-alternative
+@a.href=/google-drive-alternative
 @a.href=#contact
 @a.href=/privacy
 @a.href=/terms
-GitHub Documentation How it compares with Google Photos and iCloud Contact Privacy Terms
+GitHub Documentation Compare it with: Instagram and Facebook · Google Photos and iCloud · Google Drive and Dropbox Contact Privacy Terms
 @div.aria-label=Screenshot
 @button.aria-label=Close
 ✕

@@ -1,0 +1,476 @@
+{
+  "site.social.cell.ads_familyalbum": {
+    "text": "In the free version; Premium removes them",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column. Premium is FamilyAlbum's paid plan: keep its name.",
+    "max": 110
+  },
+  "site.social.cell.ads_meta": {
+    "text": "Yes; in the EU and the UK you can pay to remove them",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.ads_whatsapp": {
+    "text": "In the Updates tab since 2025, not in chats",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column. Updates is WhatsApp's own name for its tab with status updates and channels: use WhatsApp's name in your language.",
+    "max": 110
+  },
+  "site.social.cell.ai_meta": {
+    "text": "Public posts and comments, unless you object",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column. A privacy statement: keep its meaning exact.",
+    "max": 110
+  },
+  "site.social.cell.ai_pixelfed": {
+    "text": "Not stated; public posts reach other servers",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.ai_whatsapp": {
+    "text": "Not private messages, unless someone shares them with Meta AI",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column. Meta AI is a product name. A privacy statement: keep its meaning exact.",
+    "max": 110
+  },
+  "site.social.cell.app_only": {
+    "text": "Just the app",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.audience_facebook": {
+    "text": "The audience you pick for each post, from public to friends",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.audience_familyalbum": {
+    "text": "The people you invite to the album",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.audience_instagram": {
+    "text": "Anyone, or only your followers if your account is private",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.audience_otc": {
+    "text": "Only the friends you accept",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.audience_pixelfed": {
+    "text": "Public, unlisted or followers only, post by post",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column. Unlisted: visible to anyone with the link but not shown in public lists.",
+    "max": 110
+  },
+  "site.social.cell.audience_whatsapp": {
+    "text": "The people in the chat or group",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.backup_familyalbum": {
+    "text": "Only the photos you add to the album",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.backup_otc": {
+    "text": "Yes: every phone in full resolution, and your files",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.backup_whatsapp": {
+    "text": "Only its own chats, to your cloud storage",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.chat_familyalbum": {
+    "text": "Comments on photos",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.chat_otc": {
+    "text": "None, on purpose",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table, row \"Private messages\": the cell for Off The Cloud. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.cost_familyalbum": {
+    "text": "Free with ads; Premium from US$2.99 a month",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column. Premium is FamilyAlbum's paid plan: keep its name. Prices: write them as your language writes them, and keep every number exact.",
+    "max": 110
+  },
+  "site.social.cell.cost_otc": {
+    "text": "Free software on your own device; bridge free for two years, then €9.99 + VAT a year",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column. The bridge: our relay, which gives everyone in the feed their address. Commercial terms: keep the meaning exact. Prices: write them as your language writes them, and keep every number exact.",
+    "max": 110,
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #936d6b1d"
+  },
+  "site.social.cell.cost_pixelfed": {
+    "text": "Free software; a server you run or join",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.feed_facebook": {
+    "text": "An algorithm ranks it; the Feeds tab shows the latest until you reopen the app",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column. Feeds is Facebook's own name for that tab: use Facebook's name in your language.",
+    "max": 110
+  },
+  "site.social.cell.feed_familyalbum": {
+    "text": "Photos in date order",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.feed_instagram": {
+    "text": "An algorithm ranks it; the Following view shows newest first",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column. Following is Instagram's own name for that view: use Instagram's name in your language.",
+    "max": 110
+  },
+  "site.social.cell.feed_whatsapp": {
+    "text": "No feed: chats and groups",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.free": {
+    "text": "Free",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.free_ads": {
+    "text": "Free, paid for by ads",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.leave_facebook": {
+    "text": "Deleting your account removes your posts; messages stay with friends",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.leave_familyalbum": {
+    "text": "Deleted photos are removed within 30 days",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.leave_instagram": {
+    "text": "Deleting your account removes your posts",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.leave_otc": {
+    "text": "Remove a friend and ask their device to delete what you shared",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column. A privacy statement: keep its meaning exact.",
+    "max": 110,
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #86945a8b"
+  },
+  "site.social.cell.leave_pixelfed": {
+    "text": "Deletions reach other servers, which may not apply them",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.leave_whatsapp": {
+    "text": "Delete for everyone within about two days; copies saved on phones stay",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column. Delete for everyone is WhatsApp's own name for that choice: use WhatsApp's name in your language.",
+    "max": 110
+  },
+  "site.social.cell.meta_servers": {
+    "text": "On Meta's servers",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column. Meta: the company behind Instagram, Facebook and WhatsApp.",
+    "max": 110
+  },
+  "site.social.cell.newest_first": {
+    "text": "Nothing: newest first",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.none": {
+    "text": "None",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.not_stated": {
+    "text": "Its privacy policy doesn't say",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.own_device": {
+    "text": "On your own device at home",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.setup_pixelfed": {
+    "text": "A server with PHP, a database and Redis, or an account on someone else's",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column. PHP and Redis are software names.",
+    "max": 110
+  },
+  "site.social.cell.where_familyalbum": {
+    "text": "In FamilyAlbum's cloud, on Amazon and Google servers",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column. FamilyAlbum's company (MIXI) stores them with Amazon Web Services and Google Cloud.",
+    "max": 110
+  },
+  "site.social.cell.where_pixelfed": {
+    "text": "On the server you join or run, copied to your followers' servers",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.cell.where_whatsapp": {
+    "text": "On the phones in the chat; WhatsApp's servers delete them once delivered",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.social.choose.familyalbum": {
+    "text": "<b>FamilyAlbum</b> if you want a family album with nothing to set up: it's free with ads, keeps your photos in its own cloud, and its paid plan adds longer videos.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): list \"Which one should you choose?\": one line per option. <b> marks the product name in bold.",
+    "rich": ["b"]
+  },
+  "site.social.choose.meta": {
+    "text": "<b>Instagram or Facebook</b> if you want to reach a wide audience or follow public accounts: they're free and everyone is already there, in exchange for ads, a ranked feed and public posts used to train Meta's AI unless you object.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): list \"Which one should you choose?\": one line per option. <b> marks the product name in bold.",
+    "rich": ["b"]
+  },
+  "site.social.choose.otc": {
+    "text": "<b>Off The Cloud</b> if you want a private place for your family and friends that nobody else owns, with your photos and files backed up at home on the same small device.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): list \"Which one should you choose?\": one line per option. <b> marks the product name in bold.",
+    "rich": ["b"]
+  },
+  "site.social.choose.pixelfed": {
+    "text": "<b>Pixelfed</b> if you want a public, ad-free Instagram alternative on the fediverse, and are happy to join a server or run one yourself.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): list \"Which one should you choose?\": one line per option. <b> marks the product name in bold. The fediverse: the network of social sites, like Mastodon and Pixelfed, that talk to each other.",
+    "rich": ["b"]
+  },
+  "site.social.choose.title": {
+    "text": "Which one should you choose?",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): heading of the list saying which option suits whom.",
+    "max": 60
+  },
+  "site.social.choose.whatsapp": {
+    "text": "<b>WhatsApp</b> if you mainly want to chat: messages and calls, with photos that arrive in a chat rather than an album and live only on the phones.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): list \"Which one should you choose?\": one line per option. <b> marks the product name in bold.",
+    "rich": ["b"]
+  },
+  "site.social.compare.checked": {
+    "text": "Checked in October 2026. The other services' details come from their own help and policy pages, linked below.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): small print under the comparison table."
+  },
+  "site.social.compare.lead": {
+    "text": "How each one handles your photos and your family's privacy, as their own pages describe it.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): the sentence under the comparison table's heading."
+  },
+  "site.social.compare.sources": {
+    "text": "Sources:",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): label before the list of links to each company's own pages that the table's facts come from (the links show product names). Punctuate as your language does (\"Sources :\" in French).",
+    "max": 20
+  },
+  "site.social.compare.title": {
+    "text": "Off The Cloud compared with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): heading of the comparison table. Instagram, Facebook, WhatsApp, Meta, FamilyAlbum and Pixelfed are names: keep them as the companies write them in your language.",
+    "max": 90
+  },
+  "site.social.diff.address": {
+    "text": "<b>Everyone has an account on a device.</b> Each person in the feed has an account on an Off The Cloud device, their own or yours, with an off-the.cloud address. The bridge account that gives the addresses is free for two years, then €9.99 + VAT a year.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): list \"What's different from the big apps\": one item. <b> marks its short title in bold. off-the.cloud is our domain: keep it as it is. The bridge: our relay service. Commercial terms: keep the meaning exact. Prices: write them as your language writes euros (9,99 € in many languages), and keep every number exact.",
+    "rich": ["b"],
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #6c866f75"
+  },
+  "site.social.diff.messenger": {
+    "text": "<b>No private messages, on purpose.</b> With no chats or direct messages, there's less room for bullying or for a stranger to approach a child: what people share is posts and comments, and only with the friends they accept.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): list \"What's different from the big apps\": one item. <b> marks its short title in bold. A safety statement about children: keep its meaning exact, and claim no more than the English does (it says there is less room for bullying or for a stranger to approach a child, not that it cannot happen, and it does not say that every comment is seen by others).",
+    "rich": ["b"],
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #748fe8bd"
+  },
+  "site.social.diff.middle": {
+    "text": "<b>Nobody in between.</b> Your posts are on your device, and your friends' devices fetch them from it. Our bridge relays the connection and keeps none of what passes through, so there's no company server holding everyone's photos.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): list \"What's different from the big apps\": one item. <b> marks its short title in bold. The bridge: our relay service. A privacy statement: keep its meaning exact.",
+    "rich": ["b"],
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #0911ea00"
+  },
+  "site.social.diff.no_ads": {
+    "text": "<b>No ads, no algorithm, no AI training.</b> Nothing is sold, nothing ranks your feed, and nothing you post is used to train AI models.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): list \"What's different from the big apps\": one item. <b> marks its short title in bold. No algorithm: nothing chooses or ranks what you see. A privacy statement: keep its meaning exact.",
+    "rich": ["b"],
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #27e3516e"
+  },
+  "site.social.diff.title": {
+    "text": "What's different from the big apps",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): heading of the list of how it differs from Instagram, Facebook and other big social networks.",
+    "max": 60
+  },
+  "site.social.faq.cost.a": {
+    "text": "The software is free and open source. You need a Raspberry Pi 5 and two USB drives, bought once, and an off-the.cloud address for everyone in the feed: the bridge account is free for its first two years, then €9.99 + VAT a year with up to five addresses, and the accounts you add for your family on your device don't count toward those five.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): questions at the bottom of the page: answer to \"What does it cost?\". The bridge: our relay service. Commercial terms: keep the meaning exact. Prices: write them as your language writes euros (9,99 € in many languages), and keep every number exact.",
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #9cc77453"
+  },
+  "site.social.faq.cost.q": {
+    "text": "What does it cost?",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): questions at the bottom of the page: a question."
+  },
+  "site.social.faq.fediverse.a": {
+    "text": "No. Off The Cloud devices only talk to each other: your posts never appear on the fediverse, and you can't follow fediverse accounts from it. That's part of what keeps it private: your posts are never public, and there's no search for strangers to find you with.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): questions at the bottom of the page: answer to \"Does it work with Mastodon, Pixelfed or the fediverse?\"."
+  },
+  "site.social.faq.fediverse.q": {
+    "text": "Does it work with Mastodon, Pixelfed or the fediverse?",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): questions at the bottom of the page: a question. The fediverse: the network of social sites, like Mastodon and Pixelfed, that talk to each other. Mastodon and Pixelfed are product names."
+  },
+  "site.social.faq.library.a": {
+    "text": "No. Friends see only what you post in the feed. Your photo library, your files and the other accounts on your device stay private: a friend's device can only fetch the photos and videos of your posts.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): questions at the bottom of the page: answer to \"Can my friends see my photo library?\". A privacy statement: keep its meaning exact.",
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #3adc1190"
+  },
+  "site.social.faq.library.q": {
+    "text": "Can my friends see my photo library?",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): questions at the bottom of the page: a question."
+  },
+  "site.social.faq.messages.a": {
+    "text": "On purpose, to make the network safer, for children above all. Without chats or direct messages, there's less room for bullying or for a stranger to approach a child: what people share is posts and comments, and only the friends someone accepts see their posts or can comment on them. Nobody can be found by searching, either: there's no directory and no suggested friends, so a friend request needs the exact address.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): questions at the bottom of the page: answer to \"Why are there no private messages?\". A safety statement about children: keep its meaning exact, and claim no more than the English does (it says there is less room for bullying or for a stranger to approach a child, not that it cannot happen, and it does not say that every comment is seen by others).",
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #1a0459be"
+  },
+  "site.social.faq.messages.q": {
+    "text": "Why are there no private messages?",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): questions at the bottom of the page: a question about the social network."
+  },
+  "site.social.get.alerts": {
+    "text": "<b>Notifications that matter.</b> Your phone tells you when someone accepts your friend request, likes or comments: nothing designed to keep you scrolling.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): list \"What your family gets\": one item. <b> marks its short title in bold.",
+    "rich": ["b"]
+  },
+  "site.social.get.backup": {
+    "text": "<b>Your photos, already safe.</b> The same device backs up every phone in the family in full resolution and keeps your files, so what you post is already backed up at home.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): list \"What your family gets\": one item. <b> marks its short title in bold.",
+    "rich": ["b"]
+  },
+  "site.social.get.family": {
+    "text": "<b>Room for the whole family.</b> Give each person an account on your device, with their own address, photo library and password, and be friends with each other in the feed.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): list \"What your family gets\": one item. <b> marks its short title in bold.",
+    "rich": ["b"]
+  },
+  "site.social.get.feed": {
+    "text": "<b>A feed of the people you know.</b> Photos and videos, several to a post, with a caption, comments and likes, newest first. Nothing suggested and nothing sponsored.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): list \"What your family gets\": one item. <b> marks its short title in bold.",
+    "rich": ["b"]
+  },
+  "site.social.get.leave": {
+    "text": "<b>You decide what stays.</b> Delete a post or a comment and it goes from your friends' devices too. Remove a friend and you can delete everything they shared with you, and ask their device to delete what you shared there.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): list \"What your family gets\": one item. <b> marks its short title in bold. A privacy statement: keep its meaning exact.",
+    "rich": ["b"],
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #f96c4600"
+  },
+  "site.social.get.links": {
+    "text": "<b>Links for everyone else.</b> Send a collection to the grandparents as a link that expires: they open it in their browser, with no account or app, and can download the originals.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): list \"What your family gets\": one item. <b> marks its short title in bold. A collection: a set of photos chosen in the app.",
+    "rich": ["b"]
+  },
+  "site.social.get.title": {
+    "text": "What your family gets",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): heading of the list of what the social network offers.",
+    "max": 60
+  },
+  "site.social.hero.lead": {
+    "text": "Off The Cloud is free, open-source software that gives your family a social network of its own. You post photos and videos, comment and like, and only the friends you accept see them. Each family keeps its posts on its own small device at home, a Raspberry Pi 5, and friends' devices share them with each other, so no company holds your photos, shows you ads or decides what you see. The same device backs up your phones and keeps your files.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): the opening paragraph under the main heading. It is often quoted on its own, so keep it plain and complete. Decides what you see: chooses and ranks the posts in your feed."
+  },
+  "site.social.hero.title": {
+    "text": "A private social network for your family, on a device you own",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): the main heading at the top of the page.",
+    "max": 75
+  },
+  "site.social.link": {
+    "text": "How it compares with Instagram and Facebook",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): text of the link to this page, after the main page's FAQ answer about Instagram and Facebook. Instagram, Facebook, WhatsApp, Meta, FamilyAlbum and Pixelfed are names: keep them as the companies write them in your language.",
+    "max": 60
+  },
+  "site.social.meta.description": {
+    "text": "Share photos and videos with family and friends on a social network that runs on your own device at home: no ads, no algorithm, no strangers. Compared with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): the description search engines show under the page title (meta description), not visible on the page. Use the words people in your language search with. Instagram, Facebook, WhatsApp, Meta, FamilyAlbum and Pixelfed are names: keep them as the companies write them in your language.",
+    "max": 230
+  },
+  "site.social.meta.title": {
+    "text": "Private family social network: an Instagram alternative | Off The Cloud",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): the page title shown in the browser tab and in search results. Write it the way people in your language search for it (a private social network for families; an alternative to Instagram), not as a literal translation, and keep \"| Off The Cloud\" at the end. Instagram, Facebook, WhatsApp, Meta, FamilyAlbum and Pixelfed are names: keep them as the companies write them in your language.",
+    "max": 75
+  },
+  "site.social.row.ads": {
+    "text": "Ads",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: heading of a row (the first column).",
+    "max": 50
+  },
+  "site.social.row.ai": {
+    "text": "Used to train AI",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: heading of a row (the first column). Whether what people post is used to train AI models.",
+    "max": 50
+  },
+  "site.social.row.audience": {
+    "text": "Who sees what you post",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: heading of a row (the first column).",
+    "max": 50
+  },
+  "site.social.row.backup": {
+    "text": "Backs up your photos and files",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: heading of a row (the first column). Whether it also keeps a backup of your phone's photos and your files.",
+    "max": 50
+  },
+  "site.social.row.chat": {
+    "text": "Private messages",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: heading of a row (the first column). Chatting one to one or in groups.",
+    "max": 50
+  },
+  "site.social.row.cost": {
+    "text": "What it costs",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: heading of a row (the first column).",
+    "max": 50
+  },
+  "site.social.row.feed": {
+    "text": "What decides your feed",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: heading of a row (the first column). Your feed: the list of posts you see.",
+    "max": 50
+  },
+  "site.social.row.leave": {
+    "text": "Taking back what you shared",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: heading of a row (the first column). What happens to what you shared when you stop sharing or leave.",
+    "max": 50
+  },
+  "site.social.row.open_source": {
+    "text": "Open source",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: heading of a row (the first column).",
+    "max": 50
+  },
+  "site.social.row.setup": {
+    "text": "What you need",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: heading of a row (the first column).",
+    "max": 50
+  },
+  "site.social.row.where": {
+    "text": "Where your posts are kept",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): comparison table: heading of a row (the first column).",
+    "max": 50
+  },
+  "site.social.start.accounts": {
+    "text": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked. They choose their own password the first time they sign in.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): section \"Bringing your family in\": the second step. <b> marks its short title in bold; <em> marks the name of a checkbox in the app. Settings › Users and Request bridge access are names in the web app: use the app's own words (web.settings).",
+    "rich": ["b", "em"]
+  },
+  "site.social.start.device": {
+    "text": "<b>Set up the device.</b> The computer app prepares the Raspberry Pi 5's card, and you finish the setup from your phone over Bluetooth, in about 20 minutes. It asks for a bridge account, which gives your device its off-the.cloud address.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): section \"Bringing your family in\": the first step. <b> marks its short title in bold. The bridge: our relay service. off-the.cloud is our domain: keep it as it is.",
+    "rich": ["b"]
+  },
+  "site.social.start.friends": {
+    "text": "<b>Add friends.</b> In Friends, type the name of a friend's device, such as casa for casa.off-the.cloud, and send the request. Once they accept, your posts appear in each other's feed.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): section \"Bringing your family in\": the third step. <b> marks its short title in bold. Friends is the name of the app's section: use the app's own word (web.shell). casa and casa.off-the.cloud are an example: keep them as they are.",
+    "rich": ["b"]
+  },
+  "site.social.start.links": {
+    "text": "<b>Share with everyone else.</b> Choose photos in Images, add them to a collection and share it as a link.",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): section \"Bringing your family in\": the last step. <b> marks its short title in bold. Images is the name of the app's section with the photos: use the app's own word (web.shell). A collection: a set of photos chosen in the app.",
+    "rich": ["b"]
+  },
+  "site.social.start.title": {
+    "text": "Bringing your family in",
+    "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): heading of the section explaining how to start, in order.",
+    "max": 60
+  }
+}

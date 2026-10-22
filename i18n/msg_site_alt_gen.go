@@ -69,21 +69,6 @@ func SiteAltCellDriveSize() Msg {
 	return Msg{Key: "site.alt.cell.drive_size"}
 }
 
-// SiteAltCellE2eeIcloud is site.alt.cell.e2ee_icloud: "Only with Advanced Data Protection, off by default and not offered in the UK".
-func SiteAltCellE2eeIcloud() Msg {
-	return Msg{Key: "site.alt.cell.e2ee_icloud"}
-}
-
-// SiteAltCellE2eeOtc is site.alt.cell.e2ee_otc: "No: stored encrypted, but the bridge decrypts what it relays".
-func SiteAltCellE2eeOtc() Msg {
-	return Msg{Key: "site.alt.cell.e2ee_otc"}
-}
-
-// SiteAltCellE2eeOwn is site.alt.cell.e2ee_own: "No; the photos stay on your own server".
-func SiteAltCellE2eeOwn() Msg {
-	return Msg{Key: "site.alt.cell.e2ee_own"}
-}
-
 // SiteAltCellFamilyOtc is site.alt.cell.family_otc: "Yes, each with their own password".
 func SiteAltCellFamilyOtc() Msg {
 	return Msg{Key: "site.alt.cell.family_otc"}
@@ -254,7 +239,7 @@ func SiteAltChangeTitle() Msg {
 	return Msg{Key: "site.alt.change.title"}
 }
 
-// SiteAltChooseEnte is site.alt.choose.ente: "<b>Ente</b> if you'd rather keep your photos in a cloud where not even the provi…".
+// SiteAltChooseEnte is site.alt.choose.ente: "<b>Ente</b> if you'd rather pay for a privacy-focused photo cloud than keep a de…".
 func SiteAltChooseEnte() Rich {
 	return Rich{Key: "site.alt.choose.ente"}
 }
@@ -349,16 +334,6 @@ func SiteAltFaqCostQ() Msg {
 	return Msg{Key: "site.alt.faq.cost.q"}
 }
 
-// SiteAltFaqE2eeA is site.alt.faq.e2ee.a: "No. Your files are stored encrypted on your Off The Cloud device, with a key onl…".
-func SiteAltFaqE2eeA() Msg {
-	return Msg{Key: "site.alt.faq.e2ee.a"}
-}
-
-// SiteAltFaqE2eeQ is site.alt.faq.e2ee.q: "Is Off The Cloud end-to-end encrypted?".
-func SiteAltFaqE2eeQ() Msg {
-	return Msg{Key: "site.alt.faq.e2ee.q"}
-}
-
 // SiteAltFaqImmichA is site.alt.faq.immich.a: "Immich is a free, open-source photo app for people who run their own server: you…".
 func SiteAltFaqImmichA() Msg {
 	return Msg{Key: "site.alt.faq.immich.a"}
@@ -367,6 +342,16 @@ func SiteAltFaqImmichA() Msg {
 // SiteAltFaqImmichQ is site.alt.faq.immich.q: "How is it different from Immich?".
 func SiteAltFaqImmichQ() Msg {
 	return Msg{Key: "site.alt.faq.immich.q"}
+}
+
+// SiteAltFaqPrivateA is site.alt.faq.private.a: "Yes. Your photo library and files are stored encrypted on your device, with a ke…".
+func SiteAltFaqPrivateA() Msg {
+	return Msg{Key: "site.alt.faq.private.a"}
+}
+
+// SiteAltFaqPrivateQ is site.alt.faq.private.q: "Are my photos private?".
+func SiteAltFaqPrivateQ() Msg {
+	return Msg{Key: "site.alt.faq.private.q"}
 }
 
 // SiteAltFaqSideBySideA is site.alt.faq.side_by_side.a: "Yes. The apps copy your photos to the device rather than moving them, so Google …".
@@ -439,7 +424,7 @@ func SiteAltMoveComputer() Rich {
 	return Rich{Key: "site.alt.move.computer"}
 }
 
-// SiteAltMoveGoogle is site.alt.move.google: "<b>From Google Photos:</b> Off The Cloud has no Google Photos importer. The Andr…".
+// SiteAltMoveGoogle is site.alt.move.google: "<b>From Google Photos:</b> the Android and iPhone apps back up the photos and vi…".
 func SiteAltMoveGoogle() Rich {
 	return Rich{Key: "site.alt.move.google"}
 }
@@ -462,11 +447,6 @@ func SiteAltRowApps() Msg {
 // SiteAltRowCost is site.alt.row.cost: "What it costs".
 func SiteAltRowCost() Msg {
 	return Msg{Key: "site.alt.row.cost"}
-}
-
-// SiteAltRowE2ee is site.alt.row.e2ee: "End-to-end encrypted".
-func SiteAltRowE2ee() Msg {
-	return Msg{Key: "site.alt.row.e2ee"}
 }
 
 // SiteAltRowFamily is site.alt.row.family: "Family accounts".

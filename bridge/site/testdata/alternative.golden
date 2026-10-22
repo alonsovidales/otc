@@ -74,13 +74,6 @@ No
 Yes, AGPL-3.0
 No
 Yes, AGPL-3.0
-End-to-end encrypted
-No: stored encrypted, but the bridge decrypts what it relays
-No
-Only with Advanced Data Protection, off by default and not offered in the UK
-No; the photos stay on your own server
-No; the photos stay on your own server
-Yes
 Search by content and faces
 Yes, on your own hardware
 Yes, done by Google
@@ -154,13 +147,13 @@ Social network: Google Photos · iCloud Photos · Immich · Synology Photos · E
 Which one should you choose?
 Off The Cloud if you want your family's photos and files at home, in full quality, with no storage plan to outgrow, on a small device that's easy to set up and needs almost no technical knowledge.
 Google Photos if you want nothing to set up or look after, and don't mind Google keeping your photos or paying for a plan once the free 15 GB fills up.
-iCloud Photos if everyone in your family uses an iPhone or a Mac: it's built in, and with Advanced Data Protection turned on (not offered in the UK), your photo library is end-to-end encrypted.
+iCloud Photos if everyone in your family uses an iPhone or a Mac: it's built in, with nothing to set up.
 Immich if you already run a home server and are comfortable with Docker: it's a mature, free and open-source photo app.
 Synology Photos if you want a ready-made NAS from an established brand that does much more than photos, and don't need the software to be open source.
-Ente if you'd rather keep your photos in a cloud where not even the provider can see them: it's end-to-end encrypted and open source, and paid plans keep three copies in the EU.
+Ente if you'd rather pay for a privacy-focused photo cloud than keep a device at home: it's open source, and paid plans keep three copies in the EU.
 Moving your photos from iCloud or Google Photos
 From iCloud Photos: install the iPhone app and, when it asks which photos to send, choose All photos and videos and leave Sync from iCloud on. The phone downloads each photo it keeps only in iCloud and sends it to your device, so a large library takes a while; keep the phone on Wi-Fi. The device gets each photo's original: edits and the moving part of Live Photos stay in iCloud, and albums aren't copied. Backing up doesn't remove anything from iCloud.
-From Google Photos: Off The Cloud has no Google Photos importer. The Android and iPhone apps back up the photos and videos stored on the phone, so whatever Google Photos still keeps there comes across, but photos that exist only in Google's cloud have to be downloaded to a phone or computer first.
+From Google Photos: the Android and iPhone apps back up the photos and videos stored on the phone, so whatever Google Photos still keeps there comes across. Photos that exist only in Google's cloud have to be downloaded to a phone or computer first.
 From a computer: the Mac, Windows and Linux apps back up any folder you choose, so photos you keep on a computer come across too.
 See it before you buy anything
 @a.href=https://demo.off-the.cloud/
@@ -174,8 +167,8 @@ Can I try it without leaving Google Photos or iCloud?
 Yes. The apps copy your photos to the device rather than moving them, so Google Photos and iCloud carry on as before and you can use both until you're sure. You can also look around the demo first: a real device with a made-up family's photos, no sign-up needed.
 Is it cheaper than Google One or iCloud+?
 It depends on how much you keep. Over five years, at October 2026 prices, iCloud+ costs €179.40 for 200 GB and €599.40 for 2 TB, and Google One's 2 TB plan €499.95 paid yearly. With Off The Cloud you buy a Raspberry Pi 5 and two USB drives once and, if you use the bridge, pay €29.97 + VAT for its third to fifth years; the device also uses some electricity. When the drives fill up, you buy bigger ones instead of a bigger plan.
-Is Off The Cloud end-to-end encrypted?
-No. Your files are stored encrypted on your Off The Cloud device, with a key only your password unlocks, and at home the apps connect to it directly. Away from home, connections go through the bridge, which decrypts and re-encrypts them as they pass, so they are not end-to-end encrypted; nothing that passes through is stored. File names, tags and the photos you post for friends are kept readable, so search and the feed work. If you need end-to-end encryption, Ente has it, and so does iCloud with Advanced Data Protection turned on, except in the UK.
+Are my photos private?
+Yes. Your photo library and files are stored encrypted on your device, with a key only your password unlocks, and the password itself is never stored on it. Tagging, place names and face recognition run on the device itself, so no photo is sent away to be analysed, and nothing is used for ads or to train AI.
 How is it different from Immich?
 Immich is a free, open-source photo app for people who run their own server: you install it with Docker on a Linux machine and set up storage, backups and remote access yourself. Off The Cloud needs almost no technical knowledge: the app prepares a Raspberry Pi's card and the setup finishes over Bluetooth from your phone or Mac, on inexpensive hardware, a Raspberry Pi 5 and two USB pen drives. It also does more than photos: your files stay in sync with your computers, like a NAS, and a private social network connects friends' devices, which Immich doesn't have.
 What happens if a drive or the Raspberry Pi breaks?
@@ -183,8 +176,10 @@ If a drive fails, the other one holds a full copy: the device keeps working, tel
 © 2026 Off The Cloud · open source, self-hosted, yours.
 @a.href=https://github.com/alonsovidales/otc
 @a.href=https://github.com/alonsovidales/otc#readme
+@a.href=/private-social-network
 @a.href=/google-photos-alternative
+@a.href=/google-drive-alternative
 @a.href=/#contact
 @a.href=/privacy
 @a.href=/terms
-GitHub Documentation How it compares with Google Photos and iCloud Contact Privacy Terms
+GitHub Documentation Compare it with: Instagram and Facebook · Google Photos and iCloud · Google Drive and Dropbox Contact Privacy Terms

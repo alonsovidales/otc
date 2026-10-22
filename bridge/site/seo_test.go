@@ -96,7 +96,7 @@ func TestStructuredData(t *testing.T) {
 	}
 	defined := map[string]bool{}
 	var refs []string
-	for _, page := range []string{Landing, Alternative} {
+	for _, page := range publicPages {
 		for _, l := range i18n.Languages() {
 			out, err := Render(page, l.Code, testOptions)
 			if err != nil {
@@ -324,7 +324,7 @@ func TestSitemap(t *testing.T) {
 		alts[u.Loc] = m
 	}
 	var want []string
-	for _, page := range []string{Landing, Alternative} {
+	for _, page := range publicPages {
 		for _, l := range i18n.Languages() {
 			want = append(want, base+PagePath(page, l.Code))
 		}
@@ -333,7 +333,7 @@ func TestSitemap(t *testing.T) {
 	if !slices.Equal(locs, want) {
 		t.Errorf("listed %v\nwant %v", locs, want)
 	}
-	for _, page := range []string{Landing, Alternative} {
+	for _, page := range publicPages {
 		for _, l := range i18n.Languages() {
 			loc := base + PagePath(page, l.Code)
 			m := alts[loc]
@@ -400,7 +400,9 @@ func TestLLMs(t *testing.T) {
 		"](" + desktopRelease + ")",
 		"- [Source code](" + repo + ")\n",
 		"](" + factSheet + ")",
+		"- [" + mdEscape(i18n.T(en, "site.social.link", nil)) + "](" + base + "/" + SocialSlug + "): " + mdEscape(i18n.T(en, "site.social.meta.description", nil)) + "\n",
 		"- [" + mdEscape(i18n.T(en, "site.alt.link", nil)) + "](" + base + "/" + AlternativeSlug + "): " + mdEscape(i18n.T(en, "site.alt.meta.description", nil)) + "\n",
+		"- [" + mdEscape(i18n.T(en, "site.drive.link", nil)) + "](" + base + "/" + DriveSlug + "): " + mdEscape(i18n.T(en, "site.drive.meta.description", nil)) + "\n",
 		"](" + base + "/privacy)",
 		"](" + base + "/terms)",
 		"\n## Questions\n",
@@ -426,7 +428,7 @@ func TestLLMs(t *testing.T) {
 			t.Errorf("llms.txt has no %q", line)
 		}
 	}
-	if strings.Contains(out, "site.landing.") || strings.Contains(out, "site.alt.") || strings.Contains(out, "<") {
+	if strings.Contains(out, "site.") || strings.Contains(out, "<") {
 		t.Errorf("a key or markup in llms.txt:\n%s", out)
 	}
 	// A rich text's links come out as Markdown links, absolute.
@@ -487,49 +489,74 @@ func TestLLMsKeys(t *testing.T) {
 	}
 }
 
-// The comparison page lives at its slug in every language, with the
+// comparison is one comparison page: where it lives after / and /<code>/,
+// its keys' prefix, its table's rows (by the key of their heading, in
+// order) and how many products the table compares, Off The Cloud first.
+type comparison struct {
+	page, slug, prefix string
+	rows               []string
+	products           int
+}
+
+// The rows of the social network's and the files' tables.
+var (
+	socialRows = []string{"where", "audience", "ads", "feed", "ai", "backup", "leave", "chat", "cost", "open_source", "setup"}
+	driveRows  = []string{"where", "cost", "space", "computers", "phones", "versions", "links", "more", "setup", "open_source"}
+)
+
+var comparisons = []comparison{
+	{Social, "private-social-network", "site.social.", socialRows, 6},
+	{Alternative, "google-photos-alternative", "site.alt.", []string{"where", "quality", "cost", "space",
+		"open_source", "search", "files", "social", "family", "links", "apps", "setup"}, 6},
+	{Drive, "google-drive-alternative", "site.drive.", driveRows, 7},
+}
+
+// Each comparison page lives at its slug in every language, with the
 // landing page's header and footer: their links to the landing page's
-// sections go to it (/#faq, /es/#faq), and the switcher to the comparison
-// page in each language.
-func TestAlternativePage(t *testing.T) {
+// sections go to it (/#faq, /es/#faq), and the switcher to the same page
+// in each language.
+func TestComparisonPages(t *testing.T) {
 	langs := i18n.Languages()
-	if PagePath(Alternative, English()) != "/google-photos-alternative" || PagePath(Alternative, "es") != "/es/google-photos-alternative" {
-		t.Errorf("PagePath: %q %q", PagePath(Alternative, English()), PagePath(Alternative, "es"))
-	}
-	if p, ok := Localized(AlternativeSlug); !ok || p != Alternative {
-		t.Errorf("Localized(%q) = %q %v", AlternativeSlug, p, ok)
-	}
-	for _, l := range langs {
-		out, err := Render(Alternative, l.Code, testOptions)
-		if err != nil {
-			t.Fatal(err)
+	for _, c := range comparisons {
+		if PagePath(c.page, English()) != "/"+c.slug || PagePath(c.page, "es") != "/es/"+c.slug {
+			t.Errorf("PagePath: %q %q", PagePath(c.page, English()), PagePath(c.page, "es"))
 		}
-		h := readHead(t, out)
-		for _, other := range langs {
-			if h.hreflang[other.Tag] != testOptions.Base+PagePath(Alternative, other.Code) {
-				t.Errorf("%s: hreflang %s = %q", l.Code, other.Tag, h.hreflang[other.Tag])
+		if p, ok := Localized(c.slug); !ok || p != c.page {
+			t.Errorf("Localized(%q) = %q %v", c.slug, p, ok)
+		}
+		for _, l := range langs {
+			out, err := Render(c.page, l.Code, testOptions)
+			if err != nil {
+				t.Fatal(err)
 			}
-		}
-		home := Path(l.Code)
-		for _, section := range []string{"#get-started", "#download", "#what", "#screenshots", "#faq", "#contact"} {
-			if !slices.Contains(h.hrefs, home+section) {
-				t.Errorf("%s: no link to %s%s", l.Code, home, section)
-			}
-		}
-		for _, href := range h.hrefs {
-			if strings.HasPrefix(href, "#") {
-				t.Errorf("%s: a link to %s, which isn't on this page", l.Code, href)
-			}
-		}
-		if len(langs) > 1 {
+			what := c.slug + " in " + l.Code
+			h := readHead(t, out)
 			for _, other := range langs {
-				if !slices.Contains(h.hrefs, "/"+other.Code+"/"+AlternativeSlug) {
-					t.Errorf("%s: the switcher has no /%s/%s", l.Code, other.Code, AlternativeSlug)
+				if h.hreflang[other.Tag] != testOptions.Base+PagePath(c.page, other.Code) {
+					t.Errorf("%s: hreflang %s = %q", what, other.Tag, h.hreflang[other.Tag])
 				}
 			}
-		}
-		if !slices.Contains(h.hrefs, home) {
-			t.Errorf("%s: no link home", l.Code)
+			home := Path(l.Code)
+			for _, section := range []string{"#get-started", "#download", "#what", "#screenshots", "#faq", "#contact"} {
+				if !slices.Contains(h.hrefs, home+section) {
+					t.Errorf("%s: no link to %s%s", what, home, section)
+				}
+			}
+			for _, href := range h.hrefs {
+				if strings.HasPrefix(href, "#") {
+					t.Errorf("%s: a link to %s, which isn't on this page", what, href)
+				}
+			}
+			if len(langs) > 1 {
+				for _, other := range langs {
+					if !slices.Contains(h.hrefs, "/"+other.Code+"/"+c.slug) {
+						t.Errorf("%s: the switcher has no /%s/%s", what, other.Code, c.slug)
+					}
+				}
+			}
+			if !slices.Contains(h.hrefs, home) {
+				t.Errorf("%s: no link home", what)
+			}
 		}
 	}
 	// The landing page's own links to its sections stay on the page.
@@ -557,22 +584,94 @@ func TestAccountHead(t *testing.T) {
 	}
 }
 
-// compareRows are the comparison table's rows, in order, by the key of
-// their heading.
-var compareRows = []string{"where", "quality", "cost", "space", "open_source", "e2ee", "search",
-	"files", "social", "family", "links", "apps", "setup"}
-
-// The comparison page's table, in every language: in a box of its own that
+// Each comparison page's table, in every language: in a box of its own that
 // scrolls (a labelled, focusable region) so the page never does; a header
 // for each product's column, Off The Cloud's first, and each row - every
-// one of compareRows, in order - a header and a cell per product, Off The
-// Cloud's marked as ours. And the landing page links to the comparison
-// page in its own language - from at a glance and the footer, and after the
-// two answers that compare it, each with its own words - and opens its
-// first question, the one about Google Photos and iCloud.
+// one of the page's rows, in order - a header and a cell per product, Off
+// The Cloud's marked as ours.
 func TestComparisonTable(t *testing.T) {
+	for _, c := range comparisons {
+		for _, l := range i18n.Languages() {
+			what := c.slug + " in " + l.Code
+			out, err := Render(c.page, l.Code, testOptions)
+			if err != nil {
+				t.Fatal(err)
+			}
+			doc, err := html.Parse(bytes.NewReader(out))
+			if err != nil {
+				t.Fatal(err)
+			}
+			ids := map[string]bool{}
+			var tables []*html.Node
+			for n := range doc.Descendants() {
+				if id := attr(n, "id"); n.Type == html.ElementNode && id != "" {
+					ids[id] = true
+				}
+				if n.DataAtom == atom.Table {
+					tables = append(tables, n)
+				}
+			}
+			if len(tables) != 1 {
+				t.Fatalf("%s: %d tables, want 1", what, len(tables))
+			}
+			table := tables[0]
+			wrap := table.Parent
+			if attr(wrap, "class") != "table-wrap" || attr(wrap, "role") != "region" || attr(wrap, "tabindex") != "0" ||
+				!ids[attr(wrap, "aria-labelledby")] || !ids[attr(table, "aria-labelledby")] {
+				t.Errorf("%s: the table isn't in a labelled, focusable region of its own", what)
+			}
+			var rows [][]*html.Node
+			for n := range table.Descendants() {
+				if n.DataAtom == atom.Tr {
+					var cells []*html.Node
+					for c := n.FirstChild; c != nil; c = c.NextSibling {
+						if c.DataAtom == atom.Th || c.DataAtom == atom.Td {
+							cells = append(cells, c)
+						}
+					}
+					rows = append(rows, cells)
+				}
+			}
+			if len(rows) != len(c.rows)+1 || len(rows[0]) != c.products+1 {
+				t.Fatalf("%s: %d rows, a header of %d cells; want %d rows", what, len(rows), len(rows[0]), len(c.rows)+1)
+			}
+			for i, cell := range rows[0][1:] {
+				if cell.DataAtom != atom.Th || attr(cell, "scope") != "col" || strings.TrimSpace(cell.FirstChild.Data) == "" {
+					t.Errorf("%s: a column without its header", what)
+				}
+				if us := attr(cell, "class") == "us"; us != (i == 0) || (us && cell.FirstChild.Data != "Off The Cloud") {
+					t.Errorf("%s: column %d's header %q, class %q", what, i+1, cell.FirstChild.Data, attr(cell, "class"))
+				}
+			}
+			for i, row := range rows[1:] {
+				if len(row) != c.products+1 || row[0].DataAtom != atom.Th || attr(row[0], "scope") != "row" {
+					t.Errorf("%s: row %d isn't a header and %d cells", what, i+1, c.products)
+					continue
+				}
+				if want := i18n.T(l.Code, c.prefix+"row."+c.rows[i], nil); row[0].FirstChild == nil || row[0].FirstChild.Data != want {
+					t.Errorf("%s: row %d isn't %q", what, i+1, want)
+				}
+				for j, cell := range row[1:] {
+					if cell.DataAtom != atom.Td || cell.FirstChild == nil || strings.TrimSpace(cell.FirstChild.Data) == "" {
+						t.Errorf("%s: row %d has an empty cell", what, i+1)
+					}
+					if us := attr(cell, "class") == "us"; us != (j == 0) {
+						t.Errorf("%s: row %d, cell %d has class %q", what, i+1, j+1, attr(cell, "class"))
+					}
+				}
+			}
+		}
+	}
+}
+
+// The landing page links to each comparison page in its own language: from
+// at a glance and the footer by the page's short name, and after the FAQ
+// answers that compare Off The Cloud with those services by the page's own
+// link text. It opens its first question only, the one about the social
+// network.
+func TestLandingLinksToComparisons(t *testing.T) {
 	for _, l := range i18n.Languages() {
-		out, err := Render(Alternative, l.Code, testOptions)
+		out, err := Render(Landing, l.Code, testOptions)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -580,86 +679,27 @@ func TestComparisonTable(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ids := map[string]bool{}
-		var tables []*html.Node
+		tr := func(key string) string { return i18n.T(l.Code, key, nil) }
+		want := map[string][]string{
+			// At a glance, the answer about Instagram and Facebook, the footer.
+			PagePath(Social, l.Code): {tr("site.landing.glance.compare_social"), tr("site.social.link"), tr("site.landing.glance.compare_social")},
+			// At a glance, the answers about Google Photos and iCloud and
+			// about Immich, PhotoPrism and Nextcloud, the footer.
+			PagePath(Alternative, l.Code): {tr("site.landing.glance.compare_photos"), tr("site.alt.link"), tr("site.alt.link"), tr("site.landing.glance.compare_photos")},
+			// At a glance, the answer about Google Drive, Dropbox and Proton
+			// Drive, the footer.
+			PagePath(Drive, l.Code): {tr("site.landing.glance.compare_drive"), tr("site.drive.link"), tr("site.landing.glance.compare_drive")},
+		}
+		got := map[string][]string{}
 		for n := range doc.Descendants() {
-			if id := attr(n, "id"); n.Type == html.ElementNode && id != "" {
-				ids[id] = true
-			}
-			if n.DataAtom == atom.Table {
-				tables = append(tables, n)
+			if href := attr(n, "href"); n.DataAtom == atom.A && want[href] != nil && n.FirstChild != nil {
+				got[href] = append(got[href], n.FirstChild.Data)
 			}
 		}
-		if len(tables) != 1 {
-			t.Fatalf("%s: %d tables, want 1", l.Code, len(tables))
-		}
-		table := tables[0]
-		wrap := table.Parent
-		if attr(wrap, "class") != "table-wrap" || attr(wrap, "role") != "region" || attr(wrap, "tabindex") != "0" ||
-			!ids[attr(wrap, "aria-labelledby")] || !ids[attr(table, "aria-labelledby")] {
-			t.Errorf("%s: the table isn't in a labelled, focusable region of its own", l.Code)
-		}
-		var rows [][]*html.Node
-		for n := range table.Descendants() {
-			if n.DataAtom == atom.Tr {
-				var cells []*html.Node
-				for c := n.FirstChild; c != nil; c = c.NextSibling {
-					if c.DataAtom == atom.Th || c.DataAtom == atom.Td {
-						cells = append(cells, c)
-					}
-				}
-				rows = append(rows, cells)
+		for href, w := range want {
+			if !slices.Equal(got[href], w) {
+				t.Errorf("%s: the links to %s say %q, want %q", l.Code, href, got[href], w)
 			}
-		}
-		const products = 6
-		if len(rows) != len(compareRows)+1 || len(rows[0]) != products+1 {
-			t.Fatalf("%s: %d rows, a header of %d cells; want %d rows", l.Code, len(rows), len(rows[0]), len(compareRows)+1)
-		}
-		for i, c := range rows[0][1:] {
-			if c.DataAtom != atom.Th || attr(c, "scope") != "col" || strings.TrimSpace(c.FirstChild.Data) == "" {
-				t.Errorf("%s: a column without its header", l.Code)
-			}
-			if us := attr(c, "class") == "us"; us != (i == 0) || (us && c.FirstChild.Data != "Off The Cloud") {
-				t.Errorf("%s: column %d's header %q, class %q", l.Code, i+1, c.FirstChild.Data, attr(c, "class"))
-			}
-		}
-		for i, row := range rows[1:] {
-			if len(row) != products+1 || row[0].DataAtom != atom.Th || attr(row[0], "scope") != "row" {
-				t.Errorf("%s: row %d isn't a header and %d cells", l.Code, i+1, products)
-				continue
-			}
-			if want := i18n.T(l.Code, "site.alt.row."+compareRows[i], nil); row[0].FirstChild == nil || row[0].FirstChild.Data != want {
-				t.Errorf("%s: row %d isn't %q", l.Code, i+1, want)
-			}
-			for j, c := range row[1:] {
-				if c.DataAtom != atom.Td || c.FirstChild == nil || strings.TrimSpace(c.FirstChild.Data) == "" {
-					t.Errorf("%s: row %d has an empty cell", l.Code, i+1)
-				}
-				if us := attr(c, "class") == "us"; us != (j == 0) {
-					t.Errorf("%s: row %d, cell %d has class %q", l.Code, i+1, j+1, attr(c, "class"))
-				}
-			}
-		}
-
-		out, err = Render(Landing, l.Code, testOptions)
-		if err != nil {
-			t.Fatal(err)
-		}
-		doc, err = html.Parse(bytes.NewReader(out))
-		if err != nil {
-			t.Fatal(err)
-		}
-		// At a glance, the answer about Google Photos and iCloud, the one
-		// about Immich, PhotoPrism and Nextcloud, and the footer.
-		compare, link := i18n.T(l.Code, "site.landing.glance.compare", nil), i18n.T(l.Code, "site.alt.link", nil)
-		var links []string
-		for n := range doc.Descendants() {
-			if n.DataAtom == atom.A && attr(n, "href") == PagePath(Alternative, l.Code) && n.FirstChild != nil {
-				links = append(links, n.FirstChild.Data)
-			}
-		}
-		if want := []string{compare, link, compare, link}; !slices.Equal(links, want) {
-			t.Errorf("%s: the links to %s say %q, want %q", l.Code, PagePath(Alternative, l.Code), links, want)
 		}
 		var open []string
 		for n := range doc.Descendants() {
@@ -673,7 +713,7 @@ func TestComparisonTable(t *testing.T) {
 				}
 			}
 		}
-		if q := i18n.T(l.Code, "site.landing.faq.vs_cloud.q", nil); !slices.Equal(open, []string{q}) {
+		if q := tr("site.landing.faq.social_how.q"); !slices.Equal(open, []string{q}) {
 			t.Errorf("%s: open questions %q, want only %q", l.Code, open, q)
 		}
 	}

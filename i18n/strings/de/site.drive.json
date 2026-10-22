@@ -1,0 +1,349 @@
+{
+  "site.drive.cell.cost_dropbox": {
+    "text": "2 GB kostenlos; 2 TB 11,99 € pro Monat oder 9,99 € pro Monat bei jährlicher Zahlung",
+    "en": "2 GB free; 2 TB €11.99 a month, or €9.99 a month paid yearly"
+  },
+  "site.drive.cell.cost_google": {
+    "text": "15 GB kostenlos, geteilt mit Gmail und Google Fotos; 100 GB 1,99 € oder 2 TB 9,99 € pro Monat",
+    "en": "15 GB free, shared with Gmail and Photos; 100 GB €1.99 or 2 TB €9.99 a month"
+  },
+  "site.drive.cell.cost_nextcloud": {
+    "text": "Kostenlose Software; Server und Laufwerke kaufst du selbst",
+    "en": "Free software; the server and its drives are yours to buy"
+  },
+  "site.drive.cell.cost_proton": {
+    "text": "5 GB kostenlos; 200 GB 4,99 €, 3 TB für sechs Personen 29,99 € pro Monat",
+    "en": "5 GB free; 200 GB €4.99, 3 TB for six people €29.99 a month"
+  },
+  "site.drive.cell.iphone_android": {
+    "text": "iPhone und Android",
+    "en": "iPhone and Android"
+  },
+  "site.drive.cell.links_dropbox": {
+    "text": "Nur bei Essentials und Business-Abos",
+    "en": "Only on Essentials and business plans"
+  },
+  "site.drive.cell.links_google": {
+    "text": "Nur für Arbeits- und Schulkonten",
+    "en": "Only for work and school accounts"
+  },
+  "site.drive.cell.links_icloud": {
+    "text": "Links, aber kein Ablaufdatum dokumentiert",
+    "en": "Links, but no expiry date documented"
+  },
+  "site.drive.cell.links_password": {
+    "text": "Ja, mit Passwort",
+    "en": "Yes, with a password"
+  },
+  "site.drive.cell.links_proton": {
+    "text": "Ja, mit Passwort, auch im kostenlosen Abo",
+    "en": "Yes, with a password, free plan included"
+  },
+  "site.drive.cell.mac_windows_linux": {
+    "text": "Alle drei",
+    "en": "All three"
+  },
+  "site.drive.cell.more_dropbox": {
+    "text": "Foto-Backup vom Handy",
+    "en": "Photo backup from your phone"
+  },
+  "site.drive.cell.more_google": {
+    "text": "Office-Apps im Browser; Fotos in Google Fotos",
+    "en": "Office apps in the browser; photos in Google Photos"
+  },
+  "site.drive.cell.more_icloud": {
+    "text": "Fotos in iCloud-Fotos, im selben Abo",
+    "en": "Photos in iCloud Photos, on the same plan"
+  },
+  "site.drive.cell.more_nextcloud": {
+    "text": "Kalender, Kontakte, Chat und Office-Apps",
+    "en": "Calendar, contacts, chat and office apps"
+  },
+  "site.drive.cell.more_otc": {
+    "text": "Fotomediathek mit Suche und ein privates soziales Netzwerk",
+    "en": "Photo library with search, and a private social network"
+  },
+  "site.drive.cell.more_proton": {
+    "text": "Foto-Backup vom Handy",
+    "en": "Photo backup from your phone"
+  },
+  "site.drive.cell.more_synology": {
+    "text": "Synology Photos und viele weitere Apps auf dem NAS",
+    "en": "Synology Photos and many other apps on the NAS"
+  },
+  "site.drive.cell.no_linux": {
+    "text": "Mac und Windows; keine Linux-App",
+    "en": "Mac and Windows; no Linux app"
+  },
+  "site.drive.cell.no_linux_yet": {
+    "text": "Mac und Windows; eine Linux-App ist in Arbeit",
+    "en": "Mac and Windows; a Linux app is being built"
+  },
+  "site.drive.cell.open_proton": {
+    "text": "Die Apps, unter der GPL",
+    "en": "Its apps, under the GPL"
+  },
+  "site.drive.cell.own_server": {
+    "text": "Auf einem Server, den du betreibst",
+    "en": "On a server you run"
+  },
+  "site.drive.cell.phones_google": {
+    "text": "Über Google Fotos, im selben Speicher",
+    "en": "Through Google Photos, on the same storage"
+  },
+  "site.drive.cell.phones_icloud": {
+    "text": "Nur iPhone und iPad, über iCloud-Fotos",
+    "en": "iPhone and iPad only, through iCloud Photos"
+  },
+  "site.drive.cell.setup_nextcloud": {
+    "text": "Ein Linux-Server mit PHP und einer Datenbank oder Docker mit einem offenen Port am Router",
+    "en": "A Linux server with PHP and a database, or Docker with a port open on your router"
+  },
+  "site.drive.cell.versions_dropbox": {
+    "text": "30 Tage bei Abos für Privatpersonen",
+    "en": "30 days on personal plans"
+  },
+  "site.drive.cell.versions_google": {
+    "text": "Versionen 30 Tage lang oder 100 Versionen; Papierkorb 30 Tage",
+    "en": "Versions for 30 days or 100 versions; trash for 30 days"
+  },
+  "site.drive.cell.versions_icloud": {
+    "text": "Gelöschte Dateien 30 Tage lang",
+    "en": "Deleted files for 30 days"
+  },
+  "site.drive.cell.versions_nextcloud": {
+    "text": "Versionen, und gelöschte Dateien mindestens 30 Tage lang",
+    "en": "Versions, and deleted files for at least 30 days"
+  },
+  "site.drive.cell.versions_otc": {
+    "text": "Ordner mit „Nur hochladen“ behalten frühere Versionen, und nichts darin kann gelöscht werden",
+    "en": "Upload-only folders keep earlier versions, and nothing in them can be deleted"
+  },
+  "site.drive.cell.versions_proton": {
+    "text": "Versionen bis zu 10 Jahre lang bei bezahlten Abos",
+    "en": "Versions for up to 10 years on paid plans"
+  },
+  "site.drive.cell.versions_synology": {
+    "text": "Bis zu 32 Versionen, ein Papierkorb und Snapshots",
+    "en": "Up to 32 versions, a recycle bin and snapshots"
+  },
+  "site.drive.cell.where_dropbox": {
+    "text": "Die Cloud von Dropbox, in den USA",
+    "en": "Dropbox's cloud, in the United States"
+  },
+  "site.drive.cell.where_proton": {
+    "text": "Eigene Server von Proton in der Schweiz und in Deutschland",
+    "en": "Proton's own servers in Switzerland and Germany"
+  },
+  "site.drive.change.backup": {
+    "text": "<b>Ein vollständiges Backup ist einfach.</b> Die Spiegelung schützt dich vor dem Ausfall eines Laufwerks; für eine Kopie, die woanders liegt, nimm ein Laufwerk heraus und setz ein neues ein: Das Gerät befüllt das neue, und das entnommene ist dein Backup.",
+    "en": "<b>A full backup is easy.</b> The mirror protects you from a drive failing; for a copy kept somewhere else, take one drive out and put a new one in: the device fills the new one, and the one you took out is your backup."
+  },
+  "site.drive.change.hardware": {
+    "text": "<b>Du kaufst die Hardware einmal.</b> Ein Raspberry Pi 5 und zwei USB-Laufwerke, gespiegelt, sodass jedes eine vollständige Kopie enthält. Dein Speicherplatz ist das, was ein Laufwerk fasst; wenn es voll ist, setzt du nacheinander größere Laufwerke ein, ohne anzuhalten.",
+    "en": "<b>You buy the hardware once.</b> A Raspberry Pi 5 and two USB drives, mirrored so that each keeps a full copy. Your space is what one drive holds; when it fills up, you swap in bigger drives, one at a time, without stopping."
+  },
+  "site.drive.change.more": {
+    "text": "<b>Mehr als ein Dateispeicher.</b> Dasselbe Gerät sichert jedes Handy in der Familie in voller Auflösung, bewahrt eine durchsuchbare Fotomediathek auf und betreibt das private soziale Netzwerk deiner Familie.",
+    "en": "<b>More than a drive.</b> The same device backs up every phone in the family in full resolution, keeps a photo library you can search, and runs your family's private social network."
+  },
+  "site.drive.change.remote": {
+    "text": "<b>Unterwegs über die Bridge.</b> Deine Apps erreichen das Gerät über unser Relay (zwei Jahre kostenlos, danach 9,99 € zuzüglich MwSt. pro Jahr) oder über Tailscale Funnel, ohne dass du Ports an deinem Router öffnen musst, oder über dein eigenes VPN.",
+    "en": "<b>Away from home, through the bridge.</b> Your apps reach the device through our relay (free for two years, then €9.99 + VAT a year) or Tailscale Funnel, with no ports to open on your router, or through your own VPN.",
+    "reviewed": "claude-backtranslation 2026-10-22 #d5bb3f8d"
+  },
+  "site.drive.change.title": {
+    "text": "Was sich ändert, wenn deine Dateien nach Hause kommen",
+    "en": "What changes when your files come home"
+  },
+  "site.drive.choose.dropbox": {
+    "text": "<b>Dropbox</b>, wenn du die vertrauteste Synchronisierung willst, Linux inklusive, und dich ein Monatsabo nicht stört; Passwörter und Ablaufdaten für Links brauchen Essentials oder ein Business-Abo.",
+    "en": "<b>Dropbox</b> if you want the most familiar sync, Linux included, and don't mind a monthly plan; passwords and expiry dates on links need Essentials or a business plan."
+  },
+  "site.drive.choose.google": {
+    "text": "<b>Google Drive</b>, wenn du in den Apps von Google zu Hause bist und Dokumente gemeinsam im Browser bearbeitest; es gibt keine Linux-App, und der Speicherplatz wird mit Gmail und Google Fotos geteilt.",
+    "en": "<b>Google Drive</b> if you live in Google's apps and edit documents together in the browser; it has no Linux app, and its space is shared with Gmail and Google Photos."
+  },
+  "site.drive.choose.icloud": {
+    "text": "<b>iCloud Drive</b>, wenn alle in deiner Familie Apple-Geräte nutzen: Es ist schon eingebaut, und du musst nichts einrichten.",
+    "en": "<b>iCloud Drive</b> if everyone in your family uses Apple devices: it's built in, with nothing to set up."
+  },
+  "site.drive.choose.nextcloud": {
+    "text": "<b>Nextcloud</b>, wenn du schon einen Server betreibst und auch Kalender, Kontakte und Office-Apps willst: Es ist kostenlos und Open Source, aber Installation, Zugriff von außen und Backup liegen bei dir.",
+    "en": "<b>Nextcloud</b> if you already run a server and want calendar, contacts and office apps too: it's free and open source, but installing it, reaching it from outside and backing it up are up to you."
+  },
+  "site.drive.choose.otc": {
+    "text": "<b>Off The Cloud</b>, wenn du die Dateien deiner Familie zu Hause haben willst, ohne Monatsabo, auf einem Gerät, das sich leicht einrichten lässt und außerdem deine Fotos sichert und dein privates soziales Netzwerk betreibt.",
+    "en": "<b>Off The Cloud</b> if you want your family's files at home, with no monthly plan, on a device that's easy to set up and also backs up your photos and runs your private social network."
+  },
+  "site.drive.choose.pcloud_mega": {
+    "text": "<b>pCloud oder MEGA</b>, wenn du lieber keine monatliche Gebühr zahlst oder viel kostenlosen Speicherplatz willst: pCloud verkauft Lifetime-Abos, und MEGA bietet 20 GB kostenlos.",
+    "en": "<b>pCloud or MEGA</b> if you'd rather avoid a monthly fee or want plenty of free space: pCloud sells lifetime plans, and MEGA gives 20 GB free."
+  },
+  "site.drive.choose.proton": {
+    "text": "<b>Proton Drive</b>, wenn du Speicher bei einem auf Datenschutz ausgerichteten Cloud-Anbieter willst, mit Open-Source-Apps; eine Linux-App gibt es noch nicht.",
+    "en": "<b>Proton Drive</b> if you want storage from a privacy-focused cloud company, with open-source apps; there's no Linux app yet."
+  },
+  "site.drive.choose.synology": {
+    "text": "<b>Ein Synology-NAS</b>, wenn du ein klassisches NAS willst, mit Netzlaufwerken für deine Computer und vielen Apps, und es dich nicht stört, seine Laufwerke auszuwählen und es einzurichten.",
+    "en": "<b>A Synology NAS</b> if you want a traditional NAS, with network drives for your computers and many apps, and don't mind choosing its drives and setting it up."
+  },
+  "site.drive.choose.title": {
+    "text": "Welche Lösung passt zu dir?",
+    "en": "Which one should you choose?"
+  },
+  "site.drive.compare.checked": {
+    "text": "Preise geprüft im Oktober 2026. Cloud-Preise gelten pro Monat, sofern in der Zelle nichts anderes steht. Off The Cloud und Synology werden einmalig gekauft und verbrauchen außerdem etwas Strom.",
+    "en": "Prices checked in October 2026. Cloud prices are per month unless the cell says otherwise. Off The Cloud and Synology are bought once, and they also use some electricity."
+  },
+  "site.drive.compare.lead": {
+    "text": "Wo deine Dateien liegen, was jede Lösung kostet und was sie kann – so, wie es auf ihren eigenen Seiten steht.",
+    "en": "Where your files live, what they cost and what each one does, as their own pages describe it."
+  },
+  "site.drive.compare.sources": {
+    "text": "Quellen:",
+    "en": "Sources:"
+  },
+  "site.drive.compare.title": {
+    "text": "Off The Cloud im Vergleich mit Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology und Nextcloud",
+    "en": "Off The Cloud compared with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud"
+  },
+  "site.drive.faq.fails.a": {
+    "text": "Nichts geht verloren: Jedes der beiden Laufwerke enthält eine vollständige Kopie. Das Gerät arbeitet mit dem anderen weiter und sagt dir, welches du ersetzen musst; setz an seiner Stelle ein neues Laufwerk ein, und es kopiert alles von selbst zurück.",
+    "en": "Nothing is lost: each of the two drives holds a full copy. The device carries on with the other one and tells you which to replace; put a new drive in its place and it copies everything back by itself."
+  },
+  "site.drive.faq.fails.q": {
+    "text": "Was passiert, wenn ein Laufwerk ausfällt?",
+    "en": "What happens if a drive fails?"
+  },
+  "site.drive.faq.network.a": {
+    "text": "Ja, über die Sync-App: Die Ordner, die du hinzufügst, sind gewöhnliche Ordner auf deinem Computer, die mit dem Gerät synchron gehalten werden. Was es nicht gibt, ist ein Netzlaufwerk (SMB), das den Speicher des Geräts direkt öffnet, wie bei einem klassischen NAS.",
+    "en": "Yes, through the sync app: the folders you add are ordinary folders on your computer, kept in sync with the device. What there isn't is a network drive (SMB) that opens the device's own storage directly, as a traditional NAS does."
+  },
+  "site.drive.faq.network.q": {
+    "text": "Kann ich meine Dateien im Dateimanager meines Computers öffnen?",
+    "en": "Can I open my files from my computer's file manager?"
+  },
+  "site.drive.faq.private.a": {
+    "text": "Ja. Deine Dateien werden verschlüsselt auf den Laufwerken des Geräts gespeichert, mit einem Schlüssel, den nur dein Passwort entsperrt, und das Passwort selbst wird nie auf dem Gerät gespeichert. Jede Person in der Familie hat ihr eigenes Konto und ihren eigenen Schlüssel, und nichts wird für Werbung oder zum Training von KI verwendet.",
+    "en": "Yes. Your files are stored encrypted on the device's drives, with a key only your password unlocks, and the password itself is never stored on it. Each person in the family has their own account and key, and nothing is used for ads or to train AI.",
+    "reviewed": "claude-backtranslation 2026-10-22 #34c213c5"
+  },
+  "site.drive.faq.private.q": {
+    "text": "Sind meine Dateien privat?",
+    "en": "Are my files private?"
+  },
+  "site.drive.faq.space.a": {
+    "text": "So viel, wie eines deiner beiden Laufwerke fasst, denn jedes hält eine vollständige Kopie. Um mehr zu bekommen, tausche die Laufwerke nacheinander gegen größere aus: Das Gerät kopiert alles auf jedes neue Laufwerk und vergrößert sich dann von selbst, ohne anzuhalten.",
+    "en": "As much as one of your two drives holds, since each keeps a full copy. To grow it, swap the drives for bigger ones, one at a time: the device copies everything onto each new drive, then grows by itself, without stopping."
+  },
+  "site.drive.faq.space.q": {
+    "text": "Wie viel Speicherplatz bekomme ich?",
+    "en": "How much space do I get?"
+  },
+  "site.drive.hero.lead": {
+    "text": "Off The Cloud ist kostenlose Open-Source-Software, die einen Raspberry Pi 5 mit zwei USB-Laufwerken in den eigenen Dateispeicher deiner Familie verwandelt: ein NAS, das Ordner auf deinen Computern synchron hält, deine Handys sichert und Dateien per Link teilt – ganz ohne Speicher-Abo, das du jeden Monat bezahlst. Dasselbe Gerät ist das private soziale Netzwerk und die Fotomediathek deiner Familie.",
+    "en": "Off The Cloud is free, open-source software that turns a Raspberry Pi 5 with two USB drives into your family's own file storage: a NAS that keeps folders on your computers in sync, backs up your phones and shares files with a link, with no storage plan to pay for every month. The same device is your family's private social network and photo library."
+  },
+  "site.drive.hero.title": {
+    "text": "Ein NAS für zu Hause statt Google Drive oder Dropbox",
+    "en": "A home NAS instead of Google Drive or Dropbox"
+  },
+  "site.drive.keep.family": {
+    "text": "<b>Platz für alle.</b> Jede Person in der Familie bekommt ihr eigenes Konto, und ihre Dateien werden mit ihrem eigenen Passwort verschlüsselt.",
+    "en": "<b>Space for everyone.</b> Each person in the family gets their own account, with their files encrypted under their own password.",
+    "reviewed": "claude-backtranslation 2026-10-22 #d5be0ed2"
+  },
+  "site.drive.keep.fast": {
+    "text": "<b>Schneller zu Hause.</b> Zu Hause sprechen die Apps über dein eigenes Netzwerk mit dem Gerät, sodass große Ordner mit WLAN-Geschwindigkeit synchronisiert werden statt mit der Upload-Geschwindigkeit deines Internetanschlusses.",
+    "en": "<b>Faster at home.</b> At home the apps talk to the device over your own network, so big folders sync at Wi-Fi speed instead of your internet connection's upload speed."
+  },
+  "site.drive.keep.links": {
+    "text": "<b>Freigabelinks.</b> Sende Dateien als Link, der abläuft: Wer ihn hat, lädt sie als ZIP herunter, ohne Konto.",
+    "en": "<b>Share links.</b> Send files as a link that expires: whoever has it downloads them as a ZIP, with no account."
+  },
+  "site.drive.keep.phone": {
+    "text": "<b>Deine Dateien auf dem Handy.</b> Sieh sie dir an, öffne sie, lade sie hoch und teile sie in den Apps für iPhone und Android oder in der Web-App in jedem Browser.",
+    "en": "<b>Your files on your phone.</b> Browse, open, upload and share them from the iPhone and Android apps, or from any browser in the web app."
+  },
+  "site.drive.keep.sync": {
+    "text": "<b>Synchrone Ordner.</b> Die Apps für Mac, Windows und Linux halten die Ordner, die du auswählst, im Hintergrund in beide Richtungen mit dem Gerät synchron oder sichern sie in eine Richtung.",
+    "en": "<b>Folders in sync.</b> The Mac, Windows and Linux apps keep the folders you choose in two-way sync with the device, or back them up one way, in the background."
+  },
+  "site.drive.keep.title": {
+    "text": "Was du von einem Cloud-Speicher behältst",
+    "en": "What you keep from a cloud drive"
+  },
+  "site.drive.keep.versions": {
+    "text": "<b>Nichts geht versehentlich verloren.</b> Stell einen Ordner auf „Nur hochladen“, dann kann darin nichts mehr gelöscht werden, von keiner App aus; eine Datei, die unter demselben Namen erneut hochgeladen wird, behält ihre frühere Version.",
+    "en": "<b>Nothing lost by mistake.</b> Make a folder upload-only and nothing in it can be deleted, from any app; a file uploaded again under the same name keeps its earlier version."
+  },
+  "site.drive.link": {
+    "text": "Der Vergleich mit Google Drive und Dropbox",
+    "en": "How it compares with Google Drive and Dropbox"
+  },
+  "site.drive.meta.description": {
+    "text": "Die Dateien deiner Familie auf einem kleinen NAS zu Hause speichern, synchron mit deinen Mac-, Windows- und Linux-Computern und deinen Handys, statt in Google Drive, Dropbox, iCloud Drive oder Proton Drive.",
+    "en": "Keep your family's files on a small NAS at home, in sync with your Mac, Windows and Linux computers and your phones, instead of Google Drive, Dropbox, iCloud Drive or Proton Drive."
+  },
+  "site.drive.meta.title": {
+    "text": "Selbst gehostete Alternative zu Google Drive und Dropbox | Off The Cloud",
+    "en": "Self-hosted Google Drive and Dropbox alternative | Off The Cloud"
+  },
+  "site.drive.move.desktop": {
+    "text": "<b>Aus Dropbox, Proton Drive, pCloud und ähnlichen Diensten:</b> Wenn die App des Dienstes einen Ordner auf deinem Computer hat, stell sicher, dass jede Datei darin heruntergeladen ist und nicht nur online liegt, und füge diesen Ordner dann zur App für Mac, Windows oder Linux hinzu: Jede Datei kommt auf dein Gerät. Andernfalls lade deine Dateien zuerst von der Website des Dienstes herunter.",
+    "en": "<b>From Dropbox, Proton Drive, pCloud and the like:</b> if the service's app keeps a folder on your computer, make sure every file in it is downloaded, not online-only, then add that folder to the Mac, Windows or Linux app: every file goes to your device. Otherwise, download your files from the service's website first."
+  },
+  "site.drive.move.google": {
+    "text": "<b>Aus Google Drive:</b> Lade alles mit Google Takeout herunter, das Google Docs, Tabellen und Präsentationen in gewöhnliche Dateien umwandeln kann, etwa OpenDocument oder PDF. Entpacke es auf einem Computer und füge diesen Ordner zur App für Mac, Windows oder Linux hinzu.",
+    "en": "<b>From Google Drive:</b> download everything with Google Takeout, which can turn Google Docs, Sheets and Slides into ordinary files, such as OpenDocument or PDF. Unzip it on a computer and add that folder to the Mac, Windows or Linux app."
+  },
+  "site.drive.move.icloud": {
+    "text": "<b>Aus iCloud Drive:</b> Kopiere die Dateien auf einem Mac in einen eigenen Ordner außerhalb von iCloud Drive und füge diesen Ordner zur Mac-App hinzu.",
+    "en": "<b>From iCloud Drive:</b> on a Mac, copy the files into a folder of your own, outside iCloud Drive, and add that folder to the Mac app."
+  },
+  "site.drive.move.title": {
+    "text": "Deine Dateien übertragen",
+    "en": "Moving your files over"
+  },
+  "site.drive.row.computers": {
+    "text": "Apps für Mac, Windows und Linux",
+    "en": "Apps for Mac, Windows and Linux"
+  },
+  "site.drive.row.cost": {
+    "text": "Was es kostet",
+    "en": "What it costs"
+  },
+  "site.drive.row.links": {
+    "text": "Freigabelinks mit Ablaufdatum",
+    "en": "Share links with an expiry date"
+  },
+  "site.drive.row.more": {
+    "text": "Was es sonst noch kann",
+    "en": "What else it does"
+  },
+  "site.drive.row.open_source": {
+    "text": "Open Source",
+    "en": "Open source"
+  },
+  "site.drive.row.phones": {
+    "text": "Handy-Apps, die Fotos sichern",
+    "en": "Phone apps that back up photos"
+  },
+  "site.drive.row.setup": {
+    "text": "Was du brauchst",
+    "en": "What you need"
+  },
+  "site.drive.row.space": {
+    "text": "Wie viel Speicherplatz",
+    "en": "How much space"
+  },
+  "site.drive.row.versions": {
+    "text": "Frühere Versionen und gelöschte Dateien",
+    "en": "Earlier versions and deleted files"
+  },
+  "site.drive.row.where": {
+    "text": "Wo deine Dateien liegen",
+    "en": "Where your files are kept"
+  }
+}

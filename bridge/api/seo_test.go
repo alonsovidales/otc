@@ -172,7 +172,7 @@ func TestCrawlerFiles(t *testing.T) {
 			Loc string `xml:"loc"`
 		} `xml:"url"`
 	}
-	if err := xml.Unmarshal(siteGet(api, http.MethodGet, "/sitemap.xml", nil).Body.Bytes(), &set); err != nil || len(set.URLs) != 2*len(i18n.Languages())+2 {
+	if err := xml.Unmarshal(siteGet(api, http.MethodGet, "/sitemap.xml", nil).Body.Bytes(), &set); err != nil || len(set.URLs) != 4*len(i18n.Languages())+2 {
 		t.Errorf("sitemap: %v, %d addresses", err, len(set.URLs))
 	}
 	if llms := siteGet(api, http.MethodGet, "/llms.txt", nil).Body.String(); !strings.HasPrefix(llms, "# Off The Cloud\n\n> ") || !strings.Contains(llms, "## Questions") {
@@ -201,7 +201,7 @@ var nonceValue = regexp.MustCompile(`nonce="[^"]*"`)
 func TestSiteAnswersAreGzipped(t *testing.T) {
 	api := siteAPI(t)
 	gz := map[string]string{"Accept-Encoding": "gzip, deflate, br"}
-	for _, target := range []string{"/", "/es/", "/account", "/google-photos-alternative", "/robots.txt", "/sitemap.xml", "/llms.txt", "/unavailable"} {
+	for _, target := range []string{"/", "/es/", "/account", "/private-social-network", "/google-photos-alternative", "/google-drive-alternative", "/robots.txt", "/sitemap.xml", "/llms.txt", "/unavailable"} {
 		plain := siteGet(api, http.MethodGet, target, nil)
 		rec := siteGet(api, http.MethodGet, target, gz)
 		if rec.Code != http.StatusOK || rec.Header().Get("Content-Encoding") != "gzip" || plain.Header().Get("Content-Encoding") != "" {
@@ -240,46 +240,47 @@ func TestSiteAnswersAreGzipped(t *testing.T) {
 	}
 }
 
-// The comparison page, at /google-photos-alternative and
-// /<code>/google-photos-alternative, chosen like the landing page's
-// language; any other /<code>/<x> is still a 404.
-func TestSiteAlternativePage(t *testing.T) {
+// The comparison pages, at /<slug> and /<code>/<slug>, chosen like the
+// landing page's language; any other /<code>/<x> is still a 404.
+func TestSiteComparisonPages(t *testing.T) {
 	api := siteAPI(t)
-	for _, al := range []string{"", "en-US,en;q=0.9", "ja-JP"} {
-		rec := siteGet(api, http.MethodGet, "/google-photos-alternative", map[string]string{"Accept-Language": al})
-		checkPage(t, "/google-photos-alternative with "+al, rec, http.StatusOK, site.English())
-		body := rec.Body.String()
-		if !strings.Contains(body, `<link rel="canonical" href="https://bridge.test/google-photos-alternative">`) || rec.Header().Get("Vary") != "Accept-Language" {
-			t.Errorf("/google-photos-alternative with %q: not the English page, or Vary %q", al, rec.Header().Get("Vary"))
+	for _, slug := range []string{site.SocialSlug, site.AlternativeSlug, site.DriveSlug} {
+		for _, al := range []string{"", "en-US,en;q=0.9", "ja-JP"} {
+			rec := siteGet(api, http.MethodGet, "/"+slug, map[string]string{"Accept-Language": al})
+			checkPage(t, "/"+slug+" with "+al, rec, http.StatusOK, site.English())
+			body := rec.Body.String()
+			if !strings.Contains(body, `<link rel="canonical" href="https://bridge.test/`+slug+`">`) || rec.Header().Get("Vary") != "Accept-Language" {
+				t.Errorf("/%s with %q: not the English page, or Vary %q", slug, al, rec.Header().Get("Vary"))
+			}
 		}
-	}
-	for _, l := range i18n.Languages()[1:] {
-		rec := siteGet(api, http.MethodGet, "/google-photos-alternative?utm=x", map[string]string{"Accept-Language": l.Tag + ",en;q=0.5"})
-		if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/"+l.Code+"/google-photos-alternative?utm=x" || rec.Header().Get("Vary") != "Accept-Language" {
-			t.Errorf("/google-photos-alternative for %s: %d %q", l.Tag, rec.Code, rec.Header().Get("Location"))
+		for _, l := range i18n.Languages()[1:] {
+			rec := siteGet(api, http.MethodGet, "/"+slug+"?utm=x", map[string]string{"Accept-Language": l.Tag + ",en;q=0.5"})
+			if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/"+l.Code+"/"+slug+"?utm=x" || rec.Header().Get("Vary") != "Accept-Language" {
+				t.Errorf("/%s for %s: %d %q", slug, l.Tag, rec.Code, rec.Header().Get("Location"))
+			}
+			page := siteGet(api, http.MethodGet, "/"+l.Code+"/"+slug, nil)
+			checkPage(t, "/"+l.Code+"/"+slug, page, http.StatusOK, l.Code)
+			if !strings.Contains(page.Body.String(), `<html lang="`+l.Tag+`">`) || !strings.Contains(page.Body.String(), `href="/`+l.Code+`/#faq"`) {
+				t.Errorf("/%s/%s isn't in %s, or its header doesn't link /%s/#faq", l.Code, slug, l.Tag, l.Code)
+			}
 		}
-		page := siteGet(api, http.MethodGet, "/"+l.Code+"/google-photos-alternative", nil)
-		checkPage(t, "/"+l.Code+"/google-photos-alternative", page, http.StatusOK, l.Code)
-		if !strings.Contains(page.Body.String(), `<html lang="`+l.Tag+`">`) || !strings.Contains(page.Body.String(), `href="/`+l.Code+`/#faq"`) {
-			t.Errorf("/%s/google-photos-alternative isn't in %s, or its header doesn't link /%s/#faq", l.Code, l.Tag, l.Code)
+		rec := siteGet(api, http.MethodGet, "/en/"+slug, map[string]string{"Accept-Language": "es,fr;q=0.8"})
+		checkPage(t, "/en/"+slug, rec, http.StatusOK, "en")
+		if !strings.Contains(rec.Body.String(), `<link rel="canonical" href="https://bridge.test/`+slug+`">`) {
+			t.Errorf("/en/%s doesn't name /%s as its canonical address", slug, slug)
 		}
-	}
-	rec := siteGet(api, http.MethodGet, "/en/google-photos-alternative", map[string]string{"Accept-Language": "es,fr;q=0.8"})
-	checkPage(t, "/en/google-photos-alternative", rec, http.StatusOK, "en")
-	if !strings.Contains(rec.Body.String(), `<link rel="canonical" href="https://bridge.test/google-photos-alternative">`) {
-		t.Error("/en/google-photos-alternative doesn't name /google-photos-alternative as its canonical address")
-	}
-	for _, target := range []string{"/xx/google-photos-alternative", "/en/google-photos-alternative/", "/es/google-photos-alternative/x",
-		"/es/google-photos", "/es/alternative", "/en/x"} {
-		if rec := siteGet(api, http.MethodGet, target, nil); rec.Code != http.StatusNotFound || strings.Contains(rec.Body.String(), "STALE") {
-			t.Errorf("%s: %d, want 404", target, rec.Code)
+		for _, target := range []string{"/xx/" + slug, "/en/" + slug + "/", "/es/" + slug + "/x",
+			"/es/google-photos", "/es/alternative", "/es/private-social", "/en/x"} {
+			if rec := siteGet(api, http.MethodGet, target, nil); rec.Code != http.StatusNotFound || strings.Contains(rec.Body.String(), "STALE") {
+				t.Errorf("%s: %d, want 404", target, rec.Code)
+			}
 		}
-	}
-	if rec := siteGet(api, http.MethodPost, "/google-photos-alternative", nil); rec.Code != http.StatusMethodNotAllowed {
-		t.Errorf("POST /google-photos-alternative: %d", rec.Code)
-	}
-	if rec := siteGet(api, http.MethodHead, "/es/google-photos-alternative", nil); rec.Code != http.StatusOK || rec.Body.Len() != 0 {
-		t.Errorf("HEAD /es/google-photos-alternative: %d", rec.Code)
+		if rec := siteGet(api, http.MethodPost, "/"+slug, nil); rec.Code != http.StatusMethodNotAllowed {
+			t.Errorf("POST /%s: %d", slug, rec.Code)
+		}
+		if rec := siteGet(api, http.MethodHead, "/es/"+slug, nil); rec.Code != http.StatusOK || rec.Body.Len() != 0 {
+			t.Errorf("HEAD /es/%s: %d", slug, rec.Code)
+		}
 	}
 }
 

@@ -95,7 +95,7 @@ func TestSiteRootServesEnglishOrRedirects(t *testing.T) {
 		}
 		rec := siteGet(api, http.MethodGet, "/", map[string]string{"Accept-Language": al})
 		checkPage(t, "/ with "+al, rec, http.StatusOK, site.English())
-		if !strings.Contains(rec.Body.String(), "Your photos, your rules.") {
+		if !strings.Contains(rec.Body.String(), "A social network your family owns.") {
 			t.Errorf("/ with %q: not the English landing page", al)
 		}
 		if rec.Header().Get("Vary") != "Accept-Language" {

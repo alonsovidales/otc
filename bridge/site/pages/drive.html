@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="{{.Tag}}">
+<head>
+  {{template "head" (head . (t "site.drive.meta.title") (t "site.drive.meta.description"))}}
+  <style nonce="{{.Nonce}}">
+    {{- template "site-style"}}
+    {{- template "compare-style"}}
+  </style>
+</head>
+<body>
+
+  {{template "header" .}}
+
+  <main>
+    <div class="container hero">
+      <h1>{{t "site.drive.hero.title"}}</h1>
+      <p class="lead">{{t "site.drive.hero.lead"}}</p>
+      <div class="demo-row">
+        <a class="btn ember" href="https://demo.off-the.cloud/">{{t "site.landing.hero.demo"}}</a>
+        <span class="demo-note">{{t "site.landing.hero.demo_note"}}</span>
+      </div>
+    </div>
+
+    <section id="keep">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.drive.keep.title"}}</h2>
+        </div>
+        <ul class="cards">
+          <li>{{template "spans" (rich "site.drive.keep.sync")}}</li>
+          <li>{{template "spans" (rich "site.drive.keep.phone")}}</li>
+          <li>{{template "spans" (rich "site.drive.keep.links")}}</li>
+          <li>{{template "spans" (rich "site.drive.keep.versions")}}</li>
+          <li>{{template "spans" (rich "site.drive.keep.family")}}</li>
+          <li>{{template "spans" (rich "site.drive.keep.fast")}}</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="changes">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.drive.change.title"}}</h2>
+        </div>
+        <ul class="cards two">
+          <li>{{template "spans" (rich "site.drive.change.hardware")}}</li>
+          <li>{{template "spans" (rich "site.drive.change.backup")}}</li>
+          <li>{{template "spans" (rich "site.drive.change.remote")}}</li>
+          <li>{{template "spans" (rich "site.drive.change.more")}}</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="compare">
+      <div class="container">
+        <div class="section-head">
+          <h2 id="compare-title">{{t "site.drive.compare.title"}}</h2>
+        </div>
+        <p class="lead-text">{{t "site.drive.compare.lead"}}</p>
+        <div class="table-wrap" role="region" aria-labelledby="compare-title" tabindex="0">
+          <table class="compare" aria-labelledby="compare-title">
+            <thead>
+              <tr>
+                <td></td>
+                <th scope="col" class="us">Off The Cloud</th>
+                <th scope="col">Google Drive</th>
+                <th scope="col">Dropbox</th>
+                <th scope="col">iCloud Drive</th>
+                <th scope="col">Proton Drive</th>
+                <th scope="col">Synology</th>
+                <th scope="col">Nextcloud</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">{{t "site.drive.row.where"}}</th>
+                <td class="us">{{t "site.alt.cell.at_home"}}</td>
+                <td>{{t "site.alt.cell.where_google"}}</td>
+                <td>{{t "site.drive.cell.where_dropbox"}}</td>
+                <td>{{t "site.alt.cell.where_icloud"}}</td>
+                <td>{{t "site.drive.cell.where_proton"}}</td>
+                <td>{{t "site.alt.cell.at_home"}}</td>
+                <td>{{t "site.drive.cell.own_server"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.drive.row.cost"}}</th>
+                <td class="us">{{t "site.alt.cell.cost_otc"}}</td>
+                <td>{{t "site.drive.cell.cost_google"}}</td>
+                <td>{{t "site.drive.cell.cost_dropbox"}}</td>
+                <td>{{t "site.alt.cell.cost_icloud"}}</td>
+                <td>{{t "site.drive.cell.cost_proton"}}</td>
+                <td>{{t "site.alt.cell.cost_synology"}}</td>
+                <td>{{t "site.drive.cell.cost_nextcloud"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.drive.row.space"}}</th>
+                <td class="us">{{t "site.alt.cell.space_otc"}}</td>
+                <td>{{t "site.alt.cell.plan_size"}}</td>
+                <td>{{t "site.alt.cell.plan_size"}}</td>
+                <td>{{t "site.alt.cell.plan_size"}}</td>
+                <td>{{t "site.alt.cell.plan_size"}}</td>
+                <td>{{t "site.alt.cell.drive_size"}}</td>
+                <td>{{t "site.alt.cell.drive_size"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.drive.row.computers"}}</th>
+                <td class="us">{{t "site.drive.cell.mac_windows_linux"}}</td>
+                <td>{{t "site.drive.cell.no_linux"}}</td>
+                <td>{{t "site.drive.cell.mac_windows_linux"}}</td>
+                <td>{{t "site.drive.cell.no_linux"}}</td>
+                <td>{{t "site.drive.cell.no_linux_yet"}}</td>
+                <td>{{t "site.drive.cell.mac_windows_linux"}}</td>
+                <td>{{t "site.drive.cell.mac_windows_linux"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.drive.row.phones"}}</th>
+                <td class="us">{{t "site.drive.cell.iphone_android"}}</td>
+                <td>{{t "site.drive.cell.phones_google"}}</td>
+                <td>{{t "site.drive.cell.iphone_android"}}</td>
+                <td>{{t "site.drive.cell.phones_icloud"}}</td>
+                <td>{{t "site.drive.cell.iphone_android"}}</td>
+                <td>{{t "site.drive.cell.iphone_android"}}</td>
+                <td>{{t "site.drive.cell.iphone_android"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.drive.row.versions"}}</th>
+                <td class="us">{{t "site.drive.cell.versions_otc"}}</td>
+                <td>{{t "site.drive.cell.versions_google"}}</td>
+                <td>{{t "site.drive.cell.versions_dropbox"}}</td>
+                <td>{{t "site.drive.cell.versions_icloud"}}</td>
+                <td>{{t "site.drive.cell.versions_proton"}}</td>
+                <td>{{t "site.drive.cell.versions_synology"}}</td>
+                <td>{{t "site.drive.cell.versions_nextcloud"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.drive.row.links"}}</th>
+                <td class="us">{{t "site.alt.cell.links_otc"}}</td>
+                <td>{{t "site.drive.cell.links_google"}}</td>
+                <td>{{t "site.drive.cell.links_dropbox"}}</td>
+                <td>{{t "site.drive.cell.links_icloud"}}</td>
+                <td>{{t "site.drive.cell.links_proton"}}</td>
+                <td>{{t "site.drive.cell.links_password"}}</td>
+                <td>{{t "site.drive.cell.links_password"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.drive.row.more"}}</th>
+                <td class="us">{{t "site.drive.cell.more_otc"}}</td>
+                <td>{{t "site.drive.cell.more_google"}}</td>
+                <td>{{t "site.drive.cell.more_dropbox"}}</td>
+                <td>{{t "site.drive.cell.more_icloud"}}</td>
+                <td>{{t "site.drive.cell.more_proton"}}</td>
+                <td>{{t "site.drive.cell.more_synology"}}</td>
+                <td>{{t "site.drive.cell.more_nextcloud"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.drive.row.setup"}}</th>
+                <td class="us">{{t "site.alt.cell.setup_otc"}}</td>
+                <td>{{t "site.alt.cell.no_setup"}}</td>
+                <td>{{t "site.alt.cell.no_setup"}}</td>
+                <td>{{t "site.alt.cell.no_setup"}}</td>
+                <td>{{t "site.alt.cell.no_setup"}}</td>
+                <td>{{t "site.alt.cell.setup_synology"}}</td>
+                <td>{{t "site.drive.cell.setup_nextcloud"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.drive.row.open_source"}}</th>
+                <td class="us">{{t "site.alt.cell.yes_agpl"}}</td>
+                <td>{{t "site.alt.cell.no"}}</td>
+                <td>{{t "site.alt.cell.no"}}</td>
+                <td>{{t "site.alt.cell.no"}}</td>
+                <td>{{t "site.drive.cell.open_proton"}}</td>
+                <td>{{t "site.alt.cell.no"}}</td>
+                <td>{{t "site.alt.cell.yes_agpl"}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="small">{{t "site.drive.compare.checked"}}</p>
+        <!-- The pages each product's facts come from, as they read on the date
+             compare.checked gives; the link texts are product names. -->
+        <p class="small">{{t "site.drive.compare.sources"}}
+          <a href="https://one.google.com/about/plans">Google One</a> ·
+          <a href="https://support.google.com/drive/answer/2375082">Google Drive</a> ·
+          <a href="https://www.dropbox.com/plans">Dropbox</a> ·
+          <a href="https://support.apple.com/en-us/108047">iCloud+</a> ·
+          <a href="https://proton.me/drive/pricing">Proton Drive</a> ·
+          <a href="https://www.pcloud.com/cloud-storage-pricing-plans.html">pCloud</a> ·
+          <a href="https://mega.io/pricing">MEGA</a> ·
+          <a href="https://www.synology.com/en-global/dsm/7.4/software_spec/synology_drive">Synology Drive</a> ·
+          <a href="https://docs.nextcloud.com/server/latest/admin_manual/installation/system_requirements.html">Nextcloud</a>
+        </p>
+      </div>
+    </section>
+
+    <section id="choose">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.drive.choose.title"}}</h2>
+        </div>
+        <ul class="cards inline">
+          <li class="us">{{template "spans" (rich "site.drive.choose.otc")}}</li>
+          <li>{{template "spans" (rich "site.drive.choose.google")}}</li>
+          <li>{{template "spans" (rich "site.drive.choose.dropbox")}}</li>
+          <li>{{template "spans" (rich "site.drive.choose.icloud")}}</li>
+          <li>{{template "spans" (rich "site.drive.choose.proton")}}</li>
+          <li>{{template "spans" (rich "site.drive.choose.pcloud_mega")}}</li>
+          <li>{{template "spans" (rich "site.drive.choose.synology")}}</li>
+          <li>{{template "spans" (rich "site.drive.choose.nextcloud")}}</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="move">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.drive.move.title"}}</h2>
+        </div>
+        <div class="prose">
+          <p>{{template "spans" (rich "site.drive.move.google")}}</p>
+          <p>{{template "spans" (rich "site.drive.move.desktop")}}</p>
+          <p>{{template "spans" (rich "site.drive.move.icloud")}}</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="try">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.alt.try.title"}}</h2>
+        </div>
+        <div class="try">
+          <a class="btn ember" href="https://demo.off-the.cloud/">{{t "site.landing.hero.demo"}}</a>
+          <a class="btn" href="{{.Home}}#install">{{t "site.landing.install.label"}}</a>
+        </div>
+        <p class="demo-note try-note">{{t "site.landing.hero.demo_note"}}</p>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">{{t "site.landing.faq.eyebrow"}}</span>
+          <h2>{{t "site.landing.faq.title"}}</h2>
+        </div>
+        <div class="faq">
+          <details open>
+            <summary>{{t "site.drive.faq.network.q"}}</summary>
+            <p>{{t "site.drive.faq.network.a"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.drive.faq.private.q"}}</summary>
+            <p>{{t "site.drive.faq.private.a"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.drive.faq.fails.q"}}</summary>
+            <p>{{t "site.drive.faq.fails.a"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.drive.faq.space.q"}}</summary>
+            <p>{{t "site.drive.faq.space.a"}}</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  {{template "footer" .}}
+</body>
+</html>

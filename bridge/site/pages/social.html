@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="{{.Tag}}">
+<head>
+  {{template "head" (head . (t "site.social.meta.title") (t "site.social.meta.description"))}}
+  <style nonce="{{.Nonce}}">
+    {{- template "site-style"}}
+    {{- template "compare-style"}}
+  </style>
+</head>
+<body>
+
+  {{template "header" .}}
+
+  <main>
+    <div class="container hero">
+      <h1>{{t "site.social.hero.title"}}</h1>
+      <p class="lead">{{t "site.social.hero.lead"}}</p>
+      <div class="demo-row">
+        <a class="btn ember" href="https://demo.off-the.cloud/">{{t "site.landing.hero.demo"}}</a>
+        <span class="demo-note">{{t "site.landing.hero.demo_note"}}</span>
+      </div>
+    </div>
+
+    <section id="get">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.social.get.title"}}</h2>
+        </div>
+        <ul class="cards">
+          <li>{{template "spans" (rich "site.social.get.feed")}}</li>
+          <li>{{template "spans" (rich "site.social.get.alerts")}}</li>
+          <li>{{template "spans" (rich "site.social.get.family")}}</li>
+          <li>{{template "spans" (rich "site.social.get.leave")}}</li>
+          <li>{{template "spans" (rich "site.social.get.links")}}</li>
+          <li>{{template "spans" (rich "site.social.get.backup")}}</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="different">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.social.diff.title"}}</h2>
+        </div>
+        <ul class="cards two">
+          <li>{{template "spans" (rich "site.social.diff.middle")}}</li>
+          <li>{{template "spans" (rich "site.social.diff.no_ads")}}</li>
+          <li>{{template "spans" (rich "site.social.diff.address")}}</li>
+          <li>{{template "spans" (rich "site.social.diff.messenger")}}</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="compare">
+      <div class="container">
+        <div class="section-head">
+          <h2 id="compare-title">{{t "site.social.compare.title"}}</h2>
+        </div>
+        <p class="lead-text">{{t "site.social.compare.lead"}}</p>
+        <div class="table-wrap" role="region" aria-labelledby="compare-title" tabindex="0">
+          <table class="compare" aria-labelledby="compare-title">
+            <thead>
+              <tr>
+                <td></td>
+                <th scope="col" class="us">Off The Cloud</th>
+                <th scope="col">Instagram</th>
+                <th scope="col">Facebook</th>
+                <th scope="col">WhatsApp</th>
+                <th scope="col">FamilyAlbum</th>
+                <th scope="col">Pixelfed</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">{{t "site.social.row.where"}}</th>
+                <td class="us">{{t "site.social.cell.own_device"}}</td>
+                <td>{{t "site.social.cell.meta_servers"}}</td>
+                <td>{{t "site.social.cell.meta_servers"}}</td>
+                <td>{{t "site.social.cell.where_whatsapp"}}</td>
+                <td>{{t "site.social.cell.where_familyalbum"}}</td>
+                <td>{{t "site.social.cell.where_pixelfed"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.social.row.audience"}}</th>
+                <td class="us">{{t "site.social.cell.audience_otc"}}</td>
+                <td>{{t "site.social.cell.audience_instagram"}}</td>
+                <td>{{t "site.social.cell.audience_facebook"}}</td>
+                <td>{{t "site.social.cell.audience_whatsapp"}}</td>
+                <td>{{t "site.social.cell.audience_familyalbum"}}</td>
+                <td>{{t "site.social.cell.audience_pixelfed"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.social.row.ads"}}</th>
+                <td class="us">{{t "site.social.cell.none"}}</td>
+                <td>{{t "site.social.cell.ads_meta"}}</td>
+                <td>{{t "site.social.cell.ads_meta"}}</td>
+                <td>{{t "site.social.cell.ads_whatsapp"}}</td>
+                <td>{{t "site.social.cell.ads_familyalbum"}}</td>
+                <td>{{t "site.social.cell.none"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.social.row.feed"}}</th>
+                <td class="us">{{t "site.social.cell.newest_first"}}</td>
+                <td>{{t "site.social.cell.feed_instagram"}}</td>
+                <td>{{t "site.social.cell.feed_facebook"}}</td>
+                <td>{{t "site.social.cell.feed_whatsapp"}}</td>
+                <td>{{t "site.social.cell.feed_familyalbum"}}</td>
+                <td>{{t "site.social.cell.newest_first"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.social.row.ai"}}</th>
+                <td class="us">{{t "site.alt.cell.no"}}</td>
+                <td>{{t "site.social.cell.ai_meta"}}</td>
+                <td>{{t "site.social.cell.ai_meta"}}</td>
+                <td>{{t "site.social.cell.ai_whatsapp"}}</td>
+                <td>{{t "site.social.cell.not_stated"}}</td>
+                <td>{{t "site.social.cell.ai_pixelfed"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.social.row.backup"}}</th>
+                <td class="us">{{t "site.social.cell.backup_otc"}}</td>
+                <td>{{t "site.alt.cell.no"}}</td>
+                <td>{{t "site.alt.cell.no"}}</td>
+                <td>{{t "site.social.cell.backup_whatsapp"}}</td>
+                <td>{{t "site.social.cell.backup_familyalbum"}}</td>
+                <td>{{t "site.alt.cell.no"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.social.row.leave"}}</th>
+                <td class="us">{{t "site.social.cell.leave_otc"}}</td>
+                <td>{{t "site.social.cell.leave_instagram"}}</td>
+                <td>{{t "site.social.cell.leave_facebook"}}</td>
+                <td>{{t "site.social.cell.leave_whatsapp"}}</td>
+                <td>{{t "site.social.cell.leave_familyalbum"}}</td>
+                <td>{{t "site.social.cell.leave_pixelfed"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.social.row.chat"}}</th>
+                <td class="us">{{t "site.social.cell.chat_otc"}}</td>
+                <td>{{t "site.alt.cell.yes"}}</td>
+                <td>{{t "site.alt.cell.yes"}}</td>
+                <td>{{t "site.alt.cell.yes"}}</td>
+                <td>{{t "site.social.cell.chat_familyalbum"}}</td>
+                <td>{{t "site.alt.cell.yes"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.social.row.cost"}}</th>
+                <td class="us">{{t "site.social.cell.cost_otc"}}</td>
+                <td>{{t "site.social.cell.free_ads"}}</td>
+                <td>{{t "site.social.cell.free_ads"}}</td>
+                <td>{{t "site.social.cell.free"}}</td>
+                <td>{{t "site.social.cell.cost_familyalbum"}}</td>
+                <td>{{t "site.social.cell.cost_pixelfed"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.social.row.open_source"}}</th>
+                <td class="us">{{t "site.alt.cell.yes_agpl"}}</td>
+                <td>{{t "site.alt.cell.no"}}</td>
+                <td>{{t "site.alt.cell.no"}}</td>
+                <td>{{t "site.alt.cell.no"}}</td>
+                <td>{{t "site.alt.cell.no"}}</td>
+                <td>{{t "site.alt.cell.yes_agpl"}}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{t "site.social.row.setup"}}</th>
+                <td class="us">{{t "site.alt.cell.setup_otc"}}</td>
+                <td>{{t "site.social.cell.app_only"}}</td>
+                <td>{{t "site.social.cell.app_only"}}</td>
+                <td>{{t "site.social.cell.app_only"}}</td>
+                <td>{{t "site.social.cell.app_only"}}</td>
+                <td>{{t "site.social.cell.setup_pixelfed"}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="small">{{t "site.social.compare.checked"}}</p>
+        <!-- The pages each product's facts come from, as they read on the date
+             compare.checked gives; the link texts are product names. -->
+        <p class="small">{{t "site.social.compare.sources"}}
+          <a href="https://help.instagram.com/1066482030107872">Instagram</a> ·
+          <a href="https://www.facebook.com/help/218728138156311">Facebook</a> ·
+          <a href="https://www.facebook.com/privacy/genai/">Meta AI</a> ·
+          <a href="https://www.whatsapp.com/legal/privacy-policy">WhatsApp</a> ·
+          <a href="https://family-album.com/en/premium">FamilyAlbum</a> ·
+          <a href="https://docs.pixelfed.org/running-pixelfed/prerequisites.html">Pixelfed</a>
+        </p>
+      </div>
+    </section>
+
+    <section id="choose">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.social.choose.title"}}</h2>
+        </div>
+        <ul class="cards inline">
+          <li class="us">{{template "spans" (rich "site.social.choose.otc")}}</li>
+          <li>{{template "spans" (rich "site.social.choose.meta")}}</li>
+          <li>{{template "spans" (rich "site.social.choose.whatsapp")}}</li>
+          <li>{{template "spans" (rich "site.social.choose.familyalbum")}}</li>
+          <li>{{template "spans" (rich "site.social.choose.pixelfed")}}</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="start">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.social.start.title"}}</h2>
+        </div>
+        <div class="prose">
+          <p>{{template "spans" (rich "site.social.start.device")}}</p>
+          <p>{{template "spans" (rich "site.social.start.accounts")}}</p>
+          <p>{{template "spans" (rich "site.social.start.friends")}}</p>
+          <p>{{template "spans" (rich "site.social.start.links")}}</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="try">
+      <div class="container">
+        <div class="section-head">
+          <h2>{{t "site.alt.try.title"}}</h2>
+        </div>
+        <div class="try">
+          <a class="btn ember" href="https://demo.off-the.cloud/">{{t "site.landing.hero.demo"}}</a>
+          <a class="btn" href="{{.Home}}#install">{{t "site.landing.install.label"}}</a>
+        </div>
+        <p class="demo-note try-note">{{t "site.landing.hero.demo_note"}}</p>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">{{t "site.landing.faq.eyebrow"}}</span>
+          <h2>{{t "site.landing.faq.title"}}</h2>
+        </div>
+        <div class="faq">
+          <details open>
+            <summary>{{t "site.social.faq.library.q"}}</summary>
+            <p>{{t "site.social.faq.library.a"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.social.faq.messages.q"}}</summary>
+            <p>{{t "site.social.faq.messages.a"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.social.faq.fediverse.q"}}</summary>
+            <p>{{t "site.social.faq.fediverse.a"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.social.faq.cost.q"}}</summary>
+            <p>{{t "site.social.faq.cost.a"}}</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  {{template "footer" .}}
+</body>
+</html>

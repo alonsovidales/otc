@@ -278,6 +278,8 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
         </div>
         <dl class="glance">
           <div><dt>{{t "site.landing.glance.what.label"}}</dt><dd>{{t "site.landing.glance.what.value"}}</dd></div>
+          <div><dt>{{t "site.landing.glance.social.label"}}</dt><dd>{{t "site.landing.glance.social.value"}}</dd></div>
+          <div><dt>{{t "site.landing.glance.files.label"}}</dt><dd>{{t "site.landing.glance.files.value"}}</dd></div>
           <div><dt>{{t "site.landing.glance.instead.label"}}</dt><dd>{{t "site.landing.glance.instead.value"}}</dd></div>
           <div><dt>{{t "site.landing.glance.hardware.label"}}</dt><dd>{{t "site.landing.glance.hardware.value"}}</dd></div>
           <div><dt>{{t "site.landing.glance.storage.label"}}</dt><dd>{{t "site.landing.glance.storage.value"}}</dd></div>
@@ -287,7 +289,10 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
           <div><dt>{{t "site.landing.glance.licence.label"}}</dt><dd>{{t "site.landing.glance.licence.value"}}</dd></div>
           <div><dt>{{t "site.landing.glance.languages.label"}}</dt><dd>{{t "site.landing.glance.languages.value"}}</dd></div>
         </dl>
-        <p class="glance-more"><a href="{{.Comparison}}">{{t "site.landing.glance.compare"}}</a></p>
+        <p class="glance-more">{{t "site.landing.glance.compare_with"}}
+          <a href="{{.Compare.Social}}">{{t "site.landing.glance.compare_social"}}</a> ·
+          <a href="{{.Compare.Photos}}">{{t "site.landing.glance.compare_photos"}}</a> ·
+          <a href="{{.Compare.Drive}}">{{t "site.landing.glance.compare_drive"}}</a></p>
       </div>
     </section>
 
@@ -382,34 +387,29 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
         </div>
         <div class="value-grid">
           <div class="value-card">
-            <span class="ico">💾</span>
-            <h3>{{t "site.landing.what.device_title"}}</h3>
-            <p>{{t "site.landing.what.device_text"}}</p>
+            <span class="ico">💬</span>
+            <h3>{{t "site.landing.what.feed_title"}}</h3>
+            <p>{{t "site.landing.what.feed_text"}}</p>
           </div>
           <div class="value-card">
-            <span class="ico">🖥️</span>
-            <h3>{{t "site.landing.what.desktop_title"}}</h3>
-            <p>{{t "site.landing.what.desktop_text"}}</p>
+            <span class="ico">🏡</span>
+            <h3>{{t "site.landing.what.decentral_title"}}</h3>
+            <p>{{t "site.landing.what.decentral_text"}}</p>
           </div>
           <div class="value-card">
-            <span class="ico">📱</span>
-            <h3>{{t "site.landing.what.mobile_title"}}</h3>
-            <p>{{t "site.landing.what.mobile_text"}}</p>
+            <span class="ico">📸</span>
+            <h3>{{t "site.landing.what.photos_title"}}</h3>
+            <p>{{t "site.landing.what.photos_text"}}</p>
           </div>
           <div class="value-card">
-            <span class="ico">🌐</span>
-            <h3>{{t "site.landing.what.web_title"}}</h3>
-            <p>{{t "site.landing.what.web_text"}}</p>
+            <span class="ico">🗂️</span>
+            <h3>{{t "site.landing.what.files_title"}}</h3>
+            <p>{{t "site.landing.what.files_text"}}</p>
           </div>
           <div class="value-card">
             <span class="ico">🔍</span>
             <h3>{{t "site.landing.what.search_title"}}</h3>
             <p>{{t "site.landing.what.search_text"}}</p>
-          </div>
-          <div class="value-card">
-            <span class="ico">🚫</span>
-            <h3>{{t "site.landing.what.feed_title"}}</h3>
-            <p>{{t "site.landing.what.feed_text"}}</p>
           </div>
           <div class="value-card">
             <span class="ico">👨‍👩‍👧</span>
@@ -425,6 +425,26 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
             <span class="ico">⚡</span>
             <h3>{{t "site.landing.what.fast_title"}}</h3>
             <p>{{t "site.landing.what.fast_text"}}</p>
+          </div>
+          <div class="value-card">
+            <span class="ico">💾</span>
+            <h3>{{t "site.landing.what.device_title"}}</h3>
+            <p>{{t "site.landing.what.device_text"}}</p>
+          </div>
+          <div class="value-card">
+            <span class="ico">📱</span>
+            <h3>{{t "site.landing.what.mobile_title"}}</h3>
+            <p>{{t "site.landing.what.mobile_text"}}</p>
+          </div>
+          <div class="value-card">
+            <span class="ico">🖥️</span>
+            <h3>{{t "site.landing.what.desktop_title"}}</h3>
+            <p>{{t "site.landing.what.desktop_text"}}</p>
+          </div>
+          <div class="value-card">
+            <span class="ico">🌐</span>
+            <h3>{{t "site.landing.what.web_title"}}</h3>
+            <p>{{t "site.landing.what.web_text"}}</p>
           </div>
         </div>
       </div>
@@ -494,11 +514,34 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
         </div>
         <div class="faq">
           <details open>
+            <summary>{{t "site.landing.faq.social_how.q"}}</summary>
+            <p>{{template "spans" (rich "site.landing.faq.social_how.p1")}}</p>
+            <p>{{t "site.landing.faq.social_how.p2"}}</p>
+            <p>{{t "site.landing.faq.social_how.p3"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.friends_device.q"}}</summary>
+            <p>{{t "site.landing.faq.friends_device.p1"}}</p>
+            <p>{{t "site.landing.faq.friends_device.p2"}}</p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.vs_instagram.q"}}</summary>
+            <p>{{t "site.landing.faq.vs_instagram.p1"}}</p>
+            <p>{{t "site.landing.faq.vs_instagram.p2"}}</p>
+            <p class="faq-more"><a href="{{.Compare.Social}}">{{t "site.social.link"}}</a></p>
+          </details>
+          <details>
+            <summary>{{t "site.landing.faq.vs_drive.q"}}</summary>
+            <p>{{t "site.landing.faq.vs_drive.p1"}}</p>
+            <p>{{t "site.landing.faq.vs_drive.p2"}}</p>
+            <p class="faq-more"><a href="{{.Compare.Drive}}">{{t "site.drive.link"}}</a></p>
+          </details>
+          <details>
             <summary>{{t "site.landing.faq.vs_cloud.q"}}</summary>
             <p>{{t "site.landing.faq.vs_cloud.p1"}}</p>
             <p>{{t "site.landing.faq.vs_cloud.p2"}}</p>
             <p>{{t "site.landing.faq.vs_cloud.p3"}}</p>
-            <p class="faq-more"><a href="{{.Comparison}}">{{t "site.alt.link"}}</a></p>
+            <p class="faq-more"><a href="{{.Compare.Photos}}">{{t "site.alt.link"}}</a></p>
           </details>
           <details>
             <summary>{{t "site.landing.faq.vs_selfhosted.q"}}</summary>
@@ -512,7 +555,7 @@ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/veri
               <li>{{t "site.landing.faq.vs_selfhosted.li5"}}</li>
               <li>{{t "site.landing.faq.vs_selfhosted.li6"}}</li>
             </ul>
-            <p class="faq-more"><a href="{{.Comparison}}">{{t "site.landing.glance.compare"}}</a></p>
+            <p class="faq-more"><a href="{{.Compare.Photos}}">{{t "site.alt.link"}}</a></p>
           </details>
           <details>
             <summary>{{t "site.landing.faq.hardware.q"}}</summary>

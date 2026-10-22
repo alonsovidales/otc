@@ -4,58 +4,7 @@
   {{template "head" (head . (t "site.alt.meta.title") (t "site.alt.meta.description"))}}
   <style nonce="{{.Nonce}}">
     {{- template "site-style"}}
-
-    /* Hero: the answer in one paragraph, then the demo. */
-    .hero{padding:48px 24px 60px;display:grid;gap:20px;justify-items:center;text-align:center}
-    .hero > *{min-width:0}
-    .hero h1{font-size:clamp(32px,4.6vw,54px);line-height:1.08;margin:6px 0 0;max-width:1000px}
-    .hero p.lead{font-size:clamp(17px,1.8vw,20px);color:var(--mist-dim);max-width:900px;margin:0}
-    .demo-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 16px}
-    .demo-note{font-size:15px;color:var(--mist-dim);max-width:34em}
-
-    /* Lists of points as cards, each opening with its title in bold. */
-    .cards{list-style:none;margin:0 auto;padding:0;display:grid;gap:16px;grid-template-columns:repeat(3,minmax(0,1fr));max-width:1200px}
-    .cards.two{grid-template-columns:repeat(2,minmax(0,1fr));max-width:1040px}
-    @media (max-width:980px){ .cards{grid-template-columns:repeat(2,minmax(0,1fr))} }
-    @media (max-width:620px){ .cards,.cards.two{grid-template-columns:minmax(0,1fr)} }
-    .cards li{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;color:var(--mist-dim);font-size:16px;line-height:1.6}
-    .cards li > strong:first-child{display:block;color:var(--mist);font-size:17px;margin-bottom:6px}
-    /* Where the bold name begins the sentence ("Immich if you..."), it stays in it. */
-    .cards.inline li > strong:first-child{display:inline;font-size:inherit;margin:0}
-    .cards strong{color:var(--mist)}
-    .cards li.us{border-color:var(--ember)}
-
-    /* The comparison table scrolls inside its box, never the page; its
-       first column (the row labels) stays in view while it does. */
-    .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:16px;background:var(--ink-2)}
-    .table-wrap:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
-    .compare{border-collapse:separate;border-spacing:0;width:100%;font-size:15px;line-height:1.45}
-    .compare th,.compare td{padding:12px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
-    .compare tbody tr:last-child > *{border-bottom:0}
-    .compare thead th{font-family:var(--display);font-size:14.5px;font-weight:700;color:var(--mist);vertical-align:bottom;min-width:9.5em}
-    .compare td{color:var(--mist-dim);min-width:9.5em}
-    .compare th[scope="row"],.compare thead td{position:sticky;left:0;z-index:1;background:var(--ink-2);border-right:1px solid var(--line)}
-    .compare th[scope="row"]{color:var(--mist);font-weight:700;width:11em;min-width:8em}
-    .compare .us{background:var(--panel);color:var(--mist)}
-    .compare thead th.us{box-shadow:inset 0 3px 0 var(--ember)}
-    @media (max-width:620px){
-      .compare{font-size:14.5px}
-      .compare th,.compare td{padding:10px 12px}
-      .compare th[scope="row"]{width:auto;min-width:7.5em;max-width:8.5em}
-      .compare td,.compare thead th{min-width:10em}
-    }
-    .lead-text{max-width:860px;margin:0 auto 24px;text-align:center;color:var(--mist-dim);font-size:17px}
-    /* The table's footnotes start at its left edge, as wide as reads well. */
-    .small{max-width:1040px;margin:14px 0 0;font-size:14.5px;color:var(--mist-dim);line-height:1.6}
-    .small + .small{margin-top:6px}
-
-    /* Moving your photos: plain paragraphs. */
-    .prose{max-width:860px;margin:0 auto;display:grid;gap:16px}
-    .prose p{margin:0;color:var(--mist-dim);font-size:16.5px;line-height:1.65}
-    .prose strong{color:var(--mist)}
-
-    .try{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px 16px}
-    .try-note{margin:14px auto 0;text-align:center}
+    {{- template "compare-style"}}
   </style>
 </head>
 <body>
@@ -165,15 +114,6 @@
                 <td>{{t "site.alt.cell.yes_agpl"}}</td>
                 <td>{{t "site.alt.cell.no"}}</td>
                 <td>{{t "site.alt.cell.yes_agpl"}}</td>
-              </tr>
-              <tr>
-                <th scope="row">{{t "site.alt.row.e2ee"}}</th>
-                <td class="us">{{t "site.alt.cell.e2ee_otc"}}</td>
-                <td>{{t "site.alt.cell.no"}}</td>
-                <td>{{t "site.alt.cell.e2ee_icloud"}}</td>
-                <td>{{t "site.alt.cell.e2ee_own"}}</td>
-                <td>{{t "site.alt.cell.e2ee_own"}}</td>
-                <td>{{t "site.alt.cell.yes"}}</td>
               </tr>
               <tr>
                 <th scope="row">{{t "site.alt.row.search"}}</th>
@@ -329,8 +269,8 @@
             <p>{{t "site.alt.faq.cost.a"}}</p>
           </details>
           <details>
-            <summary>{{t "site.alt.faq.e2ee.q"}}</summary>
-            <p>{{t "site.alt.faq.e2ee.a"}}</p>
+            <summary>{{t "site.alt.faq.private.q"}}</summary>
+            <p>{{t "site.alt.faq.private.a"}}</p>
           </details>
           <details>
             <summary>{{t "site.alt.faq.immich.q"}}</summary>

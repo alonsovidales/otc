@@ -49,7 +49,7 @@ type sitemapLink struct {
 	Href     string `xml:"href,attr"`
 }
 
-// Sitemap is /sitemap.xml: every public page (landing, comparison) in
+// Sitemap is /sitemap.xml: every public page (landing, comparisons) in
 // every carried language, each listing all of that page's language
 // versions and x-default, as the pages' own <link rel="alternate"> do;
 // then the English-only pages. No /en/ addresses (their canonical is the
@@ -107,7 +107,7 @@ var llmsText = struct {
 }{
 	summary: "site.landing.meta.description",
 	lead:    "site.landing.hero.lead",
-	glance:  []string{"what", "instead", "hardware", "storage", "apps", "cost", "privacy", "licence", "languages"},
+	glance:  []string{"what", "social", "files", "instead", "hardware", "storage", "apps", "cost", "privacy", "licence", "languages"},
 	links: []llmsLink{
 		{name: "Website", href: "/", key: "site.landing.what.lead"},
 		// The demo signs in by itself ("Try the demo"); its password is
@@ -118,11 +118,17 @@ var llmsText = struct {
 		{name: "otc-sync for Windows and Linux", href: desktopRelease, key: "site.landing.desktop.lead"},
 		{name: "Source code", href: repo},
 		{name: "Press fact sheet", href: factSheet},
+		{nameKey: "site.social.link", href: "/" + SocialSlug, key: "site.social.meta.description"},
 		{nameKey: "site.alt.link", href: "/" + AlternativeSlug, key: "site.alt.meta.description"},
+		{nameKey: "site.drive.link", href: "/" + DriveSlug, key: "site.drive.meta.description"},
 		{name: "Privacy notice", href: "/privacy"},
 		{name: "Terms of use", href: "/terms"},
 	},
 	questions: []string{
+		"site.landing.faq.social_how.q",
+		"site.landing.faq.friends_device.q",
+		"site.landing.faq.vs_instagram.q",
+		"site.landing.faq.vs_drive.q",
 		"site.landing.faq.vs_cloud.q",
 		"site.landing.faq.vs_selfhosted.q",
 		"site.landing.faq.hardware.q",

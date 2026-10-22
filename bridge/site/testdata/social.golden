@@ -1,0 +1,163 @@
+@html.lang=en
+Private family social network: an Instagram alternative | Off The Cloud
+@meta.description=Share photos and videos with family and friends on a social network that runs on your own device at home: no ads, no algorithm, no strangers. Compared with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed.
+@a.aria-label=Off The Cloud
+@a.href=/
+@img.src=/logo.png
+@img.alt=
+Off The Cloud
+@a.href=/#get-started
+@a.href=/#download
+@a.href=/#what
+@a.href=/#screenshots
+@a.href=/#faq
+@a.href=https://github.com/alonsovidales/otc
+Get started Download What it is Gallery FAQ GitHub
+@a.href=/account
+@a.href=/account?signup=1
+Sign in Create an account
+A private social network for your family, on a device you own
+Off The Cloud is free, open-source software that gives your family a social network of its own. You post photos and videos, comment and like, and only the friends you accept see them. Each family keeps its posts on its own small device at home, a Raspberry Pi 5, and friends' devices share them with each other, so no company holds your photos, shows you ads or decides what you see. The same device backs up your phones and keeps your files.
+@a.href=https://demo.off-the.cloud/
+Try the demo Look around a real device with a made-up family's photos and files. No sign-up.
+What your family gets
+A feed of the people you know. Photos and videos, several to a post, with a caption, comments and likes, newest first. Nothing suggested and nothing sponsored.
+Notifications that matter. Your phone tells you when someone accepts your friend request, likes or comments: nothing designed to keep you scrolling.
+Room for the whole family. Give each person an account on your device, with their own address, photo library and password, and be friends with each other in the feed.
+You decide what stays. Delete a post or a comment and it goes from your friends' devices too. Remove a friend and you can delete everything they shared with you, and ask their device to delete what you shared there.
+Links for everyone else. Send a collection to the grandparents as a link that expires: they open it in their browser, with no account or app, and can download the originals.
+Your photos, already safe. The same device backs up every phone in the family in full resolution and keeps your files, so what you post is already backed up at home.
+What's different from the big apps
+Nobody in between. Your posts are on your device, and your friends' devices fetch them from it. Our bridge relays the connection and keeps none of what passes through, so there's no company server holding everyone's photos.
+No ads, no algorithm, no AI training. Nothing is sold, nothing ranks your feed, and nothing you post is used to train AI models.
+Everyone has an account on a device. Each person in the feed has an account on an Off The Cloud device, their own or yours, with an off-the.cloud address. The bridge account that gives the addresses is free for two years, then €9.99 + VAT a year.
+No private messages, on purpose. With no chats or direct messages, there's less room for bullying or for a stranger to approach a child: what people share is posts and comments, and only with the friends they accept.
+Off The Cloud compared with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed
+How each one handles your photos and your family's privacy, as their own pages describe it.
+Off The Cloud
+Instagram
+Facebook
+WhatsApp
+FamilyAlbum
+Pixelfed
+Where your posts are kept
+On your own device at home
+On Meta's servers
+On Meta's servers
+On the phones in the chat; WhatsApp's servers delete them once delivered
+In FamilyAlbum's cloud, on Amazon and Google servers
+On the server you join or run, copied to your followers' servers
+Who sees what you post
+Only the friends you accept
+Anyone, or only your followers if your account is private
+The audience you pick for each post, from public to friends
+The people in the chat or group
+The people you invite to the album
+Public, unlisted or followers only, post by post
+Ads
+None
+Yes; in the EU and the UK you can pay to remove them
+Yes; in the EU and the UK you can pay to remove them
+In the Updates tab since 2025, not in chats
+In the free version; Premium removes them
+None
+What decides your feed
+Nothing: newest first
+An algorithm ranks it; the Following view shows newest first
+An algorithm ranks it; the Feeds tab shows the latest until you reopen the app
+No feed: chats and groups
+Photos in date order
+Nothing: newest first
+Used to train AI
+No
+Public posts and comments, unless you object
+Public posts and comments, unless you object
+Not private messages, unless someone shares them with Meta AI
+Its privacy policy doesn't say
+Not stated; public posts reach other servers
+Backs up your photos and files
+Yes: every phone in full resolution, and your files
+No
+No
+Only its own chats, to your cloud storage
+Only the photos you add to the album
+No
+Taking back what you shared
+Remove a friend and ask their device to delete what you shared
+Deleting your account removes your posts
+Deleting your account removes your posts; messages stay with friends
+Delete for everyone within about two days; copies saved on phones stay
+Deleted photos are removed within 30 days
+Deletions reach other servers, which may not apply them
+Private messages
+None, on purpose
+Yes
+Yes
+Yes
+Comments on photos
+Yes
+What it costs
+Free software on your own device; bridge free for two years, then €9.99 + VAT a year
+Free, paid for by ads
+Free, paid for by ads
+Free
+Free with ads; Premium from US$2.99 a month
+Free software; a server you run or join
+Open source
+Yes, AGPL-3.0
+No
+No
+No
+No
+Yes, AGPL-3.0
+What you need
+A Raspberry Pi 5 (8 GB), two USB drives and a computer to write its card; about 20 minutes
+Just the app
+Just the app
+Just the app
+Just the app
+A server with PHP, a database and Redis, or an account on someone else's
+Checked in October 2026. The other services' details come from their own help and policy pages, linked below.
+@a.href=https://help.instagram.com/1066482030107872
+@a.href=https://www.facebook.com/help/218728138156311
+@a.href=https://www.facebook.com/privacy/genai/
+@a.href=https://www.whatsapp.com/legal/privacy-policy
+@a.href=https://family-album.com/en/premium
+@a.href=https://docs.pixelfed.org/running-pixelfed/prerequisites.html
+Sources: Instagram · Facebook · Meta AI · WhatsApp · FamilyAlbum · Pixelfed
+Which one should you choose?
+Off The Cloud if you want a private place for your family and friends that nobody else owns, with your photos and files backed up at home on the same small device.
+Instagram or Facebook if you want to reach a wide audience or follow public accounts: they're free and everyone is already there, in exchange for ads, a ranked feed and public posts used to train Meta's AI unless you object.
+WhatsApp if you mainly want to chat: messages and calls, with photos that arrive in a chat rather than an album and live only on the phones.
+FamilyAlbum if you want a family album with nothing to set up: it's free with ads, keeps your photos in its own cloud, and its paid plan adds longer videos.
+Pixelfed if you want a public, ad-free Instagram alternative on the fediverse, and are happy to join a server or run one yourself.
+Bringing your family in
+Set up the device. The computer app prepares the Raspberry Pi 5's card, and you finish the setup from your phone over Bluetooth, in about 20 minutes. It asks for a bridge account, which gives your device its off-the.cloud address.
+Add the family. In the web app, under Settings › Users, add an account for each person with Request bridge access ticked. They choose their own password the first time they sign in.
+Add friends. In Friends, type the name of a friend's device, such as casa for casa.off-the.cloud, and send the request. Once they accept, your posts appear in each other's feed.
+Share with everyone else. Choose photos in Images, add them to a collection and share it as a link.
+See it before you buy anything
+@a.href=https://demo.off-the.cloud/
+@a.href=/#install
+Try the demo Get your device running
+Look around a real device with a made-up family's photos and files. No sign-up.
+FAQ
+Questions people actually ask
+Can my friends see my photo library?
+No. Friends see only what you post in the feed. Your photo library, your files and the other accounts on your device stay private: a friend's device can only fetch the photos and videos of your posts.
+Why are there no private messages?
+On purpose, to make the network safer, for children above all. Without chats or direct messages, there's less room for bullying or for a stranger to approach a child: what people share is posts and comments, and only the friends someone accepts see their posts or can comment on them. Nobody can be found by searching, either: there's no directory and no suggested friends, so a friend request needs the exact address.
+Does it work with Mastodon, Pixelfed or the fediverse?
+No. Off The Cloud devices only talk to each other: your posts never appear on the fediverse, and you can't follow fediverse accounts from it. That's part of what keeps it private: your posts are never public, and there's no search for strangers to find you with.
+What does it cost?
+The software is free and open source. You need a Raspberry Pi 5 and two USB drives, bought once, and an off-the.cloud address for everyone in the feed: the bridge account is free for its first two years, then €9.99 + VAT a year with up to five addresses, and the accounts you add for your family on your device don't count toward those five.
+© 2026 Off The Cloud · open source, self-hosted, yours.
+@a.href=https://github.com/alonsovidales/otc
+@a.href=https://github.com/alonsovidales/otc#readme
+@a.href=/private-social-network
+@a.href=/google-photos-alternative
+@a.href=/google-drive-alternative
+@a.href=/#contact
+@a.href=/privacy
+@a.href=/terms
+GitHub Documentation Compare it with: Instagram and Facebook · Google Photos and iCloud · Google Drive and Dropbox Contact Privacy Terms

@@ -1,0 +1,172 @@
+@html.lang=en
+Self-hosted Google Drive and Dropbox alternative | Off The Cloud
+@meta.description=Keep your family's files on a small NAS at home, in sync with your Mac, Windows and Linux computers and your phones, instead of Google Drive, Dropbox, iCloud Drive or Proton Drive.
+@a.aria-label=Off The Cloud
+@a.href=/
+@img.src=/logo.png
+@img.alt=
+Off The Cloud
+@a.href=/#get-started
+@a.href=/#download
+@a.href=/#what
+@a.href=/#screenshots
+@a.href=/#faq
+@a.href=https://github.com/alonsovidales/otc
+Get started Download What it is Gallery FAQ GitHub
+@a.href=/account
+@a.href=/account?signup=1
+Sign in Create an account
+A home NAS instead of Google Drive or Dropbox
+Off The Cloud is free, open-source software that turns a Raspberry Pi 5 with two USB drives into your family's own file storage: a NAS that keeps folders on your computers in sync, backs up your phones and shares files with a link, with no storage plan to pay for every month. The same device is your family's private social network and photo library.
+@a.href=https://demo.off-the.cloud/
+Try the demo Look around a real device with a made-up family's photos and files. No sign-up.
+What you keep from a cloud drive
+Folders in sync. The Mac, Windows and Linux apps keep the folders you choose in two-way sync with the device, or back them up one way, in the background.
+Your files on your phone. Browse, open, upload and share them from the iPhone and Android apps, or from any browser in the web app.
+Share links. Send files as a link that expires: whoever has it downloads them as a ZIP, with no account.
+Nothing lost by mistake. Make a folder upload-only and nothing in it can be deleted, from any app; a file uploaded again under the same name keeps its earlier version.
+Space for everyone. Each person in the family gets their own account, with their files encrypted under their own password.
+Faster at home. At home the apps talk to the device over your own network, so big folders sync at Wi-Fi speed instead of your internet connection's upload speed.
+What changes when your files come home
+You buy the hardware once. A Raspberry Pi 5 and two USB drives, mirrored so that each keeps a full copy. Your space is what one drive holds; when it fills up, you swap in bigger drives, one at a time, without stopping.
+A full backup is easy. The mirror protects you from a drive failing; for a copy kept somewhere else, take one drive out and put a new one in: the device fills the new one, and the one you took out is your backup.
+Away from home, through the bridge. Your apps reach the device through our relay (free for two years, then €9.99 + VAT a year) or Tailscale Funnel, with no ports to open on your router, or through your own VPN.
+More than a drive. The same device backs up every phone in the family in full resolution, keeps a photo library you can search, and runs your family's private social network.
+Off The Cloud compared with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud
+Where your files live, what they cost and what each one does, as their own pages describe it.
+Off The Cloud
+Google Drive
+Dropbox
+iCloud Drive
+Proton Drive
+Synology
+Nextcloud
+Where your files are kept
+At home, on hardware you own
+Google's data centres
+Dropbox's cloud, in the United States
+Apple's cloud
+Proton's own servers in Switzerland and Germany
+At home, on hardware you own
+On a server you run
+What it costs
+A Raspberry Pi 5 and two USB pen drives, bought once; optional bridge €9.99 + VAT a year after two free years
+15 GB free, shared with Gmail and Photos; 100 GB €1.99 or 2 TB €9.99 a month
+2 GB free; 2 TB €11.99 a month, or €9.99 a month paid yearly
+5 GB free; 200 GB €2.99 or 2 TB €9.99 a month
+5 GB free; 200 GB €4.99, 3 TB for six people €29.99 a month
+A Synology NAS and its drives, bought once
+Free software; the server and its drives are yours to buy
+How much space
+As big as one of your two drives, which hold the same copy
+Your plan's size
+Your plan's size
+Your plan's size
+Your plan's size
+As big as your drives
+As big as your drives
+Apps for Mac, Windows and Linux
+All three
+Mac and Windows; no Linux app
+All three
+Mac and Windows; no Linux app
+Mac and Windows; a Linux app is being built
+All three
+All three
+Phone apps that back up photos
+iPhone and Android
+Through Google Photos, on the same storage
+iPhone and Android
+iPhone and iPad only, through iCloud Photos
+iPhone and Android
+iPhone and Android
+iPhone and Android
+Earlier versions and deleted files
+Upload-only folders keep earlier versions, and nothing in them can be deleted
+Versions for 30 days or 100 versions; trash for 30 days
+30 days on personal plans
+Deleted files for 30 days
+Versions for up to 10 years on paid plans
+Up to 32 versions, a recycle bin and snapshots
+Versions, and deleted files for at least 30 days
+Share links with an expiry date
+Yes, through the bridge
+Only for work and school accounts
+Only on Essentials and business plans
+Links, but no expiry date documented
+Yes, with a password, free plan included
+Yes, with a password
+Yes, with a password
+What else it does
+Photo library with search, and a private social network
+Office apps in the browser; photos in Google Photos
+Photo backup from your phone
+Photos in iCloud Photos, on the same plan
+Photo backup from your phone
+Synology Photos and many other apps on the NAS
+Calendar, contacts, chat and office apps
+What you need
+A Raspberry Pi 5 (8 GB), two USB drives and a computer to write its card; about 20 minutes
+Nothing to set up: sign in
+Nothing to set up: sign in
+Nothing to set up: sign in
+Nothing to set up: sign in
+A Synology NAS and its drives
+A Linux server with PHP and a database, or Docker with a port open on your router
+Open source
+Yes, AGPL-3.0
+No
+No
+No
+Its apps, under the GPL
+No
+Yes, AGPL-3.0
+Prices checked in October 2026. Cloud prices are per month unless the cell says otherwise. Off The Cloud and Synology are bought once, and they also use some electricity.
+@a.href=https://one.google.com/about/plans
+@a.href=https://support.google.com/drive/answer/2375082
+@a.href=https://www.dropbox.com/plans
+@a.href=https://support.apple.com/en-us/108047
+@a.href=https://proton.me/drive/pricing
+@a.href=https://www.pcloud.com/cloud-storage-pricing-plans.html
+@a.href=https://mega.io/pricing
+@a.href=https://www.synology.com/en-global/dsm/7.4/software_spec/synology_drive
+@a.href=https://docs.nextcloud.com/server/latest/admin_manual/installation/system_requirements.html
+Sources: Google One · Google Drive · Dropbox · iCloud+ · Proton Drive · pCloud · MEGA · Synology Drive · Nextcloud
+Which one should you choose?
+Off The Cloud if you want your family's files at home, with no monthly plan, on a device that's easy to set up and also backs up your photos and runs your private social network.
+Google Drive if you live in Google's apps and edit documents together in the browser; it has no Linux app, and its space is shared with Gmail and Google Photos.
+Dropbox if you want the most familiar sync, Linux included, and don't mind a monthly plan; passwords and expiry dates on links need Essentials or a business plan.
+iCloud Drive if everyone in your family uses Apple devices: it's built in, with nothing to set up.
+Proton Drive if you want storage from a privacy-focused cloud company, with open-source apps; there's no Linux app yet.
+pCloud or MEGA if you'd rather avoid a monthly fee or want plenty of free space: pCloud sells lifetime plans, and MEGA gives 20 GB free.
+A Synology NAS if you want a traditional NAS, with network drives for your computers and many apps, and don't mind choosing its drives and setting it up.
+Nextcloud if you already run a server and want calendar, contacts and office apps too: it's free and open source, but installing it, reaching it from outside and backing it up are up to you.
+Moving your files over
+From Google Drive: download everything with Google Takeout, which can turn Google Docs, Sheets and Slides into ordinary files, such as OpenDocument or PDF. Unzip it on a computer and add that folder to the Mac, Windows or Linux app.
+From Dropbox, Proton Drive, pCloud and the like: if the service's app keeps a folder on your computer, make sure every file in it is downloaded, not online-only, then add that folder to the Mac, Windows or Linux app: every file goes to your device. Otherwise, download your files from the service's website first.
+From iCloud Drive: on a Mac, copy the files into a folder of your own, outside iCloud Drive, and add that folder to the Mac app.
+See it before you buy anything
+@a.href=https://demo.off-the.cloud/
+@a.href=/#install
+Try the demo Get your device running
+Look around a real device with a made-up family's photos and files. No sign-up.
+FAQ
+Questions people actually ask
+Can I open my files from my computer's file manager?
+Yes, through the sync app: the folders you add are ordinary folders on your computer, kept in sync with the device. What there isn't is a network drive (SMB) that opens the device's own storage directly, as a traditional NAS does.
+Are my files private?
+Yes. Your files are stored encrypted on the device's drives, with a key only your password unlocks, and the password itself is never stored on it. Each person in the family has their own account and key, and nothing is used for ads or to train AI.
+What happens if a drive fails?
+Nothing is lost: each of the two drives holds a full copy. The device carries on with the other one and tells you which to replace; put a new drive in its place and it copies everything back by itself.
+How much space do I get?
+As much as one of your two drives holds, since each keeps a full copy. To grow it, swap the drives for bigger ones, one at a time: the device copies everything onto each new drive, then grows by itself, without stopping.
+© 2026 Off The Cloud · open source, self-hosted, yours.
+@a.href=https://github.com/alonsovidales/otc
+@a.href=https://github.com/alonsovidales/otc#readme
+@a.href=/private-social-network
+@a.href=/google-photos-alternative
+@a.href=/google-drive-alternative
+@a.href=/#contact
+@a.href=/privacy
+@a.href=/terms
+GitHub Documentation Compare it with: Instagram and Facebook · Google Photos and iCloud · Google Drive and Dropbox Contact Privacy Terms

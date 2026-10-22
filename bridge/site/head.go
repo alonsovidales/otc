@@ -105,6 +105,12 @@ func newHead(d data, title, description string) (pageHead, error) {
 // nodes every page defines read the same wherever a crawler meets them.
 const softwareSummary = "site.landing.meta.description"
 
+// socialCategory is the software's schema.org application category: what
+// sets it apart is the private social network (its photo backup and file
+// storage are in its description), and the App Store files the apps under
+// Social Networking.
+const socialCategory = "SocialNetworkingApplication"
+
 // structuredData is the page's JSON-LD graph. Every node has the same @id
 // in every language; the WebPage is the page's own (its canonical address
 // and language). Every public page defines the Organization, the WebSite
@@ -129,25 +135,26 @@ func structuredData(d data, title, description string) map[string]any {
 	organization, website, software := siteNodes(d)
 	graph := []any{organization, website, page, software}
 	if d.Page == Landing {
-		app := func(typ, name, appName, os, url string) map[string]any {
+		app := func(typ, name, appName, os, category, url string) map[string]any {
 			return ldNode(d, typ, name, map[string]any{
 				"name":                appName,
 				"operatingSystem":     os,
-				"applicationCategory": "MultimediaApplication",
+				"applicationCategory": category,
 				"url":                 url,
 				"offers":              freeOffer(),
 				"isPartOf":            ldRef(d, "software"),
 				"publisher":           ldRef(d, "organization"),
 			})
 		}
-		desktop := app("SoftwareApplication", "app-desktop", "otc-sync", "Windows, Linux", desktopRelease)
+		desktop := app("SoftwareApplication", "app-desktop", "otc-sync", "Windows, Linux", "UtilitiesApplication", desktopRelease)
 		desktop["downloadUrl"] = desktopRelease
 		graph = append(graph,
 			// The App Store record has the iPhone, iPad and Mac apps (the
-			// iOS target builds for both device families).
-			app("MobileApplication", "app-ios", "Off The Cloud", "iOS, iPadOS", appStore),
-			app("MobileApplication", "app-android", "Off The Cloud", "Android", googlePlay),
-			app("SoftwareApplication", "app-mac", "Off The Cloud", "macOS", appStore),
+			// iOS target builds for both device families), filed under
+			// Social Networking like the software they reach.
+			app("MobileApplication", "app-ios", "Off The Cloud", "iOS, iPadOS", socialCategory, appStore),
+			app("MobileApplication", "app-android", "Off The Cloud", "Android", socialCategory, googlePlay),
+			app("SoftwareApplication", "app-mac", "Off The Cloud", "macOS", socialCategory, appStore),
 			desktop,
 			ldNode(d, "SoftwareSourceCode", "source", map[string]any{
 				"name":                "Off The Cloud",
@@ -192,7 +199,7 @@ func siteNodes(d data) (organization, website, software map[string]any) {
 		"name":                "Off The Cloud",
 		"url":                 d.Base + "/",
 		"description":         i18n.T(d.Lang, softwareSummary, nil),
-		"applicationCategory": "MultimediaApplication",
+		"applicationCategory": socialCategory,
 		"operatingSystem":     "Raspberry Pi OS, Debian, Ubuntu",
 		"isAccessibleForFree": true,
 		"license":             agpl,

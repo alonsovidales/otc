@@ -25,7 +25,11 @@ import (
 )
 
 // pages are every page the site renders.
-var pages = []string{Landing, Alternative, Disabled, Unavailable, Account}
+var pages = []string{Landing, Social, Alternative, Drive, Disabled, Unavailable, Account}
+
+// publicPages are the pages in the sitemap, in its order (localized's):
+// the landing page, then the comparison pages.
+var publicPages = []string{Landing, Social, Alternative, Drive}
 
 // shared is the file of definitions the public pages share: no page.
 const shared = "common.html"

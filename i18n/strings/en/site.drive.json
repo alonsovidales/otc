@@ -1,0 +1,427 @@
+{
+  "site.drive.cell.cost_dropbox": {
+    "text": "2 GB free; 2 TB €11.99 a month, or €9.99 a month paid yearly",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column. Prices: write them as your language writes them, and keep every number exact.",
+    "max": 110
+  },
+  "site.drive.cell.cost_google": {
+    "text": "15 GB free, shared with Gmail and Photos; 100 GB €1.99 or 2 TB €9.99 a month",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column. Photos here is Google Photos: use its local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French). Prices: write them as your language writes them, and keep every number exact.",
+    "max": 110
+  },
+  "site.drive.cell.cost_nextcloud": {
+    "text": "Free software; the server and its drives are yours to buy",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.cost_proton": {
+    "text": "5 GB free; 200 GB €4.99, 3 TB for six people €29.99 a month",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column. Prices: write them as your language writes them, and keep every number exact.",
+    "max": 110
+  },
+  "site.drive.cell.iphone_android": {
+    "text": "iPhone and Android",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.links_dropbox": {
+    "text": "Only on Essentials and business plans",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column. Essentials is a Dropbox plan's name: keep it.",
+    "max": 110
+  },
+  "site.drive.cell.links_google": {
+    "text": "Only for work and school accounts",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.links_icloud": {
+    "text": "Links, but no expiry date documented",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.links_password": {
+    "text": "Yes, with a password",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.links_proton": {
+    "text": "Yes, with a password, free plan included",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.mac_windows_linux": {
+    "text": "All three",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.more_dropbox": {
+    "text": "Photo backup from your phone",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.more_google": {
+    "text": "Office apps in the browser; photos in Google Photos",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French).",
+    "max": 110
+  },
+  "site.drive.cell.more_icloud": {
+    "text": "Photos in iCloud Photos, on the same plan",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column. iCloud Photos is Apple's own name for it in your language.",
+    "max": 110
+  },
+  "site.drive.cell.more_nextcloud": {
+    "text": "Calendar, contacts, chat and office apps",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.more_otc": {
+    "text": "Photo library with search, and a private social network",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.more_proton": {
+    "text": "Photo backup from your phone",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.more_synology": {
+    "text": "Synology Photos and many other apps on the NAS",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.no_linux": {
+    "text": "Mac and Windows; no Linux app",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.no_linux_yet": {
+    "text": "Mac and Windows; a Linux app is being built",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.open_proton": {
+    "text": "Its apps, under the GPL",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column. GPL: the GNU General Public License, an open-source licence.",
+    "max": 110
+  },
+  "site.drive.cell.own_server": {
+    "text": "On a server you run",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.phones_google": {
+    "text": "Through Google Photos, on the same storage",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French).",
+    "max": 110
+  },
+  "site.drive.cell.phones_icloud": {
+    "text": "iPhone and iPad only, through iCloud Photos",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column. iCloud Photos is Apple's own name for it in your language.",
+    "max": 110
+  },
+  "site.drive.cell.setup_nextcloud": {
+    "text": "A Linux server with PHP and a database, or Docker with a port open on your router",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column. PHP and Docker are software names.",
+    "max": 110
+  },
+  "site.drive.cell.versions_dropbox": {
+    "text": "30 days on personal plans",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.versions_google": {
+    "text": "Versions for 30 days or 100 versions; trash for 30 days",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.versions_icloud": {
+    "text": "Deleted files for 30 days",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.versions_nextcloud": {
+    "text": "Versions, and deleted files for at least 30 days",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.versions_otc": {
+    "text": "Upload-only folders keep earlier versions, and nothing in them can be deleted",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column. Upload-only folders: folders that nothing can be deleted from.",
+    "max": 110
+  },
+  "site.drive.cell.versions_proton": {
+    "text": "Versions for up to 10 years on paid plans",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.versions_synology": {
+    "text": "Up to 32 versions, a recycle bin and snapshots",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column. Snapshots: saved states of a folder that it can go back to.",
+    "max": 110
+  },
+  "site.drive.cell.where_dropbox": {
+    "text": "Dropbox's cloud, in the United States",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.cell.where_proton": {
+    "text": "Proton's own servers in Switzerland and Germany",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: a cell. Keep it short; it sits in a narrow column.",
+    "max": 110
+  },
+  "site.drive.change.backup": {
+    "text": "<b>A full backup is easy.</b> The mirror protects you from a drive failing; for a copy kept somewhere else, take one drive out and put a new one in: the device fills the new one, and the one you took out is your backup.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"What changes when your files come home\": one item. <b> marks its short title in bold.",
+    "rich": ["b"]
+  },
+  "site.drive.change.hardware": {
+    "text": "<b>You buy the hardware once.</b> A Raspberry Pi 5 and two USB drives, mirrored so that each keeps a full copy. Your space is what one drive holds; when it fills up, you swap in bigger drives, one at a time, without stopping.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"What changes when your files come home\": one item. <b> marks its short title in bold. Mirrored: the two drives hold the same files (RAID-1).",
+    "rich": ["b"]
+  },
+  "site.drive.change.more": {
+    "text": "<b>More than a drive.</b> The same device backs up every phone in the family in full resolution, keeps a photo library you can search, and runs your family's private social network.",
+    "note": "Website, the page comparing Off The Cloud with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"What changes when your files come home\": one item. <b> marks its short title in bold.",
+    "rich": ["b"]
+  },
+  "site.drive.change.remote": {
+    "text": "<b>Away from home, through the bridge.</b> Your apps reach the device through our relay (free for two years, then €9.99 + VAT a year) or Tailscale Funnel, with no ports to open on your router, or through your own VPN.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"What changes when your files come home\": one item. <b> marks its short title in bold. Tailscale Funnel is a product name. The bridge: our relay service. Commercial terms: keep the meaning exact. Prices: write them as your language writes euros (9,99 € in many languages), and keep every number exact.",
+    "rich": ["b"],
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #fceff2ee"
+  },
+  "site.drive.change.title": {
+    "text": "What changes when your files come home",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): heading of the list of what is different from a cloud drive.",
+    "max": 60
+  },
+  "site.drive.choose.dropbox": {
+    "text": "<b>Dropbox</b> if you want the most familiar sync, Linux included, and don't mind a monthly plan; passwords and expiry dates on links need Essentials or a business plan.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"Which one should you choose?\": one line per option. <b> marks the product name in bold. Essentials is a Dropbox plan's name: keep it.",
+    "rich": ["b"]
+  },
+  "site.drive.choose.google": {
+    "text": "<b>Google Drive</b> if you live in Google's apps and edit documents together in the browser; it has no Linux app, and its space is shared with Gmail and Google Photos.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"Which one should you choose?\": one line per option. <b> marks the product name in bold. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French).",
+    "rich": ["b"]
+  },
+  "site.drive.choose.icloud": {
+    "text": "<b>iCloud Drive</b> if everyone in your family uses Apple devices: it's built in, with nothing to set up.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"Which one should you choose?\": one line per option. <b> marks the product name in bold.",
+    "rich": ["b"]
+  },
+  "site.drive.choose.nextcloud": {
+    "text": "<b>Nextcloud</b> if you already run a server and want calendar, contacts and office apps too: it's free and open source, but installing it, reaching it from outside and backing it up are up to you.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"Which one should you choose?\": one line per option. <b> marks the product name in bold.",
+    "rich": ["b"]
+  },
+  "site.drive.choose.otc": {
+    "text": "<b>Off The Cloud</b> if you want your family's files at home, with no monthly plan, on a device that's easy to set up and also backs up your photos and runs your private social network.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"Which one should you choose?\": one line per option. <b> marks the product name in bold.",
+    "rich": ["b"]
+  },
+  "site.drive.choose.pcloud_mega": {
+    "text": "<b>pCloud or MEGA</b> if you'd rather avoid a monthly fee or want plenty of free space: pCloud sells lifetime plans, and MEGA gives 20 GB free.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"Which one should you choose?\": one line per option. <b> marks the product name in bold. Lifetime plans: paid once, for as long as the account lasts.",
+    "rich": ["b"]
+  },
+  "site.drive.choose.proton": {
+    "text": "<b>Proton Drive</b> if you want storage from a privacy-focused cloud company, with open-source apps; there's no Linux app yet.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"Which one should you choose?\": one line per option. <b> marks the product name in bold.",
+    "rich": ["b"]
+  },
+  "site.drive.choose.synology": {
+    "text": "<b>A Synology NAS</b> if you want a traditional NAS, with network drives for your computers and many apps, and don't mind choosing its drives and setting it up.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"Which one should you choose?\": one line per option. <b> marks the product name in bold. Network drives: shared folders a computer opens like a disk.",
+    "rich": ["b"]
+  },
+  "site.drive.choose.title": {
+    "text": "Which one should you choose?",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): heading of the list saying which option suits whom.",
+    "max": 60
+  },
+  "site.drive.compare.checked": {
+    "text": "Prices checked in October 2026. Cloud prices are per month unless the cell says otherwise. Off The Cloud and Synology are bought once, and they also use some electricity.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): small print under the comparison table. Synology is a product name. Bought once: paid for once, not every month."
+  },
+  "site.drive.compare.lead": {
+    "text": "Where your files live, what they cost and what each one does, as their own pages describe it.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): the sentence under the comparison table's heading."
+  },
+  "site.drive.compare.sources": {
+    "text": "Sources:",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): label before the list of links to each company's own pages that the table's facts come from (the links show product names). Punctuate as your language does (\"Sources :\" in French).",
+    "max": 20
+  },
+  "site.drive.compare.title": {
+    "text": "Off The Cloud compared with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): heading of the comparison table. Google Drive, Dropbox, iCloud Drive, Proton Drive, pCloud, MEGA, Synology and Nextcloud are product names: use the names the companies use in your language.",
+    "max": 110
+  },
+  "site.drive.faq.fails.a": {
+    "text": "Nothing is lost: each of the two drives holds a full copy. The device carries on with the other one and tells you which to replace; put a new drive in its place and it copies everything back by itself.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): questions at the bottom of the page: answer to \"What happens if a drive fails?\"."
+  },
+  "site.drive.faq.fails.q": {
+    "text": "What happens if a drive fails?",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): questions at the bottom of the page: a question."
+  },
+  "site.drive.faq.network.a": {
+    "text": "Yes, through the sync app: the folders you add are ordinary folders on your computer, kept in sync with the device. What there isn't is a network drive (SMB) that opens the device's own storage directly, as a traditional NAS does.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): questions at the bottom of the page: answer to \"Can I open my files from my computer's file manager?\". Network drive: a shared folder on the home network that a computer opens like a disk."
+  },
+  "site.drive.faq.network.q": {
+    "text": "Can I open my files from my computer's file manager?",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): questions at the bottom of the page: a question. File manager: the computer's own app for files (Finder on a Mac)."
+  },
+  "site.drive.faq.private.a": {
+    "text": "Yes. Your files are stored encrypted on the device's drives, with a key only your password unlocks, and the password itself is never stored on it. Each person in the family has their own account and key, and nothing is used for ads or to train AI.",
+    "note": "Website, the page comparing Off The Cloud with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): questions at the bottom of the page: answer to \"Are my files private?\". A privacy statement: keep its meaning exact.",
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #ab367330"
+  },
+  "site.drive.faq.private.q": {
+    "text": "Are my files private?",
+    "note": "Website, the page comparing Off The Cloud with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): questions at the bottom of the page: a question."
+  },
+  "site.drive.faq.space.a": {
+    "text": "As much as one of your two drives holds, since each keeps a full copy. To grow it, swap the drives for bigger ones, one at a time: the device copies everything onto each new drive, then grows by itself, without stopping.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): questions at the bottom of the page: answer to \"How much space do I get?\"."
+  },
+  "site.drive.faq.space.q": {
+    "text": "How much space do I get?",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): questions at the bottom of the page: a question."
+  },
+  "site.drive.hero.lead": {
+    "text": "Off The Cloud is free, open-source software that turns a Raspberry Pi 5 with two USB drives into your family's own file storage: a NAS that keeps folders on your computers in sync, backs up your phones and shares files with a link, with no storage plan to pay for every month. The same device is your family's private social network and photo library.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): the opening paragraph under the main heading. It is often quoted on its own, so keep it plain and complete. NAS: a storage device on the home network."
+  },
+  "site.drive.hero.title": {
+    "text": "A home NAS instead of Google Drive or Dropbox",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): the main heading at the top of the page. NAS: a storage device on the home network; keep NAS if your language uses it. Google Drive, Dropbox, iCloud Drive, Proton Drive, pCloud, MEGA, Synology and Nextcloud are product names: use the names the companies use in your language.",
+    "max": 70
+  },
+  "site.drive.keep.family": {
+    "text": "<b>Space for everyone.</b> Each person in the family gets their own account, with their files encrypted under their own password.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"What you keep from a cloud drive\": one item. <b> marks its short title in bold. A privacy statement: keep its meaning exact.",
+    "rich": ["b"],
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #f1b9a85a"
+  },
+  "site.drive.keep.fast": {
+    "text": "<b>Faster at home.</b> At home the apps talk to the device over your own network, so big folders sync at Wi-Fi speed instead of your internet connection's upload speed.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"What you keep from a cloud drive\": one item. <b> marks its short title in bold.",
+    "rich": ["b"]
+  },
+  "site.drive.keep.links": {
+    "text": "<b>Share links.</b> Send files as a link that expires: whoever has it downloads them as a ZIP, with no account.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"What you keep from a cloud drive\": one item. <b> marks its short title in bold.",
+    "rich": ["b"]
+  },
+  "site.drive.keep.phone": {
+    "text": "<b>Your files on your phone.</b> Browse, open, upload and share them from the iPhone and Android apps, or from any browser in the web app.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"What you keep from a cloud drive\": one item. <b> marks its short title in bold.",
+    "rich": ["b"]
+  },
+  "site.drive.keep.sync": {
+    "text": "<b>Folders in sync.</b> The Mac, Windows and Linux apps keep the folders you choose in two-way sync with the device, or back them up one way, in the background.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"What you keep from a cloud drive\": one item. <b> marks its short title in bold. Two-way sync: changes on the device and on the computer reach each other.",
+    "rich": ["b"]
+  },
+  "site.drive.keep.title": {
+    "text": "What you keep from a cloud drive",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): heading of the list of what stays the same after moving from a cloud drive (Google Drive, Dropbox...).",
+    "max": 60
+  },
+  "site.drive.keep.versions": {
+    "text": "<b>Nothing lost by mistake.</b> Make a folder upload-only and nothing in it can be deleted, from any app; a file uploaded again under the same name keeps its earlier version.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): list \"What you keep from a cloud drive\": one item. <b> marks its short title in bold.",
+    "rich": ["b"]
+  },
+  "site.drive.link": {
+    "text": "How it compares with Google Drive and Dropbox",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): text of the link to this page, after the main page's FAQ answer about Google Drive, Dropbox and Proton Drive. Google Drive, Dropbox, iCloud Drive, Proton Drive, pCloud, MEGA, Synology and Nextcloud are product names: use the names the companies use in your language.",
+    "max": 60
+  },
+  "site.drive.meta.description": {
+    "text": "Keep your family's files on a small NAS at home, in sync with your Mac, Windows and Linux computers and your phones, instead of Google Drive, Dropbox, iCloud Drive or Proton Drive.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): the description search engines show under the page title (meta description), not visible on the page. Use the words people in your language search with. NAS: a storage device on the home network. Google Drive, Dropbox, iCloud Drive, Proton Drive, pCloud, MEGA, Synology and Nextcloud are product names: use the names the companies use in your language.",
+    "max": 220
+  },
+  "site.drive.meta.title": {
+    "text": "Self-hosted Google Drive and Dropbox alternative | Off The Cloud",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): the page title shown in the browser tab and in search results. Write it the way people in your language search for it (an alternative to Google Drive; self-hosted: on your own device at home), not as a literal translation, and keep \"| Off The Cloud\" at the end. Google Drive, Dropbox, iCloud Drive, Proton Drive, pCloud, MEGA, Synology and Nextcloud are product names: use the names the companies use in your language.",
+    "max": 75
+  },
+  "site.drive.move.desktop": {
+    "text": "<b>From Dropbox, Proton Drive, pCloud and the like:</b> if the service's app keeps a folder on your computer, make sure every file in it is downloaded, not online-only, then add that folder to the Mac, Windows or Linux app: every file goes to your device. Otherwise, download your files from the service's website first.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): section \"Moving your files over\". <b> marks a short title in bold. Google Drive, Dropbox, iCloud Drive, Proton Drive, pCloud, MEGA, Synology and Nextcloud are product names: use the names the companies use in your language. Online-only: files a cloud drive's app shows but keeps only in the cloud until you open them.",
+    "rich": ["b"]
+  },
+  "site.drive.move.google": {
+    "text": "<b>From Google Drive:</b> download everything with Google Takeout, which can turn Google Docs, Sheets and Slides into ordinary files, such as OpenDocument or PDF. Unzip it on a computer and add that folder to the Mac, Windows or Linux app.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): section \"Moving your files over\". <b> marks a short title in bold. Google Drive, Dropbox, iCloud Drive, Proton Drive, pCloud, MEGA, Synology and Nextcloud are product names: use the names the companies use in your language. Google Docs, Sheets and Slides: use Google's own names for them in your language (for example Documentos, Hojas de cálculo y Presentaciones de Google).",
+    "rich": ["b"]
+  },
+  "site.drive.move.icloud": {
+    "text": "<b>From iCloud Drive:</b> on a Mac, copy the files into a folder of your own, outside iCloud Drive, and add that folder to the Mac app.",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): section \"Moving your files over\". <b> marks a short title in bold. iCloud Drive is Apple's product name: use Apple's name in your language.",
+    "rich": ["b"]
+  },
+  "site.drive.move.title": {
+    "text": "Moving your files over",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): heading of the section about bringing files from a cloud drive.",
+    "max": 60
+  },
+  "site.drive.row.computers": {
+    "text": "Apps for Mac, Windows and Linux",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: heading of a row (the first column). Whether it has sync apps for those computers.",
+    "max": 50
+  },
+  "site.drive.row.cost": {
+    "text": "What it costs",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: heading of a row (the first column).",
+    "max": 50
+  },
+  "site.drive.row.links": {
+    "text": "Share links with an expiry date",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: heading of a row (the first column). Links that let someone download files until a date you set.",
+    "max": 50
+  },
+  "site.drive.row.more": {
+    "text": "What else it does",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: heading of a row (the first column).",
+    "max": 50
+  },
+  "site.drive.row.open_source": {
+    "text": "Open source",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: heading of a row (the first column).",
+    "max": 50
+  },
+  "site.drive.row.phones": {
+    "text": "Phone apps that back up photos",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: heading of a row (the first column).",
+    "max": 50
+  },
+  "site.drive.row.setup": {
+    "text": "What you need",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: heading of a row (the first column).",
+    "max": 50
+  },
+  "site.drive.row.space": {
+    "text": "How much space",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: heading of a row (the first column).",
+    "max": 50
+  },
+  "site.drive.row.versions": {
+    "text": "Earlier versions and deleted files",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: heading of a row (the first column). How it keeps earlier versions of a file, and files deleted by mistake.",
+    "max": 50
+  },
+  "site.drive.row.where": {
+    "text": "Where your files are kept",
+    "note": "Website, the page comparing Off The Cloud as file storage (a NAS) with Google Drive, Dropbox, iCloud Drive, Proton Drive, Synology and Nextcloud (off-the.cloud/google-drive-alternative): comparison table: heading of a row (the first column).",
+    "max": 50
+  }
+}

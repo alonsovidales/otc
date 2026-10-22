@@ -1,0 +1,384 @@
+{
+  "site.social.cell.ads_familyalbum": {
+    "text": "In de gratis versie; Premium haalt ze weg",
+    "en": "In the free version; Premium removes them"
+  },
+  "site.social.cell.ads_meta": {
+    "text": "Ja; in de EU en het VK kun je betalen om ze te verwijderen",
+    "en": "Yes; in the EU and the UK you can pay to remove them"
+  },
+  "site.social.cell.ads_whatsapp": {
+    "text": "In het tabblad Updates sinds 2025, niet in chats",
+    "en": "In the Updates tab since 2025, not in chats"
+  },
+  "site.social.cell.ai_meta": {
+    "text": "Openbare berichten en reacties, tenzij je bezwaar maakt",
+    "en": "Public posts and comments, unless you object"
+  },
+  "site.social.cell.ai_pixelfed": {
+    "text": "Niet vermeld; openbare berichten komen op andere servers",
+    "en": "Not stated; public posts reach other servers"
+  },
+  "site.social.cell.ai_whatsapp": {
+    "text": "Privéberichten niet, tenzij iemand ze met Meta AI deelt",
+    "en": "Not private messages, unless someone shares them with Meta AI"
+  },
+  "site.social.cell.app_only": {
+    "text": "Alleen de app",
+    "en": "Just the app"
+  },
+  "site.social.cell.audience_facebook": {
+    "text": "Het publiek dat je per bericht kiest, van openbaar tot vrienden",
+    "en": "The audience you pick for each post, from public to friends"
+  },
+  "site.social.cell.audience_familyalbum": {
+    "text": "De mensen die je voor het fotoalbum uitnodigt",
+    "en": "The people you invite to the album"
+  },
+  "site.social.cell.audience_instagram": {
+    "text": "Iedereen, of alleen je volgers als je account privé is",
+    "en": "Anyone, or only your followers if your account is private"
+  },
+  "site.social.cell.audience_otc": {
+    "text": "Alleen de vrienden die je accepteert",
+    "en": "Only the friends you accept"
+  },
+  "site.social.cell.audience_pixelfed": {
+    "text": "Openbaar, niet openbaar vermeld of alleen volgers, per bericht",
+    "en": "Public, unlisted or followers only, post by post"
+  },
+  "site.social.cell.audience_whatsapp": {
+    "text": "De mensen in de chat of groep",
+    "en": "The people in the chat or group"
+  },
+  "site.social.cell.backup_familyalbum": {
+    "text": "Alleen de foto’s die je aan het fotoalbum toevoegt",
+    "en": "Only the photos you add to the album"
+  },
+  "site.social.cell.backup_otc": {
+    "text": "Ja: elke telefoon in volledige resolutie, en je bestanden",
+    "en": "Yes: every phone in full resolution, and your files"
+  },
+  "site.social.cell.backup_whatsapp": {
+    "text": "Alleen de eigen chats, naar je cloudopslag",
+    "en": "Only its own chats, to your cloud storage"
+  },
+  "site.social.cell.chat_familyalbum": {
+    "text": "Reacties op foto’s",
+    "en": "Comments on photos"
+  },
+  "site.social.cell.chat_otc": {
+    "text": "Bewust geen",
+    "en": "None, on purpose"
+  },
+  "site.social.cell.cost_familyalbum": {
+    "text": "Gratis met advertenties; Premium vanaf US$ 2,99 per maand",
+    "en": "Free with ads; Premium from US$2.99 a month"
+  },
+  "site.social.cell.cost_otc": {
+    "text": "Gratis software op je eigen apparaat; bridge twee jaar gratis, daarna € 9,99 + btw per jaar",
+    "en": "Free software on your own device; bridge free for two years, then €9.99 + VAT a year",
+    "reviewed": "claude-backtranslation 2026-10-22 #20973562"
+  },
+  "site.social.cell.cost_pixelfed": {
+    "text": "Gratis software; een server die je zelf draait of waar je lid van wordt",
+    "en": "Free software; a server you run or join"
+  },
+  "site.social.cell.feed_facebook": {
+    "text": "Een algoritme bepaalt de volgorde; het tabblad Feeds toont het nieuwste tot je de app opnieuw opent",
+    "en": "An algorithm ranks it; the Feeds tab shows the latest until you reopen the app"
+  },
+  "site.social.cell.feed_familyalbum": {
+    "text": "Foto’s op datum",
+    "en": "Photos in date order"
+  },
+  "site.social.cell.feed_instagram": {
+    "text": "Een algoritme bepaalt de volgorde; de weergave Volgend toont de nieuwste eerst",
+    "en": "An algorithm ranks it; the Following view shows newest first"
+  },
+  "site.social.cell.feed_whatsapp": {
+    "text": "Geen feed: chats en groepen",
+    "en": "No feed: chats and groups"
+  },
+  "site.social.cell.free": {
+    "text": "Gratis",
+    "en": "Free"
+  },
+  "site.social.cell.free_ads": {
+    "text": "Gratis, betaald met advertenties",
+    "en": "Free, paid for by ads"
+  },
+  "site.social.cell.leave_facebook": {
+    "text": "Je account verwijderen wist je berichten; privéberichten blijven bij vrienden",
+    "en": "Deleting your account removes your posts; messages stay with friends"
+  },
+  "site.social.cell.leave_familyalbum": {
+    "text": "Verwijderde foto’s worden binnen 30 dagen gewist",
+    "en": "Deleted photos are removed within 30 days"
+  },
+  "site.social.cell.leave_instagram": {
+    "text": "Je account verwijderen wist je berichten",
+    "en": "Deleting your account removes your posts"
+  },
+  "site.social.cell.leave_otc": {
+    "text": "Verwijder iemand uit je vrienden en vraag diens apparaat te verwijderen wat jij hebt gedeeld",
+    "en": "Remove a friend and ask their device to delete what you shared",
+    "reviewed": "claude-backtranslation 2026-10-22 #5d293612"
+  },
+  "site.social.cell.leave_pixelfed": {
+    "text": "Verwijderingen gaan naar andere servers, die ze misschien niet uitvoeren",
+    "en": "Deletions reach other servers, which may not apply them"
+  },
+  "site.social.cell.leave_whatsapp": {
+    "text": "“Verwijderen voor iedereen” binnen ongeveer twee dagen; op telefoons opgeslagen kopieën blijven",
+    "en": "Delete for everyone within about two days; copies saved on phones stay"
+  },
+  "site.social.cell.meta_servers": {
+    "text": "Op de servers van Meta",
+    "en": "On Meta's servers"
+  },
+  "site.social.cell.newest_first": {
+    "text": "Niets: nieuwste eerst",
+    "en": "Nothing: newest first"
+  },
+  "site.social.cell.none": {
+    "text": "Geen",
+    "en": "None"
+  },
+  "site.social.cell.not_stated": {
+    "text": "Staat niet in het privacybeleid",
+    "en": "Its privacy policy doesn't say"
+  },
+  "site.social.cell.own_device": {
+    "text": "Op je eigen apparaat thuis",
+    "en": "On your own device at home"
+  },
+  "site.social.cell.setup_pixelfed": {
+    "text": "Een server met PHP, een database en Redis, of een account op die van een ander",
+    "en": "A server with PHP, a database and Redis, or an account on someone else's"
+  },
+  "site.social.cell.where_familyalbum": {
+    "text": "In de cloud van FamilyAlbum, op servers van Amazon en Google",
+    "en": "In FamilyAlbum's cloud, on Amazon and Google servers"
+  },
+  "site.social.cell.where_pixelfed": {
+    "text": "Op de server waar je lid bent of die je draait, gekopieerd naar de servers van je volgers",
+    "en": "On the server you join or run, copied to your followers' servers"
+  },
+  "site.social.cell.where_whatsapp": {
+    "text": "Op de telefoons in de chat; de servers van WhatsApp wissen ze na aflevering",
+    "en": "On the phones in the chat; WhatsApp's servers delete them once delivered"
+  },
+  "site.social.choose.familyalbum": {
+    "text": "<b>FamilyAlbum</b> als je een familiealbum wilt zonder iets in te stellen: het is gratis met advertenties, bewaart je foto’s in een eigen cloud, en het betaalde abonnement voegt langere video’s toe.",
+    "en": "<b>FamilyAlbum</b> if you want a family album with nothing to set up: it's free with ads, keeps your photos in its own cloud, and its paid plan adds longer videos."
+  },
+  "site.social.choose.meta": {
+    "text": "<b>Instagram of Facebook</b> als je een groot publiek wilt bereiken of openbare accounts wilt volgen: ze zijn gratis en iedereen zit er al, in ruil voor advertenties, een gerangschikte feed en openbare berichten waarmee Meta zijn AI traint, tenzij je bezwaar maakt.",
+    "en": "<b>Instagram or Facebook</b> if you want to reach a wide audience or follow public accounts: they're free and everyone is already there, in exchange for ads, a ranked feed and public posts used to train Meta's AI unless you object."
+  },
+  "site.social.choose.otc": {
+    "text": "<b>Off The Cloud</b> als je een besloten plek wilt voor je familie en vrienden die van niemand anders is, met een reservekopie van je foto’s en bestanden thuis, op hetzelfde kleine apparaat.",
+    "en": "<b>Off The Cloud</b> if you want a private place for your family and friends that nobody else owns, with your photos and files backed up at home on the same small device."
+  },
+  "site.social.choose.pixelfed": {
+    "text": "<b>Pixelfed</b> als je een openbaar alternatief voor Instagram zonder advertenties op de fediverse wilt, en het geen probleem vindt om lid te worden van een server of er zelf een te draaien.",
+    "en": "<b>Pixelfed</b> if you want a public, ad-free Instagram alternative on the fediverse, and are happy to join a server or run one yourself."
+  },
+  "site.social.choose.title": {
+    "text": "Welke moet je kiezen?",
+    "en": "Which one should you choose?"
+  },
+  "site.social.choose.whatsapp": {
+    "text": "<b>WhatsApp</b> als je vooral wilt chatten: berichten sturen en bellen, met foto’s die in een chat terechtkomen in plaats van in een fotoalbum en alleen op de telefoons staan.",
+    "en": "<b>WhatsApp</b> if you mainly want to chat: messages and calls, with photos that arrive in a chat rather than an album and live only on the phones."
+  },
+  "site.social.compare.checked": {
+    "text": "Gecontroleerd in oktober 2026. De gegevens van de andere diensten komen uit hun eigen hulp- en beleidspagina’s, hieronder gelinkt.",
+    "en": "Checked in October 2026. The other services' details come from their own help and policy pages, linked below."
+  },
+  "site.social.compare.lead": {
+    "text": "Hoe elke dienst omgaat met je foto’s en de privacy van je familie, zoals hun eigen pagina’s het beschrijven.",
+    "en": "How each one handles your photos and your family's privacy, as their own pages describe it."
+  },
+  "site.social.compare.sources": {
+    "text": "Bronnen:",
+    "en": "Sources:"
+  },
+  "site.social.compare.title": {
+    "text": "Off The Cloud vergeleken met Instagram, Facebook, WhatsApp, FamilyAlbum en Pixelfed",
+    "en": "Off The Cloud compared with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed"
+  },
+  "site.social.diff.address": {
+    "text": "<b>Iedereen heeft een account op een apparaat.</b> Elke persoon in de feed heeft een account op een Off The Cloud-apparaat, een eigen apparaat of het jouwe, met een adres op off-the.cloud. Het bridgeaccount dat de adressen geeft, is twee jaar gratis en kost daarna € 9,99 + btw per jaar.",
+    "en": "<b>Everyone has an account on a device.</b> Each person in the feed has an account on an Off The Cloud device, their own or yours, with an off-the.cloud address. The bridge account that gives the addresses is free for two years, then €9.99 + VAT a year.",
+    "reviewed": "claude-backtranslation 2026-10-22 #b84f071f"
+  },
+  "site.social.diff.messenger": {
+    "text": "<b>Bewust geen privéberichten.</b> Zonder chats of directe berichten is er minder ruimte voor pesten, of voor een vreemde om een kind te benaderen: wat mensen delen, zijn berichten en reacties, en alleen met de vrienden die ze accepteren.",
+    "en": "<b>No private messages, on purpose.</b> With no chats or direct messages, there's less room for bullying or for a stranger to approach a child: what people share is posts and comments, and only with the friends they accept.",
+    "reviewed": "claude-backtranslation 2026-10-22 #23ebcb7c"
+  },
+  "site.social.diff.middle": {
+    "text": "<b>Niemand ertussen.</b> Je berichten staan op je apparaat, en de apparaten van je vrienden halen ze daar op. Onze bridge geeft de verbinding door en bewaart niets van wat er passeert, dus er is geen server van een bedrijf die ieders foto’s bewaart.",
+    "en": "<b>Nobody in between.</b> Your posts are on your device, and your friends' devices fetch them from it. Our bridge relays the connection and keeps none of what passes through, so there's no company server holding everyone's photos.",
+    "reviewed": "claude-backtranslation 2026-10-22 #444b197b"
+  },
+  "site.social.diff.no_ads": {
+    "text": "<b>Geen advertenties, geen algoritme, geen AI-training.</b> Er wordt niets verkocht, niets bepaalt de volgorde van je feed, en niets wat je plaatst, wordt gebruikt om AI-modellen te trainen.",
+    "en": "<b>No ads, no algorithm, no AI training.</b> Nothing is sold, nothing ranks your feed, and nothing you post is used to train AI models.",
+    "reviewed": "claude-backtranslation 2026-10-22 #e360dfc4"
+  },
+  "site.social.diff.title": {
+    "text": "Wat er anders is dan bij de grote apps",
+    "en": "What's different from the big apps"
+  },
+  "site.social.faq.cost.a": {
+    "text": "De software is gratis en open source. Je hebt een Raspberry Pi 5 en twee USB-schijven nodig, die je één keer koopt, en een adres op off-the.cloud voor iedereen in de feed: het bridgeaccount is de eerste twee jaar gratis en kost daarna € 9,99 + btw per jaar, met maximaal vijf adressen, en de accounts die je op je apparaat voor je gezin toevoegt, tellen niet mee voor die vijf.",
+    "en": "The software is free and open source. You need a Raspberry Pi 5 and two USB drives, bought once, and an off-the.cloud address for everyone in the feed: the bridge account is free for its first two years, then €9.99 + VAT a year with up to five addresses, and the accounts you add for your family on your device don't count toward those five.",
+    "reviewed": "claude-backtranslation 2026-10-22 #67f71749"
+  },
+  "site.social.faq.cost.q": {
+    "text": "Wat kost het?",
+    "en": "What does it cost?"
+  },
+  "site.social.faq.fediverse.a": {
+    "text": "Nee. Off The Cloud-apparaten praten alleen met elkaar: je berichten verschijnen nooit op de fediverse, en je kunt er geen accounts op de fediverse mee volgen. Dat is een deel van wat het privé houdt: je berichten zijn nooit openbaar, en er is geen zoekfunctie waarmee vreemden je kunnen vinden.",
+    "en": "No. Off The Cloud devices only talk to each other: your posts never appear on the fediverse, and you can't follow fediverse accounts from it. That's part of what keeps it private: your posts are never public, and there's no search for strangers to find you with."
+  },
+  "site.social.faq.fediverse.q": {
+    "text": "Werkt het met Mastodon, Pixelfed of de fediverse?",
+    "en": "Does it work with Mastodon, Pixelfed or the fediverse?"
+  },
+  "site.social.faq.library.a": {
+    "text": "Nee. Vrienden zien alleen wat je in de feed plaatst. Je fotobibliotheek, je bestanden en de andere accounts op je apparaat blijven privé: de apparaten van je vrienden kunnen alleen de foto’s en video’s van je berichten ophalen.",
+    "en": "No. Friends see only what you post in the feed. Your photo library, your files and the other accounts on your device stay private: a friend's device can only fetch the photos and videos of your posts.",
+    "reviewed": "claude-backtranslation 2026-10-22 #9f15ef82"
+  },
+  "site.social.faq.library.q": {
+    "text": "Kunnen mijn vrienden mijn fotobibliotheek zien?",
+    "en": "Can my friends see my photo library?"
+  },
+  "site.social.faq.messages.a": {
+    "text": "Bewust, om het netwerk veiliger te maken, vooral voor kinderen. Zonder chats of directe berichten is er minder ruimte voor pesten, of voor een vreemde om een kind te benaderen: wat mensen delen, zijn berichten en reacties, en alleen de vrienden die iemand accepteert, zien diens berichten of kunnen erop reageren. Ook is niemand te vinden door te zoeken: er is geen ledenlijst en er zijn geen voorgestelde vrienden, dus voor een vriendschapsverzoek is het exacte adres nodig.",
+    "en": "On purpose, to make the network safer, for children above all. Without chats or direct messages, there's less room for bullying or for a stranger to approach a child: what people share is posts and comments, and only the friends someone accepts see their posts or can comment on them. Nobody can be found by searching, either: there's no directory and no suggested friends, so a friend request needs the exact address.",
+    "reviewed": "claude-backtranslation 2026-10-22 #1a3ccd70"
+  },
+  "site.social.faq.messages.q": {
+    "text": "Waarom zijn er geen privéberichten?",
+    "en": "Why are there no private messages?"
+  },
+  "site.social.get.alerts": {
+    "text": "<b>Pushmeldingen die ertoe doen.</b> Je telefoon laat je weten als iemand je vriendschapsverzoek accepteert, iets leuk vindt of reageert: niets wat is bedacht om je te laten blijven scrollen.",
+    "en": "<b>Notifications that matter.</b> Your phone tells you when someone accepts your friend request, likes or comments: nothing designed to keep you scrolling."
+  },
+  "site.social.get.backup": {
+    "text": "<b>Je foto’s, al veilig.</b> Hetzelfde apparaat maakt van elke telefoon in het gezin een reservekopie in volledige resolutie en bewaart je bestanden, dus van wat je plaatst, staat thuis al een reservekopie.",
+    "en": "<b>Your photos, already safe.</b> The same device backs up every phone in the family in full resolution and keeps your files, so what you post is already backed up at home."
+  },
+  "site.social.get.family": {
+    "text": "<b>Ruimte voor het hele gezin.</b> Geef elke persoon een account op je apparaat, met een eigen adres, een eigen fotobibliotheek en een eigen wachtwoord, en word in de feed vrienden met elkaar.",
+    "en": "<b>Room for the whole family.</b> Give each person an account on your device, with their own address, photo library and password, and be friends with each other in the feed."
+  },
+  "site.social.get.feed": {
+    "text": "<b>Een feed van mensen die je kent.</b> Foto’s en video’s, meerdere per bericht, met een bijschrift, reacties en likes, de nieuwste eerst. Niets voorgesteld en niets gesponsord.",
+    "en": "<b>A feed of the people you know.</b> Photos and videos, several to a post, with a caption, comments and likes, newest first. Nothing suggested and nothing sponsored."
+  },
+  "site.social.get.leave": {
+    "text": "<b>Jij bepaalt wat blijft.</b> Verwijder een bericht of een reactie, en het verdwijnt ook van de apparaten van je vrienden. Verwijder iemand uit je vrienden, en je kunt alles verwijderen wat die persoon met je heeft gedeeld, en het apparaat van die persoon vragen te verwijderen wat jij daar hebt gedeeld.",
+    "en": "<b>You decide what stays.</b> Delete a post or a comment and it goes from your friends' devices too. Remove a friend and you can delete everything they shared with you, and ask their device to delete what you shared there.",
+    "reviewed": "claude-backtranslation 2026-10-22 #88acaf99"
+  },
+  "site.social.get.links": {
+    "text": "<b>Links voor alle anderen.</b> Stuur een collectie naar opa en oma als een link die verloopt: ze openen die in hun browser, zonder account of app, en kunnen de originelen downloaden.",
+    "en": "<b>Links for everyone else.</b> Send a collection to the grandparents as a link that expires: they open it in their browser, with no account or app, and can download the originals."
+  },
+  "site.social.get.title": {
+    "text": "Wat je familie eraan heeft",
+    "en": "What your family gets"
+  },
+  "site.social.hero.lead": {
+    "text": "Off The Cloud is gratis opensourcesoftware die je familie een eigen sociaal netwerk geeft. Je plaatst foto’s en video’s, reageert en liket, en alleen de vrienden die je accepteert, zien ze. Elk gezin bewaart zijn berichten op een eigen klein apparaat thuis, een Raspberry Pi 5, en de apparaten van vrienden delen ze met elkaar, dus geen enkel bedrijf bewaart je foto’s, toont je advertenties of bepaalt wat je ziet. Hetzelfde apparaat maakt reservekopieën van je telefoons en bewaart je bestanden.",
+    "en": "Off The Cloud is free, open-source software that gives your family a social network of its own. You post photos and videos, comment and like, and only the friends you accept see them. Each family keeps its posts on its own small device at home, a Raspberry Pi 5, and friends' devices share them with each other, so no company holds your photos, shows you ads or decides what you see. The same device backs up your phones and keeps your files."
+  },
+  "site.social.hero.title": {
+    "text": "Een besloten sociaal netwerk voor je familie, op een apparaat van jou",
+    "en": "A private social network for your family, on a device you own"
+  },
+  "site.social.link": {
+    "text": "Hoe het zich verhoudt tot Instagram en Facebook",
+    "en": "How it compares with Instagram and Facebook"
+  },
+  "site.social.meta.description": {
+    "text": "Deel foto’s en video’s met familie en vrienden op een sociaal netwerk dat op je eigen apparaat thuis draait: geen advertenties, geen algoritme, geen vreemden. Vergeleken met Instagram, Facebook, WhatsApp, FamilyAlbum en Pixelfed.",
+    "en": "Share photos and videos with family and friends on a social network that runs on your own device at home: no ads, no algorithm, no strangers. Compared with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed."
+  },
+  "site.social.meta.title": {
+    "text": "Privé sociaal netwerk voor familie: Instagram-alternatief | Off The Cloud",
+    "en": "Private family social network: an Instagram alternative | Off The Cloud"
+  },
+  "site.social.row.ads": {
+    "text": "Advertenties",
+    "en": "Ads"
+  },
+  "site.social.row.ai": {
+    "text": "Gebruikt om AI te trainen",
+    "en": "Used to train AI"
+  },
+  "site.social.row.audience": {
+    "text": "Wie ziet wat je plaatst",
+    "en": "Who sees what you post"
+  },
+  "site.social.row.backup": {
+    "text": "Reservekopie van je foto’s en bestanden",
+    "en": "Backs up your photos and files"
+  },
+  "site.social.row.chat": {
+    "text": "Privéberichten",
+    "en": "Private messages"
+  },
+  "site.social.row.cost": {
+    "text": "Wat het kost",
+    "en": "What it costs"
+  },
+  "site.social.row.feed": {
+    "text": "Wat je feed bepaalt",
+    "en": "What decides your feed"
+  },
+  "site.social.row.leave": {
+    "text": "Terugnemen wat je hebt gedeeld",
+    "en": "Taking back what you shared"
+  },
+  "site.social.row.open_source": {
+    "text": "Open source",
+    "en": "Open source"
+  },
+  "site.social.row.setup": {
+    "text": "Wat je nodig hebt",
+    "en": "What you need"
+  },
+  "site.social.row.where": {
+    "text": "Waar je berichten worden bewaard",
+    "en": "Where your posts are kept"
+  },
+  "site.social.start.accounts": {
+    "text": "<b>Voeg je gezin toe.</b> Voeg in de webapp, onder Instellingen › Gebruikers, voor elke persoon een account toe met <em>Toegang tot de bridge aanvragen</em> aangevinkt. Die persoon kiest de eerste keer bij het inloggen een eigen wachtwoord.",
+    "en": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked. They choose their own password the first time they sign in."
+  },
+  "site.social.start.device": {
+    "text": "<b>Stel het apparaat in.</b> De computerapp maakt de kaart van de Raspberry Pi 5 klaar, en je rondt de configuratie af vanaf je telefoon via Bluetooth, in ongeveer 20 minuten. Daarbij wordt om een bridgeaccount gevraagd, dat je apparaat zijn adres op off-the.cloud geeft.",
+    "en": "<b>Set up the device.</b> The computer app prepares the Raspberry Pi 5's card, and you finish the setup from your phone over Bluetooth, in about 20 minutes. It asks for a bridge account, which gives your device its off-the.cloud address."
+  },
+  "site.social.start.friends": {
+    "text": "<b>Voeg vrienden toe.</b> Typ in Vrienden de naam van het apparaat van de ander, zoals casa voor casa.off-the.cloud, en stuur het verzoek. Zodra het is geaccepteerd, verschijnen jullie berichten in elkaars feed.",
+    "en": "<b>Add friends.</b> In Friends, type the name of a friend's device, such as casa for casa.off-the.cloud, and send the request. Once they accept, your posts appear in each other's feed."
+  },
+  "site.social.start.links": {
+    "text": "<b>Deel met alle anderen.</b> Kies foto’s in Afbeeldingen, voeg ze toe aan een collectie en deel die als link.",
+    "en": "<b>Share with everyone else.</b> Choose photos in Images, add them to a collection and share it as a link."
+  },
+  "site.social.start.title": {
+    "text": "Je familie erbij halen",
+    "en": "Bringing your family in"
+  }
+}

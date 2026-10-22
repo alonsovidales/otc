@@ -283,6 +283,18 @@
     "text": "¿Puedo usar Off The Cloud gratis?",
     "en": "Can I use Off The Cloud for free?"
   },
+  "site.landing.faq.friends_device.p1": {
+    "text": "No necesariamente. En tu dispositivo puedes añadir una cuenta para cada familiar, o para una amistad cercana, con su propia copia de seguridad de fotos, su propia biblioteca y su propia contraseña. Con una dirección de off-the.cloud propia, esa cuenta funciona desde cualquier lugar en las mismas apps, y podéis ser amigos en el feed. Recomendamos no pasar de cinco cuentas en un mismo dispositivo (consulta más abajo la pregunta sobre las cuentas familiares).",
+    "en": "Not necessarily. On your device you can add an account for each family member, or for a close friend, with their own photo backup, library and password. With an off-the.cloud address of its own, an account works from anywhere in the same apps and can be your friend in the feed. We recommend no more than five accounts on one device (see the question about family accounts below)."
+  },
+  "site.landing.faq.friends_device.p2": {
+    "text": "Los amigos que también quieran tener sus fotos y archivos en casa configuran su propio dispositivo: el software es el mismo, y es gratuito. Cada persona del feed necesita una dirección de off-the.cloud, que viene con el puente (consulta más abajo la pregunta sobre el puente), salvo que todos uséis un puente propio. A quien no tenga ninguna cuenta, envíale una colección como enlace: la abre en su navegador, sin ninguna app.",
+    "en": "Friends who want their photos and files at home too set up a device of their own: the software is the same, and free. Everyone in the feed needs an off-the.cloud address, which comes with the bridge (see the question about the bridge below), unless you all use a bridge of your own. For people with no account at all, send a collection as a link: they open it in their browser, with no app."
+  },
+  "site.landing.faq.friends_device.q": {
+    "text": "¿Mi familia y mis amigos necesitan su propio dispositivo?",
+    "en": "Do my friends and family need a device of their own?"
+  },
   "site.landing.faq.from_google.p1": {
     "text": "No hay un importador de Google Fotos. La app para iPhone o Android hace copia de seguridad de las fotos y los vídeos que siguen en tu teléfono como de todos los demás, con sus fechas. Para el resto, descarga tu biblioteca con Google Takeout, descomprímela en un ordenador y haz copia de seguridad de esa carpeta con la <download>app para Mac, Windows o Linux</download>: las fotos y los vídeos llegan a tu dispositivo y aparecen en Imágenes, etiquetados y listos para buscarlos.",
     "en": "There's no Google Photos importer. Photos and videos still on your phone are backed up by the iPhone or Android app like any others, with their dates. For the rest, download your library with Google Takeout, unzip it on a computer and back up that folder with the <download>Mac, Windows or Linux app</download>: the photos and videos go to your device and appear in Images, tagged and searchable."
@@ -567,6 +579,24 @@
     "text": "¿Y si no quiero la parte de red social?",
     "en": "What if I don't want the social network part?"
   },
+  "site.landing.faq.social_how.p1": {
+    "text": "Cada persona que forma parte de ella tiene su propia dirección, como <code>casa.off-the.cloud</code>, y añades a tus amigos por el nombre de su dispositivo. Cuando aceptan, cada uno ve las publicaciones del otro en Social, en las apps del teléfono y en la app web: fotos y vídeos con pie de foto, comentarios y Me gusta, primero lo más reciente, y una notificación cuando alguien da Me gusta o comenta. No se sugiere ni se promociona nada, y no hay anuncios.",
+    "en": "Everyone in it has an address of their own, like <code>casa.off-the.cloud</code>, and you add friends by their device's name. Once they accept, you see each other's posts in Social, in the phone apps and the web app: photos and videos with a caption, comments and likes, newest first, and a notification when someone likes or comments. Nothing is suggested or promoted, and there are no ads."
+  },
+  "site.landing.faq.social_how.p2": {
+    "text": "Tus publicaciones se guardan en tu propio dispositivo, y los dispositivos de tus amigos las obtienen de él, así que no hay ningún servidor central que guarde las publicaciones de todos. Los dispositivos se conectan entre sí a través del puente, que retransmite la conexión sin guardar nada de lo que pasa por él. Si dejáis de ser amigos, puedes eliminar de tu dispositivo todo lo que esa persona ha compartido contigo y pedir a su dispositivo que elimine lo que tú has compartido allí.",
+    "en": "Your posts are kept on your own device, and your friends' devices fetch them from it, so there's no central server holding everyone's posts. Devices reach each other through the bridge, which relays the connection without keeping anything that passes through. If you stop being friends, you can remove everything they shared from your device, and ask their device to delete what you shared there.",
+    "reviewed": "claude-backtranslation 2026-10-22 #38fae9a6"
+  },
+  "site.landing.faq.social_how.p3": {
+    "text": "No hay mensajes privados ni chats, a propósito: así queda menos margen para el acoso o para que un desconocido se acerque a un niño. Es un feed para compartir fotos y vídeos con las personas que tú eliges.",
+    "en": "There are no private messages or chats, on purpose: it leaves less room for bullying or for a stranger to approach a child. It's a feed for sharing photos and videos with the people you choose.",
+    "reviewed": "claude-backtranslation 2026-10-22 #3717ca9a"
+  },
+  "site.landing.faq.social_how.q": {
+    "text": "¿Cómo funciona la red social privada?",
+    "en": "How does the private social network work?"
+  },
   "site.landing.faq.speed.a": {
     "text": "En casa suele ser mucho más rápido. Las apps para iPhone, Android, Mac y Windows/Linux se conectan directamente a tu dispositivo a través de tu propia red, Wi-Fi o por cable, así que las copias de seguridad, las subidas grandes y los vídeos van a la velocidad de la red local. Un servicio en la nube tiene que enviar cada archivo a través de la conexión a internet de tu casa, cuya velocidad de subida suele ser una pequeña fracción de la de tu red Wi-Fi. Fuera de casa, las apps pasan por el puente como siempre. La conexión en casa está cifrada y se comprueba con la propia clave de tu dispositivo, así que nunca se envía nada a una máquina que se haga pasar por la tuya.",
     "en": "At home it's usually much faster. The iPhone, Android, Mac and Windows/Linux apps connect straight to your device over your own Wi-Fi or network, so backups, big uploads and videos move at local-network speed. A cloud service has to push every file through your home internet connection, whose upload speed is often a small fraction of your Wi-Fi's. Away from home, the apps go through the Bridge as usual. The home connection is encrypted and checked against your device's own key, so nothing is ever sent to a machine pretending to be yours.",
@@ -586,9 +616,9 @@
     "en": "How do I get more storage?"
   },
   "site.landing.faq.third_parties.bridge": {
-    "text": "<b>El puente</b> (gestionado por nosotros, en servidores de OVH en Francia), si lo usas: tu cuenta (correo electrónico, nombre, apellidos y país), los nombres de tus dispositivos (como casa.off-the.cloud), cuándo accedió una app por última vez a cada dispositivo, los totales de tráfico por hora (nunca el contenido) y, durante 90 días, la dirección de internet de los intentos fallidos de conectarse como tu dispositivo. Las conexiones con él están cifradas, pero el puente las descifra y las vuelve a cifrar al pasar, así que no tienen cifrado de extremo a extremo; no se guarda nada de lo que pasa por él. Un dispositivo sin el puente solo contacta con él durante la configuración.",
-    "en": "<b>The bridge</b> (run by us, on OVH servers in France), if you use it: your account (email, name, surname and country), your devices' names (such as casa.off-the.cloud), when an app last reached each device, hourly traffic totals (never the content) and, for 90 days, the internet address of failed attempts to connect as your device. Connections to it are encrypted, but the bridge decrypts and re-encrypts them as they pass through, so they are not end-to-end encrypted; nothing that passes through is stored. A device without the bridge only contacts it during setup.",
-    "reviewed": "claude-backtranslation 2026-10-11 #e1eb7428"
+    "text": "<b>El puente</b> (gestionado por nosotros, en servidores de OVH en Francia), si lo usas: tu cuenta (correo electrónico, nombre, apellidos y país), los nombres de tus dispositivos (como casa.off-the.cloud), cuándo accedió una app por última vez a cada dispositivo, los totales de tráfico por hora (nunca el contenido) y, durante 90 días, la dirección de internet de los intentos fallidos de conectarse como tu dispositivo. Las conexiones con él están cifradas, y no se guarda nada de lo que pasa por él. Un dispositivo sin el puente solo contacta con él durante la configuración.",
+    "en": "<b>The bridge</b> (run by us, on OVH servers in France), if you use it: your account (email, name, surname and country), your devices' names (such as casa.off-the.cloud), when an app last reached each device, hourly traffic totals (never the content) and, for 90 days, the internet address of failed attempts to connect as your device. Connections to it are encrypted, and nothing that passes through is stored. A device without the bridge only contacts it during setup.",
+    "reviewed": "claude-backtranslation 2026-10-22 #00c3fcb5"
   },
   "site.landing.faq.third_parties.github": {
     "text": "<b>GitHub</b> sirve el software del dispositivo y sus actualizaciones; al instalar o actualizar, el dispositivo también descarga componentes del servidor espejo del lenguaje Go, gestionado por Google, paquetes de los repositorios de su sistema operativo y de Tailscale y, la primera vez, sus modelos de IA desde Hugging Face y GitHub. Como en cualquier descarga, estos servicios ven la dirección de internet de tu casa.",
@@ -655,6 +685,31 @@
   "site.landing.faq.vs_cloud.q": {
     "text": "¿En qué se diferencia de Google Fotos o iCloud?",
     "en": "How is it different from Google Photos or iCloud?"
+  },
+  "site.landing.faq.vs_drive.p1": {
+    "text": "Para tus propios archivos, sí. Archivos, en la app web y en las apps del teléfono, funciona como un disco en la nube: carpetas, subidas y descargas, mover y renombrar, y enlaces para compartir que caducan. Las apps para Mac, Windows y Linux mantienen las carpetas que elijas sincronizadas en ambos sentidos con el dispositivo, o hacen copia de seguridad de ellas, y de una carpeta de solo subida no se puede eliminar nada y, cuando se vuelve a subir un archivo, se conserva su versión anterior.",
+    "en": "For your own files, yes. Files, in the web app and the phone apps, works like a drive: folders, uploads and downloads, moving and renaming, and share links that expire. The Mac, Windows and Linux apps keep chosen folders in two-way sync with the device or back them up, and a folder made upload-only can't have anything deleted from it and keeps the earlier version of a file uploaded again."
+  },
+  "site.landing.faq.vs_drive.p2": {
+    "text": "Tienes tanto espacio como quepa en uno de tus dos discos, sin planes que ampliar: cuando se llenan, los cambias por otros más grandes.",
+    "en": "You get as much space as one of your two drives holds, with no plan to upgrade: when they fill up, you swap them for bigger ones."
+  },
+  "site.landing.faq.vs_drive.q": {
+    "text": "¿Puede sustituir a Google Drive, Dropbox o Proton Drive?",
+    "en": "Can it replace Google Drive, Dropbox or Proton Drive?"
+  },
+  "site.landing.faq.vs_instagram.p1": {
+    "text": "Instagram y Facebook son gratis porque los paga la publicidad: tus publicaciones se guardan en los servidores de Meta, un algoritmo ordena lo que ves y Meta usa las publicaciones y los comentarios públicos para entrenar su IA, salvo que te opongas. En Off The Cloud, tus publicaciones están en tu propio dispositivo, solo las ven los amigos que aceptas, el feed muestra simplemente primero lo más reciente y nada se usa para publicidad ni para entrenar IA.",
+    "en": "Instagram and Facebook are free because advertising pays for them: your posts are kept on Meta's servers, an algorithm ranks what you see, and Meta uses public posts and comments to train its AI unless you object. On Off The Cloud your posts are on your own device, only the friends you accept see them, the feed is simply newest first, and nothing is used for ads or to train AI.",
+    "reviewed": "claude-backtranslation 2026-10-22 #95bb69dd"
+  },
+  "site.landing.faq.vs_instagram.p2": {
+    "text": "Además, está pensado para un círculo más pequeño: no para conseguir audiencia ni seguir a desconocidos, sino para la familia y los amigos a los que enseñarías tus fotos en casa.",
+    "en": "It's also made for a smaller circle: not for building an audience or following strangers, but for the family and friends you'd show your photos to at home."
+  },
+  "site.landing.faq.vs_instagram.q": {
+    "text": "¿En qué se diferencia de Instagram o Facebook?",
+    "en": "How is it different from Instagram or Facebook?"
   },
   "site.landing.faq.vs_selfhosted.li1": {
     "text": "Se instala desde una app: la app para ordenador prepara la tarjeta de la Raspberry Pi, y la configuración termina por Bluetooth desde tu teléfono o tu Mac, sin usar el terminal.",
@@ -724,9 +779,21 @@
     "text": "iPhone y iPad, Android, Mac, Windows y Linux, además de una app web en tu navegador",
     "en": "iPhone and iPad, Android, Mac, Windows and Linux, plus a web app in your browser"
   },
-  "site.landing.glance.compare": {
-    "text": "Compáralo con Google Fotos, iCloud, Immich y otros",
-    "en": "Compare it with Google Photos, iCloud, Immich and others"
+  "site.landing.glance.compare_drive": {
+    "text": "Google Drive y Dropbox",
+    "en": "Google Drive and Dropbox"
+  },
+  "site.landing.glance.compare_photos": {
+    "text": "Google Fotos y iCloud",
+    "en": "Google Photos and iCloud"
+  },
+  "site.landing.glance.compare_social": {
+    "text": "Instagram y Facebook",
+    "en": "Instagram and Facebook"
+  },
+  "site.landing.glance.compare_with": {
+    "text": "Compáralo con:",
+    "en": "Compare it with:"
   },
   "site.landing.glance.cost.label": {
     "text": "Precio",
@@ -736,6 +803,14 @@
     "text": "Software gratuito; una Raspberry Pi 5 y dos memorias USB; puente opcional: gratis durante dos años y después 9,99 € + IVA al año",
     "en": "Free software; a Raspberry Pi 5 and two USB pen drives; optional bridge: free for two years, then €9.99 + VAT a year",
     "reviewed": "claude-backtranslation 2026-10-22 #9f14583c"
+  },
+  "site.landing.glance.files.label": {
+    "text": "Archivos",
+    "en": "Files"
+  },
+  "site.landing.glance.files.value": {
+    "text": "Un NAS: carpetas sincronizadas con ordenadores Mac, Windows y Linux o con copia de seguridad, carpetas de solo subida con versiones anteriores y enlaces para compartir",
+    "en": "A NAS: folders kept in sync with Mac, Windows and Linux computers or backed up, upload-only folders that keep earlier versions, and share links"
   },
   "site.landing.glance.hardware.label": {
     "text": "Funciona en",
@@ -750,8 +825,8 @@
     "en": "Instead of"
   },
   "site.landing.glance.instead.value": {
-    "text": "Google Fotos y Fotos en iCloud, y un almacenamiento en la nube como Dropbox o iCloud Drive para tus archivos",
-    "en": "Google Photos and iCloud Photos, and a cloud drive such as Dropbox or iCloud Drive for your files"
+    "text": "Instagram, Facebook o un grupo familiar de WhatsApp para compartir fotos; Google Fotos o Fotos en iCloud para la copia de seguridad; Google Drive, Dropbox, iCloud Drive o Proton Drive para archivos",
+    "en": "Instagram, Facebook or a family WhatsApp group for sharing photos; Google Photos or iCloud Photos for backup; Google Drive, Dropbox, iCloud Drive or Proton Drive for files"
   },
   "site.landing.glance.languages.label": {
     "text": "Idiomas",
@@ -779,6 +854,14 @@
     "en": "File contents encrypted at rest; photo tagging and faces done on the device; nothing used for ads or AI training",
     "reviewed": "claude-backtranslation 2026-10-22 #48a6d3a1"
   },
+  "site.landing.glance.social.label": {
+    "text": "Red social",
+    "en": "Social network"
+  },
+  "site.landing.glance.social.value": {
+    "text": "Publicaciones con fotos y vídeos, comentarios, Me gusta y notificaciones, solo para amigos que aceptas, de dispositivo a dispositivo; lo más nuevo primero, sin anuncios",
+    "en": "Posts with photos and videos, comments, likes and notifications, only for the friends you accept, from device to device; newest first, no ads"
+  },
   "site.landing.glance.storage.label": {
     "text": "Almacenamiento",
     "en": "Storage"
@@ -796,8 +879,8 @@
     "en": "What it is"
   },
   "site.landing.glance.what.value": {
-    "text": "Un servidor doméstico autoalojado para las fotos, los vídeos y los archivos de tu familia, con sus propias apps",
-    "en": "A self-hosted home server for your family's photos, videos and files, with its own apps"
+    "text": "Una red social privada para la familia y los amigos, y un servidor doméstico (NAS) para tus fotos, vídeos y archivos, con sus propias apps",
+    "en": "A private social network for family and friends, and a home server (NAS) for your photos, videos and files, with its own apps"
   },
   "site.landing.hero.demo": {
     "text": "Probar la demo",
@@ -808,24 +891,24 @@
     "en": "Look around a real device with a made-up family's photos and files. No sign-up."
   },
   "site.landing.hero.lead": {
-    "text": "Off The Cloud es software gratuito y de código abierto que convierte una Raspberry Pi 5 en un servidor doméstico para las fotos, los vídeos y los archivos de tu familia: una alternativa a Google Fotos y iCloud, en una pequeña caja que es tuya. Tus teléfonos y ordenadores hacen en él sus copias de seguridad, a resolución completa. El propio dispositivo pone etiquetas a tus fotos, así que puedes buscar “playa” o “perro” sin enviarlas a ningún sitio, y dos discos en espejo guardan cada uno una copia completa. Un feed opcional te permite compartir solo con amigos, sin anuncios ni algoritmos.",
-    "en": "Off The Cloud is free, open-source software that turns a Raspberry Pi 5 into a home server for your family's photos, videos and files: an alternative to Google Photos and iCloud, in a small box you own. Your phones and computers back up to it in full resolution. The device tags your photos itself, so you can search for \"beach\" or \"dog\" without sending them anywhere, and two mirrored drives each keep a full copy. An optional feed lets you share with friends only, without ads or algorithms."
+    "text": "Off The Cloud es una red social privada para tu familia y tus amigos, y un sitio en casa para tus fotos y archivos, en un pequeño dispositivo que es tuyo. Publica fotos y vídeos, comenta y da Me gusta, sin anuncios, sin algoritmo y sin desconocidos: tus publicaciones se quedan en tu dispositivo y solo van a los dispositivos de los amigos que aceptas, sin guardarse nunca en los servidores de una empresa. El mismo dispositivo hace copia de seguridad de los teléfonos de todos a resolución completa y mantiene sincronizadas las carpetas de tus ordenadores, así que sustituye a la vez a Instagram, Google Fotos, iCloud, Google Drive y Dropbox. Es software gratuito y de código abierto para una Raspberry Pi 5, que se configura desde el teléfono.",
+    "en": "Off The Cloud is a private social network for your family and friends, and a home for your photos and files, on a small device you own. Post photos and videos, comment and like, with no ads, no algorithm and no strangers: your posts stay on your device and go only to the devices of friends you accept, never stored on a company's servers. The same device backs up everyone's phones in full resolution and keeps your computers' folders in sync, so it takes the place of Instagram, Google Photos, iCloud, Google Drive and Dropbox at once. It's free, open-source software for a Raspberry Pi 5, set up from your phone."
   },
   "site.landing.hero.photo_alt": {
     "text": "Un dispositivo Off The Cloud en un escritorio, junto a una cámara y un ordenador que muestra tu biblioteca de fotos",
     "en": "An Off The Cloud device on a desk, next to a camera and a computer showing your photo library"
   },
   "site.landing.hero.pill": {
-    "text": "100 % código abierto · copia de seguridad de fotos en tu Raspberry Pi",
-    "en": "100% open source · photo backup on your own Raspberry Pi"
+    "text": "100 % código abierto · red social, fotos y archivos en tu dispositivo",
+    "en": "100% open source · social network, photos and files on your own device"
   },
   "site.landing.hero.title_1": {
-    "text": "Tus fotos, tus normas.",
-    "en": "Your photos, your rules."
+    "text": "Una red social que es de tu familia.",
+    "en": "A social network your family owns."
   },
   "site.landing.hero.title_2": {
-    "text": "<em>Fuera de la nube</em>, para siempre.",
-    "en": "<em>Off the cloud</em>, for good."
+    "text": "<em>Fuera de la nube</em>, en casa.",
+    "en": "<em>Off the cloud</em>, at home."
   },
   "site.landing.install.app_intro": {
     "text": "La forma más sencilla: la app descarga la imagen y comprueba su firma, escribe ella misma la tarjeta en Windows y Linux y te guía en cada paso.",
@@ -945,12 +1028,12 @@
     "en": "Previous screenshot"
   },
   "site.landing.meta.description": {
-    "text": "Copia de seguridad de fotos y vídeos familiares a resolución completa en una Raspberry Pi 5 en casa, sin Google Fotos ni iCloud. Gratis, código abierto, demo.",
-    "en": "Back up your family's photos and videos in full resolution to a Raspberry Pi 5 at home, instead of Google Photos or iCloud. Free, open source, live demo."
+    "text": "Red social familiar, copia de fotos y almacenamiento de archivos en un pequeño dispositivo en casa, en vez de Instagram, Google Fotos y Drive. Gratis, código abierto.",
+    "en": "Your family's own social network, photo backup and file storage, on a small device at home instead of Instagram, Google Photos and Drive. Free, open source."
   },
   "site.landing.meta.title": {
-    "text": "Off The Cloud: alternativa a Google Fotos y iCloud en tu casa",
-    "en": "Off The Cloud: self-hosted Google Photos & iCloud alternative"
+    "text": "Off The Cloud: red social privada para familias y nube personal",
+    "en": "Off The Cloud: private family social network and home cloud"
   },
   "site.landing.nav.create_account": {
     "text": "Crear una cuenta",
@@ -1005,12 +1088,12 @@
     "en": "iPhone and iPad"
   },
   "site.landing.phone.lead": {
-    "text": "Haz una copia de seguridad de tus fotos y vídeos nada más hacerlos, explora todo lo que hay en tu dispositivo, comparte con tus amigos y configura un dispositivo nuevo por Bluetooth.",
-    "en": "Back up your photos and videos as you take them, browse everything on your device, share with friends, and set up a new device over Bluetooth."
+    "text": "Publica para tus amigos y ve sus publicaciones, haz copia de seguridad de tus fotos y vídeos nada más hacerlos, explora todo lo que hay en tu dispositivo y configura un dispositivo nuevo por Bluetooth.",
+    "en": "Post for your friends and see their posts, back up your photos and videos as you take them, browse everything on your device, and set up a new device over Bluetooth."
   },
   "site.landing.phone.title": {
-    "text": "Tus fotos, a salvo desde tu teléfono",
-    "en": "Your photos, backed up from your phone"
+    "text": "Tu feed y tus fotos, en tu teléfono",
+    "en": "Your feed and your photos, on your phone"
   },
   "site.landing.shots.desktop_group": {
     "text": "Cliente para macOS / Windows",
@@ -1133,6 +1216,14 @@
     "text": "Qué pasa por dentro",
     "en": "What happens under the hood"
   },
+  "site.landing.what.decentral_text": {
+    "text": "Las publicaciones de cada familia están en su propio dispositivo, y los dispositivos de sus amigos las obtienen unos de otros. No hay ningún servidor central que guarde las fotos de todos, así que no hay nada reunido en un solo sitio que se pueda vender, explotar o filtrar.",
+    "en": "Every family's posts live on its own device, and friends' devices fetch them from each other. There's no central server holding everyone's photos, so there's nothing to sell, mine or leak in one place."
+  },
+  "site.landing.what.decentral_title": {
+    "text": "Sin empresas de por medio",
+    "en": "No company in the middle"
+  },
   "site.landing.what.desktop_text": {
     "text": "Apps para macOS, Windows y Linux que mantienen las carpetas que elijas de tu ordenador sincronizadas en ambos sentidos con el dispositivo, automáticamente.",
     "en": "macOS, Windows and Linux apps that keep chosen folders on your computer in two-way sync with the device, automatically."
@@ -1171,24 +1262,40 @@
     "en": "Fast at home"
   },
   "site.landing.what.feed_text": {
-    "text": "La parte social no tiene anuncios, ni influencers, ni algoritmos de interacción: solo publicaciones de personas que de verdad has aceptado como amigos.",
-    "en": "The social side has no ads, no influencers, no engagement algorithm — just posts from people you've actually approved as friends."
+    "text": "Publica fotos y vídeos para tu familia y tus amigos, con pies de foto, comentarios, Me gusta y notificaciones. Solo los ven los amigos que has aceptado, primero lo más reciente: sin anuncios, sin influencers y sin ningún algoritmo que decida lo que ves.",
+    "en": "Post photos and videos for your family and friends, with captions, comments, likes and notifications. Only the friends you've accepted see them, newest first: no ads, no influencers and no algorithm deciding what you see."
   },
   "site.landing.what.feed_title": {
-    "text": "Sin feed tóxico",
-    "en": "No toxic feed"
+    "text": "Tu propia red social",
+    "en": "Your own social network"
+  },
+  "site.landing.what.files_text": {
+    "text": "Mantén las carpetas de cada ordenador sincronizadas en ambos sentidos o con copia de seguridad, ábrelas y compártelas desde tu teléfono, y bloquea una carpeta para que no se pueda eliminar nada de ella y se conserven las versiones anteriores.",
+    "en": "Keep folders from every computer in two-way sync or backed up, open and share them from your phone, and lock a folder so nothing in it can be deleted and earlier versions are kept."
+  },
+  "site.landing.what.files_title": {
+    "text": "Un NAS para tus archivos",
+    "en": "A NAS for your files"
   },
   "site.landing.what.lead": {
-    "text": "Una Raspberry Pi en tu casa lo guarda todo; las apps nativas para cada plataforma lo mantienen sincronizado y te permiten explorarlo, buscar en ello y compartirlo.",
-    "en": "A Raspberry Pi in your home stores everything; native apps on every platform keep it in sync and let you browse, search, and share it."
+    "text": "Un pequeño dispositivo en tu casa guarda las publicaciones, las fotos y los archivos de tu familia. Las apps para cada plataforma lo mantienen sincronizado y te permiten explorarlo, hacer búsquedas y compartir.",
+    "en": "One small device in your home keeps your family's posts, photos and files. Apps on every platform keep it in sync and let you browse, search and share it."
   },
   "site.landing.what.mobile_text": {
-    "text": "Apps para iOS y Android que hacen copia de seguridad del carrete en segundo plano, a resolución completa, y que además son el feed social.",
-    "en": "iOS and Android apps that back up your camera roll in the background, in full resolution, and double as the social feed."
+    "text": "Apps para iOS y Android con tu feed social, las notificaciones y la copia de seguridad de fotos: hacen copia de seguridad del carrete en segundo plano, a resolución completa.",
+    "en": "iOS and Android apps for your social feed, notifications and photo backup: they back up your camera roll in the background, in full resolution."
   },
   "site.landing.what.mobile_title": {
     "text": "App para el teléfono",
     "en": "Mobile app"
+  },
+  "site.landing.what.photos_text": {
+    "text": "Las apps del teléfono hacen copia de seguridad de cada foto y cada vídeo en segundo plano, en su versión original, así que tu biblioteca está completa y con toda su calidad, sin un plan de almacenamiento que se te quede pequeño.",
+    "en": "The phone apps back up every photo and video in the background, as the original, so your library is complete and in full quality, with no storage plan to outgrow."
+  },
+  "site.landing.what.photos_title": {
+    "text": "Todas tus fotos, a salvo",
+    "en": "Every photo, backed up"
   },
   "site.landing.what.search_text": {
     "text": "Cada foto se etiqueta automáticamente en el propio dispositivo, así que puedes buscar “playa” o “perro” al instante; no se envía nada a terceros para hacerlo.",
@@ -1207,8 +1314,8 @@
     "en": "Share collections with a link"
   },
   "site.landing.what.title": {
-    "text": "Un dispositivo, cuatro formas de acceder a él",
-    "en": "One device, four ways to reach it"
+    "text": "Red social, fototeca y NAS, todo en un dispositivo",
+    "en": "A social network, a photo library and a NAS, in one device"
   },
   "site.landing.what.web_text": {
     "text": "Todo lo anterior, desde cualquier navegador: inicia sesión solo con tu contraseña, sin instalar ninguna app.",

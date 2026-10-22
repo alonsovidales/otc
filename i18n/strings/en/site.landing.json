@@ -335,6 +335,18 @@
     "text": "Can I use Off The Cloud for free?",
     "note": "Website landing page, FAQ: a question."
   },
+  "site.landing.faq.friends_device.p1": {
+    "text": "Not necessarily. On your device you can add an account for each family member, or for a close friend, with their own photo backup, library and password. With an off-the.cloud address of its own, an account works from anywhere in the same apps and can be your friend in the feed. We recommend no more than five accounts on one device (see the question about family accounts below).",
+    "note": "Website landing page, FAQ, Do my friends and family need a device of their own: first paragraph. off-the.cloud is our domain: keep it as it is."
+  },
+  "site.landing.faq.friends_device.p2": {
+    "text": "Friends who want their photos and files at home too set up a device of their own: the software is the same, and free. Everyone in the feed needs an off-the.cloud address, which comes with the bridge (see the question about the bridge below), unless you all use a bridge of your own. For people with no account at all, send a collection as a link: they open it in their browser, with no app.",
+    "note": "Website landing page, FAQ, Do my friends and family need a device of their own: second paragraph. The bridge: our relay service; the question about the bridge is site.landing.faq.bridge.q. A collection: a set of photos chosen in the app."
+  },
+  "site.landing.faq.friends_device.q": {
+    "text": "Do my friends and family need a device of their own?",
+    "note": "Website landing page, FAQ: a question."
+  },
   "site.landing.faq.from_google.p1": {
     "text": "There's no Google Photos importer. Photos and videos still on your phone are backed up by the iPhone or Android app like any others, with their dates. For the rest, download your library with Google Takeout, unzip it on a computer and back up that folder with the <download>Mac, Windows or Linux app</download>: the photos and videos go to your device and appear in Images, tagged and searchable.",
     "note": "Website landing page, FAQ: first paragraph of the answer about moving a photo library from Google Photos. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French). Google Takeout is Google's name for downloading your data: use the name Google uses in your language. <download> links to the page's section with the computer apps. Images is the name of the photo library screen in the apps: use the apps' wording in your language.",
@@ -663,6 +675,27 @@
     "text": "What if I don't want the social network part?",
     "note": "Website landing page, FAQ: a question."
   },
+  "site.landing.faq.social_how.p1": {
+    "text": "Everyone in it has an address of their own, like <code>casa.off-the.cloud</code>, and you add friends by their device's name. Once they accept, you see each other's posts in Social, in the phone apps and the web app: photos and videos with a caption, comments and likes, newest first, and a notification when someone likes or comments. Nothing is suggested or promoted, and there are no ads.",
+    "note": "Website landing page, FAQ, How does the private social network work: first paragraph. <code>casa.off-the.cloud</code> is an example address: keep it as it is (casa is a device's name). Social is the name of the app's section with the feed: use the same name as the app (web.shell).",
+    "rich": ["code"]
+  },
+  "site.landing.faq.social_how.p2": {
+    "text": "Your posts are kept on your own device, and your friends' devices fetch them from it, so there's no central server holding everyone's posts. Devices reach each other through the bridge, which relays the connection without keeping anything that passes through. If you stop being friends, you can remove everything they shared from your device, and ask their device to delete what you shared there.",
+    "note": "Website landing page, FAQ, How does the private social network work: second paragraph. The bridge: our relay service. A privacy statement: keep its meaning exact.",
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #fbf1a218"
+  },
+  "site.landing.faq.social_how.p3": {
+    "text": "There are no private messages or chats, on purpose: it leaves less room for bullying or for a stranger to approach a child. It's a feed for sharing photos and videos with the people you choose.",
+    "note": "Website landing page, FAQ, How does the private social network work: last paragraph. A safety statement about children: keep its meaning exact, and claim no more than the English does (it says there is less room for bullying or for a stranger to approach a child, not that it cannot happen, and it does not say that every comment is seen by others).",
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #2e2f42e2"
+  },
+  "site.landing.faq.social_how.q": {
+    "text": "How does the private social network work?",
+    "note": "Website landing page, FAQ: a question, as people would search it in your language."
+  },
   "site.landing.faq.speed.a": {
     "text": "At home it's usually much faster. The iPhone, Android, Mac and Windows/Linux apps connect straight to your device over your own Wi-Fi or network, so backups, big uploads and videos move at local-network speed. A cloud service has to push every file through your home internet connection, whose upload speed is often a small fraction of your Wi-Fi's. Away from home, the apps go through the Bridge as usual. The home connection is encrypted and checked against your device's own key, so nothing is ever sent to a machine pretending to be yours.",
     "note": "Website landing page, FAQ: answer about speed. Its last sentence is a security statement: keep its meaning exact.",
@@ -684,11 +717,11 @@
     "note": "Website landing page, FAQ: a question."
   },
   "site.landing.faq.third_parties.bridge": {
-    "text": "<b>The bridge</b> (run by us, on OVH servers in France), if you use it: your account (email, name, surname and country), your devices' names (such as casa.off-the.cloud), when an app last reached each device, hourly traffic totals (never the content) and, for 90 days, the internet address of failed attempts to connect as your device. Connections to it are encrypted, but the bridge decrypts and re-encrypts them as they pass through, so they are not end-to-end encrypted; nothing that passes through is stored. A device without the bridge only contacts it during setup.",
+    "text": "<b>The bridge</b> (run by us, on OVH servers in France), if you use it: your account (email, name, surname and country), your devices' names (such as casa.off-the.cloud), when an app last reached each device, hourly traffic totals (never the content) and, for 90 days, the internet address of failed attempts to connect as your device. Connections to it are encrypted, and nothing that passes through is stored. A device without the bridge only contacts it during setup.",
     "note": "Website landing page, FAQ, answer about third parties: what the bridge receives. <b> is bold. OVH is a hosting company's name; keep casa.off-the.cloud as it is. A privacy statement: keep its meaning exact.",
     "rich": ["b"],
     "review": "required",
-    "reviewed": "shipped 2026-10-11 #0ff7e903"
+    "reviewed": "owner 2026-10-22 #412aab9b"
   },
   "site.landing.faq.third_parties.github": {
     "text": "<b>GitHub</b> serves the device's software and its updates; while installing or updating, the device also downloads building blocks from the Go language's mirror, run by Google, packages from its operating system's and Tailscale's repositories and, the first time, its AI models from Hugging Face and GitHub. Like any download, these see your home's internet address.",
@@ -774,6 +807,32 @@
     "text": "How is it different from Google Photos or iCloud?",
     "note": "Website landing page, FAQ: a question. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French) and the question as people search it in your language."
   },
+  "site.landing.faq.vs_drive.p1": {
+    "text": "For your own files, yes. Files, in the web app and the phone apps, works like a drive: folders, uploads and downloads, moving and renaming, and share links that expire. The Mac, Windows and Linux apps keep chosen folders in two-way sync with the device or back them up, and a folder made upload-only can't have anything deleted from it and keeps the earlier version of a file uploaded again.",
+    "note": "Website landing page, FAQ, Can it replace Google Drive, Dropbox or Proton Drive: first paragraph. Files is the name of the app's section with the files: use the same name as the app (web.shell). Two-way sync: changes on the device and on the computer reach each other."
+  },
+  "site.landing.faq.vs_drive.p2": {
+    "text": "You get as much space as one of your two drives holds, with no plan to upgrade: when they fill up, you swap them for bigger ones.",
+    "note": "Website landing page, FAQ, Can it replace Google Drive, Dropbox or Proton Drive: second paragraph."
+  },
+  "site.landing.faq.vs_drive.q": {
+    "text": "Can it replace Google Drive, Dropbox or Proton Drive?",
+    "note": "Website landing page, FAQ: a question, as people would search it in your language. Instagram, Facebook, WhatsApp, Google Drive, Dropbox, iCloud Drive and Proton Drive are product names: use the names the companies use in your language."
+  },
+  "site.landing.faq.vs_instagram.p1": {
+    "text": "Instagram and Facebook are free because advertising pays for them: your posts are kept on Meta's servers, an algorithm ranks what you see, and Meta uses public posts and comments to train its AI unless you object. On Off The Cloud your posts are on your own device, only the friends you accept see them, the feed is simply newest first, and nothing is used for ads or to train AI.",
+    "note": "Website landing page, FAQ, How is it different from Instagram or Facebook: first paragraph. Instagram, Facebook and Meta are names. A privacy statement: keep its meaning exact.",
+    "review": "required",
+    "reviewed": "owner 2026-10-22 #994d74ee"
+  },
+  "site.landing.faq.vs_instagram.p2": {
+    "text": "It's also made for a smaller circle: not for building an audience or following strangers, but for the family and friends you'd show your photos to at home.",
+    "note": "Website landing page, FAQ, How is it different from Instagram or Facebook: second paragraph. Followed by a link to the page comparing it with Instagram, Facebook and other ways of sharing photos."
+  },
+  "site.landing.faq.vs_instagram.q": {
+    "text": "How is it different from Instagram or Facebook?",
+    "note": "Website landing page, FAQ: a question, as people would search it in your language. Instagram and Facebook are product names."
+  },
   "site.landing.faq.vs_selfhosted.li1": {
     "text": "It installs from an app: the computer app prepares the Raspberry Pi's card, and the setup finishes over Bluetooth from your phone or Mac, with no terminal.",
     "note": "Website landing page, FAQ: answer comparing Off The Cloud with Immich, PhotoPrism and Nextcloud: list point 1 of 6. The computer app: the Mac, Windows or Linux app, which writes the system to the Raspberry Pi's memory card. Terminal: the command line; nothing has to be typed there."
@@ -853,10 +912,25 @@
     "note": "Website landing page, At a glance (a short list of facts right under the top of the page): the apps: one for iPhone and iPad, one for Android, the Mac app, otc-sync for Windows and Linux, and the web app the device serves. Short phrases, no final full stop: it sits next to its label.",
     "max": 160
   },
-  "site.landing.glance.compare": {
-    "text": "Compare it with Google Photos, iCloud, Immich and others",
-    "note": "Website landing page: text of a link to the page that compares Off The Cloud with other ways of keeping photos, under the At a glance list (a short list of facts right under the top of the page) and after the FAQ answer comparing Off The Cloud with Immich, PhotoPrism and Nextcloud. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French); iCloud and Immich are product names.",
-    "max": 70
+  "site.landing.glance.compare_drive": {
+    "text": "Google Drive and Dropbox",
+    "note": "Website landing page: text of one of three links after \"Compare it with:\" (site.landing.glance.compare_with), under the At a glance list, to the page comparing Off The Cloud with Google Drive, Dropbox, Proton Drive and other file storage services. Google Drive and Dropbox are product names.",
+    "max": 40
+  },
+  "site.landing.glance.compare_photos": {
+    "text": "Google Photos and iCloud",
+    "note": "Website landing page: text of one of three links after \"Compare it with:\" (site.landing.glance.compare_with), under the At a glance list, to the page comparing Off The Cloud with Google Photos, iCloud Photos and other photo services. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French); iCloud stays as it is.",
+    "max": 40
+  },
+  "site.landing.glance.compare_social": {
+    "text": "Instagram and Facebook",
+    "note": "Website landing page: text of one of three links after \"Compare it with:\" (site.landing.glance.compare_with), under the At a glance list, to the page comparing Off The Cloud with Instagram, Facebook and other ways of sharing photos with family and friends. Instagram and Facebook are product names.",
+    "max": 40
+  },
+  "site.landing.glance.compare_with": {
+    "text": "Compare it with:",
+    "note": "Website landing page: words before three links, under the At a glance list (a short list of facts right under the top of the page) - one to each page comparing Off The Cloud with other services (Instagram and Facebook; Google Photos and iCloud; Google Drive and Dropbox). Punctuate as your language does (\"Comparer avec :\" in French).",
+    "max": 40
   },
   "site.landing.glance.cost.label": {
     "text": "Cost",
@@ -869,6 +943,16 @@
     "max": 160,
     "review": "required",
     "reviewed": "owner 2026-10-22 #010f906a"
+  },
+  "site.landing.glance.files.label": {
+    "text": "Files",
+    "note": "Website landing page, At a glance: label of the row about storing files (the device as a NAS).",
+    "max": 30
+  },
+  "site.landing.glance.files.value": {
+    "text": "A NAS: folders kept in sync with Mac, Windows and Linux computers or backed up, upload-only folders that keep earlier versions, and share links",
+    "note": "Website landing page, At a glance: storing files. NAS: a storage device on the home network. Upload-only folders: folders nothing can be deleted from; a file uploaded again under the same name keeps its earlier version. Share links: links that let someone download files. Short phrases, no final full stop: it sits next to its label.",
+    "max": 170
   },
   "site.landing.glance.hardware.label": {
     "text": "Runs on",
@@ -886,9 +970,9 @@
     "max": 24
   },
   "site.landing.glance.instead.value": {
-    "text": "Google Photos and iCloud Photos, and a cloud drive such as Dropbox or iCloud Drive for your files",
-    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): the services it replaces. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French); iCloud Photos, iCloud Drive and Dropbox are product names: use the names Apple and Dropbox use in your language. Short phrases, no final full stop: it sits next to its label.",
-    "max": 160
+    "text": "Instagram, Facebook or a family WhatsApp group for sharing photos; Google Photos or iCloud Photos for backup; Google Drive, Dropbox, iCloud Drive or Proton Drive for files",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): the services it replaces. A family WhatsApp group: a group chat that a family uses to share photos. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French). iCloud Photos is Apple's own name for it in your language. Instagram, Facebook, WhatsApp, Google Drive, Dropbox, iCloud Drive and Proton Drive are product names: use the names the companies use in your language. Short phrases, no final full stop: it sits next to its label.",
+    "max": 200
   },
   "site.landing.glance.languages.label": {
     "text": "Languages",
@@ -924,6 +1008,16 @@
     "review": "required",
     "reviewed": "owner 2026-10-22 #d47ebd51"
   },
+  "site.landing.glance.social.label": {
+    "text": "Social network",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): label of the row about the private social network (posts shared with friends).",
+    "max": 30
+  },
+  "site.landing.glance.social.value": {
+    "text": "Posts with photos and videos, comments, likes and notifications, only for the friends you accept, from device to device; newest first, no ads",
+    "note": "Website landing page, At a glance: the private social network. From device to device: each family's own device shares its posts with its friends' devices, with no company's server keeping them. Newest first: posts are in date order, nothing ranks them. Short phrases, no final full stop: it sits next to its label.",
+    "max": 170
+  },
   "site.landing.glance.storage.label": {
     "text": "Storage",
     "note": "Website landing page, At a glance (a short list of facts right under the top of the page): label of the row about where the files are stored. Short, like a form label.",
@@ -945,8 +1039,8 @@
     "max": 24
   },
   "site.landing.glance.what.value": {
-    "text": "A self-hosted home server for your family's photos, videos and files, with its own apps",
-    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): what the product is. Self-hosted: it runs on your own device at home, not on our servers. Short phrases, no final full stop: it sits next to its label.",
+    "text": "A private social network for family and friends, and a home server (NAS) for your photos, videos and files, with its own apps",
+    "note": "Website landing page, At a glance (a short list of facts right under the top of the page): what the product is. Home server (NAS): a storage device on the home network; keep NAS if your language uses it. Short phrases, no final full stop: it sits next to its label.",
     "max": 160
   },
   "site.landing.hero.demo": {
@@ -959,26 +1053,26 @@
     "note": "Line beside the Try the demo button (site.landing.hero.demo) on the home page. The family in the demo is made up."
   },
   "site.landing.hero.lead": {
-    "text": "Off The Cloud is free, open-source software that turns a Raspberry Pi 5 into a home server for your family's photos, videos and files: an alternative to Google Photos and iCloud, in a small box you own. Your phones and computers back up to it in full resolution. The device tags your photos itself, so you can search for \"beach\" or \"dog\" without sending them anywhere, and two mirrored drives each keep a full copy. An optional feed lets you share with friends only, without ads or algorithms.",
-    "note": "Website landing page: the paragraph under the main headline, summing up the product. Its first sentence is the definition search engines and AI assistants quote: keep it one plain sentence that says what the product is. Say \"an alternative to Google Photos and iCloud\" the way people search for it in your language, with Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French); iCloud stays as it is. Home server: a computer at home that stores and serves files. Two mirrored drives: two USB drives that each keep a full copy (RAID-1). \"beach\" and \"dog\" are examples of searches: translate them."
+    "text": "Off The Cloud is a private social network for your family and friends, and a home for your photos and files, on a small device you own. Post photos and videos, comment and like, with no ads, no algorithm and no strangers: your posts stay on your device and go only to the devices of friends you accept, never stored on a company's servers. The same device backs up everyone's phones in full resolution and keeps your computers' folders in sync, so it takes the place of Instagram, Google Photos, iCloud, Google Drive and Dropbox at once. It's free, open-source software for a Raspberry Pi 5, set up from your phone.",
+    "note": "Website landing page: the paragraph under the main headline, summing up the product. Its first sentence is the definition search engines and AI assistants quote: keep it one plain sentence that says what the product is. Private social network: posts shared only with people you accept, the way your language usually says it. No algorithm: nothing chooses or ranks what you see. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French). Instagram, Facebook, WhatsApp, Google Drive, Dropbox, iCloud Drive and Proton Drive are product names: use the names the companies use in your language."
   },
   "site.landing.hero.photo_alt": {
     "text": "An Off The Cloud device on a desk, next to a camera and a computer showing your photo library",
     "note": "Website landing page: description of the large photo at the top, beside the summary paragraph, read by screen readers. The photo shows the small Off The Cloud box (a Raspberry Pi in a purple case) on a desk, next to a camera and a monitor showing the web app's photo library."
   },
   "site.landing.hero.pill": {
-    "text": "100% open source · photo backup on your own Raspberry Pi",
-    "note": "Website landing page: small badge above the main headline, after an open-padlock emoji. Photo backup: use the phrase people search for in your language (for example copia de seguridad de fotos, sauvegarde de photos, Foto-Backup), not a literal translation. Your own Raspberry Pi: the visitor's own device at home, not our servers.",
+    "text": "100% open source · social network, photos and files on your own device",
+    "note": "Website landing page: small badge above the main headline, after an open-padlock emoji. Your own device: the visitor's own device at home, not our servers.",
     "max": 70
   },
   "site.landing.hero.title_1": {
-    "text": "Your photos, your rules.",
-    "note": "Website landing page: first line of the big main headline. The second line is site.landing.hero.title_2.",
+    "text": "A social network your family owns.",
+    "note": "Website landing page: first line of the big main headline. The second line is site.landing.hero.title_2. Your family owns it: it runs on the family's own device at home, not on a company's servers.",
     "max": 40
   },
   "site.landing.hero.title_2": {
-    "text": "<em>Off the cloud</em>, for good.",
-    "note": "Website landing page: second line of the big main headline, under site.landing.hero.title_1. \"Off the cloud\" plays on the product name, Off The Cloud: your photos are no longer kept in a company's cloud. <em> marks the words shown in orange; keep it around the words that play on the name.",
+    "text": "<em>Off the cloud</em>, at home.",
+    "note": "Website landing page: second line of the big main headline, under site.landing.hero.title_1. \"Off the cloud\" plays on the product name, Off The Cloud: your posts, photos and files are no longer kept in a company's cloud. <em> marks the words shown in orange; keep it around the words that play on the name.",
     "max": 40,
     "rich": ["em"]
   },
@@ -1125,13 +1219,13 @@
     "note": "Website landing page: name screen readers give the button that shows the previous screenshot in the enlarged view."
   },
   "site.landing.meta.description": {
-    "text": "Back up your family's photos and videos in full resolution to a Raspberry Pi 5 at home, instead of Google Photos or iCloud. Free, open source, live demo.",
-    "note": "Website landing page: the description search engines show under the page title (meta description). Not visible on the page itself. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French) and the words people search with in your language for backing up photos without the cloud, rather than a literal translation. The live demo is the public demo device (site.landing.hero.demo). Keep it to 158 characters or fewer, so search engines show it whole.",
-    "max": 220
+    "text": "Your family's own social network, photo backup and file storage, on a small device at home instead of Instagram, Google Photos and Drive. Free, open source.",
+    "note": "Website landing page: the description search engines show under the page title (meta description), not visible on the page. Use the words people in your language search with. Drive here is Google Drive. Use Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French). Instagram, Facebook, WhatsApp, Google Drive, Dropbox, iCloud Drive and Proton Drive are product names: use the names the companies use in your language. Keep it to about 160 characters.",
+    "max": 170
   },
   "site.landing.meta.title": {
-    "text": "Off The Cloud: self-hosted Google Photos & iCloud alternative",
-    "note": "Website (off-the.cloud), landing page: the page title shown in the browser tab and in search results. Off The Cloud is the product name. Write what people in your language search for, not a word-for-word translation: Google Photos' local name (Google Fotos in Spanish, German and Portuguese, Google Foto in Italian, Google Foto's in Dutch, Google Photos in French), and your language's usual phrase for an alternative to it; iCloud stays as it is. Self-hosted: it runs on the visitor's own device at home, not on our servers; use your language's usual term, or say at home. Keep it to 65 characters or fewer, so search engines show it whole.",
+    "text": "Off The Cloud: private family social network and home cloud",
+    "note": "Website (off-the.cloud), landing page: the page title shown in the browser tab and in search results. Off The Cloud is the product name. Write what people in your language search for, not a word-for-word translation: your language's usual phrase for a private social network for families, and for a home cloud (a personal cloud: storage in a device at home instead of a company's servers). Keep it to 65 characters or fewer, so search engines show it whole.",
     "max": 70
   },
   "site.landing.nav.create_account": {
@@ -1198,11 +1292,11 @@
     "max": 30
   },
   "site.landing.phone.lead": {
-    "text": "Back up your photos and videos as you take them, browse everything on your device, share with friends, and set up a new device over Bluetooth.",
+    "text": "Post for your friends and see their posts, back up your photos and videos as you take them, browse everything on your device, and set up a new device over Bluetooth.",
     "note": "Website landing page: the paragraph under the phone apps heading."
   },
   "site.landing.phone.title": {
-    "text": "Your photos, backed up from your phone",
+    "text": "Your feed and your photos, on your phone",
     "note": "Website landing page: heading of the section with the iPhone and Android apps.",
     "max": 50
   },
@@ -1343,6 +1437,15 @@
     "note": "Website landing page: heading of the section explaining the steps the install goes through.",
     "max": 50
   },
+  "site.landing.what.decentral_text": {
+    "text": "Every family's posts live on its own device, and friends' devices fetch them from each other. There's no central server holding everyone's photos, so there's nothing to sell, mine or leak in one place.",
+    "note": "Website landing page, What it is: text of the card saying the social network is decentralised. Mine: analyse people's data for profit."
+  },
+  "site.landing.what.decentral_title": {
+    "text": "No company in the middle",
+    "note": "Website landing page, What it is: title of the card saying the social network is decentralised: each family's posts are on its own device, not on a company's servers.",
+    "max": 40
+  },
   "site.landing.what.desktop_text": {
     "text": "macOS, Windows and Linux apps that keep chosen folders on your computer in two-way sync with the device, automatically.",
     "note": "Website landing page, What it is: text of the card about the computer apps."
@@ -1387,25 +1490,43 @@
     "max": 40
   },
   "site.landing.what.feed_text": {
-    "text": "The social side has no ads, no influencers, no engagement algorithm — just posts from people you've actually approved as friends.",
-    "note": "Website landing page, What it is: text of the card about the social feed."
+    "text": "Post photos and videos for your family and friends, with captions, comments, likes and notifications. Only the friends you've accepted see them, newest first: no ads, no influencers and no algorithm deciding what you see.",
+    "note": "Website landing page, What it is: text of the card about the private social network. No algorithm: nothing chooses or ranks what you see."
   },
   "site.landing.what.feed_title": {
-    "text": "No toxic feed",
-    "note": "Website landing page, What it is: title of the card about the social feed (posts shared with friends).",
+    "text": "Your own social network",
+    "note": "Website landing page, What it is: title of the card about the private social network (posts shared with friends).",
+    "max": 40
+  },
+  "site.landing.what.files_text": {
+    "text": "Keep folders from every computer in two-way sync or backed up, open and share them from your phone, and lock a folder so nothing in it can be deleted and earlier versions are kept.",
+    "note": "Website landing page, What it is: text of the card about storing files. Two-way sync: changes on the device and on the computer reach each other. Lock a folder: make it upload-only, so nothing in it can be deleted and a file uploaded again keeps its earlier version."
+  },
+  "site.landing.what.files_title": {
+    "text": "A NAS for your files",
+    "note": "Website landing page, What it is: title of the card about storing files. NAS: a storage device on the home network; keep NAS if your language uses it.",
     "max": 40
   },
   "site.landing.what.lead": {
-    "text": "A Raspberry Pi in your home stores everything; native apps on every platform keep it in sync and let you browse, search, and share it.",
+    "text": "One small device in your home keeps your family's posts, photos and files. Apps on every platform keep it in sync and let you browse, search and share it.",
     "note": "Website landing page: the paragraph under the What it is heading."
   },
   "site.landing.what.mobile_text": {
-    "text": "iOS and Android apps that back up your camera roll in the background, in full resolution, and double as the social feed.",
+    "text": "iOS and Android apps for your social feed, notifications and photo backup: they back up your camera roll in the background, in full resolution.",
     "note": "Website landing page, What it is: text of the card about the phone apps. Camera roll: the phone's photo library."
   },
   "site.landing.what.mobile_title": {
     "text": "Mobile app",
     "note": "Website landing page, What it is: title of the card about the phone apps.",
+    "max": 40
+  },
+  "site.landing.what.photos_text": {
+    "text": "The phone apps back up every photo and video in the background, as the original, so your library is complete and in full quality, with no storage plan to outgrow.",
+    "note": "Website landing page, What it is: text of the card about backing up the phones' photos. A storage plan: a cloud service's monthly subscription for space."
+  },
+  "site.landing.what.photos_title": {
+    "text": "Every photo, backed up",
+    "note": "Website landing page, What it is: title of the card about backing up the phones' photos.",
     "max": 40
   },
   "site.landing.what.search_text": {
@@ -1427,9 +1548,9 @@
     "max": 40
   },
   "site.landing.what.title": {
-    "text": "One device, four ways to reach it",
-    "note": "Website landing page: heading of the section describing the product: the device, and the web, phone and computer apps.",
-    "max": 50
+    "text": "A social network, a photo library and a NAS, in one device",
+    "note": "Website landing page: heading of the section describing the product: the private social network, the photos, the files (NAS: a storage device on the home network) and the apps.",
+    "max": 60
   },
   "site.landing.what.web_text": {
     "text": "Everything above, from any browser — sign in with just your password, no app install required.",

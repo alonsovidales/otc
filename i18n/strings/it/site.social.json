@@ -1,0 +1,384 @@
+{
+  "site.social.cell.ads_familyalbum": {
+    "text": "Nella versione gratuita; Premium la toglie",
+    "en": "In the free version; Premium removes them"
+  },
+  "site.social.cell.ads_meta": {
+    "text": "Sì; nell’UE e nel Regno Unito puoi pagare per toglierla",
+    "en": "Yes; in the EU and the UK you can pay to remove them"
+  },
+  "site.social.cell.ads_whatsapp": {
+    "text": "Nella scheda Aggiornamenti dal 2025, non nelle chat",
+    "en": "In the Updates tab since 2025, not in chats"
+  },
+  "site.social.cell.ai_meta": {
+    "text": "Post e commenti pubblici, a meno che tu non ti opponga",
+    "en": "Public posts and comments, unless you object"
+  },
+  "site.social.cell.ai_pixelfed": {
+    "text": "Non dichiarato; i post pubblici vanno su altri server",
+    "en": "Not stated; public posts reach other servers"
+  },
+  "site.social.cell.ai_whatsapp": {
+    "text": "Non i messaggi privati, a meno che qualcuno non li condivida con Meta AI",
+    "en": "Not private messages, unless someone shares them with Meta AI"
+  },
+  "site.social.cell.app_only": {
+    "text": "Basta l’app",
+    "en": "Just the app"
+  },
+  "site.social.cell.audience_facebook": {
+    "text": "Il pubblico che scegli per ogni post, da tutti ai soli amici",
+    "en": "The audience you pick for each post, from public to friends"
+  },
+  "site.social.cell.audience_familyalbum": {
+    "text": "Le persone che inviti su FamilyAlbum",
+    "en": "The people you invite to the album"
+  },
+  "site.social.cell.audience_instagram": {
+    "text": "Chiunque, o solo i tuoi follower se l’account è privato",
+    "en": "Anyone, or only your followers if your account is private"
+  },
+  "site.social.cell.audience_otc": {
+    "text": "Solo gli amici che accetti",
+    "en": "Only the friends you accept"
+  },
+  "site.social.cell.audience_pixelfed": {
+    "text": "Pubblico, non in elenco o solo follower, post per post",
+    "en": "Public, unlisted or followers only, post by post"
+  },
+  "site.social.cell.audience_whatsapp": {
+    "text": "Le persone nella chat o nel gruppo",
+    "en": "The people in the chat or group"
+  },
+  "site.social.cell.backup_familyalbum": {
+    "text": "Solo le foto che aggiungi a FamilyAlbum",
+    "en": "Only the photos you add to the album"
+  },
+  "site.social.cell.backup_otc": {
+    "text": "Sì: ogni telefono alla massima risoluzione, e i tuoi file",
+    "en": "Yes: every phone in full resolution, and your files"
+  },
+  "site.social.cell.backup_whatsapp": {
+    "text": "Solo le sue chat, sul tuo spazio cloud",
+    "en": "Only its own chats, to your cloud storage"
+  },
+  "site.social.cell.chat_familyalbum": {
+    "text": "Commenti sulle foto",
+    "en": "Comments on photos"
+  },
+  "site.social.cell.chat_otc": {
+    "text": "Nessuno, per scelta",
+    "en": "None, on purpose"
+  },
+  "site.social.cell.cost_familyalbum": {
+    "text": "Gratis con pubblicità; Premium da 2,99 US$ al mese",
+    "en": "Free with ads; Premium from US$2.99 a month"
+  },
+  "site.social.cell.cost_otc": {
+    "text": "Software gratuito sul tuo dispositivo; bridge gratis per due anni, poi 9,99 € + IVA all’anno",
+    "en": "Free software on your own device; bridge free for two years, then €9.99 + VAT a year",
+    "reviewed": "claude-backtranslation 2026-10-22 #371aa81a"
+  },
+  "site.social.cell.cost_pixelfed": {
+    "text": "Software gratuito; un server tuo o a cui ti iscrivi",
+    "en": "Free software; a server you run or join"
+  },
+  "site.social.cell.feed_facebook": {
+    "text": "Lo ordina un algoritmo; la scheda Feed mostra i più recenti finché non riapri l’app",
+    "en": "An algorithm ranks it; the Feeds tab shows the latest until you reopen the app"
+  },
+  "site.social.cell.feed_familyalbum": {
+    "text": "Foto in ordine di data",
+    "en": "Photos in date order"
+  },
+  "site.social.cell.feed_instagram": {
+    "text": "Lo ordina un algoritmo; la vista Seguiti mostra prima i più recenti",
+    "en": "An algorithm ranks it; the Following view shows newest first"
+  },
+  "site.social.cell.feed_whatsapp": {
+    "text": "Nessun feed: chat e gruppi",
+    "en": "No feed: chats and groups"
+  },
+  "site.social.cell.free": {
+    "text": "Gratis",
+    "en": "Free"
+  },
+  "site.social.cell.free_ads": {
+    "text": "Gratis, lo paga la pubblicità",
+    "en": "Free, paid for by ads"
+  },
+  "site.social.cell.leave_facebook": {
+    "text": "Eliminare l’account rimuove i tuoi post; i messaggi restano agli amici",
+    "en": "Deleting your account removes your posts; messages stay with friends"
+  },
+  "site.social.cell.leave_familyalbum": {
+    "text": "Foto eliminate rimosse entro 30 giorni",
+    "en": "Deleted photos are removed within 30 days"
+  },
+  "site.social.cell.leave_instagram": {
+    "text": "Eliminare l’account rimuove i tuoi post",
+    "en": "Deleting your account removes your posts"
+  },
+  "site.social.cell.leave_otc": {
+    "text": "Rimuovi un amico e chiedi al suo dispositivo di eliminare ciò che hai condiviso",
+    "en": "Remove a friend and ask their device to delete what you shared",
+    "reviewed": "claude-backtranslation 2026-10-22 #cb183325"
+  },
+  "site.social.cell.leave_pixelfed": {
+    "text": "Le eliminazioni arrivano agli altri server, che possono non applicarle",
+    "en": "Deletions reach other servers, which may not apply them"
+  },
+  "site.social.cell.leave_whatsapp": {
+    "text": "“Elimina per tutti” entro circa due giorni; le copie salvate sui telefoni restano",
+    "en": "Delete for everyone within about two days; copies saved on phones stay"
+  },
+  "site.social.cell.meta_servers": {
+    "text": "Sui server di Meta",
+    "en": "On Meta's servers"
+  },
+  "site.social.cell.newest_first": {
+    "text": "Niente: dal più recente",
+    "en": "Nothing: newest first"
+  },
+  "site.social.cell.none": {
+    "text": "Nessuna",
+    "en": "None"
+  },
+  "site.social.cell.not_stated": {
+    "text": "L’informativa sulla privacy non lo dice",
+    "en": "Its privacy policy doesn't say"
+  },
+  "site.social.cell.own_device": {
+    "text": "Sul tuo dispositivo, a casa",
+    "en": "On your own device at home"
+  },
+  "site.social.cell.setup_pixelfed": {
+    "text": "Un server con PHP, un database e Redis, o un account sul server di qualcun altro",
+    "en": "A server with PHP, a database and Redis, or an account on someone else's"
+  },
+  "site.social.cell.where_familyalbum": {
+    "text": "Nel cloud di FamilyAlbum, su server Amazon e Google",
+    "en": "In FamilyAlbum's cloud, on Amazon and Google servers"
+  },
+  "site.social.cell.where_pixelfed": {
+    "text": "Sul server a cui ti iscrivi o che gestisci, copiati sui server dei follower",
+    "en": "On the server you join or run, copied to your followers' servers"
+  },
+  "site.social.cell.where_whatsapp": {
+    "text": "Sui telefoni della chat; i server di WhatsApp li eliminano una volta consegnati",
+    "en": "On the phones in the chat; WhatsApp's servers delete them once delivered"
+  },
+  "site.social.choose.familyalbum": {
+    "text": "<b>FamilyAlbum</b> se vuoi un posto per le foto di famiglia senza niente da configurare: è gratuito con pubblicità, conserva le tue foto nel suo cloud, e il suo piano a pagamento aggiunge video più lunghi.",
+    "en": "<b>FamilyAlbum</b> if you want a family album with nothing to set up: it's free with ads, keeps your photos in its own cloud, and its paid plan adds longer videos."
+  },
+  "site.social.choose.meta": {
+    "text": "<b>Instagram o Facebook</b> se vuoi raggiungere un vasto pubblico o seguire account pubblici: sono gratuiti e ci sono già tutti, in cambio di pubblicità, un feed ordinato da un algoritmo e post pubblici usati per addestrare l’IA di Meta, a meno che tu non ti opponga.",
+    "en": "<b>Instagram or Facebook</b> if you want to reach a wide audience or follow public accounts: they're free and everyone is already there, in exchange for ads, a ranked feed and public posts used to train Meta's AI unless you object."
+  },
+  "site.social.choose.otc": {
+    "text": "<b>Off The Cloud</b> se vuoi un luogo privato per la tua famiglia e i tuoi amici che non appartiene a nessun altro, con le tue foto e i tuoi file al sicuro nel backup a casa, sullo stesso piccolo dispositivo.",
+    "en": "<b>Off The Cloud</b> if you want a private place for your family and friends that nobody else owns, with your photos and files backed up at home on the same small device."
+  },
+  "site.social.choose.pixelfed": {
+    "text": "<b>Pixelfed</b> se vuoi un’alternativa a Instagram pubblica e senza pubblicità nel fediverso, e ti va bene iscriverti a un server o gestirne uno tu.",
+    "en": "<b>Pixelfed</b> if you want a public, ad-free Instagram alternative on the fediverse, and are happy to join a server or run one yourself."
+  },
+  "site.social.choose.title": {
+    "text": "Quale scegliere?",
+    "en": "Which one should you choose?"
+  },
+  "site.social.choose.whatsapp": {
+    "text": "<b>WhatsApp</b> se vuoi soprattutto chattare: messaggi e chiamate, con foto che arrivano in una chat invece che in una raccolta e restano solo sui telefoni.",
+    "en": "<b>WhatsApp</b> if you mainly want to chat: messages and calls, with photos that arrive in a chat rather than an album and live only on the phones."
+  },
+  "site.social.compare.checked": {
+    "text": "Verificato a ottobre 2026. Le informazioni sugli altri servizi vengono dalle loro pagine di assistenza e dalle loro informative, con i link qui sotto.",
+    "en": "Checked in October 2026. The other services' details come from their own help and policy pages, linked below."
+  },
+  "site.social.compare.lead": {
+    "text": "Come ciascuno tratta le tue foto e la privacy della tua famiglia, secondo le sue stesse pagine.",
+    "en": "How each one handles your photos and your family's privacy, as their own pages describe it."
+  },
+  "site.social.compare.sources": {
+    "text": "Fonti:",
+    "en": "Sources:"
+  },
+  "site.social.compare.title": {
+    "text": "Off The Cloud a confronto con Instagram, Facebook, WhatsApp, FamilyAlbum e Pixelfed",
+    "en": "Off The Cloud compared with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed"
+  },
+  "site.social.diff.address": {
+    "text": "<b>Ognuno ha un account su un dispositivo.</b> Ogni persona nel feed ha un account su un dispositivo Off The Cloud, il suo o il tuo, con un indirizzo off-the.cloud. L’account del bridge che fornisce gli indirizzi è gratuito per due anni, poi costa 9,99 € + IVA all’anno.",
+    "en": "<b>Everyone has an account on a device.</b> Each person in the feed has an account on an Off The Cloud device, their own or yours, with an off-the.cloud address. The bridge account that gives the addresses is free for two years, then €9.99 + VAT a year.",
+    "reviewed": "claude-backtranslation 2026-10-22 #49070d4b"
+  },
+  "site.social.diff.messenger": {
+    "text": "<b>Niente messaggi privati, per scelta.</b> Senza chat né messaggi diretti, c’è meno spazio per il bullismo o perché uno sconosciuto avvicini un bambino: quello che si condivide sono post e commenti, e solo con gli amici che ognuno accetta.",
+    "en": "<b>No private messages, on purpose.</b> With no chats or direct messages, there's less room for bullying or for a stranger to approach a child: what people share is posts and comments, and only with the friends they accept.",
+    "reviewed": "claude-backtranslation 2026-10-22 #e20df4a4"
+  },
+  "site.social.diff.middle": {
+    "text": "<b>Nessuno in mezzo.</b> I tuoi post sono sul tuo dispositivo, e i dispositivi dei tuoi amici li recuperano da lì. Il nostro bridge inoltra la connessione e non conserva nulla di ciò che vi passa, quindi non c’è il server di un’azienda con le foto di tutti.",
+    "en": "<b>Nobody in between.</b> Your posts are on your device, and your friends' devices fetch them from it. Our bridge relays the connection and keeps none of what passes through, so there's no company server holding everyone's photos.",
+    "reviewed": "claude-backtranslation 2026-10-22 #ecc8b243"
+  },
+  "site.social.diff.no_ads": {
+    "text": "<b>Niente pubblicità, niente algoritmo, niente addestramento dell’IA.</b> Niente viene venduto, niente decide l’ordine del tuo feed, e niente di ciò che pubblichi viene usato per addestrare modelli di IA.",
+    "en": "<b>No ads, no algorithm, no AI training.</b> Nothing is sold, nothing ranks your feed, and nothing you post is used to train AI models.",
+    "reviewed": "claude-backtranslation 2026-10-22 #abb85e32"
+  },
+  "site.social.diff.title": {
+    "text": "Cosa lo distingue dalle grandi app",
+    "en": "What's different from the big apps"
+  },
+  "site.social.faq.cost.a": {
+    "text": "Il software è gratuito e open source. Ti servono un Raspberry Pi 5 e due unità USB, da comprare una volta sola, e un indirizzo off-the.cloud per ogni persona nel feed: l’account del bridge è gratuito per i primi due anni, poi costa 9,99 € + IVA all’anno con un massimo di cinque indirizzi, e gli account che aggiungi per la tua famiglia sul tuo dispositivo non contano tra quei cinque.",
+    "en": "The software is free and open source. You need a Raspberry Pi 5 and two USB drives, bought once, and an off-the.cloud address for everyone in the feed: the bridge account is free for its first two years, then €9.99 + VAT a year with up to five addresses, and the accounts you add for your family on your device don't count toward those five.",
+    "reviewed": "claude-backtranslation 2026-10-22 #24fdfa0c"
+  },
+  "site.social.faq.cost.q": {
+    "text": "Quanto costa?",
+    "en": "What does it cost?"
+  },
+  "site.social.faq.fediverse.a": {
+    "text": "No. I dispositivi Off The Cloud comunicano solo tra loro: i tuoi post non compaiono mai nel fediverso, e non puoi usarlo per seguire account del fediverso. È anche questo che lo rende privato: i tuoi post non sono mai pubblici, e non c’è una ricerca con cui degli sconosciuti possano trovarti.",
+    "en": "No. Off The Cloud devices only talk to each other: your posts never appear on the fediverse, and you can't follow fediverse accounts from it. That's part of what keeps it private: your posts are never public, and there's no search for strangers to find you with."
+  },
+  "site.social.faq.fediverse.q": {
+    "text": "Funziona con Mastodon, Pixelfed o il fediverso?",
+    "en": "Does it work with Mastodon, Pixelfed or the fediverse?"
+  },
+  "site.social.faq.library.a": {
+    "text": "No. Gli amici vedono solo ciò che pubblichi nel feed. La tua libreria di foto, i tuoi file e gli altri account sul tuo dispositivo restano privati: il dispositivo di un amico può recuperare solo le foto e i video dei tuoi post.",
+    "en": "No. Friends see only what you post in the feed. Your photo library, your files and the other accounts on your device stay private: a friend's device can only fetch the photos and videos of your posts.",
+    "reviewed": "claude-backtranslation 2026-10-22 #83d036b4"
+  },
+  "site.social.faq.library.q": {
+    "text": "I miei amici possono vedere la mia libreria di foto?",
+    "en": "Can my friends see my photo library?"
+  },
+  "site.social.faq.messages.a": {
+    "text": "Per scelta, per rendere il social network più sicuro, soprattutto per i bambini. Senza chat né messaggi diretti, c’è meno spazio per il bullismo o perché uno sconosciuto avvicini un bambino: quello che si condivide sono post e commenti, e solo gli amici che una persona accetta vedono i suoi post o possono commentarli. Inoltre, nessuno si può trovare con una ricerca: non c’è un elenco degli utenti né amici suggeriti, quindi per inviare una richiesta di amicizia serve l’indirizzo esatto.",
+    "en": "On purpose, to make the network safer, for children above all. Without chats or direct messages, there's less room for bullying or for a stranger to approach a child: what people share is posts and comments, and only the friends someone accepts see their posts or can comment on them. Nobody can be found by searching, either: there's no directory and no suggested friends, so a friend request needs the exact address.",
+    "reviewed": "claude-backtranslation 2026-10-22 #b37390bf"
+  },
+  "site.social.faq.messages.q": {
+    "text": "Perché non ci sono messaggi privati?",
+    "en": "Why are there no private messages?"
+  },
+  "site.social.get.alerts": {
+    "text": "<b>Notifiche che contano.</b> Il telefono ti avvisa quando qualcuno accetta la tua richiesta di amicizia, mette Mi piace o commenta: niente di pensato per farti continuare a scorrere.",
+    "en": "<b>Notifications that matter.</b> Your phone tells you when someone accepts your friend request, likes or comments: nothing designed to keep you scrolling."
+  },
+  "site.social.get.backup": {
+    "text": "<b>Le tue foto, già al sicuro.</b> Lo stesso dispositivo fa il backup di ogni telefono della famiglia alla massima risoluzione e conserva i tuoi file, così ciò che pubblichi ha già il suo backup a casa.",
+    "en": "<b>Your photos, already safe.</b> The same device backs up every phone in the family in full resolution and keeps your files, so what you post is already backed up at home."
+  },
+  "site.social.get.family": {
+    "text": "<b>Spazio per tutta la famiglia.</b> Dai a ogni persona un account sul tuo dispositivo, con il proprio indirizzo, la propria libreria di foto e la propria password, e potete essere amici tra voi nel feed.",
+    "en": "<b>Room for the whole family.</b> Give each person an account on your device, with their own address, photo library and password, and be friends with each other in the feed."
+  },
+  "site.social.get.feed": {
+    "text": "<b>Un feed delle persone che conosci.</b> Foto e video, anche diversi in un solo post, con una didascalia, commenti e Mi piace, dal più recente. Niente di suggerito e niente di sponsorizzato.",
+    "en": "<b>A feed of the people you know.</b> Photos and videos, several to a post, with a caption, comments and likes, newest first. Nothing suggested and nothing sponsored."
+  },
+  "site.social.get.leave": {
+    "text": "<b>Decidi tu cosa resta.</b> Elimina un post o un commento e sparisce anche dai dispositivi dei tuoi amici. Rimuovi un amico e puoi eliminare tutto ciò che ha condiviso con te, e chiedere al suo dispositivo di eliminare ciò che hai condiviso lì.",
+    "en": "<b>You decide what stays.</b> Delete a post or a comment and it goes from your friends' devices too. Remove a friend and you can delete everything they shared with you, and ask their device to delete what you shared there.",
+    "reviewed": "claude-backtranslation 2026-10-22 #26296b66"
+  },
+  "site.social.get.links": {
+    "text": "<b>Link per tutti gli altri.</b> Invia una raccolta ai nonni come link con scadenza: la aprono nel browser, senza account né app, e possono scaricare gli originali.",
+    "en": "<b>Links for everyone else.</b> Send a collection to the grandparents as a link that expires: they open it in their browser, with no account or app, and can download the originals."
+  },
+  "site.social.get.title": {
+    "text": "Cosa ottiene la tua famiglia",
+    "en": "What your family gets"
+  },
+  "site.social.hero.lead": {
+    "text": "Off The Cloud è un software gratuito e open source che dà alla tua famiglia un social network tutto suo. Pubblichi foto e video, commenti e metti Mi piace, e li vedono solo gli amici che accetti. Ogni famiglia tiene i propri post sul proprio piccolo dispositivo a casa, un Raspberry Pi 5, e i dispositivi degli amici se li scambiano tra loro, quindi nessuna azienda conserva le tue foto, ti mostra pubblicità o decide cosa vedi. Lo stesso dispositivo fa il backup dei tuoi telefoni e conserva i tuoi file.",
+    "en": "Off The Cloud is free, open-source software that gives your family a social network of its own. You post photos and videos, comment and like, and only the friends you accept see them. Each family keeps its posts on its own small device at home, a Raspberry Pi 5, and friends' devices share them with each other, so no company holds your photos, shows you ads or decides what you see. The same device backs up your phones and keeps your files."
+  },
+  "site.social.hero.title": {
+    "text": "Un social network privato per la tua famiglia, su un dispositivo tuo",
+    "en": "A private social network for your family, on a device you own"
+  },
+  "site.social.link": {
+    "text": "Il confronto con Instagram e Facebook",
+    "en": "How it compares with Instagram and Facebook"
+  },
+  "site.social.meta.description": {
+    "text": "Condividi foto e video con famiglia e amici su un social network che gira sul tuo dispositivo a casa: niente pubblicità, niente algoritmo, niente sconosciuti. Confronto con Instagram, Facebook, WhatsApp, FamilyAlbum e Pixelfed.",
+    "en": "Share photos and videos with family and friends on a social network that runs on your own device at home: no ads, no algorithm, no strangers. Compared with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed."
+  },
+  "site.social.meta.title": {
+    "text": "Social network familiare privato: alternativa a Instagram | Off The Cloud",
+    "en": "Private family social network: an Instagram alternative | Off The Cloud"
+  },
+  "site.social.row.ads": {
+    "text": "Pubblicità",
+    "en": "Ads"
+  },
+  "site.social.row.ai": {
+    "text": "Contenuti usati per addestrare l’IA",
+    "en": "Used to train AI"
+  },
+  "site.social.row.audience": {
+    "text": "Chi vede ciò che pubblichi",
+    "en": "Who sees what you post"
+  },
+  "site.social.row.backup": {
+    "text": "Backup di foto e file",
+    "en": "Backs up your photos and files"
+  },
+  "site.social.row.chat": {
+    "text": "Messaggi privati",
+    "en": "Private messages"
+  },
+  "site.social.row.cost": {
+    "text": "Quanto costa",
+    "en": "What it costs"
+  },
+  "site.social.row.feed": {
+    "text": "Cosa decide il tuo feed",
+    "en": "What decides your feed"
+  },
+  "site.social.row.leave": {
+    "text": "Ritirare ciò che hai condiviso",
+    "en": "Taking back what you shared"
+  },
+  "site.social.row.open_source": {
+    "text": "Open source",
+    "en": "Open source"
+  },
+  "site.social.row.setup": {
+    "text": "Cosa ti serve",
+    "en": "What you need"
+  },
+  "site.social.row.where": {
+    "text": "Dove sono conservati i tuoi post",
+    "en": "Where your posts are kept"
+  },
+  "site.social.start.accounts": {
+    "text": "<b>Aggiungi la famiglia.</b> Nell’app web, in Impostazioni › Utenti, aggiungi un account per ogni persona con <em>Richiedi l’accesso al bridge</em> selezionato. Ognuno sceglie la propria password al primo accesso.",
+    "en": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked. They choose their own password the first time they sign in."
+  },
+  "site.social.start.device": {
+    "text": "<b>Configura il dispositivo.</b> L’app per computer prepara la scheda del Raspberry Pi 5, e completi la configurazione dal telefono tramite Bluetooth, in circa 20 minuti. Ti chiede un account del bridge, che dà al tuo dispositivo il suo indirizzo off-the.cloud.",
+    "en": "<b>Set up the device.</b> The computer app prepares the Raspberry Pi 5's card, and you finish the setup from your phone over Bluetooth, in about 20 minutes. It asks for a bridge account, which gives your device its off-the.cloud address."
+  },
+  "site.social.start.friends": {
+    "text": "<b>Aggiungi gli amici.</b> In Amici, scrivi il nome del dispositivo di un amico, ad esempio casa per casa.off-the.cloud, e invia la richiesta. Quando viene accettata, ognuno vede i post dell’altro nel proprio feed.",
+    "en": "<b>Add friends.</b> In Friends, type the name of a friend's device, such as casa for casa.off-the.cloud, and send the request. Once they accept, your posts appear in each other's feed."
+  },
+  "site.social.start.links": {
+    "text": "<b>Condividi con tutti gli altri.</b> Scegli le foto in Immagini, aggiungile a una raccolta e condividila come link.",
+    "en": "<b>Share with everyone else.</b> Choose photos in Images, add them to a collection and share it as a link."
+  },
+  "site.social.start.title": {
+    "text": "Come far entrare la tua famiglia",
+    "en": "Bringing your family in"
+  }
+}

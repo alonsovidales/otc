@@ -135,6 +135,7 @@ footer{border-top:1px solid var(--line);padding:32px 0;color:var(--mist-dim);fon
 .footer-links{display:flex;flex-wrap:wrap;gap:8px 18px}
 .footer-links a{color:var(--mist-dim);text-decoration:none;font-weight:600}
 .footer-links a:hover{color:var(--mist)}
+.footer-compare{color:var(--mist-dim)}
 /* The language switcher (footer), shown once more than one language ships. */
 .lang-switch{display:flex;flex-wrap:wrap;gap:8px 14px}
 .lang-switch a{color:var(--mist-dim);text-decoration:none;font-weight:600}

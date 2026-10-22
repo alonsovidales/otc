@@ -1,8 +1,8 @@
 # Press kit
 
-Off The Cloud turns a Raspberry Pi 5 into a private home server for a family's photos, videos and
-files, with a friends-only feed between people's own devices. It is free, open-source software
-(GNU AGPL-3.0).
+Off The Cloud gives a family its own private, decentralised social network and home cloud on a
+Raspberry Pi 5: posts go from device to device between accepted friends, and the same device backs
+up the family's photos and stores its files. It is free, open-source software (GNU AGPL-3.0).
 
 - **Fact sheet:** [`fact-sheet.md`](fact-sheet.md), what it is, what it does and how it runs.
 - **Live demo**, no sign-up: https://demo.off-the.cloud ("Try the demo").

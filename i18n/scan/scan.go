@@ -55,7 +55,7 @@ func Surfaces() []Surface {
 		{"device", "device: Go replies, alerts, pushes and the errors they carry", scanDevice},
 		{"bridge", "bridge: Go API errors, emails, pushes and replies", scanBridge},
 		{"otcsync", "otc-sync: Go tray, dialogs and the errors they show", scanOTCSync},
-		{"pages", "bridge pages: landing, comparison, account, disabled and unavailable", scanPages},
+		{"pages", "bridge pages: landing, comparisons, account, disabled and unavailable", scanPages},
 		{"wizard", "setup wizard: its page and its backend's errors", scanWizard},
 	}
 }

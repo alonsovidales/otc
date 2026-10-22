@@ -3,8 +3,9 @@
 // Package site renders the bridge's public pages in the visitor's
 // language (docs/i18n.md, "Each platform": bridge): the landing page, at
 // / in English and /<code>/ in every other language, the account page, at
-// /account and /<code>/account, the comparison page, at
-// /google-photos-alternative and /<code>/google-photos-alternative, and the
+// /account and /<code>/account, the three comparison pages, at
+// /private-social-network, /google-photos-alternative and
+// /google-drive-alternative (and under /<code>/), and the
 // two pages a device's own address shows when the bridge answers for it
 // (disabled, unavailable). It also writes what crawlers read about the
 // site (crawl.go: robots.txt, sitemap.xml, llms.txt).
@@ -15,7 +16,7 @@
 // The landing and comparison pages share their head, header and footer -
 // the {{define}} blocks of pages/common.html; head.go builds what the head
 // says about the page (Open Graph, JSON-LD) - and their style's first part,
-// pages/site.css.
+// pages/site.css (the comparison pages add pages/compare.css).
 // The rendering contract holds throughout: every text is a plain string
 // that html/template escapes for wherever it stands, and a rich key's
 // spans become elements through the fixed tags table below, whose links
@@ -56,15 +57,23 @@ import (
 // The pages, by template name.
 const (
 	Landing     = "landing.html"
+	Social      = "social.html"
 	Alternative = "alternative.html"
+	Drive       = "drive.html"
 	Disabled    = "disabled.html"
 	Unavailable = "unavailable.html"
 	Account     = "account.html"
 )
 
-// AlternativeSlug is the comparison page's address after / (English) or
-// /<code>/: one ASCII slug in every language.
-const AlternativeSlug = "google-photos-alternative"
+// The comparison pages' addresses after / (English) or /<code>/: one
+// ASCII slug in every language. Social compares the private social network
+// with Instagram, Facebook and the like, Alternative the photos with
+// Google Photos and iCloud, Drive the files with Google Drive and Dropbox.
+const (
+	SocialSlug      = "private-social-network"
+	AlternativeSlug = "google-photos-alternative"
+	DriveSlug       = "google-drive-alternative"
+)
 
 // localized are the pages with an address in every carried language, by
 // the slug that follows / (English) or /<code>/ ("" for the landing page);
@@ -75,7 +84,9 @@ var localized = []struct {
 }{
 	{Landing, "", true},
 	{Account, "account", false},
+	{Social, SocialSlug, true},
 	{Alternative, AlternativeSlug, true},
+	{Drive, DriveSlug, true},
 }
 
 // Localized returns the page whose address in a language is
@@ -100,7 +111,7 @@ func slugOf(page string) string {
 	return ""
 }
 
-//go:embed pages/*.html pages/site.css
+//go:embed pages/*.html pages/site.css pages/compare.css
 var pagesFS embed.FS
 
 // Options are what a page needs besides its language.
@@ -200,10 +211,10 @@ type data struct {
 	// landing page's sections (#download, #faq, #contact...) start with:
 	// "" on the landing page itself, Home on the others.
 	Sections string
-	// Comparison is the comparison page in this language
-	// (/google-photos-alternative, /<code>/google-photos-alternative),
-	// where the landing page's and the footer's links to it go.
-	Comparison string
+	// Compare are the comparison pages in this language
+	// (/private-social-network, /<code>/private-social-network...), where
+	// the landing page's and the footer's links to them go.
+	Compare comparePages
 	// Canonical and Alternates are the page's own address and its
 	// addresses in every carried language (hreflang, plus x-default: the
 	// English one): the landing page's, the account page's or the
@@ -217,6 +228,9 @@ type data struct {
 
 type alternate struct{ Lang, Href string }
 
+// comparePages are the comparison pages' addresses in one language.
+type comparePages struct{ Social, Photos, Drive string }
+
 type choice struct {
 	Name    string // the language's own name
 	Lang    string // its tag
@@ -226,14 +240,18 @@ type choice struct {
 
 func pageData(page string, l i18n.Language, o Options) data {
 	d := data{
-		Page:       page,
-		Lang:       l.Code,
-		Tag:        l.Tag,
-		Nonce:      o.Nonce,
-		Year:       strconv.Itoa(o.Now.Year()),
-		Base:       o.Base,
-		Home:       Path(l.Code),
-		Comparison: PagePath(Alternative, l.Code),
+		Page:  page,
+		Lang:  l.Code,
+		Tag:   l.Tag,
+		Nonce: o.Nonce,
+		Year:  strconv.Itoa(o.Now.Year()),
+		Base:  o.Base,
+		Home:  Path(l.Code),
+		Compare: comparePages{
+			Social: PagePath(Social, l.Code),
+			Photos: PagePath(Alternative, l.Code),
+			Drive:  PagePath(Drive, l.Code),
+		},
 		Canonical:  o.Base + PagePath(page, l.Code),
 		Alternates: alternates(page, o.Base),
 	}
@@ -279,6 +297,14 @@ func parsePages(code string) (*template.Template, error) {
 		return nil, err
 	}
 	if _, err := t.New("site-style").Parse(string(css)); err != nil {
+		return nil, err
+	}
+	// What the comparison pages add to it.
+	compare, err := pagesFS.ReadFile("pages/compare.css")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := t.New("compare-style").Parse(string(compare)); err != nil {
 		return nil, err
 	}
 	return t.ParseFS(pagesFS, "pages/*.html")

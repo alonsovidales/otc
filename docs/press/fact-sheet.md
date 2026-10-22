@@ -1,9 +1,11 @@
 # Off The Cloud — fact sheet
 
-**Your family's photos, at home.** Off The Cloud (OTC) turns a Raspberry Pi 5 into a private home
-server for a family's photos, videos and files, the job Google Photos, iCloud or Dropbox does
-today, with an optional friends-only social feed between people's own devices. It is free,
-open-source software (GNU AGPL-3.0), written by Alonso Vidales since August 2025.
+**Your family's own social network and cloud, at home.** Off The Cloud (OTC) gives a family a
+private, decentralised social network and a home cloud on a Raspberry Pi 5: friends share posts
+from device to device, with no company server holding them, and the same device backs up the
+family's phones and stores its files, the job Instagram, Google Photos, iCloud, Google Drive or
+Dropbox does today. It is free, open-source software (GNU AGPL-3.0), written by Alonso Vidales
+since August 2025.
 
 - Website: https://off-the.cloud
 - Live demo, no sign-up: https://demo.off-the.cloud ("Try the demo")
@@ -12,6 +14,14 @@ open-source software (GNU AGPL-3.0), written by Alonso Vidales since August 2025
 
 ## What it does
 
+- **A private social network, decentralised.** Posts with photos and videos, comments, likes and
+  notifications, only between accepted friends: each family's posts stay on its own device, and
+  friends' devices fetch them from each other. Newest first, no ads, no algorithm, no strangers.
+  Removing a friend can also delete what they shared, and ask their device to delete yours.
+  Collections can also be shared as a link that expires.
+- **A NAS for the family's files.** The Mac, Windows and Linux apps keep chosen folders in two-way
+  sync or backed up; Files, in the phone apps and the web app, works like a drive, with share links
+  and upload-only folders that nothing can be deleted from and that keep earlier versions.
 - **Backs up phones in full resolution, in the background.** Android app on Google Play, iPhone
   app on the App Store. Mac (Mac App Store), Windows and Linux apps keep chosen
   folders backed up or in sync. Everything else happens in a web app the device serves itself.
@@ -24,17 +34,14 @@ open-source software (GNU AGPL-3.0), written by Alonso Vidales since August 2025
   disks or microSD cards in USB readers) are mirrored as RAID 1, and two optional status lights
   wired to the Pi's GPIO pins show each drive's health: green, red when one fails, flashing while
   a replacement fills. One drive can be rotated out as an off-site copy.
-- **Shares without a platform.** An optional feed for posts with accepted friends only, device to
-  device: no ads, no algorithm, no strangers. Collections can also be shared as a link.
 - **For a whole family.** Each member gets their own encrypted account on the same device.
 - **Seven languages:** English, Spanish, French, German, Italian, Portuguese and Dutch.
 
 ## How it runs
 
 - **Hardware:** a Raspberry Pi 5 (8 GB; 4 GB with the AI features off), a microSD card for the
-  system and two USB drives for storage, mirrored. Optional: two LEDs and resistors. The Pi and two
-  512 GB USB sticks cost about €310 (October 2026), roughly €340 with the power supply, cooler and
-  system card. The install script also runs on any 64-bit Debian or Ubuntu machine (an old PC, a
+  system and two USB drives for storage, mirrored, all off the shelf. Optional: two LEDs and
+  resistors. The install script also runs on any 64-bit Debian or Ubuntu machine (an old PC, a
   mini PC, an ARM board).
 - **Setup, no terminal:** the Mac, Windows or Linux app downloads the ready-made Raspberry Pi
   image and checks its signature. It writes the card itself on Windows and Linux; on a Mac it

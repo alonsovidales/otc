@@ -1126,9 +1126,10 @@ footer language switcher once a second language ships, and a CSP with a nonce pe
 (docs/i18n.md "bridge"). They are never read from `/var/www`, where older deploys left copies (an
 old `account.html` there is never served). `bridge/static/` holds privacy, terms, the admin panel
 and the assets, copied to `/var/www` by the deploy. For search: the
-comparison page (`alternative.html`, `/google-photos-alternative` and `/<code>/...`, routed like
-`/account`) shares the landing page's head, header and footer (`pages/common.html`,
-`pages/site.css`); their head carries Open Graph tags and one JSON-LD graph (`bridge/site/head.go`:
+three comparison pages (`social.html` at `/private-social-network`, `alternative.html` at
+`/google-photos-alternative`, `drive.html` at `/google-drive-alternative`, each also under
+`/<code>/...`, routed like `/account`) share the landing page's head, header and footer
+(`pages/common.html`, `pages/site.css`, plus `pages/compare.css`); their head carries Open Graph tags and one JSON-LD graph (`bridge/site/head.go`:
 the same `@id`s in every language, nothing the page doesn't state - no ratings, counts or
 versions; `og-1200x630.jpg` is the hero photo's crop); the account page says noindex.
 `/robots.txt`, `/sitemap.xml` and `/llms.txt` come from `bridge/site/crawl.go` (llms.txt rendered

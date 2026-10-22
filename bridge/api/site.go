@@ -34,9 +34,10 @@ import (
 //	/<code>/anything  404: the only other localized pages are
 //	/account          the account page: English, or 302 to /<code>/account as / does
 //	/<code>/account   the account page in that language; /en/account is English without the redirect
-//	/google-photos-alternative, /<code>/google-photos-alternative
-//	                  the comparison page, the same way
-//	/xx/account       404 for a language this build doesn't carry (and /xx/google-photos-alternative)
+//	/private-social-network, /google-photos-alternative, /google-drive-alternative
+//	and the same under /<code>/
+//	                  the comparison pages, the same way
+//	/xx/account       404 for a language this build doesn't carry (and the comparison pages under /xx/)
 //	/landing(.html)   301 to /, the page's old address
 //	/account.html     301 to /account, the account page's old address
 //	/robots.txt, /sitemap.xml, /llms.txt
@@ -81,8 +82,12 @@ func (api *API) sitePage(w http.ResponseWriter, r *http.Request) bool {
 		answer = func() { api.writeEnglishOrRedirect(w, r, site.Landing) }
 	case "/account":
 		answer = func() { api.writeEnglishOrRedirect(w, r, site.Account) }
+	case "/" + site.SocialSlug:
+		answer = func() { api.writeEnglishOrRedirect(w, r, site.Social) }
 	case "/" + site.AlternativeSlug:
 		answer = func() { api.writeEnglishOrRedirect(w, r, site.Alternative) }
+	case "/" + site.DriveSlug:
+		answer = func() { api.writeEnglishOrRedirect(w, r, site.Drive) }
 	case "/landing", "/landing.html":
 		answer = func() { siteRedirect(w, r, "/", http.StatusMovedPermanently) }
 	case "/account.html":
@@ -134,7 +139,7 @@ func (api *API) sitePage(w http.ResponseWriter, r *http.Request) bool {
 }
 
 // writeEnglishOrRedirect answers a localized page's English address (/,
-// /account, /google-photos-alternative): the page in English, or a 302 to
+// /account, a comparison page): the page in English, or a 302 to
 // the page in the language Accept-Language prefers when that is another
 // language this build carries.
 func (api *API) writeEnglishOrRedirect(w http.ResponseWriter, r *http.Request, page string) {
