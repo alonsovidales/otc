@@ -1,27 +1,29 @@
 **Off The Cloud**
 ==============
 
-OTC is a self hosted and inexpensive *NAS* solution to backup all your photos, videos and important documents, but it is also a ethical and safe *Social Network* free of toxic behaviours, harassment, doom scrolling, data harvesting, influencers... just a space to share memories with your family and friends that you own and you control.
+Off The Cloud is free, open-source software that turns a Raspberry Pi 5 into a private home server for your family's photos, videos and files: a self-hosted alternative to Google Photos and iCloud, with iPhone, Android, Mac, Windows and Linux apps.
 
-OTC runs in your mobile devices as a iOS or Android application that can be download from the store (they are still not published). These apps will backup in background all the photos to the device in full resolution, we also have a MacOS and Windows client to backup and keep in sync folders in your computer.
+[Website](https://off-the.cloud) · [Live demo](https://demo.off-the.cloud) · [App Store](https://apps.apple.com/app/id6814658734) (iPhone, iPad and Mac) · [Google Play](https://play.google.com/store/apps/details?id=cloud.offthe.otc) · [otc-sync for Windows and Linux](https://github.com/alonsovidales/otc/releases/tag/desktop) · [Press kit](docs/press)
 
-OTC is hosted in your home using your network connection and inexpensive hardware, everything is designed to work on a Raspberry Pi 5 with 8GB of RAM (a 4GB one runs only with Image Tagging and Face Recognition turned off in Settings) and two USB drives in a RAID 1 configuration to store the data (USB sticks, SSDs, hard disks or MicroSD cards in USB card readers). The Pi and two 512GB USB sticks cost about 310 euros, roughly 340 euros with everything else needed.
+The phone apps back up your photos and videos in the background, in full resolution. The device tags them itself, and recognises faces if you turn that on, so you can search for "beach" or "dog" without any photo being sent away to be analysed, and your files are encrypted at rest under a key only your password unlocks. An optional feed lets you share memories with your friends only, device to device: no ads, no algorithm, no strangers. The Mac, Windows and Linux apps keep folders on your computer backed up or in sync, and the device serves a web app for any browser. The apps are published: the Mac app on the Mac App Store since 2026-10-06, the Android app on Google Play since 2026-10-10 and the iPhone app on the App Store since 2026-10-21.
 
-**OTC is composed by four systems:**
+Off The Cloud (OTC) is hosted in your home using your network connection and inexpensive hardware, everything is designed to work on a Raspberry Pi 5 with 8GB of RAM (a 4GB one runs only with Image Tagging and Face Recognition turned off in Settings) and two USB drives in a RAID 1 configuration to store the data (USB sticks, SSDs, hard disks or MicroSD cards in USB card readers).
+
+**OTC is composed of five systems:**
 ====================================
 
 **The "device"**
 
-This is the Raspberry Pi with two micro-SDs and two custom status leds that is used to store all your data and two custom LEDs to show the status of the RAID
+This is the Raspberry Pi 5 that stores all your data, on two USB drives mirrored as RAID 1 (in the photo, two microSD cards in USB card readers), with two optional status LEDs that show the mirror's health
 
-<img height="300" alt="Untitled" src="https://github.com/user-attachments/assets/25f5ccfb-b1fe-4440-830c-f4d34e9c3881" />
+<img height="300" alt="The Off The Cloud device: a Raspberry Pi 5 whose mirrored drives are two microSD cards in USB card readers, with a card being swapped and the status lights red and green" src="https://github.com/user-attachments/assets/25f5ccfb-b1fe-4440-830c-f4d34e9c3881" />
 
 
-**The MacOS/Windows application**
+**The macOS app**
 
-A menu-bar app that keeps folders on your computer in sync with the device - watch local folders, or pull a remote folder down to a local one
+A menu-bar app, on the [Mac App Store](https://apps.apple.com/app/id6814658734), that keeps folders on your computer in sync with the device - watch local folders, or pull a remote folder down to a local one
 
-<img width="432" height="426" alt="Screenshot 2026-09-21 at 17 19 19" src="https://github.com/user-attachments/assets/b5afff2e-167e-49b2-890d-d86ca1454acc" />
+<img width="432" height="426" alt="The Mac menu bar app, connected to the device, with six folders backed up or in sync and an Add Folder button" src="https://github.com/user-attachments/assets/b5afff2e-167e-49b2-890d-d86ca1454acc" />
 
 
 **The Windows and Linux clients**
@@ -114,7 +116,7 @@ network" or "Connected through off-the.cloud".
 
 **The iOS/Android app**
 
-This is used to access all the data, sync photos and documents from your mobile device, Social Network app and much more
+On the [App Store](https://apps.apple.com/app/id6814658734) for iPhone and iPad, and on [Google Play](https://play.google.com/store/apps/details?id=cloud.offthe.otc). This is used to access all the data, sync photos and documents from your mobile device, Social Network app and much more
 
 <p>
 <img height="420" alt="Social feed: photo posts with likes, comments and multi-photo carousels" src="docs/screenshots/ios-social.jpg" />
@@ -139,7 +141,7 @@ With this you can access all your data and social network from any browser just 
 
 **Recommended Hardware**
 ========================
-- 1x [Raspberry Pi 5 with 8GB or RAM](https://www.raspberrypi.com/products/raspberry-pi-5/).
+- 1x [Raspberry Pi 5 with 8GB of RAM](https://www.raspberrypi.com/products/raspberry-pi-5/).
   8GB is recommended. A 4GB one can run only with **Image Tagging** and **Face Recognition**
   turned off in Settings - turn both off before backing up your photos, or it runs out of memory
   and restarts; it also has room for one extra user at most.
@@ -170,7 +172,9 @@ $ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/ve
 ```
 
 `<subdomain>` is this device's bridge address, e.g. `pit` for `pit.off-the.cloud` - omit it and the
-script prompts for one. It installs MariaDB, a native Go toolchain, ONNX Runtime, the RAM++ tagging
+script prompts for one. On the off-the.cloud bridge the name has to belong to an account: register it
+first, as [Bridge accounts](#bridge-accounts) explains, or install with `OTC_BRIDGE_ADDR=""` for a
+device on your home network only. It installs MariaDB, a native Go toolchain, ONNX Runtime, the RAM++ tagging
 model, and builds the `otc` binary from source right there, then writes the database schema, app
 config, and a systemd service - the same bring-up `Makefile.pi` automates over SSH from a separate
 dev machine, just run directly on the device itself with no cross-compiling or second computer
@@ -219,17 +223,20 @@ an "old image": whatever you flash installs today's release.
    into another device? Log out first, in Settings - the app then belongs to the device you set
    up. Setup is over Bluetooth only: the wizard isn't reachable from the network, and once a phone
    has connected to the Pi for setup, no other phone can.
-4. The wizard walks through four steps:
+4. The wizard walks through five steps:
    - **WiFi**: pick your network (the list fills in by itself) and enter its password - 2.4 or
      5 GHz. Wired into your router instead? Skip it.
+   - **Storage**: the disks it found, with sizes. Pick two to mirror them as RAID1 (both are
+     wiped), or none to keep everything on the SD card for now.
+   - **Account**: sign in to your bridge account or create one, or type a setup code from the
+     account page; "Continue without an account" sets the device up for your home network only
+     (see [Bridge accounts](#bridge-accounts)).
    - **Name and password**: the device's `<name>.off-the.cloud` address, checked as you type and
      reserved on the bridge the moment you continue, and the device's password (twice, 8
      characters or more). The password encrypts your files on the device (see [What is
      encrypted on the device](#what-is-encrypted-on-the-device)) and can't be recovered;
      the app encrypts it before it leaves your phone, and the install sets it. A recovered device
      keeps the password it had.
-   - **Storage**: the disks it found, with sizes. Pick two to mirror them as RAID1 (both are
-     wiped), or none to keep everything on the SD card for now.
    - **Install**: a progress bar over the install script's steps, with what it is doing under it
      and the log one tap away. This takes a while on a Pi - it downloads the tagging model and
      builds the software from source - about 20 minutes. You can close the app meanwhile; when the
@@ -425,7 +432,7 @@ Add the settings row that will be used to identify the device and connect to the
 ```
 insert into settings (`device_uuid`, `subdomain`, `bridge_secret`) values ('<device_uuid>', '<device_domain>.off-the.cloud', '<device_secret>')
 ```
-You can put random values there if you don't plan to use the bridge, but if you want your device to be remotely accesible, send us an email to: `avidales@off-the.cloud` and we will add your device. By the moment we only grant access to contributors, we will open the bridge to the pubic when the project is considered stable.
+You can put random values there if you don't plan to use the bridge. To reach your device through the bridge, create an account at [off-the.cloud/account](https://off-the.cloud/account), register the device's name under "Installing by hand?" and copy the identity it shows (only once): `DEVICE_UUID` is `device_uuid`, `BRIDGE_SECRET` is `bridge_secret`, and `<name>.off-the.cloud` is `subdomain` (see [Bridge accounts](#bridge-accounts)).
 
 5. Edit the [MakeFile](https://github.com/alonsovidales/otc/blob/main/makefile#L11) and specify in `TARGET` the IP Address or hostname used by the Raspberry Pi
 
@@ -689,7 +696,7 @@ To connect locally use the `8080` port: http://<local_ip>:8080
 
 If you have configured the bridge you should be able to connect in: https://<domain>.off-the.cloud/
 
-**When clicking in "Sign In" it will ask you for a password, be careful because the first time, sice the password is not set, whatever you set will be your password.**
+**The first time, before any password is set, the web app shows the setup described in "Using the setup wizard" instead of the sign-in: be careful, because the password you choose there will be your password.**
 
 ## What is encrypted on the device
 
