@@ -17,7 +17,7 @@ import (
 // errNotHevcStill is decodeHeic's answer for content it leaves to goheif:
 // not a HEIF, or one whose primary item isn't an HEVC picture or a grid of
 // them (an AVIF's AV1, which goheif decodes through dav1d).
-var errNotHevcStill = errors.New("not an HEVC still")
+var errNotHevcStill = errors.New("not an HEVC still") // i18n-ignore: a sentinel the callers catch, never shown
 
 // decodeHeic decodes a HEIC as goheif.Decode does - the primary item, one
 // HEVC picture or a grid of them, cropped to the size it says - but right
