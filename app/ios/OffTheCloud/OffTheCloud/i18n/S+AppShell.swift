@@ -170,6 +170,16 @@ extension S {
     /// Heading of the card shown over the whole app when the relay (off-the.cloud) can't reach the user's device: switched off, no internet. The relay's own explanation is shown under it.
     static var appShellDeviceUnavailable: String { L("app.shell.device_unavailable", table: "AppShell") }
 
+    /// Ask whoever set up the device to update it in Settings › Device version.
+    ///
+    /// Under a "your device needs an update to ..." message (such as app.photos.collections.remove_needs_update), for a family member's account: only the account that set the device up can update it. Settings › Device version is the app's Settings screen (app.shell.section_settings) and its section (app.settings.update.title): translate both as they are translated.
+    static var appShellDeviceUpdateAskOwner: String { L("app.shell.device_update.ask_owner", table: "AppShell") }
+
+    /// Your device is updating. It restarts by itself in a few minutes; then try again.
+    ///
+    /// Shown after the Update button under a "your device needs an update to ..." message (such as app.photos.collections.remove_needs_update): the device's update has started. It reinstalls itself and restarts, which drops the connection for a few minutes; "try again" means doing again what needed the update.
+    static var appShellDeviceUpdateStarted: String { L("app.shell.device_update.started", table: "AppShell") }
+
     /// Address (wss://host/ws)
     ///
     /// Placeholder of the field for the device's full address, shown when Custom address is on (first screen and the connection card). wss://host/ws is the address's form: keep it as it is.
@@ -428,6 +438,11 @@ extension S {
     ///
     /// In Images when the first photos have been on their way for a while (the device is slow to answer).
     static var appShellProblemWaiting: String { L("app.shell.problem_waiting", table: "AppShell") }
+
+    /// Remove from collection
+    ///
+    /// Item of the bar shown over Images while photos are selected in an open collection (an icon with this label under it): takes the selected photos out of that collection (our word for named groups of photos). The photos themselves are kept. May wrap onto two lines.
+    static var appShellRemoveFromCollection: String { L("app.shell.remove_from_collection", table: "AppShell") }
 
     /// Connected through the configured address
     ///

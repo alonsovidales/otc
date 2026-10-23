@@ -2131,6 +2131,19 @@ export interface AddToImageGroup {
   paths: string[];
 }
 
+/**
+ * RemoveFromImageGroup takes the photos at `paths` out of a group - the
+ * membership only, never the pictures themselves. A member is a photo, not
+ * a path (issue #201): taking out one copy takes the photo out. Paths that
+ * aren't members are ignored, not an error. Answered with the generic Ack;
+ * a device from before it answers unknown_payload, which the phones turn
+ * into "needs an update" with a button that starts it.
+ */
+export interface RemoveFromImageGroup {
+  groupId: string;
+  paths: string[];
+}
+
 export interface RenameImageGroup {
   id: string;
   name: string;
@@ -3120,6 +3133,13 @@ export interface ReqEnvelope {
      * HasFile; devices before it with error_code "unknown_payload".
      */
     { $case: "reqHasHashes"; reqHasHashes: HasHashes }
+    | //
+    /**
+     * Remove from collection: answers the generic Ack. Owner and user
+     * sessions, as AddToImageGroup; devices before it with error_code
+     * "unknown_payload".
+     */
+    { $case: "reqRemoveFromImageGroup"; reqRemoveFromImageGroup: RemoveFromImageGroup }
     | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
@@ -15177,6 +15197,82 @@ export const AddToImageGroup: MessageFns<AddToImageGroup> = {
   },
 };
 
+function createBaseRemoveFromImageGroup(): RemoveFromImageGroup {
+  return { groupId: "", paths: [] };
+}
+
+export const RemoveFromImageGroup: MessageFns<RemoveFromImageGroup> = {
+  encode(message: RemoveFromImageGroup, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.groupId !== "") {
+      writer.uint32(10).string(message.groupId);
+    }
+    for (const v of message.paths) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoveFromImageGroup {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRemoveFromImageGroup();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.groupId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.paths.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RemoveFromImageGroup {
+    return {
+      groupId: isSet(object.groupId) ? globalThis.String(object.groupId) : "",
+      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: RemoveFromImageGroup): unknown {
+    const obj: any = {};
+    if (message.groupId !== "") {
+      obj.groupId = message.groupId;
+    }
+    if (message.paths?.length) {
+      obj.paths = message.paths;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RemoveFromImageGroup>, I>>(base?: I): RemoveFromImageGroup {
+    return RemoveFromImageGroup.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RemoveFromImageGroup>, I>>(object: I): RemoveFromImageGroup {
+    const message = createBaseRemoveFromImageGroup();
+    message.groupId = object.groupId ?? "";
+    message.paths = object.paths?.map((e) => e) || [];
+    return message;
+  },
+};
+
 function createBaseRenameImageGroup(): RenameImageGroup {
   return { id: "", name: "" };
 }
@@ -21667,6 +21763,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqHasHashes":
         HasHashes.encode(message.payload.reqHasHashes, writer.uint32(1122).fork()).join();
         break;
+      case "reqRemoveFromImageGroup":
+        RemoveFromImageGroup.encode(message.payload.reqRemoveFromImageGroup, writer.uint32(1138).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -22928,6 +23027,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = { $case: "reqHasHashes", reqHasHashes: HasHashes.decode(reader, reader.uint32()) };
           continue;
         }
+        case 142: {
+          if (tag !== 1138) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqRemoveFromImageGroup",
+            reqRemoveFromImageGroup: RemoveFromImageGroup.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -23375,6 +23485,11 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         ? { $case: "reqGetFolderUsage", reqGetFolderUsage: GetFolderUsage.fromJSON(object.reqGetFolderUsage) }
         : isSet(object.reqHasHashes)
         ? { $case: "reqHasHashes", reqHasHashes: HasHashes.fromJSON(object.reqHasHashes) }
+        : isSet(object.reqRemoveFromImageGroup)
+        ? {
+          $case: "reqRemoveFromImageGroup",
+          reqRemoveFromImageGroup: RemoveFromImageGroup.fromJSON(object.reqRemoveFromImageGroup),
+        }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -23665,6 +23780,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqGetFolderUsage = GetFolderUsage.toJSON(message.payload.reqGetFolderUsage);
     } else if (message.payload?.$case === "reqHasHashes") {
       obj.reqHasHashes = HasHashes.toJSON(message.payload.reqHasHashes);
+    } else if (message.payload?.$case === "reqRemoveFromImageGroup") {
+      obj.reqRemoveFromImageGroup = RemoveFromImageGroup.toJSON(message.payload.reqRemoveFromImageGroup);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -24770,6 +24887,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqHasHashes": {
         if (object.payload?.reqHasHashes !== undefined && object.payload?.reqHasHashes !== null) {
           message.payload = { $case: "reqHasHashes", reqHasHashes: HasHashes.fromPartial(object.payload.reqHasHashes) };
+        }
+        break;
+      }
+      case "reqRemoveFromImageGroup": {
+        if (object.payload?.reqRemoveFromImageGroup !== undefined && object.payload?.reqRemoveFromImageGroup !== null) {
+          message.payload = {
+            $case: "reqRemoveFromImageGroup",
+            reqRemoveFromImageGroup: RemoveFromImageGroup.fromPartial(object.payload.reqRemoveFromImageGroup),
+          };
         }
         break;
       }

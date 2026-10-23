@@ -42,6 +42,10 @@ fun S.appPhotosCollectionsNewTitle(): UiText =
 fun S.appPhotosCollectionsPictures(count: Int): UiText =
     UiText.Plural(R.plurals.app_photos_collections_pictures, count, listOf(count))
 
+/** "Your device needs an update to remove photos from a collection.": Title of the message shown when Remove from collection (app.shell.remove_from_collection) is tapped and the device's software is older than that feature. The account that set the device up gets an Update button under it (common.update) that starts the device's update; others get app.shell.device_update.ask_owner. */
+fun S.appPhotosCollectionsRemoveNeedsUpdate(): UiText =
+    UiText.Res(R.string.app_photos_collections_remove_needs_update)
+
 /** "Rename collection": Title of the box that renames the collection open in Images, and the screen-reader name of the pencil beside its name (and of a tap on its name) that opens that box. */
 fun S.appPhotosCollectionsRename(): UiText =
     UiText.Res(R.string.app_photos_collections_rename)
@@ -297,6 +301,14 @@ fun S.appPhotosNoticeNoShareLink(): UiText =
 /** "Image isn't loaded yet": Alert in the full-screen photo viewer when Share or Save is tapped before the photo has loaded. */
 fun S.appPhotosNoticeNotLoaded(): UiText =
     UiText.Res(R.string.app_photos_notice_not_loaded)
+
+/** "Could not remove from the collection.": Notice over Images when the selected photos couldn't be taken out of the collection (app.shell.remove_from_collection). */
+fun S.appPhotosNoticeRemoveFailed(): UiText =
+    UiText.Res(R.string.app_photos_notice_remove_failed)
+
+/** "Removed from "{name}".": Notice over Images once the selected photos were taken out of a collection (app.shell.remove_from_collection); the photos themselves are kept. {name} is the collection's name. Use this language's quotation marks. */
+fun S.appPhotosNoticeRemoved(name: String): UiText =
+    UiText.Res(R.string.app_photos_notice_removed, listOf(name))
 
 /** "Could not rename the collection.": Alert in Images when the device didn't rename the open collection. */
 fun S.appPhotosNoticeRenameFailed(): UiText =

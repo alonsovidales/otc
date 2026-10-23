@@ -823,6 +823,10 @@
     "text": "Social-Beitrag",
     "en": "Social Post"
   },
+  "web.images.select.uncollect": {
+    "text": "Aus Sammlung entfernen",
+    "en": "Remove from Collection"
+  },
   "web.images.share.copied": {
     "text": "Link kopiert",
     "en": "Link copied"
@@ -933,6 +937,14 @@
   "web.images.trim.unreadable": {
     "text": "Dieser Browser konnte dieses Video nicht lesen, daher kann es hier nicht gekürzt werden.",
     "en": "This browser could not read this video, so it can't be trimmed here."
+  },
+  "web.images.uncollect.done": {
+    "text": "Aus „{name}“ entfernt",
+    "en": "Removed from “{name}”"
+  },
+  "web.images.uncollect.failed": {
+    "text": "Entfernen aus „{name}“ fehlgeschlagen. Versuche es erneut.",
+    "en": "Couldn't remove them from “{name}”. Try again."
   },
   "web.images.viewer.aperture": {
     "text": "Blende",

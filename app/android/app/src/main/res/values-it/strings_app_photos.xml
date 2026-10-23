@@ -23,6 +23,7 @@
         <item quantity="many">%1$s elementi</item>
         <item quantity="other">%1$s elementi</item>
     </plurals>
+    <string name="app_photos_collections_remove_needs_update">Il tuo dispositivo deve essere aggiornato per rimuovere foto da una raccolta.</string>
     <string name="app_photos_collections_rename">Rinomina raccolta</string>
     <string name="app_photos_collections_sheet_empty">Non ci sono ancora raccolte: seleziona alcune foto e scegli “Aggiungi a una raccolta”.</string>
     <plurals name="app_photos_copies_all">
@@ -119,6 +120,8 @@
     <string name="app_photos_notice_no_download_link">Impossibile creare il link di download.</string>
     <string name="app_photos_notice_no_share_link">Impossibile creare il link di condivisione.</string>
     <string name="app_photos_notice_not_loaded">La foto non è ancora stata caricata</string>
+    <string name="app_photos_notice_remove_failed">Impossibile rimuovere la selezione dalla raccolta.</string>
+    <string name="app_photos_notice_removed">Selezione rimossa dalla raccolta “\u2068%1$s\u2069”.</string>
     <string name="app_photos_notice_rename_failed">Impossibile rinominare la raccolta.</string>
     <string name="app_photos_notice_save_failed">Salvataggio non riuscito: %1$s</string>
     <string name="app_photos_notice_saved">Salvata in Foto ✅</string>

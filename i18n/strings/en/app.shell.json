@@ -140,6 +140,14 @@
     "text": "This device isn't available right now",
     "note": "Heading of the card shown over the whole app when the relay (off-the.cloud) can't reach the user's device: switched off, no internet. The relay's own explanation is shown under it."
   },
+  "app.shell.device_update.ask_owner": {
+    "text": "Ask whoever set up the device to update it in Settings › Device version.",
+    "note": "Under a \"your device needs an update to ...\" message (such as app.photos.collections.remove_needs_update), for a family member's account: only the account that set the device up can update it. Settings › Device version is the app's Settings screen (app.shell.section_settings) and its section (app.settings.update.title): translate both as they are translated."
+  },
+  "app.shell.device_update.started": {
+    "text": "Your device is updating. It restarts by itself in a few minutes; then try again.",
+    "note": "Shown after the Update button under a \"your device needs an update to ...\" message (such as app.photos.collections.remove_needs_update): the device's update has started. It reinstalls itself and restarts, which drops the connection for a few minutes; \"try again\" means doing again what needed the update."
+  },
   "app.shell.endpoint_address": {
     "text": "Address (wss://host/ws)",
     "note": "Placeholder of the field for the device's full address, shown when Custom address is on (first screen and the connection card). wss://host/ws is the address's form: keep it as it is."
@@ -375,6 +383,11 @@
   "app.shell.problem_waiting": {
     "text": "Still waiting for your device…",
     "note": "In Images when the first photos have been on their way for a while (the device is slow to answer)."
+  },
+  "app.shell.remove_from_collection": {
+    "text": "Remove from collection",
+    "note": "Item of the bar shown over Images while photos are selected in an open collection (an icon with this label under it): takes the selected photos out of that collection (our word for named groups of photos). The photos themselves are kept. May wrap onto two lines.",
+    "max": 24
   },
   "app.shell.route_configured": {
     "text": "Connected through the configured address",

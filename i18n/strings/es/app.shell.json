@@ -134,6 +134,14 @@
     "text": "Este dispositivo no está disponible ahora mismo",
     "en": "This device isn't available right now"
   },
+  "app.shell.device_update.ask_owner": {
+    "text": "Pide a quien configuró el dispositivo que lo actualice en Ajustes › Versión del dispositivo.",
+    "en": "Ask whoever set up the device to update it in Settings › Device version."
+  },
+  "app.shell.device_update.started": {
+    "text": "Tu dispositivo se está actualizando. Se reinicia solo en unos minutos; después, vuelve a intentarlo.",
+    "en": "Your device is updating. It restarts by itself in a few minutes; then try again."
+  },
   "app.shell.endpoint_address": {
     "text": "Dirección (wss://host/ws)",
     "en": "Address (wss://host/ws)"
@@ -345,6 +353,10 @@
   "app.shell.problem_waiting": {
     "text": "Seguimos esperando a tu dispositivo…",
     "en": "Still waiting for your device…"
+  },
+  "app.shell.remove_from_collection": {
+    "text": "Quitar de la colección",
+    "en": "Remove from collection"
   },
   "app.shell.route_configured": {
     "text": "Conectado a través de la dirección configurada",

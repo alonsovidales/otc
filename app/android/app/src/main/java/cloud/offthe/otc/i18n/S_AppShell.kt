@@ -126,6 +126,14 @@ fun S.appShellCriticalUpdateSummary(version: String, summary: String): UiText =
 fun S.appShellDeviceUnavailable(): UiText =
     UiText.Res(R.string.app_shell_device_unavailable)
 
+/** "Ask whoever set up the device to update it in Settings › Device version.": Under a "your device needs an update to ..." message (such as app.photos.collections.remove_needs_update), for a family member's account: only the account that set the device up can update it. Settings › Device version is the app's Settings screen (app.shell.section_settings) and its section (app.settings.update.title): translate both as they are translated. */
+fun S.appShellDeviceUpdateAskOwner(): UiText =
+    UiText.Res(R.string.app_shell_device_update_ask_owner)
+
+/** "Your device is updating. It restarts by itself in a few minutes; then try again.": Shown after the Update button under a "your device needs an update to ..." message (such as app.photos.collections.remove_needs_update): the device's update has started. It reinstalls itself and restarts, which drops the connection for a few minutes; "try again" means doing again what needed the update. */
+fun S.appShellDeviceUpdateStarted(): UiText =
+    UiText.Res(R.string.app_shell_device_update_started)
+
 /** "Address (wss://host/ws)": Placeholder of the field for the device's full address, shown when Custom address is on (first screen and the connection card). wss://host/ws is the address's form: keep it as it is. */
 fun S.appShellEndpointAddress(): UiText =
     UiText.Res(R.string.app_shell_endpoint_address)
@@ -329,6 +337,10 @@ fun S.appShellProblemVideo(): UiText =
 /** "Still waiting for your device…": In Images when the first photos have been on their way for a while (the device is slow to answer). */
 fun S.appShellProblemWaiting(): UiText =
     UiText.Res(R.string.app_shell_problem_waiting)
+
+/** "Remove from collection": Item of the bar shown over Images while photos are selected in an open collection (an icon with this label under it): takes the selected photos out of that collection (our word for named groups of photos). The photos themselves are kept. May wrap onto two lines. */
+fun S.appShellRemoveFromCollection(): UiText =
+    UiText.Res(R.string.app_shell_remove_from_collection)
 
 /** "Connected through the configured address": Settings: how the app reaches the device, when it went through an address of the owner's own that has no host name. */
 fun S.appShellRouteConfigured(): UiText =

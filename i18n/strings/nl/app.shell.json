@@ -134,6 +134,14 @@
     "text": "Dit apparaat is nu niet beschikbaar",
     "en": "This device isn't available right now"
   },
+  "app.shell.device_update.ask_owner": {
+    "text": "Vraag degene die het apparaat heeft ingesteld om het bij te werken via Instellingen › Apparaatversie.",
+    "en": "Ask whoever set up the device to update it in Settings › Device version."
+  },
+  "app.shell.device_update.started": {
+    "text": "Je apparaat wordt bijgewerkt. Het herstart vanzelf over een paar minuten; probeer het daarna opnieuw.",
+    "en": "Your device is updating. It restarts by itself in a few minutes; then try again."
+  },
   "app.shell.endpoint_address": {
     "text": "Adres (wss://host/ws)",
     "en": "Address (wss://host/ws)"
@@ -345,6 +353,10 @@
   "app.shell.problem_waiting": {
     "text": "Nog steeds wachten op je apparaat…",
     "en": "Still waiting for your device…"
+  },
+  "app.shell.remove_from_collection": {
+    "text": "Uit collectie halen",
+    "en": "Remove from collection"
   },
   "app.shell.route_configured": {
     "text": "Verbonden via het ingestelde adres",

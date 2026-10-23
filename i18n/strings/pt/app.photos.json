@@ -56,6 +56,10 @@
       "other": "{count} pictures"
     }
   },
+  "app.photos.collections.remove_needs_update": {
+    "text": "O teu dispositivo precisa de uma atualização para remover fotos de uma coleção.",
+    "en": "Your device needs an update to remove photos from a collection."
+  },
   "app.photos.collections.rename": {
     "text": "Mudar o nome da coleção",
     "en": "Rename collection"
@@ -365,6 +369,14 @@
   "app.photos.notice.not_loaded": {
     "text": "A foto ainda não foi carregada",
     "en": "Image isn't loaded yet"
+  },
+  "app.photos.notice.remove_failed": {
+    "text": "Não foi possível remover da coleção.",
+    "en": "Could not remove from the collection."
+  },
+  "app.photos.notice.removed": {
+    "text": "Removido da coleção «{name}».",
+    "en": "Removed from \"{name}\"."
   },
   "app.photos.notice.rename_failed": {
     "text": "Não foi possível mudar o nome da coleção.",

@@ -1470,6 +1470,17 @@ message AddToImageGroup {
   repeated string paths = 2;
 }
 
+// RemoveFromImageGroup takes the photos at `paths` out of a group - the
+// membership only, never the pictures themselves. A member is a photo, not
+// a path (issue #201): taking out one copy takes the photo out. Paths that
+// aren't members are ignored, not an error. Answered with the generic Ack;
+// a device from before it answers unknown_payload, which the phones turn
+// into "needs an update" with a button that starts it.
+message RemoveFromImageGroup {
+  string group_id = 1;
+  repeated string paths = 2;
+}
+
 message RenameImageGroup {
   string id = 1;
   string name = 2;
@@ -2326,6 +2337,10 @@ message ReqEnvelope {
     // Free up space: answers HashesFound. Owner and user sessions, as
     // HasFile; devices before it with error_code "unknown_payload".
     HasHashes req_has_hashes = 140;
+    // Remove from collection: answers the generic Ack. Owner and user
+    // sessions, as AddToImageGroup; devices before it with error_code
+    // "unknown_payload".
+    RemoveFromImageGroup req_remove_from_image_group = 142;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.

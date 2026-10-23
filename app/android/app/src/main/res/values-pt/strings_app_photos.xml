@@ -23,6 +23,7 @@
         <item quantity="many">%1$s itens</item>
         <item quantity="other">%1$s itens</item>
     </plurals>
+    <string name="app_photos_collections_remove_needs_update">O teu dispositivo precisa de uma atualização para remover fotos de uma coleção.</string>
     <string name="app_photos_collections_rename">Mudar o nome da coleção</string>
     <string name="app_photos_collections_sheet_empty">Ainda não há coleções: seleciona algumas fotos e escolhe «Adicionar a uma coleção».</string>
     <plurals name="app_photos_copies_all">
@@ -119,6 +120,8 @@
     <string name="app_photos_notice_no_download_link">Não foi possível criar a ligação de transferência.</string>
     <string name="app_photos_notice_no_share_link">Não foi possível criar a ligação de partilha.</string>
     <string name="app_photos_notice_not_loaded">A foto ainda não foi carregada</string>
+    <string name="app_photos_notice_remove_failed">Não foi possível remover da coleção.</string>
+    <string name="app_photos_notice_removed">Removido da coleção «\u2068%1$s\u2069».</string>
     <string name="app_photos_notice_rename_failed">Não foi possível mudar o nome da coleção.</string>
     <string name="app_photos_notice_save_failed">Não foi possível guardar: %1$s</string>
     <string name="app_photos_notice_saved">Guardada em Fotografias ✅</string>

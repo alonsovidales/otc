@@ -3056,6 +3056,16 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
 		}
 
+	case *pb.ReqEnvelope_ReqRemoveFromImageGroup:
+		log.Info("Remove from image group:", p.ReqRemoveFromImageGroup.GroupId, len(p.ReqRemoveFromImageGroup.Paths))
+		if err := ch.mg.dao.RemovePathsFromImageGroup(p.ReqRemoveFromImageGroup.GroupId, p.ReqRemoveFromImageGroup.Paths); err != nil {
+			log.Error("error removing from image group:", err)
+			resp.Error = true
+			resp.ErrorMessage = errText(lang, err)
+		} else {
+			resp.Payload = &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}
+		}
+
 	case *pb.ReqEnvelope_ReqRenameImageGroup:
 		name := strings.TrimSpace(p.ReqRenameImageGroup.Name)
 		log.Info("Rename image group:", p.ReqRenameImageGroup.Id)

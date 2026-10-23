@@ -883,6 +883,11 @@
     "note": "Button in the selection bar of Images that opens the New Social Post dialog with the selected photos (a post for friends in Social). Shown as an icon with this as its tooltip on narrow windows.",
     "max": 24
   },
+  "web.images.select.uncollect": {
+    "text": "Remove from Collection",
+    "note": "Button in the selection bar of Images, shown only while a collection is open: takes the selected photos out of that collection. The photos themselves stay on the device and in any other collection. Shown as an icon with this as its tooltip on narrow windows.",
+    "max": 24
+  },
   "web.images.share.copied": {
     "text": "Link copied",
     "note": "Message at the bottom of Images once the download link of the selected photos is on the clipboard."
@@ -1008,6 +1013,16 @@
   "web.images.trim.unreadable": {
     "text": "This browser could not read this video, so it can't be trimmed here.",
     "note": "In the Trim video panel when the browser didn't manage to read the video's length in time."
+  },
+  "web.images.uncollect.done": {
+    "text": "Removed from “{name}”",
+    "args": [["name", "user"]],
+    "note": "Message at the bottom of Images once the selected photos were taken out of a collection (web.images.select.uncollect); the photos themselves are kept. {name} is the collection's name. Use this language's quotation marks."
+  },
+  "web.images.uncollect.failed": {
+    "text": "Couldn't remove them from “{name}”. Try again.",
+    "args": [["name", "user"]],
+    "note": "Error at the bottom of Images when the selected photos couldn't be taken out of a collection (web.images.select.uncollect). {name} is the collection's name. Use this language's quotation marks."
   },
   "web.images.viewer.aperture": {
     "text": "Aperture",

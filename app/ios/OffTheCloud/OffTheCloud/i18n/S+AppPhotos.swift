@@ -62,6 +62,11 @@ extension S {
         L("app.photos.collections.pictures", table: "AppPhotos", count)
     }
 
+    /// Your device needs an update to remove photos from a collection.
+    ///
+    /// Title of the message shown when Remove from collection (app.shell.remove_from_collection) is tapped and the device's software is older than that feature. The account that set the device up gets an Update button under it (common.update) that starts the device's update; others get app.shell.device_update.ask_owner.
+    static var appPhotosCollectionsRemoveNeedsUpdate: String { L("app.photos.collections.remove_needs_update", table: "AppPhotos") }
+
     /// Rename collection
     ///
     /// Title of the box that renames the collection open in Images, and the screen-reader name of the pencil beside its name (and of a tap on its name) that opens that box.
@@ -429,6 +434,18 @@ extension S {
     ///
     /// Alert in the full-screen photo viewer when Share or Save is tapped before the photo has loaded.
     static var appPhotosNoticeNotLoaded: String { L("app.photos.notice.not_loaded", table: "AppPhotos") }
+
+    /// Could not remove from the collection.
+    ///
+    /// Notice over Images when the selected photos couldn't be taken out of the collection (app.shell.remove_from_collection).
+    static var appPhotosNoticeRemoveFailed: String { L("app.photos.notice.remove_failed", table: "AppPhotos") }
+
+    /// Removed from "{name}".
+    ///
+    /// Notice over Images once the selected photos were taken out of a collection (app.shell.remove_from_collection); the photos themselves are kept. {name} is the collection's name. Use this language's quotation marks.
+    static func appPhotosNoticeRemoved(name: String) -> String {
+        L("app.photos.notice.removed", table: "AppPhotos", L10n.isolate(name))
+    }
 
     /// Could not rename the collection.
     ///

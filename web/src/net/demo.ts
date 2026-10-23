@@ -70,7 +70,7 @@ export function subscribeDemoRefusals(fn: () => void): () => void {
 const cChanges = new Set([
   "reqDelFile", "reqUploadFile", "reqBeginUpload", "reqUploadChunk", "reqFinishUpload", "reqLinkFile",
   "reqSetUploadOnly", "reqSetOutOfImages", "reqRenamePerson", "reqDeletePerson", "reqMergePeople",
-  "reqStartReprocess", "reqStopReprocess", "reqCreateImageGroup", "reqAddToImageGroup", "reqRenameImageGroup",
+  "reqStartReprocess", "reqStopReprocess", "reqCreateImageGroup", "reqAddToImageGroup", "reqRemoveFromImageGroup", "reqRenameImageGroup",
   "reqDeleteImageGroup", "reqNewSocialPublication", "reqNewSocialComment", "reqDelSocialPublication",
   "reqDelSocialComment", "reqFriendshipRequest", "reqChangeFriendStatus", "reqDeleteFriendship",
   "reqShareFilesLink", "reqCreateSharedGallery", "reqDeleteSharedLink", "reqChangeKey", "reqSetSettings",

@@ -823,6 +823,10 @@
     "text": "Publier sur Social",
     "en": "Social Post"
   },
+  "web.images.select.uncollect": {
+    "text": "Retirer de la collection",
+    "en": "Remove from Collection"
+  },
   "web.images.share.copied": {
     "text": "Lien copié",
     "en": "Link copied"
@@ -933,6 +937,14 @@
   "web.images.trim.unreadable": {
     "text": "Ce navigateur n’a pas pu lire cette vidéo : impossible de la découper ici.",
     "en": "This browser could not read this video, so it can't be trimmed here."
+  },
+  "web.images.uncollect.done": {
+    "text": "Retrait de « {name} » effectué",
+    "en": "Removed from “{name}”"
+  },
+  "web.images.uncollect.failed": {
+    "text": "Impossible de les retirer de « {name} ». Réessayez.",
+    "en": "Couldn't remove them from “{name}”. Try again."
   },
   "web.images.viewer.aperture": {
     "text": "Ouverture",

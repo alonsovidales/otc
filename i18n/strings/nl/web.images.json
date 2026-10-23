@@ -823,6 +823,10 @@
     "text": "Plaatsen in Social",
     "en": "Social Post"
   },
+  "web.images.select.uncollect": {
+    "text": "Uit collectie halen",
+    "en": "Remove from Collection"
+  },
   "web.images.share.copied": {
     "text": "Link gekopieerd",
     "en": "Link copied"
@@ -933,6 +937,14 @@
   "web.images.trim.unreadable": {
     "text": "Deze browser kan deze video niet lezen, dus hij kan hier niet worden ingekort.",
     "en": "This browser could not read this video, so it can't be trimmed here."
+  },
+  "web.images.uncollect.done": {
+    "text": "Uit “{name}” gehaald",
+    "en": "Removed from “{name}”"
+  },
+  "web.images.uncollect.failed": {
+    "text": "Kan ze niet uit “{name}” halen. Probeer het opnieuw.",
+    "en": "Couldn't remove them from “{name}”. Try again."
   },
   "web.images.viewer.aperture": {
     "text": "Diafragma",

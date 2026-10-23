@@ -56,6 +56,10 @@
       "other": "{count} pictures"
     }
   },
+  "app.photos.collections.remove_needs_update": {
+    "text": "Je apparaat heeft een update nodig om foto’s uit een collectie te halen.",
+    "en": "Your device needs an update to remove photos from a collection."
+  },
   "app.photos.collections.rename": {
     "text": "Naam van collectie wijzigen",
     "en": "Rename collection"
@@ -365,6 +369,14 @@
   "app.photos.notice.not_loaded": {
     "text": "De foto is nog niet geladen",
     "en": "Image isn't loaded yet"
+  },
+  "app.photos.notice.remove_failed": {
+    "text": "Kan niet uit de collectie halen.",
+    "en": "Could not remove from the collection."
+  },
+  "app.photos.notice.removed": {
+    "text": "Uit “{name}” gehaald.",
+    "en": "Removed from \"{name}\"."
   },
   "app.photos.notice.rename_failed": {
     "text": "Kan de naam van de collectie niet wijzigen.",

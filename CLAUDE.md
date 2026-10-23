@@ -1106,7 +1106,11 @@ nothing may give `main` (or another ancestor of the pages) an overflow, or `posi
 it (release 103's 64px gap) - so sticky and fixed things offset by `--topbar-h`, and a page's own fixed bars
 use `left: var(--content-left)`.
 Image groups are called **collections** in every UI (web, iOS, Android, site, store texts); the protocol
-and code keep `ImageGroup`/`groupId`. What Images shows is `photoFilter.ts` (tags, people, open
+and code keep `ImageGroup`/`groupId`. Inside an open collection the selection bar has **Remove from
+collection** (`RemoveFromImageGroup`, release 129: the membership of each selected photo's hash, never the
+file). The web app always has a device that knows it (the device serves it); the phones may not, and turn
+its `unknown_payload` into "needs an update" with an Update button for the primary's owner (`ReqApplyUpdate`)
+or, for a user, who to ask. What Images shows is `photoFilter.ts` (tags, people, open
 collection; a store the search, People and Collections pages and the grid share); the people, collection
 and tag lists are `libraryStore.ts` (cover URLs made when a list arrives, never in a render). Images
 (`PhotoGallery.tsx`) groups date-ordered photos into month sections, Google Photos-style selection (hover

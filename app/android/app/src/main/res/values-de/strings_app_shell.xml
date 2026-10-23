@@ -38,6 +38,8 @@
     <string name="app_shell_critical_update">Kritisches Update %1$s verfügbar. Installiere es so bald wie möglich.</string>
     <string name="app_shell_critical_update_summary">Kritisches Update %1$s verfügbar. %2$s Installiere es so bald wie möglich.</string>
     <string name="app_shell_device_unavailable">Dieses Gerät ist gerade nicht verfügbar</string>
+    <string name="app_shell_device_update_ask_owner">Bitte die Person, die das Gerät eingerichtet hat, es unter Einstellungen › Geräteversion zu aktualisieren.</string>
+    <string name="app_shell_device_update_started">Dein Gerät wird aktualisiert. Es startet in ein paar Minuten von selbst neu; versuche es danach erneut.</string>
     <string name="app_shell_endpoint_address">Adresse (wss://host/ws)</string>
     <string name="app_shell_endpoint_custom">Eigene Adresse</string>
     <string name="app_shell_endpoint_custom_note">Für ein Gerät, das nicht die Bridge von Off The Cloud nutzt – deine eigene Bridge, Tailscale Funnel oder das lokale Netzwerk (ws://192.168.…:8080/ws).</string>
@@ -89,6 +91,7 @@
     <string name="app_shell_problem_trying">Neuer Versuch…</string>
     <string name="app_shell_problem_video">Dieses Video konnte nicht abgespielt werden.</string>
     <string name="app_shell_problem_waiting">Noch keine Antwort von deinem Gerät…</string>
+    <string name="app_shell_remove_from_collection">Aus Sammlung entfernen</string>
     <string name="app_shell_route_configured">Über die eingerichtete Adresse verbunden</string>
     <string name="app_shell_route_home">Über dein Heimnetz verbunden</string>
     <string name="app_shell_route_through">Über %1$s verbunden</string>

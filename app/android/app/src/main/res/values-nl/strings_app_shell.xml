@@ -38,6 +38,8 @@
     <string name="app_shell_critical_update">Kritieke update %1$s beschikbaar. Installeer deze zo snel mogelijk.</string>
     <string name="app_shell_critical_update_summary">Kritieke update %1$s beschikbaar. %2$s Installeer deze zo snel mogelijk.</string>
     <string name="app_shell_device_unavailable">Dit apparaat is nu niet beschikbaar</string>
+    <string name="app_shell_device_update_ask_owner">Vraag degene die het apparaat heeft ingesteld om het bij te werken via Instellingen › Apparaatversie.</string>
+    <string name="app_shell_device_update_started">Je apparaat wordt bijgewerkt. Het herstart vanzelf over een paar minuten; probeer het daarna opnieuw.</string>
     <string name="app_shell_endpoint_address">Adres (wss://host/ws)</string>
     <string name="app_shell_endpoint_custom">Aangepast adres</string>
     <string name="app_shell_endpoint_custom_note">Voor een apparaat dat niet via de Off The Cloud-bridge werkt: je eigen bridge, Tailscale Funnel of het lokale netwerk (ws://192.168.…:8080/ws).</string>
@@ -89,6 +91,7 @@
     <string name="app_shell_problem_trying">Proberen…</string>
     <string name="app_shell_problem_video">Kan deze video niet afspelen.</string>
     <string name="app_shell_problem_waiting">Nog steeds wachten op je apparaat…</string>
+    <string name="app_shell_remove_from_collection">Uit collectie halen</string>
     <string name="app_shell_route_configured">Verbonden via het ingestelde adres</string>
     <string name="app_shell_route_home">Verbonden via je thuisnetwerk</string>
     <string name="app_shell_route_through">Verbonden via %1$s</string>

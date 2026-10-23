@@ -233,6 +233,10 @@ const PostIcon = ({ size }: IconProps) => (
 const AddToCollectionIcon = ({ size }: IconProps) => (
   <Svg size={size}><path d="M7.5 4.5h10a3 3 0 0 1 3 3v10" /><rect x="3.5" y="7.5" width="13" height="13" rx="2" /><path d="M10 11v6M7 14h6" /></Svg>
 );
+// The same with a minus: out of the open collection.
+const RemoveFromCollectionIcon = ({ size }: IconProps) => (
+  <Svg size={size}><path d="M7.5 4.5h10a3 3 0 0 1 3 3v10" /><rect x="3.5" y="7.5" width="13" height="13" rx="2" /><path d="M7 14h6" /></Svg>
+);
 const ShareIcon = ({ size }: IconProps) => (
   <Svg size={size}><circle cx="17.5" cy="5.5" r="2.5" /><circle cx="6.5" cy="12" r="2.5" /><circle cx="17.5" cy="18.5" r="2.5" /><path d="m8.7 10.7 6.6-3.9M8.7 13.3l6.6 3.9" /></Svg>
 );
@@ -1254,6 +1258,35 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
     return null;
   };
 
+  // Remove from collection: the selected photos leave the open collection -
+  // the membership only; they stay on the device and in other collections -
+  // and so its grid, as deleted ones would. A member is a photo (issue
+  // #201), so every tile of one goes. No question first: nothing is lost,
+  // Add to collection puts them back. The device serves this page, so it
+  // always knows the request (the phones ask a device that may be older).
+  const [uncollecting, setUncollecting] = useState(false);
+  const removeSelectedFromGroup = async () => {
+    if (!group || uncollecting || refuseOnDemo()) return;
+    const files = sel;
+    if (!files.length) return;
+    const name = group.name;
+    setUncollecting(true);
+    try {
+      const resp = await ask({ $case: "reqRemoveFromImageGroup", reqRemoveFromImageGroup: { groupId: group.id, paths: files.map((f) => f.path) } });
+      if (acked(resp)) {
+        const hashes = new Set(files.map((f) => f.hash));
+        dropDeleted(new Set(items.filter((f) => hashes.has(f.hash)).map((f) => f.path)));
+        clearSel();
+        showToast({ text: (t) => t("web.images.uncollect.done", { name }) });
+      } else {
+        toastError((t) => t("web.images.uncollect.failed", { name }));
+      }
+    } catch {
+      toastError(say("web.images.error.unreachable"));
+    }
+    setUncollecting(false);
+  };
+
   const onPosted = () => {
     setDialog(null);
     clearSel();
@@ -1567,6 +1600,15 @@ export default function PhotoGallery({ onShowCollections }: PhotoGalleryProps) {
               icon={<AddToCollectionIcon size={22} />}
               onClick={() => openDialog({ kind: "collect" })}
             />
+            {group && (
+              <BarButton
+                compact={compact}
+                label={t("web.images.select.uncollect")}
+                icon={uncollecting ? <Spinner /> : <RemoveFromCollectionIcon size={22} />}
+                onClick={() => void removeSelectedFromGroup()}
+                disabled={uncollecting}
+              />
+            )}
             <div className="pg-share-anchor">
               <BarButton
                 ref={shareBtnRef}

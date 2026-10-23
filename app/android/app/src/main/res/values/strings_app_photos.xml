@@ -19,6 +19,7 @@
         <item quantity="one">%1$s picture</item>
         <item quantity="other">%1$s pictures</item>
     </plurals>
+    <string name="app_photos_collections_remove_needs_update">Your device needs an update to remove photos from a collection.</string>
     <string name="app_photos_collections_rename">Rename collection</string>
     <string name="app_photos_collections_sheet_empty">No collections yet — select some pictures and choose Add to collection.</string>
     <plurals name="app_photos_copies_all">
@@ -107,6 +108,8 @@
     <string name="app_photos_notice_no_download_link">Could not create download link.</string>
     <string name="app_photos_notice_no_share_link">Could not create share link.</string>
     <string name="app_photos_notice_not_loaded">Image isn\'t loaded yet</string>
+    <string name="app_photos_notice_remove_failed">Could not remove from the collection.</string>
+    <string name="app_photos_notice_removed">Removed from \"\u2068%1$s\u2069\".</string>
     <string name="app_photos_notice_rename_failed">Could not rename the collection.</string>
     <string name="app_photos_notice_save_failed">Save failed: %1$s</string>
     <string name="app_photos_notice_saved">Saved to Photos ✅</string>

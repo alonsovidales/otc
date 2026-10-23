@@ -206,6 +206,7 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqStopReprocess{}):             demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqCreateImageGroup{}):          demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqAddToImageGroup{}):           demoRefuse,
+	demoReq(&pb.ReqEnvelope_ReqRemoveFromImageGroup{}):      demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqRenameImageGroup{}):          demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqDeleteImageGroup{}):          demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqNewSocialPublication{}):      demoRefuse,

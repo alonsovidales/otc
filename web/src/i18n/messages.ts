@@ -414,6 +414,7 @@ export type MessageKey =
   | "web.images.select.count"
   | "web.images.select.label"
   | "web.images.select.post"
+  | "web.images.select.uncollect"
   | "web.images.share.copied"
   | "web.images.share.copy"
   | "web.images.share.copy_done"
@@ -440,6 +441,8 @@ export type MessageKey =
   | "web.images.trim.title"
   | "web.images.trim.unopenable"
   | "web.images.trim.unreadable"
+  | "web.images.uncollect.done"
+  | "web.images.uncollect.failed"
   | "web.images.viewer.aperture"
   | "web.images.viewer.camera"
   | "web.images.viewer.codec"
@@ -1315,6 +1318,7 @@ export interface MessageArgs {
   "web.images.select.count": { count: number };
   "web.images.select.label": undefined;
   "web.images.select.post": undefined;
+  "web.images.select.uncollect": undefined;
   "web.images.share.copied": undefined;
   "web.images.share.copy": undefined;
   "web.images.share.copy_done": undefined;
@@ -1342,6 +1346,8 @@ export interface MessageArgs {
   "web.images.trim.title": undefined;
   "web.images.trim.unopenable": undefined;
   "web.images.trim.unreadable": undefined;
+  "web.images.uncollect.done": { name: string };
+  "web.images.uncollect.failed": { name: string };
   "web.images.viewer.aperture": undefined;
   "web.images.viewer.camera": undefined;
   "web.images.viewer.codec": undefined;

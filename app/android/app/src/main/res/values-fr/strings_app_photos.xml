@@ -23,6 +23,7 @@
         <item quantity="many">%1$s éléments</item>
         <item quantity="other">%1$s éléments</item>
     </plurals>
+    <string name="app_photos_collections_remove_needs_update">Votre appareil doit être mis à jour pour retirer des photos d’une collection.</string>
     <string name="app_photos_collections_rename">Renommer la collection</string>
     <string name="app_photos_collections_sheet_empty">Pas encore de collections : sélectionnez des photos et choisissez « Ajouter à une collection ».</string>
     <plurals name="app_photos_copies_all">
@@ -119,6 +120,8 @@
     <string name="app_photos_notice_no_download_link">Impossible de créer le lien de téléchargement.</string>
     <string name="app_photos_notice_no_share_link">Impossible de créer le lien de partage.</string>
     <string name="app_photos_notice_not_loaded">La photo n’est pas encore chargée</string>
+    <string name="app_photos_notice_remove_failed">Impossible de retirer de la collection.</string>
+    <string name="app_photos_notice_removed">Retrait de « \u2068%1$s\u2069 » effectué.</string>
     <string name="app_photos_notice_rename_failed">Impossible de renommer la collection.</string>
     <string name="app_photos_notice_save_failed">Échec de l’enregistrement : %1$s</string>
     <string name="app_photos_notice_saved">Enregistrée dans Photos ✅</string>

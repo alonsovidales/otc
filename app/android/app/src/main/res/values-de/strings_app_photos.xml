@@ -20,6 +20,7 @@
         <item quantity="one">%1$s Element</item>
         <item quantity="other">%1$s Elemente</item>
     </plurals>
+    <string name="app_photos_collections_remove_needs_update">Dein Gerät braucht ein Update, um Fotos aus einer Sammlung zu entfernen.</string>
     <string name="app_photos_collections_rename">Sammlung umbenennen</string>
     <string name="app_photos_collections_sheet_empty">Noch keine Sammlungen – wähle Fotos aus und tippe auf „Zur Sammlung hinzufügen“.</string>
     <plurals name="app_photos_copies_all">
@@ -108,6 +109,8 @@
     <string name="app_photos_notice_no_download_link">Der Download-Link konnte nicht erstellt werden.</string>
     <string name="app_photos_notice_no_share_link">Der Freigabelink konnte nicht erstellt werden.</string>
     <string name="app_photos_notice_not_loaded">Das Bild ist noch nicht geladen</string>
+    <string name="app_photos_notice_remove_failed">Entfernen aus der Sammlung fehlgeschlagen.</string>
+    <string name="app_photos_notice_removed">Aus „\u2068%1$s\u2069“ entfernt.</string>
     <string name="app_photos_notice_rename_failed">Die Sammlung konnte nicht umbenannt werden.</string>
     <string name="app_photos_notice_save_failed">Speichern fehlgeschlagen: %1$s</string>
     <string name="app_photos_notice_saved">In Fotos gespeichert ✅</string>

@@ -2714,6 +2714,27 @@ func (dao *Dao) AddPathsToImageGroup(groupID string, paths []string) error {
 	return err
 }
 
+// RemovePathsFromImageGroup takes the photos at `paths` out of a group,
+// resolving them to hashes as AddPathsToImageGroup does. A member is one
+// photo (issue #201), so taking out one of its paths takes the photo out
+// whatever other copies it has. Paths that aren't members change nothing.
+// The pictures themselves are untouched.
+func (dao *Dao) RemovePathsFromImageGroup(groupID string, paths []string) error {
+	if len(paths) == 0 {
+		return nil
+	}
+	ph := strings.Repeat("?,", len(paths))
+	ph = ph[:len(ph)-1]
+	args := []any{groupID}
+	for _, p := range paths {
+		args = append(args, p)
+	}
+	_, err := dao.db.Exec(
+		"delete from `image_group_files` where `group_id` = ?"+
+			" and `hash` in (select `hash` from `files` where `path` in ("+ph+"))", args...)
+	return err
+}
+
 func (dao *Dao) RenameImageGroup(id, name string) (err error) {
 	_, err = dao.db.Exec("update `image_groups` set `name` = ? where `id` = ?", name, id)
 	return

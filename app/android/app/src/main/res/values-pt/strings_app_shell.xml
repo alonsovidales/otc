@@ -40,6 +40,8 @@
     <string name="app_shell_critical_update">Atualização crítica %1$s disponível. Instala-a o mais depressa possível.</string>
     <string name="app_shell_critical_update_summary">Atualização crítica %1$s disponível. %2$s Instala-a o mais depressa possível.</string>
     <string name="app_shell_device_unavailable">Este dispositivo não está disponível de momento</string>
+    <string name="app_shell_device_update_ask_owner">Pede a quem configurou o dispositivo que o atualize em Definições › Versão do dispositivo.</string>
+    <string name="app_shell_device_update_started">O teu dispositivo está a atualizar-se. Reinicia sozinho dentro de alguns minutos; depois, tenta novamente.</string>
     <string name="app_shell_endpoint_address">Endereço (wss://host/ws)</string>
     <string name="app_shell_endpoint_custom">Endereço personalizado</string>
     <string name="app_shell_endpoint_custom_note">Para um dispositivo que não está na ponte Off The Cloud: a tua própria ponte, o Tailscale Funnel ou a rede local (ws://192.168.…:8080/ws).</string>
@@ -91,6 +93,7 @@
     <string name="app_shell_problem_trying">A tentar…</string>
     <string name="app_shell_problem_video">Não foi possível reproduzir este vídeo.</string>
     <string name="app_shell_problem_waiting">Ainda à espera do teu dispositivo…</string>
+    <string name="app_shell_remove_from_collection">Remover da coleção</string>
     <string name="app_shell_route_configured">Ligado através do endereço configurado</string>
     <string name="app_shell_route_home">Ligado através da tua rede doméstica</string>
     <string name="app_shell_route_through">Ligado através de %1$s</string>

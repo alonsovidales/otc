@@ -1719,6 +1719,100 @@
         }
       }
     },
+    "app.shell.device_update.ask_owner" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bitte die Person, die das Gerät eingerichtet hat, es unter Einstellungen › Geräteversion zu aktualisieren."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask whoever set up the device to update it in Settings › Device version."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pide a quien configuró el dispositivo que lo actualice en Ajustes › Versión del dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demandez à la personne qui a configuré l’appareil de le mettre à jour dans Paramètres › Version de l’appareil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiedi a chi ha configurato il dispositivo di aggiornarlo in Impostazioni › Versione del dispositivo."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vraag degene die het apparaat heeft ingesteld om het bij te werken via Instellingen › Apparaatversie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pede a quem configurou o dispositivo que o atualize em Definições › Versão do dispositivo."
+          }
+        }
+      }
+    },
+    "app.shell.device_update.started" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Gerät wird aktualisiert. Es startet in ein paar Minuten von selbst neu; versuche es danach erneut."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your device is updating. It restarts by itself in a few minutes; then try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu dispositivo se está actualizando. Se reinicia solo en unos minutos; después, vuelve a intentarlo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre appareil se met à jour. Il redémarre tout seul dans quelques minutes ; réessayez ensuite."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo dispositivo si sta aggiornando. Si riavvia da solo tra qualche minuto; poi riprova."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je apparaat wordt bijgewerkt. Het herstart vanzelf over een paar minuten; probeer het daarna opnieuw."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O teu dispositivo está a atualizar-se. Reinicia sozinho dentro de alguns minutos; depois, tenta novamente."
+          }
+        }
+      }
+    },
     "app.shell.endpoint_address" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4112,6 +4206,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ainda à espera do teu dispositivo…"
+          }
+        }
+      }
+    },
+    "app.shell.remove_from_collection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus Sammlung entfernen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from collection"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitar de la colección"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retirer de la collection"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rimuovi dalla raccolta"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uit collectie halen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remover da coleção"
           }
         }
       }

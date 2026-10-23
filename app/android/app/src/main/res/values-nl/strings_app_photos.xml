@@ -20,6 +20,7 @@
         <item quantity="one">%1$s item</item>
         <item quantity="other">%1$s items</item>
     </plurals>
+    <string name="app_photos_collections_remove_needs_update">Je apparaat heeft een update nodig om foto’s uit een collectie te halen.</string>
     <string name="app_photos_collections_rename">Naam van collectie wijzigen</string>
     <string name="app_photos_collections_sheet_empty">Nog geen collecties: selecteer wat foto’s en kies “Toevoegen aan collectie”.</string>
     <plurals name="app_photos_copies_all">
@@ -108,6 +109,8 @@
     <string name="app_photos_notice_no_download_link">Kan geen downloadlink maken.</string>
     <string name="app_photos_notice_no_share_link">Kan geen deellink maken.</string>
     <string name="app_photos_notice_not_loaded">De foto is nog niet geladen</string>
+    <string name="app_photos_notice_remove_failed">Kan niet uit de collectie halen.</string>
+    <string name="app_photos_notice_removed">Uit “\u2068%1$s\u2069” gehaald.</string>
     <string name="app_photos_notice_rename_failed">Kan de naam van de collectie niet wijzigen.</string>
     <string name="app_photos_notice_save_failed">Opslaan mislukt: %1$s</string>
     <string name="app_photos_notice_saved">Opgeslagen in Foto’s ✅</string>

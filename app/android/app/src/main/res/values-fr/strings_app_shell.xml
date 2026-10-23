@@ -40,6 +40,8 @@
     <string name="app_shell_critical_update">Mise à jour critique %1$s disponible. Installez-la dès que possible.</string>
     <string name="app_shell_critical_update_summary">Mise à jour critique %1$s disponible. %2$s Installez-la dès que possible.</string>
     <string name="app_shell_device_unavailable">Cet appareil n’est pas disponible pour le moment</string>
+    <string name="app_shell_device_update_ask_owner">Demandez à la personne qui a configuré l’appareil de le mettre à jour dans Paramètres › Version de l’appareil.</string>
+    <string name="app_shell_device_update_started">Votre appareil se met à jour. Il redémarre tout seul dans quelques minutes ; réessayez ensuite.</string>
     <string name="app_shell_endpoint_address">Adresse (wss://host/ws)</string>
     <string name="app_shell_endpoint_custom">Adresse personnalisée</string>
     <string name="app_shell_endpoint_custom_note">Pour un appareil qui n’est pas sur la passerelle Off The Cloud : votre propre passerelle, Tailscale Funnel ou le réseau local (ws://192.168.…:8080/ws).</string>
@@ -91,6 +93,7 @@
     <string name="app_shell_problem_trying">Nouvel essai…</string>
     <string name="app_shell_problem_video">Impossible de lire cette vidéo.</string>
     <string name="app_shell_problem_waiting">Toujours en attente de votre appareil…</string>
+    <string name="app_shell_remove_from_collection">Retirer de la collection</string>
     <string name="app_shell_route_configured">Connexion via l’adresse configurée</string>
     <string name="app_shell_route_home">Connexion via votre réseau domestique</string>
     <string name="app_shell_route_through">Connexion via %1$s</string>
