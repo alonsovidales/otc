@@ -19,7 +19,7 @@ func TestLanesAnalysisWaitsForThumbnails(t *testing.T) {
 	release := make(chan struct{})
 	analysed := make(chan struct{}, 10)
 
-	ls := newMediaLanes(2, func(j mediaJob) bool {
+	ls := newMediaLanes(2, 2, func(j mediaJob) bool {
 		<-release
 		mu.Lock()
 		order = append(order, "thumb:"+j.file.Hash)
@@ -80,12 +80,31 @@ func TestIsMedia(t *testing.T) {
 	}
 }
 
-// A machine with more cores processes no more at once than a Raspberry Pi
-// 5 (three): a 32-thread PC ran 31 jobs a lane, more than 32 GB hold.
-func TestProcessingWorkersStopAtAPisThree(t *testing.T) {
-	for cpus, want := range map[int]int{1: 1, 2: 1, 3: 2, 4: 3, 5: 3, 8: 3, 16: 3, 32: 3, 128: 3} {
-		if got := processingWorkersFor(cpus); got != want {
-			t.Errorf("%d CPUs: %d workers, want %d", cpus, got, want)
+// The fast lane runs a job per 2 GB at most and the analysis lane three,
+// both with a CPU left free: a Raspberry Pi 5 does as before, a 32-thread
+// PC no longer runs 31 of each (more than its 32 GB hold).
+func TestProcessingWorkersByCPUsAndMemory(t *testing.T) {
+	gb := func(n float64) MemoryProfile { return MemoryProfile{Total: int64(n * (1 << 30))} }
+	for _, c := range []struct {
+		name           string
+		cpus           int
+		mem            MemoryProfile
+		fast, analysis int
+	}{
+		{"Pi 5, 8 GB", 4, gb(7.9), 3, 3},
+		{"Pi 5, 16 GB", 4, gb(15.8), 3, 3},
+		{"Pi 5, 4 GB", 4, gb(3.7), 2, 3},
+		{"PC, 32 threads, 32 GB", 32, gb(31.3), 16, 3},
+		{"PC, 16 threads, 16 GB", 16, gb(15.5), 8, 3},
+		{"PC, 16 threads, 64 GB", 16, gb(62.7), 15, 3},
+		{"PC, 8 threads, 8 GB", 8, gb(7.7), 4, 3},
+		{"one CPU", 1, gb(7.9), 1, 1},
+		{"two CPUs", 2, gb(1.8), 1, 1},
+		{"memory unknown", 32, MemoryProfile{}, 3, 3},
+	} {
+		fast, analysis := processingWorkersFor(c.cpus, c.mem)
+		if fast != c.fast || analysis != c.analysis {
+			t.Errorf("%s: %d fast, %d analysis; want %d, %d", c.name, fast, analysis, c.fast, c.analysis)
 		}
 	}
 }

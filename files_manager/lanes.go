@@ -107,44 +107,62 @@ type mediaLanes struct {
 	fast, analysis *lane
 }
 
-// newMediaLanes starts both lanes. thumbnail reports whether the file
-// should go on to the analysis lane.
-func newMediaLanes(workers int, thumbnail func(mediaJob) bool, analyse func(mediaJob)) *mediaLanes {
+// newMediaLanes starts both lanes, with fast and analysis workers.
+// thumbnail reports whether the file should go on to the analysis lane.
+func newMediaLanes(fast, analysis int, thumbnail func(mediaJob) bool, analyse func(mediaJob)) *mediaLanes {
 	ls := &mediaLanes{}
-	ls.fast = newLane(workers, func(j mediaJob) {
+	ls.fast = newLane(fast, func(j mediaJob) {
 		if thumbnail(j) {
 			ls.analysis.push(j)
 		}
 	}, nil)
-	ls.analysis = newLane(workers, analyse, func() bool { return !ls.fast.busy() })
+	ls.analysis = newLane(analysis, analyse, func() bool { return !ls.fast.busy() })
 	ls.fast.onIdle = ls.analysis.wake
 	return ls
 }
 
-// cMaxProcessingWorkers: each lane runs at most a Raspberry Pi 5's three
-// workers (its four cores less one), whatever the machine. What a job
-// holds doesn't shrink with the cores: a photo's decode and scale (~300
-// MB), an ffmpeg (~700 MB with a PC's threads), a run of the tagging model
-// (~650 MB, which ONNX Runtime's arena keeps). A PC with 16 or 32 threads
-// ran 15 or 31 of each lane at once, which can be more than 32 GB hold: a
-// Linux Mint PC with 32 GB ran out of memory (2026-10-23). More would buy
-// little anyway: the model's runs share its threads.
-const cMaxProcessingWorkers = 3
+// How many jobs each lane runs at once. Both leave one CPU free for
+// serving requests (and for the Pi's power budget), as the single upload
+// queue did before the lanes; on a Raspberry Pi 5 that is three, which the
+// memory was measured with. Until release 133 a PC got one per CPU but
+// one, 15 or 31 a lane with 16 or 32 threads, and what a job holds doesn't
+// shrink with the cores: that could be more than 32 GB hold, and a Linux
+// Mint PC with 32 GB ran out of memory (2026-10-23).
+//
+//   - The fast lane (a photo's decode and scale, ~300 MB; a 4K video's
+//     frame with ffmpeg at a Pi's four threads, ~370 MB more) runs one job
+//     per cMemoryPerWorker of memory at most: three on an 8 GB Pi (four by
+//     memory, its CPUs less one), 16 on a 32 GB PC with 32 threads.
+//   - The analysis lane runs at most cMaxAnalysisWorkers: its runs share
+//     the tagging model's threads, so more barely help, and each keeps
+//     ~650 MB in ONNX Runtime's memory arena after it.
+const (
+	cMemoryPerWorker    = 2 // GB
+	cMaxAnalysisWorkers = 3
+)
 
-// processingWorkers leaves one CPU free for serving requests (and for the
-// Pi's power budget), as the single upload queue did before the lanes, up
-// to cMaxProcessingWorkers.
-func processingWorkers() int {
-	return processingWorkersFor(runtime.NumCPU())
+// processingWorkers is how many jobs the fast and analysis lanes run at
+// once on this machine.
+func processingWorkers() (fast, analysis int) {
+	return processingWorkersFor(runtime.NumCPU(), CurrentMemoryProfile())
 }
 
-func processingWorkersFor(cpus int) int {
-	return min(max(1, cpus-1), cMaxProcessingWorkers)
+// processingWorkersFor is processingWorkers for cpus and p. Memory unknown:
+// the fast lane stops where the analysis lane does.
+func processingWorkersFor(cpus int, p MemoryProfile) (fast, analysis int) {
+	n := max(1, cpus-1)
+	analysis = min(n, cMaxAnalysisWorkers)
+	if p.Total <= 0 {
+		return analysis, analysis
+	}
+	return max(1, min(n, p.NominalGB()/cMemoryPerWorker)), analysis
 }
 
 func (mg *Manager) mediaLanes() *mediaLanes {
 	mg.lanesOnce.Do(func() {
-		mg.lanes = newMediaLanes(processingWorkers(), mg.thumbnailJob, mg.analysisJob)
+		fast, analysis := processingWorkers()
+		log.Info(fmt.Sprintf("processing: %d thumbnails and %d analyses at once (%d CPUs, %d GB of memory)", fast, analysis, runtime.NumCPU(), CurrentMemoryProfile().NominalGB())) // i18n-ignore: a log line
+		mg.lanes = newMediaLanes(fast, analysis, mg.thumbnailJob, mg.analysisJob)
 	})
 	return mg.lanes
 }

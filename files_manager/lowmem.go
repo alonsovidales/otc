@@ -320,6 +320,24 @@ func ffmpegInput(path string) []string {
 	return []string{"-threads", ffmpegThreads, "-i", path}
 }
 
+// cFFmpegFrameThreads: ffmpeg decodes a video's frame for its thumbnail or
+// its analysis with a Raspberry Pi 5's four threads, the ones the memory
+// per fast-lane worker was measured with (lanes.go). A 4K HEVC frame took
+// ~370 MB with four, ~500 with eight and ~700 with ffmpeg's own choice on
+// 12 cores - more with a PC's 16 or 32. A post's transcode, one at a time,
+// keeps ffmpeg's own choice outside low-memory mode.
+const cFFmpegFrameThreads = "4"
+
+// ffmpegFrameInput is ffmpegInput for decoding a frame: low-memory mode's
+// threads, or a Pi's.
+func ffmpegFrameInput(path string) []string {
+	threads := ffmpegThreads
+	if threads == "" {
+		threads = cFFmpegFrameThreads
+	}
+	return []string{"-threads", threads, "-i", path}
+}
+
 // taggerModel and faceModel are loaded models that can be let go:
 // *imagestagger.RAMTagger and *facerecognition.Recognizer, or tests' fakes.
 type taggerModel interface {

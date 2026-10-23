@@ -117,6 +117,21 @@ func TestFFmpegThreadsInLowMemory(t *testing.T) {
 	if got := ffmpegInput("/v"); !slices.Equal(got, []string{"-threads", "2", "-i", "/v"}) {
 		t.Errorf("ffmpeg input %q", got)
 	}
+	if got := ffmpegFrameInput("/v"); !slices.Equal(got, []string{"-threads", "2", "-i", "/v"}) {
+		t.Errorf("ffmpeg frame input %q", got)
+	}
+}
+
+// Outside low-memory mode a frame decodes with a Pi's four threads,
+// whatever the machine; a transcode keeps ffmpeg's own choice.
+func TestFFmpegFrameThreadsAreAPis(t *testing.T) {
+	ffmpegThreads = ""
+	if got := ffmpegFrameInput("/v"); !slices.Equal(got, []string{"-threads", "4", "-i", "/v"}) {
+		t.Errorf("ffmpeg frame input %q", got)
+	}
+	if got := ffmpegInput("/v"); !slices.Equal(got, []string{"-i", "/v"}) {
+		t.Errorf("ffmpeg input %q", got)
+	}
 }
 
 // concurrency records how many calls are inside at once.
@@ -165,7 +180,8 @@ func TestLowMemoryProcessesOneJobAtATime(t *testing.T) {
 		}
 	}
 	thumb, analyse := job(jobThumbnail), job(jobAnalysis)
-	ls := newMediaLanes(processingWorkers(), func(j mediaJob) bool { thumb(j); return true }, analyse)
+	fast, analysis := processingWorkers()
+	ls := newMediaLanes(fast, analysis, func(j mediaJob) bool { thumb(j); return true }, analyse)
 	for _, h := range []string{"a", "b", "c", "d"} {
 		wg.Add(2) // its thumbnail and its analysis
 		ls.fast.push(mediaJob{file: &pb.File{Hash: h}})
