@@ -390,8 +390,14 @@ else
         [ "$RECOVERY" = "1" ] && { wiz_error recovery_no_array disk1 "$DISK1" disk2 "$DISK2"; die "recovery was asked for, but no existing RAID1 array could be assembled from $DISK1/$DISK2 - nothing was wiped. Check both disks are connected and try again."; }
         # Last line of defence: a disk that still carries a RAID superblock
         # belongs to an array, and wiping it is never done implicitly.
+        # mdadm --examine also succeeds on a plain MBR partition table (it
+        # prints the partitions), which every PC formatter and the Pi
+        # Imager's Erase leave behind: only an md superblock, which always
+        # prints its Raid Level, counts. Not grep -q: under pipefail, grep
+        # leaving early could fail mdadm on a broken pipe and let a real
+        # member through.
         for d in "$DISK1" "$DISK2"; do
-            if mdadm --examine "$d" >/dev/null 2>&1; then
+            if mdadm --examine "$d" 2>/dev/null | grep "Raid Level" >/dev/null; then
                 wiz_error array_not_assembled disk "$d"
                 die "$d still holds a RAID array that could not be assembled - refusing to wipe it. To really start over, run: mdadm --zero-superblock $d"
             fi
