@@ -117,6 +117,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.ui.PlayerView
 import cloud.offthe.otc.proto.FileExifInfo
+import cloud.offthe.otc.ui.common.DeviceNeedsUpdateDialog
 import cloud.offthe.otc.ui.common.NavIcons
 import cloud.offthe.otc.ui.common.dragSelect
 import cloud.offthe.otc.ui.common.rememberDragSelect
@@ -690,6 +691,8 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
                         count = st.selected.size, busy = st.preparing,
                         onShare = { vm.shareSelected(context) }, onDownload = { vm.downloadZip(context) },
                         onDelete = { confirmDeleteSelected = true }, onGroup = { scope.launch { vm.loadGroups() }; showGroupPicker = true },
+                        // Only inside a collection: out of it.
+                        onUncollect = if (st.activeGroup != null) { { vm.removeSelectionFromGroup() } } else null,
                         // Issue #180: the selected photos, as a gallery - no group needed.
                         onGallery = { gallerySource = SharedGallerySource.newBuilder().addAllPaths(st.selected.sorted()).build() },
                         // Out of selection mode: a tap opens a photo again.
@@ -799,6 +802,8 @@ fun PhotoGalleryView(deviceId: String, wide: Boolean = false, page: GalleryPage 
             confirmButton = { TextButton(onClick = { vm.dismissAlert() }) { Text(S.commonOk().resolve()) } },
         )
     }
+
+    st.needsUpdate?.let { DeviceNeedsUpdateDialog(it, onDismiss = { vm.dismissNeedsUpdate() }) }
 
     if (st.openIndex != null) ImageModal(vm, st)
 }

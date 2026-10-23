@@ -12,6 +12,7 @@ import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.data.FaceRecognition
 import cloud.offthe.otc.data.ImagesChanged
 import cloud.offthe.otc.net.ChunkedDownload
+import cloud.offthe.otc.net.ErrorCodes
 import cloud.offthe.otc.net.MediaStream
 import cloud.offthe.otc.net.NetworkWatch
 import cloud.offthe.otc.net.OTCConnection
@@ -33,13 +34,16 @@ import cloud.offthe.otc.proto.ImageGroup
 import cloud.offthe.otc.proto.ListImageGroups
 import cloud.offthe.otc.proto.ListPeople
 import cloud.offthe.otc.proto.Person
+import cloud.offthe.otc.proto.RemoveFromImageGroup
 import cloud.offthe.otc.proto.RenameImageGroup
 import cloud.offthe.otc.proto.ReqEnvelope
 import cloud.offthe.otc.proto.ReqPhotoDateBuckets
 import cloud.offthe.otc.proto.RespEnvelope
 import cloud.offthe.otc.proto.SearchPhotos
 import cloud.offthe.otc.proto.ShareFilesLink
+import cloud.offthe.otc.ui.common.DeviceNeedsUpdate
 import cloud.offthe.otc.ui.common.DragSelection
+import cloud.offthe.otc.ui.common.deviceNeedsUpdate
 import cloud.offthe.otc.ui.common.keysView
 import cloud.offthe.otc.ui.common.LoadProblem
 import cloud.offthe.otc.ui.common.SelectionActionTask
@@ -71,6 +75,7 @@ import cloud.offthe.otc.proto.File as PbFile
 import java.util.UUID
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
+import cloud.offthe.otc.i18n.appPhotosCollectionsRemoveNeedsUpdate
 import cloud.offthe.otc.i18n.appPhotosNoticeAddFailed
 import cloud.offthe.otc.i18n.appPhotosNoticeAdded
 import cloud.offthe.otc.i18n.appPhotosNoticeCreateFailed
@@ -82,6 +87,8 @@ import cloud.offthe.otc.i18n.appPhotosNoticeDeleteFailed
 import cloud.offthe.otc.i18n.appPhotosNoticeNoDownloadLink
 import cloud.offthe.otc.i18n.appPhotosNoticeNoShareLink
 import cloud.offthe.otc.i18n.appPhotosNoticeNotLoaded
+import cloud.offthe.otc.i18n.appPhotosNoticeRemoveFailed
+import cloud.offthe.otc.i18n.appPhotosNoticeRemoved
 import cloud.offthe.otc.i18n.appPhotosNoticeRenameFailed
 import cloud.offthe.otc.i18n.appPhotosNoticeSaved
 import cloud.offthe.otc.i18n.appPhotosNoticeShareFailed
@@ -272,6 +279,8 @@ class PhotoGalleryViewModel(
         // refusals summed up per kind).
         val alert: UiText? = null,
         val alertMore: List<UiText> = emptyList(),
+        // A request the device is too old for: its "needs an update" dialog.
+        val needsUpdate: DeviceNeedsUpdate? = null,
         val preparing: SelectionActionTask? = null,
         val selected: Set<String> = emptySet(),
         val infoOpen: Boolean = false,
@@ -841,6 +850,45 @@ class PhotoGalleryViewModel(
         if (_state.value.activeGroup?.id == g.id) restartSearch()
         alert(S.appPhotosNoticeAdded(g.name))
     }
+
+    /**
+     * Remove from collection: the picked photos out of the open collection -
+     * the membership only; they stay on the device and in other collections
+     * - and so off its grid, as deleted ones would go (with the months and
+     * the collection's count). A member is a photo (issue #201), so every
+     * tile of one goes. A device from before the request answers
+     * unknown_payload: it needs an update (needsUpdate's dialog).
+     */
+    fun removeSelectionFromGroup() = scope.launch {
+        val st = _state.value
+        val g = st.activeGroup ?: return@launch
+        val paths = st.selected.toList()
+        if (paths.isEmpty() || st.preparing != null) return@launch
+        _state.update { it.copy(preparing = SelectionActionTask.UNCOLLECT) }
+        try {
+            val r = try {
+                call { it.setReqRemoveFromImageGroup(RemoveFromImageGroup.newBuilder().setGroupId(g.id).addAllPaths(paths)) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) { null }
+            when {
+                r != null && r.payloadCase == RespEnvelope.PayloadCase.RESP_ACK && r.respAck.ok -> {
+                    val hashes = pickedByPath(st.items, pickedAway, st.selected).values.mapNotNull { it.hash.ifEmpty { null } }.toSet()
+                    removeDeleted(paths.toSet() + _state.value.items.filter { it.hash in hashes }.map { it.path }, keepThumbs = true)
+                    clearSelection()
+                    countsChanged()
+                    alert(S.appPhotosNoticeRemoved(g.name))
+                }
+                r != null && r.error && ErrorCodes.isUnknownPayload(r.errorCode, r.errorMessage) -> {
+                    val ask = deviceNeedsUpdate(S.appPhotosCollectionsRemoveNeedsUpdate()) { build -> call(build) }
+                    _state.update { it.copy(needsUpdate = ask) }
+                }
+                else -> alert(S.appPhotosNoticeRemoveFailed())
+            }
+        } finally { _state.update { it.copy(preparing = null) } }
+    }
+
+    fun dismissNeedsUpdate() = _state.update { it.copy(needsUpdate = null) }
 
     fun togglePerson(id: String) {
         _state.update { st -> st.copy(selectedPeople = if (id in st.selectedPeople) st.selectedPeople - id else st.selectedPeople + id) }
@@ -1719,17 +1767,18 @@ class PhotoGalleryViewModel(
     /**
      * Photos the device deleted ([paths]): off the grid and the selection,
      * their thumbnails off the phone, and each one's search (issue #194)
-     * counts one photo fewer - one tile per photo since #201.
+     * counts one photo fewer - one tile per photo since #201. [keepThumbs]:
+     * photos still on the device, only out of the open collection.
      */
-    private suspend fun removeDeleted(paths: Set<String>) {
+    private suspend fun removeDeleted(paths: Set<String>, keepThumbs: Boolean = false) {
         val gone = _state.value.items.filter { it.path in paths }
         for (i in gone) {
-            if (i.hash.isNotEmpty()) thumbs.discard(i.hash)
+            if (i.hash.isNotEmpty() && !keepThumbs) thumbs.discard(i.hash)
             if (i.up) upHave = maxOf(0, upHave - 1) else downHave = maxOf(0, downHave - 1)
         }
         // Picks off the grid: only their thumbnails (no search on now counted them).
         val away = pickedAway
-        for ((p, i) in away) if (p in paths && i.hash.isNotEmpty()) thumbs.discard(i.hash)
+        if (!keepThumbs) for ((p, i) in away) if (p in paths && i.hash.isNotEmpty()) thumbs.discard(i.hash)
         pickedAway = away - paths
         _state.update { st -> st.copy(items = st.items.filter { it.path !in paths }, selected = st.selected - paths) }
         // A drag begun meanwhile doesn't bring them back (issue #200).

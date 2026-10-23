@@ -88,6 +88,11 @@ object NavIcons {
         outlineIcon("AddToCollection", "M7.5 4.5h10a3 3 0 0 1 3 3v10", rectPath(3.5f, 7.5f, 13f, 13f, 2f), "M10 11v6M7 14h6")
     }
 
+    /** "Remove from collection" (PhotoGallery.tsx's RemoveFromCollectionIcon): the same stack with a minus. */
+    val RemoveFromCollection: ImageVector by lazy {
+        outlineIcon("RemoveFromCollection", "M7.5 4.5h10a3 3 0 0 1 3 3v10", rectPath(3.5f, 7.5f, 13f, 13f, 2f), "M7 14h6")
+    }
+
     val Files: ImageVector by lazy {
         outlineIcon("Files", "M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z")
     }

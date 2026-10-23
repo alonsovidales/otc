@@ -553,6 +553,8 @@ final class PhotoGalleryVM: ObservableObject {
     /// What the alert says, kept as what happened and worded when it shows
     /// (GalleryNotice.text), so it follows a change of language.
     @Published var notice: GalleryNotice?
+    /// A device too old for what was just tapped (DeviceNeedsUpdate).
+    @Published var needsUpdate: DeviceNeedsUpdate?
     // Issue #9: the system share sheet for the currently-open photo. A file
     // URL, not the raw UIImage — handing UIActivityViewController a large
     // in-memory UIImage directly is what made the share sheet visibly slow
@@ -1310,6 +1312,43 @@ final class PhotoGalleryVM: ObservableObject {
         // If that was the open group, its grid has new members to show.
         if activeGroup?.id == g.id { restartSearch() }
         notice = .added(g.name); showAlert = true
+    }
+
+    /// Remove from collection: the picked photos leave the open collection
+    /// - the membership only; they stay on the device and in other
+    /// collections - and so its grid, every tile of each (a member is a
+    /// photo, issue #201). No question first: nothing is lost, Add to
+    /// collection puts them back. A device from before it answers
+    /// unknown_payload: it needs an update (DeviceNeedsUpdate).
+    func removeSelectionFromGroup() async {
+        guard let g = activeGroup, preparing == nil else { return }
+        let paths = Array(selected)
+        guard !paths.isEmpty else { return }
+        let hashes = Set(pickedItems().values.map(\.hash).filter { !$0.isEmpty })
+        preparing = .removeFromGroup
+        defer { preparing = nil }
+        var r = Msg_RemoveFromImageGroup()
+        r.groupID = g.id
+        r.paths = paths
+        guard let resp = try? await libraryRequest(.reqRemoveFromImageGroup(r), nil) else {
+            notice = .removeFailed; showAlert = true
+            return
+        }
+        if resp.error, ErrorCodes.isUnknownPayload(code: resp.errorCode, message: resp.errorMessage) {
+            let send = libraryRequest
+            needsUpdate = await DeviceNeedsUpdate.asking(title: S.appPhotosCollectionsRemoveNeedsUpdate) { try await send($0, nil) }
+            return
+        }
+        guard case .respAck(let ack) = resp.payload, ack.ok else {
+            notice = .removeFailed; showAlert = true
+            return
+        }
+        let picked = Set(paths)
+        items.removeAll { picked.contains($0.path) || hashes.contains($0.hash) }
+        clearSelection()
+        // The months' and the open collection's counts, as after a delete.
+        countsChanged()
+        notice = .removed(g.name); showAlert = true
     }
 
     func togglePerson(_ id: String) {
@@ -2797,11 +2836,13 @@ final class PhotoGalleryVM: ObservableObject {
 /// with an error's own description read then. The device's words are
 /// shown as they come (it writes them in the request's language).
 enum GalleryNotice {
-    case renameFailed, deleteCollectionFailed, createFailed, addFailed
+    case renameFailed, deleteCollectionFailed, createFailed, addFailed, removeFailed
     /// A new collection, by its name.
     case created(String)
     /// Added to the collection of this name.
     case added(String)
+    /// Taken out of the collection of this name.
+    case removed(String)
     case notLoaded, photosDenied, saved, noShareLink, noDownloadLink
     case shareFailed(Error), saveFailed(Error), deleteFailed(Error), uploadFailed(Error), downloadFailed(Error)
     /// The device refused a delete: its own explanation.
@@ -2816,8 +2857,10 @@ enum GalleryNotice {
         case .deleteCollectionFailed: return S.appPhotosNoticeDeleteCollectionFailed
         case .createFailed: return S.appPhotosNoticeCreateFailed
         case .addFailed: return S.appPhotosNoticeAddFailed
+        case .removeFailed: return S.appPhotosNoticeRemoveFailed
         case .created(let name): return S.appPhotosNoticeCreated(name: name)
         case .added(let name): return S.appPhotosNoticeAdded(name: name)
+        case .removed(let name): return S.appPhotosNoticeRemoved(name: name)
         case .notLoaded: return S.appPhotosNoticeNotLoaded
         case .photosDenied: return S.iosPhotosAccessDenied
         case .saved: return S.appPhotosNoticeSaved
@@ -3067,6 +3110,9 @@ struct PhotoGalleryView: View {
                             Task { await vm.loadGroups() }
                             vm.showGroupPicker = true
                         },
+                        onRemoveFromGroup: vm.activeGroup == nil ? nil : {
+                            Task { await vm.removeSelectionFromGroup() }
+                        },
                         // Issue #180: the selected photos, as a gallery -
                         // no group needed.
                         onGallery: { gallerySource = .paths(Array(vm.selected).sorted()) }
@@ -3217,6 +3263,7 @@ struct PhotoGalleryView: View {
             if let text = vm.deleteAsk.text { Text(text) }
         }
         .alert(vm.notice?.text ?? "", isPresented: $vm.showAlert) { Button(S.commonOk, role: .cancel) {} }
+        .deviceNeedsUpdate($vm.needsUpdate)
         // Presented once and left up while paging: the previous sheet was
         // keyed by the index, so every swipe dismissed it and presented a
         // new one - the "closes and reopens" the viewer used to do. Full

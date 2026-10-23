@@ -23,8 +23,9 @@ import UIKit
 enum NavIcon: CaseIterable, Hashable {
     // The web's menu (NavIcons.tsx).
     case menu, images, people, collections, files, social, friends, alerts, settings, storage, chevron
-    // Images' selection bar: a collection with a plus (PhotoGallery.tsx).
-    case addToCollection
+    // Images' selection bar: a collection with a plus, and with a minus
+    // inside an open collection (PhotoGallery.tsx).
+    case addToCollection, removeFromCollection
     // People's selection bar: two lines joining into one (PeopleView.tsx).
     case merge
     // The top bar's search (TopSearch.tsx). A folder is `files` and a
@@ -85,6 +86,8 @@ enum NavIcon: CaseIterable, Hashable {
             return [.path("m7 10 5 5 5-5")]
         case .addToCollection:
             return [.path("M7.5 4.5h10a3 3 0 0 1 3 3v10"), .rect(3.5, 7.5, 13, 13, 2), .path("M10 11v6M7 14h6")]
+        case .removeFromCollection:
+            return [.path("M7.5 4.5h10a3 3 0 0 1 3 3v10"), .rect(3.5, 7.5, 13, 13, 2), .path("M7 14h6")]
         case .merge:
             return [
                 .path("M6 20v-3.5a4 4 0 0 1 1.17-2.83L12 9"),

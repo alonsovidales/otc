@@ -330,7 +330,8 @@ internal fun outermostKeptOut(kept: List<String>, folder: String): String? {
 internal fun outOfImagesWait(task: SelectionActionTask): UiText = when (task) {
     SelectionActionTask.SHARE -> S.androidFilesWaitShareLink()
     SelectionActionTask.DOWNLOAD -> S.androidFilesWaitDownloadLink()
-    SelectionActionTask.OUT_OF_IMAGES -> S.androidFilesWaitFolder()
+    // UNCOLLECT is Images' alone, never under way in Files.
+    SelectionActionTask.OUT_OF_IMAGES, SelectionActionTask.UNCOLLECT -> S.androidFilesWaitFolder()
 }
 
 /**

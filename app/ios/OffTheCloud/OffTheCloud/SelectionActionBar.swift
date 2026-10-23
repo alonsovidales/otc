@@ -26,6 +26,8 @@ enum SelectionActionTask {
     case download
     /// Issue #192: keeping a folder out of Images, or showing it again.
     case outOfImages
+    /// Taking the picked photos out of the open collection.
+    case removeFromGroup
 }
 
 struct SelectionActionBar: View {
@@ -45,6 +47,9 @@ struct SelectionActionBar: View {
     /// from the selection or add it to one. Only the Images tab has it, so
     /// it is optional and absent from the bar when not given.
     var onGroup: (() -> Void)? = nil
+    /// "Remove from collection": Images inside an open collection only -
+    /// the picked photos leave it, and stay on the device.
+    var onRemoveFromGroup: (() -> Void)? = nil
     /// Issue #180: "Share as gallery" - the selection as a gallery: Images'
     /// and Files' when the selection is one folder (issue #200, as on
     /// Android); absent otherwise.
@@ -72,11 +77,12 @@ struct SelectionActionBar: View {
 
     /// How many items the bar has.
     private var itemCount: Int {
-        3 + [onUpload != nil, onGallery != nil, onOutOfImages != nil, onGroup != nil].filter { $0 }.count
+        3 + [onUpload != nil, onGallery != nil, onOutOfImages != nil, onGroup != nil, onRemoveFromGroup != nil].filter { $0 }.count
     }
 
-    /// Six items (Files with one folder picked) take nearly the whole
-    /// width, as Android's bar does then (BarTightInset).
+    /// Six items (Files with one folder picked, Images in an open
+    /// collection) take nearly the whole width, as Android's bar does then
+    /// (BarTightInset).
     private var crowded: Bool { itemCount >= 6 }
 
     var body: some View {
@@ -127,6 +133,12 @@ struct SelectionActionBar: View {
                 if let onGroup {
                     // The web's own drawing: a collection with a plus.
                     item(S.appShellAddToCollection, symbol: "", icon: .addToCollection, action: onGroup)
+                        .disabled(count == 0)
+                }
+                if let onRemoveFromGroup {
+                    // The same drawing with a minus.
+                    item(S.appShellRemoveFromCollection, symbol: "", icon: .removeFromCollection,
+                         busy: busy == .removeFromGroup, action: onRemoveFromGroup)
                         .disabled(count == 0)
                 }
                 item(S.commonDelete, symbol: "trash", tint: .red, action: onDelete)
