@@ -87,7 +87,7 @@
   "site.social.row.open_source": {"text": "Open source"},
   "site.social.row.setup": {"text": "Ce qu’il vous faut"},
   "site.social.row.where": {"text": "Où sont conservées vos publications"},
-  "site.social.start.accounts": {"text": "<b>Ajoutez la famille.</b> Dans l’app web, dans Paramètres › Utilisateurs, ajoutez un compte pour chaque personne en cochant <em>Demander l’accès à la passerelle</em>. Chacun choisit son propre mot de passe lors de sa première connexion."},
+  "site.social.start.accounts": {"text": "<b>Ajoutez la famille.</b> Dans l’app web, dans Paramètres › Utilisateurs, ajoutez un compte pour chaque personne en cochant <em>Demander l’accès à la passerelle</em>, et choisissez un premier mot de passe à lui donner. Elle le change dans Paramètres › Modifier le mot de passe, et dès lors elle seule le connaît."},
   "site.social.start.device": {"text": "<b>Configurez l’appareil.</b> L’app pour ordinateur prépare la carte du Raspberry Pi 5, et vous terminez la configuration depuis votre téléphone par Bluetooth, en 20 minutes environ. Elle vous demande un compte de passerelle, qui donne à votre appareil son adresse off-the.cloud."},
   "site.social.start.friends": {"text": "<b>Ajoutez des amis.</b> Dans Amis, saisissez le nom de l’appareil d’un ami, par exemple casa pour casa.off-the.cloud, et envoyez la demande. Une fois la demande acceptée, chacun voit les publications de l’autre dans son fil."},
   "site.social.start.links": {"text": "<b>Partagez avec tous les autres.</b> Choisissez des photos dans Images, ajoutez-les à une collection et partagez-la sous forme de lien."},

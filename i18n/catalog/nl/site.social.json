@@ -87,7 +87,7 @@
   "site.social.row.open_source": {"text": "Open source"},
   "site.social.row.setup": {"text": "Wat je nodig hebt"},
   "site.social.row.where": {"text": "Waar je berichten worden bewaard"},
-  "site.social.start.accounts": {"text": "<b>Voeg je gezin toe.</b> Voeg in de webapp, onder Instellingen › Gebruikers, voor elke persoon een account toe met <em>Toegang tot de bridge aanvragen</em> aangevinkt. Die persoon kiest de eerste keer bij het inloggen een eigen wachtwoord."},
+  "site.social.start.accounts": {"text": "<b>Voeg je gezin toe.</b> Voeg in de webapp, onder Instellingen › Gebruikers, voor elke persoon een account toe met <em>Toegang tot de bridge aanvragen</em> aangevinkt, en kies een eerste wachtwoord om die persoon te geven. Die wijzigt het in Instellingen › Wachtwoord wijzigen, en vanaf dan kent alleen die persoon het."},
   "site.social.start.device": {"text": "<b>Stel het apparaat in.</b> De computerapp maakt de kaart van de Raspberry Pi 5 klaar, en je rondt de configuratie af vanaf je telefoon via Bluetooth, in ongeveer 20 minuten. Daarbij wordt om een bridgeaccount gevraagd, dat je apparaat zijn adres op off-the.cloud geeft."},
   "site.social.start.friends": {"text": "<b>Voeg vrienden toe.</b> Typ in Vrienden de naam van het apparaat van de ander, zoals casa voor casa.off-the.cloud, en stuur het verzoek. Zodra het is geaccepteerd, verschijnen jullie berichten in elkaars feed."},
   "site.social.start.links": {"text": "<b>Deel met alle anderen.</b> Kies foto’s in Afbeeldingen, voeg ze toe aan een collectie en deel die als link."},

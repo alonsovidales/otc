@@ -87,7 +87,7 @@
   "site.social.row.open_source": {"text": "Open source"},
   "site.social.row.setup": {"text": "Cosa ti serve"},
   "site.social.row.where": {"text": "Dove sono conservati i tuoi post"},
-  "site.social.start.accounts": {"text": "<b>Aggiungi la famiglia.</b> Nell’app web, in Impostazioni › Utenti, aggiungi un account per ogni persona con <em>Richiedi l’accesso al bridge</em> selezionato. Ognuno sceglie la propria password al primo accesso."},
+  "site.social.start.accounts": {"text": "<b>Aggiungi la famiglia.</b> Nell’app web, in Impostazioni › Utenti, aggiungi un account per ogni persona con <em>Richiedi l’accesso al bridge</em> selezionato, e scegli una prima password da darle. La persona la cambia in Impostazioni › Modifica password, e da quel momento la conosce solo lei."},
   "site.social.start.device": {"text": "<b>Configura il dispositivo.</b> L’app per computer prepara la scheda del Raspberry Pi 5, e completi la configurazione dal telefono tramite Bluetooth, in circa 20 minuti. Ti chiede un account del bridge, che dà al tuo dispositivo il suo indirizzo off-the.cloud."},
   "site.social.start.friends": {"text": "<b>Aggiungi gli amici.</b> In Amici, scrivi il nome del dispositivo di un amico, ad esempio casa per casa.off-the.cloud, e invia la richiesta. Quando viene accettata, ognuno vede i post dell’altro nel proprio feed."},
   "site.social.start.links": {"text": "<b>Condividi con tutti gli altri.</b> Scegli le foto in Immagini, aggiungile a una raccolta e condividila come link."},

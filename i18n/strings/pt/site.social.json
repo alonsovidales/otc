@@ -362,8 +362,8 @@
     "en": "Where your posts are kept"
   },
   "site.social.start.accounts": {
-    "text": "<b>Adiciona a família.</b> Na app web, em Definições › Utilizadores, adiciona uma conta para cada pessoa com <em>Pedir acesso à ponte</em> marcado. Cada pessoa escolhe a sua palavra-passe da primeira vez que inicia sessão.",
-    "en": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked. They choose their own password the first time they sign in."
+    "text": "<b>Adiciona a família.</b> Na app web, em Definições › Utilizadores, adiciona uma conta para cada pessoa com <em>Pedir acesso à ponte</em> marcado, e escolhe uma primeira palavra-passe para lhe dares. A pessoa altera-a em Definições › Alterar palavra-passe e, a partir daí, só ela a conhece.",
+    "en": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked, and choose a first password to give them. They change it in Settings › Change Password, and from then on only they know it."
   },
   "site.social.start.device": {
     "text": "<b>Configura o dispositivo.</b> A app para computador prepara o cartão do Raspberry Pi 5, e terminas a configuração a partir do teu telemóvel por Bluetooth, em cerca de 20 minutos. A configuração pede uma conta da ponte, que dá ao teu dispositivo o seu endereço off-the.cloud.",

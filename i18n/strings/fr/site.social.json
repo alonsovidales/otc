@@ -362,8 +362,8 @@
     "en": "Where your posts are kept"
   },
   "site.social.start.accounts": {
-    "text": "<b>Ajoutez la famille.</b> Dans l’app web, dans Paramètres › Utilisateurs, ajoutez un compte pour chaque personne en cochant <em>Demander l’accès à la passerelle</em>. Chacun choisit son propre mot de passe lors de sa première connexion.",
-    "en": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked. They choose their own password the first time they sign in."
+    "text": "<b>Ajoutez la famille.</b> Dans l’app web, dans Paramètres › Utilisateurs, ajoutez un compte pour chaque personne en cochant <em>Demander l’accès à la passerelle</em>, et choisissez un premier mot de passe à lui donner. Elle le change dans Paramètres › Modifier le mot de passe, et dès lors elle seule le connaît.",
+    "en": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked, and choose a first password to give them. They change it in Settings › Change Password, and from then on only they know it."
   },
   "site.social.start.device": {
     "text": "<b>Configurez l’appareil.</b> L’app pour ordinateur prépare la carte du Raspberry Pi 5, et vous terminez la configuration depuis votre téléphone par Bluetooth, en 20 minutes environ. Elle vous demande un compte de passerelle, qui donne à votre appareil son adresse off-the.cloud.",

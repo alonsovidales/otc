@@ -87,7 +87,7 @@
   "site.social.row.open_source": {"text": "Código aberto"},
   "site.social.row.setup": {"text": "Do que precisas"},
   "site.social.row.where": {"text": "Onde ficam as tuas publicações"},
-  "site.social.start.accounts": {"text": "<b>Adiciona a família.</b> Na app web, em Definições › Utilizadores, adiciona uma conta para cada pessoa com <em>Pedir acesso à ponte</em> marcado. Cada pessoa escolhe a sua palavra-passe da primeira vez que inicia sessão."},
+  "site.social.start.accounts": {"text": "<b>Adiciona a família.</b> Na app web, em Definições › Utilizadores, adiciona uma conta para cada pessoa com <em>Pedir acesso à ponte</em> marcado, e escolhe uma primeira palavra-passe para lhe dares. A pessoa altera-a em Definições › Alterar palavra-passe e, a partir daí, só ela a conhece."},
   "site.social.start.device": {"text": "<b>Configura o dispositivo.</b> A app para computador prepara o cartão do Raspberry Pi 5, e terminas a configuração a partir do teu telemóvel por Bluetooth, em cerca de 20 minutos. A configuração pede uma conta da ponte, que dá ao teu dispositivo o seu endereço off-the.cloud."},
   "site.social.start.friends": {"text": "<b>Adiciona amigos.</b> Em Amigos, escreve o nome do dispositivo de um amigo, como casa para casa.off-the.cloud, e envia o pedido. Depois de o pedido ser aceite, as publicações de cada um aparecem no feed do outro."},
   "site.social.start.links": {"text": "<b>Partilha com todos os outros.</b> Escolhe fotos em Imagens, adiciona-as a uma coleção e partilha-a como ligação."},

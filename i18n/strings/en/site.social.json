@@ -449,7 +449,7 @@
     "max": 50
   },
   "site.social.start.accounts": {
-    "text": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked. They choose their own password the first time they sign in.",
+    "text": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked, and choose a first password to give them. They change it in Settings › Change Password, and from then on only they know it.",
     "note": "Website, the page comparing Off The Cloud's private social network with Instagram, Facebook, WhatsApp, FamilyAlbum and Pixelfed (off-the.cloud/private-social-network): section \"Bringing your family in\": the second step. <b> marks its short title in bold; <em> marks the name of a checkbox in the app. Settings › Users and Request bridge access are names in the web app: use the app's own words (web.settings).",
     "rich": ["b", "em"]
   },

@@ -362,8 +362,8 @@
     "en": "Where your posts are kept"
   },
   "site.social.start.accounts": {
-    "text": "<b>Voeg je gezin toe.</b> Voeg in de webapp, onder Instellingen › Gebruikers, voor elke persoon een account toe met <em>Toegang tot de bridge aanvragen</em> aangevinkt. Die persoon kiest de eerste keer bij het inloggen een eigen wachtwoord.",
-    "en": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked. They choose their own password the first time they sign in."
+    "text": "<b>Voeg je gezin toe.</b> Voeg in de webapp, onder Instellingen › Gebruikers, voor elke persoon een account toe met <em>Toegang tot de bridge aanvragen</em> aangevinkt, en kies een eerste wachtwoord om die persoon te geven. Die wijzigt het in Instellingen › Wachtwoord wijzigen, en vanaf dan kent alleen die persoon het.",
+    "en": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked, and choose a first password to give them. They change it in Settings › Change Password, and from then on only they know it."
   },
   "site.social.start.device": {
     "text": "<b>Stel het apparaat in.</b> De computerapp maakt de kaart van de Raspberry Pi 5 klaar, en je rondt de configuratie af vanaf je telefoon via Bluetooth, in ongeveer 20 minuten. Daarbij wordt om een bridgeaccount gevraagd, dat je apparaat zijn adres op off-the.cloud geeft.",

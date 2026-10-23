@@ -362,8 +362,8 @@
     "en": "Where your posts are kept"
   },
   "site.social.start.accounts": {
-    "text": "<b>Füge deine Familie hinzu.</b> Lege in der Web-App unter Einstellungen › Benutzer für jede Person ein Konto an, mit angehaktem <em>Bridge-Zugang anfordern</em>. Beim ersten Anmelden wählt jede Person ihr eigenes Passwort.",
-    "en": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked. They choose their own password the first time they sign in."
+    "text": "<b>Füge deine Familie hinzu.</b> Lege in der Web-App unter Einstellungen › Benutzer für jede Person ein Konto an, mit angehaktem <em>Bridge-Zugang anfordern</em>, und wähle ein erstes Passwort, das du ihr gibst. Sie ändert es unter Einstellungen › Passwort ändern, und ab dann kennt nur sie es.",
+    "en": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked, and choose a first password to give them. They change it in Settings › Change Password, and from then on only they know it."
   },
   "site.social.start.device": {
     "text": "<b>Richte das Gerät ein.</b> Die Computer-App bereitet die Karte des Raspberry Pi 5 vor, und du schließt die Einrichtung in etwa 20 Minuten über Bluetooth auf deinem Handy ab. Dabei wird nach einem Bridge-Konto gefragt, das deinem Gerät seine Adresse unter off-the.cloud gibt.",

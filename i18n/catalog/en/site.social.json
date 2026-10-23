@@ -87,7 +87,7 @@
   "site.social.row.open_source": {"text": "Open source"},
   "site.social.row.setup": {"text": "What you need"},
   "site.social.row.where": {"text": "Where your posts are kept"},
-  "site.social.start.accounts": {"text": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked. They choose their own password the first time they sign in."},
+  "site.social.start.accounts": {"text": "<b>Add the family.</b> In the web app, under Settings › Users, add an account for each person with <em>Request bridge access</em> ticked, and choose a first password to give them. They change it in Settings › Change Password, and from then on only they know it."},
   "site.social.start.device": {"text": "<b>Set up the device.</b> The computer app prepares the Raspberry Pi 5's card, and you finish the setup from your phone over Bluetooth, in about 20 minutes. It asks for a bridge account, which gives your device its off-the.cloud address."},
   "site.social.start.friends": {"text": "<b>Add friends.</b> In Friends, type the name of a friend's device, such as casa for casa.off-the.cloud, and send the request. Once they accept, your posts appear in each other's feed."},
   "site.social.start.links": {"text": "<b>Share with everyone else.</b> Choose photos in Images, add them to a collection and share it as a link."},

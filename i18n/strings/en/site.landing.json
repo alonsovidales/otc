@@ -278,7 +278,7 @@
     "max": 30
   },
   "site.landing.faq.family.p1": {
-    "text": "One device is enough. As its owner, you add an account for each person in Settings › Users (in the web app, the iPhone app or the Android app), and they choose their own password the first time they sign in. Each account has its own photo backup and library, and its photos and files are encrypted with that person's password, so you can't open them from your account. Everyone shares the same device and its two mirrored disks; the Users screen shows how much space each account takes, and you can pause an account, or remove it together with its files, at any time.",
+    "text": "One device is enough. As its owner, you add an account for each person in Settings › Users (in the web app, the iPhone app or the Android app), and choose a first password to give them; they change it in Settings › Change Password, and from then on only they know it. Each account has its own photo backup and library, and its photos and files are encrypted with that person's password, so you can't open them from your account. Everyone shares the same device and its two mirrored disks; the Users screen shows how much space each account takes, and you can pause an account, or remove it together with its files, at any time.",
     "note": "Website landing page, FAQ: first paragraph of the answer about family accounts. Settings › Users is a path in the apps (the Users screen inside Settings): use the apps' names in your language."
   },
   "site.landing.faq.family.p2": {
