@@ -2314,7 +2314,11 @@ func (mg *Manager) heicToJpeg(heicData []byte, quality int, fallbackOrientation 
 	if err := checkImageSize(heicData); err != nil {
 		return nil, err
 	}
-	img, err := goheif.Decode(bytes.NewReader(heicData))
+	// decodeHeic: goheif's own decoder is wrong at 10 bits a sample.
+	img, err := decodeHeic(heicData)
+	if errors.Is(err, errNotHevcStill) {
+		img, err = goheif.Decode(bytes.NewReader(heicData))
+	}
 	if err != nil {
 		return nil, err
 	}

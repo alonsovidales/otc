@@ -67,10 +67,17 @@ func checkImageSize(b []byte) error {
 	return nil
 }
 
-// decodeImage is image.Decode behind checkImageSize.
+// decodeImage is image.Decode behind checkImageSize - a HEIC's HEVC
+// still or grid through decodeHeic, which is right at 10 bits a sample
+// where goheif's decoder isn't.
 func decodeImage(b []byte) (image.Image, error) {
 	if err := checkImageSize(b); err != nil {
 		return nil, err
+	}
+	if len(b) >= 8 && string(b[4:8]) == "ftyp" {
+		if img, err := decodeHeic(b); !errors.Is(err, errNotHevcStill) {
+			return img, err
+		}
 	}
 	img, _, err := image.Decode(bytes.NewReader(b))
 	return img, err

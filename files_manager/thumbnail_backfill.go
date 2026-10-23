@@ -142,8 +142,9 @@ const cNoThumbnailSuffix = ".nothumb"
 
 // cDecoders names what this build can make previews from; a marker written
 // by a build that could do less is retried once (release 31's markers are
-// empty, so the GIF/WebP/BMP/TIFF they recorded get another go).
-const cDecoders = "jpeg,png,gif,webp,bmp,tiff,heic,ffmpeg-image,short-video"
+// empty, so the GIF/WebP/BMP/TIFF they recorded get another go; heic10's
+// release retries the 10-bit HEIC photos goheif failed or crashed on).
+const cDecoders = "jpeg,png,gif,webp,bmp,tiff,heic,heic10,ffmpeg-image,short-video"
 
 func (mg *Manager) isReprocessing() bool {
 	mg.reprocessMu.Lock()

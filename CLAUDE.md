@@ -436,7 +436,11 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   processing failure (decode, HEIC conversion, video frames, thumbnail encode, a recovered panic:
   `processingAlert`, `safelyOn`) of content kept out of Images (#192's rule, `keptOutOfImages`),
   logged by hash at Info and by path at Debug only (#156); disk read/write failures are alerted
-  wherever the file is. The clients show one line per row and the full list on hover (web)
+  wherever the file is. HEIC's HEVC stills and grids are decoded by `decodeHeic` (heif_decode.go),
+  not goheif's own decoder, which read 10-bit samples (phones' HDR photos) as 8-bit and panicked
+  placing a 10-bit grid's tiles (`TestDecodeHeicGridAtTenBits`); AV1 still goes to goheif. A preview
+  that failed leaves `<hash>.nothumb` holding `cDecoders`: `BackfillMissingThumbnails` skips it
+  until a release adds to `cDecoders` (heic10 did), then retries it once. The clients show one line per row and the full list on hover (web)
   or tap (iOS/Android). Never push-notify these - the one exception is `raidwatch`'s disk failure below. `AddErrorNotification` is serialised in-process,
   and a group's `details` stop growing at 60000 bytes (later errors still count). The device DSN
   has `interpolateParams=true` (the provisioning DSNs in `dao/provisioning.go` don't).
