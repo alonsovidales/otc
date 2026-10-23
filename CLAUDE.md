@@ -438,7 +438,10 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   logged by hash at Info and by path at Debug only (#156); disk read/write failures are alerted
   wherever the file is. HEIC's HEVC stills and grids are decoded by `decodeHeic` (heif_decode.go),
   not goheif's own decoder, which read 10-bit samples (phones' HDR photos) as 8-bit and panicked
-  placing a 10-bit grid's tiles (`TestDecodeHeicGridAtTenBits`); AV1 still goes to goheif. A preview
+  placing a 10-bit grid's tiles (`TestDecodeHeicGridAtTenBits`); AV1 still goes to goheif. A camera
+  raw (a DNG - Apple ProRAW, whose IFD0 x/image/tiff refused as "color model" - or a TIFF with a
+  CFA/linear-raw directory) is its largest embedded 8-bit JPEG (`rawPreview`, raw_preview.go), first;
+  any other TIFF Go can't read is tried for one before ffmpeg. A preview
   that failed leaves `<hash>.nothumb` holding `cDecoders`: `BackfillMissingThumbnails` skips it
   until a release adds to `cDecoders` (heic10 did), then retries it once. The clients show one line per row and the full list on hover (web)
   or tap (iOS/Android). Never push-notify these - the one exception is `raidwatch`'s disk failure below. `AddErrorNotification` is serialised in-process,

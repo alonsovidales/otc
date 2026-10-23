@@ -88,8 +88,10 @@ func decodeImage(b []byte) (image.Image, error) {
 var stillFFmpeg = decodeWithFFmpeg
 
 // decodeStill is decodeImage, then ffmpeg for what Go's decoders can't
-// read - JPEG 2000, Photoshop, camera RAW (DNG), a JPEG cut short or with
-// a damaged marker. Never for anything checkImageSize refuses (issue
+// read - JPEG 2000, Photoshop, a JPEG cut short or with a damaged marker.
+// A camera raw is its own JPEG preview (rawPreview), first: no decoder
+// here reads its raw, and where its first image is one Go reads that is a
+// thumbnail. Any other TIFF Go can't read is tried for one before ffmpeg. Never for anything checkImageSize refuses (issue
 // #188): ffmpeg would decode it anyway, out of process and unbounded (its
 // own HEIC grid reading included), taking the memory the limit keeps -
 // too large, and also a HEIF grid that doesn't match its header. Nor for
@@ -98,6 +100,11 @@ var stillFFmpeg = decodeWithFFmpeg
 // fails too, or isn't tried, the decoder's own error is returned; path is
 // only for the log.
 func decodeStill(content []byte, path string) (image.Image, error) {
+	if isCameraRaw(content) {
+		if img, err := decodeRawPreview(content); err == nil {
+			return img, nil
+		}
+	}
 	img, err := decodeImage(content)
 	if err == nil || errors.Is(err, errImageTooLarge) || checkImageSize(content) != nil {
 		return img, err
@@ -105,12 +112,27 @@ func decodeStill(content []byte, path string) (image.Image, error) {
 	if sniffedNeverPreviewed(content) {
 		return nil, err
 	}
+	if isTIFF(content) {
+		if preview, perr := decodeRawPreview(content); perr == nil {
+			return preview, nil
+		}
+	}
 	fallback, ffErr := stillFFmpeg(content)
 	if ffErr != nil {
 		log.Debug("ffmpeg could not decode", path, "either:", ffErr)
 		return nil, err
 	}
 	return fallback, nil
+}
+
+// decodeRawPreview is a camera raw's JPEG preview (rawPreview), decoded
+// behind checkImageSize as any JPEG is.
+func decodeRawPreview(content []byte) (image.Image, error) {
+	jpg, err := rawPreview(content)
+	if err != nil {
+		return nil, err
+	}
+	return decodeImage(jpg)
 }
 
 // command is exec.CommandContext with a deadline; the returned cancel must
