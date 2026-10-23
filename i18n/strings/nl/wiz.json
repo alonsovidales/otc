@@ -456,6 +456,18 @@
     "en": "{disk} still holds a RAID array that could not be assembled - refusing to wipe it. To really start over, run: mdadm --zero-superblock {disk}",
     "reviewed": "claude-backtranslation 2026-10-11 #9f7fb108"
   },
+  "wiz.install.error.disk_in_use": {
+    "text": "{disk} is in gebruik (gekoppeld aan {where}) – wordt niet als opslagschijf gebruikt. Geef de twee dataschijven op in OTC_DISK1 en OTC_DISK2 (lsblk toont ze)",
+    "en": "{disk} is in use (mounted at {where}) - refusing to make it a storage disk. Set OTC_DISK1 and OTC_DISK2 to the two data disks (lsblk lists them)"
+  },
+  "wiz.install.error.disk_not_found": {
+    "text": "{disk} is geen schijf van deze machine – geef de twee dataschijven op in OTC_DISK1 en OTC_DISK2 (lsblk toont ze)",
+    "en": "{disk} is not a disk on this machine - set OTC_DISK1 and OTC_DISK2 to the two data disks (lsblk lists them)"
+  },
+  "wiz.install.error.disk_twice": {
+    "text": "OTC_DISK1 en OTC_DISK2 zijn allebei {disk} – de spiegel heeft twee verschillende schijven nodig",
+    "en": "OTC_DISK1 and OTC_DISK2 are both {disk} - the mirror needs two different disks"
+  },
   "wiz.install.error.download": {
     "text": "kan {url} niet downloaden",
     "en": "could not download {url}"

@@ -343,6 +343,35 @@ done
 # ---------------------------------------------------------------------------
 # 2. RAID1 storage
 # ---------------------------------------------------------------------------
+
+# The two disks must be two real disks that nothing else uses. The defaults
+# are a Pi's two USB disks; on most x86 machines /dev/sda is the system disk
+# itself. In use means anything on the disk is mounted - a partition, a
+# logical volume (Ubuntu's root), a swap - but not an array built on it: a
+# re-imaged device's members are exactly what recovery assembles.
+check_storage_disks() {
+    local d where
+    for d in "$DISK1" "$DISK2"; do
+        if [ ! -b "$d" ]; then
+            wiz_error disk_not_found disk "$d"
+            die "$d is not a disk on this machine - set OTC_DISK1 and OTC_DISK2 to the two data disks (lsblk lists them)"
+        fi
+    done
+    if [ "$(readlink -f "$DISK1")" = "$(readlink -f "$DISK2")" ]; then
+        wiz_error disk_twice disk "$DISK1"
+        die "OTC_DISK1 and OTC_DISK2 are both $DISK1 - the mirror needs two different disks"
+    fi
+    for d in "$DISK1" "$DISK2"; do
+        # awk reads it all (no exit): under pipefail, lsblk on a broken
+        # pipe would end the script here without a word.
+        where=$(lsblk -nrpo TYPE,MOUNTPOINT "$d" 2>/dev/null | awk '$1 !~ /^raid/ && $2 != "" && !found {print $2; found = 1}' || true)
+        if [ -n "$where" ]; then
+            wiz_error disk_in_use disk "$d" where "$where"
+            die "$d is in use (mounted at $where) - refusing to make it a storage disk. Set OTC_DISK1 and OTC_DISK2 to the two data disks (lsblk lists them)"
+        fi
+    done
+}
+
 wiz_step storage path "$MOUNT_POINT"
 log "[3/10] RAID1 storage ($MOUNT_POINT)"
 mkdir -p "$MOUNT_POINT"
@@ -351,6 +380,7 @@ if [ "$SKIP_RAID" = "1" ]; then
 elif mountpoint -q "$MOUNT_POINT"; then
     log "$MOUNT_POINT already mounted, skipping."
 else
+    check_storage_disks
     if [ ! -e "$RAID_DEV" ]; then
         # Disaster recovery: an array previously built by this same block
         # leaves its superblocks on DISK1/DISK2 themselves, so re-imaging

@@ -528,6 +528,21 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #ad55f64b"
   },
+  "wiz.install.error.disk_in_use": {
+    "text": "{disk} is in use (mounted at {where}) - refusing to make it a storage disk. Set OTC_DISK1 and OTC_DISK2 to the two data disks (lsblk lists them)",
+    "args": [["disk", "text"], ["where", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. {disk} is a disk's device name, for example /dev/sda. OTC_DISK1, OTC_DISK2 and lsblk are names to type; keep them as they are. Something on that disk is in use, often the system itself: {where} is where it is mounted, for example / or /boot, or [SWAP]. Nothing was erased."
+  },
+  "wiz.install.error.disk_not_found": {
+    "text": "{disk} is not a disk on this machine - set OTC_DISK1 and OTC_DISK2 to the two data disks (lsblk lists them)",
+    "args": [["disk", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. {disk} is a disk's device name, for example /dev/sda. OTC_DISK1, OTC_DISK2 and lsblk are names to type; keep them as they are. The disk named for the mirror doesn't exist."
+  },
+  "wiz.install.error.disk_twice": {
+    "text": "OTC_DISK1 and OTC_DISK2 are both {disk} - the mirror needs two different disks",
+    "args": [["disk", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. {disk} is a disk's device name, for example /dev/sda. OTC_DISK1, OTC_DISK2 and lsblk are names to type; keep them as they are. The same disk was named for both halves of the mirror (two disks holding the same copy)."
+  },
   "wiz.install.error.download": {
     "text": "could not download {url}",
     "args": [["url", "text"]],
