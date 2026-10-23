@@ -224,6 +224,7 @@ struct UsersManagementSection: View {
                         .keyboardType(.numberPad)
                         .frame(width: 70)
                     Button(S.commonAdd) { vm.askPassword() }
+                    .buttonStyle(.bordered)
                         .disabled(vm.creating || !usernameValid)
                 }
             }
@@ -270,11 +271,13 @@ struct UsersManagementSection: View {
                         .font(.caption2).foregroundStyle(.secondary)
                 } else {
                     Button(S.appSettingsUsersLoadUsage) { Task { await vm.fetchMetrics(u.uuid) } }
+                    .buttonStyle(.bordered)
                         .font(.caption)
                 }
             }
             HStack {
                 Button(u.active ? S.appSettingsUsersDisable : S.appSettingsUsersEnable) { Task { await vm.toggleActive(u) } }
+                .buttonStyle(.bordered)
                     .font(.caption)
                     .disabled(vm.busyActiveUuid == u.uuid)
                 Spacer()
@@ -282,6 +285,7 @@ struct UsersManagementSection: View {
                     vm.deleteTargetUuid = (vm.deleteTargetUuid == u.uuid) ? nil : u.uuid
                     vm.deleteConfirmText = ""
                 }
+                .buttonStyle(.bordered)
                 .font(.caption)
             }
             // Issue #82: type-to-confirm, inline rather than a sheet -
@@ -299,6 +303,7 @@ struct UsersManagementSection: View {
                     Button(vm.deleting ? S.commonDeleting : S.appSettingsUsersConfirmDelete, role: .destructive) {
                         Task { await vm.confirmDelete(u) }
                     }
+                    .buttonStyle(.bordered)
                     .disabled(vm.deleting || vm.deleteConfirmText != u.username)
                 }
                 .padding(.top, 4)

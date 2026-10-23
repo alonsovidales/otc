@@ -656,18 +656,13 @@ extension S {
 
     /// Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.
     ///
-    /// Under the Sync Now, Sync All and Sync From Now buttons in Settings: what the last two do. Use the same words as those buttons.
+    /// Under the Sync All and Sync From Now buttons in Settings: what they do. Use the same words as those buttons.
     static var appSettingsSyncFooter: String { L("app.settings.sync.footer", table: "AppSettings") }
 
     /// Sync From Now
     ///
     /// Button in Settings that skips the photos already on the phone: only those taken from now on are uploaded.
     static var appSettingsSyncFromNow: String { L("app.settings.sync.from_now", table: "AppSettings") }
-
-    /// Sync Now
-    ///
-    /// Button in Settings that uploads the photos and videos not on the device yet, now.
-    static var appSettingsSyncNow: String { L("app.settings.sync.now", table: "AppSettings") }
 
     /// Sync Options
     ///

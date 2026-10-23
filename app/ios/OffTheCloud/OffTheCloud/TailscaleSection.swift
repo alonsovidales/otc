@@ -145,6 +145,7 @@ struct TailscaleSection: View {
                             }
                         }
                     }
+                    .buttonStyle(.bordered)
                     .disabled(vm.busy)
 
                     if !vm.funnelOn {

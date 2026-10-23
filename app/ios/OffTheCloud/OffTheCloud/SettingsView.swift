@@ -337,6 +337,9 @@ struct SettingsView: View {
     // The Language row's value.
     @ObservedObject private var language = LanguageSettings.shared
     @State private var confirmLogout = false
+    // Whether the app may read the photo library (full or limited): the
+    // Authorize Photos Access button shows only while it can't.
+    @State private var photosAuthorized = SettingsView.photosAuthorizedNow()
 
     var body: some View {
         NavigationStack {
@@ -364,6 +367,10 @@ struct SettingsView: View {
                 Section(header: Text(S.appSettingsStatusTitle)) {
                     StatusSectionContent(vm: status)
                 }
+
+                // The device's accounts, right under its status (the
+                // owner's most used part of Settings).
+                UsersManagementSection()
 
                 // Issue #122: the only place upload progress is shown. There
                 // used to be a hairline over every tab as well (issue #14);
@@ -393,6 +400,7 @@ struct SettingsView: View {
                     Button(device.savingKey ? S.appSettingsPasswordChanging : S.appSettingsPasswordChange) {
                         Task { await device.changePassword(secrets: secrets) }
                     }
+                    .buttonStyle(.bordered)
                     .disabled(device.savingKey || device.oldKey.isEmpty || device.newKey.isEmpty)
                 }
 
@@ -400,18 +408,25 @@ struct SettingsView: View {
                     Toggle(S.appSettingsSyncWifiOnly, isOn: $secrets.wifiOnly)
                     Toggle(S.appSettingsSyncVideos, isOn: $secrets.includeVideos)
                     Toggle(S.iosSettingsSyncIcloud, isOn: $secrets.downloadFromiCloud)
-                    Button(S.appSettingsSyncAuthorize) {
-                        Task { _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite) }
+                    // Only while the app can't read the library: the
+                    // first time it asks, after a refusal it opens the
+                    // app's page in iOS Settings, where access is given.
+                    if !photosAuthorized {
+                        Button(S.appSettingsSyncAuthorize) {
+                            Task {
+                                if PHPhotoLibrary.authorizationStatus(for: .readWrite) == .notDetermined {
+                                    _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+                                    refreshPhotosAuthorized()
+                                } else if let url = URL(string: UIApplication.openSettingsURLString) {
+                                    await UIApplication.shared.open(url)
+                                }
+                            }
+                        }
+                        .buttonStyle(.bordered)
                     }
                 }
 
                 Section(footer: Text(S.appSettingsSyncFooter)) {
-                    Button(S.appSettingsSyncNow) {
-                        Task {
-                            secrets.persist()
-                            try? await PhotoSync.shared.runForeground()
-                        }
-                    }
                     Button(S.appSettingsSyncAll) {
                         Task {
                             secrets.persist()
@@ -423,10 +438,12 @@ struct SettingsView: View {
                             try? await PhotoSync.shared.runForeground()
                         }
                     }
+                    .buttonStyle(.bordered)
                     Button(S.appSettingsSyncFromNow) {
                         secrets.persist()
                         PhotoSync.shared.syncFromNow()
                     }
+                    .buttonStyle(.bordered)
                 }
 
                 FreeUpSpaceSection()
@@ -480,9 +497,11 @@ struct SettingsView: View {
                         secrets.persist()
                         OTCConnection.shared.invalidate()
                     }
+                    .buttonStyle(.bordered)
                     Button(S.appSettingsConnectionLogOut, role: .destructive) {
                         confirmLogout = true
                     }
+                    .buttonStyle(.bordered)
                 }
 
                 // Issue #80: Tailscale Funnel as an alternative to the
@@ -490,8 +509,6 @@ struct SettingsView: View {
                 TailscaleSection()
 
                 BridgeAccountSection()
-
-                UsersManagementSection()
 
                 Section(
                     header: Text(S.appSettingsReprocessTitle),
@@ -509,8 +526,9 @@ struct SettingsView: View {
                                 Button(device.cancellingReprocess ? S.appSettingsReprocessStopping : S.commonCancel) {
                                     Task { await device.stopReprocess() }
                                 }
-                                .font(.caption)
-                                .foregroundColor(.red)
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .tint(.red)
                                 .disabled(device.cancellingReprocess)
                             }
                         }
@@ -521,17 +539,20 @@ struct SettingsView: View {
                             Button(device.startingReprocess ? S.appSettingsReprocessStarting : S.appSettingsReprocessResume) {
                                 device.reprocessConfirmAction = .resume
                             }
+                            .buttonStyle(.bordered)
                             .disabled(device.startingReprocess)
                             Spacer()
                             Button(S.appSettingsReprocessStartOver) {
                                 device.reprocessConfirmAction = .restart
                             }
+                            .buttonStyle(.bordered)
                             .disabled(device.startingReprocess)
                         }
                     } else {
                         Button(device.startingReprocess ? S.appSettingsReprocessStarting : S.appSettingsReprocessAll) {
                             device.reprocessConfirmAction = .restart
                         }
+                        .buttonStyle(.bordered)
                         .disabled(device.startingReprocess)
                         if device.reprocessStatus == "completed" {
                             Text(S.appSettingsReprocessCompleted(count: Int(device.reprocessProcessed)))
@@ -584,6 +605,10 @@ struct SettingsView: View {
             status.stop()
             device.stopPollingReprocessStatus()
         }
+        // Back from iOS Settings, where access may just have been given.
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            refreshPhotosAuthorized()
+        }
         .alert(S.appSettingsConnectionLogOutTitle, isPresented: $confirmLogout) {
             Button(S.appSettingsConnectionLogOutConfirm, role: .destructive) { logOut() }
             Button(S.commonCancel, role: .cancel) {}
@@ -610,6 +635,16 @@ struct SettingsView: View {
 
 extension SettingsView {
     fileprivate static let updateSectionID = "updates"
+
+    /// Full or limited access to the photo library: either lets the sync run.
+    fileprivate static func photosAuthorizedNow() -> Bool {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        return status == .authorized || status == .limited
+    }
+
+    fileprivate func refreshPhotosAuthorized() {
+        photosAuthorized = Self.photosAuthorizedNow()
+    }
 
     /// Issue #183: consumes a `.updates` deep link. The short wait lets a
     /// tab that was just switched to (and built) lay out first.
@@ -793,6 +828,7 @@ struct ThumbCacheSection: View {
             Button(S.appSettingsThumbsClear, role: .destructive) {
                 Task { await model.clearAll() }
             }
+            .buttonStyle(.bordered)
             .disabled(model.clearing || model.used == 0)
         }
         .task { await model.refresh() }

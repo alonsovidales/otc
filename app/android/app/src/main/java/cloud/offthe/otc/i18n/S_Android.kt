@@ -314,7 +314,7 @@ fun S.androidSettingsSharingFooter(): UiText =
 fun S.androidSettingsSyncCloud(): UiText =
     UiText.Res(R.string.android_settings_sync_cloud)
 
-/** "Sync": Heading of the section of Settings holding the Sync Now, Sync All and Sync From Now buttons. */
+/** "Sync": Heading of the section of Settings holding the Sync All and Sync From Now buttons. */
 fun S.androidSettingsSyncTitle(): UiText =
     UiText.Res(R.string.android_settings_sync_title)
 

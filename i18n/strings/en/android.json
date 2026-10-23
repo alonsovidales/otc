@@ -384,7 +384,7 @@
   },
   "android.settings.sync_title": {
     "text": "Sync",
-    "note": "Heading of the section of Settings holding the Sync Now, Sync All and Sync From Now buttons.",
+    "note": "Heading of the section of Settings holding the Sync All and Sync From Now buttons.",
     "max": 30
   },
   "android.settings.thumbs_change_size": {

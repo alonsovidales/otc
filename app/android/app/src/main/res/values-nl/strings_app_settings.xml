@@ -140,7 +140,6 @@
     <string name="app_settings_sync_authorize">Toegang tot foto’s toestaan</string>
     <string name="app_settings_sync_footer">“Alles synchroniseren” gaat opnieuw door de hele bibliotheek. “Vanaf nu synchroniseren” slaat alles over wat er al in staat: alleen foto’s en video’s die vanaf nu worden gemaakt, worden geüpload.</string>
     <string name="app_settings_sync_from_now">Vanaf nu synchroniseren</string>
-    <string name="app_settings_sync_now">Nu synchroniseren</string>
     <string name="app_settings_sync_title">Synchronisatieopties</string>
     <string name="app_settings_sync_videos">Video’s meenemen</string>
     <string name="app_settings_sync_wifi_only">Alleen via wifi</string>

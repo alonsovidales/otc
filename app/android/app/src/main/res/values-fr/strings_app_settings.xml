@@ -146,7 +146,6 @@
     <string name="app_settings_sync_authorize">Autoriser l’accès aux photos</string>
     <string name="app_settings_sync_footer">« Tout synchroniser » parcourt de nouveau toute la bibliothèque. « Synchroniser dès maintenant » ignore tout ce qui s’y trouve déjà : seules les photos et vidéos prises à partir de maintenant sont envoyées.</string>
     <string name="app_settings_sync_from_now">Synchroniser dès maintenant</string>
-    <string name="app_settings_sync_now">Synchroniser maintenant</string>
     <string name="app_settings_sync_title">Options de synchronisation</string>
     <string name="app_settings_sync_videos">Inclure les vidéos</string>
     <string name="app_settings_sync_wifi_only">Wi-Fi uniquement</string>

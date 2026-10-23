@@ -549,10 +549,6 @@
     "text": "Vanaf nu synchroniseren",
     "en": "Sync From Now"
   },
-  "app.settings.sync.now": {
-    "text": "Nu synchroniseren",
-    "en": "Sync Now"
-  },
   "app.settings.sync.title": {
     "text": "Synchronisatieopties",
     "en": "Sync Options"

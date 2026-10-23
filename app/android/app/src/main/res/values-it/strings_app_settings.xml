@@ -146,7 +146,6 @@
     <string name="app_settings_sync_authorize">Consenti l’accesso alle foto</string>
     <string name="app_settings_sync_footer">“Sincronizza tutto” ripercorre l’intera libreria. “Sincronizza da ora” salta tutto ciò che contiene già: vengono caricati solo le foto e i video scattati da ora in poi.</string>
     <string name="app_settings_sync_from_now">Sincronizza da ora</string>
-    <string name="app_settings_sync_now">Sincronizza ora</string>
     <string name="app_settings_sync_title">Opzioni di sincronizzazione</string>
     <string name="app_settings_sync_videos">Includi i video</string>
     <string name="app_settings_sync_wifi_only">Solo Wi-Fi</string>

@@ -549,10 +549,6 @@
     "text": "Sincronizza da ora",
     "en": "Sync From Now"
   },
-  "app.settings.sync.now": {
-    "text": "Sincronizza ora",
-    "en": "Sync Now"
-  },
   "app.settings.sync.title": {
     "text": "Opzioni di sincronizzazione",
     "en": "Sync Options"

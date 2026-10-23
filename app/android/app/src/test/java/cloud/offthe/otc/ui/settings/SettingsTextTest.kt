@@ -144,7 +144,6 @@ import cloud.offthe.otc.i18n.appSettingsSyncAll
 import cloud.offthe.otc.i18n.appSettingsSyncAuthorize
 import cloud.offthe.otc.i18n.appSettingsSyncFooter
 import cloud.offthe.otc.i18n.appSettingsSyncFromNow
-import cloud.offthe.otc.i18n.appSettingsSyncNow
 import cloud.offthe.otc.i18n.appSettingsSyncTitle
 import cloud.offthe.otc.i18n.appSettingsSyncVideos
 import cloud.offthe.otc.i18n.appSettingsSyncWifiOnly
@@ -370,7 +369,6 @@ class SettingsTextTest {
         assertEquals("Authorize Photos Access", S.appSettingsSyncAuthorize().english())
         assertEquals("Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.", S.appSettingsSyncFooter().english())
         assertEquals("Sync From Now", S.appSettingsSyncFromNow().english())
-        assertEquals("Sync Now", S.appSettingsSyncNow().english())
         assertEquals("Sync Options", S.appSettingsSyncTitle().english())
         assertEquals("Include videos", S.appSettingsSyncVideos().english())
         assertEquals("Wi-Fi only", S.appSettingsSyncWifiOnly().english())

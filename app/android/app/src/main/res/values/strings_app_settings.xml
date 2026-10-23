@@ -139,7 +139,6 @@
     <string name="app_settings_sync_authorize">Authorize Photos Access</string>
     <string name="app_settings_sync_footer">Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.</string>
     <string name="app_settings_sync_from_now">Sync From Now</string>
-    <string name="app_settings_sync_now">Sync Now</string>
     <string name="app_settings_sync_title">Sync Options</string>
     <string name="app_settings_sync_videos">Include videos</string>
     <string name="app_settings_sync_wifi_only">Wi-Fi only</string>

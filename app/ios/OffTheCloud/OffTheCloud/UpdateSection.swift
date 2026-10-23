@@ -280,12 +280,14 @@ struct UpdateSection: View {
                 Button(vm.checking ? S.appSettingsUpdateChecking : S.appSettingsUpdateCheckAgain) {
                     Task { await vm.check() }
                 }
+                .buttonStyle(.bordered)
                 .disabled(vm.checking || vm.running)
 
                 if vm.hasUpdate {
                     Button(vm.starting ? S.appSettingsUpdateStarting : vm.updateToText) {
                         Task { await vm.apply() }
                     }
+                    .buttonStyle(.bordered)
                     .disabled(vm.starting || vm.running)
                 }
 
@@ -303,6 +305,7 @@ struct UpdateSection: View {
                 Button(vm.restarting ? S.appSettingsUpdateRestarting : S.appSettingsUpdateRestart, role: .destructive) {
                     confirmRestart = true
                 }
+                .buttonStyle(.bordered)
                 .disabled(vm.restarting || vm.running)
 
                 switch vm.restartPhase {

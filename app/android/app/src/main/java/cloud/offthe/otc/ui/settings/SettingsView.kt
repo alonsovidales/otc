@@ -38,9 +38,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -92,6 +94,8 @@ import kotlinx.coroutines.withContext
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -186,7 +190,6 @@ import cloud.offthe.otc.i18n.appSettingsSyncAll
 import cloud.offthe.otc.i18n.appSettingsSyncAuthorize
 import cloud.offthe.otc.i18n.appSettingsSyncFooter
 import cloud.offthe.otc.i18n.appSettingsSyncFromNow
-import cloud.offthe.otc.i18n.appSettingsSyncNow
 import cloud.offthe.otc.i18n.appSettingsSyncTitle
 import cloud.offthe.otc.i18n.appSettingsSyncVideos
 import cloud.offthe.otc.i18n.appSettingsSyncWifiOnly
@@ -290,9 +293,18 @@ private fun Section(title: String, footer: String? = null, content: @Composable 
 private fun Caption(text: String, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) =
     Text(text, style = MaterialTheme.typography.bodySmall, color = color, modifier = Modifier.padding(vertical = 2.dp))
 
+// An action: a filled button, red for what removes or signs out.
 @Composable
 private fun RowButton(label: String, enabled: Boolean = true, destructive: Boolean = false, onClick: () -> Unit) {
-    TextButton(onClick = onClick, enabled = enabled) { Text(label, color = if (destructive) Color(0xFFE53935) else MaterialTheme.colorScheme.primary) }
+    val colors = if (destructive) ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)
+        else ButtonDefaults.filledTonalButtonColors()
+    FilledTonalButton(onClick = onClick, enabled = enabled, colors = colors, modifier = Modifier.padding(vertical = 2.dp)) { Text(label) }
+}
+
+// What opens another screen or a web page stays a link.
+@Composable
+private fun RowLink(label: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick) { Text(label, color = MaterialTheme.colorScheme.primary) }
 }
 
 @Composable
@@ -311,7 +323,21 @@ fun SettingsView(secrets: SecretsStore) {
     val downloadFromCloud by secrets.downloadFromCloud.collectAsState()
     val signedIn by OTCConnection.authenticated.collectAsState()
     val route by OTCConnection.route.collectAsState()
-    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
+    // Authorize Photos Access shows only while the app can't read the
+    // photos. The first tap asks; after a refusal Android shows no dialog
+    // again, so the next one opens the app's page in system settings.
+    var photosAllowed by remember { mutableStateOf(PhotoSync.hasPermission(context)) }
+    var photosAsked by remember { mutableStateOf(false) }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        photosAllowed = PhotoSync.hasPermission(context)
+        photosAsked = true
+    }
+    val lifecycle = LocalLifecycleOwner.current
+    DisposableEffect(lifecycle) {
+        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) photosAllowed = PhotoSync.hasPermission(context) }
+        lifecycle.lifecycle.addObserver(obs)
+        onDispose { lifecycle.lifecycle.removeObserver(obs) }
+    }
     var confirmLogout by remember { mutableStateOf(false) }
     // Issue #180: the shared links list (SharedLinksView.kt).
     var showSharedLinks by remember { mutableStateOf(false) }
@@ -352,6 +378,9 @@ fun SettingsView(secrets: SecretsStore) {
 
             Section(S.appSettingsStatusTitle().resolve()) { StatusSectionContent(status) }
 
+            // The device's accounts, right under its status.
+            UsersManagementSection()
+
             if (upload.totalPending > 0 || upload.isUploading) {
                 Section(S.appSettingsUploadsTitle().resolve()) {
                     Text((if (upload.isUploading) S.androidSettingsUploading(upload.currentName) else S.androidSettingsUploadWaiting()).resolve(), style = MaterialTheme.typography.bodyMedium)
@@ -365,7 +394,7 @@ fun SettingsView(secrets: SecretsStore) {
             }
 
             Section(S.appSettingsSharingTitle().resolve(), S.androidSettingsSharingFooter().resolve()) {
-                RowButton(S.appSettingsLinksTitle().resolve()) { showSharedLinks = true }
+                RowLink(S.appSettingsLinksTitle().resolve()) { showSharedLinks = true }
             }
 
             UpdateSection()
@@ -381,11 +410,13 @@ fun SettingsView(secrets: SecretsStore) {
                 ToggleRow(S.appSettingsSyncWifiOnly().resolve(), wifiOnly, secrets::setWifiOnly)
                 ToggleRow(S.appSettingsSyncVideos().resolve(), includeVideos, secrets::setIncludeVideos)
                 ToggleRow(S.androidSettingsSyncCloud().resolve(), downloadFromCloud, secrets::setDownloadFromCloud)
-                RowButton(S.appSettingsSyncAuthorize().resolve()) { permission.launch(mediaPermissions()) }
+                if (!photosAllowed) RowButton(S.appSettingsSyncAuthorize().resolve()) {
+                    if (!photosAsked) permission.launch(mediaPermissions())
+                    else context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
+                }
             }
 
             Section(S.androidSettingsSyncTitle().resolve(), S.appSettingsSyncFooter().resolve()) {
-                RowButton(S.appSettingsSyncNow().resolve()) { secrets.persist(); PhotoSync.runForegroundAsync() }
                 RowButton(S.appSettingsSyncAll().resolve()) { secrets.persist(); PhotoSync.setWatermark(0); PhotoSync.runForegroundAsync() }
                 RowButton(S.appSettingsSyncFromNow().resolve()) { secrets.persist(); PhotoSync.setWatermark(System.currentTimeMillis()) }
             }
@@ -434,8 +465,6 @@ fun SettingsView(secrets: SecretsStore) {
 
             BridgeAccountSection(secrets)
 
-            UsersManagementSection()
-
             Section(S.appSettingsReprocessTitle().resolve(), S.appSettingsReprocessFooter().resolve()) {
                 when (dst.reprocessStatus) {
                     "running" -> {
@@ -469,7 +498,7 @@ fun SettingsView(secrets: SecretsStore) {
 
             if (isPrimary) {
                 Section(S.appSettingsLogsTitle().resolve(), S.androidSettingsLogsFooter().resolve()) {
-                    RowButton(S.appSettingsLogsTitle().resolve()) { showLogs = true }
+                    RowLink(S.appSettingsLogsTitle().resolve()) { showLogs = true }
                 }
             }
             Spacer(Modifier.height(24.dp))
@@ -809,9 +838,9 @@ private fun BridgeAccountSection(secrets: SecretsStore) {
         } else {
             if (st.leftReason == "released") Caption(S.appSettingsBridgeReleased(st.bridge).resolve(), Color(0xFFFF9800))
             Caption(S.appSettingsBridgeLocalOnly().resolve())
-            RowButton(S.appSettingsBridgeAccountPage().resolve()) { open("account") }
+            RowLink(S.appSettingsBridgeAccountPage().resolve()) { open("account") }
         }
-        RowButton(S.appShellPrivacy().resolve()) { open("privacy") }
+        RowLink(S.appShellPrivacy().resolve()) { open("privacy") }
         st.note?.let { Caption(it.resolve()) }
         st.error?.let { Caption(it.resolve(), Color(0xFFE53935)) }
     }

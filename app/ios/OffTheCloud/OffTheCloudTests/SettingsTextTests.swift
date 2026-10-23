@@ -127,7 +127,6 @@ struct SettingsTextTests {
         #expect(S.appSettingsSyncAuthorize == "Authorize Photos Access")
         #expect(S.appSettingsSyncFooter == "Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.")
         #expect(S.appSettingsSyncFromNow == "Sync From Now")
-        #expect(S.appSettingsSyncNow == "Sync Now")
         #expect(S.appSettingsSyncTitle == "Sync Options")
         #expect(S.appSettingsSyncVideos == "Include videos")
         #expect(S.appSettingsSyncWifiOnly == "Wi-Fi only")

@@ -478,17 +478,13 @@ fun S.appSettingsSyncAll(): UiText =
 fun S.appSettingsSyncAuthorize(): UiText =
     UiText.Res(R.string.app_settings_sync_authorize)
 
-/** "Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.": Under the Sync Now, Sync All and Sync From Now buttons in Settings: what the last two do. Use the same words as those buttons. */
+/** "Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.": Under the Sync All and Sync From Now buttons in Settings: what they do. Use the same words as those buttons. */
 fun S.appSettingsSyncFooter(): UiText =
     UiText.Res(R.string.app_settings_sync_footer)
 
 /** "Sync From Now": Button in Settings that skips the photos already on the phone: only those taken from now on are uploaded. */
 fun S.appSettingsSyncFromNow(): UiText =
     UiText.Res(R.string.app_settings_sync_from_now)
-
-/** "Sync Now": Button in Settings that uploads the photos and videos not on the device yet, now. */
-fun S.appSettingsSyncNow(): UiText =
-    UiText.Res(R.string.app_settings_sync_now)
 
 /** "Sync Options": Heading of the section of Settings with the options of the photo sync from this phone to the device. */
 fun S.appSettingsSyncTitle(): UiText =

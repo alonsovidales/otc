@@ -647,16 +647,11 @@
   },
   "app.settings.sync.footer": {
     "text": "Sync All goes through the whole library again. Sync From Now skips everything already in it: only photos and videos taken from now on are uploaded.",
-    "note": "Under the Sync Now, Sync All and Sync From Now buttons in Settings: what the last two do. Use the same words as those buttons."
+    "note": "Under the Sync All and Sync From Now buttons in Settings: what they do. Use the same words as those buttons."
   },
   "app.settings.sync.from_now": {
     "text": "Sync From Now",
     "note": "Button in Settings that skips the photos already on the phone: only those taken from now on are uploaded.",
-    "max": 30
-  },
-  "app.settings.sync.now": {
-    "text": "Sync Now",
-    "note": "Button in Settings that uploads the photos and videos not on the device yet, now.",
     "max": 30
   },
   "app.settings.sync.title": {

@@ -111,8 +111,10 @@ struct BridgeAccountSection: View {
                             Text(S.appSettingsBridgeAtHome(address: vm.localAddress)).font(.caption).foregroundStyle(.secondary)
                         }
                         Button(S.appSettingsBridgeLeave, role: .destructive) { confirmLeave = true }
+                        .buttonStyle(.bordered)
                             .disabled(vm.busy)
                         Button(S.appSettingsBridgeDeleteAccount, role: .destructive) { confirmDelete = true }
+                        .buttonStyle(.bordered)
                             .disabled(vm.busy)
                     } else {
                         if vm.leftReason == "released" {
