@@ -79,3 +79,13 @@ func TestIsMedia(t *testing.T) {
 		}
 	}
 }
+
+// A machine with more cores processes no more at once than a Raspberry Pi
+// 5 (three): a 32-thread PC ran 31 jobs a lane, more than 32 GB hold.
+func TestProcessingWorkersStopAtAPisThree(t *testing.T) {
+	for cpus, want := range map[int]int{1: 1, 2: 1, 3: 2, 4: 3, 5: 3, 8: 3, 16: 3, 32: 3, 128: 3} {
+		if got := processingWorkersFor(cpus); got != want {
+			t.Errorf("%d CPUs: %d workers, want %d", cpus, got, want)
+		}
+	}
+}

@@ -625,7 +625,8 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   include file names, search words, Wi-Fi names and addresses.
   **Processing lanes** (release 73, `files_manager/lanes.go`): an upload is answered once its
   bytes and row are stored, then `enqueueMedia` (media only) records its hash in
-  `pending_analysis` and queues it in the *fast lane* (NumCPU-1 workers; one job at a time across
+  `pending_analysis` and queues it in the *fast lane* (NumCPU-1 workers, at most 3 - a Pi 5's, `cMaxProcessingWorkers`: a
+  32-thread PC ran 31 a lane, more than 32 GB hold; one job at a time across
   both lanes in low-memory mode and for an hour after a death - see Low-memory profile): EXIF, decode,
   orientation, thumbnail - one frame for a video. It then moves to the *slow lane* (tags,
   faces; four frames for a video), whose workers only take a job while the fast lane has none

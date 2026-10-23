@@ -121,10 +121,25 @@ func newMediaLanes(workers int, thumbnail func(mediaJob) bool, analyse func(medi
 	return ls
 }
 
+// cMaxProcessingWorkers: each lane runs at most a Raspberry Pi 5's three
+// workers (its four cores less one), whatever the machine. What a job
+// holds doesn't shrink with the cores: a photo's decode and scale (~300
+// MB), an ffmpeg (~700 MB with a PC's threads), a run of the tagging model
+// (~650 MB, which ONNX Runtime's arena keeps). A PC with 16 or 32 threads
+// ran 15 or 31 of each lane at once, which can be more than 32 GB hold: a
+// Linux Mint PC with 32 GB ran out of memory (2026-10-23). More would buy
+// little anyway: the model's runs share its threads.
+const cMaxProcessingWorkers = 3
+
 // processingWorkers leaves one CPU free for serving requests (and for the
-// Pi's power budget), as the single upload queue did before the lanes.
+// Pi's power budget), as the single upload queue did before the lanes, up
+// to cMaxProcessingWorkers.
 func processingWorkers() int {
-	return max(1, runtime.NumCPU()-1)
+	return processingWorkersFor(runtime.NumCPU())
+}
+
+func processingWorkersFor(cpus int) int {
+	return min(max(1, cpus-1), cMaxProcessingWorkers)
 }
 
 func (mg *Manager) mediaLanes() *mediaLanes {
