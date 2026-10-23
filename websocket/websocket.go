@@ -322,6 +322,11 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 		log.Info("no bridge-addr configured - this instance stays local-only")
 	} else {
 		mg.ensureBridgePool()
+		// The users' addresses, on the primary: those created before the
+		// bridge took them (user_domains.go).
+		if sup != nil {
+			go registerUserDomainsAtStart(dao)
+		}
 	}
 
 	// Issue #62: re-sync on every startup too, not just on the next
@@ -3693,29 +3698,27 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) (users []*pb.User, pass
 	storagePath := "/mnt/storage/user_" + id
 	subdomain := username + "." + cfg.GetStr("otc", "bridge-addr")
 
-	// Issue #103: ask the bridge whether this subdomain is actually
-	// claimable *before* provisioning a database, a storage directory and
-	// a process for it. A name already registered by anything else can
-	// never be taken by this user (the bridge rejects a mismatched
-	// owner/secret rather than adopting it), so without this the panel
-	// reports a cheerful "user created" for an account that is silently
-	// unreachable forever - which is exactly how this was found on a live
-	// device. Refusing up front also leaves nothing to clean up.
+	// Issue #103: the address is registered on the bridge, under this
+	// device's account (issue #124), *before* provisioning a database, a
+	// storage directory and a process for it. Since #124 the bridge turns
+	// away an address no account holds, so a user created without this
+	// was silently unreachable; and a name someone else holds can never be
+	// this user's, so refusing up front leaves nothing to clean up.
+	created := false
 	if req.RequestBridgeAccess {
-		free, err := isSubdomainFreeOnBridge(ch.mg.dao, subdomain)
-		if err != nil {
-			return nil, false, devtext.Wrap(i18n.DevUsersBridgeCheckFailed(subdomain, err.Error()), err)
+		if err := registerUserDomain(ch.mg.dao, subdomain, id, bridgeSecret); err != nil {
+			return nil, false, err
 		}
-		if !free {
-			// Both suggestions have to be things the person reading this
-			// can actually do. "Free that subdomain first" was neither:
-			// releasing a registration needs access to the bridge's own
-			// admin panel, which a device owner doesn't have - so it read
-			// as "your fault, unfixable". Choosing another name, or
-			// creating the account without bridge access, are both
-			// entirely in their hands.
-			return nil, false, devtext.New(i18n.DevUsersNameTakenOnBridge(subdomain))
-		}
+		// Anything that fails before the user's row is stored gives the
+		// address back, so the account doesn't keep it for a user that
+		// never came to be.
+		defer func() {
+			if err != nil && !created {
+				if relErr := releaseUserDomain(subdomain, id, bridgeSecret); relErr != nil {
+					log.Error("could not give", subdomain, "back to the bridge after creating the user failed:", relErr)
+				}
+			}
+		}()
 	}
 
 	if err := dao.ProvisionUserDatabase(dbName, dbName, dbPass, id, subdomain, bridgeSecret); err != nil {
@@ -3747,6 +3750,7 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) (users []*pb.User, pass
 	if err := ch.mg.dao.CreateUser(u); err != nil {
 		return nil, false, err
 	}
+	created = true
 
 	internal, err := ch.mg.dao.GetUserInternal(id)
 	if err != nil {
@@ -3805,6 +3809,13 @@ func (ch *connHandler) deleteUser(req *pb.ReqDeleteUser) error {
 	if err := os.RemoveAll(supervisor.UserHome(u.Uuid)); err != nil {
 		log.Error("could not remove config directory for", u.Username, ":", err)
 	}
+	// Its address goes back to the bridge, freeing the account's place
+	// (best effort: the account page can release it too).
+	if u.BridgeAccess && bridgeConfigured() {
+		if err := releaseUserDomain(u.Subdomain, u.Uuid, u.BridgeSecret); err != nil {
+			log.Error("could not give", u.Subdomain, "back to the bridge:", err)
+		}
+	}
 	return ch.mg.dao.DeleteUserRow(u.Uuid)
 }
 
@@ -3851,68 +3862,6 @@ func (ch *connHandler) setUserActive(req *pb.ReqSetUserActive) error {
 // started) by the time this runs, and failing the whole request over a
 // bridge notification alone would be worse than a stale bridge-side flag,
 // which self-corrects the next time this is called either way.
-// isSubdomainFreeOnBridge asks the bridge whether candidate is still
-// unclaimed (issue #103), authenticating as *this* device with its own
-// registration - the only credentials the primary has, and the reason the
-// bridge will answer at all (see ReqIsDomainAvailable's doc comment).
-//
-// Returns an error rather than a bare false whenever the answer isn't
-// known - the bridge being unreachable, a malformed reply, a rejected
-// secret. The caller refuses to create the user in that case: the entire
-// point is never to hand someone an account that looks fine and silently
-// isn't, and "I could not check" is not "it is free".
-func isSubdomainFreeOnBridge(d *dao.Dao, candidate string) (bool, error) {
-	subDomain, deviceUuid, bridgeSecret, err := d.GetSettings()
-	if err != nil {
-		return false, fmt.Errorf("reading this device's own bridge identity: %w", err) // i18n-ignore: the detail after dev.users.bridge_check_failed
-	}
-
-	addr := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
-	h := http.Header{}
-	h.Set("Sec-WebSocket-Protocol", "protobuf")
-	c, err := wsframe.Dial(addr.String(), h)
-	if err != nil {
-		return false, fmt.Errorf("could not reach the bridge: %w", err) // i18n-ignore: the detail after dev.users.bridge_check_failed
-	}
-	defer c.Close()
-
-	msg := &pb.ReqEnvelope{
-		Id: 1,
-		Payload: &pb.ReqEnvelope_ReqIsDomainAvailable{
-			ReqIsDomainAvailable: &pb.ReqIsDomainAvailable{
-				OwnerUuid:       deviceUuid,
-				Domain:          subDomain,
-				Secret:          bridgeSecret,
-				CandidateDomain: candidate,
-			},
-		},
-	}
-	b, err := proto.Marshal(msg)
-	if err != nil {
-		return false, err
-	}
-	if err := c.WriteMessage(gorilla.BinaryMessage, b); err != nil {
-		return false, fmt.Errorf("asking the bridge: %w", err) // i18n-ignore: the detail after dev.users.bridge_check_failed
-	}
-
-	_, data, err := c.ReadMessage()
-	if err != nil {
-		return false, fmt.Errorf("reading the bridge's answer: %w", err) // i18n-ignore: the detail after dev.users.bridge_check_failed
-	}
-	var resp pb.RespEnvelope
-	if err := proto.Unmarshal(data, &resp); err != nil {
-		return false, fmt.Errorf("unreadable answer from the bridge: %w", err) // i18n-ignore: the detail after dev.users.bridge_check_failed
-	}
-	if resp.Error {
-		return false, errors.New(resp.ErrorMessage)
-	}
-	avail, ok := resp.Payload.(*pb.RespEnvelope_RespDomainAvailable)
-	if !ok {
-		return false, errors.New("unexpected answer from the bridge") // i18n-ignore: the detail after dev.users.bridge_check_failed
-	}
-	return avail.RespDomainAvailable.Available, nil
-}
-
 func notifyBridgeDisabled(u *dao.UserInternal, disabled bool) {
 	addr := url.URL{Scheme: "wss", Host: cfg.GetStr("otc", "bridge-addr"), Path: "/ws"}
 	h := http.Header{}

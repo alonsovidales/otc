@@ -14,6 +14,11 @@ func DevUsersBridgeCheckFailed(domain string, detail string) Msg {
 	return Msg{Key: "dev.users.bridge_check_failed", Args: map[string]any{"domain": domain, "detail": detail}}
 }
 
+// DevUsersBridgeDomainLimit is dev.users.bridge_domain_limit: "{domain} can't be added: your account on the bridge already holds as many addres…".
+func DevUsersBridgeDomainLimit(domain string) Msg {
+	return Msg{Key: "dev.users.bridge_domain_limit", Args: map[string]any{"domain": domain}}
+}
+
 // DevUsersConfirmMismatch is dev.users.confirm_mismatch: "confirmation username does not match".
 func DevUsersConfirmMismatch() Msg {
 	return Msg{Key: "dev.users.confirm_mismatch"}

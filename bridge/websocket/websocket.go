@@ -1917,6 +1917,18 @@ func (mg *Manager) handleConnection(conn *gorilla.Conn, r *http.Request) {
 				}
 				return
 
+			case *pb.ReqEnvelope_ReqRegisterUserDomain:
+				// A primary registering one of its users' addresses under
+				// its account (user_domains.go). One-off, like the case
+				// above.
+				defer conn.Close()
+				mg.registerUserDomain(p.ReqRegisterUserDomain, resp, conn.RemoteAddr().String())
+				respBin, _ := proto.Marshal(resp)
+				if err := writeClient(conn, respBin); err != nil {
+					log.Error("error responding, closing the connection:", err)
+				}
+				return
+
 			case *pb.ReqEnvelope_ReqSetDeviceDisabled:
 				// Issue #93: the primary telling the bridge one of its own
 				// additional users (issue #90) just got disabled/re-enabled -

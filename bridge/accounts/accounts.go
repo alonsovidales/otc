@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"net/mail"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -81,6 +82,17 @@ const (
 	cSetupCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 	cSetupCodeLen      = 8
 )
+
+// NamePattern is a valid device name: one DNS label, lower case, no
+// leading/trailing hyphen - the same shape scripts/install.sh accepts.
+var NamePattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
+
+// ReservedNames can never be device names: they are (or may one day be)
+// the bridge's own hosts.
+var ReservedNames = map[string]bool{
+	"www": true, "api": true, "admin": true, "mail": true, "static": true,
+	"downloads": true, "bridge": true, "ns1": true, "ns2": true,
+}
 
 // TermsVersion is the version of the terms of use (/terms) in force; an
 // account records the one it accepted (issue #175). Bump it whenever

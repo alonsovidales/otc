@@ -1431,7 +1431,18 @@ body or `Authorization: Bearer`, refuses with `401 login_required` when there is
 `[accounts] open-registration=true`), hands a name the same account already owns to the new
 identity (`dao.ReplaceDeviceIdentity` - how a lost device is replaced), and caps an account at
 `accounts.MaxDomains` (403 `domain_limit`). `websocket.go`'s `ReqBridgeRegister` no longer
-registers an unknown domain on dial-in unless open registration is on. The account page is
+registers an unknown domain on dial-in unless open registration is on. A device's additional
+users with bridge access (issue #103, `pepe.off-the.cloud`) get theirs from the primary:
+`ReqRegisterUserDomain` (141, `bridge/websocket/user_domains.go`), authenticated as the primary
+and carrying the user's own identity, registers the address under the primary's account with
+claimName's rules (the account's own name goes to the new identity, another account's or a held
+name is refused, and it counts toward `accounts.MaxDomains` - the owner's choice, 2026-10-23);
+a primary whose domain predates accounts registers it without one. The device asks in
+`createUser` before provisioning (`websocket/user_domains.go`; a later failure gives it back),
+gives it back in `deleteUser` (`BridgeReleaseDomain` with the user's identity), and at every
+start of the primary asks again for every active user with bridge access
+(`registerUserDomainsAtStart`, retried at 1, 5, 15 and 60 minutes): users created between #124
+and release 127 were turned away until then. The account page is
 `bridge/site/pages/account.html`: embedded in the binary, served by `bridge/api/site.go` at
 `/account` and `/<code>/account` under the nonce CSP, plain JS over `/api/account/*` whose texts
 come as JSON blocks (`site.account.*`, and `api.error.*` for its error table by code) built by the

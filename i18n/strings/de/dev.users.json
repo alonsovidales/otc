@@ -7,6 +7,10 @@
     "text": "die Bridge war nicht erreichbar, um {domain} zu prüfen, daher wurde dieser Benutzer nicht erstellt – versuche es gleich noch einmal oder entferne das Häkchen bei „Bridge-Zugang anfordern“, um ein rein lokales Konto zu erstellen: {detail}",
     "en": "could not reach the bridge to check {domain}, so this user was not created - try again in a moment, or uncheck \"request bridge access\" to create a local-only account: {detail}"
   },
+  "dev.users.bridge_domain_limit": {
+    "text": "{domain} kann nicht hinzugefügt werden – dein Konto auf der Bridge hat bereits so viele Adressen, wie es haben darf. Entferne eine auf deiner Kontoseite oder entferne das Häkchen bei „Bridge-Zugang anfordern“, um diesen Benutzer nur für dein eigenes Netzwerk zu erstellen",
+    "en": "{domain} can't be added: your account on the bridge already holds as many addresses as it may - remove one on its account page, or uncheck \"request bridge access\" to create this user for your own network only"
+  },
   "dev.users.confirm_mismatch": {
     "text": "der zur Bestätigung eingegebene Benutzername stimmt nicht überein",
     "en": "confirmation username does not match",

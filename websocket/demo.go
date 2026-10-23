@@ -251,6 +251,7 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqBridgeSendLogs{}):          demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqSetDeviceDisabled{}):       demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqIsDomainAvailable{}):       demoRefuse,
+	demoReq(&pb.ReqEnvelope_ReqRegisterUserDomain{}):      demoRefuse,
 }
 
 // demoLanguage is Settings.language: absent on a demo device.

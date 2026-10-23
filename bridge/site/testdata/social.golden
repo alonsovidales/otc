@@ -133,7 +133,7 @@ FamilyAlbum if you want a family album with nothing to set up: it's free with ad
 Pixelfed if you want a public, ad-free Instagram alternative on the fediverse, and are happy to join a server or run one yourself.
 Bringing your family in
 Set up the device. The computer app prepares the Raspberry Pi 5's card, and you finish the setup from your phone over Bluetooth, in about 20 minutes. It asks for a bridge account, which gives your device its off-the.cloud address.
-Add the family. In the web app, under Settings › Users, add an account for each person with Request bridge access ticked. They choose their own password the first time they sign in.
+Add the family. In the web app, under Settings › Users, add an account for each person with Request bridge access ticked, and choose a first password to give them. They change it in Settings › Change Password, and from then on only they know it.
 Add friends. In Friends, type the name of a friend's device, such as casa for casa.off-the.cloud, and send the request. Once they accept, your posts appear in each other's feed.
 Share with everyone else. Choose photos in Images, add them to a collection and share it as a link.
 See it before you buy anything

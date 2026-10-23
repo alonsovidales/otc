@@ -142,6 +142,31 @@ message ReqIsDomainAvailable {
   string candidate_domain = 4;
 }
 
+// The primary registering one of its additional users' addresses
+// (issue #103, "pepe.off-the.cloud") under its own account. Since issue
+// #124 the bridge refuses an address that dials in unless an account holds
+// it, and nothing else gave a user's address one, so every user created
+// with bridge access was turned away. Authenticated as the primary
+// (owner_uuid, domain, secret, as ReqIsDomainAvailable); user_* is the
+// identity the user's own instance registers with. The address counts
+// toward the account's limit like any other (accounts.MaxDomains).
+// Idempotent: an address the account already holds for that identity is
+// ok, and one it holds for another identity (a user deleted and added
+// again under the same name) is handed to this one. A primary whose own
+// domain predates accounts registers it without one, as it registered
+// itself. Answers with the generic Ack; a refusal sets
+// RespEnvelope.error_code: "name_taken", "name_held", "domain_limit" or
+// "invalid_name". Bridges before it answer unknown_payload.
+message ReqRegisterUserDomain {
+  string owner_uuid = 1;
+  string domain = 2;
+  string secret = 3;
+  // The user's address, "<username>.<the bridge's domain>".
+  string user_domain = 4;
+  string user_owner_uuid = 5;
+  string user_secret = 6;
+}
+
 message RespDomainAvailable {
   bool available = 1;
 }
@@ -2310,6 +2335,8 @@ message ReqEnvelope {
     ReqRevokeSessionToken req_revoke_session_token = 85;
     // Issue #103.
     ReqIsDomainAvailable req_is_domain_available = 86;
+    // The primary registering a user's address under its account.
+    ReqRegisterUserDomain req_register_user_domain = 141;
     // Issue #107. Answers with the File (resp_file) above.
     GetPublicationMedia req_get_publication_media = 87;
   }

@@ -1,6 +1,7 @@
 {
   "dev.users.bad_username": {"text": "el nombre de usuario solo puede tener letras minúsculas, números o guiones"},
   "dev.users.bridge_check_failed": {"text": "no se ha podido contactar con el puente para comprobar {domain}, así que no se ha creado este usuario: vuelve a intentarlo en un momento o desmarca “Solicitar acceso al puente” para crear una cuenta solo local: {detail}"},
+  "dev.users.bridge_domain_limit": {"text": "No se puede añadir {domain}: tu cuenta del puente ya tiene todas las direcciones que admite; quita una en la página de tu cuenta o desmarca “Solicitar acceso al puente” para crear este usuario solo para tu propia red"},
   "dev.users.confirm_mismatch": {"text": "el nombre de usuario de confirmación no coincide"},
   "dev.users.name_taken_on_bridge": {"text": "{domain} ya está ocupado en el puente: elige otro nombre de usuario o desmarca “Solicitar acceso al puente” para crear este usuario solo para tu propia red"},
   "dev.users.port_in_use": {"text": "otro usuario ya usa el puerto {port}"},

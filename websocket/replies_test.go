@@ -161,6 +161,7 @@ var headEnglish = []struct {
 	{"dev.users.bad_username", i18n.DevUsersBadUsername(), "username must be lowercase letters, digits, or hyphens"},
 	{"dev.users.bridge_check_failed", i18n.DevUsersBridgeCheckFailed("kim.anna.off-the.cloud", "boom"), fmt.Sprintf("could not reach the bridge to check %s, so this user was not created - try again in a moment, or uncheck \"request bridge access\" to create a local-only account: %v", "kim.anna.off-the.cloud", "boom")},
 	{"dev.users.confirm_mismatch", i18n.DevUsersConfirmMismatch(), "confirmation username does not match"},
+	{"dev.users.bridge_domain_limit", i18n.DevUsersBridgeDomainLimit("pepe.off-the.cloud"), "pepe.off-the.cloud can't be added: your account on the bridge already holds as many addresses as it may - remove one on its account page, or uncheck \"request bridge access\" to create this user for your own network only"},
 	{"dev.users.name_taken_on_bridge", i18n.DevUsersNameTakenOnBridge("kim.anna.off-the.cloud"), fmt.Sprintf("%s is already taken on the bridge - pick a different username, or uncheck \"request bridge access\" to create this user for your own network only", "kim.anna.off-the.cloud")},
 	{"dev.users.port_in_use", i18n.DevUsersPortInUse("8082"), fmt.Sprintf("port %d is already in use by another user", 8082)},
 	{"dev.users.stop_failed", i18n.DevUsersStopFailed("kim", "boom"), fmt.Sprintf("could not stop %s's process: %v", "kim", "boom")},

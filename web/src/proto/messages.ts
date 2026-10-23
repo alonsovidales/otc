@@ -512,6 +512,33 @@ export interface ReqIsDomainAvailable {
   candidateDomain: string;
 }
 
+/**
+ * The primary registering one of its additional users' addresses
+ * (issue #103, "pepe.off-the.cloud") under its own account. Since issue
+ * #124 the bridge refuses an address that dials in unless an account holds
+ * it, and nothing else gave a user's address one, so every user created
+ * with bridge access was turned away. Authenticated as the primary
+ * (owner_uuid, domain, secret, as ReqIsDomainAvailable); user_* is the
+ * identity the user's own instance registers with. The address counts
+ * toward the account's limit like any other (accounts.MaxDomains).
+ * Idempotent: an address the account already holds for that identity is
+ * ok, and one it holds for another identity (a user deleted and added
+ * again under the same name) is handed to this one. A primary whose own
+ * domain predates accounts registers it without one, as it registered
+ * itself. Answers with the generic Ack; a refusal sets
+ * RespEnvelope.error_code: "name_taken", "name_held", "domain_limit" or
+ * "invalid_name". Bridges before it answer unknown_payload.
+ */
+export interface ReqRegisterUserDomain {
+  ownerUuid: string;
+  domain: string;
+  secret: string;
+  /** The user's address, "<username>.<the bridge's domain>". */
+  userDomain: string;
+  userOwnerUuid: string;
+  userSecret: string;
+}
+
 export interface RespDomainAvailable {
   available: boolean;
 }
@@ -3107,6 +3134,9 @@ export interface ReqEnvelope {
     /** Issue #103. */
     { $case: "reqIsDomainAvailable"; reqIsDomainAvailable: ReqIsDomainAvailable }
     | //
+    /** The primary registering a user's address under its account. */
+    { $case: "reqRegisterUserDomain"; reqRegisterUserDomain: ReqRegisterUserDomain }
+    | //
     /** Issue #107. Answers with the File (resp_file) above. */
     { $case: "reqGetPublicationMedia"; reqGetPublicationMedia: GetPublicationMedia }
     | undefined;
@@ -4224,6 +4254,146 @@ export const ReqIsDomainAvailable: MessageFns<ReqIsDomainAvailable> = {
     message.domain = object.domain ?? "";
     message.secret = object.secret ?? "";
     message.candidateDomain = object.candidateDomain ?? "";
+    return message;
+  },
+};
+
+function createBaseReqRegisterUserDomain(): ReqRegisterUserDomain {
+  return { ownerUuid: "", domain: "", secret: "", userDomain: "", userOwnerUuid: "", userSecret: "" };
+}
+
+export const ReqRegisterUserDomain: MessageFns<ReqRegisterUserDomain> = {
+  encode(message: ReqRegisterUserDomain, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ownerUuid !== "") {
+      writer.uint32(10).string(message.ownerUuid);
+    }
+    if (message.domain !== "") {
+      writer.uint32(18).string(message.domain);
+    }
+    if (message.secret !== "") {
+      writer.uint32(26).string(message.secret);
+    }
+    if (message.userDomain !== "") {
+      writer.uint32(34).string(message.userDomain);
+    }
+    if (message.userOwnerUuid !== "") {
+      writer.uint32(42).string(message.userOwnerUuid);
+    }
+    if (message.userSecret !== "") {
+      writer.uint32(50).string(message.userSecret);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ReqRegisterUserDomain {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReqRegisterUserDomain();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.ownerUuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.domain = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.secret = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.userDomain = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.userOwnerUuid = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.userSecret = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReqRegisterUserDomain {
+    return {
+      ownerUuid: isSet(object.ownerUuid) ? globalThis.String(object.ownerUuid) : "",
+      domain: isSet(object.domain) ? globalThis.String(object.domain) : "",
+      secret: isSet(object.secret) ? globalThis.String(object.secret) : "",
+      userDomain: isSet(object.userDomain) ? globalThis.String(object.userDomain) : "",
+      userOwnerUuid: isSet(object.userOwnerUuid) ? globalThis.String(object.userOwnerUuid) : "",
+      userSecret: isSet(object.userSecret) ? globalThis.String(object.userSecret) : "",
+    };
+  },
+
+  toJSON(message: ReqRegisterUserDomain): unknown {
+    const obj: any = {};
+    if (message.ownerUuid !== "") {
+      obj.ownerUuid = message.ownerUuid;
+    }
+    if (message.domain !== "") {
+      obj.domain = message.domain;
+    }
+    if (message.secret !== "") {
+      obj.secret = message.secret;
+    }
+    if (message.userDomain !== "") {
+      obj.userDomain = message.userDomain;
+    }
+    if (message.userOwnerUuid !== "") {
+      obj.userOwnerUuid = message.userOwnerUuid;
+    }
+    if (message.userSecret !== "") {
+      obj.userSecret = message.userSecret;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReqRegisterUserDomain>, I>>(base?: I): ReqRegisterUserDomain {
+    return ReqRegisterUserDomain.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReqRegisterUserDomain>, I>>(object: I): ReqRegisterUserDomain {
+    const message = createBaseReqRegisterUserDomain();
+    message.ownerUuid = object.ownerUuid ?? "";
+    message.domain = object.domain ?? "";
+    message.secret = object.secret ?? "";
+    message.userDomain = object.userDomain ?? "";
+    message.userOwnerUuid = object.userOwnerUuid ?? "";
+    message.userSecret = object.userSecret ?? "";
     return message;
   },
 };
@@ -21512,6 +21682,9 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqIsDomainAvailable":
         ReqIsDomainAvailable.encode(message.payload.reqIsDomainAvailable, writer.uint32(690).fork()).join();
         break;
+      case "reqRegisterUserDomain":
+        ReqRegisterUserDomain.encode(message.payload.reqRegisterUserDomain, writer.uint32(1130).fork()).join();
+        break;
       case "reqGetPublicationMedia":
         GetPublicationMedia.encode(message.payload.reqGetPublicationMedia, writer.uint32(698).fork()).join();
         break;
@@ -22810,6 +22983,17 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 141: {
+          if (tag !== 1130) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqRegisterUserDomain",
+            reqRegisterUserDomain: ReqRegisterUserDomain.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
         case 87: {
           if (tag !== 698) {
             break;
@@ -23213,6 +23397,11 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           $case: "reqIsDomainAvailable",
           reqIsDomainAvailable: ReqIsDomainAvailable.fromJSON(object.reqIsDomainAvailable),
         }
+        : isSet(object.reqRegisterUserDomain)
+        ? {
+          $case: "reqRegisterUserDomain",
+          reqRegisterUserDomain: ReqRegisterUserDomain.fromJSON(object.reqRegisterUserDomain),
+        }
         : isSet(object.reqGetPublicationMedia)
         ? {
           $case: "reqGetPublicationMedia",
@@ -23486,6 +23675,8 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqRevokeSessionToken = ReqRevokeSessionToken.toJSON(message.payload.reqRevokeSessionToken);
     } else if (message.payload?.$case === "reqIsDomainAvailable") {
       obj.reqIsDomainAvailable = ReqIsDomainAvailable.toJSON(message.payload.reqIsDomainAvailable);
+    } else if (message.payload?.$case === "reqRegisterUserDomain") {
+      obj.reqRegisterUserDomain = ReqRegisterUserDomain.toJSON(message.payload.reqRegisterUserDomain);
     } else if (message.payload?.$case === "reqGetPublicationMedia") {
       obj.reqGetPublicationMedia = GetPublicationMedia.toJSON(message.payload.reqGetPublicationMedia);
     }
@@ -24623,6 +24814,15 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           message.payload = {
             $case: "reqIsDomainAvailable",
             reqIsDomainAvailable: ReqIsDomainAvailable.fromPartial(object.payload.reqIsDomainAvailable),
+          };
+        }
+        break;
+      }
+      case "reqRegisterUserDomain": {
+        if (object.payload?.reqRegisterUserDomain !== undefined && object.payload?.reqRegisterUserDomain !== null) {
+          message.payload = {
+            $case: "reqRegisterUserDomain",
+            reqRegisterUserDomain: ReqRegisterUserDomain.fromPartial(object.payload.reqRegisterUserDomain),
           };
         }
         break;

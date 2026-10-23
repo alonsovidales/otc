@@ -1,6 +1,7 @@
 {
   "dev.users.bad_username": {"text": "de gebruikersnaam mag alleen kleine letters, cijfers of koppeltekens bevatten"},
   "dev.users.bridge_check_failed": {"text": "kan de bridge niet bereiken om {domain} te controleren, dus deze gebruiker is niet aangemaakt – probeer het zo opnieuw, of vink “Toegang tot de bridge aanvragen” uit om een account te maken dat alleen lokaal werkt: {detail}"},
+  "dev.users.bridge_domain_limit": {"text": "{domain} kan niet worden toegevoegd – je account op de bridge heeft al zoveel adressen als het mag hebben. Verwijder er een op je accountpagina, of vink “Toegang tot de bridge aanvragen” uit om deze gebruiker alleen voor je eigen netwerk te maken"},
   "dev.users.confirm_mismatch": {"text": "de gebruikersnaam ter bevestiging komt niet overeen"},
   "dev.users.name_taken_on_bridge": {"text": "{domain} is al in gebruik op de bridge – kies een andere gebruikersnaam, of vink “Toegang tot de bridge aanvragen” uit om deze gebruiker alleen voor je eigen netwerk te maken"},
   "dev.users.port_in_use": {"text": "poort {port} is al in gebruik door een andere gebruiker"},

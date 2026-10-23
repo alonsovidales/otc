@@ -1,6 +1,7 @@
 {
   "dev.users.bad_username": {"text": "o nome de utilizador só pode ter letras minúsculas, algarismos ou hífenes"},
   "dev.users.bridge_check_failed": {"text": "não foi possível contactar a ponte para verificar {domain}, por isso este utilizador não foi criado. Tenta novamente daqui a pouco ou desmarca «Pedir acesso à ponte» para criar uma conta apenas local: {detail}"},
+  "dev.users.bridge_domain_limit": {"text": "não é possível adicionar {domain}: a tua conta na ponte já tem todos os endereços que pode ter; remove um na página da tua conta ou desmarca «Pedir acesso à ponte» para criar este utilizador apenas para a tua própria rede"},
   "dev.users.confirm_mismatch": {"text": "o nome de utilizador de confirmação não corresponde"},
   "dev.users.name_taken_on_bridge": {"text": "o endereço {domain} já está a ser usado na ponte: escolhe outro nome de utilizador ou desmarca «Pedir acesso à ponte» para criar este utilizador apenas para a tua própria rede"},
   "dev.users.port_in_use": {"text": "a porta {port} já está a ser usada por outro utilizador"},

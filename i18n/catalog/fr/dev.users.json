@@ -1,6 +1,7 @@
 {
   "dev.users.bad_username": {"text": "le nom d’utilisateur ne peut contenir que des lettres minuscules, des chiffres ou des traits d’union"},
   "dev.users.bridge_check_failed": {"text": "impossible de joindre la passerelle pour vérifier {domain}, cet utilisateur n’a donc pas été créé : réessayez dans un instant, ou décochez « Demander l’accès à la passerelle » pour créer un compte uniquement local : {detail}"},
+  "dev.users.bridge_domain_limit": {"text": "impossible d’ajouter {domain} : votre compte sur la passerelle a déjà toutes les adresses qu’il peut avoir ; retirez-en une sur la page de votre compte, ou décochez « Demander l’accès à la passerelle » pour créer cet utilisateur pour votre réseau uniquement"},
   "dev.users.confirm_mismatch": {"text": "le nom d’utilisateur saisi pour confirmer ne correspond pas"},
   "dev.users.name_taken_on_bridge": {"text": "l’adresse {domain} est déjà prise sur la passerelle : choisissez un autre nom d’utilisateur, ou décochez « Demander l’accès à la passerelle » pour créer cet utilisateur pour votre réseau uniquement"},
   "dev.users.port_in_use": {"text": "le port {port} est déjà utilisé par un autre utilisateur"},

@@ -66,20 +66,15 @@ const (
 	cSetupTokenMaxLen = 128
 )
 
-// cNamePattern is a valid device name: one DNS label, lower case, no
-// leading/trailing hyphen - the same shape scripts/install.sh accepts.
-var cNamePattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
+// cNamePattern is a valid device name (accounts.NamePattern).
+var cNamePattern = accounts.NamePattern
 
 // cHashedAssetPath is a Vite build file: /assets/<name>-<8-character
 // content hash>.<ext>.
 var cHashedAssetPath = regexp.MustCompile(`^/assets/[^/]+-[A-Za-z0-9_-]{8}\.[A-Za-z0-9]+$`)
 
-// cReservedNames can never be device names: they are (or may one day be)
-// the bridge's own hosts.
-var cReservedNames = map[string]bool{
-	"www": true, "api": true, "admin": true, "mail": true, "static": true,
-	"downloads": true, "bridge": true, "ns1": true, "ns2": true,
-}
+// cReservedNames can never be device names (accounts.ReservedNames).
+var cReservedNames = accounts.ReservedNames
 
 // API Structure that manage the HTTP API
 type API struct {
