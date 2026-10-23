@@ -826,6 +826,10 @@
     "en": "Type \"{name}\" to confirm deletion.",
     "reviewed": "claude-backtranslation 2026-10-11 #4a2f2acc"
   },
+  "app.settings.users.create": {
+    "text": "Crear",
+    "en": "Create"
+  },
   "app.settings.users.create_failed": {
     "text": "No se ha podido crear el usuario.",
     "en": "Could not create user."
@@ -833,6 +837,11 @@
   "app.settings.users.created": {
     "text": "Se ha creado el usuario “{name}”.",
     "en": "User \"{name}\" created."
+  },
+  "app.settings.users.created_no_password": {
+    "text": "Se ha creado el usuario “{name}”. Este dispositivo aún no asigna contraseñas, así que {name} elegirá una al iniciar sesión por primera vez. Actualiza el dispositivo para elegirla aquí la próxima vez.",
+    "en": "User \"{name}\" created. This device doesn't set passwords yet, so {name} chooses one at the first sign-in. Update the device to choose it here next time.",
+    "reviewed": "claude-backtranslation 2026-10-23 #353bf640"
   },
   "app.settings.users.delete_failed": {
     "text": "No se ha podido eliminar el usuario.",
@@ -861,6 +870,31 @@
   "app.settings.users.load_usage": {
     "text": "Cargar uso",
     "en": "Load usage"
+  },
+  "app.settings.users.password": {
+    "text": "Contraseña",
+    "en": "Password"
+  },
+  "app.settings.users.password_confirm": {
+    "text": "Confirmar contraseña",
+    "en": "Confirm password"
+  },
+  "app.settings.users.password_hint": {
+    "text": "Dásela a {name} para iniciar sesión. Podrá cambiarla en Ajustes › Cambiar contraseña y, desde ese momento, nadie más la sabrá.",
+    "en": "Give it to {name} to sign in with. They can change it in Settings › Change Password, and from then on nobody else knows it.",
+    "reviewed": "claude-backtranslation 2026-10-23 #f1873ec5"
+  },
+  "app.settings.users.password_mismatch": {
+    "text": "Las contraseñas no coinciden",
+    "en": "Passwords don't match"
+  },
+  "app.settings.users.password_title": {
+    "text": "Primera contraseña de {name}",
+    "en": "First password for {name}"
+  },
+  "app.settings.users.password_too_short": {
+    "text": "Usa al menos 8 caracteres",
+    "en": "Use at least 8 characters"
   },
   "app.settings.users.port": {
     "text": "puerto",

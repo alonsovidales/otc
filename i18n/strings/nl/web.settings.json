@@ -679,6 +679,10 @@
     "text": "Gebruiker toevoegen",
     "en": "Add User"
   },
+  "web.settings.users.create": {
+    "text": "Gebruiker aanmaken",
+    "en": "Create User"
+  },
   "web.settings.users.create_failed": {
     "text": "Kan de gebruiker niet maken.",
     "en": "Could not create user."
@@ -686,6 +690,11 @@
   "web.settings.users.created": {
     "text": "Gebruiker “{name}” aangemaakt.",
     "en": "User \"{name}\" created."
+  },
+  "web.settings.users.created_no_password": {
+    "text": "Gebruiker “{name}” aangemaakt. Dit apparaat stelt nog geen wachtwoorden in, dus {name} kiest er een bij de eerste keer inloggen. Werk het apparaat bij om het de volgende keer hier te kiezen.",
+    "en": "User \"{name}\" created. This device doesn't set passwords yet, so {name} chooses one at the first sign-in. Update the device to choose it here next time.",
+    "reviewed": "claude-backtranslation 2026-10-23 #3d2c8779"
   },
   "web.settings.users.creating": {
     "text": "Maken…",
@@ -731,6 +740,31 @@
   "web.settings.users.none": {
     "text": "Nog geen andere gebruikers.",
     "en": "No additional users yet."
+  },
+  "web.settings.users.password": {
+    "text": "Wachtwoord",
+    "en": "Password"
+  },
+  "web.settings.users.password_confirm": {
+    "text": "Wachtwoord bevestigen",
+    "en": "Confirm password"
+  },
+  "web.settings.users.password_hint": {
+    "text": "Geef het aan {name} om mee in te loggen. Het is daarna te wijzigen in Instellingen › Wachtwoord wijzigen, en vanaf dan kent niemand anders het.",
+    "en": "Give it to {name} to sign in with. They can change it in Settings › Change Password, and from then on nobody else knows it.",
+    "reviewed": "claude-backtranslation 2026-10-23 #b632fcaa"
+  },
+  "web.settings.users.password_mismatch": {
+    "text": "De wachtwoorden komen niet overeen.",
+    "en": "The passwords do not match."
+  },
+  "web.settings.users.password_title": {
+    "text": "Eerste wachtwoord voor {name}",
+    "en": "First password for {name}"
+  },
+  "web.settings.users.password_too_short": {
+    "text": "Gebruik minstens 8 tekens.",
+    "en": "Use at least 8 characters."
   },
   "web.settings.users.port": {
     "text": "poort (optioneel)",

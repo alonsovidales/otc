@@ -89,6 +89,25 @@ func ProvisionUserDatabase(dbName, dbUser, dbPass, deviceUuid, subdomain, bridge
 	return nil
 }
 
+// OpenUserDatabase opens a user's own database as that user, with the
+// credentials ProvisionUserDatabase gave it, for the one thing the primary
+// writes there afterwards: the account's first password, set when the
+// owner creates the account (websocket's createUser). The caller Stops it.
+func OpenUserDatabase(dbName, dbUser, dbPass string) (*Dao, error) {
+	if err := checkGenerated(dbName, dbUser, dbPass); err != nil {
+		return nil, err
+	}
+	db, err := sql.Open("mysql", fmt.Sprintf(
+		"%s:%s@tcp(127.0.0.1:%d)/%s?parseTime=true&charset=utf8mb4,utf8&interpolateParams=true",
+		dbUser, dbPass, cfg.GetInt("mysql", "port"), dbName,
+	))
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(1)
+	return &Dao{db: db}, nil
+}
+
 // DropUserDatabase is ProvisionUserDatabase's inverse - called after the
 // supervisor has confirmed the user's own process has actually exited
 // (see supervisor.Stop), never before, so nothing is still holding

@@ -826,6 +826,10 @@
     "en": "Type \"{name}\" to confirm deletion.",
     "reviewed": "claude-backtranslation 2026-10-11 #33d6c2da"
   },
+  "app.settings.users.create": {
+    "text": "Aanmaken",
+    "en": "Create"
+  },
   "app.settings.users.create_failed": {
     "text": "Kan de gebruiker niet maken.",
     "en": "Could not create user."
@@ -833,6 +837,11 @@
   "app.settings.users.created": {
     "text": "Gebruiker “{name}” aangemaakt.",
     "en": "User \"{name}\" created."
+  },
+  "app.settings.users.created_no_password": {
+    "text": "Gebruiker “{name}” aangemaakt. Dit apparaat stelt nog geen wachtwoorden in, dus {name} kiest er een bij de eerste keer inloggen. Werk het apparaat bij om het de volgende keer hier te kiezen.",
+    "en": "User \"{name}\" created. This device doesn't set passwords yet, so {name} chooses one at the first sign-in. Update the device to choose it here next time.",
+    "reviewed": "claude-backtranslation 2026-10-23 #3d2c8779"
   },
   "app.settings.users.delete_failed": {
     "text": "Kan de gebruiker niet verwijderen.",
@@ -861,6 +870,31 @@
   "app.settings.users.load_usage": {
     "text": "Gebruik laden",
     "en": "Load usage"
+  },
+  "app.settings.users.password": {
+    "text": "Wachtwoord",
+    "en": "Password"
+  },
+  "app.settings.users.password_confirm": {
+    "text": "Wachtwoord bevestigen",
+    "en": "Confirm password"
+  },
+  "app.settings.users.password_hint": {
+    "text": "Geef het aan {name} om mee in te loggen. Het is daarna te wijzigen in Instellingen › Wachtwoord wijzigen, en vanaf dan kent niemand anders het.",
+    "en": "Give it to {name} to sign in with. They can change it in Settings › Change Password, and from then on nobody else knows it.",
+    "reviewed": "claude-backtranslation 2026-10-23 #b632fcaa"
+  },
+  "app.settings.users.password_mismatch": {
+    "text": "De wachtwoorden komen niet overeen",
+    "en": "Passwords don't match"
+  },
+  "app.settings.users.password_title": {
+    "text": "Eerste wachtwoord voor {name}",
+    "en": "First password for {name}"
+  },
+  "app.settings.users.password_too_short": {
+    "text": "Gebruik minstens 8 tekens",
+    "en": "Use at least 8 characters"
   },
   "app.settings.users.port": {
     "text": "poort",

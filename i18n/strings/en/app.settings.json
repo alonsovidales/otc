@@ -985,6 +985,11 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #e075879e"
   },
+  "app.settings.users.create": {
+    "text": "Create",
+    "note": "Button of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password: creates the user with that password.",
+    "max": 20
+  },
   "app.settings.users.create_failed": {
     "text": "Could not create user.",
     "note": "Error in Settings > Users when the device didn't add the user and gave no reason."
@@ -993,6 +998,13 @@
     "text": "User \"{name}\" created.",
     "args": [["name", "text"]],
     "note": "Message in Settings > Users after a user was added. {name} is the user's name. Write the quotes in your language's style."
+  },
+  "app.settings.users.created_no_password": {
+    "text": "User \"{name}\" created. This device doesn't set passwords yet, so {name} chooses one at the first sign-in. Update the device to choose it here next time.",
+    "args": [["name", "text"]],
+    "note": "Message in Settings > Users after a user was added. {name} is the new user's name (lower-case letters, digits and hyphens). Write the quotes in your language's style. Shown when the device runs an older version that ignores the password: the account was created without one, and the first person to sign in to it sets it. A security statement: keep its meaning exact.",
+    "review": "required",
+    "reviewed": "owner 2026-10-23 #9877410b"
   },
   "app.settings.users.delete_failed": {
     "text": "Could not delete user.",
@@ -1026,6 +1038,36 @@
     "text": "Load usage",
     "note": "Small button of a user in Settings > Users that shows the storage the user takes and its connections.",
     "max": 20
+  },
+  "app.settings.users.password": {
+    "text": "Password",
+    "note": "Placeholder of the first field of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password.",
+    "max": 30
+  },
+  "app.settings.users.password_confirm": {
+    "text": "Confirm password",
+    "note": "Placeholder of the second field of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password: the same password again.",
+    "max": 30
+  },
+  "app.settings.users.password_hint": {
+    "text": "Give it to {name} to sign in with. They can change it in Settings › Change Password, and from then on nobody else knows it.",
+    "args": [["name", "text"]],
+    "note": "Explanation under the fields of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password. {name} is the new user's name (lower-case letters, digits and hyphens). A security statement: keep its meaning exact. The person changes the password afterwards in the section named Change Password; once they do, the owner no longer knows it.",
+    "review": "required",
+    "reviewed": "owner 2026-10-23 #271ca6c7"
+  },
+  "app.settings.users.password_mismatch": {
+    "text": "Passwords don't match",
+    "note": "Shown under the fields of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password while the two passwords differ."
+  },
+  "app.settings.users.password_title": {
+    "text": "First password for {name}",
+    "args": [["name", "text"]],
+    "note": "Heading of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password. {name} is the new user's name (lower-case letters, digits and hyphens)."
+  },
+  "app.settings.users.password_too_short": {
+    "text": "Use at least 8 characters",
+    "note": "Shown under the fields of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password while the password is shorter than 8 characters."
   },
   "app.settings.users.port": {
     "text": "port",

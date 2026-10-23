@@ -72,6 +72,7 @@ import cloud.offthe.otc.i18n.appSettingsUpdateUpdateTo
 import cloud.offthe.otc.i18n.appSettingsUpdateUpdateToBuild
 import cloud.offthe.otc.i18n.appSettingsUsersCreateFailed
 import cloud.offthe.otc.i18n.appSettingsUsersCreated
+import cloud.offthe.otc.i18n.appSettingsUsersCreatedNoPassword
 import cloud.offthe.otc.i18n.appSettingsUsersDeleteFailed
 import cloud.offthe.otc.i18n.appSettingsUsersDeleted
 import cloud.offthe.otc.i18n.appSettingsUsersUpdateFailed
@@ -487,12 +488,25 @@ class UsersManagementViewModel : ViewModel() {
     data class State(
         val isPrimary: Boolean = false, val users: List<User> = emptyList(), val loading: Boolean = false, val metrics: Map<String, RespUserMetrics> = emptyMap(),
         val newUsername: String = "", val newPort: String = "", val creating: Boolean = false,
+        // The dialog Add opens: the new account's first password, set on the
+        // device as the account is created, so nobody can sign in first and
+        // claim it. Its person changes it later in Change Password.
+        val passwordFor: String? = null, val newPassword: String = "", val confirmPassword: String = "", val passwordError: UiText? = null,
         val deleteTargetUuid: String? = null, val deleteConfirmText: String = "", val deleting: Boolean = false,
         val busyActiveUuid: String? = null, val toast: UiText? = null,
-    )
+    ) {
+        // The same 8 the device asks for (session.MinPasswordLen).
+        val passwordTooShort get() = newPassword.isNotEmpty() && newPassword.length < 8
+        val passwordMismatch get() = confirmPassword.isNotEmpty() && newPassword != confirmPassword
+        val canCreate get() = newPassword.length >= 8 && newPassword == confirmPassword
+    }
     val state = MutableStateFlow(State())
 
     fun setNewUsername(v: String) = state.update { it.copy(newUsername = v) }
+    fun setNewPassword(v: String) = state.update { it.copy(newPassword = v) }
+    fun setConfirmPassword(v: String) = state.update { it.copy(confirmPassword = v) }
+    fun askPassword() = state.update { it.copy(passwordFor = it.newUsername.trim(), newPassword = "", confirmPassword = "", passwordError = null) }
+    fun cancelPassword() = state.update { if (it.creating) it else it.copy(passwordFor = null, newPassword = "", confirmPassword = "") }
     fun setNewPort(v: String) = state.update { it.copy(newPort = v) }
     fun setDeleteConfirmText(v: String) = state.update { it.copy(deleteConfirmText = v) }
     fun toggleDeleteTarget(uuid: String) = state.update { it.copy(deleteTargetUuid = if (it.deleteTargetUuid == uuid) null else uuid, deleteConfirmText = "") }
@@ -521,13 +535,23 @@ class UsersManagementViewModel : ViewModel() {
     }
 
     suspend fun createUser() {
-        state.update { it.copy(creating = true) }
-        val username = state.value.newUsername.trim()
+        val s = state.value
+        val username = s.passwordFor ?: return
+        if (!s.canCreate || s.creating) return
+        state.update { it.copy(creating = true, passwordError = null) }
         try {
-            val resp = OTCConnection.request { it.setReqCreateUser(ReqCreateUser.newBuilder().setUsername(username).setPort(state.value.newPort.toIntOrNull() ?: 0)) }
-            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_USERS) state.update { it.copy(users = resp.respUsers.usersList, newUsername = "", newPort = "", toast = S.appSettingsUsersCreated(username)) }
-            else state.update { it.copy(toast = deviceOr(resp.errorMessage, S.appSettingsUsersCreateFailed())) }
-        } catch (e: Exception) { state.update { it.copy(toast = e.shownText()) } }
+            // Same RSA-OAEP flow as sign-in (issue #2).
+            val pk = OTCConnection.request { it.setReqGetPubKey(GetPubKey.getDefaultInstance()) }
+            if (pk.payloadCase != RespEnvelope.PayloadCase.RESP_PUB_KEY) { state.update { it.copy(passwordError = S.appSettingsPasswordNoKey()) }; return }
+            val password = PwCrypto.encryptPassword(s.newPassword, pk.respPubKey.publicKey.toByteArray())
+            val resp = OTCConnection.request { it.setReqCreateUser(ReqCreateUser.newBuilder().setUsername(username).setPort(s.newPort.toIntOrNull() ?: 0).setPassword(ByteString.copyFrom(password))) }
+            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_USERS) {
+                // Unset: a device older than the password, which created the
+                // account without one (its first sign-in sets it).
+                val created = if (resp.respUsers.hasPasswordSet()) S.appSettingsUsersCreated(username) else S.appSettingsUsersCreatedNoPassword(username)
+                state.update { it.copy(users = resp.respUsers.usersList, newUsername = "", newPort = "", passwordFor = null, newPassword = "", confirmPassword = "", toast = created) }
+            } else state.update { it.copy(passwordError = deviceOr(resp.errorMessage, S.appSettingsUsersCreateFailed())) }
+        } catch (e: Exception) { state.update { it.copy(passwordError = e.shownText()) } }
         finally { state.update { it.copy(creating = false) } }
     }
 

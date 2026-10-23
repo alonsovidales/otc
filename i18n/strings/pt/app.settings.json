@@ -826,6 +826,10 @@
     "en": "Type \"{name}\" to confirm deletion.",
     "reviewed": "claude-backtranslation 2026-10-11 #c7ae117b"
   },
+  "app.settings.users.create": {
+    "text": "Criar",
+    "en": "Create"
+  },
   "app.settings.users.create_failed": {
     "text": "Não foi possível criar o utilizador.",
     "en": "Could not create user."
@@ -833,6 +837,11 @@
   "app.settings.users.created": {
     "text": "Utilizador «{name}» criado.",
     "en": "User \"{name}\" created."
+  },
+  "app.settings.users.created_no_password": {
+    "text": "Utilizador «{name}» criado. Este dispositivo ainda não define palavras-passe, por isso {name} escolhe uma ao iniciar sessão pela primeira vez. Atualiza o dispositivo para a escolheres aqui da próxima vez.",
+    "en": "User \"{name}\" created. This device doesn't set passwords yet, so {name} chooses one at the first sign-in. Update the device to choose it here next time.",
+    "reviewed": "claude-backtranslation 2026-10-23 #ecf688b9"
   },
   "app.settings.users.delete_failed": {
     "text": "Não foi possível eliminar o utilizador.",
@@ -861,6 +870,31 @@
   "app.settings.users.load_usage": {
     "text": "Ver utilização",
     "en": "Load usage"
+  },
+  "app.settings.users.password": {
+    "text": "Palavra-passe",
+    "en": "Password"
+  },
+  "app.settings.users.password_confirm": {
+    "text": "Confirmar palavra-passe",
+    "en": "Confirm password"
+  },
+  "app.settings.users.password_hint": {
+    "text": "Dá-a a {name} para iniciar sessão. Pode alterá-la em Definições › Alterar palavra-passe e, a partir daí, mais ninguém a saberá.",
+    "en": "Give it to {name} to sign in with. They can change it in Settings › Change Password, and from then on nobody else knows it.",
+    "reviewed": "claude-backtranslation 2026-10-23 #4faa9b77"
+  },
+  "app.settings.users.password_mismatch": {
+    "text": "As palavras-passe não coincidem",
+    "en": "Passwords don't match"
+  },
+  "app.settings.users.password_title": {
+    "text": "Primeira palavra-passe de {name}",
+    "en": "First password for {name}"
+  },
+  "app.settings.users.password_too_short": {
+    "text": "Usa pelo menos 8 caracteres",
+    "en": "Use at least 8 characters"
   },
   "app.settings.users.port": {
     "text": "porta",

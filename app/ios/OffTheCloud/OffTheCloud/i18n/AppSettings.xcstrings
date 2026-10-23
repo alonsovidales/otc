@@ -9714,6 +9714,53 @@
         }
       }
     },
+    "app.settings.users.create" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anlegen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crear"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Créer"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crea"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aanmaken"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Criar"
+          }
+        }
+      }
+    },
     "app.settings.users.create_failed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9804,6 +9851,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Utilizador «%1$@» criado."
+          }
+        }
+      }
+    },
+    "app.settings.users.created_no_password" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Benutzer „%1$@“ angelegt. Dieses Gerät legt noch keine Passwörter fest, daher wählt %1$@ eines bei der ersten Anmeldung. Aktualisiere das Gerät, um es beim nächsten Mal hier festzulegen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "User \"%1$@\" created. This device doesn't set passwords yet, so %1$@ chooses one at the first sign-in. Update the device to choose it here next time."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se ha creado el usuario “%1$@”. Este dispositivo aún no asigna contraseñas, así que %1$@ elegirá una al iniciar sesión por primera vez. Actualiza el dispositivo para elegirla aquí la próxima vez."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisateur « %1$@ » créé. Cet appareil ne définit pas encore les mots de passe : %1$@ en choisira un à la première connexion. Mettez l’appareil à jour pour le choisir ici la prochaine fois."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utente “%1$@” creato. Questo dispositivo non imposta ancora le password, quindi %1$@ ne sceglierà una al primo accesso. Aggiorna il dispositivo per sceglierla qui la prossima volta."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebruiker “%1$@” aangemaakt. Dit apparaat stelt nog geen wachtwoorden in, dus %1$@ kiest er een bij de eerste keer inloggen. Werk het apparaat bij om het de volgende keer hier te kiezen."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilizador «%1$@» criado. Este dispositivo ainda não define palavras-passe, por isso %1$@ escolhe uma ao iniciar sessão pela primeira vez. Atualiza o dispositivo para a escolheres aqui da próxima vez."
           }
         }
       }
@@ -10133,6 +10227,288 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ver utilização"
+          }
+        }
+      }
+    },
+    "app.settings.users.password" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passwort"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contraseña"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mot de passe"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wachtwoord"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Palavra-passe"
+          }
+        }
+      }
+    },
+    "app.settings.users.password_confirm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passwort bestätigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm password"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirmar contraseña"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirmer le mot de passe"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conferma la password"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wachtwoord bevestigen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirmar palavra-passe"
+          }
+        }
+      }
+    },
+    "app.settings.users.password_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib es %1$@ zum Anmelden. Unter Einstellungen › Passwort ändern lässt es sich danach ersetzen, und ab dann kennt es niemand sonst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Give it to %1$@ to sign in with. They can change it in Settings › Change Password, and from then on nobody else knows it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dásela a %1$@ para iniciar sesión. Podrá cambiarla en Ajustes › Cambiar contraseña y, desde ese momento, nadie más la sabrá."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Donnez-le à %1$@ pour se connecter. Il pourra ensuite être modifié dans Paramètres › Modifier le mot de passe, et dès lors personne d’autre ne le connaîtra."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dalla a %1$@ per accedere. Potrà cambiarla in Impostazioni › Modifica password e, da quel momento, nessun altro la conoscerà."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geef het aan %1$@ om mee in te loggen. Het is daarna te wijzigen in Instellingen › Wachtwoord wijzigen, en vanaf dan kent niemand anders het."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dá-a a %1$@ para iniciar sessão. Pode alterá-la em Definições › Alterar palavra-passe e, a partir daí, mais ninguém a saberá."
+          }
+        }
+      }
+    },
+    "app.settings.users.password_mismatch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Passwörter stimmen nicht überein"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passwords don't match"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las contraseñas no coinciden"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les mots de passe ne correspondent pas"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le password non corrispondono"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De wachtwoorden komen niet overeen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As palavras-passe não coincidem"
+          }
+        }
+      }
+    },
+    "app.settings.users.password_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erstes Passwort für %1$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "First password for %1$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primera contraseña de %1$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premier mot de passe de %1$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prima password di %1$@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eerste wachtwoord voor %1$@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primeira palavra-passe de %1$@"
+          }
+        }
+      }
+    },
+    "app.settings.users.password_too_short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verwende mindestens 8 Zeichen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use at least 8 characters"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa al menos 8 caracteres"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisez au moins 8 caractères"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa almeno 8 caratteri"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebruik minstens 8 tekens"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa pelo menos 8 caracteres"
           }
         }
       }

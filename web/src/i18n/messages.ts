@@ -614,8 +614,10 @@ export type MessageKey =
   | "web.settings.update.version_build"
   | "web.settings.update.version_label"
   | "web.settings.users.add"
+  | "web.settings.users.create"
   | "web.settings.users.create_failed"
   | "web.settings.users.created"
+  | "web.settings.users.created_no_password"
   | "web.settings.users.creating"
   | "web.settings.users.delete_failed"
   | "web.settings.users.deleted"
@@ -626,6 +628,12 @@ export type MessageKey =
   | "web.settings.users.load_usage"
   | "web.settings.users.local_hint"
   | "web.settings.users.none"
+  | "web.settings.users.password"
+  | "web.settings.users.password_confirm"
+  | "web.settings.users.password_hint"
+  | "web.settings.users.password_mismatch"
+  | "web.settings.users.password_title"
+  | "web.settings.users.password_too_short"
   | "web.settings.users.port"
   | "web.settings.users.port_address"
   | "web.settings.users.port_local"
@@ -1519,8 +1527,10 @@ export interface MessageArgs {
   "web.settings.update.version_label": { label: string; build: string };
   "web.settings.update.version_to": { version: string; latest: string };
   "web.settings.users.add": undefined;
+  "web.settings.users.create": undefined;
   "web.settings.users.create_failed": undefined;
   "web.settings.users.created": { name: string };
+  "web.settings.users.created_no_password": { name: string };
   "web.settings.users.creating": undefined;
   "web.settings.users.delete_confirm": { name: string };
   "web.settings.users.delete_failed": undefined;
@@ -1532,6 +1542,12 @@ export interface MessageArgs {
   "web.settings.users.load_usage": undefined;
   "web.settings.users.local_hint": undefined;
   "web.settings.users.none": undefined;
+  "web.settings.users.password": undefined;
+  "web.settings.users.password_confirm": undefined;
+  "web.settings.users.password_hint": { name: string };
+  "web.settings.users.password_mismatch": undefined;
+  "web.settings.users.password_title": { name: string };
+  "web.settings.users.password_too_short": undefined;
   "web.settings.users.port": undefined;
   "web.settings.users.port_address": { port: string; address: string };
   "web.settings.users.port_local": { port: string };

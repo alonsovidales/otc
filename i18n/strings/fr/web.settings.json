@@ -679,6 +679,10 @@
     "text": "Ajouter un utilisateur",
     "en": "Add User"
   },
+  "web.settings.users.create": {
+    "text": "Créer l’utilisateur",
+    "en": "Create User"
+  },
   "web.settings.users.create_failed": {
     "text": "Impossible de créer l’utilisateur.",
     "en": "Could not create user."
@@ -686,6 +690,11 @@
   "web.settings.users.created": {
     "text": "Utilisateur « {name} » créé.",
     "en": "User \"{name}\" created."
+  },
+  "web.settings.users.created_no_password": {
+    "text": "Utilisateur « {name} » créé. Cet appareil ne définit pas encore les mots de passe : {name} en choisira un à la première connexion. Mettez l’appareil à jour pour le choisir ici la prochaine fois.",
+    "en": "User \"{name}\" created. This device doesn't set passwords yet, so {name} chooses one at the first sign-in. Update the device to choose it here next time.",
+    "reviewed": "claude-backtranslation 2026-10-23 #b86b1505"
   },
   "web.settings.users.creating": {
     "text": "Création…",
@@ -731,6 +740,31 @@
   "web.settings.users.none": {
     "text": "Pas encore d’autres utilisateurs.",
     "en": "No additional users yet."
+  },
+  "web.settings.users.password": {
+    "text": "Mot de passe",
+    "en": "Password"
+  },
+  "web.settings.users.password_confirm": {
+    "text": "Confirmer le mot de passe",
+    "en": "Confirm password"
+  },
+  "web.settings.users.password_hint": {
+    "text": "Donnez-le à {name} pour se connecter. Il pourra ensuite être modifié dans Paramètres › Modifier le mot de passe, et dès lors personne d’autre ne le connaîtra.",
+    "en": "Give it to {name} to sign in with. They can change it in Settings › Change Password, and from then on nobody else knows it.",
+    "reviewed": "claude-backtranslation 2026-10-23 #195565a1"
+  },
+  "web.settings.users.password_mismatch": {
+    "text": "Les mots de passe ne correspondent pas.",
+    "en": "The passwords do not match."
+  },
+  "web.settings.users.password_title": {
+    "text": "Premier mot de passe de {name}",
+    "en": "First password for {name}"
+  },
+  "web.settings.users.password_too_short": {
+    "text": "Utilisez au moins 8 caractères.",
+    "en": "Use at least 8 characters."
   },
   "web.settings.users.port": {
     "text": "port (facultatif)",

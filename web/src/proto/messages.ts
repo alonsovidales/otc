@@ -2722,6 +2722,13 @@ export interface ReqListUsers {
 
 export interface RespUsers {
   users: User[];
+  /**
+   * The answer to a CreateUser only: whether the device stored the
+   * password sent with it (ReqCreateUser.password). A device that knows
+   * the field always sets it there; an older one leaves it unset, having
+   * ignored the password, so the account's first sign-in sets it.
+   */
+  passwordSet?: boolean | undefined;
 }
 
 /**
@@ -2744,6 +2751,14 @@ export interface ReqCreateUser {
    * Hit exactly that way on a live device before this existed.
    */
   requestBridgeAccess: boolean;
+  /**
+   * The account's first password: RSA-OAEP(SHA-256) ciphertext, like
+   * Auth.key, under this connection's GetPubKey key. The device stores it
+   * before the account's instance starts, so nobody can sign in first and
+   * claim the account; its person changes it later in Settings > Change
+   * Password. Empty: the account's first sign-in sets it, as before.
+   */
+  password: Uint8Array;
 }
 
 /**
@@ -20013,13 +20028,16 @@ export const ReqListUsers: MessageFns<ReqListUsers> = {
 };
 
 function createBaseRespUsers(): RespUsers {
-  return { users: [] };
+  return { users: [], passwordSet: undefined };
 }
 
 export const RespUsers: MessageFns<RespUsers> = {
   encode(message: RespUsers, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     for (const v of message.users) {
       User.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.passwordSet !== undefined) {
+      writer.uint32(16).bool(message.passwordSet);
     }
     return writer;
   },
@@ -20039,6 +20057,14 @@ export const RespUsers: MessageFns<RespUsers> = {
           message.users.push(User.decode(reader, reader.uint32()));
           continue;
         }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.passwordSet = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -20049,13 +20075,19 @@ export const RespUsers: MessageFns<RespUsers> = {
   },
 
   fromJSON(object: any): RespUsers {
-    return { users: globalThis.Array.isArray(object?.users) ? object.users.map((e: any) => User.fromJSON(e)) : [] };
+    return {
+      users: globalThis.Array.isArray(object?.users) ? object.users.map((e: any) => User.fromJSON(e)) : [],
+      passwordSet: isSet(object.passwordSet) ? globalThis.Boolean(object.passwordSet) : undefined,
+    };
   },
 
   toJSON(message: RespUsers): unknown {
     const obj: any = {};
     if (message.users?.length) {
       obj.users = message.users.map((e) => User.toJSON(e));
+    }
+    if (message.passwordSet !== undefined) {
+      obj.passwordSet = message.passwordSet;
     }
     return obj;
   },
@@ -20066,12 +20098,13 @@ export const RespUsers: MessageFns<RespUsers> = {
   fromPartial<I extends Exact<DeepPartial<RespUsers>, I>>(object: I): RespUsers {
     const message = createBaseRespUsers();
     message.users = object.users?.map((e) => User.fromPartial(e)) || [];
+    message.passwordSet = object.passwordSet ?? undefined;
     return message;
   },
 };
 
 function createBaseReqCreateUser(): ReqCreateUser {
-  return { username: "", port: 0, requestBridgeAccess: false };
+  return { username: "", port: 0, requestBridgeAccess: false, password: new Uint8Array(0) };
 }
 
 export const ReqCreateUser: MessageFns<ReqCreateUser> = {
@@ -20084,6 +20117,9 @@ export const ReqCreateUser: MessageFns<ReqCreateUser> = {
     }
     if (message.requestBridgeAccess !== false) {
       writer.uint32(24).bool(message.requestBridgeAccess);
+    }
+    if (message.password.length !== 0) {
+      writer.uint32(34).bytes(message.password);
     }
     return writer;
   },
@@ -20119,6 +20155,14 @@ export const ReqCreateUser: MessageFns<ReqCreateUser> = {
           message.requestBridgeAccess = reader.bool();
           continue;
         }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.password = reader.bytes();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -20133,6 +20177,7 @@ export const ReqCreateUser: MessageFns<ReqCreateUser> = {
       username: isSet(object.username) ? globalThis.String(object.username) : "",
       port: isSet(object.port) ? globalThis.Number(object.port) : 0,
       requestBridgeAccess: isSet(object.requestBridgeAccess) ? globalThis.Boolean(object.requestBridgeAccess) : false,
+      password: isSet(object.password) ? bytesFromBase64(object.password) : new Uint8Array(0),
     };
   },
 
@@ -20147,6 +20192,9 @@ export const ReqCreateUser: MessageFns<ReqCreateUser> = {
     if (message.requestBridgeAccess !== false) {
       obj.requestBridgeAccess = message.requestBridgeAccess;
     }
+    if (message.password.length !== 0) {
+      obj.password = base64FromBytes(message.password);
+    }
     return obj;
   },
 
@@ -20158,6 +20206,7 @@ export const ReqCreateUser: MessageFns<ReqCreateUser> = {
     message.username = object.username ?? "";
     message.port = object.port ?? 0;
     message.requestBridgeAccess = object.requestBridgeAccess ?? false;
+    message.password = object.password ?? new Uint8Array(0);
     return message;
   },
 };

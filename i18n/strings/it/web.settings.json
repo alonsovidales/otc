@@ -679,6 +679,10 @@
     "text": "Aggiungi utente",
     "en": "Add User"
   },
+  "web.settings.users.create": {
+    "text": "Crea utente",
+    "en": "Create User"
+  },
   "web.settings.users.create_failed": {
     "text": "Impossibile creare l’utente.",
     "en": "Could not create user."
@@ -686,6 +690,11 @@
   "web.settings.users.created": {
     "text": "Utente “{name}” creato.",
     "en": "User \"{name}\" created."
+  },
+  "web.settings.users.created_no_password": {
+    "text": "Utente “{name}” creato. Questo dispositivo non imposta ancora le password, quindi {name} ne sceglierà una al primo accesso. Aggiorna il dispositivo per sceglierla qui la prossima volta.",
+    "en": "User \"{name}\" created. This device doesn't set passwords yet, so {name} chooses one at the first sign-in. Update the device to choose it here next time.",
+    "reviewed": "claude-backtranslation 2026-10-23 #64adda6a"
   },
   "web.settings.users.creating": {
     "text": "Creazione…",
@@ -731,6 +740,31 @@
   "web.settings.users.none": {
     "text": "Non ci sono ancora altri utenti.",
     "en": "No additional users yet."
+  },
+  "web.settings.users.password": {
+    "text": "Password",
+    "en": "Password"
+  },
+  "web.settings.users.password_confirm": {
+    "text": "Conferma la password",
+    "en": "Confirm password"
+  },
+  "web.settings.users.password_hint": {
+    "text": "Dalla a {name} per accedere. Potrà cambiarla in Impostazioni › Modifica password e, da quel momento, nessun altro la conoscerà.",
+    "en": "Give it to {name} to sign in with. They can change it in Settings › Change Password, and from then on nobody else knows it.",
+    "reviewed": "claude-backtranslation 2026-10-23 #6755c1ec"
+  },
+  "web.settings.users.password_mismatch": {
+    "text": "Le password non corrispondono.",
+    "en": "The passwords do not match."
+  },
+  "web.settings.users.password_title": {
+    "text": "Prima password di {name}",
+    "en": "First password for {name}"
+  },
+  "web.settings.users.password_too_short": {
+    "text": "Usa almeno 8 caratteri.",
+    "en": "Use at least 8 characters."
   },
   "web.settings.users.port": {
     "text": "porta (facoltativa)",

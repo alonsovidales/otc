@@ -213,8 +213,10 @@
     <string name="app_settings_uploads_title">Carregamentos</string>
     <string name="app_settings_users_confirm_delete">Confirmar eliminação</string>
     <string name="app_settings_users_confirm_hint">Escreve «%1$s» para confirmar a eliminação.</string>
+    <string name="app_settings_users_create">Criar</string>
     <string name="app_settings_users_create_failed">Não foi possível criar o utilizador.</string>
     <string name="app_settings_users_created">Utilizador «%1$s» criado.</string>
+    <string name="app_settings_users_created_no_password">Utilizador «%1$s» criado. Este dispositivo ainda não define palavras-passe, por isso %1$s escolhe uma ao iniciar sessão pela primeira vez. Atualiza o dispositivo para a escolheres aqui da próxima vez.</string>
     <string name="app_settings_users_delete_failed">Não foi possível eliminar o utilizador.</string>
     <string name="app_settings_users_deleted">Utilizador «%1$s» eliminado.</string>
     <string name="app_settings_users_disable">Desativar</string>
@@ -222,6 +224,12 @@
     <string name="app_settings_users_inactive">INATIVO</string>
     <string name="app_settings_users_intro">Cada utilizador funciona como uma instância própria e totalmente separada (porta própria, base de dados própria, armazenamento próprio), gerida apenas a partir daqui.</string>
     <string name="app_settings_users_load_usage">Ver utilização</string>
+    <string name="app_settings_users_password">Palavra-passe</string>
+    <string name="app_settings_users_password_confirm">Confirmar palavra-passe</string>
+    <string name="app_settings_users_password_hint">Dá-a a %1$s para iniciar sessão. Pode alterá-la em Definições › Alterar palavra-passe e, a partir daí, mais ninguém a saberá.</string>
+    <string name="app_settings_users_password_mismatch">As palavras-passe não coincidem</string>
+    <string name="app_settings_users_password_title">Primeira palavra-passe de %1$s</string>
+    <string name="app_settings_users_password_too_short">Usa pelo menos 8 caracteres</string>
     <string name="app_settings_users_port">porta</string>
     <string name="app_settings_users_port_domain">porta %1$s · %2$s</string>
     <string name="app_settings_users_title">Utilizadores</string>

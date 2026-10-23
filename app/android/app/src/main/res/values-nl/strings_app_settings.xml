@@ -207,8 +207,10 @@
     <string name="app_settings_uploads_title">Uploads</string>
     <string name="app_settings_users_confirm_delete">Verwijderen bevestigen</string>
     <string name="app_settings_users_confirm_hint">Typ “%1$s” om het verwijderen te bevestigen.</string>
+    <string name="app_settings_users_create">Aanmaken</string>
     <string name="app_settings_users_create_failed">Kan de gebruiker niet maken.</string>
     <string name="app_settings_users_created">Gebruiker “%1$s” aangemaakt.</string>
+    <string name="app_settings_users_created_no_password">Gebruiker “%1$s” aangemaakt. Dit apparaat stelt nog geen wachtwoorden in, dus %1$s kiest er een bij de eerste keer inloggen. Werk het apparaat bij om het de volgende keer hier te kiezen.</string>
     <string name="app_settings_users_delete_failed">Kan de gebruiker niet verwijderen.</string>
     <string name="app_settings_users_deleted">Gebruiker “%1$s” verwijderd.</string>
     <string name="app_settings_users_disable">Uitschakelen</string>
@@ -216,6 +218,12 @@
     <string name="app_settings_users_inactive">INACTIEF</string>
     <string name="app_settings_users_intro">Elke gebruiker draait als een eigen, volledig gescheiden instantie (eigen poort, eigen database, eigen opslag) en wordt alleen hier beheerd.</string>
     <string name="app_settings_users_load_usage">Gebruik laden</string>
+    <string name="app_settings_users_password">Wachtwoord</string>
+    <string name="app_settings_users_password_confirm">Wachtwoord bevestigen</string>
+    <string name="app_settings_users_password_hint">Geef het aan %1$s om mee in te loggen. Het is daarna te wijzigen in Instellingen › Wachtwoord wijzigen, en vanaf dan kent niemand anders het.</string>
+    <string name="app_settings_users_password_mismatch">De wachtwoorden komen niet overeen</string>
+    <string name="app_settings_users_password_title">Eerste wachtwoord voor %1$s</string>
+    <string name="app_settings_users_password_too_short">Gebruik minstens 8 tekens</string>
     <string name="app_settings_users_port">poort</string>
     <string name="app_settings_users_port_domain">poort %1$s · %2$s</string>
     <string name="app_settings_users_title">Gebruikers</string>

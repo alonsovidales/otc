@@ -7,6 +7,7 @@
 // it never shows this section at all (see the isPrimary check below).
 import { useCallback, useEffect, useState } from "react";
 import { useWS } from "../net/useWS";
+import { encryptForConnection } from "../net/pwCrypto";
 import type { ReqEnvelope, RespEnvelope, User as PbUser } from "../proto/messages";
 import { Trans, useT, type TFunction } from "../i18n";
 import { asIs, plainNumber, say, unitText, type UiText } from "./uiText";
@@ -50,6 +51,18 @@ export default function UsersPanel() {
 
   const [creating, setCreating] = useState(false);
 
+  // The dialog Add User opens: the new account's first password, set on
+  // the device as the account is created, so nobody can sign in first and
+  // claim it. Its person changes it later in Change Password.
+  const [passwordFor, setPasswordFor] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<UiText | null>(null);
+  // The same 8 the device asks for (session.MinPasswordLen).
+  const pwTooShort = newPassword.length > 0 && newPassword.length < 8;
+  const pwMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
+  const canCreate = newPassword.length >= 8 && newPassword === confirmPassword;
+
   const [deleteTarget, setDeleteTarget] = useState<PbUser | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -89,19 +102,37 @@ export default function UsersPanel() {
     }
   };
 
-  const createUser = async () => {
-
+  const askPassword = () => {
     if (refuseOnDemo()) return; // a demo device (net/demo.ts)
-    setCreating(true);
     setStatus(null);
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordError(null);
+    setPasswordFor(newUsername.trim());
+  };
+
+  const closePassword = () => {
+    if (creating) return;
+    setPasswordFor(null);
+    setNewPassword("");
+    setConfirmPassword("");
+  };
+
+  const createUser = async () => {
+    if (passwordFor == null || !canCreate || creating) return;
+    setCreating(true);
+    setPasswordError(null);
+    const name = passwordFor;
     try {
+      const password = await encryptForConnection(useWS.request, newPassword);
       const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
         (e as any).payload = {
           $case: "reqCreateUser",
           reqCreateUser: {
-            username: newUsername.trim(),
+            username: name,
             port: newPort ? parseInt(newPort, 10) : 0,
             requestBridgeAccess,
+            password,
           },
         };
       });
@@ -109,13 +140,18 @@ export default function UsersPanel() {
         setUsers(resp.payload.respUsers.users);
         setNewUsername("");
         setNewPort("");
-        const name = newUsername.trim();
-        setStatus({ kind: "success", text: (tr) => tr("web.settings.users.created", { name }) });
+        setPasswordFor(null);
+        setNewPassword("");
+        setConfirmPassword("");
+        // Unset: a device older than the password, which created the
+        // account without one (its first sign-in sets it).
+        const key = resp.payload.respUsers.passwordSet === undefined ? "web.settings.users.created_no_password" : "web.settings.users.created";
+        setStatus({ kind: "success", text: (tr) => tr(key, { name }) });
       } else {
-        setStatus({ kind: "error", text: resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.users.create_failed") });
+        setPasswordError(resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.users.create_failed"));
       }
     } catch (err: any) {
-      setStatus({ kind: "error", text: asIs(err?.message ?? String(err)) });
+      setPasswordError(asIs(err?.message ?? String(err)));
     } finally {
       setCreating(false);
     }
@@ -250,9 +286,9 @@ export default function UsersPanel() {
         <button
           className="sf-btn"
           disabled={creating || !/^[a-z0-9-]+$/.test(newUsername.trim())}
-          onClick={() => void createUser()}
+          onClick={askPassword}
         >
-          {creating ? t("web.settings.users.creating") : t("web.settings.users.add")}
+          {t("web.settings.users.add")}
         </button>
       </div>
 
@@ -273,6 +309,49 @@ export default function UsersPanel() {
           </span>
         </span>
       </label>
+
+      {passwordFor != null && (
+        <div className="sf-modal" onClick={closePassword}>
+          {/* Not a <form>, and autoComplete off: a browser would offer to
+              save this password as the owner's own for the device. */}
+          <div
+            className="sf-modal-inner up-password"
+            onClick={e => e.stopPropagation()}
+            onKeyDown={(e) => { if (e.key === "Enter") void createUser(); if (e.key === "Escape") closePassword(); }}
+          >
+            <h4>{t("web.settings.users.password_title", { name: passwordFor })}</h4>
+            <input
+              className="sf-input"
+              type="password"
+              autoComplete="off"
+              autoFocus
+              aria-label={t("web.settings.users.password")}
+              placeholder={t("web.settings.users.password")}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <input
+              className="sf-input"
+              type="password"
+              autoComplete="off"
+              aria-label={t("web.settings.users.password_confirm")}
+              placeholder={t("web.settings.users.password_confirm")}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+            {pwTooShort && <div className="sf-note error">{t("web.settings.users.password_too_short")}</div>}
+            {pwMismatch && <div className="sf-note error">{t("web.settings.users.password_mismatch")}</div>}
+            {passwordError && <div className="sf-note error">{passwordError(t)}</div>}
+            <p className="sf-hint">{t("web.settings.users.password_hint", { name: passwordFor })}</p>
+            <div className="sf-modal-actions">
+              <button type="button" className="sf-btn small sf-btn-secondary" disabled={creating} onClick={closePassword}>{t("common.cancel")}</button>
+              <button type="button" className="sf-btn small" disabled={!canCreate || creating} onClick={() => void createUser()}>
+                {creating ? t("web.settings.users.creating") : t("web.settings.users.create")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {deleteTarget && (
         <div className="sf-modal" onClick={() => setDeleteTarget(null)}>

@@ -842,7 +842,13 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   (a conditional insert under a mutex), and `session.New` checks a lost race - two first sign-ins
   at once - against the stored vault; never add a key or migration to `vault` for this. A new
   password needs `session.MinPasswordLen` (8 bytes: `ChangeKey`, the first password `session.New`
-  sets, `init-owner-password`); one already set is never checked against it. A too-short first
+  sets, `init-owner-password`, `ReqCreateUser.password`); one already set is never checked against it.
+  Settings > Users asks for a new account's first password (web, iOS, Android): `createUser`
+  checks it before provisioning anything and stores the vault in the account's database
+  (`dao.OpenUserDatabase` + `session.New`) before its instance spawns, so nobody can claim the account
+  by signing in first; the person changes it later with `ChangeKey`. `RespUsers.password_set` is set
+  on every CreateUser answer of a device that knows the field - unset, an older device ignored the
+  password and the clients say the first sign-in sets it. A too-short first
   password is answered `Ack{Ok:false, ErrorMsg}` with **no code** - the phone apps take any sign-in
   code for the bridge's "device unreachable" and would keep retrying - undelayed and outside the
   lockout count (`AuthLimiter.Attempt`); `ChangeKey` answers `code = "password_too_short"`.

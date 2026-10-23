@@ -213,8 +213,10 @@
     <string name="app_settings_uploads_title">Caricamenti</string>
     <string name="app_settings_users_confirm_delete">Conferma eliminazione</string>
     <string name="app_settings_users_confirm_hint">Digita “%1$s” per confermare l’eliminazione.</string>
+    <string name="app_settings_users_create">Crea</string>
     <string name="app_settings_users_create_failed">Impossibile creare l’utente.</string>
     <string name="app_settings_users_created">Utente “%1$s” creato.</string>
+    <string name="app_settings_users_created_no_password">Utente “%1$s” creato. Questo dispositivo non imposta ancora le password, quindi %1$s ne sceglierà una al primo accesso. Aggiorna il dispositivo per sceglierla qui la prossima volta.</string>
     <string name="app_settings_users_delete_failed">Impossibile eliminare l’utente.</string>
     <string name="app_settings_users_deleted">Utente “%1$s” eliminato.</string>
     <string name="app_settings_users_disable">Disattiva</string>
@@ -222,6 +224,12 @@
     <string name="app_settings_users_inactive">INATTIVO</string>
     <string name="app_settings_users_intro">Ogni utente funziona come un’istanza propria, completamente separata (porta, database e spazio di archiviazione propri), gestita solo da qui.</string>
     <string name="app_settings_users_load_usage">Mostra utilizzo</string>
+    <string name="app_settings_users_password">Password</string>
+    <string name="app_settings_users_password_confirm">Conferma la password</string>
+    <string name="app_settings_users_password_hint">Dalla a %1$s per accedere. Potrà cambiarla in Impostazioni › Modifica password e, da quel momento, nessun altro la conoscerà.</string>
+    <string name="app_settings_users_password_mismatch">Le password non corrispondono</string>
+    <string name="app_settings_users_password_title">Prima password di %1$s</string>
+    <string name="app_settings_users_password_too_short">Usa almeno 8 caratteri</string>
     <string name="app_settings_users_port">porta</string>
     <string name="app_settings_users_port_domain">porta %1$s · %2$s</string>
     <string name="app_settings_users_title">Utenti</string>

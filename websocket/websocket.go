@@ -2713,13 +2713,13 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
-		users, err := ch.createUser(p.ReqCreateUser)
+		users, passwordSet, err := ch.createUser(p.ReqCreateUser)
 		if err != nil {
 			log.Error("error creating user:", err)
 			resp.Error = true
 			resp.ErrorMessage = errText(lang, err)
 		} else {
-			resp.Payload = &pb.RespEnvelope_RespUsers{RespUsers: &pb.RespUsers{Users: users}}
+			resp.Payload = &pb.RespEnvelope_RespUsers{RespUsers: &pb.RespUsers{Users: users, PasswordSet: proto.Bool(passwordSet)}}
 		}
 
 	case *pb.ReqEnvelope_ReqDeleteUser:
@@ -3640,43 +3640,55 @@ var usernameRe = regexp.MustCompile(`^[a-z0-9-]+$`)
 // so the admin sees it come up live rather than waiting for the next
 // restart. Returns the full updated user list on success, mirroring how
 // most "created a resource" RPCs in this file reply with the resource
-// itself rather than a bare Ack.
-func (ch *connHandler) createUser(req *pb.ReqCreateUser) ([]*pb.User, error) {
+// itself rather than a bare Ack, and whether the account's first password
+// was set (req.Password, see setFirstPassword).
+func (ch *connHandler) createUser(req *pb.ReqCreateUser) (users []*pb.User, passwordSet bool, err error) {
 	username := req.Username
 	if !usernameRe.MatchString(username) {
-		return nil, devtext.New(i18n.DevUsersBadUsername())
+		return nil, false, devtext.New(i18n.DevUsersBadUsername())
+	}
+	// Checked before anything is provisioned, so a password the device
+	// can't read or won't take leaves nothing to clean up.
+	var password string
+	if len(req.Password) > 0 {
+		if password, err = ch.decryptSecret(req.Password); err != nil {
+			return nil, false, err
+		}
+		if len(password) < session.MinPasswordLen {
+			return nil, false, session.ErrPasswordTooShort
+		}
 	}
 	if taken, err := ch.mg.dao.IsUsernameTaken(username); err != nil {
-		return nil, err
+		return nil, false, err
 	} else if taken {
-		return nil, devtext.New(i18n.DevUsersUsernameTaken())
+		return nil, false, devtext.New(i18n.DevUsersUsernameTaken())
 	}
 
 	port := int(req.Port)
 	if port == 0 {
 		var err error
 		if port, err = ch.mg.dao.NextFreePort(8081); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 	} else if inUse, err := ch.mg.dao.IsPortInUse(port); err != nil {
-		return nil, err
+		return nil, false, err
 	} else if inUse {
-		return nil, devtext.New(i18n.DevUsersPortInUse(strconv.Itoa(port)))
+		return nil, false, devtext.New(i18n.DevUsersPortInUse(strconv.Itoa(port)))
 	}
 
 	id := uuid.New().String()
 	dbName := "otc_" + strings.ReplaceAll(id, "-", "")
 	dbPass, err := supervisor.GenerateSecret(24)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	bridgeSecret, err := supervisor.GenerateSecret(24)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	supervisorToken, err := supervisor.GenerateSecret(24)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	storagePath := "/mnt/storage/user_" + id
 	subdomain := username + "." + cfg.GetStr("otc", "bridge-addr")
@@ -3692,7 +3704,7 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) ([]*pb.User, error) {
 	if req.RequestBridgeAccess {
 		free, err := isSubdomainFreeOnBridge(ch.mg.dao, subdomain)
 		if err != nil {
-			return nil, devtext.Wrap(i18n.DevUsersBridgeCheckFailed(subdomain, err.Error()), err)
+			return nil, false, devtext.Wrap(i18n.DevUsersBridgeCheckFailed(subdomain, err.Error()), err)
 		}
 		if !free {
 			// Both suggestions have to be things the person reading this
@@ -3702,15 +3714,23 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) ([]*pb.User, error) {
 			// as "your fault, unfixable". Choosing another name, or
 			// creating the account without bridge access, are both
 			// entirely in their hands.
-			return nil, devtext.New(i18n.DevUsersNameTakenOnBridge(subdomain))
+			return nil, false, devtext.New(i18n.DevUsersNameTakenOnBridge(subdomain))
 		}
 	}
 
 	if err := dao.ProvisionUserDatabase(dbName, dbName, dbPass, id, subdomain, bridgeSecret); err != nil {
-		return nil, err
+		return nil, false, err
+	}
+	if password != "" {
+		if err := setFirstPassword(dbName, dbPass, id, password); err != nil {
+			if dropErr := dao.DropUserDatabase(dbName, dbName); dropErr != nil {
+				log.Error("could not remove", username, "'s database after its password failed:", dropErr)
+			}
+			return nil, false, err
+		}
 	}
 	if err := os.MkdirAll(storagePath+"/unencrypted", 0750); err != nil {
-		return nil, devtext.Wrap(i18n.DevUsersStorageDirFailed(err.Error()), err)
+		return nil, false, devtext.Wrap(i18n.DevUsersStorageDirFailed(err.Error()), err)
 	}
 
 	u := dao.User{
@@ -3725,7 +3745,7 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) ([]*pb.User, error) {
 		BridgeAccess: req.RequestBridgeAccess,
 	}
 	if err := ch.mg.dao.CreateUser(u); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	internal, err := ch.mg.dao.GetUserInternal(id)
@@ -3735,7 +3755,27 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) ([]*pb.User, error) {
 		ch.mg.sup.SpawnNow(internal)
 	}
 
-	return ch.mg.dao.ListUsers()
+	users, err = ch.mg.dao.ListUsers()
+	return users, password != "", err
+}
+
+// setFirstPassword creates a new account's vault with the first password
+// the owner gave it - what the account's first sign-in does otherwise
+// (session.New) - before its instance starts, so nobody can sign in first
+// and claim the account. Its person changes it later with ChangeKey.
+func setFirstPassword(dbName, dbPass, id, password string) error {
+	d, err := dao.OpenUserDatabase(dbName, dbName, dbPass)
+	if err != nil {
+		return err
+	}
+	defer d.Stop()
+	return newVault(d, id, password)
+}
+
+// newVault is setFirstPassword's step on an open database.
+func newVault(d *dao.Dao, id, password string) error {
+	_, err := session.New(id, password, true, d)
+	return err
 }
 
 // deleteUser (issue #82) requires confirm_username to match the target

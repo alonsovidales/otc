@@ -234,11 +234,18 @@ import cloud.offthe.otc.i18n.appSettingsUpdateUpToDate
 import cloud.offthe.otc.i18n.appSettingsUploadsTitle
 import cloud.offthe.otc.i18n.appSettingsUsersConfirmDelete
 import cloud.offthe.otc.i18n.appSettingsUsersConfirmHint
+import cloud.offthe.otc.i18n.appSettingsUsersCreate
 import cloud.offthe.otc.i18n.appSettingsUsersDisable
 import cloud.offthe.otc.i18n.appSettingsUsersEnable
 import cloud.offthe.otc.i18n.appSettingsUsersInactive
 import cloud.offthe.otc.i18n.appSettingsUsersIntro
 import cloud.offthe.otc.i18n.appSettingsUsersLoadUsage
+import cloud.offthe.otc.i18n.appSettingsUsersPassword
+import cloud.offthe.otc.i18n.appSettingsUsersPasswordConfirm
+import cloud.offthe.otc.i18n.appSettingsUsersPasswordHint
+import cloud.offthe.otc.i18n.appSettingsUsersPasswordMismatch
+import cloud.offthe.otc.i18n.appSettingsUsersPasswordTitle
+import cloud.offthe.otc.i18n.appSettingsUsersPasswordTooShort
 import cloud.offthe.otc.i18n.appSettingsUsersPort
 import cloud.offthe.otc.i18n.appSettingsUsersPortDomain
 import cloud.offthe.otc.i18n.appSettingsUsersTitle
@@ -841,10 +848,40 @@ private fun UsersManagementSection() {
             Spacer(Modifier.width(6.dp))
             OTCTextField(value = st.newPort, onValueChange = vm::setNewPort, placeholder = { Text(S.appSettingsUsersPort().resolve()) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.width(90.dp))
-            RowButton(if (st.creating) "…" else S.commonAdd().resolve(), enabled = !st.creating && usernameValid) { scope.launch { vm.createUser() } } // i18n-ignore: an ellipsis while the user is being added
+            RowButton(S.commonAdd().resolve(), enabled = !st.creating && usernameValid) { vm.askPassword() }
         }
     }
+    st.passwordFor?.let { name -> FirstPasswordDialog(vm, st, name) }
     st.toast?.let { AlertDialog(onDismissRequest = { vm.dismissToast() }, text = { Text(it.resolve()) }, confirmButton = { TextButton(onClick = { vm.dismissToast() }) { Text(S.commonOk().resolve()) } }) }
+}
+
+/** The new account's first password, asked for when Add is tapped. */
+@Composable
+private fun FirstPasswordDialog(vm: UsersManagementViewModel, st: UsersManagementViewModel.State, name: String) {
+    val scope = rememberCoroutineScope()
+    val error = MaterialTheme.colorScheme.error
+    AlertDialog(
+        onDismissRequest = { vm.cancelPassword() },
+        title = { Text(S.appSettingsUsersPasswordTitle(name).resolve()) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OTCTextField(value = st.newPassword, onValueChange = vm::setNewPassword, placeholder = { Text(S.appSettingsUsersPassword().resolve()) }, singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false), modifier = Modifier.fillMaxWidth())
+                OTCTextField(value = st.confirmPassword, onValueChange = vm::setConfirmPassword, placeholder = { Text(S.appSettingsUsersPasswordConfirm().resolve()) }, singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false), modifier = Modifier.fillMaxWidth())
+                if (st.passwordTooShort) Text(S.appSettingsUsersPasswordTooShort().resolve(), color = error, style = MaterialTheme.typography.bodySmall)
+                if (st.passwordMismatch) Text(S.appSettingsUsersPasswordMismatch().resolve(), color = error, style = MaterialTheme.typography.bodySmall)
+                st.passwordError?.let { Text(it.resolve(), color = error, style = MaterialTheme.typography.bodySmall) }
+                Caption(S.appSettingsUsersPasswordHint(name).resolve())
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { scope.launch { vm.createUser() } }, enabled = st.canCreate && !st.creating) {
+                Text(if (st.creating) "…" else S.appSettingsUsersCreate().resolve()) // i18n-ignore: an ellipsis while the user is being added
+            }
+        },
+        dismissButton = { TextButton(onClick = { vm.cancelPassword() }, enabled = !st.creating) { Text(S.commonCancel().resolve()) } },
+    )
 }
 
 @Composable

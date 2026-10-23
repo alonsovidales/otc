@@ -206,8 +206,10 @@
     <string name="app_settings_uploads_title">Uploads</string>
     <string name="app_settings_users_confirm_delete">Confirm Delete</string>
     <string name="app_settings_users_confirm_hint">Type \"%1$s\" to confirm deletion.</string>
+    <string name="app_settings_users_create">Create</string>
     <string name="app_settings_users_create_failed">Could not create user.</string>
     <string name="app_settings_users_created">User \"%1$s\" created.</string>
+    <string name="app_settings_users_created_no_password">User \"%1$s\" created. This device doesn\'t set passwords yet, so %1$s chooses one at the first sign-in. Update the device to choose it here next time.</string>
     <string name="app_settings_users_delete_failed">Could not delete user.</string>
     <string name="app_settings_users_deleted">User \"%1$s\" deleted.</string>
     <string name="app_settings_users_disable">Disable</string>
@@ -215,6 +217,12 @@
     <string name="app_settings_users_inactive">INACTIVE</string>
     <string name="app_settings_users_intro">Each user runs as its own fully separate instance — own port, own database, own storage — managed only from here.</string>
     <string name="app_settings_users_load_usage">Load usage</string>
+    <string name="app_settings_users_password">Password</string>
+    <string name="app_settings_users_password_confirm">Confirm password</string>
+    <string name="app_settings_users_password_hint">Give it to %1$s to sign in with. They can change it in Settings › Change Password, and from then on nobody else knows it.</string>
+    <string name="app_settings_users_password_mismatch">Passwords don\'t match</string>
+    <string name="app_settings_users_password_title">First password for %1$s</string>
+    <string name="app_settings_users_password_too_short">Use at least 8 characters</string>
     <string name="app_settings_users_port">port</string>
     <string name="app_settings_users_port_domain">port %1$s · %2$s</string>
     <string name="app_settings_users_title">Users</string>

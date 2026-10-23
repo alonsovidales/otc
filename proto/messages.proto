@@ -1999,6 +1999,11 @@ message ReqListUsers {}
 
 message RespUsers {
   repeated User users = 1;
+  // The answer to a CreateUser only: whether the device stored the
+  // password sent with it (ReqCreateUser.password). A device that knows
+  // the field always sets it there; an older one leaves it unset, having
+  // ignored the password, so the account's first sign-in sets it.
+  optional bool password_set = 2;
 }
 
 // port is optional - omit it (0) to let the primary pick the next free
@@ -2017,6 +2022,12 @@ message ReqCreateUser {
   // user's own log ("bridge rejected registration: Invalid Secret").
   // Hit exactly that way on a live device before this existed.
   bool request_bridge_access = 3;
+  // The account's first password: RSA-OAEP(SHA-256) ciphertext, like
+  // Auth.key, under this connection's GetPubKey key. The device stores it
+  // before the account's instance starts, so nobody can sign in first and
+  // claim the account; its person changes it later in Settings > Change
+  // Password. Empty: the account's first sign-in sets it, as before.
+  bytes password = 4;
 }
 
 // confirm_username must match username exactly - checked server-side too,

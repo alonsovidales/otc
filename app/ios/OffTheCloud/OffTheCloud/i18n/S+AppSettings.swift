@@ -1025,6 +1025,11 @@ extension S {
         L("app.settings.users.confirm_hint", table: "AppSettings", name)
     }
 
+    /// Create
+    ///
+    /// Button of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password: creates the user with that password.
+    static var appSettingsUsersCreate: String { L("app.settings.users.create", table: "AppSettings") }
+
     /// Could not create user.
     ///
     /// Error in Settings > Users when the device didn't add the user and gave no reason.
@@ -1035,6 +1040,13 @@ extension S {
     /// Message in Settings > Users after a user was added. {name} is the user's name. Write the quotes in your language's style.
     static func appSettingsUsersCreated(name: String) -> String {
         L("app.settings.users.created", table: "AppSettings", name)
+    }
+
+    /// User "{name}" created. This device doesn't set passwords yet, so {name} chooses one at the first sign-in. Update the device to choose it here next time.
+    ///
+    /// Message in Settings > Users after a user was added. {name} is the new user's name (lower-case letters, digits and hyphens). Write the quotes in your language's style. Shown when the device runs an older version that ignores the password: the account was created without one, and the first person to sign in to it sets it. A security statement: keep its meaning exact.
+    static func appSettingsUsersCreatedNoPassword(name: String) -> String {
+        L("app.settings.users.created_no_password", table: "AppSettings", name)
     }
 
     /// Could not delete user.
@@ -1073,6 +1085,40 @@ extension S {
     ///
     /// Small button of a user in Settings > Users that shows the storage the user takes and its connections.
     static var appSettingsUsersLoadUsage: String { L("app.settings.users.load_usage", table: "AppSettings") }
+
+    /// Password
+    ///
+    /// Placeholder of the first field of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password.
+    static var appSettingsUsersPassword: String { L("app.settings.users.password", table: "AppSettings") }
+
+    /// Confirm password
+    ///
+    /// Placeholder of the second field of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password: the same password again.
+    static var appSettingsUsersPasswordConfirm: String { L("app.settings.users.password_confirm", table: "AppSettings") }
+
+    /// Give it to {name} to sign in with. They can change it in Settings › Change Password, and from then on nobody else knows it.
+    ///
+    /// Explanation under the fields of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password. {name} is the new user's name (lower-case letters, digits and hyphens). A security statement: keep its meaning exact. The person changes the password afterwards in the section named Change Password; once they do, the owner no longer knows it.
+    static func appSettingsUsersPasswordHint(name: String) -> String {
+        L("app.settings.users.password_hint", table: "AppSettings", name)
+    }
+
+    /// Passwords don't match
+    ///
+    /// Shown under the fields of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password while the two passwords differ.
+    static var appSettingsUsersPasswordMismatch: String { L("app.settings.users.password_mismatch", table: "AppSettings") }
+
+    /// First password for {name}
+    ///
+    /// Heading of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password. {name} is the new user's name (lower-case letters, digits and hyphens).
+    static func appSettingsUsersPasswordTitle(name: String) -> String {
+        L("app.settings.users.password_title", table: "AppSettings", name)
+    }
+
+    /// Use at least 8 characters
+    ///
+    /// Shown under the fields of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password while the password is shorter than 8 characters.
+    static var appSettingsUsersPasswordTooShort: String { L("app.settings.users.password_too_short", table: "AppSettings") }
 
     /// port
     ///

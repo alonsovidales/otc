@@ -4631,9 +4631,24 @@ public nonisolated struct Msg_RespUsers: Sendable {
 
   public var users: [Msg_User] = []
 
+  /// The answer to a CreateUser only: whether the device stored the
+  /// password sent with it (ReqCreateUser.password). A device that knows
+  /// the field always sets it there; an older one leaves it unset, having
+  /// ignored the password, so the account's first sign-in sets it.
+  public var passwordSet: Bool {
+    get {_passwordSet ?? false}
+    set {_passwordSet = newValue}
+  }
+  /// Returns true if `passwordSet` has been explicitly set.
+  public var hasPasswordSet: Bool {self._passwordSet != nil}
+  /// Clears the value of `passwordSet`. Subsequent reads from it will return its default value.
+  public mutating func clearPasswordSet() {self._passwordSet = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _passwordSet: Bool? = nil
 }
 
 /// port is optional - omit it (0) to let the primary pick the next free
@@ -4658,6 +4673,13 @@ public nonisolated struct Msg_ReqCreateUser: Sendable {
   /// user's own log ("bridge rejected registration: Invalid Secret").
   /// Hit exactly that way on a live device before this existed.
   public var requestBridgeAccess: Bool = false
+
+  /// The account's first password: RSA-OAEP(SHA-256) ciphertext, like
+  /// Auth.key, under this connection's GetPubKey key. The device stores it
+  /// before the account's instance starts, so nobody can sign in first and
+  /// claim the account; its person changes it later in Settings > Change
+  /// Password. Empty: the account's first sign-in sets it, as before.
+  public var password: Data = Data()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -14233,7 +14255,7 @@ nonisolated extension Msg_ReqListUsers: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 nonisolated extension Msg_RespUsers: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespUsers"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}users\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}users\0\u{3}password_set\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -14242,20 +14264,29 @@ nonisolated extension Msg_RespUsers: SwiftProtobuf.Message, SwiftProtobuf._Messa
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeRepeatedMessageField(value: &self.users) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self._passwordSet) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.users.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.users, fieldNumber: 1)
     }
+    try { if let v = self._passwordSet {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 2)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Msg_RespUsers, rhs: Msg_RespUsers) -> Bool {
     if lhs.users != rhs.users {return false}
+    if lhs._passwordSet != rhs._passwordSet {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -14263,7 +14294,7 @@ nonisolated extension Msg_RespUsers: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 nonisolated extension Msg_ReqCreateUser: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqCreateUser"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}username\0\u{1}port\0\u{3}request_bridge_access\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}username\0\u{1}port\0\u{3}request_bridge_access\0\u{1}password\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -14274,6 +14305,7 @@ nonisolated extension Msg_ReqCreateUser: SwiftProtobuf.Message, SwiftProtobuf._M
       case 1: try { try decoder.decodeSingularStringField(value: &self.username) }()
       case 2: try { try decoder.decodeSingularInt32Field(value: &self.port) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.requestBridgeAccess) }()
+      case 4: try { try decoder.decodeSingularBytesField(value: &self.password) }()
       default: break
       }
     }
@@ -14289,6 +14321,9 @@ nonisolated extension Msg_ReqCreateUser: SwiftProtobuf.Message, SwiftProtobuf._M
     if self.requestBridgeAccess != false {
       try visitor.visitSingularBoolField(value: self.requestBridgeAccess, fieldNumber: 3)
     }
+    if !self.password.isEmpty {
+      try visitor.visitSingularBytesField(value: self.password, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -14296,6 +14331,7 @@ nonisolated extension Msg_ReqCreateUser: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs.username != rhs.username {return false}
     if lhs.port != rhs.port {return false}
     if lhs.requestBridgeAccess != rhs.requestBridgeAccess {return false}
+    if lhs.password != rhs.password {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

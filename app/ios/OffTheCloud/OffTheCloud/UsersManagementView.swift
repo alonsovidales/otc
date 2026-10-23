@@ -26,6 +26,22 @@ final class UsersManagementViewModel: ObservableObject {
     @Published var newPort = ""
     @Published var creating = false
 
+    // The sheet Add opens: the new account's first password, set on the
+    // device as the account is created, so nobody can sign in first and
+    // claim it. Its person changes it later in Change Password.
+    @Published var passwordFor: String?
+    @Published var newPassword = ""
+    @Published var confirmPassword = ""
+    @Published var passwordError: SettingsText?
+    // The "created" message, shown once the sheet has gone: an alert
+    // asked for while it is still closing never comes up.
+    var createdToast: SettingsText?
+
+    // The same 8 the device asks for (session.MinPasswordLen).
+    var passwordTooShort: Bool { !newPassword.isEmpty && newPassword.count < 8 }
+    var passwordMismatch: Bool { !confirmPassword.isEmpty && newPassword != confirmPassword }
+    var canCreate: Bool { newPassword.count >= 8 && newPassword == confirmPassword }
+
     // Set while a row's inline delete-confirmation is expanded - mirrors
     // the web panel's modal, just inline instead of a sheet, since
     // SwiftUI's native .confirmationDialog has no text-entry of its own.
@@ -74,13 +90,35 @@ final class UsersManagementViewModel: ObservableObject {
         }
     }
 
+    func askPassword() {
+        newPassword = ""
+        confirmPassword = ""
+        passwordError = nil
+        passwordFor = newUsername.trimmingCharacters(in: .whitespaces)
+    }
+
+    func cancelPassword() {
+        passwordFor = nil
+        newPassword = ""
+        confirmPassword = ""
+    }
+
     func createUser() async {
+        guard let name = passwordFor, canCreate, !creating else { return }
         creating = true
         defer { creating = false }
-        var req = Msg_ReqCreateUser()
-        req.username = newUsername.trimmingCharacters(in: .whitespaces)
-        req.port = Int32(newPort) ?? 0
+        passwordError = nil
         do {
+            // Same RSA-OAEP flow as sign-in (issue #2).
+            let pubKeyResp = try await ws.request { $0.payload = .reqGetPubKey(Msg_GetPubKey()) }
+            guard case .respPubKey(let pubKey) = pubKeyResp.payload else {
+                passwordError = .say { S.appSettingsPasswordNoKey }
+                return
+            }
+            var req = Msg_ReqCreateUser()
+            req.username = name
+            req.port = Int32(newPort) ?? 0
+            req.password = try PwCrypto.encryptPassword(newPassword, pubKeyDER: pubKey.publicKey)
             let resp = try await ws.request { e in
                 var env = ReqEnvelope()
                 env.payload = .reqCreateUser(req)
@@ -90,13 +128,17 @@ final class UsersManagementViewModel: ObservableObject {
                 users = r.users
                 newUsername = ""
                 newPort = ""
-                let name = req.username
-                toast = .say { S.appSettingsUsersCreated(name: name) }
+                cancelPassword()
+                // Unset: a device older than the password, which created
+                // the account without one (its first sign-in sets it).
+                createdToast = r.hasPasswordSet
+                    ? .say { S.appSettingsUsersCreated(name: name) }
+                    : .say { S.appSettingsUsersCreatedNoPassword(name: name) }
             } else {
-                toast = .asIs(resp.errorMessage, or: { S.appSettingsUsersCreateFailed })
+                passwordError = .asIs(resp.errorMessage, or: { S.appSettingsUsersCreateFailed })
             }
         } catch {
-            toast = .error(error)
+            passwordError = .error(error)
         }
     }
 
@@ -181,9 +223,18 @@ struct UsersManagementSection: View {
                     TextField(S.appSettingsUsersPort, text: $vm.newPort)
                         .keyboardType(.numberPad)
                         .frame(width: 70)
-                    Button(vm.creating ? "…" : S.commonAdd) { Task { await vm.createUser() } } // i18n-ignore: an ellipsis while the user is being added
+                    Button(S.commonAdd) { vm.askPassword() }
                         .disabled(vm.creating || !usernameValid)
                 }
+            }
+            .sheet(isPresented: Binding(
+                get: { vm.passwordFor != nil },
+                set: { if !$0 { vm.cancelPassword() } }
+            ), onDismiss: {
+                vm.toast = vm.createdToast
+                vm.createdToast = nil
+            }) {
+                FirstPasswordSheet(vm: vm)
             }
             .alert(vm.toast?.text ?? "", isPresented: Binding(
                 get: { vm.toast != nil },
@@ -254,5 +305,50 @@ struct UsersManagementSection: View {
             }
         }
         .padding(.vertical, 2)
+    }
+}
+
+/// The new account's first password, asked for when Add is tapped. Its
+/// errors show here: an alert can't come up over the sheet.
+private struct FirstPasswordSheet: View {
+    @ObservedObject var vm: UsersManagementViewModel
+
+    var body: some View {
+        let name = vm.passwordFor ?? ""
+        NavigationStack {
+            Form {
+                Section {
+                    SecureField(S.appSettingsUsersPassword, text: $vm.newPassword)
+                    SecureField(S.appSettingsUsersPasswordConfirm, text: $vm.confirmPassword)
+                } footer: {
+                    VStack(alignment: .leading, spacing: 6) {
+                        if vm.passwordTooShort {
+                            Text(S.appSettingsUsersPasswordTooShort).foregroundStyle(.red)
+                        }
+                        if vm.passwordMismatch {
+                            Text(S.appSettingsUsersPasswordMismatch).foregroundStyle(.red)
+                        }
+                        if let e = vm.passwordError {
+                            Text(e.text).foregroundStyle(.red)
+                        }
+                        Text(S.appSettingsUsersPasswordHint(name: name))
+                    }
+                }
+            }
+            .navigationTitle(S.appSettingsUsersPasswordTitle(name: name))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(S.commonCancel) { vm.cancelPassword() }
+                        .disabled(vm.creating)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(vm.creating ? "…" : S.appSettingsUsersCreate) { Task { await vm.createUser() } } // i18n-ignore: an ellipsis while the user is being added
+                        .disabled(vm.creating || !vm.canCreate)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .interactiveDismissDisabled(vm.creating)
     }
 }

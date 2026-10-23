@@ -754,6 +754,10 @@ fun S.appSettingsUsersConfirmDelete(): UiText =
 fun S.appSettingsUsersConfirmHint(name: String): UiText =
     UiText.Res(R.string.app_settings_users_confirm_hint, listOf(name))
 
+/** "Create": Button of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password: creates the user with that password. */
+fun S.appSettingsUsersCreate(): UiText =
+    UiText.Res(R.string.app_settings_users_create)
+
 /** "Could not create user.": Error in Settings > Users when the device didn't add the user and gave no reason. */
 fun S.appSettingsUsersCreateFailed(): UiText =
     UiText.Res(R.string.app_settings_users_create_failed)
@@ -761,6 +765,10 @@ fun S.appSettingsUsersCreateFailed(): UiText =
 /** "User "{name}" created.": Message in Settings > Users after a user was added. {name} is the user's name. Write the quotes in your language's style. */
 fun S.appSettingsUsersCreated(name: String): UiText =
     UiText.Res(R.string.app_settings_users_created, listOf(name))
+
+/** "User "{name}" created. This device doesn't set passwords yet, so {name} chooses one at the first sign-in. Update the device to choose it here next time.": Message in Settings > Users after a user was added. {name} is the new user's name (lower-case letters, digits and hyphens). Write the quotes in your language's style. Shown when the device runs an older version that ignores the password: the account was created without one, and the first person to sign in to it sets it. A security statement: keep its meaning exact. */
+fun S.appSettingsUsersCreatedNoPassword(name: String): UiText =
+    UiText.Res(R.string.app_settings_users_created_no_password, listOf(name))
 
 /** "Could not delete user.": Error in Settings > Users when the device didn't delete the user and gave no reason. */
 fun S.appSettingsUsersDeleteFailed(): UiText =
@@ -789,6 +797,30 @@ fun S.appSettingsUsersIntro(): UiText =
 /** "Load usage": Small button of a user in Settings > Users that shows the storage the user takes and its connections. */
 fun S.appSettingsUsersLoadUsage(): UiText =
     UiText.Res(R.string.app_settings_users_load_usage)
+
+/** "Password": Placeholder of the first field of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password. */
+fun S.appSettingsUsersPassword(): UiText =
+    UiText.Res(R.string.app_settings_users_password)
+
+/** "Confirm password": Placeholder of the second field of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password: the same password again. */
+fun S.appSettingsUsersPasswordConfirm(): UiText =
+    UiText.Res(R.string.app_settings_users_password_confirm)
+
+/** "Give it to {name} to sign in with. They can change it in Settings › Change Password, and from then on nobody else knows it.": Explanation under the fields of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password. {name} is the new user's name (lower-case letters, digits and hyphens). A security statement: keep its meaning exact. The person changes the password afterwards in the section named Change Password; once they do, the owner no longer knows it. */
+fun S.appSettingsUsersPasswordHint(name: String): UiText =
+    UiText.Res(R.string.app_settings_users_password_hint, listOf(name))
+
+/** "Passwords don't match": Shown under the fields of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password while the two passwords differ. */
+fun S.appSettingsUsersPasswordMismatch(): UiText =
+    UiText.Res(R.string.app_settings_users_password_mismatch)
+
+/** "First password for {name}": Heading of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password. {name} is the new user's name (lower-case letters, digits and hyphens). */
+fun S.appSettingsUsersPasswordTitle(name: String): UiText =
+    UiText.Res(R.string.app_settings_users_password_title, listOf(name))
+
+/** "Use at least 8 characters": Shown under the fields of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password while the password is shorter than 8 characters. */
+fun S.appSettingsUsersPasswordTooShort(): UiText =
+    UiText.Res(R.string.app_settings_users_password_too_short)
 
 /** "port": Placeholder of the narrow field for a new user's network port in Settings > Users. */
 fun S.appSettingsUsersPort(): UiText =

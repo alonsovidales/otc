@@ -213,8 +213,10 @@
     <string name="app_settings_uploads_title">Envois</string>
     <string name="app_settings_users_confirm_delete">Confirmer la suppression</string>
     <string name="app_settings_users_confirm_hint">Saisissez « %1$s » pour confirmer la suppression.</string>
+    <string name="app_settings_users_create">Créer</string>
     <string name="app_settings_users_create_failed">Impossible de créer l’utilisateur.</string>
     <string name="app_settings_users_created">Utilisateur « %1$s » créé.</string>
+    <string name="app_settings_users_created_no_password">Utilisateur « %1$s » créé. Cet appareil ne définit pas encore les mots de passe : %1$s en choisira un à la première connexion. Mettez l’appareil à jour pour le choisir ici la prochaine fois.</string>
     <string name="app_settings_users_delete_failed">Impossible de supprimer l’utilisateur.</string>
     <string name="app_settings_users_deleted">Utilisateur « %1$s » supprimé.</string>
     <string name="app_settings_users_disable">Désactiver</string>
@@ -222,6 +224,12 @@
     <string name="app_settings_users_inactive">INACTIF</string>
     <string name="app_settings_users_intro">Chaque utilisateur fonctionne comme une instance entièrement séparée (son propre port, sa propre base de données, son propre stockage), gérée uniquement depuis cet écran.</string>
     <string name="app_settings_users_load_usage">Afficher l’usage</string>
+    <string name="app_settings_users_password">Mot de passe</string>
+    <string name="app_settings_users_password_confirm">Confirmer le mot de passe</string>
+    <string name="app_settings_users_password_hint">Donnez-le à %1$s pour se connecter. Il pourra ensuite être modifié dans Paramètres › Modifier le mot de passe, et dès lors personne d’autre ne le connaîtra.</string>
+    <string name="app_settings_users_password_mismatch">Les mots de passe ne correspondent pas</string>
+    <string name="app_settings_users_password_title">Premier mot de passe de %1$s</string>
+    <string name="app_settings_users_password_too_short">Utilisez au moins 8 caractères</string>
     <string name="app_settings_users_port">port</string>
     <string name="app_settings_users_port_domain">port %1$s · %2$s</string>
     <string name="app_settings_users_title">Utilisateurs</string>
