@@ -492,6 +492,14 @@
     "text": "o mariadb não arrancou em 60 s: verifica 'systemctl status mariadb'",
     "en": "mariadb did not come up within 60s — check 'systemctl status mariadb'"
   },
+  "wiz.install.error.opencv_build": {
+    "text": "não foi possível compilar o OpenCV {version}: consulta {path}",
+    "en": "could not build OpenCV {version} - see {path}"
+  },
+  "wiz.install.error.opencv_space": {
+    "text": "não há espaço livre suficiente em {path} para compilar o OpenCV: são precisos 2 GB",
+    "en": "not enough free space in {path} to build OpenCV: it needs 2 GB"
+  },
   "wiz.install.error.owner_password": {
     "text": "não foi possível definir a palavra-passe do proprietário",
     "en": "could not set the owner password"
@@ -576,6 +584,10 @@
   "wiz.install.step.onnx": {
     "text": "ONNX Runtime {version} ({arch})",
     "en": "ONNX Runtime {version} ({arch})"
+  },
+  "wiz.install.step.opencv": {
+    "text": "OpenCV {version}, compilado aqui porque o do sistema é demasiado antigo (5 a 30 minutos)",
+    "en": "OpenCV {version}, built from source because the system's is too old (5 to 30 minutes)"
   },
   "wiz.install.step.packages": {
     "text": "apt-get update + pacotes base",

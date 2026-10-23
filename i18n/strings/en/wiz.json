@@ -570,6 +570,16 @@
     "text": "mariadb did not come up within 60s — check 'systemctl status mariadb'",
     "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. The database (mariadb) did not start within 60 seconds. The quoted part is a command; keep it as it is."
   },
+  "wiz.install.error.opencv_build": {
+    "text": "could not build OpenCV {version} - see {path}",
+    "args": [["version", "text"], ["path", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. Compiling OpenCV (a library face recognition needs) failed. {version} is its version, for example 4.10.0; {path} is the file with the compiler's full output, for example /var/tmp/otc-opencv-build.log."
+  },
+  "wiz.install.error.opencv_space": {
+    "text": "not enough free space in {path} to build OpenCV: it needs 2 GB",
+    "args": [["path", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. Compiling OpenCV (a library face recognition needs) takes 2 GB of free disk space for a while, and there isn't that much. {path} is the folder it is compiled in, for example /var/tmp/otc-opencv."
+  },
   "wiz.install.error.owner_password": {
     "text": "could not set the owner password",
     "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: why the install failed, under the progress bar. The password chosen for the device could not be set."
@@ -667,6 +677,11 @@
     "text": "ONNX Runtime {version} ({arch})",
     "args": [["version", "text"], ["arch", "text"]],
     "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the step the installer is at, under the progress bar (\"3/10\" follows). Technical; keep commands and product names as they are. ONNX Runtime (a library, keep the name) is being installed. {version} is its version; {arch} the processor type."
+  },
+  "wiz.install.step.opencv": {
+    "text": "OpenCV {version}, built from source because the system's is too old (5 to 30 minutes)",
+    "args": [["version", "text"]],
+    "note": "Setup wizard (the page a new device shows in the apps' Bluetooth setup, or in a browser): step 5, installing: the step the installer is at, under the progress bar (\"3/10\" follows). Technical; keep commands and product names as they are. OpenCV is a library face recognition needs. The system's own copy is too old, so it is being compiled on this machine, which takes a long time; the install hasn't stopped. {version} is its version, for example 4.10.0."
   },
   "wiz.install.step.packages": {
     "text": "apt-get update + base packages",

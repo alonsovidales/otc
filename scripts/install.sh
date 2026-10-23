@@ -267,6 +267,70 @@ apt-get update
 # storage. unzip: extracting the protoc release archive below.
 apt-get install -y mariadb-server build-essential git curl wget rsync ca-certificates ffmpeg libopencv-dev pkg-config mdadm unzip python3
 
+# gocv (v0.40.0, go.mod) builds against OpenCV 4.10 or newer, and not 5.
+# Debian 13 and Raspberry Pi OS ship 4.10, but Debian 12 and Ubuntu 24.04
+# (Linux Mint 22 with it) ship 4.6, and the build failed on gocv's C++
+# ("'ArucoDictionary' does not name a type", "'DataLayout' is not a member
+# of 'cv::dnn'"). There the OpenCV a Raspberry Pi has is built from source
+# into /usr/local, once: pkg-config finds it before the system's, and
+# updates build against it too. Only the modules gocv compiles, and nothing
+# fetched while it builds (ippicv and KleidiCV are downloads, left out).
+OPENCV_MIN=4.10
+OPENCV_SRC_VERSION=4.10.0
+OPENCV_SRC_SHA=b2171af5be6b26f7a06b1229948bbb2bdaa74fcf5cd097e0af6378fce50a6eb9
+OPENCV_BUILD_DIR=/var/tmp/otc-opencv
+opencv_ok() {
+    local v
+    v=$(pkg-config --modversion opencv4 2>/dev/null || true)
+    [ -n "$v" ] && dpkg --compare-versions "$v" ge "$OPENCV_MIN" && dpkg --compare-versions "$v" lt 5
+}
+if ! opencv_ok; then
+    wiz_step opencv version "$OPENCV_SRC_VERSION"
+    log "[1/10] OpenCV $OPENCV_SRC_VERSION, built from source because the system's is too old (5 to 30 minutes)"
+    log "this system's OpenCV: $(pkg-config --modversion opencv4 2>/dev/null || echo none), face recognition needs $OPENCV_MIN or newer"
+    apt-get install -y cmake libjpeg-dev libpng-dev
+    rm -rf "$OPENCV_BUILD_DIR"
+    mkdir -p "$OPENCV_BUILD_DIR"
+    if [ "$(df -Pk "$OPENCV_BUILD_DIR" | awk 'NR == 2 {print $4}')" -lt $((2 * 1024 * 1024)) ]; then
+        wiz_error opencv_space path "$OPENCV_BUILD_DIR"
+        die "not enough free space in $OPENCV_BUILD_DIR to build OpenCV: it needs 2 GB"
+    fi
+    fetch_pinned "https://github.com/opencv/opencv/archive/refs/tags/$OPENCV_SRC_VERSION.tar.gz" "$OPENCV_BUILD_DIR/src.tar.gz" "$OPENCV_SRC_SHA"
+    # A compiler per core, but one per GB of free memory at most: dnn's
+    # sources are large enough to run a small machine out of memory.
+    ocv_jobs=$(nproc)
+    ocv_mem=$(awk '/^MemAvailable:/ {print int($2 / 1048576)}' /proc/meminfo)
+    [ "$ocv_mem" -lt "$ocv_jobs" ] && ocv_jobs=$ocv_mem
+    [ "$ocv_jobs" -ge 1 ] || ocv_jobs=1
+    ocv_log=/var/tmp/otc-opencv-build.log
+    log "building OpenCV with $ocv_jobs jobs (full output in $ocv_log)"
+    # The build's own output goes to the log; its progress shows here
+    # every 10%, so a long build doesn't look stuck.
+    if ! {
+        tar -xzf "$OPENCV_BUILD_DIR/src.tar.gz" -C "$OPENCV_BUILD_DIR" >"$ocv_log" 2>&1 \
+        && cmake -S "$OPENCV_BUILD_DIR/opencv-$OPENCV_SRC_VERSION" -B "$OPENCV_BUILD_DIR/build" \
+            -D CMAKE_BUILD_TYPE=Release -D CMAKE_INSTALL_PREFIX=/usr/local \
+            -D BUILD_LIST=core,imgproc,imgcodecs,videoio,highgui,objdetect,dnn,features2d,calib3d,photo,video \
+            -D OPENCV_GENERATE_PKGCONFIG=ON -D BUILD_SHARED_LIBS=ON \
+            -D BUILD_TESTS=OFF -D BUILD_PERF_TESTS=OFF -D BUILD_EXAMPLES=OFF -D BUILD_DOCS=OFF -D BUILD_opencv_apps=OFF \
+            -D WITH_IPP=OFF -D WITH_KLEIDICV=OFF -D WITH_ADE=OFF -D WITH_GTK=OFF -D WITH_QT=OFF \
+            -D WITH_FFMPEG=OFF -D WITH_GSTREAMER=OFF -D WITH_V4L=OFF -D WITH_1394=OFF -D WITH_VTK=OFF \
+            -D WITH_TIFF=OFF -D WITH_WEBP=OFF -D WITH_OPENJPEG=OFF -D WITH_JASPER=OFF -D WITH_OPENEXR=OFF \
+            -D WITH_AVIF=OFF -D WITH_GDAL=OFF -D WITH_GDCM=OFF >>"$ocv_log" 2>&1 \
+        && cmake --build "$OPENCV_BUILD_DIR/build" -j "$ocv_jobs" 2>&1 | tee -a "$ocv_log" \
+            | awk '/^\[ *[0-9]+%\]/ { n = $0; sub(/^\[ */, "", n); n = int(n / 10) * 10; if (n > shown) { shown = n; print "[otc-install] building OpenCV: " n "%"; fflush() } }' \
+        && cmake --install "$OPENCV_BUILD_DIR/build" >>"$ocv_log" 2>&1
+    }; then
+        tail -n 30 "$ocv_log" >&2 || true
+        wiz_error opencv_build version "$OPENCV_SRC_VERSION" path "$ocv_log"
+        die "could not build OpenCV $OPENCV_SRC_VERSION - see $ocv_log"
+    fi
+    ldconfig
+    rm -rf "$OPENCV_BUILD_DIR"
+    opencv_ok || { wiz_error opencv_build version "$OPENCV_SRC_VERSION" path "$ocv_log"; die "could not build OpenCV $OPENCV_SRC_VERSION - see $ocv_log"; }
+    log "OpenCV $(pkg-config --modversion opencv4) installed in /usr/local"
+fi
+
 # Issue #80: Tailscale, so the setup wizard can offer Funnel as an
 # alternative to the bridge. Installed, not enabled - nothing joins a
 # tailnet or is published publicly unless the owner asks for it during
@@ -277,8 +341,13 @@ if ! command -v tailscale >/dev/null 2>&1; then
     ts_dist=""; ts_code=""
     if [ -r /etc/os-release ]; then
         . /etc/os-release
-        case "${ID:-}" in debian|raspbian) ts_dist=debian ;; ubuntu) ts_dist=ubuntu ;; esac
-        ts_code="${VERSION_CODENAME:-}"
+        # A distro built on Ubuntu or Debian (Linux Mint, Pop!_OS) uses
+        # that one's repository, under that one's release name: Mint 22
+        # is "wilma", the Ubuntu it is built on "noble".
+        case " ${ID:-} ${ID_LIKE:-} " in
+            *" ubuntu "*) ts_dist=ubuntu; ts_code="${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}" ;;
+            *" debian "*|*" raspbian "*) ts_dist=debian; ts_code="${DEBIAN_CODENAME:-${VERSION_CODENAME:-}}" ;;
+        esac
     fi
     ts_key=/usr/share/keyrings/tailscale-archive-keyring.gpg
     if [ -n "$ts_dist" ] && [ -n "$ts_code" ] \

@@ -20,8 +20,9 @@ real usage.
 
 ## Setting it up
 
-1. **Server**: Debian 13 (Ubuntu's OpenCV is too old for gocv), x86_64, with a sudo user that logs
-   in with an SSH key: the installer turns off root and password logins.
+1. **Server**: Debian 13 (its OpenCV is the one gocv needs; on Ubuntu 24.04 the installer builds
+   OpenCV first), x86_64, with a sudo user that logs in with an SSH key: the installer turns off
+   root and password logins.
 2. **Install** with the one-line installer, as a demo server:
 
    ```

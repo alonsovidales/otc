@@ -165,7 +165,9 @@ you want to build from source), or follow the manual steps yourself.
 **Option 0: One-line install script (any Debian/Ubuntu machine)**
 -------------------------------------------------
 Already have a Debian/Ubuntu-family Linux box you can log into (Ubuntu, Debian or Raspberry Pi OS,
-64-bit - a Raspberry Pi, an old laptop, a VPS)? Skip flashing anything - log in and run:
+64-bit - a Raspberry Pi, an old laptop, a VPS)? Skip flashing anything - log in and run (on
+Debian 12, Ubuntu 24.04, Linux Mint 22 and others whose OpenCV is older than 4.10, it first builds
+OpenCV itself, which adds 5 to 30 minutes):
 
 ```
 $ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/verified-install.sh | sudo bash -s -- <subdomain>

@@ -151,7 +151,9 @@ the one-time Redis ACL user and MySQL monitoring user to create first).
 - The device binary also needs **CGO** + a real **OpenCV** install (headers/libs, found via
   `pkg-config`, not just a runtime `.so`) for `face_recognition` (issue #52's "People" search, via
   `gocv.io/x/gocv` - pinned to v0.40.0, matching OpenCV 4.10.x). `apt-get install libopencv-dev
-  pkg-config` on Debian/Raspberry Pi OS; on macOS, `brew install opencv@4` (plain `brew install
+  pkg-config` on Debian 13/Raspberry Pi OS; where apt's OpenCV is older than 4.10 (Debian 12, Ubuntu
+  24.04, Linux Mint 22) `scripts/install.sh` builds 4.10.0 from source into `/usr/local` (pinned by
+  hash, only gocv's modules); on macOS, `brew install opencv@4` (plain `brew install
   opencv` currently installs OpenCV 5, which gocv v0.40.0 doesn't build against) and add
   `$(brew --prefix opencv@4)/lib/pkgconfig` to `PKG_CONFIG_PATH` if `pkg-config --exists opencv4`
   doesn't already find it.
