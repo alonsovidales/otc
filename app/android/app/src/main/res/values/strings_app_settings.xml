@@ -216,6 +216,7 @@
     <string name="app_settings_users_inactive">INACTIVE</string>
     <string name="app_settings_users_intro">Each user runs as its own fully separate instance — own port, own database, own storage — managed only from here.</string>
     <string name="app_settings_users_load_usage">Load usage</string>
+    <string name="app_settings_users_local_hint">Turn off to keep this account on your own network only — no remote access, and no friends outside your home.</string>
     <string name="app_settings_users_password">Password</string>
     <string name="app_settings_users_password_confirm">Confirm password</string>
     <string name="app_settings_users_password_hint">Give it to %1$s to sign in with. They can change it in Settings › Change Password, and from then on nobody else knows it.</string>
@@ -224,6 +225,9 @@
     <string name="app_settings_users_password_too_short">Use at least 8 characters</string>
     <string name="app_settings_users_port">port</string>
     <string name="app_settings_users_port_domain">port %1$s · %2$s</string>
+    <string name="app_settings_users_reachable_at">Reachable from anywhere at \u2068%1$s\u2069.</string>
+    <string name="app_settings_users_reachable_own">Reachable from anywhere at their own subdomain.</string>
+    <string name="app_settings_users_request_bridge">Request bridge access</string>
     <string name="app_settings_users_title">Users</string>
     <string name="app_settings_users_update_failed">Could not update this user.</string>
     <plurals name="app_settings_users_usage">

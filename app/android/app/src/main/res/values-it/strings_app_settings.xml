@@ -223,6 +223,7 @@
     <string name="app_settings_users_inactive">INATTIVO</string>
     <string name="app_settings_users_intro">Ogni utente funziona come un’istanza propria, completamente separata (porta, database e spazio di archiviazione propri), gestita solo da qui.</string>
     <string name="app_settings_users_load_usage">Mostra utilizzo</string>
+    <string name="app_settings_users_local_hint">Disattivalo per tenere questo account solo sulla tua rete: niente accesso remoto e niente amici fuori casa.</string>
     <string name="app_settings_users_password">Password</string>
     <string name="app_settings_users_password_confirm">Conferma la password</string>
     <string name="app_settings_users_password_hint">Dalla a %1$s per accedere. Potrà cambiarla in Impostazioni › Modifica password e, da quel momento, nessun altro la conoscerà.</string>
@@ -231,6 +232,9 @@
     <string name="app_settings_users_password_too_short">Usa almeno 8 caratteri</string>
     <string name="app_settings_users_port">porta</string>
     <string name="app_settings_users_port_domain">porta %1$s · %2$s</string>
+    <string name="app_settings_users_reachable_at">Raggiungibile da qualsiasi luogo all’indirizzo \u2068%1$s\u2069.</string>
+    <string name="app_settings_users_reachable_own">Raggiungibile da qualsiasi luogo al proprio sottodominio.</string>
+    <string name="app_settings_users_request_bridge">Richiedi l’accesso al bridge</string>
     <string name="app_settings_users_title">Utenti</string>
     <string name="app_settings_users_update_failed">Impossibile aggiornare questo utente.</string>
     <plurals name="app_settings_users_usage">

@@ -488,6 +488,8 @@ class UsersManagementViewModel : ViewModel() {
     data class State(
         val isPrimary: Boolean = false, val users: List<User> = emptyList(), val loading: Boolean = false, val metrics: Map<String, RespUserMetrics> = emptyMap(),
         val newUsername: String = "", val newPort: String = "", val creating: Boolean = false,
+        // Issue #103: an address on the bridge for the new user, on by default as in the web app.
+        val requestBridgeAccess: Boolean = true,
         // The dialog Add opens: the new account's first password, set on the
         // device as the account is created, so nobody can sign in first and
         // claim it. Its person changes it later in Change Password.
@@ -508,6 +510,7 @@ class UsersManagementViewModel : ViewModel() {
     fun askPassword() = state.update { it.copy(passwordFor = it.newUsername.trim(), newPassword = "", confirmPassword = "", passwordError = null) }
     fun cancelPassword() = state.update { if (it.creating) it else it.copy(passwordFor = null, newPassword = "", confirmPassword = "") }
     fun setNewPort(v: String) = state.update { it.copy(newPort = v) }
+    fun setRequestBridgeAccess(v: Boolean) = state.update { it.copy(requestBridgeAccess = v) }
     fun setDeleteConfirmText(v: String) = state.update { it.copy(deleteConfirmText = v) }
     fun toggleDeleteTarget(uuid: String) = state.update { it.copy(deleteTargetUuid = if (it.deleteTargetUuid == uuid) null else uuid, deleteConfirmText = "") }
     fun dismissToast() = state.update { it.copy(toast = null) }
@@ -544,7 +547,7 @@ class UsersManagementViewModel : ViewModel() {
             val pk = OTCConnection.request { it.setReqGetPubKey(GetPubKey.getDefaultInstance()) }
             if (pk.payloadCase != RespEnvelope.PayloadCase.RESP_PUB_KEY) { state.update { it.copy(passwordError = S.appSettingsPasswordNoKey()) }; return }
             val password = PwCrypto.encryptPassword(s.newPassword, pk.respPubKey.publicKey.toByteArray())
-            val resp = OTCConnection.request { it.setReqCreateUser(ReqCreateUser.newBuilder().setUsername(username).setPort(s.newPort.toIntOrNull() ?: 0).setPassword(ByteString.copyFrom(password))) }
+            val resp = OTCConnection.request { it.setReqCreateUser(ReqCreateUser.newBuilder().setUsername(username).setPort(s.newPort.toIntOrNull() ?: 0).setRequestBridgeAccess(s.requestBridgeAccess).setPassword(ByteString.copyFrom(password))) }
             if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_USERS) {
                 // Unset: a device older than the password, which created the
                 // account without one (its first sign-in sets it).

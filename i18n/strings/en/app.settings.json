@@ -1034,6 +1034,10 @@
     "note": "Small button of a user in Settings > Users that shows the storage the user takes and its connections.",
     "max": 20
   },
+  "app.settings.users.local_hint": {
+    "text": "Turn off to keep this account on your own network only — no remote access, and no friends outside your home.",
+    "note": "Second sentence of the explanation under the Request bridge access switch in Settings > Users."
+  },
   "app.settings.users.password": {
     "text": "Password",
     "note": "Placeholder of the first field of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password.",
@@ -1073,6 +1077,20 @@
     "text": "port {port} · {domain}",
     "args": [["port", "text"], ["domain", "text"]],
     "note": "Small line under a user's name in Settings > Users. {port} is the user's network port (8081), {domain} the user's address."
+  },
+  "app.settings.users.reachable_at": {
+    "text": "Reachable from anywhere at {address}.",
+    "args": [["address", "user"]],
+    "note": "Explanation under Request bridge access in Settings > Users. {address} is the address the new user would get (the typed name and the bridge's domain: ana.off-the.cloud). app.settings.users.local_hint follows it."
+  },
+  "app.settings.users.reachable_own": {
+    "text": "Reachable from anywhere at their own subdomain.",
+    "note": "Explanation under Request bridge access in Settings > Users, when the bridge's domain isn't known yet. app.settings.users.local_hint follows it."
+  },
+  "app.settings.users.request_bridge": {
+    "text": "Request bridge access",
+    "note": "Switch in Settings > Users under the new user's name: give the new user an address on the bridge, so they can be reached from anywhere and have friends. On by default. Use the web app's words (web.settings.users.request_bridge).",
+    "max": 40
   },
   "app.settings.users.title": {
     "text": "Users",

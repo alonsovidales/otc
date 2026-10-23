@@ -1081,6 +1081,11 @@ extension S {
     /// Small button of a user in Settings > Users that shows the storage the user takes and its connections.
     static var appSettingsUsersLoadUsage: String { L("app.settings.users.load_usage", table: "AppSettings") }
 
+    /// Turn off to keep this account on your own network only — no remote access, and no friends outside your home.
+    ///
+    /// Second sentence of the explanation under the Request bridge access switch in Settings > Users.
+    static var appSettingsUsersLocalHint: String { L("app.settings.users.local_hint", table: "AppSettings") }
+
     /// Password
     ///
     /// Placeholder of the first field of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password.
@@ -1126,6 +1131,23 @@ extension S {
     static func appSettingsUsersPortDomain(port: String, domain: String) -> String {
         L("app.settings.users.port_domain", table: "AppSettings", port, domain)
     }
+
+    /// Reachable from anywhere at {address}.
+    ///
+    /// Explanation under Request bridge access in Settings > Users. {address} is the address the new user would get (the typed name and the bridge's domain: ana.off-the.cloud). app.settings.users.local_hint follows it.
+    static func appSettingsUsersReachableAt(address: String) -> String {
+        L("app.settings.users.reachable_at", table: "AppSettings", L10n.isolate(address))
+    }
+
+    /// Reachable from anywhere at their own subdomain.
+    ///
+    /// Explanation under Request bridge access in Settings > Users, when the bridge's domain isn't known yet. app.settings.users.local_hint follows it.
+    static var appSettingsUsersReachableOwn: String { L("app.settings.users.reachable_own", table: "AppSettings") }
+
+    /// Request bridge access
+    ///
+    /// Switch in Settings > Users under the new user's name: give the new user an address on the bridge, so they can be reached from anywhere and have friends. On by default. Use the web app's words (web.settings.users.request_bridge).
+    static var appSettingsUsersRequestBridge: String { L("app.settings.users.request_bridge", table: "AppSettings") }
 
     /// Users
     ///

@@ -217,6 +217,7 @@
     <string name="app_settings_users_inactive">INAKTIV</string>
     <string name="app_settings_users_intro">Jeder Benutzer läuft als eigene, vollständig getrennte Instanz – eigener Port, eigene Datenbank, eigener Speicher – und wird nur hier verwaltet.</string>
     <string name="app_settings_users_load_usage">Nutzung laden</string>
+    <string name="app_settings_users_local_hint">Schalte es aus, um dieses Konto nur in deinem eigenen Netzwerk zu nutzen – kein Fernzugriff und keine Freunde außerhalb deines Zuhauses.</string>
     <string name="app_settings_users_password">Passwort</string>
     <string name="app_settings_users_password_confirm">Passwort bestätigen</string>
     <string name="app_settings_users_password_hint">Gib es %1$s zum Anmelden. Unter Einstellungen › Passwort ändern lässt es sich danach ersetzen, und ab dann kennt es niemand sonst.</string>
@@ -225,6 +226,9 @@
     <string name="app_settings_users_password_too_short">Verwende mindestens 8 Zeichen</string>
     <string name="app_settings_users_port">Port</string>
     <string name="app_settings_users_port_domain">Port %1$s · %2$s</string>
+    <string name="app_settings_users_reachable_at">Von überall erreichbar unter \u2068%1$s\u2069.</string>
+    <string name="app_settings_users_reachable_own">Von überall erreichbar unter einer eigenen Subdomain.</string>
+    <string name="app_settings_users_request_bridge">Bridge-Zugang anfordern</string>
     <string name="app_settings_users_title">Benutzer</string>
     <string name="app_settings_users_update_failed">Dieser Benutzer konnte nicht geändert werden.</string>
     <plurals name="app_settings_users_usage">

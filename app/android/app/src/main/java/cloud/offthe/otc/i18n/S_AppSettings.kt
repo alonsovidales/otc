@@ -794,6 +794,10 @@ fun S.appSettingsUsersIntro(): UiText =
 fun S.appSettingsUsersLoadUsage(): UiText =
     UiText.Res(R.string.app_settings_users_load_usage)
 
+/** "Turn off to keep this account on your own network only — no remote access, and no friends outside your home.": Second sentence of the explanation under the Request bridge access switch in Settings > Users. */
+fun S.appSettingsUsersLocalHint(): UiText =
+    UiText.Res(R.string.app_settings_users_local_hint)
+
 /** "Password": Placeholder of the first field of the dialog that opens in Settings > Users after Add, where the owner chooses the new user's first password. */
 fun S.appSettingsUsersPassword(): UiText =
     UiText.Res(R.string.app_settings_users_password)
@@ -825,6 +829,18 @@ fun S.appSettingsUsersPort(): UiText =
 /** "port {port} · {domain}": Small line under a user's name in Settings > Users. {port} is the user's network port (8081), {domain} the user's address. */
 fun S.appSettingsUsersPortDomain(port: String, domain: String): UiText =
     UiText.Res(R.string.app_settings_users_port_domain, listOf(port, domain))
+
+/** "Reachable from anywhere at {address}.": Explanation under Request bridge access in Settings > Users. {address} is the address the new user would get (the typed name and the bridge's domain: ana.off-the.cloud). app.settings.users.local_hint follows it. */
+fun S.appSettingsUsersReachableAt(address: String): UiText =
+    UiText.Res(R.string.app_settings_users_reachable_at, listOf(address))
+
+/** "Reachable from anywhere at their own subdomain.": Explanation under Request bridge access in Settings > Users, when the bridge's domain isn't known yet. app.settings.users.local_hint follows it. */
+fun S.appSettingsUsersReachableOwn(): UiText =
+    UiText.Res(R.string.app_settings_users_reachable_own)
+
+/** "Request bridge access": Switch in Settings > Users under the new user's name: give the new user an address on the bridge, so they can be reached from anywhere and have friends. On by default. Use the web app's words (web.settings.users.request_bridge). */
+fun S.appSettingsUsersRequestBridge(): UiText =
+    UiText.Res(R.string.app_settings_users_request_bridge)
 
 /** "Users": Heading of the section of Settings where the owner adds and manages other users of the device. */
 fun S.appSettingsUsersTitle(): UiText =

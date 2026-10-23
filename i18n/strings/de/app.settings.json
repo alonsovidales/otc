@@ -867,6 +867,10 @@
     "text": "Nutzung laden",
     "en": "Load usage"
   },
+  "app.settings.users.local_hint": {
+    "text": "Schalte es aus, um dieses Konto nur in deinem eigenen Netzwerk zu nutzen – kein Fernzugriff und keine Freunde außerhalb deines Zuhauses.",
+    "en": "Turn off to keep this account on your own network only — no remote access, and no friends outside your home."
+  },
   "app.settings.users.password": {
     "text": "Passwort",
     "en": "Password"
@@ -899,6 +903,18 @@
   "app.settings.users.port_domain": {
     "text": "Port {port} · {domain}",
     "en": "port {port} · {domain}"
+  },
+  "app.settings.users.reachable_at": {
+    "text": "Von überall erreichbar unter {address}.",
+    "en": "Reachable from anywhere at {address}."
+  },
+  "app.settings.users.reachable_own": {
+    "text": "Von überall erreichbar unter einer eigenen Subdomain.",
+    "en": "Reachable from anywhere at their own subdomain."
+  },
+  "app.settings.users.request_bridge": {
+    "text": "Bridge-Zugang anfordern",
+    "en": "Request bridge access"
   },
   "app.settings.users.title": {
     "text": "Benutzer",

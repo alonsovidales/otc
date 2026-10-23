@@ -217,6 +217,7 @@
     <string name="app_settings_users_inactive">INACTIEF</string>
     <string name="app_settings_users_intro">Elke gebruiker draait als een eigen, volledig gescheiden instantie (eigen poort, eigen database, eigen opslag) en wordt alleen hier beheerd.</string>
     <string name="app_settings_users_load_usage">Gebruik laden</string>
+    <string name="app_settings_users_local_hint">Zet dit uit om dit account alleen op je eigen netwerk te houden: geen toegang op afstand, en geen vrienden buiten je huis.</string>
     <string name="app_settings_users_password">Wachtwoord</string>
     <string name="app_settings_users_password_confirm">Wachtwoord bevestigen</string>
     <string name="app_settings_users_password_hint">Geef het aan %1$s om mee in te loggen. Het is daarna te wijzigen in Instellingen › Wachtwoord wijzigen, en vanaf dan kent niemand anders het.</string>
@@ -225,6 +226,9 @@
     <string name="app_settings_users_password_too_short">Gebruik minstens 8 tekens</string>
     <string name="app_settings_users_port">poort</string>
     <string name="app_settings_users_port_domain">poort %1$s · %2$s</string>
+    <string name="app_settings_users_reachable_at">Overal bereikbaar op \u2068%1$s\u2069.</string>
+    <string name="app_settings_users_reachable_own">Overal bereikbaar op een eigen subdomein.</string>
+    <string name="app_settings_users_request_bridge">Toegang tot de bridge aanvragen</string>
     <string name="app_settings_users_title">Gebruikers</string>
     <string name="app_settings_users_update_failed">Kan deze gebruiker niet bijwerken.</string>
     <plurals name="app_settings_users_usage">

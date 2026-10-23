@@ -243,6 +243,7 @@ import cloud.offthe.otc.i18n.appSettingsUsersEnable
 import cloud.offthe.otc.i18n.appSettingsUsersInactive
 import cloud.offthe.otc.i18n.appSettingsUsersIntro
 import cloud.offthe.otc.i18n.appSettingsUsersLoadUsage
+import cloud.offthe.otc.i18n.appSettingsUsersLocalHint
 import cloud.offthe.otc.i18n.appSettingsUsersPassword
 import cloud.offthe.otc.i18n.appSettingsUsersPasswordConfirm
 import cloud.offthe.otc.i18n.appSettingsUsersPasswordHint
@@ -251,6 +252,9 @@ import cloud.offthe.otc.i18n.appSettingsUsersPasswordTitle
 import cloud.offthe.otc.i18n.appSettingsUsersPasswordTooShort
 import cloud.offthe.otc.i18n.appSettingsUsersPort
 import cloud.offthe.otc.i18n.appSettingsUsersPortDomain
+import cloud.offthe.otc.i18n.appSettingsUsersReachableAt
+import cloud.offthe.otc.i18n.appSettingsUsersReachableOwn
+import cloud.offthe.otc.i18n.appSettingsUsersRequestBridge
 import cloud.offthe.otc.i18n.appSettingsUsersTitle
 import cloud.offthe.otc.i18n.appSettingsUsersUsage
 import cloud.offthe.otc.i18n.appSettingsUsersUsername
@@ -879,6 +883,11 @@ private fun UsersManagementSection() {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.width(90.dp))
             RowButton(S.commonAdd().resolve(), enabled = !st.creating && usernameValid) { vm.askPassword() }
         }
+        // Issue #103, as the web app: the address the new user gets on the bridge.
+        ToggleRow(S.appSettingsUsersRequestBridge().resolve(), st.requestBridgeAccess, vm::setRequestBridgeAccess)
+        val name = st.newUsername.trim()
+        val bridgeDomain = st.users.firstOrNull { it.bridgeAccess && it.subdomain.isNotEmpty() }?.subdomain?.substringAfter('.', "") ?: ""
+        Caption(((if (name.isNotEmpty() && bridgeDomain.isNotEmpty()) S.appSettingsUsersReachableAt("$name.$bridgeDomain") else S.appSettingsUsersReachableOwn()).resolve()) + " " + S.appSettingsUsersLocalHint().resolve())
     }
     st.passwordFor?.let { name -> FirstPasswordDialog(vm, st, name) }
     st.toast?.let { AlertDialog(onDismissRequest = { vm.dismissToast() }, text = { Text(it.resolve()) }, confirmButton = { TextButton(onClick = { vm.dismissToast() }) { Text(S.commonOk().resolve()) } }) }

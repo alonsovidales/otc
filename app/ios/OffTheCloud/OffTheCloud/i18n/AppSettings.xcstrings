@@ -10184,6 +10184,53 @@
         }
       }
     },
+    "app.settings.users.local_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schalte es aus, um dieses Konto nur in deinem eigenen Netzwerk zu nutzen – kein Fernzugriff und keine Freunde außerhalb deines Zuhauses."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off to keep this account on your own network only — no remote access, and no friends outside your home."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactívalo para que esta cuenta funcione solo en tu propia red: sin acceso remoto ni amigos fuera de tu casa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactivez-le pour limiter ce compte à votre propre réseau : pas d’accès à distance, ni d’amis hors de chez vous."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disattivalo per tenere questo account solo sulla tua rete: niente accesso remoto e niente amici fuori casa."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zet dit uit om dit account alleen op je eigen netwerk te houden: geen toegang op afstand, en geen vrienden buiten je huis."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desativa para manter esta conta apenas na tua própria rede: sem acesso remoto e sem amigos fora de casa."
+          }
+        }
+      }
+    },
     "app.settings.users.password" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -10556,6 +10603,147 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "porta %1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "app.settings.users.reachable_at" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von überall erreichbar unter %1$@."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reachable from anywhere at %1$@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accesible desde cualquier lugar en %1$@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Joignable de n’importe où à l’adresse %1$@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raggiungibile da qualsiasi luogo all’indirizzo %1$@."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overal bereikbaar op %1$@."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acessível a partir de qualquer lado em %1$@."
+          }
+        }
+      }
+    },
+    "app.settings.users.reachable_own" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von überall erreichbar unter einer eigenen Subdomain."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reachable from anywhere at their own subdomain."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accesible desde cualquier lugar en su propio subdominio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Joignable de n’importe où à son propre sous-domaine."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raggiungibile da qualsiasi luogo al proprio sottodominio."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overal bereikbaar op een eigen subdomein."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acessível a partir de qualquer lado num subdomínio próprio."
+          }
+        }
+      }
+    },
+    "app.settings.users.request_bridge" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bridge-Zugang anfordern"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Request bridge access"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solicitar acceso al puente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demander l’accès à la passerelle"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Richiedi l’accesso al bridge"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toegang tot de bridge aanvragen"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pedir acesso à ponte"
           }
         }
       }

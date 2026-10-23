@@ -223,6 +223,7 @@
     <string name="app_settings_users_inactive">INACTIF</string>
     <string name="app_settings_users_intro">Chaque utilisateur fonctionne comme une instance entièrement séparée (son propre port, sa propre base de données, son propre stockage), gérée uniquement depuis cet écran.</string>
     <string name="app_settings_users_load_usage">Afficher l’usage</string>
+    <string name="app_settings_users_local_hint">Désactivez-le pour limiter ce compte à votre propre réseau : pas d’accès à distance, ni d’amis hors de chez vous.</string>
     <string name="app_settings_users_password">Mot de passe</string>
     <string name="app_settings_users_password_confirm">Confirmer le mot de passe</string>
     <string name="app_settings_users_password_hint">Donnez-le à %1$s pour se connecter. Il pourra ensuite être modifié dans Paramètres › Modifier le mot de passe, et dès lors personne d’autre ne le connaîtra.</string>
@@ -231,6 +232,9 @@
     <string name="app_settings_users_password_too_short">Utilisez au moins 8 caractères</string>
     <string name="app_settings_users_port">port</string>
     <string name="app_settings_users_port_domain">port %1$s · %2$s</string>
+    <string name="app_settings_users_reachable_at">Joignable de n’importe où à l’adresse \u2068%1$s\u2069.</string>
+    <string name="app_settings_users_reachable_own">Joignable de n’importe où à son propre sous-domaine.</string>
+    <string name="app_settings_users_request_bridge">Demander l’accès à la passerelle</string>
     <string name="app_settings_users_title">Utilisateurs</string>
     <string name="app_settings_users_update_failed">Impossible de mettre à jour cet utilisateur.</string>
     <plurals name="app_settings_users_usage">

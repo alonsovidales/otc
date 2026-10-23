@@ -223,6 +223,7 @@
     <string name="app_settings_users_inactive">INATIVO</string>
     <string name="app_settings_users_intro">Cada utilizador funciona como uma instância própria e totalmente separada (porta própria, base de dados própria, armazenamento próprio), gerida apenas a partir daqui.</string>
     <string name="app_settings_users_load_usage">Ver utilização</string>
+    <string name="app_settings_users_local_hint">Desativa para manter esta conta apenas na tua própria rede: sem acesso remoto e sem amigos fora de casa.</string>
     <string name="app_settings_users_password">Palavra-passe</string>
     <string name="app_settings_users_password_confirm">Confirmar palavra-passe</string>
     <string name="app_settings_users_password_hint">Dá-a a %1$s para iniciar sessão. Pode alterá-la em Definições › Alterar palavra-passe e, a partir daí, mais ninguém a saberá.</string>
@@ -231,6 +232,9 @@
     <string name="app_settings_users_password_too_short">Usa pelo menos 8 caracteres</string>
     <string name="app_settings_users_port">porta</string>
     <string name="app_settings_users_port_domain">porta %1$s · %2$s</string>
+    <string name="app_settings_users_reachable_at">Acessível a partir de qualquer lado em \u2068%1$s\u2069.</string>
+    <string name="app_settings_users_reachable_own">Acessível a partir de qualquer lado num subdomínio próprio.</string>
+    <string name="app_settings_users_request_bridge">Pedir acesso à ponte</string>
     <string name="app_settings_users_title">Utilizadores</string>
     <string name="app_settings_users_update_failed">Não foi possível atualizar este utilizador.</string>
     <plurals name="app_settings_users_usage">

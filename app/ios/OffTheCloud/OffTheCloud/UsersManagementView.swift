@@ -24,6 +24,8 @@ final class UsersManagementViewModel: ObservableObject {
 
     @Published var newUsername = ""
     @Published var newPort = ""
+    // Issue #103: an address on the bridge for the new user, on by default as in the web app.
+    @Published var requestBridgeAccess = true
     @Published var creating = false
 
     // The sheet Add opens: the new account's first password, set on the
@@ -118,6 +120,7 @@ final class UsersManagementViewModel: ObservableObject {
             var req = Msg_ReqCreateUser()
             req.username = name
             req.port = Int32(newPort) ?? 0
+            req.requestBridgeAccess = requestBridgeAccess
             req.password = try PwCrypto.encryptPassword(newPassword, pubKeyDER: pubKey.publicKey)
             let resp = try await ws.request { e in
                 var env = ReqEnvelope()
@@ -209,6 +212,17 @@ struct UsersManagementSection: View {
         return !u.isEmpty && u.range(of: "^[a-z0-9-]+$", options: .regularExpression) != nil
     }
 
+    /// Where the new user will be reachable, then what turning it off means.
+    private var bridgeHint: String {
+        let name = vm.newUsername.trimmingCharacters(in: .whitespaces)
+        let domain = vm.users.first { $0.bridgeAccess && !$0.subdomain.isEmpty }
+            .map { $0.subdomain.split(separator: ".").dropFirst().joined(separator: ".") } ?? ""
+        let reach = !name.isEmpty && !domain.isEmpty
+            ? S.appSettingsUsersReachableAt(address: "\(name).\(domain)")
+            : S.appSettingsUsersReachableOwn
+        return reach + " " + S.appSettingsUsersLocalHint
+    }
+
     var body: some View {
         if vm.isPrimary {
             Section(header: Text(S.appSettingsUsersTitle)) {
@@ -235,6 +249,15 @@ struct UsersManagementSection: View {
                     }
                     .buttonStyle(.bordered)
                         .disabled(vm.creating || !usernameValid)
+                }
+
+                // Issue #103, as the web app: the address the new user
+                // gets on the bridge.
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle(S.appSettingsUsersRequestBridge, isOn: $vm.requestBridgeAccess)
+                    Text(bridgeHint)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
         } else {

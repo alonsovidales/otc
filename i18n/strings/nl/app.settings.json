@@ -867,6 +867,10 @@
     "text": "Gebruik laden",
     "en": "Load usage"
   },
+  "app.settings.users.local_hint": {
+    "text": "Zet dit uit om dit account alleen op je eigen netwerk te houden: geen toegang op afstand, en geen vrienden buiten je huis.",
+    "en": "Turn off to keep this account on your own network only — no remote access, and no friends outside your home."
+  },
   "app.settings.users.password": {
     "text": "Wachtwoord",
     "en": "Password"
@@ -899,6 +903,18 @@
   "app.settings.users.port_domain": {
     "text": "poort {port} · {domain}",
     "en": "port {port} · {domain}"
+  },
+  "app.settings.users.reachable_at": {
+    "text": "Overal bereikbaar op {address}.",
+    "en": "Reachable from anywhere at {address}."
+  },
+  "app.settings.users.reachable_own": {
+    "text": "Overal bereikbaar op een eigen subdomein.",
+    "en": "Reachable from anywhere at their own subdomain."
+  },
+  "app.settings.users.request_bridge": {
+    "text": "Toegang tot de bridge aanvragen",
+    "en": "Request bridge access"
   },
   "app.settings.users.title": {
     "text": "Gebruikers",

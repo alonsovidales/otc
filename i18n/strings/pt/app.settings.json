@@ -867,6 +867,10 @@
     "text": "Ver utilização",
     "en": "Load usage"
   },
+  "app.settings.users.local_hint": {
+    "text": "Desativa para manter esta conta apenas na tua própria rede: sem acesso remoto e sem amigos fora de casa.",
+    "en": "Turn off to keep this account on your own network only — no remote access, and no friends outside your home."
+  },
   "app.settings.users.password": {
     "text": "Palavra-passe",
     "en": "Password"
@@ -899,6 +903,18 @@
   "app.settings.users.port_domain": {
     "text": "porta {port} · {domain}",
     "en": "port {port} · {domain}"
+  },
+  "app.settings.users.reachable_at": {
+    "text": "Acessível a partir de qualquer lado em {address}.",
+    "en": "Reachable from anywhere at {address}."
+  },
+  "app.settings.users.reachable_own": {
+    "text": "Acessível a partir de qualquer lado num subdomínio próprio.",
+    "en": "Reachable from anywhere at their own subdomain."
+  },
+  "app.settings.users.request_bridge": {
+    "text": "Pedir acesso à ponte",
+    "en": "Request bridge access"
   },
   "app.settings.users.title": {
     "text": "Utilizadores",
