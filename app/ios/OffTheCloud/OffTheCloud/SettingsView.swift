@@ -332,6 +332,8 @@ struct SettingsView: View {
     @EnvironmentObject var notifications: NotificationsModel
     @StateObject private var device = DeviceSettingsViewModel()
     @StateObject private var status = StatusViewModel()
+    // Settings > Users; its sheet is presented here (usersManagementSheets).
+    @StateObject private var users = UsersManagementViewModel()
     // Issue #190: the route line under Connection.
     @ObservedObject private var connection = OTCConnection.shared
     // The Language row's value.
@@ -370,7 +372,7 @@ struct SettingsView: View {
 
                 // The device's accounts, right under its status (the
                 // owner's most used part of Settings).
-                UsersManagementSection()
+                UsersManagementSection(vm: users)
 
                 // Issue #122: the only place upload progress is shown. There
                 // used to be a hairline over every tab as well (issue #14);
@@ -605,6 +607,7 @@ struct SettingsView: View {
             status.stop()
             device.stopPollingReprocessStatus()
         }
+        .usersManagementSheets(users)
         // Back from iOS Settings, where access may just have been given.
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             refreshPhotosAuthorized()

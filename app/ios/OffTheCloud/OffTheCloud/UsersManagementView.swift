@@ -198,7 +198,11 @@ final class UsersManagementViewModel: ObservableObject {
 /// this app) - renders nothing at all once the role check comes back
 /// non-primary.
 struct UsersManagementSection: View {
-    @StateObject private var vm = UsersManagementViewModel()
+    // Owned by SettingsView, which also presents the first-password sheet
+    // and the toast (usersManagementSheets): presented from this section,
+    // a row of the Settings list, the sheet came and went at once when the
+    // list laid out again as the keyboard went down.
+    @ObservedObject var vm: UsersManagementViewModel
 
     private var usernameValid: Bool {
         let u = vm.newUsername.trimmingCharacters(in: .whitespaces)
@@ -224,34 +228,14 @@ struct UsersManagementSection: View {
                         .keyboardType(.numberPad)
                         .frame(width: 70)
                     Button(S.commonAdd) {
-                        // The name field's keyboard goes down first. Shown
-                        // while it was still up, the sheet came and went at
-                        // once as the list laid out again under it, and
-                        // only a second tap kept it.
+                        // The name field's keyboard goes down: the sheet
+                        // has fields of its own.
                         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                        Task {
-                            try? await Task.sleep(for: .milliseconds(400))
-                            vm.askPassword()
-                        }
+                        vm.askPassword()
                     }
                     .buttonStyle(.bordered)
                         .disabled(vm.creating || !usernameValid)
                 }
-            }
-            .sheet(isPresented: Binding(
-                get: { vm.passwordFor != nil },
-                set: { if !$0 { vm.cancelPassword() } }
-            ), onDismiss: {
-                vm.toast = vm.createdToast
-                vm.createdToast = nil
-            }) {
-                FirstPasswordSheet(vm: vm)
-            }
-            .alert(vm.toast?.text ?? "", isPresented: Binding(
-                get: { vm.toast != nil },
-                set: { if !$0 { vm.toast = nil } }
-            )) {
-                Button(S.commonOk, role: .cancel) {}
             }
         } else {
             // The role check has to run while nothing is shown yet: a
@@ -320,6 +304,29 @@ struct UsersManagementSection: View {
             }
         }
         .padding(.vertical, 2)
+    }
+}
+
+extension View {
+    /// The Users section's first-password sheet and its toast, presented
+    /// from outside the Settings list (see UsersManagementSection).
+    func usersManagementSheets(_ vm: UsersManagementViewModel) -> some View {
+        self
+            .sheet(isPresented: Binding(
+                get: { vm.passwordFor != nil },
+                set: { if !$0 { vm.cancelPassword() } }
+            ), onDismiss: {
+                vm.toast = vm.createdToast
+                vm.createdToast = nil
+            }) {
+                FirstPasswordSheet(vm: vm)
+            }
+            .alert(vm.toast?.text ?? "", isPresented: Binding(
+                get: { vm.toast != nil },
+                set: { if !$0 { vm.toast = nil } }
+            )) {
+                Button(S.commonOk, role: .cancel) {}
+            }
     }
 }
 
