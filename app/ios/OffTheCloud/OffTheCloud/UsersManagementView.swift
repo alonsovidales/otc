@@ -223,7 +223,17 @@ struct UsersManagementSection: View {
                     TextField(S.appSettingsUsersPort, text: $vm.newPort)
                         .keyboardType(.numberPad)
                         .frame(width: 70)
-                    Button(S.commonAdd) { vm.askPassword() }
+                    Button(S.commonAdd) {
+                        // The name field's keyboard goes down first. Shown
+                        // while it was still up, the sheet came and went at
+                        // once as the list laid out again under it, and
+                        // only a second tap kept it.
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        Task {
+                            try? await Task.sleep(for: .milliseconds(400))
+                            vm.askPassword()
+                        }
+                    }
                     .buttonStyle(.bordered)
                         .disabled(vm.creating || !usernameValid)
                 }
