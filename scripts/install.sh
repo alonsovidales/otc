@@ -389,18 +389,23 @@ if command -v dphys-swapfile >/dev/null 2>&1; then
     systemctl disable dphys-swapfile >/dev/null 2>&1 || true
 fi
 
-# Issue #157 (release 59): SSH never accepts passwords - the image's
-# console account has a published one. A fresh install is recorded as the
-# latest release, so release scripts don't run on it: this has to be here
-# too, not only in the image or in updates/59.sh.
-mkdir -p /etc/ssh/sshd_config.d
-cat > /etc/ssh/sshd_config.d/01-otc-keys-only.conf <<'SSHEOF'
+# Issue #157 (release 59): SSH never accepts passwords on a device made
+# from the image - its console account (otc-debug) has a published one. A
+# fresh install is recorded as the latest release, so release scripts don't
+# run on it: this has to be here too, not only in the image or in
+# updates/59.sh. A machine of the owner's own (a Pi they set up, a laptop, a
+# VPS) has no such account, and its SSH stays as they set it: turning off
+# passwords and root there would lock out whoever logs in that way.
+if id otc-debug >/dev/null 2>&1; then
+    mkdir -p /etc/ssh/sshd_config.d
+    cat > /etc/ssh/sshd_config.d/01-otc-keys-only.conf <<'SSHEOF'
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 PermitRootLogin no
 SSHEOF
-chmod 644 /etc/ssh/sshd_config.d/01-otc-keys-only.conf
-if systemctl is-active --quiet ssh 2>/dev/null && sshd -t 2>/dev/null; then systemctl reload ssh; fi
+    chmod 644 /etc/ssh/sshd_config.d/01-otc-keys-only.conf
+    if systemctl is-active --quiet ssh 2>/dev/null && sshd -t 2>/dev/null; then systemctl reload ssh; fi
+fi
 
 wiz_step account
 log "[2/10] otc service account"

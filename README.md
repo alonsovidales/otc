@@ -197,6 +197,12 @@ example, for two blank disks:
 $ curl -fsSL https://raw.githubusercontent.com/alonsovidales/otc/main/scripts/verified-install.sh | sudo OTC_RAID_CONFIRM_WIPE=yes bash -s -- <subdomain>
 ```
 
+The script leaves the machine's SSH settings as they are, so you keep logging in the way you do
+now. (Releases 59 to 136 turned off password and root logins over SSH on every install; if that
+locked you out, log in at the console or with a key and delete
+`/etc/ssh/sshd_config.d/01-otc-keys-only.conf`. Only devices made from the image below keep it,
+because their console account has a published password.)
+
 What this path doesn't set up is the WiFi-AP first-boot flow: it assumes a machine you already
 have network/login access to. For a Raspberry Pi from scratch, the pre-built image below handles
 everything from a first boot with nothing pre-configured.
