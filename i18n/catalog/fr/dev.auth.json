@@ -1,6 +1,8 @@
 {
   "dev.auth.decrypt_failed": {"text": "impossible de déchiffrer les éléments de clé"},
   "dev.auth.device_state_failed": {"text": "erreur lors de la vérification de l’état de l’appareil"},
+  "dev.auth.first_password_home_only": {"text": "Le mot de passe du propriétaire ne peut être choisi que depuis votre réseau domestique, à l’adresse de l’appareil lui-même et sans passer par un proxy. Vous pouvez aussi le définir sur le serveur : docker exec -i otc otc-entrypoint set-password, avec le mot de passe en entrée."},
+  "dev.auth.first_password_window_closed": {"text": "Les 30 minutes pour choisir ici le mot de passe du propriétaire sont écoulées. Définissez-le plutôt sur le serveur : docker exec -i otc otc-entrypoint set-password, avec le mot de passe en entrée."},
   "dev.auth.invalid_session": {"text": "Session non valide"},
   "dev.auth.keypair_failed": {"text": "erreur lors de la génération de la paire de clés"},
   "dev.auth.no_public_key": {"text": "aucune clé publique n’a été demandée pour cette connexion"},

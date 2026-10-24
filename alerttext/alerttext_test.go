@@ -88,6 +88,8 @@ func everyAlertKey() map[string]struct {
 		"dev.alert.update.major":    {i18n.DevAlertUpdateMajor("3.0"), fmt.Sprintf("Update %s is available", "3.0")},
 		"dev.alert.update.critical": {i18n.DevAlertUpdateCritical("3.0"), fmt.Sprintf("Critical update %s - please install it soon", "3.0")},
 		"dev.alert.update.detail":   {i18n.DevAlertUpdateDetail("A security fix."), "A security fix." + " Install it from Settings."},
+		// New with the container image (no older English).
+		"dev.alert.update.detail_container": {i18n.DevAlertUpdateDetailContainer("A security fix."), "A security fix. To install it, run docker compose pull and then docker compose up -d on the device's server."},
 
 		"dev.alert.wifi.restarted":            {i18n.DevAlertWifiRestarted(), "The Wi-Fi was restarted"},
 		"dev.alert.wifi.still_slow":           {i18n.DevAlertWifiStillSlow(), "The Wi-Fi is still slow after a restart"},

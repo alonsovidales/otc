@@ -106,6 +106,12 @@ export interface DeviceSetupInfo {
    * shared physical machine, which is the primary's alone.
    */
   isPrimary: boolean;
+  /**
+   * The device runs from the container image: the server it runs on
+   * looks after its disks and network, so the wizard skips those steps
+   * too.
+   */
+  container: boolean;
 }
 
 // This connection's GetPubKey answer: the device's key for this socket,
@@ -134,6 +140,7 @@ export async function getDeviceSetupInfo(request: Requester): Promise<DeviceSetu
   return {
     isNewDevice: resp.payload.respPubKey.isNewDevice,
     isPrimary: resp.payload.respPubKey.isPrimary,
+    container: resp.payload.respPubKey.container,
   };
 }
 

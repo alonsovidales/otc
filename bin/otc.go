@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/alonsovidales/otc/api"
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/hardening"
@@ -68,13 +69,21 @@ func initOwnerPassword(d *dao.Dao) int {
 // ended in the kernel killing the service. A low-memory device (less than
 // 6 GB, files_manager/lowmem.go) gives Go 20%: the models' native memory,
 // which no Go limit sees, needs the rest. It lives in this file because
-// install.sh and the updater build ./bin/otc.go alone.
+// install.sh and the updater build ./bin/otc.go alone. In a container the
+// memory is the container's (p.Total: container.MemoryTotal), never the
+// host's MemTotal.
 func setMemoryLimit(p filesmanager.MemoryProfile) {
 	if os.Getenv("GOMEMLIMIT") != "" {
 		return
 	}
 	if p.Low && p.Total > 0 {
 		debug.SetMemoryLimit(p.GoMemoryLimit())
+		return
+	}
+	if container.Enabled() {
+		if p.Total > 0 {
+			debug.SetMemoryLimit(p.Total * 2 / 5)
+		}
 		return
 	}
 	raw, err := os.ReadFile("/proc/meminfo")
@@ -156,7 +165,11 @@ func main() {
 	// Decided once the config is read: [otc] low-memory can set it.
 	memProfile := filesmanager.CurrentMemoryProfile()
 	setMemoryLimit(memProfile)
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	// In a container the runtime's own default already follows the
+	// container's CPU limit; NumCPU there is the host's.
+	if !container.Enabled() {
+		runtime.GOMAXPROCS(runtime.NumCPU())
+	}
 
 	dao := dao.Init()
 
@@ -174,6 +187,10 @@ func main() {
 	}
 	if line := memProfile.Describe(); line != "" {
 		log.Info(line)
+	}
+	if container.Enabled() {
+		total, source := container.MemorySizing()
+		log.Info(container.DescribeSizing(total, source, runtime.GOMAXPROCS(0)))
 	}
 	memProfile.ExportForChildren()
 	if memProfile.Low {

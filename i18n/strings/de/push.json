@@ -58,6 +58,10 @@
     "text": "Installiere es in den Einstellungen.",
     "en": "Install it from Settings."
   },
+  "push.update.critical_body_container": {
+    "text": "Führe zum Installieren docker compose pull und docker compose up -d auf deinem Server aus.",
+    "en": "To install it, run docker compose pull and docker compose up -d on your server."
+  },
   "push.update.critical_title": {
     "text": "Kritisches Update {version} – bitte bald installieren",
     "en": "Critical update {version} - please install it soon"

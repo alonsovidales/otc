@@ -11,6 +11,7 @@
 !blobstore/
 !bridgeaccess/
 !cfg/
+!container/
 !dao/
 !db/
 !devicerestart/

@@ -1,6 +1,8 @@
 {
   "dev.auth.decrypt_failed": {"text": "Schlüsselmaterial konnte nicht entschlüsselt werden"},
   "dev.auth.device_state_failed": {"text": "Fehler beim Prüfen des Gerätestatus"},
+  "dev.auth.first_password_home_only": {"text": "Das Passwort des Besitzers kann nur aus deinem Heimnetz gewählt werden, unter der eigenen Adresse des Geräts und nicht über einen Proxy. Du kannst es auch auf dem Server festlegen: docker exec -i otc otc-entrypoint set-password, mit dem Passwort als Eingabe."},
+  "dev.auth.first_password_window_closed": {"text": "Die 30 Minuten, um das Passwort des Besitzers hier zu wählen, sind vorbei. Lege es stattdessen auf dem Server fest: docker exec -i otc otc-entrypoint set-password, mit dem Passwort als Eingabe."},
   "dev.auth.invalid_session": {"text": "Ungültige Sitzung"},
   "dev.auth.keypair_failed": {"text": "Fehler beim Erzeugen des Schlüsselpaars"},
   "dev.auth.no_public_key": {"text": "für diese Verbindung wurde kein öffentlicher Schlüssel angefordert"},

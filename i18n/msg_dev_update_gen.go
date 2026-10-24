@@ -39,6 +39,11 @@ func DevUpdateCheckingSignature() Msg {
 	return Msg{Key: "dev.update.checking_signature"}
 }
 
+// DevUpdateContainerPull is dev.update.container_pull: "This device runs in Docker and is updated with its image: on its server, run doc…".
+func DevUpdateContainerPull() Msg {
+	return Msg{Key: "dev.update.container_pull"}
+}
+
 // DevUpdateDownloading is dev.update.downloading: "Downloading release {release}".
 func DevUpdateDownloading(release string) Msg {
 	return Msg{Key: "dev.update.downloading", Args: map[string]any{"release": release}}

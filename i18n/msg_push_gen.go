@@ -74,6 +74,11 @@ func PushUpdateCriticalBody() Msg {
 	return Msg{Key: "push.update.critical_body"}
 }
 
+// PushUpdateCriticalBodyContainer is push.update.critical_body_container: "To install it, run docker compose pull and docker compose up -d on your server.".
+func PushUpdateCriticalBodyContainer() Msg {
+	return Msg{Key: "push.update.critical_body_container"}
+}
+
 // PushUpdateCriticalTitle is push.update.critical_title: "Critical update {version} - please install it soon".
 func PushUpdateCriticalTitle(version string) Msg {
 	return Msg{Key: "push.update.critical_title", Args: map[string]any{"version": version}}

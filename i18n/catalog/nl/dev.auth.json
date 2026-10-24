@@ -1,6 +1,8 @@
 {
   "dev.auth.decrypt_failed": {"text": "kan het sleutelmateriaal niet ontsleutelen"},
   "dev.auth.device_state_failed": {"text": "fout bij het controleren van de apparaatstatus"},
+  "dev.auth.first_password_home_only": {"text": "Het wachtwoord van de eigenaar kan alleen vanuit je thuisnetwerk worden gekozen, op het eigen adres van het apparaat en niet via een proxy. Je kunt het ook op de server instellen: docker exec -i otc otc-entrypoint set-password, met het wachtwoord als invoer."},
+  "dev.auth.first_password_window_closed": {"text": "De 30 minuten om hier het wachtwoord van de eigenaar te kiezen zijn voorbij. Stel het in plaats daarvan in op de server: docker exec -i otc otc-entrypoint set-password, met het wachtwoord als invoer."},
   "dev.auth.invalid_session": {"text": "Ongeldige sessie"},
   "dev.auth.keypair_failed": {"text": "fout bij het aanmaken van het sleutelpaar"},
   "dev.auth.no_public_key": {"text": "er is geen openbare sleutel aangevraagd voor deze verbinding"},

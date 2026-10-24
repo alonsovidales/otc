@@ -49,6 +49,7 @@
   "dev.alert.setaside.title": {"text": "Il file {name} è stato messo da parte"},
   "dev.alert.update.critical": {"text": "Aggiornamento critico {version}: installalo al più presto"},
   "dev.alert.update.detail": {"text": "{summary} Installalo da Impostazioni."},
+  "dev.alert.update.detail_container": {"text": "{summary} Per installarlo, esegui docker compose pull e poi docker compose up -d sul server del dispositivo."},
   "dev.alert.update.major": {"text": "È disponibile l’aggiornamento {version}"},
   "dev.alert.wifi.no_answer": {"text": "l’invio dei dati era rallentato a circa {speed} (dati inviati due volte: {pct}%), e il riavvio del Wi-Fi non ha mai risposto. Riavvia il dispositivo da Impostazioni, oppure collegalo al router con un cavo Ethernet."},
   "dev.alert.wifi.no_runner": {"text": "l’invio dei dati è rallentato a circa {speed} (dati inviati due volte: {pct}%). Questo dispositivo non può riavviare da solo il Wi-Fi finché non viene aggiornato. Riavvia il dispositivo da Impostazioni, oppure collegalo al router con un cavo Ethernet."},

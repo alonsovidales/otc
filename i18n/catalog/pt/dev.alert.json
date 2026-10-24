@@ -49,6 +49,7 @@
   "dev.alert.setaside.title": {"text": "O ficheiro {name} foi posto de parte"},
   "dev.alert.update.critical": {"text": "Atualização crítica {version}: instala-a em breve"},
   "dev.alert.update.detail": {"text": "{summary} Instala-a em Definições."},
+  "dev.alert.update.detail_container": {"text": "{summary} Para a instalar, executa docker compose pull e depois docker compose up -d no servidor do dispositivo."},
   "dev.alert.update.major": {"text": "A atualização {version} está disponível"},
   "dev.alert.wifi.no_answer": {"text": "o envio de dados tinha abrandado para cerca de {speed}, com {pct}% enviados duas vezes, e o reinício do Wi-Fi nunca respondeu. Reinicia o dispositivo em Definições ou liga-o ao teu router com um cabo Ethernet."},
   "dev.alert.wifi.no_runner": {"text": "o envio de dados abrandou para cerca de {speed}, com {pct}% enviados duas vezes. Este dispositivo só poderá reiniciar o Wi-Fi sozinho depois de ser atualizado. Reinicia o dispositivo em Definições ou liga-o ao teu router com um cabo Ethernet."},

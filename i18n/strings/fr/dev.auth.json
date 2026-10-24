@@ -9,6 +9,14 @@
     "en": "error checking device state",
     "reviewed": "claude-backtranslation 2026-10-11 #b9eb5924"
   },
+  "dev.auth.first_password_home_only": {
+    "text": "Le mot de passe du propriétaire ne peut être choisi que depuis votre réseau domestique, à l’adresse de l’appareil lui-même et sans passer par un proxy. Vous pouvez aussi le définir sur le serveur : docker exec -i otc otc-entrypoint set-password, avec le mot de passe en entrée.",
+    "en": "The owner password can only be chosen from your home network, at the device's own address and not through a proxy. You can also set it on the server: docker exec -i otc otc-entrypoint set-password, with the password as its input."
+  },
+  "dev.auth.first_password_window_closed": {
+    "text": "Les 30 minutes pour choisir ici le mot de passe du propriétaire sont écoulées. Définissez-le plutôt sur le serveur : docker exec -i otc otc-entrypoint set-password, avec le mot de passe en entrée.",
+    "en": "The 30 minutes to choose the owner password here have passed. Set it on the server instead: docker exec -i otc otc-entrypoint set-password, with the password as its input."
+  },
   "dev.auth.invalid_session": {
     "text": "Session non valide",
     "en": "Invalid session",

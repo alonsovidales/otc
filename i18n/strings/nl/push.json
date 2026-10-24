@@ -58,6 +58,10 @@
     "text": "Installeer de update via Instellingen.",
     "en": "Install it from Settings."
   },
+  "push.update.critical_body_container": {
+    "text": "Voer docker compose pull en docker compose up -d uit op je server om de update te installeren.",
+    "en": "To install it, run docker compose pull and docker compose up -d on your server."
+  },
   "push.update.critical_title": {
     "text": "Kritieke update {version}: installeer deze binnenkort",
     "en": "Critical update {version} - please install it soon"

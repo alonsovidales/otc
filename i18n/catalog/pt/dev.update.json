@@ -6,6 +6,7 @@
   "dev.update.building": {"text": "A compilar"},
   "dev.update.checking": {"text": "A procurar atualizações"},
   "dev.update.checking_signature": {"text": "A verificar a assinatura da versão"},
+  "dev.update.container_pull": {"text": "Este dispositivo funciona em Docker e é atualizado com a sua imagem: no servidor dele, executa docker compose pull e depois docker compose up -d."},
   "dev.update.downloading": {"text": "A transferir a versão {release}"},
   "dev.update.generating_protobuf": {"text": "A gerar o código protobuf"},
   "dev.update.installing_web": {"text": "A instalar a app web"},

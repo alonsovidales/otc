@@ -41,6 +41,7 @@ import SharedGalleryView from "./components/SharedGalleryView";
 import AccountMenu from "./components/AccountMenu";
 import TopSignIn, { type Interrupted } from "./components/TopSignIn";
 import LanguagePicker from "./components/LanguagePicker";
+import { pageEndpoint } from "./net/endpoint";
 
 declare global { interface Window { __OTC_CONFIG?: { endpoint: string; password: string; deviceId: string; }; } }
 
@@ -163,19 +164,14 @@ function App() {
   useEffect(() => (authenticated ? watchFaceRecognition() : undefined), [authenticated]);
   useEffect(() => { if (faces === false && tab === "People") setTab("PhotoGallery"); }, [faces, tab]);
 
-  let protoWs = 'ws://';
-  if (window.location.protocol === 'https:') {
-    protoWs = 'wss://';
-  }
-  let endpoint = protoWs + window.location.host + '/ws';
-  // The device itself served this page (not Vite on localhost, not a
-  // container): only then does a device update bring a new web app.
-  const servedByDevice = !cfg && !window.location.host.startsWith('localhost');
-  if (window.location.host.startsWith('localhost')) {
-    // Development (npm run dev / preview): VITE_DEVICE=pit.off-the.cloud
-    // picks the device; Cala otherwise.
-    endpoint = 'wss://' + (import.meta.env.VITE_DEVICE || 'cala.off-the.cloud') + '/ws';
-  }
+  // The page's own host, but on the developer's Vite servers (npm run dev,
+  // vite preview), where VITE_DEVICE=pit.off-the.cloud picks the device and
+  // Cala is the default (net/endpoint.ts).
+  const page = pageEndpoint(window.location, import.meta.env.DEV, import.meta.env.VITE_DEVICE, !!cfg);
+  let endpoint = page.endpoint;
+  // The device itself served this page (not the phone apps, not Vite):
+  // only then does a device update bring a new web app.
+  const servedByDevice = page.servedByDevice;
   const mobile = !!cfg;
 
   if (mobile) {
@@ -275,8 +271,8 @@ function App() {
     });
     return () => { live = false; };
   }, [setupInfo, deviceStatus]);
-  const showSetup = (isPrimary: boolean) => {
-    setSetupInfo({ isNewDevice: true, isPrimary });
+  const showSetup = (isPrimary: boolean, container: boolean) => {
+    setSetupInfo({ isNewDevice: true, isPrimary, container });
     setSetupShown(true);
     setSignInInterrupted(null);
     setTab("SignIn");
@@ -585,7 +581,7 @@ function App() {
             onRegisterOpenComposer={(open) => setOpenComposer(() => open)}
           />
         )}
-        {tab === "SignIn" && setupShown && <SignIn isPrimary={setupInfo?.isPrimary ?? true} onDone={finishSetup} />}
+        {tab === "SignIn" && setupShown && <SignIn isPrimary={setupInfo?.isPrimary ?? true} container={setupInfo?.container ?? false} onDone={finishSetup} />}
         {/* Issue #53 follow-up: these three are authenticated-only views
             with no meaningful signed-out state (unlike Profile/Social
             above) — they used to mount unconditionally regardless of

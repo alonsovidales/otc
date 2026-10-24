@@ -49,6 +49,7 @@
   "dev.alert.setaside.title": {"text": "Le fichier {name} a été mis de côté"},
   "dev.alert.update.critical": {"text": "Mise à jour critique {version} : veuillez l’installer rapidement"},
   "dev.alert.update.detail": {"text": "{summary} Installez-la depuis les Paramètres."},
+  "dev.alert.update.detail_container": {"text": "{summary} Pour l’installer, exécutez docker compose pull puis docker compose up -d sur le serveur de l’appareil."},
   "dev.alert.update.major": {"text": "La mise à jour {version} est disponible"},
   "dev.alert.wifi.no_answer": {"text": "l’envoi de données avait ralenti à environ {speed}, avec {pct} % des données envoyées deux fois, et le redémarrage du Wi-Fi n’a jamais répondu. Redémarrez l’appareil depuis les Paramètres, ou reliez-le à votre routeur avec un câble Ethernet."},
   "dev.alert.wifi.no_runner": {"text": "l’envoi de données a ralenti à environ {speed}, avec {pct} % des données envoyées deux fois. Cet appareil ne peut pas redémarrer son Wi-Fi de lui-même tant qu’il n’a pas été mis à jour. Redémarrez l’appareil depuis les Paramètres, ou reliez-le à votre routeur avec un câble Ethernet."},

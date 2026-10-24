@@ -75,6 +75,11 @@
     "note": "Body of the push notification for a critical update to the device's software, under push.update.critical_title. Settings is the Settings screen of the Off The Cloud apps, where the update is installed. In English the release's own summary comes before this sentence; other languages show only this sentence (release summaries stay English).",
     "max": 120
   },
+  "push.update.critical_body_container": {
+    "text": "To install it, run docker compose pull and docker compose up -d on your server.",
+    "note": "Body of the push notification for a critical update to the device's software, under push.update.critical_title, on a device that runs in Docker (a container on the owner's home server or NAS), in place of push.update.critical_body. docker compose pull and docker compose up -d are commands typed on that server: keep them exactly as they are. In English the release's own summary comes before this sentence; other languages show only this sentence.",
+    "max": 120
+  },
   "push.update.critical_title": {
     "text": "Critical update {version} - please install it soon",
     "args": [["version", "text"]],

@@ -6,6 +6,7 @@
   "dev.update.building": {"text": "Wird kompiliert"},
   "dev.update.checking": {"text": "Suche nach Updates"},
   "dev.update.checking_signature": {"text": "Signatur der Releases wird geprüft"},
+  "dev.update.container_pull": {"text": "Dieses Gerät läuft in Docker und wird mit seinem Image aktualisiert: Führe auf seinem Server docker compose pull und danach docker compose up -d aus."},
   "dev.update.downloading": {"text": "Release {release} wird heruntergeladen"},
   "dev.update.generating_protobuf": {"text": "protobuf-Code wird generiert"},
   "dev.update.installing_web": {"text": "Web-App wird installiert"},

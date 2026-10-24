@@ -11,6 +11,14 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #849b4df8"
   },
+  "dev.auth.first_password_home_only": {
+    "text": "The owner password can only be chosen from your home network, at the device's own address and not through a proxy. You can also set it on the server: docker exec -i otc otc-entrypoint set-password, with the password as its input.",
+    "note": "Error reply on the first-run screen of a device that runs in Docker (a container on a home server or NAS) when its first password is chosen from outside the home network, through the internet or through a proxy (a program that forwards the page from another address): for safety the device takes its first password only from the home network. The command after the colon is typed on the server the device runs on, with the password given as its input: keep it exactly as it is."
+  },
+  "dev.auth.first_password_window_closed": {
+    "text": "The 30 minutes to choose the owner password here have passed. Set it on the server instead: docker exec -i otc otc-entrypoint set-password, with the password as its input.",
+    "note": "Error reply on the first-run screen of a device that runs in Docker (a container on a home server or NAS) when its first password is chosen more than 30 minutes after the device first started: for safety the device then takes it only on the server it runs on. The command after the colon is typed on that server, with the password given as its input: keep it exactly as it is."
+  },
   "dev.auth.invalid_session": {
     "text": "Invalid session",
     "note": "Error reply when signing in with a password the device doesn't accept (a wrong password). Shown after \"Error: \".",

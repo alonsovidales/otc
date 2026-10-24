@@ -44,11 +44,16 @@ var headEnglish = []struct {
 	{"dev.err.error_detail", i18n.DevErrErrorDetail("boom"), fmt.Sprintf("Error: %s", "boom")},
 	{"dev.err.internal", i18n.DevErrInternal(), "internal error"},
 	{"dev.err.not_authenticated", i18n.DevErrNotAuthenticated(), "not authenticated"},
+	// dev.err.not_in_container and dev.auth.first_password_* are new
+	// (container mode): their English as first written.
+	{"dev.err.not_in_container", i18n.DevErrNotInContainer(), "Not available in Docker: the server the device runs on looks after its disks and network."},
 	{"dev.err.not_on_this_instance", i18n.DevErrNotOnThisInstance(), "not available on this instance"},
 	{"dev.err.unknown_request", i18n.DevErrUnknownRequest(), "This device does not understand that request: its software is older than the app. Check for updates in Settings."},
 
 	{"dev.auth.decrypt_failed", i18n.DevAuthDecryptFailed(), "unable to decrypt key material"},
 	{"dev.auth.device_state_failed", i18n.DevAuthDeviceStateFailed(), "error checking device state"},
+	{"dev.auth.first_password_home_only", i18n.DevAuthFirstPasswordHomeOnly(), "The owner password can only be chosen from your home network, at the device's own address and not through a proxy. You can also set it on the server: docker exec -i otc otc-entrypoint set-password, with the password as its input."},
+	{"dev.auth.first_password_window_closed", i18n.DevAuthFirstPasswordWindowClosed(), "The 30 minutes to choose the owner password here have passed. Set it on the server instead: docker exec -i otc otc-entrypoint set-password, with the password as its input."},
 	{"dev.auth.invalid_session", i18n.DevAuthInvalidSession(), "Invalid session"},
 	{"dev.auth.keypair_failed", i18n.DevAuthKeypairFailed(), "error generating keypair"},
 	{"dev.auth.no_public_key", i18n.DevAuthNoPublicKey(), "no public key was requested for this connection"},

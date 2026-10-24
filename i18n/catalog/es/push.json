@@ -13,5 +13,6 @@
   "push.raid.working_body": {"text": "El espejo está completo: todos los archivos vuelven a estar en los dos discos."},
   "push.raid.working_title": {"text": "Los discos de almacenamiento vuelven a funcionar"},
   "push.update.critical_body": {"text": "Instálala desde Ajustes."},
+  "push.update.critical_body_container": {"text": "Para instalarla, ejecuta docker compose pull y docker compose up -d en tu servidor."},
   "push.update.critical_title": {"text": "Actualización crítica {version}: instálala pronto"}
 }

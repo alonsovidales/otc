@@ -4,6 +4,7 @@
   "dev.err.error_detail": {"text": "Fout: {detail}"},
   "dev.err.internal": {"text": "interne fout"},
   "dev.err.not_authenticated": {"text": "niet geverifieerd"},
+  "dev.err.not_in_container": {"text": "Niet beschikbaar in Docker: de server waarop het apparaat draait, zorgt voor de schijven en het netwerk."},
   "dev.err.not_on_this_instance": {"text": "niet beschikbaar op deze instantie"},
   "dev.err.unknown_request": {"text": "Dit apparaat begrijpt dat verzoek niet: de software is ouder dan de app. Zoek naar updates in Instellingen."}
 }

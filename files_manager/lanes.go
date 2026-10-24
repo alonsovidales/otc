@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/alonsovidales/otc/blobstore"
+	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -144,7 +145,18 @@ const (
 // processingWorkers is how many jobs the fast and analysis lanes run at
 // once on this machine.
 func processingWorkers() (fast, analysis int) {
-	return processingWorkersFor(runtime.NumCPU(), CurrentMemoryProfile())
+	return processingWorkersFor(cpuCount(), CurrentMemoryProfile())
+}
+
+// cpuCount is the CPUs processing is sized by: the machine's, or in a
+// container the ones the Go runtime was given - its CPU limit
+// (runtime.GOMAXPROCS, which bin/otc.go leaves to the runtime there), not
+// the host's.
+func cpuCount() int {
+	if container.Enabled() {
+		return runtime.GOMAXPROCS(0)
+	}
+	return runtime.NumCPU()
 }
 
 // processingWorkersFor is processingWorkers for cpus and p. Memory unknown:
@@ -161,7 +173,7 @@ func processingWorkersFor(cpus int, p MemoryProfile) (fast, analysis int) {
 func (mg *Manager) mediaLanes() *mediaLanes {
 	mg.lanesOnce.Do(func() {
 		fast, analysis := processingWorkers()
-		log.Info(fmt.Sprintf("processing: %d thumbnails and %d analyses at once (%d CPUs, %d GB of memory)", fast, analysis, runtime.NumCPU(), CurrentMemoryProfile().NominalGB())) // i18n-ignore: a log line
+		log.Info(fmt.Sprintf("processing: %d thumbnails and %d analyses at once (%d CPUs, %d GB of memory)", fast, analysis, cpuCount(), CurrentMemoryProfile().NominalGB())) // i18n-ignore: a log line
 		mg.lanes = newMediaLanes(fast, analysis, mg.thumbnailJob, mg.analysisJob)
 	})
 	return mg.lanes

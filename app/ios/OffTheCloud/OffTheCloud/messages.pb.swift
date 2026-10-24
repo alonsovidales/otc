@@ -716,6 +716,12 @@ public nonisolated struct Msg_PubKey: Sendable {
   /// device.
   public var demoPassword: String = String()
 
+  /// The device runs from the container image (docker/, OTC_CONTAINER): the
+  /// server it runs on looks after its disks and its network, so the
+  /// first-run setup skips the storage and WiFi steps, as it does on an
+  /// additional user's instance. Unset on every other device.
+  public var container: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -2399,6 +2405,12 @@ public nonisolated struct Msg_RespUpdateInfo: Sendable {
   public var currentLabel: String = String()
 
   public var latestLabel: String = String()
+
+  /// The device runs from the container image (docker/, OTC_CONTAINER): it
+  /// can't update itself, its owner pulls the new image on the server, and
+  /// message says how. Clients show that message instead of the Update
+  /// button. Pending lists only releases whose image is already published.
+  public var container: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -7521,7 +7533,7 @@ nonisolated extension Msg_GetPubKey: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 nonisolated extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PubKey"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}public_key\0\u{3}is_new_device\0\u{3}is_primary\0\u{1}demo\0\u{3}demo_password\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}public_key\0\u{3}is_new_device\0\u{3}is_primary\0\u{1}demo\0\u{3}demo_password\0\u{1}container\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -7534,6 +7546,7 @@ nonisolated extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       case 3: try { try decoder.decodeSingularBoolField(value: &self.isPrimary) }()
       case 4: try { try decoder.decodeSingularBoolField(value: &self.demo) }()
       case 5: try { try decoder.decodeSingularStringField(value: &self.demoPassword) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.container) }()
       default: break
       }
     }
@@ -7555,6 +7568,9 @@ nonisolated extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     if !self.demoPassword.isEmpty {
       try visitor.visitSingularStringField(value: self.demoPassword, fieldNumber: 5)
     }
+    if self.container != false {
+      try visitor.visitSingularBoolField(value: self.container, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -7564,6 +7580,7 @@ nonisolated extension Msg_PubKey: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     if lhs.isPrimary != rhs.isPrimary {return false}
     if lhs.demo != rhs.demo {return false}
     if lhs.demoPassword != rhs.demoPassword {return false}
+    if lhs.container != rhs.container {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -10120,7 +10137,7 @@ nonisolated extension Msg_UpdateRelease: SwiftProtobuf.Message, SwiftProtobuf._M
 
 nonisolated extension Msg_RespUpdateInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespUpdateInfo"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}current_version\0\u{3}latest_version\0\u{1}pending\0\u{1}state\0\u{1}message\0\u{3}last_updated\0\u{3}check_error\0\u{3}current_label\0\u{3}latest_label\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}current_version\0\u{3}latest_version\0\u{1}pending\0\u{1}state\0\u{1}message\0\u{3}last_updated\0\u{3}check_error\0\u{3}current_label\0\u{3}latest_label\0\u{1}container\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -10137,6 +10154,7 @@ nonisolated extension Msg_RespUpdateInfo: SwiftProtobuf.Message, SwiftProtobuf._
       case 7: try { try decoder.decodeSingularStringField(value: &self.checkError) }()
       case 8: try { try decoder.decodeSingularStringField(value: &self.currentLabel) }()
       case 9: try { try decoder.decodeSingularStringField(value: &self.latestLabel) }()
+      case 10: try { try decoder.decodeSingularBoolField(value: &self.container) }()
       default: break
       }
     }
@@ -10170,6 +10188,9 @@ nonisolated extension Msg_RespUpdateInfo: SwiftProtobuf.Message, SwiftProtobuf._
     if !self.latestLabel.isEmpty {
       try visitor.visitSingularStringField(value: self.latestLabel, fieldNumber: 9)
     }
+    if self.container != false {
+      try visitor.visitSingularBoolField(value: self.container, fieldNumber: 10)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -10183,6 +10204,7 @@ nonisolated extension Msg_RespUpdateInfo: SwiftProtobuf.Message, SwiftProtobuf._
     if lhs.checkError != rhs.checkError {return false}
     if lhs.currentLabel != rhs.currentLabel {return false}
     if lhs.latestLabel != rhs.latestLabel {return false}
+    if lhs.container != rhs.container {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

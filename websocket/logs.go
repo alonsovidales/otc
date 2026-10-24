@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/devtext"
 	"github.com/alonsovidales/otc/i18n"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -125,12 +126,16 @@ func max64(a, b int64) int64 {
 }
 
 // logsForSupport is what "Send to us" sends: a header naming the device and
-// its version, then the end of both logs - gzip'd.
+// its version (and, in a container, the image it runs: container.Platform),
+// then the end of both logs - gzip'd.
 func (mg *Manager) logsForSupport() ([]byte, error) {
 	var b bytes.Buffer
 	_, domain, _ := mg.settings.Identity()
 	version, _ := os.ReadFile("/etc/otc/version")
 	fmt.Fprintf(&b, "device: %s\nversion: %s\nsent: %s\n", domain, strings.TrimSpace(string(version)), time.Now().UTC().Format(time.RFC3339))
+	if container.Enabled() {
+		fmt.Fprintf(&b, "platform: %s\n", container.Platform())
+	}
 	for _, part := range []struct {
 		source string
 		bytes  int

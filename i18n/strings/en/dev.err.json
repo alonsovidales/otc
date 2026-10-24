@@ -23,6 +23,10 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #b7827766"
   },
+  "dev.err.not_in_container": {
+    "text": "Not available in Docker: the server the device runs on looks after its disks and network.",
+    "note": "Error reply on a device that runs in Docker (a container on a home server or NAS) to setting up its disks or joining a wireless network, which the first-run setup and older apps may ask for: the server the container runs on looks after both."
+  },
   "dev.err.not_on_this_instance": {
     "text": "not available on this instance",
     "note": "Error reply to a request only the device's main user can make (managing users, updates, restart, storage, Wi-Fi, the bridge, logs), sent by an additional user's account on the same device. An instance is one user's own copy of the device's software."

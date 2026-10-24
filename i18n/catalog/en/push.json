@@ -13,5 +13,6 @@
   "push.raid.working_body": {"text": "The mirror is complete: every file is on both disks again."},
   "push.raid.working_title": {"text": "Storage disks working again"},
   "push.update.critical_body": {"text": "Install it from Settings."},
+  "push.update.critical_body_container": {"text": "To install it, run docker compose pull and docker compose up -d on your server."},
   "push.update.critical_title": {"text": "Critical update {version} - please install it soon", "args": [["version", "text"]]}
 }

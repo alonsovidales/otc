@@ -20,6 +20,10 @@
     "en": "not authenticated",
     "reviewed": "claude-backtranslation 2026-10-11 #78d76a23"
   },
+  "dev.err.not_in_container": {
+    "text": "Niet beschikbaar in Docker: de server waarop het apparaat draait, zorgt voor de schijven en het netwerk.",
+    "en": "Not available in Docker: the server the device runs on looks after its disks and network."
+  },
   "dev.err.not_on_this_instance": {
     "text": "niet beschikbaar op deze instantie",
     "en": "not available on this instance"

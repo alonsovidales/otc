@@ -51,7 +51,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   // The device turned out to be new (issue #39): nothing was sent, and App
   // shows its setup.
-  onNewDevice: (isPrimary: boolean) => void;
+  onNewDevice: (isPrimary: boolean, container: boolean) => void;
   // Lands the page, as after any sign-in (App's handleSignedIn).
   onSignedIn: () => void;
   // A sign-in the unreachable screen cut off (see Interrupted), read as
@@ -136,7 +136,7 @@ export default function TopSignIn({
         return;
       }
       if (result.reason === "new-device") {
-        onNewDevice(result.isPrimary);
+        onNewDevice(result.isPrimary, result.container);
         return;
       }
       // The bridge answered for the device: its unreachable screen is about

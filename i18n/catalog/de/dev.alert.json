@@ -49,6 +49,7 @@
   "dev.alert.setaside.title": {"text": "Die Datei {name} wurde zurückgestellt"},
   "dev.alert.update.critical": {"text": "Kritisches Update {version} – bitte bald installieren"},
   "dev.alert.update.detail": {"text": "{summary} Installiere es in den Einstellungen."},
+  "dev.alert.update.detail_container": {"text": "{summary} Zum Installieren führe auf dem Server des Geräts docker compose pull und danach docker compose up -d aus."},
   "dev.alert.update.major": {"text": "Update {version} ist verfügbar"},
   "dev.alert.wifi.no_answer": {"text": "das Senden von Daten hatte sich auf etwa {speed} verlangsamt, wobei {pct} % davon doppelt gesendet wurden, und auf den WLAN-Neustart kam nie eine Antwort. Starte das Gerät in den Einstellungen neu oder verbinde es mit einem Ethernet-Kabel mit deinem Router."},
   "dev.alert.wifi.no_runner": {"text": "das Senden von Daten hat sich auf etwa {speed} verlangsamt, wobei {pct} % davon doppelt gesendet werden. Dieses Gerät kann sein WLAN erst nach einem Update selbst neu starten. Starte das Gerät in den Einstellungen neu oder verbinde es mit einem Ethernet-Kabel mit deinem Router."},

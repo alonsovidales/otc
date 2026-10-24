@@ -5,6 +5,8 @@ package lantls
 import (
 	"net"
 	"strings"
+
+	"github.com/alonsovidales/otc/container"
 )
 
 // cHotspotIface is the setup hotspot's interface (scripts/network_setup.py):
@@ -106,8 +108,22 @@ func skippedIface(name string) bool {
 			return true
 		}
 	}
+	if container.Enabled() {
+		for _, p := range containerHostIfaces {
+			if strings.HasPrefix(name, p) {
+				return true
+			}
+		}
+	}
 	return false
 }
+
+// containerHostIfaces: in a container (container.Enabled) the device sees
+// the server's interfaces (host networking), and a home server carries the
+// bridges of its virtual machines and other containers (libvirt, LXC,
+// Incus, LXD, Kubernetes' CNI, flannel, Calico, Podman) and ZeroTier's
+// network, none of them the home network.
+var containerHostIfaces = []string{"virbr", "lxcbr", "incusbr", "lxdbr", "cni", "flannel", "cali", "podman", "zt"}
 
 func ipOf(a net.Addr) net.IP {
 	switch v := a.(type) {

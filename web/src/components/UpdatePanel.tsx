@@ -33,6 +33,10 @@ type UpdateInfo = {
   message: UiText;
   lastUpdated: string;
   checkError: string;
+  // The device runs from the container image: it is updated by pulling
+  // its new image on the server, which message says - there is no Update
+  // button to press.
+  container: boolean;
 };
 
 // "1.1 (build 85)", or "build 79" for a release from before labels. Build
@@ -116,6 +120,7 @@ export default function UpdatePanel() {
           message: asIs(u.message),
           lastUpdated: u.lastUpdated,
           checkError: u.checkError,
+          container: u.container,
         });
         setError(null);
       } else if (resp.error) {
@@ -297,14 +302,18 @@ export default function UpdatePanel() {
             <button className="sf-btn" onClick={() => void check()} disabled={checking || running}>
               {checking ? t("web.settings.update.checking") : t("web.settings.update.check_again")}
             </button>
-            {hasUpdate && (
+            {hasUpdate && !info.container && (
               <button className="sf-btn primary" onClick={() => void apply()} disabled={starting || running}>
                 {starting ? t("web.settings.general.starting") : t("web.settings.update.update_to", { version: `${info.latestLabel || info.latestVersion}` })}
               </button>
             )}
           </div>
 
-          {(hasUpdate || running) && (
+          {hasUpdate && info.container && (
+            <p className="up-note">{info.message(t)}</p>
+          )}
+
+          {(hasUpdate || running) && !info.container && (
             <p className="up-note">{t("web.settings.update.restarts_note")}</p>
           )}
         </>

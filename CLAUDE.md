@@ -184,8 +184,10 @@ Start every headless Chrome with `--mute-audio` and every Android emulator with 
 unmuted test (a video in the viewer, the audio device opening) beeps through its speaker. Kill the
 browsers, emulators and VMs a test starts when it ends.
 Against a real device without releasing: `VITE_DEVICE=pit.off-the.cloud npm run build --prefix web`,
-then `npx vite preview` in `web/`. On localhost the app connects to `wss://$VITE_DEVICE/ws`, or Cala
-if the variable is unset.
+then `npx vite preview` in `web/`. Under `npm run dev` and at `localhost:4173` (`vite preview`) the
+app connects to `wss://$VITE_DEVICE/ws`, or Cala if the variable is unset; anywhere else, localhost
+included (the container image, an SSH tunnel), it uses the page's own host (`web/src/net/endpoint.ts`,
+`node web/scripts/endpoint-test.mjs`).
 
 The iOS simulator has no tap or type from the command line, and this Xcode has no Simulator
 window to script. Facebook's `idb` drives it instead: `brew install facebook/fb/idb-companion` and
@@ -419,6 +421,17 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
 
 Flat, one-package-per-concern, wired together in `bin/otc.go`:
 
+- `container` — the Docker image (`docker/`, beta): `OTC_CONTAINER=1`, set by the image only, and a
+  no-op everywhere else. Sizes memory from the cgroup (`MemoryTotal`: the limit, `OTC_MEMORY_GB`, 8 GB
+  without a limit), checks whether a release's image is on ghcr.io (`ImageAvailable`), and holds the
+  first-password rules (`HomeAddress`, `OTC_SETUP_UNTIL` in Unix seconds). Callers gate on
+  `container.Enabled()`: `websocket/container.go` (`containerGate` beside `demoGate`: no disks or
+  Wi-Fi, the first owner password only from a home address with no proxy headers and within the
+  window, on the primary; `[otc-api] trusted-proxies` for X-Forwarded-For; user ports from the HTTP
+  port, checked against the host), the updater (image-gated releases, no Apply), raidwatch and RAID
+  status (off), files_manager's sizing (`GOMAXPROCS`, ffmpeg threads), fatal listeners and no `:80`
+  in `api`, extra interface skips in `lantls`. `PubKey.container` and `RespUpdateInfo.container`
+  tell the clients.
 - `cfg` — INI config loader (`etc/otc_<env>.ini`, falling back to `/etc/otc_<env>.ini`); `env` is
   `os.Args[1]` (defaults to `"dev"`). All other packages pull settings via `cfg.GetStr/GetInt/...`.
 - `dao` — the only package that talks to MySQL/MariaDB directly (schema in `db/db.sql`: `files`,

@@ -13,5 +13,6 @@
   "push.raid.working_body": {"text": "Le miroir est complet : chaque fichier est de nouveau sur les deux disques."},
   "push.raid.working_title": {"text": "Les disques de stockage fonctionnent de nouveau"},
   "push.update.critical_body": {"text": "Installez-la depuis les Paramètres."},
+  "push.update.critical_body_container": {"text": "Pour l’installer, exécutez docker compose pull et docker compose up -d sur votre serveur."},
   "push.update.critical_title": {"text": "Mise à jour critique {version} : veuillez l’installer rapidement"}
 }

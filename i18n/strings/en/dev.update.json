@@ -29,6 +29,10 @@
     "text": "Checking the release signature",
     "note": "Progress line in Settings > Device version as an update starts: the device checks that the list of releases is signed by the project."
   },
+  "dev.update.container_pull": {
+    "text": "This device runs in Docker and is updated with its image: on its server, run docker compose pull and then docker compose up -d.",
+    "note": "Shown in Settings > Device version on a device that runs in Docker (a container on a home server or NAS), in place of the Update button, and as the reply to Update in an app that doesn't know about Docker yet. Such a device can't update itself: its owner pulls the new image on the server it runs on. docker compose pull and docker compose up -d are commands typed on that server: keep them exactly as they are."
+  },
   "dev.update.downloading": {
     "text": "Downloading release {release}",
     "args": [["release", "text"]],

@@ -14,6 +14,16 @@ func DevAuthDeviceStateFailed() Msg {
 	return Msg{Key: "dev.auth.device_state_failed"}
 }
 
+// DevAuthFirstPasswordHomeOnly is dev.auth.first_password_home_only: "The owner password can only be chosen from your home network, at the device's ow…".
+func DevAuthFirstPasswordHomeOnly() Msg {
+	return Msg{Key: "dev.auth.first_password_home_only"}
+}
+
+// DevAuthFirstPasswordWindowClosed is dev.auth.first_password_window_closed: "The 30 minutes to choose the owner password here have passed. Set it on the serv…".
+func DevAuthFirstPasswordWindowClosed() Msg {
+	return Msg{Key: "dev.auth.first_password_window_closed"}
+}
+
 // DevAuthInvalidSession is dev.auth.invalid_session: "Invalid session".
 func DevAuthInvalidSession() Msg {
 	return Msg{Key: "dev.auth.invalid_session"}

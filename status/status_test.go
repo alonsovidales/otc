@@ -156,3 +156,41 @@ func TestReadRaidStatusReadsRealFixture(t *testing.T) {
 		t.Errorf("expected RaidInSync reading the fixture file, got %v", info.state)
 	}
 }
+
+// In a container /proc/mdstat is the host's: a degraded host array (a
+// NAS's system array, say) is no business of the device's, which reports
+// no mirror and raises no banner. Without OTC_CONTAINER the same file is
+// read as always.
+func TestReadRaidStatusInAContainer(t *testing.T) {
+	orig := mdstatPath
+	path := filepath.Join(t.TempDir(), "mdstat")
+	if err := os.WriteFile(path, []byte(mdstatDegraded), 0644); err != nil {
+		t.Fatalf("writing fixture: %v", err)
+	}
+	mdstatPath = path
+	defer func() { mdstatPath = orig }()
+
+	t.Setenv("OTC_CONTAINER", "1")
+	if info := readRaidStatus(); info.state != pb.RaidState_RaidNone || info.devicesTotal != 0 || info.level != "" {
+		t.Errorf("in a container: %+v, want no mirror", info)
+	}
+
+	t.Setenv("OTC_CONTAINER", "")
+	if info := readRaidStatus(); info.state != pb.RaidState_RaidDegraded || info.devicesTotal != 2 {
+		t.Errorf("elsewhere: %+v, want the degraded array", info)
+	}
+}
+
+// The memory figures in a container: the container's when it has them,
+// the machine's otherwise (never zero for a figure the machine has).
+func TestContainerMemory(t *testing.T) {
+	t.Setenv("OTC_CONTAINER", "1")
+	t.Setenv("OTC_MEMORY_GB", "2")
+	total, used := containerMemory(64<<30, 5<<30)
+	if total != 2<<30 {
+		t.Errorf("total %d, want the 2 GB the device is sized to", total)
+	}
+	if used == 0 {
+		t.Error("used is 0")
+	}
+}

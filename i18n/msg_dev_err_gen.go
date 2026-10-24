@@ -29,6 +29,11 @@ func DevErrNotAuthenticated() Msg {
 	return Msg{Key: "dev.err.not_authenticated"}
 }
 
+// DevErrNotInContainer is dev.err.not_in_container: "Not available in Docker: the server the device runs on looks after its disks and…".
+func DevErrNotInContainer() Msg {
+	return Msg{Key: "dev.err.not_in_container"}
+}
+
 // DevErrNotOnThisInstance is dev.err.not_on_this_instance: "not available on this instance".
 func DevErrNotOnThisInstance() Msg {
 	return Msg{Key: "dev.err.not_on_this_instance"}

@@ -7,12 +7,14 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/staticassets"
 	"github.com/alonsovidales/otc/websocket"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"regexp"
@@ -78,14 +80,18 @@ func Init(filesManager *filesmanager.Manager, webSocket *websocket.Manager, dao 
 	}
 	api.registerAPIs()
 	log.Info("Starting API server on port:", httpPort)
-	// Logged, not fatal: a port another process still holds left this
-	// instance running with no listener and nothing in the log, while it
-	// can still serve through the bridge.
-	go func() {
-		if err := newServer(fmt.Sprintf(":%d", httpPort), api.muxHTTPServer).ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Error("could not listen on API port", httpPort, "(LAN clients and video processing will fail):", err)
-		}
-	}()
+	if container.Enabled() {
+		api.serveOrExit(httpPort)
+	} else {
+		// Logged, not fatal: a port another process still holds left this
+		// instance running with no listener and nothing in the log, while
+		// it can still serve through the bridge.
+		go func() {
+			if err := newServer(fmt.Sprintf(":%d", httpPort), api.muxHTTPServer).ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Error("could not listen on API port", httpPort, "(LAN clients and video processing will fail):", err)
+			}
+		}()
+	}
 	// Without a certificate there is nothing to serve TLS with (it failed
 	// straight away on opening the empty path).
 	if cert != "" && key != "" {
@@ -111,13 +117,53 @@ func Init(filesManager *filesmanager.Manager, webSocket *websocket.Manager, dao 
 	// otherwise; logged rather than fatal since anywhere else (a laptop
 	// running this without that capability, or something already on 80)
 	// this simply isn't available, and that's fine — httpPort still works.
-	go func() {
-		if err := newServer(":80", api.muxHTTPServer).ListenAndServe(); err != nil {
-			log.Error("could not also listen on :80 (captive-portal probes won't be caught):", err)
-		}
-	}()
+	// Not in a container: port 80 there is the server's (host networking),
+	// and no captive portal is ever shown from it.
+	if captivePortalPort() {
+		go func() {
+			if err := newServer(":80", api.muxHTTPServer).ListenAndServe(); err != nil {
+				log.Error("could not also listen on :80 (captive-portal probes won't be caught):", err)
+			}
+		}()
+	}
 
 	return
+}
+
+// captivePortalPort is whether Init also listens on port 80.
+func captivePortalPort() bool { return !container.Enabled() }
+
+// exitProcess ends the process; a var for tests.
+var exitProcess = os.Exit
+
+// serveOrExit serves the HTTP port in a container, where a port that can't
+// be listened on ends the process instead of leaving it running without
+// its home-network listener: the container's start-up script then
+// restarts it, and after five failures in two minutes stops the container
+// with the reason in its log.
+func (api *API) serveOrExit(port int) {
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		api.listenFailed(port, err)
+		return
+	}
+	srv := newServer("", api.muxHTTPServer)
+	go func() {
+		if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
+			api.listenFailed(port, err)
+		}
+	}()
+}
+
+// listenFailed ends the process, in a container, over a port it serves
+// that failed. Its run marker is removed first (files_manager/runstate.go):
+// a port held by another program is no crash for the next start to count.
+func (api *API) listenFailed(port int, err error) {
+	log.Error("could not listen on port", port, "- stopping:", err)
+	if api.filesManager != nil {
+		api.filesManager.Stopped()
+	}
+	exitProcess(1)
 }
 
 // registerAPIs Recister all the handles into the corresponding endpoints

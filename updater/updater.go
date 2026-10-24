@@ -30,12 +30,14 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/devtext"
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
@@ -319,8 +321,54 @@ func Check() (*Info, error) {
 			info.Pending = append(info.Pending, release)
 		}
 	}
+	if container.Enabled() {
+		onlyPublishedImages(info, imageAvailable)
+	}
 
 	return info, nil
+}
+
+// imageAvailable is container.ImageAvailable; a var for tests.
+var imageAvailable = container.ImageAvailable
+
+// cImageLookups is how many of the newest pending releases one check asks
+// the registry about.
+const cImageLookups = 5
+
+// onlyPublishedImages narrows info, in a container, to the releases it can
+// be updated to: those up to the newest whose image is published
+// (available). A container is updated by pulling its new image, which is
+// built and published some minutes after the release; until then the
+// release is not offered, not alerted and not pushed. With none published,
+// nothing is pending and the latest is the installed release.
+func onlyPublishedImages(info *Info, available func(int) bool) {
+	if len(info.Pending) == 0 {
+		return
+	}
+	newest := Release{}
+	byVersion := slices.Clone(info.Pending)
+	slices.SortFunc(byVersion, func(a, b Release) int { return b.Version - a.Version })
+	for i, r := range byVersion {
+		if i >= cImageLookups {
+			break
+		}
+		if available(r.Version) {
+			newest = r
+			break
+		}
+	}
+	var kept []Release
+	for _, r := range info.Pending {
+		if r.Version <= newest.Version {
+			kept = append(kept, r)
+		}
+	}
+	info.Pending = kept
+	if newest.Version == 0 {
+		info.LatestVersion, info.LatestLabel = info.CurrentVersion, info.CurrentLabel
+		return
+	}
+	info.LatestVersion, info.LatestLabel = newest.Version, newest.Label
 }
 
 // Apply downloads the runner and starts it, detached and as root, then
@@ -331,7 +379,13 @@ func Check() (*Info, error) {
 // the source tree here is whatever the *last* update left behind, and an
 // update has to be driven by the newest runner, not an old one that may
 // not understand the newest manifest.
+//
+// In a container nothing is run: the device is updated by pulling its new
+// image on the server, which the error says.
 func Apply() error {
+	if container.Enabled() {
+		return devtext.New(i18n.DevUpdateContainerPull())
+	}
 	if status := CurrentStatus(); status.State == "running" {
 		return devtext.New(i18n.DevUpdateAlreadyRunning())
 	}

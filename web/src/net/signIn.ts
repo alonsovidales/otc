@@ -27,16 +27,16 @@ export type SignInResult =
   | { ok: false; reason: "wrong" | "unreachable" | "other"; message: UiText }
   // The device has no password yet, so nothing was sent: its setup is
   // what to show (never for setUp).
-  | { ok: false; reason: "new-device"; isPrimary: boolean };
+  | { ok: false; reason: "new-device"; isPrimary: boolean; container: boolean };
 
 // setUp: the password is a new device's own, chosen in its setup.
 export async function signInWithPassword(password: string, { setUp = false } = {}): Promise<SignInResult> {
   try {
-    if (await useWS.sendAuth(password, { refuseNewDevice: !setUp, keepOnlyIfAccepted: true })) return { ok: true };
+    if (await useWS.sendAuth(password, { refuseNewDevice: !setUp, keepOnlyIfAccepted: true, setUp })) return { ok: true };
     return { ok: false, reason: "wrong", message: (t) => t("web.shell.signin.wrong") };
   } catch (err) {
     if (err instanceof NewDevice) {
-      return { ok: false, reason: "new-device", isPrimary: err.isPrimary };
+      return { ok: false, reason: "new-device", isPrimary: err.isPrimary, container: err.container };
     }
     if (!navigator.onLine) {
       return { ok: false, reason: "unreachable", message: (t) => t("web.shell.signin.offline") };

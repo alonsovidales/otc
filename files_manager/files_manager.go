@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"github.com/alonsovidales/otc/blobstore"
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/devtext"
 	"github.com/alonsovidales/otc/exifinfo"
@@ -50,6 +51,7 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -187,6 +189,9 @@ func Init(baseUrl string, dao *dao.Dao) *Manager {
 	if memProfile.Low {
 		budget = memProfile.lowContentBudget()
 		ffmpegThreads = cFFmpegLowThreads
+	}
+	if container.Enabled() {
+		ffmpegThreads = containerFFmpegThreads(runtime.GOMAXPROCS(0), ffmpegThreads)
 	}
 	mg := &Manager{
 		searchTokens:  newSearchTokenCache(cSearchTokensMaxRows),

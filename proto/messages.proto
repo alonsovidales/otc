@@ -213,6 +213,11 @@ message PubKey {
   // sign-in screen can sign anyone in with one tap. Empty on every other
   // device.
   string demo_password = 5;
+  // The device runs from the container image (docker/, OTC_CONTAINER): the
+  // server it runs on looks after its disks and its network, so the
+  // first-run setup skips the storage and WiFi steps, as it does on an
+  // additional user's instance. Unset on every other device.
+  bool container = 6;
 }
 
 message UploadFile {
@@ -1016,6 +1021,11 @@ message RespUpdateInfo {
   // Issue #183: the installed version's label ("1.1"; empty before labels).
   string current_label = 8;
   string latest_label = 9;
+  // The device runs from the container image (docker/, OTC_CONTAINER): it
+  // can't update itself, its owner pulls the new image on the server, and
+  // message says how. Clients show that message instead of the Update
+  // button. Pending lists only releases whose image is already published.
+  bool container = 10;
 }
 
 // Starts the update and answers immediately - it takes minutes and ends

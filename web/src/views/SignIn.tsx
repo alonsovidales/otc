@@ -37,7 +37,7 @@ function StepHeading({ children }: { children: ReactNode }) {
   );
 }
 
-function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void }) {
+function SignIn({ isPrimary, container, onDone }: { isPrimary: boolean; container: boolean; onDone: () => void }) {
   const t = useT();
   // Issue #39: a device with no owner secret yet is treated as fresh out
   // of the box — instead of a plain password box (which would just
@@ -50,6 +50,8 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
   // and are not this user's to change - their setup is just a name and a
   // password (`isPrimary` false; true when the device couldn't say, so it
   // gets the full wizard rather than silently skipping real setup steps).
+  // A device in a container (`container`) skips them too: the server it
+  // runs on looks after its disks and network.
   const [step, setStep] = useState<Step>("credentials");
 
   const [ownerName, setOwnerName] = useState("");
@@ -115,8 +117,9 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
       // already configured (and which the device refuses to let a child
       // instance touch anyway - see the guards on ReqSetupStorage/
       // ReqSetWifi). Asking would be offering a choice that isn't theirs
-      // to make and wouldn't be honoured.
-      if (!isPrimary) {
+      // to make and wouldn't be honoured. The same for a device in a
+      // container: its server's disks and network are the server's.
+      if (!isPrimary || container) {
         onDone();
         return;
       }
@@ -311,7 +314,7 @@ function SignIn({ isPrimary, onDone }: { isPrimary: boolean; onDone: () => void 
         </div>
         {error && <p className="sf-note error">{error(t)}</p>}
         <button className="sf-btn" disabled={submitting}>
-          {submitting ? t("web.shell.setup.setting_up") : isPrimary ? t("web.shell.setup.next_storage") : t("web.shell.setup.finish")}
+          {submitting ? t("web.shell.setup.setting_up") : isPrimary && !container ? t("web.shell.setup.next_storage") : t("web.shell.setup.finish")}
         </button>
       </form>
     </section>

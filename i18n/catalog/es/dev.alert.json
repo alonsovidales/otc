@@ -49,6 +49,7 @@
   "dev.alert.setaside.title": {"text": "El archivo {name} se ha apartado"},
   "dev.alert.update.critical": {"text": "Actualización crítica {version}: instálala pronto"},
   "dev.alert.update.detail": {"text": "{summary} Instálala desde Ajustes."},
+  "dev.alert.update.detail_container": {"text": "{summary} Para instalarla, ejecuta docker compose pull y después docker compose up -d en el servidor del dispositivo."},
   "dev.alert.update.major": {"text": "Actualización {version} disponible"},
   "dev.alert.wifi.no_answer": {"text": "el envío de datos se había ralentizado hasta unos {speed}, con un {pct} % de los datos enviados dos veces, y el reinicio del Wi-Fi no ha respondido. Reinicia el dispositivo desde Ajustes o conéctalo al router con un cable Ethernet."},
   "dev.alert.wifi.no_runner": {"text": "el envío de datos se ha ralentizado hasta unos {speed}, con un {pct} % de los datos enviados dos veces. Este dispositivo no puede reiniciar su Wi-Fi por sí solo hasta que se actualice. Reinicia el dispositivo desde Ajustes o conéctalo al router con un cable Ethernet."},

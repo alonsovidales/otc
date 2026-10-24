@@ -30,6 +30,27 @@ func TestSetMemoryLimitLowMemory(t *testing.T) {
 	}
 }
 
+// In a container Go gets 40% of the container's memory (p.Total), not of
+// the host's MemTotal.
+func TestSetMemoryLimitInAContainer(t *testing.T) {
+	if os.Getenv("GOMEMLIMIT") != "" {
+		t.Skip("GOMEMLIMIT is set")
+	}
+	before := debug.SetMemoryLimit(-1)
+	defer debug.SetMemoryLimit(before)
+	t.Setenv("OTC_CONTAINER", "1")
+	setMemoryLimit(filesmanager.MemoryProfile{Total: 8 << 30, Source: "auto"})
+	if got := debug.SetMemoryLimit(-1); got != (8<<30)*2/5 {
+		t.Errorf("limit %d MB, want %d", got>>20, ((8<<30)*2/5)>>20)
+	}
+	// Low-memory mode's 20% still applies, of the container's memory.
+	p := filesmanager.MemoryProfile{Low: true, Total: 3 << 30, Source: "auto"}
+	setMemoryLimit(p)
+	if got := debug.SetMemoryLimit(-1); got != p.GoMemoryLimit() {
+		t.Errorf("low memory: limit %d MB, want %d", got>>20, p.GoMemoryLimit()>>20)
+	}
+}
+
 type stopOrder []string
 
 type markerStop struct{ o *stopOrder }

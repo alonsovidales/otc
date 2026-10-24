@@ -6,6 +6,7 @@
   "dev.update.building": {"text": "Bouwen"},
   "dev.update.checking": {"text": "Controleren op updates"},
   "dev.update.checking_signature": {"text": "Handtekening van de release controleren"},
+  "dev.update.container_pull": {"text": "Dit apparaat draait in Docker en wordt bijgewerkt met zijn image: voer op de server docker compose pull en daarna docker compose up -d uit."},
   "dev.update.downloading": {"text": "Release {release} downloaden"},
   "dev.update.generating_protobuf": {"text": "Code voor protobuf genereren"},
   "dev.update.installing_web": {"text": "Webapp installeren"},

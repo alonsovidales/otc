@@ -47,6 +47,20 @@ func CriticalUpdate(version, summary string) Text {
 	}
 }
 
+// CriticalImageUpdate is CriticalUpdate for a device that runs from the
+// container image, which is updated by pulling its new image on the server
+// rather than from Settings: the body says so.
+func CriticalImageUpdate(version, summary string) Text {
+	return func(lang string) (string, string) {
+		title := i18n.PushUpdateCriticalTitle(version).Render(lang)
+		body := i18n.PushUpdateCriticalBodyContainer().Render(lang)
+		if english(lang) {
+			body = summary + " " + body
+		}
+		return title, body
+	}
+}
+
 // The ports raidwatch names a disk by (raidwatch.Port), as strings: push
 // is built into the bridge too, which has no business with raidwatch.
 const (

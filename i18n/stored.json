@@ -47,6 +47,7 @@
   "dev.alert.setaside.title": [["name", "user"]],
   "dev.alert.update.critical": [["version", "text"]],
   "dev.alert.update.detail": [["summary", "text"]],
+  "dev.alert.update.detail_container": [["summary", "text"]],
   "dev.alert.update.major": [["version", "text"]],
   "dev.alert.wifi.no_answer": [["speed", "text"], ["pct", "text"]],
   "dev.alert.wifi.no_runner": [["speed", "text"], ["pct", "text"]],

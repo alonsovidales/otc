@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
@@ -89,8 +90,14 @@ func contentBudgetBytes() int64 {
 // MemTotalBytes is MemTotal from /proc/meminfo, or 0 off Linux.
 func MemTotalBytes() int64 { return memTotalBytes() }
 
-// memTotalBytes is MemTotal from /proc/meminfo, or 0 off Linux.
+// memTotalBytes is MemTotal from /proc/meminfo, or 0 off Linux. In a
+// container it is the container's memory instead (container.MemoryTotal:
+// its limit, or 8 GB without one), which the profile and every budget
+// sized from this follow.
 func memTotalBytes() int64 {
+	if container.Enabled() {
+		return container.MemoryTotal()
+	}
 	f, err := os.Open("/proc/meminfo")
 	if err != nil {
 		return 0

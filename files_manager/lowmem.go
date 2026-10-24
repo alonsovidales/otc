@@ -308,8 +308,25 @@ func (mg *Manager) processingDeferred() bool {
 }
 
 // ffmpegThreads, when set, is how many threads ffmpeg decodes a frame with
-// ("-threads"); ffmpeg's own choice when empty.
+// ("-threads"); ffmpeg's own choice when empty. Set in low-memory mode,
+// and always in a container (containerFFmpegThreads).
 var ffmpegThreads string
+
+// cFFmpegMaxThreads caps ffmpeg's threads in a container: a Raspberry Pi
+// 5's four (see cFFmpegFrameThreads).
+const cFFmpegMaxThreads = 4
+
+// containerFFmpegThreads is ffmpegThreads in a container: no more than
+// the CPUs the container was given (procs: runtime.GOMAXPROCS), nor four,
+// nor what low-memory mode set (current) - ffmpeg's own choice follows the
+// host's CPUs, not the container's limit.
+func containerFFmpegThreads(procs int, current string) string {
+	n := min(procs, cFFmpegMaxThreads)
+	if c, err := strconv.Atoi(current); err == nil && c > 0 {
+		n = min(n, c)
+	}
+	return strconv.Itoa(max(n, 1))
+}
 
 // ffmpegInput is the arguments that open path for ffmpeg: "-i path", after
 // "-threads n" in low-memory mode.

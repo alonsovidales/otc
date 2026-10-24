@@ -7,6 +7,7 @@ import (
 
 	"github.com/alonsovidales/otc/alerttext"
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
@@ -39,7 +40,9 @@ func startMachineAlerts(dao *dao.Dao, ps *push.Push, sup *supervisor.Supervisor)
 	// A disk of the mirror that stops working: an Alert and a push naming
 	// the USB port it is in, and another once the mirror is whole again.
 	// The one device error that is pushed - the others never are (#64).
-	if sup != nil && cfg.HasSection("otc") && cfg.GetStr("otc", "storage-path") != "" {
+	// Not in a container: /proc/mdstat is the host's there, whose arrays
+	// the host itself watches.
+	if sup != nil && !container.Enabled() && cfg.HasSection("otc") && cfg.GetStr("otc", "storage-path") != "" {
 		go raidwatch.Watch(cfg.GetStr("otc", "storage-path"), raidwatch.Notify{
 			AlertText: func(a alerttext.Alert) {
 				if err := dao.AddStorageNotification(a); err != nil {
@@ -73,23 +76,45 @@ func updateTitles(version string) (major, critical string) {
 // titles for the rows from before it), and for a critical update pushes
 // it with the alert, so once too (push.CriticalUpdate, rendered in the
 // push language when it is delivered).
+//
+// In a container the release is installed by pulling its image, so the
+// alert and the push say that instead, and come only once the image is
+// published (updater.Check already keeps the newer releases out until
+// then; checked again here, as nothing must send the owner to pull an
+// image that isn't there).
 func updateAlert(d *dao.Dao, notify func(t push.Text, target push.Target), a *updater.Alert) {
+	inContainer := container.Enabled()
+	if inContainer && !imageAvailable(a.Target) {
+		log.Info("update", a.Version, "is not announced yet: its image is not published")
+		return
+	}
 	major, critical := updateTitles(a.Version)
 	title := i18n.DevAlertUpdateMajor(a.Version)
 	isCritical := a.Level == updater.KindCritical
 	if isCritical {
 		title = i18n.DevAlertUpdateCritical(a.Version)
 	}
-	alert := alerttext.New(title, i18n.DevAlertUpdateDetail(a.Summary))
+	detail := i18n.DevAlertUpdateDetail(a.Summary)
+	if inContainer {
+		detail = i18n.DevAlertUpdateDetailContainer(a.Summary)
+	}
+	alert := alerttext.New(title, detail)
 	added, err := d.AddUpdateNotification(a.Version, alert, []string{major, critical})
 	if err != nil {
 		log.Error("could not add the update notification:", err)
 		return
 	}
 	if added && isCritical {
-		notify(push.CriticalUpdate(a.Version, a.Summary), push.Target{})
+		text := push.CriticalUpdate(a.Version, a.Summary)
+		if inContainer {
+			text = push.CriticalImageUpdate(a.Version, a.Summary)
+		}
+		notify(text, push.Target{})
 	}
 }
+
+// imageAvailable is container.ImageAvailable; a var for tests.
+var imageAvailable = container.ImageAvailable
 
 // localizeAlerts puts the alerts among notifications (ListNotifications'
 // answer) in lang, the request's language; on a failure they keep their

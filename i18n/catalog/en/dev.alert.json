@@ -49,6 +49,7 @@
   "dev.alert.setaside.title": {"text": "{name} was set aside", "args": [["name", "user"]]},
   "dev.alert.update.critical": {"text": "Critical update {version} - please install it soon", "args": [["version", "text"]]},
   "dev.alert.update.detail": {"text": "{summary} Install it from Settings.", "args": [["summary", "text"]]},
+  "dev.alert.update.detail_container": {"text": "{summary} To install it, run docker compose pull and then docker compose up -d on the device's server.", "args": [["summary", "text"]]},
   "dev.alert.update.major": {"text": "Update {version} is available", "args": [["version", "text"]]},
   "dev.alert.wifi.no_answer": {"text": "sending data had slowed down to about {speed}, with {pct}% of it sent twice, and the Wi-Fi restart never answered. Restart the device from Settings, or connect it to your router with an Ethernet cable.", "args": [["speed", "text"], ["pct", "text"]]},
   "dev.alert.wifi.no_runner": {"text": "sending data has slowed down to about {speed}, with {pct}% of it sent twice. This device can't restart its Wi-Fi by itself until it is updated. Restart the device from Settings, or connect it to your router with an Ethernet cable.", "args": [["speed", "text"], ["pct", "text"]]},

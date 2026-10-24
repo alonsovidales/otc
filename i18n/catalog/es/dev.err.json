@@ -4,6 +4,7 @@
   "dev.err.error_detail": {"text": "Error: {detail}"},
   "dev.err.internal": {"text": "error interno"},
   "dev.err.not_authenticated": {"text": "no autenticado"},
+  "dev.err.not_in_container": {"text": "No disponible en Docker: el servidor en el que funciona el dispositivo se encarga de sus discos y de su red."},
   "dev.err.not_on_this_instance": {"text": "no disponible en esta instancia"},
   "dev.err.unknown_request": {"text": "Este dispositivo no entiende esa solicitud: su software es más antiguo que la app. Busca actualizaciones en Ajustes."}
 }

@@ -277,3 +277,35 @@ func TestAddressesReadsTheInterfaces(t *testing.T) {
 		t.Error("expected the listing's error")
 	}
 }
+
+// In a container the server's own bridges for virtual machines and other
+// containers, and ZeroTier, are left out too; elsewhere they are as any
+// interface (a Raspberry Pi has none of them).
+func TestFilterAddressesInAContainer(t *testing.T) {
+	up := net.FlagUp | net.FlagBroadcast | net.FlagMulticast
+	ifs := []iface{
+		{"eth0", up, []net.Addr{ipNet(t, "192.168.1.10/24")}},
+		{"virbr0", up, []net.Addr{ipNet(t, "192.168.122.1/24")}},
+		{"lxcbr0", up, []net.Addr{ipNet(t, "10.0.3.1/24")}},
+		{"incusbr0", up, []net.Addr{ipNet(t, "10.10.10.1/24")}},
+		{"lxdbr0", up, []net.Addr{ipNet(t, "10.20.20.1/24")}},
+		{"cni0", up, []net.Addr{ipNet(t, "10.88.0.1/16")}},
+		{"flannel.1", up, []net.Addr{ipNet(t, "10.244.0.0/32")}},
+		{"cali1234", up, []net.Addr{ipNet(t, "10.30.0.1/32")}},
+		{"podman1", up, []net.Addr{ipNet(t, "10.89.0.1/24")}},
+		{"ztabcdef", up, []net.Addr{ipNet(t, "10.147.17.5/24")}},
+		{"docker0", up, []net.Addr{ipNet(t, "172.17.0.1/16")}},
+		{"enp3s0", up, []net.Addr{ipNet(t, "192.168.1.11/24")}},
+	}
+
+	t.Setenv("OTC_CONTAINER", "1")
+	if got, want := filterAddresses(ifs), []string{"192.168.1.10", "192.168.1.11"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("in a container: got %v, want %v", got, want)
+	}
+
+	t.Setenv("OTC_CONTAINER", "")
+	want := []string{"192.168.1.10", "192.168.122.1", "10.0.3.1", "10.10.10.1", "10.20.20.1", "10.88.0.1", "10.244.0.0", "10.30.0.1", "10.89.0.1", "10.147.17.5", "192.168.1.11"}
+	if got := filterAddresses(ifs); !reflect.DeepEqual(got, want) {
+		t.Errorf("elsewhere: got %v, want %v", got, want)
+	}
+}

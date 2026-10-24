@@ -29,6 +29,7 @@ import (
 
 	"github.com/alonsovidales/otc/bridgeaccess"
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/devicerestart"
 	"github.com/alonsovidales/otc/devtext"
@@ -1129,6 +1130,12 @@ type connHandler struct {
 	// comes once, first; any later one would be a client trying to pick
 	// its own address for the password-attempt limit.
 	clientInfoSet bool
+	// In a container (container.Enabled) only, for the first owner
+	// password (containerGate): the direct connection's own peer address,
+	// whatever its headers say, and whether it carried a proxy's headers.
+	// Set at construction, never changed.
+	peer    string
+	proxied bool
 
 	mu            sync.RWMutex
 	session       *session.Session
@@ -1381,6 +1388,9 @@ func buildUpdateInfo(lang string) *pb.RespUpdateInfo {
 		Message:        status.Text(lang),
 		LastUpdated:    status.Updated,
 	}
+	if container.Enabled() {
+		containerUpdateInfo(out, lang)
+	}
 
 	info, err := updater.Check()
 	if err != nil {
@@ -1512,6 +1522,7 @@ func (ch *connHandler) processNonAuthRequest(env *pb.ReqEnvelope, lang string) (
 				IsPrimary:    ch.mg.sup != nil,
 				Demo:         demoMode,
 				DemoPassword: demoPasswordShown(),
+				Container:    container.Enabled(),
 			},
 		}
 
@@ -3680,7 +3691,13 @@ func (ch *connHandler) createUser(req *pb.ReqCreateUser) (users []*pb.User, pass
 	}
 
 	port := int(req.Port)
-	if port == 0 {
+	if container.Enabled() {
+		// The server's own ports (host networking): checked against it,
+		// and counted from the container's HTTP port.
+		if port, err = ch.containerUserPort(port); err != nil {
+			return nil, false, err
+		}
+	} else if port == 0 {
 		var err error
 		if port, err = ch.mg.dao.NextFreePort(8081); err != nil {
 			return nil, false, err
@@ -4061,6 +4078,11 @@ func (ch *connHandler) processMessage(env *pb.ReqEnvelope) (resp *pb.RespEnvelop
 			return r, false
 		}
 	}
+	if container.Enabled() {
+		if r, handled := ch.containerGate(env, lang); handled {
+			return r, false
+		}
+	}
 
 	resp, closeConn = ch.processNonAuthRequest(env, lang)
 
@@ -4107,10 +4129,15 @@ func (ch *connHandler) processMessage(env *pb.ReqEnvelope) (resp *pb.RespEnvelop
 // from this machine - Tailscale Funnel terminates TLS in tailscaled and
 // forwards from loopback with the real client in that header - and never
 // from a LAN peer, which could otherwise pick a fresh "address" per guess.
+//
+// In a container (container.Enabled) nothing forwards from loopback by
+// itself - there is no Tailscale there - and the owner's reverse proxy
+// may sit anywhere: the header is believed only from the peers in
+// [otc-api] trusted-proxies (forwardedClient), none by default.
 func clientAddr(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
+	host := peerHost(r)
+	if container.Enabled() {
+		return forwardedClient(host, r.Header.Values("X-Forwarded-For"), trustedProxies())
 	}
 	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
 		if fwd := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]); fwd != "" {
@@ -4133,6 +4160,9 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 	}
 	if r != nil {
 		ch.remoteAddr = clientAddr(r)
+		if container.Enabled() {
+			ch.peer, ch.proxied = peerHost(r), proxyHeaders(r)
+		}
 	}
 
 	var writeMu sync.Mutex

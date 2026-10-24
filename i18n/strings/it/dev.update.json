@@ -27,6 +27,10 @@
     "text": "Verifica della firma delle release",
     "en": "Checking the release signature"
   },
+  "dev.update.container_pull": {
+    "text": "Questo dispositivo funziona in Docker e si aggiorna con la sua immagine: sul suo server, esegui docker compose pull e poi docker compose up -d.",
+    "en": "This device runs in Docker and is updated with its image: on its server, run docker compose pull and then docker compose up -d."
+  },
   "dev.update.downloading": {
     "text": "Download della release {release}",
     "en": "Downloading release {release}"

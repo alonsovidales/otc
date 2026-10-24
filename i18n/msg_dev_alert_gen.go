@@ -254,6 +254,11 @@ func DevAlertUpdateDetail(summary string) Msg {
 	return Msg{Key: "dev.alert.update.detail", Args: map[string]any{"summary": summary}}
 }
 
+// DevAlertUpdateDetailContainer is dev.alert.update.detail_container: "{summary} To install it, run docker compose pull and then docker compose up -d o…".
+func DevAlertUpdateDetailContainer(summary string) Msg {
+	return Msg{Key: "dev.alert.update.detail_container", Args: map[string]any{"summary": summary}}
+}
+
 // DevAlertUpdateMajor is dev.alert.update.major: "Update {version} is available".
 func DevAlertUpdateMajor(version string) Msg {
 	return Msg{Key: "dev.alert.update.major", Args: map[string]any{"version": version}}

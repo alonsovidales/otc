@@ -313,6 +313,12 @@
     "note": "Detail of an update alert in Alerts (dev.alert.update.major, dev.alert.update.critical). {summary} is the release's own summary, which stays in English in every language; then where to install it: Settings is the apps' Settings screen, where the update is installed.",
     "stored": true
   },
+  "dev.alert.update.detail_container": {
+    "text": "{summary} To install it, run docker compose pull and then docker compose up -d on the device's server.",
+    "args": [["summary", "text"]],
+    "note": "Detail of an update alert in Alerts (dev.alert.update.major, dev.alert.update.critical) on a device that runs in Docker (a container on a home server or NAS), in place of dev.alert.update.detail. {summary} is the release's own summary, which stays in English in every language; then how to install it: the owner runs two commands on the server the device runs on. docker compose pull and docker compose up -d are commands: keep them exactly as they are.",
+    "stored": true
+  },
   "dev.alert.update.major": {
     "text": "Update {version} is available",
     "args": [["version", "text"]],

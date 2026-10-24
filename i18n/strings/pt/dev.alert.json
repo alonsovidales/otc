@@ -235,6 +235,10 @@
     "text": "{summary} Instala-a em Definições.",
     "en": "{summary} Install it from Settings."
   },
+  "dev.alert.update.detail_container": {
+    "text": "{summary} Para a instalar, executa docker compose pull e depois docker compose up -d no servidor do dispositivo.",
+    "en": "{summary} To install it, run docker compose pull and then docker compose up -d on the device's server."
+  },
   "dev.alert.update.major": {
     "text": "A atualização {version} está disponível",
     "en": "Update {version} is available"

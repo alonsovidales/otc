@@ -6,6 +6,7 @@
   "dev.update.building": {"text": "Compilation"},
   "dev.update.checking": {"text": "Recherche de mises à jour"},
   "dev.update.checking_signature": {"text": "Vérification de la signature des versions"},
+  "dev.update.container_pull": {"text": "Cet appareil fonctionne dans Docker et se met à jour avec son image : sur son serveur, exécutez docker compose pull puis docker compose up -d."},
   "dev.update.downloading": {"text": "Téléchargement de la version {release}"},
   "dev.update.generating_protobuf": {"text": "Génération du code protobuf"},
   "dev.update.installing_web": {"text": "Installation de l’app web"},

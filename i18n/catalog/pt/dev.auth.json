@@ -1,6 +1,8 @@
 {
   "dev.auth.decrypt_failed": {"text": "não foi possível desencriptar os dados da chave"},
   "dev.auth.device_state_failed": {"text": "erro ao verificar o estado do dispositivo"},
+  "dev.auth.first_password_home_only": {"text": "A palavra-passe do proprietário só pode ser escolhida a partir da tua rede doméstica, no endereço do próprio dispositivo e não através de um proxy. Também a podes definir no servidor: docker exec -i otc otc-entrypoint set-password, com a palavra-passe como entrada."},
+  "dev.auth.first_password_window_closed": {"text": "Os 30 minutos para escolher aqui a palavra-passe do proprietário já passaram. Define-a no servidor: docker exec -i otc otc-entrypoint set-password, com a palavra-passe como entrada."},
   "dev.auth.invalid_session": {"text": "Sessão inválida"},
   "dev.auth.keypair_failed": {"text": "erro ao gerar o par de chaves"},
   "dev.auth.no_public_key": {"text": "não foi pedida nenhuma chave pública para esta ligação"},

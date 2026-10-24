@@ -54,9 +54,11 @@ COPY --chmod=0755 scripts/bridge-runner/otc-bridge-runner.sh /usr/local/bin/otc-
 COPY --chmod=0755 docker/reboot-runner-stub.sh /usr/local/bin/otc-reboot-runner
 COPY --chmod=0755 docker/entrypoint.sh /usr/local/bin/otc-entrypoint
 # The release this image is (the version check and the migration marker
-# read it); the app's logs and the update log live on the volumes.
+# read it) and the commit it was built from (Settings > Logs > Send to us
+# names both); the app's logs and the update log live on the volumes.
 RUN case "$OTC_RELEASE" in ''|*[!0-9]*) echo "OTC_RELEASE must be the release number" >&2; exit 1 ;; esac \
  && echo "$OTC_RELEASE" > /usr/share/otc/release \
+ && printf '%s\n' "$OTC_REVISION" > /usr/share/otc/revision \
  && ln -s /var/lib/otc/log /var/log/otc \
  && ln -s /etc/otc/update-log /var/log/otc-update \
  && ! ldd /usr/bin/otc | grep 'not found'

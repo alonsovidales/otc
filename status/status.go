@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/devtext"
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
@@ -107,7 +108,16 @@ func parseMdstat(content string) (info raidInfo, found bool) {
 // there's simply no md array here at all (a single-disk test device, or
 // any non-Linux/non-RAID setup) — not an error worth logging, just nothing
 // to report.
+//
+// In a container it is always RaidState_RaidNone: /proc/mdstat is the
+// host's there, and its first array could be anything (a NAS's own system
+// array). The device keeps no mirror of its own in a container; the folder
+// it is given sits on whatever redundancy the host provides, and the host
+// watches that.
 func readRaidStatus() raidInfo {
+	if container.Enabled() {
+		return raidInfo{state: pb.RaidState_RaidNone}
+	}
 	content, err := os.ReadFile(mdstatPath)
 	if err != nil {
 		return raidInfo{state: pb.RaidState_RaidNone}
@@ -159,6 +169,11 @@ func GetStatus(lang string) (st *pb.Status, err error) {
 		log.Error("error reading memory usage:", err)
 	}
 
+	memSize, memUsed := vmStat.Total, vmStat.Used
+	if container.Enabled() {
+		memSize, memUsed = containerMemory(memSize, memUsed)
+	}
+
 	raid := readRaidStatus()
 	var statusErrors []*pb.StatusErrors
 	if raid.state == pb.RaidState_RaidDegraded {
@@ -179,8 +194,8 @@ func GetStatus(lang string) (st *pb.Status, err error) {
 		DiskSize:          int32(sizeDisk / 1024 / 1000),
 		DiskUsage:         int32(usedDisk / 1024 / 1000),
 		CpuUsagePrc:       float32(cpuPerc[0]),
-		MemSize:           int32(vmStat.Total / 1024 / 1000),
-		MemUsage:          int32(vmStat.Used / 1024 / 1000),
+		MemSize:           int32(memSize / 1024 / 1000),
+		MemUsage:          int32(memUsed / 1024 / 1000),
 		Disks:             raid.devicesTotal,
 		RaidState:         raid.state,
 		RaidLevel:         raid.level,
@@ -189,6 +204,20 @@ func GetStatus(lang string) (st *pb.Status, err error) {
 	}
 
 	return
+}
+
+// containerMemory is the memory figures (bytes) in a container: the memory
+// the device is sized to (container.MemoryTotal: its limit, or 8 GB) and
+// what its cgroup uses, each total and used - the machine's - when the
+// container's can't be read.
+func containerMemory(total, used uint64) (uint64, uint64) {
+	if t := container.MemoryTotal(); t > 0 {
+		total = uint64(t)
+	}
+	if u := container.MemoryUsage(); u > 0 {
+		used = uint64(u)
+	}
+	return total, used
 }
 
 // degradedMessage is the degraded mirror's status line in lang, naming

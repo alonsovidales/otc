@@ -49,6 +49,7 @@
   "dev.alert.setaside.title": {"text": "Het bestand {name} is apart gezet"},
   "dev.alert.update.critical": {"text": "Kritieke update {version}: installeer deze binnenkort"},
   "dev.alert.update.detail": {"text": "{summary} Installeer de update via Instellingen."},
+  "dev.alert.update.detail_container": {"text": "{summary} Voer om de update te installeren docker compose pull en daarna docker compose up -d uit op de server van het apparaat."},
   "dev.alert.update.major": {"text": "Update {version} is beschikbaar"},
   "dev.alert.wifi.no_answer": {"text": "het verzenden van gegevens was vertraagd tot ongeveer {speed}, waarbij {pct}% twee keer werd verzonden, en de herstart van de wifi gaf nooit antwoord. Herstart het apparaat via Instellingen, of sluit het met een ethernetkabel aan op je router."},
   "dev.alert.wifi.no_runner": {"text": "het verzenden van gegevens is vertraagd tot ongeveer {speed}, waarbij {pct}% twee keer wordt verzonden. Dit apparaat kan zijn wifi pas zelf herstarten als het is bijgewerkt. Herstart het apparaat via Instellingen, of sluit het met een ethernetkabel aan op je router."},

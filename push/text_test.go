@@ -95,6 +95,22 @@ func TestCriticalUpdateEnglishUnchanged(t *testing.T) {
 	}
 }
 
+// The critical-update push of a device in a container says how it is
+// installed there: the summary and the commands in English, the commands'
+// sentence alone in another language, under the same title.
+func TestCriticalImageUpdate(t *testing.T) {
+	title, body := CriticalImageUpdate("2.4", "Fixes the sign-in.")("")
+	if title != "Critical update 2.4 - please install it soon" ||
+		body != "Fixes the sign-in. To install it, run docker compose pull and docker compose up -d on your server." {
+		t.Errorf("English: %q / %q", title, body)
+	}
+	title, body = CriticalImageUpdate("2.4", "Fixes the sign-in.")("es")
+	if title != "Actualización crítica 2.4: instálala pronto" ||
+		body != "Para instalarla, ejecuta docker compose pull y docker compose up -d en tu servidor." {
+		t.Errorf("Spanish: %q / %q", title, body)
+	}
+}
+
 // raidwatch's pushes, word for word: one disk per port, one with no known
 // port, two (English only, from raidwatch's label), and the mirror whole
 // again.

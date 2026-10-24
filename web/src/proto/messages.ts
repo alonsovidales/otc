@@ -597,6 +597,13 @@ export interface PubKey {
    * device.
    */
   demoPassword: string;
+  /**
+   * The device runs from the container image (docker/, OTC_CONTAINER): the
+   * server it runs on looks after its disks and its network, so the
+   * first-run setup skips the storage and WiFi steps, as it does on an
+   * additional user's instance. Unset on every other device.
+   */
+  container: boolean;
 }
 
 export interface UploadFile {
@@ -1606,6 +1613,13 @@ export interface RespUpdateInfo {
   /** Issue #183: the installed version's label ("1.1"; empty before labels). */
   currentLabel: string;
   latestLabel: string;
+  /**
+   * The device runs from the container image (docker/, OTC_CONTAINER): it
+   * can't update itself, its owner pulls the new image on the server, and
+   * message says how. Clients show that message instead of the Update
+   * button. Pending lists only releases whose image is already published.
+   */
+  container: boolean;
 }
 
 /**
@@ -4563,7 +4577,14 @@ export const GetPubKey: MessageFns<GetPubKey> = {
 };
 
 function createBasePubKey(): PubKey {
-  return { publicKey: new Uint8Array(0), isNewDevice: false, isPrimary: false, demo: false, demoPassword: "" };
+  return {
+    publicKey: new Uint8Array(0),
+    isNewDevice: false,
+    isPrimary: false,
+    demo: false,
+    demoPassword: "",
+    container: false,
+  };
 }
 
 export const PubKey: MessageFns<PubKey> = {
@@ -4582,6 +4603,9 @@ export const PubKey: MessageFns<PubKey> = {
     }
     if (message.demoPassword !== "") {
       writer.uint32(42).string(message.demoPassword);
+    }
+    if (message.container !== false) {
+      writer.uint32(48).bool(message.container);
     }
     return writer;
   },
@@ -4633,6 +4657,14 @@ export const PubKey: MessageFns<PubKey> = {
           message.demoPassword = reader.string();
           continue;
         }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.container = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -4649,6 +4681,7 @@ export const PubKey: MessageFns<PubKey> = {
       isPrimary: isSet(object.isPrimary) ? globalThis.Boolean(object.isPrimary) : false,
       demo: isSet(object.demo) ? globalThis.Boolean(object.demo) : false,
       demoPassword: isSet(object.demoPassword) ? globalThis.String(object.demoPassword) : "",
+      container: isSet(object.container) ? globalThis.Boolean(object.container) : false,
     };
   },
 
@@ -4669,6 +4702,9 @@ export const PubKey: MessageFns<PubKey> = {
     if (message.demoPassword !== "") {
       obj.demoPassword = message.demoPassword;
     }
+    if (message.container !== false) {
+      obj.container = message.container;
+    }
     return obj;
   },
 
@@ -4682,6 +4718,7 @@ export const PubKey: MessageFns<PubKey> = {
     message.isPrimary = object.isPrimary ?? false;
     message.demo = object.demo ?? false;
     message.demoPassword = object.demoPassword ?? "";
+    message.container = object.container ?? false;
     return message;
   },
 };
@@ -10609,6 +10646,7 @@ function createBaseRespUpdateInfo(): RespUpdateInfo {
     checkError: "",
     currentLabel: "",
     latestLabel: "",
+    container: false,
   };
 }
 
@@ -10640,6 +10678,9 @@ export const RespUpdateInfo: MessageFns<RespUpdateInfo> = {
     }
     if (message.latestLabel !== "") {
       writer.uint32(74).string(message.latestLabel);
+    }
+    if (message.container !== false) {
+      writer.uint32(80).bool(message.container);
     }
     return writer;
   },
@@ -10723,6 +10764,14 @@ export const RespUpdateInfo: MessageFns<RespUpdateInfo> = {
           message.latestLabel = reader.string();
           continue;
         }
+        case 10: {
+          if (tag !== 80) {
+            break;
+          }
+
+          message.container = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -10745,6 +10794,7 @@ export const RespUpdateInfo: MessageFns<RespUpdateInfo> = {
       checkError: isSet(object.checkError) ? globalThis.String(object.checkError) : "",
       currentLabel: isSet(object.currentLabel) ? globalThis.String(object.currentLabel) : "",
       latestLabel: isSet(object.latestLabel) ? globalThis.String(object.latestLabel) : "",
+      container: isSet(object.container) ? globalThis.Boolean(object.container) : false,
     };
   },
 
@@ -10777,6 +10827,9 @@ export const RespUpdateInfo: MessageFns<RespUpdateInfo> = {
     if (message.latestLabel !== "") {
       obj.latestLabel = message.latestLabel;
     }
+    if (message.container !== false) {
+      obj.container = message.container;
+    }
     return obj;
   },
 
@@ -10794,6 +10847,7 @@ export const RespUpdateInfo: MessageFns<RespUpdateInfo> = {
     message.checkError = object.checkError ?? "";
     message.currentLabel = object.currentLabel ?? "";
     message.latestLabel = object.latestLabel ?? "";
+    message.container = object.container ?? false;
     return message;
   },
 };

@@ -15,7 +15,9 @@ import (
 	"github.com/alonsovidales/otc/alerttext"
 	"github.com/alonsovidales/otc/bridgeaccess"
 	"github.com/alonsovidales/otc/cfg"
+	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/i18n"
+	"github.com/alonsovidales/otc/lantls"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/wsframe"
@@ -126,21 +128,41 @@ func localAddress() string {
 	if !ok || addr.IP.IsLoopback() || !addr.IP.IsPrivate() {
 		return ""
 	}
-	port := 8080
-	if cfg.HasSection("otc-api") {
-		if p := cfg.GetInt("otc-api", "port"); p > 0 {
-			port = int(p)
-		}
-	}
-	return net.JoinHostPort(addr.IP.String(), strconv.Itoa(port))
+	return net.JoinHostPort(addr.IP.String(), strconv.Itoa(httpPort()))
 }
 
-// localURL is how the owner opens the device at home.
+// httpPort is this instance's HTTP port, 8080 when unknown.
+func httpPort() int {
+	if cfg.HasSection("otc-api") {
+		if p := cfg.GetInt("otc-api", "port"); p > 0 {
+			return int(p)
+		}
+	}
+	return 8080
+}
+
+// localURL is how the owner opens the device at home. In a container
+// otc.local isn't announced (that is the Raspberry Pi image's avahi), so
+// without a route to the internet it is the server's first home-network
+// address (lantls.Addresses) instead.
 func localURL() string {
 	if a := localAddress(); a != "" {
 		return "http://" + a
 	}
+	if container.Enabled() {
+		return containerLocalURL(lantls.Addresses)
+	}
 	return "http://otc.local:8080"
+}
+
+// containerLocalURL is localURL's fallback in a container: the first of
+// addresses' answers with the HTTP port, or the server itself.
+func containerLocalURL(addresses func() ([]string, error)) string {
+	host := "localhost"
+	if addrs, err := addresses(); err == nil && len(addrs) > 0 {
+		host = addrs[0]
+	}
+	return "http://" + net.JoinHostPort(host, strconv.Itoa(httpPort()))
 }
 
 // releaseBridgeDomain asks the bridge to delete this device's name

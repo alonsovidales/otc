@@ -1,6 +1,8 @@
 {
   "dev.auth.decrypt_failed": {"text": "no se ha podido descifrar el material de la clave"},
   "dev.auth.device_state_failed": {"text": "error al comprobar el estado del dispositivo"},
+  "dev.auth.first_password_home_only": {"text": "La contraseña del propietario solo se puede elegir desde tu red doméstica, en la dirección propia del dispositivo y sin pasar por un proxy. También puedes establecerla en el servidor: docker exec -i otc otc-entrypoint set-password, con la contraseña como entrada."},
+  "dev.auth.first_password_window_closed": {"text": "Ya han pasado los 30 minutos para elegir aquí la contraseña del propietario. Establécela en el servidor: docker exec -i otc otc-entrypoint set-password, con la contraseña como entrada."},
   "dev.auth.invalid_session": {"text": "Sesión no válida"},
   "dev.auth.keypair_failed": {"text": "error al generar el par de claves"},
   "dev.auth.no_public_key": {"text": "no se ha solicitado ninguna clave pública para esta conexión"},

@@ -20,6 +20,10 @@
     "en": "not authenticated",
     "reviewed": "claude-backtranslation 2026-10-11 #c227ced7"
   },
+  "dev.err.not_in_container": {
+    "text": "Non disponibile in Docker: dischi e rete sono gestiti dal server su cui funziona il dispositivo.",
+    "en": "Not available in Docker: the server the device runs on looks after its disks and network."
+  },
   "dev.err.not_on_this_instance": {
     "text": "non disponibile su questa istanza",
     "en": "not available on this instance"

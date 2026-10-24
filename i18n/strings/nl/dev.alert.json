@@ -235,6 +235,10 @@
     "text": "{summary} Installeer de update via Instellingen.",
     "en": "{summary} Install it from Settings."
   },
+  "dev.alert.update.detail_container": {
+    "text": "{summary} Voer om de update te installeren docker compose pull en daarna docker compose up -d uit op de server van het apparaat.",
+    "en": "{summary} To install it, run docker compose pull and then docker compose up -d on the device's server."
+  },
   "dev.alert.update.major": {
     "text": "Update {version} is beschikbaar",
     "en": "Update {version} is available"

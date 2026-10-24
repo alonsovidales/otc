@@ -18,11 +18,19 @@ class LockedOut extends Error {}
 // typed on the page would skip its setup.
 export class NewDevice extends Error {
   readonly isPrimary: boolean;
-  constructor(isPrimary: boolean) {
+  readonly container: boolean;
+  constructor(isPrimary: boolean, container: boolean) {
     super("This device isn't set up yet."); // i18n-ignore: never shown, signIn turns it into the setup
     this.isPrimary = isPrimary;
+    this.container = container;
   }
 }
+
+// A new device turned down the first password its setup sent, saying why
+// in its own words: a password it won't take or, in a container, a first
+// password it takes only from the home network, or no longer from the
+// web. Thrown (setUp) so the setup shows those words, not "try again".
+class SetupRefused extends Error {}
 
 export interface SendAuthOptions {
   // Not for a new device: the device's answer to the GetPubKey this
@@ -35,6 +43,9 @@ export interface SendAuthOptions {
   // failed attempt, behind their back - or, on a new device, become its
   // password - and it would go ahead of the next one they type.
   keepOnlyIfAccepted?: boolean;
+  // A new device's setup choosing its first password: a refusal that
+  // comes with the device's reason is thrown with it (SetupRefused).
+  setUp?: boolean;
 }
 
 // The bridge's own reply when it could not hand a request to the device
@@ -262,7 +273,7 @@ export function UseWS() {
         // The same answer the password is encrypted with, so nothing can
         // come between this check and the password going out.
         if (opts.refuseNewDevice && keyResp.payload?.$case === "respPubKey" && keyResp.payload.respPubKey.isNewDevice) {
-          throw new NewDevice(keyResp.payload.respPubKey.isPrimary);
+          throw new NewDevice(keyResp.payload.respPubKey.isPrimary, keyResp.payload.respPubKey.container);
         }
         const encryptedKey = encryptWithPubKey(keyResp, key);
         const resp: RespEnvelope = await rawRequest(e => {
@@ -299,6 +310,13 @@ export function UseWS() {
           throw new LockedOut(resp.payload.respAck.errorMsg || t("web.shell.connection.too_many"));
         }
 
+        // A new device's setup: no password was wrong, the device said
+        // why it won't take this one.
+        if (opts.setUp && keyResp.payload?.$case === "respPubKey" && keyResp.payload.respPubKey.isNewDevice &&
+          resp.payload?.$case === "respAck" && resp.payload.respAck.errorMsg) {
+          throw new SetupRefused(resp.payload.respAck.errorMsg);
+        }
+
         // Wrong/stale password (e.g. it was changed elsewhere, or a
         // leftover key from a previous device) — don't keep retrying it on
         // every future reload, nor on every reconnect. Only this key is
@@ -333,7 +351,7 @@ export function UseWS() {
         // work is never dropped here. Nor is one typed on the page with
         // keepOnlyIfAccepted kept at all: the person tries again.
         const containerKey = key === window.__OTC_CONFIG?.password;
-        if (!(e instanceof LockedOut)) authOwed = wsClient.connected;
+        if (!(e instanceof LockedOut) && !(e instanceof SetupRefused)) authOwed = wsClient.connected;
         if (lastAuthRef === '' && !opts.keepOnlyIfAccepted && (!(e instanceof LockedOut) || containerKey)) lastAuthRef = key;
         throw e;
       } finally {

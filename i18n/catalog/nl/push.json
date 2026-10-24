@@ -13,5 +13,6 @@
   "push.raid.working_body": {"text": "De spiegel is compleet: elk bestand staat weer op beide schijven."},
   "push.raid.working_title": {"text": "Opslagschijven werken weer"},
   "push.update.critical_body": {"text": "Installeer de update via Instellingen."},
+  "push.update.critical_body_container": {"text": "Voer docker compose pull en docker compose up -d uit op je server om de update te installeren."},
   "push.update.critical_title": {"text": "Kritieke update {version}: installeer deze binnenkort"}
 }

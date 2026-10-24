@@ -418,7 +418,7 @@
   },
   "web.shell.setup.finish": {
     "text": "Finish setup",
-    "note": "Button of the first (and only) step of an additional user's setup.",
+    "note": "Button of the first (and only) step of an additional user's setup, and of the setup of a device that runs in Docker (a container on a home server), which has no storage or Wi-Fi steps.",
     "max": 24
   },
   "web.shell.setup.intro_account": {
