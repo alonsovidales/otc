@@ -13,6 +13,10 @@
     "text": "La password del proprietario si può scegliere solo dalla tua rete domestica, all’indirizzo del dispositivo stesso e non tramite un proxy. Puoi anche impostarla sul server: docker exec -i otc otc-entrypoint set-password, con la password come input.",
     "en": "The owner password can only be chosen from your home network, at the device's own address and not through a proxy. You can also set it on the server: docker exec -i otc otc-entrypoint set-password, with the password as its input."
   },
+  "dev.auth.first_password_user_home_only": {
+    "text": "La prima password di questo account si può scegliere solo dalla tua rete domestica, all’indirizzo dell’account stesso e non tramite un proxy, oppure al suo indirizzo sul bridge.",
+    "en": "This account's first password can only be chosen from your home network, at the account's own address and not through a proxy, or at its address on the bridge."
+  },
   "dev.auth.first_password_window_closed": {
     "text": "I 30 minuti per scegliere qui la password del proprietario sono scaduti. Impostala invece sul server: docker exec -i otc otc-entrypoint set-password, con la password come input.",
     "en": "The 30 minutes to choose the owner password here have passed. Set it on the server instead: docker exec -i otc otc-entrypoint set-password, with the password as its input."

@@ -166,8 +166,9 @@ function App() {
 
   // The page's own host, but on the developer's Vite servers (npm run dev,
   // vite preview), where VITE_DEVICE=pit.off-the.cloud picks the device and
-  // Cala is the default (net/endpoint.ts).
-  const page = pageEndpoint(window.location, import.meta.env.DEV, import.meta.env.VITE_DEVICE, !!cfg);
+  // Cala is the default (net/endpoint.ts). The dev server by its mode, not
+  // DEV: a build run with NODE_ENV=development is still a release's.
+  const page = pageEndpoint(window.location, import.meta.env.MODE === "development", import.meta.env.VITE_DEVICE, !!cfg);
   let endpoint = page.endpoint;
   // The device itself served this page (not the phone apps, not Vite):
   // only then does a device update bring a new web app.

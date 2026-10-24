@@ -231,10 +231,18 @@ var (
 // be verified (a brief RELEASES outage, the CDN serving it out of step with
 // its signature), says nothing about what is pending: the alert already
 // known stays - while its release is still pending - instead of a passing
-// glitch clearing a critical banner for hours.
+// glitch clearing a critical banner for hours. So does, in a container, a
+// registry that couldn't say which images are published: the alert's own
+// image was, and its release is still newer than the installed one.
 func nextAlert(prev *Alert, info *Info, err error) (*Alert, bool) {
 	if err != nil {
 		return prev, false
+	}
+	if info.ImageCheckFailed {
+		if prev != nil && prev.Target > info.CurrentVersion {
+			return prev, false
+		}
+		return nil, false
 	}
 	if !info.KindsVerified {
 		if prev != nil && prev.Target > info.CurrentVersion && len(info.Pending) > 0 {

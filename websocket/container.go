@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"github.com/alonsovidales/otc/lantls"
 	"github.com/alonsovidales/otc/log"
 	pb "github.com/alonsovidales/otc/proto/generated"
+	"github.com/alonsovidales/otc/supervisor"
 )
 
 // The device in its container image (docker/, container.Enabled): what the
@@ -31,9 +33,11 @@ import (
 // heard of yet. A container's port can be anywhere - on a server with a
 // public address, behind the owner's reverse proxy - so the primary
 // instance takes its first password only from the home network, straight
-// to its own port, and only in the 30 minutes after its first start (the
-// start-up script's OTC_SETUP_UNTIL). Past that the owner sets it on the
-// server (otc-entrypoint set-password).
+// to its own port from its own page, and only in the 30 minutes after its
+// first start (the start-up script's OTC_SETUP_UNTIL). Past that the owner
+// sets it on the server (otc-entrypoint set-password). An additional
+// user's instance, whose ports are the server's too, takes its first
+// password the same way but at any time, or through the bridge.
 
 // containerGate answers, in a container, a request the device must not
 // run as usual (handled true); the rest go on to the usual switches.
@@ -82,30 +86,47 @@ func notInContainer(id int32, lang string) *pb.RespEnvelope {
 	return &pb.RespEnvelope{Id: id, Error: true, ErrorMessage: i18n.DevErrNotInContainer().Render(lang)}
 }
 
-// firstPasswordRefusal is why this connection may not choose the device's
-// first owner password at now (refused true), or refused false: the
-// password is already set (an ordinary sign-in), this is an additional
-// user's instance - whose first password is set when the owner adds it,
-// or comes through the bridge - or the rules below allow it.
+// firstPasswordRefusal is why this connection may not choose the first
+// password of this instance at now (refused true), or refused false: the
+// password is already set (an ordinary sign-in), or the rules below allow
+// it.
 //
 // While the primary has no password, a sign-in is refused when it comes
-// through the bridge, when the connection carried a proxy's headers, when
-// its own peer is not a home address (container.HomeAddress), or once
-// OTC_SETUP_UNTIL has passed (or is missing). The peer is the connection's
-// own, never X-Forwarded-For nor the bridge's BridgeClientInfo, which the
+// through the bridge, when the connection carried a proxy's headers or
+// came from another site's page (ch.proxied), when its own peer is not a
+// home address (container.HomeAddress), or once OTC_SETUP_UNTIL has passed
+// (or is missing). The peer is the connection's own, never
+// X-Forwarded-For nor the bridge's BridgeClientInfo, which the
 // password-attempt limit uses: a home address in a header proves nothing.
+//
+// An additional user's instance (supervisor.ChildEnvVar - its own
+// environment, so a primary that couldn't start its supervisor is still
+// the primary) takes its first password through the bridge, as it usually
+// comes, or from the home network as above, at any time: the owner adds
+// users whenever they like, and the user's own address on the bridge is
+// what reaches it from anywhere else.
+//
+// Whether a password is set must be known: a sign-in that went on
+// without knowing could choose the first one unchecked.
 func (ch *connHandler) firstPasswordRefusal(now time.Time) (i18n.Msg, bool) {
-	if ch.mg.sup == nil {
+	defined, err := ch.mg.dao.IsSecretDefined()
+	if err != nil {
+		log.Error("first password: could not tell whether one is set:", err)
+		return i18n.DevAuthDeviceStateFailed(), true
+	}
+	if defined {
 		return i18n.Msg{}, false
 	}
-	defined, err := ch.mg.dao.IsSecretDefined()
-	if err != nil || defined {
-		// An error leaves the decision to the sign-in, which reads the
-		// same table and fails the same way.
-		return i18n.Msg{}, false
+	home := !ch.fromBridge && !ch.proxied && container.HomeAddress(ch.peer)
+	if os.Getenv(supervisor.ChildEnvVar) != "" {
+		if ch.fromBridge || home {
+			return i18n.Msg{}, false
+		}
+		log.Info("first password refused, not from the home network nor through the bridge: peer", ch.peer, "proxied", ch.proxied)
+		return i18n.DevAuthFirstPasswordUserHomeOnly(), true
 	}
 	switch {
-	case ch.fromBridge || ch.proxied || !container.HomeAddress(ch.peer):
+	case !home:
 		log.Info("first owner password refused, not from the home network: peer", ch.peer, "proxied", ch.proxied, "through the bridge", ch.fromBridge)
 		return i18n.DevAuthFirstPasswordHomeOnly(), true
 	case !container.SetupWindowOpen(now):
@@ -124,15 +145,49 @@ func peerHost(r *http.Request) string {
 	return host
 }
 
-// proxyHeaders reports whether r carried any of the headers a proxy adds
-// for the client behind it.
+// indirect reports whether r did not come straight from the device's own
+// page or an app: through a proxy (proxyHeaders), or from a page that
+// isn't this listener's own (foreignOrigin).
+func indirect(r *http.Request) bool {
+	return proxyHeaders(r) || foreignOrigin(r)
+}
+
+// proxyHeaders reports whether r carried any of the headers a proxy, or a
+// CDN in front of one, adds for the client behind it.
 func proxyHeaders(r *http.Request) bool {
-	for _, h := range []string{"X-Forwarded-For", "Forwarded", "X-Real-IP"} {
+	for _, h := range []string{
+		"X-Forwarded-For", "Forwarded", "X-Real-IP", "X-Forwarded-Host", "X-Forwarded-Proto",
+		"Via", "CF-Connecting-IP", "True-Client-IP",
+	} {
 		if len(r.Header.Values(h)) > 0 {
 			return true
 		}
 	}
 	return false
+}
+
+// foreignOrigin reports whether a browser opened r from a page that isn't
+// this listener's own: another site's - which any page open on the home
+// network could be - or the device's page behind a TLS proxy that adds no
+// forwarding headers (https in front of the plain port, or another host).
+// The apps send no Origin; a browser always does.
+func foreignOrigin(r *http.Request) bool {
+	o := r.Header.Get("Origin")
+	if o == "" {
+		return false
+	}
+	u, err := url.Parse(o)
+	if err != nil || o == "null" {
+		return true
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return false
+	}
+	want := "http"
+	if r.TLS != nil {
+		want = "https"
+	}
+	return u.Scheme != want || !strings.EqualFold(u.Host, r.Host)
 }
 
 // EnvTrustedProxies is the container's setting for [otc-api]

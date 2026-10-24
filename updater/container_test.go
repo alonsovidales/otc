@@ -3,6 +3,7 @@
 package updater
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 )
@@ -33,7 +34,7 @@ func pendingInfo() *Info {
 func TestOnlyPublishedImages(t *testing.T) {
 	var asked []int
 	info := pendingInfo()
-	onlyPublishedImages(info, func(v int) bool { asked = append(asked, v); return v <= 142 })
+	onlyPublishedImages(info, func(v int) (bool, error) { asked = append(asked, v); return v <= 142, nil })
 	if got := versions(info.Pending); !reflect.DeepEqual(got, []int{141, 142}) {
 		t.Errorf("pending %v, want [141 142]", got)
 	}
@@ -52,7 +53,7 @@ func TestOnlyPublishedImages(t *testing.T) {
 // latest, and there is nothing to alert about.
 func TestOnlyPublishedImagesNoneYet(t *testing.T) {
 	info := pendingInfo()
-	onlyPublishedImages(info, func(int) bool { return false })
+	onlyPublishedImages(info, func(int) (bool, error) { return false, nil })
 	if len(info.Pending) != 0 || info.LatestVersion != 140 || info.LatestLabel != "2.0" {
 		t.Errorf("%+v", info)
 	}
@@ -71,16 +72,49 @@ func TestOnlyPublishedImagesBoundsTheLookups(t *testing.T) {
 		info.Pending = append(info.Pending, Release{Version: v})
 	}
 	asked := 0
-	onlyPublishedImages(info, func(v int) bool { asked++; return v <= 105 })
+	onlyPublishedImages(info, func(v int) (bool, error) { asked++; return v <= 105, nil })
 	if asked != cImageLookups || len(info.Pending) != 0 || info.LatestVersion != 100 {
 		t.Errorf("asked %d times, pending %v, latest %d", asked, versions(info.Pending), info.LatestVersion)
+	}
+}
+
+// A registry that can't be asked ends the asking, leaves nothing pending
+// and marks the check: the alert already known stays, and the check is
+// tried again soon.
+func TestOnlyPublishedImagesRegistryFailed(t *testing.T) {
+	var asked []int
+	info := pendingInfo()
+	onlyPublishedImages(info, func(v int) (bool, error) {
+		asked = append(asked, v)
+		if v == 143 {
+			return false, nil
+		}
+		return false, errors.New("unreachable")
+	})
+	if !info.ImageCheckFailed || len(info.Pending) != 0 || info.LatestVersion != 140 {
+		t.Errorf("%+v", info)
+	}
+	if !reflect.DeepEqual(asked, []int{143, 142}) {
+		t.Errorf("asked about %v, want 143 then 142, and no more", asked)
+	}
+
+	known := &Alert{Level: KindCritical, Version: "2.1", Target: 141}
+	if a, ok := nextAlert(known, info, nil); a != known || ok {
+		t.Errorf("with an alert: %+v %v, want it kept and the check unsettled", a, ok)
+	}
+	if a, ok := nextAlert(nil, info, nil); a != nil || ok {
+		t.Errorf("without one: %+v %v", a, ok)
+	}
+	installed := &Alert{Level: KindCritical, Version: "2.0", Target: 140}
+	if a, ok := nextAlert(installed, info, nil); a != nil || ok {
+		t.Errorf("an alert for the installed release: %+v %v", a, ok)
 	}
 }
 
 // Nothing pending: nothing is asked and nothing changes.
 func TestOnlyPublishedImagesNothingPending(t *testing.T) {
 	info := &Info{CurrentVersion: 140, LatestVersion: 140}
-	onlyPublishedImages(info, func(int) bool { t.Error("asked the registry"); return false })
+	onlyPublishedImages(info, func(int) (bool, error) { t.Error("asked the registry"); return false, nil })
 	if info.LatestVersion != 140 || info.Pending != nil {
 		t.Errorf("%+v", info)
 	}

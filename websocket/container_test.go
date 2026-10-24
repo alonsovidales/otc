@@ -3,6 +3,7 @@
 package websocket
 
 import (
+	"crypto/tls"
 	"errors"
 	"net/http"
 	"net/netip"
@@ -73,6 +74,7 @@ func TestContainerFirstPassword(t *testing.T) {
 		{"window passed", "192.168.1.20", false, false, past, windowClosed},
 		{"window missing", "192.168.1.20", false, false, "", windowClosed},
 		{"window malformed", "192.168.1.20", false, false, "in a while", windowClosed},
+		{"window too far ahead", "192.168.1.20", false, false, strconv.FormatInt(now.Add(2*time.Hour).Unix(), 10), windowClosed},
 		{"a public address after the window", "203.0.113.9", false, false, past, homeOnly},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -96,9 +98,10 @@ func TestContainerFirstPassword(t *testing.T) {
 	}
 }
 
-// With the owner password set, a sign-in goes on as usual from anywhere;
-// an additional user's instance (no supervisor) is never asked; a
-// database error is left to the sign-in itself.
+// With the owner password set, a sign-in goes on as usual from anywhere.
+// When the database can't say whether one is set, the sign-in is refused:
+// it would read the same table again, and could choose the first password
+// unchecked.
 func TestContainerFirstPasswordOnlyBeforeOneIsSet(t *testing.T) {
 	inContainer(t)
 	t.Setenv("OTC_SETUP_UNTIL", "")
@@ -111,16 +114,86 @@ func TestContainerFirstPasswordOnlyBeforeOneIsSet(t *testing.T) {
 		t.Errorf("password set: %+v", resp)
 	}
 	mock.ExpectQuery(vaultCount).WillReturnError(errors.New("gone"))
-	if resp, handled := ch.containerGate(auth, ""); handled || resp != nil {
+	resp, handled := ch.containerGate(auth, "")
+	if ack := resp.GetRespAck(); !handled || resp.Id != 9 || ack == nil || ack.Ok || ack.ErrorMsg != "error checking device state" {
 		t.Errorf("database error: %+v", resp)
 	}
 
-	child := &connHandler{mg: &Manager{dao: d}, peer: "203.0.113.9", proxied: true, fromBridge: true}
+	// The same for an additional user's instance.
+	t.Setenv(supervisor.ChildEnvVar, "4b0e")
+	child := &connHandler{mg: &Manager{dao: d}, peer: "203.0.113.9", proxied: true}
+	mock.ExpectQuery(vaultCount).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(1))
 	if resp, handled := child.containerGate(auth, ""); handled || resp != nil {
-		t.Errorf("additional user's instance: %+v", resp)
+		t.Errorf("additional user's instance, password set: %+v", resp)
+	}
+	mock.ExpectQuery(vaultCount).WillReturnError(errors.New("gone"))
+	if resp, handled := child.containerGate(auth, ""); !handled || resp.GetRespAck().GetErrorMsg() != "error checking device state" {
+		t.Errorf("additional user's instance, database error: %+v", resp)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
+	}
+}
+
+const userHomeOnly = "This account's first password can only be chosen from your home network, at the account's own address and not through a proxy, or at its address on the bridge."
+
+// An additional user's instance takes its first password through the
+// bridge, or straight from the home network, at any time; its ports are
+// the server's, so not from anywhere else. It is told by its own
+// environment, not by having no supervisor.
+func TestContainerChildFirstPassword(t *testing.T) {
+	past := strconv.FormatInt(time.Now().Add(-time.Hour).Unix(), 10)
+	for _, c := range []struct {
+		name       string
+		peer       string
+		proxied    bool
+		fromBridge bool
+		want       string
+	}{
+		{"through the bridge", "", false, true, ""},
+		{"home address", "192.168.1.20", false, false, ""},
+		{"loopback", "127.0.0.1", false, false, ""},
+		{"a public address", "203.0.113.9", false, false, userHomeOnly},
+		{"proxied, from a home address", "172.18.0.2", true, false, userHomeOnly},
+		{"proxied, from a public address", "203.0.113.9", true, false, userHomeOnly},
+		{"no peer", "", false, false, userHomeOnly},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			inContainer(t)
+			t.Setenv("OTC_SETUP_UNTIL", past)
+			t.Setenv(supervisor.ChildEnvVar, "4b0e")
+			d, mock := mockDB(t)
+			mock.ExpectQuery(vaultCount).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+			// A supervisor or none: the environment decides.
+			for _, sup := range []*supervisor.Supervisor{nil, {}} {
+				ch := &connHandler{mg: &Manager{dao: d, sup: sup}, peer: c.peer, proxied: c.proxied, fromBridge: c.fromBridge}
+				msg, refused := ch.firstPasswordRefusal(time.Now())
+				got := ""
+				if refused {
+					got = msg.Render("")
+				}
+				if got != c.want {
+					t.Errorf("supervisor %v: got %q, want %q", sup != nil, got, c.want)
+				}
+				if sup == nil {
+					mock.ExpectQuery(vaultCount).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+				}
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+
+	// The primary without its supervisor (os.Executable failed) is still
+	// the primary: its window applies.
+	inContainer(t)
+	t.Setenv("OTC_SETUP_UNTIL", past)
+	d, mock := mockDB(t)
+	mock.ExpectQuery(vaultCount).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))
+	ch := &connHandler{mg: &Manager{dao: d}, peer: "192.168.1.20"}
+	if msg, refused := ch.firstPasswordRefusal(time.Now()); !refused || msg.Render("") != windowClosed {
+		t.Errorf("primary with no supervisor: %v %q", refused, msg.Render(""))
 	}
 }
 
@@ -215,7 +288,10 @@ func TestPubKeySaysContainer(t *testing.T) {
 }
 
 func TestProxyHeaders(t *testing.T) {
-	for _, h := range []string{"X-Forwarded-For", "Forwarded", "X-Real-IP"} {
+	for _, h := range []string{
+		"X-Forwarded-For", "Forwarded", "X-Real-IP", "X-Forwarded-Host", "X-Forwarded-Proto",
+		"Via", "CF-Connecting-IP", "True-Client-IP",
+	} {
 		r, _ := http.NewRequest(http.MethodGet, "/ws", nil)
 		r.Header.Set(h, "")
 		if !proxyHeaders(r) {
@@ -226,6 +302,54 @@ func TestProxyHeaders(t *testing.T) {
 	r.Header.Set("User-Agent", "x")
 	if proxyHeaders(r) {
 		t.Error("no proxy header: seen")
+	}
+}
+
+// A browser's socket from a page that isn't the listener's own - another
+// site, or the device's page behind a TLS proxy that adds no headers - is
+// not straight from the device's page.
+func TestForeignOrigin(t *testing.T) {
+	for _, c := range []struct {
+		name, host, origin string
+		tls                bool
+		want               bool
+	}{
+		{"no Origin (the apps)", "192.168.1.20:8080", "", false, false},
+		{"its own page", "192.168.1.20:8080", "http://192.168.1.20:8080", false, false},
+		{"its own page, other case", "OTC.local:8080", "http://otc.local:8080", false, false},
+		{"its own page, IPv6", "[fd00::20]:8080", "http://[fd00::20]:8080", false, false},
+		{"its own page on the TLS port", "192.168.1.20:8443", "https://192.168.1.20:8443", true, false},
+		{"another site", "192.168.1.20:8080", "https://evil.example", false, true},
+		{"another site, plain", "192.168.1.20:8080", "http://evil.example", false, true},
+		{"another port", "192.168.1.20:8080", "http://192.168.1.20:9000", false, true},
+		{"https in front of the plain port, Host passed on", "photos.example.com", "https://photos.example.com", false, true},
+		{"https in front of the plain port, Host not passed on", "127.0.0.1:8080", "https://photos.example.com", false, true},
+		{"http page on the TLS port", "192.168.1.20:8443", "http://192.168.1.20:8443", true, true},
+		{"a sandboxed or local page", "192.168.1.20:8080", "null", false, true},
+		{"not a URL", "192.168.1.20:8080", "http://[::1", false, true},
+		{"an app's own scheme", "192.168.1.20:8080", "app://local", false, false},
+	} {
+		r, _ := http.NewRequest(http.MethodGet, "/ws", nil)
+		r.Host = c.host
+		if c.origin != "" {
+			r.Header.Set("Origin", c.origin)
+		}
+		if c.tls {
+			r.TLS = &tls.ConnectionState{}
+		}
+		if got := foreignOrigin(r); got != c.want {
+			t.Errorf("%s: foreign %v, want %v", c.name, got, c.want)
+		}
+		if got := indirect(r); got != c.want {
+			t.Errorf("%s: indirect %v, want %v", c.name, got, c.want)
+		}
+	}
+	r, _ := http.NewRequest(http.MethodGet, "/ws", nil)
+	r.Host = "192.168.1.20:8080"
+	r.Header.Set("Origin", "http://192.168.1.20:8080")
+	r.Header.Set("Via", "1.1 proxy")
+	if !indirect(r) {
+		t.Error("its own page through a proxy: not indirect")
 	}
 }
 
@@ -420,7 +544,12 @@ func TestUpdateAlertInAContainer(t *testing.T) {
 	inContainer(t)
 	published := map[int]bool{130: true}
 	saved := imageAvailable
-	imageAvailable = func(v int) bool { return published[v] }
+	imageAvailable = func(v int) (bool, error) {
+		if v == 132 {
+			return false, errors.New("unreachable")
+		}
+		return published[v], nil
+	}
 	t.Cleanup(func() { imageAvailable = saved })
 	d, mock := mockDB(t)
 	var pushed []string
@@ -429,8 +558,10 @@ func TestUpdateAlertInAContainer(t *testing.T) {
 		pushed = append(pushed, title+" | "+body)
 	}
 
-	// Not published: nothing stored, nothing pushed.
+	// Not published, or the registry can't say: nothing stored, nothing
+	// pushed.
 	updateAlert(d, notify, &updater.Alert{Level: updater.KindCritical, Version: "4.1", Target: 131, Summary: "x"})
+	updateAlert(d, notify, &updater.Alert{Level: updater.KindCritical, Version: "4.2", Target: 132, Summary: "x"})
 
 	const critical4 = "Critical update 4.0 - please install it soon"
 	mock.ExpectQuery(updateAlertCount).WithArgs("4.0", "Update 4.0 is available", critical4).WillReturnRows(sqlmock.NewRows([]string{"n"}).AddRow(0))

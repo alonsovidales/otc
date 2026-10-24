@@ -1132,8 +1132,9 @@ type connHandler struct {
 	clientInfoSet bool
 	// In a container (container.Enabled) only, for the first owner
 	// password (containerGate): the direct connection's own peer address,
-	// whatever its headers say, and whether it carried a proxy's headers.
-	// Set at construction, never changed.
+	// whatever its headers say, and whether it came through a proxy or
+	// from another site's page (indirect). Set at construction, never
+	// changed.
 	peer    string
 	proxied bool
 
@@ -1402,6 +1403,11 @@ func buildUpdateInfo(lang string) *pb.RespUpdateInfo {
 	out.LatestVersion = int32(info.LatestVersion)
 	out.CurrentLabel = info.CurrentLabel
 	out.LatestLabel = info.LatestLabel
+	if info.ImageCheckFailed {
+		// A container whose registry couldn't be asked: not "up to date",
+		// as nothing pending would otherwise read.
+		out.CheckError = "could not ask the registry whether the newer releases' images are published" // i18n-ignore: check_error, which the apps only test for, never show
+	}
 	for _, release := range info.Pending {
 		out.Pending = append(out.Pending, &pb.UpdateRelease{
 			Version: int32(release.Version),
@@ -4161,7 +4167,7 @@ func (mg *Manager) serveConnection(conn *gorilla.Conn, r *http.Request, onFirst 
 	if r != nil {
 		ch.remoteAddr = clientAddr(r)
 		if container.Enabled() {
-			ch.peer, ch.proxied = peerHost(r), proxyHeaders(r)
+			ch.peer, ch.proxied = peerHost(r), indirect(r)
 		}
 	}
 

@@ -84,9 +84,16 @@ func updateTitles(version string) (major, critical string) {
 // image that isn't there).
 func updateAlert(d *dao.Dao, notify func(t push.Text, target push.Target), a *updater.Alert) {
 	inContainer := container.Enabled()
-	if inContainer && !imageAvailable(a.Target) {
-		log.Info("update", a.Version, "is not announced yet: its image is not published")
-		return
+	if inContainer {
+		published, err := imageAvailable(a.Target)
+		if err != nil {
+			log.Info("update", a.Version, "is not announced yet: the registry could not be asked:", err)
+			return
+		}
+		if !published {
+			log.Info("update", a.Version, "is not announced yet: its image is not published")
+			return
+		}
 	}
 	major, critical := updateTitles(a.Version)
 	title := i18n.DevAlertUpdateMajor(a.Version)

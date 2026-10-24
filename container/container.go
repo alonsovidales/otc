@@ -32,6 +32,11 @@ const EnvVar = "OTC_CONTAINER"
 // minutes from the container's first start, and keeps it across restarts.
 const EnvSetupUntil = "OTC_SETUP_UNTIL"
 
+// cSetupWindow is the longest the window can be open from now: the start-up
+// script's 30 minutes, and a minute for clocks. A later end - a clock set
+// back since, or a value from elsewhere - is no window.
+const cSetupWindow = 31 * time.Minute
+
 // Enabled reports whether this process runs from the container image.
 // Read each time, not once: it is one environment lookup, and tests set
 // it per case.
@@ -58,9 +63,10 @@ func HomeAddress(addr string) bool {
 }
 
 // SetupWindowOpen reports whether the first owner password may still be
-// chosen from the web app at now: before EnvSetupUntil. Missing or not a
-// number, the window counts as closed - the password is then set on the
-// server (otc-entrypoint set-password).
+// chosen from the web app at now: before EnvSetupUntil, and that no more
+// than cSetupWindow away. Missing, not a number or too far ahead, the
+// window counts as closed - the password is then set on the server
+// (otc-entrypoint set-password).
 func SetupWindowOpen(now time.Time) bool {
 	return setupWindowOpen(os.Getenv(EnvSetupUntil), now)
 }
@@ -70,7 +76,8 @@ func setupWindowOpen(until string, now time.Time) bool {
 	if err != nil || end <= 0 {
 		return false
 	}
-	return now.Unix() < end
+	left := end - now.Unix()
+	return left > 0 && left <= int64(cSetupWindow/time.Second)
 }
 
 // shareDir is where the image keeps what it was built as: release (the

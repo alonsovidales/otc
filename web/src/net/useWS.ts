@@ -26,10 +26,10 @@ export class NewDevice extends Error {
   }
 }
 
-// A new device turned down the first password its setup sent, saying why
-// in its own words: a password it won't take or, in a container, a first
-// password it takes only from the home network, or no longer from the
-// web. Thrown (setUp) so the setup shows those words, not "try again".
+// A new device in a container turned down the first password its setup
+// sent, saying why in its own words: it takes its first password only
+// from the home network, or no longer from the web. Thrown (setUp) so the
+// setup shows those words, not "try again".
 class SetupRefused extends Error {}
 
 export interface SendAuthOptions {
@@ -43,8 +43,9 @@ export interface SendAuthOptions {
   // failed attempt, behind their back - or, on a new device, become its
   // password - and it would go ahead of the next one they type.
   keepOnlyIfAccepted?: boolean;
-  // A new device's setup choosing its first password: a refusal that
-  // comes with the device's reason is thrown with it (SetupRefused).
+  // A new device's setup choosing its first password: in a container, a
+  // refusal that comes with the device's reason is thrown with it
+  // (SetupRefused).
   setUp?: boolean;
 }
 
@@ -310,9 +311,11 @@ export function UseWS() {
           throw new LockedOut(resp.payload.respAck.errorMsg || t("web.shell.connection.too_many"));
         }
 
-        // A new device's setup: no password was wrong, the device said
-        // why it won't take this one.
+        // A new device's setup in a container: no password was wrong, the
+        // device said why it won't take this one. Elsewhere a refused
+        // setup goes on as below.
         if (opts.setUp && keyResp.payload?.$case === "respPubKey" && keyResp.payload.respPubKey.isNewDevice &&
+          keyResp.payload.respPubKey.container &&
           resp.payload?.$case === "respAck" && resp.payload.respAck.errorMsg) {
           throw new SetupRefused(resp.payload.respAck.errorMsg);
         }

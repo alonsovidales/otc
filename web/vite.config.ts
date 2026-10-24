@@ -7,4 +7,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: './',
+  // `vite preview` only at the one address the web app knows as the
+  // developer's (src/net/endpoint.ts): on another port it would look for
+  // a device behind itself.
+  preview: { port: 4173, strictPort: true },
 })

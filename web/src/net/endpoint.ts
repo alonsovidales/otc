@@ -6,7 +6,8 @@
 // a device's name, its address at home, a tunnel to 127.0.0.1, or
 // localhost on a server running the container image. Only the developer's
 // own Vite servers have no device behind them: `npm run dev` (dev) and
-// `vite preview` (its port, 4173), which go to VITE_DEVICE, or Cala.
+// `vite preview` (its port, 4173, which vite.config.ts holds it to), which
+// go to VITE_DEVICE, or Cala.
 // VITE_DEVICE is read at build time, so this is decided by how the page
 // was built and served, never by a variable a release could carry.
 
@@ -21,9 +22,10 @@ export interface PageEndpoint {
   servedByDevice: boolean;
 }
 
-// pageEndpoint for a page at loc, dev being Vite's dev server
-// (import.meta.env.DEV) and viteDevice its VITE_DEVICE. Inside the phone
-// apps (inApp) the app's own endpoint replaces this one.
+// pageEndpoint for a page at loc, dev being Vite's dev server (MODE
+// development: `npm run dev`, never a build, whatever NODE_ENV says) and
+// viteDevice its VITE_DEVICE. Inside the phone apps (inApp) the app's own
+// endpoint replaces this one.
 export function pageEndpoint(
   loc: { protocol: string; host: string },
   dev: boolean,

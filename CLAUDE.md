@@ -184,8 +184,10 @@ Start every headless Chrome with `--mute-audio` and every Android emulator with 
 unmuted test (a video in the viewer, the audio device opening) beeps through its speaker. Kill the
 browsers, emulators and VMs a test starts when it ends.
 Against a real device without releasing: `VITE_DEVICE=pit.off-the.cloud npm run build --prefix web`,
-then `npx vite preview` in `web/`. Under `npm run dev` and at `localhost:4173` (`vite preview`) the
-app connects to `wss://$VITE_DEVICE/ws`, or Cala if the variable is unset; anywhere else, localhost
+then `npx vite preview` in `web/`. Under `npm run dev` (Vite's development mode - never `DEV`, which
+a build with `NODE_ENV=development` also sets) and at `localhost:4173` (`vite preview`, held to that
+port by `vite.config.ts`) the app connects to `wss://$VITE_DEVICE/ws`, or Cala if the variable is
+unset; anywhere else, localhost
 included (the container image, an SSH tunnel), it uses the page's own host (`web/src/net/endpoint.ts`,
 `node web/scripts/endpoint-test.mjs`).
 
@@ -423,12 +425,17 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
 
 - `container` — the Docker image (`docker/`, beta): `OTC_CONTAINER=1`, set by the image only, and a
   no-op everywhere else. Sizes memory from the cgroup (`MemoryTotal`: the limit, `OTC_MEMORY_GB`, 8 GB
-  without a limit), checks whether a release's image is on ghcr.io (`ImageAvailable`), and holds the
-  first-password rules (`HomeAddress`, `OTC_SETUP_UNTIL` in Unix seconds). Callers gate on
-  `container.Enabled()`: `websocket/container.go` (`containerGate` beside `demoGate`: no disks or
-  Wi-Fi, the first owner password only from a home address with no proxy headers and within the
-  window, on the primary; `[otc-api] trusted-proxies` for X-Forwarded-For; user ports from the HTTP
-  port, checked against the host), the updater (image-gated releases, no Apply), raidwatch and RAID
+  without a limit), checks whether a release's image is on ghcr.io (`ImageLookup`: one token per
+  check; "not published" - 401, 403 and 404 included - kept 15 minutes, a registry that failed left
+  alone for 5), and holds the first-password rules (`HomeAddress`, `OTC_SETUP_UNTIL` in Unix
+  seconds, at most 31 minutes ahead). Callers gate on `container.Enabled()`: `websocket/container.go`
+  (`containerGate` beside `demoGate`: no disks or Wi-Fi; a first password only over a direct
+  connection from a home address with no proxy headers and no other site's Origin (`indirect`) -
+  the primary's within the window, an additional user's (`OTC_SUPERVISED_CHILD`) at any time or
+  through the bridge - and refused when the vault can't be read; `[otc-api] trusted-proxies` for
+  X-Forwarded-For; user ports from the HTTP port, checked against the host), the updater
+  (image-gated releases, no Apply; a registry that can't be asked marks the check
+  `ImageCheckFailed`, which keeps the alert and shows Settings' check error), raidwatch and RAID
   status (off), files_manager's sizing (`GOMAXPROCS`, ffmpeg threads), fatal listeners and no `:80`
   in `api`, extra interface skips in `lantls`. `PubKey.container` and `RespUpdateInfo.container`
   tell the clients.

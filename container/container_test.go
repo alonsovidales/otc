@@ -70,6 +70,10 @@ func TestSetupWindow(t *testing.T) {
 	for v, want := range map[string]bool{
 		"1800000001":           true,
 		" 1800000600 ":         true,
+		"1800001800":           true,  // the start-up script's 30 minutes
+		"1800001860":           true,  // and a minute for clocks
+		"1800001861":           false, // further: a clock set back, or not the script's
+		"1900000000":           false,
 		"1800000000":           false, // over at that second
 		"1799999999":           false,
 		"":                     false,
@@ -118,20 +122,29 @@ func TestPlatform(t *testing.T) {
 	}
 }
 
-// fakeRegistry answers like ghcr.io: a token, then a HEAD per tag.
-func fakeRegistry(t *testing.T, status map[string]int) *int32 {
+// registryCalls counts a fake registry's requests.
+type registryCalls struct{ tokens, heads int32 }
+
+// fakeRegistry answers like ghcr.io: a token (tokenStatus, 200 when 0),
+// then a HEAD per tag with status's answer (404 when not listed).
+func fakeRegistry(t *testing.T, tokenStatus int, status map[string]int) *registryCalls {
 	t.Helper()
-	var heads int32
+	calls := &registryCalls{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/token":
+			atomic.AddInt32(&calls.tokens, 1)
 			if r.URL.Query().Get("scope") != "repository:alonsovidales/otc:pull" {
 				http.Error(w, "scope", http.StatusBadRequest)
 				return
 			}
+			if tokenStatus != 0 {
+				http.Error(w, "denied", tokenStatus)
+				return
+			}
 			w.Write([]byte(`{"token":"anonymous"}`))
 		case strings.HasPrefix(r.URL.Path, "/v2/alonsovidales/otc/manifests/"):
-			atomic.AddInt32(&heads, 1)
+			atomic.AddInt32(&calls.heads, 1)
 			if r.Method != http.MethodHead || r.Header.Get("Authorization") != "Bearer anonymous" ||
 				!strings.Contains(r.Header.Get("Accept"), "application/vnd.oci.image.index.v1+json") {
 				http.Error(w, "bad request", http.StatusBadRequest)
@@ -151,7 +164,7 @@ func fakeRegistry(t *testing.T, status map[string]int) *int32 {
 	registry = srv.URL
 	t.Cleanup(func() { registry = saved })
 	forgetImages(t)
-	return &heads
+	return calls
 }
 
 func forgetImages(t *testing.T) {
@@ -160,67 +173,143 @@ func forgetImages(t *testing.T) {
 		images.Lock()
 		images.found = map[int]bool{}
 		images.missing = map[int]time.Time{}
+		images.failure, images.failedAt = nil, time.Time{}
 		images.Unlock()
 	}
 	reset()
 	t.Cleanup(reset)
 }
 
-func TestImageAvailable(t *testing.T) {
-	heads := fakeRegistry(t, map[string]int{"140": http.StatusOK, "142": http.StatusInternalServerError})
+// forgetFailure ages the last failed lookup past cFailedFor.
+func forgetFailure() {
+	images.Lock()
+	images.failedAt = time.Now().Add(-cFailedFor - time.Second)
+	images.Unlock()
+}
 
-	if !ImageAvailable(140) {
-		t.Error("140: published, not found")
+func TestImageAvailable(t *testing.T) {
+	calls := fakeRegistry(t, 0, map[string]int{"140": http.StatusOK, "142": http.StatusForbidden})
+
+	if ok, err := ImageAvailable(140); !ok || err != nil {
+		t.Errorf("140: published, got %v %v", ok, err)
 	}
-	if ImageAvailable(141) {
-		t.Error("141: not published, found")
+	if ok, err := ImageAvailable(141); ok || err != nil {
+		t.Errorf("141: not published, got %v %v", ok, err)
 	}
-	if ImageAvailable(142) {
-		t.Error("142: the registry failed, found")
+	if ok, err := ImageAvailable(142); ok || err != nil {
+		t.Errorf("142: turned away is not published, got %v %v", ok, err)
 	}
-	if ImageAvailable(0) || ImageAvailable(-3) {
-		t.Error("no release: found")
+	for _, r := range []int{0, -3} {
+		if ok, err := ImageAvailable(r); ok || err != nil {
+			t.Errorf("release %d: got %v %v", r, ok, err)
+		}
 	}
-	if n := atomic.LoadInt32(heads); n != 3 {
+	if n := atomic.LoadInt32(&calls.heads); n != 3 {
 		t.Errorf("%d lookups, want 3", n)
 	}
 
-	// Found stays found and missing is believed for a while; a failure is
-	// asked again.
+	// Found stays found and not published is believed for a while.
 	ImageAvailable(140)
 	ImageAvailable(141)
 	ImageAvailable(142)
-	if n := atomic.LoadInt32(heads); n != 4 {
-		t.Errorf("%d lookups after asking again, want 4 (only the failed one)", n)
+	if n := atomic.LoadInt32(&calls.heads); n != 3 {
+		t.Errorf("%d lookups after asking again, want 3", n)
 	}
 
 	images.Lock()
 	images.missing[141] = time.Now().Add(-cMissingFor - time.Second)
 	images.Unlock()
 	ImageAvailable(141)
-	if n := atomic.LoadInt32(heads); n != 5 {
-		t.Errorf("%d lookups once missing is old, want 5", n)
+	if n := atomic.LoadInt32(&calls.heads); n != 4 {
+		t.Errorf("%d lookups once missing is old, want 4", n)
 	}
 }
 
-func TestImageAvailableWithoutToken(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "denied", http.StatusUnauthorized)
-	}))
-	t.Cleanup(srv.Close)
+// One lookup - one update check - asks for one token, whatever it asks
+// about.
+func TestImageLookupOneToken(t *testing.T) {
+	calls := fakeRegistry(t, 0, map[string]int{"140": http.StatusOK})
+	l := new(ImageLookup)
+	for _, r := range []int{143, 142, 141, 140} {
+		l.Available(r)
+	}
+	if tokens, heads := atomic.LoadInt32(&calls.tokens), atomic.LoadInt32(&calls.heads); tokens != 1 || heads != 4 {
+		t.Errorf("%d tokens and %d lookups, want 1 and 4", tokens, heads)
+	}
+}
+
+// No token for the repository - how ghcr.io answers for a package that
+// doesn't exist or isn't public - is no image, kept as such, and the
+// lookup asks for no other token.
+func TestImageAvailableTokenTurnedAway(t *testing.T) {
+	for _, code := range []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound} {
+		calls := fakeRegistry(t, code, nil)
+		l := new(ImageLookup)
+		for _, r := range []int{141, 140} {
+			if ok, err := l.Available(r); ok || err != nil {
+				t.Errorf("token %d, release %d: got %v %v", code, r, ok, err)
+			}
+		}
+		if ok, err := ImageAvailable(141); ok || err != nil {
+			t.Errorf("token %d, asked again: got %v %v", code, ok, err)
+		}
+		if tokens, heads := atomic.LoadInt32(&calls.tokens), atomic.LoadInt32(&calls.heads); tokens != 1 || heads != 0 {
+			t.Errorf("token %d: %d tokens and %d lookups, want 1 and 0", code, tokens, heads)
+		}
+	}
+}
+
+// A registry that fails is an error, and is left alone for cFailedFor:
+// every lookup in that time fails at once, whatever release it is about.
+func TestImageAvailableFailureIsKept(t *testing.T) {
+	calls := fakeRegistry(t, 0, map[string]int{"140": http.StatusOK, "142": http.StatusBadGateway})
+
+	if ok, err := ImageAvailable(140); !ok || err != nil {
+		t.Fatalf("140: got %v %v", ok, err)
+	}
+	if ok, err := ImageAvailable(142); ok || err == nil {
+		t.Errorf("142: the registry failed, got %v %v", ok, err)
+	}
+	if ok, err := ImageAvailable(141); ok || err == nil {
+		t.Errorf("141 while the failure is kept: got %v %v", ok, err)
+	}
+	if ok, err := ImageAvailable(140); !ok || err != nil {
+		t.Errorf("140, found before: got %v %v", ok, err)
+	}
+	if n := atomic.LoadInt32(&calls.heads); n != 2 {
+		t.Errorf("%d lookups, want 2", n)
+	}
+	images.Lock()
+	_, kept := images.missing[142]
+	images.Unlock()
+	if kept {
+		t.Error("a failed lookup was kept as not published")
+	}
+
+	forgetFailure()
+	if ok, err := ImageAvailable(141); ok || err != nil {
+		t.Errorf("141 once the failure is old: got %v %v", ok, err)
+	}
+	if n := atomic.LoadInt32(&calls.heads); n != 3 {
+		t.Errorf("%d lookups once the failure is old, want 3", n)
+	}
+}
+
+// A registry out of reach fails the lookup within the client's timeout.
+func TestImageAvailableUnreachable(t *testing.T) {
+	srv := httptest.NewServer(http.NotFoundHandler())
+	addr := srv.URL
+	srv.Close()
 	saved := registry
-	registry = srv.URL
+	registry = addr
 	t.Cleanup(func() { registry = saved })
 	forgetImages(t)
 
-	if ImageAvailable(140) {
-		t.Error("no token: found")
+	if ok, err := ImageAvailable(140); ok || err == nil {
+		t.Errorf("got %v %v", ok, err)
 	}
-	images.Lock()
-	_, kept := images.missing[140]
-	images.Unlock()
-	if kept {
-		t.Error("a failed lookup was kept as missing")
+	if registryClient.Timeout > 5*time.Second {
+		t.Errorf("a lookup may wait %v", registryClient.Timeout)
 	}
 }
 

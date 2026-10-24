@@ -176,6 +176,11 @@ type Info struct {
 	// every release reads as minor, which says nothing about whether a
 	// major or critical one is pending (see nextAlert).
 	KindsVerified bool
+	// ImageCheckFailed: in a container, the registry could not be asked
+	// whether a newer release's image is published (onlyPublishedImages),
+	// so what can be installed is not known: nothing is pending, and
+	// nextAlert treats the check as unsettled.
+	ImageCheckFailed bool
 }
 
 // InstalledVersion reads the release this device is on. A missing or
@@ -322,14 +327,17 @@ func Check() (*Info, error) {
 		}
 	}
 	if container.Enabled() {
-		onlyPublishedImages(info, imageAvailable)
+		onlyPublishedImages(info, newImageLookup())
 	}
 
 	return info, nil
 }
 
-// imageAvailable is container.ImageAvailable; a var for tests.
-var imageAvailable = container.ImageAvailable
+// newImageLookup is one check's question to the registry: one token for
+// every release it asks about (container.ImageLookup). A var for tests.
+var newImageLookup = func() func(int) (bool, error) {
+	return new(container.ImageLookup).Available
+}
 
 // cImageLookups is how many of the newest pending releases one check asks
 // the registry about.
@@ -340,8 +348,11 @@ const cImageLookups = 5
 // (available). A container is updated by pulling its new image, which is
 // built and published some minutes after the release; until then the
 // release is not offered, not alerted and not pushed. With none published,
-// nothing is pending and the latest is the installed release.
-func onlyPublishedImages(info *Info, available func(int) bool) {
+// nothing is pending and the latest is the installed release. A lookup
+// that fails ends the asking - the registry is out of reach, and asking
+// about older releases would only wait for it again - and marks the check
+// ImageCheckFailed.
+func onlyPublishedImages(info *Info, available func(int) (bool, error)) {
 	if len(info.Pending) == 0 {
 		return
 	}
@@ -352,7 +363,13 @@ func onlyPublishedImages(info *Info, available func(int) bool) {
 		if i >= cImageLookups {
 			break
 		}
-		if available(r.Version) {
+		published, err := available(r.Version)
+		if err != nil {
+			log.Debug("could not ask the registry whether release", r.Version, "has its image:", err)
+			info.ImageCheckFailed = true
+			break
+		}
+		if published {
 			newest = r
 			break
 		}

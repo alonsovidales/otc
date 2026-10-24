@@ -19,6 +19,11 @@ func DevAuthFirstPasswordHomeOnly() Msg {
 	return Msg{Key: "dev.auth.first_password_home_only"}
 }
 
+// DevAuthFirstPasswordUserHomeOnly is dev.auth.first_password_user_home_only: "This account's first password can only be chosen from your home network, at the …".
+func DevAuthFirstPasswordUserHomeOnly() Msg {
+	return Msg{Key: "dev.auth.first_password_user_home_only"}
+}
+
 // DevAuthFirstPasswordWindowClosed is dev.auth.first_password_window_closed: "The 30 minutes to choose the owner password here have passed. Set it on the serv…".
 func DevAuthFirstPasswordWindowClosed() Msg {
 	return Msg{Key: "dev.auth.first_password_window_closed"}

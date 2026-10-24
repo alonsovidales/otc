@@ -53,6 +53,7 @@ var headEnglish = []struct {
 	{"dev.auth.decrypt_failed", i18n.DevAuthDecryptFailed(), "unable to decrypt key material"},
 	{"dev.auth.device_state_failed", i18n.DevAuthDeviceStateFailed(), "error checking device state"},
 	{"dev.auth.first_password_home_only", i18n.DevAuthFirstPasswordHomeOnly(), "The owner password can only be chosen from your home network, at the device's own address and not through a proxy. You can also set it on the server: docker exec -i otc otc-entrypoint set-password, with the password as its input."},
+	{"dev.auth.first_password_user_home_only", i18n.DevAuthFirstPasswordUserHomeOnly(), "This account's first password can only be chosen from your home network, at the account's own address and not through a proxy, or at its address on the bridge."},
 	{"dev.auth.first_password_window_closed", i18n.DevAuthFirstPasswordWindowClosed(), "The 30 minutes to choose the owner password here have passed. Set it on the server instead: docker exec -i otc otc-entrypoint set-password, with the password as its input."},
 	{"dev.auth.invalid_session", i18n.DevAuthInvalidSession(), "Invalid session"},
 	{"dev.auth.keypair_failed", i18n.DevAuthKeypairFailed(), "error generating keypair"},
