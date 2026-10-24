@@ -1286,7 +1286,12 @@ request - every step back and forth used to show the low-res tile while it fetch
 hash (the answer's `File.hash`, else the item's; no hash, not kept), least recently used out first,
 100 MB (a tenth of the apps' default 1 GB thumbnail cache, the phones' `FullPhotoCache` share), one
 photo at most a quarter of it. Kept even when the viewer moved on before it came. Memory only:
-sign-out reloads the page. On the demo: back to a photo 4 ms with no badge, was 100-230 ms with it.
+sign-out reloads the page. Read-ahead: once the open photo shows at full size and the viewer stays
+on it `cRapidStepMs`, the next and then the previous photo are fetched into it (never videos, nor
+around one; a held arrow key reads nothing ahead); `fetchWhole` shares one request per path, so a
+step onto a neighbour on its way waits for it. Only after the open one: the phones started theirs
+with it, slowing the photo being looked at. On the demo: the next or previous photo 2-26 ms with no
+badge, was 100-230 ms with it.
 
 Copies on the web (issue #201, `components/photoCopies.ts`, `node web/scripts/photo-copies-test.mjs`,
 the phones' `DeleteCopies` rules): Images' Delete (selection bar and viewer) asks about copies when

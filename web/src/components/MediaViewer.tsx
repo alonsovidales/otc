@@ -60,6 +60,29 @@ const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg")
   return b ? URL.createObjectURL(b) : "";
 };
 
+// A whole file's GetFile, kept in fullSizeCache: the viewer's own fetch and
+// its read-ahead share one request per path, so stepping onto a neighbour
+// still on its way waits for that answer rather than asking again. Kept
+// even when the viewer moved on before it came: stepping back to it is
+// what the cache is for.
+const inFlight = new Map<string, Promise<Blob | null>>();
+function fetchWhole(item: ViewerItem): Promise<Blob | null> {
+  let p = inFlight.get(item.path);
+  if (!p) {
+    p = (async () => {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        e.payload = { $case: "reqGetFile", reqGetFile: { path: item.path, hash: "" } };
+      });
+      const full = resp.payload?.$case === "respFile" ? resp.payload.respFile : null;
+      const blob = full ? bytesToBlob(full.content, full.mime || "image/jpeg") : null;
+      if (blob) fullSizeCache.put(full?.hash || item.hash, blob);
+      return blob;
+    })().finally(() => inFlight.delete(item.path));
+    inFlight.set(item.path, p);
+  }
+  return p;
+}
+
 // Issue #199: deletes one file on the device (DelFile): no error once it
 // is gone, else what the confirmation says instead - the device keeps
 // everything in an upload-only folder (error_code "upload_only"), and any
@@ -278,14 +301,7 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
           if (!current()) return;
           if (streamURL) { got = true; setHiURL(streamURL); return; }
         }
-        const resp = await useWS.request(e => {
-          (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: item.path } };
-        });
-        const full = resp.payload?.$case === "respFile" ? resp.payload.respFile : null;
-        const blob = full ? bytesToBlob(full.content, full.mime || "image/jpeg") : null;
-        // Kept even when the viewer has moved on: the bytes came all the
-        // same, and stepping back to it is what the cache is for.
-        if (blob) fullSizeCache.put(full?.hash || item.hash, blob);
+        const blob = await fetchWhole(item);
         if (!current()) return;
         got = !!blob;
         setHiURL(blob ? URL.createObjectURL(blob) : null);
@@ -309,6 +325,31 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     const timer = setTimeout(() => void fetchFull(), cRapidStepMs);
     return () => clearTimeout(timer);
   }, [item?.path, item?.mime]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Read-ahead: once the open photo is on screen at full size, the next
+  // one and then the previous one are fetched into fullSizeCache, so a
+  // step either way shows full size at once. Only after the open photo -
+  // the phones started them with it, and they slowed down the photo being
+  // looked at - and only if the viewer stays on it for cRapidStepMs, so a
+  // held arrow key reads nothing ahead. Not around a video, and never a
+  // video: those stream.
+  useEffect(() => {
+    if (!hiURL || !item || isVideoFile(item)) return;
+    const gen = viewGenRef.current;
+    const timer = setTimeout(() => void (async () => {
+      for (const n of [index + 1, index - 1]) {
+        if (gen !== viewGenRef.current) return;
+        const next = items[n];
+        if (!next?.hash || isVideoFile(next) || fullSizeCache.has(next.hash)) continue;
+        try {
+          await fetchWhole(next);
+        } catch {
+          // A step onto it shows its tile and fetches as before.
+        }
+      }
+    })(), cRapidStepMs);
+    return () => clearTimeout(timer);
+  }, [hiURL]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Issue #41: camera/EXIF metadata, computed on the device from the file.
   const openInfo = useCallback(async () => {

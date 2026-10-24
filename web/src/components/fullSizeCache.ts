@@ -19,6 +19,9 @@ export const cFullSizeBudget = 100_000_000;
 export type FullSizeCache = {
   /** The photo with this hash, now the most recently used; null if not kept. */
   get(hash: string | undefined): Blob | null;
+  /** Whether it is kept, leaving the order as it is (the viewer's
+   *  read-ahead asks about neighbours it isn't showing). */
+  has(hash: string | undefined): boolean;
   /** Keeps a photo, then lets the least recently used go until the rest
    *  fits. One without a hash, or bigger than a quarter of the budget,
    *  isn't kept. */
@@ -45,6 +48,9 @@ export function createFullSizeCache(budget = cFullSizeBudget): FullSizeCache {
       entries.delete(hash);
       entries.set(hash, b);
       return b;
+    },
+    has(hash) {
+      return !!hash && entries.has(hash);
     },
     put(hash, blob) {
       if (!hash || blob.size > budget / 4) return;
