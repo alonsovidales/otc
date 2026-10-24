@@ -1898,6 +1898,19 @@ before saving the credentials, and a screen that can't be dismissed asks for all
 and Sync from iCloud / Sync from cloud and a warning that a whole library takes long and uses data.
 Until it is answered (`syncChoicePending`, UserDefaults / the `otc_sync` prefs) `PhotoSync.runForeground`
 returns at once - background runs included - and Android asks for media permission only after it.
+**Folders and albums to back up** (Android `sync/PhotoFolders.kt` + `ui/settings/FoldersView.kt` <->
+iOS `PhotoSources.swift` + `AlbumsView.swift`; owner's request 2026-10-24, after a user's folders seemed
+missing): Settings > Sync Options > Folders (Android: MediaStore buckets by `BUCKET_ID`, with path and
+volume) / Albums (iOS: the owner's albums plus Screenshots, Selfies and Screen Recordings), each with a
+count and a switch. All on by default and stored as what to SKIP (`skippedFolders`), so a folder a phone
+starts using later is backed up; nothing stored and no extra clause while none is off. Turning one back on
+queues a one-off pass over it with no date limit that never moves the watermark; turning one off deletes
+nothing, and Free Up Space leaves skipped folders/albums out. Limited photo access (Android 14+ selected
+photos, iOS `.limited`) shows a warning with Select More Photos / Allow Access to All Photos; picks made
+later and what was hidden before full access are backed up from the owner's chosen starting point. iOS
+also reads the library's persistent change history (`PhotoHistory.swift`) so a photo added late with an
+older creation date (AirDrop, Files) isn't behind the creationDate watermark; a missing token keeps the
+old behaviour. Android's DATE_ADDED filter never had that gap.
 **Free up space** (iOS `FreeUpSpace.swift` <-> Android `sync/FreeUpSpace.kt`; owner's request
 2026-10-21): off unless turned on (Settings > Free Up Space, and the same section on the sign-in
 sheet), it deletes from the phone the photos and videos taken more than N days ago (1-365, 7 by
