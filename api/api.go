@@ -12,6 +12,7 @@ import (
 	"github.com/alonsovidales/otc/files_manager"
 	"github.com/alonsovidales/otc/log"
 	"github.com/alonsovidales/otc/staticassets"
+	"github.com/alonsovidales/otc/supervisor"
 	"github.com/alonsovidales/otc/websocket"
 	"io"
 	"net"
@@ -80,7 +81,7 @@ func Init(filesManager *filesmanager.Manager, webSocket *websocket.Manager, dao 
 	}
 	api.registerAPIs()
 	log.Info("Starting API server on port:", httpPort)
-	if container.Enabled() {
+	if listenersFatal() {
 		api.serveOrExit(httpPort)
 	} else {
 		// Logged, not fatal: a port another process still holds left this
@@ -133,14 +134,23 @@ func Init(filesManager *filesmanager.Manager, webSocket *websocket.Manager, dao 
 // captivePortalPort is whether Init also listens on port 80.
 func captivePortalPort() bool { return !container.Enabled() }
 
+// listenersFatal is whether a port this instance can't listen on ends
+// it: in a container, for the primary instance only. An additional user's
+// instance (supervisor.ChildEnvVar) logs it and keeps serving through the
+// bridge, as it does outside a container; ended, it would only be started
+// again every few seconds for as long as the other program holds the port.
+func listenersFatal() bool {
+	return container.Enabled() && os.Getenv(supervisor.ChildEnvVar) == ""
+}
+
 // exitProcess ends the process; a var for tests.
 var exitProcess = os.Exit
 
-// serveOrExit serves the HTTP port in a container, where a port that can't
-// be listened on ends the process instead of leaving it running without
-// its home-network listener: the container's start-up script then
-// restarts it, and after five failures in two minutes stops the container
-// with the reason in its log.
+// serveOrExit serves the HTTP port of the primary instance in a container,
+// where a port that can't be listened on ends the process instead of
+// leaving it running without its home-network listener: the container's
+// start-up script then restarts it, and after five failures in two
+// minutes stops the container with the reason in its log.
 func (api *API) serveOrExit(port int) {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -155,7 +165,7 @@ func (api *API) serveOrExit(port int) {
 	}()
 }
 
-// listenFailed ends the process, in a container, over a port it serves
+// listenFailed ends the process (listenersFatal) over a port it serves
 // that failed. Its run marker is removed first (files_manager/runstate.go):
 // a port held by another program is no crash for the next start to count.
 func (api *API) listenFailed(port int, err error) {

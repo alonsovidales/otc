@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/alonsovidales/otc/container"
 	"github.com/alonsovidales/otc/lantls"
 	"github.com/alonsovidales/otc/log"
 )
@@ -16,9 +15,10 @@ import (
 // startLocalTLS is issue #190's listener: the same mux as the HTTP port,
 // over TLS with this instance's own certificate, for the apps at home (see
 // lantls). It returns what GetLocalEndpoint reports, or nil (logged) when
-// there is nothing to serve; the apps then stay on the bridge. In a
-// container a port that can't be listened on ends the process instead
-// (listenFailed), as the HTTP port does.
+// there is nothing to serve; the apps then stay on the bridge. For the
+// primary instance in a container (listenersFatal) a port that can't be
+// listened on ends the process instead (listenFailed), as the HTTP port
+// does.
 func (api *API) startLocalTLS(port int, storagePath string) *lantls.Endpoint {
 	if port <= 0 {
 		return nil
@@ -30,7 +30,7 @@ func (api *API) startLocalTLS(port int, storagePath string) *lantls.Endpoint {
 	}
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
-		if container.Enabled() {
+		if listenersFatal() {
 			api.listenFailed(port, err)
 			return nil
 		}
@@ -58,7 +58,7 @@ func (api *API) serveLocalTLS(ln net.Listener, id *lantls.Identity) *lantls.Endp
 	go func() {
 		err := srv.ServeTLS(ln, "", "")
 		ep.Stop()
-		if container.Enabled() {
+		if listenersFatal() {
 			api.listenFailed(ep.Port(), err)
 			return
 		}

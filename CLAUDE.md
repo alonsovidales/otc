@@ -436,9 +436,10 @@ Flat, one-package-per-concern, wired together in `bin/otc.go`:
   X-Forwarded-For; user ports from the HTTP port, checked against the host), the updater
   (image-gated releases, no Apply; a registry that can't be asked marks the check
   `ImageCheckFailed`, which keeps the alert and shows Settings' check error), raidwatch and RAID
-  status (off), files_manager's sizing (`GOMAXPROCS`, ffmpeg threads), fatal listeners and no `:80`
-  in `api`, extra interface skips in `lantls`. `PubKey.container` and `RespUpdateInfo.container`
-  tell the clients.
+  status (off), files_manager's sizing (`GOMAXPROCS`, ffmpeg threads), fatal listeners for the
+  primary (`listenersFatal`; a user's instance logs a busy port and keeps serving through the bridge)
+  and no `:80` in `api`, extra interface skips in `lantls`. `PubKey.container` and
+  `RespUpdateInfo.container` tell the clients.
 - `cfg` — INI config loader (`etc/otc_<env>.ini`, falling back to `/etc/otc_<env>.ini`); `env` is
   `os.Args[1]` (defaults to `"dev"`). All other packages pull settings via `cfg.GetStr/GetInt/...`.
 - `dao` — the only package that talks to MySQL/MariaDB directly (schema in `db/db.sql`: `files`,

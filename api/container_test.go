@@ -30,11 +30,12 @@ func busyPort(t *testing.T) int {
 	return ln.Addr().(*net.TCPAddr).Port
 }
 
-// In a container a port that can't be listened on ends the process - the
-// HTTP port and the home-network TLS port alike - so the container's
-// start-up script restarts it, or stops with the reason.
+// In a container a port that can't be listened on ends the primary
+// instance - the HTTP port and the home-network TLS port alike - so the
+// container's start-up script restarts it, or stops with the reason.
 func TestContainerEndsOnABusyPort(t *testing.T) {
 	t.Setenv("OTC_CONTAINER", "1")
+	t.Setenv("OTC_SUPERVISED_CHILD", "")
 	codes := stubExit(t)
 	a := &API{muxHTTPServer: http.NewServeMux()}
 
@@ -44,6 +45,41 @@ func TestContainerEndsOnABusyPort(t *testing.T) {
 	}
 	if ep := a.startLocalTLS(busyPort(t), t.TempDir()); ep != nil || len(*codes) != 2 || (*codes)[1] != 1 {
 		t.Errorf("TLS port: endpoint %v, exits %v, want [1 1]", ep, *codes)
+	}
+}
+
+// An additional user's instance in a container keeps running over a busy
+// port, as outside one: it can still serve through the bridge, where ended
+// it would only be started again every few seconds.
+func TestUserInstanceKeepsRunningOnABusyPort(t *testing.T) {
+	t.Setenv("OTC_CONTAINER", "1")
+	t.Setenv("OTC_SUPERVISED_CHILD", "0b5c6f1e-user")
+	codes := stubExit(t)
+	a := &API{muxHTTPServer: http.NewServeMux()}
+	if listenersFatal() {
+		t.Error("a user's instance: listeners fatal")
+	}
+	if ep := a.startLocalTLS(busyPort(t), t.TempDir()); ep != nil || len(*codes) != 0 {
+		t.Errorf("endpoint %v, exits %v, want none", ep, *codes)
+	}
+}
+
+// Which instances end over a port: the primary in a container only.
+func TestListenersFatal(t *testing.T) {
+	for _, c := range []struct {
+		container, child string
+		want             bool
+	}{
+		{"1", "", true},
+		{"1", "0b5c6f1e-user", false},
+		{"", "", false},
+		{"", "0b5c6f1e-user", false},
+	} {
+		t.Setenv("OTC_CONTAINER", c.container)
+		t.Setenv("OTC_SUPERVISED_CHILD", c.child)
+		if got := listenersFatal(); got != c.want {
+			t.Errorf("OTC_CONTAINER=%q OTC_SUPERVISED_CHILD=%q: %v, want %v", c.container, c.child, got, c.want)
+		}
 	}
 }
 
