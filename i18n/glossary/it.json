@@ -162,7 +162,7 @@
     {"en": "Nearby devices", "text": "Dispositivi nelle vicinanze", "note": "Android’s permission for finding Bluetooth devices, quoted as the system names it (AOSP core/res permgrouplab_nearby_devices).", "enforce": false}
   ],
   "forbidden": [
-    {"text": "album", "note": "Groups of images are raccolte."},
+    {"text": "album", "note": "Groups of images are raccolte. Except the iPhone’s own albums in the Photos app, named as Apple names them.", "except": ["ios.settings.albums", "ios.settings.albums_footer"]},
     {"text": "ponte", "note": "The bridge is il bridge."},
     {"text": "tag", "note": "Say etichetta / etichette."},
     {"text": "uploadare", "note": "Say caricare."},

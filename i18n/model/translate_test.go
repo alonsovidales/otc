@@ -255,15 +255,17 @@ func TestGlossary(t *testing.T) {
 			"common.coll", `{"text": "Your Collections", "note": "n"}`,
 			"common.word", `{"text": "Collectionsx and recollections", "note": "n"}`,
 			"common.album", `{"text": "Photos", "note": "n"}`,
+			"common.apple", `{"text": "The iPhone's album", "note": "n"}`,
 		),
 		GlossaryDir + "/es.json": `{"code": "es",
   "terms": [{"en": "collections", "text": "Colecciones", "note": "our word", "enforce": true},
             {"en": "Photos", "text": "Fotos", "enforce": false}],
-  "forbidden": [{"text": "álbum", "note": "we say colecciones"}]}`,
+  "forbidden": [{"text": "álbum", "note": "we say colecciones", "except": ["common.apple"]}]}`,
 		trFile("es", "common"): `{
   "common.coll": {"text": "Tus álbumes", "en": "Your Collections"},
   "common.word": {"text": "Algo", "en": "Collectionsx and recollections"},
-  "common.album": {"text": "Álbum de imágenes", "en": "Photos"}
+  "common.album": {"text": "Álbum de imágenes", "en": "Photos"},
+  "common.apple": {"text": "El álbum del iPhone", "en": "The iPhone's album"}
 }`,
 	}
 	ds := check(t, files, CheckOptions{})
@@ -271,7 +273,8 @@ func TestGlossary(t *testing.T) {
 	want(t, ds, Warning, "common.album", `the glossary says not to use "álbum" (we say colecciones)`)
 	wantNone(t, ds, Warning, "common.coll", "álbum") // "álbumes" is another word
 	wantNone(t, ds, Warning, "common.word", "glossary")
-	wantNone(t, ds, Warning, "common.album", "Fotos") // not enforced
+	wantNone(t, ds, Warning, "common.album", "Fotos")    // not enforced
+	wantNone(t, ds, Warning, "common.apple", "glossary") // listed in "except"
 	ds = check(t, files, CheckOptions{Strict: true})
 	want(t, ds, Error, "common.coll", "the glossary translates")
 	want(t, ds, Error, "common.album", "the glossary says not to use")

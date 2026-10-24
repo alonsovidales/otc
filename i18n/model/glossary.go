@@ -17,7 +17,8 @@ import (
 //	  {"code": "es",
 //	   "terms": [{"en": "Collections", "text": "Colecciones", "note": "...", "enforce": true,
 //	              "except": ["<key where the English word means something else>"]}],
-//	   "forbidden": [{"text": "álbum", "note": "we say colecciones"}]}
+//	   "forbidden": [{"text": "álbum", "note": "we say colecciones",
+//	                  "except": ["<key where the word is right: the iPhone's own albums>"]}]}
 //
 //	i18n/glossary/never.json:
 //	  {"never": ["Off The Cloud", "Tailscale", ...]}
@@ -47,9 +48,11 @@ type Term struct {
 }
 
 // Forbidden is a word a translation must not use (case-insensitive, as a
-// whole word).
+// whole word) - except in the keys listed in Except, where it is the right
+// word (a note says why).
 type Forbidden struct {
 	Text, Note string
+	Except     []string
 	Line       int
 }
 
@@ -99,7 +102,7 @@ func parseGlossary(data []byte, file, code string) (*Glossary, []Diagnostic) {
 							bad(fm.line, "\"enforce\" must be true or false")
 						}
 						t.Enforce = fm.val.b
-					case fm.key == "except" && m.key == "terms":
+					case fm.key == "except":
 						if fm.val.kind != kindArray {
 							bad(fm.line, "\"except\" must be an array of keys")
 							continue
@@ -110,6 +113,7 @@ func parseGlossary(data []byte, file, code string) (*Glossary, []Diagnostic) {
 								continue
 							}
 							t.Except = append(t.Except, k.str)
+							f.Except = append(f.Except, k.str)
 						}
 					case fm.key == "note", fm.key == "text", fm.key == "en" && m.key == "terms":
 						if fm.val.kind != kindString {

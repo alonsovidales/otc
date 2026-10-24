@@ -238,7 +238,8 @@ shipping ones; `-release` makes it an error for shipping languages and for those
 
 With `enforce`, whenever an English form contains the term (any case, as a whole word), its
 translation must contain `text` (any case). A forbidden word (any case, as a whole word) must not
-appear.
+appear. `"except": ["<key>", ...]` on either leaves those keys out: a term whose English word means
+something else there, a forbidden word that is the right one there (the iPhone's own albums).
 
 `glossary/never.json` lists words that must appear verbatim in a translation whenever the English
 has them: `{"never": ["Off The Cloud", "Tailscale", ...]}`. The English must have the term as a

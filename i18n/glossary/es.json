@@ -162,8 +162,8 @@
     {"en": "Nearby devices", "text": "Dispositivos cercanos", "note": "Android’s permission for finding Bluetooth devices, quoted as the system names it (AOSP core/res permgrouplab_nearby_devices).", "enforce": false}
   ],
   "forbidden": [
-    {"text": "álbum", "note": "Groups of images are colecciones."},
-    {"text": "álbumes", "note": "Groups of images are colecciones."},
+    {"text": "álbum", "note": "Groups of images are colecciones. Except the iPhone’s own albums in the Photos app, named as Apple names them.", "except": ["ios.settings.albums", "ios.settings.albums_footer"]},
+    {"text": "álbumes", "note": "Groups of images are colecciones. Except the iPhone’s own albums in the Photos app, named as Apple names them.", "except": ["ios.settings.albums", "ios.settings.albums_footer"]},
     {"text": "usted", "note": "We address the user as tú."},
     {"text": "ustedes", "note": "We address one user, as tú."},
     {"text": "computadora", "note": "Spain says ordenador."},

@@ -27,6 +27,8 @@ and Dutch (nl). English is the source.
   whose English says the same in both forms has its terms checked in `other` only.
 - `"except": ["<key>", ...]` on a term lists keys where the English word means something else
   (dev.device.storage_too_many's "devices" are disks): the term isn't asked for there.
+  On a forbidden word it lists keys where the word is right (the iPhone's own albums in the
+  Photos app, `ios.settings.albums*`): it isn't reported there.
 
 A term is enforced only when every correct translation of every English text that contains it
 will contain the translated words, spelled exactly so. That is why verbs and words that decline
@@ -57,7 +59,8 @@ enforced term, don't bend the sentence to pass: tell the owner, and change the g
 - **device** is the Off The Cloud box: a Raspberry Pi with its disks. App text never calls it a
   server, a NAS or a box.
 - Groups of images are always **collections**, never albums: every app, the site and the store
-  texts. Each language forbids its word for album.
+  texts. Each language forbids its word for album. The one exception is the iPhone's own albums
+  in the Photos app (Settings > Sync Options > Albums), named with Apple's word.
 - **Images** is the tab. Inside sentences the apps say "photos and videos". **Photos** is
   Apple's app. In the setup texts, **image** (singular) is the system image written to the
   microSD card. Keep the four apart.

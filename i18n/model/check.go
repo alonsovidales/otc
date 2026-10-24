@@ -417,7 +417,7 @@ func (c *Catalog) checkTranslation(l Language, t *Translation, add func(Diagnost
 				}
 			}
 			for _, fb := range g.Forbidden {
-				if containsWordFold(trProse, fb.Text) {
+				if !slices.Contains(fb.Except, e.Key) && containsWordFold(trProse, fb.Text) {
 					msg := fmt.Sprintf("%sthe glossary says not to use %q", label, fb.Text)
 					if fb.Note != "" {
 						msg += " (" + fb.Note + ")"
