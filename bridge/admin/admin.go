@@ -584,6 +584,37 @@ func (a *Admin) Metrics(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, buckets)
 }
 
+// The Growth tab's period: ?days= from cMinGrowthDays (its figures need
+// the last 7) to cMaxGrowthDays.
+const (
+	cDefaultGrowthDays = 30
+	cMinGrowthDays     = 7
+	cMaxGrowthDays     = 365
+)
+
+// growthDays reads ?days=: the default when it is missing or not a whole
+// number, else held within the bounds.
+func growthDays(r *http.Request) int {
+	n, err := strconv.Atoi(r.URL.Query().Get("days"))
+	if err != nil {
+		return cDefaultGrowthDays
+	}
+	return max(cMinGrowthDays, min(n, cMaxGrowthDays))
+}
+
+// Growth is the Growth tab (GET /admin/api/growth?days=): devices, visits
+// to the public site and downloads over the last days (dao.Growth).
+// Counts only: nothing in it names a device, an account or a visitor.
+func (a *Admin) Growth(w http.ResponseWriter, r *http.Request) {
+	g, err := a.dao.Growth(growthDays(r), time.Now())
+	if err != nil {
+		log.Error("error reading the growth figures:", err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	writeJSON(w, http.StatusOK, g)
+}
+
 // AuthEvents returns the most recent auth failures, optionally filtered by
 // ?domain=, capped by ?limit= (default 200, max 1000).
 func (a *Admin) AuthEvents(w http.ResponseWriter, r *http.Request) {

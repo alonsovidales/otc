@@ -64,11 +64,14 @@ import (
 var langSegment = regexp.MustCompile(`^[a-z]{2,3}$`)
 
 // serveSite is the bridge's catch-all handler: the site's pages on its own
-// host, and everything else as serveStatic decides.
+// host, and everything else as serveStatic decides. A page someone opened
+// is counted, anonymously (visits.go).
 func (api *API) serveSite(w http.ResponseWriter, r *http.Request) {
+	w, counted := api.countVisit(w, r)
 	if r.Host != api.tld || !api.sitePage(w, r) {
 		api.serveStatic(w, r)
 	}
+	counted()
 }
 
 // sitePage answers r when its path is one of the site's (the table

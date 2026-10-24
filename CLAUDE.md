@@ -1117,6 +1117,18 @@ one function the email alerts use too (`fleet/alerts.go`: one node at a time und
 counts and host figures only - never a domain, account or address; MySQL errors lose their quoted
 values.
 
+Growth tab (`GET /admin/api/growth?days=N`, `dao/growth.go`; migration 011): the site's anonymous
+visit counts and the GitHub download counts, with the device figures (names; active = a client
+relayed in the last 1/7/30 days, `last_client_at`). `serveSite` counts a page someone opened
+(`api/visits.go`: own host, GET, 200, no prefetch, no robot by User-Agent, which is never kept)
+under day, page and source - `ref:<tag>` from `?ref=`/`?utm_source=`, else the Referer's host
+(never a device's address or an IP; nothing but `ref:` for `/account`) - added up in memory and
+written with the traffic counts (`flushPass`), at most 1,000 named sources per day per node, the
+rest under `(other)`. `bridge/downloads` polls the releases every 6 h into `download_counts`
+(`src.tar.gz@v<N>`: devices that took release N). Both pruned after 25 months. The privacy page's
+"Visit counts" row describes exactly this: keep the two in step, and the record in
+`private/gdpr/records-of-processing.md`.
+
 ### Frontend (`web/`)
 
 React 19 + TypeScript + Vite, routed with `react-router-dom`. The signed-in shell is Google Photos-like

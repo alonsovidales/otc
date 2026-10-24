@@ -12,6 +12,7 @@ import (
 	"github.com/alonsovidales/otc/bridge/api"
 	"github.com/alonsovidales/otc/bridge/cluster"
 	"github.com/alonsovidales/otc/bridge/dao"
+	"github.com/alonsovidales/otc/bridge/downloads"
 	"github.com/alonsovidales/otc/bridge/fleet"
 	"github.com/alonsovidales/otc/bridge/mailer"
 	"github.com/alonsovidales/otc/bridge/websocket"
@@ -105,6 +106,10 @@ func main() {
 	// month before).
 	acc.StartInactivityJob(webSocket.DropDomains)
 
+	// The admin panel's Growth tab: the GitHub releases' download counts.
+	dl := downloads.New(dao)
+	dl.Start()
+
 	log.Info("System started...")
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
@@ -112,6 +117,7 @@ func main() {
 	<-c
 
 	log.Info("Stopping all the services")
+	dl.Stop()
 	dao.Stop()
 }
 

@@ -84,6 +84,16 @@ type Dao struct {
 	stopMetrics chan struct{}
 	metricsDone chan struct{}
 
+	// The public site's visit counts waiting to be written (visits.go),
+	// flushed with the metrics; the sources counted by name on
+	// visitSourcesDay (UTC); visitsFolded is how many visits were counted
+	// under cVisitOther since the last flush.
+	visitsMu        sync.Mutex
+	visits          map[visitKey]int64
+	visitSourcesDay string
+	visitSources    map[string]struct{}
+	visitsFolded    int64
+
 	// Issue #163: when an auth event was last written per address and
 	// reason, so a client retrying a bad secret in a loop writes one row a
 	// minute, not one per attempt.
@@ -155,7 +165,8 @@ func (dao *Dao) Stop() {
 	if dao.stopLogPruner != nil {
 		close(dao.stopLogPruner)
 	}
-	// The last counts go out before the connection closes.
+	// The last counts (metrics and site visits) go out before the
+	// connection closes.
 	if dao.stopMetrics != nil {
 		close(dao.stopMetrics)
 		<-dao.metricsDone
@@ -171,7 +182,7 @@ func (dao *Dao) startLogPruner() {
 	go func() {
 		prune := func() {
 			if err := dao.PruneOldLogs(time.Now().Add(-cLogRetention)); err != nil {
-				log.Error("error pruning old auth_events/device_metrics rows:", err)
+				log.Error("error pruning old rows:", err)
 			}
 		}
 		prune()
@@ -206,8 +217,22 @@ func (dao *Dao) PruneOldLogs(before time.Time) (err error) {
 	if _, err = dao.db.Exec("delete from `contact_requests` where `created` < ?", time.Now().AddDate(-1, 0, 0)); err != nil {
 		return fmt.Errorf("pruning contact_requests: %w", err)
 	}
+	// The Growth tab's counts (anonymous totals, see visits.go and
+	// downloads.go). Last, so a database without migration 011 still
+	// prunes everything above.
+	growthBefore := time.Now().UTC().AddDate(0, -cGrowthRetentionMonths, 0).Format(time.DateOnly)
+	if _, err = dao.db.Exec("delete from `site_visits` where `day` < ?", growthBefore); err != nil {
+		return fmt.Errorf("pruning site_visits: %w", err)
+	}
+	if _, err = dao.db.Exec("delete from `download_counts` where `day` < ?", growthBefore); err != nil {
+		return fmt.Errorf("pruning download_counts: %w", err)
+	}
 	return nil
 }
+
+// cGrowthRetentionMonths is how long site_visits and download_counts rows
+// are kept: two years, and a month to spare.
+const cGrowthRetentionMonths = 25
 
 func (dao *Dao) IsValidDevice(owner, domain, secret string) (defined, validSecret bool, err error) {
 	log.Debug("Is valid device")

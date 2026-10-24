@@ -124,6 +124,19 @@ func (dao *Dao) keepMetric(k metricKey, c *metricCounts) {
 	}
 }
 
+// flushPass writes the site's visits (visits.go) and then the device
+// metrics in one budget: with the primary away a pass costs one write's
+// timeout, as it did before the visits were counted, and so does Stop's
+// last pass. The visits go first: usually one statement (a few dozen keys;
+// cMaxVisitKeys/cVisitsPerWrite at most), which the metric writes, one per
+// device and hour, could otherwise leave no time for.
+func (dao *Dao) flushPass(budget, writeTimeout time.Duration) {
+	deadline := time.Now().Add(budget)
+	dao.flushVisits(budget, writeTimeout)
+	// Past the deadline the budget is negative, and every metric is kept.
+	dao.flushMetrics(time.Until(deadline), writeTimeout)
+}
+
 func (dao *Dao) startMetricsFlusher() {
 	dao.stopMetrics = make(chan struct{})
 	dao.metricsDone = make(chan struct{})
@@ -134,9 +147,9 @@ func (dao *Dao) startMetricsFlusher() {
 		for {
 			select {
 			case <-t.C:
-				dao.FlushMetrics()
+				dao.flushPass(cMetricsFlush, cMetricsWriteTimeout)
 			case <-dao.stopMetrics:
-				dao.FlushMetrics()
+				dao.flushPass(cMetricsFlush, cMetricsWriteTimeout)
 				return
 			}
 		}

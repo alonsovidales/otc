@@ -162,6 +162,16 @@
     #fleet-badge:not(.warn):not(.bad){display:none}
     #fleet-badge.warn{background:var(--warn)}
     #fleet-badge.bad{background:var(--danger)}
+    /* Growth tab: four headline figures, the period's charts and tables */
+    .figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:20px;margin-bottom:20px}
+    .figures .card{margin-bottom:0;padding:16px 20px}
+    .figure-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+    .figure-value{font-size:30px;font-weight:700;line-height:1.25;font-variant-numeric:tabular-nums;margin-top:4px}
+    .figure-note{font-size:13px;color:var(--muted)}
+    .growth-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(440px,100%),1fr));gap:0 20px}
+    .card-title{margin:0 0 10px;font-size:15px}
+    .table-note{font-size:12px;margin:10px 0 0}
+    td.name{word-break:break-word}
   </style>
 </head>
 <body>
@@ -194,6 +204,7 @@
         <div class="tab active" data-tab="devices">Devices</div>
         <div class="tab" data-tab="accounts">Accounts</div>
         <div class="tab" data-tab="metrics">Metrics</div>
+        <div class="tab" data-tab="growth">Growth</div>
         <div class="tab" data-tab="security">Security</div>
         <div class="tab" data-tab="messages">Messages<span id="messages-badge"></span></div>
         <div class="tab" data-tab="fleet">Fleet<span id="fleet-badge"></span></div>
@@ -286,6 +297,97 @@
           </div>
           <div class="chart" id="chart-traffic" tabindex="0" role="group" aria-roledescription="chart" aria-label="Traffic per hour"></div>
           <p class="muted chart-hint">Tap or click a bar for its hour's figures; with the keyboard, the arrow keys move between hours. Hours are in this browser's time zone.</p>
+        </div>
+      </section>
+
+      <section id="tab-growth" hidden>
+        <div class="figures">
+          <div class="card">
+            <div class="figure-label">Active devices</div>
+            <div class="figure-value" id="fig-active">—</div>
+            <div class="figure-note">reached through the bridge in the last 7 days</div>
+          </div>
+          <div class="card">
+            <div class="figure-label">Device names</div>
+            <div class="figure-value" id="fig-names">—</div>
+            <div class="figure-note">registered on the bridge</div>
+          </div>
+          <div class="card">
+            <div class="figure-label">Pi image downloads</div>
+            <div class="figure-value" id="fig-image">—</div>
+            <div class="figure-note" id="fig-image-note">&nbsp;</div>
+          </div>
+          <div class="card">
+            <div class="figure-label">Site visits</div>
+            <div class="figure-value" id="fig-visits">—</div>
+            <div class="figure-note">in the last 7 days</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="row" style="margin-bottom:6px">
+            <div class="field">
+              <label for="growth-days">Period</label>
+              <select id="growth-days">
+                <option value="7">Last 7 days</option>
+                <option value="30" selected>Last 30 days</option>
+                <option value="90">Last 90 days</option>
+                <option value="365">Last 365 days</option>
+              </select>
+            </div>
+          </div>
+          <div id="growth-msg"></div>
+          <div id="growth-summary" class="muted"></div>
+          <div class="chart-head">
+            <div class="chart-title">Site visits per day</div>
+          </div>
+          <div class="chart" id="chart-visits" tabindex="0" role="group" aria-roledescription="chart" aria-label="Site visits per day"></div>
+          <div class="chart-head">
+            <div class="chart-title">New device names per week</div>
+          </div>
+          <div class="chart" id="chart-names" tabindex="0" role="group" aria-roledescription="chart" aria-label="New device names per week"></div>
+          <p class="muted chart-hint">Tap or click a bar for its figures; with the keyboard, the arrow keys move between bars. Days are UTC dates, and weeks start on Monday. A device is active when its owner's apps or browser, or a friend's device, reached it through the bridge; one used only at home isn't counted.</p>
+        </div>
+        <div class="growth-grid">
+          <div class="card">
+            <h3 class="card-title">Where visits come from</h3>
+            <div class="scroll-x">
+              <table>
+                <thead><tr><th>Source</th><th class="num">Visits</th><th class="num">Share</th></tr></thead>
+                <tbody id="growth-sources"><tr><td colspan="3" class="muted">Loading…</td></tr></tbody>
+              </table>
+            </div>
+            <p class="muted table-note">"Our link" is a link of ours carrying ?ref=name or ?utm_source=name. Otherwise the website whose link was followed, by name only, or Direct when the browser didn't say.</p>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Pages</h3>
+            <div class="scroll-x">
+              <table>
+                <thead><tr><th>Page</th><th class="num">Visits</th><th class="num">Share</th></tr></thead>
+                <tbody id="growth-pages"><tr><td colspan="3" class="muted">Loading…</td></tr></tbody>
+              </table>
+            </div>
+            <p class="muted table-note">Each language's address is its own page; the account page is one page in every language. Robots and prefetches aren't counted, and the privacy and terms pages only when the browser doesn't have them already.</p>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Downloads</h3>
+            <div class="scroll-x">
+              <table>
+                <thead><tr><th>File</th><th class="num">Total</th><th class="num">7 days</th><th class="num">Period</th></tr></thead>
+                <tbody id="growth-downloads"><tr><td colspan="4" class="muted">Loading…</td></tr></tbody>
+              </table>
+            </div>
+            <p class="muted table-note" id="growth-downloads-note">GitHub's own counts, read every 6 hours. A file's total starts again from zero when it is replaced (a new image, a desktop release); the 7-day and period changes add up what each reading saw.</p>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Devices per release</h3>
+            <div class="scroll-x">
+              <table>
+                <thead><tr><th>Release</th><th class="num">Devices</th><th class="num">7 days</th><th class="num">Period</th></tr></thead>
+                <tbody id="growth-releases"><tr><td colspan="4" class="muted">Loading…</td></tr></tbody>
+              </table>
+            </div>
+            <p class="muted table-note">Downloads of each release's source archive, which every device fetches to install or update to it - so how many devices took it, and anyone who downloaded it by hand. The last 10 releases.</p>
+          </div>
         </div>
       </section>
 
@@ -459,12 +561,13 @@
       tab.addEventListener('click', () => {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
-        ['devices', 'accounts', 'metrics', 'security', 'messages', 'fleet'].forEach(name => {
+        ['devices', 'accounts', 'metrics', 'growth', 'security', 'messages', 'fleet'].forEach(name => {
           document.getElementById(`tab-${name}`).hidden = name !== tab.dataset.tab;
         });
         if (tab.dataset.tab === 'fleet') startFleet(); else stopFleet();
         if (tab.dataset.tab === 'accounts') refreshAccounts();
         if (tab.dataset.tab === 'metrics') refreshMetrics();
+        if (tab.dataset.tab === 'growth') refreshGrowth();
         if (tab.dataset.tab === 'security') refreshSecurity();
         if (tab.dataset.tab === 'messages') refreshMessages();
       });
@@ -876,9 +979,13 @@
     // One chart: series are stacked bottom up; the readout shows the hour
     // hovered (mouse), else the one picked by a tap, click or the keyboard,
     // which stays until another is picked, the same bar or the chart
-    // outside its bars is tapped, or Escape.
+    // outside its bars is tapped, or Escape. Bars are hours unless opts
+    // says otherwise: slotMs (a bar's span), when (the readout's heading
+    // for a bar) and ticks (the x-axis labels) - the Growth tab's days
+    // and weeks.
     function makeChart(el, opts) {
       const ch = { el, opts, slots: [], hours: 24, geo: null, pinned: null, hover: null, down: null };
+      const slotMs = opts.slotMs || HOUR_MS;
       el.innerHTML = '<svg aria-hidden="true"></svg><div class="chart-readout" role="status" aria-live="polite" hidden></div>';
       const svg = el.querySelector('svg');
       const readout = el.querySelector('.chart-readout');
@@ -906,7 +1013,7 @@
         const H = top + plotH + bottom;
         const plotW = Math.max(10, W - left - right);
         const start = n ? slots[0].t : 0;
-        const end = n ? slots[n - 1].t + HOUR_MS : HOUR_MS;
+        const end = n ? slots[n - 1].t + slotMs : slotMs;
         const slotW = n ? plotW / n : plotW;
         const y = v => top + plotH - (scale.top > 0 ? (v / scale.top) * plotH : 0);
         const xAt = t => left + ((t - start) / (end - start)) * plotW;
@@ -922,12 +1029,13 @@
         });
         // X-axis: labels where they fit, never overlapping or off the edge.
         let lastRight = -Infinity;
-        for (const tk of n ? timeTicks(start, end, plotW, ch.hours) : []) {
+        const ticks = !n ? [] : opts.ticks ? opts.ticks(start, end, plotW) : timeTicks(start, end, plotW, ch.hours);
+        for (const tk of ticks) {
           const x = Math.round(xAt(tk.t)) + 0.5;
           const w = textWidth(tk.text);
           if (x - w / 2 < 0 || x + w / 2 > W || x - w / 2 < lastRight + 8) continue;
           lastRight = x + w / 2;
-          parts.push(`<line class="vgrid" x1="${x}" x2="${x}" y1="${top}" y2="${top + plotH}"/>`);
+          if (tk.grid !== false) parts.push(`<line class="vgrid" x1="${x}" x2="${x}" y1="${top}" y2="${top + plotH}"/>`);
           parts.push(`<line class="xtick" x1="${x}" x2="${x}" y1="${top + plotH}" y2="${top + plotH + 4}"/>`);
           parts.push(`<text x="${x}" y="${top + plotH + 16}" text-anchor="middle">${escapeHtml(tk.text)}</text>`);
         }
@@ -995,7 +1103,7 @@
         readout.replaceChildren();
         const when = document.createElement('div');
         when.className = 'when';
-        when.textContent = fmtHourRange(s.t);
+        when.textContent = opts.when ? opts.when(s.t) : fmtHourRange(s.t);
         readout.append(when, ...opts.readout(s));
         readout.hidden = false;
         // Beside the bar, on the side with more room, inside the chart. On a
@@ -1003,7 +1111,7 @@
         // go on two lines ("Sun 11 Oct" / "19:00-20:00"), which makes it
         // narrow enough to sit beside any bar instead of over it.
         let w = readout.offsetWidth;
-        if (cx + 10 + w > g.W && cx - 10 - w < 0) {
+        if (!opts.when && cx + 10 + w > g.W && cx - 10 - w < 0) {
           const a = new Date(s.t), b = new Date(s.t + HOUR_MS);
           when.replaceChildren(document.createTextNode(fmtDayFull(a)), document.createElement('br'),
             document.createTextNode(`${fmtClock(a)}–${fmtClock(b)}`));
@@ -1183,6 +1291,166 @@
       trafficChart.el.setAttribute('aria-label', `Traffic per hour, ${what}`);
       requestsChart.set(slots, hours);
       trafficChart.set(slots, hours);
+    }
+
+    // ---- Growth (GET /admin/api/growth, dao.Growth) ----
+    // Devices, visits to the public site and downloads from GitHub. The
+    // four figures are the last 7 days whatever the period; the charts and
+    // tables follow the period. Days are UTC dates, drawn as calendar days
+    // here; nothing in the answer names a device, an account or a visitor.
+    const DAY_MS = 86400000;
+    document.getElementById('growth-days').addEventListener('change', refreshGrowth);
+
+    // "2026-10-24" as this browser's midnight of that calendar day.
+    function parseDay(s) {
+      const [y, m, d] = String(s).split('-').map(Number);
+      return new Date(y, m - 1, d).getTime();
+    }
+    function signed(n) { return n > 0 ? `+${fmtInt(n)}` : fmtInt(n); }
+    function share(n, total) {
+      if (!(total > 0)) return '—';
+      const p = (100 * n) / total;
+      return p > 0 && p < 1 ? '<1%' : `${Math.round(p)}%`;
+    }
+
+    // X-axis labels for day or week bars: under the middle of every k-th
+    // bar, at the smallest k that keeps them apart, counted from a Monday
+    // so weekly steps land on Mondays.
+    function calendarTicks(slotDays) {
+      return (start, end, plotW) => {
+        const n = Math.max(1, Math.round((end - start) / (slotDays * DAY_MS)));
+        const slotW = plotW / n;
+        const steps = slotDays === 1 ? [1, 2, 7, 14, 28, 56, 91] : [1, 2, 4, 8, 13, 26];
+        const short = k => slotDays === 1 && k < 7;
+        const k = steps.find(s => s * slotW >= textWidth(short(s) ? 'Wed 30' : '30 Sep') + 12) || steps[steps.length - 1];
+        const label = short(k) ? fmtDayShort : fmtDayMonth;
+        const out = [];
+        const d = new Date(start);
+        for (let i = 0; i < n; i++) {
+          const num = Math.floor(dayNumber(d) / slotDays);
+          if (((num % k) + k) % k === 0) out.push({ t: start + ((i + 0.5) * (end - start)) / n, text: label(d), grid: false });
+          d.setDate(d.getDate() + slotDays);
+        }
+        return out;
+      };
+    }
+
+    const countTick = (v, scale) => scale.top >= 100000 ? compactFmt.format(v) : fmtInt(v);
+    const visitsChart = makeChart(document.getElementById('chart-visits'), {
+      series: [{ cls: 's-req', value: s => s.v }],
+      scale: max => niceScale(max, true),
+      tickLabel: countTick,
+      title: () => {},
+      slotMs: DAY_MS,
+      when: t => fmtDayFull(new Date(t)),
+      ticks: calendarTicks(1),
+      emptyText: 'No visits counted in this period',
+      readout: s => [readoutRow(null, '', plural(s.v, 'visit', 'visits'))],
+    });
+    const namesChart = makeChart(document.getElementById('chart-names'), {
+      series: [{ cls: 's-req', value: s => s.v }],
+      scale: max => niceScale(max, true),
+      tickLabel: countTick,
+      title: () => {},
+      slotMs: 7 * DAY_MS,
+      when: t => `Week of ${fmtDayFull(new Date(t))}`,
+      ticks: calendarTicks(7),
+      emptyText: 'No new device names in this period',
+      readout: s => [readoutRow(null, '', plural(s.v, 'new name', 'new names'))],
+    });
+
+    // What a release file is, by its name (package downloads keeps the
+    // "image" and "desktop" releases' files).
+    function describeAsset(name) {
+      if (/\.img\.xz$/.test(name)) return 'Raspberry Pi image';
+      if (/\.img\.xz\.sha256$/.test(name)) return "The image's checksum";
+      if (/\.img\.xz\.sha256\.sig$/.test(name)) return "The checksum's signature (the desktop apps' setup reads it)";
+      if (name === 'desktop.json') return "The desktop apps' update manifest (read at every update check)";
+      if (name === 'desktop.json.sig') return "The manifest's signature";
+      const m = /^otc-sync-([a-z]+)-([a-z0-9]+)(\.exe)?$/.exec(name);
+      if (m) return `Desktop app for ${{ windows: 'Windows', linux: 'Linux', darwin: 'macOS' }[m[1]] || m[1]} (${m[2]})`;
+      return '';
+    }
+
+    function sourceCell(name) {
+      if (name === '') return '<span class="muted">Direct or unknown</span>';
+      // The bridge counts at most 1,000 sources a day by name (dao/visits.go).
+      if (name === '(other)') return '<span class="muted">Other sources (too many to list)</span>';
+      if (name.startsWith('ref:')) return `Our link: <code>${escapeHtml(name.slice(4))}</code>`;
+      return escapeHtml(name);
+    }
+
+    function renderGrowth(g) {
+      const dev = g.devices, vis = g.visits, dl = g.downloads;
+      const polled = !!dl.day;
+
+      document.getElementById('fig-active').textContent = fmtInt(dev.active_7d);
+      document.getElementById('fig-names').textContent = fmtInt(dev.names);
+      document.getElementById('fig-visits').textContent = fmtInt(vis.last_7d);
+      const images = dl.assets.filter(a => /\.img\.xz$/.test(a.asset));
+      document.getElementById('fig-image').textContent = polled ? fmtInt(images.reduce((s, a) => s + a.total, 0)) : '—';
+      document.getElementById('fig-image-note').textContent = polled
+        ? `${signed(images.reduce((s, a) => s + a.change_7d, 0))} in the last 7 days`
+        : 'Not read from GitHub yet';
+
+      const newNames = dev.new_per_week.reduce((s, w) => s + w.names, 0);
+      const nb = s => s.replace(/ /g, ' ');
+      document.getElementById('growth-summary').textContent = [
+        nb(`${plural(vis.total, 'visit', 'visits')} in ${plural(g.days, 'day', 'days')}`),
+        nb(`${plural(newNames, 'new device name', 'new device names')} in the weeks shown`),
+        `active devices: ${nb(`${fmtInt(dev.active_1d)} in the last day`)}, ${nb(`${fmtInt(dev.active_30d)} in 30 days`)}`,
+      ].join(' · ');
+
+      visitsChart.set(vis.per_day.map(d => ({ t: parseDay(d.day), v: d.visits })), g.days * 24);
+      namesChart.set(dev.new_per_week.map(w => ({ t: parseDay(w.week), v: w.names })), dev.new_per_week.length * 7 * 24);
+
+      document.getElementById('growth-sources').innerHTML = vis.sources.length === 0
+        ? '<tr><td colspan="3" class="muted">No visits counted in this period.</td></tr>'
+        : vis.sources.map(s => `
+          <tr><td class="name">${sourceCell(s.name)}</td><td class="num">${fmtInt(s.visits)}</td><td class="num">${share(s.visits, vis.total)}</td></tr>`).join('');
+      document.getElementById('growth-pages').innerHTML = vis.pages.length === 0
+        ? '<tr><td colspan="3" class="muted">No visits counted in this period.</td></tr>'
+        : vis.pages.map(p => `
+          <tr><td class="name"><code>${escapeHtml(p.name)}</code></td><td class="num">${fmtInt(p.visits)}</td><td class="num">${share(p.visits, vis.total)}</td></tr>`).join('');
+
+      const notPolled = '<tr><td colspan="4" class="muted">Not read from GitHub yet: the bridge reads the counts 2 minutes after it starts, then every 6 hours.</td></tr>';
+      document.getElementById('growth-downloads').innerHTML = !polled ? notPolled
+        : dl.assets.length === 0 ? '<tr><td colspan="4" class="muted">No files in the image and desktop releases.</td></tr>'
+        : dl.assets.map(a => {
+          const what = describeAsset(a.asset);
+          return `
+          <tr><td class="name"><code>${escapeHtml(a.asset)}</code>${what ? `<br><span class="muted" style="font-size:12px">${escapeHtml(what)}</span>` : ''}</td>
+            <td class="num">${fmtInt(a.total)}</td><td class="num">${signed(a.change_7d)}</td><td class="num">${signed(a.change_period)}</td></tr>`;
+        }).join('');
+      document.getElementById('growth-releases').innerHTML = !polled ? notPolled
+        : dl.releases.length === 0 ? '<tr><td colspan="4" class="muted">No device releases found.</td></tr>'
+        : dl.releases.map(r => `
+          <tr><td>${escapeHtml(r.release)}</td><td class="num">${fmtInt(r.total)}</td><td class="num">${signed(r.change_7d)}</td><td class="num">${signed(r.change_period)}</td></tr>`).join('');
+      document.getElementById('growth-downloads-note').textContent =
+        "GitHub's own counts, read every 6 hours" + (polled ? ` (last read on ${fmtDayFull(new Date(parseDay(dl.day)))})` : '') +
+        '. A total starts again from zero when its file is replaced (a new image, a desktop release); the 7-day and period changes add up what each reading saw.';
+    }
+
+    let growthSeq = 0;
+    async function refreshGrowth() {
+      const days = Number(document.getElementById('growth-days').value) || 30;
+      const seq = ++growthSeq;
+      const msg = document.getElementById('growth-msg');
+      const charts = [visitsChart, namesChart];
+      charts.forEach(c => c.el.classList.add('loading'));
+      let g;
+      try {
+        g = await api.call('GET', `/admin/api/growth?days=${days}`);
+      } catch (err) {
+        if (seq !== growthSeq) return;
+        charts.forEach(c => c.el.classList.remove('loading'));
+        showMsg(msg, err.message || 'Could not load the figures', 'error');
+        return;
+      }
+      if (seq !== growthSeq) return;
+      showMsg(msg, '', '');
+      charts.forEach(c => c.el.classList.remove('loading'));
+      renderGrowth(g);
     }
 
     // ---- Security ----

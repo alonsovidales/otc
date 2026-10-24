@@ -289,3 +289,41 @@ create table released_domains
 
   primary key (`domain`)
 ) engine=InnoDB;
+
+-- The admin panel's Growth tab (migrations/011-growth.sql). The public
+-- site's anonymous visit counts (/privacy, "Visit counts"): per UTC day,
+-- page and source, how many times the page was opened - no address,
+-- cookie, browser or account. Each bridge node adds its own counts every
+-- 10 s (dao/visits.go); pruned after 25 months.
+create table site_visits
+(
+  `day` date not null,
+  -- The page's address with its language ("/", "/es/",
+  -- "/private-social-network"), "/account", "/privacy", "/terms".
+  `page` varchar(64) not null,
+  -- "ref:<name>" for one of our own links (?ref= or ?utm_source=), the
+  -- referring website's name (reddit.com), or '' for none.
+  `source` varchar(100) not null default '',
+  `visits` int unsigned not null,
+
+  primary key (`day`, `page`, `source`)
+) engine=InnoDB;
+
+-- A daily snapshot of the GitHub release files' download totals (package
+-- downloads polls every 6 h and replaces the day's row): the Raspberry Pi
+-- image's and the desktop apps' files by name, and each device release's
+-- source archive as "src.tar.gz@v<N>" - every device downloads it to
+-- update, so it counts the devices that took release N. Pruned after 25
+-- months.
+create table download_counts
+(
+  `day` date not null,
+  `asset` varchar(120) not null,
+  `downloads` int unsigned not null,
+
+  primary key (`day`, `asset`),
+  -- Each file's last snapshot before a day (the Growth tab's "max(day)
+  -- ... group by asset"): one index entry per file, not every row since
+  -- the first poll.
+  key (`asset`, `day`)
+) engine=InnoDB;

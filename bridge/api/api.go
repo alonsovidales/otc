@@ -105,6 +105,9 @@ type API struct {
 	// forwardOneOff stands in for websocket.ForwardOneOff in tests (a
 	// fake device); nil in production.
 	forwardOneOff func(domain string, frame []byte) ([]byte, error)
+	// recordVisit counts a visit to the public site (visits.go):
+	// dao.RecordSiteVisit; nil (most tests) counts nothing.
+	recordVisit func(page, source string)
 }
 
 // oneOff sends one request frame to domain's device (ForwardOneOff).
@@ -170,6 +173,7 @@ func Init(webSocket *websocket.Manager, dao *dao.Dao, adm *admin.Admin, acc *acc
 		lastClaimByAddr:   map[string]time.Time{},
 		tld:               cfg.GetStr("otc-api", "tld"),
 		cluster:           clu,
+		recordVisit:       dao.RecordSiteVisit,
 	}
 
 	api.registerAPIs()
@@ -341,6 +345,7 @@ func (api *API) registerAdminAPIs() {
 	api.muxHTTPServer.HandleFunc("POST /admin/api/devices", api.admin.RequireAuth(api.admin.AddDevice))
 	api.muxHTTPServer.HandleFunc("DELETE /admin/api/devices/{domain}", api.admin.RequireAuth(api.admin.DeleteDevice))
 	api.muxHTTPServer.HandleFunc("GET /admin/api/metrics", api.admin.RequireAuth(api.admin.Metrics))
+	api.muxHTTPServer.HandleFunc("GET /admin/api/growth", api.admin.RequireAuth(api.admin.Growth))
 	api.muxHTTPServer.HandleFunc("GET /admin/api/accounts", api.admin.RequireAuth(api.admin.ListAccounts))
 	api.muxHTTPServer.HandleFunc("GET /admin/api/domains", api.admin.RequireAuth(api.admin.ListDomains))
 	api.muxHTTPServer.HandleFunc("GET /admin/api/accounts/{id}", api.admin.RequireAuth(api.admin.GetAccount))

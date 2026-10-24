@@ -35,6 +35,14 @@ func TestPruneOldLogsDeletesBothTables(t *testing.T) {
 	// Contact messages past a year (issue #176).
 	mock.ExpectExec("delete from `contact_requests` where `created` < \\?").
 		WillReturnResult(sqlmock.NewResult(0, 0))
+	// The Growth tab's counts past 25 months, by their UTC day.
+	growthBefore := time.Now().UTC().AddDate(0, -25, 0).Format(time.DateOnly)
+	mock.ExpectExec("delete from `site_visits` where `day` < \\?").
+		WithArgs(growthBefore).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("delete from `download_counts` where `day` < \\?").
+		WithArgs(growthBefore).
+		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	d := NewWithDB(db)
 	if err := d.PruneOldLogs(before); err != nil {

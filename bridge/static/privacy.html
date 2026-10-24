@@ -46,7 +46,7 @@
   </header>
   <main>
     <h1>Privacy</h1>
-    <p class="lead">What the Off The Cloud bridge keeps about you, why, and for how long. Last updated 11 October 2026.</p>
+    <p class="lead">What the Off The Cloud bridge keeps about you, why, and for how long. Last updated 24 October 2026.</p>
 
     <div class="key">
       <p><b>Your photos, videos and files are on your own device, not here.</b> Off The Cloud is a device in your home. This page is about the bridge at <b>off-the.cloud</b>: the service that gives your device a name, lets you reach it from outside your home, and connects it with your friends' devices. You only need it, and an account, for that. Once it is set up, a device used only at home (at <code>http://otc.local:8080</code>) or through Tailscale Funnel never talks to us; while it is being set up, it does (see the setup check-in below).</p>
@@ -71,10 +71,11 @@
         <tr><td><b>Setup check-in</b>: while a device is being set up from our image, it tells us every few seconds its address on your home network (such as 192.168.1.20), under a random code that only your setup page knows. It does this even if you then continue without an account.</td><td>So the setup page can find the device again if your phone loses it</td><td>Contract, or legitimate interest if you set up without an account</td><td>10 minutes</td></tr>
         <tr><td><b>Device logs you send us</b>: only when you press "Send to us" in Settings &gt; Logs - the last part of your device's logs (which can include file and folder names, search words, Wi-Fi network names and addresses), your note and your account's email, emailed to us</td><td>To help you with a problem you asked about</td><td>Your consent (Art. 6(1)(a)), given each time you send them</td><td>Until the problem is solved, at most 12 months</td></tr>
         <tr><td><b>Contact messages</b>: name, email and message</td><td>To answer you</td><td>Legitimate interest</td><td>Until the matter is closed, at most 12 months</td></tr>
+        <tr><td><b>Visit counts</b> for our public pages: for each page and day, how many times it was opened, and from which website (only its name, such as reddit.com) or which of our own links. No IP address, cookie or browser details are kept, so a visit can't be traced to anyone.</td><td>To know which pages and links bring people to Off The Cloud</td><td>Legitimate interest</td><td>25 months, as totals that identify no one</td></tr>
         <tr><td><b>Server logs</b>: technical errors with IP addresses; no emails or file names</td><td>To keep the service working and secure</td><td>Legitimate interest</td><td>30 days</td></tr>
       </tbody>
     </table></div>
-    <p>No advertising, no analytics or tracking, and we never sell data. The only cookies are the one that keeps you signed in to your account page (it expires after 30 days) and, while you sign in with Google or Apple, two that tie that sign-in to your browser (they expire after 15 minutes).</p>
+    <p>No advertising, no tracking, and we never sell data: the visit counts above are anonymous totals. The only cookies are the one that keeps you signed in to your account page (it expires after 30 days) and, while you sign in with Google or Apple, two that tie that sign-in to your browser (they expire after 15 minutes).</p>
 
     <h2 id="relay">How the relay works</h2>
     <p>Devices sit behind home routers, so the apps and browsers connect to the bridge and the bridge passes the connection to your device. The connection to the bridge is encrypted (HTTPS/TLS), and so is the device's own connection to it, but <b>the bridge itself decrypts and re-encrypts the traffic</b>: it is not end-to-end encrypted. While a request passes through, its content is in the bridge's memory. It is not stored or logged, and only the traffic counts above are kept.</p>
