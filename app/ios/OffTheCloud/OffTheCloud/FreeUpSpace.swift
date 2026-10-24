@@ -27,7 +27,10 @@ import UIKit
 ///   is only here), bursts (the sync sends one picture of the set), Live
 ///   Photos unless their switch is on (the sync sends only the still),
 ///   videos while Include videos is off, hidden assets and anything outside
-///   the user's own library - as the sync, which skips those too.
+///   the user's own library - as the sync, which skips those too - and the
+///   photos in albums turned off in Settings > Sync Options > Albums, even
+///   those backed up before: turning an album off leaves it alone. With
+///   limited access and any album turned off, nothing at all (albumsKnown).
 /// - iOS asks before deleting, every time, and keeps what goes in Recently
 ///   Deleted for 30 days.
 ///
@@ -79,6 +82,8 @@ final class FreeUpSpace: @unchecked Sendable {
         var edited = false
         var burst = false
         var live = false
+        /// In an album turned off (Settings > Sync Options > Albums).
+        var skipped = false
     }
 
     static func traits(of asset: PHAsset) -> Traits {
@@ -93,10 +98,18 @@ final class FreeUpSpace: @unchecked Sendable {
 
     static func eligible(_ t: Traits, cutoff: Date, includeVideos: Bool, livePhotos: Bool) -> Bool {
         guard let created = t.created, created < cutoff else { return false }
+        if t.skipped { return false }
         if t.isVideo && !includeVideos { return false }
         if t.edited || t.burst { return false }
         if t.live && !livePhotos { return false }
         return true
+    }
+
+    /// Whether the photos of the albums turned off can be told apart. With
+    /// limited access PhotoKit may list no album, so a photo in one turned
+    /// off would look like any other: then nothing is deleted.
+    static func albumsKnown(fullAccess: Bool, skippedAlbums: [String]) -> Bool {
+        fullAccess || skippedAlbums.isEmpty
     }
 
     /// PhotoSync.runForeground's end: runs when on, due and in front.
@@ -148,13 +161,15 @@ final class FreeUpSpace: @unchecked Sendable {
         guard access == .authorized || access == .limited else { return 0 }
         let secrets = SecretsStore.loadOrCreate()
         guard secrets.isConfigured else { return 0 }
+        guard Self.albumsKnown(fullAccess: access == .authorized, skippedAlbums: secrets.skippedAlbums) else { return 0 }
         let endpoint = secrets.endpointURLString
         let defaults = UserDefaults.standard
         let livePhotos = defaults.bool(forKey: Self.livePhotosKey)
         let includeVideos = secrets.includeVideos
         let cutoff = Date().addingTimeInterval(-Double(Self.days(defaults.object(forKey: Self.daysKey))) * 24 * 3600)
 
-        let assets = candidates(cutoff: cutoff, includeVideos: includeVideos, livePhotos: livePhotos)
+        let assets = candidates(cutoff: cutoff, includeVideos: includeVideos, livePhotos: livePhotos,
+                                skipped: PhotoSources.skippedAssetIDs(secrets.skippedAlbums))
         print("[free-up] \(assets.count) assets old enough")
         guard !assets.isEmpty else { return 0 }
 
@@ -168,10 +183,16 @@ final class FreeUpSpace: @unchecked Sendable {
         guard !ids.isEmpty else { return 0 }
 
         // Fetched again right before the deletion: still there, still not
-        // edited, still old enough.
+        // edited, still old enough, and not in an album turned off since.
+        let skippedAlbums = SecretsStore.loadOrCreate().skippedAlbums
+        guard Self.albumsKnown(fullAccess: PHPhotoLibrary.authorizationStatus(for: .readWrite) == .authorized,
+                               skippedAlbums: skippedAlbums) else { return 0 }
+        let skippedNow = PhotoSources.skippedAssetIDs(skippedAlbums)
         var toDelete: [PHAsset] = []
         PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil).enumerateObjects { asset, _, _ in
-            if Self.eligible(Self.traits(of: asset), cutoff: cutoff, includeVideos: includeVideos, livePhotos: livePhotos) {
+            var traits = Self.traits(of: asset)
+            traits.skipped = skippedNow.contains(asset.localIdentifier)
+            if Self.eligible(traits, cutoff: cutoff, includeVideos: includeVideos, livePhotos: livePhotos) {
                 toDelete.append(asset)
             }
         }
@@ -192,7 +213,7 @@ final class FreeUpSpace: @unchecked Sendable {
         return toDelete.count
     }
 
-    private func candidates(cutoff: Date, includeVideos: Bool, livePhotos: Bool) -> [PHAsset] {
+    private func candidates(cutoff: Date, includeVideos: Bool, livePhotos: Bool, skipped: Set<String>) -> [PHAsset] {
         let opts = PHFetchOptions()
         opts.includeAssetSourceTypes = [.typeUserLibrary]
         var types = [NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)]
@@ -205,7 +226,9 @@ final class FreeUpSpace: @unchecked Sendable {
         ])
         var out: [PHAsset] = []
         PHAsset.fetchAssets(with: opts).enumerateObjects { asset, _, _ in
-            if Self.eligible(Self.traits(of: asset), cutoff: cutoff, includeVideos: includeVideos, livePhotos: livePhotos) {
+            var traits = Self.traits(of: asset)
+            traits.skipped = skipped.contains(asset.localIdentifier)
+            if Self.eligible(traits, cutoff: cutoff, includeVideos: includeVideos, livePhotos: livePhotos) {
                 out.append(asset)
             }
         }

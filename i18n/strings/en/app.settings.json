@@ -168,6 +168,33 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #cbfdb45f"
   },
+  "app.settings.folders.no_access": {
+    "text": "Off The Cloud can't see your photos yet. Allow access to them to choose what is backed up.",
+    "note": "On the screen that lists this phone's folders (Android, Settings > Sync Options > Folders) or albums (iPhone, Settings > Sync Options > Albums) while the app may not read the phone's photos. The Authorize Photos Access button (app.settings.sync.authorize) is under it."
+  },
+  "app.settings.folders.photos": {
+    "text": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    },
+    "args": [["count", "count"]],
+    "note": "Under a folder's name on the Folders screen (Android, Settings > Sync Options > Folders) or an album's on the Albums screen (iPhone): how many photos it holds. When it holds videos too, app.settings.folders.photos_videos joins it to app.settings.folders.videos.",
+    "max": 30
+  },
+  "app.settings.folders.photos_videos": {
+    "text": "{photos} · {videos}",
+    "args": [["photos", "text"], ["videos", "text"]],
+    "note": "Under a folder's or an album's name when it holds both: {photos} is app.settings.folders.photos (1,234 photos) and {videos} is app.settings.folders.videos (56 videos), both already formatted. Keep the dot unless the language joins such counts differently."
+  },
+  "app.settings.folders.videos": {
+    "text": {
+      "one": "{count} video",
+      "other": "{count} videos"
+    },
+    "args": [["count", "count"]],
+    "note": "Under a folder's name on the Folders screen (Android) or an album's on the Albums screen (iPhone): how many videos it holds. Shown only while Include videos is on.",
+    "max": 30
+  },
   "app.settings.free_up.after": {
     "text": "Older than",
     "note": "Label of the choice under the Delete from this phone switch, followed by a time from app.settings.free_up.days (Older than 7 days): how long ago a photo or video was taken before it may be deleted from this phone. Word it so it reads before that time.",
@@ -217,6 +244,20 @@
   "app.settings.language_this_phone": {
     "text": "Your device needs a software update to share this choice with your other apps. Until then it applies to this phone only.",
     "note": "Shown under the list of languages on the Language screen when the device's software is too old to keep the language."
+  },
+  "app.settings.limited.allow_all": {
+    "text": "Allow Access to All Photos",
+    "note": "Button under app.settings.limited.warning: opens this app's page in the phone's own settings, where the user can let the app see every photo.",
+    "max": 40
+  },
+  "app.settings.limited.select_more": {
+    "text": "Select More Photos",
+    "note": "Button under app.settings.limited.warning: opens the system's own screen for picking more photos the app may see.",
+    "max": 40
+  },
+  "app.settings.limited.warning": {
+    "text": "Only the photos you picked are backed up: Off The Cloud can see only those. To back up every photo on this phone, allow access to all of them.",
+    "note": "In Settings > Sync Options, and at the top of the Folders (Android) or Albums (iPhone) screen, when the phone lets the app see only the photos the user picked in the system's permission prompt. Its buttons are app.settings.limited.allow_all and app.settings.limited.select_more."
   },
   "app.settings.links.created": {
     "text": "Created {date}",

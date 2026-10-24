@@ -283,6 +283,48 @@
     "text": "Zoom",
     "en": "Zoom"
   },
+  "android.settings.folder_on_volume": {
+    "text": "{volume} · {path}",
+    "en": "{volume} · {path}"
+  },
+  "android.settings.folders": {
+    "text": "Ordner",
+    "en": "Folders"
+  },
+  "android.settings.folders_all": {
+    "text": "Alle",
+    "en": "All"
+  },
+  "android.settings.folders_empty": {
+    "text": "Auf diesem Handy sind noch keine Fotos.",
+    "en": "No photos on this phone yet."
+  },
+  "android.settings.folders_footer": {
+    "text": "Einen Ordner auszuschalten beendet nur seine Sicherung: Es wird nichts gelöscht, weder auf diesem Handy noch auf deinem Gerät. Schaltest du ihn wieder ein, wird alles gesichert, was schon darin ist.",
+    "en": "Turning a folder off only stops backing it up: nothing is deleted, from this phone or from your device. Turning it back on backs up everything already in it."
+  },
+  "android.settings.folders_hidden": {
+    "text": "Android verbirgt Ordner, deren Name mit einem Punkt beginnt, und Ordner mit einer Datei namens .nomedia vor allen Apps, auch vor dieser. Ihre Fotos können hier weder angezeigt noch gesichert werden, bis der Ordner umbenannt oder diese Datei entfernt wird.",
+    "en": "Android hides folders whose name starts with a dot, and folders that contain a file called .nomedia, from every app, this one included. Their photos can't be listed here or backed up until the folder is renamed or that file is removed."
+  },
+  "android.settings.folders_intro": {
+    "text": "Jeder Ordner wird gesichert, außer du schaltest ihn hier aus. Neue Ordner werden auch gesichert, sobald sie auftauchen.",
+    "en": "Every folder is backed up unless you turn it off here. New folders are backed up too, as soon as they appear."
+  },
+  "android.settings.folders_load_failed": {
+    "text": "Die Ordner auf diesem Handy konnten nicht aufgelistet werden.",
+    "en": "Could not list the folders on this phone."
+  },
+  "android.settings.folders_off": {
+    "text": {
+      "one": "{count} aus",
+      "other": "{count} aus"
+    },
+    "en": {
+      "one": "{count} off",
+      "other": "{count} off"
+    }
+  },
   "android.settings.free_up_footer": {
     "text": "Ältere Fotos und Videos werden von diesem Handy in seinen Papierkorb verschoben, jedes erst, wenn das Gerät bestätigt, dass es eine exakte Kopie hat. Android fragt vorher, und der Papierkorb behält sie 30 Tage. Das passiert nach einer Synchronisierung bei geöffneter App, höchstens einmal am Tag.",
     "en": "Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.",

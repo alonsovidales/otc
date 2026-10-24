@@ -75,6 +75,18 @@
     <string name="android_settings_bridge_leave_delete">Leave and Delete</string>
     <string name="android_settings_crop_hint">Drag the photo to centre your face</string>
     <string name="android_settings_crop_zoom">Zoom</string>
+    <string name="android_settings_folder_on_volume">%1$s · \u2068%2$s\u2069</string>
+    <string name="android_settings_folders">Folders</string>
+    <string name="android_settings_folders_all">All</string>
+    <string name="android_settings_folders_empty">No photos on this phone yet.</string>
+    <string name="android_settings_folders_footer">Turning a folder off only stops backing it up: nothing is deleted, from this phone or from your device. Turning it back on backs up everything already in it.</string>
+    <string name="android_settings_folders_hidden">Android hides folders whose name starts with a dot, and folders that contain a file called .nomedia, from every app, this one included. Their photos can\'t be listed here or backed up until the folder is renamed or that file is removed.</string>
+    <string name="android_settings_folders_intro">Every folder is backed up unless you turn it off here. New folders are backed up too, as soon as they appear.</string>
+    <string name="android_settings_folders_load_failed">Could not list the folders on this phone.</string>
+    <plurals name="android_settings_folders_off">
+        <item quantity="one">%1$s off</item>
+        <item quantity="other">%1$s off</item>
+    </plurals>
     <string name="android_settings_free_up_footer">Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.</string>
     <string name="android_settings_links_delete_text">The shared copies are deleted and the link stops working.</string>
     <string name="android_settings_links_empty_text">Links made with Share or Share as Gallery in Images and Files show up here until they expire.</string>

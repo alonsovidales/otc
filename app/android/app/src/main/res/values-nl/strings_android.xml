@@ -76,6 +76,18 @@
     <string name="android_settings_bridge_leave_delete">Verlaten en verwijderen</string>
     <string name="android_settings_crop_hint">Sleep de foto om je gezicht in het midden te zetten</string>
     <string name="android_settings_crop_zoom">Zoomen</string>
+    <string name="android_settings_folder_on_volume">%1$s · \u2068%2$s\u2069</string>
+    <string name="android_settings_folders">Mappen</string>
+    <string name="android_settings_folders_all">Alle</string>
+    <string name="android_settings_folders_empty">Er staan nog geen foto’s op deze telefoon.</string>
+    <string name="android_settings_folders_footer">Een map uitzetten stopt alleen de reservekopie ervan: er wordt niets verwijderd, niet van deze telefoon en niet van je apparaat. Zet je hem weer aan, dan wordt er een reservekopie gemaakt van alles wat er al in staat.</string>
+    <string name="android_settings_folders_hidden">Android verbergt mappen waarvan de naam met een punt begint, en mappen met een bestand dat .nomedia heet, voor alle apps, ook voor deze. Hun foto’s kunnen hier niet worden getoond en er kan geen reservekopie van worden gemaakt, totdat de map een andere naam krijgt of dat bestand is verwijderd.</string>
+    <string name="android_settings_folders_intro">Van elke map wordt een reservekopie gemaakt, tenzij je die hier uitzet. Ook van nieuwe mappen, zodra ze verschijnen.</string>
+    <string name="android_settings_folders_load_failed">De mappen op deze telefoon konden niet worden weergegeven.</string>
+    <plurals name="android_settings_folders_off">
+        <item quantity="one">%1$s uit</item>
+        <item quantity="other">%1$s uit</item>
+    </plurals>
     <string name="android_settings_free_up_footer">Oudere foto’s en video’s gaan van deze telefoon naar de prullenmand, elk pas nadat het apparaat bevestigt dat het een exacte kopie heeft. Android vraagt het eerst, en de prullenmand bewaart ze 30 dagen. Dit gebeurt na een synchronisatie terwijl de app open is, hooguit één keer per dag.</string>
     <string name="android_settings_links_delete_text">De gedeelde kopieën worden verwijderd en de link werkt niet meer.</string>
     <string name="android_settings_links_empty_text">Links die je maakt met “Delen” of “Delen als galerij” in Afbeeldingen en Bestanden, verschijnen hier tot ze verlopen.</string>

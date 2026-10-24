@@ -31,6 +31,16 @@
     <string name="app_settings_faces_footer">Detect faces in newly uploaded photos so you can search by person. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media below to scan the ones you already have.</string>
     <string name="app_settings_faces_title">People</string>
     <string name="app_settings_faces_toggle">Face Recognition</string>
+    <string name="app_settings_folders_no_access">Off The Cloud can\'t see your photos yet. Allow access to them to choose what is backed up.</string>
+    <plurals name="app_settings_folders_photos">
+        <item quantity="one">%1$s photo</item>
+        <item quantity="other">%1$s photos</item>
+    </plurals>
+    <string name="app_settings_folders_photos_videos">%1$s · %2$s</string>
+    <plurals name="app_settings_folders_videos">
+        <item quantity="one">%1$s video</item>
+        <item quantity="other">%1$s videos</item>
+    </plurals>
     <string name="app_settings_free_up_after">Older than</string>
     <plurals name="app_settings_free_up_days">
         <item quantity="one">%1$s day</item>
@@ -43,6 +53,9 @@
     <string name="app_settings_language_automatic_named">Automatic (%1$s)</string>
     <string name="app_settings_language_footer">Saved on your device, so every app signed in to it uses the same language. Automatic follows the language this phone is set to.</string>
     <string name="app_settings_language_this_phone">Your device needs a software update to share this choice with your other apps. Until then it applies to this phone only.</string>
+    <string name="app_settings_limited_allow_all">Allow Access to All Photos</string>
+    <string name="app_settings_limited_select_more">Select More Photos</string>
+    <string name="app_settings_limited_warning">Only the photos you picked are backed up: Off The Cloud can see only those. To back up every photo on this phone, allow access to all of them.</string>
     <string name="app_settings_links_created">Created %1$s</string>
     <string name="app_settings_links_delete_failed">Could not delete the link</string>
     <string name="app_settings_links_delete_link">Delete link</string>

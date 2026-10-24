@@ -32,6 +32,18 @@
     <string name="app_settings_faces_footer">Deteta rostos nas fotos que forem carregadas, para poderes pesquisar por pessoa. Só fica ativo se o ativares (aqui ou durante a configuração), e os rostos nunca saem do dispositivo. Analisa todas as pessoas que aparecem nas tuas fotos, não só a ti. Só afeta as fotos carregadas enquanto estiver ativo: usa «Reprocessar multimédia», mais abaixo, para analisar as que já tens.</string>
     <string name="app_settings_faces_title">Pessoas</string>
     <string name="app_settings_faces_toggle">Reconhecimento facial</string>
+    <string name="app_settings_folders_no_access">O Off The Cloud ainda não consegue ver as tuas fotos. Permite o acesso às fotos para escolheres do que é feita cópia de segurança.</string>
+    <plurals name="app_settings_folders_photos">
+        <item quantity="one">%1$s foto</item>
+        <item quantity="many">%1$s fotos</item>
+        <item quantity="other">%1$s fotos</item>
+    </plurals>
+    <string name="app_settings_folders_photos_videos">%1$s · %2$s</string>
+    <plurals name="app_settings_folders_videos">
+        <item quantity="one">%1$s vídeo</item>
+        <item quantity="many">%1$s vídeos</item>
+        <item quantity="other">%1$s vídeos</item>
+    </plurals>
     <string name="app_settings_free_up_after">Com mais de</string>
     <plurals name="app_settings_free_up_days">
         <item quantity="one">%1$s dia</item>
@@ -45,6 +57,9 @@
     <string name="app_settings_language_automatic_named">Automático (%1$s)</string>
     <string name="app_settings_language_footer">Guardado no teu dispositivo, para que todas as apps com sessão iniciada nele usem o mesmo idioma. «Automático» segue o idioma definido neste telemóvel.</string>
     <string name="app_settings_language_this_phone">O teu dispositivo precisa de uma atualização de software para partilhar esta escolha com as tuas outras apps. Até lá, só se aplica a este telemóvel.</string>
+    <string name="app_settings_limited_allow_all">Permitir acesso a todas as fotos</string>
+    <string name="app_settings_limited_select_more">Selecionar mais fotos</string>
+    <string name="app_settings_limited_warning">Só é feita cópia de segurança das fotos que escolheste: o Off The Cloud só consegue ver essas. Para fazer cópia de segurança de todas as fotos deste telemóvel, permite o acesso a todas.</string>
     <string name="app_settings_links_created">Criada em %1$s</string>
     <string name="app_settings_links_delete_failed">Não foi possível eliminar a ligação</string>
     <string name="app_settings_links_delete_link">Eliminar ligação</string>

@@ -46,6 +46,10 @@ import java.io.FileOutputStream
  *   deletion (HasHashes: a row with it and its blob whole); an older device
  *   answers HasFile, one at a time. Nothing it doesn't confirm goes, and
  *   videos only while Include videos is on.
+ * - Folders turned off (Settings > Sync Options > Folders) are left alone,
+ *   even what the device got from them before: turning one off deletes
+ *   nothing. Read again for the last check, so one turned off meanwhile is
+ *   too.
  * - Android asks before moving them (MediaStore.createTrashRequest, which
  *   RootView launches - it needs an Activity), and the trash keeps them for
  *   30 days.
@@ -101,11 +105,14 @@ object FreeUpSpace {
     fun isDue(lastRunMs: Long, nowMs: Long): Boolean =
         lastRunMs == 0L || lastRunMs > nowMs || nowMs - lastRunMs >= 24 * 3600_000L
 
-    /** One MediaStore row, as far as deciding goes. */
-    data class Row(val id: Long, val isVideo: Boolean, val takenMs: Long, val size: Long, val generation: Long)
+    /** One MediaStore row, as far as deciding goes; [bucketId] its folder's. */
+    data class Row(val id: Long, val isVideo: Boolean, val takenMs: Long, val size: Long, val generation: Long, val bucketId: Long? = null)
 
-    fun eligible(r: Row, cutoffMs: Long, includeVideos: Boolean): Boolean =
-        r.takenMs in 1 until cutoffMs && (includeVideos || !r.isVideo)
+    /** [skipped]: the folders turned off, by BUCKET_ID. */
+    fun eligible(r: Row, cutoffMs: Long, includeVideos: Boolean, skipped: Set<Long> = emptySet()): Boolean =
+        r.takenMs in 1 until cutoffMs && (includeVideos || !r.isVideo) && (r.bucketId == null || r.bucketId !in skipped)
+
+    private fun skippedFolders(): Set<Long> = PhotoFolders.bucketIds(SecretsStore.loadOrCreate().skippedFolders.value)
 
     /** RootView: the activity is in front (between ON_RESUME and ON_STOP). */
     @Volatile var inFront = false
@@ -191,7 +198,8 @@ object FreeUpSpace {
         val endpoint = secrets.endpointURLString
         val includeVideos = secrets.includeVideos.value
         val cutoffMs = System.currentTimeMillis() - _days.value * 24 * 3600_000L
-        val rows = rows(includeVideos).filter { eligible(it, cutoffMs, includeVideos) }
+        val skipped = skippedFolders()
+        val rows = rows(includeVideos).filter { eligible(it, cutoffMs, includeVideos, skipped) }
         Log.i(tag, "${rows.size} files old enough")
         if (rows.isEmpty()) return null
 
@@ -208,7 +216,8 @@ object FreeUpSpace {
         val confirmed = hashOf.filterValues { it in held }.keys
         Log.i(tag, "the device holds ${confirmed.size} of ${hashOf.size} hashed")
         if (confirmed.isEmpty()) return null
-        val now = rows(includeVideos).filter { it.id in confirmed && eligible(it, cutoffMs, includeVideos) && cached(it) == hashOf[it.id] }
+        val skippedNow = skippedFolders()
+        val now = rows(includeVideos).filter { it.id in confirmed && eligible(it, cutoffMs, includeVideos, skippedNow) && cached(it) == hashOf[it.id] }
         if (now.isEmpty()) return null
         // A Log Out (or another device) since the check: those hashes were another device's.
         if (SecretsStore.loadOrCreate().endpointURLString != endpoint || !inFront) throw IllegalStateException("not now") // i18n-ignore: logged, never shown
@@ -227,6 +236,7 @@ object FreeUpSpace {
         val proj = arrayOf(
             MediaStore.Files.FileColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE, MediaStore.Files.FileColumns.DATE_TAKEN,
             MediaStore.Files.FileColumns.DATE_ADDED, MediaStore.Files.FileColumns.SIZE, MediaStore.Files.FileColumns.GENERATION_MODIFIED,
+            MediaStore.MediaColumns.BUCKET_ID,
         )
         val types = if (includeVideos) "(${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE},${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})" else "(${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE})"
         val out = mutableListOf<Row>()
@@ -235,7 +245,8 @@ object FreeUpSpace {
         )?.use { cur ->
             while (cur.moveToNext()) {
                 val taken = cur.getLong(2).takeIf { it > 0 } ?: (cur.getLong(3) * 1000)
-                out += Row(cur.getLong(0), cur.getInt(1) == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO, taken, cur.getLong(4), cur.getLong(5))
+                out += Row(cur.getLong(0), cur.getInt(1) == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO, taken, cur.getLong(4), cur.getLong(5),
+                    if (cur.isNull(6)) null else cur.getLong(6))
             }
         }
         return out

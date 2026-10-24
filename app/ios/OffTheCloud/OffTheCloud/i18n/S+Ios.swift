@@ -311,6 +311,34 @@ extension S {
         L("ios.photos_upload_failed", table: "Ios", detail)
     }
 
+    /// Albums
+    ///
+    /// Row in Settings > Sync Options that opens the list of the iPhone's albums in the Photos app (the user's own, and Screenshots, Selfies...) with a switch for each, and that screen's title. These are Apple's albums, not Off The Cloud's collections: use the Photos app's own word.
+    static var iosSettingsAlbums: String { L("ios.settings.albums", table: "Ios") }
+
+    /// All
+    ///
+    /// Value at the right of the Albums row in Settings > Sync Options when no album is turned off: every album is backed up. Agrees with albums.
+    static var iosSettingsAlbumsAll: String { L("ios.settings.albums_all", table: "Ios") }
+
+    /// There's nothing to choose from yet: every photo on this iPhone is backed up.
+    ///
+    /// On the Albums screen (Settings > Sync Options > Albums) when the iPhone has no album holding photos.
+    static var iosSettingsAlbumsEmpty: String { L("ios.settings.albums_empty", table: "Ios") }
+
+    /// Everything is backed up except the photos in albums you turn off, even when those photos are in other albums too. Turning an album off only stops backing it up: nothing is deleted, from this iPhone or from your device. Turning it back on backs up everything already in it.
+    ///
+    /// Under the list on the Albums screen (Settings > Sync Options > Albums): a photo in an album turned off isn't backed up, even if an album that is on holds it too; and what turning a switch off, and on again, does. These are the Photos app's albums, not Off The Cloud's collections. Your device is the Off The Cloud device.
+    static var iosSettingsAlbumsFooter: String { L("ios.settings.albums_footer", table: "Ios") }
+
+    /// one: {count} off
+    /// other: {count} off
+    ///
+    /// Value at the right of the Albums row in Settings > Sync Options: how many albums are turned off, so not backed up. Agrees with albums.
+    static func iosSettingsAlbumsOff(count: Int) -> String {
+        L("ios.settings.albums_off", table: "Ios", count)
+    }
+
     /// Leave and Delete the Account
     ///
     /// Button (in red) of the confirmation Delete your account?: the device leaves the bridge, then the account page opens to delete the account.

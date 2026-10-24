@@ -44,6 +44,14 @@ final class SecretsStore: ObservableObject {
     @Published var freeUpLivePhotos: Bool {
         didSet { persist(); if freeUpLivePhotos && !oldValue { FreeUpSpace.makeDue() } }
     }
+    /// The albums turned off in Settings > Sync Options > Albums, by
+    /// PHAssetCollection.localIdentifier: their photos aren't backed up.
+    /// A list of what to skip, never of what to include, so an album that
+    /// appears later is backed up (PhotoSync.setAlbum changes it).
+    @Published var skippedAlbums: [String] {
+        didSet { persist() }
+    }
+    static let skippedAlbumsKey = "skippedAlbums"
     
     var isConfigured: Bool { !endpoint.isEmpty && !password.isEmpty }
 
@@ -98,7 +106,7 @@ final class SecretsStore: ObservableObject {
     }
 
     private init(endpoint: String, password: String, deviceId: String, wifiOnly: Bool, includeVideos: Bool, downloadFromiCloud: Bool,
-                 freeUpSpace: Bool, freeUpDays: Int, freeUpLivePhotos: Bool) {
+                 freeUpSpace: Bool, freeUpDays: Int, freeUpLivePhotos: Bool, skippedAlbums: [String]) {
         self.endpoint = endpoint
         self.password = password
         self.deviceId = deviceId
@@ -108,6 +116,7 @@ final class SecretsStore: ObservableObject {
         self.freeUpSpace = freeUpSpace
         self.freeUpDays = freeUpDays
         self.freeUpLivePhotos = freeUpLivePhotos
+        self.skippedAlbums = skippedAlbums
     }
 
     /// Several threads call loadOrCreate at once (RootView, the
@@ -148,7 +157,8 @@ final class SecretsStore: ObservableObject {
         return SecretsStore(endpoint: endpoint, password: password, deviceId: deviceId, wifiOnly: wifiOnly, includeVideos: includeVideos, downloadFromiCloud: downloadFromiCloud,
                             freeUpSpace: d.bool(forKey: FreeUpSpace.enabledKey),
                             freeUpDays: FreeUpSpace.days(d.object(forKey: FreeUpSpace.daysKey)),
-                            freeUpLivePhotos: d.bool(forKey: FreeUpSpace.livePhotosKey))
+                            freeUpLivePhotos: d.bool(forKey: FreeUpSpace.livePhotosKey),
+                            skippedAlbums: d.stringArray(forKey: Self.skippedAlbumsKey) ?? [])
     }
 
     /// Log Out (SettingsView): forget the connection and wipe everything
@@ -187,6 +197,7 @@ final class SecretsStore: ObservableObject {
         freeUpSpace = false
         freeUpDays = FreeUpSpace.defaultDays
         freeUpLivePhotos = false
+        skippedAlbums = []
         deviceId = UUID().uuidString
         Keychain.saveString(key: "device_id", value: deviceId)
     }
@@ -249,6 +260,7 @@ final class SecretsStore: ObservableObject {
         UserDefaults.standard.set(freeUpSpace, forKey: FreeUpSpace.enabledKey)
         UserDefaults.standard.set(freeUpDays, forKey: FreeUpSpace.daysKey)
         UserDefaults.standard.set(freeUpLivePhotos, forKey: FreeUpSpace.livePhotosKey)
+        UserDefaults.standard.set(skippedAlbums, forKey: Self.skippedAlbumsKey)
     }
 }
 

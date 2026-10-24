@@ -134,6 +134,34 @@
     "en": "Face Recognition",
     "reviewed": "claude-backtranslation 2026-10-11 #c3d5f219"
   },
+  "app.settings.folders.no_access": {
+    "text": "Off The Cloud kann deine Fotos noch nicht sehen. Erlaube den Zugriff darauf, um auszuwählen, was gesichert wird.",
+    "en": "Off The Cloud can't see your photos yet. Allow access to them to choose what is backed up."
+  },
+  "app.settings.folders.photos": {
+    "text": {
+      "one": "{count} Foto",
+      "other": "{count} Fotos"
+    },
+    "en": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    }
+  },
+  "app.settings.folders.photos_videos": {
+    "text": "{photos} · {videos}",
+    "en": "{photos} · {videos}"
+  },
+  "app.settings.folders.videos": {
+    "text": {
+      "one": "{count} Video",
+      "other": "{count} Videos"
+    },
+    "en": {
+      "one": "{count} video",
+      "other": "{count} videos"
+    }
+  },
   "app.settings.free_up.after": {
     "text": "Älter als",
     "en": "Older than"
@@ -176,6 +204,18 @@
   "app.settings.language_this_phone": {
     "text": "Dein Gerät braucht ein Software-Update, um diese Auswahl mit deinen anderen Apps zu teilen. Bis dahin gilt sie nur für dieses Handy.",
     "en": "Your device needs a software update to share this choice with your other apps. Until then it applies to this phone only."
+  },
+  "app.settings.limited.allow_all": {
+    "text": "Zugriff auf alle Fotos erlauben",
+    "en": "Allow Access to All Photos"
+  },
+  "app.settings.limited.select_more": {
+    "text": "Weitere Fotos auswählen",
+    "en": "Select More Photos"
+  },
+  "app.settings.limited.warning": {
+    "text": "Nur die Fotos, die du ausgewählt hast, werden gesichert: Off The Cloud sieht nur diese. Um alle Fotos auf diesem Handy zu sichern, erlaube den Zugriff auf alle.",
+    "en": "Only the photos you picked are backed up: Off The Cloud can see only those. To back up every photo on this phone, allow access to all of them."
   },
   "app.settings.links.created": {
     "text": "Erstellt am {date}",

@@ -283,6 +283,48 @@
     "text": "Zoom",
     "en": "Zoom"
   },
+  "android.settings.folder_on_volume": {
+    "text": "{volume} · {path}",
+    "en": "{volume} · {path}"
+  },
+  "android.settings.folders": {
+    "text": "Dossiers",
+    "en": "Folders"
+  },
+  "android.settings.folders_all": {
+    "text": "Tous",
+    "en": "All"
+  },
+  "android.settings.folders_empty": {
+    "text": "Aucune photo sur ce téléphone pour l’instant.",
+    "en": "No photos on this phone yet."
+  },
+  "android.settings.folders_footer": {
+    "text": "Désactiver un dossier arrête seulement sa sauvegarde : rien n’est supprimé, ni de ce téléphone ni de votre appareil. Le réactiver sauvegarde tout ce qu’il contient déjà.",
+    "en": "Turning a folder off only stops backing it up: nothing is deleted, from this phone or from your device. Turning it back on backs up everything already in it."
+  },
+  "android.settings.folders_hidden": {
+    "text": "Android masque à toutes les apps, y compris celle-ci, les dossiers dont le nom commence par un point et ceux qui contiennent un fichier nommé .nomedia. Leurs photos ne peuvent être ni affichées ici ni sauvegardées tant que le dossier n’est pas renommé ou que ce fichier n’est pas supprimé.",
+    "en": "Android hides folders whose name starts with a dot, and folders that contain a file called .nomedia, from every app, this one included. Their photos can't be listed here or backed up until the folder is renamed or that file is removed."
+  },
+  "android.settings.folders_intro": {
+    "text": "Tous les dossiers sont sauvegardés, sauf ceux que vous désactivez ici. Les nouveaux dossiers le sont aussi, dès qu’ils apparaissent.",
+    "en": "Every folder is backed up unless you turn it off here. New folders are backed up too, as soon as they appear."
+  },
+  "android.settings.folders_load_failed": {
+    "text": "Impossible d’afficher les dossiers de ce téléphone.",
+    "en": "Could not list the folders on this phone."
+  },
+  "android.settings.folders_off": {
+    "text": {
+      "one": "{count} désactivé",
+      "other": "{count} désactivés"
+    },
+    "en": {
+      "one": "{count} off",
+      "other": "{count} off"
+    }
+  },
   "android.settings.free_up_footer": {
     "text": "Les photos et vidéos plus anciennes passent de ce téléphone à sa corbeille, chacune seulement une fois que l’appareil confirme en avoir une copie exacte. Android demande d’abord, et la corbeille les garde 30 jours. Cela se fait après une synchronisation, l’app ouverte, une fois par jour au plus.",
     "en": "Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.",

@@ -4990,18 +4990,6 @@ private struct PhotoDateScrubber: View {
     }
 }
 
-// MARK: - Small UIKit helper to present alerts on top-most controller
-
-private extension UIApplication {
-    var topMost: UIViewController? {
-        guard let s = connectedScenes.first as? UIWindowScene,
-              let w = s.windows.first(where: { $0.isKeyWindow }),
-              var top = w.rootViewController else { return nil }
-        while let p = top.presentedViewController { top = p }
-        return top
-    }
-}
-
 /// A NotificationCenter observer, removed once nothing holds it.
 private final class ObserverToken {
     private let token: NSObjectProtocol

@@ -80,6 +80,19 @@
     <string name="android_settings_bridge_leave_delete">Sair e eliminar</string>
     <string name="android_settings_crop_hint">Arrasta a foto para centrares o teu rosto</string>
     <string name="android_settings_crop_zoom">Zoom</string>
+    <string name="android_settings_folder_on_volume">%1$s · \u2068%2$s\u2069</string>
+    <string name="android_settings_folders">Pastas</string>
+    <string name="android_settings_folders_all">Todas</string>
+    <string name="android_settings_folders_empty">Ainda não há fotos neste telemóvel.</string>
+    <string name="android_settings_folders_footer">Desativar uma pasta só deixa de fazer a cópia de segurança dela: nada é eliminado, nem deste telemóvel nem do teu dispositivo. Ao voltares a ativá-la, é feita cópia de segurança de tudo o que já contém.</string>
+    <string name="android_settings_folders_hidden">O Android oculta de todas as apps, incluindo esta, as pastas cujo nome começa por um ponto e as que contêm um ficheiro chamado .nomedia. As fotos dessas pastas não podem aparecer aqui nem ter cópia de segurança enquanto a pasta não for renomeada ou esse ficheiro não for removido.</string>
+    <string name="android_settings_folders_intro">Todas as pastas têm cópia de segurança, exceto as que desativares aqui. As pastas novas também, assim que aparecerem.</string>
+    <string name="android_settings_folders_load_failed">Não foi possível mostrar as pastas deste telemóvel.</string>
+    <plurals name="android_settings_folders_off">
+        <item quantity="one">%1$s desativada</item>
+        <item quantity="many">%1$s desativadas</item>
+        <item quantity="other">%1$s desativadas</item>
+    </plurals>
     <string name="android_settings_free_up_footer">As fotos e vídeos mais antigos passam deste telemóvel para o lixo, cada um só depois de o dispositivo confirmar que tem uma cópia exata. O Android pergunta antes, e o lixo guarda-os durante 30 dias. Acontece depois de uma sincronização com a app aberta, no máximo uma vez por dia.</string>
     <string name="android_settings_links_delete_text">As cópias partilhadas são eliminadas e a ligação deixa de funcionar.</string>
     <string name="android_settings_links_empty_text">As ligações criadas com «Partilhar» ou «Partilhar como galeria» em Imagens e Ficheiros aparecem aqui até expirarem.</string>

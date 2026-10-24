@@ -272,6 +272,32 @@
     "en": "This app needs access to your Photos to back them up",
     "reviewed": "claude-backtranslation 2026-10-11 #d9fae840"
   },
+  "ios.settings.albums": {
+    "text": "Album",
+    "en": "Albums"
+  },
+  "ios.settings.albums_all": {
+    "text": "Tutti",
+    "en": "All"
+  },
+  "ios.settings.albums_empty": {
+    "text": "Non c’è ancora niente da scegliere: viene eseguito il backup di tutte le foto di questo iPhone.",
+    "en": "There's nothing to choose from yet: every photo on this iPhone is backed up."
+  },
+  "ios.settings.albums_footer": {
+    "text": "Viene eseguito il backup di tutto, tranne che delle foto negli album che disattivi, anche se quelle foto si trovano pure in altri album. Disattivare un album ne interrompe solo il backup: non viene eliminato nulla, né da questo iPhone né dal tuo dispositivo. Riattivandolo, viene eseguito il backup di tutto ciò che contiene già.",
+    "en": "Everything is backed up except the photos in albums you turn off, even when those photos are in other albums too. Turning an album off only stops backing it up: nothing is deleted, from this iPhone or from your device. Turning it back on backs up everything already in it."
+  },
+  "ios.settings.albums_off": {
+    "text": {
+      "one": "{count} disattivato",
+      "other": "{count} disattivati"
+    },
+    "en": {
+      "one": "{count} off",
+      "other": "{count} off"
+    }
+  },
   "ios.settings.bridge_leave_delete": {
     "text": "Lascia ed elimina l’account",
     "en": "Leave and Delete the Account",

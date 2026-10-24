@@ -111,12 +111,59 @@ final class PhotoSync: NSObject {
     /// runs couldn't finish included. A run in progress still uploads
     /// what it fetched, as it always did, but no longer moves the
     /// watermark back before now or puts its failures back on the list.
+    /// The one-off passes waiting go too, and the change history starts
+    /// from here (without access to read the library's token, from the
+    /// next run's). With limited access, the photos visible now are what
+    /// the next run compares with: only those picked after this are sent.
     func syncFromNow() {
+        let token = Self.libraryReadable ? PhotoKitHistory().currentToken : nil
+        let visible = PHPhotoLibrary.authorizationStatus(for: .readWrite) == .limited ? visibleIDs() : nil
         syncLock.lock()
         defer { syncLock.unlock() }
         fromNowEpoch &+= 1
-        UserDefaults.standard.set(Date(), forKey: "lastSyncDate")
+        let now = Date()
+        UserDefaults.standard.set(now, forKey: "lastSyncDate")
+        state.floor = now
+        state.backfill = []
+        if let visible { state.setLimitedSeen(visible) } else { state.removeLimitedSeen() }
+        state.changeToken = token
         AssetSyncCache.shared.clearPending()
+    }
+
+    /// Sync All: the whole library again, from the start. Its point to
+    /// sync from is "everything" (State.floor).
+    func syncAll() {
+        syncLock.lock()
+        defer { syncLock.unlock() }
+        UserDefaults.standard.removeObject(forKey: "lastSyncDate")
+        state.floor = .distantPast
+    }
+
+    /// An album turned off or back on (Settings > Sync Options > Albums).
+    /// Off: its photos are left out from now on; nothing is deleted, here
+    /// or on the device. On: a one-off pass sends what it already holds,
+    /// older than the watermark too - what the device has is found and not
+    /// sent again - starting now, or with the next run if one is going.
+    /// Called on the main thread (the skip list is published). Both lists
+    /// change under the lock, together.
+    func setAlbum(_ id: String, skipped: Bool, secrets: SecretsStore) {
+        syncLock.lock()
+        let next = PhotoSources.toggled(id, skipped: skipped, skips: secrets.skippedAlbums, backfill: state.backfill)
+        state.backfill = next.backfill
+        secrets.skippedAlbums = next.skips
+        syncLock.unlock()
+        if !skipped {
+            Task { try? await runForeground() }
+        }
+    }
+
+    /// The sync's own state besides the watermark and the retry list.
+    private let state = State.standard
+
+    /// Full or limited access: what the library's change token needs.
+    private static var libraryReadable: Bool {
+        let s = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        return s == .authorized || s == .limited
     }
 
     // How many assets to read from disk + upload at the same time (issue
@@ -299,6 +346,32 @@ final class PhotoSync: NSObject {
         return out
     }
 
+    /// With limited access, everything the app can see - only what the
+    /// owner picked - videos included, by local identifier.
+    private func visibleIDs() -> Set<String> {
+        Set(fetchNewAssets(includeVideos: true, since: nil).map(\.localIdentifier))
+    }
+
+    /// A one-off pass's assets, oldest first: all of an album's, whatever
+    /// their date, or everything added after a date (nil: the library).
+    private func fetchOneOff(_ pass: PhotoSources.OneOff, includeVideos: Bool) -> [PHAsset] {
+        switch pass {
+        case .since(let date):
+            return fetchNewAssets(includeVideos: includeVideos, since: date)
+        case .album(let id):
+            // Gone since it was turned on: nothing to send.
+            guard let album = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [id], options: nil).firstObject else { return [] }
+            let opts = PHFetchOptions()
+            if !includeVideos {
+                opts.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
+            }
+            opts.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
+            var out: [PHAsset] = []
+            PHAsset.fetchAssets(in: album, options: opts).enumerateObjects { a, _, _ in out.append(a) }
+            return out
+        }
+    }
+
     /// The retry list's assets that still exist, whatever their type: a
     /// video kept for later while "Include videos" is off stays on the list.
     private func fetchAssets(localIdentifiers ids: [String]) -> [PHAsset] {
@@ -416,17 +489,18 @@ final class PhotoSync: NSObject {
     /// The sync itself: false when it didn't run (the choice not made yet,
     /// or another run already going, which then ends with its own).
     private func syncUnlessRunning() async throws -> Bool {
+        guard let gen = beginSyncIfNotAlreadyRunning() else {
+            print("Sync already running, skipping overlapping request")
+            return false
+        }
+        defer { endSync() }
+        await accessChanged(gen: gen)
         // Signed in but not yet told what to sync (SyncChoice): nothing,
         // the background task's runs included, until the sheet is answered.
         guard !SyncChoice.pending else {
             print("Sync waits for the sync choice")
             return false
         }
-        guard let gen = beginSyncIfNotAlreadyRunning() else {
-            print("Sync already running, skipping overlapping request")
-            return false
-        }
-        defer { endSync() }
         // Issue #190: no route switch while a sync runs.
         TransferActivity.shared.begin()
         defer { TransferActivity.shared.end() }
@@ -441,6 +515,49 @@ final class PhotoSync: NSObject {
         return true
     }
 
+    /// What turning access to the library from limited to full needs.
+    enum AccessStep: Equatable {
+        case none
+        /// The catch-up pass, from the floor the owner chose.
+        case catchUp
+        /// The floor is unknown (chosen before this version): the Sync
+        /// Your Photos question again, whose answer sets it.
+        case askAgain
+    }
+
+    /// Pure: what a run does about access. Only full access after limited
+    /// access needs anything - the photos the app couldn't see are behind
+    /// the watermark. Access taken away is not full access.
+    static func accessStep(limited: Bool, full: Bool, wasLimited: Bool, floorKnown: Bool) -> AccessStep {
+        guard full && wasLimited else { return .none }
+        return floorKnown ? .catchUp : .askAgain
+    }
+
+    /// Before each run, the choice included: records limited access, and
+    /// when access is full again after it, queues the catch-up pass or asks
+    /// the Sync Your Photos question again (which holds the run up, as
+    /// after a sign-in).
+    private func accessChanged(gen: Int) async {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        var step = AccessStep.none
+        ifLive(gen) {
+            if status == .limited {
+                if !state.accessWasLimited { state.accessWasLimited = true }
+                return
+            }
+            step = Self.accessStep(limited: false, full: status == .authorized,
+                                   wasLimited: state.accessWasLimited, floorKnown: state.floor != nil)
+            guard step != .none else { return }
+            state.accessWasLimited = false
+            state.removeLimitedSeen()
+            if step == .catchUp { state.queueBackfill(PhotoSources.catchUp) }
+        }
+        if step == .askAgain {
+            print("Full photo access after limited access: asking what to sync again")
+            await MainActor.run { SyncChoice.ask() }
+        }
+    }
+
     private func syncOnce(gen: Int) async throws {
         try await ensureAuth()
         let secrets = SecretsStore.loadOrCreate()
@@ -453,6 +570,12 @@ final class PhotoSync: NSObject {
         // Bool, rather than passing `secrets` itself into the concurrent
         // tasks below.
         let allowICloudDownloads = secrets.downloadFromiCloud
+        // Limited access: the app sees only the photos the owner picked.
+        let limited = PHPhotoLibrary.authorizationStatus(for: .readWrite) == .limited
+        // Where the change history goes on from next run, taken before
+        // anything is fetched: what lands during this run is the next one's.
+        let history = PhotoKitHistory()
+        let nextToken = history.currentToken
 
         // The watermark never goes past this: a photo with a future date
         // (a wrong camera clock) can't push it ahead of what was fetched.
@@ -469,25 +592,88 @@ final class PhotoSync: NSObject {
             last = pulled
         }
         print("Sync photos from: \(String(describing: last))")
-        var assets = fetchNewAssets(includeVideos: secrets.includeVideos, since: last)
+        let fresh = fetchNewAssets(includeVideos: secrets.includeVideos, since: last)
+        let freshIDs = Set(fresh.map(\.localIdentifier))
+
+        // The photos in the albums turned off (Settings > Sync Options >
+        // Albums): read once, and only when there is something to leave
+        // out - with none turned off, nothing is read.
+        var skippedCache: Set<String>?
+        func skippedIDs() -> Set<String> {
+            if let skippedCache { return skippedCache }
+            let ids = PhotoSources.skippedAssetIDs(secrets.skippedAlbums)
+            skippedCache = ids
+            return ids
+        }
+
+        // Photos added to the library since the last run with a date the
+        // watermark is already past (PhotoHistory.swift): onto the retry
+        // list. When the history can't be read, the catch-up pass from the
+        // floor instead - not while access is limited, where what the owner
+        // picks is found below.
+        let floor = state.floor
+        let plan = Self.readHistory(history, token: state.changeToken, watermark: last, skipped: skippedIDs,
+                                    floorKnown: floor != nil && !limited)
+        ifLive(gen, epoch: epoch) {
+            AssetSyncCache.shared.markPending(plan.markPending, iCloud: false)
+            if plan.catchUp { state.queueBackfill(PhotoSources.catchUp) }
+            state.changeToken = nextToken
+        }
+        if !plan.markPending.isEmpty { print("\(plan.markPending.count) assets added with an older date since the last run") }
+        if plan.catchUp { print("Photo change history unavailable: catching up from the floor") }
+
+        // Limited access: photos the owner picked since the last run may be
+        // older than the watermark. What is visible is only what was picked,
+        // so the whole set is compared with the last run's; the first time
+        // it is only recorded.
+        if limited {
+            let visible = visibleIDs()
+            let seen = state.limitedSeen()
+            let picked = PhotoSources.newlyVisible(seen: seen, visible: visible).subtracting(freshIDs)
+            ifLive(gen, epoch: epoch) {
+                AssetSyncCache.shared.markPending(picked.sorted(), iCloud: false)
+                if seen != visible { state.setLimitedSeen(visible) }
+            }
+            if !picked.isEmpty { print("\(picked.count) assets picked since the last run") }
+        }
 
         // Assets earlier runs couldn't finish, which the watermark has
         // already moved past: first, unless the new fetch has them anyway.
         let pendingIDs = AssetSyncCache.shared.pending(includeICloud: allowICloudDownloads)
-        var retriedIDs = Set<String>()
+        var retried: [PHAsset] = []
         if !pendingIDs.isEmpty {
             let found = fetchAssets(localIdentifiers: pendingIDs)
             let foundIDs = Set(found.map(\.localIdentifier))
             let gone = pendingIDs.filter { !foundIDs.contains($0) }
             ifLive(gen) { AssetSyncCache.shared.resolve(gone) }
-            let fresh = Set(assets.map(\.localIdentifier))
-            let retried = found.filter {
-                !fresh.contains($0.localIdentifier) && (secrets.includeVideos || $0.mediaType == .image)
+            retried = found.filter {
+                !freshIDs.contains($0.localIdentifier) && (secrets.includeVideos || $0.mediaType == .image)
             }
-            retriedIDs = Set(retried.map(\.localIdentifier))
-            assets = retried + assets
             print("Retrying \(retried.count) assets from earlier runs")
         }
+
+        // One-off passes: albums turned back on, and the catch-up. No date
+        // limit; what the device already has is found below and not sent
+        // again.
+        let taken = state.backfill
+        var oneOff: [PHAsset] = []
+        for pass in PhotoSources.oneOffs(taken, floor: floor) {
+            oneOff += fetchOneOff(pass, includeVideos: secrets.includeVideos)
+        }
+        if !taken.isEmpty { print("One-off passes over \(taken.count) sources: \(oneOff.count) assets") }
+
+        // Retried, one-off, then new; none in an album turned off. A retry
+        // list entry left out stays on the list: it goes once its album is
+        // on again or it is taken out of it. Only the new ones move the
+        // watermark.
+        var byID: [String: PHAsset] = [:]
+        for asset in retried + oneOff + fresh { byID[asset.localIdentifier] = asset }
+        let skipped = secrets.skippedAlbums.isEmpty || byID.isEmpty ? [] : skippedIDs()
+        let list = PhotoSources.runList(retried: retried.map(\.localIdentifier), oneOff: oneOff.map(\.localIdentifier),
+                                        fresh: fresh.map(\.localIdentifier), skipped: skipped)
+        let assets = list.ids.compactMap { byID[$0] }
+        let retriedIDs = list.exempt
+        if !skipped.isEmpty { print("Leaving out \(byID.count - assets.count) assets in albums turned off") }
         ifLive(gen) { UploadModel.shared.begin(total: assets.count) }
 
         let targetPath = "/ios/\(secrets.deviceId)/"
@@ -542,6 +728,8 @@ final class PhotoSync: NSObject {
         var idx = 0
         // Cancelled: the run throws, so a BG task reports it unfinished.
         var stopped = false
+        // Stopped because the device is gone.
+        var cutShort = false
         let chunks = assets.chunked(into: Self.cMaxConcurrentUploads)
         for (ci, chunk) in chunks.enumerated() {
             // Issue #70: a BGProcessingTask's expiration and Log Out cancel
@@ -856,7 +1044,28 @@ final class PhotoSync: NSObject {
                     try await ws.ensureConnected()
                 } catch {
                     print("Device not reachable, stopping this run:", error)
+                    cutShort = true
                     break
+                }
+            }
+        }
+
+        // Every chunk went (what failed is on the retry list): the one-off
+        // passes taken are done - those queued meanwhile stay, and so does
+        // one this run left out, its album turned back on after the run read
+        // the skip list - and new photos left out as skipped no longer hold
+        // the watermark back, or every run would fetch them again. A Sync
+        // From Now pressed meanwhile wins.
+        if !stopped && !cutShort {
+            let newestFresh = list.droppedFresh ? fresh.compactMap(\.creationDate).max() : nil
+            ifLive(gen, epoch: epoch) {
+                if !taken.isEmpty {
+                    state.backfill = PhotoSources.afterPass(stored: state.backfill, taken: taken,
+                                                            skippedInRun: secrets.skippedAlbums, finished: true)
+                }
+                let stored = UserDefaults.standard.object(forKey: "lastSyncDate") as? Date
+                if let mark = PhotoSources.watermarkPastSkipped(newest: newestFresh, runStart: runStart, stored: stored) {
+                    UserDefaults.standard.set(mark, forKey: "lastSyncDate")
                 }
             }
         }
@@ -874,6 +1083,85 @@ final class PhotoSync: NSObject {
         // No final "lastSyncDate = now" any more: the per-chunk watermark
         // already stands at the newest asset handled, and now would skip
         // whatever arrived during the run with an older date.
+    }
+}
+
+extension PhotoSync {
+    /// What the sync keeps besides the watermark (lastSyncDate) and the
+    /// retry list (AssetSyncCache): in UserDefaults and Application
+    /// Support, which Log Out wipes. Not locked: PhotoSync writes it under
+    /// its own lock.
+    struct State {
+        let defaults: UserDefaults
+        /// Where limited_seen.json is kept.
+        let directory: URL
+
+        static let standard = State(
+            defaults: .standard,
+            directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0])
+
+        static let backfillKey = "backfillAlbums"
+        static let floorKey = "syncFloorDate"
+        static let changeTokenKey = "photoChangeToken"
+        static let wasLimitedKey = "accessWasLimited"
+
+        /// One-off passes still to make: the ids of albums turned back on,
+        /// and PhotoSources.catchUp.
+        var backfill: [String] {
+            get { defaults.stringArray(forKey: Self.backfillKey) ?? [] }
+            nonmutating set {
+                if newValue.isEmpty { defaults.removeObject(forKey: Self.backfillKey) } else { defaults.set(newValue, forKey: Self.backfillKey) }
+            }
+        }
+
+        func queueBackfill(_ entry: String) {
+            let queued = backfill
+            if !queued.contains(entry) { backfill = queued + [entry] }
+        }
+
+        /// The point the owner chose to sync from: the moment Sync From Now
+        /// (or "Only new ones") was pressed, or Date.distantPast for
+        /// everything (Sync All). nil on a phone that hasn't chosen since
+        /// this was kept. Only the catch-up pass reads it.
+        var floor: Date? {
+            get { defaults.object(forKey: Self.floorKey) as? Date }
+            nonmutating set { defaults.set(newValue, forKey: Self.floorKey) }
+        }
+
+        /// Where the change history goes on from (PhotoHistory.swift): an
+        /// archived PHPersistentChangeToken.
+        var changeToken: Data? {
+            get { defaults.data(forKey: Self.changeTokenKey) }
+            nonmutating set { defaults.set(newValue, forKey: Self.changeTokenKey) }
+        }
+
+        /// The last run saw limited access.
+        var accessWasLimited: Bool {
+            get { defaults.bool(forKey: Self.wasLimitedKey) }
+            nonmutating set {
+                if newValue { defaults.set(true, forKey: Self.wasLimitedKey) } else { defaults.removeObject(forKey: Self.wasLimitedKey) }
+            }
+        }
+
+        private var limitedSeenURL: URL { directory.appendingPathComponent("limited_seen.json") }
+
+        /// With limited access, the photos visible at the last run; nil when
+        /// none was recorded.
+        func limitedSeen() -> Set<String>? {
+            guard let data = try? Data(contentsOf: limitedSeenURL),
+                  let ids = try? JSONDecoder().decode([String].self, from: data) else { return nil }
+            return Set(ids)
+        }
+
+        func setLimitedSeen(_ ids: Set<String>) {
+            guard let data = try? JSONEncoder().encode(ids.sorted()) else { return }
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try? data.write(to: limitedSeenURL, options: .atomic)
+        }
+
+        func removeLimitedSeen() {
+            try? FileManager.default.removeItem(at: limitedSeenURL)
+        }
     }
 }
 

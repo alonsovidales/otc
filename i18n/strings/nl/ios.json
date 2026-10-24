@@ -272,6 +272,32 @@
     "en": "This app needs access to your Photos to back them up",
     "reviewed": "claude-backtranslation 2026-10-11 #f3a724f0"
   },
+  "ios.settings.albums": {
+    "text": "Fotoalbums",
+    "en": "Albums"
+  },
+  "ios.settings.albums_all": {
+    "text": "Alle",
+    "en": "All"
+  },
+  "ios.settings.albums_empty": {
+    "text": "Er valt nog niets te kiezen: van alle foto’s op deze iPhone wordt een reservekopie gemaakt.",
+    "en": "There's nothing to choose from yet: every photo on this iPhone is backed up."
+  },
+  "ios.settings.albums_footer": {
+    "text": "Van alles wordt een reservekopie gemaakt, behalve van de foto’s in fotoalbums die je uitzet, zelfs als die foto’s ook in andere fotoalbums staan. Een fotoalbum uitzetten stopt alleen de reservekopie ervan: er wordt niets verwijderd, niet van deze iPhone en niet van je apparaat. Zet je het weer aan, dan wordt er een reservekopie gemaakt van alles wat er al in staat.",
+    "en": "Everything is backed up except the photos in albums you turn off, even when those photos are in other albums too. Turning an album off only stops backing it up: nothing is deleted, from this iPhone or from your device. Turning it back on backs up everything already in it."
+  },
+  "ios.settings.albums_off": {
+    "text": {
+      "one": "{count} uit",
+      "other": "{count} uit"
+    },
+    "en": {
+      "one": "{count} off",
+      "other": "{count} off"
+    }
+  },
   "ios.settings.bridge_leave_delete": {
     "text": "Verlaten en account verwijderen",
     "en": "Leave and Delete the Account",

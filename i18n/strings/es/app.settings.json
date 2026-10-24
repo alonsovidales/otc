@@ -134,6 +134,34 @@
     "en": "Face Recognition",
     "reviewed": "claude-backtranslation 2026-10-11 #a61ae983"
   },
+  "app.settings.folders.no_access": {
+    "text": "Off The Cloud todavía no puede ver tus fotos. Permite el acceso a ellas para elegir de qué se hace copia de seguridad.",
+    "en": "Off The Cloud can't see your photos yet. Allow access to them to choose what is backed up."
+  },
+  "app.settings.folders.photos": {
+    "text": {
+      "one": "{count} foto",
+      "other": "{count} fotos"
+    },
+    "en": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    }
+  },
+  "app.settings.folders.photos_videos": {
+    "text": "{photos} · {videos}",
+    "en": "{photos} · {videos}"
+  },
+  "app.settings.folders.videos": {
+    "text": {
+      "one": "{count} vídeo",
+      "other": "{count} vídeos"
+    },
+    "en": {
+      "one": "{count} video",
+      "other": "{count} videos"
+    }
+  },
   "app.settings.free_up.after": {
     "text": "Con más de",
     "en": "Older than"
@@ -176,6 +204,18 @@
   "app.settings.language_this_phone": {
     "text": "Tu dispositivo necesita una actualización de software para compartir esta elección con tus otras apps. Hasta entonces, solo se aplica a este teléfono.",
     "en": "Your device needs a software update to share this choice with your other apps. Until then it applies to this phone only."
+  },
+  "app.settings.limited.allow_all": {
+    "text": "Permitir acceso a todas las fotos",
+    "en": "Allow Access to All Photos"
+  },
+  "app.settings.limited.select_more": {
+    "text": "Seleccionar más fotos",
+    "en": "Select More Photos"
+  },
+  "app.settings.limited.warning": {
+    "text": "Solo se hace copia de seguridad de las fotos que has elegido: Off The Cloud solo puede ver esas. Para hacer copia de seguridad de todas las fotos de este teléfono, permite el acceso a todas.",
+    "en": "Only the photos you picked are backed up: Off The Cloud can see only those. To back up every photo on this phone, allow access to all of them."
   },
   "app.settings.links.created": {
     "text": "Creado el {date}",

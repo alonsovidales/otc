@@ -32,6 +32,16 @@ class FreeUpSpaceTest {
         assertTrue(FreeUpSpace.eligible(row(30, video = true), cutoff, includeVideos = true))
     }
 
+    /** A folder turned off is left alone, even what the device holds from it; a row in no folder is as before. */
+    @Test fun neverFromAFolderTurnedOff() {
+        val inCamera = row(30).copy(bucketId = 12)
+        assertTrue(FreeUpSpace.eligible(inCamera, cutoff, includeVideos = true))
+        assertTrue(FreeUpSpace.eligible(inCamera, cutoff, includeVideos = true, skipped = setOf(99)))
+        assertFalse(FreeUpSpace.eligible(inCamera, cutoff, includeVideos = true, skipped = setOf(12)))
+        assertFalse(FreeUpSpace.eligible(inCamera.copy(isVideo = true), cutoff, includeVideos = true, skipped = setOf(12)))
+        assertTrue(FreeUpSpace.eligible(row(30), cutoff, includeVideos = true, skipped = setOf(12)))
+    }
+
     @Test fun onceADay() {
         assertTrue(FreeUpSpace.isDue(0, now))
         assertFalse(FreeUpSpace.isDue(now - 3600_000L, now))

@@ -134,6 +134,34 @@
     "en": "Face Recognition",
     "reviewed": "claude-backtranslation 2026-10-11 #b9f0b1ac"
   },
+  "app.settings.folders.no_access": {
+    "text": "Off The Cloud ne peut pas encore voir vos photos. Autorisez l’accès à vos photos pour choisir ce qui est sauvegardé.",
+    "en": "Off The Cloud can't see your photos yet. Allow access to them to choose what is backed up."
+  },
+  "app.settings.folders.photos": {
+    "text": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    },
+    "en": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    }
+  },
+  "app.settings.folders.photos_videos": {
+    "text": "{photos} · {videos}",
+    "en": "{photos} · {videos}"
+  },
+  "app.settings.folders.videos": {
+    "text": {
+      "one": "{count} vidéo",
+      "other": "{count} vidéos"
+    },
+    "en": {
+      "one": "{count} video",
+      "other": "{count} videos"
+    }
+  },
   "app.settings.free_up.after": {
     "text": "Datant de plus de",
     "en": "Older than"
@@ -176,6 +204,18 @@
   "app.settings.language_this_phone": {
     "text": "Votre appareil a besoin d’une mise à jour logicielle pour partager ce choix avec vos autres apps. D’ici là, il ne s’applique qu’à ce téléphone.",
     "en": "Your device needs a software update to share this choice with your other apps. Until then it applies to this phone only."
+  },
+  "app.settings.limited.allow_all": {
+    "text": "Autoriser l’accès à toutes les photos",
+    "en": "Allow Access to All Photos"
+  },
+  "app.settings.limited.select_more": {
+    "text": "Sélectionner d’autres photos",
+    "en": "Select More Photos"
+  },
+  "app.settings.limited.warning": {
+    "text": "Seules les photos que vous avez choisies sont sauvegardées : Off The Cloud ne voit qu’elles. Pour sauvegarder toutes les photos de ce téléphone, autorisez l’accès à toutes vos photos.",
+    "en": "Only the photos you picked are backed up: Off The Cloud can see only those. To back up every photo on this phone, allow access to all of them."
   },
   "app.settings.links.created": {
     "text": "Créé le {date}",

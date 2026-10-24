@@ -283,6 +283,48 @@
     "text": "Zoom",
     "en": "Zoom"
   },
+  "android.settings.folder_on_volume": {
+    "text": "{volume} · {path}",
+    "en": "{volume} · {path}"
+  },
+  "android.settings.folders": {
+    "text": "Pastas",
+    "en": "Folders"
+  },
+  "android.settings.folders_all": {
+    "text": "Todas",
+    "en": "All"
+  },
+  "android.settings.folders_empty": {
+    "text": "Ainda não há fotos neste telemóvel.",
+    "en": "No photos on this phone yet."
+  },
+  "android.settings.folders_footer": {
+    "text": "Desativar uma pasta só deixa de fazer a cópia de segurança dela: nada é eliminado, nem deste telemóvel nem do teu dispositivo. Ao voltares a ativá-la, é feita cópia de segurança de tudo o que já contém.",
+    "en": "Turning a folder off only stops backing it up: nothing is deleted, from this phone or from your device. Turning it back on backs up everything already in it."
+  },
+  "android.settings.folders_hidden": {
+    "text": "O Android oculta de todas as apps, incluindo esta, as pastas cujo nome começa por um ponto e as que contêm um ficheiro chamado .nomedia. As fotos dessas pastas não podem aparecer aqui nem ter cópia de segurança enquanto a pasta não for renomeada ou esse ficheiro não for removido.",
+    "en": "Android hides folders whose name starts with a dot, and folders that contain a file called .nomedia, from every app, this one included. Their photos can't be listed here or backed up until the folder is renamed or that file is removed."
+  },
+  "android.settings.folders_intro": {
+    "text": "Todas as pastas têm cópia de segurança, exceto as que desativares aqui. As pastas novas também, assim que aparecerem.",
+    "en": "Every folder is backed up unless you turn it off here. New folders are backed up too, as soon as they appear."
+  },
+  "android.settings.folders_load_failed": {
+    "text": "Não foi possível mostrar as pastas deste telemóvel.",
+    "en": "Could not list the folders on this phone."
+  },
+  "android.settings.folders_off": {
+    "text": {
+      "one": "{count} desativada",
+      "other": "{count} desativadas"
+    },
+    "en": {
+      "one": "{count} off",
+      "other": "{count} off"
+    }
+  },
   "android.settings.free_up_footer": {
     "text": "As fotos e vídeos mais antigos passam deste telemóvel para o lixo, cada um só depois de o dispositivo confirmar que tem uma cópia exata. O Android pergunta antes, e o lixo guarda-os durante 30 dias. Acontece depois de uma sincronização com a app aberta, no máximo uma vez por dia.",
     "en": "Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.",

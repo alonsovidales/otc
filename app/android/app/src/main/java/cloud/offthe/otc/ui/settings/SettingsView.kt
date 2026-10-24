@@ -81,6 +81,7 @@ import cloud.offthe.otc.net.OTCConnection
 import cloud.offthe.otc.proto.RaidState
 import cloud.offthe.otc.proto.Status
 import cloud.offthe.otc.proto.User
+import cloud.offthe.otc.sync.PhotoFolders
 import cloud.offthe.otc.sync.PhotoSync
 import cloud.offthe.otc.ui.AvatarView
 import cloud.offthe.otc.ui.common.ConnectionEndpointFields
@@ -88,6 +89,7 @@ import cloud.offthe.otc.ui.common.EndpointEntry
 import cloud.offthe.otc.ui.common.Share
 import cloud.offthe.otc.ui.common.Toast
 import cloud.offthe.otc.ui.compose.mediaPermissions
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -96,6 +98,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -106,6 +109,7 @@ import cloud.offthe.otc.i18n.RichText
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.androidSettingsBridgeLeaveDelete
+import cloud.offthe.otc.i18n.androidSettingsFolders
 import cloud.offthe.otc.i18n.androidSettingsLogsFooter
 import cloud.offthe.otc.i18n.androidSettingsProfileDescription
 import cloud.offthe.otc.i18n.androidSettingsProfileFromPhone
@@ -294,12 +298,12 @@ private fun Section(title: String, footer: String? = null, content: @Composable 
 }
 
 @Composable
-private fun Caption(text: String, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) =
+internal fun Caption(text: String, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) =
     Text(text, style = MaterialTheme.typography.bodySmall, color = color, modifier = Modifier.padding(vertical = 2.dp))
 
 // An action: a filled button, red for what removes or signs out.
 @Composable
-private fun RowButton(label: String, enabled: Boolean = true, destructive: Boolean = false, onClick: () -> Unit) {
+internal fun RowButton(label: String, enabled: Boolean = true, destructive: Boolean = false, onClick: () -> Unit) {
     val colors = if (destructive) ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)
         else ButtonDefaults.filledTonalButtonColors()
     FilledTonalButton(onClick = onClick, enabled = enabled, colors = colors, modifier = Modifier.padding(vertical = 2.dp)) { Text(label) }
@@ -331,16 +335,42 @@ fun SettingsView(secrets: SecretsStore) {
     // photos. The first tap asks; after a refusal Android shows no dialog
     // again, so the next one opens the app's page in system settings.
     var photosAllowed by remember { mutableStateOf(PhotoSync.hasPermission(context)) }
+    // Android 14's limited access: only the photos picked are backed up.
+    var photosLimited by remember { mutableStateOf(PhotoSync.accessLimited(context)) }
     var photosAsked by remember { mutableStateOf(false) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         photosAllowed = PhotoSync.hasPermission(context)
+        photosLimited = PhotoSync.accessLimited(context)
         photosAsked = true
     }
+    // Bumped when the app comes back (photos taken or folders moved
+    // meanwhile), not by the resume that comes as the screen opens.
+    var resumes by remember { mutableIntStateOf(0) }
     val lifecycle = LocalLifecycleOwner.current
     DisposableEffect(lifecycle) {
-        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) photosAllowed = PhotoSync.hasPermission(context) }
+        var opened = false
+        val obs = LifecycleEventObserver { _, e ->
+            if (e == Lifecycle.Event.ON_RESUME) {
+                photosAllowed = PhotoSync.hasPermission(context)
+                photosLimited = PhotoSync.accessLimited(context)
+                if (opened) resumes++ else opened = true
+            }
+        }
         lifecycle.lifecycle.addObserver(obs)
         onDispose { lifecycle.lifecycle.removeObserver(obs) }
+    }
+    // Settings > Sync Options > Folders (FoldersView.kt): saveable, like
+    // Language, so the screen stays open through a change of language.
+    var showFolders by rememberSaveable { mutableStateOf(false) }
+    val skippedFolders by secrets.skippedFolders.collectAsState()
+    // The Folders row's value: nothing until it is known. Nothing turned off
+    // is All without looking.
+    var foldersValue by remember { mutableStateOf<UiText?>(null) }
+    LaunchedEffect(photosAllowed, includeVideos, skippedFolders, resumes) {
+        if (!photosAllowed) return@LaunchedEffect
+        foldersValue = if (skippedFolders.isEmpty()) PhotoFolders.rowValue(emptyList(), skippedFolders)
+            else try { withContext(Dispatchers.IO) { PhotoFolders.rowValue(PhotoFolders.list(includeVideos), skippedFolders) } }
+            catch (e: CancellationException) { throw e } catch (e: Exception) { null }
     }
     var confirmLogout by remember { mutableStateOf(false) }
     // Issue #180: the shared links list (SharedLinksView.kt).
@@ -414,6 +444,20 @@ fun SettingsView(secrets: SecretsStore) {
                 ToggleRow(S.appSettingsSyncWifiOnly().resolve(), wifiOnly, secrets::setWifiOnly)
                 ToggleRow(S.appSettingsSyncVideos().resolve(), includeVideos, secrets::setIncludeVideos)
                 ToggleRow(S.androidSettingsSyncCloud().resolve(), downloadFromCloud, secrets::setDownloadFromCloud)
+                if (photosAllowed) {
+                    Row(
+                        Modifier.fillMaxWidth().clickable(role = Role.Button) { showFolders = true }.padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(S.androidSettingsFolders().resolve(), Modifier.weight(1f))
+                        foldersValue?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                if (photosLimited) LimitedAccessNotice {
+                    photosAllowed = PhotoSync.hasPermission(context)
+                    photosLimited = PhotoSync.accessLimited(context)
+                }
                 if (!photosAllowed) RowButton(S.appSettingsSyncAuthorize().resolve()) {
                     if (!photosAsked) permission.launch(mediaPermissions())
                     else context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
@@ -511,6 +555,7 @@ fun SettingsView(secrets: SecretsStore) {
     }
 
     if (showLanguage) LanguageView(onClose = { showLanguage = false })
+    if (showFolders) FoldersView(secrets, onClose = { showFolders = false })
     if (showSharedLinks) SharedLinksView(onClose = { showSharedLinks = false })
     if (showLogs) LogsView(onClose = { showLogs = false })
     if (confirmLogout) {

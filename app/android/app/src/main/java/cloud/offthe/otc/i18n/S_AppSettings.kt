@@ -126,6 +126,22 @@ fun S.appSettingsFacesTitle(): UiText =
 fun S.appSettingsFacesToggle(): UiText =
     UiText.Res(R.string.app_settings_faces_toggle)
 
+/** "Off The Cloud can't see your photos yet. Allow access to them to choose what is backed up.": On the screen that lists this phone's folders (Android, Settings > Sync Options > Folders) or albums (iPhone, Settings > Sync Options > Albums) while the app may not read the phone's photos. The Authorize Photos Access button (app.settings.sync.authorize) is under it. */
+fun S.appSettingsFoldersNoAccess(): UiText =
+    UiText.Res(R.string.app_settings_folders_no_access)
+
+/** "{count} photos" (one: "{count} photo"): Under a folder's name on the Folders screen (Android, Settings > Sync Options > Folders) or an album's on the Albums screen (iPhone): how many photos it holds. When it holds videos too, app.settings.folders.photos_videos joins it to app.settings.folders.videos. */
+fun S.appSettingsFoldersPhotos(count: Int): UiText =
+    UiText.Plural(R.plurals.app_settings_folders_photos, count, listOf(count))
+
+/** "{photos} · {videos}": Under a folder's or an album's name when it holds both: {photos} is app.settings.folders.photos (1,234 photos) and {videos} is app.settings.folders.videos (56 videos), both already formatted. Keep the dot unless the language joins such counts differently. */
+fun S.appSettingsFoldersPhotosVideos(photos: String, videos: String): UiText =
+    UiText.Res(R.string.app_settings_folders_photos_videos, listOf(photos, videos))
+
+/** "{count} videos" (one: "{count} video"): Under a folder's name on the Folders screen (Android) or an album's on the Albums screen (iPhone): how many videos it holds. Shown only while Include videos is on. */
+fun S.appSettingsFoldersVideos(count: Int): UiText =
+    UiText.Plural(R.plurals.app_settings_folders_videos, count, listOf(count))
+
 /** "Older than": Label of the choice under the Delete from this phone switch, followed by a time from app.settings.free_up.days (Older than 7 days): how long ago a photo or video was taken before it may be deleted from this phone. Word it so it reads before that time. */
 fun S.appSettingsFreeUpAfter(): UiText =
     UiText.Res(R.string.app_settings_free_up_after)
@@ -161,6 +177,18 @@ fun S.appSettingsLanguageFooter(): UiText =
 /** "Your device needs a software update to share this choice with your other apps. Until then it applies to this phone only.": Shown under the list of languages on the Language screen when the device's software is too old to keep the language. */
 fun S.appSettingsLanguageThisPhone(): UiText =
     UiText.Res(R.string.app_settings_language_this_phone)
+
+/** "Allow Access to All Photos": Button under app.settings.limited.warning: opens this app's page in the phone's own settings, where the user can let the app see every photo. */
+fun S.appSettingsLimitedAllowAll(): UiText =
+    UiText.Res(R.string.app_settings_limited_allow_all)
+
+/** "Select More Photos": Button under app.settings.limited.warning: opens the system's own screen for picking more photos the app may see. */
+fun S.appSettingsLimitedSelectMore(): UiText =
+    UiText.Res(R.string.app_settings_limited_select_more)
+
+/** "Only the photos you picked are backed up: Off The Cloud can see only those. To back up every photo on this phone, allow access to all of them.": In Settings > Sync Options, and at the top of the Folders (Android) or Albums (iPhone) screen, when the phone lets the app see only the photos the user picked in the system's permission prompt. Its buttons are app.settings.limited.allow_all and app.settings.limited.select_more. */
+fun S.appSettingsLimitedWarning(): UiText =
+    UiText.Res(R.string.app_settings_limited_warning)
 
 /** "Created {date}": Line of a link on the Shared Links screen: when it was made. {date} is the date and time, already formatted (Oct 11, 2026 at 10:30). */
 fun S.appSettingsLinksCreated(date: String): UiText =

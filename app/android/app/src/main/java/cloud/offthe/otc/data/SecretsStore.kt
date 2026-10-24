@@ -10,6 +10,7 @@ import cloud.offthe.otc.OTCApp
 import cloud.offthe.otc.net.HomeEndpoint
 import cloud.offthe.otc.push.FCMPush
 import cloud.offthe.otc.sync.AssetSyncCache
+import cloud.offthe.otc.sync.PhotoFolders
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.net.URI
@@ -18,14 +19,14 @@ import java.util.UUID
 
 // Port of SecretsStore.swift. The endpoint, password and device id live in
 // EncryptedSharedPreferences (the Keychain's counterpart: encrypted with a
-// key in the Android Keystore); the three sync toggles in plain
-// preferences, auto-persisted on change like on iOS. endpoint/password/
-// deviceId only persist on an explicit persist(), so the connection form
-// doesn't write a secret per keystroke.
+// key in the Android Keystore); the three sync toggles and the folders
+// left out of the sync in plain preferences, auto-persisted on change like
+// on iOS. endpoint/password/deviceId only persist on an explicit
+// persist(), so the connection form doesn't write a secret per keystroke.
 class SecretsStore private constructor(
     endpoint: String, password: String, deviceId: String,
     wifiOnly: Boolean, includeVideos: Boolean, downloadFromCloud: Boolean,
-    home: Pair<String, HomeEndpoint>?,
+    home: Pair<String, HomeEndpoint>?, skippedFolders: Set<String>,
 ) {
     private val _endpoint = MutableStateFlow(endpoint)
     private val _password = MutableStateFlow(password)
@@ -33,6 +34,7 @@ class SecretsStore private constructor(
     private val _wifiOnly = MutableStateFlow(wifiOnly)
     private val _includeVideos = MutableStateFlow(includeVideos)
     private val _downloadFromCloud = MutableStateFlow(downloadFromCloud)
+    private val _skippedFolders = MutableStateFlow(skippedFolders)
 
     val endpoint: StateFlow<String> = _endpoint
     val password: StateFlow<String> = _password
@@ -40,12 +42,22 @@ class SecretsStore private constructor(
     val wifiOnly: StateFlow<Boolean> = _wifiOnly
     val includeVideos: StateFlow<Boolean> = _includeVideos
     val downloadFromCloud: StateFlow<Boolean> = _downloadFromCloud
+    /**
+     * Settings > Sync Options > Folders: the MediaStore buckets (BUCKET_ID,
+     * as text) the owner turned off. A list of what to leave out, never of
+     * what to include, so a folder that appears later is backed up.
+     */
+    val skippedFolders: StateFlow<Set<String>> = _skippedFolders
 
     fun setEndpoint(v: String) { _endpoint.value = v }
     fun setPassword(v: String) { _password.value = v }
     fun setWifiOnly(v: Boolean) { _wifiOnly.value = v; persist() }
     fun setIncludeVideos(v: Boolean) { _includeVideos.value = v; persist() }
     fun setDownloadFromCloud(v: Boolean) { _downloadFromCloud.value = v; persist() }
+    fun setFolderSkipped(id: String, skipped: Boolean) {
+        _skippedFolders.value = if (skipped) _skippedFolders.value + id else _skippedFolders.value - id
+        persist()
+    }
 
     val isConfigured: Boolean get() = _endpoint.value.isNotEmpty() && _password.value.isNotEmpty()
 
@@ -85,6 +97,7 @@ class SecretsStore private constructor(
         _wifiOnly.value = false
         _includeVideos.value = true
         _downloadFromCloud.value = true
+        _skippedFolders.value = emptySet()
         _deviceId.value = UUID.randomUUID().toString().also { secure().edit().putString("device_id", it).apply() }
     }
 
@@ -104,11 +117,12 @@ class SecretsStore private constructor(
             .putString("password", _password.value)
             .putString("device_id", _deviceId.value)
             .apply()
-        plain().edit()
+        val p = plain().edit()
             .putBoolean("wifiOnly", _wifiOnly.value)
             .putBoolean("includeVideos", _includeVideos.value)
             .putBoolean("downloadFromCloud", _downloadFromCloud.value)
-            .apply()
+        PhotoFolders.storeSet(p, "skippedFolders", _skippedFolders.value)
+        p.apply()
     }
 
     companion object {
@@ -181,6 +195,7 @@ class SecretsStore private constructor(
                 includeVideos = p.getBoolean("includeVideos", true),
                 downloadFromCloud = p.getBoolean("downloadFromCloud", true),
                 home = s.getString("home_for", null)?.let { f -> HomeEndpoint.decode(s.getString("home_endpoint", null))?.let { f to it } },
+                skippedFolders = PhotoFolders.storedSet(p, "skippedFolders"),
             )
         }
 

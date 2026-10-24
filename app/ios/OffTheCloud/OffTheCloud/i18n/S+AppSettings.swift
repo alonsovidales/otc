@@ -170,6 +170,34 @@ extension S {
     /// Switch in Settings > People: the device detects faces in new photos so they can be searched by person. Off unless the owner turns it on.
     static var appSettingsFacesToggle: String { L("app.settings.faces.toggle", table: "AppSettings") }
 
+    /// Off The Cloud can't see your photos yet. Allow access to them to choose what is backed up.
+    ///
+    /// On the screen that lists this phone's folders (Android, Settings > Sync Options > Folders) or albums (iPhone, Settings > Sync Options > Albums) while the app may not read the phone's photos. The Authorize Photos Access button (app.settings.sync.authorize) is under it.
+    static var appSettingsFoldersNoAccess: String { L("app.settings.folders.no_access", table: "AppSettings") }
+
+    /// one: {count} photo
+    /// other: {count} photos
+    ///
+    /// Under a folder's name on the Folders screen (Android, Settings > Sync Options > Folders) or an album's on the Albums screen (iPhone): how many photos it holds. When it holds videos too, app.settings.folders.photos_videos joins it to app.settings.folders.videos.
+    static func appSettingsFoldersPhotos(count: Int) -> String {
+        L("app.settings.folders.photos", table: "AppSettings", count)
+    }
+
+    /// {photos} · {videos}
+    ///
+    /// Under a folder's or an album's name when it holds both: {photos} is app.settings.folders.photos (1,234 photos) and {videos} is app.settings.folders.videos (56 videos), both already formatted. Keep the dot unless the language joins such counts differently.
+    static func appSettingsFoldersPhotosVideos(photos: String, videos: String) -> String {
+        L("app.settings.folders.photos_videos", table: "AppSettings", photos, videos)
+    }
+
+    /// one: {count} video
+    /// other: {count} videos
+    ///
+    /// Under a folder's name on the Folders screen (Android) or an album's on the Albums screen (iPhone): how many videos it holds. Shown only while Include videos is on.
+    static func appSettingsFoldersVideos(count: Int) -> String {
+        L("app.settings.folders.videos", table: "AppSettings", count)
+    }
+
     /// Older than
     ///
     /// Label of the choice under the Delete from this phone switch, followed by a time from app.settings.free_up.days (Older than 7 days): how long ago a photo or video was taken before it may be deleted from this phone. Word it so it reads before that time.
@@ -219,6 +247,21 @@ extension S {
     ///
     /// Shown under the list of languages on the Language screen when the device's software is too old to keep the language.
     static var appSettingsLanguageThisPhone: String { L("app.settings.language_this_phone", table: "AppSettings") }
+
+    /// Allow Access to All Photos
+    ///
+    /// Button under app.settings.limited.warning: opens this app's page in the phone's own settings, where the user can let the app see every photo.
+    static var appSettingsLimitedAllowAll: String { L("app.settings.limited.allow_all", table: "AppSettings") }
+
+    /// Select More Photos
+    ///
+    /// Button under app.settings.limited.warning: opens the system's own screen for picking more photos the app may see.
+    static var appSettingsLimitedSelectMore: String { L("app.settings.limited.select_more", table: "AppSettings") }
+
+    /// Only the photos you picked are backed up: Off The Cloud can see only those. To back up every photo on this phone, allow access to all of them.
+    ///
+    /// In Settings > Sync Options, and at the top of the Folders (Android) or Albums (iPhone) screen, when the phone lets the app see only the photos the user picked in the system's permission prompt. Its buttons are app.settings.limited.allow_all and app.settings.limited.select_more.
+    static var appSettingsLimitedWarning: String { L("app.settings.limited.warning", table: "AppSettings") }
 
     /// Created {date}
     ///

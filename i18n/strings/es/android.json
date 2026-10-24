@@ -283,6 +283,48 @@
     "text": "Zoom",
     "en": "Zoom"
   },
+  "android.settings.folder_on_volume": {
+    "text": "{volume} · {path}",
+    "en": "{volume} · {path}"
+  },
+  "android.settings.folders": {
+    "text": "Carpetas",
+    "en": "Folders"
+  },
+  "android.settings.folders_all": {
+    "text": "Todas",
+    "en": "All"
+  },
+  "android.settings.folders_empty": {
+    "text": "Todavía no hay fotos en este teléfono.",
+    "en": "No photos on this phone yet."
+  },
+  "android.settings.folders_footer": {
+    "text": "Desactivar una carpeta solo detiene su copia de seguridad: no se elimina nada, ni de este teléfono ni de tu dispositivo. Al volver a activarla, se hace copia de seguridad de todo lo que ya contiene.",
+    "en": "Turning a folder off only stops backing it up: nothing is deleted, from this phone or from your device. Turning it back on backs up everything already in it."
+  },
+  "android.settings.folders_hidden": {
+    "text": "Android oculta a todas las apps, también a esta, las carpetas cuyo nombre empieza por un punto y las que contienen un archivo llamado .nomedia. Sus fotos no pueden aparecer aquí ni tener copia de seguridad hasta que se cambie el nombre de la carpeta o se elimine ese archivo.",
+    "en": "Android hides folders whose name starts with a dot, and folders that contain a file called .nomedia, from every app, this one included. Their photos can't be listed here or backed up until the folder is renamed or that file is removed."
+  },
+  "android.settings.folders_intro": {
+    "text": "Se hace copia de seguridad de todas las carpetas, salvo de las que desactives aquí, y también de las carpetas nuevas en cuanto aparecen.",
+    "en": "Every folder is backed up unless you turn it off here. New folders are backed up too, as soon as they appear."
+  },
+  "android.settings.folders_load_failed": {
+    "text": "No se han podido mostrar las carpetas de este teléfono.",
+    "en": "Could not list the folders on this phone."
+  },
+  "android.settings.folders_off": {
+    "text": {
+      "one": "{count} desactivada",
+      "other": "{count} desactivadas"
+    },
+    "en": {
+      "one": "{count} off",
+      "other": "{count} off"
+    }
+  },
   "android.settings.free_up_footer": {
     "text": "Las fotos y vídeos de hace más tiempo pasan de este teléfono a su papelera, cada uno solo cuando el dispositivo confirma que tiene una copia exacta. Android pregunta antes, y la papelera los guarda durante 30 días. Se hace tras una sincronización con la app abierta, como mucho una vez al día.",
     "en": "Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.",

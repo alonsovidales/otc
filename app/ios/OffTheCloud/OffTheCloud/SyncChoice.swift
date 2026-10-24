@@ -24,7 +24,7 @@ enum SyncChoice {
     /// The sync itself is started by the caller.
     static func answer(all: Bool) {
         if all {
-            UserDefaults.standard.removeObject(forKey: "lastSyncDate")
+            PhotoSync.shared.syncAll()
         } else {
             PhotoSync.shared.syncFromNow()
         }

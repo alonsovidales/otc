@@ -342,6 +342,14 @@ struct SettingsView: View {
     // Whether the app may read the photo library (full or limited): the
     // Authorize Photos Access button shows only while it can't.
     @State private var photosAuthorized = SettingsView.photosAuthorizedNow()
+    // Only the photos picked in iOS's prompt: the sync says so.
+    @State private var photosLimited = SettingsView.photosLimitedNow()
+    // The albums the Albums row counts from (PhotoSources.albums): nil
+    // until they are known. What is off is counted as it changes, without
+    // reading the library again.
+    @State private var albumIDs: [String]?
+    // Bumped on coming back to the app, so the Albums row counts again.
+    @State private var resumed = 0
 
     var body: some View {
         NavigationStack {
@@ -410,21 +418,22 @@ struct SettingsView: View {
                     Toggle(S.appSettingsSyncWifiOnly, isOn: $secrets.wifiOnly)
                     Toggle(S.appSettingsSyncVideos, isOn: $secrets.includeVideos)
                     Toggle(S.iosSettingsSyncIcloud, isOn: $secrets.downloadFromiCloud)
-                    // Only while the app can't read the library: the
-                    // first time it asks, after a refusal it opens the
-                    // app's page in iOS Settings, where access is given.
-                    if !photosAuthorized {
-                        Button(S.appSettingsSyncAuthorize) {
-                            Task {
-                                if PHPhotoLibrary.authorizationStatus(for: .readWrite) == .notDetermined {
-                                    _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
-                                    refreshPhotosAuthorized()
-                                } else if let url = URL(string: UIApplication.openSettingsURLString) {
-                                    await UIApplication.shared.open(url)
-                                }
-                            }
+                    // The albums whose photos aren't backed up (AlbumsView).
+                    if photosAuthorized {
+                        NavigationLink {
+                            AlbumsView()
+                        } label: {
+                            LabeledContent(S.iosSettingsAlbums, value: albumIDs.map {
+                                PhotoSources.rowValue(existing: $0, skipped: secrets.skippedAlbums)
+                            } ?? "")
                         }
-                        .buttonStyle(.bordered)
+                    }
+                    if photosLimited {
+                        LimitedAccessNotice { resumed += 1 }
+                    }
+                    // Only while the app can't read the library.
+                    if !photosAuthorized {
+                        AuthorizePhotosButton { refreshPhotosAuthorized() }
                     }
                 }
 
@@ -436,7 +445,7 @@ struct SettingsView: View {
                             // so the run below starts at the beginning
                             // (it used to be set to now here, which made
                             // this button sync nothing at all).
-                            UserDefaults.standard.removeObject(forKey: "lastSyncDate")
+                            PhotoSync.shared.syncAll()
                             try? await PhotoSync.shared.runForeground()
                         }
                     }
@@ -611,6 +620,19 @@ struct SettingsView: View {
         // Back from iOS Settings, where access may just have been given.
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             refreshPhotosAuthorized()
+            resumed += 1
+        }
+        // The albums listed, read off the main thread whenever the list may
+        // have changed (not when one is turned off or on).
+        .task(id: AlbumsRow(includeVideos: secrets.includeVideos, authorized: photosAuthorized, resumed: resumed)) {
+            guard photosAuthorized else { return }
+            let includeVideos = secrets.includeVideos
+            let existing = await Task.detached(priority: .utility) {
+                PhotoSources.albums(includeVideos: includeVideos).map(\.id)
+            }.value
+            // Replaced by a newer read meanwhile: that one's list wins.
+            guard !Task.isCancelled else { return }
+            albumIDs = existing
         }
         .alert(S.appSettingsConnectionLogOutTitle, isPresented: $confirmLogout) {
             Button(S.appSettingsConnectionLogOutConfirm, role: .destructive) { logOut() }
@@ -645,8 +667,21 @@ extension SettingsView {
         return status == .authorized || status == .limited
     }
 
+    /// Access to only the photos picked in iOS's prompt.
+    fileprivate static func photosLimitedNow() -> Bool {
+        PHPhotoLibrary.authorizationStatus(for: .readWrite) == .limited
+    }
+
     fileprivate func refreshPhotosAuthorized() {
         photosAuthorized = Self.photosAuthorizedNow()
+        photosLimited = Self.photosLimitedNow()
+    }
+
+    /// What the albums the Albums row counts from depend on.
+    fileprivate struct AlbumsRow: Equatable {
+        let includeVideos: Bool
+        let authorized: Bool
+        let resumed: Int
     }
 
     /// Issue #183: consumes a `.updates` deep link. The short wait lets a

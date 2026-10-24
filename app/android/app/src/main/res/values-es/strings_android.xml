@@ -80,6 +80,19 @@
     <string name="android_settings_bridge_leave_delete">Salir y eliminar</string>
     <string name="android_settings_crop_hint">Arrastra la foto para centrar tu cara</string>
     <string name="android_settings_crop_zoom">Zoom</string>
+    <string name="android_settings_folder_on_volume">%1$s · \u2068%2$s\u2069</string>
+    <string name="android_settings_folders">Carpetas</string>
+    <string name="android_settings_folders_all">Todas</string>
+    <string name="android_settings_folders_empty">Todavía no hay fotos en este teléfono.</string>
+    <string name="android_settings_folders_footer">Desactivar una carpeta solo detiene su copia de seguridad: no se elimina nada, ni de este teléfono ni de tu dispositivo. Al volver a activarla, se hace copia de seguridad de todo lo que ya contiene.</string>
+    <string name="android_settings_folders_hidden">Android oculta a todas las apps, también a esta, las carpetas cuyo nombre empieza por un punto y las que contienen un archivo llamado .nomedia. Sus fotos no pueden aparecer aquí ni tener copia de seguridad hasta que se cambie el nombre de la carpeta o se elimine ese archivo.</string>
+    <string name="android_settings_folders_intro">Se hace copia de seguridad de todas las carpetas, salvo de las que desactives aquí, y también de las carpetas nuevas en cuanto aparecen.</string>
+    <string name="android_settings_folders_load_failed">No se han podido mostrar las carpetas de este teléfono.</string>
+    <plurals name="android_settings_folders_off">
+        <item quantity="one">%1$s desactivada</item>
+        <item quantity="many">%1$s desactivadas</item>
+        <item quantity="other">%1$s desactivadas</item>
+    </plurals>
     <string name="android_settings_free_up_footer">Las fotos y vídeos de hace más tiempo pasan de este teléfono a su papelera, cada uno solo cuando el dispositivo confirma que tiene una copia exacta. Android pregunta antes, y la papelera los guarda durante 30 días. Se hace tras una sincronización con la app abierta, como mucho una vez al día.</string>
     <string name="android_settings_links_delete_text">Las copias compartidas se eliminarán y el enlace dejará de funcionar.</string>
     <string name="android_settings_links_empty_text">Los enlaces creados con Compartir o “Compartir como galería” en Imágenes y Archivos aparecen aquí hasta que caducan.</string>

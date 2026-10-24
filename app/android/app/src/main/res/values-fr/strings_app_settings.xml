@@ -32,6 +32,18 @@
     <string name="app_settings_faces_footer">Détecte les visages dans les photos nouvellement envoyées pour que vous puissiez rechercher par personne. Désactivée sauf si vous l’activez (ici ou pendant la configuration) ; les visages ne quittent jamais l’appareil. Elle analyse toutes les personnes présentes sur vos photos, pas seulement vous. Elle ne s’applique qu’aux photos envoyées pendant qu’elle est activée : utilisez « Retraiter les médias » ci-dessous pour analyser celles que vous avez déjà.</string>
     <string name="app_settings_faces_title">Personnes</string>
     <string name="app_settings_faces_toggle">Reconnaissance faciale</string>
+    <string name="app_settings_folders_no_access">Off The Cloud ne peut pas encore voir vos photos. Autorisez l’accès à vos photos pour choisir ce qui est sauvegardé.</string>
+    <plurals name="app_settings_folders_photos">
+        <item quantity="one">%1$s photo</item>
+        <item quantity="many">%1$s photos</item>
+        <item quantity="other">%1$s photos</item>
+    </plurals>
+    <string name="app_settings_folders_photos_videos">%1$s · %2$s</string>
+    <plurals name="app_settings_folders_videos">
+        <item quantity="one">%1$s vidéo</item>
+        <item quantity="many">%1$s vidéos</item>
+        <item quantity="other">%1$s vidéos</item>
+    </plurals>
     <string name="app_settings_free_up_after">Datant de plus de</string>
     <plurals name="app_settings_free_up_days">
         <item quantity="one">%1$s jour</item>
@@ -45,6 +57,9 @@
     <string name="app_settings_language_automatic_named">Automatique (%1$s)</string>
     <string name="app_settings_language_footer">Ce choix est enregistré sur votre appareil : toutes les apps qui y sont connectées utilisent donc la même langue. « Automatique » suit la langue définie sur ce téléphone.</string>
     <string name="app_settings_language_this_phone">Votre appareil a besoin d’une mise à jour logicielle pour partager ce choix avec vos autres apps. D’ici là, il ne s’applique qu’à ce téléphone.</string>
+    <string name="app_settings_limited_allow_all">Autoriser l’accès à toutes les photos</string>
+    <string name="app_settings_limited_select_more">Sélectionner d’autres photos</string>
+    <string name="app_settings_limited_warning">Seules les photos que vous avez choisies sont sauvegardées : Off The Cloud ne voit qu’elles. Pour sauvegarder toutes les photos de ce téléphone, autorisez l’accès à toutes vos photos.</string>
     <string name="app_settings_links_created">Créé le %1$s</string>
     <string name="app_settings_links_delete_failed">Impossible de supprimer le lien</string>
     <string name="app_settings_links_delete_link">Supprimer le lien</string>

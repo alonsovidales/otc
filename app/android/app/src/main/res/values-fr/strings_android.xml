@@ -80,6 +80,19 @@
     <string name="android_settings_bridge_leave_delete">Quitter et supprimer</string>
     <string name="android_settings_crop_hint">Faites glisser la photo pour centrer votre visage</string>
     <string name="android_settings_crop_zoom">Zoom</string>
+    <string name="android_settings_folder_on_volume">%1$s · \u2068%2$s\u2069</string>
+    <string name="android_settings_folders">Dossiers</string>
+    <string name="android_settings_folders_all">Tous</string>
+    <string name="android_settings_folders_empty">Aucune photo sur ce téléphone pour l’instant.</string>
+    <string name="android_settings_folders_footer">Désactiver un dossier arrête seulement sa sauvegarde : rien n’est supprimé, ni de ce téléphone ni de votre appareil. Le réactiver sauvegarde tout ce qu’il contient déjà.</string>
+    <string name="android_settings_folders_hidden">Android masque à toutes les apps, y compris celle-ci, les dossiers dont le nom commence par un point et ceux qui contiennent un fichier nommé .nomedia. Leurs photos ne peuvent être ni affichées ici ni sauvegardées tant que le dossier n’est pas renommé ou que ce fichier n’est pas supprimé.</string>
+    <string name="android_settings_folders_intro">Tous les dossiers sont sauvegardés, sauf ceux que vous désactivez ici. Les nouveaux dossiers le sont aussi, dès qu’ils apparaissent.</string>
+    <string name="android_settings_folders_load_failed">Impossible d’afficher les dossiers de ce téléphone.</string>
+    <plurals name="android_settings_folders_off">
+        <item quantity="one">%1$s désactivé</item>
+        <item quantity="many">%1$s désactivés</item>
+        <item quantity="other">%1$s désactivés</item>
+    </plurals>
     <string name="android_settings_free_up_footer">Les photos et vidéos plus anciennes passent de ce téléphone à sa corbeille, chacune seulement une fois que l’appareil confirme en avoir une copie exacte. Android demande d’abord, et la corbeille les garde 30 jours. Cela se fait après une synchronisation, l’app ouverte, une fois par jour au plus.</string>
     <string name="android_settings_links_delete_text">Les copies partagées sont supprimées et le lien cesse de fonctionner.</string>
     <string name="android_settings_links_empty_text">Les liens créés avec « Partager » ou « Partager en galerie » dans Images et Fichiers apparaissent ici jusqu’à leur expiration.</string>

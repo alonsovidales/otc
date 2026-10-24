@@ -32,6 +32,16 @@
     <string name="app_settings_faces_footer">Herkent gezichten in nieuw geüploade foto’s, zodat je op persoon kunt zoeken. Dit staat uit tot je het inschakelt (hier of tijdens de configuratie), en gezichten verlaten het apparaat nooit. Het kijkt naar iedereen op je foto’s, niet alleen naar jou. Het werkt alleen voor foto’s die worden geüpload terwijl het aanstaat; gebruik “Media opnieuw verwerken” hieronder om de foto’s te scannen die je al hebt.</string>
     <string name="app_settings_faces_title">Personen</string>
     <string name="app_settings_faces_toggle">Gezichtsherkenning</string>
+    <string name="app_settings_folders_no_access">Off The Cloud kan je foto’s nog niet zien. Geef toegang tot je foto’s om te kiezen waarvan een reservekopie wordt gemaakt.</string>
+    <plurals name="app_settings_folders_photos">
+        <item quantity="one">%1$s foto</item>
+        <item quantity="other">%1$s foto’s</item>
+    </plurals>
+    <string name="app_settings_folders_photos_videos">%1$s · %2$s</string>
+    <plurals name="app_settings_folders_videos">
+        <item quantity="one">%1$s video</item>
+        <item quantity="other">%1$s video’s</item>
+    </plurals>
     <string name="app_settings_free_up_after">Ouder dan</string>
     <plurals name="app_settings_free_up_days">
         <item quantity="one">%1$s dag</item>
@@ -44,6 +54,9 @@
     <string name="app_settings_language_automatic_named">Automatisch (%1$s)</string>
     <string name="app_settings_language_footer">Opgeslagen op je apparaat, zodat elke app die erop is ingelogd dezelfde taal gebruikt. Automatisch volgt de taal waarop deze telefoon is ingesteld.</string>
     <string name="app_settings_language_this_phone">Je apparaat heeft een software-update nodig om deze keuze met je andere apps te delen. Tot die tijd geldt die alleen voor deze telefoon.</string>
+    <string name="app_settings_limited_allow_all">Toegang geven tot alle foto’s</string>
+    <string name="app_settings_limited_select_more">Meer foto’s selecteren</string>
+    <string name="app_settings_limited_warning">Alleen van de foto’s die je hebt gekozen wordt een reservekopie gemaakt: Off The Cloud ziet alleen die. Geef toegang tot al je foto’s om van alle foto’s op deze telefoon een reservekopie te maken.</string>
     <string name="app_settings_links_created">Gemaakt op %1$s</string>
     <string name="app_settings_links_delete_failed">Kan de link niet verwijderen</string>
     <string name="app_settings_links_delete_link">Link verwijderen</string>

@@ -32,6 +32,18 @@
     <string name="app_settings_faces_footer">Rileva i volti nelle foto caricate da ora in poi, così puoi cercare per persona. È disattivato finché non lo attivi tu (qui o durante la configurazione), e i volti non lasciano mai il dispositivo. Analizza tutte le persone nelle tue foto, non solo te. Riguarda solo le foto caricate mentre è attivo: usa “Rielabora media” qui sotto per analizzare quelle che hai già.</string>
     <string name="app_settings_faces_title">Persone</string>
     <string name="app_settings_faces_toggle">Riconoscimento facciale</string>
+    <string name="app_settings_folders_no_access">Off The Cloud non può ancora vedere le tue foto. Consenti l’accesso alle foto per scegliere di cosa eseguire il backup.</string>
+    <plurals name="app_settings_folders_photos">
+        <item quantity="one">%1$s foto</item>
+        <item quantity="many">%1$s foto</item>
+        <item quantity="other">%1$s foto</item>
+    </plurals>
+    <string name="app_settings_folders_photos_videos">%1$s · %2$s</string>
+    <plurals name="app_settings_folders_videos">
+        <item quantity="one">%1$s video</item>
+        <item quantity="many">%1$s video</item>
+        <item quantity="other">%1$s video</item>
+    </plurals>
     <string name="app_settings_free_up_after">Più vecchi di</string>
     <plurals name="app_settings_free_up_days">
         <item quantity="one">%1$s giorno</item>
@@ -45,6 +57,9 @@
     <string name="app_settings_language_automatic_named">Automatica (%1$s)</string>
     <string name="app_settings_language_footer">Salvata sul tuo dispositivo, così tutte le app collegate usano la stessa lingua. “Automatica” segue la lingua impostata su questo telefono.</string>
     <string name="app_settings_language_this_phone">Il tuo dispositivo ha bisogno di un aggiornamento software per condividere questa scelta con le altre app. Fino ad allora vale solo per questo telefono.</string>
+    <string name="app_settings_limited_allow_all">Consenti l’accesso a tutte le foto</string>
+    <string name="app_settings_limited_select_more">Seleziona altre foto</string>
+    <string name="app_settings_limited_warning">Viene eseguito il backup solo delle foto che hai scelto: Off The Cloud vede solo quelle. Per eseguire il backup di tutte le foto di questo telefono, consenti l’accesso a tutte.</string>
     <string name="app_settings_links_created">Creato: %1$s</string>
     <string name="app_settings_links_delete_failed">Impossibile eliminare il link</string>
     <string name="app_settings_links_delete_link">Elimina link</string>

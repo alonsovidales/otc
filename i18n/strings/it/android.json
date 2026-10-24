@@ -283,6 +283,48 @@
     "text": "Zoom",
     "en": "Zoom"
   },
+  "android.settings.folder_on_volume": {
+    "text": "{volume} · {path}",
+    "en": "{volume} · {path}"
+  },
+  "android.settings.folders": {
+    "text": "Cartelle",
+    "en": "Folders"
+  },
+  "android.settings.folders_all": {
+    "text": "Tutte",
+    "en": "All"
+  },
+  "android.settings.folders_empty": {
+    "text": "Non ci sono ancora foto su questo telefono.",
+    "en": "No photos on this phone yet."
+  },
+  "android.settings.folders_footer": {
+    "text": "Disattivare una cartella ne interrompe solo il backup: non viene eliminato nulla, né da questo telefono né dal tuo dispositivo. Riattivandola, viene eseguito il backup di tutto ciò che contiene già.",
+    "en": "Turning a folder off only stops backing it up: nothing is deleted, from this phone or from your device. Turning it back on backs up everything already in it."
+  },
+  "android.settings.folders_hidden": {
+    "text": "Android nasconde a tutte le app, compresa questa, le cartelle il cui nome inizia con un punto e quelle che contengono un file chiamato .nomedia. Le loro foto non possono comparire qui né essere incluse nel backup finché la cartella non viene rinominata o quel file non viene rimosso.",
+    "en": "Android hides folders whose name starts with a dot, and folders that contain a file called .nomedia, from every app, this one included. Their photos can't be listed here or backed up until the folder is renamed or that file is removed."
+  },
+  "android.settings.folders_intro": {
+    "text": "Il backup include ogni cartella, tranne quelle che disattivi qui, e anche le cartelle nuove, non appena compaiono.",
+    "en": "Every folder is backed up unless you turn it off here. New folders are backed up too, as soon as they appear."
+  },
+  "android.settings.folders_load_failed": {
+    "text": "Impossibile elencare le cartelle di questo telefono.",
+    "en": "Could not list the folders on this phone."
+  },
+  "android.settings.folders_off": {
+    "text": {
+      "one": "{count} disattivata",
+      "other": "{count} disattivate"
+    },
+    "en": {
+      "one": "{count} off",
+      "other": "{count} off"
+    }
+  },
   "android.settings.free_up_footer": {
     "text": "Le foto e i video più vecchi passano da questo telefono al suo cestino, ciascuno solo dopo che il dispositivo conferma di averne una copia esatta. Android chiede prima, e il cestino li tiene per 30 giorni. Succede dopo una sincronizzazione con l’app aperta, al massimo una volta al giorno.",
     "en": "Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.",

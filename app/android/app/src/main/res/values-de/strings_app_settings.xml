@@ -32,6 +32,16 @@
     <string name="app_settings_faces_footer">Erkennt Gesichter in neu hochgeladenen Fotos, damit du nach Personen suchen kannst. Die Gesichtserkennung ist ausgeschaltet, solange du sie nicht einschaltest (hier oder bei der Einrichtung), und Gesichter verlassen nie das Gerät. Dabei werden alle Personen auf deinen Fotos erfasst, nicht nur du. Sie wirkt sich nur auf Fotos aus, die hochgeladen werden, während sie eingeschaltet ist – mit „Medien neu verarbeiten“ weiter unten durchsuchst du die vorhandenen.</string>
     <string name="app_settings_faces_title">Personen</string>
     <string name="app_settings_faces_toggle">Gesichtserkennung</string>
+    <string name="app_settings_folders_no_access">Off The Cloud kann deine Fotos noch nicht sehen. Erlaube den Zugriff darauf, um auszuwählen, was gesichert wird.</string>
+    <plurals name="app_settings_folders_photos">
+        <item quantity="one">%1$s Foto</item>
+        <item quantity="other">%1$s Fotos</item>
+    </plurals>
+    <string name="app_settings_folders_photos_videos">%1$s · %2$s</string>
+    <plurals name="app_settings_folders_videos">
+        <item quantity="one">%1$s Video</item>
+        <item quantity="other">%1$s Videos</item>
+    </plurals>
     <string name="app_settings_free_up_after">Älter als</string>
     <plurals name="app_settings_free_up_days">
         <item quantity="one">%1$s Tag</item>
@@ -44,6 +54,9 @@
     <string name="app_settings_language_automatic_named">Automatisch (%1$s)</string>
     <string name="app_settings_language_footer">Auf deinem Gerät gespeichert, sodass jede dort angemeldete App dieselbe Sprache verwendet. „Automatisch“ folgt der Spracheinstellung dieses Handys.</string>
     <string name="app_settings_language_this_phone">Dein Gerät braucht ein Software-Update, um diese Auswahl mit deinen anderen Apps zu teilen. Bis dahin gilt sie nur für dieses Handy.</string>
+    <string name="app_settings_limited_allow_all">Zugriff auf alle Fotos erlauben</string>
+    <string name="app_settings_limited_select_more">Weitere Fotos auswählen</string>
+    <string name="app_settings_limited_warning">Nur die Fotos, die du ausgewählt hast, werden gesichert: Off The Cloud sieht nur diese. Um alle Fotos auf diesem Handy zu sichern, erlaube den Zugriff auf alle.</string>
     <string name="app_settings_links_created">Erstellt am %1$s</string>
     <string name="app_settings_links_delete_failed">Der Link konnte nicht gelöscht werden</string>
     <string name="app_settings_links_delete_link">Link löschen</string>

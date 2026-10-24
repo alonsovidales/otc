@@ -254,6 +254,42 @@ fun S.androidSettingsCropHint(): UiText =
 fun S.androidSettingsCropZoom(): UiText =
     UiText.Res(R.string.android_settings_crop_zoom)
 
+/** "{volume} · {path}": Second line of a folder on the Folders screen (Settings > Sync Options > Folders) when the folder is on a memory card or other storage rather than the phone's own: {volume} is that storage's name as Android gives it (SD card), {path} where the folder is on it (DCIM/Camera). */
+fun S.androidSettingsFolderOnVolume(volume: String, path: String): UiText =
+    UiText.Res(R.string.android_settings_folder_on_volume, listOf(volume, path))
+
+/** "Folders": Row in Settings > Sync Options that opens the list of this phone's photo folders (Camera, Screenshots, WhatsApp Images...) with a switch for each, and that screen's title. */
+fun S.androidSettingsFolders(): UiText =
+    UiText.Res(R.string.android_settings_folders)
+
+/** "All": Value at the right of the Folders row in Settings > Sync Options when no folder is turned off: every folder is backed up. Agrees with folders. */
+fun S.androidSettingsFoldersAll(): UiText =
+    UiText.Res(R.string.android_settings_folders_all)
+
+/** "No photos on this phone yet.": On the Folders screen (Settings > Sync Options > Folders) when the phone holds no photo at all. */
+fun S.androidSettingsFoldersEmpty(): UiText =
+    UiText.Res(R.string.android_settings_folders_empty)
+
+/** "Turning a folder off only stops backing it up: nothing is deleted, from this phone or from your device. Turning it back on backs up everything already in it.": Under the list on the Folders screen (Settings > Sync Options > Folders): what turning a folder's switch off, and on again, does. Your device is the Off The Cloud device. */
+fun S.androidSettingsFoldersFooter(): UiText =
+    UiText.Res(R.string.android_settings_folders_footer)
+
+/** "Android hides folders whose name starts with a dot, and folders that contain a file called .nomedia, from every app, this one included. Their photos can't be listed here or backed up until the folder is renamed or that file is removed.": Last note on the Folders screen (Settings > Sync Options > Folders): why some folders aren't in the list. Keep .nomedia as it is: it is a file name. */
+fun S.androidSettingsFoldersHidden(): UiText =
+    UiText.Res(R.string.android_settings_folders_hidden)
+
+/** "Every folder is backed up unless you turn it off here. New folders are backed up too, as soon as they appear.": At the top of the Folders screen (Settings > Sync Options > Folders), above the list of the phone's photo folders and their switches. */
+fun S.androidSettingsFoldersIntro(): UiText =
+    UiText.Res(R.string.android_settings_folders_intro)
+
+/** "Could not list the folders on this phone.": Error on the Folders screen (Settings > Sync Options > Folders) when Android didn't give the list of the phone's photos. */
+fun S.androidSettingsFoldersLoadFailed(): UiText =
+    UiText.Res(R.string.android_settings_folders_load_failed)
+
+/** "{count} off" (one: "{count} off"): Value at the right of the Folders row in Settings > Sync Options: how many folders are turned off, so not backed up. Agrees with folders. */
+fun S.androidSettingsFoldersOff(count: Int): UiText =
+    UiText.Plural(R.plurals.android_settings_folders_off, count, listOf(count))
+
 /** "Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.": Under the Free Up Space section on Android (Settings, and the Sync Your Photos screen): what its switch does. "older than that": older than the time chosen just above (Older than 7 days). The trash is the phone's own (the system's), where deleted photos wait before they are gone. */
 fun S.androidSettingsFreeUpFooter(): UiText =
     UiText.Res(R.string.android_settings_free_up_footer)

@@ -134,6 +134,34 @@
     "en": "Face Recognition",
     "reviewed": "claude-backtranslation 2026-10-11 #d3d7728e"
   },
+  "app.settings.folders.no_access": {
+    "text": "Off The Cloud kan je foto’s nog niet zien. Geef toegang tot je foto’s om te kiezen waarvan een reservekopie wordt gemaakt.",
+    "en": "Off The Cloud can't see your photos yet. Allow access to them to choose what is backed up."
+  },
+  "app.settings.folders.photos": {
+    "text": {
+      "one": "{count} foto",
+      "other": "{count} foto’s"
+    },
+    "en": {
+      "one": "{count} photo",
+      "other": "{count} photos"
+    }
+  },
+  "app.settings.folders.photos_videos": {
+    "text": "{photos} · {videos}",
+    "en": "{photos} · {videos}"
+  },
+  "app.settings.folders.videos": {
+    "text": {
+      "one": "{count} video",
+      "other": "{count} video’s"
+    },
+    "en": {
+      "one": "{count} video",
+      "other": "{count} videos"
+    }
+  },
   "app.settings.free_up.after": {
     "text": "Ouder dan",
     "en": "Older than"
@@ -176,6 +204,18 @@
   "app.settings.language_this_phone": {
     "text": "Je apparaat heeft een software-update nodig om deze keuze met je andere apps te delen. Tot die tijd geldt die alleen voor deze telefoon.",
     "en": "Your device needs a software update to share this choice with your other apps. Until then it applies to this phone only."
+  },
+  "app.settings.limited.allow_all": {
+    "text": "Toegang geven tot alle foto’s",
+    "en": "Allow Access to All Photos"
+  },
+  "app.settings.limited.select_more": {
+    "text": "Meer foto’s selecteren",
+    "en": "Select More Photos"
+  },
+  "app.settings.limited.warning": {
+    "text": "Alleen van de foto’s die je hebt gekozen wordt een reservekopie gemaakt: Off The Cloud ziet alleen die. Geef toegang tot al je foto’s om van alle foto’s op deze telefoon een reservekopie te maken.",
+    "en": "Only the photos you picked are backed up: Off The Cloud can see only those. To back up every photo on this phone, allow access to all of them."
   },
   "app.settings.links.created": {
     "text": "Gemaakt op {date}",

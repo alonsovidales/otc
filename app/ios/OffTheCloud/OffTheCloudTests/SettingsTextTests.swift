@@ -218,6 +218,25 @@ struct SettingsTextTests {
         #expect(S.iosSettingsThumbsTitle == "Thumbnail Cache")
     }
 
+    /// Settings > Sync Options > Albums and the limited-access notice.
+    @Test func albumsAndLimitedAccessTexts() {
+        #expect(S.appSettingsFoldersNoAccess == "Off The Cloud can't see your photos yet. Allow access to them to choose what is backed up.")
+        #expect(S.appSettingsFoldersPhotos(count: 1) == "1 photo")
+        #expect(S.appSettingsFoldersPhotos(count: 2) == "2 photos")
+        #expect(S.appSettingsFoldersVideos(count: 1) == "1 video")
+        #expect(S.appSettingsFoldersVideos(count: 2) == "2 videos")
+        #expect(S.appSettingsFoldersPhotosVideos(photos: "2 photos", videos: "1 video") == "2 photos · 1 video")
+        #expect(S.appSettingsLimitedWarning == "Only the photos you picked are backed up: Off The Cloud can see only those. To back up every photo on this phone, allow access to all of them.")
+        #expect(S.appSettingsLimitedSelectMore == "Select More Photos")
+        #expect(S.appSettingsLimitedAllowAll == "Allow Access to All Photos")
+        #expect(S.iosSettingsAlbums == "Albums")
+        #expect(S.iosSettingsAlbumsAll == "All")
+        #expect(S.iosSettingsAlbumsOff(count: 1) == "1 off")
+        #expect(S.iosSettingsAlbumsOff(count: 2) == "2 off")
+        #expect(S.iosSettingsAlbumsFooter == "Everything is backed up except the photos in albums you turn off, even when those photos are in other albums too. Turning an album off only stops backing it up: nothing is deleted, from this iPhone or from your device. Turning it back on backs up everything already in it.")
+        #expect(S.iosSettingsAlbumsEmpty == "There's nothing to choose from yet: every photo on this iPhone is backed up.")
+    }
+
     @MainActor @Test func textsBuiltFromPartsReadAsBefore() {
         let vm = UpdateViewModel()
         #expect(vm.installedText == "—")

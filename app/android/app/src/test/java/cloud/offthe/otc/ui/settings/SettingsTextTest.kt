@@ -10,6 +10,15 @@ import cloud.offthe.otc.i18n.english
 import cloud.offthe.otc.i18n.androidSettingsBridgeLeaveDelete
 import cloud.offthe.otc.i18n.androidSettingsCropHint
 import cloud.offthe.otc.i18n.androidSettingsCropZoom
+import cloud.offthe.otc.i18n.androidSettingsFolderOnVolume
+import cloud.offthe.otc.i18n.androidSettingsFolders
+import cloud.offthe.otc.i18n.androidSettingsFoldersAll
+import cloud.offthe.otc.i18n.androidSettingsFoldersEmpty
+import cloud.offthe.otc.i18n.androidSettingsFoldersFooter
+import cloud.offthe.otc.i18n.androidSettingsFoldersHidden
+import cloud.offthe.otc.i18n.androidSettingsFoldersIntro
+import cloud.offthe.otc.i18n.androidSettingsFoldersLoadFailed
+import cloud.offthe.otc.i18n.androidSettingsFoldersOff
 import cloud.offthe.otc.i18n.androidSettingsLinksDeleteText
 import cloud.offthe.otc.i18n.androidSettingsLinksEmptyText
 import cloud.offthe.otc.i18n.androidSettingsLogsEmpty
@@ -58,6 +67,13 @@ import cloud.offthe.otc.i18n.appSettingsConnectionSave
 import cloud.offthe.otc.i18n.appSettingsConnectionTitle
 import cloud.offthe.otc.i18n.appSettingsCropUse
 import cloud.offthe.otc.i18n.appSettingsErrorSetting
+import cloud.offthe.otc.i18n.appSettingsFoldersNoAccess
+import cloud.offthe.otc.i18n.appSettingsFoldersPhotos
+import cloud.offthe.otc.i18n.appSettingsFoldersPhotosVideos
+import cloud.offthe.otc.i18n.appSettingsFoldersVideos
+import cloud.offthe.otc.i18n.appSettingsLimitedAllowAll
+import cloud.offthe.otc.i18n.appSettingsLimitedSelectMore
+import cloud.offthe.otc.i18n.appSettingsLimitedWarning
 import cloud.offthe.otc.i18n.appSettingsErrorUnexpected
 import cloud.offthe.otc.i18n.appSettingsErrorUpdateFailed
 import cloud.offthe.otc.i18n.appSettingsFacesFooter
@@ -229,6 +245,16 @@ class SettingsTextTest {
         assertEquals("Leave and Delete", S.androidSettingsBridgeLeaveDelete().english())
         assertEquals("Drag the photo to centre your face", S.androidSettingsCropHint().english())
         assertEquals("Zoom", S.androidSettingsCropZoom().english())
+        assertEquals("SD card · \u2068DCIM/Camera\u2069", S.androidSettingsFolderOnVolume("SD card", "DCIM/Camera").english())
+        assertEquals("Folders", S.androidSettingsFolders().english())
+        assertEquals("All", S.androidSettingsFoldersAll().english())
+        assertEquals("No photos on this phone yet.", S.androidSettingsFoldersEmpty().english())
+        assertEquals("Turning a folder off only stops backing it up: nothing is deleted, from this phone or from your device. Turning it back on backs up everything already in it.", S.androidSettingsFoldersFooter().english())
+        assertEquals("Android hides folders whose name starts with a dot, and folders that contain a file called .nomedia, from every app, this one included. Their photos can't be listed here or backed up until the folder is renamed or that file is removed.", S.androidSettingsFoldersHidden().english())
+        assertEquals("Every folder is backed up unless you turn it off here. New folders are backed up too, as soon as they appear.", S.androidSettingsFoldersIntro().english())
+        assertEquals("Could not list the folders on this phone.", S.androidSettingsFoldersLoadFailed().english())
+        assertEquals("1 off", S.androidSettingsFoldersOff(1).english())
+        assertEquals("2 off", S.androidSettingsFoldersOff(2).english())
         assertEquals("The shared copies are deleted and the link stops working.", S.androidSettingsLinksDeleteText().english())
         assertEquals("Links made with Share or Share as Gallery in Images and Files show up here until they expire.", S.androidSettingsLinksEmptyText().english())
         assertEquals("Nothing logged yet.", S.androidSettingsLogsEmpty().english())
@@ -283,6 +309,15 @@ class SettingsTextTest {
         assertEquals("Detect faces in newly uploaded photos so you can search by person. Off unless you turn it on (here or during setup), and faces never leave the device. It looks at everyone in your photos, not just you. It only affects photos uploaded while it is on — use Reprocess Media below to scan the ones you already have.", S.appSettingsFacesFooter().english())
         assertEquals("People", S.appSettingsFacesTitle().english())
         assertEquals("Face Recognition", S.appSettingsFacesToggle().english())
+        assertEquals("Off The Cloud can't see your photos yet. Allow access to them to choose what is backed up.", S.appSettingsFoldersNoAccess().english())
+        assertEquals("1 photo", S.appSettingsFoldersPhotos(1).english())
+        assertEquals("2 photos", S.appSettingsFoldersPhotos(2).english())
+        assertEquals("1,234 photos · 56 videos", S.appSettingsFoldersPhotosVideos("1,234 photos", "56 videos").english())
+        assertEquals("1 video", S.appSettingsFoldersVideos(1).english())
+        assertEquals("2 videos", S.appSettingsFoldersVideos(2).english())
+        assertEquals("Allow Access to All Photos", S.appSettingsLimitedAllowAll().english())
+        assertEquals("Select More Photos", S.appSettingsLimitedSelectMore().english())
+        assertEquals("Only the photos you picked are backed up: Off The Cloud can see only those. To back up every photo on this phone, allow access to all of them.", S.appSettingsLimitedWarning().english())
         assertEquals("Created Oct 11, 2026 at 10:30", S.appSettingsLinksCreated("Oct 11, 2026 at 10:30").english())
         assertEquals("Could not delete the link", S.appSettingsLinksDeleteFailed().english())
         assertEquals("Delete link", S.appSettingsLinksDeleteLink().english())

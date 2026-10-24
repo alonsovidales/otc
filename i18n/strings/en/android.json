@@ -313,6 +313,50 @@
     "note": "Label of the zoom slider on the screen that crops the new profile photo.",
     "max": 15
   },
+  "android.settings.folder_on_volume": {
+    "text": "{volume} · {path}",
+    "args": [["volume", "text"], ["path", "user"]],
+    "note": "Second line of a folder on the Folders screen (Settings > Sync Options > Folders) when the folder is on a memory card or other storage rather than the phone's own: {volume} is that storage's name as Android gives it (SD card), {path} where the folder is on it (DCIM/Camera)."
+  },
+  "android.settings.folders": {
+    "text": "Folders",
+    "note": "Row in Settings > Sync Options that opens the list of this phone's photo folders (Camera, Screenshots, WhatsApp Images...) with a switch for each, and that screen's title.",
+    "max": 30
+  },
+  "android.settings.folders_all": {
+    "text": "All",
+    "note": "Value at the right of the Folders row in Settings > Sync Options when no folder is turned off: every folder is backed up. Agrees with folders.",
+    "max": 20
+  },
+  "android.settings.folders_empty": {
+    "text": "No photos on this phone yet.",
+    "note": "On the Folders screen (Settings > Sync Options > Folders) when the phone holds no photo at all."
+  },
+  "android.settings.folders_footer": {
+    "text": "Turning a folder off only stops backing it up: nothing is deleted, from this phone or from your device. Turning it back on backs up everything already in it.",
+    "note": "Under the list on the Folders screen (Settings > Sync Options > Folders): what turning a folder's switch off, and on again, does. Your device is the Off The Cloud device."
+  },
+  "android.settings.folders_hidden": {
+    "text": "Android hides folders whose name starts with a dot, and folders that contain a file called .nomedia, from every app, this one included. Their photos can't be listed here or backed up until the folder is renamed or that file is removed.",
+    "note": "Last note on the Folders screen (Settings > Sync Options > Folders): why some folders aren't in the list. Keep .nomedia as it is: it is a file name."
+  },
+  "android.settings.folders_intro": {
+    "text": "Every folder is backed up unless you turn it off here. New folders are backed up too, as soon as they appear.",
+    "note": "At the top of the Folders screen (Settings > Sync Options > Folders), above the list of the phone's photo folders and their switches."
+  },
+  "android.settings.folders_load_failed": {
+    "text": "Could not list the folders on this phone.",
+    "note": "Error on the Folders screen (Settings > Sync Options > Folders) when Android didn't give the list of the phone's photos."
+  },
+  "android.settings.folders_off": {
+    "text": {
+      "one": "{count} off",
+      "other": "{count} off"
+    },
+    "args": [["count", "count"]],
+    "note": "Value at the right of the Folders row in Settings > Sync Options: how many folders are turned off, so not backed up. Agrees with folders.",
+    "max": 20
+  },
   "android.settings.free_up_footer": {
     "text": "Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.",
     "note": "Under the Free Up Space section on Android (Settings, and the Sync Your Photos screen): what its switch does. \"older than that\": older than the time chosen just above (Older than 7 days). The trash is the phone's own (the system's), where deleted photos wait before they are gone.",

@@ -80,6 +80,19 @@
     <string name="android_settings_bridge_leave_delete">Lascia ed elimina</string>
     <string name="android_settings_crop_hint">Trascina la foto per centrare il tuo viso</string>
     <string name="android_settings_crop_zoom">Zoom</string>
+    <string name="android_settings_folder_on_volume">%1$s · \u2068%2$s\u2069</string>
+    <string name="android_settings_folders">Cartelle</string>
+    <string name="android_settings_folders_all">Tutte</string>
+    <string name="android_settings_folders_empty">Non ci sono ancora foto su questo telefono.</string>
+    <string name="android_settings_folders_footer">Disattivare una cartella ne interrompe solo il backup: non viene eliminato nulla, né da questo telefono né dal tuo dispositivo. Riattivandola, viene eseguito il backup di tutto ciò che contiene già.</string>
+    <string name="android_settings_folders_hidden">Android nasconde a tutte le app, compresa questa, le cartelle il cui nome inizia con un punto e quelle che contengono un file chiamato .nomedia. Le loro foto non possono comparire qui né essere incluse nel backup finché la cartella non viene rinominata o quel file non viene rimosso.</string>
+    <string name="android_settings_folders_intro">Il backup include ogni cartella, tranne quelle che disattivi qui, e anche le cartelle nuove, non appena compaiono.</string>
+    <string name="android_settings_folders_load_failed">Impossibile elencare le cartelle di questo telefono.</string>
+    <plurals name="android_settings_folders_off">
+        <item quantity="one">%1$s disattivata</item>
+        <item quantity="many">%1$s disattivate</item>
+        <item quantity="other">%1$s disattivate</item>
+    </plurals>
     <string name="android_settings_free_up_footer">Le foto e i video più vecchi passano da questo telefono al suo cestino, ciascuno solo dopo che il dispositivo conferma di averne una copia esatta. Android chiede prima, e il cestino li tiene per 30 giorni. Succede dopo una sincronizzazione con l’app aperta, al massimo una volta al giorno.</string>
     <string name="android_settings_links_delete_text">Le copie condivise vengono eliminate e il link smette di funzionare.</string>
     <string name="android_settings_links_empty_text">I link creati con “Condividi” o “Condividi come galleria” in Immagini e File compaiono qui finché non scadono.</string>

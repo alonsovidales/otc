@@ -76,6 +76,18 @@
     <string name="android_settings_bridge_leave_delete">Verlassen und löschen</string>
     <string name="android_settings_crop_hint">Ziehe das Foto, um dein Gesicht zu zentrieren</string>
     <string name="android_settings_crop_zoom">Zoom</string>
+    <string name="android_settings_folder_on_volume">%1$s · \u2068%2$s\u2069</string>
+    <string name="android_settings_folders">Ordner</string>
+    <string name="android_settings_folders_all">Alle</string>
+    <string name="android_settings_folders_empty">Auf diesem Handy sind noch keine Fotos.</string>
+    <string name="android_settings_folders_footer">Einen Ordner auszuschalten beendet nur seine Sicherung: Es wird nichts gelöscht, weder auf diesem Handy noch auf deinem Gerät. Schaltest du ihn wieder ein, wird alles gesichert, was schon darin ist.</string>
+    <string name="android_settings_folders_hidden">Android verbirgt Ordner, deren Name mit einem Punkt beginnt, und Ordner mit einer Datei namens .nomedia vor allen Apps, auch vor dieser. Ihre Fotos können hier weder angezeigt noch gesichert werden, bis der Ordner umbenannt oder diese Datei entfernt wird.</string>
+    <string name="android_settings_folders_intro">Jeder Ordner wird gesichert, außer du schaltest ihn hier aus. Neue Ordner werden auch gesichert, sobald sie auftauchen.</string>
+    <string name="android_settings_folders_load_failed">Die Ordner auf diesem Handy konnten nicht aufgelistet werden.</string>
+    <plurals name="android_settings_folders_off">
+        <item quantity="one">%1$s aus</item>
+        <item quantity="other">%1$s aus</item>
+    </plurals>
     <string name="android_settings_free_up_footer">Ältere Fotos und Videos werden von diesem Handy in seinen Papierkorb verschoben, jedes erst, wenn das Gerät bestätigt, dass es eine exakte Kopie hat. Android fragt vorher, und der Papierkorb behält sie 30 Tage. Das passiert nach einer Synchronisierung bei geöffneter App, höchstens einmal am Tag.</string>
     <string name="android_settings_links_delete_text">Die geteilten Kopien werden gelöscht, und der Link funktioniert nicht mehr.</string>
     <string name="android_settings_links_empty_text">Links, die du mit „Teilen“ oder „Als Galerie teilen“ in „Bilder“ und Dateien erstellst, erscheinen hier, bis sie ablaufen.</string>

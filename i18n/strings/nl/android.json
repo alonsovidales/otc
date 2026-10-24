@@ -283,6 +283,48 @@
     "text": "Zoomen",
     "en": "Zoom"
   },
+  "android.settings.folder_on_volume": {
+    "text": "{volume} · {path}",
+    "en": "{volume} · {path}"
+  },
+  "android.settings.folders": {
+    "text": "Mappen",
+    "en": "Folders"
+  },
+  "android.settings.folders_all": {
+    "text": "Alle",
+    "en": "All"
+  },
+  "android.settings.folders_empty": {
+    "text": "Er staan nog geen foto’s op deze telefoon.",
+    "en": "No photos on this phone yet."
+  },
+  "android.settings.folders_footer": {
+    "text": "Een map uitzetten stopt alleen de reservekopie ervan: er wordt niets verwijderd, niet van deze telefoon en niet van je apparaat. Zet je hem weer aan, dan wordt er een reservekopie gemaakt van alles wat er al in staat.",
+    "en": "Turning a folder off only stops backing it up: nothing is deleted, from this phone or from your device. Turning it back on backs up everything already in it."
+  },
+  "android.settings.folders_hidden": {
+    "text": "Android verbergt mappen waarvan de naam met een punt begint, en mappen met een bestand dat .nomedia heet, voor alle apps, ook voor deze. Hun foto’s kunnen hier niet worden getoond en er kan geen reservekopie van worden gemaakt, totdat de map een andere naam krijgt of dat bestand is verwijderd.",
+    "en": "Android hides folders whose name starts with a dot, and folders that contain a file called .nomedia, from every app, this one included. Their photos can't be listed here or backed up until the folder is renamed or that file is removed."
+  },
+  "android.settings.folders_intro": {
+    "text": "Van elke map wordt een reservekopie gemaakt, tenzij je die hier uitzet. Ook van nieuwe mappen, zodra ze verschijnen.",
+    "en": "Every folder is backed up unless you turn it off here. New folders are backed up too, as soon as they appear."
+  },
+  "android.settings.folders_load_failed": {
+    "text": "De mappen op deze telefoon konden niet worden weergegeven.",
+    "en": "Could not list the folders on this phone."
+  },
+  "android.settings.folders_off": {
+    "text": {
+      "one": "{count} uit",
+      "other": "{count} uit"
+    },
+    "en": {
+      "one": "{count} off",
+      "other": "{count} off"
+    }
+  },
   "android.settings.free_up_footer": {
     "text": "Oudere foto’s en video’s gaan van deze telefoon naar de prullenmand, elk pas nadat het apparaat bevestigt dat het een exacte kopie heeft. Android vraagt het eerst, en de prullenmand bewaart ze 30 dagen. Dit gebeurt na een synchronisatie terwijl de app open is, hooguit één keer per dag.",
     "en": "Photos and videos older than that are moved from this phone to its trash, each only once the device confirms it holds an exact copy. Android asks first, and the trash keeps them for 30 days. This happens after a sync while the app is open, at most once a day.",
