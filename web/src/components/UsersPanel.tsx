@@ -40,6 +40,9 @@ export default function UsersPanel() {
   // creating anything, and refuses rather than handing back an account
   // that looks fine and is silently unreachable.
   const [requestBridgeAccess, setRequestBridgeAccess] = useState(true);
+  // A local-only device has no bridge to check the subdomain on, so asking
+  // for it would always refuse: no option there, and none requested.
+  const [onBridge, setOnBridge] = useState(true);
 
   // The bridge's own domain, taken from a user that already has a
   // subdomain - the only place the client already knows it, and worth
@@ -92,6 +95,18 @@ export default function UsersPanel() {
     if (isPrimary) void loadUsers();
   }, [isPrimary, loadUsers]);
 
+  useEffect(() => {
+    if (!isPrimary) return;
+    void (async () => {
+      const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
+        (e as any).payload = { $case: "reqGetBridgeAccess", reqGetBridgeAccess: {} };
+      });
+      if (resp.payload?.$case === "respBridgeAccess" && !resp.payload.respBridgeAccess.enabled) {
+        setOnBridge(false);
+      }
+    })().catch(() => {}); // unanswered: keep the option, as before
+  }, [isPrimary]);
+
   const fetchMetrics = async (uuid: string) => {
     const resp: RespEnvelope = await useWS.request((e: Partial<ReqEnvelope>) => {
       (e as any).payload = { $case: "reqGetUserMetrics", reqGetUserMetrics: { uuid } };
@@ -131,7 +146,7 @@ export default function UsersPanel() {
           reqCreateUser: {
             username: name,
             port: newPort ? parseInt(newPort, 10) : 0,
-            requestBridgeAccess,
+            requestBridgeAccess: onBridge && requestBridgeAccess,
             password,
           },
         };
@@ -148,10 +163,13 @@ export default function UsersPanel() {
         const key = resp.payload.respUsers.passwordSet === undefined ? "web.settings.users.created_no_password" : "web.settings.users.created";
         setStatus({ kind: "success", text: (tr) => tr(key, { name }) });
       } else {
-        setPasswordError(resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.users.create_failed"));
+        // A UiText is a function: React would call a bare one as an updater.
+        const text = resp.errorMessage ? asIs(resp.errorMessage) : say("web.settings.users.create_failed");
+        setPasswordError(() => text);
       }
     } catch (err: any) {
-      setPasswordError(asIs(err?.message ?? String(err)));
+      const text = asIs(err?.message ?? String(err));
+      setPasswordError(() => text);
     } finally {
       setCreating(false);
     }
@@ -293,7 +311,7 @@ export default function UsersPanel() {
       </div>
 
       {/* Issue #103 */}
-      <label className="up-bridge-opt">
+      {onBridge && <label className="up-bridge-opt">
         <input
           type="checkbox"
           checked={requestBridgeAccess}
@@ -308,7 +326,7 @@ export default function UsersPanel() {
             {" "}{t("web.settings.users.local_hint")}
           </span>
         </span>
-      </label>
+      </label>}
 
       {passwordFor != null && (
         <div className="sf-modal" onClick={closePassword}>
