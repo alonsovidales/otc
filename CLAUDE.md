@@ -589,7 +589,7 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   allocates, `thumbFixReserve`: the decode (3 B/px), x/image/draw's kernel scaler buffer (32 B x
   dstW x srcH per scale - most of it: an old 1000x1333 portrait allocates ~51 MB) and the copies,
   checked against the real allocations by a test; a 1000x30000 thumbnail holds ~124 MB and waits
-  for downloads instead of adding to them; over 120 MP it is skipped). It waits while uploads arrive (`noteUploadActivity`, a
+  for downloads instead of adding to them; over 500 MP, `cMaxImagePixels`, it is skipped). It waits while uploads arrive (`noteUploadActivity`, a
   minute) or the lanes are busy, rests as long as each fix took (at least 50 ms), stops for a full
   reprocess, and records `<cap> <small side> <last hash>|done` in `<storage>/.thumbnails-sized` -
   resumable, run again when the small size changes or the cap goes down. Posts' copies in
@@ -681,7 +681,22 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   the size on disk via `segcrypt.PlainSize` (no key needed), own and friends' post files from their
   copies in `unenc-storage-path`; it waits for the BIGINT columns, and a pass with an error is
   retried at the next start. `checkImageSize` also bounds a HEIC
-  grid by its decoded first tile (`checkHeifGrid`). Decode stills through `decodeStill`
+  grid by its decoded first tile (`checkHeifGrid`). **Large photos** (2026-10-24, `limits.go`,
+  `decode_cost.go`; until then a fixed 120 MP limit refused a phone's 200 MP photos): what an image
+  may be goes by the device's memory. Every still decode (`decodeImage`, `heicToJpeg`) holds what it
+  costs from its own budget, a fifth of MemTotal (1.6 GB on 8 GB, ~760 MB on 4 GB, 1 GB unknown;
+  `holdDecode`, waiting for room - separate from the content budget, which downloads and gallery
+  previews hold first), and an image whose decode alone is over the whole budget is refused, the
+  message saying the device's limit for that kind ("over N megapixels"); 500 MP is refused
+  everywhere (`cMaxImagePixels`). The cost is read from the header (`decodeBytesPerPixel`, matched
+  to Go's real allocations in `TestDecodeReservationCoversWhatItAllocates`): a byte a sample for a
+  JPEG (`jpegFrame`: 1.5 a pixel at 4:2:0) plus 4 a sample if progressive, a PNG's pixel size (x2
+  interlaced), 8 for a HEIC. A photo over 50 MP (`cWorkPixels`) is box-shrunk by a whole factor
+  as it is decoded (`shrinkForWork`, +1 byte a pixel) and the full decode freed: thumbnails, tags,
+  faces and gallery previews work on at most 50 MP, so what follows costs what a 50 MP photo
+  always did. A 200 MP phone JPEG: ~490 MB held, 1.9 s on an M-series Mac; limits per kind in
+  `decodeBudgetBytes`' table (4 GB: 311 MP of 4:2:0 JPEG, 91 MP progressive, 86 MP HEIC). The
+  backfill's `cDecoders` gained `by-memory`, so photos refused before are tried once more. Decode stills through `decodeStill`
   (upload processing and the shared-gallery preview): ffmpeg only for what Go can't read, never
   for anything `checkImageSize` refuses (issue #188) - ffmpeg would decode it anyway, unbounded -
   nor for content no ffmpeg reads (`neverPreviewedMimes`: DjVu, CAD drawings, GIMP files), which

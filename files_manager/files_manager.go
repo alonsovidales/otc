@@ -2310,10 +2310,13 @@ func (mg *Manager) heicToJpeg(heicData []byte, quality int, fallbackOrientation 
 	}
 
 	// Decode HEIC from memory - once its header says it's a sane size
-	// (issue #165).
-	if err := checkImageSize(heicData); err != nil {
+	// (issue #165) - holding what it costs from the decode budget
+	// (holdDecode): at full size, oriented and encoded.
+	release, err := holdDecode(heicData)
+	if err != nil {
 		return nil, err
 	}
+	defer release()
 	// decodeHeic: goheif's own decoder is wrong at 10 bits a sample.
 	img, err := decodeHeic(heicData)
 	if errors.Is(err, errNotHevcStill) {

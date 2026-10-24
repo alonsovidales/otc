@@ -144,8 +144,9 @@ const cNoThumbnailSuffix = ".nothumb"
 // by a build that could do less is retried once (release 31's markers are
 // empty, so the GIF/WebP/BMP/TIFF they recorded get another go; heic10's
 // release retries the 10-bit HEIC photos goheif failed or crashed on,
-// raw-preview's the DNGs - ProRAW - and other camera raws).
-const cDecoders = "jpeg,png,gif,webp,bmp,tiff,heic,heic10,raw-preview,ffmpeg-image,short-video"
+// raw-preview's the DNGs - ProRAW - and other camera raws, by-memory's the
+// photos over 120 MP refused before the limit went by the device's memory).
+const cDecoders = "jpeg,png,gif,webp,bmp,tiff,heic,heic10,raw-preview,ffmpeg-image,short-video,by-memory"
 
 func (mg *Manager) isReprocessing() bool {
 	mg.reprocessMu.Lock()

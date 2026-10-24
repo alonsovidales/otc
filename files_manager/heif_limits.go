@@ -14,45 +14,46 @@ import (
 	"github.com/jdeng/goheif/libde265"
 )
 
-// checkHeifGrid refuses a HEIC whose grid decodes to more than
-// cMaxImagePixels, whatever its header says. checkImageSize goes by the
-// image's 'ispe' property, but goheif sizes a grid's canvas from its first
-// tile times the grid (up to 256x256 tiles, and the list may name the same
-// tile again and again): a ~100 KB file saying 100x100 made it allocate
-// 25 GB - a fatal out-of-memory no recover() catches, again at every
-// sign-in as the analysis is resumed. The first tile is decoded here as
-// goheif does it (goheif refuses tiles of another size), and that size,
-// not the file's word, is what is checked. Anything that isn't a well
-// formed grid is left to goheif, which fails on it as before.
-func checkHeifGrid(b []byte) error {
+// checkHeifGrid checks a HEIC grid by the size it decodes to, at cost
+// (stillCost.check), whatever its header says, and returns that size (0,
+// 0 for anything that isn't a well formed grid, left to goheif, which
+// fails on it as before). stillSize goes by the image's 'ispe' property,
+// but goheif sizes a grid's canvas from its first tile times the grid (up
+// to 256x256 tiles, and the list may name the same tile again and again):
+// a ~100 KB file saying 100x100 made it allocate 25 GB - a fatal
+// out-of-memory no recover() catches, again at every sign-in as the
+// analysis is resumed. The first tile is decoded here as goheif does it
+// (goheif refuses tiles of another size), and that size, not the file's
+// word, is what is checked.
+func checkHeifGrid(b []byte, cost stillCost) (w, h int64, err error) {
 	hf := heif.Open(bytes.NewReader(b))
 	it, err := hf.PrimaryItem()
 	if err != nil || it.Info == nil || it.Info.ItemType != "grid" {
-		return nil
+		return 0, 0, nil
 	}
 	data, err := hf.GetItemData(it)
 	if err != nil || len(data) < 8 {
-		return nil
+		return 0, 0, nil
 	}
 	rows, cols := int(data[2])+1, int(data[3])+1
 	dimg := it.Reference("dimg")
 	if dimg == nil || len(dimg.ToItemIDs) != rows*cols {
-		return nil
+		return 0, 0, nil
 	}
 	tw, th, ok := heifTileSize(hf, dimg.ToItemIDs[0])
 	if !ok {
-		return nil
+		return 0, 0, nil
 	}
-	w, h := int64(tw)*int64(cols), int64(th)*int64(rows)
-	if w*h > cMaxImagePixels {
-		return imageTooLarge(w, h)
+	w, h = int64(tw)*int64(cols), int64(th)*int64(rows)
+	if err := cost.check(w, h); err != nil {
+		return w, h, err
 	}
 	// goheif crops the canvas to these: larger, and the image's bounds
 	// would run past its pixels.
 	if sw, sh, ok := it.SpatialExtents(); ok && (int64(sw) > w || int64(sh) > h) {
-		return devtext.WithEnglish(fmt.Sprintf("the image says it is %dx%d, larger than its %dx%d grid", sw, sh, w, h), i18n.DevFilesImageGridMismatch(int(sw), int(sh), int(w), int(h))) // i18n-ignore: the English as it always read; the catalog has the other languages
+		return w, h, devtext.WithEnglish(fmt.Sprintf("the image says it is %dx%d, larger than its %dx%d grid", sw, sh, w, h), i18n.DevFilesImageGridMismatch(int(sw), int(sh), int(w), int(h))) // i18n-ignore: the English as it always read; the catalog has the other languages
 	}
-	return nil
+	return w, h, nil
 }
 
 // heifTileSize decodes the grid tile id as goheif.Decode does, for its

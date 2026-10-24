@@ -31,7 +31,7 @@ func TestReplyErrorsKeepTheirEnglish(t *testing.T) {
 		{badSize, "bad size"},
 		{noPath, "no path"},
 		{unknown, "unknown or expired upload"},
-		{imageTooLarge(12000, 11000), "the image is 12000x11000, too large to process (over 120 megapixels)"},
+		{imageTooLarge(12000, 11000, 120_000_000), "the image is 12000x11000, too large to process (over 120 megapixels)"},
 		{&LockedByParentError{Folder: "/Photos/Trip/", Parent: "/Photos/", OwnFlag: true}, "Trip is inside the upload-only folder /Photos - unlock /Photos first, then Trip"},
 		{&LockedByParentError{Folder: "/Photos/Trip/", Parent: "/Photos/"}, "Trip is inside the upload-only folder /Photos - unlock /Photos to unlock it"},
 	}
@@ -49,7 +49,7 @@ func TestReplyErrorsKeepTheirEnglish(t *testing.T) {
 			}
 		}
 	}
-	if !errors.Is(imageTooLarge(12000, 11000), errImageTooLarge) {
+	if !errors.Is(imageTooLarge(12000, 11000, 120_000_000), errImageTooLarge) {
 		t.Error("imageTooLarge must still wrap errImageTooLarge")
 	}
 }
