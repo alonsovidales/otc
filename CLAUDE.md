@@ -1279,6 +1279,15 @@ heading clicked while its list is scrolled down shows the new order from its fir
 browser's scroll anchoring; mid-drag `useDragSelect`'s own measure); at the list's top a tick still
 pushes them down by the bar's height, as before the bar stuck.
 
+Full-size photos on the web (`components/fullSizeCache.ts`, `node web/scripts/full-size-cache-test.mjs`):
+`MediaViewer` keeps every `GetFile` answer it fetched whole (photos, clips the device won't stream)
+for the tab's session, so stepping back to a photo or reopening it shows full size at once with no
+request - every step back and forth used to show the low-res tile while it fetched again. By content
+hash (the answer's `File.hash`, else the item's; no hash, not kept), least recently used out first,
+100 MB (a tenth of the apps' default 1 GB thumbnail cache, the phones' `FullPhotoCache` share), one
+photo at most a quarter of it. Kept even when the viewer moved on before it came. Memory only:
+sign-out reloads the page. On the demo: back to a photo 4 ms with no badge, was 100-230 ms with it.
+
 Copies on the web (issue #201, `components/photoCopies.ts`, `node web/scripts/photo-copies-test.mjs`,
 the phones' `DeleteCopies` rules): Images' Delete (selection bar and viewer) asks about copies when
 a photo's `File.copies` is above 1 - one photo: `web.images.copies.single_text`, "Delete only this

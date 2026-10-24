@@ -13,6 +13,7 @@ import { requestStreamURL, canStream } from "../net/media";
 import type { ReqEnvelope, RespEnvelope, FileExifInfo } from "../proto/messages";
 import "./PhotoGallery.css";
 import LowResBadge from "./LowResBadge";
+import { fullSizeCache } from "./fullSizeCache";
 import { usePageRetry } from "./usePageRetry";
 import { startDownload, readFileInPieces, leafName, useDownloadState, useDownloadFailure, useDownloadHost } from "./mediaDownload";
 import { DownloadButton, DownloadNote } from "./DownloadButton";
@@ -49,10 +50,14 @@ export type ViewerItem = {
 };
 
 const isVideoFile = (f: { mime?: string }) => (f.mime || "").startsWith("video/");
-const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
-  if (!content || !(content as ArrayLike<number>).length) return "";
+const bytesToBlob = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
+  if (!content || !(content as ArrayLike<number>).length) return null;
   const u8 = content instanceof Uint8Array ? content : new Uint8Array(content);
-  return URL.createObjectURL(new Blob([u8 as BlobPart], { type: mime }));
+  return new Blob([u8 as BlobPart], { type: mime });
+};
+const bytesToURL = (content?: Uint8Array | number[] | null, mime = "image/jpeg") => {
+  const b = bytesToBlob(content, mime);
+  return b ? URL.createObjectURL(b) : "";
 };
 
 // Issue #199: deletes one file on the device (DelFile): no error once it
@@ -255,6 +260,13 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     setInfoData(null);
     setZoomScale(1);
     if (!item) return;
+    const now = Date.now();
+    const rapid = now - lastStepRef.current < cRapidStepMs;
+    lastStepRef.current = now;
+    // A photo already seen this session (fullSizeCache): at once, with no
+    // request and no low-res tile first.
+    const kept = fullSizeCache.get(item.hash);
+    if (kept) { setHiURL(URL.createObjectURL(kept)); setHiLoading(false); return; }
     setHiLoading(true);
     const fetchFull = async () => {
       let got = false;
@@ -269,13 +281,14 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
         const resp = await useWS.request(e => {
           (e as any).payload = { $case: "reqGetFile", reqGetFile: { path: item.path } };
         });
+        const full = resp.payload?.$case === "respFile" ? resp.payload.respFile : null;
+        const blob = full ? bytesToBlob(full.content, full.mime || "image/jpeg") : null;
+        // Kept even when the viewer has moved on: the bytes came all the
+        // same, and stepping back to it is what the cache is for.
+        if (blob) fullSizeCache.put(full?.hash || item.hash, blob);
         if (!current()) return;
-        if (resp.payload?.$case === "respFile") {
-          const full = resp.payload.respFile!;
-          const url = bytesToURL(full.content, full.mime || "image/jpeg");
-          got = !!url;
-          setHiURL(url || null);
-        }
+        got = !!blob;
+        setHiURL(blob ? URL.createObjectURL(blob) : null);
       } catch {
         // the thumbnail stays
       } finally {
@@ -292,9 +305,6 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
     // sent can't be called back. The first open and a deliberate step
     // still fetch at once; of a burst, only its first step and the item
     // it ends on fetch.
-    const now = Date.now();
-    const rapid = now - lastStepRef.current < cRapidStepMs;
-    lastStepRef.current = now;
     if (!rapid) { void fetchFull(); return; }
     const timer = setTimeout(() => void fetchFull(), cRapidStepMs);
     return () => clearTimeout(timer);
