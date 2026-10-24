@@ -26,8 +26,13 @@ import java.io.File
  * when the app goes to the background. A big thumbnail asked for on
  * purpose (the viewer's, when the thumbnail stays on screen) is never kept
  * here: tiles and viewers never share an entry.
+ *
+ * The viewer's full-size photos of this session are kept here too
+ * (FullPhotoCache, cacheDir/full-photos), within the same size picked: a
+ * tenth of it, the thumbnails the rest. The Images and Files viewers share
+ * them.
  */
-object ThumbStore : GridThumbStore {
+object ThumbStore : GridThumbStore, FullPhotoStore {
     private const val TAG = "OTC/Thumbs"
 
     private val core by lazy {
@@ -44,6 +49,7 @@ object ThumbStore : GridThumbStore {
             onMemoryDropped = { ThumbCache.clear() },
             memoryBytes = minOf(Runtime.getRuntime().maxMemory() / 8, 32L shl 20),
             log = { Log.i(TAG, it) },
+            fullPhotosDir = File(app.cacheDir, FullPhotoCache.DIR),
         )
     }
 
@@ -82,6 +88,11 @@ object ThumbStore : GridThumbStore {
     override fun warmUp() = core.warmUp()
     override val clears: StateFlow<Int> get() = core.clears
 
+    override suspend fun loadFullPhoto(hash: String) = core.loadFullPhoto(hash)
+    override suspend fun fullPhotoScope() = core.fullPhotoScope()
+    override suspend fun keepFullPhoto(hash: String, bytes: ByteArray, scope: Long) = core.keepFullPhoto(hash, bytes, scope)
+    override suspend fun forgetFullPhoto(hash: String) = core.forgetFullPhoto(hash)
+
     /** Files' grid's own re-asks: once a launch, under the same still-big rule. */
     suspend fun claimFilesReasks(hashes: Collection<String>) = core.claimFilesReasks(hashes)
 
@@ -91,6 +102,6 @@ object ThumbStore : GridThumbStore {
     /** Settings: another size limit, kept on this phone. */
     suspend fun setLimit(bytes: Long) = core.setLimit(bytes)
 
-    /** Settings' Clear thumbnail cache: the grids fetch their tiles again as they show them. */
+    /** Settings' Clear thumbnail cache: the grids fetch their tiles again as they show them, the viewer its photos. */
     suspend fun clearAll() = core.clearAll()
 }

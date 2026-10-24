@@ -89,7 +89,7 @@ class PhotoGalleryUncollectTest {
 
     private fun vm(dev: Device) = PhotoGalleryViewModel(
         "test", send = dev.send, pause = {}, online = { true }, problemOf = { _, _ -> LoadProblem.FAILED },
-        thumbs = thumbs, scope = scope, signIns = { 1 },
+        thumbs = thumbs, fullPhotos = thumbs, scope = scope, signIns = { 1 },
     )
 
     private fun <T> on(block: suspend () -> T): T = runBlocking(dispatcher) { block() }

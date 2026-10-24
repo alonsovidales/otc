@@ -51,6 +51,7 @@ import cloud.offthe.otc.ui.common.backOnline
 import cloud.offthe.otc.ui.common.loadProblem
 import cloud.offthe.otc.ui.common.Share
 import cloud.offthe.otc.ui.common.FIRST_PAGE_LIMIT_WITHOUT_THUMBS
+import cloud.offthe.otc.ui.common.FullPhotoStore
 import cloud.offthe.otc.ui.common.GridThumbFetcher
 import cloud.offthe.otc.ui.common.GridThumbStore
 import cloud.offthe.otc.ui.common.NEXT_PAGE_LIMIT_WITHOUT_THUMBS
@@ -133,6 +134,11 @@ private const val NO_PROGRESS_MAX_MS = 60_000L
 // thumbnail stays on screen: the open one and the last few swiped past.
 private const val BIG_THUMBS_KEPT = 4
 
+// How long the viewer stays on a photo shown at full size before its
+// neighbours are fetched: a run of quick swipes is past it by then, so only
+// the photo it stops on readies them (the web viewer's cRapidStepMs).
+private const val NEIGHBOURS_AFTER_MS = 250L
+
 // Port of PhotoGalleryVM (PhotoGallery.swift). Tag chips, the person
 // filter (issue #52, AND semantics), image groups (issue #115, which the
 // app calls collections), the date scrubber (issue #77), a search
@@ -180,6 +186,8 @@ class PhotoGalleryViewModel(
     },
     // Where the tiles' thumbnails are kept (tests: a cache of their own).
     private val thumbs: GridThumbStore = ThumbStore,
+    // Where the viewer's full-size photos are kept for the session (tests: a cache of their own).
+    private val fullPhotos: FullPhotoStore = ThumbStore,
     // Where its work runs: the view model's own scope, a test's in tests.
     scope: CoroutineScope? = null,
     // How many sign-ins there have been (OTCConnection.signIns): what a
@@ -1399,9 +1407,33 @@ class PhotoGalleryViewModel(
         // Another item: the last one's big thumbnail is no longer asked for.
         if (bigThumbFor != _state.value.items[index].path) stopBigThumb()
         _state.update { it.copy(openIndex = index, videoUrl = null, infoOpen = false, infoData = null) }
+        // Alone: its neighbours wait until it is on screen (readyNeighbours).
         scope.launch { fetchHiRes(index) }
-        // The viewer slides towards the neighbours, so have them ready.
-        for (n in listOf(index - 1, index + 1)) if (n in _state.value.items.indices) scope.launch { fetchHiRes(n, prefetch = true) }
+    }
+
+    /**
+     * The open photo [path] is on screen at full size, and the viewer slides
+     * towards its neighbours, so they are readied - after it, never with it:
+     * fetched at the same moment, they shared the connection with the photo
+     * being looked at, which then came later. The next one first (the usual
+     * way through), then the previous, one after the other; fetchHiRes skips
+     * one already shown or on its way, and one kept this session
+     * (FullPhotoCache) is only read and decoded. Only while the viewer stays
+     * on [path], from [NEIGHBOURS_AFTER_MS] on: a run of quick swipes
+     * readies the photo it stops on, not every one it passed, and an item
+     * opened meanwhile readies its own. Never after a failure or for a video
+     * (fetchHiRes doesn't call it then).
+     */
+    private fun readyNeighbours(path: String) {
+        if (openPath() != path) return
+        scope.launch {
+            delay(NEIGHBOURS_AFTER_MS)
+            for (step in intArrayOf(1, -1)) {
+                if (openPath() != path) return@launch
+                val n = (_state.value.openIndex ?: return@launch) + step
+                if (n in _state.value.items.indices) fetchHiRes(n, prefetch = true)
+            }
+        }
     }
 
     fun closeModal() {
@@ -1538,21 +1570,39 @@ class PhotoGalleryViewModel(
 
     fun closeInfo() = _state.update { it.copy(infoOpen = false, infoData = null) }
 
-    /** prefetch: a neighbour readied for the slide - its image is fetched, a video is not started until opened. */
+    /** prefetch: a neighbour readied for the slide (readyNeighbours) - its image is fetched, a video is not started until opened. */
     private suspend fun fetchHiRes(index: Int, prefetch: Boolean = false) {
         val it = _state.value.items.getOrNull(index) ?: return
         if (it.mime.startsWith("video/")) { if (!prefetch && it.path !in _state.value.unplayable) fetchVideo(it); return }
-        if (it.path in _state.value.hiResImages) { touchHiRes(it.path); return }
+        if (it.path in _state.value.hiResImages) { touchHiRes(it.path); readyNeighbours(it.path); return }
+        // On its way (a neighbour readied, now opened): it readies the
+        // neighbours itself when it lands, if it is still the open one.
         if (it.path in inFlightHiRes) return
         inFlightHiRes += it.path
         _state.update { s -> s.copy(hiResLoading = s.hiResLoading + it.path) }
         var got = false
         try {
-            val resp = call { e -> e.setReqGetFile(GetFile.newBuilder().setPath(it.path)) }
-            if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FILE) {
-                val bmp = withContext(Dispatchers.Default) { decodeBitmap(resp.respFile.content.toByteArray()) }
-                got = bmp != null
-                if (bmp != null && _state.value.openIndex != null) cacheHiRes(it.path, bmp)
+            // Seen this session (FullPhotoCache): decoded from the phone's
+            // copy, nothing asked of the device. One that doesn't decode is
+            // forgotten and asked for as if it had never been kept.
+            val kept = if (it.hash.isEmpty()) null else fullPhotos.loadFullPhoto(it.hash)
+            if (kept != null) {
+                got = showHiRes(it.path, kept)
+                if (!got) fullPhotos.forgetFullPhoto(it.hash)
+            }
+            if (!got) {
+                val asked = fullPhotos.fullPhotoScope()
+                val resp = call { e -> e.setReqGetFile(GetFile.newBuilder().setPath(it.path)) }
+                if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_FILE) {
+                    val bytes = resp.respFile.content.toByteArray()
+                    got = showHiRes(it.path, bytes)
+                    // Kept for the next time, as the device sent it (a HEIC
+                    // comes as JPEG), under the hash its answer carries - the
+                    // file's now - rather than the one listed: a path whose
+                    // content changed since isn't kept as the old content.
+                    val hash = resp.respFile.hash.ifEmpty { it.hash }
+                    if (got && hash.isNotEmpty()) fullPhotos.keepFullPhoto(hash, bytes, asked)
+                }
             }
         } catch (e: CancellationException) {
             throw e
@@ -1563,8 +1613,17 @@ class PhotoGalleryViewModel(
         }
         // Failed, or a format the phone can't decode: the thumbnail stays,
         // the big one if it is the open photo (a neighbour's full size is
-        // asked again when it is swiped to).
-        if (!got) thumbnailStays(it.path)
+        // asked again when it is swiped to). Shown: if it is the open one,
+        // its neighbours are next.
+        if (!got) thumbnailStays(it.path) else readyNeighbours(it.path)
+    }
+
+    // A full-size photo's [bytes] decoded off the main thread and kept with
+    // the viewer's images while it is open; false when they don't decode.
+    private suspend fun showHiRes(path: String, bytes: ByteArray): Boolean {
+        val bmp = withContext(Dispatchers.Default) { decodeBitmap(bytes) } ?: return false
+        if (_state.value.openIndex != null) cacheHiRes(path, bmp)
+        return true
     }
 
     /** Issue #110: streamed when the device offers a URL, downloaded otherwise. */

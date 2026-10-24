@@ -16,6 +16,16 @@ val THUMB_CACHE_CHOICES: List<Long> = listOf(250_000_000L, 500_000_000L, 1_000_0
 const val THUMB_CACHE_DEFAULT = 1_000_000_000L
 
 /**
+ * Of the size picked, the viewer's full-size photos' share (FullPhotoCache):
+ * a tenth, the owner's choice. The thumbnails take the rest ([thumbnailBytes]),
+ * so the size picked stays the total Settings shows.
+ */
+fun fullPhotoBytes(limit: Long): Long = limit / 10
+
+/** Of the size picked, the thumbnails' share (ThumbDiskCache): what the full-size photos leave. */
+fun thumbnailBytes(limit: Long): Long = limit - fullPhotoBytes(limit)
+
+/**
  * The thumbnail cache's size limit picked on this phone, kept in [file]
  * (in filesDir: Log Out wipes it with the other settings, and the system
  * never clears it to make room as it may the cache itself). Anything but

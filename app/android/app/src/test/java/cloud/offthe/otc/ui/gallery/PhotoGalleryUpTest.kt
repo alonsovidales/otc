@@ -127,7 +127,7 @@ class PhotoGalleryUpTest {
 
     private fun vm(dev: Device, waits: Waits = Waits()) = PhotoGalleryViewModel(
         "test", send = dev.send, pause = waits.pause, online = { true }, problemOf = { _, _ -> LoadProblem.FAILED },
-        thumbs = thumbs, scope = scope, signIns = { signIns },
+        thumbs = thumbs, fullPhotos = thumbs, scope = scope, signIns = { signIns },
     )
 
     private fun <T> on(block: suspend () -> T): T = runBlocking(dispatcher) { block() }
@@ -260,7 +260,7 @@ class PhotoGalleryUpTest {
         val waits = Waits().apply { gate = CompletableDeferred() }
         val vm = PhotoGalleryViewModel(
             "test", send = dev.send, pause = waits.pause, online = { true }, problemOf = { _, _ -> LoadProblem.UNREACHABLE },
-            thumbs = thumbs, scope = scope, signIns = { signIns },
+            thumbs = thumbs, fullPhotos = thumbs, scope = scope, signIns = { signIns },
         )
         scope.launch { vm.resetAndLoadFirstPage() }
         await("the newest photos") { paths(vm) == listOf("new") }

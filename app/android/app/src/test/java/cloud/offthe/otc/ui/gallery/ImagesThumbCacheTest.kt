@@ -75,7 +75,7 @@ class ImagesThumbCacheTest {
     private fun small(paths: List<String>) = page(paths.map { row(it, says = true, content = "small $it") })
 
     private fun vm(store: TestThumbStore, send: GalleryRequest) =
-        PhotoGalleryViewModel("test", send = send, pause = {}, online = { true }, problemOf = { _, _ -> cloud.offthe.otc.ui.common.LoadProblem.FAILED }, thumbs = store, scope = scope)
+        PhotoGalleryViewModel("test", send = send, pause = {}, online = { true }, problemOf = { _, _ -> cloud.offthe.otc.ui.common.LoadProblem.FAILED }, thumbs = store, fullPhotos = store, scope = scope)
 
     private fun <T> on(block: suspend () -> T): T = runBlocking(dispatcher) { block() }
 

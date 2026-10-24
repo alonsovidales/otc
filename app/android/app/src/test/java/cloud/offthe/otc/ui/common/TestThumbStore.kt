@@ -20,8 +20,9 @@ val DIRECT = Executor { it.run() }
 
 /**
  * The grids' thumbnail store for tests: a real ThumbStoreCore in [dir]
- * (`cache/` and `state/`; a restart is a new TestThumbStore on the same
- * folder), bound at launch to [endpoint], file work done at once.
+ * (`cache/` and `state/`, the viewer's full-size photos in `full-photos/`;
+ * a restart is a new TestThumbStore on the same folder), bound at launch to
+ * [endpoint], file work done at once.
  */
 class TestThumbStore(
     val dir: File,
@@ -32,7 +33,7 @@ class TestThumbStore(
         cacheRoot = File(dir, "cache"), stateDir = File(dir, "state"), savedEndpoint = { endpoint },
         decodable = ::testDecodable, io = EmptyCoroutineContext, background = DIRECT, nowMs = nowMs,
     ),
-) : GridThumbStore by core {
+) : GridThumbStore by core, FullPhotoStore by core {
     init {
         if (omits) runBlocking { core.notePage(true, core.scope()) }
     }

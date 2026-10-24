@@ -97,7 +97,7 @@ class PhotoGalleryRetryTest {
     private val noThumbs = RespEnvelope.newBuilder().setRespListOfFiles(ListOfFiles.getDefaultInstance()).build()
 
     private fun vm(dev: Device, waits: Waits = Waits(), problem: LoadProblem = LoadProblem.FAILED, online: () -> Boolean = { true }) =
-        PhotoGalleryViewModel("test", send = dev.send, pause = waits.pause, online = online, problemOf = { _, _ -> problem }, thumbs = thumbs, scope = scope)
+        PhotoGalleryViewModel("test", send = dev.send, pause = waits.pause, online = online, problemOf = { _, _ -> problem }, thumbs = thumbs, fullPhotos = thumbs, scope = scope)
 
     /** Runs [block] on the view model's own thread. */
     private fun <T> on(block: suspend () -> T): T = runBlocking(dispatcher) { block() }
@@ -225,7 +225,7 @@ class PhotoGalleryRetryTest {
             if (kind != "page") dev.send(kind, baseMs, build)
             else patience.run(kind, baseMs) { limit -> limits += limit; WSClient.Answer(dev.send(kind, baseMs, build), 80_000) }
         }
-        val vm = PhotoGalleryViewModel("test", send = send, pause = Waits().pause, online = { true }, problemOf = { _, _ -> LoadProblem.SLOW }, thumbs = thumbs, scope = scope)
+        val vm = PhotoGalleryViewModel("test", send = send, pause = Waits().pause, online = { true }, problemOf = { _, _ -> LoadProblem.SLOW }, thumbs = thumbs, fullPhotos = thumbs, scope = scope)
         start(vm)
         await("the photo") { vm.state.value.items.size == 1 }
         // 2 minutes, then twice that, then at most 5 minutes: never cut off for good.
@@ -242,7 +242,7 @@ class PhotoGalleryRetryTest {
         val waits = Waits().apply { gate = CompletableDeferred() }
         val vm = PhotoGalleryViewModel(
             "test", send = dev.send, pause = waits.pause, online = { online },
-            problemOf = { _, _ -> if (online) LoadProblem.FAILED else LoadProblem.OFFLINE }, thumbs = thumbs, scope = scope,
+            problemOf = { _, _ -> if (online) LoadProblem.FAILED else LoadProblem.OFFLINE }, thumbs = thumbs, fullPhotos = thumbs, scope = scope,
         )
         start(vm)
         await("the failure") { vm.state.value.let { it.pageProblem != null && !it.loading } }
@@ -521,7 +521,8 @@ class PhotoGalleryRetryTest {
         await("the big thumbnail") { vm.state.value.bigThumbs.containsKey("b") }
         assertEquals("big b", String(vm.state.value.bigThumbs.getValue("b")))
         // Asked without small_thumbnails, again after 1 s and 2 s (a grid's
-        // backoff), never for the neighbours whose full size failed too.
+        // backoff), never for the neighbours - whose full size isn't even
+        // asked for after the open one's failed.
         val asked = bigThumbsAsked(dev, "b")
         assertEquals(3, asked.size)
         asked.forEach { assertFalse(it.req.reqGetThumbnails.smallThumbnails) }
@@ -542,6 +543,61 @@ class PhotoGalleryRetryTest {
         on { vm.open(0) }
         await("the big thumbnail") { vm.state.value.bigThumbs.containsKey("a") }
         assertEquals(1, bigThumbsAsked(dev, "a").size)
+    }
+
+    private fun fullsAsked(dev: Device) = dev.of(ReqEnvelope.PayloadCase.REQ_GET_FILE).map { it.req.reqGetFile.path }
+
+    @Test fun theNeighboursWaitForTheOpenPhoto() {
+        // b's full size on its way until let go.
+        val gate = CompletableDeferred<RespEnvelope?>()
+        val dev = Device { req ->
+            when (req.payloadCase) {
+                ReqEnvelope.PayloadCase.REQ_PHOTO_DATE_BUCKETS -> noBuckets
+                ReqEnvelope.PayloadCase.REQ_SEARCH_PHOTOS -> page("a", "b", "c")
+                ReqEnvelope.PayloadCase.REQ_GET_FILE -> if (req.reqGetFile.path == "b") gate.await() else null
+                ReqEnvelope.PayloadCase.REQ_GET_THUMBNAILS ->
+                    if (req.reqGetThumbnails.smallThumbnails) noThumbs else bigThumb(req.reqGetThumbnails.getPaths(0), "big")
+                else -> null
+            }
+        }
+        val vm = vm(dev)
+        start(vm)
+        await("the photos") { vm.state.value.items.size == 3 }
+        on { vm.open(1) }
+        await("b's full size asked") { fullsAsked(dev).isNotEmpty() }
+        // Not a neighbour while the open photo is on its way: they would
+        // share the connection with it (well past the wait for a run of swipes)...
+        Thread.sleep(400)
+        assertEquals(listOf("b"), fullsAsked(dev))
+        // ...nor once it failed: its thumbnail stays, and a and c are asked
+        // for when swiped to.
+        gate.complete(null)
+        await("b's big thumbnail") { vm.state.value.bigThumbs.containsKey("b") }
+        Thread.sleep(400)
+        assertEquals(listOf("b"), fullsAsked(dev))
+        on { vm.next() }
+        await("c's full size asked") { "c" in fullsAsked(dev) }
+        settle()
+        assertEquals(listOf("b", "c"), fullsAsked(dev))
+    }
+
+    @Test fun aKeptFullSizeThatDoesntDecodeIsForgottenAndAskedForAgain() {
+        // Kept this session (FullPhotoCache) but not a picture the phone
+        // decodes (nothing does in these tests): the device is asked, and
+        // an answer that doesn't decode either isn't kept.
+        runBlocking { thumbs.keepFullPhoto(hx("b"), "not an image".toByteArray(), thumbs.fullPhotoScope()) }
+        assertTrue(runBlocking { thumbs.loadFullPhoto(hx("b")) } != null)
+        val undecodable = RespEnvelope.newBuilder().setRespFile(
+            File.newBuilder().setPath("b").setHash(hx("b")).setContent(ByteString.copyFromUtf8("still not an image")),
+        ).build()
+        val dev = viewerDevice(full = { undecodable }, thumbs = { p -> bigThumb(p, "big $p") })
+        val vm = vm(dev)
+        start(vm)
+        await("the photos") { vm.state.value.items.size == 3 }
+        on { vm.open(1) }
+        await("b's big thumbnail") { vm.state.value.bigThumbs.containsKey("b") }
+        assertEquals(listOf("b"), fullsAsked(dev))
+        assertNull(runBlocking { thumbs.loadFullPhoto(hx("b")) })
     }
 
     @Test fun theBigThumbnailIsAskedOnlyWhileTheViewerStaysOnTheItem() {

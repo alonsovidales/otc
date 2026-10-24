@@ -185,6 +185,96 @@ class ThumbStoreCoreTest {
         assertEquals(ThumbStoreCore.Usage(0, 250_000_000L), restarted.usage.value)
     }
 
+    // ---- the viewer's full-size photos ----------------------------------------------
+
+    private fun fullDir() = File(tmp.root, "cache/${FullPhotoCache.DIR}")
+    private fun keep(c: ThumbStoreCore, name: String, bytes: ByteArray = name.toByteArray(), scope: Long = runBlocking { c.fullPhotoScope() }) =
+        runBlocking { c.keepFullPhoto(hx(name), bytes, scope) }
+    private fun full(c: ThumbStoreCore, name: String) = runBlocking { c.loadFullPhoto(hx(name)) }
+
+    @Test fun theFullSizePhotosTakeATenthOfTheSizePickedAndCountInItsUse() {
+        val c = core()
+        put(c, "a", bytes = ByteArray(300) { 1 })
+        keep(c, "p", ByteArray(5_000) { 2 })
+        // 1 GB unless changed: the thumbnails 900 MB, the photos 100 MB;
+        // Settings shows the size picked, and both in what is used.
+        assertEquals(900_000_000L, c.cacheNow()!!.limitBytes)
+        assertEquals(100_000_000L, c.fullPhotosNow().budgetBytes)
+        assertEquals(ThumbStoreCore.Usage(5_300, THUMB_CACHE_DEFAULT), c.usage.value)
+        // Another size: both shares follow it.
+        runBlocking { c.setLimit(250_000_000L) }
+        assertEquals(225_000_000L, c.cacheNow()!!.limitBytes)
+        assertEquals(25_000_000L, c.fullPhotosNow().budgetBytes)
+        assertEquals(ThumbStoreCore.Usage(5_300, 250_000_000L), c.usage.value)
+        // The next launch: the same shares, the thumbnails kept, the last
+        // launch's photos gone (at once, in the background, not at the
+        // viewer's first photo).
+        val restarted = core()
+        assertTrue(fullDir().list().orEmpty().isEmpty())
+        runBlocking { restarted.refreshUsage() }
+        assertEquals(225_000_000L, restarted.cacheNow()!!.limitBytes)
+        assertEquals(25_000_000L, restarted.fullPhotosNow().budgetBytes)
+        assertEquals(ThumbStoreCore.Usage(300, 250_000_000L), restarted.usage.value)
+        assertNull(full(restarted, "p"))
+    }
+
+    @Test fun clearAndLogOutEmptyTheFullSizePhotos() {
+        val c = core()
+        keep(c, "p")
+        assertArrayEquals("p".toByteArray(), full(c, "p"))
+        assertNull(full(c, "q"))
+        // An item without a hash has nothing kept.
+        assertNull(runBlocking { c.loadFullPhoto("") })
+        // Settings' Clear: the thumbnails and the photos.
+        put(c, "a")
+        runBlocking { c.clearAll() }
+        assertNull(full(c, "p"))
+        assertEquals(ThumbStoreCore.Usage(0, THUMB_CACHE_DEFAULT), c.usage.value)
+        assertTrue(fullDir().list().orEmpty().isEmpty())
+        // Kept again after it; then Log Out: gone, and nothing kept until the
+        // next sign-in, as the thumbnails.
+        keep(c, "q")
+        assertArrayEquals("q".toByteArray(), full(c, "q"))
+        runBlocking { c.setLimit(5_000_000_000L) }
+        c.logOut()
+        assertNull(full(c, "q"))
+        assertFalse(fullDir().exists())
+        assertEquals(fullPhotoBytes(THUMB_CACHE_DEFAULT), c.fullPhotosNow().budgetBytes)
+        keep(c, "r")
+        assertNull(full(c, "r"))
+        assertFalse(fullDir().exists())
+        c.signedIn(pit)
+        keep(c, "s")
+        assertArrayEquals("s".toByteArray(), full(c, "s"))
+    }
+
+    @Test fun aFullSizePhotoAskedOfAnotherDeviceOrBeforeALogOutIsNotKept() {
+        val c = core()
+        val asked = runBlocking { c.fullPhotoScope() }
+        c.signedIn(cala)
+        keep(c, "p", scope = asked)
+        assertNull(full(c, "p"))
+        val before = runBlocking { c.fullPhotoScope() }
+        c.logOut()
+        c.signedIn(cala)
+        keep(c, "q", scope = before)
+        assertNull(full(c, "q"))
+        assertTrue(fullDir().list().orEmpty().isEmpty())
+        // Asked of the device signed in to now: kept.
+        keep(c, "r")
+        assertArrayEquals("r".toByteArray(), full(c, "r"))
+    }
+
+    @Test fun aFullSizePhotoThatDidntDecodeIsForgotten() {
+        val c = core()
+        keep(c, "p")
+        keep(c, "q")
+        runBlocking { c.forgetFullPhoto(hx("p")) }
+        assertNull(full(c, "p"))
+        assertArrayEquals("q".toByteArray(), full(c, "q"))
+        assertEquals(setOf(hx("q")), fullDir().list()!!.toSet())
+    }
+
     @Test fun theScopeIsTheEndpointsDigest() {
         assertEquals(32, ThumbStoreCore.scopeIdOf(pit).length)
         assertTrue(ThumbStoreCore.scopeIdOf(pit) != ThumbStoreCore.scopeIdOf(cala))

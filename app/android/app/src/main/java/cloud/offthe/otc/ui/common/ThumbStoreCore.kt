@@ -62,6 +62,15 @@ class ByteLru(private val maxBytes: Long) {
  * - the grids ([claimReasks]) and Files ([claimFilesReasks]) each once - and
  * not at all for [REASK_AFTER_MS] once that answer came big again
  * (ThumbDiskCache.noteStillBig).
+ *
+ * The size picked also covers the viewer's full-size photos of this session
+ * (FullPhotoCache, in [fullPhotosDir]): a tenth of it is theirs and the
+ * thumbnails get the rest (fullPhotoBytes, thumbnailBytes), so Settings'
+ * "Using {used} of {limit}" counts both against the size picked, and its
+ * Clear and Log Out empty both. Unlike the thumbnails they aren't kept per
+ * scope - a hash names the same picture on any device - but a photo is kept
+ * only while the scope it was asked under is bound, as a thumbnail is. They
+ * are emptied once a launch, on [background], as this is made.
  */
 class ThumbStoreCore(
     private val cacheRoot: File,
@@ -75,7 +84,8 @@ class ThumbStoreCore(
     private val nowMs: () -> Long = System::currentTimeMillis,
     private val version: Int = CACHE_VERSION,
     private val log: (String) -> Unit = {},
-) : GridThumbStore {
+    private val fullPhotosDir: File = File(cacheRoot.absoluteFile.parentFile, FullPhotoCache.DIR),
+) : GridThumbStore, FullPhotoStore {
     /** Settings' "Using {used} of {limit}". */
     data class Usage(val used: Long, val limit: Long)
 
@@ -106,6 +116,16 @@ class ThumbStoreCore(
     private val _clears = MutableStateFlow(0)
     override val clears: StateFlow<Int> = _clears
 
+    // The viewer's full-size photos, made at their first use - always off
+    // the main thread: the size picked is read from a file.
+    private val full by lazy { FullPhotoCache(fullPhotosDir, fullPhotoBytes(limitSetting.get())) }
+
+    init {
+        // The last launch's full-size photos go now, not at the viewer's
+        // first photo: a launch that never opens it leaves none behind either.
+        background.execute { full.start() }
+    }
+
     /** The scope a page or fetch is asked under, for its writes. */
     override suspend fun scope(): Long = withContext(io) { ensureLaunchBound(); gen }
 
@@ -118,7 +138,7 @@ class ThumbStoreCore(
         }
     }
 
-    /** Log Out: nothing kept, nothing stored until a sign-in binds a scope again; every folder, the size and the markers go. */
+    /** Log Out: nothing kept, nothing stored until a sign-in binds a scope again; every folder, the full-size photos, the size and the markers go. */
     fun logOut() {
         synchronized(lock) {
             opened?.cache?.close()
@@ -133,8 +153,10 @@ class ThumbStoreCore(
         mem.clear()
         onMemoryDropped()
         cacheRoot.deleteRecursively()
+        full.clear()
         omitsFile.delete()
         File(stateDir, LIMIT_FILE).delete()
+        full.setBudget(fullPhotoBytes(THUMB_CACHE_DEFAULT))
         _usage.value = Usage(0, THUMB_CACHE_DEFAULT)
     }
 
@@ -211,23 +233,45 @@ class ThumbStoreCore(
 
     override fun warmUp() { background.execute { disk() } }
 
+    override suspend fun loadFullPhoto(hash: String): ByteArray? = withContext(io) { full.get(hash) }
+
+    override suspend fun fullPhotoScope(): Long = scope()
+
+    override suspend fun keepFullPhoto(hash: String, bytes: ByteArray, scope: Long) = withContext(io) {
+        // Asked of the last device, or before a Log Out (nothing bound since): not kept.
+        if (scope != gen || synchronized(lock) { scopeId } == null) return@withContext
+        if (!full.put(hash, bytes)) return@withContext
+        // Bound elsewhere or logged out while it was written: it goes again.
+        if (scope != gen) { full.remove(hash); return@withContext }
+        disk()?.let { publish(it) }
+        Unit
+    }
+
+    override suspend fun forgetFullPhoto(hash: String) = withContext(io) {
+        full.remove(hash)
+        disk()?.let { publish(it) }
+        Unit
+    }
+
     /** Settings: what the cache holds now. */
     suspend fun refreshUsage() = withContext(io) {
-        disk()?.let { publish(it) } ?: run { _usage.value = Usage(0, limitSetting.get()) }
+        disk()?.let { publish(it) } ?: run { _usage.value = Usage(full.usedBytes, limitSetting.get()) }
     }
 
-    /** Settings: another size limit, kept on this phone; past it the least recently used go. */
+    /** Settings: another size limit, kept on this phone; past their shares of it the least recently used go. */
     suspend fun setLimit(bytes: Long) = withContext(io) {
         limitSetting.set(bytes)
-        disk()?.let { it.setLimit(bytes); publish(it) } ?: run { _usage.value = Usage(0, bytes) }
+        full.setBudget(fullPhotoBytes(bytes))
+        disk()?.let { it.setLimit(thumbnailBytes(bytes)); publish(it) } ?: run { _usage.value = Usage(full.usedBytes, bytes) }
     }
 
-    /** Settings' Clear thumbnail cache: the scope's thumbnails, the tiles in memory and this launch's re-asks go. */
+    /** Settings' Clear thumbnail cache: the scope's thumbnails, the full-size photos, the tiles in memory and this launch's re-asks go. */
     suspend fun clearAll() = withContext(io) {
         val d = disk()
         synchronized(lock) { reasked.clear(); filesReasked.clear() }
         mem.clear()
         onMemoryDropped()
+        full.clear()
         d?.let { it.clear(); publish(it) }
         _clears.value++
         Unit
@@ -238,6 +282,9 @@ class ThumbStoreCore(
 
     /** The bound scope's cache as it is now (tests). */
     internal fun cacheNow(): ThumbDiskCache? = disk()
+
+    /** The full-size photos' cache (tests). */
+    internal fun fullPhotosNow(): FullPhotoCache = full
 
     // ---- inside ----------------------------------------------------------------------
 
@@ -273,7 +320,7 @@ class ThumbStoreCore(
             opened?.let { if (it.gen == gen) return it.cache }
             val (g, id) = synchronized(lock) { gen to scopeId }
             id ?: return null
-            val c = ThumbDiskCache(File(cacheRoot, id), limitSetting.get(), version, background, nowMs)
+            val c = ThumbDiskCache(File(cacheRoot, id), thumbnailBytes(limitSetting.get()), version, background, nowMs)
             synchronized(lock) {
                 // Bound elsewhere (or logged out) while it opened.
                 if (g != gen) { c.close(); return null }
@@ -285,8 +332,10 @@ class ThumbStoreCore(
         }
     }
 
+    // Thumbnails and full-size photos together, against their two shares:
+    // the size picked.
     private fun publish(cache: ThumbDiskCache) {
-        _usage.value = Usage(cache.usedBytes, cache.limitBytes)
+        _usage.value = Usage(cache.usedBytes + full.usedBytes, cache.limitBytes + full.budgetBytes)
     }
 
     private fun readOmits(id: String): Boolean? {
