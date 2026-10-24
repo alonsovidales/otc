@@ -775,6 +775,7 @@ if mysql otc -N -B -e 'SHOW TABLES LIKE "files"' 2>/dev/null | grep -q files; th
 else
     tail -n +10 "$SRC_DIR/db/db.sql" | mysql otc
 fi
+# >>> schema-migrations: from here to the closing mark, run as it is by the container image too (docker/)
 # ---------------------------------------------------------------------------
 # Schema migrations, applied to one database.
 #
@@ -1035,6 +1036,7 @@ if mysql otc -N -B -e 'SHOW TABLES LIKE "users"' 2>/dev/null | grep -q users; th
         fi
     done
 fi
+# <<< schema-migrations
 
 # Local-only (no bridge): the subdomain is the bare name, no ".<bridge>".
 FULL_DOMAIN="${SUBDOMAIN}${BRIDGE_ADDR:+.$BRIDGE_ADDR}"

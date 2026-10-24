@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# MariaDB in the Off The Cloud container: Debian's own configuration, with
+# the database on the storage volume next to the files, as on a Raspberry
+# Pi with its mirror (scripts/install.sh). The port is OTC_DB_PORT, given on
+# the command line by otc-entrypoint; loopback only, like the Pi's.
+[mysqld]
+datadir = /mnt/storage/mysql
+bind-address = 127.0.0.1
+log-error = /mnt/storage/mysql/mariadb.err

@@ -1,0 +1,38 @@
+# Off The Cloud on a home server - BETA. Linux Docker hosts only.
+# On a Raspberry Pi, use the Off The Cloud image instead: it builds and watches the disk mirror.
+#
+# Put this file in a folder with a .env file next to it (see env.example),
+# then: docker compose up -d
+services:
+  otc:
+    image: ghcr.io/alonsovidales/otc:beta   # or :<release> to choose when you update
+    container_name: otc
+    network_mode: host                     # lets the apps find the device on your home network
+    restart: unless-stopped
+    stop_grace_period: 2m
+    environment:
+      OTC_HTTP_PORT: "${OTC_HTTP_PORT:-8080}"        # web and apps; must be free on this server
+      OTC_LAN_TLS_PORT: "${OTC_LAN_TLS_PORT:-8443}"  # the apps' encrypted home-network port
+      OTC_DB_PORT: "${OTC_DB_PORT:-3316}"            # built-in database, 127.0.0.1 only
+      # OTC_OWNER_PASSWORD_FILE: /run/secrets/owner_password   # headless setup; remove afterwards
+      # OTC_TRUSTED_PROXIES: "172.18.0.0/16"                    # your reverse proxy, after the password is set
+      # TZ: "Europe/Amsterdam"                                  # the nightly database copy is made at 03:00 here (UTC otherwise)
+    volumes:
+      - ${OTC_DATA:-/srv/otc}/storage:/mnt/storage   # photos, files AND the database: redundant, local storage
+      - ${OTC_DATA:-/srv/otc}/state:/var/lib/otc
+      - ${OTC_DATA:-/srv/otc}/config:/etc/otc
+      # - /fast/otc-db:/mnt/storage/mysql            # optional: the database on an SSD
+    tmpfs:
+      - /tmp:size=4g,mode=1777             # required: decrypted media being processed stays in RAM
+    mem_limit: 8g                          # raise it to give the device more
+    memswap_limit: 8g                      # same as mem_limit: no swap, so decrypted data never reaches a disk
+    ulimits:
+      memlock: -1                          # remove on rootless Docker or Podman
+      core: 0
+      nofile: 65535
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID, KILL]   # root's start-up work; the device itself runs with none
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}

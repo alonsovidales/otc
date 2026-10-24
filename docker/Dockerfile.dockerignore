@@ -1,0 +1,53 @@
+# docker/Dockerfile's build context, as an allowlist: the device's Go
+# packages, the schema, the tag list, the scripts the image ships and this
+# directory. Anything else a checkout holds - notes, keys, the apps, build
+# output - never reaches a build, even one made from a working copy.
+*
+!go.mod
+!go.sum
+!alerttext/
+!api/
+!bin/
+!blobstore/
+!bridgeaccess/
+!cfg/
+!dao/
+!db/
+!devicerestart/
+!devtext/
+!exifinfo/
+!face_recognition/
+!files_manager/
+!geotag/
+!hardening/
+!i18n/
+!images_tagger/
+!lantls/
+!log/
+!mediastream/
+!modelserver/
+!network/
+!profile/
+!proto/messages.proto
+!push/
+!raidwatch/
+!segcrypt/
+!session/
+!settings/
+!social/
+!staticassets/
+!status/
+!storage/
+!supervisor/
+!tailscalefunnel/
+!updater/
+!websocket/
+!wifiwatch/
+!wsframe/
+!models/models/tag_list_4585.txt.gz
+!scripts/install.sh
+!scripts/bridge-runner/otc-bridge-runner.sh
+!scripts/release-signing.pub
+!docker/
+**/*_test.go
+**/testdata
