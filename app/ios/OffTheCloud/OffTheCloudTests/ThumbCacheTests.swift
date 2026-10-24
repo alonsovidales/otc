@@ -962,9 +962,11 @@ struct ThumbCacheSettingsTests {
     @Test func choosingASizeKeepsItAndClearEmptiesTheCache() async {
         let clock = TestClock()
         let cache = await boundCache(clock: clock)
+        let photos = FullPhotoCache(root: tempRoot(), limit: 100_000_000)
         let defaults = freshDefaults()
         var decodedCleared = false
-        let model = ThumbCacheSettings(cache: cache, defaults: defaults, clearDecoded: { decodedCleared = true })
+        let model = ThumbCacheSettings(cache: cache, fullPhotos: photos, defaults: defaults,
+                                       clearDecoded: { decodedCleared = true })
         #expect(model.limit == 1_000_000_000)
         #expect(model.usageText == nil)
         await model.refresh()
@@ -977,17 +979,25 @@ struct ThumbCacheSettingsTests {
         let three: Int64 = 3 * 1008
         #expect(model.used == three)
         #expect(model.usageText == ThumbCacheLimit.usage(three, of: 1_000_000_000))
+        // The viewer's full-size photos count in the same line.
+        photos.store(contentHash("full"), data: Data(repeating: 4, count: 5000))
+        await model.refresh()
+        #expect(model.used == three + 5000)
+        #expect(model.usageText == ThumbCacheLimit.usage(three + 5000, of: 1_000_000_000))
         // Not a choice: nothing changes.
         await model.choose(123)
         #expect(model.limit == 1_000_000_000)
         await model.choose(250_000_000)
         #expect(model.limit == 250_000_000)
         #expect(ThumbCacheLimit.stored(defaults) == 250_000_000)
-        #expect(cache.limitBytes == 250_000_000)
+        // The size chosen is the two together: a tenth for the photos.
+        #expect(cache.limitBytes == 225_000_000)
+        #expect(photos.limitBytes == 25_000_000)
         await model.clearAll()
         #expect(decodedCleared)
         #expect(model.used == 0)
         #expect(cache.lookup(contentHash("s0")) == nil)
+        #expect(await photos.lookup(contentHash("full")) == nil)
         #expect(!model.clearing)
     }
 }

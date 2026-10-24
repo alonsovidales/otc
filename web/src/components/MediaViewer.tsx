@@ -328,9 +328,9 @@ export default function MediaViewer({ items, index, onIndexChange, onClose, onDe
 
   // Read-ahead: once the open photo is on screen at full size, the next
   // one and then the previous one are fetched into fullSizeCache, so a
-  // step either way shows full size at once. Only after the open photo -
-  // the phones started them with it, and they slowed down the photo being
-  // looked at - and only if the viewer stays on it for cRapidStepMs, so a
+  // step either way shows full size at once. Only after the open photo, as
+  // the phones do: started with it, they slowed down the photo being
+  // looked at. Only if the viewer stays on it for cRapidStepMs, so a
   // held arrow key reads nothing ahead. Not around a video, and never a
   // video: those stream.
   useEffect(() => {

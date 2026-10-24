@@ -497,11 +497,18 @@ final class PhotoGalleryVM: ObservableObject {
     // Display bitmaps, capped at 4096 px and decoded off the main thread
     // (decodeForDisplay); hiResSource keeps the bytes each came from, for
     // Save and Share at full resolution. Bounded by count and by bytes:
-    // eight 24 MP photos decoded at full size were ~800 MB.
+    // eight 24 MP photos decoded at full size were ~800 MB. All of them go
+    // when the viewer closes; the bytes stay on the phone for the session
+    // (FullPhotoCache), so a photo opened again is decoded from there
+    // rather than fetched.
     @Published var hiResImages: [String: UIImage] = [:]
     private var hiResSource: [String: HiResSource] = [:]
     private var hiResOrder: [String] = []
-    private var inFlightHiRes = Set<String>()
+    /// The full-size loads on their way, by path: a second ask for one
+    /// waits for it.
+    private var inFlightHiRes: [String: Task<Void, Never>] = [:]
+    /// The bytes behind them, kept for the session (tests use their own).
+    var fullPhotos: FullPhotoCache = .shared
     private let cHiResBudget = 200 << 20
 
     enum HiResSource {
@@ -1997,10 +2004,11 @@ final class PhotoGalleryVM: ObservableObject {
         playerWatch = []
         infoOpen = false
         infoData = nil
-        Task { await fetchHiRes(index: index) }
-        // The viewer slides towards the neighbours, so have them ready.
-        for n in [index - 1, index + 1] where items.indices.contains(n) {
-            Task { await fetchHiRes(index: n, prefetch: true) }
+        // The open photo first, alone; its neighbours once it is on screen.
+        let path = items[index].path
+        Task {
+            await fetchHiRes(index: index)
+            await readAhead(around: path)
         }
         // Until the full size comes the viewer shows the grid's tile: its
         // own and the neighbours', decoded again from the thumbnail cache
@@ -2416,6 +2424,28 @@ final class PhotoGalleryVM: ObservableObject {
         }
     }
 
+    /// Steps closer together than this are a held or rapid swipe: the
+    /// photos it passes read nothing ahead (the web's cRapidStepMs).
+    nonisolated static let rapidStep: Duration = .milliseconds(250)
+
+    /// Read-ahead: once the open photo (`path`) is on screen at full size,
+    /// the next one and then the previous one are readied for the slide,
+    /// one at a time (fetched, or read from FullPhotoCache). Only after the
+    /// open photo: started with it, they took the connection from it and
+    /// the photo being looked at came later. Only if the viewer is still on
+    /// it rapidStep later, so a held swipe doesn't fetch around every photo
+    /// it passes. Not after a failure, and not around a video (neither
+    /// shows a full-size picture). As the web's MediaViewer.
+    private func readAhead(around path: String) async {
+        guard hiResImages[path] != nil, openPath == path else { return }
+        try? await Task.sleep(for: Self.rapidStep)
+        for step in [1, -1] {
+            // Moved on: the item the viewer is on reads around itself.
+            guard openPath == path, let i = openIndex else { return }
+            await fetchHiRes(index: i + step, prefetch: true)
+        }
+    }
+
     /// prefetch: a neighbour being readied for the slide - its image is
     /// fetched, but a video is not started until it is actually opened.
     private func fetchHiRes(index: Int, prefetch: Bool = false) async {
@@ -2430,9 +2460,22 @@ final class PhotoGalleryVM: ObservableObject {
             return
         }
 
-        if hiResImages[it.path] != nil || inFlightHiRes.contains(it.path) { return }
-        inFlightHiRes.insert(it.path)
-        defer { inFlightHiRes.remove(it.path) }
+        if hiResImages[it.path] != nil { return }
+        // On its way already (read ahead, and now opened): waited for, not
+        // asked for twice.
+        if let running = inFlightHiRes[it.path] {
+            await running.value
+            return
+        }
+        let load = Task { await loadHiRes(it) }
+        inFlightHiRes[it.path] = load
+        await load.value
+        inFlightHiRes[it.path] = nil
+    }
+
+    /// The full size of `it` into hiResImages: its local file, the bytes
+    /// kept this session, or GetFile.
+    private func loadHiRes(_ it: Item) async {
         if let u = it.localURL {
             let img = await Task.detached(priority: .userInitiated) {
                 CGImageSourceCreateWithURL(u as CFURL, nil).flatMap { Self.decodeForDisplay($0) }
@@ -2444,6 +2487,19 @@ final class PhotoGalleryVM: ObservableObject {
             }
         }
         hiResFailed.remove(it.path)
+        // Fetched earlier this session (FullPhotoCache): shown from those
+        // bytes, nothing asked of the device.
+        if let kept = await fullPhotos.lookup(it.hash) {
+            let img = await Task.detached(priority: .userInitiated) {
+                CGImageSourceCreateWithData(kept as CFData, nil).flatMap { Self.decodeForDisplay($0) }
+            }.value
+            if let img {
+                if openIndex != nil { cacheHiRes(img, source: .data(kept), for: it.path) }
+                return
+            }
+            // Bytes that don't decode aren't kept: fetched again below.
+            fullPhotos.discard(it.hash)
+        }
         do {
             var gf = GetFileMsg()
             gf.path = it.path
@@ -2454,6 +2510,11 @@ final class PhotoGalleryVM: ObservableObject {
                     CGImageSourceCreateWithData(data as CFData, nil).flatMap { Self.decodeForDisplay($0) }
                 }.value
                 if let img {
+                    // Kept for the session under the hash the answer
+                    // carries (the file's row): a tile listed before the
+                    // file changed holds the old one, and the new content
+                    // mustn't be found under it.
+                    fullPhotos.store(f.hash.isEmpty ? it.hash : f.hash, data: data)
                     if openIndex != nil { cacheHiRes(img, source: .data(data), for: it.path) }
                     return
                 }

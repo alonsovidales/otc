@@ -273,7 +273,15 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   cache. A cached big/unknown one is re-asked once when a row says a small one exists, and one that
   comes back big again isn't re-asked for 7 days; a deleted photo's entry is discarded. iOS reads
   and writes nothing while protected data is unavailable (locked phone, files are
-  completeUntilFirstUserAuthentication). The device answers min(limit, its default `[tagger]
+  completeUntilFirstUserAuthentication). Full-size photos (2026-10-24, `FullPhotoCache` on both,
+  in `Caches/full-photos` / `cacheDir/full-photos`): the viewer keeps GetFile's bytes (a HEIC comes
+  as JPEG) by the answer's `File.hash`, looked up by the item's, so reopening a photo decodes it
+  from the phone, nothing asked. A tenth of the Thumbnail cache size picked (the thumbnails get the
+  other 90%, Settings' usage line adds both), least recently used out, one photo at most a quarter;
+  session only - emptied at launch, by Clear and at Log Out. The open photo is fetched alone; once
+  it shows and the viewer stays on it 250 ms, the next then the previous (one at a time, a
+  neighbour on its way waited for, never around a video) - started with it they slowed it down. The
+  web does the same in memory (Full-size photos on the web, below). The device answers min(limit, its default `[tagger]
   max-images-search`, 30), never more (a page without thumbnails may be larger, below). Older
   devices ignore it. Grids that start a new search bump a search generation, so a page from the
   old search lands nowhere. A grid's tiles can come as small thumbnails (`small_thumbnails`,
@@ -1289,8 +1297,8 @@ photo at most a quarter of it. Kept even when the viewer moved on before it came
 sign-out reloads the page. Read-ahead: once the open photo shows at full size and the viewer stays
 on it `cRapidStepMs`, the next and then the previous photo are fetched into it (never videos, nor
 around one; a held arrow key reads nothing ahead); `fetchWhole` shares one request per path, so a
-step onto a neighbour on its way waits for it. Only after the open one: the phones started theirs
-with it, slowing the photo being looked at. On the demo: the next or previous photo 2-26 ms with no
+step onto a neighbour on its way waits for it. Only after the open one, as on the phones: started
+with it, they slowed down the photo being looked at. On the demo: the next or previous photo 2-26 ms with no
 badge, was 100-230 ms with it.
 
 Copies on the web (issue #201, `components/photoCopies.ts`, `node web/scripts/photo-copies-test.mjs`,

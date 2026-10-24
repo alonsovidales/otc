@@ -90,6 +90,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // The thumbnail cache reads and writes nothing while the phone's
         // protected data is unavailable (a background launch while locked).
         ProtectedDataWatch.start()
+        // The viewer's full-size photos are kept for a session only: made
+        // now, the cache empties what the last launch kept (on its own
+        // queue), rather than when the viewer first opens.
+        _ = FullPhotoCache.shared
         // Set before launch finishes, so a tap that launched the app is
         // delivered here too.
         UNUserNotificationCenter.current().delegate = self

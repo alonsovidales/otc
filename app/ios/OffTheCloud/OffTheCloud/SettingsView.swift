@@ -724,8 +724,10 @@ enum AppLogOut {
             SyncScheduler.cancel()
             AssetSyncCache.shared.clear()
             // The device's thumbnails: none kept, none stored until the
-            // next sign-in (secrets.logOut empties Caches too).
+            // next sign-in (secrets.logOut empties Caches too). The
+            // viewer's full-size photos go as well.
             ThumbDiskCache.shared.forget()
+            FullPhotoCache.shared.clear()
             GridThumbCache.removeAll()
             secrets.logOut()
             // The language stays as chosen (its own defaults survive the
@@ -734,7 +736,8 @@ enum AppLogOut {
             // device (a new one set up from the connection screen).
             LanguageSettings.shared.loggedOut(carryPending: keepDevice)
             // Its size went with the defaults: back to 1 GB.
-            ThumbDiskCache.shared.limitBytes = ThumbCacheLimit.stored()
+            ThumbDiskCache.shared.limitBytes = ThumbCacheLimit.thumbnailBytes(of: ThumbCacheLimit.stored())
+            FullPhotoCache.shared.limitBytes = ThumbCacheLimit.fullPhotoBytes(of: ThumbCacheLimit.stored())
             if keepDevice {
                 SecretsStore.saveLastDevice(endpoint: last.0, password: last.1)
             } else {
@@ -744,27 +747,33 @@ enum AppLogOut {
     }
 }
 
-/// Settings' "Thumbnail Cache": the most the grids' thumbnails may take on
-/// this phone (ThumbCacheLimit.choices, 1 GB unless chosen), what they take
-/// now, and a button that deletes them. Android's ThumbCacheSettings.
+/// Settings' "Thumbnail Cache": the most the grids' thumbnails and the
+/// viewer's full-size photos may take on this phone together
+/// (ThumbCacheLimit.choices, 1 GB unless chosen; a tenth of it for the
+/// photos), what they take now, and a button that deletes them. Android's
+/// ThumbCacheSettings.
 @MainActor
 final class ThumbCacheSettings: ObservableObject {
     @Published private(set) var limit: Int64
-    /// What the thumbnails take: nil until the cache has counted them (or
-    /// while no device is signed in to).
+    /// What the thumbnails and the full-size photos take: nil until the
+    /// thumbnail cache has counted its own (or while no device is signed
+    /// in to).
     @Published private(set) var used: Int64?
     @Published private(set) var clearing = false
     private let cache: ThumbDiskCache
+    private let fullPhotos: FullPhotoCache
     private let defaults: UserDefaults
     /// Lets the decoded tiles go too (tests keep theirs).
     private let clearDecoded: () -> Void
 
-    init(cache: ThumbDiskCache = .shared, defaults: UserDefaults = .standard,
+    init(cache: ThumbDiskCache = .shared, fullPhotos: FullPhotoCache = .shared,
+         defaults: UserDefaults = .standard,
          clearDecoded: @escaping () -> Void = {
              GridThumbCache.removeAll()
              NotificationCenter.default.post(name: .otcThumbnailCacheCleared, object: nil)
          }) {
         self.cache = cache
+        self.fullPhotos = fullPhotos
         self.defaults = defaults
         self.clearDecoded = clearDecoded
         limit = ThumbCacheLimit.stored(defaults)
@@ -776,26 +785,31 @@ final class ThumbCacheSettings: ObservableObject {
     }
 
     func refresh() async {
-        used = await cache.usage()
+        let thumbnails = await cache.usage()
+        let photos = await fullPhotos.usage()
+        used = thumbnails.map { $0 + photos }
     }
 
-    /// Another size: kept, and the least recently used thumbnails over it
-    /// deleted at once.
+    /// Another size: kept, and the least recently used thumbnails and
+    /// photos over their shares of it deleted at once.
     func choose(_ bytes: Int64) async {
         guard ThumbCacheLimit.choices.contains(bytes), bytes != limit else { return }
         limit = bytes
         ThumbCacheLimit.save(bytes, defaults)
-        cache.limitBytes = bytes
+        cache.limitBytes = ThumbCacheLimit.thumbnailBytes(of: bytes)
+        fullPhotos.limitBytes = ThumbCacheLimit.fullPhotoBytes(of: bytes)
         await refresh()
     }
 
     /// "Clear thumbnail cache": every thumbnail on the phone goes, decoded
     /// ones too (GridThumbCache, Files' grid, the viewer's big ones:
-    /// otcThumbnailCacheCleared); the grids ask the device for them again.
+    /// otcThumbnailCacheCleared), and the full-size photos kept for the
+    /// session; the grids ask the device for them again.
     func clearAll() async {
         clearing = true
         defer { clearing = false }
         cache.clear()
+        fullPhotos.clear()
         clearDecoded()
         await refresh()
     }

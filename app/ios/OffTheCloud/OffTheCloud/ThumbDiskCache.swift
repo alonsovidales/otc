@@ -10,7 +10,9 @@
 //  (SearchPhotos.omit_thumbnails) come without content; each entry's
 //  content hash is looked up here, and only what is missing is asked for
 //  with GetThumbnails (GridThumbLoader). Pages from older devices still
-//  carry the bytes, which are kept here as they arrive.
+//  carry the bytes, which are kept here as they arrive. The size chosen in
+//  Settings is shared: nine tenths for these, a tenth for the viewer's
+//  full-size photos (FullPhotoCache, kept for a session only).
 //
 //  Only grid tiles: the small thumbnails every grid asks for (or, where the
 //  device has none yet or is older, what it sent instead - each entry says
@@ -126,7 +128,7 @@ final class ThumbDiskCache: @unchecked Sendable {
     static let shared = ThumbDiskCache(
         root: FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("grid-thumbs", isDirectory: true),
-        limit: ThumbCacheLimit.stored())
+        limit: ThumbCacheLimit.thumbnailBytes(of: ThumbCacheLimit.stored()))
 
     /// Where every scope's directory lives (Caches/grid-thumbs).
     let root: URL
@@ -733,7 +735,8 @@ final class ThumbDiskCache: @unchecked Sendable {
 }
 
 /// Settings' "Thumbnail Cache" size, kept per phone (UserDefaults; Log Out
-/// resets it with the rest).
+/// resets it with the rest): the grids' thumbnails and the viewer's
+/// full-size photos together (thumbnailBytes, fullPhotoBytes).
 enum ThumbCacheLimit {
     static let key = "thumbCacheLimit"
     /// 250 MB, 500 MB, 1 GB, 2 GB, 5 GB - decimal, as the sizes are shown.
@@ -749,6 +752,18 @@ enum ThumbCacheLimit {
 
     static func save(_ bytes: Int64, _ defaults: UserDefaults = .standard) {
         defaults.set(NSNumber(value: bytes), forKey: key)
+    }
+
+    /// The viewer's full-size photos, kept for the session (FullPhotoCache):
+    /// a tenth of the chosen size (the owner's choice).
+    static func fullPhotoBytes(of total: Int64) -> Int64 {
+        total / 10
+    }
+
+    /// The grids' thumbnails (ThumbDiskCache): the rest, so the two
+    /// together take the size chosen.
+    static func thumbnailBytes(of total: Int64) -> Int64 {
+        total - fullPhotoBytes(of: total)
     }
 
     /// "250 MB", "1 GB", "12.3 MB" (ByteCountFormatter's file sizes).
