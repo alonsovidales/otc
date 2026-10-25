@@ -6,5 +6,6 @@
   "site.device.unavailable.heading": {"text": "Dit apparaat is nu niet beschikbaar"},
   "site.device.unavailable.retry": {"text": "Opnieuw proberen"},
   "site.device.unavailable.text": {"text": "Het lijkt erop dat het apparaat uitgeschakeld of offline is, of nog aan het opstarten is. Er is niets verloren gegaan: alles blijft op het apparaat zelf staan. Probeer het zo opnieuw."},
-  "site.device.unavailable.title": {"text": "Apparaat niet beschikbaar"}
+  "site.device.unavailable.title": {"text": "Apparaat niet beschikbaar"},
+  "site.device.unavailable.wifi_hint": {"text": "Heb je de naam of het wachtwoord van je wifi gewijzigd? Sluit het apparaat met een ethernetkabel aan op je router en open daarna Instellingen › Wifi."}
 }

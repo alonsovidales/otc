@@ -760,6 +760,11 @@ extension S {
         L("app.shell.time_minutes_ago", table: "AppShell", count)
     }
 
+    /// Changed your Wi-Fi's name or password? Connect the device to your router with an Ethernet cable, then open Settings › Wi-Fi.
+    ///
+    /// Secondary line on the card shown over the whole app while the device isn't available (app.shell.device_unavailable), for an owner whose device lost its Wi-Fi. Settings › Wi-Fi is the Settings section app.settings.wifi.title: translate both as they are translated.
+    static var appShellUnreachableWifiHint: String { L("app.shell.unreachable_wifi_hint", table: "AppShell") }
+
     /// one: {count} left
     /// other: {count} left
     ///

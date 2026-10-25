@@ -1583,32 +1583,118 @@ message SetupStorage {
   repeated string device_paths = 1;
 }
 
-// Issue #38: first-boot WiFi join, for a device reached over its own
-// temporary "Off The Cloud" access point rather than an already-working
-// network. Scanning is read-only (nmcli dev wifi list needs no special
-// privilege), so it runs directly in the otc service like
-// ListStorageDevices; actually joining a network is privileged the same
-// way storage setup is — see SetWifi.
+// The Wi-Fi networks the device can see, for Settings > Wi-Fi's picker
+// (issue #38 added it for the first-run step, since removed). Scanning is
+// read-only (nmcli dev wifi list needs no special privilege), so it runs in
+// the otc service itself. Owner of the primary instance; a child instance
+// gets an error without a code, a container and a demo device an empty
+// list. Answers WifiNetworks: one entry per name, the current network
+// first, then by signal; names that aren't valid UTF-8 are left out.
 message ListWifiNetworks {
 }
 
 message WifiNetwork {
   string ssid = 1;
-  // 0-100, from nmcli's SIGNAL column.
+  // 0-100, from nmcli's SIGNAL column (the strongest access point with
+  // this name).
   int32 signal = 2;
+  // From release 140: an access point with this name that the device can
+  // join asks for a password (an open copy of a secured network's name
+  // never makes it look open).
   bool secured = 3;
+  // The network the device is on now. False on devices before release 140.
+  bool current = 4;
+  // A network the device can't join from Settings: every access point
+  // with this name is 802.1X (enterprise), WEP or OWE. Shown greyed out.
+  // False on devices before release 140.
+  bool unsupported = 5;
 }
 
 message WifiNetworks {
   repeated WifiNetwork networks = 1;
 }
 
-// SetWifi hands the join off to a privileged process the same way
-// SetupStorage does (see storage.RequestSetup) — the otc service can't run
-// `nmcli connection up` itself. An empty password means an open network.
+// Retired in release 140: devices answer error_code "unknown_payload"
+// (without logging the request); use JoinWifi. It carried the password in
+// the clear. The fields stay so the number is never reused.
 message SetWifi {
   string ssid = 1;
   string password = 2;
+}
+
+// Settings > Wi-Fi: the device's network now, and the last change asked
+// from Settings. Answers WifiStatus. The owner of the primary instance gets
+// managed=true when the device can change its own Wi-Fi; every other
+// session, a child instance, a container (OTC_CONTAINER) and a device
+// without NetworkManager, a wireless interface or the root runner get
+// managed=false (not an error). A demo device answers managed=true,
+// wired=true. Devices before release 140 answer error_code
+// "unknown_payload": the apps hide the section until the next sign-in.
+message GetWifiStatus {}
+
+message WifiStatus {
+  // The device changes its own Wi-Fi from Settings: Linux with
+  // NetworkManager running (not netplan-backed), a wireless interface,
+  // the root runner's otc-wifi-join.path active, and never in a container.
+  bool managed = 1;
+  // The Wi-Fi network it is on now; "" when not on Wi-Fi.
+  string ssid = 2;
+  // 0-100 (nmcli SIGNAL) for ssid; 0 when not on Wi-Fi.
+  int32 signal = 3;
+  // An Ethernet connection is up (NetworkManager: connected).
+  bool wired = 4;
+  // The last change asked from Settings: while it runs, and for 15
+  // minutes after it ended. Absent otherwise (and after a reboot).
+  WifiJoin last_join = 5;
+}
+
+message WifiJoin {
+  // JoinWifi's answer carries it; the apps wait for this id to end.
+  string id = 1;
+  string ssid = 2;
+  // "joining" | "connected" | "failed".
+  string state = 3;
+  // With joining: "joining". With connected: "connected". With failed:
+  // wrong_password, auth_failed, not_found, timed_out, no_address,
+  // no_internet, unsupported_security, password_required, open_network (a
+  // password given, every access point with that name open), bad_request,
+  // no_wifi, busy, update_running, too_many, interrupted, no_answer,
+  // join_failed (also for any code this build doesn't know). Clients
+  // branch on state/code and show message.
+  string code = 4;
+  // The same, in the request's language (dev.status.wifi_join.*, or with
+  // failed the variant that says where the device ended up:
+  // dev.status.wifi_join_back.* / dev.status.wifi_join_lost.*).
+  string message = 5;
+  // With failed: the device had left its previous Wi-Fi network for this
+  // one and is back on it. False when it couldn't get back, and when it
+  // never left (the failure came before it switched, or it had no Wi-Fi
+  // network before) - message tells those apart.
+  bool restored = 6;
+}
+
+// Joins a Wi-Fi network: a new one, or the same one with its new
+// password. Hands off to the root runner (scripts/device-runner/
+// otc-wifi-join-runner.py) and answers WifiStatus with last_join state
+// "joining" at once; the connection may then drop for about a minute.
+// The runner keeps the new network only once the device reaches the
+// internet through it (the bridge when it has one, else its gateway), and
+// otherwise goes back to the previous one. Refused (RespEnvelope.error
+// with error_code) before anything changes: "not_managed", "bad_name",
+// "bad_password", "busy", "update_running", "too_many"; "demo" on a demo
+// device; "unknown_payload" before release 140. A child instance gets an
+// error without a code, a container dev.err.not_in_container.
+message JoinWifi {
+  // 1-32 bytes of UTF-8, no control characters (below U+0020, U+007F).
+  string ssid = 1;
+  // RSA-OAEP(SHA-256) under this connection's GetPubKey key, like
+  // ReqCreateUser.password. Empty for an open network. The plaintext is
+  // 8-63 bytes of UTF-8 without control characters, or exactly 64
+  // hexadecimal digits.
+  bytes password = 2;
+  // Typed by hand (a network that hides its name): joined even when the
+  // scan doesn't show it.
+  bool hidden = 3;
 }
 
 // Issue #43: push notifications when a friend posts. RegisterWebPush carries
@@ -2230,6 +2316,7 @@ message ReqEnvelope {
     RegenerateBridgeSecret req_regenerate_bridge_secret = 51;
     RotateBridgeSecret req_rotate_bridge_secret = 52;
     ListWifiNetworks req_list_wifi_networks = 53;
+    // Retired in release 140: answered with error_code "unknown_payload".
     SetWifi req_set_wifi = 54;
     RegisterWebPush req_register_web_push = 55;
     RegisterApnsToken req_register_apns_token = 56;
@@ -2351,6 +2438,10 @@ message ReqEnvelope {
     // sessions, as AddToImageGroup; devices before it with error_code
     // "unknown_payload".
     RemoveFromImageGroup req_remove_from_image_group = 142;
+    // Settings > Wi-Fi (release 140): both answer with resp_wifi_status;
+    // devices before it with error_code "unknown_payload".
+    GetWifiStatus req_get_wifi_status = 143;
+    JoinWifi req_join_wifi = 144;
     // Issue #93. Answers with the generic Ack.
     ReqSetDeviceDisabled req_set_device_disabled = 82;
     // Issue #101: session tokens in place of a password in localStorage.
@@ -2469,5 +2560,7 @@ message RespEnvelope {
     FolderUsage resp_folder_usage = 69;
     // Free up space: the answer to HasHashes.
     HashesFound resp_hashes_found = 70;
+    // Settings > Wi-Fi: the answer to GetWifiStatus and JoinWifi.
+    WifiStatus resp_wifi_status = 71;
   }
 }

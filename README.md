@@ -203,8 +203,8 @@ locked you out, log in at the console or with a key and delete
 `/etc/ssh/sshd_config.d/01-otc-keys-only.conf`. Only devices made from the image below keep it,
 because their console account has a published password.)
 
-What this path doesn't set up is the WiFi-AP first-boot flow: it assumes a machine you already
-have network/login access to. For a Raspberry Pi from scratch, the pre-built image below handles
+What this path doesn't set up is the image's first-boot setup over Bluetooth: it assumes a machine
+you already have network/login access to. For a Raspberry Pi from scratch, the pre-built image below handles
 everything from a first boot with nothing pre-configured.
 
 **Option 1: Flash the pre-built image (easiest - Raspberry Pi 5, 8 GB of RAM recommended)**
@@ -233,7 +233,7 @@ an "old image": whatever you flash installs today's release.
    has connected to the Pi for setup, no other phone can.
 4. The wizard walks through five steps:
    - **WiFi**: pick your network (the list fills in by itself) and enter its password - 2.4 or
-     5 GHz. Wired into your router instead? Skip it.
+     5 GHz. Wired into your router instead? Skip it. You can change it later in Settings > Wi-Fi.
    - **Storage**: the disks it found, with sizes. Pick two to mirror them as RAID1 (both are
      wiped), or none to keep everything on the SD card for now.
    - **Account**: sign in to your bridge account or create one, or type a setup code from the
@@ -291,6 +291,17 @@ and the few things listed here:
   in Alerts. If that didn't help it doesn't try again until the Wi-Fi has worked normally for a
   while - restart the device from Settings, or use an Ethernet cable. Its log:
   `journalctl -u otc-wifi-restart` and the `wifi watchdog:` lines in `/var/log/otc/otc.log`.
+- **Changed your Wi-Fi's name or password?** In the web app, Settings > Wi-Fi (the device's owner
+  only; release 140 or later): choose the network and enter its password, and the device switches
+  over in about a minute. It keeps the new network only once it reaches the bridge through it
+  (without a bridge, your router); otherwise it goes back to the network it was on. If it has already lost your Wi-Fi, connect it
+  to your router with an Ethernet cable, wait a minute or two, do the same, then unplug the cable.
+  Its log: `journalctl -u otc-wifi-join`. At the console, by hand (nmcli asks for the password, so
+  it stays out of the command line and the shell history):
+  ```
+  sudo nmcli connection delete OTC-WiFi
+  sudo nmcli --ask device wifi connect "<name>"
+  ```
 - **Force an update from the console** - normally you press **Update** in Settings, but a device
   installed before release 5 can't start one on its own and needs this once:
   ```
@@ -326,14 +337,10 @@ of the normal sign-in screen:
    disk failing), pick one to use it alone with no redundancy, or pick none to just use the boot disk.
    Building the array happens in the background after this step, so it's normal for storage to not be
    "ready" the instant you click through.
-3. **WiFi** - only matters if you reached the device over its own temporary "Off The Cloud" network:
-   pick your real WiFi from the scanned list and enter its password. Already connected some other way
-   (ethernet, or WiFi set up through Raspberry Pi Imager)? Just skip this - joining a new network here
-   will drop whatever temporary connection got you to this page in the first place, so reconnect to
-   your normal WiFi afterwards and find the device there.
 
 After that you're dropped into the normal app, signed in. You can change the owner name and password
-any time from Settings.
+any time from Settings. There is no Wi-Fi step: once you're in, Settings > Wi-Fi changes the
+network the device uses.
 
 **Option 2: `Makefile.pi` against a plain OS install**
 --------------------------------------------------------

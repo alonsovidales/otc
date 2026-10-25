@@ -376,10 +376,6 @@
     "en": "This device isn't set up yet. Choose an owner name and a password — this password protects your files and social profile, so keep it somewhere safe.",
     "reviewed": "claude-backtranslation 2026-10-11 #9e711940"
   },
-  "web.shell.setup.joining": {
-    "text": "Verbinden met “{ssid}”… Heb je dit apparaat via zijn eigen configuratienetwerk bereikt? Maak dan weer verbinding met je gewone wifi en zoek het daar.",
-    "en": "Joining \"{ssid}\"… if this device was reached over its own setup network, reconnect to your normal WiFi and find it there."
-  },
   "web.shell.setup.name": {
     "text": "Je naam",
     "en": "Your name"
@@ -392,17 +388,9 @@
     "text": "Volgende: opslag",
     "en": "Next: Storage"
   },
-  "web.shell.setup.next_wifi": {
-    "text": "Volgende: wifi",
-    "en": "Next: WiFi"
-  },
   "web.shell.setup.no_disks": {
     "text": "Er zijn geen extra schijven gevonden: je bestanden worden op de opstartschijf opgeslagen.",
     "en": "No extra disks were detected — your files will be stored on the boot disk."
-  },
-  "web.shell.setup.no_networks": {
-    "text": "Geen netwerken gevonden: zet het apparaat dichter bij je router, of sla deze stap voorlopig over.",
-    "en": "No networks found — move the device closer to your router, or skip for now."
   },
   "web.shell.setup.password_mismatch": {
     "text": "De wachtwoorden komen niet overeen.",
@@ -421,10 +409,6 @@
     "text": "Instellen…",
     "en": "Setting up…"
   },
-  "web.shell.setup.skip": {
-    "text": "Overslaan: ik ben al verbonden",
-    "en": "Skip — I'm already connected"
-  },
   "web.shell.setup.storage": {
     "text": "Opslag",
     "en": "Storage"
@@ -436,22 +420,6 @@
   "web.shell.setup.welcome": {
     "text": "Welkom bij Off The Cloud",
     "en": "Welcome to Off The Cloud"
-  },
-  "web.shell.setup.wifi": {
-    "text": "Wifi",
-    "en": "WiFi"
-  },
-  "web.shell.setup.wifi_failed": {
-    "text": "Kan het wifiverzoek niet opslaan.",
-    "en": "Could not save the WiFi request."
-  },
-  "web.shell.setup.wifi_intro": {
-    "text": "Ben je verbonden via het eigen tijdelijke netwerk “Off The Cloud” van dit apparaat? Kies dan hieronder je echte wifi. Al op een andere manier verbonden (ethernet, of eerder ingestelde wifi)? Sla dit dan gewoon over.",
-    "en": "If you're set up over this device's own temporary \"Off The Cloud\" network, pick your real WiFi below. Already connected some other way (ethernet, or WiFi set up earlier)? Just skip this."
-  },
-  "web.shell.setup.wifi_network": {
-    "text": "{ssid} ({signal})",
-    "en": "{ssid} ({signal})"
   },
   "web.shell.signin.close": {
     "text": "Inloggen sluiten",
@@ -584,6 +552,10 @@
   "web.shell.unreachable.title": {
     "text": "Dit apparaat is nu niet beschikbaar",
     "en": "This device isn't available right now"
+  },
+  "web.shell.unreachable.wifi_hint": {
+    "text": "Heb je de naam of het wachtwoord van je wifi gewijzigd? Sluit het apparaat met een ethernetkabel aan op je router en open daarna Instellingen › Wifi.",
+    "en": "Changed your Wi-Fi's name or password? Connect the device to your router with an Ethernet cable, then open Settings › Wi-Fi."
   },
   "web.shell.update.critical": {
     "text": "<b>Kritieke update {version} beschikbaar.</b> {summary} Installeer deze zo snel mogelijk.",

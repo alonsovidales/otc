@@ -163,6 +163,7 @@
         <item quantity="one">%1$sm ago</item>
         <item quantity="other">%1$sm ago</item>
     </plurals>
+    <string name="app_shell_unreachable_wifi_hint">Changed your Wi-Fi\'s name or password? Connect the device to your router with an Ethernet cable, then open Settings › Wi-Fi.</string>
     <plurals name="app_shell_upload_left">
         <item quantity="one">%1$s left</item>
         <item quantity="other">%1$s left</item>

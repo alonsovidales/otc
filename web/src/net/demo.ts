@@ -77,6 +77,7 @@ const cChanges = new Set([
   "reqSetProfile", "reqSetFaceRecognitionEnabled", "reqSetImageTaggingEnabled", "reqSetSocialStorageLimit",
   "reqCreateUser", "reqDeleteUser", "reqSetUserActive", "reqApplyUpdate", "reqRestartDevice", "reqSetupTailscale",
   "reqBridgeSignIn", "reqEnableBridge", "reqDisableBridge", "reqSendLogs", "reqSetupStorage", "reqSetWifi",
+  "reqJoinWifi",
 ]);
 const cLikes = new Set(["reqLikePublication", "reqLikeComment"]);
 

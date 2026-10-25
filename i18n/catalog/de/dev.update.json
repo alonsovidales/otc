@@ -45,5 +45,6 @@
   "dev.update.web_checksum": {"text": "die Dateien der Web-App haben die Prüfsummenprüfung nicht bestanden (erwartet {expected}, erhalten {actual})"},
   "dev.update.web_download_failed": {"text": "die Web-App für Release {release} konnte nicht heruntergeladen werden – versuche das Update erneut"},
   "dev.update.web_install_failed": {"text": "die Dateien der Web-App konnten nicht installiert werden"},
-  "dev.update.web_unpack_failed": {"text": "die Dateien der Web-App konnten nicht entpackt werden"}
+  "dev.update.web_unpack_failed": {"text": "die Dateien der Web-App konnten nicht entpackt werden"},
+  "dev.update.wifi_changing": {"text": "das WLAN des Geräts wird gerade geändert; versuche es in ein paar Minuten erneut"}
 }

@@ -248,4 +248,32 @@
         <item quantity="other">%1$s MB (%2$s%%) · %3$s active</item>
     </plurals>
     <string name="app_settings_users_username">username</string>
+    <string name="app_settings_wifi_change">Change Network</string>
+    <string name="app_settings_wifi_confirm_cable_message">It stays reachable through its cable while it does.</string>
+    <string name="app_settings_wifi_confirm_message">It leaves its current network and may not answer for about a minute. If the new network doesn\'t work, it goes back to the current one.</string>
+    <string name="app_settings_wifi_confirm_title">Connect the device to \u2068%1$s\u2069?</string>
+    <string name="app_settings_wifi_current_badge">Connected</string>
+    <string name="app_settings_wifi_failed">Could not change the Wi-Fi.</string>
+    <string name="app_settings_wifi_intro">The network the device uses. Changed your Wi-Fi\'s name or password? Choose the network here and enter its password. If the device can\'t reach your Wi-Fi any more, connect it to your router with an Ethernet cable first.</string>
+    <string name="app_settings_wifi_joining">Connecting to \u2068%1$s\u2069… The device may not answer for about a minute.</string>
+    <string name="app_settings_wifi_name">Network name</string>
+    <string name="app_settings_wifi_name_needed">Enter the network\'s name.</string>
+    <string name="app_settings_wifi_name_too_long">That name is too long: a Wi-Fi network name has at most 32 characters, and accented letters and emoji count as two or more.</string>
+    <string name="app_settings_wifi_no_networks">No networks found. Scan again, or choose Other Network to type its name.</string>
+    <string name="app_settings_wifi_no_wifi">Wi-Fi: not connected</string>
+    <string name="app_settings_wifi_on_cable">Ethernet cable: connected</string>
+    <string name="app_settings_wifi_on_wifi">Wi-Fi: \u2068%1$s\u2069 (%2$s)</string>
+    <string name="app_settings_wifi_open_network">Open</string>
+    <string name="app_settings_wifi_other">Other Network…</string>
+    <string name="app_settings_wifi_password_invalid">A Wi-Fi password has 8 to 63 characters (accented letters and some symbols count as two or three), or exactly 64 hexadecimal digits.</string>
+    <string name="app_settings_wifi_password_needed">Enter the network\'s password.</string>
+    <string name="app_settings_wifi_password_optional">Password (empty for an open network)</string>
+    <string name="app_settings_wifi_scan">Scan Again</string>
+    <string name="app_settings_wifi_scan_failed">Could not look for networks. Try again.</string>
+    <string name="app_settings_wifi_scanning">Looking for networks…</string>
+    <string name="app_settings_wifi_secured">Needs a password</string>
+    <string name="app_settings_wifi_slow">The device hasn\'t answered yet. If it doesn\'t come back, connect it to your router with an Ethernet cable and open Settings › Wi-Fi again.</string>
+    <string name="app_settings_wifi_title">Wi-Fi</string>
+    <string name="app_settings_wifi_unknown_result">The device didn\'t say how the change went. The network it is on now is shown above.</string>
+    <string name="app_settings_wifi_unsupported">Not supported</string>
 </resources>

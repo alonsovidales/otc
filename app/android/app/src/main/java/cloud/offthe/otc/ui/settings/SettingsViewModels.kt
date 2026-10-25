@@ -12,6 +12,9 @@ import cloud.offthe.otc.proto.GetPubKey
 import cloud.offthe.otc.proto.GetReprocessStatus
 import cloud.offthe.otc.proto.GetSettings
 import cloud.offthe.otc.proto.GetStatus
+import cloud.offthe.otc.proto.GetWifiStatus
+import cloud.offthe.otc.proto.JoinWifi
+import cloud.offthe.otc.proto.ListWifiNetworks
 import cloud.offthe.otc.proto.Profile
 import cloud.offthe.otc.proto.ReqApplyUpdate
 import cloud.offthe.otc.proto.ReqCheckUpdate
@@ -36,6 +39,8 @@ import cloud.offthe.otc.proto.Status
 import cloud.offthe.otc.proto.StopReprocess
 import cloud.offthe.otc.proto.UpdateRelease
 import cloud.offthe.otc.proto.User
+import cloud.offthe.otc.proto.WifiNetwork
+import cloud.offthe.otc.proto.WifiStatus
 import cloud.offthe.otc.i18n.S
 import cloud.offthe.otc.i18n.UiText
 import cloud.offthe.otc.i18n.appSettingsBridgeLeaveFailed
@@ -76,6 +81,10 @@ import cloud.offthe.otc.i18n.appSettingsUsersCreatedNoPassword
 import cloud.offthe.otc.i18n.appSettingsUsersDeleteFailed
 import cloud.offthe.otc.i18n.appSettingsUsersDeleted
 import cloud.offthe.otc.i18n.appSettingsUsersUpdateFailed
+import cloud.offthe.otc.i18n.appSettingsWifiFailed
+import cloud.offthe.otc.i18n.appSettingsWifiJoining
+import cloud.offthe.otc.i18n.appSettingsWifiScanFailed
+import cloud.offthe.otc.i18n.appSettingsWifiUnknownResult
 import cloud.offthe.otc.net.WSClient
 import cloud.offthe.otc.ui.common.TextIOException
 import com.google.protobuf.ByteString
@@ -86,6 +95,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 // Ports of the view models behind SettingsView.swift, ProfileEditor.swift,
 // UpdateSection.swift, TailscaleSection.swift and UsersManagementView.swift.
@@ -575,6 +585,292 @@ class UsersManagementViewModel : ViewModel() {
             if (resp.ackOk()) loadUsers() else state.update { it.copy(toast = deviceOr(resp.errorMessage, S.appSettingsUsersUpdateFailed())) }
         } catch (e: Exception) { state.update { it.copy(toast = e.shownText()) } }
         finally { state.update { it.copy(busyActiveUuid = null) } }
+    }
+}
+
+/**
+ * Settings › Wi-Fi: the network the device uses (the device's own Wi-Fi,
+ * not this phone's), changed by its owner - another network, or the same
+ * one with its new password. Owner of the primary instance, and only a
+ * device that manages its Wi-Fi (GetWifiStatus managed); a device before
+ * the section answers unknown_payload and isn't asked again until the next
+ * sign-in. The password lives here only (never in saved state), is sealed
+ * under the connection's key (as Change Password) and cleared once sealed
+ * or when the section goes. After JoinWifi the device may not answer for
+ * about a minute: GetWifiStatus is asked every 3 s (10 s once it is slow)
+ * until the change ends, while the section is on screen. The rules are
+ * WifiFlow's. Mirrors iOS's WifiViewModel and the web app's WifiPanel.
+ */
+class WifiViewModel : ViewModel() {
+    enum class Phase { IDLE, SENDING, WAITING, SLOW }
+
+    /** The network picked: a listed one (its name), or Other Network… (the name is typed, [State.name]). */
+    data class Chosen(val ssid: String, val kind: WifiFlow.Kind)
+
+    data class State(
+        val visible: Boolean = false,
+        // The device's network now.
+        val ssid: String = "", val signal: Int = 0, val wired: Boolean = false,
+        // The picker: what the device sees, open after Change Network.
+        val picking: Boolean = false, val scanning: Boolean = false, val scanned: Boolean = false,
+        val networks: List<WifiNetwork> = emptyList(),
+        val chosen: Chosen? = null, val name: String = "", val password: String = "",
+        val confirming: Boolean = false,
+        // The network a change was sent for (and the name typed for it):
+        // after a wrong password the picker opens on it again, even when
+        // Settings was left meanwhile (leave() closes the picker).
+        val tried: Chosen? = null, val triedName: String = "",
+        val phase: Phase = Phase.IDLE,
+        // The change waited for, and the network it goes to.
+        val joinID: String = "", val joiningSsid: String = "",
+        val note: UiText? = null, val error: UiText? = null,
+    ) {
+        /** The name Connect sends: the listed network's, or the one typed. */
+        val target: String get() = chosen?.let { if (it.kind == WifiFlow.Kind.OTHER) name else it.ssid } ?: ""
+        val busy: Boolean get() = phase != Phase.IDLE
+    }
+
+    val state = MutableStateFlow(State())
+    private var poll: Job? = null
+    // When the wait began (elapsed realtime), so it turns slow on time across a pause.
+    private var waitStarted = 0L
+    // The sign-in (OTCConnection.signIns) at which the device answered
+    // unknown_payload: not asked again until the next one.
+    @Volatile private var unsupportedAt: Int? = null
+    // The section is on screen with the app in front: the wait polls only then.
+    @Volatile private var shown = false
+
+    // Only a change typed clears the error: the password field also reports
+    // the view model's own clearing back, which must not wipe a refusal.
+    fun setName(v: String) = state.update { if (it.name == v) it else it.copy(name = v, error = null) }
+    fun setPassword(v: String) = state.update { if (it.password == v) it else it.copy(password = v, error = null) }
+
+    /** On screen (or back from the background): the role, then the status - unless a change is being waited for, which goes on. */
+    suspend fun load() {
+        shown = true
+        val s = state.value
+        if (s.joinID.isNotEmpty()) { startPolling(); return }
+        if (s.phase == Phase.SENDING) return
+        if (unsupportedAt == OTCConnection.signIns.value) { hide(); return }
+        if (!s.visible) {
+            val primary = try {
+                val r = OTCConnection.request { it.setReqGetInstanceRole(ReqGetInstanceRole.getDefaultInstance()) }
+                r.payloadCase == RespEnvelope.PayloadCase.RESP_INSTANCE_ROLE && r.respInstanceRole.isPrimary
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Not known now: what is shown stays as it is (iOS's rule).
+                return
+            }
+            if (!primary) { hide(); return }
+        }
+        refresh()
+    }
+
+    /** GetWifiStatus: whether the section shows, the network now, and a change still running. */
+    suspend fun refresh() {
+        if (state.value.busy) return
+        val resp = try {
+            OTCConnection.request(OTCConnection.LIST_TIMEOUT_MS) { it.setReqGetWifiStatus(GetWifiStatus.getDefaultInstance()) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) { return }
+        if (state.value.busy) {
+            // The wait reads its own answers; this only keeps the network shown up to date.
+            if (!resp.error && resp.payloadCase == RespEnvelope.PayloadCase.RESP_WIFI_STATUS && resp.respWifiStatus.managed) current(resp.respWifiStatus)
+            return
+        }
+        when (WifiFlow.onLoad(resp)) {
+            WifiFlow.Load.HIDE_UNTIL_SIGN_IN -> { unsupportedAt = OTCConnection.signIns.value; hide() }
+            WifiFlow.Load.HIDE -> hide()
+            WifiFlow.Load.SHOW -> {
+                val st = resp.respWifiStatus
+                current(st)
+                state.update { it.copy(visible = true) }
+                WifiFlow.resumeID(st)?.let { startWaiting(it, st.lastJoin.ssid) }
+            }
+        }
+    }
+
+    /** Change Network: the picker, with what the device sees. */
+    fun change() {
+        if (state.value.busy) return
+        state.update { it.copy(picking = true, chosen = null, name = "", password = "", note = null, error = null, networks = emptyList(), scanned = false) }
+        scan()
+    }
+
+    /** Scan Again, and the picker's first look. */
+    fun scan() {
+        if (state.value.scanning) return
+        state.update { it.copy(scanning = true, error = null) }
+        viewModelScope.launch {
+            try {
+                val resp = OTCConnection.request(OTCConnection.LIST_TIMEOUT_MS) { it.setReqListWifiNetworks(ListWifiNetworks.getDefaultInstance()) }
+                if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_WIFI_NETWORKS) state.update { it.copy(networks = resp.respWifiNetworks.networksList) }
+                else state.update { it.copy(error = deviceOr(WifiFlow.words(resp).orEmpty(), S.appSettingsWifiScanFailed())) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) { state.update { it.copy(error = e.shownText()) } }
+            finally { state.update { it.copy(scanning = false, scanned = true) } }
+        }
+    }
+
+    /** A listed network (one the device can't join stays unpicked). */
+    fun choose(n: WifiNetwork) {
+        val s = state.value
+        if (!WifiFlow.joinable(n) || s.busy || (s.chosen?.kind != WifiFlow.Kind.OTHER && s.chosen?.ssid == n.ssid)) return
+        state.update { it.copy(chosen = Chosen(n.ssid, if (n.secured) WifiFlow.Kind.SECURED else WifiFlow.Kind.OPEN), password = "", error = null, note = null) }
+    }
+
+    /** Other Network…: a name typed by hand, its password optional. */
+    fun chooseOther() {
+        if (state.value.busy || state.value.chosen?.kind == WifiFlow.Kind.OTHER) return
+        state.update { it.copy(chosen = Chosen("", WifiFlow.Kind.OTHER), name = "", password = "", error = null, note = null) }
+    }
+
+    fun closePicker() = state.update { if (it.busy) it else it.copy(picking = false, chosen = null, name = "", password = "", confirming = false, error = null) }
+
+    /** Connect: checked here as the device would, then confirmed. */
+    fun connect() {
+        val s = state.value
+        val kind = s.chosen?.kind ?: return
+        if (s.busy) return
+        val problem = WifiFlow.check(s.target, s.password, kind)
+        state.update { it.copy(error = problem?.let(WifiFlow::text), note = null, confirming = problem == null) }
+    }
+
+    fun cancelConfirm() = state.update { it.copy(confirming = false) }
+
+    /** The confirmation's Connect: sealed and sent; the device answers at once and changes networks after. */
+    fun join() {
+        val s = state.value
+        val kind = s.chosen?.kind ?: return
+        if (s.busy) return
+        val ssid = s.target
+        val password = WifiFlow.sentPassword(s.password, kind)
+        state.update { it.copy(confirming = false, phase = Phase.SENDING, note = null, error = null, tried = s.chosen, triedName = s.name) }
+        viewModelScope.launch {
+            val sealed = try {
+                if (password.isEmpty()) ByteString.EMPTY else {
+                    // Same RSA-OAEP flow as Change Password (issue #2).
+                    val pk = OTCConnection.request { it.setReqGetPubKey(GetPubKey.getDefaultInstance()) }
+                    if (pk.payloadCase != RespEnvelope.PayloadCase.RESP_PUB_KEY) {
+                        state.update { it.copy(phase = Phase.IDLE, error = S.appSettingsPasswordNoKey()) }
+                        return@launch
+                    }
+                    ByteString.copyFrom(PwCrypto.encryptPassword(password, pk.respPubKey.publicKey.toByteArray()))
+                }
+            } catch (e: CancellationException) {
+                state.update { it.copy(phase = Phase.IDLE) }
+                throw e
+            } catch (e: Exception) {
+                // Nothing sent: the password stays for another try.
+                state.update { it.copy(phase = Phase.IDLE, error = e.shownText() ?: S.appSettingsWifiFailed()) }
+                return@launch
+            }
+            state.update { it.copy(password = "") }
+            val resp = try {
+                OTCConnection.request(OTCConnection.LIST_TIMEOUT_MS) {
+                    it.setReqJoinWifi(JoinWifi.newBuilder().setSsid(ssid).setPassword(sealed).setHidden(WifiFlow.hidden(kind)))
+                }
+            } catch (e: CancellationException) {
+                state.update { it.copy(phase = Phase.IDLE) }
+                throw e
+            } catch (e: Exception) {
+                // The device may have taken it before the connection went:
+                // the status says, and a change under way is waited for.
+                state.update { it.copy(phase = Phase.IDLE, error = e.shownText() ?: S.appSettingsWifiFailed()) }
+                refresh()
+                return@launch
+            }
+            if (!resp.error && resp.payloadCase == RespEnvelope.PayloadCase.RESP_WIFI_STATUS && resp.respWifiStatus.managed) current(resp.respWifiStatus)
+            when (val sent = WifiFlow.afterJoin(resp)) {
+                is WifiFlow.Sent.Wait -> startWaiting(sent.id, ssid)
+                is WifiFlow.Sent.Done -> finish(sent.outcome)
+                is WifiFlow.Sent.Refused -> {
+                    state.update { it.copy(phase = Phase.IDLE, error = deviceOr(sent.message.orEmpty(), S.appSettingsWifiFailed())) }
+                    // A change already under way (busy) is waited for.
+                    refresh()
+                }
+                WifiFlow.Sent.Hide -> {
+                    // Doesn't manage its Wi-Fi after all: its words, and the
+                    // status again, which hides the section.
+                    state.update { it.copy(phase = Phase.IDLE, error = deviceOr(WifiFlow.words(resp).orEmpty(), S.appSettingsWifiFailed())) }
+                    refresh()
+                }
+                WifiFlow.Sent.HideUntilSignIn -> {
+                    unsupportedAt = OTCConnection.signIns.value
+                    state.update { it.copy(phase = Phase.IDLE) }
+                    hide()
+                }
+            }
+        }
+    }
+
+    /** Off screen: no more looks (a change still running is waited for again on load), and nothing typed is kept. */
+    fun leave() {
+        pause()
+        state.update { it.copy(picking = false, chosen = null, name = "", password = "", confirming = false, note = if (it.busy) it.note else null, error = if (it.busy) it.error else null) }
+    }
+
+    /** In the background: no more looks until the app is back (load). */
+    fun pause() { shown = false; poll?.cancel(); poll = null }
+
+    private fun startWaiting(id: String, ssid: String) {
+        waitStarted = android.os.SystemClock.elapsedRealtime()
+        state.update { it.copy(phase = Phase.WAITING, joinID = id, joiningSsid = ssid, note = S.appSettingsWifiJoining(ssid), error = null, confirming = false) }
+        startPolling()
+    }
+
+    private fun startPolling() {
+        if (!shown || poll?.isActive == true) return
+        val id = state.value.joinID
+        if (id.isEmpty()) return
+        poll = viewModelScope.launch {
+            while (isActive) {
+                val slow = WifiFlow.slow((android.os.SystemClock.elapsedRealtime() - waitStarted).milliseconds)
+                if (slow && state.value.phase == Phase.WAITING) state.update { it.copy(phase = Phase.SLOW) }
+                delay(WifiFlow.pollInterval(slow))
+                // Through the bridge a device that is away still answers - the
+                // bridge's error - and a dropped connection throws: both wait on.
+                val resp = try {
+                    OTCConnection.request(WifiFlow.lookTimeout.inWholeMilliseconds) { it.setReqGetWifiStatus(GetWifiStatus.getDefaultInstance()) }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) { continue }
+                if (resp.payloadCase == RespEnvelope.PayloadCase.RESP_WIFI_STATUS && resp.respWifiStatus.managed) current(resp.respWifiStatus)
+                val p = WifiFlow.onPoll(resp, id)
+                if (p is WifiFlow.Poll.Done) { finish(p.outcome); break }
+            }
+        }
+    }
+
+    private fun finish(o: WifiFlow.Outcome) {
+        poll?.cancel(); poll = null
+        // Reopened after Settings was left: its list is gone, look again.
+        val relist = o is WifiFlow.Outcome.Failed && WifiFlow.keepsPicker(o.code) && state.value.tried != null && state.value.networks.isEmpty()
+        state.update {
+            val base = it.copy(phase = Phase.IDLE, joinID = "", joiningSsid = "", confirming = false, tried = null, triedName = "")
+            when (o) {
+                is WifiFlow.Outcome.Connected -> base.copy(picking = false, chosen = null, name = "", password = "", note = o.message.ifEmpty { null }?.let { m -> UiText.Raw(m) }, error = null)
+                is WifiFlow.Outcome.Failed -> {
+                    // Open again on the network tried, Settings left meanwhile or not.
+                    val tried = it.tried
+                    val keep = WifiFlow.keepsPicker(o.code) && tried != null
+                    base.copy(picking = keep, chosen = if (keep) tried else null, name = if (keep && tried?.kind == WifiFlow.Kind.OTHER) it.triedName else it.name,
+                        password = "", note = null, error = deviceOr(o.message, S.appSettingsWifiFailed()))
+                }
+                WifiFlow.Outcome.Unknown -> base.copy(picking = false, chosen = null, name = "", password = "", note = S.appSettingsWifiUnknownResult(), error = null)
+            }
+        }
+        if (relist) scan()
+    }
+
+    private fun current(s: WifiStatus) = state.update { it.copy(ssid = s.ssid, signal = s.signal, wired = s.wired) }
+
+    private fun hide() = state.update {
+        it.copy(visible = false, picking = false, chosen = null, name = "", password = "", confirming = false, networks = emptyList(), note = null, error = null,
+            tried = null, triedName = "")
     }
 }
 

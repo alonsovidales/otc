@@ -411,6 +411,20 @@ if [ -f "$SRC_DIR/scripts/device-runner/otc-wifi-restart-runner.sh" ]; then
         systemctl enable --now "otc-$unit.path" >/dev/null 2>&1 || echo "WARNING: could not enable otc-$unit.path"
     done
 fi
+# Settings > Wi-Fi's root side (release 140, which installs it first): the
+# runner is Python, so it has its own lines. Every device that updates gets
+# it, image or hand-installed; it acts only where NetworkManager runs.
+if [ -f "$SRC_DIR/scripts/device-runner/otc-wifi-join-runner.py" ]; then
+    install_atomic 0755 "$SRC_DIR/scripts/device-runner/otc-wifi-join-runner.py" /usr/local/bin/otc-wifi-join-runner
+    install_atomic 0644 "$SRC_DIR/scripts/device-runner/otc-wifi-join.service" /etc/systemd/system/otc-wifi-join.service
+    install_atomic 0644 "$SRC_DIR/scripts/device-runner/otc-wifi-join.path" /etc/systemd/system/otc-wifi-join.path
+    systemctl daemon-reload
+    # A request still there now is one no runner took (its path unit
+    # wasn't watching): dropped, and the device answers no_answer for it.
+    # The device refuses a change while an update runs, so none is new.
+    rm -f /run/otc/wifi-join.request
+    systemctl enable --now otc-wifi-join.path >/dev/null 2>&1 || echo "WARNING: could not enable otc-wifi-join.path"
+fi
 
 if [ -n "$web_staged" ]; then
     rsync -a --delete "$tmp/web-dist/" /var/www/ || fail "could not install the web assets" web_install_failed

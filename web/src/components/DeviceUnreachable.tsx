@@ -76,6 +76,13 @@ export default function DeviceUnreachable({ status }: { status: DeviceStatus }) 
         {/* The device/bridge's own wording, shown as-is - it's the half of
             this that can actually say something specific. */}
         <p>{status.message}</p>
+        {/* For an owner whose router's name or password changed: the
+            device can't join it any more, and this is all they see. Right
+            after the bridge's words, before "keeps checking", as on the
+            phones. */}
+        {!disabled && (
+          <p className="du-hint">{t("web.shell.unreachable.wifi_hint")}</p>
+        )}
         {!disabled && (
           <p className="du-note">{t("web.shell.unreachable.note")}</p>
         )}

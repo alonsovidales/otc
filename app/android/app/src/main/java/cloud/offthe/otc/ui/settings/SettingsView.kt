@@ -2,6 +2,23 @@
 package cloud.offthe.otc.ui.settings
 
 import androidx.compose.ui.text.buildAnnotatedString
+import android.text.InputType
+import android.util.TypedValue
+import android.view.Gravity
+import android.view.View
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.widget.doAfterTextChanged
+import cloud.offthe.otc.proto.WifiNetwork
 import cloud.offthe.otc.ui.logOut
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -262,6 +279,26 @@ import cloud.offthe.otc.i18n.appSettingsUsersRequestBridge
 import cloud.offthe.otc.i18n.appSettingsUsersTitle
 import cloud.offthe.otc.i18n.appSettingsUsersUsage
 import cloud.offthe.otc.i18n.appSettingsUsersUsername
+import cloud.offthe.otc.i18n.appSettingsWifiChange
+import cloud.offthe.otc.i18n.appSettingsWifiConfirmCableMessage
+import cloud.offthe.otc.i18n.appSettingsWifiConfirmMessage
+import cloud.offthe.otc.i18n.appSettingsWifiConfirmTitle
+import cloud.offthe.otc.i18n.appSettingsWifiCurrentBadge
+import cloud.offthe.otc.i18n.appSettingsWifiIntro
+import cloud.offthe.otc.i18n.appSettingsWifiName
+import cloud.offthe.otc.i18n.appSettingsWifiNoNetworks
+import cloud.offthe.otc.i18n.appSettingsWifiNoWifi
+import cloud.offthe.otc.i18n.appSettingsWifiOnCable
+import cloud.offthe.otc.i18n.appSettingsWifiOnWifi
+import cloud.offthe.otc.i18n.appSettingsWifiOpenNetwork
+import cloud.offthe.otc.i18n.appSettingsWifiOther
+import cloud.offthe.otc.i18n.appSettingsWifiPasswordOptional
+import cloud.offthe.otc.i18n.appSettingsWifiScan
+import cloud.offthe.otc.i18n.appSettingsWifiScanning
+import cloud.offthe.otc.i18n.appSettingsWifiSecured
+import cloud.offthe.otc.i18n.appSettingsWifiSlow
+import cloud.offthe.otc.i18n.appSettingsWifiTitle
+import cloud.offthe.otc.i18n.appSettingsWifiUnsupported
 import cloud.offthe.otc.i18n.appShellPrivacy
 import cloud.offthe.otc.i18n.appShellRouteConfigured
 import cloud.offthe.otc.i18n.appShellRouteHome
@@ -269,6 +306,8 @@ import cloud.offthe.otc.i18n.appShellRouteThrough
 import cloud.offthe.otc.i18n.appShellThumbCacheUsage
 import cloud.offthe.otc.i18n.commonAdd
 import cloud.offthe.otc.i18n.commonCancel
+import cloud.offthe.otc.i18n.commonConnect
+import cloud.offthe.otc.i18n.commonConnecting
 import cloud.offthe.otc.i18n.commonDelete
 import cloud.offthe.otc.i18n.commonDeleting
 import cloud.offthe.otc.i18n.commonOk
@@ -508,6 +547,9 @@ fun SettingsView(secrets: SecretsStore) {
                 }
                 RowButton(S.appSettingsConnectionLogOut().resolve(), destructive = true) { confirmLogout = true }
             }
+
+            // The device's own Wi-Fi (owner of the primary instance, a device that manages it).
+            WifiSection()
 
             TailscaleSection()
 
@@ -864,6 +906,184 @@ private fun TailscaleSection() {
 private fun Limitation(text: RichText) {
     val line = buildAnnotatedString { append("• "); append(text.resolve(emptyMap())) } // i18n-ignore: the list's bullet
     Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 2.dp))
+}
+
+/**
+ * Settings › Wi-Fi (WifiViewModel): the network the device is on now and
+ * Change Network - the networks it sees, Other Network… for one that hides
+ * its name, its password where it needs one, a confirmation, then the
+ * wait while the device switches. Mirrors iOS's WifiSection.
+ */
+@Composable
+private fun WifiSection() {
+    val vm: WifiViewModel = viewModel()
+    val st by vm.state.collectAsState()
+    val scope = rememberCoroutineScope()
+    val lifecycle = LocalLifecycleOwner.current
+    // Asked as it opens and whenever the app comes back (a change may have
+    // ended meanwhile); no looks while the app is in the background.
+    DisposableEffect(lifecycle) {
+        val obs = LifecycleEventObserver { _, e ->
+            when (e) {
+                Lifecycle.Event.ON_RESUME -> scope.launch { vm.load() }
+                Lifecycle.Event.ON_STOP -> vm.pause()
+                else -> {}
+            }
+        }
+        lifecycle.lifecycle.addObserver(obs)
+        onDispose { lifecycle.lifecycle.removeObserver(obs) }
+    }
+    // Leaving Settings: no more looks, and nothing typed is kept.
+    DisposableEffect(Unit) { onDispose { vm.leave() } }
+    if (!st.visible) return
+    Section(S.appSettingsWifiTitle().resolve(), S.appSettingsWifiIntro().resolve()) {
+        Caption((if (st.ssid.isNotEmpty()) S.appSettingsWifiOnWifi(st.ssid, WifiFlow.percent(st.signal).resolve()) else S.appSettingsWifiNoWifi()).resolve())
+        if (st.wired) Caption(S.appSettingsWifiOnCable().resolve())
+        if (st.picking) WifiPicker(vm, st)
+        else RowButton(S.appSettingsWifiChange().resolve(), enabled = !st.busy) { vm.change() }
+        // Sending: Connecting…; waiting: the device switching, with a
+        // spinner; slow (4 minutes on): what to do if it doesn't come back.
+        when (st.phase) {
+            WifiViewModel.Phase.SENDING, WifiViewModel.Phase.WAITING -> Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Caption(((if (st.phase == WifiViewModel.Phase.SENDING) null else st.note) ?: S.commonConnecting()).resolve())
+            }
+            WifiViewModel.Phase.SLOW -> Caption(S.appSettingsWifiSlow().resolve(), Color(0xFFFF9800))
+            WifiViewModel.Phase.IDLE -> st.note?.let { Caption(it.resolve()) }
+        }
+        st.error?.let { Caption(it.resolve(), Color(0xFFE53935)) }
+    }
+    if (st.confirming) AlertDialog(
+        onDismissRequest = { vm.cancelConfirm() },
+        title = { Text(S.appSettingsWifiConfirmTitle(st.target).resolve()) },
+        text = { Text((if (WifiFlow.cableOnly(st.wired, st.ssid)) S.appSettingsWifiConfirmCableMessage() else S.appSettingsWifiConfirmMessage()).resolve()) },
+        confirmButton = { TextButton(onClick = { vm.join() }) { Text(S.commonConnect().resolve()) } },
+        dismissButton = { TextButton(onClick = { vm.cancelConfirm() }) { Text(S.commonCancel().resolve()) } },
+    )
+}
+
+/** Change Network's list: the networks in the device's order (its own first), then Other Network…; the picked one's fields under it. */
+@Composable
+private fun WifiPicker(vm: WifiViewModel, st: WifiViewModel.State) {
+    val chosen = st.chosen
+    if (st.scanning) Row(verticalAlignment = Alignment.CenterVertically) {
+        CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp)
+        Spacer(Modifier.width(8.dp))
+        Caption(S.appSettingsWifiScanning().resolve())
+    } else if (st.scanned && st.networks.isEmpty()) Caption(S.appSettingsWifiNoNetworks().resolve())
+    st.networks.forEach { n ->
+        val picked = chosen != null && chosen.kind != WifiFlow.Kind.OTHER && chosen.ssid == n.ssid
+        WifiNetworkRow(n, picked, enabled = !st.busy) { vm.choose(n) }
+        if (picked) WifiChosenFields(vm, st)
+    }
+    val other = chosen?.kind == WifiFlow.Kind.OTHER
+    Row(
+        Modifier.fillMaxWidth().selectable(selected = other, enabled = !st.busy, role = Role.RadioButton) { vm.chooseOther() }.padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(S.appSettingsWifiOther().resolve(), Modifier.weight(1f))
+        if (other) Icon(Icons.Filled.Check, null, tint = MaterialTheme.colorScheme.primary)
+    }
+    if (other) WifiChosenFields(vm, st)
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        RowButton(S.appSettingsWifiScan().resolve(), enabled = !st.scanning && !st.busy) { vm.scan() }
+        Spacer(Modifier.weight(1f))
+        TextButton(onClick = { vm.closePicker() }, enabled = !st.busy) { Text(S.commonCancel().resolve()) }
+    }
+    HorizontalDivider(Modifier.padding(vertical = 4.dp))
+}
+
+/** One network: its name, Connected for the device's own, a lock (or Open), its signal; greyed out when the device can't join it. */
+@Composable
+private fun WifiNetworkRow(n: WifiNetwork, picked: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    val usable = WifiFlow.joinable(n)
+    val dim = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    val secondary = MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        Modifier.fillMaxWidth().selectable(selected = picked, enabled = enabled && usable, role = Role.RadioButton, onClick = onClick).padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(n.ssid, Modifier.weight(1f), color = if (usable) Color.Unspecified else dim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (n.current) Text(S.appSettingsWifiCurrentBadge().resolve(), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 6.dp).background(Color(0xFF43A047), RoundedCornerShape(4.dp)).padding(horizontal = 5.dp, vertical = 1.dp))
+        Spacer(Modifier.width(6.dp))
+        if (!usable) Text(S.appSettingsWifiUnsupported().resolve(), style = MaterialTheme.typography.bodySmall, color = dim, modifier = Modifier.padding(end = 6.dp))
+        if (n.secured) Icon(Icons.Filled.Lock, contentDescription = S.appSettingsWifiSecured().resolve(), tint = secondary, modifier = Modifier.width(16.dp))
+        else Text(S.appSettingsWifiOpenNetwork().resolve(), style = MaterialTheme.typography.bodySmall, color = secondary)
+        Text(WifiFlow.percent(n.signal).resolve(), style = MaterialTheme.typography.bodySmall, color = if (usable) secondary else dim, modifier = Modifier.padding(start = 6.dp))
+        if (picked) Icon(Icons.Filled.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 4.dp))
+    }
+}
+
+/** Under the picked network: the name typed (Other Network…), the password where it can have one, and Connect. */
+@Composable
+private fun WifiChosenFields(vm: WifiViewModel, st: WifiViewModel.State) {
+    val kind = st.chosen?.kind ?: return
+    // A network's name, as typed: no capitals, no corrections.
+    if (kind == WifiFlow.Kind.OTHER) OTCTextField(
+        value = st.name, onValueChange = vm::setName, placeholder = { Text(S.appSettingsWifiName().resolve()) }, singleLine = true, enabled = !st.busy,
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false, keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    )
+    when (kind) {
+        // Done on the keyboard is Connect, as Return is on iOS.
+        WifiFlow.Kind.SECURED -> WifiPasswordField(st.password, S.commonPassword().resolve(), enabled = !st.busy, onChange = vm::setPassword, onDone = vm::connect)
+        WifiFlow.Kind.OTHER -> WifiPasswordField(st.password, S.appSettingsWifiPasswordOptional().resolve(), enabled = !st.busy, onChange = vm::setPassword, onDone = vm::connect)
+        WifiFlow.Kind.OPEN -> {}
+    }
+    RowButton(S.commonConnect().resolve(), enabled = !st.busy) { vm.connect() }
+}
+
+/**
+ * The Wi-Fi password: a platform field with importantForAutofill = no, so
+ * a password manager neither fills this app's password in nor saves the
+ * Wi-Fi's as the app's (Compose's own text fields always take part in
+ * autofill). No suggestions or learning, no saved view state: the text
+ * lives in WifiViewModel alone. Drawn like OTCTextField.
+ */
+@Composable
+private fun WifiPasswordField(value: String, placeholder: String, enabled: Boolean, onChange: (String) -> Unit, onDone: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val textSize = MaterialTheme.typography.bodyMedium.fontSize.value
+    val textColor = colors.onSurface.toArgb()
+    val hintColor = colors.onSurfaceVariant.toArgb()
+    val density = LocalDensity.current
+    val padH = with(density) { 10.dp.roundToPx() }
+    val padV = with(density) { 7.dp.roundToPx() }
+    val onChangeNow by rememberUpdatedState(onChange)
+    val onDoneNow by rememberUpdatedState(onDone)
+    var focused by remember { mutableStateOf(false) }
+    AndroidView(
+        factory = { ctx ->
+            EditText(ctx).apply {
+                importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
+                isSaveEnabled = false
+                freezesText = false
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                imeOptions = EditorInfo.IME_ACTION_DONE or EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+                gravity = Gravity.CENTER_VERTICAL or Gravity.START
+                background = null
+                setPadding(padH, padV, padH, padV)
+                doAfterTextChanged { onChangeNow(it?.toString().orEmpty()) }
+                setOnEditorActionListener { _, action, _ ->
+                    if (action == EditorInfo.IME_ACTION_DONE) { onDoneNow(); true } else false
+                }
+                setOnFocusChangeListener { _, f -> focused = f }
+            }
+        },
+        update = { et ->
+            // Cleared by the view model once sealed; typing keeps them equal.
+            if (et.text.toString() != value) et.setText(value)
+            et.hint = placeholder
+            et.isEnabled = enabled
+            et.setTextColor(textColor)
+            et.setHintTextColor(hintColor)
+            et.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSize)
+        },
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).heightIn(min = 36.dp)
+            .border(if (focused) 1.5.dp else 1.dp, if (focused) colors.primary else colors.outline, MaterialTheme.shapes.small),
+    )
 }
 
 /** Issue #182: leaving the bridge and deleting the account. Mirrors iOS's BridgeAccountSection. */

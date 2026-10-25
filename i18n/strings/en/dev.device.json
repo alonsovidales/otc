@@ -91,8 +91,16 @@
     "args": [["source", "text"]],
     "note": "Error in Settings > Logs when an app asks for a log the device doesn't keep (an app fault). {source} is the name the app asked for."
   },
-  "dev.device.wifi_no_ssid": {
-    "text": "ssid cannot be empty",
-    "note": "Error in the device's Wi-Fi setup when joining a network without its name. SSID is a Wi-Fi network's name; keep it lowercase as in the English or use your language's usual term."
+  "dev.device.wifi_bad_name": {
+    "text": "A Wi-Fi network name has 1 to 32 characters (accented letters and emoji count as two or more), without tabs or line breaks.",
+    "note": "Error in Settings > Wi-Fi when the network name typed is empty, too long or holds control characters. The limit counts bytes: a plain letter is one, an accented letter two, an emoji four."
+  },
+  "dev.device.wifi_bad_password": {
+    "text": "A Wi-Fi password has 8 to 63 characters (accented letters and some symbols count as two or three), or exactly 64 hexadecimal digits.",
+    "note": "Error in Settings > Wi-Fi when the Wi-Fi password typed can't be a Wi-Fi password. The limit counts bytes: a plain letter, digit, space or symbol is one, an accented letter two, some symbols (such as €) three. Hexadecimal digits are 0-9 and a-f."
+  },
+  "dev.device.wifi_not_managed": {
+    "text": "This device's Wi-Fi can't be changed from Settings.",
+    "note": "Error in Settings > Wi-Fi when the device can't change its own Wi-Fi network (it has no Wi-Fi it manages, or it runs in a container). The apps normally hide the section then."
   }
 }

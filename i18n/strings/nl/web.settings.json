@@ -811,5 +811,113 @@
   "web.settings.users.username": {
     "text": "gebruikersnaam",
     "en": "username"
+  },
+  "web.settings.wifi.change": {
+    "text": "Netwerk wijzigen",
+    "en": "Change Network"
+  },
+  "web.settings.wifi.confirm": {
+    "text": "Het apparaat verbinden met {ssid}? Het verlaat zijn huidige netwerk en reageert misschien ongeveer een minuut niet. Werkt het nieuwe netwerk niet, dan gaat het terug naar het huidige.",
+    "en": "Connect the device to {ssid}? It leaves its current network and may not answer for about a minute. If the new network doesn't work, it goes back to the current one."
+  },
+  "web.settings.wifi.confirm_cable": {
+    "text": "Het apparaat verbinden met {ssid}? Het blijft ondertussen bereikbaar via de kabel.",
+    "en": "Connect the device to {ssid}? It stays reachable through its cable while it does."
+  },
+  "web.settings.wifi.current_badge": {
+    "text": "Verbonden",
+    "en": "Connected"
+  },
+  "web.settings.wifi.failed": {
+    "text": "Kan de wifi niet wijzigen.",
+    "en": "Could not change the Wi-Fi."
+  },
+  "web.settings.wifi.intro": {
+    "text": "Het netwerk dat het apparaat gebruikt. Heb je de naam of het wachtwoord van je wifi gewijzigd? Kies hier het netwerk en voer het wachtwoord in. Bereikt het apparaat je wifi niet meer, sluit het dan eerst met een ethernetkabel aan op je router.",
+    "en": "The network the device uses. Changed your Wi-Fi's name or password? Choose the network here and enter its password. If the device can't reach your Wi-Fi any more, connect it to your router with an Ethernet cable first."
+  },
+  "web.settings.wifi.joining": {
+    "text": "Verbinden met {ssid}… Het apparaat reageert misschien ongeveer een minuut niet.",
+    "en": "Connecting to {ssid}… The device may not answer for about a minute."
+  },
+  "web.settings.wifi.name": {
+    "text": "Netwerknaam",
+    "en": "Network name"
+  },
+  "web.settings.wifi.name_needed": {
+    "text": "Voer de naam van het netwerk in.",
+    "en": "Enter the network's name."
+  },
+  "web.settings.wifi.name_too_long": {
+    "text": "Die naam is te lang: een wifinetwerknaam heeft hoogstens 32 tekens, en letters met accenten en emoji tellen als twee of meer.",
+    "en": "That name is too long: a Wi-Fi network name has at most 32 characters, and accented letters and emoji count as two or more."
+  },
+  "web.settings.wifi.no_networks": {
+    "text": "Geen netwerken gevonden. Zoek opnieuw, of kies “Ander netwerk” om de naam in te typen.",
+    "en": "No networks found. Scan again, or choose Other Network to type its name."
+  },
+  "web.settings.wifi.no_wifi": {
+    "text": "Wifi: niet verbonden",
+    "en": "Wi-Fi: not connected"
+  },
+  "web.settings.wifi.on_cable": {
+    "text": "Ethernetkabel: aangesloten",
+    "en": "Ethernet cable: connected"
+  },
+  "web.settings.wifi.on_wifi": {
+    "text": "Wifi: {ssid} ({signal})",
+    "en": "Wi-Fi: {ssid} ({signal})"
+  },
+  "web.settings.wifi.open_network": {
+    "text": "Open",
+    "en": "Open"
+  },
+  "web.settings.wifi.other": {
+    "text": "Ander netwerk…",
+    "en": "Other Network…"
+  },
+  "web.settings.wifi.password_invalid": {
+    "text": "Een wifiwachtwoord heeft 8 tot 63 tekens (letters met accenten en sommige symbolen tellen als twee of drie), of precies 64 hexadecimale cijfers.",
+    "en": "A Wi-Fi password has 8 to 63 characters (accented letters and some symbols count as two or three), or exactly 64 hexadecimal digits."
+  },
+  "web.settings.wifi.password_needed": {
+    "text": "Voer het wachtwoord van het netwerk in.",
+    "en": "Enter the network's password."
+  },
+  "web.settings.wifi.password_optional": {
+    "text": "Wachtwoord (leeg bij een open netwerk)",
+    "en": "Password (empty for an open network)"
+  },
+  "web.settings.wifi.scan": {
+    "text": "Opnieuw zoeken",
+    "en": "Scan Again"
+  },
+  "web.settings.wifi.scan_failed": {
+    "text": "Kan niet naar netwerken zoeken. Probeer het opnieuw.",
+    "en": "Could not look for networks. Try again."
+  },
+  "web.settings.wifi.scanning": {
+    "text": "Netwerken zoeken…",
+    "en": "Looking for networks…"
+  },
+  "web.settings.wifi.secured": {
+    "text": "Wachtwoord vereist",
+    "en": "Needs a password"
+  },
+  "web.settings.wifi.slow": {
+    "text": "Het apparaat heeft nog niet gereageerd. Komt het niet terug, sluit het dan met een ethernetkabel aan op je router en open opnieuw Instellingen › Wifi.",
+    "en": "The device hasn't answered yet. If it doesn't come back, connect it to your router with an Ethernet cable and open Settings › Wi-Fi again."
+  },
+  "web.settings.wifi.title": {
+    "text": "Wifi",
+    "en": "Wi-Fi"
+  },
+  "web.settings.wifi.unknown_result": {
+    "text": "Het apparaat heeft niet gemeld hoe de wijziging is verlopen. Het netwerk waarop het nu zit, staat hierboven.",
+    "en": "The device didn't say how the change went. The network it is on now is shown above."
+  },
+  "web.settings.wifi.unsupported": {
+    "text": "Niet ondersteund",
+    "en": "Not supported"
   }
 }

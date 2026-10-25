@@ -515,6 +515,11 @@ struct SettingsView: View {
                     .buttonStyle(.bordered)
                 }
 
+                // Settings › Wi-Fi (release 140): the network the device
+                // uses. Primary-only, where the device manages its own
+                // Wi-Fi - see WifiSection.
+                WifiSection()
+
                 // Issue #80: Tailscale Funnel as an alternative to the
                 // bridge. Primary-only too - see TailscaleSection.
                 TailscaleSection()

@@ -345,6 +345,13 @@ To use their account away from home, a family member needs an off-the.cloud addr
 The device registers these addresses by itself, outside your bridge account, so they don't count toward its five addresses and don't appear on your account page. With one, a family member reaches their account from anywhere, and you can become friends in the private feed and share photos there.
 How do I get more storage?
 Swap the two cards for bigger ones, one at a time, while the device keeps running. Take out one card and put in a bigger one, at least as large as the one you took out: the device copies everything onto it by itself (anything already on the new card is erased). You get an alert that a disk stopped working, which is expected here, and another, "Both storage disks are working again", when the copy is done; that can take a few hours for a large card. Only then do the same with the other card. Once both cards are bigger, the device grows its storage to the size of the smaller one by itself, within about ten minutes, without stopping. Your files stay available the whole time, but while a copy runs they are on one card only, so never take out the second card before the first copy has finished.
+I changed my Wi-Fi's name or password. How do I tell the device?
+In the web app, open Settings › Wi-Fi, choose your network and enter its password. The device switches over in about a minute, and if the new network doesn't work it goes back to the one it was on.
+If the device can't reach your Wi-Fi any more, use a cable to get back in:
+Connect the device to your router with an Ethernet cable and wait a minute or two.
+Open Settings › Wi-Fi in the web app, choose your network and enter its password.
+Once Settings shows the device on your Wi-Fi, unplug the cable.
+Settings › Wi-Fi is there for the device's owner, on the Raspberry Pi image and on Linux installs where NetworkManager manages the Wi-Fi without netplan. It needs an up-to-date device: if you don't see it, install the latest update in Settings › Device version first, which also works over the cable.
 What happens if the Raspberry Pi itself dies?
 Replace it with a new one and everything keeps working: your photos, files and settings are on the two USB drives, not on the Pi.
 @a.href=#install

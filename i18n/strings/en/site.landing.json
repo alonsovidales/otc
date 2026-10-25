@@ -873,6 +873,34 @@
     "text": "How is it different from Immich, PhotoPrism or Nextcloud?",
     "note": "Website landing page, FAQ: a question. Immich, PhotoPrism and Nextcloud are the names of other open-source projects: keep them."
   },
+  "site.landing.faq.wifi.p1": {
+    "text": "In the web app, open Settings › Wi-Fi, choose your network and enter its password. The device switches over in about a minute, and if the new network doesn't work it goes back to the one it was on.",
+    "note": "Website landing page, FAQ, the question about telling the device a new Wi-Fi name or password. First paragraph of the answer. Settings › Wi-Fi and Settings › Device version are paths in the web app (its Settings and a section of it): use the app's names in your language (web.settings.wifi.title, web.settings.update.title)."
+  },
+  "site.landing.faq.wifi.p2": {
+    "text": "If the device can't reach your Wi-Fi any more, use a cable to get back in:",
+    "note": "Website landing page, FAQ, the question about telling the device a new Wi-Fi name or password. Second paragraph, leading into three numbered steps."
+  },
+  "site.landing.faq.wifi.p3": {
+    "text": "Settings › Wi-Fi is there for the device's owner, on the Raspberry Pi image and on Linux installs where NetworkManager manages the Wi-Fi without netplan. It needs an up-to-date device: if you don't see it, install the latest update in Settings › Device version first, which also works over the cable.",
+    "note": "Website landing page, FAQ, the question about telling the device a new Wi-Fi name or password. Last paragraph: who has the section, and that the device needs its latest update for it. The Raspberry Pi image is the downloadable system image; NetworkManager and netplan are names of Linux programs: keep them (netplan in lower case). Settings › Wi-Fi and Settings › Device version are paths in the web app (its Settings and a section of it): use the app's names in your language (web.settings.wifi.title, web.settings.update.title)."
+  },
+  "site.landing.faq.wifi.q": {
+    "text": "I changed my Wi-Fi's name or password. How do I tell the device?",
+    "note": "Website landing page, FAQ, the question about telling the device a new Wi-Fi name or password. The question itself (a summary that opens the answer)."
+  },
+  "site.landing.faq.wifi.step1": {
+    "text": "Connect the device to your router with an Ethernet cable and wait a minute or two.",
+    "note": "Website landing page, FAQ, the question about telling the device a new Wi-Fi name or password. Step 1 of 3."
+  },
+  "site.landing.faq.wifi.step2": {
+    "text": "Open Settings › Wi-Fi in the web app, choose your network and enter its password.",
+    "note": "Website landing page, FAQ, the question about telling the device a new Wi-Fi name or password. Step 2 of 3. Settings › Wi-Fi and Settings › Device version are paths in the web app (its Settings and a section of it): use the app's names in your language (web.settings.wifi.title, web.settings.update.title)."
+  },
+  "site.landing.faq.wifi.step3": {
+    "text": "Once Settings shows the device on your Wi-Fi, unplug the cable.",
+    "note": "Website landing page, FAQ, the question about telling the device a new Wi-Fi name or password. Step 3 of 3. Settings is the web app's Settings (its section Wi-Fi shows the network the device is on)."
+  },
   "site.landing.footer.contact": {
     "text": "Contact",
     "note": "Website landing page: link at the bottom of the page to the contact form.",

@@ -171,6 +171,7 @@
         <item quantity="many">há %1$s min</item>
         <item quantity="other">há %1$s min</item>
     </plurals>
+    <string name="app_shell_unreachable_wifi_hint">Mudaste o nome ou a palavra-passe do teu Wi-Fi? Liga o dispositivo ao teu router com um cabo Ethernet e depois abre Definições › Wi-Fi.</string>
     <plurals name="app_shell_upload_left">
         <item quantity="one">falta %1$s</item>
         <item quantity="many">faltam %1$s</item>

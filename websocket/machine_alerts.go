@@ -11,6 +11,7 @@ import (
 	"github.com/alonsovidales/otc/dao"
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/network"
 	pb "github.com/alonsovidales/otc/proto/generated"
 	"github.com/alonsovidales/otc/push"
 	"github.com/alonsovidales/otc/raidwatch"
@@ -62,6 +63,16 @@ func startMachineAlerts(dao *dao.Dao, ps *push.Push, sup *supervisor.Supervisor)
 	// - see wifiwatch. Machine-level, so main instance only.
 	if sup != nil {
 		go wifiwatch.Watch(dao.AddErrorNotification)
+	}
+
+	// Settings > Wi-Fi changes the network through NetworkManager, whose
+	// version the log names once (Settings > Logs), and whether this
+	// device can.
+	if sup != nil && !container.Enabled() {
+		go func() {
+			network.LogVersion()
+			network.Managed()
+		}()
 	}
 }
 

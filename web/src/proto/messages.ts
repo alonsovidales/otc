@@ -2271,21 +2271,38 @@ export interface SetupStorage {
 }
 
 /**
- * Issue #38: first-boot WiFi join, for a device reached over its own
- * temporary "Off The Cloud" access point rather than an already-working
- * network. Scanning is read-only (nmcli dev wifi list needs no special
- * privilege), so it runs directly in the otc service like
- * ListStorageDevices; actually joining a network is privileged the same
- * way storage setup is — see SetWifi.
+ * The Wi-Fi networks the device can see, for Settings > Wi-Fi's picker
+ * (issue #38 added it for the first-run step, since removed). Scanning is
+ * read-only (nmcli dev wifi list needs no special privilege), so it runs in
+ * the otc service itself. Owner of the primary instance; a child instance
+ * gets an error without a code, a container and a demo device an empty
+ * list. Answers WifiNetworks: one entry per name, the current network
+ * first, then by signal; names that aren't valid UTF-8 are left out.
  */
 export interface ListWifiNetworks {
 }
 
 export interface WifiNetwork {
   ssid: string;
-  /** 0-100, from nmcli's SIGNAL column. */
+  /**
+   * 0-100, from nmcli's SIGNAL column (the strongest access point with
+   * this name).
+   */
   signal: number;
+  /**
+   * From release 140: an access point with this name that the device can
+   * join asks for a password (an open copy of a secured network's name
+   * never makes it look open).
+   */
   secured: boolean;
+  /** The network the device is on now. False on devices before release 140. */
+  current: boolean;
+  /**
+   * A network the device can't join from Settings: every access point
+   * with this name is 802.1X (enterprise), WEP or OWE. Shown greyed out.
+   * False on devices before release 140.
+   */
+  unsupported: boolean;
 }
 
 export interface WifiNetworks {
@@ -2293,13 +2310,107 @@ export interface WifiNetworks {
 }
 
 /**
- * SetWifi hands the join off to a privileged process the same way
- * SetupStorage does (see storage.RequestSetup) — the otc service can't run
- * `nmcli connection up` itself. An empty password means an open network.
+ * Retired in release 140: devices answer error_code "unknown_payload"
+ * (without logging the request); use JoinWifi. It carried the password in
+ * the clear. The fields stay so the number is never reused.
  */
 export interface SetWifi {
   ssid: string;
   password: string;
+}
+
+/**
+ * Settings > Wi-Fi: the device's network now, and the last change asked
+ * from Settings. Answers WifiStatus. The owner of the primary instance gets
+ * managed=true when the device can change its own Wi-Fi; every other
+ * session, a child instance, a container (OTC_CONTAINER) and a device
+ * without NetworkManager, a wireless interface or the root runner get
+ * managed=false (not an error). A demo device answers managed=true,
+ * wired=true. Devices before release 140 answer error_code
+ * "unknown_payload": the apps hide the section until the next sign-in.
+ */
+export interface GetWifiStatus {
+}
+
+export interface WifiStatus {
+  /**
+   * The device changes its own Wi-Fi from Settings: Linux with
+   * NetworkManager running (not netplan-backed), a wireless interface,
+   * the root runner's otc-wifi-join.path active, and never in a container.
+   */
+  managed: boolean;
+  /** The Wi-Fi network it is on now; "" when not on Wi-Fi. */
+  ssid: string;
+  /** 0-100 (nmcli SIGNAL) for ssid; 0 when not on Wi-Fi. */
+  signal: number;
+  /** An Ethernet connection is up (NetworkManager: connected). */
+  wired: boolean;
+  /**
+   * The last change asked from Settings: while it runs, and for 15
+   * minutes after it ended. Absent otherwise (and after a reboot).
+   */
+  lastJoin?: WifiJoin | undefined;
+}
+
+export interface WifiJoin {
+  /** JoinWifi's answer carries it; the apps wait for this id to end. */
+  id: string;
+  ssid: string;
+  /** "joining" | "connected" | "failed". */
+  state: string;
+  /**
+   * With joining: "joining". With connected: "connected". With failed:
+   * wrong_password, auth_failed, not_found, timed_out, no_address,
+   * no_internet, unsupported_security, password_required, open_network (a
+   * password given, every access point with that name open), bad_request,
+   * no_wifi, busy, update_running, too_many, interrupted, no_answer,
+   * join_failed (also for any code this build doesn't know). Clients
+   * branch on state/code and show message.
+   */
+  code: string;
+  /**
+   * The same, in the request's language (dev.status.wifi_join.*, or with
+   * failed the variant that says where the device ended up:
+   * dev.status.wifi_join_back.* / dev.status.wifi_join_lost.*).
+   */
+  message: string;
+  /**
+   * With failed: the device had left its previous Wi-Fi network for this
+   * one and is back on it. False when it couldn't get back, and when it
+   * never left (the failure came before it switched, or it had no Wi-Fi
+   * network before) - message tells those apart.
+   */
+  restored: boolean;
+}
+
+/**
+ * Joins a Wi-Fi network: a new one, or the same one with its new
+ * password. Hands off to the root runner (scripts/device-runner/
+ * otc-wifi-join-runner.py) and answers WifiStatus with last_join state
+ * "joining" at once; the connection may then drop for about a minute.
+ * The runner keeps the new network only once the device reaches the
+ * internet through it (the bridge when it has one, else its gateway), and
+ * otherwise goes back to the previous one. Refused (RespEnvelope.error
+ * with error_code) before anything changes: "not_managed", "bad_name",
+ * "bad_password", "busy", "update_running", "too_many"; "demo" on a demo
+ * device; "unknown_payload" before release 140. A child instance gets an
+ * error without a code, a container dev.err.not_in_container.
+ */
+export interface JoinWifi {
+  /** 1-32 bytes of UTF-8, no control characters (below U+0020, U+007F). */
+  ssid: string;
+  /**
+   * RSA-OAEP(SHA-256) under this connection's GetPubKey key, like
+   * ReqCreateUser.password. Empty for an open network. The plaintext is
+   * 8-63 bytes of UTF-8 without control characters, or exactly 64
+   * hexadecimal digits.
+   */
+  password: Uint8Array;
+  /**
+   * Typed by hand (a network that hides its name): joined even when the
+   * scan doesn't show it.
+   */
+  hidden: boolean;
 }
 
 /**
@@ -2989,7 +3100,9 @@ export interface ReqEnvelope {
     | { $case: "reqRegenerateBridgeSecret"; reqRegenerateBridgeSecret: RegenerateBridgeSecret }
     | { $case: "reqRotateBridgeSecret"; reqRotateBridgeSecret: RotateBridgeSecret }
     | { $case: "reqListWifiNetworks"; reqListWifiNetworks: ListWifiNetworks }
-    | { $case: "reqSetWifi"; reqSetWifi: SetWifi }
+    | //
+    /** Retired in release 140: answered with error_code "unknown_payload". */
+    { $case: "reqSetWifi"; reqSetWifi: SetWifi }
     | { $case: "reqRegisterWebPush"; reqRegisterWebPush: RegisterWebPush }
     | { $case: "reqRegisterApnsToken"; reqRegisterApnsToken: RegisterApnsToken }
     | { $case: "reqGetVapidPublicKey"; reqGetVapidPublicKey: GetVapidPublicKey }
@@ -3155,6 +3268,13 @@ export interface ReqEnvelope {
      */
     { $case: "reqRemoveFromImageGroup"; reqRemoveFromImageGroup: RemoveFromImageGroup }
     | //
+    /**
+     * Settings > Wi-Fi (release 140): both answer with resp_wifi_status;
+     * devices before it with error_code "unknown_payload".
+     */
+    { $case: "reqGetWifiStatus"; reqGetWifiStatus: GetWifiStatus }
+    | { $case: "reqJoinWifi"; reqJoinWifi: JoinWifi }
+    | //
     /** Issue #93. Answers with the generic Ack. */
     { $case: "reqSetDeviceDisabled"; reqSetDeviceDisabled: ReqSetDeviceDisabled }
     | //
@@ -3302,6 +3422,9 @@ export interface RespEnvelope {
     | //
     /** Free up space: the answer to HasHashes. */
     { $case: "respHashesFound"; respHashesFound: HashesFound }
+    | //
+    /** Settings > Wi-Fi: the answer to GetWifiStatus and JoinWifi. */
+    { $case: "respWifiStatus"; respWifiStatus: WifiStatus }
     | undefined;
 }
 
@@ -16061,7 +16184,7 @@ export const ListWifiNetworks: MessageFns<ListWifiNetworks> = {
 };
 
 function createBaseWifiNetwork(): WifiNetwork {
-  return { ssid: "", signal: 0, secured: false };
+  return { ssid: "", signal: 0, secured: false, current: false, unsupported: false };
 }
 
 export const WifiNetwork: MessageFns<WifiNetwork> = {
@@ -16074,6 +16197,12 @@ export const WifiNetwork: MessageFns<WifiNetwork> = {
     }
     if (message.secured !== false) {
       writer.uint32(24).bool(message.secured);
+    }
+    if (message.current !== false) {
+      writer.uint32(32).bool(message.current);
+    }
+    if (message.unsupported !== false) {
+      writer.uint32(40).bool(message.unsupported);
     }
     return writer;
   },
@@ -16109,6 +16238,22 @@ export const WifiNetwork: MessageFns<WifiNetwork> = {
           message.secured = reader.bool();
           continue;
         }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.current = reader.bool();
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.unsupported = reader.bool();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -16123,6 +16268,8 @@ export const WifiNetwork: MessageFns<WifiNetwork> = {
       ssid: isSet(object.ssid) ? globalThis.String(object.ssid) : "",
       signal: isSet(object.signal) ? globalThis.Number(object.signal) : 0,
       secured: isSet(object.secured) ? globalThis.Boolean(object.secured) : false,
+      current: isSet(object.current) ? globalThis.Boolean(object.current) : false,
+      unsupported: isSet(object.unsupported) ? globalThis.Boolean(object.unsupported) : false,
     };
   },
 
@@ -16137,6 +16284,12 @@ export const WifiNetwork: MessageFns<WifiNetwork> = {
     if (message.secured !== false) {
       obj.secured = message.secured;
     }
+    if (message.current !== false) {
+      obj.current = message.current;
+    }
+    if (message.unsupported !== false) {
+      obj.unsupported = message.unsupported;
+    }
     return obj;
   },
 
@@ -16148,6 +16301,8 @@ export const WifiNetwork: MessageFns<WifiNetwork> = {
     message.ssid = object.ssid ?? "";
     message.signal = object.signal ?? 0;
     message.secured = object.secured ?? false;
+    message.current = object.current ?? false;
+    message.unsupported = object.unsupported ?? false;
     return message;
   },
 };
@@ -16286,6 +16441,407 @@ export const SetWifi: MessageFns<SetWifi> = {
     const message = createBaseSetWifi();
     message.ssid = object.ssid ?? "";
     message.password = object.password ?? "";
+    return message;
+  },
+};
+
+function createBaseGetWifiStatus(): GetWifiStatus {
+  return {};
+}
+
+export const GetWifiStatus: MessageFns<GetWifiStatus> = {
+  encode(_: GetWifiStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetWifiStatus {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetWifiStatus();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): GetWifiStatus {
+    return {};
+  },
+
+  toJSON(_: GetWifiStatus): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetWifiStatus>, I>>(base?: I): GetWifiStatus {
+    return GetWifiStatus.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetWifiStatus>, I>>(_: I): GetWifiStatus {
+    const message = createBaseGetWifiStatus();
+    return message;
+  },
+};
+
+function createBaseWifiStatus(): WifiStatus {
+  return { managed: false, ssid: "", signal: 0, wired: false, lastJoin: undefined };
+}
+
+export const WifiStatus: MessageFns<WifiStatus> = {
+  encode(message: WifiStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.managed !== false) {
+      writer.uint32(8).bool(message.managed);
+    }
+    if (message.ssid !== "") {
+      writer.uint32(18).string(message.ssid);
+    }
+    if (message.signal !== 0) {
+      writer.uint32(24).int32(message.signal);
+    }
+    if (message.wired !== false) {
+      writer.uint32(32).bool(message.wired);
+    }
+    if (message.lastJoin !== undefined) {
+      WifiJoin.encode(message.lastJoin, writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WifiStatus {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseWifiStatus();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.managed = reader.bool();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.ssid = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.signal = reader.int32();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.wired = reader.bool();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.lastJoin = WifiJoin.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): WifiStatus {
+    return {
+      managed: isSet(object.managed) ? globalThis.Boolean(object.managed) : false,
+      ssid: isSet(object.ssid) ? globalThis.String(object.ssid) : "",
+      signal: isSet(object.signal) ? globalThis.Number(object.signal) : 0,
+      wired: isSet(object.wired) ? globalThis.Boolean(object.wired) : false,
+      lastJoin: isSet(object.lastJoin) ? WifiJoin.fromJSON(object.lastJoin) : undefined,
+    };
+  },
+
+  toJSON(message: WifiStatus): unknown {
+    const obj: any = {};
+    if (message.managed !== false) {
+      obj.managed = message.managed;
+    }
+    if (message.ssid !== "") {
+      obj.ssid = message.ssid;
+    }
+    if (message.signal !== 0) {
+      obj.signal = Math.round(message.signal);
+    }
+    if (message.wired !== false) {
+      obj.wired = message.wired;
+    }
+    if (message.lastJoin !== undefined) {
+      obj.lastJoin = WifiJoin.toJSON(message.lastJoin);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<WifiStatus>, I>>(base?: I): WifiStatus {
+    return WifiStatus.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<WifiStatus>, I>>(object: I): WifiStatus {
+    const message = createBaseWifiStatus();
+    message.managed = object.managed ?? false;
+    message.ssid = object.ssid ?? "";
+    message.signal = object.signal ?? 0;
+    message.wired = object.wired ?? false;
+    message.lastJoin = (object.lastJoin !== undefined && object.lastJoin !== null)
+      ? WifiJoin.fromPartial(object.lastJoin)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseWifiJoin(): WifiJoin {
+  return { id: "", ssid: "", state: "", code: "", message: "", restored: false };
+}
+
+export const WifiJoin: MessageFns<WifiJoin> = {
+  encode(message: WifiJoin, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
+    }
+    if (message.ssid !== "") {
+      writer.uint32(18).string(message.ssid);
+    }
+    if (message.state !== "") {
+      writer.uint32(26).string(message.state);
+    }
+    if (message.code !== "") {
+      writer.uint32(34).string(message.code);
+    }
+    if (message.message !== "") {
+      writer.uint32(42).string(message.message);
+    }
+    if (message.restored !== false) {
+      writer.uint32(48).bool(message.restored);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WifiJoin {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseWifiJoin();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.ssid = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.state = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.code = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.message = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.restored = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): WifiJoin {
+    return {
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      ssid: isSet(object.ssid) ? globalThis.String(object.ssid) : "",
+      state: isSet(object.state) ? globalThis.String(object.state) : "",
+      code: isSet(object.code) ? globalThis.String(object.code) : "",
+      message: isSet(object.message) ? globalThis.String(object.message) : "",
+      restored: isSet(object.restored) ? globalThis.Boolean(object.restored) : false,
+    };
+  },
+
+  toJSON(message: WifiJoin): unknown {
+    const obj: any = {};
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.ssid !== "") {
+      obj.ssid = message.ssid;
+    }
+    if (message.state !== "") {
+      obj.state = message.state;
+    }
+    if (message.code !== "") {
+      obj.code = message.code;
+    }
+    if (message.message !== "") {
+      obj.message = message.message;
+    }
+    if (message.restored !== false) {
+      obj.restored = message.restored;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<WifiJoin>, I>>(base?: I): WifiJoin {
+    return WifiJoin.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<WifiJoin>, I>>(object: I): WifiJoin {
+    const message = createBaseWifiJoin();
+    message.id = object.id ?? "";
+    message.ssid = object.ssid ?? "";
+    message.state = object.state ?? "";
+    message.code = object.code ?? "";
+    message.message = object.message ?? "";
+    message.restored = object.restored ?? false;
+    return message;
+  },
+};
+
+function createBaseJoinWifi(): JoinWifi {
+  return { ssid: "", password: new Uint8Array(0), hidden: false };
+}
+
+export const JoinWifi: MessageFns<JoinWifi> = {
+  encode(message: JoinWifi, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ssid !== "") {
+      writer.uint32(10).string(message.ssid);
+    }
+    if (message.password.length !== 0) {
+      writer.uint32(18).bytes(message.password);
+    }
+    if (message.hidden !== false) {
+      writer.uint32(24).bool(message.hidden);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): JoinWifi {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseJoinWifi();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.ssid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.password = reader.bytes();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.hidden = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): JoinWifi {
+    return {
+      ssid: isSet(object.ssid) ? globalThis.String(object.ssid) : "",
+      password: isSet(object.password) ? bytesFromBase64(object.password) : new Uint8Array(0),
+      hidden: isSet(object.hidden) ? globalThis.Boolean(object.hidden) : false,
+    };
+  },
+
+  toJSON(message: JoinWifi): unknown {
+    const obj: any = {};
+    if (message.ssid !== "") {
+      obj.ssid = message.ssid;
+    }
+    if (message.password.length !== 0) {
+      obj.password = base64FromBytes(message.password);
+    }
+    if (message.hidden !== false) {
+      obj.hidden = message.hidden;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<JoinWifi>, I>>(base?: I): JoinWifi {
+    return JoinWifi.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<JoinWifi>, I>>(object: I): JoinWifi {
+    const message = createBaseJoinWifi();
+    message.ssid = object.ssid ?? "";
+    message.password = object.password ?? new Uint8Array(0);
+    message.hidden = object.hidden ?? false;
     return message;
   },
 };
@@ -21820,6 +22376,12 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       case "reqRemoveFromImageGroup":
         RemoveFromImageGroup.encode(message.payload.reqRemoveFromImageGroup, writer.uint32(1138).fork()).join();
         break;
+      case "reqGetWifiStatus":
+        GetWifiStatus.encode(message.payload.reqGetWifiStatus, writer.uint32(1146).fork()).join();
+        break;
+      case "reqJoinWifi":
+        JoinWifi.encode(message.payload.reqJoinWifi, writer.uint32(1154).fork()).join();
+        break;
       case "reqSetDeviceDisabled":
         ReqSetDeviceDisabled.encode(message.payload.reqSetDeviceDisabled, writer.uint32(658).fork()).join();
         break;
@@ -23092,6 +23654,25 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           };
           continue;
         }
+        case 143: {
+          if (tag !== 1146) {
+            break;
+          }
+
+          message.payload = {
+            $case: "reqGetWifiStatus",
+            reqGetWifiStatus: GetWifiStatus.decode(reader, reader.uint32()),
+          };
+          continue;
+        }
+        case 144: {
+          if (tag !== 1154) {
+            break;
+          }
+
+          message.payload = { $case: "reqJoinWifi", reqJoinWifi: JoinWifi.decode(reader, reader.uint32()) };
+          continue;
+        }
         case 82: {
           if (tag !== 658) {
             break;
@@ -23544,6 +24125,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
           $case: "reqRemoveFromImageGroup",
           reqRemoveFromImageGroup: RemoveFromImageGroup.fromJSON(object.reqRemoveFromImageGroup),
         }
+        : isSet(object.reqGetWifiStatus)
+        ? { $case: "reqGetWifiStatus", reqGetWifiStatus: GetWifiStatus.fromJSON(object.reqGetWifiStatus) }
+        : isSet(object.reqJoinWifi)
+        ? { $case: "reqJoinWifi", reqJoinWifi: JoinWifi.fromJSON(object.reqJoinWifi) }
         : isSet(object.reqSetDeviceDisabled)
         ? {
           $case: "reqSetDeviceDisabled",
@@ -23836,6 +24421,10 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
       obj.reqHasHashes = HasHashes.toJSON(message.payload.reqHasHashes);
     } else if (message.payload?.$case === "reqRemoveFromImageGroup") {
       obj.reqRemoveFromImageGroup = RemoveFromImageGroup.toJSON(message.payload.reqRemoveFromImageGroup);
+    } else if (message.payload?.$case === "reqGetWifiStatus") {
+      obj.reqGetWifiStatus = GetWifiStatus.toJSON(message.payload.reqGetWifiStatus);
+    } else if (message.payload?.$case === "reqJoinWifi") {
+      obj.reqJoinWifi = JoinWifi.toJSON(message.payload.reqJoinWifi);
     } else if (message.payload?.$case === "reqSetDeviceDisabled") {
       obj.reqSetDeviceDisabled = ReqSetDeviceDisabled.toJSON(message.payload.reqSetDeviceDisabled);
     } else if (message.payload?.$case === "reqIssueSessionToken") {
@@ -24953,6 +25542,21 @@ export const ReqEnvelope: MessageFns<ReqEnvelope> = {
         }
         break;
       }
+      case "reqGetWifiStatus": {
+        if (object.payload?.reqGetWifiStatus !== undefined && object.payload?.reqGetWifiStatus !== null) {
+          message.payload = {
+            $case: "reqGetWifiStatus",
+            reqGetWifiStatus: GetWifiStatus.fromPartial(object.payload.reqGetWifiStatus),
+          };
+        }
+        break;
+      }
+      case "reqJoinWifi": {
+        if (object.payload?.reqJoinWifi !== undefined && object.payload?.reqJoinWifi !== null) {
+          message.payload = { $case: "reqJoinWifi", reqJoinWifi: JoinWifi.fromPartial(object.payload.reqJoinWifi) };
+        }
+        break;
+      }
       case "reqSetDeviceDisabled": {
         if (object.payload?.reqSetDeviceDisabled !== undefined && object.payload?.reqSetDeviceDisabled !== null) {
           message.payload = {
@@ -25223,6 +25827,9 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         break;
       case "respHashesFound":
         HashesFound.encode(message.payload.respHashesFound, writer.uint32(562).fork()).join();
+        break;
+      case "respWifiStatus":
+        WifiStatus.encode(message.payload.respWifiStatus, writer.uint32(570).fork()).join();
         break;
     }
     return writer;
@@ -25854,6 +26461,14 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = { $case: "respHashesFound", respHashesFound: HashesFound.decode(reader, reader.uint32()) };
           continue;
         }
+        case 71: {
+          if (tag !== 570) {
+            break;
+          }
+
+          message.payload = { $case: "respWifiStatus", respWifiStatus: WifiStatus.decode(reader, reader.uint32()) };
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -26033,6 +26648,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
         ? { $case: "respFolderUsage", respFolderUsage: FolderUsage.fromJSON(object.respFolderUsage) }
         : isSet(object.respHashesFound)
         ? { $case: "respHashesFound", respHashesFound: HashesFound.fromJSON(object.respHashesFound) }
+        : isSet(object.respWifiStatus)
+        ? { $case: "respWifiStatus", respWifiStatus: WifiStatus.fromJSON(object.respWifiStatus) }
         : undefined,
     };
   },
@@ -26175,6 +26792,8 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
       obj.respFolderUsage = FolderUsage.toJSON(message.payload.respFolderUsage);
     } else if (message.payload?.$case === "respHashesFound") {
       obj.respHashesFound = HashesFound.toJSON(message.payload.respHashesFound);
+    } else if (message.payload?.$case === "respWifiStatus") {
+      obj.respWifiStatus = WifiStatus.toJSON(message.payload.respWifiStatus);
     }
     return obj;
   },
@@ -26710,6 +27329,15 @@ export const RespEnvelope: MessageFns<RespEnvelope> = {
           message.payload = {
             $case: "respHashesFound",
             respHashesFound: HashesFound.fromPartial(object.payload.respHashesFound),
+          };
+        }
+        break;
+      }
+      case "respWifiStatus": {
+        if (object.payload?.respWifiStatus !== undefined && object.payload?.respWifiStatus !== null) {
+          message.payload = {
+            $case: "respWifiStatus",
+            respWifiStatus: WifiStatus.fromPartial(object.payload.respWifiStatus),
           };
         }
         break;

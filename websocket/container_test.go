@@ -247,13 +247,17 @@ func TestContainerGateMachineRequests(t *testing.T) {
 	if !handled || !resp.Error || resp.ErrorMessage != refused {
 		t.Errorf("disks chosen: %+v", resp)
 	}
-	resp, handled = ch.containerGate(&pb.ReqEnvelope{Id: 3, Payload: &pb.ReqEnvelope_ReqSetWifi{ReqSetWifi: &pb.SetWifi{Ssid: "home"}}}, "")
+	resp, handled = ch.containerGate(&pb.ReqEnvelope{Id: 3, Payload: &pb.ReqEnvelope_ReqJoinWifi{ReqJoinWifi: &pb.JoinWifi{Ssid: "home"}}}, "")
 	if !handled || !resp.Error || resp.ErrorMessage != refused {
 		t.Errorf("Wi-Fi: %+v", resp)
 	}
-	resp, _ = ch.processMessage(&pb.ReqEnvelope{Id: 3, Lang: "de", Payload: &pb.ReqEnvelope_ReqSetWifi{ReqSetWifi: &pb.SetWifi{Ssid: "home"}}})
+	resp, _ = ch.processMessage(&pb.ReqEnvelope{Id: 3, Lang: "de", Payload: &pb.ReqEnvelope_ReqJoinWifi{ReqJoinWifi: &pb.JoinWifi{Ssid: "home"}}})
 	if !resp.Error || resp.ErrorMessage != "In Docker nicht verfügbar: Um Laufwerke und Netzwerk kümmert sich der Server, auf dem das Gerät läuft." {
 		t.Errorf("Wi-Fi, in German: %+v", resp)
+	}
+	resp, handled = ch.containerGate(&pb.ReqEnvelope{Id: 3, Payload: &pb.ReqEnvelope_ReqGetWifiStatus{ReqGetWifiStatus: &pb.GetWifiStatus{}}}, "")
+	if !handled || resp.Error || resp.GetRespWifiStatus() == nil || resp.GetRespWifiStatus().Managed {
+		t.Errorf("Wi-Fi status: %+v", resp)
 	}
 	if resp, handled := ch.containerGate(&pb.ReqEnvelope{Id: 3, Payload: &pb.ReqEnvelope_ReqListFiles{ReqListFiles: &pb.ListFiles{}}}, ""); handled || resp != nil {
 		t.Errorf("anything else: %+v", resp)
@@ -266,7 +270,7 @@ func TestContainerGateOffElsewhere(t *testing.T) {
 	t.Setenv("OTC_CONTAINER", "")
 	ch := &connHandler{mg: &Manager{}}
 	ch.setSession(newTestAuthenticatedSession(t))
-	resp, _ := ch.processMessage(&pb.ReqEnvelope{Id: 3, Payload: &pb.ReqEnvelope_ReqSetWifi{ReqSetWifi: &pb.SetWifi{Ssid: "home"}}})
+	resp, _ := ch.processMessage(&pb.ReqEnvelope{Id: 3, Payload: &pb.ReqEnvelope_ReqJoinWifi{ReqJoinWifi: &pb.JoinWifi{Ssid: "home"}}})
 	if resp == nil || !resp.Error || resp.ErrorMessage != "not available on this instance" {
 		t.Errorf("%+v", resp)
 	}

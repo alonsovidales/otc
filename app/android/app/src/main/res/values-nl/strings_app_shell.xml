@@ -164,6 +164,7 @@
         <item quantity="one">%1$s min. geleden</item>
         <item quantity="other">%1$s min. geleden</item>
     </plurals>
+    <string name="app_shell_unreachable_wifi_hint">Heb je de naam of het wachtwoord van je wifi gewijzigd? Sluit het apparaat met een ethernetkabel aan op je router en open daarna Instellingen › Wifi.</string>
     <plurals name="app_shell_upload_left">
         <item quantity="one">Nog %1$s</item>
         <item quantity="other">Nog %1$s</item>

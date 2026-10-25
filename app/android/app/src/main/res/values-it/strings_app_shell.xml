@@ -171,6 +171,7 @@
         <item quantity="many">%1$s min fa</item>
         <item quantity="other">%1$s min fa</item>
     </plurals>
+    <string name="app_shell_unreachable_wifi_hint">Hai cambiato il nome o la password del tuo Wi-Fi? Collega il dispositivo al router con un cavo Ethernet, poi apri Impostazioni › Wi-Fi.</string>
     <plurals name="app_shell_upload_left">
         <item quantity="one">Manca %1$s</item>
         <item quantity="many">Mancano %1$s</item>

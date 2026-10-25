@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Watches for the request Settings > Wi-Fi writes (the device's network
+# package, as the otc user, on the /run tmpfs: it holds the Wi-Fi
+# password) and starts otc-wifi-join.service (as root).
+[Unit]
+Description=Off The Cloud Wi-Fi change trigger
+
+[Path]
+PathExists=/run/otc/wifi-join.request
+Unit=otc-wifi-join.service
+
+[Install]
+WantedBy=multi-user.target

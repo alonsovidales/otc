@@ -749,6 +749,34 @@
     "text": "Worin unterscheidet es sich von Immich, PhotoPrism oder Nextcloud?",
     "en": "How is it different from Immich, PhotoPrism or Nextcloud?"
   },
+  "site.landing.faq.wifi.p1": {
+    "text": "Öffne in der Web-App Einstellungen › WLAN, wähle dein Netzwerk und gib sein Passwort ein. Das Gerät wechselt in etwa einer Minute ins neue Netzwerk, und wenn es nicht funktioniert, kehrt es in das vorherige zurück.",
+    "en": "In the web app, open Settings › Wi-Fi, choose your network and enter its password. The device switches over in about a minute, and if the new network doesn't work it goes back to the one it was on."
+  },
+  "site.landing.faq.wifi.p2": {
+    "text": "Erreicht das Gerät dein WLAN nicht mehr, kommst du per Kabel wieder an das Gerät heran:",
+    "en": "If the device can't reach your Wi-Fi any more, use a cable to get back in:"
+  },
+  "site.landing.faq.wifi.p3": {
+    "text": "Einstellungen › WLAN gibt es für den Besitzer des Geräts, im Image für Raspberry Pi und in Linux-Installationen, in denen NetworkManager das WLAN ohne netplan verwaltet. Es braucht ein aktuelles Gerät: Siehst du es nicht, installiere zuerst das neueste Update unter Einstellungen › Geräteversion – das klappt auch über das Kabel.",
+    "en": "Settings › Wi-Fi is there for the device's owner, on the Raspberry Pi image and on Linux installs where NetworkManager manages the Wi-Fi without netplan. It needs an up-to-date device: if you don't see it, install the latest update in Settings › Device version first, which also works over the cable."
+  },
+  "site.landing.faq.wifi.q": {
+    "text": "Ich habe den Namen oder das Passwort meines WLANs geändert. Wie sage ich das dem Gerät?",
+    "en": "I changed my Wi-Fi's name or password. How do I tell the device?"
+  },
+  "site.landing.faq.wifi.step1": {
+    "text": "Verbinde das Gerät mit einem Ethernet-Kabel mit deinem Router und warte ein, zwei Minuten.",
+    "en": "Connect the device to your router with an Ethernet cable and wait a minute or two."
+  },
+  "site.landing.faq.wifi.step2": {
+    "text": "Öffne in der Web-App Einstellungen › WLAN, wähle dein Netzwerk und gib sein Passwort ein.",
+    "en": "Open Settings › Wi-Fi in the web app, choose your network and enter its password."
+  },
+  "site.landing.faq.wifi.step3": {
+    "text": "Sobald die Einstellungen das Gerät in deinem WLAN zeigen, zieh das Kabel ab.",
+    "en": "Once Settings shows the device on your Wi-Fi, unplug the cable."
+  },
   "site.landing.footer.contact": {
     "text": "Kontakt",
     "en": "Contact"

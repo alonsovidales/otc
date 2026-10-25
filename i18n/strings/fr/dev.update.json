@@ -194,5 +194,9 @@
   "dev.update.web_unpack_failed": {
     "text": "impossible de décompresser les ressources web",
     "en": "could not unpack the web assets"
+  },
+  "dev.update.wifi_changing": {
+    "text": "le Wi-Fi de l’appareil est en cours de modification ; réessayez dans quelques minutes",
+    "en": "the device's Wi-Fi is being changed; try again in a few minutes"
   }
 }

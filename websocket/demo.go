@@ -178,12 +178,14 @@ var demoRules = map[reflect.Type]demoRule{
 	// answered: the bridge (without the server's own address, see
 	// GetBridgeAccess), Tailscale, the update check (kept for a while,
 	// demoGate, so visitors don't each reach GitHub), and no disks or
-	// Wi-Fi networks to set up (demoGate).
+	// Wi-Fi networks to set up (demoGate), and Settings > Wi-Fi on a cable
+	// (demoGate), whose change is refused.
 	demoReq(&pb.ReqEnvelope_ReqGetBridgeAccess{}):    demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqGetTailscaleStatus{}): demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqCheckUpdate{}):        demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqListStorageDevices{}): demoAllow,
 	demoReq(&pb.ReqEnvelope_ReqListWifiNetworks{}):   demoAllow,
+	demoReq(&pb.ReqEnvelope_ReqGetWifiStatus{}):      demoAllow,
 
 	// Refused, listed so the test can tell them from requests nobody has
 	// classified yet. The logs would show visitors' addresses;
@@ -236,6 +238,7 @@ var demoRules = map[reflect.Type]demoRule{
 	demoReq(&pb.ReqEnvelope_ReqRestartDevice{}):             demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqSetupStorage{}):              demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqSetWifi{}):                   demoRefuse,
+	demoReq(&pb.ReqEnvelope_ReqJoinWifi{}):                  demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqSetupTailscale{}):            demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqBridgeSignIn{}):              demoRefuse,
 	demoReq(&pb.ReqEnvelope_ReqEnableBridge{}):              demoRefuse,
@@ -310,6 +313,14 @@ func (ch *connHandler) demoGate(env *pb.ReqEnvelope, lang string) (resp *pb.Resp
 		return &pb.RespEnvelope{Id: env.Id, Payload: &pb.RespEnvelope_RespStorageDevices{RespStorageDevices: &pb.StorageDevices{}}}, true
 	case *pb.ReqEnvelope_ReqListWifiNetworks:
 		return &pb.RespEnvelope{Id: env.Id, Payload: &pb.RespEnvelope_RespWifiNetworks{RespWifiNetworks: &pb.WifiNetworks{}}}, true
+	case *pb.ReqEnvelope_ReqGetWifiStatus:
+		// Settings > Wi-Fi shows, as on a device on a cable; changing it
+		// is refused (demoRules). Signed in only, like every Settings
+		// read: without a session the usual refusal stands.
+		if ch.getSession() == nil {
+			return nil, false
+		}
+		return &pb.RespEnvelope{Id: env.Id, Payload: &pb.RespEnvelope_RespWifiStatus{RespWifiStatus: &pb.WifiStatus{Managed: true, Wired: true}}}, true
 	case *pb.ReqEnvelope_ReqCheckUpdate:
 		return &pb.RespEnvelope{Id: env.Id, Payload: &pb.RespEnvelope_RespUpdateInfo{RespUpdateInfo: demoUpdateInfo(lang, time.Now())}}, true
 	case *pb.ReqEnvelope_ReqGetLocalEndpoint:

@@ -13,10 +13,12 @@ raid_watch.py for storage — does that privileged half:
     broadcasting one), it brings up a temporary open WiFi network named
     "Off The Cloud" so a phone/laptop can join it and reach the device's
     own setup wizard.
-  - It polls CONFIG["request_file"] for a join request written by the otc
-    service (network.RequestJoin) — {"ssid": ..., "password": ...} — and
+  - During setup, it polls CONFIG["request_file"] for a join request
+    written by the setup wizard — {"ssid": ..., "password": ...} — and
     when one shows up, tries to join that real network. On success, the
-    temporary AP is torn down since it's no longer needed.
+    temporary AP is torn down since it's no longer needed. After setup,
+    Settings > Wi-Fi changes the network through the otc-wifi-join runner
+    instead (scripts/device-runner), and a request here is dropped unread.
 
 Run as root (a normal user's `nmcli` can scan but can't create/activate
 connections). Requires NetworkManager (nmcli) — the default network stack
@@ -27,6 +29,8 @@ a device that has no internet yet to install them with.
 import json
 import re
 import os
+import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -427,28 +431,81 @@ def teardown_ap_mode():
     run(["nmcli", "connection", "delete", name])
 
 
+# The largest join request the setup wizard writes.
+MAX_REQUEST_BYTES = 4096
+
+
+def read_join_request(path):
+    """The join request at path as a dict, or None. Opened without
+    following a symlink and without blocking on a FIFO, and only a regular
+    file of at most MAX_REQUEST_BYTES is read: /var/lib/otc is the otc
+    user's directory, and this runs as root."""
+    try:
+        fd = os.open(str(path), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
+    except OSError:
+        return None
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode) or st.st_size > MAX_REQUEST_BYTES:
+            return None
+        data = os.read(fd, MAX_REQUEST_BYTES + 1)
+        if len(data) > MAX_REQUEST_BYTES:
+            return None
+        request = json.loads(data.decode("utf-8"))
+        return request if isinstance(request, dict) else None
+    except (OSError, ValueError):
+        return None
+    finally:
+        os.close(fd)
+
+
+def drop_join_request(path):
+    """Removes the join request, whatever was put there: a directory too
+    (removed without following links), so it can't stop this loop."""
+    try:
+        if os.path.isdir(str(path)) and not os.path.islink(str(path)):
+            shutil.rmtree(str(path), ignore_errors=True)
+        else:
+            os.unlink(str(path))
+    except FileNotFoundError:
+        pass
+    except OSError as e:
+        print(f"[network-setup] could not remove the join request: {type(e).__name__}")
+
+
 def perform_pending_wifi_join():
-    """Reads CONFIG['request_file'] (written by the otc service via
-    network.RequestJoin) and tries to join that network, then removes the
-    request file either way — a bad password isn't something retrying
-    on its own will ever fix, so this doesn't loop on failure; the owner
-    just tries again from the setup UI, which writes a fresh request."""
+    """Reads CONFIG['request_file'] (written by the setup wizard) and tries
+    to join that network, then removes the request file either way — a bad
+    password isn't something retrying on its own will ever fix, so this
+    doesn't loop on failure; the owner just tries again from the setup UI,
+    which writes a fresh request.
+
+    During setup only. Once set up, the device changes its Wi-Fi from
+    Settings through its own root runner (otc-wifi-join-runner, which
+    tries the new network before letting the old one go); a request found
+    here then - left by a device before release 140, whose Settings wrote
+    it with the password in the clear - is removed unread."""
     req_path = Path(CONFIG["request_file"])
-    if not req_path.exists():
+    if not os.path.lexists(str(req_path)):
+        return
+    # Root's own marker first: setup_done()'s marker is in the otc user's
+    # directory, which that user could remove to reopen this path.
+    if Path(CONFIG["install_complete_marker"]).exists() or setup_done():
+        drop_join_request(req_path)
+        print("[network-setup] removed a Wi-Fi join request left after setup, unread")
         return
 
-    try:
-        request = json.loads(req_path.read_text())
-    except Exception as e:
-        print(f"[network-setup] could not parse {req_path}: {e}")
-        req_path.unlink(missing_ok=True)
+    request = read_join_request(req_path)
+    if request is None:
+        print("[network-setup] could not read the join request, ignoring it")
+        drop_join_request(req_path)
         return
 
     ssid = request.get("ssid") or ""
     password = request.get("password") or ""
     if not ssid:
         print("[network-setup] join request had no ssid, ignoring")
-        req_path.unlink(missing_ok=True)
+        drop_join_request(req_path)
         return
 
     security = (request.get("security") or "").upper()
@@ -497,7 +554,7 @@ def perform_pending_wifi_join():
     except Exception as e:
         print(f"[network-setup] could not write {CONFIG['result_file']}: {e}")
 
-    req_path.unlink(missing_ok=True)
+    drop_join_request(req_path)
 
     if not setup_done():
         # Back up for the person on the phone: on the joined network's

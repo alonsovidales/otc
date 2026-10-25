@@ -238,3 +238,8 @@ func DevUpdateWebInstallFailed() Msg {
 func DevUpdateWebUnpackFailed() Msg {
 	return Msg{Key: "dev.update.web_unpack_failed"}
 }
+
+// DevUpdateWifiChanging is dev.update.wifi_changing: "the device's Wi-Fi is being changed; try again in a few minutes".
+func DevUpdateWifiChanging() Msg {
+	return Msg{Key: "dev.update.wifi_changing"}
+}

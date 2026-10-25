@@ -82,8 +82,16 @@
     "text": "log sconosciuto “{source}”",
     "en": "unknown log \"{source}\""
   },
-  "dev.device.wifi_no_ssid": {
-    "text": "l’SSID non può essere vuoto",
-    "en": "ssid cannot be empty"
+  "dev.device.wifi_bad_name": {
+    "text": "Il nome di una rete Wi-Fi ha da 1 a 32 caratteri (le lettere accentate e le emoji contano come due o più), senza tabulazioni né interruzioni di riga.",
+    "en": "A Wi-Fi network name has 1 to 32 characters (accented letters and emoji count as two or more), without tabs or line breaks."
+  },
+  "dev.device.wifi_bad_password": {
+    "text": "Una password Wi-Fi ha da 8 a 63 caratteri (le lettere accentate e alcuni simboli contano come due o tre), oppure esattamente 64 cifre esadecimali.",
+    "en": "A Wi-Fi password has 8 to 63 characters (accented letters and some symbols count as two or three), or exactly 64 hexadecimal digits."
+  },
+  "dev.device.wifi_not_managed": {
+    "text": "Il Wi-Fi di questo dispositivo non può essere cambiato da Impostazioni.",
+    "en": "This device's Wi-Fi can't be changed from Settings."
   }
 }

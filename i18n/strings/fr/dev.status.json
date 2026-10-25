@@ -188,6 +188,10 @@
     "text": "demande inconnue",
     "en": "unknown request"
   },
+  "dev.status.wifi.busy": {
+    "text": "le Wi-Fi était en cours de modification depuis les Paramètres",
+    "en": "the Wi-Fi was being changed from Settings"
+  },
   "dev.status.wifi.no_connection": {
     "text": "l’appareil n’a aucune connexion réseau à redémarrer",
     "en": "the device has no network connection to restart"
@@ -211,5 +215,145 @@
   "dev.status.wifi.too_soon": {
     "text": "le Wi-Fi a été redémarré il y a moins de 30 minutes",
     "en": "the Wi-Fi was restarted less than 30 minutes ago"
+  },
+  "dev.status.wifi_join.auth_failed": {
+    "text": "Impossible de se connecter à {ssid} : vérifiez le mot de passe, et que l’appareil est assez près du routeur.",
+    "en": "Could not connect to {ssid}: check the password, and that the device is close enough to the router."
+  },
+  "dev.status.wifi_join.bad_request": {
+    "text": "L’appareil n’a pas pu lire les détails de la modification. Réessayez.",
+    "en": "The device could not read the details of the change. Try again."
+  },
+  "dev.status.wifi_join.busy": {
+    "text": "Le Wi-Fi de l’appareil est occupé par une autre modification. Réessayez dans quelques minutes.",
+    "en": "The device's Wi-Fi is busy with another change. Try again in a few minutes."
+  },
+  "dev.status.wifi_join.connected": {
+    "text": "Connecté à {ssid}.",
+    "en": "Connected to {ssid}."
+  },
+  "dev.status.wifi_join.interrupted": {
+    "text": "La connexion à {ssid} a été interrompue.",
+    "en": "Connecting to {ssid} was interrupted."
+  },
+  "dev.status.wifi_join.join_failed": {
+    "text": "Impossible de se connecter à {ssid}.",
+    "en": "Could not connect to {ssid}."
+  },
+  "dev.status.wifi_join.joining": {
+    "text": "Connexion à {ssid}…",
+    "en": "Connecting to {ssid}…"
+  },
+  "dev.status.wifi_join.no_address": {
+    "text": "L’appareil s’est connecté à {ssid}, mais le réseau ne lui a donné aucune adresse.",
+    "en": "The device connected to {ssid}, but the network gave it no address."
+  },
+  "dev.status.wifi_join.no_answer": {
+    "text": "L’appareil n’a pas commencé à se connecter à {ssid}. Réessayez, ou redémarrez l’appareil dans Paramètres › Version de l’appareil.",
+    "en": "The device didn't start connecting to {ssid}. Try again, or restart the device in Settings › Device version."
+  },
+  "dev.status.wifi_join.no_internet": {
+    "text": "L’appareil s’est connecté à {ssid}, mais n’a pas pu accéder à internet par ce réseau ; il s’est donc déconnecté.",
+    "en": "The device connected to {ssid}, but couldn't reach the internet through it, so it disconnected."
+  },
+  "dev.status.wifi_join.no_wifi": {
+    "text": "Le Wi-Fi de l’appareil n’est pas disponible pour le moment ; il ne peut donc pas être modifié.",
+    "en": "The device's Wi-Fi isn't available right now, so it can't be changed."
+  },
+  "dev.status.wifi_join.not_found": {
+    "text": "Impossible de trouver {ssid}. Vérifiez le nom, et que l’appareil est assez près du routeur.",
+    "en": "Could not find {ssid}. Check the name, and that the device is close enough to the router."
+  },
+  "dev.status.wifi_join.open_network": {
+    "text": "Le réseau {ssid} est ouvert (il n’a pas de mot de passe) : l’appareil ne s’y est donc pas connecté. Vérifiez qu’il s’agit bien de votre réseau ; pour l’y connecter quand même, laissez le mot de passe vide.",
+    "en": "The network {ssid} is open (it has no password), so the device didn't connect to it. Check that it is your network; to join it anyway, leave the password empty."
+  },
+  "dev.status.wifi_join.password_required": {
+    "text": "Le réseau {ssid} nécessite un mot de passe.",
+    "en": "The network {ssid} needs a password."
+  },
+  "dev.status.wifi_join.timed_out": {
+    "text": "Le réseau {ssid} n’a pas répondu à temps.",
+    "en": "The network {ssid} didn't answer in time."
+  },
+  "dev.status.wifi_join.too_many": {
+    "text": "Trop de tentatives en peu de temps. Attendez quelques minutes, puis réessayez.",
+    "en": "Too many attempts in a short time. Wait a few minutes and try again."
+  },
+  "dev.status.wifi_join.unsupported_security": {
+    "text": "L’appareil ne peut pas se connecter à {ssid} : il rejoint les réseaux ouverts et les réseaux sécurisés en WPA2 ou WPA3 Personnel.",
+    "en": "The device can't connect to {ssid}: it joins open networks and networks with WPA2 or WPA3 Personal security."
+  },
+  "dev.status.wifi_join.update_running": {
+    "text": "Une mise à jour est en cours. Réessayez une fois qu’elle sera terminée.",
+    "en": "An update is running. Try again once it has finished."
+  },
+  "dev.status.wifi_join.wrong_password": {
+    "text": "Impossible de se connecter à {ssid} : le mot de passe est incorrect.",
+    "en": "Could not connect to {ssid}: the password is wrong."
+  },
+  "dev.status.wifi_join_back.auth_failed": {
+    "text": "Impossible de se connecter à {ssid} : vérifiez le mot de passe, et que l’appareil est assez près du routeur. L’appareil est revenu sur son réseau précédent.",
+    "en": "Could not connect to {ssid}: check the password, and that the device is close enough to the router. The device is back on its previous network."
+  },
+  "dev.status.wifi_join_back.interrupted": {
+    "text": "La connexion à {ssid} a été interrompue. L’appareil est revenu sur son réseau précédent.",
+    "en": "Connecting to {ssid} was interrupted. The device is back on its previous network."
+  },
+  "dev.status.wifi_join_back.join_failed": {
+    "text": "Impossible de se connecter à {ssid}. L’appareil est revenu sur son réseau précédent.",
+    "en": "Could not connect to {ssid}. The device is back on its previous network."
+  },
+  "dev.status.wifi_join_back.no_address": {
+    "text": "L’appareil s’est connecté à {ssid}, mais le réseau ne lui a donné aucune adresse. L’appareil est revenu sur son réseau précédent.",
+    "en": "The device connected to {ssid}, but the network gave it no address. The device is back on its previous network."
+  },
+  "dev.status.wifi_join_back.no_internet": {
+    "text": "L’appareil s’est connecté à {ssid}, mais n’a pas pu accéder à internet par ce réseau ; il s’est donc déconnecté. L’appareil est revenu sur son réseau précédent.",
+    "en": "The device connected to {ssid}, but couldn't reach the internet through it, so it disconnected. The device is back on its previous network."
+  },
+  "dev.status.wifi_join_back.not_found": {
+    "text": "Impossible de trouver {ssid}. Vérifiez le nom, et que l’appareil est assez près du routeur. L’appareil est revenu sur son réseau précédent.",
+    "en": "Could not find {ssid}. Check the name, and that the device is close enough to the router. The device is back on its previous network."
+  },
+  "dev.status.wifi_join_back.timed_out": {
+    "text": "Le réseau {ssid} n’a pas répondu à temps. L’appareil est revenu sur son réseau précédent.",
+    "en": "The network {ssid} didn't answer in time. The device is back on its previous network."
+  },
+  "dev.status.wifi_join_back.wrong_password": {
+    "text": "Impossible de se connecter à {ssid} : le mot de passe est incorrect. L’appareil est revenu sur son réseau précédent.",
+    "en": "Could not connect to {ssid}: the password is wrong. The device is back on its previous network."
+  },
+  "dev.status.wifi_join_lost.auth_failed": {
+    "text": "Impossible de se connecter à {ssid} : vérifiez le mot de passe, et que l’appareil est assez près du routeur. L’appareil n’a pas pu revenir sur son réseau précédent : s’il ne répond pas, reliez-le à votre routeur avec un câble Ethernet.",
+    "en": "Could not connect to {ssid}: check the password, and that the device is close enough to the router. The device couldn't get back on its previous network: if it doesn't answer, connect it to your router with an Ethernet cable."
+  },
+  "dev.status.wifi_join_lost.interrupted": {
+    "text": "La connexion à {ssid} a été interrompue. L’appareil n’a pas pu revenir sur son réseau précédent : s’il ne répond pas, reliez-le à votre routeur avec un câble Ethernet.",
+    "en": "Connecting to {ssid} was interrupted. The device couldn't get back on its previous network: if it doesn't answer, connect it to your router with an Ethernet cable."
+  },
+  "dev.status.wifi_join_lost.join_failed": {
+    "text": "Impossible de se connecter à {ssid}. L’appareil n’a pas pu revenir sur son réseau précédent : s’il ne répond pas, reliez-le à votre routeur avec un câble Ethernet.",
+    "en": "Could not connect to {ssid}. The device couldn't get back on its previous network: if it doesn't answer, connect it to your router with an Ethernet cable."
+  },
+  "dev.status.wifi_join_lost.no_address": {
+    "text": "L’appareil s’est connecté à {ssid}, mais le réseau ne lui a donné aucune adresse. L’appareil n’a pas pu revenir sur son réseau précédent : s’il ne répond pas, reliez-le à votre routeur avec un câble Ethernet.",
+    "en": "The device connected to {ssid}, but the network gave it no address. The device couldn't get back on its previous network: if it doesn't answer, connect it to your router with an Ethernet cable."
+  },
+  "dev.status.wifi_join_lost.no_internet": {
+    "text": "L’appareil s’est connecté à {ssid}, mais n’a pas pu accéder à internet par ce réseau ; il s’est donc déconnecté. L’appareil n’a pas pu revenir sur son réseau précédent : s’il ne répond pas, reliez-le à votre routeur avec un câble Ethernet.",
+    "en": "The device connected to {ssid}, but couldn't reach the internet through it, so it disconnected. The device couldn't get back on its previous network: if it doesn't answer, connect it to your router with an Ethernet cable."
+  },
+  "dev.status.wifi_join_lost.not_found": {
+    "text": "Impossible de trouver {ssid}. Vérifiez le nom, et que l’appareil est assez près du routeur. L’appareil n’a pas pu revenir sur son réseau précédent : s’il ne répond pas, reliez-le à votre routeur avec un câble Ethernet.",
+    "en": "Could not find {ssid}. Check the name, and that the device is close enough to the router. The device couldn't get back on its previous network: if it doesn't answer, connect it to your router with an Ethernet cable."
+  },
+  "dev.status.wifi_join_lost.timed_out": {
+    "text": "Le réseau {ssid} n’a pas répondu à temps. L’appareil n’a pas pu revenir sur son réseau précédent : s’il ne répond pas, reliez-le à votre routeur avec un câble Ethernet.",
+    "en": "The network {ssid} didn't answer in time. The device couldn't get back on its previous network: if it doesn't answer, connect it to your router with an Ethernet cable."
+  },
+  "dev.status.wifi_join_lost.wrong_password": {
+    "text": "Impossible de se connecter à {ssid} : le mot de passe est incorrect. L’appareil n’a pas pu revenir sur son réseau précédent : s’il ne répond pas, reliez-le à votre routeur avec un câble Ethernet.",
+    "en": "Could not connect to {ssid}: the password is wrong. The device couldn't get back on its previous network: if it doesn't answer, connect it to your router with an Ethernet cable."
   }
 }

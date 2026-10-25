@@ -749,6 +749,34 @@
     "text": "Qual é a diferença em relação ao Immich, ao PhotoPrism ou ao Nextcloud?",
     "en": "How is it different from Immich, PhotoPrism or Nextcloud?"
   },
+  "site.landing.faq.wifi.p1": {
+    "text": "Na app web, abre Definições › Wi-Fi, escolhe a tua rede e introduz a palavra-passe dela. O dispositivo muda de rede em cerca de um minuto e, se a nova rede não funcionar, volta à rede em que estava.",
+    "en": "In the web app, open Settings › Wi-Fi, choose your network and enter its password. The device switches over in about a minute, and if the new network doesn't work it goes back to the one it was on."
+  },
+  "site.landing.faq.wifi.p2": {
+    "text": "Se o dispositivo já não consegue ligar-se ao teu Wi-Fi, usa um cabo para voltar a aceder-lhe:",
+    "en": "If the device can't reach your Wi-Fi any more, use a cable to get back in:"
+  },
+  "site.landing.faq.wifi.p3": {
+    "text": "Definições › Wi-Fi está disponível para o proprietário do dispositivo, na imagem para Raspberry Pi e nas instalações Linux em que o NetworkManager gere o Wi-Fi sem netplan. Precisa de um dispositivo atualizado: se não a vires, instala primeiro a atualização mais recente em Definições › Versão do dispositivo, o que também funciona pelo cabo.",
+    "en": "Settings › Wi-Fi is there for the device's owner, on the Raspberry Pi image and on Linux installs where NetworkManager manages the Wi-Fi without netplan. It needs an up-to-date device: if you don't see it, install the latest update in Settings › Device version first, which also works over the cable."
+  },
+  "site.landing.faq.wifi.q": {
+    "text": "Mudei o nome ou a palavra-passe do meu Wi-Fi. Como digo isso ao dispositivo?",
+    "en": "I changed my Wi-Fi's name or password. How do I tell the device?"
+  },
+  "site.landing.faq.wifi.step1": {
+    "text": "Liga o dispositivo ao teu router com um cabo Ethernet e espera um ou dois minutos.",
+    "en": "Connect the device to your router with an Ethernet cable and wait a minute or two."
+  },
+  "site.landing.faq.wifi.step2": {
+    "text": "Abre Definições › Wi-Fi na app web, escolhe a tua rede e introduz a palavra-passe dela.",
+    "en": "Open Settings › Wi-Fi in the web app, choose your network and enter its password."
+  },
+  "site.landing.faq.wifi.step3": {
+    "text": "Quando as Definições mostrarem o dispositivo no teu Wi-Fi, desliga o cabo.",
+    "en": "Once Settings shows the device on your Wi-Fi, unplug the cable."
+  },
   "site.landing.footer.contact": {
     "text": "Contacto",
     "en": "Contact"

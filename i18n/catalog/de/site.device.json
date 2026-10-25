@@ -6,5 +6,6 @@
   "site.device.unavailable.heading": {"text": "Dieses Gerät ist gerade nicht verfügbar"},
   "site.device.unavailable.retry": {"text": "Erneut versuchen"},
   "site.device.unavailable.text": {"text": "Es scheint ausgeschaltet, offline oder noch beim Starten zu sein. Es ist nichts verloren – alles bleibt auf dem Gerät selbst. Versuche es gleich noch einmal."},
-  "site.device.unavailable.title": {"text": "Gerät nicht verfügbar"}
+  "site.device.unavailable.title": {"text": "Gerät nicht verfügbar"},
+  "site.device.unavailable.wifi_hint": {"text": "Du hast den Namen oder das Passwort deines WLANs geändert? Verbinde das Gerät mit einem Ethernet-Kabel mit deinem Router und öffne dann Einstellungen › WLAN."}
 }

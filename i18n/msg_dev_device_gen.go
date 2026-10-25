@@ -104,7 +104,17 @@ func DevDeviceUnknownLog(source string) Msg {
 	return Msg{Key: "dev.device.unknown_log", Args: map[string]any{"source": source}}
 }
 
-// DevDeviceWifiNoSsid is dev.device.wifi_no_ssid: "ssid cannot be empty".
-func DevDeviceWifiNoSsid() Msg {
-	return Msg{Key: "dev.device.wifi_no_ssid"}
+// DevDeviceWifiBadName is dev.device.wifi_bad_name: "A Wi-Fi network name has 1 to 32 characters (accented letters and emoji count as…".
+func DevDeviceWifiBadName() Msg {
+	return Msg{Key: "dev.device.wifi_bad_name"}
+}
+
+// DevDeviceWifiBadPassword is dev.device.wifi_bad_password: "A Wi-Fi password has 8 to 63 characters (accented letters and some symbols count…".
+func DevDeviceWifiBadPassword() Msg {
+	return Msg{Key: "dev.device.wifi_bad_password"}
+}
+
+// DevDeviceWifiNotManaged is dev.device.wifi_not_managed: "This device's Wi-Fi can't be changed from Settings.".
+func DevDeviceWifiNotManaged() Msg {
+	return Msg{Key: "dev.device.wifi_not_managed"}
 }

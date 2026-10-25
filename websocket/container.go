@@ -75,7 +75,10 @@ func (ch *connHandler) containerGate(env *pb.ReqEnvelope, lang string) (resp *pb
 			return &pb.RespEnvelope{Id: env.Id, Payload: &pb.RespEnvelope_RespAck{RespAck: &pb.Ack{Ok: true}}}, true
 		}
 		return notInContainer(env.Id, lang), true
-	case *pb.ReqEnvelope_ReqSetWifi:
+	case *pb.ReqEnvelope_ReqGetWifiStatus:
+		// Settings > Wi-Fi is hidden: the server's network.
+		return &pb.RespEnvelope{Id: env.Id, Payload: &pb.RespEnvelope_RespWifiStatus{RespWifiStatus: &pb.WifiStatus{}}}, true
+	case *pb.ReqEnvelope_ReqJoinWifi:
 		return notInContainer(env.Id, lang), true
 	}
 	return nil, false

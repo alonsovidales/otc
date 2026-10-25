@@ -19,5 +19,7 @@
   "dev.device.social_limit_too_low": {"text": "la limite doit être d’au moins 0,1 Go"},
   "dev.device.storage_too_many": {"text": "choisissez au plus 2 disques ({chosen} choisis)"},
   "dev.device.unknown_log": {"text": "journal inconnu « {source} »"},
-  "dev.device.wifi_no_ssid": {"text": "le SSID ne peut pas être vide"}
+  "dev.device.wifi_bad_name": {"text": "Le nom d’un réseau Wi-Fi compte de 1 à 32 caractères (les lettres accentuées et les emoji comptent pour deux ou plus), sans tabulations ni sauts de ligne."},
+  "dev.device.wifi_bad_password": {"text": "Un mot de passe Wi-Fi compte de 8 à 63 caractères (les lettres accentuées et certains symboles comptent pour deux ou trois), ou exactement 64 chiffres hexadécimaux."},
+  "dev.device.wifi_not_managed": {"text": "Le Wi-Fi de cet appareil ne peut pas être modifié depuis les Paramètres."}
 }

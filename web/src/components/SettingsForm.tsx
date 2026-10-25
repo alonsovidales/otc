@@ -13,6 +13,7 @@ import TailscalePanel from "./TailscalePanel";
 import LogsPanel from "./LogsPanel";
 import BridgePanel from "./BridgePanel";
 import LanguagePanel from "./settings/LanguagePanel";
+import WifiPanel from "./settings/WifiPanel";
 import { setFaceRecognition, useFaceRecognition } from "./faceRecognition";
 import { useT, type TFunction } from "../i18n";
 import { asIs, percentText, say, unitText, type UiText } from "./uiText";
@@ -408,6 +409,11 @@ export default function SettingsForm() {
 
       {/* Issue #145: joining the bridge after a setup without it. */}
       <BridgePanel />
+
+      {/* The device's own Wi-Fi: another network, or its new password.
+          The owner of the primary instance, on a device that changes its
+          own Wi-Fi (the panel hides itself everywhere else). */}
+      <WifiPanel />
 
       {/* Issue #80: Tailscale Funnel as an alternative to the bridge.
           Primary-only too - Funnel publishes the whole machine. */}

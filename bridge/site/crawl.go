@@ -140,6 +140,7 @@ var llmsText = struct {
 		"site.landing.faq.lights.q",
 		"site.landing.faq.family.q",
 		"site.landing.faq.storage.q",
+		"site.landing.faq.wifi.q",
 		"site.landing.faq.pi_dies.q",
 		"site.landing.faq.backup.q",
 		"site.landing.faq.password.q",

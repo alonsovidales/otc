@@ -6,5 +6,6 @@
   "site.device.unavailable.heading": {"text": "Questo dispositivo non è disponibile al momento"},
   "site.device.unavailable.retry": {"text": "Riprova"},
   "site.device.unavailable.text": {"text": "Sembra che sia spento, offline o ancora in fase di avvio. Non è andato perso nulla: tutto resta sul dispositivo. Riprova tra un momento."},
-  "site.device.unavailable.title": {"text": "Dispositivo non disponibile"}
+  "site.device.unavailable.title": {"text": "Dispositivo non disponibile"},
+  "site.device.unavailable.wifi_hint": {"text": "Hai cambiato il nome o la password del tuo Wi-Fi? Collega il dispositivo al router con un cavo Ethernet, poi apri Impostazioni › Wi-Fi."}
 }

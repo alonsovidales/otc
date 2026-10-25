@@ -6,5 +6,6 @@
   "site.device.unavailable.heading": {"text": "Este dispositivo não está disponível de momento"},
   "site.device.unavailable.retry": {"text": "Tentar novamente"},
   "site.device.unavailable.text": {"text": "Parece estar desligado, sem ligação ou ainda a arrancar. Nada se perdeu: tudo continua guardado no próprio dispositivo. Tenta novamente daqui a pouco."},
-  "site.device.unavailable.title": {"text": "Dispositivo indisponível"}
+  "site.device.unavailable.title": {"text": "Dispositivo indisponível"},
+  "site.device.unavailable.wifi_hint": {"text": "Mudaste o nome ou a palavra-passe do teu Wi-Fi? Liga o dispositivo ao teu router com um cabo Ethernet e depois abre Definições › Wi-Fi."}
 }

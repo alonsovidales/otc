@@ -162,10 +162,15 @@ final class DeviceSupport {
     /// Issue #195: it answered GetFolderUsage with unknown_payload (before
     /// #195): Files' Storage view says it needs an update without asking.
     var folderUsage = true
+    /// Release 140: it answered GetWifiStatus with unknown_payload (a
+    /// device before Settings › Wi-Fi): the section stays hidden without
+    /// asking.
+    var wifi = true
 
     /// Signed in (again): asked again, once.
     func signedIn() {
         newerThan = true
         folderUsage = true
+        wifi = true
     }
 }

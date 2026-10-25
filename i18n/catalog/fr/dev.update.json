@@ -45,5 +45,6 @@
   "dev.update.web_checksum": {"text": "la vérification de la somme de contrôle des ressources web a échoué (attendue : {expected}, obtenue : {actual})"},
   "dev.update.web_download_failed": {"text": "impossible de télécharger l’app web de la version {release} : relancez la mise à jour"},
   "dev.update.web_install_failed": {"text": "impossible d’installer les ressources web"},
-  "dev.update.web_unpack_failed": {"text": "impossible de décompresser les ressources web"}
+  "dev.update.web_unpack_failed": {"text": "impossible de décompresser les ressources web"},
+  "dev.update.wifi_changing": {"text": "le Wi-Fi de l’appareil est en cours de modification ; réessayez dans quelques minutes"}
 }

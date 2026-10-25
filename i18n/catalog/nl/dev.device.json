@@ -19,5 +19,7 @@
   "dev.device.social_limit_too_low": {"text": "de limiet moet minstens 0,1 GB zijn"},
   "dev.device.storage_too_many": {"text": "kies maximaal 2 schijven, gekozen: {chosen}"},
   "dev.device.unknown_log": {"text": "onbekend logboek “{source}”"},
-  "dev.device.wifi_no_ssid": {"text": "ssid mag niet leeg zijn"}
+  "dev.device.wifi_bad_name": {"text": "Een wifinetwerknaam heeft 1 tot 32 tekens (letters met accenten en emoji tellen als twee of meer), zonder tabs of regeleinden."},
+  "dev.device.wifi_bad_password": {"text": "Een wifiwachtwoord heeft 8 tot 63 tekens (letters met accenten en sommige symbolen tellen als twee of drie), of precies 64 hexadecimale cijfers."},
+  "dev.device.wifi_not_managed": {"text": "De wifi van dit apparaat kan niet via Instellingen worden gewijzigd."}
 }

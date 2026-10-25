@@ -171,6 +171,7 @@
         <item quantity="many">hace %1$s min</item>
         <item quantity="other">hace %1$s min</item>
     </plurals>
+    <string name="app_shell_unreachable_wifi_hint">¿Has cambiado el nombre o la contraseña de tu Wi-Fi? Conecta el dispositivo al router con un cable Ethernet y abre Ajustes › Wi-Fi.</string>
     <plurals name="app_shell_upload_left">
         <item quantity="one">Queda %1$s</item>
         <item quantity="many">Quedan %1$s</item>

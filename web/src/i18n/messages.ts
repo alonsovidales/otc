@@ -647,6 +647,33 @@ export type MessageKey =
   | "web.settings.users.update_failed"
   | "web.settings.users.usage"
   | "web.settings.users.username"
+  | "web.settings.wifi.change"
+  | "web.settings.wifi.confirm"
+  | "web.settings.wifi.confirm_cable"
+  | "web.settings.wifi.current_badge"
+  | "web.settings.wifi.failed"
+  | "web.settings.wifi.intro"
+  | "web.settings.wifi.joining"
+  | "web.settings.wifi.name"
+  | "web.settings.wifi.name_needed"
+  | "web.settings.wifi.name_too_long"
+  | "web.settings.wifi.no_networks"
+  | "web.settings.wifi.no_wifi"
+  | "web.settings.wifi.on_cable"
+  | "web.settings.wifi.on_wifi"
+  | "web.settings.wifi.open_network"
+  | "web.settings.wifi.other"
+  | "web.settings.wifi.password_invalid"
+  | "web.settings.wifi.password_needed"
+  | "web.settings.wifi.password_optional"
+  | "web.settings.wifi.scan"
+  | "web.settings.wifi.scan_failed"
+  | "web.settings.wifi.scanning"
+  | "web.settings.wifi.secured"
+  | "web.settings.wifi.slow"
+  | "web.settings.wifi.title"
+  | "web.settings.wifi.unknown_result"
+  | "web.settings.wifi.unsupported"
   | "web.shell.account.label"
   | "web.shell.account.sign_out"
   | "web.shell.account.signing_out"
@@ -734,25 +761,17 @@ export type MessageKey =
   | "web.shell.setup.finish"
   | "web.shell.setup.intro_account"
   | "web.shell.setup.intro_device"
-  | "web.shell.setup.joining"
   | "web.shell.setup.name"
   | "web.shell.setup.name_example"
   | "web.shell.setup.next_storage"
-  | "web.shell.setup.next_wifi"
   | "web.shell.setup.no_disks"
-  | "web.shell.setup.no_networks"
   | "web.shell.setup.password_mismatch"
   | "web.shell.setup.password_short"
   | "web.shell.setup.saving"
   | "web.shell.setup.setting_up"
-  | "web.shell.setup.skip"
   | "web.shell.setup.storage"
   | "web.shell.setup.storage_failed"
   | "web.shell.setup.welcome"
-  | "web.shell.setup.wifi"
-  | "web.shell.setup.wifi_failed"
-  | "web.shell.setup.wifi_intro"
-  | "web.shell.setup.wifi_network"
   | "web.shell.signin.close"
   | "web.shell.signin.interrupted"
   | "web.shell.signin.offline"
@@ -786,6 +805,7 @@ export type MessageKey =
   | "web.shell.unreachable.disabled"
   | "web.shell.unreachable.note"
   | "web.shell.unreachable.title"
+  | "web.shell.unreachable.wifi_hint"
   | "web.social.alerts.friends"
   | "web.social.alerts.more"
   | "web.social.alerts.nothing"
@@ -1564,6 +1584,33 @@ export interface MessageArgs {
   "web.settings.users.update_failed": undefined;
   "web.settings.users.usage": { size: string; percent: string; count: number };
   "web.settings.users.username": undefined;
+  "web.settings.wifi.change": undefined;
+  "web.settings.wifi.confirm": { ssid: string };
+  "web.settings.wifi.confirm_cable": { ssid: string };
+  "web.settings.wifi.current_badge": undefined;
+  "web.settings.wifi.failed": undefined;
+  "web.settings.wifi.intro": undefined;
+  "web.settings.wifi.joining": { ssid: string };
+  "web.settings.wifi.name": undefined;
+  "web.settings.wifi.name_needed": undefined;
+  "web.settings.wifi.name_too_long": undefined;
+  "web.settings.wifi.no_networks": undefined;
+  "web.settings.wifi.no_wifi": undefined;
+  "web.settings.wifi.on_cable": undefined;
+  "web.settings.wifi.on_wifi": { ssid: string; signal: string };
+  "web.settings.wifi.open_network": undefined;
+  "web.settings.wifi.other": undefined;
+  "web.settings.wifi.password_invalid": undefined;
+  "web.settings.wifi.password_needed": undefined;
+  "web.settings.wifi.password_optional": undefined;
+  "web.settings.wifi.scan": undefined;
+  "web.settings.wifi.scan_failed": undefined;
+  "web.settings.wifi.scanning": undefined;
+  "web.settings.wifi.secured": undefined;
+  "web.settings.wifi.slow": undefined;
+  "web.settings.wifi.title": undefined;
+  "web.settings.wifi.unknown_result": undefined;
+  "web.settings.wifi.unsupported": undefined;
   "web.shell.account.label": undefined;
   "web.shell.account.sign_out": undefined;
   "web.shell.account.signing_out": undefined;
@@ -1652,25 +1699,17 @@ export interface MessageArgs {
   "web.shell.setup.finish": undefined;
   "web.shell.setup.intro_account": undefined;
   "web.shell.setup.intro_device": undefined;
-  "web.shell.setup.joining": { ssid: string };
   "web.shell.setup.name": undefined;
   "web.shell.setup.name_example": undefined;
   "web.shell.setup.next_storage": undefined;
-  "web.shell.setup.next_wifi": undefined;
   "web.shell.setup.no_disks": undefined;
-  "web.shell.setup.no_networks": undefined;
   "web.shell.setup.password_mismatch": undefined;
   "web.shell.setup.password_short": undefined;
   "web.shell.setup.saving": undefined;
   "web.shell.setup.setting_up": undefined;
-  "web.shell.setup.skip": undefined;
   "web.shell.setup.storage": undefined;
   "web.shell.setup.storage_failed": undefined;
   "web.shell.setup.welcome": undefined;
-  "web.shell.setup.wifi": undefined;
-  "web.shell.setup.wifi_failed": undefined;
-  "web.shell.setup.wifi_intro": undefined;
-  "web.shell.setup.wifi_network": { ssid: string; signal: string };
   "web.shell.signin.close": undefined;
   "web.shell.signin.interrupted": undefined;
   "web.shell.signin.offline": undefined;
@@ -1704,6 +1743,7 @@ export interface MessageArgs {
   "web.shell.unreachable.disabled": undefined;
   "web.shell.unreachable.note": undefined;
   "web.shell.unreachable.title": undefined;
+  "web.shell.unreachable.wifi_hint": undefined;
   "web.shell.update.critical": { version: string; summary: string };
   "web.social.alerts.commented": { name: string };
   "web.social.alerts.friend_accepted": { name: string };

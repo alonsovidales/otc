@@ -64,6 +64,7 @@
   "dev.alert.wifi.unjudged": [["speed", "text"], ["pct", "text"]],
   "dev.alert.wifi.unjudged_rebooted": [["speed", "text"], ["pct", "text"]],
   "dev.alert.wifi.very_slow": [],
+  "dev.status.wifi.busy": [],
   "dev.status.wifi.no_connection": [],
   "dev.status.wifi.not_wifi": [],
   "dev.status.wifi.too_soon": []

@@ -1233,6 +1233,13 @@ for unit in reboot wifi-restart; do
     install -m 0644 "$SRC_DIR/scripts/device-runner/otc-$unit.service" "/etc/systemd/system/otc-$unit.service"
     install -m 0644 "$SRC_DIR/scripts/device-runner/otc-$unit.path" "/etc/systemd/system/otc-$unit.path"
 done
+# Settings > Wi-Fi: changing the network the device uses (a Python runner,
+# hence its own lines). It acts only where NetworkManager runs; nothing
+# here installs or requires NetworkManager.
+log "Wi-Fi change trigger (otc-wifi-join.path)"
+install -m 0755 "$SRC_DIR/scripts/device-runner/otc-wifi-join-runner.py" /usr/local/bin/otc-wifi-join-runner
+install -m 0644 "$SRC_DIR/scripts/device-runner/otc-wifi-join.service" /etc/systemd/system/otc-wifi-join.service
+install -m 0644 "$SRC_DIR/scripts/device-runner/otc-wifi-join.path" /etc/systemd/system/otc-wifi-join.path
 
 # Issue #178: what the setup wizard asked about the owner - the profile's
 # name, description and picture, and whether face recognition is on (off
@@ -1268,6 +1275,8 @@ systemctl enable --now otc-tailscale.path
 rm -f /var/lib/otc/reboot.request /var/lib/otc/wifi-restart.request
 systemctl enable --now otc-reboot.path
 systemctl enable --now otc-wifi-restart.path
+rm -f /run/otc/wifi-join.request
+systemctl enable --now otc-wifi-join.path
 systemctl restart otc.service
 
 IP=$(hostname -I 2>/dev/null | awk '{print $1}')

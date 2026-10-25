@@ -19,5 +19,7 @@
   "dev.device.social_limit_too_low": {"text": "das Limit muss mindestens 0,1 GB betragen"},
   "dev.device.storage_too_many": {"text": "wähle höchstens 2 Laufwerke, gewählt: {chosen}"},
   "dev.device.unknown_log": {"text": "unbekanntes Protokoll „{source}“"},
-  "dev.device.wifi_no_ssid": {"text": "die SSID darf nicht leer sein"}
+  "dev.device.wifi_bad_name": {"text": "Ein WLAN-Name hat 1 bis 32 Zeichen (Umlaute, Buchstaben mit Akzent und Emoji zählen als zwei oder mehr), ohne Tabulatoren oder Zeilenumbrüche."},
+  "dev.device.wifi_bad_password": {"text": "Ein WLAN-Passwort hat 8 bis 63 Zeichen (Umlaute, Buchstaben mit Akzent und manche Symbole zählen als zwei oder drei) oder genau 64 Hexadezimalziffern."},
+  "dev.device.wifi_not_managed": {"text": "Das WLAN dieses Geräts kann nicht in den Einstellungen geändert werden."}
 }

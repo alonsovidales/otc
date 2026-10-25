@@ -32,6 +32,7 @@
       .icon { display: block; margin: 0 auto 16px; color: #e8845f; }
       h1 { margin: 0 0 8px; font-size: 1.25rem; }
       p { margin: 0; color: #9aa0a8; line-height: 1.5; }
+      p.hint { margin-top: 12px; font-size: 0.85rem; }
       .retry { margin-top: 20px; }
       button {
         font: inherit;
@@ -57,6 +58,9 @@
       <p>
         {{t "site.device.unavailable.text"}}
       </p>
+      <!-- For the owner whose router's name or password changed: the device
+           can't join it any more, and this page is what they see. -->
+      <p class="hint">{{t "site.device.unavailable.wifi_hint"}}</p>
       <div class="retry">
         <button type="button" id="retry">{{t "site.device.unavailable.retry"}}</button>
         <div class="countdown" id="countdown"></div>

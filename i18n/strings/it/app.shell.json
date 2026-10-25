@@ -617,6 +617,10 @@
       "other": "{count}m ago"
     }
   },
+  "app.shell.unreachable_wifi_hint": {
+    "text": "Hai cambiato il nome o la password del tuo Wi-Fi? Collega il dispositivo al router con un cavo Ethernet, poi apri Impostazioni › Wi-Fi.",
+    "en": "Changed your Wi-Fi's name or password? Connect the device to your router with an Ethernet cable, then open Settings › Wi-Fi."
+  },
   "app.shell.upload_left": {
     "text": {
       "one": "Manca {count}",

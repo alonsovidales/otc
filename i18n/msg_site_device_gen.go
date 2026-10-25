@@ -43,3 +43,8 @@ func SiteDeviceUnavailableText() Msg {
 func SiteDeviceUnavailableTitle() Msg {
 	return Msg{Key: "site.device.unavailable.title"}
 }
+
+// SiteDeviceUnavailableWifiHint is site.device.unavailable.wifi_hint: "Changed your Wi-Fi's name or password? Connect the device to your router with an…".
+func SiteDeviceUnavailableWifiHint() Msg {
+	return Msg{Key: "site.device.unavailable.wifi_hint"}
+}

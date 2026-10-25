@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Changes the device's Wi-Fi network as root. Started by otc-wifi-join.path
+# when the device drops /run/otc/wifi-join.request - see
+# otc-wifi-join-runner.py. ExecStopPost runs after every run: one cut
+# short (stopped, timed out, crashed) is answered "interrupted" and the
+# previous network brought back, unless the new one was already saved.
+[Unit]
+Description=Off The Cloud Wi-Fi change
+After=NetworkManager.service
+# No start limit: a burst of requests (a compromised device service) must
+# never leave the path unit failed - and Settings > Wi-Fi off - until the
+# next boot. The runner's own history (10 runs in 15 minutes, bad requests
+# included) is the bound.
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+User=root
+# A slow change is about 5 minutes (scans, a 60 s join, the internet
+# check, the way back).
+TimeoutStartSec=7min
+# --stopped: the trial dropped and the previous network up (--wait 40).
+TimeoutStopSec=3min
+ExecStart=/usr/local/bin/otc-wifi-join-runner
+ExecStopPost=/usr/local/bin/otc-wifi-join-runner --stopped
+NoNewPrivileges=yes
+# NetworkManager writes the profiles in /etc itself; the runner writes only
+# under /run (its answer, the trial profile, the lock).
+ProtectSystem=strict
+ReadWritePaths=/run
+ProtectHome=yes
+PrivateTmp=yes
+# D-Bus and nmcli (unix, netlink); the reachability check through the new
+# network (curl to the bridge, ping to the gateway).
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET AF_INET6

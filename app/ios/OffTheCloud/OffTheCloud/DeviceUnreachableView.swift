@@ -47,6 +47,16 @@ struct DeviceUnreachableView: View {
             }
 
             if !disabled {
+                // A device that lost its Wi-Fi (its name or password
+                // changed) is the usual reason it stays away: the cable
+                // brings it back, and Settings › Wi-Fi fixes it.
+                Text(S.appShellUnreachableWifiHint)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            if !disabled {
                 // No retry button on purpose: OTCConnection already
                 // reconnects on its own backoff (see handleDisconnect), and
                 // this view disappears by itself the moment that succeeds -

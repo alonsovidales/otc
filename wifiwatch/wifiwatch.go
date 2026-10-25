@@ -30,6 +30,11 @@
 // Wi-Fi restart itself. The Alert comes after the restart, once the link
 // has been judged: "restarted, working normally again", or that it gave up.
 // Main instance only (websocket.Init).
+//
+// A Wi-Fi change from Settings (the network package) drops the link on
+// purpose: while one runs and for 10 minutes after it, no minute counts.
+// The two root runners share /run/otc-wifi.lock; a restart that found a
+// change holding it answers "busy", and the watchdog simply re-arms.
 package wifiwatch
 
 import (
@@ -46,6 +51,7 @@ import (
 	"github.com/alonsovidales/otc/devtext"
 	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
+	"github.com/alonsovidales/otc/network"
 	"github.com/alonsovidales/otc/updater"
 )
 
@@ -418,7 +424,10 @@ type Watchdog struct {
 	runnerInstalled func() bool
 	// updating: an update is running (it downloads; a Wi-Fi restart
 	// in the middle would fail it). The restart waits for it to end.
-	updating    func() bool
+	updating func() bool
+	// joining: the Wi-Fi is being changed from Settings, or was minutes
+	// ago (network.Joining): its drops are no fault of the radio's.
+	joining     func() bool
 	requestPath string
 	statusPath  string
 
@@ -450,6 +459,7 @@ func Watch(store func(a alerttext.Alert) error) {
 		statePath:       filepath.Join(wd, stateFile),
 		runnerInstalled: func() bool { _, err := os.Stat(cRootRunner); return err == nil },
 		updating:        func() bool { return updater.CurrentStatus().State == "running" },
+		joining:         network.Joining,
 		requestPath:     cRequestPath,
 		statusPath:      cStatusPath,
 	}
@@ -558,6 +568,12 @@ func (w *Watchdog) step(now time.Time, win window) {
 		if now.Sub(w.st.RestartedAt) < w.cfg.Settle {
 			return
 		}
+	}
+	// A Wi-Fi change from Settings, and the minutes after it, build no
+	// streak: the network went away on purpose.
+	if w.joining != nil && w.joining() {
+		w.k.reset()
+		return
 	}
 
 	w.k.add(win, w.cfg)
@@ -693,6 +709,13 @@ func (w *Watchdog) checkRoot(now time.Time) {
 			w.prev = nil
 			return
 		case "failed":
+			if st.Code == "busy" {
+				// The Wi-Fi was being changed from Settings: not this
+				// episode's restart, which may come once it is bad again.
+				log.Info("wifi watchdog: the Wi-Fi restart waited for a Wi-Fi change from Settings; re-armed")
+				w.setPhase(phaseArmed)
+				return
+			}
 			msg := truncate(st.Message, 200)
 			log.Info("wifi watchdog: the Wi-Fi restart failed: " + msg + "; giving up for this episode")
 			w.queueAlert(w.slowAlert(i18n.DevAlertWifiNotRestarted(), failedDetail(st, msg)))

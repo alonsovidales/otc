@@ -639,7 +639,8 @@ func TestRevokeSessionTokenInvalidatesOutstandingTokens(t *testing.T) {
 // them from an additional user's wizard is the visible half of that; this
 // is the half that actually holds, since these are ordinary authenticated
 // RPCs any signed-in sub-user could send directly - and ReqSetupStorage
-// wipes the selected disks while ReqSetWifi drops the machine's network.
+// wipes the selected disks while ReqJoinWifi (Settings > Wi-Fi; SetWifi
+// before release 140) changes the machine's network.
 func TestMachineLevelRPCsAreRefusedOnAChildInstance(t *testing.T) {
 	cases := []struct {
 		name string
@@ -647,8 +648,8 @@ func TestMachineLevelRPCsAreRefusedOnAChildInstance(t *testing.T) {
 	}{
 		{"setup storage", &pb.ReqEnvelope{Id: 1, Payload: &pb.ReqEnvelope_ReqSetupStorage{
 			ReqSetupStorage: &pb.SetupStorage{DevicePaths: []string{"/dev/sda"}}}}},
-		{"set wifi", &pb.ReqEnvelope{Id: 2, Payload: &pb.ReqEnvelope_ReqSetWifi{
-			ReqSetWifi: &pb.SetWifi{Ssid: "somewhere", Password: "hunter2"}}}},
+		{"join wifi", &pb.ReqEnvelope{Id: 2, Payload: &pb.ReqEnvelope_ReqJoinWifi{
+			ReqJoinWifi: &pb.JoinWifi{Ssid: "somewhere", Password: []byte("hunter2")}}}},
 		{"list storage devices", &pb.ReqEnvelope{Id: 3, Payload: &pb.ReqEnvelope_ReqListStorageDevices{
 			ReqListStorageDevices: &pb.ListStorageDevices{}}}},
 		{"list wifi networks", &pb.ReqEnvelope{Id: 4, Payload: &pb.ReqEnvelope_ReqListWifiNetworks{

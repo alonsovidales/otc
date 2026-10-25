@@ -977,5 +977,117 @@
   "app.settings.users.username": {
     "text": "benutzername",
     "en": "username"
+  },
+  "app.settings.wifi.change": {
+    "text": "Netzwerk ändern",
+    "en": "Change Network"
+  },
+  "app.settings.wifi.confirm_cable_message": {
+    "text": "Es bleibt währenddessen über sein Kabel erreichbar.",
+    "en": "It stays reachable through its cable while it does."
+  },
+  "app.settings.wifi.confirm_message": {
+    "text": "Es verlässt sein aktuelles Netzwerk und antwortet eventuell etwa eine Minute lang nicht. Funktioniert das neue Netzwerk nicht, kehrt es zum aktuellen zurück.",
+    "en": "It leaves its current network and may not answer for about a minute. If the new network doesn't work, it goes back to the current one."
+  },
+  "app.settings.wifi.confirm_title": {
+    "text": "Das Gerät mit {ssid} verbinden?",
+    "en": "Connect the device to {ssid}?"
+  },
+  "app.settings.wifi.current_badge": {
+    "text": "Verbunden",
+    "en": "Connected"
+  },
+  "app.settings.wifi.failed": {
+    "text": "Das WLAN konnte nicht geändert werden.",
+    "en": "Could not change the Wi-Fi."
+  },
+  "app.settings.wifi.intro": {
+    "text": "Das Netzwerk, das das Gerät nutzt. Du hast den Namen oder das Passwort deines WLANs geändert? Wähle hier das Netzwerk und gib sein Passwort ein. Erreicht das Gerät dein WLAN nicht mehr, verbinde es zuerst mit einem Ethernet-Kabel mit deinem Router.",
+    "en": "The network the device uses. Changed your Wi-Fi's name or password? Choose the network here and enter its password. If the device can't reach your Wi-Fi any more, connect it to your router with an Ethernet cable first."
+  },
+  "app.settings.wifi.joining": {
+    "text": "Verbindung mit {ssid} wird hergestellt… Das Gerät antwortet eventuell etwa eine Minute lang nicht.",
+    "en": "Connecting to {ssid}… The device may not answer for about a minute."
+  },
+  "app.settings.wifi.name": {
+    "text": "Netzwerkname",
+    "en": "Network name"
+  },
+  "app.settings.wifi.name_needed": {
+    "text": "Gib den Namen des Netzwerks ein.",
+    "en": "Enter the network's name."
+  },
+  "app.settings.wifi.name_too_long": {
+    "text": "Dieser Name ist zu lang: Ein WLAN-Name hat höchstens 32 Zeichen, und Umlaute, Buchstaben mit Akzent und Emoji zählen als zwei oder mehr.",
+    "en": "That name is too long: a Wi-Fi network name has at most 32 characters, and accented letters and emoji count as two or more."
+  },
+  "app.settings.wifi.no_networks": {
+    "text": "Keine Netzwerke gefunden. Suche erneut oder wähle „Anderes Netzwerk“, um seinen Namen einzugeben.",
+    "en": "No networks found. Scan again, or choose Other Network to type its name."
+  },
+  "app.settings.wifi.no_wifi": {
+    "text": "WLAN: nicht verbunden",
+    "en": "Wi-Fi: not connected"
+  },
+  "app.settings.wifi.on_cable": {
+    "text": "Ethernet-Kabel: verbunden",
+    "en": "Ethernet cable: connected"
+  },
+  "app.settings.wifi.on_wifi": {
+    "text": "WLAN: {ssid} ({signal})",
+    "en": "Wi-Fi: {ssid} ({signal})"
+  },
+  "app.settings.wifi.open_network": {
+    "text": "Offen",
+    "en": "Open"
+  },
+  "app.settings.wifi.other": {
+    "text": "Anderes Netzwerk…",
+    "en": "Other Network…"
+  },
+  "app.settings.wifi.password_invalid": {
+    "text": "Ein WLAN-Passwort hat 8 bis 63 Zeichen (Umlaute, Buchstaben mit Akzent und manche Symbole zählen als zwei oder drei) oder genau 64 Hexadezimalziffern.",
+    "en": "A Wi-Fi password has 8 to 63 characters (accented letters and some symbols count as two or three), or exactly 64 hexadecimal digits."
+  },
+  "app.settings.wifi.password_needed": {
+    "text": "Gib das Passwort des Netzwerks ein.",
+    "en": "Enter the network's password."
+  },
+  "app.settings.wifi.password_optional": {
+    "text": "Passwort (leer bei einem offenen Netzwerk)",
+    "en": "Password (empty for an open network)"
+  },
+  "app.settings.wifi.scan": {
+    "text": "Erneut suchen",
+    "en": "Scan Again"
+  },
+  "app.settings.wifi.scan_failed": {
+    "text": "Es konnte nicht nach Netzwerken gesucht werden. Versuche es erneut.",
+    "en": "Could not look for networks. Try again."
+  },
+  "app.settings.wifi.scanning": {
+    "text": "Netzwerke werden gesucht…",
+    "en": "Looking for networks…"
+  },
+  "app.settings.wifi.secured": {
+    "text": "Passwort erforderlich",
+    "en": "Needs a password"
+  },
+  "app.settings.wifi.slow": {
+    "text": "Das Gerät hat noch nicht geantwortet. Wenn es nicht zurückkommt, verbinde es mit einem Ethernet-Kabel mit deinem Router und öffne erneut Einstellungen › WLAN.",
+    "en": "The device hasn't answered yet. If it doesn't come back, connect it to your router with an Ethernet cable and open Settings › Wi-Fi again."
+  },
+  "app.settings.wifi.title": {
+    "text": "WLAN",
+    "en": "Wi-Fi"
+  },
+  "app.settings.wifi.unknown_result": {
+    "text": "Das Gerät hat nicht gemeldet, wie die Änderung verlaufen ist. Oben steht, mit welchem Netzwerk es jetzt verbunden ist.",
+    "en": "The device didn't say how the change went. The network it is on now is shown above."
+  },
+  "app.settings.wifi.unsupported": {
+    "text": "Nicht unterstützt",
+    "en": "Not supported"
   }
 }

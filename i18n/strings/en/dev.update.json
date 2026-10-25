@@ -226,5 +226,9 @@
   "dev.update.web_unpack_failed": {
     "text": "could not unpack the web assets",
     "note": "Why an update failed, after Update failed: in Settings > Device version. The downloaded web app could not be unpacked."
+  },
+  "dev.update.wifi_changing": {
+    "text": "the device's Wi-Fi is being changed; try again in a few minutes",
+    "note": "Error shown in Settings > Device version when Update is pressed while the device is switching to another Wi-Fi network (asked in Settings > Wi-Fi), like dev.update.already_running."
   }
 }

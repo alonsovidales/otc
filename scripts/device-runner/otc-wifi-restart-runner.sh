@@ -95,6 +95,13 @@ wait_connected() {
     return 1
 }
 
+# Settings > Wi-Fi changes the network as root too (otc-wifi-join-runner),
+# holding this lock for the whole change: a restart in the middle would
+# break it, so none starts then - the watchdog tries again later. Held
+# (fd 8) until this script ends; in root's /run, so nothing the otc user
+# planted is opened.
+: >> /run/otc-wifi.lock; exec 8</run/otc-wifi.lock; flock -n 8 || { log "refused: the Wi-Fi is being changed from Settings"; status failed "the Wi-Fi was being changed from Settings" busy; exit 0; }
+
 now="$(uptime_s)"
 last=""
 [ -f "$LAST" ] && last="$(tr -dc '0-9' < "$LAST" | head -c 12)"
@@ -123,7 +130,10 @@ nm=0
 conn=""
 if command -v nmcli >/dev/null 2>&1 && systemctl is-active --quiet NetworkManager; then
     nm=1
-    conn="$(nmcli -g GENERAL.CONNECTION device show "$iface" 2>/dev/null | head -n 1)"
+    # By UUID: two profiles may share a name ("OTC-WiFi" after a Wi-Fi
+    # change cut short), and the other one may hold an old password.
+    conn="$(nmcli -g GENERAL.CON-UUID device show "$iface" 2>/dev/null | head -n 1)"
+    [[ "$conn" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] || conn=""
 fi
 
 devpath="$(readlink -f "/sys/class/net/$iface/device" 2>/dev/null)"
@@ -206,7 +216,7 @@ if [ "$nm" = 1 ]; then
     nmcli radio wifi on >/dev/null 2>&1
     if ! wait_connected 45; then
         if [ -n "$conn" ]; then
-            timeout 60 nmcli connection up "$conn" ifname "$iface" >/dev/null 2>&1 || log "could not bring the connection up"
+            timeout 60 nmcli connection up uuid "$conn" ifname "$iface" >/dev/null 2>&1 || log "could not bring the connection up"
         else
             timeout 60 nmcli device connect "$iface" >/dev/null 2>&1 || log "could not connect $iface"
         fi

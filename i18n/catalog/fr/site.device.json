@@ -6,5 +6,6 @@
   "site.device.unavailable.heading": {"text": "Cet appareil n’est pas disponible pour le moment"},
   "site.device.unavailable.retry": {"text": "Réessayer"},
   "site.device.unavailable.text": {"text": "Il semble éteint, hors ligne ou encore en cours de démarrage. Rien n’a été perdu : tout reste sur l’appareil lui-même. Réessayez dans un instant."},
-  "site.device.unavailable.title": {"text": "Appareil indisponible"}
+  "site.device.unavailable.title": {"text": "Appareil indisponible"},
+  "site.device.unavailable.wifi_hint": {"text": "Vous avez changé le nom ou le mot de passe de votre Wi-Fi ? Reliez l’appareil à votre routeur avec un câble Ethernet, puis ouvrez Paramètres › Wi-Fi."}
 }

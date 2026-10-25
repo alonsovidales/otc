@@ -45,5 +45,6 @@
   "dev.update.web_checksum": {"text": "de bestanden van de webapp hebben de controlesom niet doorstaan (verwacht {expected}, ontvangen {actual})"},
   "dev.update.web_download_failed": {"text": "kan de webapp voor release {release} niet downloaden: probeer de update opnieuw"},
   "dev.update.web_install_failed": {"text": "kan de bestanden van de webapp niet installeren"},
-  "dev.update.web_unpack_failed": {"text": "kan de bestanden van de webapp niet uitpakken"}
+  "dev.update.web_unpack_failed": {"text": "kan de bestanden van de webapp niet uitpakken"},
+  "dev.update.wifi_changing": {"text": "de wifi van het apparaat wordt gewijzigd; probeer het over een paar minuten opnieuw"}
 }

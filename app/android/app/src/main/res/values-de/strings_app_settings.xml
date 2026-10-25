@@ -249,4 +249,32 @@
         <item quantity="other">%1$s MB (%2$s %%) · %3$s aktiv</item>
     </plurals>
     <string name="app_settings_users_username">benutzername</string>
+    <string name="app_settings_wifi_change">Netzwerk ändern</string>
+    <string name="app_settings_wifi_confirm_cable_message">Es bleibt währenddessen über sein Kabel erreichbar.</string>
+    <string name="app_settings_wifi_confirm_message">Es verlässt sein aktuelles Netzwerk und antwortet eventuell etwa eine Minute lang nicht. Funktioniert das neue Netzwerk nicht, kehrt es zum aktuellen zurück.</string>
+    <string name="app_settings_wifi_confirm_title">Das Gerät mit \u2068%1$s\u2069 verbinden?</string>
+    <string name="app_settings_wifi_current_badge">Verbunden</string>
+    <string name="app_settings_wifi_failed">Das WLAN konnte nicht geändert werden.</string>
+    <string name="app_settings_wifi_intro">Das Netzwerk, das das Gerät nutzt. Du hast den Namen oder das Passwort deines WLANs geändert? Wähle hier das Netzwerk und gib sein Passwort ein. Erreicht das Gerät dein WLAN nicht mehr, verbinde es zuerst mit einem Ethernet-Kabel mit deinem Router.</string>
+    <string name="app_settings_wifi_joining">Verbindung mit \u2068%1$s\u2069 wird hergestellt… Das Gerät antwortet eventuell etwa eine Minute lang nicht.</string>
+    <string name="app_settings_wifi_name">Netzwerkname</string>
+    <string name="app_settings_wifi_name_needed">Gib den Namen des Netzwerks ein.</string>
+    <string name="app_settings_wifi_name_too_long">Dieser Name ist zu lang: Ein WLAN-Name hat höchstens 32 Zeichen, und Umlaute, Buchstaben mit Akzent und Emoji zählen als zwei oder mehr.</string>
+    <string name="app_settings_wifi_no_networks">Keine Netzwerke gefunden. Suche erneut oder wähle „Anderes Netzwerk“, um seinen Namen einzugeben.</string>
+    <string name="app_settings_wifi_no_wifi">WLAN: nicht verbunden</string>
+    <string name="app_settings_wifi_on_cable">Ethernet-Kabel: verbunden</string>
+    <string name="app_settings_wifi_on_wifi">WLAN: \u2068%1$s\u2069 (%2$s)</string>
+    <string name="app_settings_wifi_open_network">Offen</string>
+    <string name="app_settings_wifi_other">Anderes Netzwerk…</string>
+    <string name="app_settings_wifi_password_invalid">Ein WLAN-Passwort hat 8 bis 63 Zeichen (Umlaute, Buchstaben mit Akzent und manche Symbole zählen als zwei oder drei) oder genau 64 Hexadezimalziffern.</string>
+    <string name="app_settings_wifi_password_needed">Gib das Passwort des Netzwerks ein.</string>
+    <string name="app_settings_wifi_password_optional">Passwort (leer bei einem offenen Netzwerk)</string>
+    <string name="app_settings_wifi_scan">Erneut suchen</string>
+    <string name="app_settings_wifi_scan_failed">Es konnte nicht nach Netzwerken gesucht werden. Versuche es erneut.</string>
+    <string name="app_settings_wifi_scanning">Netzwerke werden gesucht…</string>
+    <string name="app_settings_wifi_secured">Passwort erforderlich</string>
+    <string name="app_settings_wifi_slow">Das Gerät hat noch nicht geantwortet. Wenn es nicht zurückkommt, verbinde es mit einem Ethernet-Kabel mit deinem Router und öffne erneut Einstellungen › WLAN.</string>
+    <string name="app_settings_wifi_title">WLAN</string>
+    <string name="app_settings_wifi_unknown_result">Das Gerät hat nicht gemeldet, wie die Änderung verlaufen ist. Oben steht, mit welchem Netzwerk es jetzt verbunden ist.</string>
+    <string name="app_settings_wifi_unsupported">Nicht unterstützt</string>
 </resources>

@@ -239,6 +239,11 @@ func DevStatusTailscaleUnknownRequest() Msg {
 	return Msg{Key: "dev.status.tailscale.unknown_request"}
 }
 
+// DevStatusWifiBusy is dev.status.wifi.busy: "the Wi-Fi was being changed from Settings".
+func DevStatusWifiBusy() Msg {
+	return Msg{Key: "dev.status.wifi.busy"}
+}
+
 // DevStatusWifiNoConnection is dev.status.wifi.no_connection: "the device has no network connection to restart".
 func DevStatusWifiNoConnection() Msg {
 	return Msg{Key: "dev.status.wifi.no_connection"}
@@ -267,4 +272,179 @@ func DevStatusWifiRestarting() Msg {
 // DevStatusWifiTooSoon is dev.status.wifi.too_soon: "the Wi-Fi was restarted less than 30 minutes ago".
 func DevStatusWifiTooSoon() Msg {
 	return Msg{Key: "dev.status.wifi.too_soon"}
+}
+
+// DevStatusWifiJoinAuthFailed is dev.status.wifi_join.auth_failed: "Could not connect to {ssid}: check the password, and that the device is close en…".
+func DevStatusWifiJoinAuthFailed(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join.auth_failed", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinBadRequest is dev.status.wifi_join.bad_request: "The device could not read the details of the change. Try again.".
+func DevStatusWifiJoinBadRequest() Msg {
+	return Msg{Key: "dev.status.wifi_join.bad_request"}
+}
+
+// DevStatusWifiJoinBusy is dev.status.wifi_join.busy: "The device's Wi-Fi is busy with another change. Try again in a few minutes.".
+func DevStatusWifiJoinBusy() Msg {
+	return Msg{Key: "dev.status.wifi_join.busy"}
+}
+
+// DevStatusWifiJoinConnected is dev.status.wifi_join.connected: "Connected to {ssid}.".
+func DevStatusWifiJoinConnected(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join.connected", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinInterrupted is dev.status.wifi_join.interrupted: "Connecting to {ssid} was interrupted.".
+func DevStatusWifiJoinInterrupted(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join.interrupted", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinJoinFailed is dev.status.wifi_join.join_failed: "Could not connect to {ssid}.".
+func DevStatusWifiJoinJoinFailed(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join.join_failed", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinJoining is dev.status.wifi_join.joining: "Connecting to {ssid}…".
+func DevStatusWifiJoinJoining(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join.joining", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinNoAddress is dev.status.wifi_join.no_address: "The device connected to {ssid}, but the network gave it no address.".
+func DevStatusWifiJoinNoAddress(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join.no_address", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinNoAnswer is dev.status.wifi_join.no_answer: "The device didn't start connecting to {ssid}. Try again, or restart the device i…".
+func DevStatusWifiJoinNoAnswer(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join.no_answer", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinNoInternet is dev.status.wifi_join.no_internet: "The device connected to {ssid}, but couldn't reach the internet through it, so i…".
+func DevStatusWifiJoinNoInternet(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join.no_internet", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinNoWifi is dev.status.wifi_join.no_wifi: "The device's Wi-Fi isn't available right now, so it can't be changed.".
+func DevStatusWifiJoinNoWifi() Msg {
+	return Msg{Key: "dev.status.wifi_join.no_wifi"}
+}
+
+// DevStatusWifiJoinNotFound is dev.status.wifi_join.not_found: "Could not find {ssid}. Check the name, and that the device is close enough to th…".
+func DevStatusWifiJoinNotFound(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join.not_found", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinOpenNetwork is dev.status.wifi_join.open_network: "The network {ssid} is open (it has no password), so the device didn't connect to…".
+func DevStatusWifiJoinOpenNetwork(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join.open_network", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinPasswordRequired is dev.status.wifi_join.password_required: "The network {ssid} needs a password.".
+func DevStatusWifiJoinPasswordRequired(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join.password_required", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinTimedOut is dev.status.wifi_join.timed_out: "The network {ssid} didn't answer in time.".
+func DevStatusWifiJoinTimedOut(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join.timed_out", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinTooMany is dev.status.wifi_join.too_many: "Too many attempts in a short time. Wait a few minutes and try again.".
+func DevStatusWifiJoinTooMany() Msg {
+	return Msg{Key: "dev.status.wifi_join.too_many"}
+}
+
+// DevStatusWifiJoinUnsupportedSecurity is dev.status.wifi_join.unsupported_security: "The device can't connect to {ssid}: it joins open networks and networks with WPA…".
+func DevStatusWifiJoinUnsupportedSecurity(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join.unsupported_security", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinUpdateRunning is dev.status.wifi_join.update_running: "An update is running. Try again once it has finished.".
+func DevStatusWifiJoinUpdateRunning() Msg {
+	return Msg{Key: "dev.status.wifi_join.update_running"}
+}
+
+// DevStatusWifiJoinWrongPassword is dev.status.wifi_join.wrong_password: "Could not connect to {ssid}: the password is wrong.".
+func DevStatusWifiJoinWrongPassword(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join.wrong_password", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinBackAuthFailed is dev.status.wifi_join_back.auth_failed: "Could not connect to {ssid}: check the password, and that the device is close en…".
+func DevStatusWifiJoinBackAuthFailed(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join_back.auth_failed", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinBackInterrupted is dev.status.wifi_join_back.interrupted: "Connecting to {ssid} was interrupted. The device is back on its previous network…".
+func DevStatusWifiJoinBackInterrupted(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join_back.interrupted", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinBackJoinFailed is dev.status.wifi_join_back.join_failed: "Could not connect to {ssid}. The device is back on its previous network.".
+func DevStatusWifiJoinBackJoinFailed(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join_back.join_failed", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinBackNoAddress is dev.status.wifi_join_back.no_address: "The device connected to {ssid}, but the network gave it no address. The device i…".
+func DevStatusWifiJoinBackNoAddress(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join_back.no_address", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinBackNoInternet is dev.status.wifi_join_back.no_internet: "The device connected to {ssid}, but couldn't reach the internet through it, so i…".
+func DevStatusWifiJoinBackNoInternet(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join_back.no_internet", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinBackNotFound is dev.status.wifi_join_back.not_found: "Could not find {ssid}. Check the name, and that the device is close enough to th…".
+func DevStatusWifiJoinBackNotFound(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join_back.not_found", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinBackTimedOut is dev.status.wifi_join_back.timed_out: "The network {ssid} didn't answer in time. The device is back on its previous net…".
+func DevStatusWifiJoinBackTimedOut(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join_back.timed_out", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinBackWrongPassword is dev.status.wifi_join_back.wrong_password: "Could not connect to {ssid}: the password is wrong. The device is back on its pr…".
+func DevStatusWifiJoinBackWrongPassword(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join_back.wrong_password", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinLostAuthFailed is dev.status.wifi_join_lost.auth_failed: "Could not connect to {ssid}: check the password, and that the device is close en…".
+func DevStatusWifiJoinLostAuthFailed(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join_lost.auth_failed", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinLostInterrupted is dev.status.wifi_join_lost.interrupted: "Connecting to {ssid} was interrupted. The device couldn't get back on its previo…".
+func DevStatusWifiJoinLostInterrupted(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join_lost.interrupted", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinLostJoinFailed is dev.status.wifi_join_lost.join_failed: "Could not connect to {ssid}. The device couldn't get back on its previous networ…".
+func DevStatusWifiJoinLostJoinFailed(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join_lost.join_failed", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinLostNoAddress is dev.status.wifi_join_lost.no_address: "The device connected to {ssid}, but the network gave it no address. The device c…".
+func DevStatusWifiJoinLostNoAddress(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join_lost.no_address", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinLostNoInternet is dev.status.wifi_join_lost.no_internet: "The device connected to {ssid}, but couldn't reach the internet through it, so i…".
+func DevStatusWifiJoinLostNoInternet(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join_lost.no_internet", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinLostNotFound is dev.status.wifi_join_lost.not_found: "Could not find {ssid}. Check the name, and that the device is close enough to th…".
+func DevStatusWifiJoinLostNotFound(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join_lost.not_found", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinLostTimedOut is dev.status.wifi_join_lost.timed_out: "The network {ssid} didn't answer in time. The device couldn't get back on its pr…".
+func DevStatusWifiJoinLostTimedOut(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join_lost.timed_out", Args: map[string]any{"ssid": ssid}}
+}
+
+// DevStatusWifiJoinLostWrongPassword is dev.status.wifi_join_lost.wrong_password: "Could not connect to {ssid}: the password is wrong. The device couldn't get back…".
+func DevStatusWifiJoinLostWrongPassword(ssid string) Msg {
+	return Msg{Key: "dev.status.wifi_join_lost.wrong_password", Args: map[string]any{"ssid": ssid}}
 }

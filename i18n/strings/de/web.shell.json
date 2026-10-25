@@ -376,10 +376,6 @@
     "en": "This device isn't set up yet. Choose an owner name and a password — this password protects your files and social profile, so keep it somewhere safe.",
     "reviewed": "claude-backtranslation 2026-10-11 #85787b7d"
   },
-  "web.shell.setup.joining": {
-    "text": "Verbindung mit „{ssid}“ wird hergestellt… Falls du dieses Gerät über sein eigenes Einrichtungsnetz erreicht hast, verbinde dich wieder mit deinem normalen WLAN und finde es dort.",
-    "en": "Joining \"{ssid}\"… if this device was reached over its own setup network, reconnect to your normal WiFi and find it there."
-  },
   "web.shell.setup.name": {
     "text": "Dein Name",
     "en": "Your name"
@@ -392,17 +388,9 @@
     "text": "Weiter: Speicher",
     "en": "Next: Storage"
   },
-  "web.shell.setup.next_wifi": {
-    "text": "Weiter: WLAN",
-    "en": "Next: WiFi"
-  },
   "web.shell.setup.no_disks": {
     "text": "Keine weiteren Laufwerke gefunden – deine Dateien werden auf dem Startlaufwerk gespeichert.",
     "en": "No extra disks were detected — your files will be stored on the boot disk."
-  },
-  "web.shell.setup.no_networks": {
-    "text": "Keine Netzwerke gefunden – stelle das Gerät näher an deinen Router oder überspringe diesen Schritt vorerst.",
-    "en": "No networks found — move the device closer to your router, or skip for now."
   },
   "web.shell.setup.password_mismatch": {
     "text": "Die Passwörter stimmen nicht überein.",
@@ -421,10 +409,6 @@
     "text": "Wird eingerichtet…",
     "en": "Setting up…"
   },
-  "web.shell.setup.skip": {
-    "text": "Überspringen – schon verbunden",
-    "en": "Skip — I'm already connected"
-  },
   "web.shell.setup.storage": {
     "text": "Speicher",
     "en": "Storage"
@@ -436,22 +420,6 @@
   "web.shell.setup.welcome": {
     "text": "Willkommen bei Off The Cloud",
     "en": "Welcome to Off The Cloud"
-  },
-  "web.shell.setup.wifi": {
-    "text": "WLAN",
-    "en": "WiFi"
-  },
-  "web.shell.setup.wifi_failed": {
-    "text": "Die WLAN-Anfrage konnte nicht gespeichert werden.",
-    "en": "Could not save the WiFi request."
-  },
-  "web.shell.setup.wifi_intro": {
-    "text": "Wenn du die Einrichtung über das temporäre Netzwerk „Off The Cloud“ dieses Geräts machst, wähle unten dein eigentliches WLAN. Schon auf anderem Weg verbunden (Ethernet oder ein früher eingerichtetes WLAN)? Dann überspring diesen Schritt einfach.",
-    "en": "If you're set up over this device's own temporary \"Off The Cloud\" network, pick your real WiFi below. Already connected some other way (ethernet, or WiFi set up earlier)? Just skip this."
-  },
-  "web.shell.setup.wifi_network": {
-    "text": "{ssid} ({signal})",
-    "en": "{ssid} ({signal})"
   },
   "web.shell.signin.close": {
     "text": "Anmeldung schließen",
@@ -584,6 +552,10 @@
   "web.shell.unreachable.title": {
     "text": "Dieses Gerät ist gerade nicht verfügbar",
     "en": "This device isn't available right now"
+  },
+  "web.shell.unreachable.wifi_hint": {
+    "text": "Du hast den Namen oder das Passwort deines WLANs geändert? Verbinde das Gerät mit einem Ethernet-Kabel mit deinem Router und öffne dann Einstellungen › WLAN.",
+    "en": "Changed your Wi-Fi's name or password? Connect the device to your router with an Ethernet cable, then open Settings › Wi-Fi."
   },
   "web.shell.update.critical": {
     "text": "<b>Kritisches Update {version} verfügbar.</b> {summary} Installiere es so bald wie möglich.",

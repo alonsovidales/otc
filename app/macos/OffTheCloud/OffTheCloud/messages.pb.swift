@@ -3671,12 +3671,13 @@ public nonisolated struct Msg_SetupStorage: Sendable {
   public init() {}
 }
 
-/// Issue #38: first-boot WiFi join, for a device reached over its own
-/// temporary "Off The Cloud" access point rather than an already-working
-/// network. Scanning is read-only (nmcli dev wifi list needs no special
-/// privilege), so it runs directly in the otc service like
-/// ListStorageDevices; actually joining a network is privileged the same
-/// way storage setup is — see SetWifi.
+/// The Wi-Fi networks the device can see, for Settings > Wi-Fi's picker
+/// (issue #38 added it for the first-run step, since removed). Scanning is
+/// read-only (nmcli dev wifi list needs no special privilege), so it runs in
+/// the otc service itself. Owner of the primary instance; a child instance
+/// gets an error without a code, a container and a demo device an empty
+/// list. Answers WifiNetworks: one entry per name, the current network
+/// first, then by signal; names that aren't valid UTF-8 are left out.
 public nonisolated struct Msg_ListWifiNetworks: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -3694,10 +3695,22 @@ public nonisolated struct Msg_WifiNetwork: Sendable {
 
   public var ssid: String = String()
 
-  /// 0-100, from nmcli's SIGNAL column.
+  /// 0-100, from nmcli's SIGNAL column (the strongest access point with
+  /// this name).
   public var signal: Int32 = 0
 
+  /// From release 140: an access point with this name that the device can
+  /// join asks for a password (an open copy of a secured network's name
+  /// never makes it look open).
   public var secured: Bool = false
+
+  /// The network the device is on now. False on devices before release 140.
+  public var current: Bool = false
+
+  /// A network the device can't join from Settings: every access point
+  /// with this name is 802.1X (enterprise), WEP or OWE. Shown greyed out.
+  /// False on devices before release 140.
+  public var unsupported: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -3716,9 +3729,9 @@ public nonisolated struct Msg_WifiNetworks: Sendable {
   public init() {}
 }
 
-/// SetWifi hands the join off to a privileged process the same way
-/// SetupStorage does (see storage.RequestSetup) — the otc service can't run
-/// `nmcli connection up` itself. An empty password means an open network.
+/// Retired in release 140: devices answer error_code "unknown_payload"
+/// (without logging the request); use JoinWifi. It carried the password in
+/// the clear. The fields stay so the number is never reused.
 public nonisolated struct Msg_SetWifi: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -3727,6 +3740,133 @@ public nonisolated struct Msg_SetWifi: Sendable {
   public var ssid: String = String()
 
   public var password: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Settings > Wi-Fi: the device's network now, and the last change asked
+/// from Settings. Answers WifiStatus. The owner of the primary instance gets
+/// managed=true when the device can change its own Wi-Fi; every other
+/// session, a child instance, a container (OTC_CONTAINER) and a device
+/// without NetworkManager, a wireless interface or the root runner get
+/// managed=false (not an error). A demo device answers managed=true,
+/// wired=true. Devices before release 140 answer error_code
+/// "unknown_payload": the apps hide the section until the next sign-in.
+public nonisolated struct Msg_GetWifiStatus: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Msg_WifiStatus: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The device changes its own Wi-Fi from Settings: Linux with
+  /// NetworkManager running (not netplan-backed), a wireless interface,
+  /// the root runner's otc-wifi-join.path active, and never in a container.
+  public var managed: Bool = false
+
+  /// The Wi-Fi network it is on now; "" when not on Wi-Fi.
+  public var ssid: String = String()
+
+  /// 0-100 (nmcli SIGNAL) for ssid; 0 when not on Wi-Fi.
+  public var signal: Int32 = 0
+
+  /// An Ethernet connection is up (NetworkManager: connected).
+  public var wired: Bool = false
+
+  /// The last change asked from Settings: while it runs, and for 15
+  /// minutes after it ended. Absent otherwise (and after a reboot).
+  public var lastJoin: Msg_WifiJoin {
+    get {_lastJoin ?? Msg_WifiJoin()}
+    set {_lastJoin = newValue}
+  }
+  /// Returns true if `lastJoin` has been explicitly set.
+  public var hasLastJoin: Bool {self._lastJoin != nil}
+  /// Clears the value of `lastJoin`. Subsequent reads from it will return its default value.
+  public mutating func clearLastJoin() {self._lastJoin = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _lastJoin: Msg_WifiJoin? = nil
+}
+
+public nonisolated struct Msg_WifiJoin: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// JoinWifi's answer carries it; the apps wait for this id to end.
+  public var id: String = String()
+
+  public var ssid: String = String()
+
+  /// "joining" | "connected" | "failed".
+  public var state: String = String()
+
+  /// With joining: "joining". With connected: "connected". With failed:
+  /// wrong_password, auth_failed, not_found, timed_out, no_address,
+  /// no_internet, unsupported_security, password_required, open_network (a
+  /// password given, every access point with that name open), bad_request,
+  /// no_wifi, busy, update_running, too_many, interrupted, no_answer,
+  /// join_failed (also for any code this build doesn't know). Clients
+  /// branch on state/code and show message.
+  public var code: String = String()
+
+  /// The same, in the request's language (dev.status.wifi_join.*, or with
+  /// failed the variant that says where the device ended up:
+  /// dev.status.wifi_join_back.* / dev.status.wifi_join_lost.*).
+  public var message: String = String()
+
+  /// With failed: the device had left its previous Wi-Fi network for this
+  /// one and is back on it. False when it couldn't get back, and when it
+  /// never left (the failure came before it switched, or it had no Wi-Fi
+  /// network before) - message tells those apart.
+  public var restored: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Joins a Wi-Fi network: a new one, or the same one with its new
+/// password. Hands off to the root runner (scripts/device-runner/
+/// otc-wifi-join-runner.py) and answers WifiStatus with last_join state
+/// "joining" at once; the connection may then drop for about a minute.
+/// The runner keeps the new network only once the device reaches the
+/// internet through it (the bridge when it has one, else its gateway), and
+/// otherwise goes back to the previous one. Refused (RespEnvelope.error
+/// with error_code) before anything changes: "not_managed", "bad_name",
+/// "bad_password", "busy", "update_running", "too_many"; "demo" on a demo
+/// device; "unknown_payload" before release 140. A child instance gets an
+/// error without a code, a container dev.err.not_in_container.
+public nonisolated struct Msg_JoinWifi: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// 1-32 bytes of UTF-8, no control characters (below U+0020, U+007F).
+  public var ssid: String = String()
+
+  /// RSA-OAEP(SHA-256) under this connection's GetPubKey key, like
+  /// ReqCreateUser.password. Empty for an open network. The plaintext is
+  /// 8-63 bytes of UTF-8 without control characters, or exactly 64
+  /// hexadecimal digits.
+  public var password: Data = Data()
+
+  /// Typed by hand (a network that hides its name): joined even when the
+  /// scan doesn't show it.
+  public var hidden: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -5323,6 +5463,7 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqListWifiNetworks(newValue)}
   }
 
+  /// Retired in release 140: answered with error_code "unknown_payload".
   public var reqSetWifi: Msg_SetWifi {
     get {
       if case .reqSetWifi(let v)? = payload {return v}
@@ -6010,6 +6151,24 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     set {payload = .reqRemoveFromImageGroup(newValue)}
   }
 
+  /// Settings > Wi-Fi (release 140): both answer with resp_wifi_status;
+  /// devices before it with error_code "unknown_payload".
+  public var reqGetWifiStatus: Msg_GetWifiStatus {
+    get {
+      if case .reqGetWifiStatus(let v)? = payload {return v}
+      return Msg_GetWifiStatus()
+    }
+    set {payload = .reqGetWifiStatus(newValue)}
+  }
+
+  public var reqJoinWifi: Msg_JoinWifi {
+    get {
+      if case .reqJoinWifi(let v)? = payload {return v}
+      return Msg_JoinWifi()
+    }
+    set {payload = .reqJoinWifi(newValue)}
+  }
+
   /// Issue #93. Answers with the generic Ack.
   public var reqSetDeviceDisabled: Msg_ReqSetDeviceDisabled {
     get {
@@ -6117,6 +6276,7 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     case reqRegenerateBridgeSecret(Msg_RegenerateBridgeSecret)
     case reqRotateBridgeSecret(Msg_RotateBridgeSecret)
     case reqListWifiNetworks(Msg_ListWifiNetworks)
+    /// Retired in release 140: answered with error_code "unknown_payload".
     case reqSetWifi(Msg_SetWifi)
     case reqRegisterWebPush(Msg_RegisterWebPush)
     case reqRegisterApnsToken(Msg_RegisterApnsToken)
@@ -6237,6 +6397,10 @@ public nonisolated struct Msg_ReqEnvelope: Sendable {
     /// sessions, as AddToImageGroup; devices before it with error_code
     /// "unknown_payload".
     case reqRemoveFromImageGroup(Msg_RemoveFromImageGroup)
+    /// Settings > Wi-Fi (release 140): both answer with resp_wifi_status;
+    /// devices before it with error_code "unknown_payload".
+    case reqGetWifiStatus(Msg_GetWifiStatus)
+    case reqJoinWifi(Msg_JoinWifi)
     /// Issue #93. Answers with the generic Ack.
     case reqSetDeviceDisabled(Msg_ReqSetDeviceDisabled)
     /// Issue #101: session tokens in place of a password in localStorage.
@@ -6808,6 +6972,15 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
     set {_uniqueStorage()._payload = .respHashesFound(newValue)}
   }
 
+  /// Settings > Wi-Fi: the answer to GetWifiStatus and JoinWifi.
+  public var respWifiStatus: Msg_WifiStatus {
+    get {
+      if case .respWifiStatus(let v)? = _storage._payload {return v}
+      return Msg_WifiStatus()
+    }
+    set {_uniqueStorage()._payload = .respWifiStatus(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated enum OneOf_Payload: Equatable, Sendable {
@@ -6893,6 +7066,8 @@ public nonisolated struct Msg_RespEnvelope: @unchecked Sendable {
     case respFolderUsage(Msg_FolderUsage)
     /// Free up space: the answer to HasHashes.
     case respHashesFound(Msg_HashesFound)
+    /// Settings > Wi-Fi: the answer to GetWifiStatus and JoinWifi.
+    case respWifiStatus(Msg_WifiStatus)
 
   }
 
@@ -12567,7 +12742,7 @@ nonisolated extension Msg_ListWifiNetworks: SwiftProtobuf.Message, SwiftProtobuf
 
 nonisolated extension Msg_WifiNetwork: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".WifiNetwork"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ssid\0\u{1}signal\0\u{1}secured\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ssid\0\u{1}signal\0\u{1}secured\0\u{1}current\0\u{1}unsupported\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -12578,6 +12753,8 @@ nonisolated extension Msg_WifiNetwork: SwiftProtobuf.Message, SwiftProtobuf._Mes
       case 1: try { try decoder.decodeSingularStringField(value: &self.ssid) }()
       case 2: try { try decoder.decodeSingularInt32Field(value: &self.signal) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.secured) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.current) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.unsupported) }()
       default: break
       }
     }
@@ -12593,6 +12770,12 @@ nonisolated extension Msg_WifiNetwork: SwiftProtobuf.Message, SwiftProtobuf._Mes
     if self.secured != false {
       try visitor.visitSingularBoolField(value: self.secured, fieldNumber: 3)
     }
+    if self.current != false {
+      try visitor.visitSingularBoolField(value: self.current, fieldNumber: 4)
+    }
+    if self.unsupported != false {
+      try visitor.visitSingularBoolField(value: self.unsupported, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -12600,6 +12783,8 @@ nonisolated extension Msg_WifiNetwork: SwiftProtobuf.Message, SwiftProtobuf._Mes
     if lhs.ssid != rhs.ssid {return false}
     if lhs.signal != rhs.signal {return false}
     if lhs.secured != rhs.secured {return false}
+    if lhs.current != rhs.current {return false}
+    if lhs.unsupported != rhs.unsupported {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -12665,6 +12850,174 @@ nonisolated extension Msg_SetWifi: SwiftProtobuf.Message, SwiftProtobuf._Message
   public static func ==(lhs: Msg_SetWifi, rhs: Msg_SetWifi) -> Bool {
     if lhs.ssid != rhs.ssid {return false}
     if lhs.password != rhs.password {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_GetWifiStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetWifiStatus"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_GetWifiStatus, rhs: Msg_GetWifiStatus) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_WifiStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".WifiStatus"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}managed\0\u{1}ssid\0\u{1}signal\0\u{1}wired\0\u{3}last_join\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.managed) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.ssid) }()
+      case 3: try { try decoder.decodeSingularInt32Field(value: &self.signal) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.wired) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._lastJoin) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.managed != false {
+      try visitor.visitSingularBoolField(value: self.managed, fieldNumber: 1)
+    }
+    if !self.ssid.isEmpty {
+      try visitor.visitSingularStringField(value: self.ssid, fieldNumber: 2)
+    }
+    if self.signal != 0 {
+      try visitor.visitSingularInt32Field(value: self.signal, fieldNumber: 3)
+    }
+    if self.wired != false {
+      try visitor.visitSingularBoolField(value: self.wired, fieldNumber: 4)
+    }
+    try { if let v = self._lastJoin {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_WifiStatus, rhs: Msg_WifiStatus) -> Bool {
+    if lhs.managed != rhs.managed {return false}
+    if lhs.ssid != rhs.ssid {return false}
+    if lhs.signal != rhs.signal {return false}
+    if lhs.wired != rhs.wired {return false}
+    if lhs._lastJoin != rhs._lastJoin {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_WifiJoin: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".WifiJoin"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}ssid\0\u{1}state\0\u{1}code\0\u{1}message\0\u{1}restored\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.ssid) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.state) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.code) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.message) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.restored) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if !self.ssid.isEmpty {
+      try visitor.visitSingularStringField(value: self.ssid, fieldNumber: 2)
+    }
+    if !self.state.isEmpty {
+      try visitor.visitSingularStringField(value: self.state, fieldNumber: 3)
+    }
+    if !self.code.isEmpty {
+      try visitor.visitSingularStringField(value: self.code, fieldNumber: 4)
+    }
+    if !self.message.isEmpty {
+      try visitor.visitSingularStringField(value: self.message, fieldNumber: 5)
+    }
+    if self.restored != false {
+      try visitor.visitSingularBoolField(value: self.restored, fieldNumber: 6)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_WifiJoin, rhs: Msg_WifiJoin) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.ssid != rhs.ssid {return false}
+    if lhs.state != rhs.state {return false}
+    if lhs.code != rhs.code {return false}
+    if lhs.message != rhs.message {return false}
+    if lhs.restored != rhs.restored {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Msg_JoinWifi: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".JoinWifi"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ssid\0\u{1}password\0\u{1}hidden\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.ssid) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self.password) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.hidden) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.ssid.isEmpty {
+      try visitor.visitSingularStringField(value: self.ssid, fieldNumber: 1)
+    }
+    if !self.password.isEmpty {
+      try visitor.visitSingularBytesField(value: self.password, fieldNumber: 2)
+    }
+    if self.hidden != false {
+      try visitor.visitSingularBoolField(value: self.hidden, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Msg_JoinWifi, rhs: Msg_JoinWifi) -> Bool {
+    if lhs.ssid != rhs.ssid {return false}
+    if lhs.password != rhs.password {return false}
+    if lhs.hidden != rhs.hidden {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -14953,7 +15306,7 @@ nonisolated extension Msg_LocalEndpoint: SwiftProtobuf.Message, SwiftProtobuf._M
 
 nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReqEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}lang\0\u{4}\u{8}req_list_files\0\u{3}req_get_status\0\u{3}req_auth\0\u{3}req_upload_file\0\u{3}req_get_file\0\u{3}req_del_file\0\u{3}req_search_photos\0\u{3}req_get_tags\0\u{3}req_change_key\0\u{3}req_new_social_publication\0\u{3}req_get_social_publications\0\u{3}req_new_social_comment\0\u{3}req_del_social_comment\0\u{3}req_friendship_request\0\u{4}\u{2}req_like_publication\0\u{3}req_like_comment\0\u{4}\u{2}req_get_settings\0\u{3}req_set_settings\0\u{3}req_bridge_register\0\u{3}req_get_profile\0\u{3}req_set_profile\0\u{3}req_share_files_link\0\u{3}req_download_shared_link\0\u{3}req_friendships_list\0\u{3}req_change_friend_status\0\u{3}req_friendship_inter_request\0\u{3}req_did_send_friendship_req\0\u{3}req_get_friendship_status\0\u{3}req_auth_as_friend\0\u{3}req_get_events\0\u{3}req_get_social_publication_files\0\u{3}req_get_pub_key\0\u{3}req_get_publication_likers\0\u{3}req_get_comment_likers\0\u{3}req_del_social_publication\0\u{3}req_get_file_info\0\u{3}req_set_bridge_secret\0\u{3}req_list_storage_devices\0\u{3}req_setup_storage\0\u{3}req_regenerate_bridge_secret\0\u{3}req_rotate_bridge_secret\0\u{3}req_list_wifi_networks\0\u{3}req_set_wifi\0\u{3}req_register_web_push\0\u{3}req_register_apns_token\0\u{3}req_get_vapid_public_key\0\u{3}req_has_file\0\u{3}req_link_file\0\u{3}req_update_push_registrations\0\u{3}req_set_face_recognition_enabled\0\u{3}req_list_people\0\u{3}req_rename_person\0\u{3}req_delete_person\0\u{3}req_merge_people\0\u{3}req_start_reprocess\0\u{3}req_get_reprocess_status\0\u{3}req_stop_reprocess\0\u{3}req_photo_date_buckets\0\u{3}req_list_notifications\0\u{3}req_get_notification_count\0\u{3}req_mark_notifications_acknowledged\0\u{3}req_get_publication\0\u{3}req_list_users\0\u{3}req_create_user\0\u{3}req_delete_user\0\u{4}\u{2}req_get_user_metrics\0\u{3}req_get_instance_role\0\u{3}req_set_user_active\0\u{3}req_get_static_asset\0\u{3}req_set_device_disabled\0\u{3}req_issue_session_token\0\u{3}req_auth_with_token\0\u{3}req_revoke_session_token\0\u{3}req_is_domain_available\0\u{3}req_get_publication_media\0\u{3}req_get_media_url\0\u{3}req_get_media_range\0\u{3}req_check_update\0\u{3}req_apply_update\0\u{3}req_setup_tailscale\0\u{3}req_get_tailscale_status\0\u{3}req_list_image_groups\0\u{3}req_create_image_group\0\u{3}req_add_to_image_group\0\u{3}req_rename_image_group\0\u{3}req_delete_image_group\0\u{3}req_bridge_notify\0\u{3}req_bridge_client_info\0\u{3}req_delete_friendship\0\u{3}req_friendship_inter_delete\0\u{3}req_has_cloud_ids\0\u{3}req_set_upload_only\0\u{3}req_list_file_versions\0\u{3}req_unregister_apns_token\0\u{3}req_unregister_web_push\0\u{3}req_get_bridge_access\0\u{3}req_bridge_sign_in\0\u{3}req_enable_bridge\0\u{3}req_register_fcm_token\0\u{3}req_unregister_fcm_token\0\u{3}req_set_social_storage_limit\0\u{3}req_read_file\0\u{3}req_begin_upload\0\u{3}req_upload_chunk\0\u{3}req_finish_upload\0\u{3}req_preview_shared_gallery\0\u{3}req_create_shared_gallery\0\u{3}req_get_shared_gallery_job\0\u{3}req_open_shared_gallery\0\u{3}req_get_shared_gallery_item\0\u{3}req_get_shared_gallery_stream\0\u{3}req_list_shared_links\0\u{3}req_delete_shared_link\0\u{3}req_set_image_tagging_enabled\0\u{3}req_disable_bridge\0\u{3}req_bridge_release_domain\0\u{3}req_get_thumbnails\0\u{3}req_get_logs\0\u{3}req_send_logs\0\u{3}req_bridge_send_logs\0\u{3}req_get_local_endpoint\0\u{3}req_search_files\0\u{3}req_set_out_of_images\0\u{3}req_list_out_of_images\0\u{3}req_restart_device\0\u{3}req_set_language\0\u{3}req_get_folder_usage\0\u{3}req_has_hashes\0\u{3}req_register_user_domain\0\u{3}req_remove_from_image_group\0\u{3}req_get_wifi_status\0\u{3}req_join_wifi\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -16653,6 +17006,32 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.payload = .reqRemoveFromImageGroup(v)
         }
       }()
+      case 143: try {
+        var v: Msg_GetWifiStatus?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqGetWifiStatus(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqGetWifiStatus(v)
+        }
+      }()
+      case 144: try {
+        var v: Msg_JoinWifi?
+        var hadOneofValue = false
+        if let current = self.payload {
+          hadOneofValue = true
+          if case .reqJoinWifi(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.payload = .reqJoinWifi(v)
+        }
+      }()
       default: break
       }
     }
@@ -17190,6 +17569,14 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
       guard case .reqRemoveFromImageGroup(let v)? = self.payload else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 142)
     }()
+    case .reqGetWifiStatus?: try {
+      guard case .reqGetWifiStatus(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 143)
+    }()
+    case .reqJoinWifi?: try {
+      guard case .reqJoinWifi(let v)? = self.payload else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 144)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -17206,7 +17593,7 @@ nonisolated extension Msg_ReqEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
 nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RespEnvelope"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{3}error_code\0\u{4}\u{6}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0\u{3}resp_domain_available\0\u{3}resp_media_url\0\u{3}resp_media_range\0\u{3}resp_update_info\0\u{3}resp_tailscale_status\0\u{3}resp_image_groups\0\u{3}resp_image_group\0\u{3}resp_bridge_notify_ack\0\u{3}resp_cloud_ids_found\0\u{3}resp_file_versions\0\u{3}resp_bridge_access\0\u{3}resp_bridge_signed_in\0\u{3}resp_file_chunk\0\u{3}resp_upload_started\0\u{3}resp_upload_progress\0\u{3}resp_shared_gallery_preview\0\u{3}resp_shared_gallery_job\0\u{3}resp_shared_gallery\0\u{3}resp_shared_links\0\u{3}resp_logs\0\u{3}resp_local_endpoint\0\u{3}resp_out_of_images_folders\0\u{3}resp_restarting_device\0\u{3}resp_folder_usage\0\u{3}resp_hashes_found\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}error\0\u{3}error_message\0\u{3}error_code\0\u{4}\u{6}resp_status\0\u{3}resp_ack\0\u{3}resp_file\0\u{3}resp_list_of_files\0\u{3}resp_tags_list\0\u{3}resp_settings\0\u{3}resp_bridge_ack_onboard\0\u{3}resp_profile\0\u{3}resp_share_link\0\u{3}resp_friendships\0\u{3}resp_shared_files\0\u{3}resp_new_social\0\u{3}resp_social_publications\0\u{3}resp_friendship_status\0\u{3}resp_events\0\u{3}resp_social_publication_files\0\u{3}resp_pub_key\0\u{3}resp_likers\0\u{3}resp_file_info\0\u{3}resp_storage_devices\0\u{3}resp_rotate_bridge_secret_ack\0\u{3}resp_wifi_networks\0\u{3}resp_vapid_public_key\0\u{3}resp_file_exists\0\u{3}resp_update_push_registrations_ack\0\u{3}resp_people\0\u{3}resp_reprocess_status\0\u{3}resp_photo_date_buckets\0\u{3}resp_notifications\0\u{3}resp_notification_count\0\u{3}resp_publication\0\u{3}resp_users\0\u{3}resp_user_metrics\0\u{3}resp_instance_role\0\u{3}resp_static_asset\0\u{3}resp_session_token\0\u{3}resp_domain_available\0\u{3}resp_media_url\0\u{3}resp_media_range\0\u{3}resp_update_info\0\u{3}resp_tailscale_status\0\u{3}resp_image_groups\0\u{3}resp_image_group\0\u{3}resp_bridge_notify_ack\0\u{3}resp_cloud_ids_found\0\u{3}resp_file_versions\0\u{3}resp_bridge_access\0\u{3}resp_bridge_signed_in\0\u{3}resp_file_chunk\0\u{3}resp_upload_started\0\u{3}resp_upload_progress\0\u{3}resp_shared_gallery_preview\0\u{3}resp_shared_gallery_job\0\u{3}resp_shared_gallery\0\u{3}resp_shared_links\0\u{3}resp_logs\0\u{3}resp_local_endpoint\0\u{3}resp_out_of_images_folders\0\u{3}resp_restarting_device\0\u{3}resp_folder_usage\0\u{3}resp_hashes_found\0\u{3}resp_wifi_status\0")
 
   fileprivate class _StorageClass {
     var _id: Int32 = 0
@@ -18044,6 +18431,19 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
             _storage._payload = .respHashesFound(v)
           }
         }()
+        case 71: try {
+          var v: Msg_WifiStatus?
+          var hadOneofValue = false
+          if let current = _storage._payload {
+            hadOneofValue = true
+            if case .respWifiStatus(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._payload = .respWifiStatus(v)
+          }
+        }()
         default: break
         }
       }
@@ -18312,6 +18712,10 @@ nonisolated extension Msg_RespEnvelope: SwiftProtobuf.Message, SwiftProtobuf._Me
       case .respHashesFound?: try {
         guard case .respHashesFound(let v)? = _storage._payload else { preconditionFailure() }
         try visitor.visitSingularMessageField(value: v, fieldNumber: 70)
+      }()
+      case .respWifiStatus?: try {
+        guard case .respWifiStatus(let v)? = _storage._payload else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 71)
       }()
       case nil: break
       }

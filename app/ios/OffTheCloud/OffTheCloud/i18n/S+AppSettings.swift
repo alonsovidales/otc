@@ -1214,4 +1214,150 @@ extension S {
     ///
     /// Placeholder of the field for a new user's name in Settings > Users (lowercase letters, digits and dashes only).
     static var appSettingsUsersUsername: String { L("app.settings.users.username", table: "AppSettings") }
+
+    /// Change Network
+    ///
+    /// Button in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) that lists the Wi-Fi networks the device sees, to pick another one or the same one with its new password.
+    static var appSettingsWifiChange: String { L("app.settings.wifi.change", table: "AppSettings") }
+
+    /// It stays reachable through its cable while it does.
+    ///
+    /// Message of the confirmation Connect the device to … ? in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) when the device is connected with a cable and on no Wi-Fi network: the app keeps reaching it through the cable.
+    static var appSettingsWifiConfirmCableMessage: String { L("app.settings.wifi.confirm_cable_message", table: "AppSettings") }
+
+    /// It leaves its current network and may not answer for about a minute. If the new network doesn't work, it goes back to the current one.
+    ///
+    /// Message of the confirmation Connect the device to … ? in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's): the device leaves its current Wi-Fi network for the chosen one; if that one doesn't work it goes back.
+    static var appSettingsWifiConfirmMessage: String { L("app.settings.wifi.confirm_message", table: "AppSettings") }
+
+    /// Connect the device to {ssid}?
+    ///
+    /// Title of the confirmation after Connect in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's). Its message is app.settings.wifi.confirm_message (or confirm_cable_message); buttons Connect and Cancel. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated).
+    static func appSettingsWifiConfirmTitle(ssid: String) -> String {
+        L("app.settings.wifi.confirm_title", table: "AppSettings", L10n.isolate(ssid))
+    }
+
+    /// Connected
+    ///
+    /// Badge next to the network the device is on now, in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's)'s list of networks. Agrees with network.
+    static var appSettingsWifiCurrentBadge: String { L("app.settings.wifi.current_badge", table: "AppSettings") }
+
+    /// Could not change the Wi-Fi.
+    ///
+    /// Error in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) when the device didn't change its network and gave no reason.
+    static var appSettingsWifiFailed: String { L("app.settings.wifi.failed", table: "AppSettings") }
+
+    /// The network the device uses. Changed your Wi-Fi's name or password? Choose the network here and enter its password. If the device can't reach your Wi-Fi any more, connect it to your router with an Ethernet cable first.
+    ///
+    /// Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's): the explanation under the heading (on the phones, the section's footer).
+    static var appSettingsWifiIntro: String { L("app.settings.wifi.intro", table: "AppSettings") }
+
+    /// Connecting to {ssid}… The device may not answer for about a minute.
+    ///
+    /// Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's), next to a spinner, after Connect: the device is switching networks. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated).
+    static func appSettingsWifiJoining(ssid: String) -> String {
+        L("app.settings.wifi.joining", table: "AppSettings", L10n.isolate(ssid))
+    }
+
+    /// Network name
+    ///
+    /// Placeholder of the field in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) for the name of a network that hides it (after Other Network…).
+    static var appSettingsWifiName: String { L("app.settings.wifi.name", table: "AppSettings") }
+
+    /// Enter the network's name.
+    ///
+    /// Error in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) when Connect is pressed with no network name typed.
+    static var appSettingsWifiNameNeeded: String { L("app.settings.wifi.name_needed", table: "AppSettings") }
+
+    /// That name is too long: a Wi-Fi network name has at most 32 characters, and accented letters and emoji count as two or more.
+    ///
+    /// Error in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) when the network name typed is too long. The limit counts bytes: a plain letter is one, an accented letter two, an emoji four.
+    static var appSettingsWifiNameTooLong: String { L("app.settings.wifi.name_too_long", table: "AppSettings") }
+
+    /// No networks found. Scan again, or choose Other Network to type its name.
+    ///
+    /// Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's): the device found no Wi-Fi networks. Scan again is the button Scan Again; Other Network is the list's last row (Other Network…), for a network that hides its name.
+    static var appSettingsWifiNoNetworks: String { L("app.settings.wifi.no_networks", table: "AppSettings") }
+
+    /// Wi-Fi: not connected
+    ///
+    /// Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's): the device isn't on any Wi-Fi network now.
+    static var appSettingsWifiNoWifi: String { L("app.settings.wifi.no_wifi", table: "AppSettings") }
+
+    /// Ethernet cable: connected
+    ///
+    /// Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's): the device is also connected to the router with a cable.
+    static var appSettingsWifiOnCable: String { L("app.settings.wifi.on_cable", table: "AppSettings") }
+
+    /// Wi-Fi: {ssid} ({signal})
+    ///
+    /// Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's): the Wi-Fi network the device is on now. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). {signal} is its signal strength, already formatted (72%).
+    static func appSettingsWifiOnWifi(ssid: String, signal: String) -> String {
+        L("app.settings.wifi.on_wifi", table: "AppSettings", L10n.isolate(ssid), signal)
+    }
+
+    /// Open
+    ///
+    /// Label next to a network that has no password, in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's)'s list of networks (an adjective: an open network, not the button Open). Agrees with network.
+    static var appSettingsWifiOpenNetwork: String { L("app.settings.wifi.open_network", table: "AppSettings") }
+
+    /// Other Network…
+    ///
+    /// Last row of Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's)'s list of networks: type the name of a network that hides its name.
+    static var appSettingsWifiOther: String { L("app.settings.wifi.other", table: "AppSettings") }
+
+    /// A Wi-Fi password has 8 to 63 characters (accented letters and some symbols count as two or three), or exactly 64 hexadecimal digits.
+    ///
+    /// Error in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) when the password typed can't be a Wi-Fi password. The limit counts bytes: a plain letter, digit, space or symbol is one, an accented letter two, some symbols (such as €) three. Hexadecimal digits are 0-9 and a-f.
+    static var appSettingsWifiPasswordInvalid: String { L("app.settings.wifi.password_invalid", table: "AppSettings") }
+
+    /// Enter the network's password.
+    ///
+    /// Error in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) when Connect is pressed for a network with a password and none was typed.
+    static var appSettingsWifiPasswordNeeded: String { L("app.settings.wifi.password_needed", table: "AppSettings") }
+
+    /// Password (empty for an open network)
+    ///
+    /// Placeholder of the password field in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) after Other Network…: left empty for a network without a password.
+    static var appSettingsWifiPasswordOptional: String { L("app.settings.wifi.password_optional", table: "AppSettings") }
+
+    /// Scan Again
+    ///
+    /// Button in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's)'s list of networks: looks for networks again.
+    static var appSettingsWifiScan: String { L("app.settings.wifi.scan", table: "AppSettings") }
+
+    /// Could not look for networks. Try again.
+    ///
+    /// Error in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) when the device couldn't list the Wi-Fi networks it sees and gave no reason.
+    static var appSettingsWifiScanFailed: String { L("app.settings.wifi.scan_failed", table: "AppSettings") }
+
+    /// Looking for networks…
+    ///
+    /// Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's), next to a spinner, while the device looks for Wi-Fi networks.
+    static var appSettingsWifiScanning: String { L("app.settings.wifi.scanning", table: "AppSettings") }
+
+    /// Needs a password
+    ///
+    /// Screen-reader name of the lock next to a network that has a password, in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's)'s list of networks.
+    static var appSettingsWifiSecured: String { L("app.settings.wifi.secured", table: "AppSettings") }
+
+    /// The device hasn't answered yet. If it doesn't come back, connect it to your router with an Ethernet cable and open Settings › Wi-Fi again.
+    ///
+    /// Warning in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) when the device hasn't answered four minutes after Connect. Settings › Wi-Fi is this section (app.settings.wifi.title, web.settings.wifi.title): translate both as they are translated.
+    static var appSettingsWifiSlow: String { L("app.settings.wifi.slow", table: "AppSettings") }
+
+    /// Wi-Fi
+    ///
+    /// Heading of the section of Settings where the device's owner changes the Wi-Fi network the device uses (the device's own Wi-Fi, not this phone's or computer's).
+    static var appSettingsWifiTitle: String { L("app.settings.wifi.title", table: "AppSettings") }
+
+    /// The device didn't say how the change went. The network it is on now is shown above.
+    ///
+    /// Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's): the device answered again but didn't report how the change of network went. Above is the line with the network it is on now.
+    static var appSettingsWifiUnknownResult: String { L("app.settings.wifi.unknown_result", table: "AppSettings") }
+
+    /// Not supported
+    ///
+    /// Label on a greyed-out network in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's)'s list: the device can't join it (enterprise or old WEP security). Agrees with network.
+    static var appSettingsWifiUnsupported: String { L("app.settings.wifi.unsupported", table: "AppSettings") }
 }

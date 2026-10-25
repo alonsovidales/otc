@@ -45,5 +45,6 @@
   "dev.update.web_checksum": {"text": "le risorse web non hanno superato la verifica del checksum (previsto {expected}, ottenuto {actual})"},
   "dev.update.web_download_failed": {"text": "impossibile scaricare l’app web per la release {release}: riprova l’aggiornamento"},
   "dev.update.web_install_failed": {"text": "impossibile installare le risorse web"},
-  "dev.update.web_unpack_failed": {"text": "impossibile decomprimere le risorse web"}
+  "dev.update.web_unpack_failed": {"text": "impossibile decomprimere le risorse web"},
+  "dev.update.wifi_changing": {"text": "il Wi-Fi del dispositivo è in fase di modifica; riprova tra qualche minuto"}
 }

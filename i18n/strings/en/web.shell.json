@@ -418,7 +418,7 @@
   },
   "web.shell.setup.finish": {
     "text": "Finish setup",
-    "note": "Button of the first (and only) step of an additional user's setup, and of the setup of a device that runs in Docker (a container on a home server), which has no storage or Wi-Fi steps.",
+    "note": "Button that finishes a new device's setup: the storage step of a device, or the only step of an additional user's setup or of a device that runs in Docker (a container on a home server).",
     "max": 24
   },
   "web.shell.setup.intro_account": {
@@ -433,11 +433,6 @@
     "review": "required",
     "reviewed": "shipped 2026-10-11 #a5519d02"
   },
-  "web.shell.setup.joining": {
-    "text": "Joining \"{ssid}\"… if this device was reached over its own setup network, reconnect to your normal WiFi and find it there.",
-    "args": [["ssid", "user"]],
-    "note": "WiFi step of a new device's setup after a network was chosen: the device leaves its own temporary network to join it. {ssid} is the network's name. Write the quotes in your language's style."
-  },
   "web.shell.setup.name": {
     "text": "Your name",
     "note": "Label of the name field in the first step of a new device's setup."
@@ -451,18 +446,9 @@
     "note": "Button of the first step of a new device's setup that goes on to the step where disks are chosen.",
     "max": 24
   },
-  "web.shell.setup.next_wifi": {
-    "text": "Next: WiFi",
-    "note": "Button of the storage step of a new device's setup that goes on to the WiFi step.",
-    "max": 24
-  },
   "web.shell.setup.no_disks": {
     "text": "No extra disks were detected — your files will be stored on the boot disk.",
     "note": "Storage step of a new device's setup when no disks are plugged in besides the one the system runs from."
-  },
-  "web.shell.setup.no_networks": {
-    "text": "No networks found — move the device closer to your router, or skip for now.",
-    "note": "WiFi step of a new device's setup when the device found no WiFi networks."
   },
   "web.shell.setup.password_mismatch": {
     "text": "Passwords don't match.",
@@ -484,11 +470,6 @@
     "note": "The button of the first step of a new device's setup while the password is being set.",
     "max": 24
   },
-  "web.shell.setup.skip": {
-    "text": "Skip — I'm already connected",
-    "note": "Button of the WiFi step of a new device's setup that finishes it without joining a network.",
-    "max": 40
-  },
   "web.shell.setup.storage": {
     "text": "Storage",
     "note": "Heading of the step of a new device's setup where the disks that store the files are chosen."
@@ -500,23 +481,6 @@
   "web.shell.setup.welcome": {
     "text": "Welcome to Off The Cloud",
     "note": "Heading of the first step of a new device's setup, in the web app."
-  },
-  "web.shell.setup.wifi": {
-    "text": "WiFi",
-    "note": "Heading of the step of a new device's setup where it joins a WiFi network."
-  },
-  "web.shell.setup.wifi_failed": {
-    "text": "Could not save the WiFi request.",
-    "note": "Error in the WiFi step of a new device's setup when the device didn't take the network and gave no reason."
-  },
-  "web.shell.setup.wifi_intro": {
-    "text": "If you're set up over this device's own temporary \"Off The Cloud\" network, pick your real WiFi below. Already connected some other way (ethernet, or WiFi set up earlier)? Just skip this.",
-    "note": "WiFi step of a new device's setup. \"Off The Cloud\" is the name of the temporary network the device makes during setup."
-  },
-  "web.shell.setup.wifi_network": {
-    "text": "{ssid} ({signal})",
-    "args": [["ssid", "user"], ["signal", "text"]],
-    "note": "A WiFi network in the list of the setup's WiFi step (a lock before it marks one with a password). {ssid} is the network's name, {signal} its signal strength, already formatted (72%)."
   },
   "web.shell.signin.close": {
     "text": "Close sign in",
@@ -663,6 +627,10 @@
   "web.shell.unreachable.title": {
     "text": "This device isn't available right now",
     "note": "Heading of the full page shown when the relay (off-the.cloud) can't reach the user's device: switched off, no internet. The relay's own explanation is shown under it."
+  },
+  "web.shell.unreachable.wifi_hint": {
+    "text": "Changed your Wi-Fi's name or password? Connect the device to your router with an Ethernet cable, then open Settings › Wi-Fi.",
+    "note": "Secondary line on the full page shown while the device can't be reached (web.shell.unreachable.title), for an owner whose device lost its Wi-Fi. Settings › Wi-Fi is the Settings section web.settings.wifi.title: translate both as they are translated."
   },
   "web.shell.update.critical": {
     "text": "<b>Critical update {version} available.</b> {summary} Install it as soon as possible.",

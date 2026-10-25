@@ -11,7 +11,9 @@ import (
 // otc-update-stopped.sh and scripts/update.sh), bridge-status.json
 // (scripts/bridge-runner), tailscale-status.json (scripts/tailscale-runner)
 // and wifi-restart-status.json (scripts/device-runner's Wi-Fi restart).
-// Each line they write is
+// (The Wi-Fi change runner, scripts/device-runner/otc-wifi-join-runner.py,
+// answers in its own directory, /run/otc-wifi-join/status.json, with codes
+// only: WifiJoinText below.) Each line they write is
 //
 //	{"state": ..., "message": ..., "code": ..., "args": {...}, ...}
 //
@@ -42,8 +44,27 @@ var (
 	tailscaleCodes = codes("dev.status.tailscale.",
 		"not_installed", "operator_failed", "start_failed", "unknown_request")
 	wifiRestartCodes = codes("dev.status.wifi.",
-		"no_connection", "not_wifi", "rebooted", "restarted", "restarting", "too_soon")
+		"busy", "no_connection", "not_wifi", "rebooted", "restarted", "restarting", "too_soon")
+
+	// Settings > Wi-Fi: a change's state and codes (WifiJoin.code; the
+	// runner's CODES, which TestWifiJoinRunnerCodes holds to this table,
+	// lists all of them but no_answer, which only the device decides).
+	wifiJoinCodes = codes("dev.status.wifi_join.",
+		"joining", "connected", "wrong_password", "auth_failed", "not_found", "timed_out",
+		"no_address", "no_internet", "unsupported_security", "password_required", "open_network",
+		"bad_request", "no_wifi", "busy", "update_running", "too_many", "interrupted", "no_answer",
+		"join_failed")
+	// A failure that can come after the device left its Wi-Fi network for
+	// the new one says where it ended up: back on its previous network, or
+	// not (lost).
+	wifiJoinBackCodes = codes("dev.status.wifi_join_back.", wifiJoinVariants...)
+	wifiJoinLostCodes = codes("dev.status.wifi_join_lost.", wifiJoinVariants...)
 )
+
+var wifiJoinVariants = []string{
+	"wrong_password", "auth_failed", "not_found", "timed_out", "no_address", "no_internet",
+	"join_failed", "interrupted",
+}
 
 // codes maps each code to prefix+code: the codes are the keys' last
 // segment.
@@ -91,6 +112,41 @@ func WifiRestartStatus(lang, code string, args []byte, message string) string {
 // reader that stores the text as a key rather than rendering it now (an
 // Alert): "" for no code or one this build doesn't know.
 func WifiRestartKey(code string) string { return wifiRestartCodes[code] }
+
+// WifiJoinCode reports whether code is one of a Wi-Fi change's codes.
+func WifiJoinCode(code string) bool {
+	_, ok := wifiJoinCodes[code]
+	return ok
+}
+
+// WifiJoinText is a Wi-Fi change's message in lang: its code's text (a
+// code this build doesn't know reads as join_failed) naming the network.
+// A failure after the device left its Wi-Fi network for the new one says
+// where it ended up: back on that network (restored) or not; one where it
+// never left (before switching, or with no Wi-Fi network before) doesn't.
+// The runner writes no English, so every language, English included, is
+// rendered from the catalog.
+func WifiJoinText(lang, code, ssid string, left, restored bool) string {
+	if _, ok := wifiJoinCodes[code]; !ok {
+		code = "join_failed"
+	}
+	key := wifiJoinCodes[code]
+	if left {
+		variants := wifiJoinLostCodes
+		if restored {
+			variants = wifiJoinBackCodes
+		}
+		if k, ok := variants[code]; ok {
+			key = k
+		}
+	}
+	m := i18n.Msg{Key: key, Args: map[string]any{"ssid": ssid}}
+	if m.Check() != nil {
+		// A key without the network's name.
+		m.Args = nil
+	}
+	return m.Render(lang)
+}
 
 // runnerError is a runner's failure as an error: its English message as
 // Error(), and the same text in a request's language through its code.

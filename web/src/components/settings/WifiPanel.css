@@ -1,0 +1,61 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* Settings › Wi-Fi (WifiPanel.tsx). Sits inside a .sf-section and uses
+   UpdatePanel.css's up-* lines; this adds the network lines and the list. */
+
+.wf-now { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.wf-now li { display: flex; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.wf-icon { flex: 0 0 auto; color: var(--mist-dim); }
+
+.wf-picker { margin-top: 4px; }
+.wf-empty { margin: 4px 0 8px; }
+
+.wf-list {
+  display: flex; flex-direction: column;
+  margin: 4px 0 10px;
+  border: 1px solid var(--line); border-radius: 8px;
+  overflow: hidden;
+}
+.wf-net {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 44px; padding: 6px 12px;
+  border-top: 1px solid var(--line);
+  cursor: pointer;
+}
+.wf-net:first-child { border-top: 0; }
+.wf-net:hover { background: var(--panel); }
+.wf-net.wf-on { background: var(--ink-2); }
+.wf-net input { flex: 0 0 auto; margin: 0; accent-color: var(--ember); }
+.wf-net.wf-off { cursor: default; color: var(--mist-dim); opacity: .6; }
+.wf-net.wf-off:hover { background: none; }
+
+/* A long name is cut; its title holds it whole. Width 0, so a long name
+   never widens the page on a phone (its whole width would otherwise count
+   as the row's narrowest). */
+.wf-ssid { flex: 1 1 0; width: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-other .wf-ssid { color: var(--mist-dim); }
+
+.wf-badge {
+  flex: 0 0 auto;
+  padding: 1px 8px; border-radius: 999px;
+  background: var(--success-bg); color: var(--success);
+  font-size: 11px; font-weight: 700;
+}
+.wf-meta { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; color: var(--mist-dim); font-size: 12px; }
+.wf-tag { white-space: nowrap; }
+.wf-lock { display: block; color: var(--mist-dim); }
+.wf-bars { display: block; }
+.wf-bars rect { fill: var(--line); }
+.wf-bars rect.on { fill: var(--mist-dim); }
+.wf-signal { min-width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; }
+
+.wf-form { margin-bottom: 2px; }
+.wf-form .up-error { margin: 0 0 6px; }
+
+.wf-wait { margin-top: 8px; color: var(--mist); }
+.wf-done { font-size: 13px; color: var(--success); }
+
+@media (max-width: 479px) {
+  .wf-net { gap: 8px; padding: 6px 10px; }
+  .wf-meta { gap: 6px; }
+}

@@ -570,6 +570,10 @@ fun S.appShellTimeJustNow(): UiText =
 fun S.appShellTimeMinutesAgo(count: Int): UiText =
     UiText.Plural(R.plurals.app_shell_time_minutes_ago, count, listOf(count))
 
+/** "Changed your Wi-Fi's name or password? Connect the device to your router with an Ethernet cable, then open Settings › Wi-Fi.": Secondary line on the card shown over the whole app while the device isn't available (app.shell.device_unavailable), for an owner whose device lost its Wi-Fi. Settings › Wi-Fi is the Settings section app.settings.wifi.title: translate both as they are translated. */
+fun S.appShellUnreachableWifiHint(): UiText =
+    UiText.Res(R.string.app_shell_unreachable_wifi_hint)
+
 /** "{count} left" (one: "{count} left"): Settings > Uploads, at the right of the upload status: how many photos and videos are still to be uploaded. */
 fun S.appShellUploadLeft(count: Int): UiText =
     UiText.Plural(R.plurals.app_shell_upload_left, count, listOf(count))

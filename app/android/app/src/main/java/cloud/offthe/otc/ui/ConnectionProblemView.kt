@@ -38,6 +38,7 @@ import cloud.offthe.otc.i18n.appShellLeaveMessageStart
 import cloud.offthe.otc.i18n.appShellLeaveTitle
 import cloud.offthe.otc.i18n.appShellSaveRetry
 import cloud.offthe.otc.i18n.appShellStillTrying
+import cloud.offthe.otc.i18n.appShellUnreachableWifiHint
 import cloud.offthe.otc.i18n.commonCancel
 import cloud.offthe.otc.i18n.commonConnecting
 import cloud.offthe.otc.i18n.commonPassword
@@ -189,6 +190,11 @@ fun DeviceUnreachableView(message: String, code: String, onClose: (() -> Unit)? 
                     Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 }
                 if (!disabled) {
+                    // A device that lost the home Wi-Fi (its name or password
+                    // changed) comes back over a cable, then Settings › Wi-Fi.
+                    // Before "still trying", as on iOS.
+                    Spacer(Modifier.height(10.dp))
+                    Text(S.appShellUnreachableWifiHint().resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(12.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)

@@ -164,6 +164,7 @@
         <item quantity="one">vor %1$s Min.</item>
         <item quantity="other">vor %1$s Min.</item>
     </plurals>
+    <string name="app_shell_unreachable_wifi_hint">Du hast den Namen oder das Passwort deines WLANs geändert? Verbinde das Gerät mit einem Ethernet-Kabel mit deinem Router und öffne dann Einstellungen › WLAN.</string>
     <plurals name="app_shell_upload_left">
         <item quantity="one">%1$s übrig</item>
         <item quantity="other">%1$s übrig</item>

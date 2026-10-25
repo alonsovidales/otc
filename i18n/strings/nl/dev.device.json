@@ -82,8 +82,16 @@
     "text": "onbekend logboek “{source}”",
     "en": "unknown log \"{source}\""
   },
-  "dev.device.wifi_no_ssid": {
-    "text": "ssid mag niet leeg zijn",
-    "en": "ssid cannot be empty"
+  "dev.device.wifi_bad_name": {
+    "text": "Een wifinetwerknaam heeft 1 tot 32 tekens (letters met accenten en emoji tellen als twee of meer), zonder tabs of regeleinden.",
+    "en": "A Wi-Fi network name has 1 to 32 characters (accented letters and emoji count as two or more), without tabs or line breaks."
+  },
+  "dev.device.wifi_bad_password": {
+    "text": "Een wifiwachtwoord heeft 8 tot 63 tekens (letters met accenten en sommige symbolen tellen als twee of drie), of precies 64 hexadecimale cijfers.",
+    "en": "A Wi-Fi password has 8 to 63 characters (accented letters and some symbols count as two or three), or exactly 64 hexadecimal digits."
+  },
+  "dev.device.wifi_not_managed": {
+    "text": "De wifi van dit apparaat kan niet via Instellingen worden gewijzigd.",
+    "en": "This device's Wi-Fi can't be changed from Settings."
   }
 }

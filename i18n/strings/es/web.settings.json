@@ -811,5 +811,113 @@
   "web.settings.users.username": {
     "text": "nombre de usuario",
     "en": "username"
+  },
+  "web.settings.wifi.change": {
+    "text": "Cambiar de red",
+    "en": "Change Network"
+  },
+  "web.settings.wifi.confirm": {
+    "text": "¿Conectar el dispositivo a {ssid}? Dejará su red actual y puede que no responda durante un minuto aproximadamente. Si la nueva red no funciona, volverá a la actual.",
+    "en": "Connect the device to {ssid}? It leaves its current network and may not answer for about a minute. If the new network doesn't work, it goes back to the current one."
+  },
+  "web.settings.wifi.confirm_cable": {
+    "text": "¿Conectar el dispositivo a {ssid}? Mientras tanto seguirá accesible a través de su cable.",
+    "en": "Connect the device to {ssid}? It stays reachable through its cable while it does."
+  },
+  "web.settings.wifi.current_badge": {
+    "text": "Conectada",
+    "en": "Connected"
+  },
+  "web.settings.wifi.failed": {
+    "text": "No se ha podido cambiar el Wi-Fi.",
+    "en": "Could not change the Wi-Fi."
+  },
+  "web.settings.wifi.intro": {
+    "text": "La red que usa el dispositivo. ¿Has cambiado el nombre o la contraseña de tu Wi-Fi? Elige aquí la red y escribe su contraseña. Si el dispositivo ya no puede conectarse a tu Wi-Fi, primero conéctalo al router con un cable Ethernet.",
+    "en": "The network the device uses. Changed your Wi-Fi's name or password? Choose the network here and enter its password. If the device can't reach your Wi-Fi any more, connect it to your router with an Ethernet cable first."
+  },
+  "web.settings.wifi.joining": {
+    "text": "Conectando a {ssid}… Puede que el dispositivo no responda durante un minuto aproximadamente.",
+    "en": "Connecting to {ssid}… The device may not answer for about a minute."
+  },
+  "web.settings.wifi.name": {
+    "text": "Nombre de la red",
+    "en": "Network name"
+  },
+  "web.settings.wifi.name_needed": {
+    "text": "Escribe el nombre de la red.",
+    "en": "Enter the network's name."
+  },
+  "web.settings.wifi.name_too_long": {
+    "text": "Ese nombre es demasiado largo: el nombre de una red Wi-Fi tiene 32 caracteres como máximo, y las letras acentuadas y los emoji cuentan como dos o más.",
+    "en": "That name is too long: a Wi-Fi network name has at most 32 characters, and accented letters and emoji count as two or more."
+  },
+  "web.settings.wifi.no_networks": {
+    "text": "No se han encontrado redes. Vuelve a buscar o elige “Otra red” para escribir su nombre.",
+    "en": "No networks found. Scan again, or choose Other Network to type its name."
+  },
+  "web.settings.wifi.no_wifi": {
+    "text": "Wi-Fi: sin conexión",
+    "en": "Wi-Fi: not connected"
+  },
+  "web.settings.wifi.on_cable": {
+    "text": "Cable Ethernet: conectado",
+    "en": "Ethernet cable: connected"
+  },
+  "web.settings.wifi.on_wifi": {
+    "text": "Wi-Fi: {ssid} ({signal})",
+    "en": "Wi-Fi: {ssid} ({signal})"
+  },
+  "web.settings.wifi.open_network": {
+    "text": "Abierta",
+    "en": "Open"
+  },
+  "web.settings.wifi.other": {
+    "text": "Otra red…",
+    "en": "Other Network…"
+  },
+  "web.settings.wifi.password_invalid": {
+    "text": "Una contraseña de Wi-Fi tiene de 8 a 63 caracteres (las letras acentuadas y algunos símbolos cuentan como dos o tres) o exactamente 64 dígitos hexadecimales.",
+    "en": "A Wi-Fi password has 8 to 63 characters (accented letters and some symbols count as two or three), or exactly 64 hexadecimal digits."
+  },
+  "web.settings.wifi.password_needed": {
+    "text": "Escribe la contraseña de la red.",
+    "en": "Enter the network's password."
+  },
+  "web.settings.wifi.password_optional": {
+    "text": "Contraseña (vacía si la red es abierta)",
+    "en": "Password (empty for an open network)"
+  },
+  "web.settings.wifi.scan": {
+    "text": "Volver a buscar",
+    "en": "Scan Again"
+  },
+  "web.settings.wifi.scan_failed": {
+    "text": "No se han podido buscar redes. Vuelve a intentarlo.",
+    "en": "Could not look for networks. Try again."
+  },
+  "web.settings.wifi.scanning": {
+    "text": "Buscando redes…",
+    "en": "Looking for networks…"
+  },
+  "web.settings.wifi.secured": {
+    "text": "Necesita contraseña",
+    "en": "Needs a password"
+  },
+  "web.settings.wifi.slow": {
+    "text": "El dispositivo aún no ha respondido. Si no vuelve, conéctalo al router con un cable Ethernet y vuelve a abrir Ajustes › Wi-Fi.",
+    "en": "The device hasn't answered yet. If it doesn't come back, connect it to your router with an Ethernet cable and open Settings › Wi-Fi again."
+  },
+  "web.settings.wifi.title": {
+    "text": "Wi-Fi",
+    "en": "Wi-Fi"
+  },
+  "web.settings.wifi.unknown_result": {
+    "text": "El dispositivo no ha dicho cómo ha ido el cambio. Arriba se muestra la red en la que está ahora.",
+    "en": "The device didn't say how the change went. The network it is on now is shown above."
+  },
+  "web.settings.wifi.unsupported": {
+    "text": "No compatible",
+    "en": "Not supported"
   }
 }

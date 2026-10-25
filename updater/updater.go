@@ -199,6 +199,16 @@ func InstalledVersion() int {
 	return version
 }
 
+// Pending reports whether an update was asked for and hasn't ended: its
+// request still waits for the root runner (which removes it as it
+// starts), or a run is going on. Settings > Wi-Fi refuses a change then.
+func Pending() bool {
+	if _, err := os.Lstat(cRequestPath); err == nil {
+		return true
+	}
+	return CurrentStatus().State == "running"
+}
+
 // CurrentStatus reports on the last (or running) update. A missing file
 // simply means no update has ever been started here.
 func CurrentStatus() Status {

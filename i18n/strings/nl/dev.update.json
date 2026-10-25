@@ -194,5 +194,9 @@
   "dev.update.web_unpack_failed": {
     "text": "kan de bestanden van de webapp niet uitpakken",
     "en": "could not unpack the web assets"
+  },
+  "dev.update.wifi_changing": {
+    "text": "de wifi van het apparaat wordt gewijzigd; probeer het over een paar minuten opnieuw",
+    "en": "the device's Wi-Fi is being changed; try again in a few minutes"
   }
 }

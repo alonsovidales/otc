@@ -258,4 +258,32 @@
         <item quantity="other">%1$s MB (%2$s%%) · %3$s connessioni attive</item>
     </plurals>
     <string name="app_settings_users_username">nome utente</string>
+    <string name="app_settings_wifi_change">Cambia rete</string>
+    <string name="app_settings_wifi_confirm_cable_message">Nel frattempo resta raggiungibile tramite il cavo.</string>
+    <string name="app_settings_wifi_confirm_message">Lascerà la rete attuale e potrebbe non rispondere per circa un minuto. Se la nuova rete non funziona, tornerà a quella attuale.</string>
+    <string name="app_settings_wifi_confirm_title">Connettere il dispositivo a \u2068%1$s\u2069?</string>
+    <string name="app_settings_wifi_current_badge">Connessa</string>
+    <string name="app_settings_wifi_failed">Impossibile cambiare il Wi-Fi.</string>
+    <string name="app_settings_wifi_intro">La rete usata dal dispositivo. Hai cambiato il nome o la password del tuo Wi-Fi? Scegli qui la rete e inserisci la sua password. Se il dispositivo non riesce più a collegarsi al tuo Wi-Fi, collegalo prima al router con un cavo Ethernet.</string>
+    <string name="app_settings_wifi_joining">Connessione a \u2068%1$s\u2069… Il dispositivo potrebbe non rispondere per circa un minuto.</string>
+    <string name="app_settings_wifi_name">Nome della rete</string>
+    <string name="app_settings_wifi_name_needed">Inserisci il nome della rete.</string>
+    <string name="app_settings_wifi_name_too_long">Questo nome è troppo lungo: il nome di una rete Wi-Fi ha al massimo 32 caratteri, e le lettere accentate e le emoji contano come due o più.</string>
+    <string name="app_settings_wifi_no_networks">Nessuna rete trovata. Cerca di nuovo, oppure scegli “Altra rete” per scriverne il nome.</string>
+    <string name="app_settings_wifi_no_wifi">Wi-Fi: non connesso</string>
+    <string name="app_settings_wifi_on_cable">Cavo Ethernet: collegato</string>
+    <string name="app_settings_wifi_on_wifi">Wi-Fi: \u2068%1$s\u2069 (%2$s)</string>
+    <string name="app_settings_wifi_open_network">Aperta</string>
+    <string name="app_settings_wifi_other">Altra rete…</string>
+    <string name="app_settings_wifi_password_invalid">Una password Wi-Fi ha da 8 a 63 caratteri (le lettere accentate e alcuni simboli contano come due o tre), oppure esattamente 64 cifre esadecimali.</string>
+    <string name="app_settings_wifi_password_needed">Inserisci la password della rete.</string>
+    <string name="app_settings_wifi_password_optional">Password (vuota per una rete aperta)</string>
+    <string name="app_settings_wifi_scan">Cerca di nuovo</string>
+    <string name="app_settings_wifi_scan_failed">Impossibile cercare le reti. Riprova.</string>
+    <string name="app_settings_wifi_scanning">Ricerca delle reti…</string>
+    <string name="app_settings_wifi_secured">Richiede una password</string>
+    <string name="app_settings_wifi_slow">Il dispositivo non ha ancora risposto. Se non torna, collegalo al router con un cavo Ethernet e apri di nuovo Impostazioni › Wi-Fi.</string>
+    <string name="app_settings_wifi_title">Wi-Fi</string>
+    <string name="app_settings_wifi_unknown_result">Il dispositivo non ha detto com’è andata la modifica. La rete a cui è connesso ora è indicata sopra.</string>
+    <string name="app_settings_wifi_unsupported">Non supportata</string>
 </resources>

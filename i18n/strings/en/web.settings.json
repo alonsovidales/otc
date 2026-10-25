@@ -958,5 +958,126 @@
     "text": "username",
     "note": "Placeholder of the name field for a new user in Settings > Users. Names use lower-case letters, digits and hyphens only. Lower case in English.",
     "max": 20
+  },
+  "web.settings.wifi.change": {
+    "text": "Change Network",
+    "note": "Button in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) that lists the Wi-Fi networks the device sees, to pick another one or the same one with its new password.",
+    "max": 24
+  },
+  "web.settings.wifi.confirm": {
+    "text": "Connect the device to {ssid}? It leaves its current network and may not answer for about a minute. If the new network doesn't work, it goes back to the current one.",
+    "args": [["ssid", "user"]],
+    "note": "Confirmation the browser shows after Connect in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) (OK and Cancel are the browser's). The device leaves its current Wi-Fi network for the chosen one; if that one doesn't work it goes back. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated)."
+  },
+  "web.settings.wifi.confirm_cable": {
+    "text": "Connect the device to {ssid}? It stays reachable through its cable while it does.",
+    "args": [["ssid", "user"]],
+    "note": "Confirmation the browser shows after Connect in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) when the device is connected with a cable and on no Wi-Fi network (OK and Cancel are the browser's). {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated)."
+  },
+  "web.settings.wifi.current_badge": {
+    "text": "Connected",
+    "note": "Badge next to the network the device is on now, in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's)'s list of networks. Agrees with network.",
+    "max": 16
+  },
+  "web.settings.wifi.failed": {
+    "text": "Could not change the Wi-Fi.",
+    "note": "Error in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) when the device didn't change its network and gave no reason."
+  },
+  "web.settings.wifi.intro": {
+    "text": "The network the device uses. Changed your Wi-Fi's name or password? Choose the network here and enter its password. If the device can't reach your Wi-Fi any more, connect it to your router with an Ethernet cable first.",
+    "note": "Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's): the explanation under the heading (on the phones, the section's footer)."
+  },
+  "web.settings.wifi.joining": {
+    "text": "Connecting to {ssid}… The device may not answer for about a minute.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's), next to a spinner, after Connect: the device is switching networks. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated)."
+  },
+  "web.settings.wifi.name": {
+    "text": "Network name",
+    "note": "Placeholder of the field in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) for the name of a network that hides it (after Other Network…).",
+    "max": 40
+  },
+  "web.settings.wifi.name_needed": {
+    "text": "Enter the network's name.",
+    "note": "Error in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) when Connect is pressed with no network name typed."
+  },
+  "web.settings.wifi.name_too_long": {
+    "text": "That name is too long: a Wi-Fi network name has at most 32 characters, and accented letters and emoji count as two or more.",
+    "note": "Error in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) when the network name typed is too long. The limit counts bytes: a plain letter is one, an accented letter two, an emoji four."
+  },
+  "web.settings.wifi.no_networks": {
+    "text": "No networks found. Scan again, or choose Other Network to type its name.",
+    "note": "Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's): the device found no Wi-Fi networks. Scan again is the button Scan Again; Other Network is the list's last row (Other Network…), for a network that hides its name."
+  },
+  "web.settings.wifi.no_wifi": {
+    "text": "Wi-Fi: not connected",
+    "note": "Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's): the device isn't on any Wi-Fi network now."
+  },
+  "web.settings.wifi.on_cable": {
+    "text": "Ethernet cable: connected",
+    "note": "Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's): the device is also connected to the router with a cable."
+  },
+  "web.settings.wifi.on_wifi": {
+    "text": "Wi-Fi: {ssid} ({signal})",
+    "args": [["ssid", "user"], ["signal", "text"]],
+    "note": "Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's): the Wi-Fi network the device is on now. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). {signal} is its signal strength, already formatted (72%)."
+  },
+  "web.settings.wifi.open_network": {
+    "text": "Open",
+    "note": "Label next to a network that has no password, in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's)'s list of networks (an adjective: an open network, not the button Open). Agrees with network.",
+    "max": 16
+  },
+  "web.settings.wifi.other": {
+    "text": "Other Network…",
+    "note": "Last row of Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's)'s list of networks: type the name of a network that hides its name.",
+    "max": 30
+  },
+  "web.settings.wifi.password_invalid": {
+    "text": "A Wi-Fi password has 8 to 63 characters (accented letters and some symbols count as two or three), or exactly 64 hexadecimal digits.",
+    "note": "Error in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) when the password typed can't be a Wi-Fi password. The limit counts bytes: a plain letter, digit, space or symbol is one, an accented letter two, some symbols (such as €) three. Hexadecimal digits are 0-9 and a-f."
+  },
+  "web.settings.wifi.password_needed": {
+    "text": "Enter the network's password.",
+    "note": "Error in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) when Connect is pressed for a network with a password and none was typed."
+  },
+  "web.settings.wifi.password_optional": {
+    "text": "Password (empty for an open network)",
+    "note": "Placeholder of the password field in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) after Other Network…: left empty for a network without a password.",
+    "max": 60
+  },
+  "web.settings.wifi.scan": {
+    "text": "Scan Again",
+    "note": "Button in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's)'s list of networks: looks for networks again.",
+    "max": 24
+  },
+  "web.settings.wifi.scan_failed": {
+    "text": "Could not look for networks. Try again.",
+    "note": "Error in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) when the device couldn't list the Wi-Fi networks it sees and gave no reason."
+  },
+  "web.settings.wifi.scanning": {
+    "text": "Looking for networks…",
+    "note": "Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's), next to a spinner, while the device looks for Wi-Fi networks."
+  },
+  "web.settings.wifi.secured": {
+    "text": "Needs a password",
+    "note": "Screen-reader name of the lock next to a network that has a password, in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's)'s list of networks."
+  },
+  "web.settings.wifi.slow": {
+    "text": "The device hasn't answered yet. If it doesn't come back, connect it to your router with an Ethernet cable and open Settings › Wi-Fi again.",
+    "note": "Warning in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's) when the device hasn't answered four minutes after Connect. Settings › Wi-Fi is this section (app.settings.wifi.title, web.settings.wifi.title): translate both as they are translated."
+  },
+  "web.settings.wifi.title": {
+    "text": "Wi-Fi",
+    "note": "Heading of the section of Settings where the device's owner changes the Wi-Fi network the device uses (the device's own Wi-Fi, not this phone's or computer's).",
+    "max": 24
+  },
+  "web.settings.wifi.unknown_result": {
+    "text": "The device didn't say how the change went. The network it is on now is shown above.",
+    "note": "Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's): the device answered again but didn't report how the change of network went. Above is the line with the network it is on now."
+  },
+  "web.settings.wifi.unsupported": {
+    "text": "Not supported",
+    "note": "Label on a greyed-out network in Settings > Wi-Fi (the device's own Wi-Fi, not this phone's or computer's)'s list: the device can't join it (enterprise or old WEP security). Agrees with network.",
+    "max": 24
   }
 }

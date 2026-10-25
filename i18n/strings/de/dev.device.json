@@ -82,8 +82,16 @@
     "text": "unbekanntes Protokoll „{source}“",
     "en": "unknown log \"{source}\""
   },
-  "dev.device.wifi_no_ssid": {
-    "text": "die SSID darf nicht leer sein",
-    "en": "ssid cannot be empty"
+  "dev.device.wifi_bad_name": {
+    "text": "Ein WLAN-Name hat 1 bis 32 Zeichen (Umlaute, Buchstaben mit Akzent und Emoji zählen als zwei oder mehr), ohne Tabulatoren oder Zeilenumbrüche.",
+    "en": "A Wi-Fi network name has 1 to 32 characters (accented letters and emoji count as two or more), without tabs or line breaks."
+  },
+  "dev.device.wifi_bad_password": {
+    "text": "Ein WLAN-Passwort hat 8 bis 63 Zeichen (Umlaute, Buchstaben mit Akzent und manche Symbole zählen als zwei oder drei) oder genau 64 Hexadezimalziffern.",
+    "en": "A Wi-Fi password has 8 to 63 characters (accented letters and some symbols count as two or three), or exactly 64 hexadecimal digits."
+  },
+  "dev.device.wifi_not_managed": {
+    "text": "Das WLAN dieses Geräts kann nicht in den Einstellungen geändert werden.",
+    "en": "This device's Wi-Fi can't be changed from Settings."
   }
 }

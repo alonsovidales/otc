@@ -249,4 +249,32 @@
         <item quantity="other">%1$s MB (%2$s%%) · %3$s actief</item>
     </plurals>
     <string name="app_settings_users_username">gebruikersnaam</string>
+    <string name="app_settings_wifi_change">Netwerk wijzigen</string>
+    <string name="app_settings_wifi_confirm_cable_message">Het blijft ondertussen bereikbaar via de kabel.</string>
+    <string name="app_settings_wifi_confirm_message">Het verlaat zijn huidige netwerk en reageert misschien ongeveer een minuut niet. Werkt het nieuwe netwerk niet, dan gaat het terug naar het huidige.</string>
+    <string name="app_settings_wifi_confirm_title">Het apparaat verbinden met \u2068%1$s\u2069?</string>
+    <string name="app_settings_wifi_current_badge">Verbonden</string>
+    <string name="app_settings_wifi_failed">Kan de wifi niet wijzigen.</string>
+    <string name="app_settings_wifi_intro">Het netwerk dat het apparaat gebruikt. Heb je de naam of het wachtwoord van je wifi gewijzigd? Kies hier het netwerk en voer het wachtwoord in. Bereikt het apparaat je wifi niet meer, sluit het dan eerst met een ethernetkabel aan op je router.</string>
+    <string name="app_settings_wifi_joining">Verbinden met \u2068%1$s\u2069… Het apparaat reageert misschien ongeveer een minuut niet.</string>
+    <string name="app_settings_wifi_name">Netwerknaam</string>
+    <string name="app_settings_wifi_name_needed">Voer de naam van het netwerk in.</string>
+    <string name="app_settings_wifi_name_too_long">Die naam is te lang: een wifinetwerknaam heeft hoogstens 32 tekens, en letters met accenten en emoji tellen als twee of meer.</string>
+    <string name="app_settings_wifi_no_networks">Geen netwerken gevonden. Zoek opnieuw, of kies “Ander netwerk” om de naam in te typen.</string>
+    <string name="app_settings_wifi_no_wifi">Wifi: niet verbonden</string>
+    <string name="app_settings_wifi_on_cable">Ethernetkabel: aangesloten</string>
+    <string name="app_settings_wifi_on_wifi">Wifi: \u2068%1$s\u2069 (%2$s)</string>
+    <string name="app_settings_wifi_open_network">Open</string>
+    <string name="app_settings_wifi_other">Ander netwerk…</string>
+    <string name="app_settings_wifi_password_invalid">Een wifiwachtwoord heeft 8 tot 63 tekens (letters met accenten en sommige symbolen tellen als twee of drie), of precies 64 hexadecimale cijfers.</string>
+    <string name="app_settings_wifi_password_needed">Voer het wachtwoord van het netwerk in.</string>
+    <string name="app_settings_wifi_password_optional">Wachtwoord (leeg bij een open netwerk)</string>
+    <string name="app_settings_wifi_scan">Opnieuw zoeken</string>
+    <string name="app_settings_wifi_scan_failed">Kan niet naar netwerken zoeken. Probeer het opnieuw.</string>
+    <string name="app_settings_wifi_scanning">Netwerken zoeken…</string>
+    <string name="app_settings_wifi_secured">Wachtwoord vereist</string>
+    <string name="app_settings_wifi_slow">Het apparaat heeft nog niet gereageerd. Komt het niet terug, sluit het dan met een ethernetkabel aan op je router en open opnieuw Instellingen › Wifi.</string>
+    <string name="app_settings_wifi_title">Wifi</string>
+    <string name="app_settings_wifi_unknown_result">Het apparaat heeft niet gemeld hoe de wijziging is verlopen. Het netwerk waarop het nu zit, staat hierboven.</string>
+    <string name="app_settings_wifi_unsupported">Niet ondersteund</string>
 </resources>

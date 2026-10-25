@@ -45,5 +45,6 @@
   "dev.update.web_checksum": {"text": "the web assets failed their checksum (expected {expected}, got {actual})", "args": [["expected", "text"], ["actual", "text"]]},
   "dev.update.web_download_failed": {"text": "could not download the web app for release {release} - try the update again", "args": [["release", "text"]]},
   "dev.update.web_install_failed": {"text": "could not install the web assets"},
-  "dev.update.web_unpack_failed": {"text": "could not unpack the web assets"}
+  "dev.update.web_unpack_failed": {"text": "could not unpack the web assets"},
+  "dev.update.wifi_changing": {"text": "the device's Wi-Fi is being changed; try again in a few minutes"}
 }

@@ -42,19 +42,21 @@ the VM's disk, not under `/tmp`, which is a RAM disk too small for the decompres
 The image (issue #38) is stock Raspberry Pi OS Lite plus `scripts/setup_wizard.py` (a root,
 stdlib-only web wizard on port 80: WiFi, device name reserved on the bridge via its public
 `/api/name-available` + `/api/claim`, disks, then runs `install.sh` and shows its `[n/10]` steps as
-a progress bar) and `scripts/network_setup.py` (the "Off The Cloud" hotspot on a virtual `uap0`
-interface, kept up while `wlan0` joins the owner's WiFi - verified on a Pi 5; one radio means one
-channel, so the join is pinned to 2.4 GHz during setup and the hotspot follows it, and the band
-limit is lifted once setup is done). Over Bluetooth (#137) the hotspot isn't needed: the wizard
-tells the two apart by client address (setup_ble.py forwards from loopback), lists both bands,
-lets a Bluetooth join use any band (`any_band` in the join request), and network_setup.py
-leaves the hotspot down when the joined channel doesn't allow one (`ap_allowed_on`: the world
-regulatory domain marks all of 5 GHz "no IR"). A 5 GHz-only network is refused over the hotspot
-with a pointer to the app. Networks are scanned once before the hotspot starts (scanning
-takes the radio away and drops the phone's captive sheet), and the captive DNS stays on for the
-whole setup so the sheet stays open (the bridge's own domain is exempted so the final link works).
-After setup the hotspot is rechecked once a minute (`ap_recheck_s`; new images only, as releases
-don't reinstall network_setup.py). The wizard changes state only through `update_state()` under
+a progress bar) and `scripts/network_setup.py` (root: unblocks the radio, makes the wizard's Wi-Fi
+join, keeps any hotspot down). Since the 2026-09-29 security advisory setup is over Bluetooth only
+(#137, below): the wizard listens on 127.0.0.1 (`OTC_SETUP_BIND`) and is reached only through
+setup_ble.py, and the open "Off The Cloud" hotspot (a virtual `uap0` beside `wlan0`; one radio
+means one channel, so a join over it was pinned to 2.4 GHz) is raised only with
+`OTC_ALLOW_HOTSPOT=1`, which nothing sets - its code (captive DNS, `ap_allowed_on`, the band pin,
+the wizard's hotspot texts) stays for that switch alone. network_setup.py takes down a hotspot left
+over from an older image on every poll before setup and rechecks once a minute after it
+(`ap_recheck_s`), lifting the 2.4 GHz pin once (`lift_band_limit`); a Bluetooth join uses any band
+(`any_band` in the join request). network_setup.py makes its join only before setup - never once
+root's `/etc/otc/.install-complete` exists (`setup_done()`'s own marker is in the otc user's
+`/var/lib/otc`) - opens the request with O_NOFOLLOW (a regular file of at most 4 KiB), and
+removes anything else found under that name (a directory too) without reading it. That version
+reaches new images; no release reinstalls the script on devices already set up. After setup the
+Wi-Fi changes only through Settings › Wi-Fi (`network`, below) or the console. The wizard changes state only through `update_state()` under
 `_state_lock` (never held across bridge calls) and writes files with `atomic_write`. `raid_watch.py`
 runs no mdadm query or repair unless md0 is in `/proc/mdstat`, and backs off failed adds.
 Fallback if the phone still loses the page: the device reports its LAN address to the bridge under
@@ -87,8 +89,8 @@ this device", which fills the onboarding form's endpoint (bridge name → wss, n
 `ws://otc.local:8080/ws`). `python3 scripts/setup_ble.py --selftest` checks the framing and
 forwarding without Bluetooth; for the phones, `scratchpad`'s `blesim.swift` (a CoreBluetooth
 peripheral on the Mac forwarding to a dry-run wizard, e.g. the Lima VM's on port 8090) stands
-in for a device - it needs Bluetooth permission for the terminal, which macOS prompts for. Like
-the hotspot, the Bluetooth setup is open by design and only exists before the install completes.
+in for a device - it needs Bluetooth permission for the terminal, which macOS prompts for. The
+Bluetooth setup is open by design and only exists before the install completes.
 The link recovers by itself: on iOS/macOS any state but poweredOn forgets the peripheral
 (`forgetLink`) and a device already picked is rescanned for once Bluetooth is back; Android checks
 every GATT step, drops and rescans on a failure, with a 30 s connect watchdog.
@@ -231,7 +233,8 @@ goes over a single WebSocket endpoint (`/ws`) using protobuf messages defined in
   answers GetLocalEndpoint `local_unavailable`, refuses a sign-in that would set the owner password,
   and reports a Pi-like Status (8 GB, two 2 TB disks in sync; real library usage). It answers what
   Settings reads (bridge without the server's address, Tailscale, the update check kept ten minutes
-  per language, empty disk and Wi-Fi lists); GetLogs stays refused. The demo is for the web app
+  per language, empty disk and Wi-Fi lists, a Wi-Fi status of `managed` on a cable so Settings ›
+  Wi-Fi shows - JoinWifi is refused); GetLogs stays refused. The demo is for the web app
   only (the owner, 2026-10-16: no demo in the phone apps; the website links to demo.off-the.cloud):
   `net/demo.ts` follows PubKey/Status.demo; signed out, "Try the demo" signs in with
   `demo_password`; signed in, a banner. Every control and Settings section shows (Logs aside), and
@@ -779,7 +782,166 @@ level (`.blob-*`/`.upload-*`, `.post-*`, archives and `shared/<uuid>` galleries 
   under it, the module back, power save off, NetworkManager reconnect; not connected within 150 s
   -> it reboots (`rebooted`, mentioned in the Alert). At most one restart per 30 min
   (`/run/otc-wifi-restart.last`). Tested with fake readings (`wifiwatch_test.go`) and
-  `mac80211_hwsim` in the Lima VM; the SDIO reset itself only on a Pi.
+  `mac80211_hwsim` in the Lima VM; the SDIO reset itself only on a Pi. A Settings › Wi-Fi change
+  (release 140) never builds a streak: while `network.Joining()` is true - a change in flight and
+  the 10 minutes after it ended - `step` resets the streak and returns (the `Watchdog.joining`
+  seam, set to `network.Joining` in `Watch`). The restart runner takes `/run/otc-wifi.lock` (the
+  Wi-Fi change's lock) and answers `busy` (`dev.status.wifi.busy`) when a change holds it, which
+  wifiwatch takes as "try later": re-armed, no Alert, no gave_up.
+- `network` — Settings › Wi-Fi (release 140): the owner changes the network the device uses, or its
+  password - typically after changing the router's - from the web app (iOS and Android with their
+  next store builds). A cable is the fallback once the device has lost its Wi-Fi (the FAQ and the
+  apps' "can't reach the device" screens say so: plug it into the router, open Settings › Wi-Fi,
+  unplug).
+  - Protocol: `GetWifiStatus` (143) and `JoinWifi` (144) both answer `WifiStatus` (71: `managed`,
+    the current `ssid` and `signal`, `wired`, and `last_join` = `WifiJoin{id, ssid, state
+    joining|connected|failed, code, message, restored}` while a change runs and 15 minutes after).
+    `ListWifiNetworks` (53) feeds the picker: one row per name, current first, then by signal,
+    `current` and `unsupported` (802.1X, WEP, OWE) set, names that aren't valid UTF-8 dropped (proto3
+    would fail the whole list). `JoinWifi.password` is `bytes`, RSA-OAEP sealed under the
+    connection's `GetPubKey` key like `CreateUser.password`. One rule everywhere (Go, runner, the
+    three apps): SSID 1-32 bytes of UTF-8 with no rune below 0x20 or 0x7f; password empty (open
+    network), 8-63 BYTES of UTF-8 without control characters, or exactly 64 hex digits - the apps
+    count bytes. `SetWifi` (54, the old first-run step's plaintext password) is retired: answered
+    `unknown_payload` without logging the request (the `default:` branch would log the password);
+    the web's first-run Wi-Fi step is gone and `RequestJoin`'s plaintext file on the SD card with
+    it (140.sh deletes `/var/lib/otc/wifi_join_request.json`).
+  - Who: the owner of the primary instance. A child instance gets `managed=false` / `notAvailableHere`,
+    a container `managed=false` / `notInContainer`, the demo `managed=true, wired=true` / `demo`.
+    `Managed()` (cached 30 s) needs: not a container, `RUNTIME_DIRECTORY=/run/otc` writable,
+    NetworkManager running and not netplan-backed (no `/etc/netplan/*.yaml` with `renderer:
+    NetworkManager` - one otc can't read counts - and no `90-NM-*.yaml`: its saved profiles land in
+    netplan), a wifi device not named `uap*`/`p2p*`, and `otc-wifi-join.path` active; it logs the
+    reason when off. Raspberry Pi OS (Trixie) ships NetworkManager 1.52.1 built with netplan, but its
+    own patch (`network-manager 1.52.1-1+rpt4`, `0012-fix-netplan.patch`) writes to netplan only
+    profiles whose file name starts with `netplan-`, so the runner's profiles stay keyfiles; the
+    image purges cloud-init (and `rpi-cloud-init-mods`' netplan file with it), so it has no netplan
+    file and is managed - a hand-installed Pi OS set up by cloud-init isn't. The service logs
+    `nmcli --version` at Info once at start.
+    Devices before 140 answer `unknown_payload`: the apps hide the section until the next sign-in.
+  - Go side (`Join`): refusals before anything changes, each with an `error_code` - `bad_name`,
+    `bad_password` (after decrypting), `not_managed`, `update_running` (`updater.Pending`: its
+    request still waiting or a run going on), `busy` (one change in flight, or a request file still
+    there), `too_many` (6 accepted in 15 minutes) - the update check, the in-flight check and the
+    handover all under one mutex, which `ApplyUpdate` holds too while it checks `InFlight` and writes
+    its request (`network.UnlessChanging`), so neither slips past the other. The request `{"v":1,"id","ssid","psk","hidden"}` goes to a temp file in
+    `/run/otc` (tmpfs; the service is mlocked; the bytes zeroed after) and is `os.Link`ed to
+    `/run/otc/wifi-join.request`, so a request is never overwritten and the PSK never touches the
+    SD card (the buffer is sized for every byte escaped, so it never reallocates and leaves a copy).
+    Logged at Info without the SSID (Debug only). `ApplyUpdate` refuses while a change is in flight
+    (`wifi_changing`, `dev.update.wifi_changing`).
+  - Root side: `scripts/device-runner/otc-wifi-join-runner.py` (Python stdlib, `#!/usr/bin/python3
+    -I`, installed as `/usr/local/bin/otc-wifi-join-runner`), started by `otc-wifi-join.path`
+    (`PathExists=/run/otc/wifi-join.request`) as `otc-wifi-join.service` (oneshot, root,
+    `TimeoutStartSec=7min` - a slow change is about 5 - and `TimeoutStopSec=3min` for
+    `ExecStopPost=... --stopped`; `StartLimitIntervalSec=0`, so a burst of requests never leaves the
+    path unit failed until a reboot - the runner's own limit is the bound; `ProtectSystem=strict`,
+    `ReadWritePaths=/run`, `AF_UNIX AF_NETLINK AF_INET AF_INET6`). It first removes what a run killed
+    outright left in its directory (`req.*`, temp files), then renames the request into its own
+    root-owned `/run/otc-wifi-join/` (0755), opens it `O_NOFOLLOW`, checks it is a regular file owned
+    by `otc` with one link, reads at most 1025 bytes and refuses duplicate or unknown keys
+    (`bad_request`, counted toward the limit too). Before touching the network: 10 runs in 15
+    minutes of uptime -> `too_many`; an update asked for (`/var/lib/otc/update.request`, lstat
+    only), `otc-update.service` active, or `/run/otc-update.lock` held (a non-blocking EXCLUSIVE flock
+    released at once) -> `update_running`; `/run/otc-wifi.lock` (shared with the restart runner) not
+    free within 10 s -> `busy`; no NetworkManager or wifi interface -> `no_wifi`; a scan
+    (`--rescan yes`, `no` when refused; matched by SSID-HEX; a network not seen is looked for up to
+    3 more times, 5 s apart, within 40 s - NetworkManager answers a rescan asked too soon with its
+    old list, silently). The security comes from every access point with that name that the runner
+    can join (WEP, 802.1X and OWE ones don't count): any secured one makes the network secured - an
+    open copy of its name (anyone can broadcast one, louder) is never joined and the password never
+    dropped - `wpa-psk` when one shows WPA1/WPA2, else `sae`; no password then ->
+    `password_required`; a password for a name only open access points have -> `open_network`;
+    none it can join -> `unsupported_security`. The previous connection is the one `activated` on
+    the interface with the device connected (one still trying - an old password - is none). The
+    trial profile is a keyfile written in `/run/NetworkManager/system-connections/` (created 0755 if
+    missing, only where `/run/NetworkManager` exists; tmpfs: a wrong password never reaches the card,
+    and the PSK is never on a command line) with autoconnect off, the SSID as decimal bytes,
+    `cloned-mac-address=permanent`, `addr-gen-mode=stable-privacy` (a keyfile without it means EUI-64
+    addresses from the MAC) and, for the same network, the IP settings and addr-gen-mode of the
+    previous connection, or of an inactive `OTC-WiFi` for that SSID (the router's password changed
+    and the device came back over a cable); `nmcli connection load`, `connection up --wait 60` on
+    the interface (longer than NetworkManager's 45 s DHCP timeout), state 100 with an address, then
+    the internet through THAT interface: `curl --interface IF` to the bridge host from `[otc]
+    bridge-addr` in the root-owned config (any HTTP status), or without a bridge the default
+    gateway answering a ping, each tried twice 3 s apart -> else `no_internet`. Each step rewrites
+    `status.json` ("joining", the uptime now). Success: `connection modify` without `--temporary`
+    saves it to `/etc` (checked: its FILENAME is no longer under `/run/`), `os.sync()`, `state.json`
+    rewritten as `{"committed": NEW}` (no previous or trial left in it), then the old `OTC-WiFi`
+    profiles deleted, other profiles of the same SSID set to autoconnect off (not deleted),
+    `os.sync()` again. Failure: stderr classified (`Secrets were required` -> `wrong_password`, as
+    NetworkManager 1.52 reports a wrong WPA2 password - and, for a profile that never connected, a
+    drop during the handshake too; "supplicant disconnected" / "took too long to authenticate" ->
+    `auth_failed`, not seen with 1.52; "could not be found" for a network the runner's own scan just
+    saw -> `auth_failed`, as 1.52 reports a wrong WPA3 password, a refusing or silent access point
+    that way; `not_found`, `timed_out`, `no_address`, else `join_failed`), the trial deleted and the
+    previous connection brought back up. A run that finds a `state.json` left by one cut short (its
+    `--stopped` killed too, as `systemctl kill` does) puts that right first (`put_right`), under
+    the Wi-Fi lock. `--stopped` takes the Wi-Fi lock (10 s at most, then goes on), turns
+    a status still `joining` into `interrupted`, deletes a trial only while its FILENAME is still
+    under `/run/`, brings the previous connection up only when the interface isn't connected, and
+    does nothing while the system is stopping; a change committed, or whose profile is already
+    saved (cut short between the two), it finishes instead: old profiles retired, flushed,
+    `connected`. At start (once NetworkManager answers) it removes stray `otc-wifi-*.nmconnection`
+    files from `/run/NetworkManager/system-connections`, deleting a profile only while it is still
+    that unsaved trial (that file, the trial's name, not active) - a saved profile only loses the
+    stray file. It logs byte counts and codes, never the SSID or the PSK, and exception types only.
+    `python3 scripts/device-runner/otc-wifi-join-runner.py --selftest` runs without NetworkManager
+    (on the Mac too).
+  - Status and texts: `/run/otc-wifi-join/status.json` (0644, written by temp file + rename:
+    `{"v":1,"id","state","code","ssid","left","restored","uptime"}`) has no English. Go reads it with
+    a 4 KiB cap, checks the id, state, code and SSID, and merges it with its own pending change: no
+    status for that id after 60 s -> `no_answer` (the request file removed), `joining` more than
+    600 s of uptime after its last word -> `interrupted` (never while the runner or its `--stopped`
+    can still be at work; uptime, not the clock: no RTC, and NTP jumps it).
+    `devtext.WifiJoinText(lang, code, ssid, left, restored)` renders `dev.status.wifi_join.<code>`,
+    or, for the 8 codes that can come after the device left its network (`wrong_password`,
+    `auth_failed`, `not_found`, `timed_out`, `no_address`, `no_internet`, `join_failed`,
+    `interrupted`), `dev.status.wifi_join_back.<code>` (`left && restored`: "...back on its previous
+    network") or `wifi_join_lost.<code>` (`left`, not restored: "...connect it to your router with an
+    Ethernet cable"), from the key itself in every language, English included; an unknown code is
+    `join_failed`. `WifiJoin.restored` is `left && restored`; the apps never branch on it and show
+    `message`. The runner's `CODES` are devtext's `wifiJoinCodes` minus `no_answer` (Go's own):
+    `TestWifiJoinRunnerCodes` compares them.
+  - Rate limits: Go one change in flight and 6 accepted in 15 minutes; root 10 runs in 15 minutes
+    (it holds even if the otc service is compromised); `ListWifiNetworks` relies on
+    NetworkManager's own rescan throttling.
+  - Accepted risk: additional users' instances run as the same uid `otc`, so a compromised one can
+    write `/run/otc/wifi-join.request` itself and root's owner check can't tell it from the
+    primary - as with the reboot and update requests. Root's validation and rate limit are the
+    bound.
+  - The bridge pool follows a network change (`websocket`'s network watcher): when the default
+    route's interface or the local address changes (checked every 5 s), idle pool connections are
+    closed, the dial backoff is reset and waiting retries are woken (nil-safe: `wake` is nil after a
+    registration), so unplugging the cable doesn't leave the device off the bridge for minutes.
+  - Apps (web `components/settings/WifiPanel.tsx` + `wifiFlow.ts`, iOS `WifiSection.swift`,
+    Android `WifiSection` in `ui/settings/SettingsView.kt` + `WifiViewModel` + `WifiFlow.kt`; the
+    same rules, tested row for row with the same case ids - N names, P passwords, C what is sent, K
+    the cable-only confirmation, L/R on load, J JoinWifi's answer, W a look while waiting, K- which
+    failures keep the picker open, U which listed networks can be chosen, T timing - in
+    `web/scripts/wifi-flow-test.mjs`, `WifiFlowTests.swift` and `WifiFlowTest.kt`): a section just
+    before Tailscale, for the primary's owner only, shown only for `managed`. The picker shows a
+    lock for secured networks, "Open" for open ones (allowed: the reachability check protects),
+    "Connected" for the current one, ones the device can't take greyed out as "Not supported"
+    (unsupported security, a name with control characters or over 32 bytes), and "Other Network…"
+    for a hidden name (a typed name is never changed: control characters are left to the device's
+    `bad_name`); the confirmation says the device leaves its network for about a minute (or, on a
+    cable with no Wi-Fi, that it stays reachable through it). A failed scan says so
+    (`scan_failed`). After `wrong_password`, `auth_failed`, `not_found`, `password_required` or
+    `open_network` the picker stays (or opens again) on the network tried. The password is sealed and never kept (no saved state, no autofill: web
+    `autocomplete="off"` and a field not named "password", iOS no password content type, Android
+    `importantForAutofill=no`); the name field has no auto-capitalisation, auto-correction or smart
+    quotes. After `JoinWifi` they ask `GetWifiStatus` every 3 s (10 s a look, the bridge's own
+    answers, errors and a moment's `managed=false` ignored) until `last_join` with that id ends,
+    show "slow" after 240 s (in place of the spinner) and keep asking every 10 s; a reload, and a
+    refusal (`busy`: the same request sent again), resume a `joining` change. A failed
+    `GetInstanceRole`/`GetWifiStatus` leaves the section as it was.
+  - Tests: `network`, `websocket` (the gates, sealed password, SetWifi, the update lock), `wifiwatch`,
+    `devtext`, the runner's `--selftest`, and NetworkManager itself only in a NEW throwaway Lima VM
+    with `mac80211_hwsim` and hostapd - never the `otc` VM's networking or a real device:
+    `scripts/dev/wifi-join-hwsim.sh` (its header has the VM's setup; the access point lives in its
+    own network namespace, bridged with a "cable" veth for the FAQ's way back). The real join on a
+    Pi happens after the release, through Update.
 - `devicerestart` — Settings > Restart device (release 115): `RestartDevice` (137) ->
   `RestartingDevice{expected_seconds}` (68), owner of the main instance only (`sup == nil` refused;
   older devices answer `unknown_payload`). Writes `/var/lib/otc/reboot.request`;
@@ -1968,6 +2130,21 @@ by RootView: it needs an Activity), and its trash keeps them 30 days. Both fetch
 right before the deletion and drop any that changed, and drop the run after a Log Out or a change
 of device. Settings live in UserDefaults (iOS, through SecretsStore) and the `otc_sync` prefs
 (Android: not backed up), wiped at Log Out.
+**Settings › Wi-Fi** (iOS `WifiSection.swift`: `WifiSection`, `WifiViewModel`, `enum WifiFlow` <->
+Android `WifiSection()` in `ui/settings/SettingsView.kt`, `WifiViewModel` in `SettingsViewModels.kt`,
+`object WifiFlow` in `ui/settings/WifiFlow.kt`; the rules and the device side are under `network`
+above): `WifiFlow` holds the pure rules, tested with the web's case ids (`WifiFlowTests.swift` <->
+`WifiFlowTest.kt`). "unknown_payload until the next sign-in" is `DeviceSupport.wifi` (reset by
+`signedIn()`) on iOS and the sign-in count (`OTCConnection.signIns`) on Android. The password lives
+in the view model only, is sealed with `GetPubKey` + `PwCrypto` and cleared once sealed; no
+password AutoFill (iOS a plain `SecureField` with no content type; Android a platform `EditText`
+with `importantForAutofill = no`, as every Compose field takes part in autofill) and Return/Done is
+Connect; the network-name field has no capitalisation, correction or smart punctuation (iOS a
+`UITextField` wrapper: SwiftUI's `TextField` can't turn smart quotes off). iOS keeps its wait in the
+view model while the Settings tab lives; Android stops looking in the background or when Settings
+is left and picks the wait up again on return, reopening the picker on the network tried after a
+wrong password. `DeviceUnreachableView` shows the cable hint (`app.shell.unreachable_wifi_hint`)
+under the device's words and before "still trying", except for a disabled account.
 **Phone app invariants** (both apps unless named). Photo sync's watermark is written per chunk,
 never set to "now" at the end and never past the run's start (iOS `lastSyncDate`, Android
 `DATE_ADDED`); one ahead of the clock is pulled back, and a chunk boundary inside one date is backed
@@ -2145,8 +2322,7 @@ share a whole percentage in the app's locale or "under 1%", no bar at a 0 total;
 versions lines above, `..`, the note below; no selection; a folder opens in Storage, a file as
 in the list. No per-folder file count (no catalog key; the web and Android show none).
 
-**Known gaps left by the 2026-10 hardening pass.** `network/network.go` `RequestJoin` writes `wifi_join_request.json` with a plain `os.WriteFile`, not
-temp + fsync + rename. iOS `FileDownload` falls back to `GetFile` only on `error_code =
+**Known gaps left by the 2026-10 hardening pass.** iOS `FileDownload` falls back to `GetFile` only on `error_code =
 "unknown_payload"`, sent since v9 (Android also takes the older bare message) - no device that old
 exists. Optional items skipped: device - no `IsContentHash` guard in `mediastream/reader.go`, no
 write deadlines in its own HTTP server (`api/`), `cloud_id` kept by
@@ -2192,7 +2368,13 @@ More root runners follow the same trigger-file shape, and update.sh reinstalls a
 every update: `scripts/bridge-runner/` (switching the bridge on later, #145),
 `scripts/tailscale-runner/` (release 50) and `scripts/device-runner/` (release 115: `otc-reboot` for
 Settings > Restart device and `otc-wifi-restart` for `wifiwatch`; release 115's script installs them
-on older devices from `$OTC_VERIFIED_SRC`). tailscaled runs only while Tailscale Funnel is on:
+on older devices from `$OTC_VERIFIED_SRC`; release 140: `otc-wifi-join` for Settings › Wi-Fi, a
+Python runner installed as `/usr/local/bin/otc-wifi-join-runner` with its own install lines rather
+than the `reboot wifi-restart` loops, triggered by `/run/otc/wifi-join.request` - on the tmpfs, not
+in `/var/lib/otc` - and answering in root's `/run/otc-wifi-join/status.json`; 140.sh installs it
+with the restart runner, removes a stale request before `enable --now otc-wifi-join.path`, and
+deletes the plaintext `/var/lib/otc/wifi_join_request.json` the retired SetWifi left).
+tailscaled runs only while Tailscale Funnel is on:
 install.sh and release 50 stop and disable it unless `tailscale funnel status` serves `:8080`;
 `tailscalefunnel.Enable` writes `on` to `/var/lib/otc/tailscale.request` when the daemon isn't
 answering, and the runner starts it and sets `--operator=otc` (which needs the daemon up);

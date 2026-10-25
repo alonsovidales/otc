@@ -30,5 +30,9 @@
   "site.device.unavailable.title": {
     "text": "Gerät nicht verfügbar",
     "en": "Device not available"
+  },
+  "site.device.unavailable.wifi_hint": {
+    "text": "Du hast den Namen oder das Passwort deines WLANs geändert? Verbinde das Gerät mit einem Ethernet-Kabel mit deinem Router und öffne dann Einstellungen › WLAN.",
+    "en": "Changed your Wi-Fi's name or password? Connect the device to your router with an Ethernet cable, then open Settings › Wi-Fi."
   }
 }

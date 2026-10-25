@@ -45,5 +45,6 @@
   "dev.update.web_checksum": {"text": "os ficheiros da app web não passaram na soma de verificação (esperado {expected}, obtido {actual})"},
   "dev.update.web_download_failed": {"text": "não foi possível transferir a app web da versão {release}: tenta atualizar novamente"},
   "dev.update.web_install_failed": {"text": "não foi possível instalar os ficheiros da app web"},
-  "dev.update.web_unpack_failed": {"text": "não foi possível descompactar os ficheiros da app web"}
+  "dev.update.web_unpack_failed": {"text": "não foi possível descompactar os ficheiros da app web"},
+  "dev.update.wifi_changing": {"text": "o Wi-Fi do dispositivo está a ser alterado; tenta novamente daqui a alguns minutos"}
 }

@@ -889,6 +889,41 @@ func SiteLandingFaqVsSelfhostedQ() Msg {
 	return Msg{Key: "site.landing.faq.vs_selfhosted.q"}
 }
 
+// SiteLandingFaqWifiP1 is site.landing.faq.wifi.p1: "In the web app, open Settings › Wi-Fi, choose your network and enter its passwor…".
+func SiteLandingFaqWifiP1() Msg {
+	return Msg{Key: "site.landing.faq.wifi.p1"}
+}
+
+// SiteLandingFaqWifiP2 is site.landing.faq.wifi.p2: "If the device can't reach your Wi-Fi any more, use a cable to get back in:".
+func SiteLandingFaqWifiP2() Msg {
+	return Msg{Key: "site.landing.faq.wifi.p2"}
+}
+
+// SiteLandingFaqWifiP3 is site.landing.faq.wifi.p3: "Settings › Wi-Fi is there for the device's owner, on the Raspberry Pi image and …".
+func SiteLandingFaqWifiP3() Msg {
+	return Msg{Key: "site.landing.faq.wifi.p3"}
+}
+
+// SiteLandingFaqWifiQ is site.landing.faq.wifi.q: "I changed my Wi-Fi's name or password. How do I tell the device?".
+func SiteLandingFaqWifiQ() Msg {
+	return Msg{Key: "site.landing.faq.wifi.q"}
+}
+
+// SiteLandingFaqWifiStep1 is site.landing.faq.wifi.step1: "Connect the device to your router with an Ethernet cable and wait a minute or tw…".
+func SiteLandingFaqWifiStep1() Msg {
+	return Msg{Key: "site.landing.faq.wifi.step1"}
+}
+
+// SiteLandingFaqWifiStep2 is site.landing.faq.wifi.step2: "Open Settings › Wi-Fi in the web app, choose your network and enter its password…".
+func SiteLandingFaqWifiStep2() Msg {
+	return Msg{Key: "site.landing.faq.wifi.step2"}
+}
+
+// SiteLandingFaqWifiStep3 is site.landing.faq.wifi.step3: "Once Settings shows the device on your Wi-Fi, unplug the cable.".
+func SiteLandingFaqWifiStep3() Msg {
+	return Msg{Key: "site.landing.faq.wifi.step3"}
+}
+
 // SiteLandingFooterContact is site.landing.footer.contact: "Contact".
 func SiteLandingFooterContact() Msg {
 	return Msg{Key: "site.landing.footer.contact"}

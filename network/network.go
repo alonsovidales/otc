@@ -1,81 +1,170 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Package network implements the WiFi-scan side of first-boot network
-// setup (issue #38) — reaching a device over its own temporary "Off The
-// Cloud" access point rather than an already-working connection.
+// Package network is Settings > Wi-Fi on the device: the networks it can
+// see (ListNetworks), the one it is on now (Current), whether it can change
+// its own Wi-Fi at all (Managed) and the change itself (Join, Status).
 //
-// ListNetworks is safe and read-only (nmcli's scan results don't need any
-// special privilege), so it runs directly inside the otc service's own
-// unprivileged process, same as storage.ListDevices.
+// Reading is unprivileged (nmcli's scan results and device state need no
+// special rights), so it runs inside the otc service. Joining a network
+// needs root, which the service can't have (NoNewPrivileges): Join hands
+// the request to the root runner (scripts/device-runner/
+// otc-wifi-join-runner.py, started by otc-wifi-join.path) through a file
+// on the /run tmpfs - never the SD card, as it holds the Wi-Fi password -
+// and reads the runner's answer back from root's own directory. The
+// runner joins the new network on trial, keeps it only once the device
+// reaches the internet through it, and otherwise goes back to the one it
+// was on.
 //
-// Actually joining a network needs root (nmcli connection up/add), which
-// that process can't do on its own — see RequestJoin, which hands the
-// request off to scripts/network_setup.py the same way storage.RequestSetup
-// hands RAID setup off to scripts/raid_watch.py.
+// At level=info nothing here logs a network's name (CLAUDE.md, the log
+// rule): Debug only.
 package network
 
 import (
-	"encoding/json"
+	"bytes"
+	"context"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
+	"unicode/utf8"
 
-	"github.com/alonsovidales/otc/devtext"
-	"github.com/alonsovidales/otc/i18n"
 	"github.com/alonsovidales/otc/log"
 )
 
+// Network is one name in the scan, all its access points together
+// (parseNetworks).
 type Network struct {
-	SSID    string
-	Signal  int32
+	SSID   string
+	Signal int32
+	// Secured: an access point with this name that the runner can join
+	// asks for a password.
 	Secured bool
+	// Current: the device is on it now.
+	Current bool
+	// Unsupported: every access point with this name is 802.1X
+	// (enterprise), WEP or OWE, which the runner can't join.
+	Unsupported bool
 }
 
-// ListNetworks runs `nmcli dev wifi list` and parses its terse (-t) output.
-// Duplicate SSIDs (the same network seen on multiple channels/APs) are
-// collapsed to the strongest signal seen, since the setup UI just needs
-// "networks a person could pick", not raw AP-level detail.
-func ListNetworks() ([]Network, error) {
-	out, err := exec.Command("nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "dev", "wifi", "list").Output()
+// nmcli runs NetworkManager's command line with args under ctx, in the C
+// locale with UTF-8 (names come out as their own bytes). A seam: the
+// tests stand in for it.
+var nmcli = func(ctx context.Context, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "nmcli", args...)
+	cmd.Env = append(os.Environ(), "LC_ALL=C.UTF-8")
+	return cmd.Output()
+}
+
+const (
+	cListTimeout   = 20 * time.Second
+	cQueryTimeout  = 5 * time.Second
+	cSecurityWords = "802.1X WEP OWE" // i18n-ignore: nmcli's security tokens
+)
+
+// ListNetworks lists the Wi-Fi networks the device sees, one entry per
+// name: the current network first, then by signal, then by name. Hidden
+// networks (no name) and names that aren't valid UTF-8 (which a protobuf
+// string can't carry) are left out. nmcli rescans only when its list is
+// old (its default), which NetworkManager also throttles.
+func ListNetworks(ctx context.Context) ([]Network, error) {
+	ctx, cancel := context.WithTimeout(ctx, cListTimeout)
+	defer cancel()
+	out, err := nmcli(ctx, "-t", "-f", "ACTIVE,SSID-HEX,SIGNAL,SECURITY", "device", "wifi", "list")
 	if err != nil {
-		return nil, fmt.Errorf("nmcli dev wifi list: %w", err) // i18n-ignore: command-line words and the command's error
+		return nil, fmt.Errorf("nmcli device wifi list: %w", err) // i18n-ignore: command-line words and the command's error
 	}
+	return parseNetworks(out), nil
+}
 
-	best := map[string]Network{}
+// parseNetworks reads `nmcli -t -f ACTIVE,SSID-HEX,SIGNAL,SECURITY device
+// wifi list`. The same name seen on several access points or channels is
+// one entry: the strongest signal, current when any of them is the one the
+// device is on, secured when any access point the runner can join asks for
+// a password - so an open access point copying a secured network's name
+// never makes it look open (the runner then refuses to join it open) -
+// and unsupported only when the runner can join none of them.
+func parseNetworks(out []byte) []Network {
+	type seen struct {
+		n                                 Network
+		anySecured, joinable, joinSecured bool
+	}
+	best := map[string]*seen{}
 	for _, line := range strings.Split(string(out), "\n") {
-		if line == "" {
+		f := splitUnescaped(strings.TrimRight(line, "\r"), ':')
+		if len(f) < 4 {
 			continue
 		}
-		// nmcli -t escapes literal ':' inside fields as '\:', which
-		// naive strings.Split(line, ":") would otherwise misparse.
-		fields := splitUnescaped(line, ':')
-		if len(fields) < 3 {
+		ssid, ok := decodeSSID(unescape(f[1]))
+		if !ok {
 			continue
 		}
-		ssid := unescape(fields[0])
-		if ssid == "" {
-			// Hidden networks report an empty SSID — nothing a
-			// person could usefully pick from a list.
-			continue
+		signal, _ := strconv.ParseInt(unescape(f[2]), 10, 32)
+		security := unescape(f[3])
+		secured := security != "" && security != "--"
+		s := best[ssid]
+		if s == nil {
+			s = &seen{n: Network{SSID: ssid, Signal: -1}}
+			best[ssid] = s
 		}
-		signal, _ := strconv.ParseInt(fields[1], 10, 32)
-		secured := unescape(fields[2]) != "" && unescape(fields[2]) != "--"
-
-		if existing, ok := best[ssid]; !ok || int32(signal) > existing.Signal {
-			best[ssid] = Network{SSID: ssid, Signal: int32(signal), Secured: secured}
+		s.n.Signal = max(s.n.Signal, int32(min(max(signal, 0), 100)))
+		s.n.Current = s.n.Current || unescape(f[0]) == "yes"
+		s.anySecured = s.anySecured || secured
+		if !unsupportedSecurity(security) {
+			s.joinable = true
+			s.joinSecured = s.joinSecured || secured
 		}
 	}
-
 	networks := make([]Network, 0, len(best))
-	for _, n := range best {
+	for _, s := range best {
+		n := s.n
+		n.Unsupported = !s.joinable
+		n.Secured = s.joinSecured || (!s.joinable && s.anySecured)
 		networks = append(networks, n)
 	}
-	return networks, nil
+	sort.Slice(networks, func(i, j int) bool {
+		a, b := networks[i], networks[j]
+		if a.Current != b.Current {
+			return a.Current
+		}
+		if a.Signal != b.Signal {
+			return a.Signal > b.Signal
+		}
+		return a.SSID < b.SSID
+	})
+	return networks
 }
 
+// decodeSSID turns nmcli's SSID-HEX into the name: false for a hidden
+// network (no name) and for a name that isn't valid UTF-8.
+func decodeSSID(h string) (string, bool) {
+	h = strings.TrimSpace(h)
+	if h == "" || h == "--" {
+		return "", false
+	}
+	raw, err := hex.DecodeString(h)
+	if err != nil || len(raw) == 0 || len(raw) > cMaxSSIDBytes || !utf8.Valid(raw) {
+		return "", false
+	}
+	return string(raw), true
+}
+
+// unsupportedSecurity: enterprise (802.1X), WEP and Enhanced Open (OWE)
+// networks, which the runner doesn't join.
+func unsupportedSecurity(security string) bool {
+	for _, w := range strings.Fields(cSecurityWords) {
+		if strings.Contains(security, w) {
+			return true
+		}
+	}
+	return false
+}
+
+// splitUnescaped splits one line of nmcli's terse output, where a ':'
+// inside a field is written '\:' (and a '\' as '\\').
 func splitUnescaped(s string, sep byte) []string {
 	var fields []string
 	var cur strings.Builder
@@ -101,33 +190,16 @@ func unescape(s string) string {
 	return strings.NewReplacer(`\:`, ":", `\\`, `\`).Replace(s)
 }
 
-// RequestFile is where RequestJoin writes the requested network, for
-// scripts/network_setup.py (root) to pick up and actually join.
-const RequestFile = "/var/lib/otc/wifi_join_request.json"
-
-type joinRequest struct {
-	SSID     string `json:"ssid"`
-	Password string `json:"password"`
-}
-
-// RequestJoin hands a join request off to network_setup.py — see the
-// package comment for why this service can't do it itself.
-func RequestJoin(ssid, password string) error {
-	if ssid == "" {
-		return devtext.New(i18n.DevDeviceWifiNoSsid())
-	}
-
-	data, err := json.Marshal(joinRequest{SSID: ssid, Password: password})
+// LogVersion logs NetworkManager's version once, at start (the main
+// instance, not in a container): Settings > Logs then shows which one a
+// device runs, which the Wi-Fi change depends on.
+func LogVersion() {
+	ctx, cancel := context.WithTimeout(context.Background(), cQueryTimeout)
+	defer cancel()
+	out, err := nmcli(ctx, "--version")
 	if err != nil {
-		return err
+		log.Info("network: nmcli not available (Settings > Wi-Fi is off):", err)
+		return
 	}
-	if err := os.MkdirAll(filepath.Dir(RequestFile), 0755); err != nil {
-		return err
-	}
-
-	log.Info("network: writing wifi join request for ssid:", ssid)
-	// 0600, not 0644: this file briefly holds the WiFi password in plain
-	// text (network_setup.py deletes it once it's picked the request up),
-	// no reason for it to be world-readable in the meantime.
-	return os.WriteFile(RequestFile, data, 0600)
+	log.Info("network:", string(bytes.TrimSpace(out)))
 }

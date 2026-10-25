@@ -209,6 +209,11 @@
     "text": "unknown request",
     "note": "Error the device's Tailscale root helper writes when it was asked for something other than switching Tailscale on or off (it should never happen)."
   },
+  "dev.status.wifi.busy": {
+    "text": "the Wi-Fi was being changed from Settings",
+    "note": "Why the device's Wi-Fi restart (its watchdog restarts a Wi-Fi that has become very slow) didn't happen: at that moment the device's owner was changing its Wi-Fi network in Settings > Wi-Fi. May be shown inside an alert in Alerts, after a colon, like dev.status.wifi.too_soon.",
+    "stored": true
+  },
   "dev.status.wifi.no_connection": {
     "text": "the device has no network connection to restart",
     "note": "Why the device's Wi-Fi restart (its watchdog restarts a Wi-Fi that has become very slow) didn't happen: the device has no network connection at all. Shown inside an alert in Alerts.",
@@ -235,5 +240,175 @@
     "text": "the Wi-Fi was restarted less than 30 minutes ago",
     "note": "Why the device's Wi-Fi restart didn't happen: it restarts the Wi-Fi at most once every 30 minutes. Shown inside an alert in Alerts.",
     "stored": true
+  },
+  "dev.status.wifi_join.auth_failed": {
+    "text": "Could not connect to {ssid}: check the password, and that the device is close enough to the router.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The network didn't let the device in: a wrong password or a weak signal look the same. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Used when the device hadn't left a Wi-Fi network for this one (it was on a cable only, or the change stopped before it switched); dev.status.wifi_join_back.auth_failed and dev.status.wifi_join_lost.auth_failed are this text followed by where the device ended up."
+  },
+  "dev.status.wifi_join.bad_request": {
+    "text": "The device could not read the details of the change. Try again.",
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The part of the device that changes its Wi-Fi couldn't read the request (an internal fault)."
+  },
+  "dev.status.wifi_join.busy": {
+    "text": "The device's Wi-Fi is busy with another change. Try again in a few minutes.",
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). Another change of the device's Wi-Fi (or its automatic Wi-Fi restart) is under way."
+  },
+  "dev.status.wifi_join.connected": {
+    "text": "Connected to {ssid}.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The device switched to the chosen network and keeps it from now on. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated)."
+  },
+  "dev.status.wifi_join.interrupted": {
+    "text": "Connecting to {ssid} was interrupted.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The change stopped halfway (the device restarted, or the change was stopped). {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Used when the device hadn't left a Wi-Fi network for this one (it was on a cable only, or the change stopped before it switched); dev.status.wifi_join_back.interrupted and dev.status.wifi_join_lost.interrupted are this text followed by where the device ended up."
+  },
+  "dev.status.wifi_join.join_failed": {
+    "text": "Could not connect to {ssid}.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). Any other reason the device couldn't switch to the network. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Used when the device hadn't left a Wi-Fi network for this one (it was on a cable only, or the change stopped before it switched); dev.status.wifi_join_back.join_failed and dev.status.wifi_join_lost.join_failed are this text followed by where the device ended up."
+  },
+  "dev.status.wifi_join.joining": {
+    "text": "Connecting to {ssid}…",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). Shown while the device switches to the network the owner chose there. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated)."
+  },
+  "dev.status.wifi_join.no_address": {
+    "text": "The device connected to {ssid}, but the network gave it no address.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The device joined the network but got no IP address from it (the router's DHCP didn't answer). {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Used when the device hadn't left a Wi-Fi network for this one (it was on a cable only, or the change stopped before it switched); dev.status.wifi_join_back.no_address and dev.status.wifi_join_lost.no_address are this text followed by where the device ended up."
+  },
+  "dev.status.wifi_join.no_answer": {
+    "text": "The device didn't start connecting to {ssid}. Try again, or restart the device in Settings › Device version.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The part of the device that changes its Wi-Fi never picked up the request. Settings › Device version is the Settings section holding Restart Device (app.settings.update.title): translate both as they are translated. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated)."
+  },
+  "dev.status.wifi_join.no_internet": {
+    "text": "The device connected to {ssid}, but couldn't reach the internet through it, so it disconnected.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The device joined the network but couldn't reach the internet (or its router) through it, so it didn't keep that network: typically a hotspot that wants a sign-in page. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Used when the device hadn't left a Wi-Fi network for this one (it was on a cable only, or the change stopped before it switched); dev.status.wifi_join_back.no_internet and dev.status.wifi_join_lost.no_internet are this text followed by where the device ended up."
+  },
+  "dev.status.wifi_join.no_wifi": {
+    "text": "The device's Wi-Fi isn't available right now, so it can't be changed.",
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The device found no Wi-Fi it can manage at that moment."
+  },
+  "dev.status.wifi_join.not_found": {
+    "text": "Could not find {ssid}. Check the name, and that the device is close enough to the router.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The device doesn't see a network of that name. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Used when the device hadn't left a Wi-Fi network for this one (it was on a cable only, or the change stopped before it switched); dev.status.wifi_join_back.not_found and dev.status.wifi_join_lost.not_found are this text followed by where the device ended up."
+  },
+  "dev.status.wifi_join.open_network": {
+    "text": "The network {ssid} is open (it has no password), so the device didn't connect to it. Check that it is your network; to join it anyway, leave the password empty.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The owner typed a password, but every access point with that name is open (no password) - possibly someone else's copy of the owner's network, so the device didn't join it. Nothing changed: the device stayed on its network. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated)."
+  },
+  "dev.status.wifi_join.password_required": {
+    "text": "The network {ssid} needs a password.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The owner chose a network that has a password without typing one. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated)."
+  },
+  "dev.status.wifi_join.timed_out": {
+    "text": "The network {ssid} didn't answer in time.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The network took too long to let the device in. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Used when the device hadn't left a Wi-Fi network for this one (it was on a cable only, or the change stopped before it switched); dev.status.wifi_join_back.timed_out and dev.status.wifi_join_lost.timed_out are this text followed by where the device ended up."
+  },
+  "dev.status.wifi_join.too_many": {
+    "text": "Too many attempts in a short time. Wait a few minutes and try again.",
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The owner tried to change the Wi-Fi too many times in 15 minutes."
+  },
+  "dev.status.wifi_join.unsupported_security": {
+    "text": "The device can't connect to {ssid}: it joins open networks and networks with WPA2 or WPA3 Personal security.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The network uses a kind of security the device can't join from Settings (enterprise sign-in, or the old WEP). WPA2 and WPA3 Personal are the usual home kinds: keep the names. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated)."
+  },
+  "dev.status.wifi_join.update_running": {
+    "text": "An update is running. Try again once it has finished.",
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The device is installing an update of its software, so its Wi-Fi isn't changed now."
+  },
+  "dev.status.wifi_join.wrong_password": {
+    "text": "Could not connect to {ssid}: the password is wrong.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The network turned the password down. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Used when the device hadn't left a Wi-Fi network for this one (it was on a cable only, or the change stopped before it switched); dev.status.wifi_join_back.wrong_password and dev.status.wifi_join_lost.wrong_password are this text followed by where the device ended up."
+  },
+  "dev.status.wifi_join_back.auth_failed": {
+    "text": "Could not connect to {ssid}: check the password, and that the device is close enough to the router. The device is back on its previous network.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The network didn't let the device in: a wrong password or a weak signal look the same. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Same as dev.status.wifi_join.auth_failed, followed by a sentence saying that the device went back to the Wi-Fi network it was on before. Translate the first part as you did there."
+  },
+  "dev.status.wifi_join_back.interrupted": {
+    "text": "Connecting to {ssid} was interrupted. The device is back on its previous network.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The change stopped halfway (the device restarted, or the change was stopped). {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Same as dev.status.wifi_join.interrupted, followed by a sentence saying that the device went back to the Wi-Fi network it was on before. Translate the first part as you did there."
+  },
+  "dev.status.wifi_join_back.join_failed": {
+    "text": "Could not connect to {ssid}. The device is back on its previous network.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). Any other reason the device couldn't switch to the network. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Same as dev.status.wifi_join.join_failed, followed by a sentence saying that the device went back to the Wi-Fi network it was on before. Translate the first part as you did there."
+  },
+  "dev.status.wifi_join_back.no_address": {
+    "text": "The device connected to {ssid}, but the network gave it no address. The device is back on its previous network.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The device joined the network but got no IP address from it (the router's DHCP didn't answer). {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Same as dev.status.wifi_join.no_address, followed by a sentence saying that the device went back to the Wi-Fi network it was on before. Translate the first part as you did there."
+  },
+  "dev.status.wifi_join_back.no_internet": {
+    "text": "The device connected to {ssid}, but couldn't reach the internet through it, so it disconnected. The device is back on its previous network.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The device joined the network but couldn't reach the internet (or its router) through it, so it didn't keep that network: typically a hotspot that wants a sign-in page. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Same as dev.status.wifi_join.no_internet, followed by a sentence saying that the device went back to the Wi-Fi network it was on before. Translate the first part as you did there."
+  },
+  "dev.status.wifi_join_back.not_found": {
+    "text": "Could not find {ssid}. Check the name, and that the device is close enough to the router. The device is back on its previous network.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The device doesn't see a network of that name. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Same as dev.status.wifi_join.not_found, followed by a sentence saying that the device went back to the Wi-Fi network it was on before. Translate the first part as you did there."
+  },
+  "dev.status.wifi_join_back.timed_out": {
+    "text": "The network {ssid} didn't answer in time. The device is back on its previous network.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The network took too long to let the device in. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Same as dev.status.wifi_join.timed_out, followed by a sentence saying that the device went back to the Wi-Fi network it was on before. Translate the first part as you did there."
+  },
+  "dev.status.wifi_join_back.wrong_password": {
+    "text": "Could not connect to {ssid}: the password is wrong. The device is back on its previous network.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The network turned the password down. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Same as dev.status.wifi_join.wrong_password, followed by a sentence saying that the device went back to the Wi-Fi network it was on before. Translate the first part as you did there."
+  },
+  "dev.status.wifi_join_lost.auth_failed": {
+    "text": "Could not connect to {ssid}: check the password, and that the device is close enough to the router. The device couldn't get back on its previous network: if it doesn't answer, connect it to your router with an Ethernet cable.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The network didn't let the device in: a wrong password or a weak signal look the same. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Same as dev.status.wifi_join.auth_failed, followed by a sentence saying that the device couldn't get back on the Wi-Fi network it was on before, so it may not answer until it is connected with a cable. Translate the first part as you did there."
+  },
+  "dev.status.wifi_join_lost.interrupted": {
+    "text": "Connecting to {ssid} was interrupted. The device couldn't get back on its previous network: if it doesn't answer, connect it to your router with an Ethernet cable.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The change stopped halfway (the device restarted, or the change was stopped). {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Same as dev.status.wifi_join.interrupted, followed by a sentence saying that the device couldn't get back on the Wi-Fi network it was on before, so it may not answer until it is connected with a cable. Translate the first part as you did there."
+  },
+  "dev.status.wifi_join_lost.join_failed": {
+    "text": "Could not connect to {ssid}. The device couldn't get back on its previous network: if it doesn't answer, connect it to your router with an Ethernet cable.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). Any other reason the device couldn't switch to the network. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Same as dev.status.wifi_join.join_failed, followed by a sentence saying that the device couldn't get back on the Wi-Fi network it was on before, so it may not answer until it is connected with a cable. Translate the first part as you did there."
+  },
+  "dev.status.wifi_join_lost.no_address": {
+    "text": "The device connected to {ssid}, but the network gave it no address. The device couldn't get back on its previous network: if it doesn't answer, connect it to your router with an Ethernet cable.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The device joined the network but got no IP address from it (the router's DHCP didn't answer). {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Same as dev.status.wifi_join.no_address, followed by a sentence saying that the device couldn't get back on the Wi-Fi network it was on before, so it may not answer until it is connected with a cable. Translate the first part as you did there."
+  },
+  "dev.status.wifi_join_lost.no_internet": {
+    "text": "The device connected to {ssid}, but couldn't reach the internet through it, so it disconnected. The device couldn't get back on its previous network: if it doesn't answer, connect it to your router with an Ethernet cable.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The device joined the network but couldn't reach the internet (or its router) through it, so it didn't keep that network: typically a hotspot that wants a sign-in page. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Same as dev.status.wifi_join.no_internet, followed by a sentence saying that the device couldn't get back on the Wi-Fi network it was on before, so it may not answer until it is connected with a cable. Translate the first part as you did there."
+  },
+  "dev.status.wifi_join_lost.not_found": {
+    "text": "Could not find {ssid}. Check the name, and that the device is close enough to the router. The device couldn't get back on its previous network: if it doesn't answer, connect it to your router with an Ethernet cable.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The device doesn't see a network of that name. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Same as dev.status.wifi_join.not_found, followed by a sentence saying that the device couldn't get back on the Wi-Fi network it was on before, so it may not answer until it is connected with a cable. Translate the first part as you did there."
+  },
+  "dev.status.wifi_join_lost.timed_out": {
+    "text": "The network {ssid} didn't answer in time. The device couldn't get back on its previous network: if it doesn't answer, connect it to your router with an Ethernet cable.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The network took too long to let the device in. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Same as dev.status.wifi_join.timed_out, followed by a sentence saying that the device couldn't get back on the Wi-Fi network it was on before, so it may not answer until it is connected with a cable. Translate the first part as you did there."
+  },
+  "dev.status.wifi_join_lost.wrong_password": {
+    "text": "Could not connect to {ssid}: the password is wrong. The device couldn't get back on its previous network: if it doesn't answer, connect it to your router with an Ethernet cable.",
+    "args": [["ssid", "user"]],
+    "note": "Settings > Wi-Fi, in the web app and the phone apps: the outcome of changing the Wi-Fi network the device itself uses (the device's Wi-Fi, not the phone's or the computer's). The network turned the password down. {ssid} is the Wi-Fi network's name, exactly as the network gives it (never translated). Same as dev.status.wifi_join.wrong_password, followed by a sentence saying that the device couldn't get back on the Wi-Fi network it was on before, so it may not answer until it is connected with a cable. Translate the first part as you did there."
   }
 }

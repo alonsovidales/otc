@@ -37,5 +37,9 @@
     "text": "Device not available",
     "note": "Page the bridge shows at a device's address (name.off-the.cloud) when the device doesn't answer: the page title, in the browser tab.",
     "max": 60
+  },
+  "site.device.unavailable.wifi_hint": {
+    "text": "Changed your Wi-Fi's name or password? Connect the device to your router with an Ethernet cable, then open Settings › Wi-Fi.",
+    "note": "Page the bridge shows at a device's address when the device doesn't answer: a smaller line under the text, for an owner whose device lost its Wi-Fi (the router's name or password changed). Settings › Wi-Fi is the section of the device's web app (web.settings.wifi.title in its Settings): use the app's names in your language, as web.shell.unreachable.wifi_hint does."
   }
 }

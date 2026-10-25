@@ -3,6 +3,7 @@
 package websocket
 
 import (
+	"context"
 	crand "crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -139,6 +140,9 @@ type bridgeConnPool struct {
 	// retry's backoff at once: the bridge is reachable again, and the
 	// slots those retries hold should be filled now, not minutes later.
 	wake chan struct{}
+	// idle are the connections counted in available: registered, not yet
+	// taken for a relay - what networkChanged closes.
+	idle map[io.Closer]struct{}
 }
 
 // Retry backoff for failed bridge dials/registrations (see
@@ -323,6 +327,9 @@ func Init(baseUrl string, dao *dao.Dao, filesManager *filesmanager.Manager, sup 
 		log.Info("no bridge-addr configured - this instance stays local-only")
 	} else {
 		mg.ensureBridgePool()
+		// A cable plugged in or out, another Wi-Fi network: the pool's
+		// idle connections went with the old route.
+		go mg.watchNetwork(nil)
 		// The users' addresses, on the primary: those created before the
 		// bridge took them (user_domains.go).
 		if sup != nil {
@@ -581,6 +588,10 @@ func (mg *Manager) openBridgeConn() {
 	mg.bridgePool.mu.Lock()
 	mg.bridgePool.pending--
 	mg.bridgePool.available++
+	if mg.bridgePool.idle == nil {
+		mg.bridgePool.idle = map[io.Closer]struct{}{}
+	}
+	mg.bridgePool.idle[c.Conn] = struct{}{}
 	// A working registration clears the backoff, so the next transient
 	// failure starts from a one-second retry again rather than inheriting
 	// whatever penalty an earlier outage built up.
@@ -610,13 +621,16 @@ func (mg *Manager) openBridgeConn() {
 		taken = true
 		mg.bridgePool.mu.Lock()
 		mg.bridgePool.available--
+		delete(mg.bridgePool.idle, c.Conn)
 		mg.bridgePool.mu.Unlock()
 		mg.ensureBridgePool()
 	})
 	if !taken {
-		// Dropped while still waiting in the pool.
+		// Dropped while still waiting in the pool (closed by
+		// networkChanged too).
 		mg.bridgePool.mu.Lock()
 		mg.bridgePool.available--
+		delete(mg.bridgePool.idle, c.Conn)
 		mg.bridgePool.mu.Unlock()
 		mg.ensureBridgePool()
 	}
@@ -1243,15 +1257,25 @@ func takeRSAKey() *rsa.PrivateKey {
 // client using the public key returned from GetPubKey on this same
 // connection. It's used for Auth.key and ChangeKey.old_key/new_key.
 func (ch *connHandler) decryptSecret(ciphertext []byte) (string, error) {
+	plain, err := ch.decryptSecretBytes(ciphertext)
+	if err != nil {
+		return "", err
+	}
+	return string(plain), nil
+}
+
+// decryptSecretBytes is decryptSecret as bytes, for a secret the caller
+// zeroes once it is done with it (JoinWifi's Wi-Fi password).
+func (ch *connHandler) decryptSecretBytes(ciphertext []byte) ([]byte, error) {
 	privKey := ch.getPrivKey()
 	if privKey == nil {
-		return "", devtext.New(i18n.DevAuthNoPublicKey())
+		return nil, devtext.New(i18n.DevAuthNoPublicKey())
 	}
 	plain, err := rsa.DecryptOAEP(sha256.New(), crand.Reader, privKey, ciphertext, nil)
 	if err != nil {
-		return "", devtext.New(i18n.DevAuthDecryptFailed())
+		return nil, devtext.New(i18n.DevAuthDecryptFailed())
 	}
-	return string(plain), nil
+	return plain, nil
 }
 
 // issueMediaURL backs issue #110's ReqGetMediaURL: it authorizes the
@@ -3429,7 +3453,19 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
-		if err := updater.Apply(); err != nil {
+		// Not while the Wi-Fi is being changed from Settings: the update's
+		// downloads would fail mid-switch, and it restarts the service at
+		// its end. Checked and started under the lock JoinWifi checks for
+		// an update in, so neither slips past the other. (The runner
+		// refuses a change while an update runs, too.)
+		ran, err := wifiUnlessChanging(updater.Apply)
+		if !ran {
+			resp.Error = true
+			resp.ErrorCode = "wifi_changing"
+			resp.ErrorMessage = i18n.DevUpdateWifiChanging().Render(lang)
+			break
+		}
+		if err != nil {
 			log.Error("error starting the device update:", err)
 			resp.Error = true
 			resp.ErrorMessage = devtext.Text(lang, err)
@@ -3464,9 +3500,10 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		// instance now, but hiding UI is not a control: these are
 		// authenticated RPCs any signed-in sub-user could send directly.
 		// ReqSetupStorage wipes and reformats the selected disks, and
-		// ReqSetWifi drops whatever connection the machine currently has -
-		// so an unguarded pair let any account the owner handed out
-		// destroy the owner's storage or take the device off the network.
+		// ReqJoinWifi (SetWifi before release 140) changes the machine's
+		// network - so unguarded, they let any account the owner handed
+		// out destroy the owner's storage or take the device off the
+		// network.
 		if ch.mg.sup == nil {
 			resp.Error = true
 			resp.ErrorMessage = notAvailableHere(lang)
@@ -3492,70 +3529,50 @@ func (ch *connHandler) processAuthRequest(env *pb.ReqEnvelope, lang string) (res
 		}
 
 	case *pb.ReqEnvelope_ReqListWifiNetworks:
-		// Issue #85: primary-only, like the setup RPCs it feeds - a
-		// child instance has no business enumerating the machine's
-		// hardware, and its wizard never asks.
+		// Issue #85: primary-only - a child instance has no business
+		// enumerating the machine's hardware. Settings > Wi-Fi's picker.
 		if ch.mg.sup == nil {
 			resp.Error = true
 			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
-		// Issue #38: safe, read-only scan — see network.ListNetworks's
-		// doc comment for why joining is handled differently.
-		networks, err := network.ListNetworks()
+		// A read-only scan, in this process - see the network package.
+		networks, err := network.ListNetworks(context.Background())
 		if err != nil {
 			log.Error("error listing wifi networks:", err)
 			resp.Error = true
 			resp.ErrorMessage = errText(lang, err)
 			break
 		}
-		pbNetworks := make([]*pb.WifiNetwork, len(networks))
-		for i, n := range networks {
-			pbNetworks[i] = &pb.WifiNetwork{
-				Ssid:    n.SSID,
-				Signal:  n.Signal,
-				Secured: n.Secured,
-			}
-		}
-		resp.Payload = &pb.RespEnvelope_RespWifiNetworks{
-			RespWifiNetworks: &pb.WifiNetworks{
-				Networks: pbNetworks,
-			},
-		}
+		resp.Payload = &pb.RespEnvelope_RespWifiNetworks{RespWifiNetworks: wifiNetworksProto(networks)}
 
-	case *pb.ReqEnvelope_ReqSetWifi:
-		// Issue #85: machine-level, so primary-only. An additional user
-		// (issue #82) is a separate process sharing this one physical
-		// machine - its disks, its network - none of which is that user's
-		// to touch. The wizard that calls these is hidden on a child
-		// instance now, but hiding UI is not a control: these are
-		// authenticated RPCs any signed-in sub-user could send directly.
-		// ReqSetupStorage wipes and reformats the selected disks, and
-		// ReqSetWifi drops whatever connection the machine currently has -
-		// so an unguarded pair let any account the owner handed out
-		// destroy the owner's storage or take the device off the network.
+	// Settings > Wi-Fi (release 140). The Wi-Fi is the machine's, so the
+	// owner of the main instance only: a child instance's GetWifiStatus
+	// answers managed=false (the apps hide the section), its JoinWifi is
+	// refused.
+	case *pb.ReqEnvelope_ReqGetWifiStatus:
+		if ch.mg.sup == nil {
+			resp.Payload = &pb.RespEnvelope_RespWifiStatus{RespWifiStatus: &pb.WifiStatus{}}
+			break
+		}
+		resp.Payload = &pb.RespEnvelope_RespWifiStatus{RespWifiStatus: wifiStatus(lang)}
+
+	case *pb.ReqEnvelope_ReqJoinWifi:
 		if ch.mg.sup == nil {
 			resp.Error = true
 			resp.ErrorMessage = notAvailableHere(lang)
 			break
 		}
-		// DESTRUCTIVE to whatever network connection this device currently
-		// has — joining a new WiFi network drops any existing one. Handed
-		// off to network_setup.py the same way storage setup is; see
-		// network.RequestJoin's doc comment for why.
-		log.Debug("Request wifi join:", p.ReqSetWifi.Ssid)
-		err := network.RequestJoin(p.ReqSetWifi.Ssid, p.ReqSetWifi.Password)
-		if err != nil {
-			log.Error("error requesting wifi join:", err)
-			resp.Error = true
-			resp.ErrorMessage = errText(lang, err)
-		} else {
-			resp.Payload = &pb.RespEnvelope_RespAck{
-				RespAck: &pb.Ack{
-					Ok: true,
-				},
-			}
-		}
+		ch.joinWifi(p.ReqJoinWifi, resp, lang)
+
+	case *pb.ReqEnvelope_ReqSetWifi:
+		// Retired in release 140 (JoinWifi replaces it): it carried the
+		// Wi-Fi password in the clear. Answered as a request this build
+		// doesn't know - but here, not in default, which logs the
+		// request, password and all.
+		resp.Error = true
+		resp.ErrorCode = "unknown_payload"
+		resp.ErrorMessage = i18n.DevErrUnknownRequest().Render(lang)
 
 	case *pb.ReqEnvelope_ReqGetVapidPublicKey:
 		resp.Payload = &pb.RespEnvelope_RespVapidPublicKey{

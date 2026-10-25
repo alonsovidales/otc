@@ -30,6 +30,8 @@
 .du-card h2 { margin: 0 0 8px; font-size: 1.25rem; }
 .du-card p { margin: 0; color: var(--mist-dim); line-height: 1.5; }
 .du-note { margin-top: 12px !important; font-size: 0.9rem; }
+/* A secondary line: what to do when the device lost its Wi-Fi. */
+.du-hint { margin-top: 12px !important; font-size: 0.85rem; }
 
 /* The language picker, where the top bar has it (LanguagePicker.css). */
 .lpk.du-lang { position: absolute; top: 12px; right: 16px; }

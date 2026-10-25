@@ -194,7 +194,11 @@ var headEnglish = []struct {
 	{"dev.device.social_limit_too_low", i18n.DevDeviceSocialLimitTooLow(), "the limit must be at least 0.1 GB"},
 	{"dev.device.storage_too_many", i18n.DevDeviceStorageTooMany(3), fmt.Sprintf("choose at most 2 devices, got %d", 3)},
 	{"dev.device.unknown_log", i18n.DevDeviceUnknownLog("bogus"), fmt.Sprintf("unknown log %q", "bogus")},
-	{"dev.device.wifi_no_ssid", i18n.DevDeviceWifiNoSsid(), "ssid cannot be empty"},
+	// Settings > Wi-Fi (release 140): new, so their English is the
+	// catalog's from the start.
+	{"dev.device.wifi_not_managed", i18n.DevDeviceWifiNotManaged(), "This device's Wi-Fi can't be changed from Settings."},
+	{"dev.device.wifi_bad_name", i18n.DevDeviceWifiBadName(), "A Wi-Fi network name has 1 to 32 characters (accented letters and emoji count as two or more), without tabs or line breaks."},
+	{"dev.device.wifi_bad_password", i18n.DevDeviceWifiBadPassword(), "A Wi-Fi password has 8 to 63 characters (accented letters and some symbols count as two or three), or exactly 64 hexadecimal digits."},
 }
 
 // The catalog's English is the device's English as it was.
@@ -315,8 +319,8 @@ func replyCases(t *testing.T) []replyCase {
 			return &pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqSetupStorage{ReqSetupStorage: &pb.SetupStorage{DevicePaths: make([]string, 1200)}}}
 		}, errorMessage, "choose at most 2 devices, got 1200", i18n.DevDeviceStorageTooMany(1200).Render},
 		{"Wi-Fi without a name", primary, func() *pb.ReqEnvelope {
-			return &pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqSetWifi{ReqSetWifi: &pb.SetWifi{}}}
-		}, errorMessage, "ssid cannot be empty", i18n.DevDeviceWifiNoSsid().Render},
+			return &pb.ReqEnvelope{Payload: &pb.ReqEnvelope_ReqJoinWifi{ReqJoinWifi: &pb.JoinWifi{}}}
+		}, errorMessage, "A Wi-Fi network name has 1 to 32 characters (accented letters and emoji count as two or more), without tabs or line breaks.", i18n.DevDeviceWifiBadName().Render},
 		{"home network not known yet", owner, localEndpointReq, errorMessage,
 			"this device is still starting its home-network listener", i18n.DevDeviceLocalStarting().Render},
 		{"password change without a key", owner, func() *pb.ReqEnvelope {
