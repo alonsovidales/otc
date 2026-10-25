@@ -759,6 +759,13 @@ def describe_disks(disks):
         items.append(f"{name} {what}" + (f" ({extra})" if extra else ""))
     return "disks the Pi sees: " + "; ".join(items)
 
+def array_condition(state):
+    """mdadm's State without "clean"/"active", which only says whether a
+    write is under way and flips with every one ("clean, degraded" <->
+    "active, degraded"): what is left is what changed - "degraded",
+    "degraded, recovering", "resyncing", or "" for a whole, settled mirror."""
+    return ", ".join(w for w in (x.strip() for x in state.split(",")) if w and w not in ("clean", "active"))
+
 def describe_array(state, members, raid_disks=2):
     if not state and not members:
         return "mirror md0: not assembled"
@@ -766,7 +773,7 @@ def describe_array(state, members, raid_disks=2):
     for slot in range(max([raid_disks] + [k + 1 for k in members])):
         m = members.get(slot)
         slots.append(f"slot {slot} {m['device']} ({m['state']})" if m else f"slot {slot} empty")
-    return f"mirror md0: {state or 'unknown'}; " + "; ".join(slots)
+    return f"mirror md0: {array_condition(state) or ('in sync' if state else 'unknown')}; " + "; ".join(slots)
 
 # Kernel lines worth keeping: USB devices coming and going, the disks'
 # errors, the mirror's and the filesystem's own messages.
@@ -932,7 +939,8 @@ def main():
             members = detail.get("members", {})
             # Log only when the picture changes: this runs every poll_s,
             # and printing every time filled the journal on the SD card.
-            summary = (state, tuple(sorted((k, v.get("state")) for k, v in members.items())))
+            # Not the raw state: "clean"/"active" flip with every write.
+            summary = (array_condition(state), tuple(sorted((k, v.get("state")) for k, v in members.items())))
             changed[0] = summary != last_summary[0]
             last_summary[0] = summary
             log(describe_array(state, members) if array_present else "mirror md0: not assembled")
@@ -1164,7 +1172,13 @@ def selftest():
 
     # The mirror in one line, a missing slot included.
     said = describe_array("clean, degraded", {0: {"device": "/dev/sda", "state": "active sync"}})
-    assert said == "mirror md0: clean, degraded; slot 0 /dev/sda (active sync); slot 1 empty", said
+    assert said == "mirror md0: degraded; slot 0 /dev/sda (active sync); slot 1 empty", said
+    # A write under way changes nothing worth a line.
+    assert array_condition("active, degraded") == array_condition("clean, degraded") == "degraded"
+    assert array_condition("active, degraded, recovering") == "degraded, recovering"
+    assert array_condition("clean") == array_condition("active") == ""
+    both = {0: {"device": "/dev/sda", "state": "active sync"}, 1: {"device": "/dev/sdb", "state": "active sync"}}
+    assert describe_array("active", both) == "mirror md0: in sync; slot 0 /dev/sda (active sync); slot 1 /dev/sdb (active sync)"
 
     # The kernel's lines: only the disks', with their time, and the cursor.
     out = "\n".join([
